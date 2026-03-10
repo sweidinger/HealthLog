@@ -1,0 +1,568 @@
+"use client";
+
+import { useState, useEffect, useReducer } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { parseScheduleRecurrence } from "@/lib/medication-schedule";
+import { formatTimeWindowRange } from "@/lib/time-window-format";
+import { formatDateTime, formatTime } from "@/lib/format";
+import {
+  Check,
+  SkipForward,
+  Flame,
+  Pencil,
+  Loader2,
+  History,
+} from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "@/lib/i18n/context";
+
+interface Schedule {
+  id: string;
+  windowStart: string;
+  windowEnd: string;
+  label: string | null;
+  dose: string | null;
+  daysOfWeek: string | null;
+}
+
+interface Medication {
+  id: string;
+  name: string;
+  dose: string;
+  category: string;
+  active: boolean;
+  notificationsEnabled: boolean;
+  pausedAt: string | null;
+  lastTakenAt: string | null;
+  todayEventCount?: number;
+  schedules: Schedule[];
+}
+
+interface ComplianceData {
+  compliance7: {
+    totalExpected: number;
+    taken: number;
+    skipped: number;
+    missed: number;
+    rate: number;
+    streak: number;
+  };
+  compliance30: {
+    rate: number;
+  };
+}
+
+interface MedicationCardProps {
+  medication: Medication;
+  onEdit: (med: Medication) => void;
+}
+
+function parseTimeToMinutes(value: string): number {
+  const [h, m] = value.split(":").map(Number);
+  if (
+    !Number.isFinite(h) ||
+    !Number.isFinite(m) ||
+    h < 0 ||
+    h > 23 ||
+    m < 0 ||
+    m > 59
+  ) {
+    return 0;
+  }
+  return h * 60 + m;
+}
+
+function toBerlinDate(date: Date): Date {
+  return new Date(
+    date.toLocaleString("en-US", {
+      timeZone: "Europe/Berlin",
+    }),
+  );
+}
+
+function getNextOccurrenceTimestamp(
+  schedule: Schedule,
+  nowBerlin: Date,
+): number | null {
+  const recurrence = parseScheduleRecurrence(schedule.daysOfWeek);
+  const baseDay = new Date(nowBerlin);
+  baseDay.setHours(0, 0, 0, 0);
+
+  const nowMinutes = nowBerlin.getHours() * 60 + nowBerlin.getMinutes();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const baseWeekIndex = Math.floor(baseDay.getTime() / weekMs);
+  const startMinutes = parseTimeToMinutes(schedule.windowStart);
+
+  for (let offset = 0; offset <= 400; offset += 1) {
+    const candidate = new Date(baseDay);
+    candidate.setDate(baseDay.getDate() + offset);
+
+    const candidateWeekIndex = Math.floor(candidate.getTime() / weekMs);
+    const isAllowedWeek =
+      recurrence.intervalWeeks <= 1 ||
+      candidateWeekIndex % recurrence.intervalWeeks ===
+        baseWeekIndex % recurrence.intervalWeeks;
+    if (!isAllowedWeek) continue;
+
+    if (
+      recurrence.daysOfWeek.length > 0 &&
+      !recurrence.daysOfWeek.includes(candidate.getDay())
+    ) {
+      continue;
+    }
+
+    if (offset === 0 && startMinutes <= nowMinutes) {
+      continue;
+    }
+
+    return candidate.getTime() + startMinutes * 60 * 1000;
+  }
+
+  return null;
+}
+
+type MedicationWindowStatus = "in_window" | "late" | "very_late" | null;
+
+function getWindowStatus(
+  schedule: Schedule,
+  nowBerlin: Date,
+  lateMinutes: number,
+  missedMinutes: number,
+): MedicationWindowStatus {
+  const nowMins = nowBerlin.getHours() * 60 + nowBerlin.getMinutes();
+  const startMins = parseTimeToMinutes(schedule.windowStart);
+  let endMins = parseTimeToMinutes(schedule.windowEnd);
+
+  // Handle overnight windows
+  if (endMins <= startMins) endMins += 24 * 60;
+  const adjustedNow =
+    nowMins < startMins && endMins > 24 * 60 ? nowMins + 24 * 60 : nowMins;
+
+  // Currently in window
+  if (adjustedNow >= startMins && adjustedNow <= endMins) return "in_window";
+
+  // Past window end: check late thresholds
+  const minutesPastEnd = adjustedNow - endMins;
+  if (minutesPastEnd > 0 && minutesPastEnd <= lateMinutes) return "late";
+  if (minutesPastEnd > lateMinutes && minutesPastEnd <= missedMinutes)
+    return "very_late";
+
+  return null;
+}
+
+function isLastIntakeInCurrentWindow(
+  lastTakenAt: string | null,
+  schedule: Schedule,
+  nowBerlin: Date,
+): boolean {
+  if (!lastTakenAt) return false;
+
+  const intake = toBerlinDate(new Date(lastTakenAt));
+
+  // Must be same calendar day
+  if (
+    intake.getFullYear() !== nowBerlin.getFullYear() ||
+    intake.getMonth() !== nowBerlin.getMonth() ||
+    intake.getDate() !== nowBerlin.getDate()
+  ) {
+    return false;
+  }
+
+  const intakeMins = intake.getHours() * 60 + intake.getMinutes();
+  const startMins = parseTimeToMinutes(schedule.windowStart);
+  let endMins = parseTimeToMinutes(schedule.windowEnd);
+
+  // Handle overnight windows
+  if (endMins <= startMins) endMins += 24 * 60;
+  const adjustedIntake =
+    intakeMins < startMins && endMins > 24 * 60
+      ? intakeMins + 24 * 60
+      : intakeMins;
+
+  return adjustedIntake >= startMins && adjustedIntake <= endMins;
+}
+
+export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
+  const queryClient = useQueryClient();
+  const { t } = useTranslations();
+  const [intakeLoading, setIntakeLoading] = useState<string | null>(null);
+
+  const { data: compliance } = useQuery({
+    queryKey: ["medications", medication.id, "compliance"],
+    queryFn: async () => {
+      const res = await fetch(`/api/medications/${medication.id}/compliance`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data as ComplianceData;
+    },
+    staleTime: 30 * 1000,
+  });
+
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+
+  const { data: thresholds } = useQuery({
+    queryKey: ["settings", "reminder-thresholds"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings/reminder-thresholds");
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data as { lateMinutes: number; missedMinutes: number };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    const interval = setInterval(forceUpdate, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  async function recordIntake(skipped: boolean) {
+    const key = skipped ? "skip" : "take";
+    setIntakeLoading(key);
+    try {
+      const res = await fetch(`/api/medications/${medication.id}/intake`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skipped }),
+      });
+      if (res.ok) {
+        await queryClient.invalidateQueries({
+          queryKey: ["medications"],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["gamification", "achievements"],
+        });
+      }
+    } finally {
+      setIntakeLoading(null);
+    }
+  }
+
+  const rate7 = compliance?.compliance7.rate ?? 0;
+  const rate30 = compliance?.compliance30.rate ?? 0;
+  const streak = compliance?.compliance7.streak ?? 0;
+  const categoryLabels: Record<string, string> = {
+    BLOOD_PRESSURE: t("medications.categoryBloodPressure"),
+    VITAMIN: t("medications.categoryVitamin"),
+    SUPPLEMENT: t("medications.categorySupplement"),
+    PAIN_RELIEF: t("medications.categoryPainRelief"),
+    ALLERGY: t("medications.categoryAllergy"),
+    DIGESTIVE: t("medications.categoryDigestive"),
+    THYROID: t("medications.categoryThyroid"),
+    HORMONE: t("medications.categoryHormone"),
+    SKIN: t("medications.categorySkin"),
+    SLEEP_AID: t("medications.categorySleepAid"),
+    OTHER: t("medications.categoryOther"),
+  };
+  const categoryLabel =
+    categoryLabels[medication.category] ?? t("medications.categoryOther");
+  const sortedSchedules = [...medication.schedules].sort(
+    (a, b) =>
+      a.windowStart.localeCompare(b.windowStart) ||
+      a.windowEnd.localeCompare(b.windowEnd),
+  );
+  const nowBerlin = toBerlinDate(new Date());
+  const nextOccurrence =
+    sortedSchedules.length > 0
+      ? (sortedSchedules
+          .map((schedule) => ({
+            schedule,
+            nextAt: getNextOccurrenceTimestamp(schedule, nowBerlin),
+          }))
+          .filter((entry): entry is { schedule: Schedule; nextAt: number } =>
+            Number.isFinite(entry.nextAt),
+          )
+          .sort((a, b) => a.nextAt - b.nextAt)[0] ?? null)
+      : null;
+  const nextSchedule = nextOccurrence?.schedule ?? sortedSchedules[0] ?? null;
+
+  const lateMinutes = thresholds?.lateMinutes ?? 120;
+  const missedMinutes = thresholds?.missedMinutes ?? 240;
+
+  // Count schedules that are past their window (overdue today)
+  const passedScheduleCount = medication.active
+    ? sortedSchedules.filter((s) => {
+        const recurrence = parseScheduleRecurrence(s.daysOfWeek);
+        if (
+          recurrence.daysOfWeek.length > 0 &&
+          !recurrence.daysOfWeek.includes(nowBerlin.getDay())
+        ) {
+          return false;
+        }
+        const endMins = parseTimeToMinutes(s.windowEnd);
+        const nowMins = nowBerlin.getHours() * 60 + nowBerlin.getMinutes();
+        return nowMins > endMins;
+      }).length
+    : 0;
+
+  const todayEvents = medication.todayEventCount ?? 0;
+  const hasUncoveredOverdue = todayEvents < passedScheduleCount;
+
+  const currentWindowStatus = medication.active
+    ? sortedSchedules.reduce<{
+        status: MedicationWindowStatus;
+        schedule: Schedule | null;
+      }>(
+        (best, s) => {
+          const status = getWindowStatus(
+            s,
+            nowBerlin,
+            lateMinutes,
+            missedMinutes,
+          );
+          if (!status) return best;
+          // Don't show late/very_late if all overdue schedules are covered by events
+          if (status !== "in_window" && !hasUncoveredOverdue) return best;
+          // Don't show in_window if last intake is already within this window today
+          if (status === "in_window" && isLastIntakeInCurrentWindow(medication.lastTakenAt, s, nowBerlin)) return best;
+          const priority = { in_window: 3, late: 2, very_late: 1 };
+          if (!best.status || priority[status] > priority[best.status]) {
+            return { status, schedule: s };
+          }
+          return best;
+        },
+        { status: null, schedule: null },
+      )
+    : { status: null, schedule: null };
+
+  function formatLastTakenAt(value: string): string {
+    const dayFormatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Berlin",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const intakeDay = dayFormatter.format(new Date(value));
+    const todayDay = dayFormatter.format(now);
+    const yesterdayDay = dayFormatter.format(yesterday);
+    const time = formatTime(value);
+
+    if (intakeDay === todayDay) return `${t("medications.today")}, ${time}`;
+    if (intakeDay === yesterdayDay)
+      return `${t("medications.yesterday")}, ${time}`;
+    return formatDateTime(value);
+  }
+
+  return (
+    <Card className={medication.active ? "" : "opacity-60"}>
+      <CardHeader className="pb-2.5">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-lg">{medication.name}</CardTitle>
+            <div className="text-muted-foreground flex items-center gap-2 text-sm">
+              <span>{medication.dose}</span>
+              <Badge variant="outline" className="text-xs">
+                {categoryLabel}
+              </Badge>
+              {!medication.notificationsEnabled && (
+                <Badge variant="secondary" className="text-xs">
+                  {t("medications.withoutNotification")}
+                </Badge>
+              )}
+              {!medication.active && (
+                <Badge variant="secondary" className="text-xs">
+                  {medication.pausedAt
+                    ? `${t("medications.pausedSince")} ${formatDateTime(medication.pausedAt)}`
+                    : t("medications.inactive")}
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <Button variant="ghost" size="icon" className="h-8 w-8" asChild aria-label={t("medications.intakeHistory")}>
+              <Link href={`/medications/${medication.id}/history`}>
+                <History className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onEdit(medication)}
+              aria-label={t("common.edit")}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-3.5">
+        {/* Status, last & next intake info */}
+        {currentWindowStatus.status && (
+          <p className="text-sm">
+            <span
+              className={
+                currentWindowStatus.status === "in_window"
+                  ? "text-dracula-green font-medium"
+                  : currentWindowStatus.status === "late"
+                    ? "text-dracula-yellow font-medium"
+                    : "text-dracula-orange font-medium"
+              }
+            >
+              {currentWindowStatus.status === "in_window"
+                ? t("medications.takeNow")
+                : currentWindowStatus.status === "late"
+                  ? t("medications.overdue")
+                  : t("medications.veryOverdue")}
+            </span>
+            <span className="text-muted-foreground hidden sm:inline">
+              {" "}
+              —{" "}
+              {formatTimeWindowRange(
+                currentWindowStatus.schedule!.windowStart,
+                currentWindowStatus.schedule!.windowEnd,
+              )}
+            </span>
+          </p>
+        )}
+
+        {nextSchedule &&
+          currentWindowStatus.status !== "in_window" &&
+          (() => {
+            const s = nextSchedule;
+            const nextAt = nextOccurrence?.nextAt;
+
+            // Format day label relative to today
+            let dayLabel = "";
+            if (nextAt) {
+              const nextDate = toBerlinDate(new Date(nextAt));
+              const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
+              const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
+              const tomorrow = new Date(nowBerlin);
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
+
+              const diffDays = Math.round(
+                (nextDate.getTime() - nowBerlin.getTime()) /
+                  (24 * 60 * 60 * 1000),
+              );
+
+              if (nextStr === todayStr) {
+                dayLabel = t("medications.today");
+              } else if (nextStr === tomorrowStr) {
+                dayLabel = t("medications.tomorrow");
+              } else if (diffDays <= 5) {
+                const weekdayLabels = [
+                  t("medications.weekdaySunday"),
+                  t("medications.weekdayMonday"),
+                  t("medications.weekdayTuesday"),
+                  t("medications.weekdayWednesday"),
+                  t("medications.weekdayThursday"),
+                  t("medications.weekdayFriday"),
+                  t("medications.weekdaySaturday"),
+                ];
+                dayLabel = weekdayLabels[nextDate.getDay()];
+              } else {
+                dayLabel = nextDate.toLocaleDateString("de-DE", {
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                });
+              }
+            }
+
+            return (
+              <p className="text-muted-foreground text-sm">
+                <span className="font-medium">
+                  {t("medications.nextIntake")}
+                </span>{" "}
+                {dayLabel && `${dayLabel}, `}
+                {formatTimeWindowRange(s.windowStart, s.windowEnd)}
+                {s.label && (
+                  <span className="hidden sm:inline"> ({s.label})</span>
+                )}
+                {s.dose && (
+                  <span className="hidden font-medium text-purple-400 sm:inline">
+                    {" "}
+                    — {s.dose}
+                  </span>
+                )}
+              </p>
+            );
+          })()}
+
+        {medication.lastTakenAt && (
+          <p className="text-muted-foreground text-sm">
+            <span className="font-medium">{t("medications.lastIntake")}</span>{" "}
+            {formatLastTakenAt(medication.lastTakenAt)}
+          </p>
+        )}
+
+        {/* Compliance bar */}
+        {medication.active && compliance && (
+          <div className="space-y-2.5">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {t("medications.compliance7d")}
+                </span>
+                <span className="font-medium">{rate7}%</span>
+              </div>
+              <Progress value={rate7} className="h-2" />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {t("medications.compliance30d")}
+                </span>
+                <span className="font-medium">{rate30}%</span>
+              </div>
+              <Progress value={rate30} className="h-2" />
+            </div>
+
+            <div className="flex items-center gap-4 text-xs">
+              {streak > 0 && (
+                <span className="flex items-center gap-1 font-medium text-orange-400">
+                  <Flame className="h-3.5 w-3.5" />
+                  {streak} {t("medications.dayStreak")}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Quick actions */}
+        {medication.active && (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1"
+              onClick={() => recordIntake(false)}
+              disabled={!!intakeLoading}
+            >
+              {intakeLoading === "take" ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Check className="mr-1 h-3.5 w-3.5" />
+              )}
+              {t("medications.taken")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => recordIntake(true)}
+              disabled={!!intakeLoading}
+            >
+              {intakeLoading === "skip" ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <SkipForward className="mr-1 h-3.5 w-3.5" />
+              )}
+              {t("medications.skipped")}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

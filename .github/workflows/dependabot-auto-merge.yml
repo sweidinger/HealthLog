@@ -1,0 +1,33 @@
+name: Auto-merge Dependabot
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm db:generate
+
+      - run: pnpm test
+
+      - run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

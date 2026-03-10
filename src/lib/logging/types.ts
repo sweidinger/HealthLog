@@ -1,0 +1,118 @@
+/** Log-Levels in aufsteigender Schwere */
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
+/** Numerische Prioritaet fuer Level-Vergleiche */
+export const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+};
+
+/** Typ der Operation: HTTP-Request oder Hintergrundaufgabe */
+export type EventKind = "http" | "background";
+
+/**
+ * Das zentrale Wide-Event-Schema.
+ * Ein einzelnes JSON-Objekt pro Request/Operation mit allen relevanten Dimensionen.
+ */
+export interface WideEvent {
+  // Kern-Metadaten
+  timestamp: string;
+  duration_ms: number;
+  request_id: string;
+  trace_id: string;
+  level: LogLevel;
+  kind: EventKind;
+  service: string;
+  environment: string;
+
+  // Deployment/Runtime-Kontext (einmal beim Start erfasst)
+  deploy?: {
+    commit_hash?: string;
+    version?: string;
+    node_version?: string;
+    hostname?: string;
+  };
+
+  // HTTP-Request-Daten (nur bei kind === "http")
+  http?: {
+    method: string;
+    path: string;
+    route: string;
+    status: number;
+    user_agent?: string;
+    ip?: string;
+    content_length?: number;
+    response_size?: number;
+  };
+
+  // Authentifizierung / Benutzer
+  auth?: {
+    user_id?: string;
+    user_role?: string;
+    auth_method?: "session" | "api_key" | "cron_secret" | "telegram_webhook" | "webhook_secret";
+  };
+
+  // Business-Daten (was wurde getan)
+  action?: {
+    name: string;
+    entity_id?: string;
+    entity_type?: string;
+    details?: Record<string, unknown>;
+  };
+
+  // Datenbank-Metriken
+  db?: {
+    query_count: number;
+    query_duration_ms: number;
+  };
+
+  // Externe Aufrufe (Telegram, Webhooks, etc.)
+  external_calls?: Array<{
+    service: string;
+    method: string;
+    duration_ms: number;
+    status?: number;
+    error?: string;
+  }>;
+
+  // Hintergrundaufgabe (nur bei kind === "background")
+  background?: {
+    task_name: string;
+    result?: Record<string, unknown>;
+  };
+
+  // Fehler-Details
+  error?: {
+    type: string;
+    code?: string | number;
+    message: string;
+    stack?: string;
+  };
+
+  // Warnungen (gesammelt waehrend der Ausfuehrung)
+  warnings?: string[];
+
+  // Rate-Limiting
+  rate_limit?: {
+    key: string;
+    allowed: boolean;
+    remaining: number;
+  };
+
+  // Freie Zusatzfelder
+  meta?: Record<string, unknown>;
+}
+
+/** Konfiguration fuer das Logging-System */
+export interface LoggingConfig {
+  level: LogLevel;
+  lokiEndpoint?: string;
+  lokiUsername?: string;
+  lokiPassword?: string;
+  sampleRate: number;
+  slowThresholdMs: number;
+  includeStackTrace: boolean;
+  prettyPrint: boolean;
+}

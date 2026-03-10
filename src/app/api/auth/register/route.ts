@@ -1,0 +1,109 @@
+import { prisma } from "@/lib/db";
+import { registerSchema } from "@/lib/validations/auth";
+import { hashPassword, checkPasswordStrength } from "@/lib/auth/password";
+import { createSession } from "@/lib/auth/session";
+import { auditLog } from "@/lib/auth/audit";
+import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { ensureDbCompatibility } from "@/lib/db-compat";
+import { NextRequest, NextResponse } from "next/server";
+import { apiHandler } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+
+export const POST = apiHandler(async (request: NextRequest) => {
+  const ip = getClientIp(request) ?? "unknown";
+  const rl = await checkRateLimit(`auth:register:${ip}`, 5, 15 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      {
+        data: null,
+        error:
+          "Zu viele Registrierungsversuche. Bitte später erneut versuchen.",
+      },
+      { status: 429, headers: rateLimitHeaders(rl) },
+    );
+  }
+
+  await ensureDbCompatibility();
+
+  const userCount = await prisma.user.count();
+
+  // Check if registration is enabled.
+  // Safety valve: when there are zero users, always allow bootstrap registration.
+  let registrationEnabled = true;
+  try {
+    const settings = await prisma.appSettings.findUnique({
+      where: { id: "singleton" },
+    });
+    if (settings && !settings.registrationEnabled && userCount > 0) {
+      registrationEnabled = false;
+    }
+  } catch {
+    // Table may not exist yet; allow registration
+  }
+  if (!registrationEnabled) {
+    return apiError("Registrierung ist deaktiviert", 403);
+  }
+
+  const { data: body, error: jsonError } = await safeJson(request);
+
+  if (jsonError) return jsonError;
+  const parsed = registerSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return apiError(parsed.error.issues[0].message, 422);
+  }
+
+  const { email, username, password } = parsed.data;
+
+  // Check if email or username already taken (unified message to prevent enumeration)
+  const [existingEmail, existingUsername] = await Promise.all([
+    prisma.user.findUnique({ where: { email } }),
+    prisma.user.findUnique({ where: { username } }),
+  ]);
+  if (existingEmail || existingUsername) {
+    return apiError("Benutzername oder E-Mail-Adresse bereits vergeben", 409);
+  }
+
+  // Validate password strength
+  const strength = checkPasswordStrength(password, [username, email]);
+  if (!strength.isAcceptable) {
+    return apiError(
+      strength.feedback[0] || "Passwort zu schwach (Score < 3)",
+      422,
+    );
+  }
+  const passwordHash = await hashPassword(password);
+
+  // First user becomes admin
+  const role = userCount === 0 ? "ADMIN" : "USER";
+
+  // Create user
+  const user = await prisma.user.create({
+    data: {
+      email,
+      username,
+      passwordHash,
+      role,
+    },
+  });
+
+  // Create session immediately
+  const ua = request.headers.get("user-agent");
+  await createSession(user.id, ip, ua);
+
+  await auditLog("auth.register", {
+    userId: user.id,
+    ipAddress: ip,
+    details: { method: "password" },
+  });
+
+  annotate({ action: { name: "auth.register" } });
+
+  return apiSuccess(
+    {
+      user: { id: user.id, username: user.username, email: user.email },
+    },
+    201,
+  );
+});

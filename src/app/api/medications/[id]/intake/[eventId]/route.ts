@@ -1,0 +1,102 @@
+import { prisma } from "@/lib/db";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import { updateIntakeEventSchema } from "@/lib/validations/medication";
+import { NextRequest } from "next/server";
+
+type RouteParams = { params: Promise<{ id: string; eventId: string }> };
+
+export const PUT = apiHandler(async (request: NextRequest, { params }: RouteParams) => {
+  const { user } = await requireAuth();
+
+  const { id, eventId } = await params;
+
+  const event = await prisma.medicationIntakeEvent.findUnique({
+    where: { id: eventId },
+  });
+
+  if (
+    !event ||
+    event.userId !== user.id ||
+    event.medicationId !== id
+  ) {
+    return apiError("Einnahme nicht gefunden", 404);
+  }
+
+  const { data: body, error: jsonError } = await safeJson(request);
+
+  if (jsonError) return jsonError;
+  const parsed = updateIntakeEventSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError(parsed.error.issues[0].message, 422);
+  }
+
+  const data = parsed.data;
+  const updated = await prisma.medicationIntakeEvent.update({
+    where: { id: eventId },
+    data: {
+      ...(data.takenAt !== undefined && { takenAt: data.takenAt }),
+      ...(data.skipped !== undefined && { skipped: data.skipped }),
+      ...(data.scheduledFor !== undefined && {
+        scheduledFor: data.scheduledFor,
+      }),
+    },
+  });
+
+  await auditLog("medication.intake.update", {
+    userId: user.id,
+    ipAddress: getClientIp(request),
+    details: { eventId, medicationId: id },
+  });
+
+  annotate({
+    action: {
+      name: "medication.intake.update",
+      entity_type: "intake_event",
+      entity_id: eventId,
+    },
+    meta: { medication_id: id },
+  });
+
+  return apiSuccess(updated);
+});
+
+export const DELETE = apiHandler(async (request: NextRequest, { params }: RouteParams) => {
+  const { user } = await requireAuth();
+
+  const { id, eventId } = await params;
+
+  const event = await prisma.medicationIntakeEvent.findUnique({
+    where: { id: eventId },
+  });
+
+  if (
+    !event ||
+    event.userId !== user.id ||
+    event.medicationId !== id
+  ) {
+    return apiError("Einnahme nicht gefunden", 404);
+  }
+
+  await prisma.medicationIntakeEvent.delete({ where: { id: eventId } });
+
+  const ip = getClientIp(request) ?? "unknown";
+  await auditLog("medication.intake.delete", {
+    userId: user.id,
+    ipAddress: ip,
+    details: { eventId, medicationId: id },
+  });
+
+  annotate({
+    action: {
+      name: "medication.intake.delete",
+      entity_type: "intake_event",
+      entity_id: eventId,
+    },
+    meta: { medication_id: id },
+  });
+
+  return apiSuccess({ deleted: true });
+});

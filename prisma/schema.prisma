@@ -1,0 +1,486 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── User & Auth ───────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String?  @unique
+  passwordHash String?  @map("password_hash") // argon2id, optional fallback
+  role      String   @default("USER") // "ADMIN" | "USER"
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Profile
+  heightCm    Float?    @map("height_cm")
+  dateOfBirth DateTime? @map("date_of_birth")
+  gender      String?   @map("gender") // "MALE" | "FEMALE" | null = keine Angabe
+  timezone    String    @default("Europe/Berlin")
+
+  // OpenAI Insights (optional)
+  openaiKeyEncrypted  String?  @map("openai_key_encrypted") // AES-256-GCM encrypted
+  insightsPrivacyMode String   @default("aggregated") @map("insights_privacy_mode") // "aggregated" | "raw"
+  insightsCachedAt    DateTime? @map("insights_cached_at")
+  insightsCachedText  String?  @map("insights_cached_text") // cached JSON output
+
+  // Telegram notifications (per-user)
+  telegramBotToken  String?  @map("telegram_bot_token")   // AES-256-GCM encrypted
+  telegramChatId    String?  @map("telegram_chat_id")
+  telegramEnabled   Boolean  @default(false) @map("telegram_enabled")
+
+  // Withings OAuth credentials (per-user, encrypted)
+  withingsClientIdEncrypted     String? @map("withings_client_id_encrypted")
+  withingsClientSecretEncrypted String? @map("withings_client_secret_encrypted")
+
+  // moodLog integration (per-user, encrypted)
+  moodLogUrlEncrypted    String? @map("mood_log_url_encrypted")
+  moodLogApiKeyEncrypted String? @map("mood_log_api_key_encrypted")
+  moodLogEnabled         Boolean @default(false) @map("mood_log_enabled")
+  moodLogLastSyncedAt    DateTime? @map("mood_log_last_synced_at")
+  moodLogWebhookSecret   String? @map("mood_log_webhook_secret")
+
+  // Locale (null = use system/admin default)
+  locale    String?  @map("locale") // "de" | "en" | null
+
+  // Onboarding
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+
+  // Relations
+  passkeys    Passkey[]
+  sessions    Session[]
+  challenges  AuthChallenge[]
+  measurements Measurement[]
+  medications  Medication[]
+  intakeEvents MedicationIntakeEvent[]
+  apiTokens   ApiToken[]
+  auditLogs   AuditLog[]
+  withingsConnection WithingsConnection?
+  moodEntries  MoodEntry[]
+  notificationChannels NotificationChannel[]
+  pushSubscriptions    PushSubscription[]
+  dataBackups          DataBackup[]
+  achievements         UserAchievement[]
+
+  @@map("users")
+}
+
+model Passkey {
+  id                  String   @id @default(cuid())
+  userId              String   @map("user_id")
+  name                String   @default("Passkey")
+  credentialId        String   @unique @map("credential_id")
+  credentialPublicKey Bytes    @map("credential_public_key")
+  counter             BigInt   @default(0)
+  credentialDeviceType String  @map("credential_device_type")
+  credentialBackedUp  Boolean  @default(false) @map("credential_backed_up")
+  transports          String[] // e.g. ["usb", "ble", "nfc", "internal"]
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("passkeys")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model AuthChallenge {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id") // null for registration
+  challenge String
+  type      String   // "registration" | "authentication"
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("auth_challenges")
+}
+
+// ─── Measurements ──────────────────────────────────────────
+
+enum MeasurementType {
+  WEIGHT
+  BLOOD_PRESSURE_SYS
+  BLOOD_PRESSURE_DIA
+  PULSE
+  BODY_FAT
+  SLEEP_DURATION
+  ACTIVITY_STEPS
+
+  @@map("measurement_type")
+}
+
+enum MeasurementSource {
+  MANUAL
+  WITHINGS
+  IMPORT
+
+  @@map("measurement_source")
+}
+
+model Measurement {
+  id         String            @id @default(cuid())
+  userId     String            @map("user_id")
+  type       MeasurementType
+  value      Float
+  unit       String            // kg, mmHg, bpm, %, hours, steps
+  source     MeasurementSource @default(MANUAL)
+  measuredAt DateTime          @map("measured_at")
+  notes      String?           // encrypted at app level if sensitive
+  externalId String?           @map("external_id") // Withings grpid for dedup
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, measuredAt, source])
+  @@index([userId, type, measuredAt])
+  @@index([externalId])
+  @@map("measurements")
+}
+
+// ─── Medications ───────────────────────────────────────────
+
+model Medication {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String
+  dose      String   // e.g. "10mg"
+  active    Boolean  @default(true)
+  notificationsEnabled Boolean @default(true) @map("notifications_enabled")
+  pausedAt     DateTime? @map("paused_at")
+  snoozedUntil DateTime? @map("snoozed_until")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  schedules    MedicationSchedule[]
+  intakeEvents MedicationIntakeEvent[]
+  phaseConfig        ReminderPhaseConfig?
+  telegramMessages   TelegramReminderMessage[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("medications")
+}
+
+model MedicationSchedule {
+  id           String  @id @default(cuid())
+  medicationId String  @map("medication_id")
+  windowStart  String  // HH:mm format, e.g. "08:00"
+  windowEnd    String  // HH:mm format, e.g. "10:00"
+  label        String? // e.g. "Morning", "Evening"
+  dose         String? // Per-schedule dose override; null = use Medication.dose
+  daysOfWeek   String? @map("days_of_week") // Comma-separated day numbers (0=Sun..6=Sat), null = daily
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  telegramMessages TelegramReminderMessage[]
+
+  @@map("medication_schedules")
+}
+
+enum IntakeSource {
+  WEB
+  API
+  REMINDER
+  IMPORT
+
+  @@map("intake_source")
+}
+
+enum ReminderPhase {
+  GREEN
+  YELLOW
+  ORANGE
+  RED
+
+  @@map("reminder_phase")
+}
+
+enum PhaseMode {
+  MINUTES
+  PERCENT
+
+  @@map("phase_mode")
+}
+
+model MedicationIntakeEvent {
+  id             String       @id @default(cuid())
+  userId         String       @map("user_id")
+  medicationId   String       @map("medication_id")
+  scheduledFor   DateTime     @map("scheduled_for")
+  takenAt        DateTime?    @map("taken_at")
+  skipped        Boolean      @default(false)
+  source         IntakeSource @default(WEB)
+  idempotencyKey String?      @unique @map("idempotency_key")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, medicationId, scheduledFor])
+  @@map("medication_intake_events")
+}
+
+model ReminderPhaseConfig {
+  id           String    @id @default(cuid())
+  medicationId String    @unique @map("medication_id")
+  greenValue   Int       @default(60) @map("green_value")
+  greenMode    PhaseMode @default(MINUTES) @map("green_mode")
+  yellowValue  Int       @default(30) @map("yellow_value")
+  yellowMode   PhaseMode @default(MINUTES) @map("yellow_mode")
+  orangeValue  Int       @default(0) @map("orange_value")
+  orangeMode   PhaseMode @default(MINUTES) @map("orange_mode")
+  redValue     Int       @default(240) @map("red_value")
+  redMode      PhaseMode @default(MINUTES) @map("red_mode")
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  @@map("reminder_phase_configs")
+}
+
+model TelegramReminderMessage {
+  id           String        @id @default(cuid())
+  medicationId String        @map("medication_id")
+  scheduleId   String        @map("schedule_id")
+  chatId       String        @map("chat_id")
+  messageId    Int           @map("message_id")
+  phase        ReminderPhase
+  sentAt       DateTime      @default(now()) @map("sent_at")
+  date         String        // YYYY-MM-DD for day grouping
+
+  medication Medication         @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  schedule   MedicationSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([medicationId, scheduleId, date, phase])
+  @@index([medicationId, date])
+  @@map("telegram_reminder_messages")
+}
+
+model TelegramScheduledDeletion {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  chatId      String   @map("chat_id")
+  messageId   Int      @map("message_id")
+  deleteAfter DateTime @map("delete_after")
+
+  @@index([deleteAfter])
+  @@map("telegram_scheduled_deletions")
+}
+
+// ─── API Tokens (for external ingest) ──────────────────────
+
+model ApiToken {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  name        String
+  tokenHash   String   @unique @map("token_hash") // SHA-256 of the token
+  permissions String[] @default(["medication:ingest"])
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  revoked     Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_tokens")
+}
+
+// ─── Withings ──────────────────────────────────────────────
+
+model WithingsConnection {
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  withingsUserId String   @map("withings_user_id")
+  accessToken    String   @map("access_token")  // encrypted at app level
+  refreshToken   String   @map("refresh_token") // encrypted at app level
+  tokenExpiresAt DateTime @map("token_expires_at")
+  lastSyncedAt   DateTime? @map("last_synced_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("withings_connections")
+}
+
+// ─── Mood Entries (moodLog) ───────────────────────────────────
+
+model MoodEntry {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  date         String   // YYYY-MM-DD
+  mood         String   // SUPER_GUT, GUT, OKAY, SCHLECHT, LAUSIG
+  score        Int      // 1-5
+  tags         String?  // JSON array of tag keys
+  source       String   @default("MOODLOG") // WEB, TELEGRAM, DAYLIO
+  moodLoggedAt DateTime @map("mood_logged_at")
+  syncedAt     DateTime @default(now()) @map("synced_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, moodLoggedAt])
+  @@index([userId, date])
+  @@map("mood_entries")
+}
+
+// ─── App Settings ─────────────────────────────────────────
+
+model AppSettings {
+  id                  String  @id @default("singleton")
+  registrationEnabled Boolean @default(true) @map("registration_enabled")
+  defaultLocale       String  @default("de") @map("default_locale") // "de" | "en"
+  telegramGlobal      Boolean @default(true) @map("telegram_global") // global toggle
+  ntfyGlobal          Boolean @default(true) @map("ntfy_global")     // global toggle
+  webPushGlobal       Boolean @default(true) @map("web_push_global") // global toggle
+  webPushVapidPublicKey String? @map("web_push_vapid_public_key")
+  webPushVapidPrivateKeyEncrypted String? @map("web_push_vapid_private_key_encrypted")
+  webPushVapidSubject String? @map("web_push_vapid_subject")
+  apiGlobal           Boolean @default(true) @map("api_global")      // global toggle
+  moodLogGlobal       Boolean @default(true) @map("mood_log_global")
+  umamiEnabled        Boolean @default(false) @map("umami_enabled")
+  umamiScriptUrl      String? @map("umami_script_url")
+  umamiWebsiteId      String? @map("umami_website_id")
+  glitchtipEnabled    Boolean @default(false) @map("glitchtip_enabled")
+  glitchtipDsn        String? @map("glitchtip_dsn")
+  glitchtipEnvironment String? @map("glitchtip_environment")
+  githubIssueTokenEncrypted String? @map("github_issue_token_encrypted")
+  githubIssueRepo     String? @map("github_issue_repo")
+
+  // Medication reminder thresholds (minutes after windowEnd)
+  reminderLateMinutes     Int @default(120) @map("reminder_late_minutes")
+  reminderMissedMinutes   Int @default(240) @map("reminder_missed_minutes")
+
+  @@map("app_settings")
+}
+
+// ─── Audit Log ─────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String   // e.g. "auth.login", "measurement.create", "export.csv"
+  details   String?  // JSON string, no sensitive data
+  ipAddress String?  @map("ip_address")
+  location  String?  // e.g. "Berlin, DE" — resolved from IP at log time
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+// ─── Notification System ──────────────────────────────────────
+
+model NotificationChannel {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  type      String   // "TELEGRAM" | "NTFY" | "WEB_PUSH"
+  enabled   Boolean  @default(true)
+  config    String   // AES-256-GCM encrypted JSON (channel-specific config)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferences NotificationPreference[]
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("notification_channels")
+}
+
+model NotificationPreference {
+  id        String  @id @default(cuid())
+  channelId String  @map("channel_id")
+  eventType String  @map("event_type") // "MEDICATION_REMINDER" | "MEASUREMENT_ANOMALY" | etc.
+  enabled   Boolean @default(true)
+
+  channel NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, eventType])
+  @@map("notification_preferences")
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  endpoint  String
+  p256dh    String   // encrypted
+  auth      String   // encrypted
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// ─── Data Backups ────────────────────────────────────────────
+
+model DataBackup {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  type      String   @default("WEEKLY_AUTO") // WEEKLY_AUTO, MANUAL
+  data      String   // JSON export blob
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type], map: "data_backups_user_id_type_key")
+  @@index([userId])
+  @@map("data_backups")
+}
+
+// ─── Rate Limiting ──────────────────────────────────────────
+
+model RateLimit {
+  key     String   @id
+  count   Int      @default(1)
+  resetAt DateTime @map("reset_at")
+
+  @@index([resetAt])
+  @@map("rate_limits")
+}
+
+// ─── User Achievements ───────────────────────────────────────
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  achievementId String   @map("achievement_id")
+  unlockedAt    DateTime @map("unlocked_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@map("user_achievements")
+}
