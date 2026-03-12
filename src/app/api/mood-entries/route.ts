@@ -113,7 +113,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
       return apiError(
-        "Ein Stimmungseintrag mit diesen Daten existiert bereits",
+        "A mood entry with this data already exists",
         409,
       );
     }

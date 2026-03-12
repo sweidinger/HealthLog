@@ -16,7 +16,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const rl = await checkRateLimit(`doctor-report:${user.id}`, 10, 60 * 60 * 1000);
   if (!rl.allowed) {
-    return apiError("Maximal 10 Reports pro Stunde", 429);
+    return apiError("Maximum 10 reports per hour", 429);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);

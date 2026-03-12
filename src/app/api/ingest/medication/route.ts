@@ -19,7 +19,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   annotate({ action: { name: "ingest.medication" } });
 
   if (!(await isApiGloballyEnabled())) {
-    return apiError("API ist global deaktiviert", 403);
+    return apiError("API is globally disabled", 403);
   }
 
   const ip = getClientIp(request);
@@ -109,12 +109,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   if (!medication) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   const medicationScope = `medication:${medication.id}:ingest`;
   if (!apiToken.permissions.includes(medicationScope)) {
-    return apiError("API-Endpoint fuer dieses Medikament ist deaktiviert", 403);
+    return apiError("API endpoint for this medication is disabled", 403);
   }
 
   const event = await prisma.medicationIntakeEvent.create({

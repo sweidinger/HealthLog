@@ -17,13 +17,13 @@ function medicationScope(medicationId: string): string {
 export const GET = apiHandler(async (_request: NextRequest, { params }: RouteParams) => {
   const { user } = await requireAuth();
   if (!(await isApiGloballyEnabled())) {
-    return apiError("API ist global deaktiviert", 403);
+    return apiError("API is globally disabled", 403);
   }
 
   const { id } = await params;
   const medication = await prisma.medication.findUnique({ where: { id } });
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   const scope = medicationScope(id);
@@ -56,13 +56,13 @@ export const GET = apiHandler(async (_request: NextRequest, { params }: RoutePar
 export const PUT = apiHandler(async (request: NextRequest, { params }: RouteParams) => {
   const { user } = await requireAuth();
   if (!(await isApiGloballyEnabled())) {
-    return apiError("API ist global deaktiviert", 403);
+    return apiError("API is globally disabled", 403);
   }
 
   const { id } = await params;
   const medication = await prisma.medication.findUnique({ where: { id } });
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   let enabled = false;
@@ -70,7 +70,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: RoutePara
     const body = await request.json();
     enabled = body?.enabled === true;
   } catch {
-    return apiError("Ungültige Anfrage", 422);
+    return apiError("Invalid request", 422);
   }
 
   const scope = medicationScope(id);

@@ -51,17 +51,7 @@ import { toast } from "sonner";
 import { useTranslations } from "@/lib/i18n/context";
 import { PhaseConfigDialog } from "@/components/medications/phase-config-dialog";
 
-const DOSE_UNITS = [
-  "mg",
-  "g",
-  "ml",
-  "Tropfen",
-  "Tablette(n)",
-  "Kapsel(n)",
-  "Stück",
-  "IE",
-  "µg",
-] as const;
+// DOSE_UNITS built dynamically via t() in the component
 
 type TranslateFn = (
   key: string,
@@ -245,6 +235,16 @@ export function MedicationForm({
 }: MedicationFormProps) {
   const queryClient = useQueryClient();
   const { t } = useTranslations();
+
+  const doseUnits = [
+    "mg", "g", "ml",
+    t("medications.unitDrops"),
+    t("medications.unitTablets"),
+    t("medications.unitCapsules"),
+    t("medications.unitPieces"),
+    "IE", "µg",
+  ];
+
   const [name, setName] = useState(initial?.name ?? "");
 
   const initialDose = parseDose(initial?.dose ?? "");
@@ -449,7 +449,7 @@ export function MedicationForm({
           id="med-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="z.B. Ibuprofen"
+          placeholder={t("medications.namePlaceholder")}
           required
           maxLength={100}
         />
@@ -508,7 +508,7 @@ export function MedicationForm({
             inputMode="decimal"
             value={doseAmount}
             onChange={(e) => setDoseAmount(e.target.value)}
-            placeholder="z.B. 400"
+            placeholder={t("medications.dosePlaceholder")}
             required
             maxLength={20}
           />
@@ -527,7 +527,7 @@ export function MedicationForm({
         </div>
       </div>
       <datalist id="dose-units">
-        {DOSE_UNITS.map((u) => (
+        {doseUnits.map((u) => (
           <option key={u} value={u} />
         ))}
       </datalist>
@@ -641,7 +641,7 @@ export function MedicationForm({
                   value={s.label}
                   className="h-8 text-xs md:text-xs"
                   onChange={(e) => updateSchedule(i, "label", e.target.value)}
-                  placeholder="z.B. Morgens"
+                  placeholder={t("medications.labelPlaceholder")}
                   maxLength={50}
                 />
               </div>
@@ -653,7 +653,7 @@ export function MedicationForm({
                   value={s.dose}
                   className="h-8 text-xs md:text-xs"
                   onChange={(e) => updateSchedule(i, "dose", e.target.value)}
-                  placeholder={dose || "Standard"}
+                  placeholder={dose || t("medications.defaultDose")}
                   maxLength={50}
                 />
               </div>
@@ -721,8 +721,8 @@ export function MedicationForm({
                           }`}
                           title={
                             s.daysOfWeek.includes(dayIndex)
-                              ? `${label} deaktivieren`
-                              : `${label} aktivieren`
+                              ? t("medications.dayDeactivate", { day: label })
+                              : t("medications.dayActivate", { day: label })
                           }
                         >
                           {label}

@@ -17,11 +17,11 @@ export const EVENT_TYPES = [
 export type EventType = (typeof EVENT_TYPES)[number];
 
 export const EVENT_TYPE_LABELS: Record<EventType, string> = {
-  MEDICATION_REMINDER: "Medikamenten-Erinnerung",
-  MEASUREMENT_ANOMALY: "Anomale Messwerte",
-  COMPLIANCE_LOW: "Niedrige Einnahmetreue",
-  WITHINGS_SYNC_FAILED: "Withings-Sync-Fehler",
-  SYSTEM_ALERT: "System-Hinweise",
+  MEDICATION_REMINDER: "Medication reminder",
+  MEASUREMENT_ANOMALY: "Anomalous measurements",
+  COMPLIANCE_LOW: "Low compliance",
+  WITHINGS_SYNC_FAILED: "Withings sync failed",
+  SYSTEM_ALERT: "System alerts",
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {

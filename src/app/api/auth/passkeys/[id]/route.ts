@@ -18,7 +18,7 @@ export const DELETE = apiHandler(async (
   });
 
   if (!passkey || passkey.userId !== user.id) {
-    return apiError("Passkey nicht gefunden", 404);
+    return apiError("Passkey not found", 404);
   }
 
   // Check: at least 1 auth method must remain
@@ -29,7 +29,7 @@ export const DELETE = apiHandler(async (
 
   if (passkeyCount <= 1 && !hasPassword) {
     return apiError(
-      "Kann nicht gelöscht werden — es muss mindestens eine Anmeldemethode bestehen bleiben",
+      "Cannot delete — at least one authentication method must remain",
       400,
     );
   }

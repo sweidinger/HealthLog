@@ -103,7 +103,7 @@ export async function requireAuth(): Promise<{
     : never;
 }> {
   const sessionData = await getSession();
-  if (!sessionData) throw new HttpError(401, "Nicht angemeldet");
+  if (!sessionData) throw new HttpError(401, "Not authenticated");
 
   const evt = getEvent();
   if (evt) {
@@ -131,7 +131,7 @@ export async function requireAdmin(): Promise<{
 }> {
   const sessionData = await requireAuth();
   if (sessionData.user.role !== "ADMIN") {
-    throw new HttpError(403, "Nur Admins erlaubt");
+    throw new HttpError(403, "Admin access required");
   }
   return sessionData;
 }

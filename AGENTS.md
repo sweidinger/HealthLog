@@ -77,7 +77,8 @@ src/
 │   ├── notifications/page.tsx    # Notification preferences matrix
 │   ├── onboarding/page.tsx       # 4-step guided onboarding
 │   ├── settings/page.tsx         # All settings (13 sections, ~2100 lines)
-│   ├── zielwerte/page.tsx        # Target values dashboard
+│   ├── mood/page.tsx             # Mood tracking
+│   ├── targets/page.tsx          # Target values dashboard
 │   └── api/                      # ~60 API route files (see docs/api.md)
 │       ├── mood-entries/         # Mood CRUD
 │       ├── import/               # JSON data import
@@ -128,10 +129,10 @@ docs.healthlog.dev                # External documentation site
 
 ## Key Conventions
 
-- **UI language is German**. All user-facing text in German. Code, comments, docs in English.
+- **Default locale is English**. All code-level strings in English. UI text via i18n (`t()` calls) with German + English translations.
 - **i18n**: Use `useTranslations()` hook → `t("section.key")`. Supports parameter interpolation: `t("key", { count: 5 })`. Messages in `messages/de.json` + `messages/en.json`.
 - **API response format**: Always `{ data, error, meta }` via `apiSuccess(data)` / `apiError(message, status)` from `src/lib/api-response.ts`.
-- **Auth check pattern**: `const session = await getSession(); if (!session) return apiError("Nicht angemeldet", 401);`
+- **Auth check pattern**: `const session = await getSession(); if (!session) return apiError("Not authenticated", 401);`
 - **Timezone**: `Europe/Berlin` for display, UTC in database.
 - **Encryption**: Sensitive data (Withings tokens, API keys, VAPID private keys) encrypted with AES-256-GCM via `src/lib/crypto.ts`.
 - **Dracula colors**: Use CSS variables `var(--dracula-purple)`, `var(--dracula-cyan)`, `var(--dracula-green)`, `var(--dracula-orange)`, `var(--dracula-pink)`, `var(--dracula-red)`, `var(--dracula-yellow)`, `var(--dracula-fg)`, `var(--dracula-comment)` for chart/graph elements.

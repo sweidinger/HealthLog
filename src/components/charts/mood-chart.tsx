@@ -56,13 +56,7 @@ const TIME_RANGES_KEYS = [
   { labelKey: "charts.pointsAllLabel", points: 0, titleKey: "charts.pointsAllTitle" },
 ] as const;
 
-const MOOD_LABELS: Record<number, string> = {
-  1: "Lausig",
-  2: "Schlecht",
-  3: "Okay",
-  4: "Gut",
-  5: "Super",
-};
+// MOOD_LABELS built dynamically via t() in the component
 
 const VALUE_BANDS = [
   { min: 1, max: 2, color: "#ff5555", opacity: 0.16 },
@@ -231,13 +225,21 @@ export function MoodChart({ title }: MoodChartProps) {
 
   const maxPointIndex = Math.max(0, (chartData?.length ?? 1) - 1);
 
+  const moodLabels: Record<number, string> = {
+    1: t("charts.moodLabel1"),
+    2: t("charts.moodLabel2"),
+    3: t("charts.moodLabel3"),
+    4: t("charts.moodLabel4"),
+    5: t("charts.moodLabel5"),
+  };
+
   const formatMoodTick = (value: number): string => {
-    return MOOD_LABELS[value] ?? String(value);
+    return moodLabels[value] ?? String(value);
   };
 
   const formatTooltipValue = (value: number): string => {
     const rounded = Math.round(value * 10) / 10;
-    const label = MOOD_LABELS[Math.round(value)];
+    const label = moodLabels[Math.round(value)];
     return label ? `${rounded} (${label})` : String(rounded);
   };
 

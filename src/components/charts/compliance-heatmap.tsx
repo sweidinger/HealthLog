@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useTranslations } from "@/lib/i18n/context";
 
 interface DailyData {
   expected: number;
@@ -19,21 +20,6 @@ interface ComplianceHeatmapProps {
 
 const CELL_SIZE = 18;
 const GAP = 3;
-const WEEKDAY_LABELS = ["Mo", "", "Mi", "", "Fr", "", "So"];
-const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mär",
-  "Apr",
-  "Mai",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Okt",
-  "Nov",
-  "Dez",
-];
 
 function getColor(data: DailyData): string {
   if (data.expected === 0) return "var(--secondary)";
@@ -80,6 +66,7 @@ export function ComplianceHeatmap({
   days = 90,
   stretch = false,
 }: ComplianceHeatmapProps) {
+  const { t } = useTranslations();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [tooltip, setTooltip] = useState<{
@@ -88,6 +75,9 @@ export function ComplianceHeatmap({
     text: string;
   } | null>(null);
 
+  const WEEKDAY_LABELS = [
+    t("charts.weekdays.mon"), "", t("charts.weekdays.wed"), "", t("charts.weekdays.fri"), "", t("charts.weekdays.sun"),
+  ];
   useEffect(() => {
     if (!stretch) return;
     const element = containerRef.current;
@@ -107,6 +97,12 @@ export function ComplianceHeatmap({
   }, [stretch]);
 
   const { cells, weeks, monthMarkers } = useMemo(() => {
+    const MONTH_LABELS = [
+      t("charts.months.jan"), t("charts.months.feb"), t("charts.months.mar"),
+      t("charts.months.apr"), t("charts.months.may"), t("charts.months.jun"),
+      t("charts.months.jul"), t("charts.months.aug"), t("charts.months.sep"),
+      t("charts.months.oct"), t("charts.months.nov"), t("charts.months.dec"),
+    ];
     const now = new Date();
     const cellList: Array<{
       dateKey: string;
@@ -162,7 +158,7 @@ export function ComplianceHeatmap({
     }
 
     return { cells: cellList, weeks: col + 1, monthMarkers: markers };
-  }, [dailyCompliance, days]);
+  }, [dailyCompliance, days, t]);
 
   const labelWidth = stretch ? 0 : 76;
   const headerHeight = 18;
@@ -244,7 +240,7 @@ export function ComplianceHeatmap({
                   cell.data.late !== undefined ||
                   cell.data.veryLate !== undefined;
                 const timingInfo = hasTimingData
-                  ? ` | ${cell.data.onTime ?? 0} pünktlich, ${cell.data.late ?? 0} spät, ${cell.data.veryLate ?? 0} sehr spät`
+                  ? ` | ${cell.data.onTime ?? 0} ${t("charts.heatmapOnTime")}, ${cell.data.late ?? 0} ${t("charts.heatmapLate")}, ${cell.data.veryLate ?? 0} ${t("charts.heatmapVeryLate")}`
                   : "";
                 setTooltip({
                   x: e.clientX,
@@ -274,10 +270,10 @@ export function ComplianceHeatmap({
         style={{ marginLeft: stretch ? 0 : labelWidth }}
       >
         {[
-          { color: "var(--dracula-green)", label: "Pünktlich" },
-          { color: "var(--dracula-yellow)", label: "Spät" },
-          { color: "var(--dracula-orange)", label: "Sehr spät" },
-          { color: "var(--dracula-red)", label: "Verpasst" },
+          { color: "var(--dracula-green)", label: t("charts.legendOnTime") },
+          { color: "var(--dracula-yellow)", label: t("charts.legendLate") },
+          { color: "var(--dracula-orange)", label: t("charts.legendVeryLate") },
+          { color: "var(--dracula-red)", label: t("charts.legendMissed") },
         ].map(({ color, label }) => (
           <span key={label} className="flex items-center gap-1">
             <div

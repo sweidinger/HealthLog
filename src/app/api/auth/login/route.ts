@@ -17,7 +17,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return NextResponse.json(
       {
         data: null,
-        error: "Zu viele Anmeldeversuche. Bitte später erneut versuchen.",
+        error: "Too many login attempts. Please try again later.",
       },
       { status: 429, headers: rateLimitHeaders(rl) },
     );
@@ -31,7 +31,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const parsed = loginPasswordSchema.safeParse(body);
 
   if (!parsed.success) {
-    return apiError("Ungültige Anmeldedaten", 422);
+    return apiError("Invalid credentials", 422);
   }
 
   const { email, password } = parsed.data;
@@ -51,7 +51,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ipAddress: ip,
       details: { identifier, reason: "user_not_found_or_no_password" },
     });
-    return apiError("Ungültige Anmeldedaten", 401);
+    return apiError("Invalid credentials", 401);
   }
 
   const valid = await verifyPassword(user.passwordHash, password);
@@ -61,7 +61,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ipAddress: ip,
       details: { reason: "invalid_password" },
     });
-    return apiError("Ungültige Anmeldedaten", 401);
+    return apiError("Invalid credentials", 401);
   }
 
   const ua = request.headers.get("user-agent");

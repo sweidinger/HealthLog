@@ -22,7 +22,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: RoutePara
     event.userId !== user.id ||
     event.medicationId !== id
   ) {
-    return apiError("Einnahme nicht gefunden", 404);
+    return apiError("Intake not found", 404);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -77,7 +77,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: RouteP
     event.userId !== user.id ||
     event.medicationId !== id
   ) {
-    return apiError("Einnahme nicht gefunden", 404);
+    return apiError("Intake not found", 404);
   }
 
   await prisma.medicationIntakeEvent.delete({ where: { id: eventId } });

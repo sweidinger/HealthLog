@@ -23,7 +23,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   );
   if (!rl.allowed) {
     return apiError(
-      "Zu viele Versuche. Bitte 15 Minuten warten.",
+      "Too many attempts. Please wait 15 minutes.",
       429,
     );
   }
@@ -38,7 +38,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const { currentPassword, newPassword } = parsed.data;
   if (!user.passwordHash) {
-    return apiError("Für dieses Konto ist kein Passwort gesetzt", 400);
+    return apiError("No password set for this account", 400);
   }
 
   const currentValid = await verifyPassword(
@@ -46,12 +46,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
     currentPassword,
   );
   if (!currentValid) {
-    return apiError("Aktuelles Passwort ist falsch", 401);
+    return apiError("Current password is incorrect", 401);
   }
 
   if (currentPassword === newPassword) {
     return apiError(
-      "Neues Passwort muss sich vom aktuellen unterscheiden",
+      "New password must differ from current password",
       422,
     );
   }
@@ -62,7 +62,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   ]);
   if (!strength.isAcceptable) {
     return apiError(
-      strength.feedback[0] || "Passwort zu schwach (Score < 3)",
+      strength.feedback[0] || "Password too weak (score < 3)",
       422,
     );
   }

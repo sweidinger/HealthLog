@@ -30,13 +30,13 @@ export const PUT = apiHandler(async (
   }
 
   const target = await prisma.user.findUnique({ where: { id } });
-  if (!target) return apiError("Benutzer nicht gefunden", 404);
+  if (!target) return apiError("User not found", 404);
 
   // Prevent removing the last admin
   if (parsed.data.role === "USER" && target.role === "ADMIN") {
     const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
     if (adminCount <= 1) {
-      return apiError("Der letzte Admin kann nicht degradiert werden", 400);
+      return apiError("The last admin cannot be demoted", 400);
     }
   }
 

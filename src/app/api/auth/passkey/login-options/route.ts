@@ -16,7 +16,7 @@ export const POST = apiHandler(async (request: Request) => {
     return NextResponse.json(
       {
         data: null,
-        error: "Zu viele Passkey-Anfragen. Bitte später erneut versuchen.",
+        error: "Too many passkey requests. Please try again later.",
       },
       { status: 429, headers: rateLimitHeaders(rl) },
     );

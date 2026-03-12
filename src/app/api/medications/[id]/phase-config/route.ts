@@ -16,7 +16,7 @@ export const GET = apiHandler(async (_request: NextRequest, { params }: RoutePar
     select: { userId: true },
   });
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   const config = await prisma.reminderPhaseConfig.findUnique({
@@ -55,7 +55,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: RoutePara
     select: { userId: true },
   });
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -63,7 +63,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: RoutePara
   if (jsonError) return jsonError;
   const parsed = phaseConfigSchema.safeParse(body);
   if (!parsed.success) {
-    return apiError("Ungültige Eingabe", 400);
+    return apiError("Invalid input", 400);
   }
 
   const config = await prisma.reminderPhaseConfig.upsert({
@@ -95,7 +95,7 @@ export const DELETE = apiHandler(async (_request: NextRequest, { params }: Route
     select: { userId: true },
   });
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   await prisma.reminderPhaseConfig.deleteMany({

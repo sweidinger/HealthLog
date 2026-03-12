@@ -36,8 +36,20 @@ const DEMO_MUTATION_ALLOWLIST = [
   "/api/auth/passkey/login-verify",
 ];
 
+// Legacy route redirects (German → English)
+const LEGACY_REDIRECTS: Record<string, string> = {
+  "/stimmung": "/mood",
+  "/zielwerte": "/targets",
+};
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // 301 redirects for renamed routes
+  const redirect = LEGACY_REDIRECTS[pathname];
+  if (redirect) {
+    return NextResponse.redirect(new URL(redirect, request.url), 301);
+  }
 
   // Demo mode: block all mutations except login
   if (process.env.DEMO_MODE === "true") {

@@ -18,7 +18,7 @@ export const GET = apiHandler(async (_request: NextRequest, { params }: RoutePar
   });
 
   if (!measurement || measurement.userId !== user.id) {
-    return apiError("Messwert nicht gefunden", 404);
+    return apiError("Measurement not found", 404);
   }
 
   annotate({
@@ -42,7 +42,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: RoutePara
   });
 
   if (!existing || existing.userId !== user.id) {
-    return apiError("Messwert nicht gefunden", 404);
+    return apiError("Measurement not found", 404);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -90,7 +90,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: RouteP
   });
 
   if (!existing || existing.userId !== user.id) {
-    return apiError("Messwert nicht gefunden", 404);
+    return apiError("Measurement not found", 404);
   }
 
   await prisma.measurement.delete({ where: { id } });

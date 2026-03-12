@@ -3,32 +3,26 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { translateZxcvbn } from "@/lib/zxcvbn-de";
+import { useTranslations } from "@/lib/i18n/context";
 
 interface PasswordStrengthProps {
   password: string;
   minLength?: number;
 }
 
-const SCORE_CONFIG = [
-  { label: "Sehr schwach", color: "bg-red-500", textColor: "text-red-500" },
-  { label: "Schwach", color: "bg-orange-500", textColor: "text-orange-500" },
-  {
-    label: "Akzeptabel",
-    color: "bg-yellow-500",
-    textColor: "text-yellow-500",
-  },
-  { label: "Stark", color: "bg-green-500", textColor: "text-green-500" },
-  {
-    label: "Sehr stark",
-    color: "bg-emerald-600",
-    textColor: "text-emerald-600",
-  },
+const SCORE_COLORS = [
+  { color: "bg-red-500", textColor: "text-red-500" },
+  { color: "bg-orange-500", textColor: "text-orange-500" },
+  { color: "bg-yellow-500", textColor: "text-yellow-500" },
+  { color: "bg-green-500", textColor: "text-green-500" },
+  { color: "bg-emerald-600", textColor: "text-emerald-600" },
 ];
 
 export function PasswordStrength({
   password,
   minLength = 12,
 }: PasswordStrengthProps) {
+  const { t } = useTranslations();
   const [result, setResult] = useState<{
     score: number;
     feedback: { warning: string; suggestions: string[] };
@@ -60,13 +54,20 @@ export function PasswordStrength({
   if (!password) return null;
 
   const score = result?.score ?? 0;
-  const config = SCORE_CONFIG[score];
+  const colors = SCORE_COLORS[score];
+  const scoreLabels = [
+    t("passwordStrength.veryWeak"),
+    t("passwordStrength.weak"),
+    t("passwordStrength.acceptable"),
+    t("passwordStrength.strong"),
+    t("passwordStrength.veryStrong"),
+  ];
   const tooShort = password.length < minLength;
 
   // Collect feedback
   const feedback: string[] = [];
   if (tooShort) {
-    feedback.push(`Mindestens ${minLength} Zeichen erforderlich.`);
+    feedback.push(t("passwordStrength.minLength", { count: minLength }));
   }
   if (result?.feedback.warning) {
     feedback.push(translateZxcvbn(result.feedback.warning));
@@ -84,7 +85,7 @@ export function PasswordStrength({
             key={i}
             className={cn(
               "h-1.5 flex-1 rounded-full transition-colors",
-              i <= score && !tooShort ? config.color : "bg-muted",
+              i <= score && !tooShort ? colors.color : "bg-muted",
             )}
           />
         ))}
@@ -92,11 +93,11 @@ export function PasswordStrength({
 
       {/* Label */}
       <div className="flex items-center justify-between">
-        <span className={cn("text-xs font-medium", config.textColor)}>
-          {tooShort ? "Zu kurz" : config.label}
+        <span className={cn("text-xs font-medium", colors.textColor)}>
+          {tooShort ? t("passwordStrength.tooShort") : scoreLabels[score]}
         </span>
         <span className="text-muted-foreground text-xs">
-          {password.length}/{minLength}+ Zeichen
+          {password.length}/{minLength}+ {t("passwordStrength.characters")}
         </span>
       </div>
 

@@ -180,7 +180,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   }
 
   if (Object.keys(updates).length === 0) {
-    return apiError("Keine gültigen Felder", 422);
+    return apiError("No valid fields", 422);
   }
 
   const settings = await prisma.appSettings.upsert({

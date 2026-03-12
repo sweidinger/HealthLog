@@ -32,16 +32,16 @@ export const POST = apiHandler(async (
   const { password } = body as { password?: string };
 
   if (!password || typeof password !== "string") {
-    return apiError("Passwort erforderlich", 422);
+    return apiError("Password required", 422);
   }
 
   const target = await prisma.user.findUnique({ where: { id } });
-  if (!target) return apiError("Benutzer nicht gefunden", 404);
+  if (!target) return apiError("User not found", 404);
 
   const strength = checkPasswordStrength(password, [target.username]);
   if (!strength.isAcceptable) {
     return apiError(
-      strength.feedback[0] || "Passwort zu schwach (Score < 3)",
+      strength.feedback[0] || "Password too weak (score < 3)",
       422,
     );
   }

@@ -161,7 +161,7 @@ export const GET = apiHandler(async () => {
   }
   targets.push({
     type: "WEIGHT",
-    label: "Gewicht",
+    label: "Weight",
     current: latestByType.WEIGHT ?? null,
     average30: avg30ByType.WEIGHT ?? null,
     trend: computeTrend("WEIGHT"),
@@ -186,7 +186,7 @@ export const GET = apiHandler(async () => {
   }
   targets.push({
     type: "BLOOD_PRESSURE",
-    label: "Blutdruck",
+    label: "Blood pressure",
     current: latestByType.BLOOD_PRESSURE_SYS ?? null,
     average30: avg30ByType.BLOOD_PRESSURE_SYS ?? null,
     trend: computeTrend("BLOOD_PRESSURE_SYS"),
@@ -227,7 +227,7 @@ export const GET = apiHandler(async () => {
 
     targets.push({
       type: "BLOOD_PRESSURE_IN_TARGET",
-      label: "Blutdruck im Zielbereich",
+      label: "Blood pressure on target",
       current: bpInTargetRate,
       average30: bpInTargetRate,
       trend: null,
@@ -236,10 +236,10 @@ export const GET = apiHandler(async () => {
       classification:
         bpInTargetRate != null
           ? bpInTargetRate >= 70
-            ? { category: "Gut", color: "#50fa7b" }
+            ? { category: "Good", color: "#50fa7b" }
             : bpInTargetRate >= 40
-              ? { category: "Moderat", color: "#f1fa8c" }
-              : { category: "Niedrig", color: "#ff5555" }
+              ? { category: "Moderate", color: "#f1fa8c" }
+              : { category: "Low", color: "#ff5555" }
           : null,
       source: "ESC/ESH 2018",
     });
@@ -254,7 +254,7 @@ export const GET = apiHandler(async () => {
   }
   targets.push({
     type: "PULSE",
-    label: "Ruhepuls",
+    label: "Resting pulse",
     current: latestByType.PULSE ?? null,
     average30: avg30ByType.PULSE ?? null,
     trend: computeTrend("PULSE"),
@@ -273,7 +273,7 @@ export const GET = apiHandler(async () => {
   }
   targets.push({
     type: "SLEEP_DURATION",
-    label: "Schlafdauer",
+    label: "Sleep duration",
     current: latestByType.SLEEP_DURATION ?? null,
     average30: avg30ByType.SLEEP_DURATION ?? null,
     trend: computeTrend("SLEEP_DURATION"),
@@ -335,7 +335,7 @@ export const GET = apiHandler(async () => {
   }
   targets.push({
     type: "BODY_FAT",
-    label: "Koerperfett",
+    label: "Body fat",
     current: latestByType.BODY_FAT ?? null,
     average30: avg30ByType.BODY_FAT ?? null,
     trend: computeTrend("BODY_FAT"),
@@ -354,11 +354,11 @@ export const GET = apiHandler(async () => {
   }
   targets.push({
     type: "ACTIVITY_STEPS",
-    label: "Schritte/Tag",
+    label: "Steps/day",
     current: latestByType.ACTIVITY_STEPS ?? null,
     average30: avg30ByType.ACTIVITY_STEPS ?? null,
     trend: computeTrend("ACTIVITY_STEPS"),
-    unit: "Schritte",
+    unit: "steps",
     range: stepsRange,
     classification: stepsClassification,
     source: "WHO",
@@ -453,7 +453,7 @@ export const GET = apiHandler(async () => {
 
     targets.push({
       type: "MEDICATION_COMPLIANCE",
-      label: "Einnahmetreue",
+      label: "Medication compliance",
       current: complianceRate7,
       average30: complianceRate30,
       trend: null,
@@ -462,12 +462,12 @@ export const GET = apiHandler(async () => {
       classification:
         complianceRate7 != null
           ? complianceRate7 >= 90
-            ? { category: "Sehr gut", color: "#50fa7b" }
+            ? { category: "Very good", color: "#50fa7b" }
             : complianceRate7 >= 70
-              ? { category: "Gut", color: "#f1fa8c" }
-              : { category: "Niedrig", color: "#ff5555" }
+              ? { category: "Good", color: "#f1fa8c" }
+              : { category: "Low", color: "#ff5555" }
           : null,
-      source: "7-Tage",
+      source: "7-day",
       details: {
         medications: medicationStats.map((medication) => ({
           name: medication.name,
@@ -523,15 +523,15 @@ export const GET = apiHandler(async () => {
     const moodClassification =
       latestMoodScore != null
         ? latestMoodScore >= 3.5
-          ? { category: "Gut", color: "#50fa7b" }
+          ? { category: "Good", color: "#50fa7b" }
           : latestMoodScore >= 2
-            ? { category: "Moderat", color: "#f1fa8c" }
-            : { category: "Niedrig", color: "#ff5555" }
+            ? { category: "Moderate", color: "#f1fa8c" }
+            : { category: "Low", color: "#ff5555" }
         : null;
 
     targets.push({
       type: "MOOD_SCORE",
-      label: "Stimmung",
+      label: "Mood",
       current: latestMoodScore,
       average30: moodAvg30,
       trend: moodTrend,
@@ -551,14 +551,14 @@ export const GET = apiHandler(async () => {
 
       const stabilityClassification =
         stdDev <= 0.5
-          ? { category: "Sehr stabil", color: "#50fa7b" }
+          ? { category: "Very stable", color: "#50fa7b" }
           : stdDev <= 1.0
-            ? { category: "Stabil", color: "#f1fa8c" }
-            : { category: "Schwankend", color: "#ff5555" };
+            ? { category: "Stable", color: "#f1fa8c" }
+            : { category: "Fluctuating", color: "#ff5555" };
 
       targets.push({
         type: "MOOD_STABILITY",
-        label: "Stimmungsstabilitaet",
+        label: "Mood stability",
         current: stdDev,
         average30: stdDev,
         trend: null,

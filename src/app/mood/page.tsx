@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useTranslations } from "@/lib/i18n/context";
 
-export default function StimmungPage() {
+export default function MoodPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);

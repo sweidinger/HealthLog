@@ -30,11 +30,11 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
     const body = await request.json();
     confirm = typeof body?.confirm === "string" ? body.confirm : "";
   } catch {
-    return apiError("Ungültige Anfrage", 422);
+    return apiError("Invalid request", 422);
   }
 
   if (confirm !== "DELETE ALL") {
-    return apiError("Bestätigung fehlt", 422);
+    return apiError("Confirmation missing", 422);
   }
 
   const result = await prisma.$transaction(async (tx) => {

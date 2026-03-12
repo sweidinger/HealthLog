@@ -34,7 +34,7 @@ export const GET = apiHandler(async (_request: NextRequest, { params }: RoutePar
   const entry = await prisma.moodEntry.findUnique({ where: { id } });
 
   if (!entry || entry.userId !== user.id) {
-    return apiError("Stimmungseintrag nicht gefunden", 404);
+    return apiError("Mood entry not found", 404);
   }
 
   annotate({ action: { name: "mood-entries.get" }, meta: { moodEntryId: id } });
@@ -50,7 +50,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: RoutePara
   const existing = await prisma.moodEntry.findUnique({ where: { id } });
 
   if (!existing || existing.userId !== user.id) {
-    return apiError("Stimmungseintrag nicht gefunden", 404);
+    return apiError("Mood entry not found", 404);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -100,7 +100,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: RouteP
   const existing = await prisma.moodEntry.findUnique({ where: { id } });
 
   if (!existing || existing.userId !== user.id) {
-    return apiError("Stimmungseintrag nicht gefunden", 404);
+    return apiError("Mood entry not found", 404);
   }
 
   await prisma.moodEntry.delete({ where: { id } });

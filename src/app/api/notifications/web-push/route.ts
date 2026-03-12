@@ -30,11 +30,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
   try {
     body = await request.json();
   } catch {
-    return apiError("Ungültige JSON-Daten", 422);
+    return apiError("Invalid JSON data", 422);
   }
 
   const parsed = subscribeSchema.safeParse(body);
-  if (!parsed.success) return apiError("Ungültige Daten", 422);
+  if (!parsed.success) return apiError("Invalid data", 422);
 
   const { endpoint, keys } = parsed.data;
   const userAgent = request.headers.get("user-agent") ?? undefined;
@@ -92,11 +92,11 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
   try {
     body = await request.json();
   } catch {
-    return apiError("Ungültige JSON-Daten", 422);
+    return apiError("Invalid JSON data", 422);
   }
 
   const parsed = unsubscribeSchema.safeParse(body);
-  if (!parsed.success) return apiError("Ungültige Daten", 422);
+  if (!parsed.success) return apiError("Invalid data", 422);
 
   await prisma.pushSubscription.deleteMany({
     where: {

@@ -27,7 +27,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const rl = await checkRateLimit(`insights:${userId}`, 2, 60 * 60 * 1000);
   if (!rl.allowed) {
     return apiError(
-      "Maximal 2 Insights-Generierungen pro Stunde. Bitte spaeter erneut versuchen.",
+      "Maximum 2 insight generations per hour. Please try again later.",
       429,
     );
   }
@@ -44,7 +44,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   if (!dbUser?.openaiKeyEncrypted) {
     return apiError(
-      "Kein OpenAI API-Key hinterlegt. Bitte in den Einstellungen konfigurieren.",
+      "No OpenAI API key configured. Please set it in settings.",
       422,
     );
   }
@@ -105,23 +105,23 @@ export const POST = apiHandler(async (request: NextRequest) => {
     const errBody = await openaiRes.text();
     annotate({ meta: { openai_status: openaiRes.status, openai_error: errBody } });
     if (openaiRes.status === 401) {
-      return apiError("Ungueltiger OpenAI API-Key", 422);
+      return apiError("Invalid OpenAI API key", 422);
     }
-    return apiError("OpenAI-Anfrage fehlgeschlagen", 502);
+    return apiError("OpenAI request failed", 502);
   }
 
   const openaiJson = await openaiRes.json();
   const content = openaiJson.choices?.[0]?.message?.content;
 
   if (!content) {
-    return apiError("Keine Antwort von OpenAI erhalten", 502);
+    return apiError("No response from OpenAI", 502);
   }
 
   let insights: InsightsOutput;
   try {
     insights = JSON.parse(content);
   } catch {
-    return apiError("OpenAI-Antwort konnte nicht verarbeitet werden", 502);
+    return apiError("Failed to parse OpenAI response", 502);
   }
 
   // Cache the result

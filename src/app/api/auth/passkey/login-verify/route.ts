@@ -15,7 +15,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const ip = getClientIp(request);
   const rl = await checkRateLimit(`auth:passkey-verify:${ip}`, 10, 15 * 60 * 1000);
   if (!rl.allowed) {
-    return apiError("Zu viele Versuche. Bitte 15 Minuten warten.", 429);
+    return apiError("Too many attempts. Please wait 15 minutes.", 429);
   }
 
   const { data: body, error: jsonError } = await safeJson<Record<string, unknown>>(request);
@@ -25,7 +25,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const credential = body.credential;
 
   if (!challengeId || !credential) {
-    return apiError("challengeId und credential erforderlich", 422);
+    return apiError("challengeId and credential required", 422);
   }
 
   const { verification, passkey } = await verifyAuthentication(
@@ -38,7 +38,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ipAddress: ip,
       details: { reason: "passkey_verification_failed" },
     });
-    return apiError("Passkey-Verifizierung fehlgeschlagen", 401);
+    return apiError("Passkey verification failed", 401);
   }
 
   const user = await prisma.user.findUnique({
@@ -46,7 +46,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   if (!user) {
-    return apiError("Benutzer nicht gefunden", 404);
+    return apiError("User not found", 404);
   }
 
   const ua = request.headers.get("user-agent");

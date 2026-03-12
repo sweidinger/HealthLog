@@ -51,18 +51,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const settings = await getPublicMonitoringSettings();
   if (!settings.umamiEnabled) {
-    return apiError("Umami ist deaktiviert", 422);
+    return apiError("Umami is disabled", 422);
   }
   if (!settings.umamiScriptUrl || !settings.umamiWebsiteId) {
     return apiError(
-      "Umami Script-URL und Website-ID müssen konfiguriert sein",
+      "Umami script URL and website ID must be configured",
       422,
     );
   }
 
   const targetUrls = resolveUmamiSendUrls(settings.umamiScriptUrl);
   if (targetUrls.length === 0) {
-    return apiError("Umami Script-URL ist ungültig", 422);
+    return apiError("Umami script URL is invalid", 422);
   }
 
   const appUrl = resolveAppUrl(request);
@@ -100,7 +100,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     if (upstream.ok) {
       return apiSuccess({
         sent: true,
-        message: "Umami-Testevent wurde gesendet",
+        message: "Umami test event sent",
       });
     }
 
@@ -117,7 +117,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   getEvent()?.addWarning("Umami test event rejected: " + lastStatus);
   return apiError(
-    `Umami-Testevent wurde abgelehnt (HTTP ${lastStatus})`,
+    `Umami test event rejected (HTTP ${lastStatus})`,
     502,
   );
 });

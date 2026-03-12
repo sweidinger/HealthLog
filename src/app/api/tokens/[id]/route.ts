@@ -14,14 +14,14 @@ export const DELETE = apiHandler(async (_request: Request, { params }: RoutePara
   annotate({ action: { name: "tokens.revoke" } });
 
   if (!(await isApiGloballyEnabled())) {
-    return apiError("API ist global deaktiviert", 403);
+    return apiError("API is globally disabled", 403);
   }
 
   const { id } = await params;
   const token = await prisma.apiToken.findUnique({ where: { id } });
 
   if (!token || token.userId !== user.id) {
-    return apiError("Token nicht gefunden", 404);
+    return apiError("Token not found", 404);
   }
 
   await prisma.apiToken.update({

@@ -20,7 +20,7 @@ export const GET = apiHandler(async (_request: Request, { params }: RouteParams)
   });
 
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   const events = await prisma.medicationIntakeEvent.findMany({

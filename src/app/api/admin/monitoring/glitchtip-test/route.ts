@@ -12,10 +12,10 @@ export const POST = apiHandler(async () => {
 
   const settings = await getGlitchtipSettings();
   if (!settings.glitchtipEnabled) {
-    return apiError("Glitchtip ist deaktiviert", 422);
+    return apiError("Glitchtip is disabled", 422);
   }
   if (!settings.glitchtipDsn) {
-    return apiError("Glitchtip DSN fehlt", 422);
+    return apiError("Glitchtip DSN is missing", 422);
   }
 
   const delivery = await sendGlitchtipEvent({
@@ -32,13 +32,13 @@ export const POST = apiHandler(async () => {
   if (!delivery.ok) {
     getEvent()?.addWarning("Glitchtip test event rejected: " + delivery.method + " " + delivery.status + " " + delivery.details);
     return apiError(
-      `Glitchtip-Testevent wurde abgelehnt (HTTP ${delivery.status ?? 502})`,
+      `Glitchtip test event rejected (HTTP ${delivery.status ?? 502})`,
       502,
     );
   }
 
   return apiSuccess({
     sent: true,
-    message: "Glitchtip-Testevent wurde gesendet",
+    message: "Glitchtip test event sent",
   });
 });

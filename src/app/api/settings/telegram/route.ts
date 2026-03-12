@@ -47,14 +47,14 @@ export const PUT = apiHandler(async (request: NextRequest) => {
       telegramEnabled: true,
     },
   });
-  if (!current) return apiError("Benutzer nicht gefunden", 404);
+  if (!current) return apiError("User not found", 404);
 
   const { data: body, error: jsonError } = await safeJson(request);
 
   if (jsonError) return jsonError;
   const result = z.safeParse(telegramSettingsSchema, body);
   if (!result.success) {
-    return apiError("Ungueltige Eingabe", 422);
+    return apiError("Invalid input", 422);
   }
 
   const { botToken, chatId, enabled } = result.data;
@@ -68,7 +68,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
 
   if (enabled && (!hasTokenAfter || !hasChatIdAfter)) {
     return apiError(
-      "Fuer aktiviertes Telegram werden Bot-Token und Chat-ID benoetigt",
+      "Bot token and chat ID are required when Telegram is enabled",
       422,
     );
   }
@@ -82,7 +82,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     const appUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
     if (!appUrl) {
       return apiError(
-        "Server-Konfiguration fehlerhaft: APP_URL (oder NEXT_PUBLIC_APP_URL) fehlt.",
+        "Server configuration error: APP_URL (or NEXT_PUBLIC_APP_URL) is missing.",
         500,
       );
     }
@@ -92,14 +92,14 @@ export const PUT = apiHandler(async (request: NextRequest) => {
       appBaseUrl = new URL(appUrl);
     } catch {
       return apiError(
-        "Server-Konfiguration fehlerhaft: APP_URL ist ungueltig.",
+        "Server configuration error: APP_URL is invalid.",
         500,
       );
     }
 
     if (appBaseUrl.protocol !== "https:") {
       return apiError(
-        "Telegram-Webhook benoetigt eine oeffentliche HTTPS-URL (kein http/localhost).",
+        "Telegram webhook requires a public HTTPS URL (no http/localhost).",
         422,
       );
     }
@@ -107,7 +107,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
     if (localHosts.has(appBaseUrl.hostname.toLowerCase())) {
       return apiError(
-        "Telegram-Webhook benoetigt eine oeffentlich erreichbare Domain (localhost ist nicht erlaubt).",
+        "Telegram webhook requires a publicly reachable domain (localhost is not allowed).",
         422,
       );
     }
@@ -117,7 +117,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
       !["80", "88", "443", "8443"].includes(appBaseUrl.port)
     ) {
       return apiError(
-        "Telegram-Webhook erlaubt nur die Ports 80, 88, 443 oder 8443.",
+        "Telegram webhook only allows ports 80, 88, 443, or 8443.",
         422,
       );
     }
@@ -131,7 +131,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     );
     if (!ok) {
       return apiError(
-        "Telegram-Webhook konnte nicht gesetzt werden. Pruefe Bot-Token und Erreichbarkeit.",
+        "Failed to set Telegram webhook. Check bot token and reachability.",
         422,
       );
     }

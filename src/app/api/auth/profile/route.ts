@@ -28,7 +28,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     });
 
     if (existingUser && existingUser.id !== user.id) {
-      return apiError("E-Mail-Adresse wird bereits verwendet", 409);
+      return apiError("Email already in use", 409);
     }
   }
 

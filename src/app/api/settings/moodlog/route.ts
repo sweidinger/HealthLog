@@ -21,7 +21,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
 
   const parsed = moodLogCredentialsSchema.safeParse(body);
   if (!parsed.success) {
-    return apiError("Ungueltige Eingabe", 422);
+    return apiError("Invalid input", 422);
   }
 
   const { url, apiKey } = parsed.data;

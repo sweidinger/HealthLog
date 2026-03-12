@@ -24,7 +24,7 @@ export const GET = apiHandler(async (_request: NextRequest, { params }: RoutePar
   });
 
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   let category = "OTHER";
@@ -52,7 +52,7 @@ export const PUT = apiHandler(async (request: NextRequest, { params }: RoutePara
   const { id } = await params;
   const existing = await prisma.medication.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -171,7 +171,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: RouteP
   const { id } = await params;
   const existing = await prisma.medication.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   // Revoke API tokens scoped to this medication

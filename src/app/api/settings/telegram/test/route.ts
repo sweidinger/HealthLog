@@ -14,7 +14,7 @@ export const POST = apiHandler(async () => {
 
   const rl = await checkRateLimit(`telegram-test:${user.id}`, 5, 5 * 60 * 1000);
   if (!rl.allowed) {
-    return apiError("Maximal 5 Tests in 5 Minuten", 429);
+    return apiError("Maximum 5 tests in 5 minutes", 429);
   }
 
   const dbUser = await prisma.user.findUnique({
@@ -24,7 +24,7 @@ export const POST = apiHandler(async () => {
 
   if (!dbUser?.telegramBotToken || !dbUser?.telegramChatId) {
     return apiError(
-      "Bot-Token und Chat-ID muessen zuerst gespeichert werden",
+      "Bot token and chat ID must be saved first",
       422,
     );
   }
@@ -33,12 +33,12 @@ export const POST = apiHandler(async () => {
   const ok = await sendTelegramMessage(
     botToken,
     dbUser.telegramChatId,
-    "HealthLog: Verbindung erfolgreich! Telegram-Benachrichtigungen sind aktiv.",
+    "HealthLog: Connection successful! Telegram notifications are active.",
   );
 
   if (!ok) {
     return apiError(
-      "Nachricht konnte nicht gesendet werden. Pruefe Bot-Token und Chat-ID.",
+      "Failed to send message. Check bot token and chat ID.",
       422,
     );
   }

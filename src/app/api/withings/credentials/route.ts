@@ -41,7 +41,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   if (jsonError) return jsonError;
   const result = z.safeParse(withingsCredentialsSchema, body);
   if (!result.success) {
-    return apiError("Client-ID und Client-Secret sind erforderlich", 422);
+    return apiError("Client ID and Client Secret are required", 422);
   }
 
   await prisma.user.update({

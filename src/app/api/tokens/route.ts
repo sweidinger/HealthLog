@@ -9,7 +9,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod/v4";
 
 const createTokenSchema = z.object({
-  name: z.string().min(1, "Name erforderlich").max(100),
+  name: z.string().min(1, "Name required").max(100),
   expiresInDays: z.number().int().min(1).max(365).optional(),
 });
 
@@ -18,7 +18,7 @@ export const GET = apiHandler(async () => {
   annotate({ action: { name: "tokens.list" } });
 
   if (!(await isApiGloballyEnabled())) {
-    return apiError("API ist global deaktiviert", 403);
+    return apiError("API is globally disabled", 403);
   }
 
   const tokens = await prisma.apiToken.findMany({
@@ -43,7 +43,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   annotate({ action: { name: "tokens.create" } });
 
   if (!(await isApiGloballyEnabled())) {
-    return apiError("API ist global deaktiviert", 403);
+    return apiError("API is globally disabled", 403);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);

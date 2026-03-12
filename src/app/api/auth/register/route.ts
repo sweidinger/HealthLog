@@ -18,7 +18,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       {
         data: null,
         error:
-          "Zu viele Registrierungsversuche. Bitte später erneut versuchen.",
+          "Too many registration attempts. Please try again later.",
       },
       { status: 429, headers: rateLimitHeaders(rl) },
     );
@@ -42,7 +42,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     // Table may not exist yet; allow registration
   }
   if (!registrationEnabled) {
-    return apiError("Registrierung ist deaktiviert", 403);
+    return apiError("Registration is disabled", 403);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -62,14 +62,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
     prisma.user.findUnique({ where: { username } }),
   ]);
   if (existingEmail || existingUsername) {
-    return apiError("Benutzername oder E-Mail-Adresse bereits vergeben", 409);
+    return apiError("Username or email already taken", 409);
   }
 
   // Validate password strength
   const strength = checkPasswordStrength(password, [username, email]);
   if (!strength.isAcceptable) {
     return apiError(
-      strength.feedback[0] || "Passwort zu schwach (Score < 3)",
+      strength.feedback[0] || "Password too weak (score < 3)",
       422,
     );
   }

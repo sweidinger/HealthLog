@@ -17,7 +17,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     select: { moodLogGlobal: true },
   });
   if (appSettings && !appSettings.moodLogGlobal) {
-    return apiError("moodLog-Integration ist deaktiviert", 403);
+    return apiError("moodLog integration is disabled", 403);
   }
 
   let fullSync = false;

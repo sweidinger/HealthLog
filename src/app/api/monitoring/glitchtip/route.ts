@@ -32,11 +32,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
   try {
     body = await request.json();
   } catch {
-    return apiError("Ungültige JSON-Daten", 422);
+    return apiError("Invalid JSON data", 422);
   }
 
   const parsed = clientErrorSchema.safeParse(body);
-  if (!parsed.success) return apiError("Ungültige Fehlerdaten", 422);
+  if (!parsed.success) return apiError("Invalid error data", 422);
 
   const delivery = await sendGlitchtipEvent({
     dsn: settings.glitchtipDsn,
@@ -54,7 +54,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   if (!delivery.ok) {
     getEvent()?.addWarning("Glitchtip event rejected: " + delivery.method + " " + delivery.status + " " + delivery.details);
-    return apiError("Glitchtip konnte Fehler nicht annehmen", 502);
+    return apiError("Glitchtip could not accept error", 502);
   }
 
   return apiSuccess({ sent: true });

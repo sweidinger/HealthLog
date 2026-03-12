@@ -16,13 +16,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const credential = body.credential as Record<string, unknown> | undefined;
 
   if (!challengeId || !credential) {
-    return apiError("challengeId und credential erforderlich", 422);
+    return apiError("challengeId and credential required", 422);
   }
 
   const verification = await verifyRegistration(challengeId, credential);
 
   if (!verification.verified || !verification.registrationInfo) {
-    return apiError("Passkey-Verifizierung fehlgeschlagen", 400);
+    return apiError("Passkey verification failed", 400);
   }
 
   const { registrationInfo } = verification;

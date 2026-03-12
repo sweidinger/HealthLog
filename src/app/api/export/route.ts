@@ -26,7 +26,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const rl = await checkRateLimit(`export:${user.id}`, 10, 60 * 60 * 1000);
   if (!rl.allowed) {
-    return apiError("Maximal 10 Exports pro Stunde", 429);
+    return apiError("Maximum 10 exports per hour", 429);
   }
 
   annotate({ action: { name: "export.download" } });
@@ -36,10 +36,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const type = searchParams.get("type") ?? "all";
 
   if (!["csv", "json"].includes(format)) {
-    return apiError("Format muss csv oder json sein", 422);
+    return apiError("Format must be csv or json", 422);
   }
   if (!["measurements", "medications", "intake", "mood", "all"].includes(type)) {
-    return apiError("Typ muss measurements, medications, intake, mood oder all sein", 422);
+    return apiError("Type must be measurements, medications, intake, mood, or all", 422);
   }
 
   const userId = user.id;

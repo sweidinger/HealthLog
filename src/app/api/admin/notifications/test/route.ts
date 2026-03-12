@@ -79,7 +79,7 @@ export const POST = apiHandler(async () => {
   if (channels.length === 0) {
     return apiSuccess({
       sent: false,
-      message: "Keine aktivierten Benachrichtigungskanäle gefunden",
+      message: "No enabled notification channels found",
       results: [],
     });
   }
@@ -89,7 +89,7 @@ export const POST = apiHandler(async () => {
     userId: user.id,
     title: "Test-Notification",
     message:
-      "<b>HealthLog Test:</b> Wenn du diese Nachricht siehst, funktionieren deine Benachrichtigungen!",
+      "<b>HealthLog Test:</b> If you see this message, your notifications are working!",
   };
 
   const results: Array<{
@@ -104,7 +104,7 @@ export const POST = apiHandler(async () => {
       results.push({
         channel: channel.type,
         success: false,
-        error: "SYSTEM_ALERT deaktiviert in Einstellungen",
+        error: "SYSTEM_ALERT disabled in settings",
       });
       continue;
     }
@@ -124,7 +124,7 @@ export const POST = apiHandler(async () => {
             results.push({
               channel: "TELEGRAM",
               success: false,
-              error: `Telegram API hat Fehler gemeldet (chatId: ${config.chatId})`,
+              error: `Telegram API reported error (chatId: ${config.chatId})`,
             });
             continue;
           }
@@ -139,7 +139,7 @@ export const POST = apiHandler(async () => {
             results.push({
               channel: "NTFY",
               success: false,
-              error: `Senden fehlgeschlagen (topic: ${config.topic})`,
+              error: `Send failed (topic: ${config.topic})`,
             });
             continue;
           }
@@ -153,7 +153,7 @@ export const POST = apiHandler(async () => {
           results.push({
             channel: type,
             success: false,
-            error: "Unbekannter Kanaltyp",
+            error: "Unknown channel type",
           });
           continue;
       }
@@ -163,7 +163,7 @@ export const POST = apiHandler(async () => {
       results.push({
         channel: channel.type,
         success: false,
-        error: err instanceof Error ? err.message : "Unbekannter Fehler",
+        error: err instanceof Error ? err.message : "Unknown error",
       });
     }
   }
@@ -173,11 +173,11 @@ export const POST = apiHandler(async () => {
 
   let message: string;
   if (failCount === 0) {
-    message = `Alle ${successCount} Kanäle erfolgreich`;
+    message = `All ${successCount} channels successful`;
   } else if (successCount === 0) {
-    message = `Alle ${failCount} Kanäle fehlgeschlagen`;
+    message = `All ${failCount} channels failed`;
   } else {
-    message = `${successCount} erfolgreich, ${failCount} fehlgeschlagen`;
+    message = `${successCount} successful, ${failCount} failed`;
   }
 
   return apiSuccess({ sent: successCount > 0, message, results });

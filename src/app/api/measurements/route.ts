@@ -134,7 +134,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      return apiError("Ein Messwert mit diesen Daten existiert bereits", 409);
+      return apiError("A measurement with this data already exists", 409);
     }
     throw err;
   }

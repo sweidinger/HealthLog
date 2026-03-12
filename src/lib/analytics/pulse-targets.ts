@@ -75,7 +75,7 @@ export function getPersonalizedPulseTarget(
       greenMax: 100,
       orangeMin: 55,
       orangeMax: 105,
-      source: "AHA (Erwachsene, Ruhepuls 60-100 bpm)",
+      source: "AHA (adults, resting pulse 60-100 bpm)",
     };
   }
 
@@ -108,20 +108,20 @@ export function classifyPulseByTarget(
   target: PersonalizedPulseTarget,
 ): PulseTargetClassification {
   if (bpm < target.orangeMin) {
-    return { category: "Deutlich niedrig", color: "#8be9fd", severity: "info" };
+    return { category: "Significantly low", color: "#8be9fd", severity: "info" };
   }
   if (bpm < target.greenMin) {
     return {
-      category: "Leicht niedrig",
+      category: "Slightly low",
       color: "#ffb86c",
       severity: "warning",
     };
   }
   if (bpm <= target.greenMax) {
-    return { category: "Zielbereich", color: "#50fa7b", severity: "normal" };
+    return { category: "On target", color: "#50fa7b", severity: "normal" };
   }
   if (bpm <= target.orangeMax) {
-    return { category: "Leicht erhöht", color: "#ffb86c", severity: "warning" };
+    return { category: "Slightly elevated", color: "#ffb86c", severity: "warning" };
   }
-  return { category: "Deutlich erhöht", color: "#ff5555", severity: "danger" };
+  return { category: "Significantly elevated", color: "#ff5555", severity: "danger" };
 }

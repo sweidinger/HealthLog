@@ -9,10 +9,10 @@ import { NextRequest } from "next/server";
 import { z } from "zod/v4";
 
 const bugReportSchema = z.object({
-  description: z.string().min(10, "Beschreibung zu kurz").max(5000),
+  description: z.string().min(10, "Description too short").max(5000),
   screenshot: z
     .string()
-    .max(7_000_000, "Screenshot zu groß (max. 5 MB)")
+    .max(7_000_000, "Screenshot too large (max 5 MB)")
     .optional(),
 });
 
@@ -21,7 +21,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const rl = await checkRateLimit(`bugreport:${user.id}`, 3, 60 * 60 * 1000);
   if (!rl.allowed) {
-    return apiError("Maximal 3 Bugreports pro Stunde", 429);
+    return apiError("Maximum 3 bug reports per hour", 429);
   }
 
   annotate({ action: { name: "bugreport.submit" } });
@@ -48,7 +48,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   if (!ghToken || !ghRepo) {
     return apiError(
-      "Bugreport ist nicht konfiguriert (GitHub-Issue-Token/Repository in Admin-Einstellungen fehlt)",
+      "Bug report not configured (GitHub issue token/repository missing in admin settings)",
       500,
     );
   }
@@ -75,15 +75,15 @@ export const POST = apiHandler(async (request: NextRequest) => {
     .slice(0, 5000);
 
   // Build issue body
-  let issueBody = `**Gemeldet von:** ${safeUsername}\n`;
-  issueBody += `**Datum:** ${dateStr}\n\n`;
-  issueBody += `## Beschreibung\n\n${safeDescription}\n`;
-  issueBody += `\n---\n*Erstellt über die HealthLog Bugreport-Funktion*`;
+  let issueBody = `**Reported by:** ${safeUsername}\n`;
+  issueBody += `**Date:** ${dateStr}\n\n`;
+  issueBody += `## Description\n\n${safeDescription}\n`;
+  issueBody += `\n---\n*Created via HealthLog bug report*`;
 
   // If screenshot provided, upload to GitHub as a gist or include as base64
   // For simplicity, we'll note there's a screenshot but GitHub issues don't support inline base64
   if (screenshot) {
-    issueBody += `\n\n**Screenshot:** Ein Screenshot wurde angehängt (siehe Kommentar).`;
+    issueBody += `\n\n**Screenshot:** A screenshot was attached (see comment).`;
   }
 
   // Create the issue
@@ -107,7 +107,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (!issueRes.ok) {
     const errBody = await issueRes.text();
     getEvent()?.addWarning("GitHub issue creation failed: " + errBody);
-    return apiError("Issue konnte nicht erstellt werden", 500);
+    return apiError("Failed to create issue", 500);
   }
 
   const issue = (await issueRes.json()) as {
@@ -123,7 +123,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
     // Upload screenshot as issue comment with embedded image
     // GitHub doesn't support base64 in comments, so we note the limitation
-    const commentBody = `### Screenshot\n\n![Screenshot](data:image/${ext};base64,${base64Data.slice(0, 100)}...)\n\n*Hinweis: Der vollständige Screenshot wurde aus Größengründen gekürzt. Bitte den Nutzer direkt kontaktieren.*`;
+    const commentBody = `### Screenshot\n\n![Screenshot](data:image/${ext};base64,${base64Data.slice(0, 100)}...)\n\n*Note: The full screenshot was truncated due to size limits. Please contact the user directly.*`;
 
     await fetch(
       `https://api.github.com/repos/${ghRepo}/issues/${issue.number}/comments`,

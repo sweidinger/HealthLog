@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
+import { useTranslations } from "@/lib/i18n/context";
 
 interface InsightsOutput {
   changed: string;
@@ -32,6 +33,7 @@ const CONFIDENCE_COLORS: Record<string, string> = {
 export function InsightsCard() {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const { t } = useTranslations();
   const [error, setError] = useState<string | null>(null);
 
   // Check if insights are configured
@@ -81,7 +83,7 @@ export function InsightsCard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="text-dracula-purple h-5 w-5" />
-            <CardTitle className="text-lg">KI-Insights</CardTitle>
+            <CardTitle className="text-lg">{t("insights.aiInsights")}</CardTitle>
           </div>
           <Button
             variant="ghost"
@@ -94,7 +96,7 @@ export function InsightsCard() {
             ) : (
               <RefreshCw className="mr-1 h-3.5 w-3.5" />
             )}
-            {insights ? "Aktualisieren" : "Generieren"}
+            {insights ? t("insights.refreshButton") : t("insights.generateButton")}
           </Button>
         </div>
       </CardHeader>
@@ -111,7 +113,7 @@ export function InsightsCard() {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="text-dracula-purple h-6 w-6 animate-spin" />
             <span className="text-muted-foreground ml-2 text-sm">
-              Analysiere Gesundheitsdaten...
+              {t("insights.analyzing")}
             </span>
           </div>
         )}
@@ -120,19 +122,19 @@ export function InsightsCard() {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Badge className={CONFIDENCE_COLORS[insights.confidence] ?? ""}>
-                Konfidenz: {insights.confidence}
+                {t("insights.confidence")}: {t(`insights.confidence_${insights.confidence}`)}
               </Badge>
               {generate.data?.cached && (
                 <Badge variant="outline" className="text-xs">
-                  Gecacht
+                  {t("insights.cached")}
                 </Badge>
               )}
             </div>
 
-            <Section title="Was hat sich verändert" text={insights.changed} />
-            <Section title="Was ist stabil" text={insights.stable} />
-            <Section title="Mögliche Zusammenhänge" text={insights.drivers} />
-            <Section title="Nächste Schritte" text={insights.nextSteps} />
+            <Section title={t("insights.sectionChanged")} text={insights.changed} />
+            <Section title={t("insights.sectionStable")} text={insights.stable} />
+            <Section title={t("insights.sectionDrivers")} text={insights.drivers} />
+            <Section title={t("insights.sectionNextSteps")} text={insights.nextSteps} />
 
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-muted-foreground text-xs">
@@ -145,8 +147,7 @@ export function InsightsCard() {
 
         {!insights && !generate.isPending && !error && (
           <p className="text-muted-foreground py-4 text-center text-sm">
-            Klicke auf &quot;Generieren&quot; für KI-basierte Insights deiner
-            Gesundheitsdaten.
+            {t("insights.generatePrompt")}
           </p>
         )}
       </CardContent>

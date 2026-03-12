@@ -98,18 +98,18 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   try {
     body = await request.json();
   } catch {
-    return apiError("Ungültige JSON-Daten", 422);
+    return apiError("Invalid JSON data", 422);
   }
 
   const parsed = notificationPreferenceSchema.safeParse(body);
-  if (!parsed.success) return apiError("Ungültige Daten", 422);
+  if (!parsed.success) return apiError("Invalid data", 422);
 
   const { channelId, eventType, enabled } = parsed.data;
 
   const channel = await prisma.notificationChannel.findFirst({
     where: { id: channelId, userId: user.id },
   });
-  if (!channel) return apiError("Kanal nicht gefunden", 404);
+  if (!channel) return apiError("Channel not found", 404);
 
   const preference = await prisma.notificationPreference.upsert({
     where: {

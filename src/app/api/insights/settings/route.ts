@@ -51,7 +51,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     } else {
       if (!key.startsWith("sk-")) {
         return apiError(
-          "Ungueltiges API-Key-Format (muss mit sk- beginnen)",
+          "Invalid API key format (must start with sk-)",
           422,
         );
       }
@@ -63,7 +63,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   if (typeof body.privacyMode === "string") {
     const mode = body.privacyMode as string;
     if (!["aggregated", "raw"].includes(mode)) {
-      return apiError("Ungueltiger Privacy-Modus", 422);
+      return apiError("Invalid privacy mode", 422);
     }
     data.insightsPrivacyMode = mode;
     // Clear cache when privacy mode changes
@@ -72,7 +72,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   }
 
   if (Object.keys(data).length === 0) {
-    return apiError("Keine Aenderungen", 422);
+    return apiError("No changes", 422);
   }
 
   await prisma.user.update({

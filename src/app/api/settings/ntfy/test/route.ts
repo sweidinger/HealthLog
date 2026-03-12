@@ -15,7 +15,7 @@ export const POST = apiHandler(async () => {
 
   const rl = await checkRateLimit(`ntfy-test:${user.id}`, 5, 5 * 60 * 1000);
   if (!rl.allowed) {
-    return apiError("Maximal 5 Tests in 5 Minuten", 429);
+    return apiError("Maximum 5 tests in 5 minutes", 429);
   }
 
   const channel = await prisma.notificationChannel.findUnique({
@@ -25,13 +25,13 @@ export const POST = apiHandler(async () => {
   });
 
   if (!channel) {
-    return apiError("ntfy ist nicht konfiguriert", 400);
+    return apiError("ntfy is not configured", 400);
   }
 
   const config = JSON.parse(decrypt(channel.config)) as NtfyChannelConfig;
 
   if (!config.serverUrl || !config.topic) {
-    return apiError("Server-URL und Topic sind erforderlich", 400);
+    return apiError("Server URL and topic are required", 400);
   }
 
   const success = await sendViaNtfy(config, {
@@ -39,11 +39,11 @@ export const POST = apiHandler(async () => {
     userId: user.id,
     title: "HealthLog Test",
     message:
-      "HealthLog: Verbindung erfolgreich! ntfy-Benachrichtigungen sind aktiv.",
+      "HealthLog: Connection successful! ntfy notifications are active.",
   });
 
   if (!success) {
-    return apiError("Testnachricht konnte nicht gesendet werden", 500);
+    return apiError("Failed to send test message", 500);
   }
 
   annotate({ action: { name: "settings.ntfy.test" }, meta: { success: true } });

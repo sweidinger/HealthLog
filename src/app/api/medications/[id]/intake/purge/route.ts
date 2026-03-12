@@ -13,7 +13,7 @@ export const DELETE = apiHandler(async (request: NextRequest, { params }: RouteP
   const { id } = await params;
   const medication = await prisma.medication.findUnique({ where: { id } });
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   const { count } = await prisma.medicationIntakeEvent.deleteMany({

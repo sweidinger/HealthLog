@@ -385,7 +385,21 @@
     "phaseAfterEnd": "nach Ende",
     "phaseResetDefaults": "Auf Defaults zurücksetzen",
     "phaseSaved": "Erinnerungsphasen gespeichert",
-    "phaseReset": "Auf Defaults zurückgesetzt"
+    "phaseReset": "Auf Defaults zurückgesetzt",
+    "sourceWeb": "Webseite",
+    "sourceApi": "Externe API",
+    "sourceReminder": "Telegram / Erinnerung",
+    "sourceImport": "CSV-Import",
+    "unitDrops": "Tropfen",
+    "unitTablets": "Tablette(n)",
+    "unitCapsules": "Kapsel(n)",
+    "unitPieces": "Stück",
+    "namePlaceholder": "z.B. Ibuprofen",
+    "dosePlaceholder": "z.B. 400",
+    "labelPlaceholder": "z.B. Morgens",
+    "defaultDose": "Standard",
+    "dayDeactivate": "{day} deaktivieren",
+    "dayActivate": "{day} aktivieren"
   },
   "charts": {
     "title": "Verlauf",
@@ -429,7 +443,39 @@
     "colorRed": "Rot:",
     "mood": "Stimmung",
     "moodScore": "Stimmungswert",
-    "moodMA": "7-Tage-Schnitt"
+    "moodMA": "7-Tage-Schnitt",
+    "moodLabel1": "Lausig",
+    "moodLabel2": "Schlecht",
+    "moodLabel3": "Okay",
+    "moodLabel4": "Gut",
+    "moodLabel5": "Super",
+    "weekdays": {
+      "mon": "Mo",
+      "wed": "Mi",
+      "fri": "Fr",
+      "sun": "So"
+    },
+    "months": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mär",
+      "apr": "Apr",
+      "may": "Mai",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Okt",
+      "nov": "Nov",
+      "dec": "Dez"
+    },
+    "heatmapOnTime": "pünktlich",
+    "heatmapLate": "spät",
+    "heatmapVeryLate": "sehr spät",
+    "legendOnTime": "Pünktlich",
+    "legendLate": "Spät",
+    "legendVeryLate": "Sehr spät",
+    "legendMissed": "Verpasst"
   },
   "insights": {
     "title": "Insights",
@@ -543,7 +589,20 @@
     "moodWeightNone": "Kein erkennbarer Zusammenhang zwischen Stimmung und Gewicht.",
     "moodWeightStrong": "Es besteht ein starker Zusammenhang zwischen Stimmung und Gewicht.",
     "moodWeightWeak": "Es besteht ein schwacher Zusammenhang zwischen Stimmung und Gewicht.",
-    "notEnoughMoodCorrelationData": "Zu wenig Stimmungsdaten für Korrelationsanalyse."
+    "notEnoughMoodCorrelationData": "Zu wenig Stimmungsdaten für Korrelationsanalyse.",
+    "refreshButton": "Aktualisieren",
+    "generateButton": "Generieren",
+    "analyzing": "Analysiere Gesundheitsdaten...",
+    "confidence": "Konfidenz",
+    "confidence_niedrig": "niedrig",
+    "confidence_mittel": "mittel",
+    "confidence_hoch": "hoch",
+    "cached": "Gecacht",
+    "sectionChanged": "Was hat sich verändert",
+    "sectionStable": "Was ist stabil",
+    "sectionDrivers": "Mögliche Zusammenhänge",
+    "sectionNextSteps": "Nächste Schritte",
+    "generatePrompt": "Klicke auf \"Generieren\" für KI-basierte Insights deiner Gesundheitsdaten."
   },
   "targets": {
     "title": "Zielwerte",
@@ -1208,5 +1267,118 @@
     "dateShort": "{day}.{month}.{year}",
     "timeShort": "{hours}:{minutes}",
     "dateTime": "{day}.{month}.{year}, {hours}:{minutes}"
+  },
+  "classifications": {
+    "bmi": {
+      "Underweight": "Untergewicht",
+      "Normal": "Normalgewicht",
+      "Overweight": "Übergewicht",
+      "ObesityGradeI": "Adipositas Grad I",
+      "ObesityGradeII": "Adipositas Grad II",
+      "ObesityGradeIII": "Adipositas Grad III"
+    },
+    "bp": {
+      "Optimal": "Optimal",
+      "Normal": "Normal",
+      "HighNormal": "Hoch-normal",
+      "HypertensionGrade1": "Hypertonie Grad 1",
+      "HypertensionGrade2": "Hypertonie Grad 2",
+      "HypertensionGrade3": "Hypertonie Grad 3"
+    },
+    "pulse": {
+      "Bradycardia": "Bradykardie",
+      "Normal": "Normal",
+      "Elevated": "Erhöht",
+      "Tachycardia": "Tachykardie"
+    },
+    "pulseTarget": {
+      "SignificantlyLow": "Deutlich niedrig",
+      "SlightlyLow": "Leicht niedrig",
+      "OnTarget": "Zielbereich",
+      "SlightlyElevated": "Leicht erhöht",
+      "SignificantlyElevated": "Deutlich erhöht"
+    },
+    "sleep": {
+      "FarTooShort": "Deutlich zu kurz",
+      "TooShort": "Zu kurz",
+      "OnTarget": "Zielbereich",
+      "SlightlyLong": "Etwas lang",
+      "FarTooLong": "Deutlich zu lang"
+    },
+    "bodyFat": {
+      "Essential": "Essenziell",
+      "Athletic": "Athletisch",
+      "Fitness": "Fitness",
+      "Average": "Durchschnitt",
+      "Obese": "Adipös"
+    },
+    "steps": {
+      "VeryLow": "Sehr wenig",
+      "LowActive": "Wenig aktiv",
+      "ModeratelyActive": "Moderat aktiv",
+      "Active": "Aktiv",
+      "VeryActive": "Sehr aktiv"
+    },
+    "general": {
+      "Good": "Gut",
+      "Moderate": "Moderat",
+      "Low": "Niedrig",
+      "VeryGood": "Sehr gut",
+      "VeryStable": "Sehr stabil",
+      "Stable": "Stabil",
+      "Fluctuating": "Schwankend"
+    },
+    "alerts": {
+      "bmiBelowNormalTitle": "BMI unter Normalbereich",
+      "bmiBelowNormalMessage": "Ihr BMI von {bmi} liegt unter dem Normalbereich (18,5–24,9).",
+      "bmiOverweightTitle": "BMI im Bereich Übergewicht",
+      "bmiOverweightMessage": "Ihr BMI von {bmi} liegt im Bereich Übergewicht. Regelmäßige Bewegung und ausgewogene Ernährung können helfen.",
+      "bmiObesityTitle": "BMI im Bereich Adipositas",
+      "bmiObesityMessage": "Ihr BMI von {bmi} liegt im Bereich Adipositas.",
+      "bmiNormalTitle": "BMI im Normalbereich",
+      "bmiNormalMessage": "Ihr BMI von {bmi} liegt im gesunden Bereich.",
+      "bpDangerTitle": "Blutdruck deutlich erhöht",
+      "bpDangerMessage": "Ihr durchschnittlicher Blutdruck ({sys}/{dia}) wird als \"{category}\" eingestuft.",
+      "bpWarningTitle": "Blutdruck leicht erhöht",
+      "bpWarningMessage": "Ihr durchschnittlicher Blutdruck ({sys}/{dia}) liegt im Bereich \"{category}\".",
+      "bpTargetGoodTitle": "Gute Blutdruck-Zielbereichstreue",
+      "bpTargetGoodMessage": "{pct}% Ihrer Messungen liegen im Zielbereich.",
+      "bpTargetBadTitle": "Blutdruck oft außerhalb des Zielbereichs",
+      "bpTargetBadMessage": "Nur {pct}% Ihrer Messungen liegen im Zielbereich.",
+      "weightIncreasingTitle": "Gewicht steigend",
+      "weightIncreasingMessage": "Ihr Gewicht steigt um ca. {change} kg pro Woche in den letzten 30 Tagen.",
+      "weightDecreasingTitle": "Gewicht fallend",
+      "weightDecreasingMessage": "Ihr Gewicht sinkt um ca. {change} kg pro Woche in den letzten 30 Tagen.",
+      "pulseOutliersTitle": "Puls-Ausreißer erkannt",
+      "pulseOutliersMessage": "{count} ungewöhnliche Pulsmessungen in den letzten 30 Tagen.",
+      "complianceLowTitle": "Niedrige Einnahmetreue: {name}",
+      "complianceLowMessage": "Ihre 7-Tage-Compliance für {name} liegt bei nur {pct}%. Regelmäßige Einnahme ist wichtig.",
+      "complianceGoodTitle": "Sehr gute Einnahmetreue: {name}",
+      "complianceGoodMessage": "{pct}% Compliance in den letzten 7 Tagen. Weiter so!"
+    }
+  },
+  "targets": {
+    "weight": "Gewicht",
+    "bloodPressure": "Blutdruck",
+    "bloodPressureOnTarget": "Blutdruck im Zielbereich",
+    "restingPulse": "Ruhepuls",
+    "sleepDuration": "Schlafdauer",
+    "bmi": "BMI",
+    "bodyFat": "Körperfett",
+    "stepsPerDay": "Schritte/Tag",
+    "medicationCompliance": "Einnahmetreue",
+    "mood": "Stimmung",
+    "moodStability": "Stimmungsstabilität",
+    "steps": "Schritte"
+  },
+  "passwordStrength": {
+    "veryWeak": "Sehr schwach",
+    "weak": "Schwach",
+    "acceptable": "Akzeptabel",
+    "strong": "Stark",
+    "veryStrong": "Sehr stark",
+    "tooShort": "Zu kurz",
+    "characters": "Zeichen",
+    "minLength": "Mindestens {count} Zeichen erforderlich."
   }
 }

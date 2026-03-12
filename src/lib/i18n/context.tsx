@@ -84,9 +84,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     (key: string, params?: Record<string, string | number>): string => {
       let value = resolveKey(allMessages[locale], key);
 
-      // Fallback to German if key missing in current locale
-      if (value === undefined && locale !== "de") {
-        value = resolveKey(allMessages.de, key);
+      // Fallback to English if key missing in current locale
+      if (value === undefined && locale !== "en") {
+        value = resolveKey(allMessages.en, key);
       }
 
       // Fallback to key itself

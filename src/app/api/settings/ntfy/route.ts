@@ -51,13 +51,13 @@ export const PUT = apiHandler(async (request: NextRequest) => {
 
   if (jsonError) return jsonError;
   const parsed = ntfySettingsSchema.safeParse(body);
-  if (!parsed.success) return apiError("Ungueltige Daten", 422);
+  if (!parsed.success) return apiError("Invalid data", 422);
 
   const { serverUrl, topic, authToken, enabled } = parsed.data;
 
   if (enabled && (!serverUrl || !topic)) {
     return apiError(
-      "Server-URL und Topic sind erforderlich, wenn ntfy aktiviert ist",
+      "Server URL and topic are required when ntfy is enabled",
       422,
     );
   }

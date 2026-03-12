@@ -19,7 +19,7 @@ export const POST = apiHandler(async () => {
   });
 
   if (!connection) {
-    return apiError("Keine Withings-Verbindung vorhanden", 404);
+    return apiError("No Withings connection", 404);
   }
 
   // Try to unsubscribe webhook (best-effort)

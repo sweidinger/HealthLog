@@ -13,34 +13,34 @@ export interface BmiClassification {
 
 export function classifyBMI(bmi: number): BmiClassification {
   if (bmi < 18.5) {
-    return { category: "Untergewicht", color: "#f1fa8c", severity: "warning" };
+    return { category: "Underweight", color: "#f1fa8c", severity: "warning" };
   }
   if (bmi < 25) {
-    return { category: "Normalgewicht", color: "#50fa7b", severity: "normal" };
+    return { category: "Normal", color: "#50fa7b", severity: "normal" };
   }
   if (bmi < 30) {
     return {
-      category: "Übergewicht",
+      category: "Overweight",
       color: "#ffb86c",
       severity: "warning",
     };
   }
   if (bmi < 35) {
     return {
-      category: "Adipositas Grad I",
+      category: "Obesity Grade I",
       color: "#ff79c6",
       severity: "danger",
     };
   }
   if (bmi < 40) {
     return {
-      category: "Adipositas Grad II",
+      category: "Obesity Grade II",
       color: "#ff5555",
       severity: "danger",
     };
   }
   return {
-    category: "Adipositas Grad III",
+    category: "Obesity Grade III",
     color: "#ff5555",
     severity: "danger",
   };
@@ -63,27 +63,27 @@ export function classifyBP(sys: number, dia: number): BpClassification {
   }
   if (sys < 140 && dia < 90) {
     return {
-      category: "Hoch-normal",
+      category: "High-normal",
       color: "#f1fa8c",
       severity: "elevated",
     };
   }
   if (sys < 160 && dia < 100) {
     return {
-      category: "Hypertonie Grad 1",
+      category: "Hypertension Grade 1",
       color: "#ffb86c",
       severity: "warning",
     };
   }
   if (sys < 180 && dia < 110) {
     return {
-      category: "Hypertonie Grad 2",
+      category: "Hypertension Grade 2",
       color: "#ff79c6",
       severity: "danger",
     };
   }
   return {
-    category: "Hypertonie Grad 3",
+    category: "Hypertension Grade 3",
     color: "#ff5555",
     severity: "danger",
   };
@@ -99,15 +99,15 @@ export interface PulseClassification {
 
 export function classifyPulse(bpm: number): PulseClassification {
   if (bpm < 60) {
-    return { category: "Bradykardie", color: "#8be9fd", severity: "info" };
+    return { category: "Bradycardia", color: "#8be9fd", severity: "info" };
   }
   if (bpm <= 100) {
     return { category: "Normal", color: "#50fa7b", severity: "normal" };
   }
   if (bpm <= 120) {
-    return { category: "Erhöht", color: "#ffb86c", severity: "warning" };
+    return { category: "Elevated", color: "#ffb86c", severity: "warning" };
   }
-  return { category: "Tachykardie", color: "#ff5555", severity: "danger" };
+  return { category: "Tachycardia", color: "#ff5555", severity: "danger" };
 }
 
 // ── Sleep Duration Classification (AASM/SRS) ───────────
@@ -123,22 +123,22 @@ export function classifySleepDuration(
 ): SleepDurationClassification {
   if (hours < 6) {
     return {
-      category: "Deutlich zu kurz",
+      category: "Far too short",
       color: "#ff5555",
       severity: "warning",
     };
   }
   if (hours < 7) {
-    return { category: "Zu kurz", color: "#ffb86c", severity: "warning" };
+    return { category: "Too short", color: "#ffb86c", severity: "warning" };
   }
   if (hours <= 9) {
-    return { category: "Zielbereich", color: "#50fa7b", severity: "normal" };
+    return { category: "On target", color: "#50fa7b", severity: "normal" };
   }
   if (hours <= 10) {
-    return { category: "Etwas lang", color: "#8be9fd", severity: "info" };
+    return { category: "Slightly long", color: "#8be9fd", severity: "info" };
   }
   return {
-    category: "Deutlich zu lang",
+    category: "Far too long",
     color: "#ff79c6",
     severity: "warning",
   };
@@ -184,25 +184,25 @@ export function classifyBodyFat(
 
   if (pct < essential) {
     return {
-      category: "Essenziell",
+      category: "Essential",
       color: "#f1fa8c",
       severity: "warning",
     };
   }
   if (pct <= athleteMax) {
-    return { category: "Athletisch", color: "#50fa7b", severity: "normal" };
+    return { category: "Athletic", color: "#50fa7b", severity: "normal" };
   }
   if (pct <= fitnessMax) {
     return { category: "Fitness", color: "#50fa7b", severity: "normal" };
   }
   if (pct <= averageMax) {
     return {
-      category: "Durchschnitt",
+      category: "Average",
       color: "#ffb86c",
       severity: "warning",
     };
   }
-  return { category: "Adipös", color: "#ff5555", severity: "danger" };
+  return { category: "Obese", color: "#ff5555", severity: "danger" };
 }
 
 // ── Activity Steps Classification (WHO) ─────────────────
@@ -216,25 +216,25 @@ export interface StepsClassification {
 export function classifySteps(steps: number): StepsClassification {
   if (steps < 3000) {
     return {
-      category: "Sehr wenig",
+      category: "Very low",
       color: "#ff5555",
       severity: "warning",
     };
   }
   if (steps < 5000) {
-    return { category: "Wenig aktiv", color: "#ffb86c", severity: "warning" };
+    return { category: "Low active", color: "#ffb86c", severity: "warning" };
   }
   if (steps < 7500) {
     return {
-      category: "Moderat aktiv",
+      category: "Moderately active",
       color: "#f1fa8c",
       severity: "info",
     };
   }
   if (steps < 10000) {
-    return { category: "Aktiv", color: "#50fa7b", severity: "normal" };
+    return { category: "Active", color: "#50fa7b", severity: "normal" };
   }
-  return { category: "Sehr aktiv", color: "#50fa7b", severity: "normal" };
+  return { category: "Very active", color: "#50fa7b", severity: "normal" };
 }
 
 export function getStepsRange(): { min: number; max: number } {
@@ -315,26 +315,26 @@ export function generateAlerts(input: AlertInput): HealthAlert[] {
     if (input.bmi < 18.5) {
       alerts.push({
         level: "warning",
-        title: "BMI unter Normalbereich",
-        message: `Ihr BMI von ${input.bmi} liegt unter dem Normalbereich (18,5–24,9).`,
+        title: "BMI below normal range",
+        message: `Your BMI of ${input.bmi} is below the normal range (18.5–24.9).`,
       });
     } else if (input.bmi >= 25 && input.bmi < 30) {
       alerts.push({
         level: "info",
-        title: "BMI im Bereich Übergewicht",
-        message: `Ihr BMI von ${input.bmi} liegt im Bereich Übergewicht. Regelmäßige Bewegung und ausgewogene Ernährung können helfen.`,
+        title: "BMI in overweight range",
+        message: `Your BMI of ${input.bmi} is in the overweight range. Regular exercise and a balanced diet can help.`,
       });
     } else if (input.bmi >= 30) {
       alerts.push({
         level: "warning",
-        title: "BMI im Bereich Adipositas",
-        message: `Ihr BMI von ${input.bmi} liegt im Bereich Adipositas.`,
+        title: "BMI in obesity range",
+        message: `Your BMI of ${input.bmi} is in the obesity range.`,
       });
     } else {
       alerts.push({
         level: "success",
-        title: "BMI im Normalbereich",
-        message: `Ihr BMI von ${input.bmi} liegt im gesunden Bereich.`,
+        title: "BMI in normal range",
+        message: `Your BMI of ${input.bmi} is in the healthy range.`,
       });
     }
   }
@@ -345,14 +345,14 @@ export function generateAlerts(input: AlertInput): HealthAlert[] {
     if (bpClass.severity === "danger") {
       alerts.push({
         level: "danger",
-        title: "Blutdruck deutlich erhöht",
-        message: `Ihr durchschnittlicher Blutdruck (${input.bpAvgSys}/${input.bpAvgDia}) wird als "${bpClass.category}" eingestuft.`,
+        title: "Blood pressure significantly elevated",
+        message: `Your average blood pressure (${input.bpAvgSys}/${input.bpAvgDia}) is classified as "${bpClass.category}".`,
       });
     } else if (bpClass.severity === "warning") {
       alerts.push({
         level: "warning",
-        title: "Blutdruck leicht erhöht",
-        message: `Ihr durchschnittlicher Blutdruck (${input.bpAvgSys}/${input.bpAvgDia}) liegt im Bereich "${bpClass.category}".`,
+        title: "Blood pressure slightly elevated",
+        message: `Your average blood pressure (${input.bpAvgSys}/${input.bpAvgDia}) is in the "${bpClass.category}" range.`,
       });
     }
   }
@@ -362,14 +362,14 @@ export function generateAlerts(input: AlertInput): HealthAlert[] {
     if (input.bpPctInTarget >= 80) {
       alerts.push({
         level: "success",
-        title: "Gute Blutdruck-Zielbereichstreue",
-        message: `${input.bpPctInTarget}% Ihrer Messungen liegen im Zielbereich.`,
+        title: "Good blood pressure target adherence",
+        message: `${input.bpPctInTarget}% of your readings are within the target range.`,
       });
     } else if (input.bpPctInTarget < 50) {
       alerts.push({
         level: "warning",
-        title: "Blutdruck oft außerhalb des Zielbereichs",
-        message: `Nur ${input.bpPctInTarget}% Ihrer Messungen liegen im Zielbereich.`,
+        title: "Blood pressure often outside target range",
+        message: `Only ${input.bpPctInTarget}% of your readings are within the target range.`,
       });
     }
   }
@@ -380,14 +380,14 @@ export function generateAlerts(input: AlertInput): HealthAlert[] {
     if (weeklyChange > 0.5) {
       alerts.push({
         level: "info",
-        title: "Gewicht steigend",
-        message: `Ihr Gewicht steigt um ca. ${weeklyChange.toFixed(1)} kg pro Woche in den letzten 30 Tagen.`,
+        title: "Weight increasing",
+        message: `Your weight is increasing by approx. ${weeklyChange.toFixed(1)} kg per week over the last 30 days.`,
       });
     } else if (weeklyChange < -0.5) {
       alerts.push({
         level: "info",
-        title: "Gewicht fallend",
-        message: `Ihr Gewicht sinkt um ca. ${Math.abs(weeklyChange).toFixed(1)} kg pro Woche in den letzten 30 Tagen.`,
+        title: "Weight decreasing",
+        message: `Your weight is decreasing by approx. ${Math.abs(weeklyChange).toFixed(1)} kg per week over the last 30 days.`,
       });
     }
   }
@@ -396,8 +396,8 @@ export function generateAlerts(input: AlertInput): HealthAlert[] {
   if (input.pulseAnomalyCount != null && input.pulseAnomalyCount > 2) {
     alerts.push({
       level: "warning",
-      title: "Puls-Ausreißer erkannt",
-      message: `${input.pulseAnomalyCount} ungewöhnliche Pulsmessungen in den letzten 30 Tagen.`,
+      title: "Pulse outliers detected",
+      message: `${input.pulseAnomalyCount} unusual pulse readings in the last 30 days.`,
     });
   }
 
@@ -407,14 +407,14 @@ export function generateAlerts(input: AlertInput): HealthAlert[] {
       if (med.compliance7 < 80) {
         alerts.push({
           level: "warning",
-          title: `Niedrige Einnahmetreue: ${med.name}`,
-          message: `Ihre 7-Tage-Compliance für ${med.name} liegt bei nur ${med.compliance7}%. Regelmäßige Einnahme ist wichtig.`,
+          title: `Low compliance: ${med.name}`,
+          message: `Your 7-day compliance for ${med.name} is only ${med.compliance7}%. Regular intake is important.`,
         });
       } else if (med.compliance7 >= 95) {
         alerts.push({
           level: "success",
-          title: `Sehr gute Einnahmetreue: ${med.name}`,
-          message: `${med.compliance7}% Compliance in den letzten 7 Tagen. Weiter so!`,
+          title: `Excellent compliance: ${med.name}`,
+          message: `${med.compliance7}% compliance over the last 7 days. Keep it up!`,
         });
       }
     }

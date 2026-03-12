@@ -471,7 +471,7 @@ function TargetCard({
   );
 }
 
-export default function ZielwertePage() {
+export default function TargetsPage() {
   const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
 

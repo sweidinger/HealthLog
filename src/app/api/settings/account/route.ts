@@ -20,12 +20,12 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
     const body = await request.json();
     confirm = typeof body?.confirm === "string" ? body.confirm : "";
   } catch {
-    return apiError("Ungueltige Anfrage", 422);
+    return apiError("Invalid request", 422);
   }
 
   if (confirm !== "DELETE_ACCOUNT") {
     return apiError(
-      "Bestaetigung fehlt. Sende { confirm: 'DELETE_ACCOUNT' }",
+      "Confirmation missing. Send { confirm: 'DELETE_ACCOUNT' }",
       422,
     );
   }
@@ -35,7 +35,7 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
     const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
     if (adminCount <= 1) {
       return apiError(
-        "Der letzte Admin-Account kann nicht geloescht werden",
+        "The last admin account cannot be deleted",
         400,
       );
     }

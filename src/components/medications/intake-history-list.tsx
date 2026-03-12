@@ -72,12 +72,7 @@ interface IntakeHistoryListProps {
   onCreateOpenChange?: (open: boolean) => void;
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  WEB: "Webseite",
-  API: "Externe API",
-  REMINDER: "Telegram / Erinnerung",
-  IMPORT: "CSV-Import",
-};
+// SOURCE_LABELS built dynamically via t() in the component
 
 const PAGE_SIZE = 25;
 
@@ -96,6 +91,13 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const { t } = useTranslations();
+
+  const sourceLabels: Record<string, string> = {
+    WEB: t("medications.sourceWeb"),
+    API: t("medications.sourceApi"),
+    REMINDER: t("medications.sourceReminder"),
+    IMPORT: t("medications.sourceImport"),
+  };
 
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<string>("scheduledFor");
@@ -219,7 +221,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
     },
     onError: (err) => {
       setEditError(
-        err instanceof Error ? err.message : "Fehler beim Speichern",
+        err instanceof Error ? err.message : t("medications.saveError"),
       );
     },
   });
@@ -257,7 +259,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
     },
     onError: (err) => {
       setCreateError(
-        err instanceof Error ? err.message : "Fehler beim Speichern",
+        err instanceof Error ? err.message : t("medications.saveError"),
       );
     },
   });
@@ -293,7 +295,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
       await deleteMutation.mutateAsync(editing.id);
       closeEdit();
     } catch {
-      setEditError("Fehler beim Löschen");
+      setEditError(t("medications.deleteError"));
     }
   }
 
@@ -303,7 +305,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
 
     const scheduledDate = new Date(editScheduledFor);
     if (Number.isNaN(scheduledDate.getTime())) {
-      setEditError("Bitte einen gültigen Zeitpunkt wählen.");
+      setEditError(t("medications.invalidTimestamp"));
       return;
     }
 
@@ -323,7 +325,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
 
     const scheduledDate = new Date(createScheduledFor);
     if (Number.isNaN(scheduledDate.getTime())) {
-      setCreateError("Bitte einen gültigen Zeitpunkt wählen.");
+      setCreateError(t("medications.invalidTimestamp"));
       return;
     }
 
@@ -365,7 +367,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
   if (!isAuthenticated) {
     return (
       <p className="text-muted-foreground text-sm">
-        Bitte anmelden, um Einnahmen zu sehen.
+        {t("medications.loginRequiredIntakes")}
       </p>
     );
   }
@@ -387,7 +389,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
           </div>
         ) : !data?.events.length ? (
           <div className="text-muted-foreground flex h-32 items-center justify-center rounded-lg border border-dashed">
-            Noch keine Einnahmen vorhanden
+            {t("medications.noIntakesYet")}
           </div>
         ) : (
           <>
@@ -420,7 +422,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                       className="w-28"
                     />
                     <TableHead className="w-20 pr-4 text-right">
-                      Aktionen
+                      {t("medications.actions")}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -438,7 +440,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                       <TableCell>{getStatusBadge(event)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
-                          {SOURCE_LABELS[event.source] ?? event.source}
+                          {sourceLabels[event.source] ?? event.source}
                         </Badge>
                       </TableCell>
                       <TableCell className="pr-4 text-right">
@@ -485,7 +487,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                       <div className="flex items-center gap-1.5">
                         {getStatusBadge(event)}
                         <Badge variant="outline" className="text-xs">
-                          {SOURCE_LABELS[event.source] ?? event.source}
+                          {sourceLabels[event.source] ?? event.source}
                         </Badge>
                       </div>
                     </div>
@@ -516,7 +518,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground text-sm">
-              Seite {page} von {totalPages}
+              {t("medications.pageInfo", { page, total: totalPages })}
             </span>
             <div className="flex gap-1">
               <Button
@@ -614,7 +616,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                       onClick={() => setEditDeleteDialogOpen(true)}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Löschen
+                      {t("common.delete")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -628,7 +630,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                       updateMutation.isPending || deleteMutation.isPending
                     }
                   >
-                    Abbrechen
+                    {t("common.cancel")}
                   </Button>
                   <Button
                     type="submit"
@@ -639,7 +641,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                     {updateMutation.isPending ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
-                    Speichern
+                    {t("common.save")}
                   </Button>
                 </div>
               </div>
@@ -659,7 +661,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={deleteMutation.isPending}>
-                      Abbrechen
+                      {t("common.cancel")}
                     </AlertDialogCancel>
                     <AlertDialogAction
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -669,7 +671,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                       {deleteMutation.isPending ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : null}
-                      Löschen
+                      {t("common.delete")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -737,13 +739,13 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                 onClick={closeCreate}
                 disabled={createMutation.isPending}
               >
-                Abbrechen
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={createMutation.isPending}>
                 {createMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
-                Speichern
+                {t("common.save")}
               </Button>
             </div>
           </form>
@@ -800,6 +802,7 @@ function DeleteButton({
   description: string;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslations();
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -807,7 +810,7 @@ function DeleteButton({
           variant="ghost"
           size="icon"
           className="text-destructive h-8 w-8"
-          aria-label="Löschen"
+          aria-label={label}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
@@ -818,12 +821,12 @@ function DeleteButton({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             onClick={onConfirm}
           >
-            Löschen
+            {t("common.delete")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -17,7 +17,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: RoutePar
   const { id } = await params;
   const medication = await prisma.medication.findUnique({ where: { id } });
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -108,7 +108,7 @@ export const GET = apiHandler(async (request: NextRequest, { params }: RoutePara
   const { id } = await params;
   const medication = await prisma.medication.findUnique({ where: { id } });
   if (!medication || medication.userId !== user.id) {
-    return apiError("Medikament nicht gefunden", 404);
+    return apiError("Medication not found", 404);
   }
 
   const searchParams = Object.fromEntries(request.nextUrl.searchParams);
