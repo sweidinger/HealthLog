@@ -483,7 +483,6 @@ async function handleGeneralStatusGenerate(jobs: Job<GeneralStatusPayload>[]) {
   try {
     recordInsightsRun();
     const users = await prisma.user.findMany({
-      where: { openaiKeyEncrypted: { not: null } },
       select: { id: true, locale: true },
     });
 
@@ -525,7 +524,6 @@ async function handleBloodPressureStatusGenerate(
   const prisma = getWorkerPrisma();
   try {
     const users = await prisma.user.findMany({
-      where: { openaiKeyEncrypted: { not: null } },
       select: { id: true, locale: true },
     });
 
@@ -565,7 +563,6 @@ async function handleWeightStatusGenerate(jobs: Job<WeightStatusPayload>[]) {
   const prisma = getWorkerPrisma();
   try {
     const users = await prisma.user.findMany({
-      where: { openaiKeyEncrypted: { not: null } },
       select: { id: true, locale: true },
     });
 
@@ -605,7 +602,6 @@ async function handlePulseStatusGenerate(jobs: Job<PulseStatusPayload>[]) {
   const prisma = getWorkerPrisma();
   try {
     const users = await prisma.user.findMany({
-      where: { openaiKeyEncrypted: { not: null } },
       select: { id: true, locale: true },
     });
 
@@ -645,7 +641,6 @@ async function handleBmiStatusGenerate(jobs: Job<BmiStatusPayload>[]) {
   const prisma = getWorkerPrisma();
   try {
     const users = await prisma.user.findMany({
-      where: { openaiKeyEncrypted: { not: null } },
       select: { id: true, locale: true },
     });
 
@@ -687,7 +682,6 @@ async function handleMedicationComplianceStatusGenerate(
   const prisma = getWorkerPrisma();
   try {
     const users = await prisma.user.findMany({
-      where: { openaiKeyEncrypted: { not: null } },
       select: { id: true, locale: true },
     });
 

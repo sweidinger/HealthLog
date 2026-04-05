@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { resolveProvider } from "@/lib/ai/provider";
 import { apiSuccess } from "@/lib/api-response";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
@@ -32,7 +33,6 @@ export const GET = apiHandler(async () => {
     select: {
       heightCm: true,
       dateOfBirth: true,
-      openaiKeyEncrypted: true,
     },
   });
 
@@ -371,7 +371,7 @@ export const GET = apiHandler(async () => {
     moodPulseScatterData,
     medications: medCompliance,
     alerts,
-    hasOpenAiKey: !!dbUser?.openaiKeyEncrypted,
+    hasProvider: (await resolveProvider(userId)).type !== "none",
     dataSpanDays,
     totalMeasurements: allMeasurements.length,
   });

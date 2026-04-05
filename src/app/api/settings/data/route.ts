@@ -71,7 +71,6 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
         heightCm: null,
         dateOfBirth: null,
         gender: null,
-        openaiKeyEncrypted: null,
         insightsPrivacyMode: "aggregated",
         insightsCachedAt: null,
         insightsCachedText: null,

@@ -44,7 +44,8 @@ export function InsightsCard() {
       if (!res.ok) return null;
       const json = await res.json();
       return json.data as {
-        hasKey: boolean;
+        codexStatus: string;
+        hasAdminKey: boolean;
         privacyMode: string;
         lastInsightAt: string | null;
       };
@@ -73,7 +74,7 @@ export function InsightsCard() {
   });
 
   // Don't show if no API key configured
-  if (!settings?.hasKey) return null;
+  if (!(settings?.codexStatus === "connected" || settings?.hasAdminKey)) return null;
 
   const insights = generate.data?.insights;
 

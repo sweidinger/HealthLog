@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/db";
-import { decrypt } from "@/lib/crypto";
+import { resolveProvider } from "@/lib/ai/provider";
+import { getMedicationComplianceSystemPrompt, getMedicationComplianceUserPrompt } from "@/lib/ai/prompts/medication-compliance";
 import { calculateCompliance } from "@/lib/analytics/compliance";
 import { getMedicationCategories } from "@/lib/medication-category";
 import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import { getNoKeyMedicationComplianceStatusText } from "@/lib/insights/no-key-fallbacks";
 
-const MEDICATION_COMPLIANCE_STATUS_MODEL = "gpt-4o-mini";
 const MEDICATION_COMPLIANCE_STATUS_POINTS = 30;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -48,60 +48,6 @@ function normalizeLocale(value: string | null | undefined): SupportedLocale {
   return value === "en" ? "en" : "de";
 }
 
-function getSystemPrompt(locale: SupportedLocale): string {
-  if (locale === "en") {
-    return [
-      "You are a health trend analyst for a private personal project.",
-      "Generate medication adherence insights from the provided data only.",
-      "Return one overall section summary with about 7 sentences and one per-medication summary with 3-4 sentences each.",
-      "Use only the latest 30 daily points and prioritize the latest day for each medication.",
-      "Account for medication name, category, dose strength, and adherence details in your interpretation.",
-      "Weight findings by importance: persistent misses and low adherence should be emphasized much more than minor variance.",
-      "If fewer than 5 data points exist, state that insufficient data is available for a qualified assessment. If data is sparse over a long period, still derive rough trends but note limited reliability. If the newest measurement is more than 7 days old, mention the data may not be current.",
-      "Do not include warnings, disclaimers, or references to AI/model limitations.",
-      'Return valid JSON only: {"summary":"...","medications":[{"medicationId":"...","summary":"..."}]}',
-    ].join(" ");
-  }
-
-  return [
-    "Du bist ein Gesundheits-Trendanalyst für ein privates Projekt.",
-    "Erzeuge Einschätzungen zur Medikamenteneinnahmetreue ausschließlich aus den bereitgestellten Daten.",
-    "Gib eine Gesamtzusammenfassung mit ungefähr 7 Sätzen und pro Medikament eine Zusammenfassung mit 3-4 Sätzen zurück.",
-    "Nutze nur die letzten 30 Tagesmesspunkte und priorisiere je Medikament den neuesten Tag.",
-    "Berücksichtige in der Interpretation Medikamentenname, Kategorie, Dosisstärke und Einnahmedetails.",
-    "Gewichte Aussagen nach Wichtigkeit: dauerhafte Ausfälle und niedrige Treue sollen deutlich stärker betont werden als kleine Schwankungen.",
-    "Wenn weniger als 5 Messpunkte vorliegen, sage dass noch nicht genügend Daten für eine fundierte Aussage vorhanden sind. Bei spärlichen Daten über einen langen Zeitraum leite trotzdem grobe Trends ab, weise aber auf eingeschränkte Belastbarkeit hin. Wenn die neueste Messung älter als 7 Tage ist, erwähne dass die Daten möglicherweise nicht aktuell sind.",
-    "Keine Warnhinweise, keine Haftungsausschlüsse, keine Hinweise auf KI oder Modellgrenzen.",
-    'Gib nur valides JSON zurück: {"summary":"...","medications":[{"medicationId":"...","summary":"..."}]}',
-  ].join(" ");
-}
-
-function getUserPrompt(
-  locale: SupportedLocale,
-  snapshotJson: string,
-  todayKey: string,
-): string {
-  if (locale === "en") {
-    return [
-      `Date: ${todayKey} (Europe/Berlin)`,
-      `Use the latest ${MEDICATION_COMPLIANCE_STATUS_POINTS} daily points as provided per medication.`,
-      "If a day contains multiple events, they are already aggregated.",
-      "Generate one overall medication-compliance summary and one summary per medication.",
-      "",
-      snapshotJson,
-    ].join("\n");
-  }
-
-  return [
-    `Datum: ${todayKey} (Europe/Berlin)`,
-    `Nutze die letzten ${MEDICATION_COMPLIANCE_STATUS_POINTS} Tagesmesspunkte pro Medikament wie bereitgestellt.`,
-    "Mehrere Ereignisse pro Tag sind bereits aggregiert.",
-    "Erzeuge eine Gesamtzusammenfassung zur Medikamentencompliance und je Medikament eine eigene Zusammenfassung.",
-    "",
-    snapshotJson,
-  ].join("\n");
-}
-
 export async function generateMedicationComplianceStatusForUser(
   userId: string,
   options?: {
@@ -109,7 +55,7 @@ export async function generateMedicationComplianceStatusForUser(
     force?: boolean;
   },
 ): Promise<{
-  hasKey: boolean;
+  hasProvider: boolean;
   summary: string | null;
   medications: MedicationSummaryItem[];
   cached: boolean;
@@ -120,16 +66,10 @@ export async function generateMedicationComplianceStatusForUser(
   const cacheAction = `insights.medication-compliance-status.${locale}`;
   const todayKey = toBerlinDayKey(new Date());
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      openaiKeyEncrypted: true,
-    },
-  });
-
-  if (!user?.openaiKeyEncrypted) {
+  const provider = await resolveProvider(userId);
+  if (provider.type === "none") {
     return {
-      hasKey: false,
+      hasProvider: false,
       summary: getNoKeyMedicationComplianceStatusText(locale),
       medications: [],
       cached: true,
@@ -158,7 +98,7 @@ export async function generateMedicationComplianceStatusForUser(
         Array.isArray(parsed.medications)
       ) {
         return {
-          hasKey: true,
+          hasProvider: true,
           summary: parsed.summary,
           medications: parsed.medications.filter(
             (entry): entry is MedicationSummaryItem =>
@@ -183,7 +123,7 @@ export async function generateMedicationComplianceStatusForUser(
 
   if (medications.length === 0) {
     return {
-      hasKey: true,
+      hasProvider: true,
       summary:
         locale === "de"
           ? "Aktuell sind keine aktiven Medikamente hinterlegt."
@@ -350,44 +290,18 @@ export async function generateMedicationComplianceStatusForUser(
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
-  const apiKey = decrypt(user.openaiKeyEncrypted);
 
-  const openaiResponse = await fetch(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: MEDICATION_COMPLIANCE_STATUS_MODEL,
-        messages: [
-          { role: "system", content: getSystemPrompt(locale) },
-          {
-            role: "user",
-            content: getUserPrompt(locale, snapshotJson, todayKey),
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 900,
-        response_format: { type: "json_object" },
-      }),
-    },
-  );
+  const result = await provider.generateCompletion({
+    systemPrompt: getMedicationComplianceSystemPrompt(),
+    userPrompt: getMedicationComplianceUserPrompt(snapshotJson, todayKey),
+    temperature: 0.3,
+    maxTokens: 1000,
+  });
 
-  if (!openaiResponse.ok) {
-    const body = await openaiResponse.text();
-    throw new Error(
-      `OpenAI medication-compliance-status failed (${openaiResponse.status}): ${body}`,
-    );
-  }
-
-  const openaiJson = await openaiResponse.json();
-  const content = openaiJson.choices?.[0]?.message?.content;
+  const content = result.content;
   if (typeof content !== "string" || content.trim().length === 0) {
     throw new Error(
-      "OpenAI returned empty content for medication-compliance-status",
+      "AI returned empty content for medication-compliance-status",
     );
   }
 
@@ -447,16 +361,17 @@ export async function generateMedicationComplianceStatusForUser(
         locale,
         summary,
         medications: medicationSummaries,
-        model: MEDICATION_COMPLIANCE_STATUS_MODEL,
+        providerType: provider.type,
+        model: result.model ?? "unknown",
         pointsPerMetric: MEDICATION_COMPLIANCE_STATUS_POINTS,
-        tokensUsed: openaiJson.usage?.total_tokens ?? null,
+        tokensUsed: result.tokensUsed ?? null,
       }),
     },
     select: { createdAt: true },
   });
 
   return {
-    hasKey: true,
+    hasProvider: true,
     summary,
     medications: medicationSummaries,
     cached: false,

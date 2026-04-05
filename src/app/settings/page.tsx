@@ -2640,7 +2640,8 @@ function InsightsSettingsSection({
       if (!res.ok) return null;
       const json = await res.json();
       return json.data as {
-        hasKey: boolean;
+        codexStatus: string;
+        hasAdminKey: boolean;
         privacyMode: string;
         lastInsightAt: string | null;
       };
@@ -2730,7 +2731,7 @@ function InsightsSettingsSection({
           <h2 className="text-lg font-semibold">{t("settings.kiInsights")}</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {settings?.hasKey && (
+          {(settings?.codexStatus === "connected" || settings?.hasAdminKey) && (
             <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
               {t("settings.configured")}
             </Badge>
@@ -2775,7 +2776,7 @@ function InsightsSettingsSection({
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder={
-              settings?.hasKey ? t("settings.apiKeyStored") : "sk-..."
+              (settings?.codexStatus === "connected" || settings?.hasAdminKey) ? t("settings.apiKeyStored") : "sk-..."
             }
             className="flex-1"
           />
@@ -2785,9 +2786,9 @@ function InsightsSettingsSection({
             ) : (
               <Key className="mr-1 h-4 w-4" />
             )}
-            {settings?.hasKey ? t("common.replace") : t("common.save")}
+            {(settings?.codexStatus === "connected" || settings?.hasAdminKey) ? t("common.replace") : t("common.save")}
           </Button>
-          {settings?.hasKey && (
+          {(settings?.codexStatus === "connected" || settings?.hasAdminKey) && (
             <Button
               variant="ghost"
               type="button"
@@ -2813,7 +2814,7 @@ function InsightsSettingsSection({
         )}
 
         {/* Privacy Mode */}
-        {settings?.hasKey && (
+        {(settings?.codexStatus === "connected" || settings?.hasAdminKey) && (
           <div className="bg-muted/50 rounded-lg p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="pr-2">
@@ -2840,7 +2841,7 @@ function InsightsSettingsSection({
         )}
 
         {/* Regenerate Reports */}
-        {settings?.hasKey && (
+        {(settings?.codexStatus === "connected" || settings?.hasAdminKey) && (
           <Button
             variant="outline"
             onClick={handleRegenerate}

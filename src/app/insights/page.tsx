@@ -130,49 +130,49 @@ interface AnalyticsData {
 }
 
 interface GeneralStatusData {
-  hasKey: boolean;
+  hasProvider: boolean;
   text: string | null;
   cached: boolean;
   updatedAt: string | null;
 }
 
 interface BloodPressureStatusData {
-  hasKey: boolean;
+  hasProvider: boolean;
   text: string | null;
   cached: boolean;
   updatedAt: string | null;
 }
 
 interface WeightStatusData {
-  hasKey: boolean;
+  hasProvider: boolean;
   text: string | null;
   cached: boolean;
   updatedAt: string | null;
 }
 
 interface PulseStatusData {
-  hasKey: boolean;
+  hasProvider: boolean;
   text: string | null;
   cached: boolean;
   updatedAt: string | null;
 }
 
 interface BmiStatusData {
-  hasKey: boolean;
+  hasProvider: boolean;
   text: string | null;
   cached: boolean;
   updatedAt: string | null;
 }
 
 interface MoodStatusData {
-  hasKey: boolean;
+  hasProvider: boolean;
   text: string | null;
   cached: boolean;
   updatedAt: string | null;
 }
 
 interface MedicationComplianceStatusData {
-  hasKey: boolean;
+  hasProvider: boolean;
   summary: string | null;
   medications: Array<{
     medicationId: string;
@@ -941,7 +941,7 @@ export default function InsightsPage() {
           <p className="text-muted-foreground text-sm leading-7">
             {generalStatus.text}
           </p>
-        ) : !generalStatus?.hasKey ? (
+        ) : !generalStatus?.hasProvider ? (
           <p className="text-muted-foreground text-sm">
             {t("insights.generalStatusNoKey")}
           </p>
@@ -1229,7 +1229,7 @@ export default function InsightsPage() {
             <p className="text-muted-foreground text-sm leading-7">
               {bloodPressureStatus.text}
             </p>
-          ) : !bloodPressureStatus?.hasKey ? (
+          ) : !bloodPressureStatus?.hasProvider ? (
             <p className="text-muted-foreground text-sm">
               {t("insights.bloodPressureStatusNoKey")}
             </p>
@@ -1478,7 +1478,7 @@ export default function InsightsPage() {
             <p className="text-muted-foreground text-sm leading-7">
               {weightStatus.text}
             </p>
-          ) : !weightStatus?.hasKey ? (
+          ) : !weightStatus?.hasProvider ? (
             <p className="text-muted-foreground text-sm">
               {t("insights.weightStatusNoKey")}
             </p>
@@ -1528,7 +1528,7 @@ export default function InsightsPage() {
             <p className="text-muted-foreground text-sm leading-7">
               {pulseStatus.text}
             </p>
-          ) : !pulseStatus?.hasKey ? (
+          ) : !pulseStatus?.hasProvider ? (
             <p className="text-muted-foreground text-sm">
               {t("insights.pulseStatusNoKey")}
             </p>
@@ -1573,7 +1573,7 @@ export default function InsightsPage() {
               <p className="text-muted-foreground text-sm leading-7">
                 {moodStatus.text}
               </p>
-            ) : !moodStatus?.hasKey ? (
+            ) : !moodStatus?.hasProvider ? (
               <p className="text-muted-foreground text-sm">
                 {t("insights.moodStatusNoKey")}
               </p>
@@ -1684,7 +1684,7 @@ export default function InsightsPage() {
             <p className="text-muted-foreground text-sm leading-7">
               {medicationComplianceStatus.summary}
             </p>
-          ) : !medicationComplianceStatus?.hasKey ? (
+          ) : !medicationComplianceStatus?.hasProvider ? (
             <p className="text-muted-foreground text-sm">
               {t("insights.medicationComplianceStatusNoKey")}
             </p>
@@ -1740,7 +1740,7 @@ export default function InsightsPage() {
             <p className="text-muted-foreground text-sm leading-7">
               {bmiStatus.text}
             </p>
-          ) : !bmiStatus?.hasKey ? (
+          ) : !bmiStatus?.hasProvider ? (
             <p className="text-muted-foreground text-sm">
               {t("insights.bmiStatusNoKey")}
             </p>

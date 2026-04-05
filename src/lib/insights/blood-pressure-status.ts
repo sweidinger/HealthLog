@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { decrypt } from "@/lib/crypto";
+import { resolveProvider } from "@/lib/ai/provider";
+import { getBloodPressureSystemPrompt, getBloodPressureUserPrompt } from "@/lib/ai/prompts/blood-pressure";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import {
   pearsonCorrelation,
@@ -10,7 +11,6 @@ import { getMedicationCategories } from "@/lib/medication-category";
 import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import { getNoKeyBloodPressureStatusText } from "@/lib/insights/no-key-fallbacks";
 
-const BLOOD_PRESSURE_STATUS_MODEL = "gpt-4o-mini";
 const BLOOD_PRESSURE_STATUS_POINTS = 30;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -109,62 +109,6 @@ function pairDailySeries(
     .filter((entry): entry is PairedPoint => entry !== null);
 }
 
-function getSystemPrompt(locale: SupportedLocale): string {
-  if (locale === "en") {
-    return [
-      "You are a health trend analyst for a private personal project.",
-      "Write one compact paragraph with about 7 sentences in English.",
-      "Focus strictly on blood pressure, associated correlations, and blood pressure medication adherence.",
-      "Use only the provided snapshot with the latest 30 daily points.",
-      "Mention clear positive and negative trends and provide a concise evaluation.",
-      "Weight findings by importance: emphasize severe target deviations and strong correlations much more than weak or absent correlations.",
-      "If fewer than 5 data points exist, state that insufficient data is available for a qualified assessment. If data is sparse over a long period, still derive rough trends but note limited reliability. If the newest measurement is more than 7 days old, mention the data may not be current.",
-      "Do not include warnings, disclaimers, or references to AI/model limitations.",
-      "If mood data is available and shows a notable correlation or pattern, briefly mention it. Do not force mood into the assessment if nothing stands out.",
-      'Return valid JSON only: {"summary":"..."}',
-    ].join(" ");
-  }
-
-  return [
-    "Du bist ein Gesundheits-Trendanalyst für ein privates Projekt.",
-    "Schreibe einen kompakten Fließtext mit ungefähr 7 Sätzen auf Deutsch.",
-    "Fokussiere strikt Blutdruck, die dazugehörigen Korrelationen und die Einnahmekontinuität von Blutdrucksenkern.",
-    "Nutze ausschließlich den bereitgestellten Snapshot mit den letzten 30 Tagesmesspunkten.",
-    "Benenne positive wie negative Tendenzen klar und gib eine kurze Bewertung.",
-    "Gewichte die Aussagen nach Wichtigkeit: starke Korrelationen und klare Zielabweichungen sollen deutlich stärker betont werden als schwache oder fehlende Zusammenhänge.",
-    "Wenn weniger als 5 Messpunkte vorliegen, sage dass noch nicht genügend Daten für eine fundierte Aussage vorhanden sind. Bei spärlichen Daten über einen langen Zeitraum leite trotzdem grobe Trends ab, weise aber auf eingeschränkte Belastbarkeit hin. Wenn die neueste Messung älter als 7 Tage ist, erwähne dass die Daten möglicherweise nicht aktuell sind.",
-    "Keine Warnhinweise, keine Haftungsausschlüsse, keine Hinweise auf KI oder Modellgrenzen.",
-    "Falls Stimmungsdaten vorhanden sind und einen bemerkenswerten Zusammenhang zeigen, erwähne dies kurz. Erzwinge keine Stimmungsaussage, wenn nichts auffällt.",
-    'Gib nur valides JSON zurück: {"summary":"..."}',
-  ].join(" ");
-}
-
-function getUserPrompt(
-  locale: SupportedLocale,
-  snapshotJson: string,
-  todayKey: string,
-): string {
-  if (locale === "en") {
-    return [
-      `Date: ${todayKey} (Europe/Berlin)`,
-      `Use the latest ${BLOOD_PRESSURE_STATUS_POINTS} daily points as provided.`,
-      "If a day contains multiple values, they are already averaged by day.",
-      "Write a short blood-pressure focused section summary for the UI.",
-      "",
-      snapshotJson,
-    ].join("\n");
-  }
-
-  return [
-    `Datum: ${todayKey} (Europe/Berlin)`,
-    `Nutze die letzten ${BLOOD_PRESSURE_STATUS_POINTS} Tagesmesspunkte wie bereitgestellt.`,
-    "Mehrere Messungen pro Tag sind bereits zu Tagesmitteln aggregiert.",
-    "Erstelle eine kurze UI-Zusammenfassung speziell für den Blutdruck-Abschnitt.",
-    "",
-    snapshotJson,
-  ].join("\n");
-}
-
 export async function generateBloodPressureStatusForUser(
   userId: string,
   options?: {
@@ -172,7 +116,7 @@ export async function generateBloodPressureStatusForUser(
     force?: boolean;
   },
 ): Promise<{
-  hasKey: boolean;
+  hasProvider: boolean;
   text: string | null;
   cached: boolean;
   updatedAt: string | null;
@@ -182,22 +126,22 @@ export async function generateBloodPressureStatusForUser(
   const cacheAction = `insights.blood-pressure-status.${locale}`;
   const todayKey = toBerlinDayKey(new Date());
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      openaiKeyEncrypted: true,
-      dateOfBirth: true,
-    },
-  });
-
-  if (!user?.openaiKeyEncrypted) {
+  const provider = await resolveProvider(userId);
+  if (provider.type === "none") {
     return {
-      hasKey: false,
+      hasProvider: false,
       text: getNoKeyBloodPressureStatusText(locale),
       cached: true,
       updatedAt: null,
     };
   }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      dateOfBirth: true,
+    },
+  });
 
   const latestCache = await prisma.auditLog.findFirst({
     where: { userId, action: cacheAction },
@@ -217,7 +161,7 @@ export async function generateBloodPressureStatusForUser(
         parsed.text.trim().length > 0
       ) {
         return {
-          hasKey: true,
+          hasProvider: true,
           text: parsed.text,
           cached: true,
           updatedAt: latestCache.createdAt.toISOString(),
@@ -270,7 +214,7 @@ export async function generateBloodPressureStatusForUser(
       })),
   ).slice(-BLOOD_PRESSURE_STATUS_POINTS);
 
-  const bpTargets = getBpTargets(user.dateOfBirth ?? null);
+  const bpTargets = getBpTargets(user?.dateOfBirth ?? null);
   const pairedBloodPressure = pairDailySeries(sysSeries, diaSeries).map(
     (entry) => ({
       day: toBerlinDayKey(entry.date),
@@ -517,43 +461,17 @@ export async function generateBloodPressureStatusForUser(
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
-  const apiKey = decrypt(user.openaiKeyEncrypted);
 
-  const openaiResponse = await fetch(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: BLOOD_PRESSURE_STATUS_MODEL,
-        messages: [
-          { role: "system", content: getSystemPrompt(locale) },
-          {
-            role: "user",
-            content: getUserPrompt(locale, snapshotJson, todayKey),
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 550,
-        response_format: { type: "json_object" },
-      }),
-    },
-  );
+  const result = await provider.generateCompletion({
+    systemPrompt: getBloodPressureSystemPrompt(),
+    userPrompt: getBloodPressureUserPrompt(snapshotJson, todayKey),
+    temperature: 0.3,
+    maxTokens: 1000,
+  });
 
-  if (!openaiResponse.ok) {
-    const body = await openaiResponse.text();
-    throw new Error(
-      `OpenAI blood-pressure-status failed (${openaiResponse.status}): ${body}`,
-    );
-  }
-
-  const openaiJson = await openaiResponse.json();
-  const content = openaiJson.choices?.[0]?.message?.content;
+  const content = result.content;
   if (typeof content !== "string" || content.trim().length === 0) {
-    throw new Error("OpenAI returned empty content for blood-pressure-status");
+    throw new Error("AI returned empty content for blood-pressure-status");
   }
 
   let summary = "";
@@ -583,16 +501,17 @@ export async function generateBloodPressureStatusForUser(
         dateKey: todayKey,
         locale,
         text: summary,
-        model: BLOOD_PRESSURE_STATUS_MODEL,
+        providerType: provider.type,
+        model: result.model ?? "unknown",
         pointsPerMetric: BLOOD_PRESSURE_STATUS_POINTS,
-        tokensUsed: openaiJson.usage?.total_tokens ?? null,
+        tokensUsed: result.tokensUsed ?? null,
       }),
     },
     select: { createdAt: true },
   });
 
   return {
-    hasKey: true,
+    hasProvider: true,
     text: summary,
     cached: false,
     updatedAt: created.createdAt.toISOString(),

@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/db";
-import { decrypt } from "@/lib/crypto";
+import { resolveProvider } from "@/lib/ai/provider";
+import { getGeneralStatusSystemPrompt, getGeneralStatusUserPrompt } from "@/lib/ai/prompts/general-status";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
 
-const GENERAL_STATUS_MODEL = "gpt-4o-mini";
 const GENERAL_STATUS_POINTS = 30;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -49,60 +49,6 @@ function average(values: number[]): number {
 
 function normalizeSummaryText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
-}
-
-function getSystemPrompt(locale: SupportedLocale): string {
-  if (locale === "en") {
-    return [
-      "You are a health trend analyst for a private personal project.",
-      "Write exactly one compact paragraph with 5-7 sentences in English.",
-      "Focus on overall state and clearly mention positive and negative trends.",
-      "Base your summary strictly on the provided data snapshot.",
-      "Consider the measurement time spans and data density: if too few data points exist for a metric (<5), say that not enough data is available for a qualified assessment. If data is sparse but covers a long period, still try to derive rough trends but note the limited reliability.",
-      "If the most recent measurement is more than 7 days old, mention that the data is not current.",
-      "Do not include warnings, disclaimers, or references to AI/model limitations.",
-      "If mood data is available and shows a notable correlation or pattern, briefly mention it. Do not force mood into the assessment if nothing stands out.",
-      'Return valid JSON only: {"summary":"..."}',
-    ].join(" ");
-  }
-
-  return [
-    "Du bist ein Gesundheits-Trendanalyst für ein privates Projekt.",
-    "Schreibe genau einen kompakten Fließtext mit 5-7 Sätzen auf Deutsch.",
-    "Fokussiere den allgemeinen Zustand und benenne positive wie negative Tendenzen klar.",
-    "Nutze ausschließlich den bereitgestellten Datensnapshot.",
-    "Berücksichtige die Messzeiträume und Datendichte: Wenn zu wenige Messpunkte (<5) für eine Metrik existieren, sage dass noch nicht genügend Daten für eine fundierte Aussage vorliegen. Wenn Daten spärlich sind aber einen langen Zeitraum abdecken, leite trotzdem grobe Trends ab, weise aber auf die eingeschränkte Belastbarkeit hin.",
-    "Wenn die neueste Messung länger als 7 Tage zurückliegt, erwähne dass die Daten nicht aktuell sind.",
-    "Keine Warnhinweise, keine Haftungsausschlüsse, keine Hinweise auf KI oder Modellgrenzen.",
-    "Falls Stimmungsdaten vorhanden sind und einen bemerkenswerten Zusammenhang zeigen, erwähne dies kurz. Erzwinge keine Stimmungsaussage, wenn nichts auffällt.",
-    'Gib nur valides JSON zurück: {"summary":"..."}',
-  ].join(" ");
-}
-
-function getUserPrompt(
-  locale: SupportedLocale,
-  snapshotJson: string,
-  todayKey: string,
-): string {
-  if (locale === "en") {
-    return [
-      `Date: ${todayKey} (Europe/Berlin)`,
-      `Use only the last ${GENERAL_STATUS_POINTS} daily aggregated data points per metric.`,
-      "If a day contains multiple values, they are already averaged by day.",
-      "Provide a concise overall status summary.",
-      "",
-      snapshotJson,
-    ].join("\n");
-  }
-
-  return [
-    `Datum: ${todayKey} (Europe/Berlin)`,
-    `Nutze nur die letzten ${GENERAL_STATUS_POINTS} tagesaggregierten Messpunkte pro Metrik.`,
-    "Mehrere Messungen pro Tag sind bereits zu Tagesmitteln zusammengefasst.",
-    "Erstelle eine prägnante Zusammenfassung des allgemeinen Zustands.",
-    "",
-    snapshotJson,
-  ].join("\n");
 }
 
 function aggregateDailyAverageSeries(
@@ -153,7 +99,7 @@ export async function generateGeneralStatusForUser(
     force?: boolean;
   },
 ): Promise<{
-  hasKey: boolean;
+  hasProvider: boolean;
   text: string | null;
   cached: boolean;
   updatedAt: string | null;
@@ -163,22 +109,22 @@ export async function generateGeneralStatusForUser(
   const cacheAction = `insights.general-status.${locale}`;
   const todayKey = toBerlinDayKey(new Date());
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      openaiKeyEncrypted: true,
-      dateOfBirth: true,
-    },
-  });
-
-  if (!user?.openaiKeyEncrypted) {
+  const provider = await resolveProvider(userId);
+  if (provider.type === "none") {
     return {
-      hasKey: false,
+      hasProvider: false,
       text: getNoKeyGeneralStatusText(locale),
       cached: true,
       updatedAt: null,
     };
   }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      dateOfBirth: true,
+    },
+  });
 
   const latestCache = await prisma.auditLog.findFirst({
     where: { userId, action: cacheAction },
@@ -198,7 +144,7 @@ export async function generateGeneralStatusForUser(
         parsed.text.trim().length > 0
       ) {
         return {
-          hasKey: true,
+          hasProvider: true,
           text: parsed.text,
           cached: true,
           updatedAt: latestCache.createdAt.toISOString(),
@@ -317,7 +263,7 @@ export async function generateGeneralStatusForUser(
         )
       : null;
 
-  const bpTargets = getBpTargets(user.dateOfBirth ?? null);
+  const bpTargets = getBpTargets(user?.dateOfBirth ?? null);
   let bpInTargetLast30Days: number | null = null;
   if (bpTargets) {
     const sysSeries = (measurementSeries.BLOOD_PRESSURE_SYS?.series ?? []).map(
@@ -408,43 +354,17 @@ export async function generateGeneralStatusForUser(
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
-  const apiKey = decrypt(user.openaiKeyEncrypted);
 
-  const openaiResponse = await fetch(
-    "https://api.openai.com/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: GENERAL_STATUS_MODEL,
-        messages: [
-          { role: "system", content: getSystemPrompt(locale) },
-          {
-            role: "user",
-            content: getUserPrompt(locale, snapshotJson, todayKey),
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 500,
-        response_format: { type: "json_object" },
-      }),
-    },
-  );
+  const result = await provider.generateCompletion({
+    systemPrompt: getGeneralStatusSystemPrompt(),
+    userPrompt: getGeneralStatusUserPrompt(snapshotJson, todayKey),
+    temperature: 0.3,
+    maxTokens: 1000,
+  });
 
-  if (!openaiResponse.ok) {
-    const body = await openaiResponse.text();
-    throw new Error(
-      `OpenAI general-status failed (${openaiResponse.status}): ${body}`,
-    );
-  }
-
-  const openaiJson = await openaiResponse.json();
-  const content = openaiJson.choices?.[0]?.message?.content;
+  const content = result.content;
   if (typeof content !== "string" || content.trim().length === 0) {
-    throw new Error("OpenAI returned empty content for general-status");
+    throw new Error("AI returned empty content for general-status");
   }
 
   let summary = "";
@@ -472,16 +392,17 @@ export async function generateGeneralStatusForUser(
         dateKey: todayKey,
         locale,
         text: summary,
-        model: GENERAL_STATUS_MODEL,
+        providerType: provider.type,
+        model: result.model ?? "unknown",
         pointsPerMetric: GENERAL_STATUS_POINTS,
-        tokensUsed: openaiJson.usage?.total_tokens ?? null,
+        tokensUsed: result.tokensUsed ?? null,
       }),
     },
     select: { createdAt: true },
   });
 
   return {
-    hasKey: true,
+    hasProvider: true,
     text: summary,
     cached: false,
     updatedAt: created.createdAt.toISOString(),
