@@ -17,6 +17,7 @@ const PUBLIC_PATHS = [
   "/api/withings/webhook",
   "/api/telegram/webhook",
   "/api/integrations/moodlog/webhook",
+  "/api/auth/codex/callback",
   "/api/ingest/",
   "/onboarding",
   "/robots.txt",
