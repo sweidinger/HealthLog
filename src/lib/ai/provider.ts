@@ -18,7 +18,7 @@ class NoProvider implements AIProvider {
 }
 
 async function resolveAdminProvider(): Promise<AIProvider> {
-  const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
+  const settings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
 
   if (settings?.adminAiKeyEncrypted) {
     return new OpenAIClient({
