@@ -8,8 +8,8 @@ import {
 import { cookies } from "next/headers";
 import { annotate } from "@/lib/logging/context";
 
-export const GET = apiHandler(async (request: NextRequest) => {
-  const { user } = await requireAuth();
+export const GET = apiHandler(async (_request: NextRequest) => {
+  await requireAuth();
 
   const { verifier, challenge } = generatePKCE();
   const state = generateState();

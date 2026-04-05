@@ -12,7 +12,7 @@ vi.mock("@/lib/crypto", () => ({
 }));
 vi.mock("@/lib/ai/codex-oauth", () => ({
   refreshAccessToken: vi.fn(),
-  encryptTokens: vi.fn((t: any) => ({ accessEncrypted: `enc:${t.accessToken}`, refreshEncrypted: `enc:${t.refreshToken}` })),
+  encryptTokens: vi.fn((t: { accessToken: string; refreshToken: string }) => ({ accessEncrypted: `enc:${t.accessToken}`, refreshEncrypted: `enc:${t.refreshToken}` })),
   decryptTokens: vi.fn(),
 }));
 
@@ -36,7 +36,7 @@ describe("resolveProvider", () => {
       codexRefreshTokenEncrypted: "enc-refresh",
       codexTokenExpiresAt: new Date(Date.now() + 3600000),
       codexConnectionStatus: "connected",
-    } as any);
+    } as never);
 
     const provider = await resolveProvider("user-123");
     expect(provider.type).toBe("codex");
@@ -48,13 +48,13 @@ describe("resolveProvider", () => {
       codexRefreshTokenEncrypted: null,
       codexTokenExpiresAt: null,
       codexConnectionStatus: "disconnected",
-    } as any);
+    } as never);
 
     vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
       adminAiKeyEncrypted: "enc-admin-key",
       adminAiModel: "gpt-4o-mini",
       adminAiBaseUrl: "https://api.openai.com/v1",
-    } as any);
+    } as never);
 
     const provider = await resolveProvider("user-123");
     expect(provider.type).toBe("admin-key");
@@ -64,11 +64,11 @@ describe("resolveProvider", () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       codexAccessTokenEncrypted: null,
       codexConnectionStatus: "disconnected",
-    } as any);
+    } as never);
 
     vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
       adminAiKeyEncrypted: null,
-    } as any);
+    } as never);
 
     const provider = await resolveProvider("user-123");
     expect(provider.type).toBe("none");
@@ -80,13 +80,13 @@ describe("resolveProvider", () => {
       codexRefreshTokenEncrypted: "enc-refresh",
       codexTokenExpiresAt: new Date(Date.now() - 1000),
       codexConnectionStatus: "expired",
-    } as any);
+    } as never);
 
     vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
       adminAiKeyEncrypted: "enc-admin",
       adminAiModel: "gpt-4o",
       adminAiBaseUrl: "https://api.openai.com/v1",
-    } as any);
+    } as never);
 
     const provider = await resolveProvider("user-123");
     expect(provider.type).toBe("admin-key");
