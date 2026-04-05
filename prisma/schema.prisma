@@ -24,8 +24,12 @@ model User {
   gender      String?   @map("gender") // "MALE" | "FEMALE" | null = keine Angabe
   timezone    String    @default("Europe/Berlin")
 
-  // OpenAI Insights (optional)
-  openaiKeyEncrypted  String?  @map("openai_key_encrypted") // AES-256-GCM encrypted
+  // Codex OAuth (ChatGPT subscription)
+  codexAccessTokenEncrypted   String?   @map("codex_access_token_encrypted")
+  codexRefreshTokenEncrypted  String?   @map("codex_refresh_token_encrypted")
+  codexTokenExpiresAt         DateTime? @map("codex_token_expires_at")
+  codexConnectedAt            DateTime? @map("codex_connected_at")
+  codexConnectionStatus       String    @default("disconnected") @map("codex_connection_status")
   insightsPrivacyMode String   @default("aggregated") @map("insights_privacy_mode") // "aggregated" | "raw"
   insightsCachedAt    DateTime? @map("insights_cached_at")
   insightsCachedText  String?  @map("insights_cached_text") // cached JSON output
@@ -373,6 +377,11 @@ model AppSettings {
   // Medication reminder thresholds (minutes after windowEnd)
   reminderLateMinutes     Int @default(120) @map("reminder_late_minutes")
   reminderMissedMinutes   Int @default(240) @map("reminder_missed_minutes")
+
+  // Admin AI Provider (fallback for users without Codex OAuth)
+  adminAiKeyEncrypted   String? @map("admin_ai_key_encrypted")
+  adminAiModel          String  @default("gpt-4o-mini") @map("admin_ai_model")
+  adminAiBaseUrl        String  @default("https://api.openai.com/v1") @map("admin_ai_base_url")
 
   @@map("app_settings")
 }
