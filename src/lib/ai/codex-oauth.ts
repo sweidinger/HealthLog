@@ -53,8 +53,7 @@ export async function exchangeCodeForTokens(params: {
   });
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Codex token exchange failed (${res.status}): ${body}`);
+    throw new Error(`Codex token exchange failed (${res.status})`);
   }
 
   return res.json();
@@ -71,8 +70,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
   });
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Codex token refresh failed (${res.status}): ${body}`);
+    throw new Error(`Codex token refresh failed (${res.status})`);
   }
 
   return res.json();

@@ -31,8 +31,7 @@ export class CodexClient implements AIProvider {
     }
 
     if (!firstAttempt.ok) {
-      const body = await firstAttempt.text();
-      throw new Error(`Codex request failed (${firstAttempt.status}): ${body}`);
+      throw new Error(`Codex request failed (${firstAttempt.status})`);
     }
 
     return this.parseResponse(firstAttempt);

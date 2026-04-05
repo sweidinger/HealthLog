@@ -96,10 +96,7 @@ export async function resolveProvider(userId: string): Promise<AIProvider> {
           throw new Error("No refresh token available");
         }
 
-        const { refreshToken: currentRefreshToken } = decryptTokens({
-          accessEncrypted: "",
-          refreshEncrypted: freshUser.codexRefreshTokenEncrypted,
-        });
+        const currentRefreshToken = decrypt(freshUser.codexRefreshTokenEncrypted);
 
         const newTokens = await refreshAccessToken(currentRefreshToken);
         const encrypted = encryptTokens({

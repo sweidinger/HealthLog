@@ -3,7 +3,8 @@ import { apiHandler, requireAdmin, HttpError } from "@/lib/api-handler";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, getClientIp, safeJson } from "@/lib/api-response";
-import { encrypt } from "@/lib/crypto";
+import { encrypt, decrypt } from "@/lib/crypto";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { annotate } from "@/lib/logging/context";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +23,8 @@ export const GET = apiHandler(async () => {
 
   return apiSuccess({
     hasKey,
-    keyPreview: hasKey && settings?.adminAiKeyEncrypted
-      ? `${settings.adminAiKeyEncrypted.slice(0, 7)}...`
+    keyPreview: settings?.adminAiKeyEncrypted
+      ? `...${decrypt(settings.adminAiKeyEncrypted).slice(-4)}`
       : null,
     model,
     baseUrl,
@@ -33,6 +34,9 @@ export const GET = apiHandler(async () => {
 export const PUT = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAdmin();
   annotate({ action: { name: "admin.ai-settings.update" } });
+
+  const rl = await checkRateLimit("admin-ai-settings", 10, 60_000);
+  if (!rl.allowed) throw new HttpError(429, "Too many requests");
 
   const { data: body, error: jsonError } = await safeJson(request);
   if (jsonError) return jsonError;
@@ -94,8 +98,8 @@ export const PUT = apiHandler(async (request: NextRequest) => {
 
   return apiSuccess({
     hasKey,
-    keyPreview: hasKey && settings.adminAiKeyEncrypted
-      ? `${settings.adminAiKeyEncrypted.slice(0, 7)}...`
+    keyPreview: settings.adminAiKeyEncrypted
+      ? `...${decrypt(settings.adminAiKeyEncrypted).slice(-4)}`
       : null,
     model: settings.adminAiModel,
     baseUrl: settings.adminAiBaseUrl,

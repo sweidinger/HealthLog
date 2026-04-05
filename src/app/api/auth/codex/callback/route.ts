@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { exchangeCodeForTokens, encryptTokens } from "@/lib/ai/codex-oauth";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
@@ -9,6 +10,13 @@ import { annotate } from "@/lib/logging/context";
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  const rl = await checkRateLimit(`codex-callback:${user.id}`, 10, 60_000);
+  if (!rl.allowed) {
+    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
+    return NextResponse.redirect(`${appUrl}/settings?codex_error=rate_limited`);
+  }
+
   const url = new URL(request.url);
 
   const code = url.searchParams.get("code");

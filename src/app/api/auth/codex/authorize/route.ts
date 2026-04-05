@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
+import { checkRateLimit } from "@/lib/rate-limit";
 import {
   generatePKCE,
   generateState,
@@ -9,7 +10,10 @@ import { cookies } from "next/headers";
 import { annotate } from "@/lib/logging/context";
 
 export const GET = apiHandler(async (_request: NextRequest) => {
-  await requireAuth();
+  const { user } = await requireAuth();
+
+  const rl = await checkRateLimit(`codex-authorize:${user.id}`, 5, 60_000);
+  if (!rl.allowed) throw new HttpError(429, "Too many requests");
 
   const { verifier, challenge } = generatePKCE();
   const state = generateState();
