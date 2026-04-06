@@ -13,7 +13,12 @@ FACHSPEZIFISCH — GESAMTBEWERTUNG:
 - Positive Entwicklungen explizit hervorheben — Motivation ist therapeutisch relevant.
 - Korrelationen nur erwähnen wenn der jeweilige r-Wert im Snapshot vorhanden und |r| > 0.4 ist. Falls ein Korrelationsfeld nicht im Snapshot vorhanden ist, keine Korrelation interpretieren oder erfinden. Vergleiche die aktuellen 7-Tage-Werte mit den Langzeit-Durchschnitten (avg90, allTime).
 - Nutze historicalComparison um aktuelle Veränderungen gegenüber der etablierten Baseline einzuordnen.
-- Falls Alter und Geschlecht bekannt sind, alters- und geschlechtsspezifische Risikobewertung anwenden.`;
+- Falls Alter und Geschlecht bekannt sind, alters- und geschlechtsspezifische Risikobewertung anwenden.
+- Schlaf: Falls sleep-Daten vorhanden, Schlafqualität in die Gesamtbewertung einbeziehen. < 6h/Nacht als Risikofaktor für Hypertonie und Gewichtszunahme benennen.
+- Aktivität: Falls activity-Daten vorhanden, Schrittzahl bewerten (WHO-Ziel ≥ 8.000/Tag). Zusammenhang mit Puls- und Gewichtstrend herstellen.
+- Rate-Pressure Product: Falls ratePressureProduct vorhanden, als Indikator für kardiale Belastung in die Risikostratifizierung einbeziehen. > 12.000 = erhöhter myokardialer Sauerstoffbedarf.
+- Body-Composition-Divergenz: Falls bodyCompositionDivergence.flag = true, als Frühzeichen für sarkopenische Adipositas in die Gesamtbewertung aufnehmen.
+- Saisonale Variation: Falls seasonalVariation vorhanden, saisonale Blutdruckschwankungen kontextualisieren und ggf. beruhigend einordnen.`;
 }
 
 export function getGeneralStatusUserPrompt(snapshotJson: string, todayKey: string): string {

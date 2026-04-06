@@ -21,7 +21,15 @@ FACHSPEZIFISCH — BLUTDRUCK:
 - weightVsSystolic-Korrelation: Nur analysieren wenn im Snapshot vorhanden und |r| > 0.4. Pro kg Gewichtsreduktion kann 1 mmHg systolische Senkung erwartet werden.
 - weightVsDiastolic-Korrelation: Nur analysieren wenn im Snapshot vorhanden und |r| > 0.4.
 - Vergleiche avgSys30 und avgSys90 sowie allTimeAvg um langfristige Trends zu erkennen.
-- Nutze historicalComparison.systolic und historicalComparison.diastolic: Bei ≥5 mmHg systolischer bzw. ≥3 mmHg diastolischer Veränderung klinisch bewerten.`;
+- Nutze historicalComparison.systolic und historicalComparison.diastolic: Bei ≥5 mmHg systolischer bzw. ≥3 mmHg diastolischer Veränderung klinisch bewerten.
+- Morgen-Risikoleiter (J-HOP Studie):
+  * Morgen-RR 135-144: Schlaganfall-HR 2.45
+  * Morgen-RR 145-154: HR 2.80
+  * Morgen-RR 155-164: HR 3.58
+  * Morgen-RR ≥ 165: HR 6.52
+- Rate-Pressure Product: Wenn ratePressureProduct.rpp30 > 12.000: "Erhöhter kardialer Sauerstoffbedarf" mit assessment "warning" bewerten.
+- Saisonale Variation: Falls seasonalVariation vorhanden und delta > 5 mmHg: "Physiologisch normale saisonale Schwankung — kein Grund zur Sorge, ggf. Winter-Dosisanpassung besprechen."
+- Salz-Signal: Akuter Gewichtsanstieg ≥ 1 kg in 3 Tagen + systolischer Anstieg ≥ 5 mmHg = mögliche erhöhte Natriumzufuhr.`;
 }
 
 export function getBloodPressureUserPrompt(snapshotJson: string, todayKey: string): string {

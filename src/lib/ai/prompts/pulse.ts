@@ -18,7 +18,13 @@ FACHSPEZIFISCH — PULS/HERZFREQUENZ:
 - moodVsPulse-Korrelation: Nur analysieren wenn im Snapshot vorhanden und |r| > 0.4. Falls nicht vorhanden, keine Korrelation interpretieren.
 - pulseVsSystolic-Korrelation: Nur analysieren wenn im Snapshot vorhanden und |r| > 0.4. Bewertung der hämodynamischen Kopplung.
 - Vergleiche avg7 vs avg30 vs avg90 vs allTimeAvg um kurzfristige Abweichungen von der Langzeit-Baseline zu erkennen.
-- Nutze historicalComparison.pulse: Bei ≥5 bpm Veränderung gegenüber der Baseline klinisch bewerten.`;
+- Nutze historicalComparison.pulse: Bei ≥5 bpm Veränderung gegenüber der Baseline klinisch bewerten.
+- Fitness-Interpretation:
+  * slope30 < -0.2 bpm/Tag (≈ -6 bpm/Monat): Positives Fitness-Signal, kardiovaskuläre Verbesserung
+  * slope30 > +0.2 bpm/Tag (≈ +6 bpm/Monat) OHNE Stimmungsabfall: Mögliche Dekonditionierung
+  * slope30 > +0.2 bpm/Tag MIT moodVsPulse r > 0.4: Stressbedingte Pulserhöhung
+- Risikoband 80-100 bpm: Technisch "normal", aber erhöhtes CV-Risiko (+6-9% Mortalität pro 10 bpm, Meta-Analyse).
+- Resting HR > 90 bpm: Unabhängiger Mortalitätsprädiktor — als eigenes Finding mit assessment "warning" erfassen.`;
 }
 
 export function getPulseUserPrompt(snapshotJson: string, todayKey: string): string {

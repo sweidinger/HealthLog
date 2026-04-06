@@ -32,6 +32,17 @@ KORRELATIONSANALYSE:
 - r < 0.4: schwache/keine Korrelation — nicht erwähnen
 - Korrelation ≠ Kausalität: immer als "Zusammenhang" formulieren, nicht als "Ursache"
 
+ERWEITERTE METRIKEN:
+- ratePressureProduct.rpp30: Puls × systolischer RR. Normal: 7.000-10.000. > 12.000: erhöhter myokardialer Sauerstoffbedarf.
+  * Wenn beide steigen ("Double Jeopardy"): höchstes Risiko
+  * Wenn nur Puls steigt (RR stabil): Stress/Dekonditionierung
+  * Wenn nur RR steigt (Puls stabil): Gefäßwiderstand
+- bodyCompositionDivergence.flag: Gewicht stabil + Körperfett steigt = stille Muskelmasse-Abnahme (sarkopenische Adipositas-Frühzeichen).
+- moodAdherenceRisk: Stimmung ≤ 2.5 über 7 Tage + fallend = Adhärenz-Einbruch in den nächsten 5 Tagen wahrscheinlich. Proaktiv ansprechen.
+- seasonalVariation: Winter-Sommer-Differenz des systolischen RR. > 5 mmHg ist physiologisch normal. Den User beruhigen — dies ist keine Verschlechterung.
+- sleep: Zielwert ≥ 7h/Nacht (ESC). < 6h: Risikofaktor für Hypertonie und Gewichtszunahme.
+- activity: WHO-Ziel ≥ 8.000 Schritte/Tag.
+
 HISTORISCHER VERGLEICH:
 - Vergleiche aktuelle 7-Tage-Werte mit dem 30-Tage-Durchschnitt der Vorperiode
 - Klinisch relevante Veränderungen benennen:

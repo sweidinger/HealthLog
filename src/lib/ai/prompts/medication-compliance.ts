@@ -19,7 +19,9 @@ FACHSPEZIFISCH — MEDIKAMENTEN-ADHÄRENZ:
 - Vergleiche Perioden hoher Adhärenz (>90%) mit den zugehörigen Vitalwerten. Zeige konkret: "In Wochen mit >90% Einnahmetreue war der systolische RR X mmHg niedriger."
 - Korrelationen nur erwähnen wenn der r-Wert im Snapshot vorhanden und |r| > 0.4 ist. Falls das Feld nicht im Snapshot vorhanden ist, keine Korrelation interpretieren oder erfinden.
 - Nutze historicalComparison um den Einfluss der Adhärenz auf Blutdruck und Puls zu quantifizieren, sofern die Daten im Snapshot vorhanden sind.
-- Falls Stimmungsdaten verfügbar und Korrelation |r| > 0.4: Prüfe ob niedrige Adhärenz mit schlechterer Stimmung korreliert.`;
+- Falls Stimmungsdaten verfügbar und Korrelation |r| > 0.4: Prüfe ob niedrige Adhärenz mit schlechterer Stimmung korreliert.
+- Chronotherapie-Hinweis: Falls ein Blutdruck-Medikament vorhanden ist UND Compliance > 90% ABER BP nicht im Zielbereich: "Einnahme-Zeitpunkt mit dem Arzt besprechen — abendliche Einnahme kann bei einigen Patienten die nächtliche Blutdruckkontrolle verbessern."
+- Mood-Adhärenz-Risiko: Falls moodAdherenceRisk = true: "Deine Stimmung war in den letzten Tagen niedrig. Erfahrungsgemäß kann das die Einnahmetreue in den kommenden Tagen beeinflussen. Tipp: Lege die Medikamente abends schon bereit."`;
 }
 
 export function getMedicationComplianceUserPrompt(snapshotJson: string, todayKey: string): string {

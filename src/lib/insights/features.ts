@@ -82,12 +82,44 @@ export interface AggregatedFeatures {
     totalEntries: number;
     coverage: DataCoverage;
   };
+  sleep?: {
+    avg7: number | null;
+    avg30: number | null;
+    latest: number | null;
+    coverage: DataCoverage;
+  };
+  activity?: {
+    avg7: number | null;
+    avg30: number | null;
+    latest: number | null;
+    coverage: DataCoverage;
+  };
+  ratePressureProduct?: {
+    rpp7: number | null;
+    rpp30: number | null;
+    risk: 'normal' | 'elevated' | null;
+  };
+  bodyCompositionDivergence?: {
+    weightStable: boolean;
+    bodyFatRising: boolean;
+    flag: boolean;
+  };
+  moodAdherenceRisk?: boolean;
+  seasonalVariation?: {
+    winterAvgSys: number | null;
+    summerAvgSys: number | null;
+    delta: number | null;
+    significance: 'normal' | 'elevated' | null;
+  };
   correlations?: {
     weightVsSystolic: CorrelationResult | null;
     weightVsDiastolic: CorrelationResult | null;
     pulseVsSystolic: CorrelationResult | null;
     moodVsPulse: CorrelationResult | null;
     moodVsSystolic: CorrelationResult | null;
+    moodVsWeight: CorrelationResult | null;
+    sleepVsPulse: CorrelationResult | null;
+    sleepVsSystolic: CorrelationResult | null;
   };
   historicalComparison?: {
     weight?: {
@@ -406,6 +438,30 @@ export async function extractFeatures(
     };
   }
 
+  // Sleep Duration
+  const sleepData = byType("SLEEP_DURATION");
+  if (sleepData.length > 0) {
+    const summary = summarize(toDataPoints(sleepData));
+    features.sleep = {
+      avg7: summary.avg7,
+      avg30: summary.avg30,
+      latest: summary.latest,
+      coverage: computeCoverage(sleepData, now),
+    };
+  }
+
+  // Activity Steps
+  const activityData = byType("ACTIVITY_STEPS");
+  if (activityData.length > 0) {
+    const summary = summarize(toDataPoints(activityData));
+    features.activity = {
+      avg7: summary.avg7,
+      avg30: summary.avg30,
+      latest: summary.latest,
+      coverage: computeCoverage(activityData, now),
+    };
+  }
+
   // Mood
   const moodEntries = await prisma.moodEntry.findMany({
     where: { userId },
@@ -491,13 +547,72 @@ export async function extractFeatures(
   const computeCorr = (a: DataPoint[], b: DataPoint[]) =>
     pearsonCorrelation(pairByTimestamp(a, b));
 
+  const sleepPoints = toDataPoints(sleepData);
+
   features.correlations = {
     weightVsSystolic: computeCorr(weightPoints, sysPoints),
     weightVsDiastolic: computeCorr(weightPoints, diaPoints),
     pulseVsSystolic: computeCorr(pulsePoints, sysPoints),
     moodVsPulse: computeCorr(moodPoints, pulsePoints),
     moodVsSystolic: computeCorr(moodPoints, sysPoints),
+    moodVsWeight: computeCorr(moodPoints, weightPoints),
+    sleepVsPulse: sleepData.length > 0 ? computeCorr(sleepPoints, pulsePoints) : null,
+    sleepVsSystolic: sleepData.length > 0 ? computeCorr(sleepPoints, sysPoints) : null,
   };
+
+  // Rate-Pressure Product (RPP) — myocardial oxygen demand indicator
+  if (features.pulse && features.bloodPressure) {
+    const rpp7 =
+      features.pulse.avg7 !== null && features.bloodPressure.avgSys30 !== null
+        ? Math.round(features.pulse.avg7 * (avgInWindow(sysData, now, 7) ?? features.bloodPressure.avgSys30))
+        : null;
+    const rpp30 =
+      features.pulse.avg30 !== null && features.bloodPressure.avgSys30 !== null
+        ? Math.round(features.pulse.avg30 * features.bloodPressure.avgSys30)
+        : null;
+    const rppRef = rpp30 ?? rpp7;
+    features.ratePressureProduct = {
+      rpp7,
+      rpp30,
+      risk: rppRef !== null ? (rppRef > 12000 ? 'elevated' : 'normal') : null,
+    };
+  }
+
+  // Body Composition Divergence
+  if (features.weight && features.bodyFat) {
+    const weightStable = features.weight.slope30 !== null && Math.abs(features.weight.slope30) < 0.01;
+    const bodyFatRising = features.bodyFat.slope30 !== null && features.bodyFat.slope30 > 0;
+    features.bodyCompositionDivergence = {
+      weightStable,
+      bodyFatRising,
+      flag: weightStable && bodyFatRising,
+    };
+  }
+
+  // Mood-Adherence Risk Flag
+  if (features.mood && features.medications && features.medications.length > 0) {
+    features.moodAdherenceRisk =
+      features.mood.avg7 !== null &&
+      features.mood.avg7 <= 2.5 &&
+      features.mood.trend30 === 'declining';
+  }
+
+  // Seasonal BP Variation (only if > 180 days of data)
+  if (features.context.dataSpanDays > 180 && sysData.length > 0) {
+    const winterMonths = [11, 0, 1]; // Dec, Jan, Feb (0-indexed)
+    const summerMonths = [5, 6, 7]; // Jun, Jul, Aug
+    const winterVals = sysData.filter(m => winterMonths.includes(m.measuredAt.getMonth())).map(m => m.value);
+    const summerVals = sysData.filter(m => summerMonths.includes(m.measuredAt.getMonth())).map(m => m.value);
+    const winterAvg = winterVals.length > 0 ? Math.round((winterVals.reduce((s, v) => s + v, 0) / winterVals.length) * 10) / 10 : null;
+    const summerAvg = summerVals.length > 0 ? Math.round((summerVals.reduce((s, v) => s + v, 0) / summerVals.length) * 10) / 10 : null;
+    const delta = winterAvg !== null && summerAvg !== null ? Math.round((winterAvg - summerAvg) * 10) / 10 : null;
+    features.seasonalVariation = {
+      winterAvgSys: winterAvg,
+      summerAvgSys: summerAvg,
+      delta,
+      significance: delta !== null ? (Math.abs(delta) > 5 ? 'elevated' : 'normal') : null,
+    };
+  }
 
   // Historical comparison: current 7d avg vs previous 30d avg (days 7-37)
   features.historicalComparison = {};

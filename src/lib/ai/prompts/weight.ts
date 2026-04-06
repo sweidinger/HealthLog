@@ -14,7 +14,14 @@ FACHSPEZIFISCH — GEWICHT:
 - Tageszeit-Schwankungen: Morgen- vs. Abendmessungen differenzieren (1-2 kg normal).
 - Vergleiche das aktuelle 7-Tage-Mittel (historicalComparison.weight.current7dAvg) mit dem 30-Tage-Baseline (previous30dAvg). Bei >2 kg Differenz: klinisch bewerten und Ursachen diskutieren.
 - Plateau-Definition: <0.5 kg Veränderung über >14 Tage (prüfe ob avg7 ≈ avg30 ≈ avg90).
-- Nutze allTimeMin/allTimeMax/allTimeAvg um den aktuellen Wert historisch einzuordnen.`;
+- Nutze allTimeMin/allTimeMax/allTimeAvg um den aktuellen Wert historisch einzuordnen.
+- Gewichtsmeilensteine (klinisch signifikant):
+  * 5% Verlust vom Startgewicht (allTimeMax): Metabolischer Benefit, KV-Risikoreduktion
+  * 10% Verlust: Erheblicher klinischer Nutzen
+  * Wenn erreicht: Explizit anerkennen und klinischen Kontext geben
+- Zu schneller Verlust: > 1 kg/Woche über > 2 Wochen = Risiko für Muskelmasseverlust, nicht nachhaltig
+- Body-Composition-Divergenz: Falls bodyCompositionDivergence.flag = true: "Gewicht stabil, aber Körperfettanteil steigend — möglicher Muskelmasseverlust. Krafttraining empfehlen."
+- Schlaf-Gewicht-Verbindung: Falls sleep.avg7 < 6h UND weight.slope30 > 0: "Schlafmangel stört metabolische Regulation und kann Gewichtszunahme begünstigen."`;
 }
 
 export function getWeightUserPrompt(snapshotJson: string, todayKey: string): string {
