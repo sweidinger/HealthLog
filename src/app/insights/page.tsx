@@ -29,12 +29,16 @@ import { ComplianceHeatmap } from "@/components/charts/compliance-heatmap";
 import {
   Activity,
   Heart,
+  HeartPulse,
   Loader2,
   Percent,
   Pill,
+  Ruler,
+  Scale,
   Smile,
   TrendingUp,
 } from "lucide-react";
+import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import {
   ScatterChart,
   Scatter,
@@ -525,7 +529,6 @@ export default function InsightsPage() {
   const {
     data: generalStatus,
     isLoading: isGeneralStatusLoading,
-    isError: isGeneralStatusError,
   } = useQuery({
     queryKey: ["insights", "general-status", locale],
     queryFn: async () => {
@@ -541,7 +544,6 @@ export default function InsightsPage() {
   const {
     data: bloodPressureStatus,
     isLoading: isBloodPressureStatusLoading,
-    isError: isBloodPressureStatusError,
   } = useQuery({
     queryKey: ["insights", "blood-pressure-status", locale],
     queryFn: async () => {
@@ -559,7 +561,6 @@ export default function InsightsPage() {
   const {
     data: weightStatus,
     isLoading: isWeightStatusLoading,
-    isError: isWeightStatusError,
   } = useQuery({
     queryKey: ["insights", "weight-status", locale],
     queryFn: async () => {
@@ -575,7 +576,6 @@ export default function InsightsPage() {
   const {
     data: pulseStatus,
     isLoading: isPulseStatusLoading,
-    isError: isPulseStatusError,
   } = useQuery({
     queryKey: ["insights", "pulse-status", locale],
     queryFn: async () => {
@@ -591,7 +591,6 @@ export default function InsightsPage() {
   const {
     data: bmiStatus,
     isLoading: isBmiStatusLoading,
-    isError: isBmiStatusError,
   } = useQuery({
     queryKey: ["insights", "bmi-status", locale],
     queryFn: async () => {
@@ -607,7 +606,6 @@ export default function InsightsPage() {
   const {
     data: moodStatus,
     isLoading: isMoodStatusLoading,
-    isError: isMoodStatusError,
   } = useQuery({
     queryKey: ["insights", "mood-status", locale],
     queryFn: async () => {
@@ -623,7 +621,6 @@ export default function InsightsPage() {
   const {
     data: medicationComplianceStatus,
     isLoading: isMedicationComplianceStatusLoading,
-    isError: isMedicationComplianceStatusError,
   } = useQuery({
     queryKey: ["insights", "medication-compliance-status", locale],
     queryFn: async () => {
@@ -929,27 +926,15 @@ export default function InsightsPage() {
             {t(`insights.generalStatusBadge.${overallStatus.level}`)}
           </Badge>
         </div>
-        {isGeneralStatusLoading ? (
-          <p className="text-muted-foreground text-sm">
-            {t("insights.generalStatusLoading")}
-          </p>
-        ) : isGeneralStatusError ? (
-          <p className="text-muted-foreground text-sm">
-            {t("insights.generalStatusUnavailable")}
-          </p>
-        ) : generalStatus?.text ? (
-          <p className="text-muted-foreground text-sm leading-7">
-            {generalStatus.text}
-          </p>
-        ) : !generalStatus?.hasProvider ? (
-          <p className="text-muted-foreground text-sm">
-            {t("insights.generalStatusNoKey")}
-          </p>
-        ) : (
-          <p className="text-muted-foreground text-sm leading-7">
-            {generalStatus.text ?? t("insights.generalStatusUnavailable")}
-          </p>
-        )}
+        <InsightStatusCard
+          title={t("insights.generalStatusTitle")}
+          icon={<Activity className="h-5 w-5" />}
+          text={generalStatus?.text ?? null}
+          hasProvider={generalStatus?.hasProvider ?? false}
+          cached={generalStatus?.cached ?? false}
+          updatedAt={generalStatus?.updatedAt ?? null}
+          loading={isGeneralStatusLoading}
+        />
       </section>
 
       {/* Section 3: Blood pressure */}
@@ -1213,33 +1198,15 @@ export default function InsightsPage() {
           </CardContent>
         </Card>
 
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold">
-            {t("insights.assessmentTitle")}
-          </h3>
-          {isBloodPressureStatusLoading ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.bloodPressureStatusLoading")}
-            </p>
-          ) : isBloodPressureStatusError ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.bloodPressureStatusUnavailable")}
-            </p>
-          ) : bloodPressureStatus?.text ? (
-            <p className="text-muted-foreground text-sm leading-7">
-              {bloodPressureStatus.text}
-            </p>
-          ) : !bloodPressureStatus?.hasProvider ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.bloodPressureStatusNoKey")}
-            </p>
-          ) : (
-            <p className="text-muted-foreground text-sm leading-7">
-              {bloodPressureStatus.text ??
-                t("insights.bloodPressureStatusUnavailable")}
-            </p>
-          )}
-        </div>
+        <InsightStatusCard
+          title={t("insights.assessmentTitle")}
+          icon={<HeartPulse className="h-5 w-5" />}
+          text={bloodPressureStatus?.text ?? null}
+          hasProvider={bloodPressureStatus?.hasProvider ?? false}
+          cached={bloodPressureStatus?.cached ?? false}
+          updatedAt={bloodPressureStatus?.updatedAt ?? null}
+          loading={isBloodPressureStatusLoading}
+        />
       </section>
 
       {/* Section 4: Weight */}
@@ -1462,32 +1429,15 @@ export default function InsightsPage() {
           )}
         </div>
 
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold">
-            {t("insights.assessmentTitle")}
-          </h3>
-          {isWeightStatusLoading ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.weightStatusLoading")}
-            </p>
-          ) : isWeightStatusError ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.weightStatusUnavailable")}
-            </p>
-          ) : weightStatus?.text ? (
-            <p className="text-muted-foreground text-sm leading-7">
-              {weightStatus.text}
-            </p>
-          ) : !weightStatus?.hasProvider ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.weightStatusNoKey")}
-            </p>
-          ) : (
-            <p className="text-muted-foreground text-sm leading-7">
-              {weightStatus.text ?? t("insights.weightStatusUnavailable")}
-            </p>
-          )}
-        </div>
+        <InsightStatusCard
+          title={t("insights.assessmentTitle")}
+          icon={<Scale className="h-5 w-5" />}
+          text={weightStatus?.text ?? null}
+          hasProvider={weightStatus?.hasProvider ?? false}
+          cached={weightStatus?.cached ?? false}
+          updatedAt={weightStatus?.updatedAt ?? null}
+          loading={isWeightStatusLoading}
+        />
       </section>
 
       {/* Section 5: Pulse */}
@@ -1512,32 +1462,15 @@ export default function InsightsPage() {
           valueBands={pulseBands}
         />
 
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold">
-            {t("insights.assessmentTitle")}
-          </h3>
-          {isPulseStatusLoading ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.pulseStatusLoading")}
-            </p>
-          ) : isPulseStatusError ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.pulseStatusUnavailable")}
-            </p>
-          ) : pulseStatus?.text ? (
-            <p className="text-muted-foreground text-sm leading-7">
-              {pulseStatus.text}
-            </p>
-          ) : !pulseStatus?.hasProvider ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.pulseStatusNoKey")}
-            </p>
-          ) : (
-            <p className="text-muted-foreground text-sm leading-7">
-              {pulseStatus.text ?? t("insights.pulseStatusUnavailable")}
-            </p>
-          )}
-        </div>
+        <InsightStatusCard
+          title={t("insights.assessmentTitle")}
+          icon={<Heart className="h-5 w-5" />}
+          text={pulseStatus?.text ?? null}
+          hasProvider={pulseStatus?.hasProvider ?? false}
+          cached={pulseStatus?.cached ?? false}
+          updatedAt={pulseStatus?.updatedAt ?? null}
+          loading={isPulseStatusLoading}
+        />
       </section>
 
       {/* Section: Mood */}
@@ -1557,32 +1490,15 @@ export default function InsightsPage() {
 
           <MoodChart />
 
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold">
-              {t("insights.assessmentTitle")}
-            </h3>
-            {isMoodStatusLoading ? (
-              <p className="text-muted-foreground text-sm">
-                {t("insights.moodStatusLoading")}
-              </p>
-            ) : isMoodStatusError ? (
-              <p className="text-muted-foreground text-sm">
-                {t("insights.moodStatusUnavailable")}
-              </p>
-            ) : moodStatus?.text ? (
-              <p className="text-muted-foreground text-sm leading-7">
-                {moodStatus.text}
-              </p>
-            ) : !moodStatus?.hasProvider ? (
-              <p className="text-muted-foreground text-sm">
-                {t("insights.moodStatusNoKey")}
-              </p>
-            ) : (
-              <p className="text-muted-foreground text-sm leading-7">
-                {moodStatus.text ?? t("insights.moodStatusUnavailable")}
-              </p>
-            )}
-          </div>
+          <InsightStatusCard
+            title={t("insights.assessmentTitle")}
+            icon={<Smile className="h-5 w-5" />}
+            text={moodStatus?.text ?? null}
+            hasProvider={moodStatus?.hasProvider ?? false}
+            cached={moodStatus?.cached ?? false}
+            updatedAt={moodStatus?.updatedAt ?? null}
+            loading={isMoodStatusLoading}
+          />
         </section>
       )}
 
@@ -1668,33 +1584,15 @@ export default function InsightsPage() {
           </div>
         ) : null}
 
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold">
-            {t("insights.assessmentTitle")}
-          </h3>
-          {isMedicationComplianceStatusLoading ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.medicationComplianceStatusLoading")}
-            </p>
-          ) : isMedicationComplianceStatusError ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.medicationComplianceStatusUnavailable")}
-            </p>
-          ) : medicationComplianceStatus?.summary ? (
-            <p className="text-muted-foreground text-sm leading-7">
-              {medicationComplianceStatus.summary}
-            </p>
-          ) : !medicationComplianceStatus?.hasProvider ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.medicationComplianceStatusNoKey")}
-            </p>
-          ) : (
-            <p className="text-muted-foreground text-sm leading-7">
-              {medicationComplianceStatus.summary ??
-                t("insights.medicationComplianceStatusUnavailable")}
-            </p>
-          )}
-        </div>
+        <InsightStatusCard
+          title={t("insights.assessmentTitle")}
+          icon={<Pill className="h-5 w-5" />}
+          text={medicationComplianceStatus?.summary ?? null}
+          hasProvider={medicationComplianceStatus?.hasProvider ?? false}
+          cached={medicationComplianceStatus?.cached ?? false}
+          updatedAt={medicationComplianceStatus?.updatedAt ?? null}
+          loading={isMedicationComplianceStatusLoading}
+        />
       </section>
 
       {/* Section 7: BMI */}
@@ -1724,32 +1622,15 @@ export default function InsightsPage() {
           <p className="text-muted-foreground text-sm">{t("common.noData")}</p>
         )}
 
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold">
-            {t("insights.assessmentTitle")}
-          </h3>
-          {isBmiStatusLoading ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.bmiStatusLoading")}
-            </p>
-          ) : isBmiStatusError ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.bmiStatusUnavailable")}
-            </p>
-          ) : bmiStatus?.text ? (
-            <p className="text-muted-foreground text-sm leading-7">
-              {bmiStatus.text}
-            </p>
-          ) : !bmiStatus?.hasProvider ? (
-            <p className="text-muted-foreground text-sm">
-              {t("insights.bmiStatusNoKey")}
-            </p>
-          ) : (
-            <p className="text-muted-foreground text-sm leading-7">
-              {bmiStatus.text ?? t("insights.bmiStatusUnavailable")}
-            </p>
-          )}
-        </div>
+        <InsightStatusCard
+          title={t("insights.assessmentTitle")}
+          icon={<Ruler className="h-5 w-5" />}
+          text={bmiStatus?.text ?? null}
+          hasProvider={bmiStatus?.hasProvider ?? false}
+          cached={bmiStatus?.cached ?? false}
+          updatedAt={bmiStatus?.updatedAt ?? null}
+          loading={isBmiStatusLoading}
+        />
       </section>
     </div>
   );
