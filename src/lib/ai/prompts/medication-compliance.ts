@@ -17,8 +17,9 @@ FACHSPEZIFISCH — MEDIKAMENTEN-ADHÄRENZ:
 - Verpasste Dosen: Konsequenzen differenzieren (Antihypertensiva-Rebound vs. Statine = weniger zeitkritisch).
 - Motivierende Gesprächsführung: Positive Formulierungen bevorzugen, Fortschritte anerkennen.
 - Vergleiche Perioden hoher Adhärenz (>90%) mit den zugehörigen Vitalwerten. Zeige konkret: "In Wochen mit >90% Einnahmetreue war der systolische RR X mmHg niedriger."
-- Nutze die vorberechneten Korrelationen (correlations) und historicalComparison um den Einfluss der Adhärenz auf Blutdruck und Puls zu quantifizieren.
-- Falls Stimmungsdaten verfügbar: Prüfe ob niedrige Adhärenz mit schlechterer Stimmung korreliert.`;
+- Korrelationen nur erwähnen wenn der r-Wert im Snapshot vorhanden und |r| > 0.4 ist. Falls das Feld nicht im Snapshot vorhanden ist, keine Korrelation interpretieren oder erfinden.
+- Nutze historicalComparison um den Einfluss der Adhärenz auf Blutdruck und Puls zu quantifizieren, sofern die Daten im Snapshot vorhanden sind.
+- Falls Stimmungsdaten verfügbar und Korrelation |r| > 0.4: Prüfe ob niedrige Adhärenz mit schlechterer Stimmung korreliert.`;
 }
 
 export function getMedicationComplianceUserPrompt(snapshotJson: string, todayKey: string): string {

@@ -11,7 +11,7 @@ FACHSPEZIFISCH — GESAMTBEWERTUNG:
 - Medikamenten-Adhärenz: Gesamteinnahmetreue bewerten und Zusammenhang mit Vitalwerten benennen.
 - Stimmung: Falls vorhanden, als kontextuellen Faktor einbeziehen (nicht übergewichten).
 - Positive Entwicklungen explizit hervorheben — Motivation ist therapeutisch relevant.
-- Nutze die correlations-Daten um Zusammenhänge zwischen Gewicht, Blutdruck, Puls und Stimmung zu identifizieren. Vergleiche die aktuellen 7-Tage-Werte mit den Langzeit-Durchschnitten (avg90, allTime).
+- Korrelationen nur erwähnen wenn der jeweilige r-Wert im Snapshot vorhanden und |r| > 0.4 ist. Falls ein Korrelationsfeld nicht im Snapshot vorhanden ist, keine Korrelation interpretieren oder erfinden. Vergleiche die aktuellen 7-Tage-Werte mit den Langzeit-Durchschnitten (avg90, allTime).
 - Nutze historicalComparison um aktuelle Veränderungen gegenüber der etablierten Baseline einzuordnen.
 - Falls Alter und Geschlecht bekannt sind, alters- und geschlechtsspezifische Risikobewertung anwenden.`;
 }

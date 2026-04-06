@@ -9,7 +9,7 @@ FACHSPEZIFISCH -- STIMMUNG/WOHLBEFINDEN:
 - Anhaltende Phasen: Mehr als 3 Tage unter 2.5 oder uber 4.5 sind auffallig.
 - Zusammenhange: Stimmung korreliert haufig mit Schlaf, Aktivitat, Blutdruck und Medikamenten-Compliance.
 - Tags: Falls Stimmungs-Tags vorhanden sind, prufe ob bestimmte Tags mit Stimmungslevels korrelieren.
-- Cross-Metrik: Falls Kontext zu Gewicht, Blutdruck oder Puls vorhanden ist und eine auffaellige Korrelation zeigt, kurz erwahnen.
+- Cross-Metrik: Korrelationen zu Gewicht, Blutdruck oder Puls nur erwähnen wenn der jeweilige r-Wert im Snapshot vorhanden und |r| > 0.4 ist. Falls das Feld nicht im Snapshot vorhanden ist, keine Korrelation interpretieren oder erfinden.
 - Erzwinge keine Querverweise wenn kein klares Muster erkennbar ist.`;
 }
 

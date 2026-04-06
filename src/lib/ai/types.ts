@@ -22,10 +22,13 @@ export const insightDataQualitySchema = z.object({
 });
 
 export const insightResultSchema = z.object({
+  insightType: z.string().optional(),
   summary: z.string(),
   classification: z.enum(["optimal", "gut", "grenzwertig", "erhoht", "kritisch"]),
+  classificationLabel: z.string().optional(),
   findings: z.array(insightFindingSchema),
   correlations: z.array(insightCorrelationSchema),
+  primaryRecommendation: z.string().optional(),
   recommendations: z.array(z.string()),
   dataQuality: insightDataQualitySchema,
   disclaimer: z.string(),

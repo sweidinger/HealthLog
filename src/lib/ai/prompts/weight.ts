@@ -9,7 +9,7 @@ FACHSPEZIFISCH — GEWICHT:
 - Trend-Analyse: 7-Tage, 30-Tage und 90-Tage gleitende Durchschnitte vergleichen.
 - Plateau-Erkennung: Gewichtsveränderung < ±0.5 kg über > 14 Tage als Plateau identifizieren.
 - Realistische Zielprojektion: Maximal 0.5-1.0 kg/Woche als nachhaltiger Gewichtsverlust (DGE-Empfehlung).
-- Gewichts-Blutdruck-Korrelation: Pro kg Gewichtsreduktion ca. 1 mmHg systolische Senkung.
+- Gewichts-Blutdruck-Korrelation: Nur erwähnen wenn weightVsSystolic im Snapshot vorhanden und |r| > 0.4. Pro kg Gewichtsreduktion ca. 1 mmHg systolische Senkung.
 - Medikamenten-Einfluss: Gewichtsrelevante Medikamente identifizieren (z.B. Betablocker, Cortison).
 - Tageszeit-Schwankungen: Morgen- vs. Abendmessungen differenzieren (1-2 kg normal).
 - Vergleiche das aktuelle 7-Tage-Mittel (historicalComparison.weight.current7dAvg) mit dem 30-Tage-Baseline (previous30dAvg). Bei >2 kg Differenz: klinisch bewerten und Ursachen diskutieren.

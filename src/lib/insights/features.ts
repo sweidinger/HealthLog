@@ -13,6 +13,7 @@ import {
   pearsonCorrelation,
   type CorrelationResult,
 } from "@/lib/analytics/correlations";
+import { getMedicationCategories } from "@/lib/medication-category";
 
 interface DataCoverage {
   count: number;
@@ -49,6 +50,9 @@ export interface AggregatedFeatures {
     allTimeMaxDia: number | null;
     slopeSys30: number | null;
     slopeDia30: number | null;
+    sdSys30: number | null;
+    sdDia30: number | null;
+    pulsePressure30: number | null;
     pctInTarget: number | null;
     coverage: DataCoverage;
   };
@@ -70,6 +74,7 @@ export interface AggregatedFeatures {
     coverage: DataCoverage;
   };
   mood?: {
+    scale: string;
     avg7: number | null;
     avg30: number | null;
     latest: number | null;
@@ -109,8 +114,10 @@ export interface AggregatedFeatures {
   medications?: Array<{
     name: string;
     dose: string;
+    category: string;
     compliance7: number;
     compliance30: number;
+    compliance90: number;
     streak: number;
     missedLast7: number;
   }>;
@@ -132,6 +139,13 @@ export interface RawFeatures extends AggregatedFeatures {
     value: number;
     dayOffset: number; // days ago (anonymized — no exact date)
   }>;
+}
+
+function stdDev(values: number[]): number | null {
+  if (values.length < 2) return null;
+  const mean = values.reduce((s, v) => s + v, 0) / values.length;
+  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1);
+  return Math.round(Math.sqrt(variance) * 10) / 10;
 }
 
 function toDataPoints(
@@ -309,16 +323,19 @@ export async function extractFeatures(
 
     let pctInTarget: number | null = null;
     if (bpTargets) {
-      const sysInRange = sysData.filter(
-        (m) => m.value >= bpTargets.sysLow && m.value <= bpTargets.sysHigh,
-      ).length;
-      const diaInRange = diaData.filter(
-        (m) => m.value >= bpTargets.diaLow && m.value <= bpTargets.diaHigh,
-      ).length;
-      const total = sysData.length + diaData.length;
-      if (total > 0) {
-        pctInTarget = Math.round(((sysInRange + diaInRange) / total) * 100);
+      const sysByTime = new Map(sysData.map(m => [m.measuredAt.getTime(), m.value]));
+      let inTargetCount = 0;
+      let pairedCount = 0;
+      for (const dia of diaData) {
+        const sysVal = sysByTime.get(dia.measuredAt.getTime());
+        if (sysVal === undefined) continue;
+        pairedCount++;
+        if (sysVal >= bpTargets.sysLow && sysVal <= bpTargets.sysHigh &&
+            dia.value >= bpTargets.diaLow && dia.value <= bpTargets.diaHigh) {
+          inTargetCount++;
+        }
       }
+      pctInTarget = pairedCount > 0 ? Math.round((inTargetCount / pairedCount) * 100) : null;
     }
 
     features.bloodPressure = {
@@ -334,6 +351,22 @@ export async function extractFeatures(
       allTimeMaxDia: diaSummary?.count ? diaSummary.max : null,
       slopeSys30: sysSummary?.slope30?.slope ?? null,
       slopeDia30: diaSummary?.slope30?.slope ?? null,
+      sdSys30: (() => {
+        const fromMs = now - 30 * 24 * 60 * 60 * 1000;
+        const vals = sysData.filter(m => m.measuredAt.getTime() >= fromMs).map(m => m.value);
+        return stdDev(vals);
+      })(),
+      sdDia30: (() => {
+        const fromMs = now - 30 * 24 * 60 * 60 * 1000;
+        const vals = diaData.filter(m => m.measuredAt.getTime() >= fromMs).map(m => m.value);
+        return stdDev(vals);
+      })(),
+      pulsePressure30: (() => {
+        const avgSys = sysSummary?.avg30 ?? null;
+        const avgDia = diaSummary?.avg30 ?? null;
+        if (avgSys === null || avgDia === null) return null;
+        return Math.round((avgSys - avgDia) * 10) / 10;
+      })(),
       pctInTarget,
       coverage: computeCoverage(
         [...sysData, ...diaData].sort(
@@ -425,6 +458,7 @@ export async function extractFeatures(
         : null;
 
     features.mood = {
+      scale: "1=LAUSIG, 2=SCHLECHT, 3=OKAY, 4=GUT, 5=SUPER_GUT",
       avg7: avg(last7),
       avg30: avg(last30),
       latest: moodEntries[moodEntries.length - 1].score,
@@ -487,6 +521,10 @@ export async function extractFeatures(
   });
 
   if (medications.length > 0) {
+    const categoryMap = await getMedicationCategories(
+      medications.map((med) => med.id),
+    );
+
     features.medications = [];
     for (const med of medications) {
       const events = await prisma.medicationIntakeEvent.findMany({
@@ -500,13 +538,16 @@ export async function extractFeatures(
       }));
       const c7 = calculateCompliance(mapped, med.schedules, 7, med.createdAt);
       const c30 = calculateCompliance(mapped, med.schedules, 30, med.createdAt);
+      const c90 = calculateCompliance(mapped, med.schedules, 90, med.createdAt);
 
       features.medications.push({
         name: med.name,
         dose: med.dose,
+        category: categoryMap[med.id] ?? "OTHER",
         compliance7: c7.rate,
         compliance30: c30.rate,
-        streak: c7.streak,
+        compliance90: c90.rate,
+        streak: c30.streak,
         missedLast7: c7.missed,
       });
     }
