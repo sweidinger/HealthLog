@@ -5,8 +5,14 @@
  */
 import { prisma } from "@/lib/db";
 import { summarize } from "@/lib/analytics/trends";
+import type { DataPoint } from "@/lib/analytics/trends";
 import { calculateCompliance } from "@/lib/analytics/compliance";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
+import {
+  pairByTimestamp,
+  pearsonCorrelation,
+  type CorrelationResult,
+} from "@/lib/analytics/correlations";
 
 interface DataCoverage {
   count: number;
@@ -21,6 +27,10 @@ export interface AggregatedFeatures {
     latest: number;
     avg7: number | null;
     avg30: number | null;
+    avg90: number | null;
+    allTimeAvg: number | null;
+    allTimeMin: number | null;
+    allTimeMax: number | null;
     slope30: number | null;
     outlierCount: number;
     bmi: number | null;
@@ -29,13 +39,26 @@ export interface AggregatedFeatures {
   bloodPressure?: {
     avgSys30: number | null;
     avgDia30: number | null;
+    avgSys90: number | null;
+    avgDia90: number | null;
+    allTimeAvgSys: number | null;
+    allTimeAvgDia: number | null;
+    allTimeMinSys: number | null;
+    allTimeMaxSys: number | null;
+    allTimeMinDia: number | null;
+    allTimeMaxDia: number | null;
     slopeSys30: number | null;
     slopeDia30: number | null;
     pctInTarget: number | null;
     coverage: DataCoverage;
   };
   pulse?: {
+    avg7: number | null;
     avg30: number | null;
+    avg90: number | null;
+    allTimeAvg: number | null;
+    allTimeMin: number | null;
+    allTimeMax: number | null;
     slope30: number | null;
     anomalyCount: number;
     coverage: DataCoverage;
@@ -45,6 +68,43 @@ export interface AggregatedFeatures {
     avg30: number | null;
     slope30: number | null;
     coverage: DataCoverage;
+  };
+  mood?: {
+    avg7: number | null;
+    avg30: number | null;
+    latest: number | null;
+    trend30: "improving" | "declining" | "stable" | null;
+    totalEntries: number;
+    coverage: DataCoverage;
+  };
+  correlations?: {
+    weightVsSystolic: CorrelationResult | null;
+    weightVsDiastolic: CorrelationResult | null;
+    pulseVsSystolic: CorrelationResult | null;
+    moodVsPulse: CorrelationResult | null;
+    moodVsSystolic: CorrelationResult | null;
+  };
+  historicalComparison?: {
+    weight?: {
+      current7dAvg: number | null;
+      previous30dAvg: number | null;
+      change: number | null;
+    };
+    systolic?: {
+      current7dAvg: number | null;
+      previous30dAvg: number | null;
+      change: number | null;
+    };
+    diastolic?: {
+      current7dAvg: number | null;
+      previous30dAvg: number | null;
+      change: number | null;
+    };
+    pulse?: {
+      current7dAvg: number | null;
+      previous30dAvg: number | null;
+      change: number | null;
+    };
   };
   medications?: Array<{
     name: string;
@@ -61,6 +121,8 @@ export interface AggregatedFeatures {
     dataSpanDays: number;
     oldestMeasurementDaysAgo: number | null;
     newestMeasurementDaysAgo: number | null;
+    ageYears: number | null;
+    gender: string | null;
   };
 }
 
@@ -74,7 +136,7 @@ export interface RawFeatures extends AggregatedFeatures {
 
 function toDataPoints(
   records: Array<{ value: number; measuredAt: Date }>,
-): Array<{ date: Date; value: number }> {
+): DataPoint[] {
   return records.map((r) => ({ date: r.measuredAt, value: r.value }));
 }
 
@@ -107,6 +169,38 @@ function computeCoverage(
   };
 }
 
+/** Compute average of values within a time window (days ago from now). */
+function avgInWindow(
+  records: Array<{ value: number; measuredAt: Date }>,
+  now: number,
+  fromDaysAgo: number,
+  toDaysAgo: number = 0,
+): number | null {
+  const fromMs = now - fromDaysAgo * 24 * 60 * 60 * 1000;
+  const toMs = now - toDaysAgo * 24 * 60 * 60 * 1000;
+  const filtered = records.filter((r) => {
+    const t = r.measuredAt.getTime();
+    return t >= fromMs && t <= toMs;
+  });
+  if (filtered.length === 0) return null;
+  const sum = filtered.reduce((s, r) => s + r.value, 0);
+  return Math.round((sum / filtered.length) * 100) / 100;
+}
+
+/** Compute historical comparison: current 7d avg vs previous 30d avg (days 7-37). */
+function computeHistoricalComparison(
+  records: Array<{ value: number; measuredAt: Date }>,
+  now: number,
+): { current7dAvg: number | null; previous30dAvg: number | null; change: number | null } {
+  const current7dAvg = avgInWindow(records, now, 7, 0);
+  const previous30dAvg = avgInWindow(records, now, 37, 7);
+  const change =
+    current7dAvg !== null && previous30dAvg !== null
+      ? Math.round((current7dAvg - previous30dAvg) * 100) / 100
+      : null;
+  return { current7dAvg, previous30dAvg, change };
+}
+
 export async function extractFeatures(
   userId: string,
   includeRaw: boolean,
@@ -116,6 +210,7 @@ export async function extractFeatures(
     select: {
       heightCm: true,
       dateOfBirth: true,
+      gender: true,
     },
   });
 
@@ -146,6 +241,18 @@ export async function extractFeatures(
         )
       : 0;
 
+  // Compute age
+  let ageYears: number | null = null;
+  if (user?.dateOfBirth) {
+    const dob = user.dateOfBirth;
+    const today = new Date();
+    ageYears = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      ageYears--;
+    }
+  }
+
   const features: AggregatedFeatures = {
     context: {
       heightCm: user?.heightCm ?? null,
@@ -162,6 +269,8 @@ export async function extractFeatures(
             (now - newestMeasurement.getTime()) / (24 * 60 * 60 * 1000),
           )
         : null,
+      ageYears,
+      gender: user?.gender ?? null,
     },
   };
 
@@ -178,6 +287,10 @@ export async function extractFeatures(
       latest: summary.latest!,
       avg7: summary.avg7,
       avg30: summary.avg30,
+      avg90: avgInWindow(weightData, now, 90),
+      allTimeAvg: summary.count > 0 ? summary.mean : null,
+      allTimeMin: summary.count > 0 ? summary.min : null,
+      allTimeMax: summary.count > 0 ? summary.max : null,
       slope30: summary.slope30?.slope ?? null,
       outlierCount: summary.anomalyCount,
       bmi,
@@ -211,6 +324,14 @@ export async function extractFeatures(
     features.bloodPressure = {
       avgSys30: sysSummary?.avg30 ?? null,
       avgDia30: diaSummary?.avg30 ?? null,
+      avgSys90: sysData.length > 0 ? avgInWindow(sysData, now, 90) : null,
+      avgDia90: diaData.length > 0 ? avgInWindow(diaData, now, 90) : null,
+      allTimeAvgSys: sysSummary?.count ? sysSummary.mean : null,
+      allTimeAvgDia: diaSummary?.count ? diaSummary.mean : null,
+      allTimeMinSys: sysSummary?.count ? sysSummary.min : null,
+      allTimeMaxSys: sysSummary?.count ? sysSummary.max : null,
+      allTimeMinDia: diaSummary?.count ? diaSummary.min : null,
+      allTimeMaxDia: diaSummary?.count ? diaSummary.max : null,
       slopeSys30: sysSummary?.slope30?.slope ?? null,
       slopeDia30: diaSummary?.slope30?.slope ?? null,
       pctInTarget,
@@ -228,7 +349,12 @@ export async function extractFeatures(
   if (pulseData.length > 0) {
     const summary = summarize(toDataPoints(pulseData));
     features.pulse = {
+      avg7: summary.avg7,
       avg30: summary.avg30,
+      avg90: avgInWindow(pulseData, now, 90),
+      allTimeAvg: summary.count > 0 ? summary.mean : null,
+      allTimeMin: summary.count > 0 ? summary.min : null,
+      allTimeMax: summary.count > 0 ? summary.max : null,
       slope30: summary.slope30?.slope ?? null,
       anomalyCount: summary.anomalyCount,
       coverage: computeCoverage(pulseData, now),
@@ -245,6 +371,113 @@ export async function extractFeatures(
       slope30: summary.slope30?.slope ?? null,
       coverage: computeCoverage(fatData, now),
     };
+  }
+
+  // Mood
+  const moodEntries = await prisma.moodEntry.findMany({
+    where: { userId },
+    orderBy: { moodLoggedAt: "asc" },
+  });
+
+  if (moodEntries.length > 0) {
+    const moodNow = Date.now();
+    const last7 = moodEntries.filter(
+      (e) => moodNow - e.moodLoggedAt.getTime() < 7 * 24 * 60 * 60 * 1000,
+    );
+    const last30 = moodEntries.filter(
+      (e) => moodNow - e.moodLoggedAt.getTime() < 30 * 24 * 60 * 60 * 1000,
+    );
+
+    const avg = (entries: typeof moodEntries) =>
+      entries.length > 0
+        ? Math.round(
+            (entries.reduce((s, e) => s + e.score, 0) / entries.length) * 100,
+          ) / 100
+        : null;
+
+    // Compute 30-day trend: compare first half vs second half of last 30 days
+    let trend30: "improving" | "declining" | "stable" | null = null;
+    if (last30.length >= 4) {
+      const firstHalf = last30.filter(
+        (e) => moodNow - e.moodLoggedAt.getTime() >= 15 * 24 * 60 * 60 * 1000,
+      );
+      const secondHalf = last30.filter(
+        (e) => moodNow - e.moodLoggedAt.getTime() < 15 * 24 * 60 * 60 * 1000,
+      );
+      if (firstHalf.length >= 2 && secondHalf.length >= 2) {
+        const avgFirst = avg(firstHalf)!;
+        const avgSecond = avg(secondHalf)!;
+        const diff = avgSecond - avgFirst;
+        if (diff > 0.3) trend30 = "improving";
+        else if (diff < -0.3) trend30 = "declining";
+        else trend30 = "stable";
+      }
+    }
+
+    const oldest = moodEntries[0].moodLoggedAt;
+    const newest = moodEntries[moodEntries.length - 1].moodLoggedAt;
+    const spanDays = Math.round(
+      (newest.getTime() - oldest.getTime()) / (24 * 60 * 60 * 1000),
+    );
+    const avgDaysBetween =
+      moodEntries.length > 1
+        ? Math.round((spanDays / (moodEntries.length - 1)) * 10) / 10
+        : null;
+
+    features.mood = {
+      avg7: avg(last7),
+      avg30: avg(last30),
+      latest: moodEntries[moodEntries.length - 1].score,
+      trend30,
+      totalEntries: moodEntries.length,
+      coverage: {
+        count: moodEntries.length,
+        spanDays,
+        avgDaysBetween,
+        oldestDaysAgo: Math.round(
+          (moodNow - oldest.getTime()) / (24 * 60 * 60 * 1000),
+        ),
+        newestDaysAgo: Math.round(
+          (moodNow - newest.getTime()) / (24 * 60 * 60 * 1000),
+        ),
+      },
+    };
+  }
+
+  // Cross-metric correlations
+  const weightPoints = toDataPoints(weightData);
+  const sysPoints = toDataPoints(sysData);
+  const diaPoints = toDataPoints(diaData);
+  const pulsePoints = toDataPoints(pulseData);
+  const moodPoints: DataPoint[] = moodEntries.map((e) => ({
+    date: e.moodLoggedAt,
+    value: e.score,
+  }));
+
+  const computeCorr = (a: DataPoint[], b: DataPoint[]) =>
+    pearsonCorrelation(pairByTimestamp(a, b));
+
+  features.correlations = {
+    weightVsSystolic: computeCorr(weightPoints, sysPoints),
+    weightVsDiastolic: computeCorr(weightPoints, diaPoints),
+    pulseVsSystolic: computeCorr(pulsePoints, sysPoints),
+    moodVsPulse: computeCorr(moodPoints, pulsePoints),
+    moodVsSystolic: computeCorr(moodPoints, sysPoints),
+  };
+
+  // Historical comparison: current 7d avg vs previous 30d avg (days 7-37)
+  features.historicalComparison = {};
+  if (weightData.length > 0) {
+    features.historicalComparison.weight = computeHistoricalComparison(weightData, now);
+  }
+  if (sysData.length > 0) {
+    features.historicalComparison.systolic = computeHistoricalComparison(sysData, now);
+  }
+  if (diaData.length > 0) {
+    features.historicalComparison.diastolic = computeHistoricalComparison(diaData, now);
+  }
+  if (pulseData.length > 0) {
+    features.historicalComparison.pulse = computeHistoricalComparison(pulseData, now);
   }
 
   // Medications

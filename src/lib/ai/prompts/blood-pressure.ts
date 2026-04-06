@@ -17,13 +17,18 @@ FACHSPEZIFISCH — BLUTDRUCK:
 - Pulsdruck: (Systolisch - Diastolisch) > 60 mmHg als Marker für arterielle Steifigkeit bewerten.
 - Medikamenten-Korrelation: Einnahmetreue von Antihypertensiva mit Blutdruckverlauf korrelieren.
 - Gewichts-Korrelation: Gewichtstrend mit Blutdruckverlauf vergleichen (pro kg Gewichtsverlust ca. 1 mmHg Senkung erwartet).
-- Stimmungs-Korrelation: Falls Stimmungsdaten verfügbar, Zusammenhang mit Blutdruckvariabilität prüfen.`;
+- Stimmungs-Korrelation: Falls Stimmungsdaten verfügbar, Zusammenhang mit Blutdruckvariabilität prüfen.
+- Analysiere die weightVsSystolic-Korrelation: Pro kg Gewichtsreduktion kann 1 mmHg systolische Senkung erwartet werden. Bewerte ob der berechnete Zusammenhang diesem klinischen Modell entspricht.
+- Analysiere die weightVsDiastolic-Korrelation analog und bewerte die klinische Plausibilität.
+- Vergleiche avgSys30 und avgSys90 sowie allTimeAvg um langfristige Trends zu erkennen.
+- Nutze historicalComparison.systolic und historicalComparison.diastolic: Bei ≥5 mmHg systolischer bzw. ≥3 mmHg diastolischer Veränderung klinisch bewerten.`;
 }
 
 export function getBloodPressureUserPrompt(snapshotJson: string, todayKey: string): string {
   return `Datum: ${todayKey} (Europe/Berlin)
 Analysiere die folgenden Blutdruck-Daten mit Fokus auf Trends, Zielwerterreichung und Medikamentenwirksamkeit.
 Berücksichtige die Messzeiträume und Datendichte für die Konfidenzeinschätzung.
+Nutze die vorberechneten Korrelationen (correlations) und den historischen Vergleich (historicalComparison) für eine fundierte temporale Analyse.
 
 ${snapshotJson}`;
 }

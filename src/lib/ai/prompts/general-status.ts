@@ -10,7 +10,10 @@ FACHSPEZIFISCH — GESAMTBEWERTUNG:
 - Risikostratifizierung: Bewerte das kardiovaskuläre Gesamtrisiko basierend auf der Kombination aller Faktoren.
 - Medikamenten-Adhärenz: Gesamteinnahmetreue bewerten und Zusammenhang mit Vitalwerten benennen.
 - Stimmung: Falls vorhanden, als kontextuellen Faktor einbeziehen (nicht übergewichten).
-- Positive Entwicklungen explizit hervorheben — Motivation ist therapeutisch relevant.`;
+- Positive Entwicklungen explizit hervorheben — Motivation ist therapeutisch relevant.
+- Nutze die correlations-Daten um Zusammenhänge zwischen Gewicht, Blutdruck, Puls und Stimmung zu identifizieren. Vergleiche die aktuellen 7-Tage-Werte mit den Langzeit-Durchschnitten (avg90, allTime).
+- Nutze historicalComparison um aktuelle Veränderungen gegenüber der etablierten Baseline einzuordnen.
+- Falls Alter und Geschlecht bekannt sind, alters- und geschlechtsspezifische Risikobewertung anwenden.`;
 }
 
 export function getGeneralStatusUserPrompt(snapshotJson: string, todayKey: string): string {
@@ -32,6 +35,7 @@ export function buildGeneratePrompts(featuresJson: string, privacyMode: string):
     userPrompt: `Analysiere die folgenden Gesundheitsdaten.
 Datenmodus: ${modeLabel}
 Beachte die coverage-Objekte jeder Metrik für Informationen zu Messhäufigkeit und Zeiträumen.
+Nutze die correlations-Daten für Kreuzanalysen und historicalComparison für temporale Einordnung.
 
 ${featuresJson}`,
   };

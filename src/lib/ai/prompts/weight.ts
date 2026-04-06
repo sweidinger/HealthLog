@@ -11,12 +11,16 @@ FACHSPEZIFISCH — GEWICHT:
 - Realistische Zielprojektion: Maximal 0.5-1.0 kg/Woche als nachhaltiger Gewichtsverlust (DGE-Empfehlung).
 - Gewichts-Blutdruck-Korrelation: Pro kg Gewichtsreduktion ca. 1 mmHg systolische Senkung.
 - Medikamenten-Einfluss: Gewichtsrelevante Medikamente identifizieren (z.B. Betablocker, Cortison).
-- Tageszeit-Schwankungen: Morgen- vs. Abendmessungen differenzieren (1-2 kg normal).`;
+- Tageszeit-Schwankungen: Morgen- vs. Abendmessungen differenzieren (1-2 kg normal).
+- Vergleiche das aktuelle 7-Tage-Mittel (historicalComparison.weight.current7dAvg) mit dem 30-Tage-Baseline (previous30dAvg). Bei >2 kg Differenz: klinisch bewerten und Ursachen diskutieren.
+- Plateau-Definition: <0.5 kg Veränderung über >14 Tage (prüfe ob avg7 ≈ avg30 ≈ avg90).
+- Nutze allTimeMin/allTimeMax/allTimeAvg um den aktuellen Wert historisch einzuordnen.`;
 }
 
 export function getWeightUserPrompt(snapshotJson: string, todayKey: string): string {
   return `Datum: ${todayKey} (Europe/Berlin)
 Analysiere die Gewichtsentwicklung mit Fokus auf Trends, BMI-Klassifikation und Zusammenhang mit anderen Vitalwerten.
+Nutze die temporalen Schichten (avg7, avg30, avg90, allTime) und den historischen Vergleich für eine differenzierte Bewertung.
 
 ${snapshotJson}`;
 }
