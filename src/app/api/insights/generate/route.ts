@@ -14,7 +14,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   const userId = user.id;
 
-  const rl = await checkRateLimit(`insights:${userId}`, 2, 60 * 60 * 1000);
+  const rl = await checkRateLimit(`insights:${userId}`, 10, 60 * 60 * 1000);
   if (!rl.allowed) {
     return apiError("Maximum 2 insight generations per hour.", 429);
   }
