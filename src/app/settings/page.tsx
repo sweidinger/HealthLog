@@ -2627,8 +2627,7 @@ function InsightsSettingsSection({
 }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
-  const [apiKey, setApiKey] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
@@ -2641,6 +2640,7 @@ function InsightsSettingsSection({
       const json = await res.json();
       return json.data as {
         codexStatus: string;
+        codexConnectedAt: string | null;
         hasAdminKey: boolean;
         privacyMode: string;
         lastInsightAt: string | null;
@@ -2664,23 +2664,44 @@ function InsightsSettingsSection({
     },
   });
 
-  async function handleSaveKey(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setMsg(null);
-    setMsgType(null);
-    try {
-      await updateSettings.mutateAsync({ apiKey: apiKey.trim() });
-      setMsg(
-        apiKey.trim() ? t("settings.apiKeySaved") : t("settings.apiKeyRemoved"),
-      );
+  // Handle OAuth callback query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("codex_connected") === "true") {
+      setMsg(t("settings.codexConnected"));
       setMsgType("success");
-      setApiKey("");
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("codex_error")) {
+      setMsg(t("settings.codexConnectionFailed"));
+      setMsgType("error");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [queryClient, t]);
+
+  const hasProvider = settings?.codexStatus === "connected" || settings?.hasAdminKey;
+
+  async function handleConnect() {
+    window.location.href = "/api/auth/codex/authorize";
+  }
+
+  async function handleDisconnect() {
+    setDisconnecting(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/auth/codex/disconnect", { method: "DELETE" });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error);
+      }
+      setMsg(t("settings.codexDisconnected"));
+      setMsgType("success");
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
     } catch (err) {
       setMsg(err instanceof Error ? err.message : t("settings.savingError"));
       setMsgType("error");
     } finally {
-      setSaving(false);
+      setDisconnecting(false);
     }
   }
 
@@ -2731,9 +2752,19 @@ function InsightsSettingsSection({
           <h2 className="text-lg font-semibold">{t("settings.kiInsights")}</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {(settings?.codexStatus === "connected" || settings?.hasAdminKey) && (
+          {settings?.codexStatus === "connected" && (
             <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-              {t("settings.configured")}
+              ChatGPT verbunden
+            </Badge>
+          )}
+          {settings?.codexStatus !== "connected" && settings?.hasAdminKey && (
+            <Badge className="border-dracula-purple/30 bg-dracula-purple/15 text-dracula-purple">
+              Admin-KI aktiv
+            </Badge>
+          )}
+          {settings?.codexStatus === "expired" && (
+            <Badge className="border-dracula-orange/30 bg-dracula-orange/15 text-dracula-orange">
+              Verbindung abgelaufen
             </Badge>
           )}
           {settings?.lastInsightAt && (
@@ -2747,62 +2778,57 @@ function InsightsSettingsSection({
       <p className="text-muted-foreground mt-1 text-xs">
         {t("settings.kiInsightsDescription")}
       </p>
-      <div className="bg-muted/50 mt-4 rounded-lg p-4">
-        <p className="text-sm font-medium">
-          {t("settings.kiInsightsBenefitsTitle")}
-        </p>
-        <ul className="text-muted-foreground mt-2 list-disc space-y-1 pl-5 text-xs">
-          <li>{t("settings.kiInsightsBenefit1")}</li>
-          <li>{t("settings.kiInsightsBenefit2")}</li>
-          <li>{t("settings.kiInsightsBenefit3")}</li>
-        </ul>
-        <p className="text-muted-foreground mt-3 text-xs">
-          {t("settings.createApiKeyHint")}{" "}
-          <a
-            href="https://platform.openai.com/api-keys"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:text-primary/90 underline"
-          >
-            {t("settings.createApiKeyLinkLabel")}
-          </a>
-        </p>
-      </div>
 
       <div className="mt-4 space-y-4">
-        {/* API Key */}
-        <form onSubmit={handleSaveKey} className="flex gap-2">
-          <PasswordInput
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder={
-              (settings?.codexStatus === "connected" || settings?.hasAdminKey) ? t("settings.apiKeyStored") : "sk-..."
-            }
-            className="flex-1"
-          />
-          <Button variant="outline" type="submit" disabled={saving}>
-            {saving ? (
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-            ) : (
-              <Key className="mr-1 h-4 w-4" />
-            )}
-            {(settings?.codexStatus === "connected" || settings?.hasAdminKey) ? t("common.replace") : t("common.save")}
-          </Button>
-          {(settings?.codexStatus === "connected" || settings?.hasAdminKey) && (
-            <Button
-              variant="ghost"
-              type="button"
-              className="text-destructive"
-              onClick={async () => {
-                await updateSettings.mutateAsync({ apiKey: "" });
-                setMsg(t("settings.apiKeyRemoved"));
-                setMsgType("success");
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+        {/* ChatGPT Connection */}
+        <div className="bg-muted/50 rounded-lg p-4">
+          {settings?.codexStatus === "connected" ? (
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">ChatGPT verbunden</p>
+                <p className="text-muted-foreground text-xs">
+                  Insights werden über dein ChatGPT-Abo generiert — keine zusätzlichen Kosten.
+                  {settings.codexConnectedAt && (
+                    <> Verbunden seit {formatDateTime(settings.codexConnectedAt)}.</>
+                  )}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive shrink-0"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+              >
+                {disconnecting ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-1 h-4 w-4" />
+                )}
+                Trennen
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium">Mit ChatGPT verbinden</p>
+                <p className="text-muted-foreground text-xs">
+                  Verbinde dein ChatGPT Pro/Max-Konto um KI-gestützte Gesundheitsanalysen basierend auf
+                  aktuellen medizinischen Leitlinien zu erhalten. Keine zusätzlichen API-Kosten.
+                </p>
+              </div>
+              <Button variant="outline" onClick={handleConnect} className="w-full sm:w-auto">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Mit ChatGPT verbinden
+              </Button>
+              {settings?.hasAdminKey && (
+                <p className="text-muted-foreground text-xs">
+                  Alternativ nutzt HealthLog den vom Administrator konfigurierten KI-Anbieter.
+                </p>
+              )}
+            </div>
           )}
-        </form>
+        </div>
 
         {msg && (
           <p
@@ -2814,25 +2840,25 @@ function InsightsSettingsSection({
         )}
 
         {/* Privacy Mode */}
-        {(settings?.codexStatus === "connected" || settings?.hasAdminKey) && (
+        {hasProvider && (
           <div className="bg-muted/50 rounded-lg p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="pr-2">
                 <p className="text-sm font-medium">{t("settings.rawData")}</p>
                 <p className="text-muted-foreground text-xs">
-                  {settings.privacyMode === "raw"
+                  {settings?.privacyMode === "raw"
                     ? t("settings.rawDataOnDescription")
                     : t("settings.rawDataOffDescription")}
                 </p>
               </div>
               <div className="ml-2 shrink-0">
                 <Switch
-                  checked={settings.privacyMode === "raw"}
+                  checked={settings?.privacyMode === "raw"}
                   onCheckedChange={togglePrivacyMode}
                 />
               </div>
             </div>
-            {settings.privacyMode === "raw" && (
+            {settings?.privacyMode === "raw" && (
               <div className="mt-2 rounded-lg bg-orange-500/10 p-2 text-xs text-orange-400">
                 {t("settings.rawDataWarning")}
               </div>
@@ -2841,7 +2867,7 @@ function InsightsSettingsSection({
         )}
 
         {/* Regenerate Reports */}
-        {(settings?.codexStatus === "connected" || settings?.hasAdminKey) && (
+        {hasProvider && (
           <Button
             variant="outline"
             onClick={handleRegenerate}
