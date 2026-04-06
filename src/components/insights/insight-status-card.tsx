@@ -31,7 +31,7 @@ export function InsightStatusCard({
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-[#bd93f9]" />
+          <Loader2 className="h-5 w-5 animate-spin text-dracula-purple" />
           <span className="ml-2 text-sm text-muted-foreground">
             {/* TODO: i18n */}
             Wird geladen...
@@ -83,7 +83,7 @@ export function InsightStatusCard({
 
   // ── Populated Card ────────────────────────────────────
   return (
-    <Card className="animate-insight-in border-l-2 border-l-[#bd93f9]">
+    <Card className="animate-insight-in border-l-2 border-l-dracula-purple">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

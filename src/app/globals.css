@@ -182,3 +182,9 @@
 .animate-insight-in {
   animation: insight-fade-in 0.4s ease-out forwards;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-insight-in {
+    animation: none;
+  }
+}

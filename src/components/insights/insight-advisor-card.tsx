@@ -39,28 +39,28 @@ const CLASSIFICATION_STYLES: Record<
 > = {
   optimal: {
     badge:
-      "bg-[#50fa7b]/10 text-[#50fa7b] border border-[#50fa7b]/25 hover:bg-[#50fa7b]/15",
-    border: "border-l-[#50fa7b]",
+      "bg-dracula-green/10 text-dracula-green border border-dracula-green/25 hover:bg-dracula-green/15",
+    border: "border-l-dracula-green",
   },
   gut: {
     badge:
-      "bg-[#8be9fd]/10 text-[#8be9fd] border border-[#8be9fd]/25 hover:bg-[#8be9fd]/15",
-    border: "border-l-[#8be9fd]",
+      "bg-dracula-cyan/10 text-dracula-cyan border border-dracula-cyan/25 hover:bg-dracula-cyan/15",
+    border: "border-l-dracula-cyan",
   },
   grenzwertig: {
     badge:
-      "bg-[#f1fa8c]/10 text-[#f1fa8c] border border-[#f1fa8c]/25 hover:bg-[#f1fa8c]/15",
-    border: "border-l-[#f1fa8c]",
+      "bg-dracula-yellow/10 text-dracula-yellow border border-dracula-yellow/25 hover:bg-dracula-yellow/15",
+    border: "border-l-dracula-yellow",
   },
   erhoht: {
     badge:
-      "bg-[#ffb86c]/10 text-[#ffb86c] border border-[#ffb86c]/25 hover:bg-[#ffb86c]/15",
-    border: "border-l-[#ffb86c]",
+      "bg-dracula-orange/10 text-dracula-orange border border-dracula-orange/25 hover:bg-dracula-orange/15",
+    border: "border-l-dracula-orange",
   },
   kritisch: {
     badge:
-      "bg-[#ff5555]/10 text-[#ff5555] border border-[#ff5555]/25 hover:bg-[#ff5555]/15",
-    border: "border-l-[#ff5555]",
+      "bg-dracula-red/10 text-dracula-red border border-dracula-red/25 hover:bg-dracula-red/15",
+    border: "border-l-dracula-red",
   },
 };
 
@@ -73,22 +73,28 @@ function AssessmentIcon({
 }) {
   switch (assessment) {
     case "positive":
-      return <CheckCircle2 className="h-4 w-4 shrink-0 text-[#50fa7b]" />;
+      return <CheckCircle2 className="h-4 w-4 shrink-0 text-dracula-green" />;
     case "neutral":
-      return <Minus className="h-4 w-4 shrink-0 text-[#9aa3b3]" />;
+      return <Minus className="h-4 w-4 shrink-0 text-muted-foreground" />;
     case "attention":
-      return <AlertCircle className="h-4 w-4 shrink-0 text-[#ffb86c]" />;
+      return <AlertCircle className="h-4 w-4 shrink-0 text-dracula-orange" />;
     case "warning":
-      return <AlertTriangle className="h-4 w-4 shrink-0 text-[#ff5555]" />;
+      return <AlertTriangle className="h-4 w-4 shrink-0 text-dracula-red" />;
   }
 }
 
 // ─── Confidence Colors ────────────────────────────────────
 
 const CONFIDENCE_STYLES: Record<string, string> = {
-  hoch: "text-[#50fa7b]",
-  mittel: "text-[#f1fa8c]",
-  gering: "text-[#ffb86c]",
+  hoch: "text-dracula-green",
+  mittel: "text-dracula-yellow",
+  gering: "text-dracula-orange",
+};
+
+const CONFIDENCE_LABELS: Record<string, string> = {
+  hoch: "Hoch",
+  mittel: "Mittel",
+  gering: "Gering",
 };
 
 // ─── Section Separator ────────────────────────────────────
@@ -126,7 +132,7 @@ export function InsightAdvisorCard({
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-[#bd93f9]" />
+          <Loader2 className="h-6 w-6 animate-spin text-dracula-purple" />
           <span className="ml-2 text-sm text-muted-foreground">
             {/* TODO: i18n */}
             Analyse wird erstellt...
@@ -144,7 +150,7 @@ export function InsightAdvisorCard({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {icon ?? (
-                <Sparkles className="h-5 w-5 text-[#bd93f9]" />
+                <Sparkles className="h-5 w-5 text-dracula-purple" />
               )}
               {/* TODO: i18n */}
               <CardTitle className="text-lg">KI-Gesundheitsanalyse</CardTitle>
@@ -196,7 +202,7 @@ export function InsightAdvisorCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {icon ?? (
-              <Sparkles className="h-5 w-5 text-[#bd93f9]" />
+              <Sparkles className="h-5 w-5 text-dracula-purple" />
             )}
             {/* TODO: i18n */}
             <CardTitle className="text-lg">KI-Gesundheitsanalyse</CardTitle>
@@ -237,8 +243,8 @@ export function InsightAdvisorCard({
 
         {/* Primary Recommendation */}
         {insight.primaryRecommendation && (
-          <div className="rounded-md border-l-2 border-[#bd93f9] bg-[#bd93f9]/5 px-4 py-3">
-            <p className="mb-1 text-xs font-medium uppercase tracking-widest text-[#bd93f9]">
+          <div className="rounded-md border-l-2 border-dracula-purple bg-dracula-purple/5 px-4 py-3">
+            <p className="mb-1 text-xs font-medium uppercase tracking-widest text-dracula-purple">
               {/* TODO: i18n */}
               Das Wichtigste
             </p>
@@ -327,6 +333,7 @@ export function InsightAdvisorCard({
           <div>
             <button
               onClick={() => setDataQualityOpen((v) => !v)}
+              aria-expanded={dataQualityOpen}
               className="flex w-full items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               {dataQualityOpen ? (
@@ -342,11 +349,7 @@ export function InsightAdvisorCard({
                 <span
                   className={`font-medium ${CONFIDENCE_STYLES[insight.dataQuality.confidence] ?? ""}`}
                 >
-                  {insight.dataQuality.confidence === "hoch"
-                    ? "Hoch"
-                    : insight.dataQuality.confidence === "mittel"
-                      ? "Mittel"
-                      : "Gering"}
+                  {CONFIDENCE_LABELS[insight.dataQuality.confidence]}
                 </span>
               </span>
             </button>
