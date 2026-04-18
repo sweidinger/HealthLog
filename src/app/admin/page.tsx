@@ -48,7 +48,7 @@ import {
 } from "lucide-react";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { toast } from "sonner";
 
 function PasswordInput(props: React.ComponentProps<typeof Input>) {
@@ -203,6 +203,7 @@ function useAdminSettings() {
 
 function useUpdateSettings() {
   const queryClient = useQueryClient();
+  const { t } = useTranslations();
   return useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       const res = await fetch("/api/admin/settings", {
@@ -210,10 +211,20 @@ function useUpdateSettings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        throw new Error(await getApiErrorMessage(res));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "settings"] });
+      toast.success(t("common.saved"));
+    },
+    onError: (err) => {
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : t("admin.settingsSaveError"),
+      );
     },
   });
 }
@@ -235,6 +246,7 @@ async function getApiErrorMessage(response: Response): Promise<string> {
 
 function SystemStatusSection({ id }: { id: string }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
 
   const { data: status } = useQuery({
     queryKey: ["admin", "status"],
@@ -283,7 +295,7 @@ function SystemStatusSection({ id }: { id: string }) {
           <StatusItem
             icon={Activity}
             label={t("admin.measurementsCount")}
-            value={status.counts.measurements.toLocaleString("de-DE")}
+            value={fmt.integer(status.counts.measurements)}
           />
           <StatusItem
             icon={Key}
@@ -1875,6 +1887,14 @@ function UserManagementSection({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       setEditingUser(null);
+      toast.success(t("common.saved"));
+    },
+    onError: (err) => {
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : t("admin.settingsSaveError"),
+      );
     },
   });
 

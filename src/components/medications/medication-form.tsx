@@ -48,7 +48,8 @@ import {
 } from "lucide-react";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { toast } from "sonner";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
 import { PhaseConfigDialog } from "@/components/medications/phase-config-dialog";
 
 // DOSE_UNITS built dynamically via t() in the component
@@ -126,7 +127,11 @@ function formatRecurrenceSummary(schedule: Schedule, t: TranslateFn): string {
   return `${t("medications.scheduleIntervalPrefix")} ${dayText} - ${intervalText}`;
 }
 
-function formatNextWindowSummary(schedule: Schedule, t: TranslateFn): string {
+function formatNextWindowSummary(
+  schedule: Schedule,
+  t: TranslateFn,
+  formatShortDate: (date: Date) => string,
+): string {
   const isSimpleDaily =
     schedule.daysOfWeek.length === 0 && schedule.intervalWeeks === 1;
   if (isSimpleDaily) {
@@ -135,12 +140,7 @@ function formatNextWindowSummary(schedule: Schedule, t: TranslateFn): string {
 
   const nextDate = getNextRecurrenceDate(schedule);
   const nextText = nextDate
-    ? `${new Intl.DateTimeFormat("de-DE", {
-        day: "2-digit",
-        month: "2-digit",
-      }).format(
-        nextDate,
-      )}, ${formatTimeWindowRange(schedule.windowStart, schedule.windowEnd)}`
+    ? `${formatShortDate(nextDate)}, ${formatTimeWindowRange(schedule.windowStart, schedule.windowEnd)}`
     : "—";
   return `${t("medications.nextSchedulePrefix")} ${nextText}`;
 }
@@ -235,6 +235,7 @@ export function MedicationForm({
 }: MedicationFormProps) {
   const queryClient = useQueryClient();
   const { t } = useTranslations();
+  const fmt = useFormatters();
 
   const doseUnits = [
     "mg", "g", "ml",
@@ -385,7 +386,7 @@ export function MedicationForm({
         return;
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["medications"] });
+      await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(t("common.saved"));
       onSuccess?.();
     } catch {
@@ -409,7 +410,7 @@ export function MedicationForm({
         return;
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["medications"] });
+      await invalidateKeys(queryClient, medicationDependentKeys);
       onSuccess?.();
     } catch {
       setError(t("medications.deleteError"));
@@ -432,7 +433,7 @@ export function MedicationForm({
         return;
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["medications"] });
+      await invalidateKeys(queryClient, medicationDependentKeys);
       setPurgeDialogOpen(false);
     } catch {
       setError(t("medications.purgeError"));
@@ -561,7 +562,7 @@ export function MedicationForm({
                     `${t("medications.formSchedule")} ${i + 1}`}
                 </span>{" "}
                 <span className="text-foreground/70 font-normal">
-                  ({formatNextWindowSummary(s, t)})
+                  ({formatNextWindowSummary(s, t, fmt.dateShort)})
                 </span>
               </p>
               <DropdownMenu>

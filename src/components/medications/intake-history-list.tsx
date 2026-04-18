@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -177,12 +178,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
       if (!res.ok) throw new Error("Delete failed");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["medications", medicationId, "intake"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["medications", medicationId, "compliance"],
-      });
+      void invalidateKeys(queryClient, medicationDependentKeys);
     },
   });
 
@@ -210,12 +206,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
       if (!res.ok) throw new Error(json.error ?? "Update failed");
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["medications", medicationId, "intake"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["medications", medicationId, "compliance"],
-      });
+      await invalidateKeys(queryClient, medicationDependentKeys);
       setEditing(null);
       setEditError(null);
     },
@@ -248,12 +239,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
       if (!res.ok) throw new Error(json.error ?? "Create failed");
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["medications", medicationId, "intake"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["medications", medicationId, "compliance"],
-      });
+      await invalidateKeys(queryClient, medicationDependentKeys);
       setCreating(false);
       setCreateError(null);
     },

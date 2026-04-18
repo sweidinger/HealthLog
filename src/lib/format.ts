@@ -1,63 +1,67 @@
 /**
- * Consistent date/time formatting for the HealthLog UI.
- * All functions use de-DE locale, Europe/Berlin timezone, 24h format.
+ * Legacy locale-aware date/time helpers.
+ *
+ * These originally hard-coded `de-DE`. They now defer to `makeFormatters`
+ * using a best-effort read of `healthlog-locale` from cookie → localStorage,
+ * falling back to `en`. New code should prefer `useFormatters()` from
+ * `@/lib/i18n/context` (client) or `makeFormatters(locale)` from
+ * `@/lib/format-locale` (server).
+ *
+ * SSR caveat: on the server `activeLocale()` always returns `en` because
+ * `document` is undefined. All current call sites render their formatted
+ * strings only after a `useQuery` fetch — i.e. post-hydration — so there is
+ * no hydration-mismatch path today. If you add a new caller that renders
+ * pre-fetch data (e.g. a static prop), migrate it to `useFormatters()` to
+ * stay consistent with the server-rendered locale.
  */
 
-const TIMEZONE = "Europe/Berlin";
-const LOCALE = "de-DE";
+import { makeFormatters, DISPLAY_TIMEZONE } from "./format-locale";
+import type { Locale } from "./i18n/config";
 
-/** "19.02.2026, 14:30" */
+export { DISPLAY_TIMEZONE };
+
+function activeLocale(): Locale {
+  if (typeof document === "undefined") return "en";
+  // Prefer the cookie (what SSR used) over localStorage to stay in sync
+  // across hydration. Falls back to localStorage for backwards compat.
+  const cookieMatch = document.cookie.match(
+    /(?:^|;\s*)healthlog-locale=([^;]+)/,
+  );
+  const fromCookie = cookieMatch?.[1];
+  if (fromCookie === "de" || fromCookie === "en") return fromCookie;
+  const fromStorage = window.localStorage?.getItem("healthlog-locale");
+  return fromStorage === "de" ? "de" : "en";
+}
+
+function formatters() {
+  return makeFormatters(activeLocale());
+}
+
+/** Locale-aware "19.02.2026, 14:30" or "02/19/2026, 2:30 PM". */
 export function formatDateTime(date: Date | string): string {
-  return new Date(date).toLocaleString(LOCALE, {
-    timeZone: TIMEZONE,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return formatters().dateTime(date);
 }
 
-/** "19.02.2026" */
+/** Locale-aware "19.02.2026" or "02/19/2026". */
 export function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString(LOCALE, {
-    timeZone: TIMEZONE,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatters().date(date);
 }
 
-/** "19.02." or "19.02.2026" if includeYear */
+/** Locale-aware short date without year unless `includeYear`. */
 export function formatDateShort(
   date: Date | string,
   includeYear = false,
 ): string {
-  return new Date(date).toLocaleDateString(LOCALE, {
-    timeZone: TIMEZONE,
-    day: "2-digit",
-    month: "2-digit",
-    ...(includeYear ? { year: "numeric" } : {}),
-  });
+  const f = formatters();
+  return includeYear ? f.date(date) : f.dateShort(date);
 }
 
-/** "14:30" */
+/** Locale-aware "14:30". */
 export function formatTime(date: Date | string): string {
-  return new Date(date).toLocaleTimeString(LOCALE, {
-    timeZone: TIMEZONE,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return formatters().time(date);
 }
 
-/** "Do., 19.02." */
+/** Locale-aware short weekday + date. */
 export function formatDateWithWeekday(date: Date | string): string {
-  return new Date(date).toLocaleDateString(LOCALE, {
-    timeZone: TIMEZONE,
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-  });
+  return formatters().dateWithWeekday(date);
 }

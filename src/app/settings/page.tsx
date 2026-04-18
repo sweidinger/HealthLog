@@ -54,6 +54,8 @@ import {
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { locales, localeLabels, type Locale } from "@/lib/i18n/config";
+import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
+import { describePasskeyError } from "@/lib/passkey-errors";
 
 function PasswordInput(props: React.ComponentProps<typeof Input>) {
   const [visible, setVisible] = useState(false);
@@ -208,8 +210,9 @@ export default function SettingsPage() {
         );
         setPasskeyMsgType("error");
       }
-    } catch {
-      setPasskeyMsg(t("settings.passkeyRegistrationCancelled"));
+    } catch (err) {
+      const { key, params } = describePasskeyError(err);
+      setPasskeyMsg(t(key, params));
       setPasskeyMsgType("error");
     } finally {
       setPasskeyLoading(false);
@@ -891,7 +894,7 @@ function WithingsSection({
             : t("settings.withingsSyncResult", { count: json.data.imported }),
         );
         setSyncMsgType("success");
-        queryClient.invalidateQueries({ queryKey: ["measurements"] });
+        void invalidateKeys(queryClient, measurementDependentKeys);
       } else {
         setSyncMsg(json.error || t("settings.withingsSyncFailed"));
         setSyncMsgType("error");
@@ -1535,7 +1538,7 @@ function ApiTokensSection({
 /* ─────────────────────── Export Section ─────────────────────── */
 
 function ExportSection({ id }: { id: string }) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const [exporting, setExporting] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
 
@@ -1573,10 +1576,9 @@ function ExportSection({ id }: { id: string }) {
       const { generateDoctorReportPDF } = await import(
         "@/lib/doctor-report-pdf"
       );
-      const doc = generateDoctorReportPDF(json.data);
-      doc.save(
-        `gesundheitsbericht-${new Date().toISOString().slice(0, 10)}.pdf`,
-      );
+      const doc = generateDoctorReportPDF(json.data, { t, locale });
+      const fileSlug = locale === "de" ? "gesundheitsbericht" : "health-report";
+      doc.save(`${fileSlug}-${new Date().toISOString().slice(0, 10)}.pdf`);
     } finally {
       setGeneratingReport(false);
     }
@@ -2536,7 +2538,7 @@ function MoodLogSection({ t }: { t: (key: string) => string }) {
             {status.lastSyncedAt && (
               <span>
                 {t("settings.moodLogLastSync")}:{" "}
-                {new Date(status.lastSyncedAt).toLocaleString("de-DE")}
+                {formatDateTime(status.lastSyncedAt)}
               </span>
             )}
             <span>

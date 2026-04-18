@@ -63,7 +63,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { formatDateTime } from "@/lib/format";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
 
 const TYPE_LABEL_KEYS: Record<string, string> = {
   WEIGHT: "measurements.typeWeight",
@@ -129,6 +130,7 @@ function toDateTimeLocalValue(isoString: string): string {
 
 export function MeasurementList({ onEdit }: MeasurementListProps) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const [typeFilter, setTypeFilterRaw] = useState<string>("ALL");
@@ -192,7 +194,7 @@ export function MeasurementList({ onEdit }: MeasurementListProps) {
       if (!res.ok) throw new Error("Delete failed");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["measurements"] });
+      void invalidateKeys(queryClient, measurementDependentKeys);
     },
   });
 
@@ -224,7 +226,7 @@ export function MeasurementList({ onEdit }: MeasurementListProps) {
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["measurements"] });
+      await invalidateKeys(queryClient, measurementDependentKeys);
       setEditing(null);
       setEditError(null);
     },
@@ -322,7 +324,7 @@ export function MeasurementList({ onEdit }: MeasurementListProps) {
           {data?.meta.total !== undefined && (
             <span className="text-muted-foreground text-sm">
               {t("measurements.measurementCount", {
-                count: data.meta.total.toLocaleString("de-DE"),
+                count: fmt.integer(data.meta.total),
               })}
             </span>
           )}

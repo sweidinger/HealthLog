@@ -47,9 +47,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const ghRepo = appSettings?.githubIssueRepo || process.env.GITHUB_ISSUE_REPO; // e.g. "owner/repo"
 
   if (!ghToken || !ghRepo) {
+    // 503 instead of 500: the client keys off status to render the "not
+    // configured" screen. The user also sees a clear message rather than
+    // "Internal server error".
     return apiError(
       "Bug report not configured (GitHub issue token/repository missing in admin settings)",
-      500,
+      503,
     );
   }
 
@@ -63,9 +66,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const { description, screenshot } = parsed.data;
 
-  const dateStr = new Date().toLocaleString("de-DE", {
-    timeZone: "Europe/Berlin",
-  });
+  // GitHub issues are maintainer-facing and the repo's primary language is English.
+  // Use an ISO-8601 timestamp so titles are unambiguous and sortable.
+  const now = new Date();
+  const dateStr = now.toISOString().replace("T", " ").slice(0, 16) + " UTC";
   const title = `Bug Report – ${dateStr}`;
 
   // Sanitize user-provided content for GitHub markdown
