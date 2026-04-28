@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.3.2] — 2026-04-28
+
+### Fixed
+
+- **Glucose tiles on the dashboard rendered the raw i18n key
+  `targets.glucoseFasting` instead of the translated label** (closes
+  #108). Both `messages/en.json` and `messages/de.json` had two
+  top-level `targets` blocks; `JSON.parse` silently keeps the last
+  occurrence, and that block was missing the four glucose labels. The
+  duplicate is now collapsed into a single block. A duplicate
+  `bugreport.bugTitlePlaceholder` shadowed inside `bugreport` was
+  cleaned up too. Two further keys (`dashboard.sleep`,
+  `dashboard.steps`) were missing from both locales and were falling
+  back to hard-coded English; both are now translated.
+- **New i18n locale-integrity test**
+  (`src/lib/__tests__/i18n-locale-integrity.test.ts`) fails the build
+  on duplicate keys at any nesting depth and on key drift between
+  `en` and `de` — closes the structural gap that let the duplicate
+  `targets` block ship in the first place.
+
+### Changed
+
+- **Screenshot upload removed from the bug-report form** (also part
+  of #108). The form previously accepted an image attachment that
+  was stored in the local DB but never reached the published GitHub
+  issue — GitHub does not accept inline base64 data URIs in issue
+  bodies and offers no public API to attach images to an issue
+  programmatically. Rather than ship misleading
+  "a screenshot was attached" placeholder text in the resulting
+  issue, the upload UI is now gone and the placeholder note is no
+  longer added when promoting feedback. The `screenshotBase64`
+  column and the admin-side preview of previously-submitted
+  screenshots are unchanged — existing reports keep their
+  attachments locally. We plan to revisit a real screenshot pipeline
+  in a future release.
+
 ## [1.3.1] — 2026-04-27
 
 ### Fixed
