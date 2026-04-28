@@ -59,9 +59,9 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 
 **Multi-Channel Notifications** -- Telegram (with inline action buttons), ntfy (self-hostable), and Web Push. Medication reminders with late/missed escalation.
 
-**Gamification** -- 30+ persistent achievements across intake streaks, compliance milestones, and healthy metric streaks.
+**Gamification** -- 38+ persistent achievements across intake streaks, compliance milestones, and healthy metric streaks.
 
-**Internationalization** -- English (default) and German UI with 1000+ translation keys. Numbers, dates, units, and AI prompts all locale-aware via `useFormatters()`. Browser-based detection with per-user override.
+**Internationalization** -- English (default) and German UI with 1500+ translation keys, guarded by a CI integrity test that fails the build on duplicate keys or drift between locales. Numbers, dates, units, and AI prompts all locale-aware via `useFormatters()`. Browser-based detection with per-user override.
 
 ---
 
@@ -163,30 +163,50 @@ Telegram bot token, ntfy settings, Web Push VAPID keys, Umami, and GlitchTip URL
 ```
 src/
 ├── app/                    # Next.js App Router pages & API routes
-│   ├── api/                # REST API endpoints (~60 route files)
+│   ├── api/                # REST API endpoints (100+ route files)
 │   ├── admin/              # Admin panel
+│   ├── auth/               # Login, register, passkey enrolment
 │   ├── medications/        # Medication management
 │   ├── measurements/       # Health metric entry
+│   ├── mood/               # Mood log
 │   ├── insights/           # AI-powered analytics
+│   ├── charts/             # Long-form charts
 │   ├── achievements/       # Gamification page
+│   ├── targets/            # Custom thresholds dashboard
+│   ├── notifications/      # Notification preferences matrix
+│   ├── bugreport/          # Built-in feedback / bug report
 │   ├── onboarding/         # 4-step guided setup
-│   └── settings/           # User preferences
+│   └── settings/           # User preferences (8 top-level sections)
 ├── components/
 │   ├── ui/                 # shadcn/ui primitives
 │   ├── layout/             # Shell (sidebar, topbar, bottom nav)
 │   ├── medications/        # Medication cards, forms, timeline
 │   ├── measurements/       # Measurement form, list
 │   ├── mood/               # Mood form, mood list
-│   └── charts/             # Recharts wrappers
+│   ├── charts/             # Recharts wrappers
+│   ├── insights/           # AI insight status / advisor cards
+│   ├── gamification/       # Achievement cards, progress
+│   ├── monitoring/         # Umami / GlitchTip bootstrap
+│   └── settings/           # Settings-page section components
 ├── lib/
 │   ├── auth/               # Session, audit, passkey logic
 │   ├── notifications/      # Dispatcher + channel senders
-│   ├── jobs/               # pg-boss worker
-│   ├── analytics/          # Trend calculations, compliance
+│   ├── jobs/               # pg-boss worker (reminders, insights, backups)
+│   ├── analytics/          # Trend calculations, compliance, correlations
+│   ├── ai/                 # Multi-provider client (OpenAI, Anthropic, local)
+│   ├── insights/           # Insight pipeline + medical prompts
+│   ├── gamification/       # Achievement definitions
+│   ├── feedback/           # Built-in feedback + GitHub escalation
+│   ├── moodlog/            # moodLog.app webhook + sync
+│   ├── monitoring/         # Umami / GlitchTip server-side hooks
 │   ├── withings/           # OAuth client, sync service
+│   ├── logging/            # Wide Events: builder, context, transports
 │   ├── i18n/               # Translations context & config
 │   ├── validations/        # Shared Zod schemas
+│   ├── api-handler.ts      # apiHandler wrapper, requireAuth/requireAdmin
+│   ├── api-response.ts     # { data, error } envelope helpers
 │   ├── crypto.ts           # AES-256-GCM encrypt/decrypt
+│   ├── rate-limit.ts       # Sliding-window rate limiter
 │   ├── db.ts               # Prisma singleton
 │   └── doctor-report-pdf.ts # Client-side PDF generation
 ├── hooks/                  # React hooks
@@ -196,10 +216,11 @@ src/
 ### Key Patterns
 
 - **RSC by default** -- `"use client"` only for interactive components
-- **API envelope** -- All responses follow `{ data, error, meta }` shape
+- **API envelope** -- All responses follow `{ data, error }` shape via `apiSuccess()` / `apiError()` in `src/lib/api-response.ts`
+- **apiHandler wrapper** -- Every API route wraps its handler in `apiHandler()` (`src/lib/api-handler.ts`) for consistent error handling, Wide-Event structured logging, and `x-request-id` propagation
 - **Encrypted secrets** -- Withings tokens, API keys, VAPID keys, notification credentials
 - **Timezone-aware** -- `Europe/Berlin` for display, UTC in database
-- **Route protection** -- `proxy.ts` checks session cookie, redirects unauthenticated requests
+- **Route protection** -- `proxy.ts` (Next.js 16's renamed middleware) checks session cookie, redirects unauthenticated requests
 - **Client-side PDF** -- Doctor reports generated in browser via jsPDF
 
 ---
@@ -254,17 +275,83 @@ All mutations require authentication via session cookie. External ingest uses Be
 <details>
 <summary><strong>Auth and Integrations</strong></summary>
 
-| Method | Endpoint                         | Description             |
-| ------ | -------------------------------- | ----------------------- |
-| `POST` | `/api/auth/register`             | Create account          |
-| `POST` | `/api/auth/login`                | Password login          |
-| `POST` | `/api/auth/logout`               | Destroy session         |
-| `GET`  | `/api/auth/me`                   | Current user profile    |
-| `POST` | `/api/auth/passkey/*`            | WebAuthn flows          |
-| `GET`  | `/api/withings/connect`          | Initiate Withings OAuth |
-| `POST` | `/api/insights/generate`         | Regenerate AI insights  |
-| `GET`  | `/api/gamification/achievements` | Achievement progress    |
-| `GET`  | `/api/health`                    | Docker health check     |
+| Method | Endpoint                         | Description                          |
+| ------ | -------------------------------- | ------------------------------------ |
+| `POST` | `/api/auth/register`             | Create account                       |
+| `POST` | `/api/auth/login`                | Password login                       |
+| `POST` | `/api/auth/logout`               | Destroy session                      |
+| `GET`  | `/api/auth/me`                   | Current user profile + Gravatar URL  |
+| `POST` | `/api/auth/password`             | Change password                      |
+| `PATCH`| `/api/auth/profile`              | Update profile fields                |
+| `POST` | `/api/auth/passkey/*`            | WebAuthn flows (4 sub-routes)        |
+| `GET`  | `/api/auth/passkeys`             | List enrolled passkeys               |
+| `GET`  | `/api/auth/codex/authorize`      | ChatGPT (codex) OAuth start          |
+| `GET`  | `/api/withings/connect`          | Initiate Withings OAuth              |
+| `POST` | `/api/withings/sync`             | Trigger manual Withings sync         |
+| `POST` | `/api/withings/webhook`          | Withings notification webhook        |
+| `POST` | `/api/insights/generate`         | Regenerate AI insights               |
+| `GET`  | `/api/insights/comprehensive`    | Aggregated insight payload           |
+| `GET`  | `/api/gamification/achievements` | Achievement progress                 |
+| `GET`  | `/api/health`                    | Docker health check                  |
+
+</details>
+
+<details>
+<summary><strong>Personalization (Thresholds + Dashboard)</strong></summary>
+
+| Method   | Endpoint                  | Description                                   |
+| -------- | ------------------------- | --------------------------------------------- |
+| `GET`    | `/api/user/thresholds`    | Read per-user threshold overrides             |
+| `PUT`    | `/api/user/thresholds`    | Upsert thresholds (rate-limited, audit-logged)|
+| `GET`    | `/api/insights/targets`   | Effective ranges (defaults + overrides merged)|
+| `GET`    | `/api/dashboard/widgets`  | Read dashboard layout                         |
+| `PUT`    | `/api/dashboard/widgets`  | Persist dashboard layout (show/hide/reorder)  |
+| `POST`   | `/api/onboarding/complete`| Mark onboarding finished                      |
+
+</details>
+
+<details>
+<summary><strong>Feedback + API Tokens</strong></summary>
+
+| Method   | Endpoint                                | Description                          |
+| -------- | --------------------------------------- | ------------------------------------ |
+| `POST`   | `/api/feedback`                         | Submit in-app feedback               |
+| `GET`    | `/api/bugreport/status`                 | Check published GitHub issue state   |
+| `GET`    | `/api/tokens`                           | List own API tokens                  |
+| `POST`   | `/api/tokens`                           | Mint new API token (Bearer, hashed)  |
+| `DELETE` | `/api/tokens/:id`                       | Revoke API token                     |
+
+</details>
+
+<details>
+<summary><strong>Notifications</strong></summary>
+
+| Method   | Endpoint                          | Description                            |
+| -------- | --------------------------------- | -------------------------------------- |
+| `GET`    | `/api/notifications/preferences`  | Read per-channel × per-event matrix    |
+| `PUT`    | `/api/notifications/preferences`  | Update preferences                     |
+| `GET`    | `/api/notifications/vapid`        | VAPID public key for Web Push          |
+| `POST`   | `/api/notifications/web-push`     | Register Web Push subscription         |
+| `POST`   | `/api/telegram/webhook`           | Telegram bot inline-button callback    |
+
+</details>
+
+<details>
+<summary><strong>Admin (admin role required)</strong></summary>
+
+| Method   | Endpoint                          | Description                            |
+| -------- | --------------------------------- | -------------------------------------- |
+| `GET`    | `/api/admin/status`               | System + integration status            |
+| `GET`    | `/api/admin/users`                | List users                             |
+| `POST`   | `/api/admin/users/:id/reset-password` | Force password reset               |
+| `GET`    | `/api/admin/feedback`             | All feedback / bug reports             |
+| `POST`   | `/api/admin/feedback/:id/github`  | Escalate feedback to GitHub issue      |
+| `GET`    | `/api/admin/audit-log`            | Audit-log viewer                       |
+| `GET`    | `/api/admin/ai-settings`          | Read shared AI provider config         |
+| `PUT`    | `/api/admin/ai-settings`          | Update shared AI provider config       |
+| `GET`    | `/api/admin/tokens`               | All issued API tokens                  |
+| `POST`   | `/api/admin/notifications/test`   | Send test notification                 |
+| `GET`    | `/api/admin/data`                 | Data backups + counts                  |
 
 </details>
 

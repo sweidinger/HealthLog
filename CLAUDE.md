@@ -44,7 +44,7 @@ docker compose logs -f app    # Tail app logs
 - **API response envelope**: `{ data, error, meta }` via helpers in `src/lib/api-response.ts`.
 - **apiHandler** wraps ALL API route handlers (`src/lib/api-handler.ts`) — error handling, Wide Event logging, x-request-id propagation.
 - **Structured Logging** (Wide Events) in `src/lib/logging/` — one JSON event per request/operation via `WideEventBuilder` + `AsyncLocalStorage`. Tail sampling, stdout JSON + optional Loki Push.
-- **Vitest** for unit testing. Config in `vitest.config.ts`.
+- **Vitest** for unit testing. Config in `vitest.config.mts`.
 - **pg-boss** (PostgreSQL-native) for job queue: medication reminders, insight caching, weekly data backups.
 - **jsPDF** + jspdf-autotable for client-side doctor report PDF generation (`src/lib/doctor-report-pdf.ts`).
 - **PWA offline** via service worker caching strategies in `public/sw.js` (cache-first for static, network-first for pages, network-only for API).
@@ -56,7 +56,7 @@ docker compose logs -f app    # Tail app logs
 - Timezone: `Europe/Berlin` for display, UTC in database.
 - Sensitive data (Withings tokens, API keys, VAPID private keys) encrypted with AES-256-GCM (`src/lib/crypto.ts`) before DB storage.
 - Passkeys are primary auth (SimpleWebAuthn v13). Sessions stored server-side in PostgreSQL.
-- All API mutations require authentication. External ingest uses Bearer token (hashed with SHA-256).
+- All API mutations require authentication. External ingest uses Bearer token (hashed with HMAC-SHA256 keyed by `API_TOKEN_HMAC_KEY`).
 - Rate limiting (in-memory sliding window) on auth and external-facing endpoints.
 
 ## File Layout
@@ -84,9 +84,9 @@ docker compose logs -f app    # Tail app logs
 - `prisma/schema.prisma` — database schema (23 models)
 - `prisma.config.ts` — Prisma config (DB URL here, not in schema)
 - `public/sw.js` — Service worker for Web Push notifications + offline caching
-- `docs/` — architecture, security, assumptions, ops, API docs, ADRs
-- `docs/STATUS.md` — Current project status + open tasks
+- `docs/` — long-form audit notes (`docs/audit/`); end-user docs live in the separate site at https://docs.healthlog.dev
 - `AGENTS.md` — AI agent instructions (Codex, Cursor, etc.)
+- `CHANGELOG.md` — release notes per semver tag
 
 ## Important Patterns
 

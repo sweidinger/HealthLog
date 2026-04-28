@@ -70,6 +70,6 @@ HealthLog Docker images are built and published from this repository's CI:
 - **Provenance attestation**: each image carries a [SLSA build provenance](https://slsa.dev/spec/v1.0/provenance) statement linking it back to the GitHub Actions run, the commit SHA, and the workflow definition
 - **SBOM**: each image includes a [Software Bill of Materials](https://docs.docker.com/build/metadata/attestations/sbom/) you can inspect with `docker buildx imagetools inspect ghcr.io/mbombeck/healthlog:latest --format '{{ json .SBOM }}'`
 
-To pin to a specific version in production, replace `:latest` with the released tag in your `docker-compose.yml`, e.g. `ghcr.io/mbombeck/healthlog:1.2.0`. Pinning is recommended for self-hosters who want explicit control over upgrades.
+To pin to a specific version in production, replace `:latest` with the released tag in your `docker-compose.yml`, e.g. `ghcr.io/mbombeck/healthlog:1.3.2`. Pinning is recommended for self-hosters who want explicit control over upgrades.
 
 If you discover a tampered or unexpected image, please report it as a vulnerability via the email above.

@@ -4,7 +4,7 @@ Contributions are welcome. This guide covers how to set up the project and submi
 
 ## Prerequisites
 
-- Node.js 22+
+- Node.js 20+
 - pnpm
 - PostgreSQL 16+ (or Docker)
 - Git
@@ -20,13 +20,21 @@ cp .env.example .env
 Edit `.env` and configure at minimum:
 
 ```
-DATABASE_URL="postgresql://healthlog:healthlog@localhost:5432/healthlog"
+POSTGRES_PASSWORD=<base64, 24 bytes>
+DATABASE_URL="postgresql://healthlog:${POSTGRES_PASSWORD}@db:5432/healthlog"
 SESSION_SECRET=<64-char hex>
 ENCRYPTION_KEY=<64-char hex>
 API_TOKEN_HMAC_KEY=<64-char hex>
 ```
 
-Generate secrets with `openssl rand -hex 32`.
+Generate the four secrets:
+
+```bash
+echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)" >> .env
+echo "SESSION_SECRET=$(openssl rand -hex 32)"       >> .env
+echo "ENCRYPTION_KEY=$(openssl rand -hex 32)"       >> .env
+echo "API_TOKEN_HMAC_KEY=$(openssl rand -hex 32)"   >> .env
+```
 
 ### With Docker (database only)
 
@@ -47,23 +55,28 @@ docker compose up -d
 ## Development Workflow
 
 ```bash
-pnpm dev            # Start dev server (http://localhost:3000)
-pnpm lint           # ESLint
-pnpm format         # Prettier
-pnpm typecheck      # TypeScript strict mode
-pnpm test           # Vitest
+pnpm dev             # Start dev server (http://localhost:3000)
+pnpm lint            # ESLint
+pnpm format:check    # Prettier (check)
+pnpm typecheck       # TypeScript strict mode
+pnpm test            # Vitest
+pnpm build           # Next.js production build
 ```
 
-All four checks must pass before submitting a PR.
+All five checks must pass before submitting a PR. The full one-liner that mirrors CI:
+
+```bash
+pnpm typecheck && pnpm lint && pnpm test && pnpm format:check && pnpm build
+```
 
 ## Code Conventions
 
-- **TypeScript strict mode** -- no `any` types, no type assertions unless absolutely necessary
-- **UI text in German**, code/comments/docs in English
-- **API responses** follow `{ data, error, meta }` envelope pattern
-- **Zod v4** for input validation (API routes and forms)
-- **shadcn/ui** components (new-york style) for UI primitives
-- **Dracula theme** -- dark mode only, use `--dracula-*` CSS tokens
+- **TypeScript strict mode** -- avoid `any`. Where it's truly unavoidable (e.g. variadic Next.js handler signatures in `src/lib/api-handler.ts`), document the reason inline.
+- **English-default UI** -- the default locale is English. German is user-selectable. Code, comments, commit messages, and docs are English. All user-facing strings go through `t("key")` with translations in both `messages/en.json` and `messages/de.json`. The `i18n-locale-integrity.test.ts` suite blocks merges if keys drift between locales or duplicate at any nesting depth.
+- **API responses** follow the `{ data, error }` envelope via `apiSuccess()` / `apiError()` in `src/lib/api-response.ts`. Wrap every route handler in `apiHandler()` (`src/lib/api-handler.ts`) for error handling, structured Wide-Event logging, and `x-request-id` propagation.
+- **Zod v4** (`import { ... } from "zod/v4"`) for input validation in API routes and forms.
+- **shadcn/ui** components (new-york style) for UI primitives.
+- **Dracula theme** -- dark mode is the default; a `light`/`system` toggle is exposed in the topbar. Chart and accent colors use the `--dracula-*` CSS tokens so both themes stay coherent.
 
 See `CLAUDE.md` for detailed architecture and patterns.
 
@@ -82,7 +95,7 @@ Always include the migration file in your PR.
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/your-feature`)
 3. Make your changes
-4. Ensure all checks pass (`pnpm lint && pnpm typecheck && pnpm test`)
+4. Ensure all checks pass (`pnpm typecheck && pnpm lint && pnpm test && pnpm format:check && pnpm build`)
 5. Submit a PR with a clear description of the changes
 
 ## Security

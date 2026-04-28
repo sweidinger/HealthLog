@@ -6,14 +6,14 @@ Instructions for AI coding agents (OpenAI Codex, Claude Code, Cursor, etc.) work
 
 **HealthLog** — a personal health-tracking web app (weight, blood pressure, pulse, mood, medication compliance) with Withings integration, moodLog.app sync, Dracula-themed UI, mobile-first PWA design.
 
-**Status**: v1.2.0 (Custom Thresholds, Blood Glucose, Dashboard Customization, Built-in Feedback, Multi-Provider AI). See GitHub Issues for open tasks.
+**Status**: v1.3.2 — Body composition (Total Body Water + Bone Mass), SSRF-hardened outbound fetches, GHCR multi-arch images (`linux/amd64` + `linux/arm64`) with SLSA provenance + SBOM, pg-boss graceful SIGTERM drain, blocking TypeScript CI, locale-integrity test guard. See GitHub Releases + CHANGELOG.md for the full feature timeline (v1.0 → v1.3).
 
 ## Tech Stack
 
 | Layer           | Technology           | Version | Notes                                                                   |
 | --------------- | -------------------- | ------- | ----------------------------------------------------------------------- |
 | Framework       | Next.js (App Router) | 16      | TypeScript strict, RSC default, `"use client"` only for interactivity   |
-| ORM             | Prisma               | 7.4     | Uses `PrismaPg` adapter, **not** `url` in schema — see gotchas below    |
+| ORM             | Prisma               | 7.8     | Uses `PrismaPg` adapter, **not** `url` in schema — see gotchas below    |
 | Database        | PostgreSQL           | 16      | Docker Compose service, port 5432, user `healthlog`                     |
 | UI              | shadcn/ui (new-york) | latest  | Components in `src/components/ui/`                                      |
 | Theme           | Dracula              | —       | CSS variables in `globals.css`, dark mode default, `--dracula-*` tokens |
@@ -76,10 +76,10 @@ src/
 │   ├── medications/page.tsx      # Medications management
 │   ├── notifications/page.tsx    # Notification preferences matrix
 │   ├── onboarding/page.tsx       # 4-step guided onboarding
-│   ├── settings/page.tsx         # All settings (13 sections, ~2100 lines)
+│   ├── settings/page.tsx         # All settings (8 top-level sections, ~3150 lines — split tracked for 1.4.0)
 │   ├── mood/page.tsx             # Mood tracking
 │   ├── targets/page.tsx          # Target values dashboard
-│   └── api/                      # ~60 API route files (see docs/api.md)
+│   └── api/                      # 100+ API route files (admin, auth, measurements, medications, mood, insights, integrations, ingest, dashboard, feedback, tokens, notifications, monitoring, …)
 │       ├── mood-entries/         # Mood CRUD
 │       ├── import/               # JSON data import
 │       ├── doctor-report/        # Doctor report data aggregation
@@ -93,7 +93,9 @@ src/
 │   ├── measurements/             # Measurement form, list
 │   ├── mood/                     # Mood form, mood list
 │   ├── charts/                   # Recharts wrappers, compliance charts
-│   ├── insights/                 # AI insights card
+│   ├── insights/                 # AI insights cards (status, advisor)
+│   ├── gamification/             # Achievement cards, progress
+│   ├── settings/                 # Settings-page section components
 │   └── monitoring/               # Umami, GlitchTip bootstrap
 ├── lib/
 │   ├── db.ts                     # Prisma client singleton
@@ -109,6 +111,13 @@ src/
 │   ├── notifications/            # Dispatcher, types, senders (telegram, ntfy, web-push)
 │   ├── jobs/                     # pg-boss worker (reminders, insights, backups)
 │   ├── validations/              # Zod schemas (shared between API + client)
+│   ├── ai/                       # Multi-provider client (OpenAI, Anthropic, local OpenAI-compat)
+│   ├── feedback/                 # In-app feedback + optional GitHub escalation
+│   ├── gamification/             # Achievement definitions + progress
+│   ├── insights/                 # Insight pipeline + prompts
+│   ├── logging/                  # Wide Events: builder, context, sampler, transports, background
+│   ├── moodlog/                  # moodLog.app webhook + sync
+│   ├── monitoring/               # Umami / GlitchTip server-side hooks
 │   └── withings/                 # Withings OAuth client + sync service
 ├── hooks/
 │   └── use-auth.ts               # useAuth(), useLogout() hooks
@@ -118,7 +127,7 @@ messages/
 └── en.json                       # English translations
 prisma/
 ├── schema.prisma                 # Database schema (23 models)
-└── migrations/                   # Migration files (0001–0018)
+└── migrations/                   # Migration files (0001–0022; latest: body_composition_metrics)
 prisma.config.ts                  # Prisma config (DB URL lives here, NOT in schema)
 public/
 ├── sw.js                         # Service worker (Web Push + offline caching)
@@ -167,15 +176,15 @@ These are hard-won lessons. Ignoring them will cause errors:
 
 ### Settings Page
 
-- One large file (~2100 lines), 13 sections. Sidebar switches to "settings mode" showing section shortcuts.
+- One large file (~3150 lines), 8 top-level sections. Sidebar switches to "settings mode" showing section shortcuts. Splitting into per-section files is tracked for 1.4.0 — until then, ESLint `react-hooks/set-state-in-effect` stays non-blocking because of the long-standing violations in this file.
 - Sections scroll-to with highlight animation (`section-highlight` CSS class).
-- Section IDs: `profil`, `sprache`, `sicherheit`, `telegram`, `ntfy`, `web-push`, `insights`, `withings`, `api`, `export`, `protokoll`, `daten`.
+- Top-level section IDs: `section-allgemein`, `section-sicherheit`, `section-benachrichtigungen`, `section-personalization`, `section-integration`, `section-api`, `section-export`, `section-danger-zone`. Sub-anchors inside those sections include `profil`, `passwort`, `passkeys`, `telegram`, `ntfy`, `web-push`, `insights`, `dashboard-layout`, `thresholds`, `withings`, `moodlog`, `api-tokens`, `api-endpoints`.
 
 ### Insights Page
 
-- Large file (~1800+ lines), 7 content sections with AI summaries.
+- Large file (~1750 lines), 7 content sections with AI summaries.
 - Sticky horizontal chip navigation (`InsightsSectionNav` component) with IntersectionObserver for active state tracking.
-- Section IDs: `general`, `bp`, `weight`, `pulse`, `mood`, `medications`, `bmi`.
+- Section IDs: `general`, `bp`, `weight`, `pulse`, `mood`, `meds`, `bmi`.
 - Each section has `scroll-mt-28` for header offset on scroll.
 
 ### Sidebar
@@ -192,8 +201,8 @@ These are hard-won lessons. Ignoring them will cause errors:
 
 ### Notification System
 
-- **Channels**: `TELEGRAM`, `NTFY`, `WEB_PUSH` (DB: `NotificationChannel`).
-- **Event types**: `MEDICATION_REMINDER`, `MEASUREMENT_ANOMALY`, `COMPLIANCE_LOW`, `WITHINGS_SYNC_FAILED`, `SYSTEM_ALERT`.
+- **Channels**: `telegram`, `ntfy`, `web_push` — stored as plain `String` on `NotificationChannel.type` (no Prisma enum; the canonical list lives in `src/lib/notifications/types.ts`).
+- **Event types**: `medication_reminder`, `measurement_anomaly`, `compliance_low`, `withings_sync_failed`, `system_alert` — also `String` on `NotificationPreference.eventType`. Source of truth is the discriminated union in `src/lib/notifications/types.ts`.
 - **Opt-out model**: Preferences default to ON (enabled) when no `NotificationPreference` row exists.
 - **Dispatcher**: `src/lib/notifications/dispatcher.ts` checks channel enabled + preference per event type.
 - **Telegram**: Inline buttons (Take/Skip/Snooze 1h/Snooze 3h), pre-end window reminders (30 min before), message auto-cleanup after 24h.
