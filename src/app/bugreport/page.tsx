@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -15,10 +15,7 @@ import {
 } from "@/components/ui/select";
 import {
   Loader2,
-  Upload,
-  X,
   CheckCircle2,
-  ImageIcon,
   Bug,
   GitPullRequest,
   Info,
@@ -46,14 +43,11 @@ export default function BugReportPage() {
   const [category, setCategory] = useState<CategoryValue>("BUG");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
-  const [screenshot, setScreenshot] = useState<string | null>(null);
-  const [screenshotName, setScreenshotName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // Status is now informational only — submission always works.
   const { data: status } = useQuery({
@@ -66,34 +60,6 @@ export default function BugReportPage() {
     },
     enabled: isAuthenticated,
   });
-
-  async function handleScreenshot(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setResult({ type: "error", message: t("bugreport.imageOnly") });
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      setResult({ type: "error", message: t("bugreport.tooLarge") });
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setScreenshot(reader.result as string);
-      setScreenshotName(file.name);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function removeScreenshot() {
-    setScreenshot(null);
-    setScreenshotName(null);
-    if (fileRef.current) fileRef.current.value = "";
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -108,7 +74,6 @@ export default function BugReportPage() {
           category,
           subject: subject || description.slice(0, 60),
           description,
-          ...(screenshot ? { screenshot } : {}),
           metadata: {
             locale,
             userAgent:
@@ -124,7 +89,6 @@ export default function BugReportPage() {
         setResult({ type: "success", message: t("bugreport.success") });
         setSubject("");
         setDescription("");
-        removeScreenshot();
       } else {
         setResult({
           type: "error",
@@ -226,42 +190,6 @@ export default function BugReportPage() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>{t("bugreport.screenshot")}</Label>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              onChange={handleScreenshot}
-              className="hidden"
-            />
-            {screenshot ? (
-              <div className="bg-muted/50 relative rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <ImageIcon className="text-muted-foreground h-4 w-4" />
-                  <span className="flex-1 truncate text-sm">
-                    {screenshotName}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={removeScreenshot}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={screenshot}
-                  alt={t("bugreport.screenshotPreview")}
-                  className="mt-2 max-h-48 rounded border object-contain"
-                />
-              </div>
-            ) : null}
-          </div>
-
           {result && (
             <div
               className={`rounded-lg p-3 text-sm ${
@@ -277,16 +205,7 @@ export default function BugReportPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileRef.current?.click()}
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              {t("bugreport.attachScreenshot")}
-            </Button>
+          <div className="flex items-center justify-end pt-2">
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Bug className="mr-2 h-4 w-4" />

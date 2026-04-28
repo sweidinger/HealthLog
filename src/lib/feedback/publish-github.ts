@@ -15,7 +15,6 @@ export interface FeedbackInput {
   subject: string;
   description: string;
   username: string;
-  hasScreenshot: boolean;
   metadata?: unknown;
 }
 
@@ -129,10 +128,6 @@ export async function publishFeedbackToGithub(
     if (lines.length > 0) {
       body += `\n## Context\n\n${lines.join("\n")}\n`;
     }
-  }
-
-  if (input.hasScreenshot) {
-    body += `\n**Screenshot:** A screenshot was attached in the original report.`;
   }
 
   body += `\n\n---\n*Created via HealthLog feedback*`;

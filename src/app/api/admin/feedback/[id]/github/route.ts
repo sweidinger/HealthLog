@@ -62,7 +62,6 @@ export const POST = apiHandler(
         subject: feedback.subject,
         description: feedback.description,
         username: feedback.user?.username ?? "anonymous",
-        hasScreenshot: Boolean(feedback.screenshotBase64),
         metadata: feedback.metadata,
       });
 
