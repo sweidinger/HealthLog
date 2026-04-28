@@ -39,3 +39,10 @@ next-env.d.ts
 
 # prisma generated
 /src/generated/prisma
+
+# AI session artefacts (kept locally, not committed)
+/docs/superpowers/
+.claude/
+.cursor/
+.codex/
+.aider*
