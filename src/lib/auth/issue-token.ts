@@ -1,0 +1,75 @@
+/**
+ * Helper for issuing an `ApiToken` for a user — currently used by the
+ * native-client auto-login flow (login + passkey login-verify) so the iOS
+ * app can talk to bearer-protected routes without juggling the session
+ * cookie. The raw `hlk_<hex>` value is returned exactly once.
+ */
+import { randomBytes } from "node:crypto";
+import { prisma } from "@/lib/db";
+import { hashToken } from "@/lib/auth/hmac";
+
+export interface IssuedToken {
+  token: string;
+  expiresAt: Date;
+  tokenId: string;
+  name: string;
+}
+
+export interface IssueTokenOptions {
+  userId: string;
+  /** Token row name (also surfaced to the user under /api/tokens). */
+  name: string;
+  /** Default permissions. `["*"]` = unrestricted (matches cookie scope). */
+  permissions?: string[];
+  /** Lifetime in days. */
+  expiresInDays?: number;
+}
+
+/**
+ * Generate a new `hlk_<64 hex>` token, store its hash, and return the raw
+ * value to the caller. The plaintext token is never persisted and must
+ * never be logged.
+ */
+export async function issueApiToken(
+  opts: IssueTokenOptions,
+): Promise<IssuedToken> {
+  const rawToken = `hlk_${randomBytes(32).toString("hex")}`;
+  const tokenHashValue = hashToken(rawToken);
+  const expiresAt = new Date(
+    Date.now() + (opts.expiresInDays ?? 90) * 24 * 60 * 60 * 1000,
+  );
+
+  const created = await prisma.apiToken.create({
+    data: {
+      userId: opts.userId,
+      name: opts.name,
+      tokenHash: tokenHashValue,
+      permissions: opts.permissions ?? ["*"],
+      expiresAt,
+    },
+    select: { id: true },
+  });
+
+  return {
+    token: rawToken,
+    expiresAt,
+    tokenId: created.id,
+    name: opts.name,
+  };
+}
+
+/**
+ * Detect whether the request is from a native client and should receive a
+ * bearer token in the login response. Two opt-in signals:
+ *   - `X-Client-Type: native`
+ *   - `User-Agent: HealthLog-iOS/...`
+ */
+export function isNativeClientRequest(headers: Headers): boolean {
+  const xClient = headers.get("x-client-type");
+  if (xClient && xClient.toLowerCase() === "native") return true;
+
+  const ua = headers.get("user-agent") ?? "";
+  if (ua.startsWith("HealthLog-iOS")) return true;
+
+  return false;
+}
