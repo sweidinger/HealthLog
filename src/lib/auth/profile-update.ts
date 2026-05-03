@@ -1,0 +1,114 @@
+/**
+ * Shared profile-update logic. The web client hits `/api/auth/profile` PUT
+ * and the iOS client hits `/api/user/profile` PATCH — both funnel through
+ * `applyProfileUpdate` so we don't fork the validation/audit path.
+ */
+import { prisma } from "@/lib/db";
+import { auditLog } from "@/lib/auth/audit";
+import { profileSchema } from "@/lib/validations/auth";
+import { z } from "zod/v4";
+
+const extendedProfileSchema = profileSchema.extend({
+  displayName: z.string().min(1).max(80).nullable().optional(),
+  locale: z.enum(["de", "en"]).nullable().optional(),
+  timezone: z.string().min(1).max(64).optional(),
+});
+
+export type ApplyProfileInput = z.infer<typeof extendedProfileSchema>;
+
+export interface ApplyProfileResult {
+  ok: true;
+  user: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    email: string | null;
+    role: string;
+    heightCm: number | null;
+    dateOfBirth: Date | null;
+    gender: string | null;
+    timezone: string;
+    locale: string | null;
+  };
+}
+
+export interface ApplyProfileError {
+  ok: false;
+  status: number;
+  message: string;
+}
+
+/**
+ * Validate and persist profile updates for `userId`. Returns either an
+ * `ApplyProfileResult` on success or `ApplyProfileError` with a status
+ * code so callers can shape the wire response themselves.
+ */
+export async function applyProfileUpdate(
+  userId: string,
+  body: unknown,
+  ipAddress?: string | null,
+): Promise<ApplyProfileResult | ApplyProfileError> {
+  const parsed = extendedProfileSchema.safeParse(body);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      status: 422,
+      message: parsed.error.issues[0]?.message ?? "Validation error",
+    };
+  }
+
+  const data = parsed.data;
+  const normalizedEmail = data.email ? data.email.trim().toLowerCase() : null;
+
+  if (data.email !== undefined && normalizedEmail) {
+    const existing = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
+    if (existing && existing.id !== userId) {
+      return { ok: false, status: 409, message: "Email already in use" };
+    }
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (data.email !== undefined) updates.email = normalizedEmail;
+  if (data.heightCm !== undefined) updates.heightCm = data.heightCm ?? null;
+  if (data.dateOfBirth !== undefined) {
+    updates.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null;
+  }
+  if (data.gender !== undefined) updates.gender = data.gender;
+  if (data.displayName !== undefined) {
+    updates.displayName =
+      data.displayName === null || data.displayName === ""
+        ? null
+        : data.displayName.trim();
+  }
+  if (data.locale !== undefined) updates.locale = data.locale;
+  if (data.timezone !== undefined) updates.timezone = data.timezone;
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: updates,
+  });
+
+  await auditLog("profile.update", {
+    userId: updatedUser.id,
+    ipAddress: ipAddress ?? null,
+  });
+
+  return {
+    ok: true,
+    user: {
+      id: updatedUser.id,
+      username: updatedUser.username,
+      displayName: updatedUser.displayName,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      heightCm: updatedUser.heightCm,
+      dateOfBirth: updatedUser.dateOfBirth,
+      gender: updatedUser.gender,
+      timezone: updatedUser.timezone,
+      locale: updatedUser.locale,
+    },
+  };
+}
