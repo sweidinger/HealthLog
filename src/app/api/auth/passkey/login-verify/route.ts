@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { issueApiToken, isNativeClientRequest } from "@/lib/auth/issue-token";
 
 export const POST = apiHandler(async (request: NextRequest) => {
   await ensureDbCompatibility();
@@ -58,6 +59,27 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   annotate({ action: { name: "auth.login.passkey" } });
+
+  if (isNativeClientRequest(request.headers)) {
+    const issued = await issueApiToken({
+      userId: user.id,
+      name: `iOS auto-login ${new Date().toISOString()}`,
+      permissions: ["*"],
+      expiresInDays: 90,
+    });
+    await auditLog("auth.token.autoissue.native", {
+      userId: user.id,
+      ipAddress: ip,
+      details: { tokenId: issued.tokenId, source: "login.passkey" },
+    });
+    annotate({ action: { name: "auth.token.autoissue.native" } });
+
+    return apiSuccess({
+      user: { id: user.id, username: user.username },
+      token: issued.token,
+      tokenExpiresAt: issued.expiresAt.toISOString(),
+    });
+  }
 
   return apiSuccess({
     user: { id: user.id, username: user.username },

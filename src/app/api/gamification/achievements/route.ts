@@ -15,6 +15,20 @@ import {
   classifyPulse,
 } from "@/lib/analytics/classifications";
 import { classifyIntakeTiming } from "@/lib/analytics/compliance";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
+import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import type { NextRequest } from "next/server";
+
+interface IosAchievement {
+  id: string;
+  key: string;
+  title: string;
+  description: string;
+  iconName: string;
+  unlocked: boolean;
+  unlockedAt: string | null;
+  progress: number;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -431,9 +445,14 @@ function getCompliance80DaySeries(
   return toDaySeries(greenDays);
 }
 
-export const GET = apiHandler(async () => {
+export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
-  annotate({ action: { name: "gamification.achievements" } });
+  const formatParam = request.nextUrl.searchParams.get("format");
+  const isIosFormat = formatParam === "ios";
+  annotate({
+    action: { name: "gamification.achievements" },
+    meta: { format: isIosFormat ? "ios" : "default" },
+  });
 
   const now = new Date();
   const userId = user.id;
@@ -740,6 +759,25 @@ export const GET = apiHandler(async () => {
       })),
       skipDuplicates: true,
     });
+  }
+
+  if (isIosFormat) {
+    const locale = await resolveServerLocale({
+      request,
+      userLocale: user.locale,
+    });
+    const t = getServerTranslator(locale);
+    const ios: IosAchievement[] = result.achievements.map((a) => ({
+      id: a.id,
+      key: a.id,
+      title: t.t(a.titleKey),
+      description: t.t(a.descriptionKey),
+      iconName: a.icon,
+      unlocked: a.unlocked,
+      unlockedAt: a.completedAt,
+      progress: Math.max(0, Math.min(1, a.progressPercent / 100)),
+    }));
+    return apiSuccess(ios);
   }
 
   return apiSuccess(result);

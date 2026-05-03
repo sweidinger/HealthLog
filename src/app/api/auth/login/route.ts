@@ -9,6 +9,7 @@ import { ensureDbCompatibility } from "@/lib/db-compat";
 import { NextRequest, NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { issueApiToken, isNativeClientRequest } from "@/lib/auth/issue-token";
 
 export const POST = apiHandler(async (request: NextRequest) => {
   const ip = getClientIp(request) ?? "unknown";
@@ -73,6 +74,29 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   annotate({ action: { name: "auth.login.password" } });
+
+  // Native clients (iOS) additionally receive a long-lived Bearer token in
+  // the response so they don't need to juggle the cookie jar.
+  if (isNativeClientRequest(request.headers)) {
+    const issued = await issueApiToken({
+      userId: user.id,
+      name: `iOS auto-login ${new Date().toISOString()}`,
+      permissions: ["*"],
+      expiresInDays: 90,
+    });
+    await auditLog("auth.token.autoissue.native", {
+      userId: user.id,
+      ipAddress: ip,
+      details: { tokenId: issued.tokenId, source: "login.password" },
+    });
+    annotate({ action: { name: "auth.token.autoissue.native" } });
+
+    return apiSuccess({
+      user: { id: user.id, username: user.username },
+      token: issued.token,
+      tokenExpiresAt: issued.expiresAt.toISOString(),
+    });
+  }
 
   return apiSuccess({
     user: { id: user.id, username: user.username },

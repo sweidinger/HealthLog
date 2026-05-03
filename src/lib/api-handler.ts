@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
+import type { User } from "@/generated/prisma/client";
 import { WideEventBuilder } from "./logging/event-builder";
 import { eventStorage, getEvent } from "./logging/context";
 import { emitIfSampled } from "./logging/transports";
 import { getSession } from "./auth/session";
+import { hashToken } from "./auth/hmac";
+import { prisma } from "./db";
+import { auditLog } from "./auth/audit";
 
 /**
  * Custom error class for HTTP errors with status codes.
@@ -98,17 +103,176 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
 }
 
 /**
- * Require an authenticated session. Throws HttpError(401) if not authenticated.
+ * Authenticated request context. Returned by both session-cookie and Bearer-token
+ * authentication paths. The `session.id` is the session-record id for cookie auth
+ * and the `ApiToken` id for bearer auth — callers must not assume the id refers
+ * to a Session row.
+ */
+export type AuthContext = {
+  session: { id: string; expiresAt: Date };
+  user: User;
+};
+
+/**
+ * Require an authenticated request. Throws HttpError(401) / HttpError(403) on failure.
+ *
+ * Auth precedence (cookie-first, never both):
+ *   1. Valid session cookie → cookie path (existing behaviour, requiredPermission ignored).
+ *   2. No cookie + `Authorization: Bearer hlk_<...>` → API token path.
+ *   3. Neither → 401.
+ *
+ * @param requiredPermission Optional permission scope. Only enforced for Bearer
+ *   auth — cookie sessions always pass (full user access). When set and missing
+ *   from `ApiToken.permissions`, throws HttpError(403).
+ */
+export async function requireAuth(
+  requiredPermission?: string,
+): Promise<AuthContext> {
+  // 1. Session cookie path — unchanged.
+  const sessionData = await getSession();
+  if (sessionData) {
+    const evt = getEvent();
+    if (evt) {
+      evt.setAuth({
+        user_id: sessionData.user.id,
+        user_role: sessionData.user.role,
+        auth_method: "session",
+      });
+    }
+    return sessionData;
+  }
+
+  // 2. Bearer-token path.
+  // `headers()` is only valid inside a Next.js request scope. Outside one
+  // (e.g. during direct unit tests of legacy routes that pre-date Bearer auth)
+  // we treat the absence of a header context as "no Bearer present" and fall
+  // through to the unauthenticated case below.
+  let authHeader: string | null = null;
+  try {
+    const headerList = await headers();
+    authHeader = headerList.get("authorization");
+  } catch {
+    authHeader = null;
+  }
+  if (authHeader?.startsWith("Bearer ")) {
+    return await authenticateBearer(authHeader.slice(7), requiredPermission);
+  }
+
+  // 3. No credentials.
+  throw new HttpError(401, "Not authenticated");
+}
+
+/**
+ * Authenticate a raw Bearer token against `ApiToken`.
+ * Annotates the Wide Event with `auth_method: "api_key"` and writes audit-log
+ * entries for both success and failure.
+ */
+async function authenticateBearer(
+  rawToken: string,
+  requiredPermission: string | undefined,
+): Promise<AuthContext> {
+  const tokenHashValue = hashToken(rawToken);
+
+  const apiToken = await prisma.apiToken.findUnique({
+    where: { tokenHash: tokenHashValue },
+    select: {
+      id: true,
+      userId: true,
+      permissions: true,
+      revoked: true,
+      expiresAt: true,
+    },
+  });
+
+  if (!apiToken) {
+    auditLog("auth.bearer.failure", {
+      details: { reason: "unknown_token" },
+    }).catch(() => {});
+    throw new HttpError(401, "Invalid token");
+  }
+
+  if (apiToken.revoked) {
+    auditLog("auth.bearer.failure", {
+      userId: apiToken.userId,
+      details: { reason: "revoked", tokenId: apiToken.id },
+    }).catch(() => {});
+    throw new HttpError(401, "Invalid token");
+  }
+
+  if (apiToken.expiresAt && apiToken.expiresAt <= new Date()) {
+    auditLog("auth.bearer.failure", {
+      userId: apiToken.userId,
+      details: { reason: "expired", tokenId: apiToken.id },
+    }).catch(() => {});
+    throw new HttpError(401, "Token expired");
+  }
+
+  if (
+    requiredPermission &&
+    !apiToken.permissions.includes(requiredPermission)
+  ) {
+    auditLog("auth.bearer.failure", {
+      userId: apiToken.userId,
+      details: {
+        reason: "insufficient_permissions",
+        tokenId: apiToken.id,
+        required: requiredPermission,
+      },
+    }).catch(() => {});
+    throw new HttpError(403, "Insufficient permissions");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: apiToken.userId },
+  });
+
+  if (!user) {
+    auditLog("auth.bearer.failure", {
+      userId: apiToken.userId,
+      details: { reason: "user_missing", tokenId: apiToken.id },
+    }).catch(() => {});
+    throw new HttpError(401, "Invalid token");
+  }
+
+  // Fire-and-forget: refresh lastUsedAt without blocking the request.
+  prisma.apiToken
+    .update({
+      where: { id: apiToken.id },
+      data: { lastUsedAt: new Date() },
+    })
+    .catch(() => {});
+
+  auditLog("auth.bearer.success", {
+    userId: user.id,
+    details: { tokenId: apiToken.id },
+  }).catch(() => {});
+
+  const evt = getEvent();
+  if (evt) {
+    evt.setAuth({
+      user_id: user.id,
+      user_role: user.role,
+      auth_method: "bearer",
+    });
+  }
+
+  // Use the token expiry as the session expiry; fall back to a 30-day window if
+  // the token has no fixed expiry so the contract `{ expiresAt: Date }` holds.
+  const expiresAt =
+    apiToken.expiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  return {
+    session: { id: apiToken.id, expiresAt },
+    user,
+  };
+}
+
+/**
+ * Require an authenticated admin user. Throws HttpError(401) or HttpError(403).
+ * Cookie-only — Bearer tokens never elevate to admin (security boundary).
  * Automatically annotates the Wide Event with auth context.
  */
-export async function requireAuth(): Promise<{
-  session: { id: string; expiresAt: Date };
-  user: Awaited<ReturnType<typeof getSession>> extends infer R
-    ? R extends { user: infer U }
-      ? U
-      : never
-    : never;
-}> {
+export async function requireAdmin(): Promise<AuthContext> {
   const sessionData = await getSession();
   if (!sessionData) throw new HttpError(401, "Not authenticated");
 
@@ -121,22 +285,6 @@ export async function requireAuth(): Promise<{
     });
   }
 
-  return sessionData;
-}
-
-/**
- * Require an authenticated admin user. Throws HttpError(401) or HttpError(403).
- * Automatically annotates the Wide Event with auth context.
- */
-export async function requireAdmin(): Promise<{
-  session: { id: string; expiresAt: Date };
-  user: Awaited<ReturnType<typeof getSession>> extends infer R
-    ? R extends { user: infer U }
-      ? U
-      : never
-    : never;
-}> {
-  const sessionData = await requireAuth();
   if (sessionData.user.role !== "ADMIN") {
     throw new HttpError(403, "Admin access required");
   }

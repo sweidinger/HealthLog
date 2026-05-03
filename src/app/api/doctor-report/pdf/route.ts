@@ -1,0 +1,114 @@
+import { NextRequest, NextResponse } from "next/server";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import { apiError, getClientIp } from "@/lib/api-response";
+import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  collectDoctorReportData,
+  normaliseDays,
+} from "@/lib/doctor-report-data";
+import { renderDoctorReportPdfBytes } from "@/lib/doctor-report-pdf-core";
+import { getServerTranslator } from "@/lib/i18n/server-translator";
+import { parseLocaleFromAcceptLanguage } from "@/lib/format-locale";
+import { locales, type Locale } from "@/lib/i18n/config";
+
+/**
+ * Server-rendered PDF doctor report.
+ *
+ * Mirrors `/api/doctor-report` (which returns JSON for client-side rendering)
+ * but produces the finished PDF bytes server-side. Useful on iOS / Safari where
+ * the client-side jsPDF download UX is unreliable.
+ *
+ * Auth, rate-limit (10/h), and audit-log policy match the JSON endpoint.
+ */
+export const POST = apiHandler(async (request: NextRequest) => {
+  const { user } = await requireAuth();
+  annotate({ action: { name: "doctor-report.pdf.generate" } });
+
+  const rl = await checkRateLimit(
+    `doctor-report:${user.id}`,
+    10,
+    60 * 60 * 1000,
+  );
+  if (!rl.allowed) {
+    return apiError("Maximum 10 reports per hour", 429);
+  }
+
+  // Body is optional — JSON is allowed but not required.
+  const body = await readOptionalJsonBody(request);
+  const days = normaliseDays(body?.days);
+  const locale = resolveLocale(
+    body?.locale,
+    request.headers.get("accept-language"),
+  );
+
+  const data = await collectDoctorReportData(user.id, days);
+
+  const { t } = getServerTranslator(locale);
+  const pdfBytes = renderDoctorReportPdfBytes(data, { t, locale });
+
+  await auditLog("doctor-report.pdf.generate", {
+    userId: user.id,
+    ipAddress: getClientIp(request),
+    details: { days, locale },
+  });
+
+  annotate({ meta: { report_days: days, locale, bytes: pdfBytes.byteLength } });
+
+  const filename = `healthlog-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+  // NextResponse accepts a BodyInit; copy to a fresh ArrayBuffer to avoid
+  // SharedArrayBuffer typing surprises with Uint8Array.
+  const buffer = pdfBytes.slice().buffer;
+  return new NextResponse(buffer, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Length": String(pdfBytes.byteLength),
+      "Cache-Control": "no-store",
+    },
+  });
+});
+
+interface PdfRequestBody {
+  days?: unknown;
+  locale?: unknown;
+}
+
+/**
+ * Best-effort JSON body parse. Returns `null` if the request had no body or
+ * a non-JSON content type — both are acceptable for this endpoint.
+ */
+async function readOptionalJsonBody(
+  request: NextRequest,
+): Promise<PdfRequestBody | null> {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) return null;
+  try {
+    return (await request.json()) as PdfRequestBody;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the active locale: explicit body override wins, then a parsed
+ * `Accept-Language`, then a hard fallback to German (the primary HealthLog
+ * locale for the medical context).
+ */
+function resolveLocale(
+  bodyLocale: unknown,
+  acceptLanguage: string | null,
+): Locale {
+  if (
+    typeof bodyLocale === "string" &&
+    (locales as readonly string[]).includes(bodyLocale)
+  ) {
+    return bodyLocale as Locale;
+  }
+  if (!acceptLanguage) return "de";
+  // parseLocaleFromAcceptLanguage returns "de" for de-* headers, otherwise
+  // "en" — matching the broader app's i18n behaviour for present headers.
+  return parseLocaleFromAcceptLanguage(acceptLanguage);
+}

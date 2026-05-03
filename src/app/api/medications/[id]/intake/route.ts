@@ -7,11 +7,25 @@ import {
   intakeSchema,
   listIntakeEventsSchema,
 } from "@/lib/validations/medication";
+import { withIdempotency } from "@/lib/idempotency";
+import { getSession } from "@/lib/auth/session";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export const POST = apiHandler(async (request: NextRequest, { params }: RouteParams) => {
+async function resolveUserIdForIdempotency(): Promise<string | null> {
+  const session = await getSession().catch(() => null);
+  return session?.user.id ?? null;
+}
+
+export const POST = apiHandler(
+  withIdempotency<[NextRequest, RouteParams]>(
+    postIntake,
+    resolveUserIdForIdempotency,
+  ),
+);
+
+async function postIntake(request: NextRequest, { params }: RouteParams) {
   const { user } = await requireAuth();
 
   const { id } = await params;
@@ -100,7 +114,7 @@ export const POST = apiHandler(async (request: NextRequest, { params }: RoutePar
   });
 
   return apiSuccess(event, 201);
-});
+}
 
 export const GET = apiHandler(async (request: NextRequest, { params }: RouteParams) => {
   const { user } = await requireAuth();
