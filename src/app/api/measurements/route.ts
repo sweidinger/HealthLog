@@ -9,6 +9,8 @@ import {
   listMeasurementsSchema,
   getUnitForType,
 } from "@/lib/validations/measurement";
+import { withIdempotency } from "@/lib/idempotency";
+import { getSession } from "@/lib/auth/session";
 import { NextRequest } from "next/server";
 import type {
   MeasurementType,
@@ -16,6 +18,11 @@ import type {
   GlucoseContext,
 } from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
+
+async function resolveUserIdForIdempotency(): Promise<string | null> {
+  const session = await getSession().catch(() => null);
+  return session?.user.id ?? null;
+}
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
@@ -59,7 +66,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
   });
 });
 
-export const POST = apiHandler(async (request: NextRequest) => {
+export const POST = apiHandler(
+  withIdempotency<[NextRequest]>(postMeasurement, resolveUserIdForIdempotency),
+);
+
+async function postMeasurement(request: NextRequest) {
   const { user } = await requireAuth();
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -159,4 +170,4 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   return apiSuccess(measurement, 201);
-});
+}

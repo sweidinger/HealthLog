@@ -10,6 +10,13 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@/generated/prisma/client";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { withIdempotency } from "@/lib/idempotency";
+import { getSession } from "@/lib/auth/session";
+
+async function resolveUserIdForIdempotency(): Promise<string | null> {
+  const session = await getSession().catch(() => null);
+  return session?.user.id ?? null;
+}
 
 function toBerlinDate(date: Date): string {
   return new Intl.DateTimeFormat("sv-SE", {
@@ -73,7 +80,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
   });
 });
 
-export const POST = apiHandler(async (request: NextRequest) => {
+export const POST = apiHandler(
+  withIdempotency<[NextRequest]>(postMoodEntry, resolveUserIdForIdempotency),
+);
+
+async function postMoodEntry(request: NextRequest) {
   const { user } = await requireAuth();
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -119,4 +130,4 @@ export const POST = apiHandler(async (request: NextRequest) => {
     }
     throw err;
   }
-});
+}
