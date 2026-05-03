@@ -1,0 +1,30 @@
+# Gitleaks configuration. Extends the built-in default ruleset and adds
+# a project-specific allowlist for false-positives that gitleaks 8.x flags
+# as "generic-api-key" inside test fixtures.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Project-wide ignores for test fixtures and known non-secret tokens"
+
+paths = [
+  # All test files contain hardcoded fake tokens / idempotency-keys.
+  '''(^|/)__tests__/''',
+  '''\.test\.ts$''',
+  # OpenAPI spec contains example tokens (`hlk_example…`) used to document the schema.
+  '''^docs/api/openapi\.yaml$''',
+]
+
+# Substring matches — anything matching is treated as non-secret regardless of file.
+regexes = [
+  # Idempotency-Key request-header values are random UUIDs / opaque strings,
+  # not secrets. The header name itself just trips the generic-api-key rule.
+  '''idempotency-key''',
+  # Allow the placeholder prefix used in OpenAPI examples + docs.
+  '''hlk_example''',
+]
+
+# Specific commit fingerprints from prior false-positive findings (kept for reproducibility).
+# Empty by default; populate via `gitleaks detect --report-path` if a future regression
+# triggers the same false-positive on a stable commit hash.
+stopwords = []
