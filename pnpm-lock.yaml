@@ -54,8 +54,8 @@ importers:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       pg-boss:
-        specifier: ^12.18.1
-        version: 12.18.1
+        specifier: ^12.18.2
+        version: 12.18.2
       prisma:
         specifier: ^7.8.0
         version: 7.8.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
@@ -4139,8 +4139,8 @@ packages:
   performance-now@2.1.0:
     resolution: {integrity: sha512-7EAHlyLHI56VEIdK57uwHdHKIaAGbnXPiw0yWbarQZOKaKpvUIgW0jWRVLiatnM+XXlSwsanIBH/hzGMJulMow==}
 
-  pg-boss@12.18.1:
-    resolution: {integrity: sha512-eh7rRSTxUbPguKNDChWunKd//t4CuPFLqg9mL93sq9fai4YiGMe2HrSDqGF8gQ1Kn7VMxnB5IGRkPGDoMm4yrg==}
+  pg-boss@12.18.2:
+    resolution: {integrity: sha512-06kXeWvVWY+BUNsOt2me1okg6NXx2DBnAQHTurA9jtrvbAO9qUOSE3/0ERERQDrokI+FREFM2Twha+JbrFT/8Q==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -9285,7 +9285,7 @@ snapshots:
   performance-now@2.1.0:
     optional: true
 
-  pg-boss@12.18.1:
+  pg-boss@12.18.2:
     dependencies:
       cron-parser: 5.5.0
       pg: 8.20.0
