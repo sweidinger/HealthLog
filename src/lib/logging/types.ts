@@ -51,7 +51,7 @@ export interface WideEvent {
   auth?: {
     user_id?: string;
     user_role?: string;
-    auth_method?: "session" | "api_key" | "cron_secret" | "telegram_webhook" | "webhook_secret";
+    auth_method?: "session" | "bearer" | "api_key" | "cron_secret" | "telegram_webhook" | "webhook_secret";
   };
 
   // Business-Daten (was wurde getan)
