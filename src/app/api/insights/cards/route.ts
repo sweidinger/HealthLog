@@ -133,31 +133,38 @@ export const GET = apiHandler(async () => {
     compliance7: number;
     compliance30: number;
   }> = [];
-  for (const med of medications) {
-    if (med.schedules.length === 0) continue;
-    const events = await prisma.medicationIntakeEvent.findMany({
+  // Single batched query — bucket by medicationId in JS (fix N+1).
+  const activeMeds = medications.filter((m) => m.schedules.length > 0);
+  if (activeMeds.length > 0) {
+    const allEvents = await prisma.medicationIntakeEvent.findMany({
       where: {
         userId: user.id,
-        medicationId: med.id,
+        medicationId: { in: activeMeds.map((m) => m.id) },
         scheduledFor: { gte: new Date(Date.now() - 30 * 86_400_000) },
       },
-      select: { takenAt: true, skipped: true, scheduledFor: true },
+      select: { medicationId: true, takenAt: true, skipped: true, scheduledFor: true },
     });
-    const takenLast7 = events.filter(
-      (e) =>
-        e.takenAt !== null &&
-        !e.skipped &&
-        e.scheduledFor.getTime() >= Date.now() - 7 * 86_400_000,
-    ).length;
-    const taken30 = events.filter((e) => e.takenAt !== null && !e.skipped).length;
-    const expected7 = med.schedules.length * 7;
-    const expected30 = med.schedules.length * 30;
-    medicationCompliance.push({
-      name: med.name,
-      compliance7: expected7 > 0 ? Math.round((takenLast7 / expected7) * 100) : 0,
-      compliance30:
-        expected30 > 0 ? Math.round((taken30 / expected30) * 100) : 0,
-    });
+    const eventsByMed = new Map<string, typeof allEvents>();
+    for (const e of allEvents) {
+      const arr = eventsByMed.get(e.medicationId) ?? [];
+      arr.push(e);
+      eventsByMed.set(e.medicationId, arr);
+    }
+    const cutoff7 = Date.now() - 7 * 86_400_000;
+    for (const med of activeMeds) {
+      const events = eventsByMed.get(med.id) ?? [];
+      const takenLast7 = events.filter(
+        (e) => e.takenAt !== null && !e.skipped && e.scheduledFor.getTime() >= cutoff7,
+      ).length;
+      const taken30 = events.filter((e) => e.takenAt !== null && !e.skipped).length;
+      const expected7 = med.schedules.length * 7;
+      const expected30 = med.schedules.length * 30;
+      medicationCompliance.push({
+        name: med.name,
+        compliance7: expected7 > 0 ? Math.round((takenLast7 / expected7) * 100) : 0,
+        compliance30: expected30 > 0 ? Math.round((taken30 / expected30) * 100) : 0,
+      });
+    }
   }
 
   const alerts = generateAlerts({

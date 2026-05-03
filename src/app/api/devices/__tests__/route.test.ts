@@ -86,11 +86,26 @@ describe("POST /api/devices", () => {
     expect(prisma.device.update).not.toHaveBeenCalled();
   });
 
-  it("upserts when token already exists (transfers ownership)", async () => {
+  it("rejects cross-user re-registration with 409", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.device.findUnique).mockResolvedValue({
       id: "dev-1",
       userId: "other-user",
+      token: "abcd1234efgh5678",
+    } as never);
+    const res = await POST(
+      req({ token: "abcd1234efgh5678", bundleId: "io.healthlog.app" }),
+    );
+    expect(res.status).toBe(409);
+    expect(prisma.device.update).not.toHaveBeenCalled();
+    expect(prisma.device.create).not.toHaveBeenCalled();
+  });
+
+  it("updates in place when same user re-registers their own token", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.device.findUnique).mockResolvedValue({
+      id: "dev-1",
+      userId: "user-1",
       token: "abcd1234efgh5678",
     } as never);
     const res = await POST(

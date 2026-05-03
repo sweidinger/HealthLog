@@ -43,10 +43,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const existing = await prisma.device.findUnique({ where: { token } });
   let id: string;
   if (existing) {
+    // Cross-user-hijack guard: a device-token belongs to exactly one user.
+    // Re-registering the same token under a different account is rejected
+    // — APNs tokens aren't a secret, so trusting the wire input would let
+    // anyone who learns/guesses a token redirect another user's pushes.
+    if (existing.userId !== user.id) {
+      await auditLog("device.register.denied", {
+        userId: user.id,
+        details: { reason: "token_owned_by_other_user", deviceId: existing.id },
+      });
+      return apiError("Device token already registered to another account", 409);
+    }
     const updated = await prisma.device.update({
       where: { token },
       data: {
-        userId: user.id,
         platform: "ios",
         bundleId,
         locale: locale ?? null,

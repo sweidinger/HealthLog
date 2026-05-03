@@ -79,9 +79,10 @@ async function findCached(ctx: IdempotencyContext): Promise<NextResponse | null>
 async function persistCached(
   ctx: IdempotencyContext,
   response: Response,
+  preReadBody?: string,
 ): Promise<void> {
-  const cloned = response.clone();
-  const body = await cloned.text().catch(() => "");
+  const body =
+    preReadBody ?? (await response.clone().text().catch(() => ""));
 
   await prisma.idempotencyKey
     .create({
@@ -142,9 +143,30 @@ export function withIdempotency<
 
     const response = await handler(...args);
 
-    // Persist regardless of status so error retries don't fork into
-    // two different responses (matches Stripe/Square semantics).
-    await persistCached(ctx, response);
+    // Cache only client-stable responses. Replaying a stale 401/403
+    // (token expired mid-flight) or a 5xx would lock the user into a
+    // bogus result for the TTL window. 4xx-validation responses are
+    // intentionally cached so the same broken request doesn't hit the
+    // DB twice — but auth/throttle/server faults must not poison.
+    const cachable =
+      response.status < 400 ||
+      (response.status >= 400 &&
+        response.status < 500 &&
+        response.status !== 401 &&
+        response.status !== 403 &&
+        response.status !== 408 &&
+        response.status !== 429);
+
+    if (cachable) {
+      // Defence-in-depth: never persist a body that carries a freshly-issued
+      // bearer token. Auth routes shouldn't be wrapped in withIdempotency to
+      // begin with, but if a future caller forgets, we refuse to leak.
+      const cloned = response.clone();
+      const text = await cloned.text();
+      if (!text.includes("hlk_")) {
+        await persistCached(ctx, response, text);
+      }
+    }
 
     return response;
   };
