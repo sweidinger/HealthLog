@@ -207,8 +207,19 @@ async function authenticateBearer(
     throw new HttpError(401, "Token expired");
   }
 
+  // Audit V3 NEW-V3-1 fix: `["*"]` is a real wildcard — it grants the
+  // session-equivalent scope (the iOS app receives this on login). Without
+  // the wildcard branch, EVERY future requireAuth("scope:name") call would
+  // 403 every iOS-issued token because string-literal `.includes("*"...)`
+  // never matches.  Worse: today many sensitive routes call requireAuth()
+  // *without* a requiredPermission, so a leaked iOS token can act as a
+  // full-scope token (account delete, settings wipe). Once those routes
+  // adopt requireAuth("scope:name"), the wildcard handling here keeps
+  // the iOS app working while narrower-scoped tokens (e.g. ["medication:
+  // ingest"]) get correctly 403'd.
   if (
     requiredPermission &&
+    !apiToken.permissions.includes("*") &&
     !apiToken.permissions.includes(requiredPermission)
   ) {
     auditLog("auth.bearer.failure", {
@@ -316,6 +327,20 @@ async function reportToGlitchtip(
   // Skip expected errors from bot scanners (malformed JSON bodies)
   if (err instanceof SyntaxError) return;
 
+  // Audit H-B7 / phase P2: strip the query string before forwarding to
+  // GlitchTip. Withings legacy callbacks ship `?secret=…` (see C-3) and
+  // OAuth callbacks ship `?code=…&state=…`; if any of those error we
+  // don't want their secrets in someone's incident UI.
+  let scrubbedUrl = request.url;
+  try {
+    const u = new URL(request.url);
+    u.search = "";
+    scrubbedUrl = u.toString();
+  } catch {
+    // Invalid URL — fall through with the raw value (only happens in
+    // degenerate test fixtures).
+  }
+
   await sendGlitchtipEvent({
     dsn: settings.glitchtipDsn,
     input: {
@@ -324,7 +349,7 @@ async function reportToGlitchtip(
       level: "error",
       type: err.name || "Error",
       stack: err.stack,
-      url: request.url,
+      url: scrubbedUrl,
       sourceTag: "healthlog-api-handler",
       requestId: evt.getRequestId(),
     },

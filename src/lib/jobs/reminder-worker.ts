@@ -28,6 +28,8 @@ import {
 } from "@/lib/jobs/worker-status";
 import { setGlobalBoss } from "@/lib/jobs/boss-instance";
 import { cleanupExpiredIdempotencyKeys } from "@/lib/jobs/idempotency-cleanup";
+import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
+import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
 import { deleteMessage } from "@/lib/telegram";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { syncMoodLogEntries } from "@/lib/moodlog/sync";
@@ -93,6 +95,8 @@ const RATE_LIMIT_CLEANUP_QUEUE = "rate-limit-cleanup";
 const RATE_LIMIT_CLEANUP_CRON = "*/5 * * * *"; // every 5 minutes
 const IDEMPOTENCY_CLEANUP_QUEUE = "idempotency-cleanup";
 const IDEMPOTENCY_CLEANUP_CRON = "0 3 * * *"; // daily at 03:00 (Europe/Berlin)
+const AUDIT_LOG_CLEANUP_QUEUE = "audit-log-cleanup";
+const AUDIT_LOG_CLEANUP_CRON = "15 3 * * *"; // daily at 03:15 (Europe/Berlin)
 
 interface ReminderCheckPayload {
   triggeredAt: string;
@@ -145,6 +149,10 @@ interface RateLimitCleanupPayload {
 }
 
 interface IdempotencyCleanupPayload {
+  triggeredAt: string;
+}
+
+interface AuditLogCleanupPayload {
   triggeredAt: string;
 }
 
@@ -840,6 +848,19 @@ async function handleIdempotencyCleanup(
   });
 }
 
+async function handleAuditLogCleanup(jobs: Job<AuditLogCleanupPayload>[]) {
+  void jobs;
+  await withBackgroundEvent("job.audit_log_cleanup", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const deleted = await cleanupOldAuditLogs(p);
+      evt.addMeta("audit_log_cleanup_deleted", deleted);
+    } catch (err) {
+      evt.addWarning(`audit-log-cleanup failed: ${err}`);
+    }
+  });
+}
+
 async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
   void jobs;
   await withBackgroundEvent("job.data_backup", async (evt) => {
@@ -983,6 +1004,31 @@ export async function startReminderWorker() {
   setGlobalBoss(boss);
   markWorkerStarted();
 
+  // V3 audit STILL-V2-C-2: encrypt-at-rest one-shot migration. Rotates
+  // any rows that still hold a plaintext mood_log_webhook_secret to the
+  // AES-256-GCM envelope. Idempotent — encrypted rows are skipped.
+  try {
+    const p = getWorkerPrisma();
+    const rotated = await rotateLegacyMoodLogSecrets({
+      findLegacy: () =>
+        p.user.findMany({
+          where: { moodLogWebhookSecret: { not: null } },
+          select: { id: true, moodLogWebhookSecret: true },
+        }),
+      rotate: async (id, encryptedSecret) => {
+        await p.user.update({
+          where: { id },
+          data: { moodLogWebhookSecret: encryptedSecret },
+        });
+      },
+    });
+    if (rotated > 0) {
+      workerLog("error", `moodlog-secret-migration: rotated ${rotated} legacy plaintext secret(s)`);
+    }
+  } catch (err) {
+    workerLog("error", `moodlog-secret-migration failed: ${err}`);
+  }
+
   // Graceful shutdown: drain in-flight jobs on SIGTERM/SIGINT (sent by
   // Docker Compose `docker stop`, Kubernetes pod termination, Coolify
   // redeploys). Without this, pending handlers were force-killed and could
@@ -1021,6 +1067,7 @@ export async function startReminderWorker() {
     DATA_BACKUP_QUEUE,
     RATE_LIMIT_CLEANUP_QUEUE,
     IDEMPOTENCY_CLEANUP_QUEUE,
+    AUDIT_LOG_CLEANUP_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -1041,6 +1088,7 @@ export async function startReminderWorker() {
     [DATA_BACKUP_QUEUE, DATA_BACKUP_CRON],
     [RATE_LIMIT_CLEANUP_QUEUE, RATE_LIMIT_CLEANUP_CRON],
     [IDEMPOTENCY_CLEANUP_QUEUE, IDEMPOTENCY_CLEANUP_CRON],
+    [AUDIT_LOG_CLEANUP_QUEUE, AUDIT_LOG_CLEANUP_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -1112,6 +1160,11 @@ export async function startReminderWorker() {
     IDEMPOTENCY_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleIdempotencyCleanup,
+  );
+  await boss.work<AuditLogCleanupPayload>(
+    AUDIT_LOG_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleAuditLogCleanup,
   );
 
   return boss;

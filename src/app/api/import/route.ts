@@ -2,26 +2,27 @@ import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
-import { apiSuccess, getClientIp, safeJson } from "@/lib/api-response";
+import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
 
-import { validateMeasurementRange } from "@/lib/validations/measurement";
+import {
+  validateMeasurementRange,
+  measurementTypeEnum,
+  glucoseContextEnum,
+} from "@/lib/validations/measurement";
 
+// Derived from canonical enum so round-trip export → import covers every
+// type. Previous hardcoded subset silently dropped 4 of 11 types
+// (V3 audit: enum drift cousins).
 const measurementSchema = z
   .object({
-    type: z.enum([
-      "WEIGHT",
-      "BLOOD_PRESSURE_SYS",
-      "BLOOD_PRESSURE_DIA",
-      "PULSE",
-      "BODY_FAT",
-      "SLEEP_DURATION",
-      "ACTIVITY_STEPS",
-    ]),
+    type: measurementTypeEnum,
     value: z.number(),
     unit: z.string(),
     measuredAt: z.string().datetime(),
+    glucoseContext: glucoseContextEnum.optional(),
     source: z.string().optional(),
     notes: z.string().optional(),
   })
@@ -51,6 +52,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "import.upload" } });
 
+  // V3 audit: bulk-injection vector unchecked. 5/hour matches the export
+  // limit (10/hour) but is tighter because import writes have a higher
+  // blast radius (DB writes vs. read-only export).
+  const rl = await checkRateLimit(`import:${user.id}`, 5, 60 * 60 * 1000);
+  if (!rl.allowed) {
+    return apiError("Maximum 5 imports per hour", 429);
+  }
+
   const { data: body, error: jsonError } = await safeJson(request);
 
   if (jsonError) return jsonError;
@@ -76,6 +85,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
             source: "IMPORT",
             measuredAt: new Date(m.measuredAt),
             notes: m.notes || null,
+            glucoseContext: m.glucoseContext ?? null,
           },
         });
         stats.measurements++;

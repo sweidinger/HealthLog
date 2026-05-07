@@ -2,10 +2,11 @@ openapi: 3.1.0
 
 info:
   title: HealthLog API
-  version: 1.3.0
+  version: 1.3.3
   description: |
     REST API for HealthLog — a personal health-tracking PWA covering weight,
-    blood pressure, pulse, mood, medication compliance, blood glucose, and
+    blood pressure, pulse, mood, medication compliance, blood glucose, body
+    composition (total body water + bone mass), pulse oximetry (SpO2), and
     sleep. The same API powers the Next.js web client and the native iOS
     client.
 
@@ -3295,10 +3296,13 @@ components:
         Long-lived API token issued via `POST /api/tokens`. Accepted on all
         user endpoints (interchangeable with the session cookie) and required
         on external ingest endpoints (e.g. `/api/ingest/medication`). Tokens
-        are prefixed `hlk_` and stored as SHA-256 hashes server-side. Bearer
-        tokens never grant admin access — admin routes require the session
-        cookie. Permission scopes are enforced from the token's `permissions`
-        array.
+        are prefixed `hlk_` and stored as HMAC-SHA-256 hashes server-side
+        (keyed with `API_TOKEN_HMAC_KEY` so a DB dump alone does not allow
+        precomputed-rainbow lookups). Bearer tokens never grant admin access
+        — admin routes require the session cookie. Permission scopes are
+        enforced from the token's `permissions` array; a token MUST declare
+        either the explicit required permission for the route or the
+        wildcard `"*"`.
     sessionCookie:
       type: apiKey
       in: cookie
@@ -3442,6 +3446,9 @@ components:
         - SLEEP_DURATION
         - ACTIVITY_STEPS
         - BLOOD_GLUCOSE
+        - TOTAL_BODY_WATER
+        - BONE_MASS
+        - OXYGEN_SATURATION
 
     MeasurementSource:
       type: string
@@ -4730,6 +4737,11 @@ components:
         glitchtipEnvironment: { type: [string, 'null'] }
 
     # ─── iOS adapter DTOs (v1.3) ──────────────────────────────
+    # Used by /api/dashboard/summary (`MetricCard.kind`) and the
+    # /api/measurements/series adapter. Extended in v1.3.3 to cover the
+    # body-composition + SpO2 measurements that the server already emits.
+    # iOS clients SHOULD decode unknown values defensively; we still
+    # publish the canonical list here so generated codecs stay accurate.
     MetricKind:
       type: string
       enum:
@@ -4740,6 +4752,9 @@ components:
         - glucose
         - sleep
         - steps
+        - totalBodyWater
+        - boneMass
+        - oxygenSaturation
 
     InsightSeverityIos:
       type: string

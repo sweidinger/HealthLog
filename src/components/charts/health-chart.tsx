@@ -106,6 +106,9 @@ const BASE_TYPE_LABEL_KEYS: Record<string, string> = {
   SLEEP_DURATION: "charts.sleep",
   ACTIVITY_STEPS: "charts.steps",
   BLOOD_GLUCOSE: "measurements.typeBloodGlucose",
+  TOTAL_BODY_WATER: "charts.bodyWater",
+  BONE_MASS: "charts.boneMass",
+  OXYGEN_SATURATION: "charts.spo2",
 };
 
 function getTypeLabel(

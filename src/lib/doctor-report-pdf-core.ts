@@ -28,7 +28,12 @@ export interface DoctorReportRenderOptions {
   now?: Date;
 }
 
-const TYPE_LABEL_KEYS: Record<string, string> = {
+/**
+ * Per-vital label keys. Exported for coverage tests (issue #109 / phase P0)
+ * so a future enum addition is caught by a unit test rather than reaching
+ * production as a raw enum string in the PDF.
+ */
+export const DOCTOR_REPORT_TYPE_LABEL_KEYS: Record<string, string> = {
   WEIGHT: "doctorReport.typeWeight",
   BLOOD_PRESSURE_SYS: "doctorReport.typeBpSys",
   BLOOD_PRESSURE_DIA: "doctorReport.typeBpDia",
@@ -36,9 +41,12 @@ const TYPE_LABEL_KEYS: Record<string, string> = {
   BODY_FAT: "doctorReport.typeBodyFat",
   SLEEP_DURATION: "doctorReport.typeSleep",
   ACTIVITY_STEPS: "doctorReport.typeSteps",
+  TOTAL_BODY_WATER: "doctorReport.typeTotalBodyWater",
+  BONE_MASS: "doctorReport.typeBoneMass",
+  OXYGEN_SATURATION: "doctorReport.typeOxygenSaturation",
 };
 
-const TYPE_UNIT_KEYS: Record<string, string | null> = {
+export const DOCTOR_REPORT_TYPE_UNIT_KEYS: Record<string, string | null> = {
   WEIGHT: "kg",
   BLOOD_PRESSURE_SYS: "mmHg",
   BLOOD_PRESSURE_DIA: "mmHg",
@@ -46,7 +54,30 @@ const TYPE_UNIT_KEYS: Record<string, string | null> = {
   BODY_FAT: "%",
   SLEEP_DURATION: "h",
   ACTIVITY_STEPS: null, // translated unit
+  TOTAL_BODY_WATER: "kg",
+  BONE_MASS: "kg",
+  OXYGEN_SATURATION: "%",
 };
+
+/**
+ * Vital types rendered in the main vitals table. Body composition
+ * (TOTAL_BODY_WATER, BONE_MASS) ships alongside body fat — Withings
+ * smart scales report all three together. SpO2 (Withings ScanWatch type
+ * 54, HealthKit, n8n / Health Connect) is rendered last in the same
+ * table for clinical readability. Glucose ships separately via
+ * per-context `glucoseStats`. Sleep + activity are intentionally
+ * excluded from a clinical-focused report.
+ */
+export const DOCTOR_REPORT_VITAL_TYPES = [
+  "WEIGHT",
+  "BLOOD_PRESSURE_SYS",
+  "BLOOD_PRESSURE_DIA",
+  "PULSE",
+  "BODY_FAT",
+  "TOTAL_BODY_WATER",
+  "BONE_MASS",
+  "OXYGEN_SATURATION",
+] as const;
 
 const MOOD_LABEL_KEYS: Record<number, string> = {
   1: "doctorReport.moodAwful",
@@ -113,7 +144,7 @@ export function buildDoctorReportPdfDocument(
   const fmtDate = (iso: string) => formatters.date(iso);
 
   const unitFor = (type: string): string => {
-    const staticUnit = TYPE_UNIT_KEYS[type];
+    const staticUnit = DOCTOR_REPORT_TYPE_UNIT_KEYS[type];
     if (staticUnit === null && type === "ACTIVITY_STEPS") {
       return t("doctorReport.unitSteps");
     }
@@ -187,20 +218,13 @@ export function buildDoctorReportPdfDocument(
   y += 6;
 
   const vitalRows: string[][] = [];
-  const vitalTypes = [
-    "WEIGHT",
-    "BLOOD_PRESSURE_SYS",
-    "BLOOD_PRESSURE_DIA",
-    "PULSE",
-    "BODY_FAT",
-  ];
 
-  for (const type of vitalTypes) {
+  for (const type of DOCTOR_REPORT_VITAL_TYPES) {
     const s = data.stats[type];
     if (!s) continue;
     const unit = unitFor(type);
     vitalRows.push([
-      t(TYPE_LABEL_KEYS[type] ?? ""),
+      t(DOCTOR_REPORT_TYPE_LABEL_KEYS[type] ?? ""),
       `${num(s.latest)} ${unit}`.trim(),
       `${num(s.avg)} ${unit}`.trim(),
       num(s.min),
