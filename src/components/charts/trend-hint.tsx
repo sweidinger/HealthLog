@@ -34,7 +34,9 @@ export function TrendHint({ count }: TrendHintProps) {
       variant="plain"
       size="compact"
       icon={<TrendingUp className="size-4" />}
-      title={t("trendHints.title")}
+      title={
+        <span className="text-muted-foreground">{t("trendHints.title")}</span>
+      }
       description={description}
     />
   );

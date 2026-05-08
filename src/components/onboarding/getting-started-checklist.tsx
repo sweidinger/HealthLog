@@ -296,7 +296,7 @@ export function GettingStartedChecklist() {
               total: progress.total,
             })}
           </span>
-          <span className="font-mono tabular-nums">{progress.percent}%</span>
+          <span className="tabular-nums">{progress.percent}%</span>
         </div>
         <div className="bg-muted h-1.5 overflow-hidden rounded-full">
           <div
