@@ -460,20 +460,18 @@ export default function DashboardPage() {
           });
         }
         if (showBpCards) {
-          // BP renders as ONE tile with paired sys/dia values (e.g. "117/79")
-          // so the strip width matches the chart strip below — and so the
-          // tile count stays at 5 instead of 6 with a wrap-around. The
-          // sparkline/trend arrow follows the systolic value (the common
-          // primary signal); the colour-banding tooltips cover sys only
-          // because dia uses a different target range and stuffing both
-          // into one hint became unreadable on mobile.
+          // BP is conceptually one signal but visually two tiles (sys + dia)
+          // so the user sees both numbers side by side at the same size as
+          // every other tile in the strip. v1.4.3 first attempted a
+          // combined tile with `secondary` values — Marc preferred two
+          // distinct tiles with consistent symmetric widths.
           trendCards.push({
-            id: "bp",
+            id: "bp-sys",
             order: widgetOrder("bp"),
             node: (
               <TrendCard
-                key="bp"
-                label={t("dashboard.bloodPressure")}
+                key="bp-sys"
+                label={t("dashboard.bloodPressureSys")}
                 latest={sys?.latest ?? null}
                 unit="mmHg"
                 avg7={sys?.avg7 ?? null}
@@ -498,11 +496,42 @@ export default function DashboardPage() {
                 )}
                 slope30={sys?.slope30 ?? null}
                 icon={Heart}
-                secondary={{
-                  latest: dia?.latest ?? null,
-                  avg7: dia?.avg7 ?? null,
-                  avg30: dia?.avg30 ?? null,
-                }}
+              />
+            ),
+          });
+          trendCards.push({
+            id: "bp-dia",
+            // Sub-order keeps dia immediately after sys; the +0.001 leaves
+            // headroom for any future BP-related tile slotted between them.
+            order: widgetOrder("bp") + 0.001,
+            node: (
+              <TrendCard
+                key="bp-dia"
+                label={t("dashboard.bloodPressureDia")}
+                latest={dia?.latest ?? null}
+                unit="mmHg"
+                avg7={dia?.avg7 ?? null}
+                avg30={dia?.avg30 ?? null}
+                avg7ColorClass={getRangeColorClass(dia?.avg7, {
+                  range: bpDiaRange,
+                })}
+                avg30ColorClass={getRangeColorClass(dia?.avg30, {
+                  range: bpDiaRange,
+                })}
+                avg7Hint={getRangeHint(
+                  "mmHg",
+                  { range: bpDiaRange },
+                  t,
+                  fmt.number,
+                )}
+                avg30Hint={getRangeHint(
+                  "mmHg",
+                  { range: bpDiaRange },
+                  t,
+                  fmt.number,
+                )}
+                slope30={dia?.slope30 ?? null}
+                icon={Heart}
               />
             ),
           });
@@ -857,9 +886,15 @@ export default function DashboardPage() {
               data-tile-count={trendCards.length}
             >
               {trendCards.map((entry) => (
+                // `flex-1 basis-0` distributes the strip width evenly across
+                // every tile so 5 tiles or 7 tiles both look symmetric — no
+                // tile claims more horizontal space because its content is
+                // wider. `min-w-[9rem]` keeps the cells readable on narrow
+                // viewports; if the row no longer fits, the parent's
+                // `overflow-x-auto` lets the user swipe instead of wrapping.
                 <div
                   key={entry.id}
-                  className="flex shrink-0 grow basis-[10rem] snap-start"
+                  className="flex min-w-[9rem] flex-1 basis-0 snap-start"
                 >
                   {entry.node}
                 </div>

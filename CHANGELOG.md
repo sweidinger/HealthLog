@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.4] — 2026-05-08
+
+### Fixed — Dashboard
+
+- **Blood pressure is now two distinct tiles again** (sys + dia next
+  to each other) — the v1.4.3 attempt at a combined tile read as a
+  single double-wide entry, which Marc preferred to keep as two
+  separate tiles for visual rhythm with the other metrics.
+- **All tiles share an equal width.** The previous strip used
+  `shrink-0 grow basis-[10rem]`, which gave each tile a 160 px floor
+  and let wider content (like the BP tile) push past it. Switched
+  to `flex-1 basis-0 min-w-[9rem]` — every tile now starts from
+  zero and gets the same share of the available row width, with a
+  9 rem floor so they stay readable on narrow viewports. The strip
+  scrolls horizontally if the row no longer fits.
+
 ## [1.4.3] — 2026-05-08
 
 ### Fixed — Dashboard
