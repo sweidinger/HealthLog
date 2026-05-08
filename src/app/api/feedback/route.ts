@@ -23,6 +23,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Too many submissions — please try again later", 429);
   }
 
+  // The admin "Bug reports" toggle gates *every* feedback submission, not
+  // just the GitHub-promotion path. Previously the gate only lived in the
+  // legacy `/api/bugreport` route which the form does not even call —
+  // so flipping the toggle off had no effect on user-visible behaviour.
+  const settings = await prisma.appSettings.findUnique({
+    where: { id: "singleton" },
+    select: { bugReportEnabled: true },
+  });
+  if (settings && settings.bugReportEnabled === false) {
+    return apiError("Bug reports are disabled by the administrator", 503);
+  }
+
   const { data: body, error: jsonError } = await safeJson(request);
   if (jsonError) return jsonError;
 

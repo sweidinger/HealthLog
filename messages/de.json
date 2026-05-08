@@ -1609,7 +1609,10 @@
     "categoryOther": "Sonstiges Feedback",
     "bugTitlePlaceholder": "Kurze Zusammenfassung (optional)",
     "githubEscalationNote": "Dein Feedback wird lokal gespeichert. Wenn der Administrator die GitHub-Integration aktiviert, kann es auf Wunsch als öffentliches Issue veröffentlicht werden.",
-    "internalOnlyNote": "Dein Feedback wird lokal gespeichert und ist nur für den Administrator dieses Servers sichtbar."
+    "internalOnlyNote": "Dein Feedback wird lokal gespeichert und ist nur für den Administrator dieses Servers sichtbar.",
+    "disabledTitle": "Bug-Reports sind deaktiviert",
+    "disabledBody": "Der Administrator hat Bug-Reports auf diesem Server deaktiviert.",
+    "disabledError": "Bug-Reports sind vom Administrator deaktiviert."
   },
   "notifications": {
     "title": "Benachrichtigungen",

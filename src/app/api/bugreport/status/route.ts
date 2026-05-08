@@ -29,7 +29,11 @@ export const GET = apiHandler(async () => {
 
   const appSettings = await prisma.appSettings.findUnique({
     where: { id: "singleton" },
-    select: { githubIssueTokenEncrypted: true, githubIssueRepo: true },
+    select: {
+      githubIssueTokenEncrypted: true,
+      githubIssueRepo: true,
+      bugReportEnabled: true,
+    },
   });
 
   const hasToken = Boolean(
@@ -39,11 +43,13 @@ export const GET = apiHandler(async () => {
     appSettings?.githubIssueRepo || process.env.GITHUB_ISSUE_REPO,
   );
   const configured = hasToken && hasRepo;
+  // Default ON when the column has never been written.
+  const enabled = appSettings?.bugReportEnabled !== false;
 
   annotate({
     action: { name: "bugreport.status" },
-    meta: { configured, has_token: hasToken, has_repo: hasRepo },
+    meta: { configured, enabled, has_token: hasToken, has_repo: hasRepo },
   });
 
-  return apiSuccess({ configured, isAdmin: user.role === "ADMIN" });
+  return apiSuccess({ configured, enabled, isAdmin: user.role === "ADMIN" });
 });

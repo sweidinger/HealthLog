@@ -25,6 +25,7 @@ import { queryKeys } from "@/lib/query-keys";
 
 interface BugReportStatus {
   configured: boolean;
+  enabled: boolean;
   isAdmin: boolean;
 }
 
@@ -111,6 +112,32 @@ export default function BugReportPage() {
         <p className="text-muted-foreground text-sm">
           {t("bugreport.loginRequired")}
         </p>
+      </div>
+    );
+  }
+
+  if (status && status.enabled === false) {
+    return (
+      <div className="mx-auto w-full max-w-6xl space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {t("bugreport.title")}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {t("bugreport.subtitle")}
+          </p>
+        </div>
+        <div className="bg-card border-border border-l-dracula-orange flex gap-2 rounded-lg border-l-4 p-3 text-sm">
+          <Info className="text-dracula-orange mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="text-foreground font-medium">
+              {t("bugreport.disabledTitle")}
+            </p>
+            <p className="text-muted-foreground mt-1">
+              {t("bugreport.disabledBody")}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

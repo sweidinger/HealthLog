@@ -1609,7 +1609,10 @@
     "categoryOther": "Other feedback",
     "bugTitlePlaceholder": "Short summary (optional)",
     "githubEscalationNote": "Your feedback is stored locally. If the admin enables GitHub integration, it can be promoted to a public issue on request.",
-    "internalOnlyNote": "Your feedback is stored locally and only visible to the administrator of this server."
+    "internalOnlyNote": "Your feedback is stored locally and only visible to the administrator of this server.",
+    "disabledTitle": "Bug reports are turned off",
+    "disabledBody": "The administrator has disabled bug reports on this server.",
+    "disabledError": "Bug reports are disabled by the administrator."
   },
   "notifications": {
     "title": "Notifications",
