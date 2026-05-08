@@ -1,5 +1,70 @@
 # Changelog
 
+## [1.4.3] — 2026-05-08
+
+### Fixed — Dashboard
+
+- **Tile strip is now the same width as the charts below it.** The
+  small negative-margin bleed that helped the snap-scroll feel on
+  mobile was leaking onto desktop and made the tile row 16 px wider
+  than the chart strip. Fixed at `md` and up.
+- **Tiles all have the same height.** Blood pressure used to render
+  as two stacked tiles inside one slot which made it taller than
+  every neighbour. Sys/dia now share **one** tile and display as
+  `117/79 mmHg` with one trend arrow. Tile count drops from 6 to 5.
+- **Settings sub-section "Übersicht" renamed to "Dashboard"** —
+  matches the label in the main nav.
+- **"Persönliche Zielwerte" is its own settings section now** at
+  `/settings/thresholds`, instead of being buried inside the
+  Dashboard settings panel under the layout customizer.
+
+### Fixed — Settings
+
+- **API & Tokens tables fit the content column on desktop.**
+- **About → "Auf Updates prüfen" works again.** Production CSP
+  blocked the direct call to `api.github.com` — the check now goes
+  through a server-side proxy. The page also auto-checks once on
+  mount when the previous result is older than 24 h, and shows a
+  "Zuletzt geprüft am …" timestamp so you can tell when the answer
+  was confirmed.
+- **About restructured into three titled cards** — HealthLog (version
+  + license inline, no boxed badge), Quellen & Dokumentation, and
+  Updates.
+- **KI provider — OpenAI users can enter their own API key.** Schema
+  didn't have a column for it before; added it, plumbed it through
+  the resolver and test endpoint, surfaced the input in the Settings
+  → KI panel.
+- **Model field is now a dropdown** with provider-specific presets
+  plus an "Eigenes…" option for power users.
+- **"Mit ChatGPT verbinden" no longer dead-ends on chatgpt.com.** The
+  OAuth URL was missing its `client_id`; with `CODEX_OAUTH_CLIENT_ID`
+  set the handshake completes. When the env var isn't configured the
+  button is hidden and a hint points the user at the API-key path.
+
+### Improved — KI Insights
+
+- **AI can illustrate findings with `metric:MOOD` charts inline.** A
+  mood drift or adherence-risk finding now renders the dedicated
+  Mood chart under the paragraph instead of just prose.
+- **Every finding must cite a concrete number** ("138/85 mmHg",
+  "+0.4 mmol/L vs 30d-avg") rather than adjectives. Findings without
+  a snapshot anchor are now omitted; cardinality is variable 0–8
+  sorted by salience. Generic boilerplate ("drink enough water",
+  "consult your doctor", etc.) is explicitly forbidden outside the
+  disclaimer.
+
+### Improved — Admin
+
+- **Bug-report feature has an explicit on/off toggle.** Previously
+  the only way to hide the report button was to clear the encrypted
+  GitHub token, which forced a re-entry on resume.
+
+### Improved — Polish
+
+- **"Trennen" looks the same everywhere** (Withings, moodLog,
+  KI/Codex). Outlined button with red text — same affordance for
+  the same action.
+
 ## [1.4.2] — 2026-05-08
 
 ### Fixed — Production deploy hotfixes
