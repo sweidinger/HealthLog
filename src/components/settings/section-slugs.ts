@@ -11,6 +11,7 @@ export const SETTINGS_SECTION_SLUGS = [
   "integrations",
   "notifications",
   "dashboard",
+  "thresholds",
   "ai",
   "api",
   "advanced",

@@ -460,66 +460,50 @@ export default function DashboardPage() {
           });
         }
         if (showBpCards) {
+          // BP renders as ONE tile with paired sys/dia values (e.g. "117/79")
+          // so the strip width matches the chart strip below — and so the
+          // tile count stays at 5 instead of 6 with a wrap-around. The
+          // sparkline/trend arrow follows the systolic value (the common
+          // primary signal); the colour-banding tooltips cover sys only
+          // because dia uses a different target range and stuffing both
+          // into one hint became unreadable on mobile.
           trendCards.push({
             id: "bp",
             order: widgetOrder("bp"),
             node: (
-              <React.Fragment key="bp">
-                <TrendCard
-                  label={t("dashboard.bloodPressureSys")}
-                  latest={sys?.latest ?? null}
-                  unit="mmHg"
-                  avg7={sys?.avg7 ?? null}
-                  avg30={sys?.avg30 ?? null}
-                  avg7ColorClass={getRangeColorClass(sys?.avg7, {
-                    range: bpSysRange,
-                  })}
-                  avg30ColorClass={getRangeColorClass(sys?.avg30, {
-                    range: bpSysRange,
-                  })}
-                  avg7Hint={getRangeHint(
-                    "mmHg",
-                    { range: bpSysRange },
-                    t,
-                    fmt.number,
-                  )}
-                  avg30Hint={getRangeHint(
-                    "mmHg",
-                    { range: bpSysRange },
-                    t,
-                    fmt.number,
-                  )}
-                  slope30={sys?.slope30 ?? null}
-                  icon={Heart}
-                />
-                <TrendCard
-                  label={t("dashboard.bloodPressureDia")}
-                  latest={dia?.latest ?? null}
-                  unit="mmHg"
-                  avg7={dia?.avg7 ?? null}
-                  avg30={dia?.avg30 ?? null}
-                  avg7ColorClass={getRangeColorClass(dia?.avg7, {
-                    range: bpDiaRange,
-                  })}
-                  avg30ColorClass={getRangeColorClass(dia?.avg30, {
-                    range: bpDiaRange,
-                  })}
-                  avg7Hint={getRangeHint(
-                    "mmHg",
-                    { range: bpDiaRange },
-                    t,
-                    fmt.number,
-                  )}
-                  avg30Hint={getRangeHint(
-                    "mmHg",
-                    { range: bpDiaRange },
-                    t,
-                    fmt.number,
-                  )}
-                  slope30={dia?.slope30 ?? null}
-                  icon={Heart}
-                />
-              </React.Fragment>
+              <TrendCard
+                key="bp"
+                label={t("dashboard.bloodPressure")}
+                latest={sys?.latest ?? null}
+                unit="mmHg"
+                avg7={sys?.avg7 ?? null}
+                avg30={sys?.avg30 ?? null}
+                avg7ColorClass={getRangeColorClass(sys?.avg7, {
+                  range: bpSysRange,
+                })}
+                avg30ColorClass={getRangeColorClass(sys?.avg30, {
+                  range: bpSysRange,
+                })}
+                avg7Hint={getRangeHint(
+                  "mmHg",
+                  { range: bpSysRange },
+                  t,
+                  fmt.number,
+                )}
+                avg30Hint={getRangeHint(
+                  "mmHg",
+                  { range: bpSysRange },
+                  t,
+                  fmt.number,
+                )}
+                slope30={sys?.slope30 ?? null}
+                icon={Heart}
+                secondary={{
+                  latest: dia?.latest ?? null,
+                  avg7: dia?.avg7 ?? null,
+                  avg30: dia?.avg30 ?? null,
+                }}
+              />
             ),
           });
         }
@@ -868,14 +852,14 @@ export default function DashboardPage() {
              * touch.
              */}
             <div
-              className="-mx-2 flex snap-x snap-mandatory gap-3 overflow-x-auto px-2 pb-2"
+              className="-mx-2 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto px-2 pb-2 md:mx-0 md:px-0"
               data-slot="dashboard-tile-strip"
               data-tile-count={trendCards.length}
             >
               {trendCards.map((entry) => (
                 <div
                   key={entry.id}
-                  className="shrink-0 grow basis-[10rem] snap-start"
+                  className="flex shrink-0 grow basis-[10rem] snap-start"
                 >
                   {entry.node}
                 </div>

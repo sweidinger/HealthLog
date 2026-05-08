@@ -891,7 +891,11 @@
       },
       "dashboard": {
         "title": "Dashboard",
-        "description": "Tile layout, thresholds."
+        "description": "Tile layout and order."
+      },
+      "thresholds": {
+        "title": "Personal targets",
+        "description": "Override target ranges for every metric."
       },
       "ai": {
         "title": "AI Insights",

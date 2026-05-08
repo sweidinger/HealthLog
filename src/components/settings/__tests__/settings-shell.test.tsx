@@ -35,14 +35,18 @@ function renderShell(props: {
 }
 
 describe("SETTINGS_SECTION_SLUGS", () => {
-  it("declares exactly the eight sections agreed for v1.4", () => {
+  it("declares exactly the nine sections agreed for v1.4.3", () => {
     // Order matters — `generateStaticParams()` and the sidebar derive their
     // ordering from this constant, so a reorder is a behaviour change.
+    // v1.4.3 split the dashboard panel: layout stays under `dashboard`,
+    // per-metric overrides moved to their own `thresholds` slug so it's
+    // a top-level entry in the settings nav.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "integrations",
       "notifications",
       "dashboard",
+      "thresholds",
       "ai",
       "api",
       "advanced",
@@ -67,7 +71,7 @@ describe("SETTINGS_SECTION_SLUGS", () => {
 });
 
 describe("<SettingsShell>", () => {
-  it("renders all eight section links — once for the mobile strip and once for the desktop sidebar", () => {
+  it("renders every section link — once for the mobile strip and once for the desktop sidebar", () => {
     const html = renderShell({ active: "account" });
     for (const slug of SETTINGS_SECTION_SLUGS) {
       const matches = html.match(new RegExp(`href="/settings/${slug}"`, "g"));
@@ -138,7 +142,12 @@ describe("<SettingsShell>", () => {
     expect(html).toContain("Konto");
     expect(html).toContain("Integrationen");
     expect(html).toContain("Benachrichtigungen");
-    expect(html).toContain("Übersicht");
+    // v1.4.3: the Settings sub-section formerly labelled "Übersicht" is now
+    // "Dashboard" (matching the term users see in the main nav). The
+    // per-metric overrides moved out into their own "Persönliche Zielwerte"
+    // section, which is the new entry below the Dashboard one.
+    expect(html).toContain("Dashboard");
+    expect(html).toContain("Persönliche Zielwerte");
     expect(html).toContain("KI-Auswertungen");
     // API & Tokens is identical in both locales (proper noun + ampersand)
     expect(html).toContain("API &amp; Tokens");

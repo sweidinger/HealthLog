@@ -11,6 +11,13 @@ import {
 } from "@/components/ui/tooltip";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 
+interface SecondaryMetric {
+  /** Sub-value latest reading (e.g. diastolic when latest is systolic). */
+  latest: number | null;
+  avg7: number | null;
+  avg30: number | null;
+}
+
 interface TrendCardProps {
   label: string;
   latest: number | null;
@@ -23,6 +30,10 @@ interface TrendCardProps {
   avg30Hint?: React.ReactNode;
   slope30: TrendSlope | null;
   icon: React.ComponentType<{ className?: string }>;
+  /** Optional second value rendered next to the primary as `X / Y` (used for
+   *  paired metrics like blood-pressure systolic/diastolic so a single tile
+   *  shows both numbers). */
+  secondary?: SecondaryMetric;
 }
 
 export function TrendCard({
@@ -37,6 +48,7 @@ export function TrendCard({
   avg30Hint,
   slope30,
   icon: Icon,
+  secondary,
 }: TrendCardProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -58,8 +70,19 @@ export function TrendCard({
 
   const formatValue = (value: number) => fmt.number(value, 1);
 
+  const renderPair = (
+    primary: number | null,
+    secondaryValue: number | null | undefined,
+  ): string => {
+    if (primary === null) return "—";
+    if (secondary && secondaryValue !== null && secondaryValue !== undefined) {
+      return `${formatValue(primary)}/${formatValue(secondaryValue)}`;
+    }
+    return formatValue(primary);
+  };
+
   return (
-    <div className="bg-card border-border rounded-xl border p-3">
+    <div className="bg-card border-border flex h-full flex-col rounded-xl border p-3">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm font-medium">
           {label}
@@ -68,13 +91,15 @@ export function TrendCard({
       </div>
       <div className="mt-2 flex items-baseline gap-2">
         <span className="text-2xl font-bold">
-          {latest !== null ? formatValue(latest) : "—"}
+          {latest !== null
+            ? renderPair(latest, secondary?.latest)
+            : "—"}
         </span>
         <span className="text-muted-foreground text-sm">{unit}</span>
         {slope30 && <TrendIcon className={`h-4 w-4 ${trendColor}`} />}
       </div>
       <TooltipProvider>
-        <div className="text-muted-foreground mt-1 flex gap-3 text-xs">
+        <div className="text-muted-foreground mt-auto flex gap-3 pt-1 text-xs">
           {avg7 !== null && (
             <span>
               {t("charts.avg7dShort")}:{" "}
@@ -82,7 +107,7 @@ export function TrendCard({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className={cn("font-medium", avg7ColorClass)}>
-                      {formatValue(avg7)}
+                      {renderPair(avg7, secondary?.avg7)}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent className="bg-muted border-border text-foreground">
@@ -91,7 +116,7 @@ export function TrendCard({
                 </Tooltip>
               ) : (
                 <span className={cn("font-medium", avg7ColorClass)}>
-                  {formatValue(avg7)}
+                  {renderPair(avg7, secondary?.avg7)}
                 </span>
               )}
             </span>
@@ -103,7 +128,7 @@ export function TrendCard({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className={cn("font-medium", avg30ColorClass)}>
-                      {formatValue(avg30)}
+                      {renderPair(avg30, secondary?.avg30)}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent className="bg-muted border-border text-foreground">
@@ -112,7 +137,7 @@ export function TrendCard({
                 </Tooltip>
               ) : (
                 <span className={cn("font-medium", avg30ColorClass)}>
-                  {formatValue(avg30)}
+                  {renderPair(avg30, secondary?.avg30)}
                 </span>
               )}
             </span>

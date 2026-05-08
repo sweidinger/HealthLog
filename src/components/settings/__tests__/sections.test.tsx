@@ -122,11 +122,16 @@ describe("settings sections — SSR smoke", () => {
     expect(html).toContain("Notifications");
   });
 
-  it("<DashboardSection> renders heading and embeds layout + thresholds", () => {
+  it("<DashboardSection> renders heading and embeds the layout customizer", () => {
+    // v1.4.3 split: the per-metric thresholds (Persönliche Zielwerte) moved
+    // out into their own settings section under `/settings/thresholds`,
+    // so the dashboard panel is now layout-only. Verifying the heading
+    // says "Dashboard" (not "Übersicht" — the v1.4.2 placeholder) and the
+    // layout slot still mounts.
     const html = render(<DashboardSection />);
     expect(html).toContain("Dashboard");
     expect(html).toContain('data-testid="dashboard-layout"');
-    expect(html).toContain('data-testid="thresholds"');
+    expect(html).not.toContain('data-testid="thresholds"');
   });
 
   it("<ApiSection> renders endpoints + tokens cards", () => {

@@ -890,8 +890,12 @@
         "description": "Telegram, ntfy, Web Push."
       },
       "dashboard": {
-        "title": "Übersicht",
-        "description": "Kachel-Layout, Schwellwerte."
+        "title": "Dashboard",
+        "description": "Kachel-Layout und Reihenfolge."
+      },
+      "thresholds": {
+        "title": "Persönliche Zielwerte",
+        "description": "Eigene Zielbereiche für jede Metrik."
       },
       "ai": {
         "title": "KI-Auswertungen",
