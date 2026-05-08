@@ -296,7 +296,7 @@ export function MoodList() {
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="text-primary h-6 w-6 animate-spin" />
           </div>
-        ) : !data?.entries.length ? (
+        ) : !data?.entries?.length ? (
           <div className="text-muted-foreground flex h-32 items-center justify-center rounded-lg border border-dashed">
             {t("mood.noEntries")}
           </div>

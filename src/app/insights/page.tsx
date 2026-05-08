@@ -633,10 +633,10 @@ export default function InsightsPage() {
     staleTime: 60 * 1000,
   });
   const w = analytics?.summaries?.WEIGHT;
-  const sys = analytics?.summaries.BLOOD_PRESSURE_SYS;
-  const dia = analytics?.summaries.BLOOD_PRESSURE_DIA;
-  const p = analytics?.summaries.PULSE;
-  const bf = analytics?.summaries.BODY_FAT;
+  const sys = analytics?.summaries?.BLOOD_PRESSURE_SYS;
+  const dia = analytics?.summaries?.BLOOD_PRESSURE_DIA;
+  const p = analytics?.summaries?.PULSE;
+  const bf = analytics?.summaries?.BODY_FAT;
   const showBodyFatCard = (bf?.count ?? 0) > 0;
   const moodSummary = data?.moodSummary;
   const showMoodCard = (moodSummary?.count ?? 0) > 0;
@@ -710,7 +710,7 @@ export default function InsightsPage() {
     classifyRangeValue(bmiAvg30, bmiRange),
   ]);
   const bpMedications =
-    data?.medications.filter(
+    data?.medications?.filter(
       (medication) => medication.category === "BLOOD_PRESSURE",
     ) ?? [];
   const bpMedicationCompliance30 =

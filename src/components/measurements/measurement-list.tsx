@@ -300,7 +300,7 @@ export function MeasurementList({ onEdit }: MeasurementListProps) {
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="text-primary h-6 w-6 animate-spin" />
           </div>
-        ) : !data?.measurements.length ? (
+        ) : !data?.measurements?.length ? (
           <div className="text-muted-foreground flex h-32 items-center justify-center rounded-lg border border-dashed">
             {t("measurements.noMeasurements")}
           </div>

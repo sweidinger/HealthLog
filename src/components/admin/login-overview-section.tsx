@@ -45,7 +45,7 @@ export function LoginOverviewSection({ id }: { id: string }) {
 
   const entries =
     filter === "failed"
-      ? data?.entries.filter((e) => e.action === "auth.login.failed")
+      ? data?.entries?.filter((e) => e.action === "auth.login.failed")
       : data?.entries;
 
   return (

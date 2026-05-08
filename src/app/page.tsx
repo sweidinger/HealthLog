@@ -198,12 +198,12 @@ export default function DashboardPage() {
   });
 
   const w = data?.summaries?.WEIGHT;
-  const sys = data?.summaries.BLOOD_PRESSURE_SYS;
-  const dia = data?.summaries.BLOOD_PRESSURE_DIA;
-  const p = data?.summaries.PULSE;
-  const bf = data?.summaries.BODY_FAT;
-  const sleepSummary = data?.summaries.SLEEP_DURATION;
-  const stepsSummary = data?.summaries.ACTIVITY_STEPS;
+  const sys = data?.summaries?.BLOOD_PRESSURE_SYS;
+  const dia = data?.summaries?.BLOOD_PRESSURE_DIA;
+  const p = data?.summaries?.PULSE;
+  const bf = data?.summaries?.BODY_FAT;
+  const sleepSummary = data?.summaries?.SLEEP_DURATION;
+  const stepsSummary = data?.summaries?.ACTIVITY_STEPS;
   const moodSummary = moodData?.summary;
 
   // Resolve full dashboard layout — controls visibility + order of every widget

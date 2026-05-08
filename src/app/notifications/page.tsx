@@ -112,7 +112,7 @@ export default function NotificationsPage() {
   });
 
   function isEnabled(channelId: string, eventType: string): boolean {
-    const pref = data?.preferences.find(
+    const pref = data?.preferences?.find(
       (p) => p.channelId === channelId && p.eventType === eventType,
     );
     // Opt-out model: default is ON when no preference row exists
