@@ -9,13 +9,25 @@ import { expect, test } from "@playwright/test";
  * roundtrip is exercised by the integration test in
  * tests/integration/auth-flow.test.ts.
  */
+async function openPasswordForm(page: import("@playwright/test").Page) {
+  await page.goto("/auth/login");
+  // The login page defaults to passkey mode; the password form is
+  // mounted only after clicking the "Login with password" / "Mit
+  // Passwort anmelden" outline button.
+  await page
+    .getByRole("button", { name: /login with password|mit passwort/i })
+    .click();
+}
+
 test.describe("login page", () => {
   test("renders username + password inputs with the right autoComplete", async ({
     page,
   }) => {
-    await page.goto("/auth/login");
+    await openPasswordForm(page);
 
-    const username = page.getByLabel(/username|benutzername/i).first();
+    const username = page
+      .getByLabel(/username|benutzername|email|e-mail/i)
+      .first();
     await expect(username).toBeVisible();
     await expect(username).toHaveAttribute("autoComplete", /username|email/);
 
@@ -25,10 +37,10 @@ test.describe("login page", () => {
   });
 
   test("rejects an obviously-wrong credential pair", async ({ page }) => {
-    await page.goto("/auth/login");
+    await openPasswordForm(page);
 
     await page
-      .getByLabel(/username|benutzername/i)
+      .getByLabel(/username|benutzername|email|e-mail/i)
       .first()
       .fill("nobody-here");
     await page.locator('input[type="password"]').first().fill("not-the-pw");

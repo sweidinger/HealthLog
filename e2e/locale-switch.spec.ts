@@ -16,11 +16,16 @@ test.describe("locale switch", () => {
       page,
       context,
     }) => {
+      // Cookies must be addressable to a real origin — `page.url()` on
+      // a fresh context returns `about:blank`, which Playwright rejects.
+      // Anchor at the configured base URL explicitly.
+      const baseURL =
+        test.info().project.use.baseURL ?? "http://localhost:3000";
       await context.addCookies([
         {
           name: "healthlog_locale",
           value: locale,
-          url: page.url() || "http://localhost:3000",
+          url: baseURL,
         },
       ]);
       await page.goto("/auth/login");

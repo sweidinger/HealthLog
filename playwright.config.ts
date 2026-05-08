@@ -44,7 +44,11 @@ export default defineConfig({
     {
       name: "chromium-mobile",
       use: {
-        ...devices["iPhone 13"],
+        // Pixel 5 — Chromium-based mobile profile so CI only needs
+        // `playwright install chromium` instead of also pulling
+        // webkit. iPhone-13 is intentionally avoided here; the
+        // mobile-Safari smoke is exercised by the iOS app suite.
+        ...devices["Pixel 5"],
       },
     },
   ],
