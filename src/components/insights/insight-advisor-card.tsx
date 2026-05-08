@@ -19,9 +19,11 @@ import {
 } from "lucide-react";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { HealthChart } from "@/components/charts/health-chart";
+import { MoodChart } from "@/components/charts/mood-chart";
 import {
   parseChartTokens,
   stripChartTokens,
+  tokenKind,
   tokenToMetric,
   type ChartToken,
 } from "@/lib/insights/chart-tokens";
@@ -238,6 +240,7 @@ function InlineCharts({ tokens }: { tokens: ChartToken[] }) {
     <div data-slot="insight-inline-charts" className="space-y-3">
       {unique.map((token) => {
         const metric = tokenToMetric(token);
+        const kind = tokenKind(token);
         const titleKey = INLINE_CHART_TITLE_KEYS[metric];
         const title = titleKey ? t(titleKey) : metric;
         return (
@@ -246,7 +249,11 @@ function InlineCharts({ tokens }: { tokens: ChartToken[] }) {
             data-slot="insight-inline-chart"
             data-metric={metric}
           >
-            <HealthChart types={[metric]} title={title} />
+            {kind === "mood" ? (
+              <MoodChart />
+            ) : (
+              <HealthChart types={[metric]} title={title} />
+            )}
           </div>
         );
       })}

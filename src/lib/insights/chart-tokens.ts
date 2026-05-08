@@ -7,18 +7,19 @@
  * — anything else (typos, hallucinations, attempts to inject other strings)
  * is silently dropped before it ever reaches the renderer.
  *
- * Render path: prose → parseChartTokens(prose) → <HealthChart> per token.
- * The visible prose is run through stripChartTokens so the literal token
- * string never surfaces in the UI.
+ * Render path: prose → parseChartTokens(prose) → matching chart component
+ * per token. The visible prose is run through stripChartTokens so the
+ * literal token string never surfaces in the UI.
  */
-// Allowlist deliberately limited to MeasurementType values that
-// `<HealthChart>` already understands (the type param feeds into
-// `/api/measurements?type=<TYPE>` which Zod-validates against
-// `measurementTypeEnum`).
+// v1.4.3: allowlist extended with `metric:MOOD` so the AI can illustrate
+// findings about mood drift inline. <MoodChart> is self-fetching, so the
+// renderer just mounts it.
 //
-// `MOOD` and `COMPLIANCE` are NOT in the enum — they need their own chart
-// components, so emitting them here would render an empty "no data" panel
-// under the model's prose. Excluded until those dedicated charts ship.
+// `metric:COMPLIANCE` was prepared but pulled before ship — the existing
+// <ComplianceLineChart> takes pre-aggregated daily data via props and
+// has no self-fetching wrapper, so wiring it inline would silently
+// render an empty chart. Land it in v1.5 once a self-fetching wrapper
+// exists.
 export const ALLOWED_CHART_TOKENS = [
   "metric:WEIGHT",
   "metric:BLOOD_PRESSURE_SYS",
@@ -31,6 +32,7 @@ export const ALLOWED_CHART_TOKENS = [
   "metric:TOTAL_BODY_WATER",
   "metric:BONE_MASS",
   "metric:OXYGEN_SATURATION",
+  "metric:MOOD",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
@@ -61,7 +63,18 @@ export function stripChartTokens(text: string): string {
     .trim();
 }
 
-/** Map a chart token to the metric param the HealthChart component uses. */
+/** Map a chart token to the metric param the underlying chart component
+ *  expects. For MeasurementType-backed tokens this is a real enum value
+ *  (`WEIGHT`, `PULSE`, …); for `MOOD` and `COMPLIANCE` it's a synthetic
+ *  identifier the renderer routes to a dedicated chart component. */
 export function tokenToMetric(token: ChartToken): string {
   return token.slice("metric:".length);
+}
+
+/** Token kinds the renderer needs to distinguish. MeasurementType tokens
+ *  feed `<HealthChart>`; `metric:MOOD` mounts the dedicated, self-fetching
+ *  `<MoodChart>` instead. */
+export function tokenKind(token: ChartToken): "measurement" | "mood" {
+  if (token === "metric:MOOD") return "mood";
+  return "measurement";
 }

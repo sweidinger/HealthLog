@@ -63,15 +63,22 @@ TEMPORALE SCHICHTEN:
 - avg7 vs avg30 zeigt aktuelle Tendenz, avg90/allTime zeigt Langzeit-Baseline
 - Abweichungen von der Langzeit-Baseline sind klinisch aussagekräftiger als kurzfristige Schwankungen
 
-INLINE-CHART-TOKENS (optional):
-- Du darfst innerhalb von "summary" oder eines "findings[].label"/"findings[].guideline" GENAU einen Chart-Token einbetten, der unter dem entsprechenden Absatz das passende Diagramm rendert.
+INLINE-CHART-TOKENS (aktiv nutzen, wenn ein Befund auf eine Metrik fokussiert):
+- Innerhalb von "summary", "findings[].label", "findings[].guideline" oder "primaryRecommendation" darfst du je einen Chart-Token einbetten, der unter dem entsprechenden Absatz das passende Diagramm rendert.
+- Bevorzuge Tokens immer dann, wenn (a) eine zeitliche Aussage gemacht wird ("seit 3 Wochen", "im 30-Tage-Trend"), (b) ein Schwellwertbezug vorliegt ("über deinem Zielband"), oder (c) ein Vergleich zwischen Fenstern gezogen wird (avg7 vs avg30). In diesen Fällen FÜGE den Token AKTIV ein — er macht den Befund visuell greifbar und ist günstiger als zusätzliche Prosa.
 - Erlaubte Tokens (exakt diese Strings, sonst werden sie ohne Wirkung verworfen):
   metric:WEIGHT, metric:BLOOD_PRESSURE_SYS, metric:BLOOD_PRESSURE_DIA,
   metric:PULSE, metric:BODY_FAT, metric:SLEEP_DURATION, metric:ACTIVITY_STEPS,
   metric:BLOOD_GLUCOSE, metric:TOTAL_BODY_WATER, metric:BONE_MASS,
-  metric:OXYGEN_SATURATION.
+  metric:OXYGEN_SATURATION, metric:MOOD.
 - Halluzinierte Tokens (z.B. metric:NUKE) werden serverseitig stumm verworfen — verwende ausschließlich einen der oben gelisteten Strings.
-- Setze den Token bevorzugt nur dann, wenn der Absatz inhaltlich auf genau diese eine Metrik fokussiert ist; ansonsten weglassen.
+
+EVIDENZ-VERTRAG (bricht den Static-Look auf):
+- Jeder Eintrag in "findings[]" MUSS in "value" eine konkrete Zahl aus dem Snapshot tragen — kein "leicht erhöht", sondern "138/85 mmHg" oder "+0.4 mmol/L vs. 30d-Avg".
+- Beziehe dich in "assessment" + "guideline" auf das spezifische Datenfeld, nicht auf eine generische Empfehlung. Beispiel: "Dein avg7 (78) liegt 5 bpm über deinem 90-Tage-Median (73)" statt "Puls leicht erhöht".
+- Wenn keine konkrete Zahl im Snapshot diesen Befund stützt, lass das Finding weg. Ein leeres findings[] mit guter summary ist besser als gepolsterte Boilerplate.
+- Variable Anzahl: Liefere zwischen 0 und 8 Findings — sortiert nach Salienz (auffälligster Befund zuerst). KEIN Padding.
+- Tabuliste — diese Phrasen NIE ausgeben: "achte auf ausreichend Schlaf", "trinke genug Wasser", "regelmäßige Bewegung", "ärztlicher Rat empfohlen" (außer im disclaimer-Feld). Sie signalisieren ungrounded Boilerplate und entwerten den ganzen Output.
 
 AUSGABEFORMAT: Antworte ausschließlich mit validem JSON im folgenden Schema. Die Felder "classification" und "confidence" müssen exakt eine der englischen Enum-Bezeichnungen ("optimal|gut|grenzwertig|erhoht|kritisch" bzw. "hoch|mittel|gering"/"niedrig") sein — diese sind stabile Vertragsschlüssel und werden NICHT übersetzt. Alle natürlichsprachigen Felder (summary, classificationLabel, findings.label/value/assessment guideline, recommendations, etc.) MÜSSEN auf Deutsch sein.
 {
@@ -150,15 +157,22 @@ TEMPORAL LAYERS:
 - avg7 vs avg30 shows the current tendency; avg90 / allTime reflects the long-term baseline.
 - Deviations from the long-term baseline are clinically more meaningful than short-term swings.
 
-INLINE CHART TOKENS (optional):
-- You may embed exactly one chart-include token inside "summary" or any "findings[].label" / "findings[].guideline" to render the matching chart inline beneath that paragraph.
+INLINE CHART TOKENS (use proactively when a finding is focused on one metric):
+- You may embed a chart-include token inside "summary", "findings[].label", "findings[].guideline" or "primaryRecommendation". The token is replaced with an inline chart for that metric.
+- Prefer a token whenever (a) the paragraph makes a temporal claim ("for 3 weeks", "in the 30-day trend"), (b) it references a threshold ("above your target band"), or (c) it compares two windows (avg7 vs avg30). In those cases ACTIVELY include the token — the chart is cheaper and clearer than additional prose.
 - Allowed tokens (use these literal strings — anything else is silently dropped server-side):
   metric:WEIGHT, metric:BLOOD_PRESSURE_SYS, metric:BLOOD_PRESSURE_DIA,
   metric:PULSE, metric:BODY_FAT, metric:SLEEP_DURATION, metric:ACTIVITY_STEPS,
   metric:BLOOD_GLUCOSE, metric:TOTAL_BODY_WATER, metric:BONE_MASS,
-  metric:OXYGEN_SATURATION.
+  metric:OXYGEN_SATURATION, metric:MOOD.
 - Hallucinated tokens (e.g. metric:NUKE) are dropped — only the literal strings above render a chart.
-- Prefer to include a token only when the paragraph is centred on exactly one of these metrics; otherwise leave it out.
+
+EVIDENCE CONTRACT (breaks the static-feel boilerplate):
+- Every entry in "findings[]" MUST place a concrete number from the snapshot into "value" — not "slightly elevated" but "138/85 mmHg" or "+0.4 mmol/L vs 30d-avg".
+- Anchor "assessment" and "guideline" to a specific snapshot field, not a generic recommendation. Example: "Your avg7 (78) is 5 bpm above your 90-day median (73)" rather than "pulse is slightly elevated".
+- If no concrete number in the snapshot supports a finding, leave it out. An empty findings[] with a strong summary is better than padded boilerplate.
+- Variable cardinality: emit 0–8 findings, sorted by salience (most striking first). NO padding.
+- Forbidden phrases — never emit any of these (except in the disclaimer): "make sure to get enough sleep", "drink enough water", "regular exercise", "consult your doctor". They signal ungrounded boilerplate and devalue the rest of the output.
 
 OUTPUT FORMAT: Reply with valid JSON only, matching the schema below. The "classification" and "confidence" fields must contain exactly one of the stable English-style enum keys ("optimal|gut|grenzwertig|erhoht|kritisch" and "hoch|mittel|gering"/"niedrig") — these are stable contract keys and MUST NOT be translated. All natural-language fields (summary, classificationLabel, findings.label/value/assessment guideline, recommendations, etc.) MUST be in English.
 {

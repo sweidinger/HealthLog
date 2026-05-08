@@ -86,12 +86,19 @@ describe("ALLOWED_CHART_TOKENS — drift guard", () => {
     }
   });
 
-  it("excludes mood and compliance tokens until dedicated charts ship", () => {
-    // `<HealthChart>` validates `type` against `measurementTypeEnum`, so
-    // emitting `metric:MOOD` or `metric:COMPLIANCE` would render an empty
-    // panel. Keep them out of the allowlist until a real MoodChart /
-    // ComplianceChart is wired into the renderer.
-    expect(ALLOWED_CHART_TOKENS).not.toContain("metric:MOOD");
+  it("includes metric:MOOD now that <MoodChart> is wired into the renderer", () => {
+    // v1.4.3 enabled `metric:MOOD`. The renderer in
+    // `<InsightAdvisorCard>` branches on `tokenKind(token) === "mood"`
+    // and mounts the dedicated, self-fetching `<MoodChart>` instead of
+    // the generic `<HealthChart>` (which Zod-validates against
+    // `measurementTypeEnum` and would silently render empty).
+    expect(ALLOWED_CHART_TOKENS).toContain("metric:MOOD");
+  });
+
+  it("excludes metric:COMPLIANCE because no self-fetching wrapper exists yet", () => {
+    // `<ComplianceLineChart>` requires pre-aggregated daily data via
+    // props; without a self-fetching wrapper the AI's inline rendering
+    // would silently empty out. Land in v1.5 once the wrapper exists.
     expect(ALLOWED_CHART_TOKENS).not.toContain("metric:COMPLIANCE");
   });
 });
