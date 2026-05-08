@@ -402,13 +402,20 @@ export function InsightAdvisorCard({
           </div>
         )}
 
-        {/* Primary Recommendation */}
+        {/* Primary Recommendation — prose first, then any inline charts the
+         * model emitted via `metric:<TYPE>` tokens. Tokens are stripped from
+         * the visible text so they never leak into the hero card. */}
         {insight.primaryRecommendation && (
-          <div className="border-dracula-purple bg-dracula-purple/5 rounded-md border-l-2 px-4 py-3">
+          <div className="border-dracula-purple bg-dracula-purple/5 space-y-3 rounded-md border-l-2 px-4 py-3">
             <p className="text-dracula-purple mb-1 text-xs font-medium tracking-widest uppercase">
               {t("insights.keyTakeaway")}
             </p>
-            <p className="text-sm">{insight.primaryRecommendation}</p>
+            <p className="text-sm">
+              {stripChartTokens(insight.primaryRecommendation)}
+            </p>
+            <InlineCharts
+              tokens={parseChartTokens(insight.primaryRecommendation)}
+            />
           </div>
         )}
 
