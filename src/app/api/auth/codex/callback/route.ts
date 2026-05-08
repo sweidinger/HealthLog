@@ -14,7 +14,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const rl = await checkRateLimit(`codex-callback:${user.id}`, 10, 60_000);
   if (!rl.allowed) {
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
-    return NextResponse.redirect(`${appUrl}/settings?codex_error=rate_limited`);
+    return NextResponse.redirect(`${appUrl}/settings/integrations?codex_error=rate_limited`);
   }
 
   const url = new URL(request.url);
@@ -29,13 +29,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
   if (error) {
     annotate({ meta: { oauth_error: error } });
     return NextResponse.redirect(
-      `${appUrl}/settings?codex_error=${encodeURIComponent(error)}`,
+      `${appUrl}/settings/integrations?codex_error=${encodeURIComponent(error)}`,
     );
   }
 
   if (!code || !state) {
     return NextResponse.redirect(
-      `${appUrl}/settings?codex_error=missing_params`,
+      `${appUrl}/settings/integrations?codex_error=missing_params`,
     );
   }
 
@@ -48,7 +48,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   if (!storedState || !storedVerifier || state !== storedState) {
     return NextResponse.redirect(
-      `${appUrl}/settings?codex_error=invalid_state`,
+      `${appUrl}/settings/integrations?codex_error=invalid_state`,
     );
   }
 
@@ -70,9 +70,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       data: {
         codexAccessTokenEncrypted: encrypted.accessEncrypted,
         codexRefreshTokenEncrypted: encrypted.refreshEncrypted,
-        codexTokenExpiresAt: new Date(
-          Date.now() + tokens.expires_in * 1000,
-        ),
+        codexTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
         codexConnectedAt: new Date(),
         codexConnectionStatus: "connected",
         insightsCachedAt: null,
@@ -86,12 +84,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
     });
     annotate({ action: { name: "codex.oauth.callback.success" } });
 
-    return NextResponse.redirect(`${appUrl}/settings?codex_connected=true`);
+    return NextResponse.redirect(
+      `${appUrl}/settings/integrations?codex_connected=true`,
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
     annotate({ meta: { codex_token_error: message } });
     return NextResponse.redirect(
-      `${appUrl}/settings?codex_error=token_exchange_failed`,
+      `${appUrl}/settings/integrations?codex_error=token_exchange_failed`,
     );
   }
 });
