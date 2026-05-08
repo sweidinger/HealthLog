@@ -21,6 +21,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { formatDateShort } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import {
+  bucketTimeSeries,
+  pickBucket,
+  type ChartBucketType,
+} from "@/lib/charts/bucket-time-series";
 
 const TIME_RANGES_KEYS = [
   {
@@ -326,8 +331,46 @@ export function HealthChart({
   const chartData = useMemo(() => {
     if (!data?.length) return data;
 
-    const visibleData = rangePoints > 0 ? data.slice(-rangePoints) : [...data];
-    const enriched: ChartDataPoint[] = visibleData.map((d, index) => ({
+    const sliced = rangePoints > 0 ? data.slice(-rangePoints) : [...data];
+
+    // v1.4.6: aggregate to weekly / monthly when the visible range is
+    // long enough that drawing every daily point would clutter the
+    // chart. Picking the bucket from the *visible* range, not the
+    // total dataset, so a "30 days" toggle still shows daily even on
+    // a five-year-old account.
+    const rangeDays =
+      sliced.length < 2
+        ? 0
+        : Math.round(
+            (sliced[sliced.length - 1].timestamp - sliced[0].timestamp) /
+              (24 * 60 * 60 * 1000),
+          );
+    const bucketType = pickBucket(rangeDays);
+
+    const bucketed =
+      bucketType === "day"
+        ? sliced
+        : bucketTimeSeries(
+            sliced.map((p) => ({
+              timestamp: p.timestamp,
+              values: Object.fromEntries(
+                types.map((type) => [type, p[type] as number | undefined]),
+              ),
+            })),
+            { bucket: bucketType },
+          ).points.map<ChartDataPoint>((point) => {
+            const date = new Date(point.timestamp);
+            const out: ChartDataPoint = {
+              date: formatDateShort(date),
+              timestamp: point.timestamp,
+            };
+            for (const [type, value] of Object.entries(point.values)) {
+              out[type] = value;
+            }
+            return out;
+          });
+
+    const enriched: ChartDataPoint[] = bucketed.map((d, index) => ({
       ...d,
       pointIndex: index,
     }));
@@ -384,6 +427,17 @@ export function HealthChart({
 
     return enriched;
   }, [data, rangePoints, showMA, showTrend, types]);
+
+  const activeBucket: ChartBucketType = useMemo(() => {
+    if (!data?.length) return "day";
+    const sliced = rangePoints > 0 ? data.slice(-rangePoints) : data;
+    if (sliced.length < 2) return "day";
+    const rangeDays = Math.round(
+      (sliced[sliced.length - 1].timestamp - sliced[0].timestamp) /
+        (24 * 60 * 60 * 1000),
+    );
+    return pickBucket(rangeDays);
+  }, [data, rangePoints]);
 
   const yDomain = useMemo<[number, number] | undefined>(() => {
     if (!chartData?.length) return undefined;
@@ -550,7 +604,18 @@ export function HealthChart({
   return (
     <div className="bg-card border-border rounded-xl border p-4 md:p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {activeBucket !== "day" && (
+            <span className="bg-muted/40 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+              {t(
+                activeBucket === "week"
+                  ? "charts.bucketWeekly"
+                  : "charts.bucketMonthly",
+              )}
+            </span>
+          )}
+        </div>
         <div className="flex flex-wrap justify-end gap-1">
           {TIME_RANGES_KEYS.map((r) => (
             <Button

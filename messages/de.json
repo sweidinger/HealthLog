@@ -532,6 +532,8 @@
     "noData": "Keine Daten im gewählten Zeitraum",
     "movingAverage": "Gleitender Durchschnitt",
     "target": "Zielbereich",
+    "bucketWeekly": "Wochendurchschnitt",
+    "bucketMonthly": "Monatsdurchschnitt",
     "points7Label": "7 Pkt",
     "points7Title": "Letzte 7 Messpunkte",
     "points30Label": "30 Pkt",

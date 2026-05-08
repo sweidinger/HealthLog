@@ -532,6 +532,8 @@
     "noData": "No data in selected time range",
     "movingAverage": "Moving average",
     "target": "Target range",
+    "bucketWeekly": "Weekly avg",
+    "bucketMonthly": "Monthly avg",
     "points7Label": "7 pts",
     "points7Title": "Last 7 data points",
     "points30Label": "30 pts",
