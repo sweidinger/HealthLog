@@ -117,6 +117,20 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
     throw new HttpError(422, "No valid fields");
   }
 
+  // When the provider switches away from LOCAL, drop any stored
+  // `aiBaseUrl`. The column is shared across providers, so without
+  // this a user who once configured LOCAL → http://192.168.x.x and
+  // then switched to OPENAI/ANTHROPIC would have their cloud key
+  // sent to that URL on the next request. Only LOCAL legitimately
+  // uses a custom base URL.
+  if (
+    typeof updates.aiProvider === "string" &&
+    updates.aiProvider !== "LOCAL" &&
+    !("aiBaseUrl" in updates)
+  ) {
+    updates.aiBaseUrl = null;
+  }
+
   await prisma.user.update({ where: { id: user.id }, data: updates });
 
   return apiSuccess({ updated: true });

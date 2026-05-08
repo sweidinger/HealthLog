@@ -46,10 +46,13 @@ function buildUserProvider(row: UserAIRow): AIProvider | null {
   switch (choice) {
     case "ANTHROPIC": {
       if (!row.aiAnthropicKeyEncrypted) return null;
+      // Belt-and-braces: even if a stale `aiBaseUrl` from a prior LOCAL
+      // configuration survived in the row, refuse to forward an Anthropic
+      // key to it. Anthropic has no per-tenant base URL the UI exposes;
+      // the SDK default is correct.
       return new AnthropicClient({
         apiKey: decrypt(row.aiAnthropicKeyEncrypted),
         model: row.aiModel ?? "claude-3-5-sonnet-latest",
-        baseUrl: row.aiBaseUrl ?? undefined,
       });
     }
     case "LOCAL": {
@@ -68,11 +71,14 @@ function buildUserProvider(row: UserAIRow): AIProvider | null {
       // model-default mirrors the admin path for consistency so a saved
       // user "OPENAI" without an explicit model still produces an
       // OpenAIClient with `gpt-4o-mini`.
+      // Belt-and-braces: ignore any persisted `aiBaseUrl`. The column is
+      // shared with LOCAL, so a stale LAN URL there would otherwise
+      // redirect the user's OpenAI key to a private host.
       if (!row.aiOpenaiKeyEncrypted) return null;
       return new OpenAIClient({
         apiKey: decrypt(row.aiOpenaiKeyEncrypted),
         model: row.aiModel ?? "gpt-4o-mini",
-        baseUrl: row.aiBaseUrl ?? "https://api.openai.com/v1",
+        baseUrl: "https://api.openai.com/v1",
       });
     }
     case "CHATGPT_OAUTH":
@@ -306,10 +312,12 @@ export async function resolveProviderForTest(
       if (!apiKey) {
         throw new AITestConfigError(422, "Anthropic API key not configured");
       }
+      // Anthropic has no UI base-URL input. Ignore the merged value to
+      // avoid leaking the key to a stale LOCAL URL still parked in the
+      // shared column.
       return new AnthropicClient({
         apiKey,
         model: model || "claude-3-5-sonnet-latest",
-        baseUrl: baseUrl || undefined,
       });
     }
     case "LOCAL": {
@@ -343,7 +351,9 @@ export async function resolveProviderForTest(
       // Test path mirrors the persistent resolution: user key first,
       // admin fallback if absent. We accept an `openaiKey` override
       // from the test endpoint so a user can verify a not-yet-saved
-      // key dropdown change without persisting anything.
+      // key dropdown change without persisting anything. Always use
+      // the canonical OpenAI base URL — the merged `baseUrl` may carry
+      // a stale LOCAL URL through `stored.aiBaseUrl`.
       const userKey =
         override.openaiKey?.trim() ||
         (stored?.aiOpenaiKeyEncrypted
@@ -353,7 +363,7 @@ export async function resolveProviderForTest(
         return new OpenAIClient({
           apiKey: userKey,
           model: model || "gpt-4o-mini",
-          baseUrl: baseUrl || "https://api.openai.com/v1",
+          baseUrl: "https://api.openai.com/v1",
         });
       }
       const admin = await resolveAdminProvider();

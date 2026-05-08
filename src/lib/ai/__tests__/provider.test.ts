@@ -224,6 +224,48 @@ describe("resolveProvider", () => {
     expect(provider.type).toBe("admin-key");
   });
 
+  it("OPENAI with user key ignores stored aiBaseUrl (provider-leak guard)", async () => {
+    // Regression for v1.4.6 T4: a user who had configured LOCAL with a
+    // private LAN URL and later switched to OPENAI must NOT have their
+    // OpenAI key forwarded to that URL. The persisted `aiBaseUrl` is
+    // shared across providers, so `buildUserProvider` hardcodes
+    // api.openai.com for OPENAI regardless of what the column carries.
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      aiProvider: "OPENAI",
+      aiModel: null,
+      aiBaseUrl: "http://192.168.0.42/v1", // stale LOCAL value
+      aiAnthropicKeyEncrypted: null,
+      aiLocalKeyEncrypted: null,
+      aiOpenaiKeyEncrypted: "enc-user-openai-key",
+    } as never);
+
+    const provider = await resolveProvider("user-123");
+    expect(provider.type).toBe("admin-key");
+    const inspect = provider as unknown as {
+      config: { baseUrl: string };
+    };
+    expect(inspect.config.baseUrl).toBe("https://api.openai.com/v1");
+  });
+
+  it("ANTHROPIC ignores stored aiBaseUrl (provider-leak guard)", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      aiProvider: "ANTHROPIC",
+      aiModel: "claude-3-5-sonnet-latest",
+      aiBaseUrl: "http://192.168.0.42/v1", // stale LOCAL value
+      aiAnthropicKeyEncrypted: "enc-user-anthropic-key",
+      aiLocalKeyEncrypted: null,
+      aiOpenaiKeyEncrypted: null,
+    } as never);
+
+    const provider = await resolveProvider("user-123");
+    expect(provider.type).toBe("anthropic");
+    // AnthropicClient should default to its SDK baseUrl, never the LAN URL.
+    const inspect = provider as unknown as {
+      config: { baseUrl?: string };
+    };
+    expect(inspect.config.baseUrl).toBeUndefined();
+  });
+
   it("CHATGPT_OAUTH selection routes through Codex when connected", async () => {
     vi.mocked(decryptTokens).mockReturnValue({
       accessToken: "decrypted-access",
