@@ -59,18 +59,12 @@ const ITEM_LABEL_KEYS: Record<
   },
 };
 
-interface MedicationsResponse {
-  data?: { medications?: Array<{ id: string }> };
+interface AnalyticsData {
+  summaries?: Record<string, { count?: number } | undefined>;
 }
 
-interface AnalyticsResponse {
-  data?: {
-    summaries?: Record<string, { count?: number } | undefined>;
-  };
-}
-
-interface WithingsStatusResponse {
-  data?: { connected?: boolean };
+interface WithingsStatus {
+  connected?: boolean;
 }
 
 interface NotificationChannel {
@@ -78,8 +72,8 @@ interface NotificationChannel {
   enabled?: boolean;
 }
 
-interface NotificationsResponse {
-  data?: { channels?: NotificationChannel[] };
+interface NotificationsPreferences {
+  channels?: NotificationChannel[];
 }
 
 function readDismissedSet(): Set<ChecklistItemId> {
@@ -150,59 +144,70 @@ export function GettingStartedChecklist() {
   // Light-weight queries: each fetch is small and cached by tanstack.
   // We rely on the React Query cache the dashboard already uses for
   // analytics, so this won't fire a second request when the dashboard
-  // and the checklist mount together.
-  const { data: analyticsRes } = useQuery<AnalyticsResponse>({
+  // and the checklist mount together. Critically, every queryFn here
+  // must return `json.data` (the unwrapped shape) so it matches the
+  // canonical consumer (dashboard / medications page / notifications
+  // page / integrations section). Returning `res.json()` would write
+  // the full `{data, error}` envelope into the shared cache, which then
+  // makes the canonical consumers' `data?.summaries` / `data?.length`
+  // reads silently return undefined — that's how the v1.4.2 dashboard
+  // ended up rendering only the mood tile.
+  const { data: analyticsData } = useQuery<AnalyticsData>({
     queryKey: ["analytics"],
     queryFn: async () => {
       const res = await fetch("/api/analytics");
       if (!res.ok) throw new Error("Failed");
-      return res.json();
+      const json = await res.json();
+      return json.data;
     },
     enabled: !!user,
   });
 
-  const { data: medsRes } = useQuery<MedicationsResponse>({
+  const { data: medsData } = useQuery<Array<{ id: string }>>({
     queryKey: ["medications"],
     queryFn: async () => {
       const res = await fetch("/api/medications");
       if (!res.ok) throw new Error("Failed");
-      return res.json();
+      const json = await res.json();
+      return json.data;
     },
     enabled: !!user,
   });
 
-  const { data: withingsRes } = useQuery<WithingsStatusResponse>({
+  const { data: withingsData } = useQuery<WithingsStatus>({
     queryKey: ["withings", "status"],
     queryFn: async () => {
       const res = await fetch("/api/withings/status");
       if (!res.ok) throw new Error("Failed");
-      return res.json();
+      const json = await res.json();
+      return json.data;
     },
     enabled: !!user,
   });
 
-  const { data: notificationsRes } = useQuery<NotificationsResponse>({
+  const { data: notificationsData } = useQuery<NotificationsPreferences>({
     queryKey: ["notifications", "preferences"],
     queryFn: async () => {
       const res = await fetch("/api/notifications/preferences");
       if (!res.ok) throw new Error("Failed");
-      return res.json();
+      const json = await res.json();
+      return json.data;
     },
     enabled: !!user,
   });
 
   const measurementCount = useMemo(() => {
-    const summaries = analyticsRes?.data?.summaries ?? {};
+    const summaries = analyticsData?.summaries ?? {};
     let total = 0;
     for (const key of Object.keys(summaries)) {
       total += summaries[key]?.count ?? 0;
     }
     return total;
-  }, [analyticsRes]);
+  }, [analyticsData]);
 
-  const medicationCount = medsRes?.data?.medications?.length ?? 0;
-  const withingsConnected = withingsRes?.data?.connected === true;
-  const notificationsConfigured = (notificationsRes?.data?.channels ?? []).some(
+  const medicationCount = medsData?.length ?? 0;
+  const withingsConnected = withingsData?.connected === true;
+  const notificationsConfigured = (notificationsData?.channels ?? []).some(
     (channel) => channel?.enabled === true,
   );
 
