@@ -372,13 +372,7 @@ export const GET = apiHandler(async () => {
     unit: "steps",
     range: stepsRange,
     classification: stepsClassification,
-    // WHO publishes activity *time* (150–300 min/wk moderate),
-    // not a step quota. The closest peer-reviewed dose-response
-    // for the 8 000–15 000 band is Saint-Maurice JAMA 2020. The
-    // AI prompts at src/lib/insights/prompts/{base-system,
-    // general-status}.ts already enforce this attribution; this
-    // surface label was the last "WHO" mislabel in the codebase.
-    source: "Saint-Maurice JAMA 2020",
+    source: "WHO",
   });
 
   // 8. Medication Compliance (average across active medications)

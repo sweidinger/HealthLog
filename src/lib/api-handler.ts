@@ -4,7 +4,6 @@ import type { User } from "@/generated/prisma/client";
 import { WideEventBuilder } from "./logging/event-builder";
 import { eventStorage, getEvent } from "./logging/context";
 import { emitIfSampled } from "./logging/transports";
-import { redactOptional, redactSecrets } from "./logging/redact";
 import { getSession } from "./auth/session";
 import { hashToken } from "./auth/hmac";
 import { prisma } from "./db";
@@ -93,11 +92,7 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
       } finally {
         const status = (response as Response | undefined)?.status ?? 500;
         evt.finish(status);
-        try {
-          emitIfSampled(evt.toJSON());
-        } catch {
-          /* logging must never crash the handler */
-        }
+        try { emitIfSampled(evt.toJSON()); } catch { /* logging must never crash the handler */ }
       }
       const nr = response as NextResponse;
       nr.headers.set("x-request-id", evt.getRequestId());
@@ -350,14 +345,10 @@ async function reportToGlitchtip(
     dsn: settings.glitchtipDsn,
     input: {
       environment: settings.glitchtipEnvironment || "production",
-      // Defence in depth: even though the WideEventBuilder already
-      // redacts on `setError()`, the GlitchTip path imports `err`
-      // directly. Apply the same redaction here so a Telegram bot
-      // token or external Bearer cannot leak via the incident UI.
-      message: redactSecrets(err.message),
+      message: err.message,
       level: "error",
       type: err.name || "Error",
-      stack: redactOptional(err.stack),
+      stack: err.stack,
       url: scrubbedUrl,
       sourceTag: "healthlog-api-handler",
       requestId: evt.getRequestId(),
