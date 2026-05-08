@@ -9,7 +9,7 @@ services:
     # to the last release that's verifiably running on self-host installs to
     # rule out runtime / Docker-network issues. No `build:` block on purpose:
     # we want Coolify to PULL the prebuilt image, not build from source.
-    image: ghcr.io/mbombeck/healthlog:1.4.0
+    image: ghcr.io/mbombeck/healthlog:1.4.2
     container_name: healthlog-app
     ports:
       - "3000:3000"
