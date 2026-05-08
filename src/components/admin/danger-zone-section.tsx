@@ -35,6 +35,9 @@ export function DangerZoneSection({ id }: { id: string }) {
         measurements: number;
         intakeEvents: number;
         medications: number;
+        apiTokens: number;
+        withingsConnections: number;
+        authChallenges: number;
       };
     },
     onSuccess: (data) => {
@@ -44,6 +47,9 @@ export function DangerZoneSection({ id }: { id: string }) {
           measurements: data.measurements,
           medications: data.medications,
           intakeEvents: data.intakeEvents,
+          apiTokens: data.apiTokens,
+          withingsConnections: data.withingsConnections,
+          authChallenges: data.authChallenges,
         }),
       );
     },
@@ -107,7 +113,7 @@ export function DangerZoneSection({ id }: { id: string }) {
         </div>
         {wipeMsg && (
           <p
-            className={`mt-2 text-sm ${wipeMsg.startsWith(t("admin.deletedResult", { measurements: "", medications: "", intakeEvents: "" }).split(":")[0]) ? "text-dracula-green" : "text-destructive"}`}
+            className={`mt-2 text-sm ${wipeMsg.startsWith(t("admin.deletedResult", { measurements: "", medications: "", intakeEvents: "", apiTokens: "", withingsConnections: "", authChallenges: "" }).split(":")[0]) ? "text-dracula-green" : "text-destructive"}`}
           >
             {wipeMsg}
           </p>

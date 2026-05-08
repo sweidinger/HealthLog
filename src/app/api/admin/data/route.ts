@@ -37,13 +37,23 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
     return apiError("Confirmation missing", 422);
   }
 
+  // Audit-log the *intent* before the transaction begins so the trail
+  // describing "an admin is about to wipe data" survives even if the
+  // operation crashes midway. AuditLog rows are intentionally NOT
+  // deleted as part of the wipe — the entire point of an audit trail
+  // is to outlive the data it documents.
+  await auditLog("admin.data.clear.start", {
+    userId: user.id,
+    ipAddress: getClientIp(request),
+    details: { confirm: "DELETE ALL" },
+  });
+
   const result = await prisma.$transaction(async (tx) => {
     const measurements = await tx.measurement.deleteMany({});
     const intakeEvents = await tx.medicationIntakeEvent.deleteMany({});
     const medications = await tx.medication.deleteMany({});
     const apiTokens = await tx.apiToken.deleteMany({});
     const withingsConnections = await tx.withingsConnection.deleteMany({});
-    const auditLogs = await tx.auditLog.deleteMany({});
     const authChallenges = await tx.authChallenge.deleteMany({});
 
     await tx.user.updateMany({
@@ -69,7 +79,6 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
       medications: medications.count,
       apiTokens: apiTokens.count,
       withingsConnections: withingsConnections.count,
-      auditLogs: auditLogs.count,
       authChallenges: authChallenges.count,
     };
   });
