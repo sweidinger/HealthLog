@@ -144,7 +144,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "Admins", value: data.users.admins },
         { label: "New 7d", value: data.users.newThisWeek },
       ],
-      href: "/admin/users",
+      href: "/admin#section-user-management",
       cta: "Manage users",
     },
     {
@@ -156,7 +156,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "moodLog", value: data.integrations.moodLog },
         { label: "Push", value: data.integrations.webPush },
       ],
-      href: "/admin#integrations",
+      href: "/admin#section-admin-umami",
       cta: "Configure",
     },
     {
@@ -174,7 +174,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         },
         { label: "Last err", value: fmtRelative(data.monitoring.lastErrorAt) },
       ],
-      href: "/admin#monitoring",
+      href: "/admin#section-admin-glitchtip",
       cta: "View monitoring",
     },
     {
@@ -186,7 +186,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "Users", value: data.backups.backedUpUsers },
         { label: "Retain", value: `${data.backups.retentionDays}d` },
       ],
-      href: "/admin#backups",
+      href: "/admin#section-system-status",
       cta: "View backups",
     },
     {
@@ -207,7 +207,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
           value: fmtRelative(data.maintenance.lastIdempotencyCleanup),
         },
       ],
-      href: "/admin#maintenance",
+      href: "/admin#section-admin-reminders",
       cta: "View jobs",
     },
     {
@@ -219,7 +219,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "Last login", value: fmtRelative(data.auditLog.lastLoginAt) },
         { label: "—", value: "" },
       ],
-      href: "/admin/audit-log",
+      href: "/admin#section-login-overview",
       cta: "Open viewer",
     },
   ];

@@ -99,11 +99,36 @@ describe("buildCards()", () => {
     expect(cards[5].severity).toBe("info"); // audit log
   });
 
-  it("links each card to a manageable destination", () => {
+  it("links each card to a real anchor on the admin page", () => {
+    // Source-of-truth list of section IDs rendered by `src/app/admin/page.tsx`.
+    // If you add a new section to the admin page, add the ID here. The test
+    // proves every status-card href can actually scroll to something —
+    // `startsWith("/admin")` was too lax and let the v1.4.5 regression slip
+    // (every CTA bounced to `/admin#integrations` which does not exist).
+    const realAnchorIds = new Set([
+      "section-system-status",
+      "section-admin-general",
+      "section-admin-services",
+      "section-admin-umami",
+      "section-admin-glitchtip",
+      "section-admin-webpush",
+      "section-admin-bugreport",
+      "section-admin-feedback",
+      "section-admin-reminders",
+      "section-user-management",
+      "section-api-tokens",
+      "section-login-overview",
+      "section-danger-zone",
+    ]);
+
     const cards = buildCards(mockOverview);
     for (const card of cards) {
-      expect(card.href.startsWith("/admin")).toBe(true);
       expect(card.cta.length).toBeGreaterThan(0);
+      // Hrefs must be `/admin#section-...` — sub-routes like `/admin/users`
+      // do not exist as of v1.4.6 and were the original regression.
+      expect(card.href).toMatch(/^\/admin#section-/);
+      const anchor = card.href.replace(/^\/admin#/, "");
+      expect(realAnchorIds.has(anchor)).toBe(true);
     }
   });
 
