@@ -61,12 +61,9 @@ export function TrendCard({
           ? ArrowRight
           : Minus;
 
-  const trendColor =
-    slope30?.direction === "up"
-      ? "text-dracula-orange"
-      : slope30?.direction === "down"
-        ? "text-dracula-cyan"
-        : "text-muted-foreground";
+  // P4: Direction-as-good-or-bad is metric-specific (v1.5+ scope) —
+  // keep the arrow flat at muted-foreground for both up/down/flat.
+  const trendColor = "text-muted-foreground";
 
   const formatValue = (value: number) => fmt.number(value, 1);
 
@@ -82,66 +79,72 @@ export function TrendCard({
   };
 
   return (
-    <div className="bg-card border-border flex h-full w-full flex-col rounded-xl border p-3">
+    <div className="bg-card border-border flex h-full w-full flex-col rounded-xl border p-4 md:p-6">
       <div className="flex items-center justify-between">
-        <span className="text-muted-foreground text-sm font-medium">
+        <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
           {label}
         </span>
         <Icon className="text-muted-foreground h-4 w-4" />
       </div>
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-2xl font-bold">
+        <span className="text-3xl font-bold tracking-tight tabular-nums">
           {latest !== null
             ? renderPair(latest, secondary?.latest)
             : "—"}
         </span>
-        <span className="text-muted-foreground text-sm">{unit}</span>
+        <span className="text-muted-foreground text-sm tabular-nums">
+          {unit}
+        </span>
         {slope30 && <TrendIcon className={`h-4 w-4 ${trendColor}`} />}
       </div>
       <TooltipProvider>
         <div className="text-muted-foreground mt-auto flex gap-3 pt-1 text-xs">
-          {avg7 !== null && (
-            <span>
-              {t("charts.avg7dShort")}:{" "}
-              {avg7Hint ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className={cn("font-medium", avg7ColorClass)}>
-                      {renderPair(avg7, secondary?.avg7)}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-muted border-border text-foreground">
-                    <div className="space-y-1 text-xs">{avg7Hint}</div>
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <span className={cn("font-medium", avg7ColorClass)}>
-                  {renderPair(avg7, secondary?.avg7)}
-                </span>
-              )}
-            </span>
-          )}
-          {avg30 !== null && (
-            <span>
-              {t("charts.avg30dShort")}:{" "}
-              {avg30Hint ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className={cn("font-medium", avg30ColorClass)}>
-                      {renderPair(avg30, secondary?.avg30)}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-muted border-border text-foreground">
-                    <div className="space-y-1 text-xs">{avg30Hint}</div>
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <span className={cn("font-medium", avg30ColorClass)}>
-                  {renderPair(avg30, secondary?.avg30)}
-                </span>
-              )}
-            </span>
-          )}
+          <span>
+            {t("charts.avg7dShort")}:{" "}
+            {avg7Hint ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn("font-medium tabular-nums", avg7ColorClass)}
+                  >
+                    {avg7 !== null ? renderPair(avg7, secondary?.avg7) : "—"}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="bg-muted border-border text-foreground">
+                  <div className="space-y-1 text-xs">{avg7Hint}</div>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <span
+                className={cn("font-medium tabular-nums", avg7ColorClass)}
+              >
+                {avg7 !== null ? renderPair(avg7, secondary?.avg7) : "—"}
+              </span>
+            )}
+          </span>
+          <span>
+            {t("charts.avg30dShort")}:{" "}
+            {avg30Hint ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn("font-medium tabular-nums", avg30ColorClass)}
+                  >
+                    {avg30 !== null ? renderPair(avg30, secondary?.avg30) : "—"}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="bg-muted border-border text-foreground">
+                  <div className="space-y-1 text-xs">{avg30Hint}</div>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <span
+                className={cn("font-medium tabular-nums", avg30ColorClass)}
+              >
+                {avg30 !== null ? renderPair(avg30, secondary?.avg30) : "—"}
+              </span>
+            )}
+          </span>
         </div>
       </TooltipProvider>
     </div>
