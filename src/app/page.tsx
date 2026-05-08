@@ -359,7 +359,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight">
             {t("dashboard.title")}
           </h1>
-          <p className="mt-1 hidden text-sm sm:block">{welcomeText}</p>
+          <p className="text-muted-foreground mt-1 text-sm">{welcomeText}</p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -848,7 +848,10 @@ export default function DashboardPage() {
             id: "medications",
             order: widgetOrder("medications"),
             node: (
-              <div key="medications" className="bg-card rounded-lg border p-4">
+              <div
+                key="medications"
+                className="bg-card rounded-xl border p-4 md:p-6"
+              >
                 <div className="mb-3 flex items-center gap-2">
                   <Pill className="h-4 w-4" />
                   <h3 className="text-sm font-medium">
