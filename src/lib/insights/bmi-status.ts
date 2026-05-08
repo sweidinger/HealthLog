@@ -7,8 +7,8 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
-
-const BMI_STATUS_POINTS = 30;
+import { applyPayloadBudget } from "@/lib/insights/bucket-series";
+import { annotate } from "@/lib/logging/context";
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -48,28 +48,6 @@ function normalizeSummaryText(value: string): string {
 
 function normalizeLocale(value: string | null | undefined): SupportedLocale {
   return value === "en" ? "en" : "de";
-}
-
-function aggregateDailyAverageSeries(
-  records: Array<{ measuredAt: Date; value: number }>,
-) {
-  const byDay = new Map<string, { sum: number; count: number }>();
-
-  for (const record of records) {
-    const dayKey = toBerlinDayKey(record.measuredAt);
-    const current = byDay.get(dayKey) ?? { sum: 0, count: 0 };
-    current.sum += record.value;
-    current.count += 1;
-    byDay.set(dayKey, current);
-  }
-
-  return Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-      samples: stats.count,
-    }));
 }
 
 function summarizeSeries(series: Array<{ value: number }>) {
@@ -174,21 +152,32 @@ export async function generateBmiStatusForUser(
     },
   });
 
-  const weightSeries = aggregateDailyAverageSeries(
+  const now = new Date();
+  const weightSeries = applyPayloadBudget(
     measurements.map((measurement) => ({
       measuredAt: measurement.measuredAt,
       value: measurement.value,
     })),
-  ).slice(-BMI_STATUS_POINTS);
+    { now },
+  );
 
   const heightFactor = (user.heightCm / 100) ** 2;
-  const bmiSeries = weightSeries.map((entry) => ({
-    day: entry.day,
-    value: round(entry.value / heightFactor, 2),
-  }));
+  const bmiSeries = {
+    daily: weightSeries.daily.map((bucket) => ({
+      dayOffset: bucket.dayOffset,
+      value: round(bucket.value / heightFactor, 2),
+      n: bucket.n,
+    })),
+    monthly: weightSeries.monthly.map((bucket) => ({
+      monthOffset: bucket.monthOffset,
+      value: round(bucket.value / heightFactor, 2),
+      n: bucket.n,
+    })),
+  };
 
-  const latestBmi = bmiSeries.at(-1) ?? null;
-  const previousBmi = bmiSeries.length > 1 ? (bmiSeries.at(-2) ?? null) : null;
+  // daily[0] = newest bucket (lowest dayOffset).
+  const latestBmi = bmiSeries.daily[0] ?? null;
+  const previousBmi = bmiSeries.daily[1] ?? null;
   const latestClassification = latestBmi ? classifyBMI(latestBmi.value) : null;
 
   const oldestMeasurement =
@@ -220,11 +209,13 @@ export async function generateBmiStatusForUser(
       newestMeasurementDaysAgo,
     },
     bmi: {
-      summary: summarizeSeries(bmiSeries),
+      summary: summarizeSeries(
+        bmiSeries.daily.map((bucket) => ({ value: bucket.value })),
+      ),
       series: bmiSeries,
       latestDayFocus: latestBmi
         ? {
-            day: latestBmi.day,
+            dayOffset: latestBmi.dayOffset,
             value: latestBmi.value,
             classification: latestClassification,
             deltaToPreviousDailyPoint:
@@ -241,6 +232,11 @@ export async function generateBmiStatusForUser(
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
+
+  annotate({
+    action: { name: cacheAction },
+    meta: { payload_size_bytes: snapshotJson.length },
+  });
 
   const previousContext = await getPreviousInsightContext(
     userId,
@@ -297,7 +293,6 @@ export async function generateBmiStatusForUser(
         text: summary,
         providerType: provider.type,
         model: result.model ?? "unknown",
-        pointsPerMetric: BMI_STATUS_POINTS,
         tokensUsed: result.tokensUsed ?? null,
       }),
     },

@@ -12,8 +12,12 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
+import { applyPayloadBudget } from "@/lib/insights/bucket-series";
+import { annotate } from "@/lib/logging/context";
 
-const MEDICATION_COMPLIANCE_STATUS_POINTS = 30;
+// 360 daily days + 24 monthly windows ≈ 1080 days of intake history.
+const COMPLIANCE_HISTORY_DAYS = 360 + 24 * 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -146,8 +150,10 @@ export async function generateMedicationComplianceStatusForUser(
   );
 
   const now = new Date();
+  // v1.4.6 widens the audit window to ~3 years so the bucketed payload
+  // has both daily (last 360 days) and monthly (months 12-36) coverage.
   const rangeStart = new Date(
-    now.getTime() - MEDICATION_COMPLIANCE_STATUS_POINTS * 24 * 60 * 60 * 1000,
+    now.getTime() - COMPLIANCE_HISTORY_DAYS * MS_PER_DAY,
   );
 
   const medicationEvents = await prisma.medicationIntakeEvent.findMany({
@@ -183,50 +189,37 @@ export async function generateMedicationComplianceStatusForUser(
       medication.createdAt,
     );
 
+    // Collapse the events into one rate-per-day record, then run them
+    // through the shared bucketing helper so the model receives the
+    // canonical 360 daily + 24 monthly view per medication.
     const byDay = new Map<
       string,
-      { expected: number; taken: number; skipped: number }
+      { expected: number; taken: number; skipped: number; date: Date }
     >();
-    for (
-      let dayOffset = 0;
-      dayOffset < MEDICATION_COMPLIANCE_STATUS_POINTS;
-      dayOffset++
-    ) {
-      const dayDate = new Date(
-        now.getTime() -
-          (MEDICATION_COMPLIANCE_STATUS_POINTS - 1 - dayOffset) *
-            24 *
-            60 *
-            60 *
-            1000,
-      );
-      const dayKey = toBerlinDayKey(dayDate);
-      byDay.set(dayKey, {
-        expected: medication.schedules.length,
-        taken: 0,
-        skipped: 0,
-      });
-    }
+    const expectedPerDay = Math.max(1, medication.schedules.length);
 
     for (const event of events) {
       const dayKey = toBerlinDayKey(event.scheduledFor);
-      const bucket = byDay.get(dayKey);
-      if (!bucket) continue;
+      const bucket = byDay.get(dayKey) ?? {
+        expected: medication.schedules.length,
+        taken: 0,
+        skipped: 0,
+        date: event.scheduledFor,
+      };
       if (event.takenAt && !event.skipped) bucket.taken += 1;
       if (event.skipped) bucket.skipped += 1;
+      byDay.set(dayKey, bucket);
     }
 
-    const dailySeries = Array.from(byDay.entries()).map(([day, stats]) => {
-      const expected = Math.max(1, stats.expected);
-      return {
-        day,
-        expected: stats.expected,
-        taken: stats.taken,
-        skipped: stats.skipped,
-        missed: Math.max(0, stats.expected - stats.taken - stats.skipped),
-        rate: round(Math.min(100, (stats.taken / expected) * 100), 1),
-      };
-    });
+    const perDayRecords = Array.from(byDay.values())
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((stats) => ({
+        measuredAt: stats.date,
+        value: round(Math.min(100, (stats.taken / expectedPerDay) * 100), 1),
+      }));
+
+    const dailySeries = applyPayloadBudget(perDayRecords, { now });
+    const latestDay = dailySeries.daily[0] ?? null;
 
     return {
       medicationId: medication.id,
@@ -241,7 +234,7 @@ export async function generateMedicationComplianceStatusForUser(
       skipped7: compliance7.skipped,
       missed7: compliance7.missed,
       dailySeries,
-      latestDay: dailySeries.at(-1) ?? null,
+      latestDay,
     };
   });
 
@@ -297,6 +290,11 @@ export async function generateMedicationComplianceStatusForUser(
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
+
+  annotate({
+    action: { name: cacheAction },
+    meta: { payload_size_bytes: snapshotJson.length },
+  });
 
   const previousContext = await getPreviousInsightContext(
     userId,
@@ -386,7 +384,6 @@ export async function generateMedicationComplianceStatusForUser(
         medications: medicationSummaries,
         providerType: provider.type,
         model: result.model ?? "unknown",
-        pointsPerMetric: MEDICATION_COMPLIANCE_STATUS_POINTS,
         tokensUsed: result.tokensUsed ?? null,
       }),
     },

@@ -17,8 +17,13 @@ import { calculateCompliance } from "@/lib/analytics/compliance";
 import { getMedicationCategories } from "@/lib/medication-category";
 import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import { getNoKeyBloodPressureStatusText } from "@/lib/insights/no-key-fallbacks";
+import {
+  applyPayloadBudget,
+  type DailyBucket,
+} from "@/lib/insights/bucket-series";
+import { annotate } from "@/lib/logging/context";
 
-const BLOOD_PRESSURE_STATUS_POINTS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -60,28 +65,6 @@ function normalizeLocale(value: string | null | undefined): SupportedLocale {
   return value === "en" ? "en" : "de";
 }
 
-function aggregateDailyAverageSeries(
-  records: Array<{ measuredAt: Date; value: number }>,
-) {
-  const byDay = new Map<string, { sum: number; count: number }>();
-
-  for (const record of records) {
-    const dayKey = toBerlinDayKey(record.measuredAt);
-    const current = byDay.get(dayKey) ?? { sum: 0, count: 0 };
-    current.sum += record.value;
-    current.count += 1;
-    byDay.set(dayKey, current);
-  }
-
-  return Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-      samples: stats.count,
-    }));
-}
-
 function summarizeSeries(series: Array<{ value: number }>) {
   if (series.length === 0) return null;
   const first = series[0].value;
@@ -97,20 +80,22 @@ function summarizeSeries(series: Array<{ value: number }>) {
   };
 }
 
-function pairDailySeries(
-  seriesA: Array<{ day: string; value: number }>,
-  seriesB: Array<{ day: string; value: number }>,
+function pairDailyBuckets(
+  seriesA: DailyBucket[],
+  seriesB: DailyBucket[],
+  now: Date,
 ): PairedPoint[] {
-  const mapB = new Map(seriesB.map((entry) => [entry.day, entry.value]));
+  const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
+  const nowMs = now.getTime();
 
   return seriesA
     .map((entry) => {
-      const b = mapB.get(entry.day);
+      const b = mapB.get(entry.dayOffset);
       if (b == null) return null;
       return {
         a: entry.value,
         b,
-        date: new Date(`${entry.day}T00:00:00.000Z`),
+        date: new Date(nowMs - entry.dayOffset * MS_PER_DAY),
       };
     })
     .filter((entry): entry is PairedPoint => entry !== null);
@@ -194,48 +179,55 @@ export async function generateBloodPressureStatusForUser(
     },
   });
 
-  const weightSeries = aggregateDailyAverageSeries(
+  const now = new Date();
+
+  const weightSeries = applyPayloadBudget(
     measurements
       .filter((measurement) => measurement.type === "WEIGHT")
       .map((measurement) => ({
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-  ).slice(-BLOOD_PRESSURE_STATUS_POINTS);
+    { now },
+  );
 
-  const sysSeries = aggregateDailyAverageSeries(
+  const sysSeries = applyPayloadBudget(
     measurements
       .filter((measurement) => measurement.type === "BLOOD_PRESSURE_SYS")
       .map((measurement) => ({
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-  ).slice(-BLOOD_PRESSURE_STATUS_POINTS);
+    { now },
+  );
 
-  const diaSeries = aggregateDailyAverageSeries(
+  const diaSeries = applyPayloadBudget(
     measurements
       .filter((measurement) => measurement.type === "BLOOD_PRESSURE_DIA")
       .map((measurement) => ({
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-  ).slice(-BLOOD_PRESSURE_STATUS_POINTS);
+    { now },
+  );
 
   const bpTargets = getBpTargets(user?.dateOfBirth ?? null);
-  const pairedBloodPressure = pairDailySeries(sysSeries, diaSeries).map(
-    (entry) => ({
-      day: toBerlinDayKey(entry.date),
-      sys: entry.a,
-      dia: entry.b,
-      inTarget:
-        bpTargets == null
-          ? null
-          : entry.a >= bpTargets.sysLow &&
-            entry.a <= bpTargets.sysHigh &&
-            entry.b >= bpTargets.diaLow &&
-            entry.b <= bpTargets.diaHigh,
-    }),
-  );
+  const pairedBloodPressure = pairDailyBuckets(
+    sysSeries.daily,
+    diaSeries.daily,
+    now,
+  ).map((entry) => ({
+    day: toBerlinDayKey(entry.date),
+    sys: entry.a,
+    dia: entry.b,
+    inTarget:
+      bpTargets == null
+        ? null
+        : entry.a >= bpTargets.sysLow &&
+          entry.a <= bpTargets.sysHigh &&
+          entry.b >= bpTargets.diaLow &&
+          entry.b <= bpTargets.diaHigh,
+  }));
 
   const bpInTargetPctLast30DailyPoints =
     bpTargets == null || pairedBloodPressure.length === 0
@@ -248,7 +240,11 @@ export async function generateBloodPressureStatusForUser(
           1,
         );
 
-  const weightVsSystolicPairs = pairDailySeries(weightSeries, sysSeries);
+  const weightVsSystolicPairs = pairDailyBuckets(
+    weightSeries.daily,
+    sysSeries.daily,
+    now,
+  );
   const weightVsSystolicCorrelation = pearsonCorrelation(weightVsSystolicPairs);
 
   const activeMedications = await prisma.medication.findMany({
@@ -326,14 +322,18 @@ export async function generateBloodPressureStatusForUser(
     takenByDay.set(dayKey, (takenByDay.get(dayKey) ?? 0) + 1);
   }
 
-  const continuityVsSystolicSeries = sysSeries.map((point) => {
-    const taken = takenByDay.get(point.day) ?? 0;
+  const nowMs = now.getTime();
+  const continuityVsSystolicSeries = sysSeries.daily.map((point) => {
+    const dayDate = new Date(nowMs - point.dayOffset * MS_PER_DAY);
+    const dayKey = toBerlinDayKey(dayDate);
+    const taken = takenByDay.get(dayKey) ?? 0;
     const continuityPct =
       expectedBpIntakesPerDay > 0
         ? round(Math.min(1, taken / expectedBpIntakesPerDay) * 100, 1)
         : null;
     return {
-      day: point.day,
+      day: dayKey,
+      dayOffset: point.dayOffset,
       sys: point.value,
       continuityPct,
     };
@@ -346,29 +346,17 @@ export async function generateBloodPressureStatusForUser(
     select: { date: true, score: true, moodLoggedAt: true },
   });
 
-  const moodByDay = new Map<string, { sum: number; count: number }>();
-  for (const entry of moodEntries) {
-    const current = moodByDay.get(entry.date) ?? { sum: 0, count: 0 };
-    current.sum += entry.score;
-    current.count += 1;
-    moodByDay.set(entry.date, current);
-  }
-  const dailyMoodSeries = Array.from(moodByDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-    }))
-    .slice(-30);
-
-  const moodMean =
-    dailyMoodSeries.length > 0
-      ? round(
-          dailyMoodSeries.reduce((s, e) => s + e.value, 0) /
-            dailyMoodSeries.length,
-          2,
-        )
-      : null;
+  const moodSeries = applyPayloadBudget(
+    moodEntries.map((entry) => ({
+      measuredAt: entry.moodLoggedAt,
+      value: entry.score,
+    })),
+    { now },
+  );
+  const moodSummary = summarizeSeries(
+    moodSeries.daily.map((bucket) => ({ value: bucket.value })),
+  );
+  const moodMean = moodSummary?.mean ?? null;
 
   const continuityVsSystolicPairs: PairedPoint[] = continuityVsSystolicSeries
     .map((entry) => {
@@ -376,7 +364,7 @@ export async function generateBloodPressureStatusForUser(
       return {
         a: entry.continuityPct,
         b: entry.sys,
-        date: new Date(`${entry.day}T00:00:00.000Z`),
+        date: new Date(nowMs - entry.dayOffset * MS_PER_DAY),
       };
     })
     .filter((entry): entry is PairedPoint => entry !== null);
@@ -414,11 +402,15 @@ export async function generateBloodPressureStatusForUser(
     },
     bloodPressure: {
       systolic: {
-        summary: summarizeSeries(sysSeries),
+        summary: summarizeSeries(
+          sysSeries.daily.map((bucket) => ({ value: bucket.value })),
+        ),
         series: sysSeries,
       },
       diastolic: {
-        summary: summarizeSeries(diaSeries),
+        summary: summarizeSeries(
+          diaSeries.daily.map((bucket) => ({ value: bucket.value })),
+        ),
         series: diaSeries,
       },
       paired: {
@@ -453,16 +445,17 @@ export async function generateBloodPressureStatusForUser(
     },
     bpMedications: medicationCompliance,
     moodContext:
-      dailyMoodSeries.length >= 3
+      moodSeries.daily.length >= 3
         ? {
-            points: dailyMoodSeries.length,
+            points: moodSeries.daily.length,
             mean: moodMean,
-            latest: dailyMoodSeries.at(-1)?.value ?? null,
-            series: dailyMoodSeries.slice(-10),
+            latest: moodSeries.daily[0]?.value ?? null,
+            series: moodSeries,
             moodVsSystolicCorrelation: (() => {
-              const moodVsSysPairs = pairDailySeries(
-                dailyMoodSeries,
-                sysSeries,
+              const moodVsSysPairs = pairDailyBuckets(
+                moodSeries.daily,
+                sysSeries.daily,
+                now,
               );
               return pearsonCorrelation(moodVsSysPairs);
             })(),
@@ -471,6 +464,11 @@ export async function generateBloodPressureStatusForUser(
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
+
+  annotate({
+    action: { name: cacheAction },
+    meta: { payload_size_bytes: snapshotJson.length },
+  });
 
   const previousContext = await getPreviousInsightContext(
     userId,
@@ -529,7 +527,6 @@ export async function generateBloodPressureStatusForUser(
         text: summary,
         providerType: provider.type,
         model: result.model ?? "unknown",
-        pointsPerMetric: BLOOD_PRESSURE_STATUS_POINTS,
         tokensUsed: result.tokensUsed ?? null,
       }),
     },

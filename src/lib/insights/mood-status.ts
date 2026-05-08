@@ -10,8 +10,13 @@ import {
   pearsonCorrelation,
   type PairedPoint,
 } from "@/lib/analytics/correlations";
+import {
+  applyPayloadBudget,
+  type DailyBucket,
+} from "@/lib/insights/bucket-series";
+import { annotate } from "@/lib/logging/context";
 
-const MOOD_STATUS_POINTS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -53,28 +58,6 @@ function normalizeLocale(value: string | null | undefined): SupportedLocale {
   return value === "en" ? "en" : "de";
 }
 
-function aggregateDailyAverageSeries(
-  records: Array<{ date: string; score: number }>,
-) {
-  const byDay = new Map<string, { sum: number; count: number }>();
-
-  for (const record of records) {
-    const dayKey = record.date;
-    const current = byDay.get(dayKey) ?? { sum: 0, count: 0 };
-    current.sum += record.score;
-    current.count += 1;
-    byDay.set(dayKey, current);
-  }
-
-  return Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-      samples: stats.count,
-    }));
-}
-
 function summarizeSeries(series: Array<{ value: number }>) {
   if (series.length === 0) return null;
   const first = series[0].value;
@@ -90,41 +73,22 @@ function summarizeSeries(series: Array<{ value: number }>) {
   };
 }
 
-function aggregateMeasurementDailySeries(
-  records: Array<{ measuredAt: Date; value: number }>,
-) {
-  const byDay = new Map<string, { sum: number; count: number }>();
-
-  for (const record of records) {
-    const dayKey = toBerlinDayKey(record.measuredAt);
-    const current = byDay.get(dayKey) ?? { sum: 0, count: 0 };
-    current.sum += record.value;
-    current.count += 1;
-    byDay.set(dayKey, current);
-  }
-
-  return Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-    }));
-}
-
-function pairDailySeries(
-  seriesA: Array<{ day: string; value: number }>,
-  seriesB: Array<{ day: string; value: number }>,
+function pairDailyBuckets(
+  seriesA: DailyBucket[],
+  seriesB: DailyBucket[],
+  now: Date,
 ): PairedPoint[] {
-  const mapB = new Map(seriesB.map((entry) => [entry.day, entry.value]));
+  const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
+  const nowMs = now.getTime();
 
   return seriesA
     .map((entry) => {
-      const b = mapB.get(entry.day);
+      const b = mapB.get(entry.dayOffset);
       if (b == null) return null;
       return {
         a: entry.value,
         b,
-        date: new Date(`${entry.day}T00:00:00.000Z`),
+        date: new Date(nowMs - entry.dayOffset * MS_PER_DAY),
       };
     })
     .filter((entry): entry is PairedPoint => entry !== null);
@@ -199,33 +163,43 @@ export async function generateMoodStatusForUser(
     },
   });
 
-  const moodSeries = aggregateDailyAverageSeries(
+  const now = new Date();
+
+  const moodSeries = applyPayloadBudget(
     entries.map((entry) => ({
-      date: entry.date,
-      score: entry.score,
+      measuredAt: entry.moodLoggedAt,
+      value: entry.score,
     })),
-  ).slice(-MOOD_STATUS_POINTS);
+    { now },
+  );
+  const moodSummary = summarizeSeries(
+    moodSeries.daily.map((bucket) => ({ value: bucket.value })),
+  );
 
   const greenMin = 3.5;
   const greenMax = 5;
   const orangeMin = 2;
   const orangeMax = 3.5;
 
+  // "Last 30 daily points" = the newest 30 daily buckets (offsets 0..29).
+  const recentMoodDaily = moodSeries.daily.filter(
+    (bucket) => bucket.dayOffset < 30,
+  );
   const inTargetPctLast30DailyPoints =
-    moodSeries.length === 0
+    recentMoodDaily.length === 0
       ? null
       : round(
-          (moodSeries.filter(
+          (recentMoodDaily.filter(
             (entry) => entry.value >= greenMin && entry.value <= greenMax,
           ).length /
-            moodSeries.length) *
+            recentMoodDaily.length) *
             100,
           1,
         );
 
-  const latestMood = moodSeries.at(-1) ?? null;
-  const previousMood =
-    moodSeries.length > 1 ? (moodSeries.at(-2) ?? null) : null;
+  // daily[0] = newest bucket (lowest dayOffset).
+  const latestMood = moodSeries.daily[0] ?? null;
+  const previousMood = moodSeries.daily[1] ?? null;
 
   const oldestEntry = entries.length > 0 ? entries[0].moodLoggedAt : null;
   const newestEntry =
@@ -251,36 +225,58 @@ export async function generateMoodStatusForUser(
     select: { type: true, value: true, measuredAt: true },
   });
 
-  const weightSeries = aggregateMeasurementDailySeries(
+  const weightSeries = applyPayloadBudget(
     measurements
       .filter((m) => m.type === "WEIGHT")
       .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
-  ).slice(-MOOD_STATUS_POINTS);
+    { now },
+  );
 
-  const sysSeries = aggregateMeasurementDailySeries(
+  const sysSeries = applyPayloadBudget(
     measurements
       .filter((m) => m.type === "BLOOD_PRESSURE_SYS")
       .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
-  ).slice(-MOOD_STATUS_POINTS);
+    { now },
+  );
 
-  const pulseSeries = aggregateMeasurementDailySeries(
+  const pulseSeries = applyPayloadBudget(
     measurements
       .filter((m) => m.type === "PULSE")
       .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
-  ).slice(-MOOD_STATUS_POINTS);
+    { now },
+  );
 
-  // Correlations between mood and other metrics
-  const moodVsWeightPairs = pairDailySeries(moodSeries, weightSeries);
+  // Correlations between mood and other metrics — pair on dayOffset so
+  // the bucketed daily window aligns across metrics.
+  const moodVsWeightPairs = pairDailyBuckets(
+    moodSeries.daily,
+    weightSeries.daily,
+    now,
+  );
   const moodVsWeightCorrelation = pearsonCorrelation(moodVsWeightPairs);
 
-  const moodVsSysPairs = pairDailySeries(moodSeries, sysSeries);
+  const moodVsSysPairs = pairDailyBuckets(
+    moodSeries.daily,
+    sysSeries.daily,
+    now,
+  );
   const moodVsSysCorrelation = pearsonCorrelation(moodVsSysPairs);
 
-  const moodVsPulsePairs = pairDailySeries(moodSeries, pulseSeries);
+  const moodVsPulsePairs = pairDailyBuckets(
+    moodSeries.daily,
+    pulseSeries.daily,
+    now,
+  );
   const moodVsPulseCorrelation = pearsonCorrelation(moodVsPulsePairs);
 
-  // Extract tag frequencies from recent entries
-  const recentEntries = entries.slice(-MOOD_STATUS_POINTS * 3);
+  // Extract tag frequencies from recent entries — keep the v1.4.5
+  // ~90-day window so the model still gets a recency-weighted view of
+  // tag patterns. The mood DB query already pulls 3 years (no where
+  // filter); we slice by date here, not by record count.
+  const tagWindowCutoff = new Date(now.getTime() - 90 * MS_PER_DAY);
+  const recentEntries = entries.filter(
+    (entry) => entry.moodLoggedAt.getTime() >= tagWindowCutoff.getTime(),
+  );
   const tagCounts = new Map<string, { count: number; scoreSum: number }>();
   for (const entry of recentEntries) {
     if (entry.tags && Array.isArray(entry.tags)) {
@@ -312,11 +308,11 @@ export async function generateMoodStatusForUser(
       newestEntryDaysAgo,
     },
     mood: {
-      summary: summarizeSeries(moodSeries),
+      summary: moodSummary,
       series: moodSeries,
       latestDayFocus: latestMood
         ? {
-            day: latestMood.day,
+            dayOffset: latestMood.dayOffset,
             value: latestMood.value,
             deltaToPreviousDailyPoint:
               previousMood == null
@@ -334,28 +330,40 @@ export async function generateMoodStatusForUser(
       tags: tagSummary.length > 0 ? tagSummary : null,
     },
     crossMetricContext:
-      weightSeries.length >= 3 ||
-      sysSeries.length >= 3 ||
-      pulseSeries.length >= 3
+      weightSeries.daily.length >= 3 ||
+      sysSeries.daily.length >= 3 ||
+      pulseSeries.daily.length >= 3
         ? {
             weight:
-              weightSeries.length >= 3
+              weightSeries.daily.length >= 3
                 ? {
-                    summary: summarizeSeries(weightSeries),
+                    summary: summarizeSeries(
+                      weightSeries.daily.map((bucket) => ({
+                        value: bucket.value,
+                      })),
+                    ),
                     correlation: moodVsWeightCorrelation,
                   }
                 : null,
             bloodPressureSystolic:
-              sysSeries.length >= 3
+              sysSeries.daily.length >= 3
                 ? {
-                    summary: summarizeSeries(sysSeries),
+                    summary: summarizeSeries(
+                      sysSeries.daily.map((bucket) => ({
+                        value: bucket.value,
+                      })),
+                    ),
                     correlation: moodVsSysCorrelation,
                   }
                 : null,
             pulse:
-              pulseSeries.length >= 3
+              pulseSeries.daily.length >= 3
                 ? {
-                    summary: summarizeSeries(pulseSeries),
+                    summary: summarizeSeries(
+                      pulseSeries.daily.map((bucket) => ({
+                        value: bucket.value,
+                      })),
+                    ),
                     correlation: moodVsPulseCorrelation,
                   }
                 : null,
@@ -364,6 +372,11 @@ export async function generateMoodStatusForUser(
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
+
+  annotate({
+    action: { name: cacheAction },
+    meta: { payload_size_bytes: snapshotJson.length },
+  });
 
   const previousContext = await getPreviousInsightContext(
     userId,
@@ -420,7 +433,6 @@ export async function generateMoodStatusForUser(
         text: summary,
         providerType: provider.type,
         model: result.model ?? "unknown",
-        pointsPerMetric: MOOD_STATUS_POINTS,
         tokensUsed: result.tokensUsed ?? null,
       }),
     },

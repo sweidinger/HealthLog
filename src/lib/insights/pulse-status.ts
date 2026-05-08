@@ -13,8 +13,8 @@ import {
   getPersonalizedPulseTarget,
 } from "@/lib/analytics/pulse-targets";
 import { getNoKeyPulseStatusText } from "@/lib/insights/no-key-fallbacks";
-
-const PULSE_STATUS_POINTS = 30;
+import { applyPayloadBudget } from "@/lib/insights/bucket-series";
+import { annotate } from "@/lib/logging/context";
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -54,28 +54,6 @@ function normalizeSummaryText(value: string): string {
 
 function normalizeLocale(value: string | null | undefined): SupportedLocale {
   return value === "en" ? "en" : "de";
-}
-
-function aggregateDailyAverageSeries(
-  records: Array<{ measuredAt: Date; value: number }>,
-) {
-  const byDay = new Map<string, { sum: number; count: number }>();
-
-  for (const record of records) {
-    const dayKey = toBerlinDayKey(record.measuredAt);
-    const current = byDay.get(dayKey) ?? { sum: 0, count: 0 };
-    current.sum += record.value;
-    current.count += 1;
-    byDay.set(dayKey, current);
-  }
-
-  return Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-      samples: stats.count,
-    }));
 }
 
 function summarizeSeries(series: Array<{ value: number }>) {
@@ -169,12 +147,18 @@ export async function generatePulseStatusForUser(
     },
   });
 
-  const pulseSeries = aggregateDailyAverageSeries(
+  const now = new Date();
+
+  const pulseSeries = applyPayloadBudget(
     measurements.map((measurement) => ({
       measuredAt: measurement.measuredAt,
       value: measurement.value,
     })),
-  ).slice(-PULSE_STATUS_POINTS);
+    { now },
+  );
+  const pulseSummary = summarizeSeries(
+    pulseSeries.daily.map((bucket) => ({ value: bucket.value })),
+  );
 
   // Fetch mood context (optional — for enrichment only)
   const moodEntries = await prisma.moodEntry.findMany({
@@ -183,29 +167,17 @@ export async function generatePulseStatusForUser(
     select: { date: true, score: true, moodLoggedAt: true },
   });
 
-  const moodByDay = new Map<string, { sum: number; count: number }>();
-  for (const entry of moodEntries) {
-    const current = moodByDay.get(entry.date) ?? { sum: 0, count: 0 };
-    current.sum += entry.score;
-    current.count += 1;
-    moodByDay.set(entry.date, current);
-  }
-  const dailyMoodSeries = Array.from(moodByDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-    }))
-    .slice(-30);
-
-  const moodMean =
-    dailyMoodSeries.length > 0
-      ? round(
-          dailyMoodSeries.reduce((s, e) => s + e.value, 0) /
-            dailyMoodSeries.length,
-          2,
-        )
-      : null;
+  const moodSeries = applyPayloadBudget(
+    moodEntries.map((entry) => ({
+      measuredAt: entry.moodLoggedAt,
+      value: entry.score,
+    })),
+    { now },
+  );
+  const moodSummary = summarizeSeries(
+    moodSeries.daily.map((bucket) => ({ value: bucket.value })),
+  );
+  const moodMean = moodSummary?.mean ?? null;
 
   const pulseAge = getAgeFromDateOfBirth(user?.dateOfBirth ?? null);
   const pulseTarget = getPersonalizedPulseTarget(
@@ -213,23 +185,27 @@ export async function generatePulseStatusForUser(
     (user?.gender as "MALE" | "FEMALE" | null | undefined) ?? null,
   );
 
+  // "Last 30 daily points" = the newest 30 daily buckets (offsets 0..29).
+  const recentPulseDaily = pulseSeries.daily.filter(
+    (bucket) => bucket.dayOffset < 30,
+  );
   const inTargetPctLast30DailyPoints =
-    pulseSeries.length === 0
+    recentPulseDaily.length === 0
       ? null
       : round(
-          (pulseSeries.filter(
+          (recentPulseDaily.filter(
             (entry) =>
               entry.value >= pulseTarget.greenMin &&
               entry.value <= pulseTarget.greenMax,
           ).length /
-            pulseSeries.length) *
+            recentPulseDaily.length) *
             100,
           1,
         );
 
-  const latestPulse = pulseSeries.at(-1) ?? null;
-  const previousPulse =
-    pulseSeries.length > 1 ? (pulseSeries.at(-2) ?? null) : null;
+  // Daily buckets are sorted oldest-first by dayOffset (lower = newer).
+  const latestPulse = pulseSeries.daily[0] ?? null;
+  const previousPulse = pulseSeries.daily[1] ?? null;
 
   const oldestMeasurement =
     measurements.length > 0 ? measurements[0].measuredAt : null;
@@ -260,11 +236,11 @@ export async function generatePulseStatusForUser(
       newestMeasurementDaysAgo,
     },
     pulse: {
-      summary: summarizeSeries(pulseSeries),
+      summary: pulseSummary,
       series: pulseSeries,
       latestDayFocus: latestPulse
         ? {
-            day: latestPulse.day,
+            dayOffset: latestPulse.dayOffset,
             value: latestPulse.value,
             deltaToPreviousDailyPoint:
               previousPulse == null
@@ -281,17 +257,22 @@ export async function generatePulseStatusForUser(
       },
     },
     moodContext:
-      dailyMoodSeries.length >= 3
+      moodSeries.daily.length >= 3
         ? {
-            points: dailyMoodSeries.length,
+            points: moodSeries.daily.length,
             mean: moodMean,
-            latest: dailyMoodSeries.at(-1)?.value ?? null,
-            series: dailyMoodSeries.slice(-10),
+            latest: moodSeries.daily[0]?.value ?? null,
+            series: moodSeries,
           }
         : null,
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
+
+  annotate({
+    action: { name: cacheAction },
+    meta: { payload_size_bytes: snapshotJson.length },
+  });
 
   const previousContext = await getPreviousInsightContext(
     userId,
@@ -348,7 +329,6 @@ export async function generatePulseStatusForUser(
         text: summary,
         providerType: provider.type,
         model: result.model ?? "unknown",
-        pointsPerMetric: PULSE_STATUS_POINTS,
         tokensUsed: result.tokensUsed ?? null,
       }),
     },

@@ -13,8 +13,13 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
+import {
+  applyPayloadBudget,
+  type DailyBucket,
+} from "@/lib/insights/bucket-series";
+import { annotate } from "@/lib/logging/context";
 
-const WEIGHT_STATUS_POINTS = 30;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -56,28 +61,6 @@ function normalizeLocale(value: string | null | undefined): SupportedLocale {
   return value === "en" ? "en" : "de";
 }
 
-function aggregateDailyAverageSeries(
-  records: Array<{ measuredAt: Date; value: number }>,
-) {
-  const byDay = new Map<string, { sum: number; count: number }>();
-
-  for (const record of records) {
-    const dayKey = toBerlinDayKey(record.measuredAt);
-    const current = byDay.get(dayKey) ?? { sum: 0, count: 0 };
-    current.sum += record.value;
-    current.count += 1;
-    byDay.set(dayKey, current);
-  }
-
-  return Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-      samples: stats.count,
-    }));
-}
-
 function summarizeSeries(series: Array<{ value: number }>) {
   if (series.length === 0) return null;
   const first = series[0].value;
@@ -93,20 +76,22 @@ function summarizeSeries(series: Array<{ value: number }>) {
   };
 }
 
-function pairDailySeries(
-  seriesA: Array<{ day: string; value: number }>,
-  seriesB: Array<{ day: string; value: number }>,
+function pairDailyBuckets(
+  seriesA: DailyBucket[],
+  seriesB: DailyBucket[],
+  now: Date,
 ): PairedPoint[] {
-  const mapB = new Map(seriesB.map((entry) => [entry.day, entry.value]));
+  const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
+  const nowMs = now.getTime();
 
   return seriesA
     .map((entry) => {
-      const b = mapB.get(entry.day);
+      const b = mapB.get(entry.dayOffset);
       if (b == null) return null;
       return {
         a: entry.value,
         b,
-        date: new Date(`${entry.day}T00:00:00.000Z`),
+        date: new Date(nowMs - entry.dayOffset * MS_PER_DAY),
       };
     })
     .filter((entry): entry is PairedPoint => entry !== null);
@@ -183,32 +168,38 @@ export async function generateWeightStatusForUser(
     },
   });
 
-  const weightSeries = aggregateDailyAverageSeries(
+  const now = new Date();
+  const nowMs = now.getTime();
+
+  const weightSeries = applyPayloadBudget(
     measurements
       .filter((measurement) => measurement.type === "WEIGHT")
       .map((measurement) => ({
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-  ).slice(-WEIGHT_STATUS_POINTS);
+    { now },
+  );
 
-  const sysSeries = aggregateDailyAverageSeries(
+  const sysSeries = applyPayloadBudget(
     measurements
       .filter((measurement) => measurement.type === "BLOOD_PRESSURE_SYS")
       .map((measurement) => ({
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-  ).slice(-WEIGHT_STATUS_POINTS);
+    { now },
+  );
 
-  const diaSeries = aggregateDailyAverageSeries(
+  const diaSeries = applyPayloadBudget(
     measurements
       .filter((measurement) => measurement.type === "BLOOD_PRESSURE_DIA")
       .map((measurement) => ({
         measuredAt: measurement.measuredAt,
         value: measurement.value,
       })),
-  ).slice(-WEIGHT_STATUS_POINTS);
+    { now },
+  );
 
   // Fetch mood context (optional — for enrichment only)
   const moodEntries = await prisma.moodEntry.findMany({
@@ -217,54 +208,67 @@ export async function generateWeightStatusForUser(
     select: { date: true, score: true, moodLoggedAt: true },
   });
 
-  const moodByDay = new Map<string, { sum: number; count: number }>();
-  for (const entry of moodEntries) {
-    const current = moodByDay.get(entry.date) ?? { sum: 0, count: 0 };
-    current.sum += entry.score;
-    current.count += 1;
-    moodByDay.set(entry.date, current);
-  }
-  const dailyMoodSeries = Array.from(moodByDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-    }))
-    .slice(-30);
+  const moodSeries = applyPayloadBudget(
+    moodEntries.map((entry) => ({
+      measuredAt: entry.moodLoggedAt,
+      value: entry.score,
+    })),
+    { now },
+  );
+  const moodSummary = summarizeSeries(
+    moodSeries.daily.map((bucket) => ({ value: bucket.value })),
+  );
+  const moodMean = moodSummary?.mean ?? null;
 
-  const moodMean =
-    dailyMoodSeries.length > 0
-      ? round(
-          dailyMoodSeries.reduce((s, e) => s + e.value, 0) /
-            dailyMoodSeries.length,
-          2,
-        )
-      : null;
-
-  const weightVsSystolicPairs = pairDailySeries(weightSeries, sysSeries);
+  const weightVsSystolicPairs = pairDailyBuckets(
+    weightSeries.daily,
+    sysSeries.daily,
+    now,
+  );
   const weightVsSystolicCorrelation = pearsonCorrelation(weightVsSystolicPairs);
 
-  const pairedSystolicDiastolic = pairDailySeries(sysSeries, diaSeries).map(
-    (entry) => ({
-      day: toBerlinDayKey(entry.date),
-      sys: entry.a,
-      dia: entry.b,
-      mean: round((entry.a + entry.b) / 2, 2),
-    }),
-  );
-
-  const bpMeanSeries = pairedSystolicDiastolic.map((entry) => ({
-    day: entry.day,
-    value: entry.mean,
+  const pairedSystolicDiastolic = pairDailyBuckets(
+    sysSeries.daily,
+    diaSeries.daily,
+    now,
+  ).map((entry) => ({
+    day: toBerlinDayKey(entry.date),
+    sys: entry.a,
+    dia: entry.b,
+    mean: round((entry.a + entry.b) / 2, 2),
   }));
 
-  const weightVsMeanBpPairs = pairDailySeries(weightSeries, bpMeanSeries);
+  // Synthesise a daily-bucket-shaped BP-mean series so we can reuse
+  // pairDailyBuckets — derive dayOffset from the offsets in sysSeries.
+  const sysOffsetByDay = new Map(
+    sysSeries.daily.map((bucket) => {
+      const dayKey = toBerlinDayKey(
+        new Date(nowMs - bucket.dayOffset * MS_PER_DAY),
+      );
+      return [dayKey, bucket.dayOffset];
+    }),
+  );
+  const bpMeanDaily: DailyBucket[] = pairedSystolicDiastolic
+    .map((entry) => {
+      const dayOffset = sysOffsetByDay.get(entry.day);
+      if (dayOffset == null) return null;
+      return { dayOffset, value: entry.mean, n: 1 };
+    })
+    .filter((entry): entry is DailyBucket => entry !== null);
+
+  const weightVsMeanBpPairs = pairDailyBuckets(
+    weightSeries.daily,
+    bpMeanDaily,
+    now,
+  );
   const weightVsMeanBpCorrelation = pearsonCorrelation(weightVsMeanBpPairs);
 
-  const latestWeight = weightSeries.at(-1) ?? null;
-  const previousWeight =
-    weightSeries.length > 1 ? (weightSeries.at(-2) ?? null) : null;
-  const latestWeightDay = latestWeight?.day ?? null;
+  // daily[0] = newest bucket (lowest dayOffset).
+  const latestWeight = weightSeries.daily[0] ?? null;
+  const previousWeight = weightSeries.daily[1] ?? null;
+  const latestWeightDay = latestWeight
+    ? toBerlinDayKey(new Date(nowMs - latestWeight.dayOffset * MS_PER_DAY))
+    : null;
   const sameDayBp = latestWeightDay
     ? (pairedSystolicDiastolic.find((entry) => entry.day === latestWeightDay) ??
       null)
@@ -299,11 +303,14 @@ export async function generateWeightStatusForUser(
       newestMeasurementDaysAgo,
     },
     weight: {
-      summary: summarizeSeries(weightSeries),
+      summary: summarizeSeries(
+        weightSeries.daily.map((bucket) => ({ value: bucket.value })),
+      ),
       series: weightSeries,
       latestDayFocus: latestWeight
         ? {
-            day: latestWeight.day,
+            day: latestWeightDay,
+            dayOffset: latestWeight.dayOffset,
             value: latestWeight.value,
             deltaToPreviousDailyPoint:
               previousWeight == null
@@ -315,11 +322,15 @@ export async function generateWeightStatusForUser(
     },
     bloodPressureContext: {
       systolic: {
-        summary: summarizeSeries(sysSeries),
+        summary: summarizeSeries(
+          sysSeries.daily.map((bucket) => ({ value: bucket.value })),
+        ),
         series: sysSeries,
       },
       diastolic: {
-        summary: summarizeSeries(diaSeries),
+        summary: summarizeSeries(
+          diaSeries.daily.map((bucket) => ({ value: bucket.value })),
+        ),
         series: diaSeries,
       },
       pairedDaily: pairedSystolicDiastolic,
@@ -341,16 +352,17 @@ export async function generateWeightStatusForUser(
       })),
     },
     moodContext:
-      dailyMoodSeries.length >= 3
+      moodSeries.daily.length >= 3
         ? {
-            points: dailyMoodSeries.length,
+            points: moodSeries.daily.length,
             mean: moodMean,
-            latest: dailyMoodSeries.at(-1)?.value ?? null,
-            series: dailyMoodSeries.slice(-10),
+            latest: moodSeries.daily[0]?.value ?? null,
+            series: moodSeries,
             moodVsWeightCorrelation: (() => {
-              const moodVsWeightPairs = pairDailySeries(
-                dailyMoodSeries,
-                weightSeries,
+              const moodVsWeightPairs = pairDailyBuckets(
+                moodSeries.daily,
+                weightSeries.daily,
+                now,
               );
               return pearsonCorrelation(moodVsWeightPairs);
             })(),
@@ -359,6 +371,11 @@ export async function generateWeightStatusForUser(
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
+
+  annotate({
+    action: { name: cacheAction },
+    meta: { payload_size_bytes: snapshotJson.length },
+  });
 
   const previousContext = await getPreviousInsightContext(
     userId,
@@ -415,7 +432,6 @@ export async function generateWeightStatusForUser(
         text: summary,
         providerType: provider.type,
         model: result.model ?? "unknown",
-        pointsPerMetric: WEIGHT_STATUS_POINTS,
         tokensUsed: result.tokensUsed ?? null,
       }),
     },

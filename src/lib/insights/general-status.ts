@@ -11,8 +11,8 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
-
-const GENERAL_STATUS_POINTS = 30;
+import { applyPayloadBudget } from "@/lib/insights/bucket-series";
+import { annotate } from "@/lib/logging/context";
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -51,28 +51,6 @@ function average(values: number[]): number {
 
 function normalizeSummaryText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
-}
-
-function aggregateDailyAverageSeries(
-  records: Array<{ measuredAt: Date; value: number }>,
-) {
-  const byDay = new Map<string, { sum: number; count: number }>();
-
-  for (const record of records) {
-    const dayKey = toBerlinDayKey(record.measuredAt);
-    const current = byDay.get(dayKey) ?? { sum: 0, count: 0 };
-    current.sum += record.value;
-    current.count += 1;
-    byDay.set(dayKey, current);
-  }
-
-  return Array.from(byDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-      samples: stats.count,
-    }));
 }
 
 function summarizeSeries(series: Array<{ value: number }>) {
@@ -172,21 +150,25 @@ export async function generateGeneralStatusForUser(
     },
   });
 
+  const now = new Date();
+
   const measurementSeries = Object.fromEntries(
     MEASUREMENT_TYPES.map((type) => {
-      const series = aggregateDailyAverageSeries(
-        measurements
-          .filter((measurement) => measurement.type === type)
-          .map((measurement) => ({
-            measuredAt: measurement.measuredAt,
-            value: measurement.value,
-          })),
-      ).slice(-GENERAL_STATUS_POINTS);
+      const records = measurements
+        .filter((measurement) => measurement.type === type)
+        .map((measurement) => ({
+          measuredAt: measurement.measuredAt,
+          value: measurement.value,
+        }));
+
+      const series = applyPayloadBudget(records, { now });
 
       return [
         type,
         {
-          summary: summarizeSeries(series),
+          summary: summarizeSeries(
+            series.daily.map((bucket) => ({ value: bucket.value })),
+          ),
           series,
         },
       ];
@@ -223,16 +205,17 @@ export async function generateGeneralStatusForUser(
     adherenceByDay.set(dayKey, bucket);
   }
 
-  const adherenceSeries = Array.from(adherenceByDay.entries())
+  // Adherence series — bucket the per-day rate so the model gets the
+  // canonical 360+24 view. We collapse one rate per day first, then feed
+  // it into applyPayloadBudget over a synthesised `{measuredAt, value}`
+  // record list.
+  const adherenceRecords = Array.from(adherenceByDay.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([day, value]) => ({
-      day,
-      rate: value.total > 0 ? round((value.taken / value.total) * 100, 1) : 0,
-      taken: value.taken,
-      skipped: value.skipped,
-      total: value.total,
-    }))
-    .slice(-GENERAL_STATUS_POINTS);
+      measuredAt: new Date(`${day}T00:00:00.000Z`),
+      value: value.total > 0 ? round((value.taken / value.total) * 100, 1) : 0,
+    }));
+  const adherenceSeries = applyPayloadBudget(adherenceRecords, { now });
 
   // Fetch mood context (optional — for enrichment only)
   const moodEntries = await prisma.moodEntry.findMany({
@@ -241,52 +224,38 @@ export async function generateGeneralStatusForUser(
     select: { date: true, score: true, moodLoggedAt: true },
   });
 
-  const moodByDay = new Map<string, { sum: number; count: number }>();
-  for (const entry of moodEntries) {
-    const current = moodByDay.get(entry.date) ?? { sum: 0, count: 0 };
-    current.sum += entry.score;
-    current.count += 1;
-    moodByDay.set(entry.date, current);
-  }
-  const dailyMoodSeries = Array.from(moodByDay.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([day, stats]) => ({
-      day,
-      value: round(stats.sum / stats.count, 2),
-    }))
-    .slice(-30);
-
-  const moodMean =
-    dailyMoodSeries.length > 0
-      ? round(
-          dailyMoodSeries.reduce((s, e) => s + e.value, 0) /
-            dailyMoodSeries.length,
-          2,
-        )
-      : null;
+  const moodRecords = moodEntries.map((entry) => ({
+    measuredAt: entry.moodLoggedAt,
+    value: entry.score,
+  }));
+  const moodSeries = applyPayloadBudget(moodRecords, { now });
+  const moodSummary = summarizeSeries(
+    moodSeries.daily.map((bucket) => ({ value: bucket.value })),
+  );
+  const moodMean = moodSummary?.mean ?? null;
 
   const bpTargets = getBpTargets(user?.dateOfBirth ?? null);
   let bpInTargetLast30Days: number | null = null;
   if (bpTargets) {
-    const sysSeries = (measurementSeries.BLOOD_PRESSURE_SYS?.series ?? []).map(
-      (entry) => [entry.day, entry.value] as const,
-    );
+    const sysDaily = measurementSeries.BLOOD_PRESSURE_SYS?.series.daily ?? [];
     const diaMap = new Map(
-      (measurementSeries.BLOOD_PRESSURE_DIA?.series ?? []).map((entry) => [
-        entry.day,
-        entry.value,
-      ]),
+      (measurementSeries.BLOOD_PRESSURE_DIA?.series.daily ?? []).map(
+        (bucket) => [bucket.dayOffset, bucket.value] as const,
+      ),
     );
-    const paired = sysSeries
-      .map(([day, sys]) => {
-        const dia = diaMap.get(day);
+    const paired = sysDaily
+      .map((bucket) => {
+        const dia = diaMap.get(bucket.dayOffset);
         if (dia == null) return null;
-        return { day, sys, dia };
+        return { dayOffset: bucket.dayOffset, sys: bucket.value, dia };
       })
       .filter(
-        (entry): entry is { day: string; sys: number; dia: number } => !!entry,
+        (entry): entry is { dayOffset: number; sys: number; dia: number } =>
+          !!entry,
       )
-      .slice(-GENERAL_STATUS_POINTS);
+      // Keep the legacy "last 30 daily points" semantics — newest 30
+      // paired daily buckets (dayOffset 0..29).
+      .filter((point) => point.dayOffset < 30);
 
     if (paired.length > 0) {
       const inTargetCount = paired.filter(
@@ -333,7 +302,7 @@ export async function generateGeneralStatusForUser(
     measurementSeries,
     medicationAdherence: {
       summary: summarizeSeries(
-        adherenceSeries.map((entry) => ({ value: entry.rate })),
+        adherenceSeries.daily.map((bucket) => ({ value: bucket.value })),
       ),
       series: adherenceSeries,
     },
@@ -345,17 +314,22 @@ export async function generateGeneralStatusForUser(
         }
       : null,
     moodContext:
-      dailyMoodSeries.length >= 3
+      moodSeries.daily.length >= 3
         ? {
-            points: dailyMoodSeries.length,
+            points: moodSeries.daily.length,
             mean: moodMean,
-            latest: dailyMoodSeries.at(-1)?.value ?? null,
-            series: dailyMoodSeries.slice(-10),
+            latest: moodSeries.daily[0]?.value ?? null,
+            series: moodSeries,
           }
         : null,
   };
 
   const snapshotJson = JSON.stringify(snapshot, null, 2);
+
+  annotate({
+    action: { name: cacheAction },
+    meta: { payload_size_bytes: snapshotJson.length },
+  });
 
   // v1.4: pull the previous cached general-status into the prompt so
   // the model can compare to the user's last analysis. Falls back
@@ -415,7 +389,6 @@ export async function generateGeneralStatusForUser(
         text: summary,
         providerType: provider.type,
         model: result.model ?? "unknown",
-        pointsPerMetric: GENERAL_STATUS_POINTS,
         tokensUsed: result.tokensUsed ?? null,
       }),
     },

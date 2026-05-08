@@ -53,12 +53,11 @@ describe("POST /api/feedback bug-report toggle gate", () => {
         category: "BUG",
         subject: "test",
         description: "Anything at least ten characters long.",
-      }),
+      }) as never,
     );
     expect(res.status).toBe(503);
     const body = (await res.json()) as { error: string };
     expect(body.error).toMatch(/disabled/i);
-    // Must not even attempt to create the row when the toggle is off.
     expect(prisma.feedback.create).not.toHaveBeenCalled();
   });
 
@@ -78,7 +77,7 @@ describe("POST /api/feedback bug-report toggle gate", () => {
         category: "BUG",
         subject: "test",
         description: "Anything at least ten characters long.",
-      }),
+      }) as never,
     );
     expect(res.status).toBe(201);
     expect(prisma.feedback.create).toHaveBeenCalledTimes(1);
@@ -98,7 +97,7 @@ describe("POST /api/feedback bug-report toggle gate", () => {
         category: "BUG",
         subject: "test",
         description: "Anything at least ten characters long.",
-      }),
+      }) as never,
     );
     expect(res.status).toBe(201);
     expect(prisma.feedback.create).toHaveBeenCalledTimes(1);
