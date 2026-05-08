@@ -82,7 +82,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
     const validated = insightResultSchema.safeParse(parsed);
     insights = validated.success ? validated.data : parsed;
   } catch {
-    return apiError("Failed to parse AI response", 502);
+    // Returning 502 here triggers Cloudflare's HTML error rewrite, which
+    // breaks `await res.json()` on the client side. 422 stays passthrough
+    // so the React Query mutation can read the JSON body and surface a
+    // readable message. Same fix pattern as v1.4.5 ai/test.
+    return apiError("AI response was not valid JSON", 422);
   }
 
   await prisma.user.update({
