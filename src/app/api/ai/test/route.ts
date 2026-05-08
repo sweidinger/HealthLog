@@ -91,15 +91,28 @@ export const POST = apiHandler(async (request: NextRequest) => {
         ai_test_provider: provider.type,
       },
     });
+    // Map upstream status to a *client-side* status code that won't be
+    // rewritten by Cloudflare. 5xx from origin causes Cloudflare to swap
+    // the body for its own HTML error page — `await res.json()` in the
+    // browser then crashes with `Unexpected token '<', "<!DOCTYPE "`,
+    // which is exactly how Marc encountered this when typing a bad
+    // OpenAI key. 4xx codes pass through untouched.
     const status = err.httpStatus ?? 0;
-    const safeMessage =
-      status === 401 || status === 403
-        ? "Provider rejected the credentials"
-        : status === 429
-          ? "Provider rate-limited the request"
-          : status >= 500
-            ? "Provider returned a server error"
-            : "Provider connection failed";
-    return apiError(safeMessage, 502);
+    let outboundStatus: number;
+    let safeMessage: string;
+    if (status === 401 || status === 403) {
+      outboundStatus = 422;
+      safeMessage = "Provider rejected the credentials";
+    } else if (status === 429) {
+      outboundStatus = 429;
+      safeMessage = "Provider rate-limited the request";
+    } else if (status >= 500) {
+      outboundStatus = 502;
+      safeMessage = "Provider returned a server error";
+    } else {
+      outboundStatus = 422;
+      safeMessage = "Provider connection failed";
+    }
+    return apiError(safeMessage, outboundStatus);
   }
 });

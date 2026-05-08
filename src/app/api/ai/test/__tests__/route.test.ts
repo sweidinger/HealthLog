@@ -94,7 +94,11 @@ describe("POST /api/ai/test — provider error leak guard", () => {
     const response = await POST(emptyRequest() as never);
     const body = (await response.json()) as ApiErrorEnvelope;
 
-    expect(response.status).toBe(502);
+    // v1.4.5: credential failures map to 422 (not 502) so Cloudflare
+    // doesn't replace our JSON body with its HTML error page — that
+    // rewrite was the root cause of the "Unexpected token '<'…" client
+    // crash Marc hit when typing a bad OpenAI key.
+    expect(response.status).toBe(422);
     expect(body.error ?? "").not.toMatch(/sk-/);
     expect(body.error ?? "").not.toMatch(/api\.openai\.com/);
     expect(body.error ?? "").not.toMatch(/invalid api key/i);
@@ -106,7 +110,10 @@ describe("POST /api/ai/test — provider error leak guard", () => {
       Object.assign(new Error("429 from openai"), { httpStatus: 429 as const }),
     );
     const response = await POST(emptyRequest() as never);
-    expect(response.status).toBe(502);
+    // v1.4.5: rate-limit passes through as 429 (was 502 in v1.4.4) so
+    // the React Query mutation can read the JSON body instead of
+    // tripping over Cloudflare's HTML 502.
+    expect(response.status).toBe(429);
     expect(((await response.json()) as ApiErrorEnvelope).error).toBe(
       "Provider rate-limited the request",
     );

@@ -881,21 +881,22 @@ export default function DashboardPage() {
              * touch.
              */}
             <div
-              className="-mx-2 flex snap-x snap-mandatory items-stretch gap-3 overflow-x-auto px-2 pb-2 md:mx-0 md:px-0"
+              // CSS Grid with `auto-fit + minmax(9rem, 1fr)` is the v1.4.4
+              // attempt's flex-strip replacement: every tile gets EXACTLY
+              // the same width (1fr each in the row's track list), the gap
+              // is symmetric, and the strip starts and ends at the same
+              // x-coordinates as the charts below because both inherit the
+              // same parent container. When the row no longer fits a 9rem
+              // floor, the grid wraps to a new row instead of horizontal-
+              // scrolling — Marc tested both and prefers the v1.3-era
+              // wrap behaviour over the one-row scroll for the symmetry
+              // it preserves.
+              className="grid auto-rows-fr gap-3 [grid-template-columns:repeat(auto-fit,minmax(9rem,1fr))] pb-2"
               data-slot="dashboard-tile-strip"
               data-tile-count={trendCards.length}
             >
               {trendCards.map((entry) => (
-                // `flex-1 basis-0` distributes the strip width evenly across
-                // every tile so 5 tiles or 7 tiles both look symmetric — no
-                // tile claims more horizontal space because its content is
-                // wider. `min-w-[9rem]` keeps the cells readable on narrow
-                // viewports; if the row no longer fits, the parent's
-                // `overflow-x-auto` lets the user swipe instead of wrapping.
-                <div
-                  key={entry.id}
-                  className="flex min-w-[9rem] flex-1 basis-0 snap-start"
-                >
+                <div key={entry.id} className="flex">
                   {entry.node}
                 </div>
               ))}

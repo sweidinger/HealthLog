@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.4.5] — 2026-05-09
+
+### Fixed — Settings · KI
+
+- **"Verbindung testen" no longer crashes the page when the key is
+  bad.** The endpoint mapped every upstream error to HTTP 502, which
+  Cloudflare intercepts and replaces with its own HTML error page.
+  `await res.json()` in the browser then crashed with `Unexpected
+  token '<', "<!DOCTYPE "`. 401/403 from the provider now map to 422,
+  429 to 429, and only genuine 5xx upstream errors keep the 502 —
+  Cloudflare passes 4xx through untouched, so the React Query
+  mutation reads the JSON body and surfaces a readable message.
+
+### Fixed — Dashboard
+
+- **Dashboard tiles use a CSS Grid layout again** — the v1.3-era
+  pattern that gave each tile an identical width with symmetric gaps
+  and an edge-to-edge fit with the charts below. v1.4.4 distributed
+  width via `flex-1 basis-0`; CSS Grid is more honest about the
+  intent and survives viewport changes more gracefully.
+  `grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr))` keeps
+  every track equal-width with a 9 rem floor; the row wraps when
+  the floor no longer fits instead of triggering a horizontal
+  scroll.
+
 ## [1.4.4] — 2026-05-08
 
 ### Fixed — Dashboard
