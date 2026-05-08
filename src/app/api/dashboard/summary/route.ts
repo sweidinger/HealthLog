@@ -246,7 +246,7 @@ export const GET = apiHandler(async () => {
       unit: METRIC_UNITS.weight,
       trend: trendOf(spark),
       sparkline: spark,
-      updatedAt: latest?.at.toISOString() ?? null,
+      updatedAt: latest?.at?.toISOString() ?? null,
     });
   }
 
@@ -266,7 +266,7 @@ export const GET = apiHandler(async () => {
       trend: trendOf(sysList.map((p) => p.value)),
       sparkline: sysList.map((p) => p.value),
       updatedAt:
-        latestSys?.at.toISOString() ?? latestDia?.at.toISOString() ?? null,
+        latestSys?.at?.toISOString() ?? latestDia?.at?.toISOString() ?? null,
     });
   }
 
@@ -283,7 +283,7 @@ export const GET = apiHandler(async () => {
       unit: METRIC_UNITS.pulse,
       trend: trendOf(spark),
       sparkline: spark,
-      updatedAt: latest?.at.toISOString() ?? null,
+      updatedAt: latest?.at?.toISOString() ?? null,
     });
   }
 

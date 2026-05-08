@@ -259,7 +259,7 @@ export function MedicationForm({
   );
   const [schedules, setSchedules] = useState<Schedule[]>(
     sortSchedules(
-      initial?.schedules.length
+      initial?.schedules?.length
         ? initial.schedules.map((s) => {
             const recurrence = {
               daysOfWeek: s.daysOfWeek ?? [],

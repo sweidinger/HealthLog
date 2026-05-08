@@ -74,10 +74,10 @@ export function PasswordStrength({
   if (tooShort) {
     feedback.push(t("passwordStrength.minLength", { count: minLength }));
   }
-  if (result?.feedback.warning) {
+  if (result?.feedback?.warning) {
     feedback.push(translate(result.feedback.warning));
   }
-  if (result?.feedback.suggestions) {
+  if (result?.feedback?.suggestions) {
     feedback.push(...result.feedback.suggestions.map(translate));
   }
 

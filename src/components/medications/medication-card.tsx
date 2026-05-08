@@ -243,9 +243,9 @@ export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
     }
   }
 
-  const rate7 = compliance?.compliance7.rate ?? 0;
-  const rate30 = compliance?.compliance30.rate ?? 0;
-  const streak = compliance?.compliance7.streak ?? 0;
+  const rate7 = compliance?.compliance7?.rate ?? 0;
+  const rate30 = compliance?.compliance30?.rate ?? 0;
+  const streak = compliance?.compliance7?.streak ?? 0;
   const categoryLabels: Record<string, string> = {
     BLOOD_PRESSURE: t("medications.categoryBloodPressure"),
     VITAMIN: t("medications.categoryVitamin"),

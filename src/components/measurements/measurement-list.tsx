@@ -287,7 +287,7 @@ export function MeasurementList({ onEdit }: MeasurementListProps) {
               ))}
             </SelectContent>
           </Select>
-          {data?.meta.total !== undefined && (
+          {data?.meta?.total !== undefined && (
             <span className="text-muted-foreground text-sm">
               {t("measurements.measurementCount", {
                 count: fmt.integer(data.meta.total),

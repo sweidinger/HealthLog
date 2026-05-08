@@ -190,11 +190,11 @@ export const GET = apiHandler(async () => {
       glitchtipEnabled: Boolean(appSettings?.glitchtipEnabled),
       umamiEnabled: Boolean(appSettings?.umamiEnabled),
       wideEventsEnabled: true,
-      lastErrorAt: lastErrorEntry?.createdAt.toISOString() ?? null,
+      lastErrorAt: lastErrorEntry?.createdAt?.toISOString() ?? null,
     },
     backups: {
       severity: severityForBackup(latestBackup?.createdAt ?? null),
-      lastBackupAt: latestBackup?.createdAt.toISOString() ?? null,
+      lastBackupAt: latestBackup?.createdAt?.toISOString() ?? null,
       backedUpUsers,
       retentionDays: 90,
     },
@@ -203,13 +203,13 @@ export const GET = apiHandler(async () => {
       workerRunning: worker.running,
       workerUptimeSeconds,
       lastIdempotencyCleanup:
-        lastIdempotencyCleanup?.createdAt.toISOString() ?? null,
-      lastAuditLogCleanup: lastAuditLogCleanup?.createdAt.toISOString() ?? null,
+        lastIdempotencyCleanup?.createdAt?.toISOString() ?? null,
+      lastAuditLogCleanup: lastAuditLogCleanup?.createdAt?.toISOString() ?? null,
     },
     auditLog: {
       severity: "info",
       eventsLast30d: last30dEvents,
-      lastLoginAt: lastLoginEntry?.createdAt.toISOString() ?? null,
+      lastLoginAt: lastLoginEntry?.createdAt?.toISOString() ?? null,
     },
   };
 

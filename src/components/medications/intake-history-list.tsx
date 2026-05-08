@@ -362,7 +362,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
     <>
       <div className="space-y-3">
         <div className="flex items-center justify-end">
-          {data?.meta.total !== undefined && (
+          {data?.meta?.total !== undefined && (
             <span className="text-muted-foreground text-sm">
               {t("medications.intakeCount", { count: data.meta.total })}
             </span>
@@ -373,7 +373,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="text-primary h-6 w-6 animate-spin" />
           </div>
-        ) : !data?.events.length ? (
+        ) : !data?.events?.length ? (
           <div className="text-muted-foreground flex h-32 items-center justify-center rounded-lg border border-dashed">
             {t("medications.noIntakesYet")}
           </div>

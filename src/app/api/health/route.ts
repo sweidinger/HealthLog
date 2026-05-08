@@ -28,7 +28,7 @@ export const GET = apiHandler(async () => {
 
   // Only expose detailed info to authenticated admins
   const session = await getSession().catch(() => null);
-  if (session?.user.role === "ADMIN") {
+  if (session?.user?.role === "ADMIN") {
     return NextResponse.json(
       {
         status,

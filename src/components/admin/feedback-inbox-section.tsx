@@ -49,7 +49,7 @@ export function FeedbackInboxSection({ id }: { id: string }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const { data: status } = useSystemStatus();
-  const githubConfigured = Boolean(status?.integrations.bugReport?.configured);
+  const githubConfigured = Boolean(status?.integrations?.bugReport?.configured);
 
   const [activeStatus, setActiveStatus] = useState<FeedbackStatusType>("OPEN");
   const [selected, setSelected] = useState<FeedbackItem | null>(null);
@@ -65,7 +65,7 @@ export function FeedbackInboxSection({ id }: { id: string }) {
     },
   });
 
-  const counts = data?.meta.countsByStatus ?? {};
+  const counts = data?.meta?.countsByStatus ?? {};
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ["admin", "feedback"] });
@@ -113,7 +113,7 @@ export function FeedbackInboxSection({ id }: { id: string }) {
                   {t("admin.feedback.loading")}
                 </span>
               </div>
-            ) : !data?.items.length ? (
+            ) : !data?.items?.length ? (
               <p className="text-muted-foreground text-sm">
                 {t("admin.feedback.noEntries")}
               </p>

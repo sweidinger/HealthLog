@@ -283,7 +283,7 @@ export function MoodList() {
               ))}
             </SelectContent>
           </Select>
-          {data?.meta.total !== undefined && (
+          {data?.meta?.total !== undefined && (
             <span className="text-muted-foreground text-sm">
               {t("mood.entryCount", {
                 count: fmt.integer(data.meta.total),
