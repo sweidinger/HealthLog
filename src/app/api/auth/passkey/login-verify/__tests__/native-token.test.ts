@@ -5,6 +5,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn() },
     apiToken: { create: vi.fn() },
+    refreshToken: { create: vi.fn() },
   },
 }));
 
@@ -71,6 +72,9 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.user.findUnique).mockResolvedValue(FAKE_USER as never);
   vi.mocked(prisma.apiToken.create).mockResolvedValue({ id: "tok-1" } as never);
+  vi.mocked(prisma.refreshToken.create).mockResolvedValue({
+    id: "rt-1",
+  } as never);
   vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
     remaining: 9,
