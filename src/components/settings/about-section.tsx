@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -9,14 +9,11 @@ import {
   GitBranch,
   Info,
   Loader2,
-  Package,
   RefreshCw,
-  Scale,
   Sparkles,
   XCircle,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 
@@ -30,42 +27,46 @@ interface VersionPayload {
   docs: string;
 }
 
-interface GithubRelease {
-  tag_name: string;
-  html_url: string;
-  name: string;
+type CheckUpdatesResult =
+  | {
+      status: "up_to_date";
+      current: string;
+      latest_tag: string;
+      checked_at: string;
+    }
+  | {
+      status: "newer_available";
+      current: string;
+      latest_tag: string;
+      html_url: string | null;
+      published_at: string | null;
+      checked_at: string;
+    }
+  | { status: "unknown"; current: string; reason: string };
+
+const LAST_CHECKED_KEY = "healthlog-about-last-checked-iso";
+// One day between auto-checks. We don't want every page-mount to spend a
+// GitHub-API rate-limit slot just to confirm the version is unchanged
+// 30 seconds after the previous one resolved. The user can always force
+// a re-check via the button.
+const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+function readLastCheckedISO(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(LAST_CHECKED_KEY);
+  } catch {
+    return null;
+  }
 }
 
-const RELEASES_API_URL =
-  "https://api.github.com/repos/MBombeck/HealthLog/releases/latest";
-
-/**
- * Compare a semantic version (e.g. "1.4.0") with a release tag (e.g.
- * "v1.4.0", "1.4.1"). Returns `true` when `tag` is strictly newer than
- * `current`. Falls back to lexical compare when the strings don't parse,
- * which is intentional — better to surface "newer available" on a parse miss
- * than silently swallow a release.
- */
-function isNewer(current: string, tag: string): boolean {
-  const stripV = (s: string) => s.replace(/^v/i, "").trim();
-  const a = stripV(current)
-    .split(/[.-]/)
-    .map((n) => Number.parseInt(n, 10));
-  const b = stripV(tag)
-    .split(/[.-]/)
-    .map((n) => Number.parseInt(n, 10));
-  const maxLen = Math.max(a.length, b.length);
-  for (let i = 0; i < maxLen; i++) {
-    const ai = a[i] ?? 0;
-    const bi = b[i] ?? 0;
-    if (Number.isNaN(ai) || Number.isNaN(bi)) {
-      // Fall back to lexical compare for pre-release suffixes etc.
-      return stripV(tag) > stripV(current);
-    }
-    if (bi > ai) return true;
-    if (bi < ai) return false;
+function writeLastCheckedISO(iso: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LAST_CHECKED_KEY, iso);
+  } catch {
+    /* storage may be full or disabled — silently skip */
   }
-  return false;
 }
 
 export function AboutSection() {
@@ -85,41 +86,58 @@ export function AboutSection() {
   });
 
   const [checking, setChecking] = useState(false);
-  const [updateResult, setUpdateResult] = useState<
-    | { kind: "up_to_date" }
-    | { kind: "newer"; tag: string; url: string }
-    | { kind: "error" }
-    | null
-  >(null);
+  const [updateResult, setUpdateResult] = useState<CheckUpdatesResult | null>(
+    null,
+  );
+  const [lastCheckedISO, setLastCheckedISO] = useState<string | null>(() =>
+    readLastCheckedISO(),
+  );
 
-  async function handleCheckForUpdates() {
-    if (!version) return;
+  async function runCheck(): Promise<void> {
     setChecking(true);
-    setUpdateResult(null);
     try {
-      const res = await fetch(RELEASES_API_URL, {
-        headers: { Accept: "application/vnd.github+json" },
-      });
+      const res = await fetch("/api/version/check-updates");
       if (!res.ok) {
-        setUpdateResult({ kind: "error" });
+        setUpdateResult({
+          status: "unknown",
+          current: version?.version ?? "",
+          reason: `http_${res.status}`,
+        });
         return;
       }
-      const release = (await res.json()) as GithubRelease;
-      if (isNewer(version.version, release.tag_name)) {
-        setUpdateResult({
-          kind: "newer",
-          tag: release.tag_name,
-          url: release.html_url,
-        });
-      } else {
-        setUpdateResult({ kind: "up_to_date" });
+      const json = await res.json();
+      const result = json.data as CheckUpdatesResult;
+      setUpdateResult(result);
+      if (result.status !== "unknown") {
+        const iso = new Date().toISOString();
+        writeLastCheckedISO(iso);
+        setLastCheckedISO(iso);
       }
     } catch {
-      setUpdateResult({ kind: "error" });
+      setUpdateResult({
+        status: "unknown",
+        current: version?.version ?? "",
+        reason: "network_error",
+      });
     } finally {
       setChecking(false);
     }
   }
+
+  // Auto-check on mount when the last successful check is older than the
+  // refresh interval (or has never run). Keeps the UI populated without
+  // requiring a click — but won't spam GitHub on every navigation.
+  useEffect(() => {
+    if (!version) return;
+    const last = readLastCheckedISO();
+    const lastMs = last ? Date.parse(last) : NaN;
+    const stale =
+      Number.isNaN(lastMs) || Date.now() - lastMs > AUTO_CHECK_INTERVAL_MS;
+    if (stale) {
+      void runCheck();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version?.version]);
 
   return (
     <section
@@ -138,6 +156,10 @@ export function AboutSection() {
         </p>
       </header>
 
+      {/* Identity card — version + license inline. The v1.4.2 layout
+          stacked the license under the version inside its own boxed Badge,
+          which read as a separate field even though the two values belong
+          on the same row. */}
       <div className="bg-card border-border rounded-xl border p-6">
         <div className="mb-4 flex items-center gap-2">
           <Info className="text-primary h-5 w-5" />
@@ -152,69 +174,56 @@ export function AboutSection() {
             </span>
           </div>
         ) : (
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <div className="flex items-start gap-3">
-              <Package className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
-              <div className="min-w-0">
-                <dt className="text-muted-foreground text-xs">
-                  {t("settings.about.version")}
-                </dt>
-                <dd className="font-mono text-sm font-medium">
-                  v{version.version}
-                </dd>
-              </div>
+          <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-3 text-sm">
+            <div className="flex items-baseline gap-2">
+              <dt className="text-muted-foreground text-xs uppercase tracking-wide">
+                {t("settings.about.version")}
+              </dt>
+              <dd className="font-mono font-medium">v{version.version}</dd>
             </div>
 
-            <div className="flex items-start gap-3">
-              <Scale className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
-              <div className="min-w-0">
-                <dt className="text-muted-foreground text-xs">
-                  {t("settings.about.license")}
-                </dt>
-                <dd>
-                  <Badge variant="outline" className="text-xs">
-                    {version.license}
-                  </Badge>
-                </dd>
-              </div>
+            <div className="flex items-baseline gap-2">
+              <dt className="text-muted-foreground text-xs uppercase tracking-wide">
+                {t("settings.about.license")}
+              </dt>
+              <dd className="font-mono">{version.license}</dd>
             </div>
 
             {version.buildSha && (
-              <div className="flex items-start gap-3">
-                <GitBranch className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
-                <div className="min-w-0">
-                  <dt className="text-muted-foreground text-xs">
-                    {t("settings.about.gitSha")}
-                  </dt>
-                  <dd className="font-mono text-sm">
-                    {version.buildSha.slice(0, 7)}
-                  </dd>
-                </div>
+              <div className="flex items-baseline gap-2">
+                <dt className="text-muted-foreground text-xs uppercase tracking-wide">
+                  {t("settings.about.gitSha")}
+                </dt>
+                <dd className="font-mono">{version.buildSha.slice(0, 7)}</dd>
               </div>
             )}
 
             {version.builtAt && (
-              <div className="flex items-start gap-3">
-                <Sparkles className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
-                <div className="min-w-0">
-                  <dt className="text-muted-foreground text-xs">
-                    {t("settings.about.builtAt", {
-                      time: fmt.dateTime(version.builtAt),
-                    })}
-                  </dt>
-                  <dd className="text-muted-foreground text-xs">
-                    {fmt.date(version.builtAt)}
-                  </dd>
-                </div>
+              <div className="flex items-baseline gap-2">
+                <dt className="text-muted-foreground text-xs uppercase tracking-wide">
+                  {t("settings.about.builtAt", { time: "" }).trim() ||
+                    t("settings.about.gitSha")}
+                </dt>
+                <dd className="text-muted-foreground">
+                  {fmt.date(version.builtAt)}
+                </dd>
               </div>
             )}
           </dl>
         )}
       </div>
 
-      {/* Links */}
+      {/* Sources & docs — every link card was untitled in the v1.4.2
+          About surface, so the buttons floated alone with no heading
+          telling the user what the section was for. */}
       {version && (
         <div className="bg-card border-border rounded-xl border p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <BookOpen className="text-primary h-5 w-5" />
+            <h2 className="text-lg font-semibold">
+              {t("settings.about.linksHeading")}
+            </h2>
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button asChild variant="outline" size="sm">
               <a
@@ -249,24 +258,47 @@ export function AboutSection() {
         </div>
       )}
 
-      {/* Check for updates */}
+      {/* Updates — proper heading + last-check timestamp + manual button
+          that proxies through `/api/version/check-updates`. The v1.4.2
+          version called `api.github.com` directly from the browser, which
+          the production CSP blocked silently — that's why "nothing
+          happened" when Marc clicked the button. */}
       {version && (
         <div className="bg-card border-border rounded-xl border p-6">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleCheckForUpdates}
-            disabled={checking}
-          >
-            {checking ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            {t("settings.about.checkUpdates")}
-          </Button>
+          <div className="mb-4 flex items-center gap-2">
+            <RefreshCw className="text-primary h-5 w-5" />
+            <h2 className="text-lg font-semibold">
+              {t("settings.about.updatesHeading")}
+            </h2>
+          </div>
 
-          {updateResult?.kind === "up_to_date" && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={runCheck}
+              disabled={checking}
+            >
+              {checking ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              {checking
+                ? t("settings.about.checking")
+                : t("settings.about.checkUpdates")}
+            </Button>
+
+            <p className="text-muted-foreground text-xs">
+              {lastCheckedISO
+                ? t("settings.about.lastChecked", {
+                    time: fmt.dateTime(lastCheckedISO),
+                  })
+                : t("settings.about.lastCheckedNever")}
+            </p>
+          </div>
+
+          {updateResult?.status === "up_to_date" && (
             <p
               role="status"
               className="text-dracula-green mt-3 flex items-center gap-1.5 text-sm"
@@ -276,29 +308,37 @@ export function AboutSection() {
             </p>
           )}
 
-          {updateResult?.kind === "newer" && (
+          {updateResult?.status === "newer_available" && (
             <p role="status" className="mt-3 flex items-center gap-1.5 text-sm">
               <Sparkles className="text-dracula-purple h-4 w-4" />
-              <a
-                href={updateResult.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline-offset-2 hover:underline"
-              >
-                {t("settings.about.newerAvailable", {
-                  tag: updateResult.tag,
-                })}
-              </a>
+              {updateResult.html_url ? (
+                <a
+                  href={updateResult.html_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  {t("settings.about.newerAvailable", {
+                    tag: updateResult.latest_tag,
+                  })}
+                </a>
+              ) : (
+                <span>
+                  {t("settings.about.newerAvailable", {
+                    tag: updateResult.latest_tag,
+                  })}
+                </span>
+              )}
             </p>
           )}
 
-          {updateResult?.kind === "error" && (
+          {updateResult?.status === "unknown" && (
             <p
               role="alert"
               className="text-destructive mt-3 flex items-center gap-1.5 text-sm"
             >
               <XCircle className="h-4 w-4" />
-              {t("settings.testConnection.errors.connection_failed")}
+              {t("settings.about.checkFailed")}
             </p>
           )}
         </div>

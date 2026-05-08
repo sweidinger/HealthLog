@@ -101,8 +101,13 @@ describe("settings sections — SSR smoke", () => {
   it("<AboutSection> renders version + license + check-for-updates button", () => {
     const html = render(<AboutSection />);
     expect(html).toContain("About");
-    // The new about.* keys resolve.
-    expect(html).toContain("Check for updates");
+    // The new about.* keys resolve. v1.4.3 split the page into three
+    // titled cards (HealthLog identity, Sources & docs, Updates) and
+    // shortened the button label from "Check for updates" to "Check now"
+    // because the surrounding heading already names the section.
+    expect(html).toContain("Updates");
+    expect(html).toContain("Sources &amp; docs");
+    expect(html).toContain("Check now");
     expect(html).not.toContain("settings.about.");
   });
 
@@ -146,6 +151,10 @@ describe("settings sections — SSR smoke", () => {
 
   it("<AboutSection> resolves about.* keys in German", () => {
     const html = render(<AboutSection />, "de");
-    expect(html).toContain("Auf Updates prüfen");
+    // v1.4.3: button label shortened to "Jetzt prüfen" because the
+    // section heading "Updates" already provides context.
+    expect(html).toContain("Updates");
+    expect(html).toContain("Jetzt prüfen");
+    expect(html).toContain("Quellen &amp; Dokumentation");
   });
 });

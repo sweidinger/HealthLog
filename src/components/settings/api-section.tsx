@@ -71,7 +71,7 @@ function ApiEndpointsCard() {
       </p>
 
       <div className="border-border mt-4 overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[760px] text-xs">
+        <table className="w-full min-w-[760px] text-xs md:min-w-0">
           <thead>
             <tr className="bg-muted/40 text-muted-foreground border-b">
               <th className="px-3 py-2 text-left font-medium">
@@ -237,7 +237,7 @@ function ApiTokensCard() {
             {t("settings.activeTokensTitle")}
           </p>
           <div className="border-border overflow-x-auto rounded-lg border">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[860px] text-sm md:min-w-0">
               <thead>
                 <tr className="bg-muted/40 text-muted-foreground border-b text-xs">
                   <th className="px-3 py-2 text-left font-medium">
@@ -360,7 +360,7 @@ function ApiTokensCard() {
             </button>
             {showRevokedTokens && (
               <div className="border-border overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[760px] text-sm">
+                <table className="w-full min-w-[760px] text-sm md:min-w-0">
                   <thead>
                     <tr className="bg-muted/40 text-muted-foreground border-b text-xs">
                       <th className="px-3 py-2 text-left font-medium">

@@ -1166,9 +1166,15 @@
       "repository": "Quellcode",
       "changelog": "Changelog",
       "docs": "Dokumentation",
-      "checkUpdates": "Auf Updates prüfen",
+      "linksHeading": "Quellen & Dokumentation",
+      "updatesHeading": "Updates",
+      "checkUpdates": "Jetzt prüfen",
+      "checking": "Prüfe…",
+      "lastChecked": "Zuletzt geprüft: {time}",
+      "lastCheckedNever": "Noch nicht geprüft",
       "upToDate": "Du nutzt die aktuelle Version",
-      "newerAvailable": "Neue Version: {tag}"
+      "newerAvailable": "Neue Version: {tag}",
+      "checkFailed": "Konnte GitHub nicht erreichen — versuche es später erneut"
     },
     "testConnection": {
       "test": "Verbindung testen",
