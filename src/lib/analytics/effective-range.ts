@@ -93,9 +93,29 @@ export const METRIC_BOUNDS: Record<
 };
 
 /**
- * Blood-glucose defaults follow the ADA Standards of Care (2024) combined
- * with DGIM/DDG S3 guidelines. Values are in mg/dL — the canonical storage
- * unit. Display conversion to mmol/L happens at render time.
+ * Blood-glucose defaults. Values are mg/dL (canonical storage); display
+ * conversion to mmol/L happens at render time.
+ *
+ * Sources per context:
+ *   FASTING       70–99   ADA 2024 §6 (Glycemic Targets) — 80–130
+ *                         pre-prandial range narrowed to non-diabetic
+ *                         normal 70–99 (ADA Standards of Care 2024).
+ *                         https://diabetesjournals.org/care/article/47/Supplement_1/S111/153957
+ *   POSTPRANDIAL  70–140  WHO/IDF 2-h post-glucose-load <140 mg/dL
+ *                         normal-tolerance threshold.
+ *   RANDOM        70–140  Same threshold as postprandial; clinically
+ *                         less specific.
+ *   BEDTIME       90–150  *No published adult guideline.* ADA 2024
+ *                         publishes pre-prandial and post-prandial
+ *                         only. ISPAD 2022 (pediatric T1D) suggests
+ *                         80–140, which is HealthLog's closest
+ *                         comparator. The slightly higher floor
+ *                         (90 vs 80) reflects practical advice to
+ *                         avoid nocturnal hypoglycaemia and is well
+ *                         within the ADA pre-prandial daytime range.
+ *                         https://onlinelibrary.wiley.com/doi/10.1111/pedi.13455
+ *                         Citation in `messages/*.json` reflects this
+ *                         absence of an adult-specific source.
  */
 const GLUCOSE_DEFAULTS: Record<
   "FASTING" | "POSTPRANDIAL" | "RANDOM" | "BEDTIME",
@@ -145,10 +165,23 @@ function defaultRange(
       if (!dateOfBirth) return null;
       const t = getBpTargets(dateOfBirth);
       if (!t) return null;
+      // The lower orange wing must NOT extend to 60 mmHg — sustained
+      // diastolic ≤ 60 is a clinical hypotension / perfusion-risk
+      // threshold, not "mildly low":
+      // - General-adult hypotension: <90/60 (AHA, NIH).
+      // - J-curve evidence in older / treated hypertensives: DBP <70
+      //   raises events. Boehm M et al. (Lancet 2017) ONTARGET / TRANSCEND.
+      //   https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(17)32478-7/fulltext
+      // - ESH 2023 caution: "treatment should not lower DBP below 70 in
+      //   the elderly and below 80 in those with significant CAD".
+      //   https://journals.lww.com/jhypertension/fulltext/2023/12000/2023_esh_guidelines_for_the_management_of_arterial.2.aspx
+      // We therefore floor orangeMin at 65 across ages so a reading of
+      // 60 mmHg lands in red, not yellow. The override path
+      // (User.thresholdsJson) is audit-logged and respects the floor.
       return {
         greenMin: t.diaLow,
         greenMax: t.diaHigh,
-        orangeMin: t.diaLow - 10,
+        orangeMin: Math.max(t.diaLow - 10, 65),
         orangeMax: t.diaHigh + 10,
       };
     }
@@ -179,7 +212,12 @@ function defaultRange(
       // per week (150–300 min moderate / 75–150 min vigorous) — *not* a
       // step quota. No upper bound in reality, orange over 25k caps edge
       // detection.
-      return { greenMin: 8000, greenMax: 15000, orangeMin: 5000, orangeMax: 25000 };
+      return {
+        greenMin: 8000,
+        greenMax: 15000,
+        orangeMin: 5000,
+        orangeMax: 25000,
+      };
     case "BLOOD_GLUCOSE_FASTING":
       return glucoseRange(GLUCOSE_DEFAULTS.FASTING, 125); // pre-diabetes upper bound
     case "BLOOD_GLUCOSE_POSTPRANDIAL":

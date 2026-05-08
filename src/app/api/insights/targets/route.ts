@@ -17,13 +17,17 @@ import {
   classifyPulseByTarget,
   getPersonalizedPulseTarget,
 } from "@/lib/analytics/pulse-targets";
-import type { MeasurementType, GlucoseContext } from "@/generated/prisma/client";
+import type {
+  MeasurementType,
+  GlucoseContext,
+} from "@/generated/prisma/client";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import {
   getEffectiveRange,
   type ThresholdOverridesJson,
 } from "@/lib/analytics/effective-range";
+import { getBodyFatTargetRange } from "@/lib/analytics/value-bands";
 import { thresholdMetricForContext, resolveGlucoseUnit } from "@/lib/glucose";
 
 export const dynamic = "force-dynamic";
@@ -200,7 +204,7 @@ export const GET = apiHandler(async () => {
     unit: "mmHg",
     range: bpRange ? { min: bpRange.sysLow, max: bpRange.sysHigh } : null,
     classification: bpClassification,
-    source: "ESC/ESH 2018",
+    source: "ESH 2023",
     // Extra fields for diastolic
   } as TargetItem);
 
@@ -248,7 +252,7 @@ export const GET = apiHandler(async () => {
               ? { category: "Moderate", color: "#f1fa8c" }
               : { category: "Low", color: "#ff5555" }
           : null,
-      source: "ESC/ESH 2018",
+      source: "ESH 2023",
     });
   }
 
@@ -330,16 +334,12 @@ export const GET = apiHandler(async () => {
     const cls = classifyBodyFat(latestByType.BODY_FAT, gender, age);
     bodyFatClassification = { category: cls.category, color: cls.color };
   }
-  // Body fat ranges depend on gender/age; provide simplified ranges
-  let bodyFatRange: { min: number; max: number } | null = null;
-  if (gender === "MALE") {
-    bodyFatRange = { min: 14, max: 24 };
-  } else if (gender === "FEMALE") {
-    bodyFatRange = { min: 21, max: 31 };
-  } else if (age != null) {
-    // Average of male/female fitness+average ranges
-    bodyFatRange = { min: 17.5, max: 27.5 };
-  }
+  // Single source of truth for the body-fat green band lives in
+  // `value-bands.ts`. v1.3.3 had three different hardcoded ranges across
+  // value-bands.ts / targets/route.ts / classifications.ts; the v1.4
+  // marathon consolidated them onto `getBodyFatTargetRange` (ACE
+  // fitness + acceptable bands).
+  const bodyFatRange = age != null ? getBodyFatTargetRange(gender) : null;
   targets.push({
     type: "BODY_FAT",
     label: "Body fat",
@@ -585,7 +585,8 @@ export const GET = apiHandler(async () => {
     "BEDTIME",
   ];
   const glucoseUnit = resolveGlucoseUnit(dbUser?.glucoseUnit ?? null);
-  const overrides = (dbUser?.thresholdsJson ?? null) as ThresholdOverridesJson | null;
+  const overrides = (dbUser?.thresholdsJson ??
+    null) as ThresholdOverridesJson | null;
   const profileForRange = {
     heightCm,
     dateOfBirth: dbUser?.dateOfBirth ?? null,
@@ -651,7 +652,10 @@ export const GET = apiHandler(async () => {
     });
   }
 
-  annotate({ action: { name: "insights.targets" }, meta: { targetCount: targets.length } });
+  annotate({
+    action: { name: "insights.targets" },
+    meta: { targetCount: targets.length },
+  });
 
   return apiSuccess({
     targets,
