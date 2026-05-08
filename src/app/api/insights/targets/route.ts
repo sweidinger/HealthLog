@@ -109,20 +109,24 @@ export const GET = apiHandler(async () => {
     select: { type: true, value: true, measuredAt: true },
   });
 
-  // Also get the absolute latest measurement per type (even if older than 30 days)
+  // Also get the absolute latest measurement per type (even if older than 30 days).
+  // Single grouped query replaces the previous N×findFirst loop — DISTINCT ON
+  // (Postgres) emulated via a windowed orderBy + take-1 per type would still be
+  // N round-trips, so we sort once on the wide query and pick per-type below.
+  const latestEverByType = await prisma.measurement.findMany({
+    where: { userId, type: { in: types } },
+    orderBy: { measuredAt: "desc" },
+    distinct: ["type"],
+    select: { type: true, value: true },
+  });
+
   const latestByType: Record<string, number | null> = {};
   const avg30ByType: Record<string, number | null> = {};
 
   for (const t of types) {
-    // Latest value
-    const latest = await prisma.measurement.findFirst({
-      where: { userId, type: t },
-      orderBy: { measuredAt: "desc" },
-      select: { value: true },
-    });
+    const latest = latestEverByType.find((row) => row.type === t);
     latestByType[t] = latest?.value ?? null;
 
-    // 30-day average
     const recentOfType = recentMeasurements.filter((m) => m.type === t);
     if (recentOfType.length > 0) {
       const sum = recentOfType.reduce((acc, m) => acc + m.value, 0);
