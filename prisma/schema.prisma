@@ -70,6 +70,11 @@ model User {
   aiBaseUrl String? @map("ai_base_url")
   aiAnthropicKeyEncrypted String? @map("ai_anthropic_key_encrypted")
   aiLocalKeyEncrypted String? @map("ai_local_key_encrypted")
+  // v1.4.3: per-user OpenAI API key for the OPENAI provider — previously
+  // the schema only stored Anthropic and Local keys, leaving OPENAI without
+  // a credential surface. Encrypted with the active ENCRYPTION_KEYS entry
+  // before storage.
+  aiOpenaiKeyEncrypted String? @map("ai_openai_key_encrypted")
 
   // Onboarding
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")

@@ -22,6 +22,7 @@ const overrideSchema = z
     baseUrl: z.string().url().max(2048).optional().nullable(),
     anthropicKey: z.string().min(1).max(500).optional().nullable(),
     localKey: z.string().min(1).max(500).optional().nullable(),
+    openaiKey: z.string().min(1).max(500).optional().nullable(),
   })
   .strict();
 

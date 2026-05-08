@@ -18,6 +18,11 @@ interface InsightsSettings {
   codexStatus: string;
   codexConnectedAt: string | null;
   hasAdminKey: boolean;
+  /** True when the operator has set `CODEX_OAUTH_CLIENT_ID` on this
+   *  instance. The UI hides the "Connect with ChatGPT" button when
+   *  false to avoid the v1.4.2 dead-end where the click bounced the
+   *  user to chatgpt.com without any OAuth flow. */
+  codexOauthConfigured?: boolean;
   privacyMode: string;
   lastInsightAt: string | null;
 }
@@ -29,7 +34,29 @@ interface UserAIProvider {
   hasAnthropicKey: boolean;
   anthropicKeyPreview: string | null;
   hasLocalKey: boolean;
+  hasOpenaiKey: boolean;
+  openaiKeyPreview: string | null;
 }
+
+/**
+ * Model presets per provider — keeps users out of the freetext box for
+ * the common case and signals which models the resolver will actually
+ * use as defaults if the field is left blank. The `__custom__` sentinel
+ * surfaces a freetext Input so power users can still target any model
+ * the underlying API speaks (e.g. preview models, fine-tunes).
+ */
+const MODEL_PRESETS: Record<string, ReadonlyArray<string>> = {
+  OPENAI: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-5", "o3-mini"],
+  ANTHROPIC: [
+    "claude-sonnet-4-6",
+    "claude-opus-4-7",
+    "claude-haiku-4-5",
+    "claude-3-5-sonnet-latest",
+  ],
+  LOCAL: ["llama3.1:8b", "llama3.1:70b", "mistral", "qwen2.5"],
+};
+
+const CUSTOM_MODEL_SENTINEL = "__custom__";
 
 export function AiSection() {
   const { t } = useTranslations();
@@ -275,14 +302,21 @@ function InsightsSettingsCard({
                   Leitlinien zu erhalten. Keine zusätzlichen API-Kosten.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                onClick={handleConnect}
-                className="w-full sm:w-auto"
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                Mit ChatGPT verbinden
-              </Button>
+              {settings?.codexOauthConfigured ? (
+                <Button
+                  variant="outline"
+                  onClick={handleConnect}
+                  className="w-full sm:w-auto"
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Mit ChatGPT verbinden
+                </Button>
+              ) : (
+                <p className="text-muted-foreground text-xs italic">
+                  ChatGPT-OAuth ist auf dieser Instanz nicht konfiguriert —
+                  nutze stattdessen einen eigenen API-Key unten.
+                </p>
+              )}
               {settings?.hasAdminKey && (
                 <p className="text-muted-foreground text-xs">
                   Alternativ nutzt HealthLog den vom Administrator
@@ -353,10 +387,12 @@ function InsightsSettingsCard({
 function UserAIProviderSubsection() {
   const queryClient = useQueryClient();
   const [provider, setProvider] = useState<string>("");
-  const [model, setModel] = useState<string>("");
+  const [modelChoice, setModelChoice] = useState<string>("");
+  const [customModel, setCustomModel] = useState<string>("");
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [anthropicKey, setAnthropicKey] = useState<string>("");
   const [localKey, setLocalKey] = useState<string>("");
+  const [openaiKey, setOpenaiKey] = useState<string>("");
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<boolean>(false);
   const [testMsg, setTestMsg] = useState<string | null>(null);
@@ -374,26 +410,57 @@ function UserAIProviderSubsection() {
   });
 
   // React-recommended sync-from-server pattern (no setState-in-effect).
+  // The model dropdown reflects the saved value: an exact match against
+  // the preset list selects that preset; anything else (or the empty
+  // "use default" string) collapses to the custom-input mode so the
+  // user keeps full control.
   const dataKey = data
     ? `${data.provider ?? ""}|${data.model ?? ""}|${data.baseUrl ?? ""}`
     : null;
   const [seededKey, setSeededKey] = useState<string | null>(null);
   if (dataKey && dataKey !== seededKey) {
     setSeededKey(dataKey);
-    setProvider(data!.provider ?? "");
-    setModel(data!.model ?? "");
+    const nextProvider = data!.provider ?? "";
+    setProvider(nextProvider);
+    const presets = MODEL_PRESETS[nextProvider] ?? [];
+    const savedModel = data!.model ?? "";
+    if (savedModel && presets.includes(savedModel)) {
+      setModelChoice(savedModel);
+      setCustomModel("");
+    } else if (savedModel) {
+      setModelChoice(CUSTOM_MODEL_SENTINEL);
+      setCustomModel(savedModel);
+    } else {
+      setModelChoice("");
+      setCustomModel("");
+    }
     setBaseUrl(data!.baseUrl ?? "");
+  }
+
+  const presets = MODEL_PRESETS[provider] ?? [];
+  const effectiveModel =
+    modelChoice === CUSTOM_MODEL_SENTINEL
+      ? customModel.trim()
+      : modelChoice.trim();
+
+  // Reset model dropdown when provider changes — the preset list is
+  // provider-specific. Don't wipe the custom model the user typed in
+  // case they wanted to keep using it (rare but cheap).
+  function handleProviderChange(next: string) {
+    setProvider(next);
+    setModelChoice("");
   }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const body: Record<string, unknown> = {
         provider: provider || null,
-        model: model || null,
+        model: effectiveModel || null,
         baseUrl: baseUrl || null,
       };
       if (anthropicKey.trim()) body.anthropicKey = anthropicKey.trim();
       if (localKey.trim()) body.localKey = localKey.trim();
+      if (openaiKey.trim()) body.openaiKey = openaiKey.trim();
       const res = await fetch("/api/user/ai-provider", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -407,6 +474,7 @@ function UserAIProviderSubsection() {
       setSaveOk(true);
       setAnthropicKey("");
       setLocalKey("");
+      setOpenaiKey("");
       queryClient.invalidateQueries({ queryKey: ["user", "ai-provider"] });
       queryClient.invalidateQueries({ queryKey: ["insights"] });
     },
@@ -422,10 +490,11 @@ function UserAIProviderSubsection() {
     try {
       const overrideBody: Record<string, string> = {};
       if (provider) overrideBody.provider = provider;
-      if (model.trim()) overrideBody.model = model.trim();
+      if (effectiveModel) overrideBody.model = effectiveModel;
       if (baseUrl.trim()) overrideBody.baseUrl = baseUrl.trim();
       if (anthropicKey.trim()) overrideBody.anthropicKey = anthropicKey.trim();
       if (localKey.trim()) overrideBody.localKey = localKey.trim();
+      if (openaiKey.trim()) overrideBody.openaiKey = openaiKey.trim();
       const hasOverride = Object.keys(overrideBody).length > 0;
       const res = await fetch("/api/ai/test", {
         method: "POST",
@@ -460,7 +529,8 @@ function UserAIProviderSubsection() {
         <p className="text-sm font-medium">KI-Provider (persönlich)</p>
         <p className="text-muted-foreground text-xs">
           Eigener KI-Anbieter überschreibt die Admin-Einstellung. Leer lassen
-          für Standard.
+          für Standard. Für ChatGPT-Pro/Max-OAuth nutze den Verbinden-Button
+          oben.
         </p>
       </div>
 
@@ -470,33 +540,79 @@ function UserAIProviderSubsection() {
           <select
             id="ai-provider-select"
             value={provider}
-            onChange={(e) => setProvider(e.target.value)}
+            onChange={(e) => handleProviderChange(e.target.value)}
             className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
           >
             <option value="">— Standard (Admin/Codex) —</option>
-            <option value="OPENAI">OpenAI</option>
+            <option value="OPENAI">OpenAI (API-Key)</option>
             <option value="ANTHROPIC">Anthropic (Claude)</option>
             <option value="LOCAL">Lokal (OpenAI-kompatibel)</option>
-            <option value="CHATGPT_OAUTH">ChatGPT OAuth</option>
           </select>
         </div>
 
         <div>
-          <Label htmlFor="ai-model-input">Modell</Label>
-          <Input
-            id="ai-model-input"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            placeholder={
-              provider === "ANTHROPIC"
-                ? "claude-3-5-sonnet-latest"
-                : provider === "LOCAL"
-                  ? "llama3:8b"
-                  : "gpt-4o-mini"
-            }
-            className="mt-1"
-          />
+          <Label htmlFor="ai-model-select">Modell</Label>
+          <select
+            id="ai-model-select"
+            value={modelChoice}
+            onChange={(e) => setModelChoice(e.target.value)}
+            disabled={!provider}
+            className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm disabled:opacity-60"
+          >
+            <option value="">— Standard —</option>
+            {presets.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+            {provider && (
+              <option value={CUSTOM_MODEL_SENTINEL}>Eigenes…</option>
+            )}
+          </select>
         </div>
+
+        {modelChoice === CUSTOM_MODEL_SENTINEL && provider && (
+          <div className="sm:col-span-2">
+            <Label htmlFor="ai-model-custom">Eigener Modellname</Label>
+            <Input
+              id="ai-model-custom"
+              value={customModel}
+              onChange={(e) => setCustomModel(e.target.value)}
+              placeholder={
+                provider === "ANTHROPIC"
+                  ? "claude-3-5-sonnet-latest"
+                  : provider === "LOCAL"
+                    ? "llama3:8b"
+                    : "gpt-4o-mini"
+              }
+              className="mt-1"
+            />
+          </div>
+        )}
+
+        {provider === "OPENAI" && (
+          <div className="sm:col-span-2">
+            <Label htmlFor="ai-openai-key">
+              OpenAI API Key
+              {data?.hasOpenaiKey && (
+                <span className="text-muted-foreground ml-2 text-xs">
+                  (gespeichert {data.openaiKeyPreview})
+                </span>
+              )}
+            </Label>
+            <PasswordInput
+              id="ai-openai-key"
+              value={openaiKey}
+              onChange={(e) => setOpenaiKey(e.target.value)}
+              placeholder="sk-..."
+              className="mt-1"
+            />
+            <p className="text-muted-foreground mt-1 text-xs">
+              Eigener Key — keine Verbindung zu deinem ChatGPT-Abo. Für das
+              Abo nutze den Verbinden-Button oben.
+            </p>
+          </div>
+        )}
 
         {provider === "ANTHROPIC" && (
           <div className="sm:col-span-2">

@@ -22,6 +22,7 @@ export const GET = apiHandler(async () => {
       aiBaseUrl: true,
       aiAnthropicKeyEncrypted: true,
       aiLocalKeyEncrypted: true,
+      aiOpenaiKeyEncrypted: true,
     },
   });
 
@@ -34,6 +35,10 @@ export const GET = apiHandler(async () => {
       ? `...${decrypt(u.aiAnthropicKeyEncrypted).slice(-4)}`
       : null,
     hasLocalKey: Boolean(u?.aiLocalKeyEncrypted),
+    hasOpenaiKey: Boolean(u?.aiOpenaiKeyEncrypted),
+    openaiKeyPreview: u?.aiOpenaiKeyEncrypted
+      ? `...${decrypt(u.aiOpenaiKeyEncrypted).slice(-4)}`
+      : null,
   });
 });
 
@@ -97,6 +102,14 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
       updates.aiLocalKeyEncrypted = null;
     } else if (typeof body.localKey === "string") {
       updates.aiLocalKeyEncrypted = encrypt(body.localKey.trim());
+    }
+  }
+
+  if (body.openaiKey !== undefined) {
+    if (body.openaiKey === null || body.openaiKey === "") {
+      updates.aiOpenaiKeyEncrypted = null;
+    } else if (typeof body.openaiKey === "string") {
+      updates.aiOpenaiKeyEncrypted = encrypt(body.openaiKey.trim());
     }
   }
 

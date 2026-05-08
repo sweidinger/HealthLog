@@ -32,11 +32,7 @@ type UserAIRow = {
   aiBaseUrl: string | null;
   aiAnthropicKeyEncrypted: string | null;
   aiLocalKeyEncrypted: string | null;
-  // legacy admin-key fallback (OpenAI uses adminAiKeyEncrypted via app_settings)
-  // We store user-level OpenAI key in aiAnthropicKeyEncrypted? No — for OPENAI
-  // selection at user-level we read app-settings admin key. The user override
-  // for OpenAI is intentionally minimal: provider+model+baseUrl. Personal keys
-  // are scoped to Anthropic/Local for now (matches the migration columns).
+  aiOpenaiKeyEncrypted: string | null;
 };
 
 /**
@@ -66,11 +62,19 @@ function buildUserProvider(row: UserAIRow): AIProvider | null {
         baseUrl: row.aiBaseUrl,
       });
     }
-    case "OPENAI":
-      // User selected OPENAI but personal keys live in admin app_settings;
-      // signal "use admin OpenAI" by returning null and letting caller fall
-      // through to resolveAdminProvider().
-      return null;
+    case "OPENAI": {
+      // v1.4.3: user-level OpenAI key gets first crack — only fall back
+      // to the admin key if the user hasn't supplied their own. The
+      // model-default mirrors the admin path for consistency so a saved
+      // user "OPENAI" without an explicit model still produces an
+      // OpenAIClient with `gpt-4o-mini`.
+      if (!row.aiOpenaiKeyEncrypted) return null;
+      return new OpenAIClient({
+        apiKey: decrypt(row.aiOpenaiKeyEncrypted),
+        model: row.aiModel ?? "gpt-4o-mini",
+        baseUrl: row.aiBaseUrl ?? "https://api.openai.com/v1",
+      });
+    }
     case "CHATGPT_OAUTH":
       // Caller handles Codex OAuth via the dedicated branch; signal here.
       return null;
@@ -209,6 +213,7 @@ export async function resolveProvider(userId: string): Promise<AIProvider> {
       aiBaseUrl: true,
       aiAnthropicKeyEncrypted: true,
       aiLocalKeyEncrypted: true,
+      aiOpenaiKeyEncrypted: true,
     },
   });
 
@@ -241,6 +246,7 @@ export type AITestOverride = {
   baseUrl?: string | null;
   anthropicKey?: string | null;
   localKey?: string | null;
+  openaiKey?: string | null;
 };
 
 export class AITestConfigError extends Error {
@@ -270,6 +276,7 @@ export async function resolveProviderForTest(
       aiBaseUrl: true,
       aiAnthropicKeyEncrypted: true,
       aiLocalKeyEncrypted: true,
+      aiOpenaiKeyEncrypted: true,
     },
   });
 
@@ -333,11 +340,27 @@ export async function resolveProviderForTest(
       throw new AITestConfigError(422, "ChatGPT OAuth is not connected");
     }
     case "OPENAI": {
+      // Test path mirrors the persistent resolution: user key first,
+      // admin fallback if absent. We accept an `openaiKey` override
+      // from the test endpoint so a user can verify a not-yet-saved
+      // key dropdown change without persisting anything.
+      const userKey =
+        override.openaiKey?.trim() ||
+        (stored?.aiOpenaiKeyEncrypted
+          ? decrypt(stored.aiOpenaiKeyEncrypted)
+          : "");
+      if (userKey) {
+        return new OpenAIClient({
+          apiKey: userKey,
+          model: model || "gpt-4o-mini",
+          baseUrl: baseUrl || "https://api.openai.com/v1",
+        });
+      }
       const admin = await resolveAdminProvider();
       if (admin.type === "none") {
         throw new AITestConfigError(
           422,
-          "Admin OpenAI key is not configured for this instance",
+          "OpenAI key not configured (neither user nor admin)",
         );
       }
       return admin;

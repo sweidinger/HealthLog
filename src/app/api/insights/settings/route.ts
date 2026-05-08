@@ -3,6 +3,7 @@ import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { isCodexOAuthConfigured } from "@/lib/ai/codex-oauth";
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
@@ -28,6 +29,11 @@ export const GET = apiHandler(async () => {
     codexStatus: dbUser?.codexConnectionStatus ?? "disconnected",
     codexConnectedAt: dbUser?.codexConnectedAt ?? null,
     hasAdminKey: !!settings?.adminAiKeyEncrypted,
+    // v1.4.3: surface whether the operator has a `CODEX_OAUTH_CLIENT_ID`
+    // configured. Without it the Connect-with-ChatGPT flow is dead, so
+    // the UI hides the button instead of redirecting to a chatgpt.com
+    // login the user can never complete.
+    codexOauthConfigured: isCodexOAuthConfigured(),
     privacyMode: dbUser?.insightsPrivacyMode ?? "aggregated",
     lastInsightAt: dbUser?.insightsCachedAt ?? null,
   });
