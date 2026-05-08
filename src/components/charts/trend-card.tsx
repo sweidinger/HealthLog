@@ -82,7 +82,7 @@ export function TrendCard({
   };
 
   return (
-    <div className="bg-card border-border flex h-full flex-col rounded-xl border p-3">
+    <div className="bg-card border-border flex h-full w-full flex-col rounded-xl border p-3">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-sm font-medium">
           {label}
