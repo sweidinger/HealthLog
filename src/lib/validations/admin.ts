@@ -71,6 +71,7 @@ export const adminSettingsSchema = z
       .optional(),
     bugReportToken: z.string().optional(),
     clearBugReportToken: z.boolean().optional(),
+    bugReportEnabled: z.boolean().optional(),
     reminderLateMinutes: z.number().int().min(15).max(480).optional(),
     reminderMissedMinutes: z.number().int().min(30).max(720).optional(),
     moodLogGlobal: z.boolean().optional(),

@@ -1273,6 +1273,8 @@
     "monitoringSave": "Monitoring speichern",
     "bugReportGithub": "Bugreport (GitHub Issues)",
     "bugReportGithubDescription": "Hinterlege GitHub-Issue-Token und Repository für eingehende Bugreports.",
+    "bugReportEnabledLabel": "Bug-Reports aktiviert",
+    "bugReportEnabledDescription": "Wenn deaktiviert, ist der Report-Button im Frontend nicht mehr sichtbar — Token und Repository bleiben gespeichert.",
     "bugReportRepo": "Repository",
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Issue-Token",

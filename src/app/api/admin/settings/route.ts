@@ -41,6 +41,7 @@ export const GET = apiHandler(async () => {
     bugReportConfigured: Boolean(
       settings?.githubIssueRepo && settings?.githubIssueTokenEncrypted,
     ),
+    bugReportEnabled: settings?.bugReportEnabled ?? true,
     reminderLateMinutes: settings?.reminderLateMinutes ?? 120,
     reminderMissedMinutes: settings?.reminderMissedMinutes ?? 240,
     moodLogGlobal: settings?.moodLogGlobal ?? true,
@@ -73,6 +74,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     "umamiEnabled",
     "glitchtipEnabled",
     "moodLogGlobal",
+    "bugReportEnabled",
   ] as const;
   for (const field of booleanFields) {
     if (data[field] !== undefined) {
@@ -220,6 +222,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     bugReportConfigured: Boolean(
       settings.githubIssueRepo && settings.githubIssueTokenEncrypted,
     ),
+    bugReportEnabled: settings.bugReportEnabled,
     reminderLateMinutes: settings.reminderLateMinutes,
     reminderMissedMinutes: settings.reminderMissedMinutes,
     moodLogGlobal: settings.moodLogGlobal,

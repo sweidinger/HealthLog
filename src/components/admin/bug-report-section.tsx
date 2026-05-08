@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
 import { PasswordInput, useAdminSettings, useUpdateSettings } from "./_shared";
 
@@ -21,6 +22,7 @@ export function BugReportSection({ id }: { id: string }) {
   const bugReportRepoValue =
     bugReportRepoDraft ?? settings?.bugReportRepo ?? "";
   const configured = settings?.bugReportConfigured ?? false;
+  const enabled = settings?.bugReportEnabled ?? true;
 
   function saveBugReportSettings() {
     const payload: Record<string, unknown> = {
@@ -36,6 +38,10 @@ export function BugReportSection({ id }: { id: string }) {
         setBugReportTokenDraft("");
       },
     });
+  }
+
+  function toggleEnabled(next: boolean) {
+    updateSettings.mutate({ bugReportEnabled: next });
   }
 
   return (
@@ -61,6 +67,23 @@ export function BugReportSection({ id }: { id: string }) {
       <p className="text-muted-foreground mt-1 text-xs">
         {t("admin.bugReportGithubDescription")}
       </p>
+
+      <div className="bg-muted/40 mt-4 flex items-center justify-between gap-3 rounded-lg p-3">
+        <div>
+          <p className="text-sm font-medium">
+            {t("admin.bugReportEnabledLabel")}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            {t("admin.bugReportEnabledDescription")}
+          </p>
+        </div>
+        <Switch
+          checked={enabled}
+          onCheckedChange={toggleEnabled}
+          disabled={updateSettings.isPending}
+          aria-label={t("admin.bugReportEnabledLabel")}
+        />
+      </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">

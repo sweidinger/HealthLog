@@ -70,6 +70,7 @@ export interface AdminSettings {
   glitchtipEnvironment: string | null;
   bugReportRepo: string | null;
   bugReportConfigured: boolean;
+  bugReportEnabled: boolean;
   reminderLateMinutes: number;
   reminderMissedMinutes: number;
 }

@@ -1273,6 +1273,8 @@
     "monitoringSave": "Save monitoring",
     "bugReportGithub": "Bug report (GitHub Issues)",
     "bugReportGithubDescription": "Configure GitHub issue token and repository for incoming bug reports.",
+    "bugReportEnabledLabel": "Bug reports enabled",
+    "bugReportEnabledDescription": "When off, the in-app report button hides — token and repository stay configured.",
     "bugReportRepo": "Repository",
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Issue token",

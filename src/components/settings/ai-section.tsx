@@ -277,8 +277,11 @@ function InsightsSettingsCard({
                   )}
                 </p>
               </div>
+              {/* v1.4.3: aligned with the Withings/moodLog disconnect
+                  buttons — outline + text-destructive so the same action
+                  reads the same everywhere in Settings. */}
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 className="text-destructive shrink-0"
                 onClick={handleDisconnect}

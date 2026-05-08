@@ -36,8 +36,17 @@ export const POST = apiHandler(async (request: NextRequest) => {
     select: {
       githubIssueTokenEncrypted: true,
       githubIssueRepo: true,
+      bugReportEnabled: true,
     },
   });
+
+  // v1.4.3: explicit toggle. When the admin disables bug reports we
+  // return 503 immediately — the client already renders a "not
+  // configured" UI for that status, so the report button gracefully
+  // disappears without needing additional client-side wiring.
+  if (appSettings && appSettings.bugReportEnabled === false) {
+    return apiError("Bug reports are disabled by the administrator", 503);
+  }
 
   let configuredToken: string | null = null;
   if (appSettings?.githubIssueTokenEncrypted) {

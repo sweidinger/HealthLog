@@ -466,6 +466,11 @@ model AppSettings {
   glitchtipEnvironment String? @map("glitchtip_environment")
   githubIssueTokenEncrypted String? @map("github_issue_token_encrypted")
   githubIssueRepo     String? @map("github_issue_repo")
+  // v1.4.3: explicit toggle so an admin can hide the bug-report
+  // surface without nuking the token+repo config. Default true so
+  // existing instances with credentials don't accidentally lose
+  // the feature on upgrade.
+  bugReportEnabled    Boolean @default(true) @map("bug_report_enabled")
 
   // Medication reminder thresholds (minutes after windowEnd)
   reminderLateMinutes     Int @default(120) @map("reminder_late_minutes")

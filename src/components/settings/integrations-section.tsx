@@ -644,7 +644,16 @@ function MoodLogCard() {
 
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
+                {/* v1.4.3: aligned with the Withings disconnect button —
+                    outline + text-destructive instead of solid destructive
+                    so the trigger reads as a reversible action; the actual
+                    "yes, disconnect" confirmation inside the dialog keeps
+                    its solid-red treatment. */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive"
+                >
                   <Unlink className="mr-2 h-4 w-4" />
                   {t("settings.moodLogDisconnect")}
                 </Button>
