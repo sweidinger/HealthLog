@@ -27,13 +27,13 @@ eagerly). `/admin` and `/settings/integrations` are lean (~290 KiB JS,
 ## Wins implemented inline
 
 1. **`bb2b1de` — `perf(insights): defer Recharts ScatterChart imports
-   via next/dynamic`** — moves the seven recharts symbols (ScatterChart,
+via next/dynamic`** — moves the seven recharts symbols (ScatterChart,
    Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer)
    off the eager imports of `src/app/insights/page.tsx` and onto
    per-symbol `next/dynamic({ ssr: false })`. Same shape as the existing
    HealthChart/MoodChart pattern in the same file.
 2. **`519e36e` — `perf(dashboard): skip checklist API fetches once
-   onboarding is complete`** — gates the `withings/status` and
+onboarding is complete`** — gates the `withings/status` and
    `notifications/preferences` queries inside
    `getting-started-checklist.tsx` on
    `user.onboardingCompletedAt == null`. Saves ~950 ms of network on

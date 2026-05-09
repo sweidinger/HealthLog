@@ -11,15 +11,15 @@ Status: done. 6 atomic commits + 1 audit doc. `pnpm typecheck`,
    `/admin/system-status`, and `/admin/users` as the two representative
    sub-routes called for in the Phase 5 spec. Done in commit
    `987ce0d fix(a11y): clear axe-core violations on /admin and key
-   sub-routes`. The single commit also fixes the violations identified
+sub-routes`. The single commit also fixes the violations identified
    while reading the relevant components:
-     - duplicate `<PasswordInput>` in `_shared.tsx` whose toggle had no
-       accessible name → re-export the canonical one from
-       `src/components/settings/password-input.tsx` (already aria-labelled
-       in phase 3),
-     - icon-only buttons in `user-management-section.tsx` got explicit
-       `aria-label` and `aria-hidden` icons,
-     - empty `<dd>` placeholder in the audit-log status card removed.
+   - duplicate `<PasswordInput>` in `_shared.tsx` whose toggle had no
+     accessible name → re-export the canonical one from
+     `src/components/settings/password-input.tsx` (already aria-labelled
+     in phase 3),
+   - icon-only buttons in `user-management-section.tsx` got explicit
+     `aria-label` and `aria-hidden` icons,
+   - empty `<dd>` placeholder in the audit-log status card removed.
 
 2. **Walk-through audit** — written up at
    `docs/audit/v15-ux-friction.md`. Top-10 with severity, file
@@ -28,33 +28,33 @@ Status: done. 6 atomic commits + 1 audit doc. `pnpm typecheck`,
    will exercise the e2e suite).
 
 3. **Triage** — applied. Three v1.4.6 deferred items closed inline:
-     - `feat(ui): trend arrow color reflects metric-specific direction
-       sentiment` (`38f12df`) — `directionSentiment` prop with `up-good`
-       / `up-bad` / `neutral` buckets; all 11 dashboard tile call sites
-       wired; new `trend-card.test.tsx` covers all 3 sentiments × 3
-       slope directions plus the back-compat default.
-     - `feat(settings): allow removing saved AI provider key`
-       (`788c8ad`) — `<AlertDialog>` confirmation + PATCH null. EN + DE
-       i18n keys.
-     - `style(ui): use semantic tokens for mood and feedback indicators`
-       (`569300e`) — adds `--success` / `--warning` / `--info` to
-       `globals.css`; dark-mode aliases over the Dracula palette so
-       visuals stay pixel-identical, light-mode (Alucard) gets the
-       higher-contrast counterparts. Migrated callers: feedback BUG
-       badge (→ `destructive`), feedback published-to-GitHub badge,
-       medication card status, AI section connection badges and
-       success-toast colour.
+   - `feat(ui): trend arrow color reflects metric-specific direction
+sentiment` (`38f12df`) — `directionSentiment` prop with `up-good`
+     / `up-bad` / `neutral` buckets; all 11 dashboard tile call sites
+     wired; new `trend-card.test.tsx` covers all 3 sentiments × 3
+     slope directions plus the back-compat default.
+   - `feat(settings): allow removing saved AI provider key`
+     (`788c8ad`) — `<AlertDialog>` confirmation + PATCH null. EN + DE
+     i18n keys.
+   - `style(ui): use semantic tokens for mood and feedback indicators`
+     (`569300e`) — adds `--success` / `--warning` / `--info` to
+     `globals.css`; dark-mode aliases over the Dracula palette so
+     visuals stay pixel-identical, light-mode (Alucard) gets the
+     higher-contrast counterparts. Migrated callers: feedback BUG
+     badge (→ `destructive`), feedback published-to-GitHub badge,
+     medication card status, AI section connection badges and
+     success-toast colour.
 
 4. **Two extra friction fixes inline** (both <50 LOC):
-     - `fix(ui): disambiguate dashboard quick-add menu items`
-       (`e3a6899`) — closes the Phase-3 i18n collision where both
-       dropdown items rendered the literal "Add". New
-       `dashboard.quickAddMeasurement` / `dashboard.quickAddMood` keys;
-       e2e spec rewritten to target by name instead of `.first()`.
-     - `fix(a11y): label /admin overview quick-jump as a navigation
-       landmark` (`65cfb27`) — wraps the section list in `<nav
-       aria-labelledby>` so the landmark is distinguishable from the
-       sidebar.
+   - `fix(ui): disambiguate dashboard quick-add menu items`
+     (`e3a6899`) — closes the Phase-3 i18n collision where both
+     dropdown items rendered the literal "Add". New
+     `dashboard.quickAddMeasurement` / `dashboard.quickAddMood` keys;
+     e2e spec rewritten to target by name instead of `.first()`.
+   - `fix(a11y): label /admin overview quick-jump as a navigation
+landmark` (`65cfb27`) — wraps the section list in `<nav
+aria-labelledby>` so the landmark is distinguishable from the
+     sidebar.
 
 ## Hard constraints honoured
 
@@ -71,15 +71,15 @@ Status: done. 6 atomic commits + 1 audit doc. `pnpm typecheck`,
 
 ## Atomic commit list
 
-| SHA       | Message                                                                          |
-| --------- | -------------------------------------------------------------------------------- |
-| `987ce0d` | fix(a11y): clear axe-core violations on /admin and key sub-routes                |
-| `38f12df` | feat(ui): trend arrow color reflects metric-specific direction sentiment         |
-| `788c8ad` | feat(settings): allow removing saved AI provider key                             |
-| `569300e` | style(ui): use semantic tokens for mood and feedback indicators                  |
-| `e3a6899` | fix(ui): disambiguate dashboard quick-add menu items                             |
-| `5ffe750` | docs(audit): file v1.5 phase-5 UX friction audit                                 |
-| `65cfb27` | fix(a11y): label /admin overview quick-jump as a navigation landmark             |
+| SHA       | Message                                                                  |
+| --------- | ------------------------------------------------------------------------ |
+| `987ce0d` | fix(a11y): clear axe-core violations on /admin and key sub-routes        |
+| `38f12df` | feat(ui): trend arrow color reflects metric-specific direction sentiment |
+| `788c8ad` | feat(settings): allow removing saved AI provider key                     |
+| `569300e` | style(ui): use semantic tokens for mood and feedback indicators          |
+| `e3a6899` | fix(ui): disambiguate dashboard quick-add menu items                     |
+| `5ffe750` | docs(audit): file v1.5 phase-5 UX friction audit                         |
+| `65cfb27` | fix(a11y): label /admin overview quick-jump as a navigation landmark     |
 
 ## v1.5.1 backlog (from this phase)
 

@@ -23,4 +23,4 @@ Built with Node 22 (Node 25 has the `Cannot read private member #state` regressi
 
 ## CI
 
-`.github/workflows/e2e.yml` already supplies the env block we need (DATABASE_URL, ENCRYPTION_KEYS, AUTH_RP_*) and runs `next build` before `playwright test`. No workflow changes were necessary.
+`.github/workflows/e2e.yml` already supplies the env block we need (DATABASE*URL, ENCRYPTION_KEYS, AUTH_RP*\*) and runs `next build` before `playwright test`. No workflow changes were necessary.

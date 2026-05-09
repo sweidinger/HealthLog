@@ -1,7 +1,7 @@
 # v1.5 marathon — state log
 
-Status: phase-2-done
-Last update: 2026-05-09T16:10:00+02:00
+Status: phase-7-done
+Last update: 2026-05-09T18:15:00+02:00
 
 > Previous milestone: see `docs/audit/v146-summary.md` (v1.4.6 marathon).
 > Codex-OAuth iteration v1.4.7 → v1.4.13 landed in CHANGELOG between
@@ -87,17 +87,14 @@ Last update: 2026-05-09T16:10:00+02:00
       `docs/audit/v15-ux-friction.md`
 - [x] CRITICAL/HIGH triage — 6 inline fixes; LOW items deferred to
       v1.5.1 with backlog in the audit doc
-- [x] v1.4.6 deferred polish picked up:
-      - trend-arrow direction-as-good metric-aware (`directionSentiment`
-        prop, `up-good`/`up-bad`/`neutral`)
-      - "Remove saved AI key" button with AlertDialog confirmation
-      - semantic `--success`/`--warning`/`--info` tokens, migrated
-        feedback BUG / published badges, medication status, AI section
-        connection badges (charts untouched)
+- [x] v1.4.6 deferred polish picked up: - trend-arrow direction-as-good metric-aware (`directionSentiment`
+      prop, `up-good`/`up-bad`/`neutral`) - "Remove saved AI key" button with AlertDialog confirmation - semantic `--success`/`--warning`/`--info` tokens, migrated
+      feedback BUG / published badges, medication status, AI section
+      connection badges (charts untouched)
 - [x] +2 inline friction items: dashboard quick-add menu disambiguation
       (`Add` collision from phase-3) and `/admin` overview nav landmark
 - Result: ok / commits `987ce0d 38f12df 788c8ad 569300e e3a6899
-  5ffe750 65cfb27` — `pnpm typecheck && pnpm lint && pnpm test` green
+5ffe750 65cfb27` — `pnpm typecheck && pnpm lint && pnpm test` green
   (97 files / 752 tests)
 - Detailed report: `.planning/phase-5-report.md`
 
@@ -111,13 +108,14 @@ Last update: 2026-05-09T16:10:00+02:00
 
 ## Phase 7 — Pre-release verification
 
-- [ ] pnpm typecheck
-- [ ] pnpm lint
-- [ ] pnpm format:check
-- [ ] pnpm test
-- [ ] pnpm test:integration
-- [ ] pnpm build (Node-25 bug documented if hit)
-- [ ] pnpm e2e
+- [x] pnpm typecheck — clean
+- [x] pnpm lint — 0 errors / 12 pre-existing warnings
+- [x] pnpm format:check — clean except `src/components/charts/__tests__/trend-card.test.tsx` (Marc constraint forbids editing charts)
+- [x] pnpm test — 97 files / 754 tests green
+- [x] pnpm test:integration — 5 files / 11 tests green; flake (mock-leak between `admin-data-wipe.test.ts` + `idempotency-replay.test.ts` under `isolate: false`) fixed via shared `tests/integration/mock-next-headers.ts`; 10/10 consecutive runs green
+- [-] pnpm build — Node-25 `Reflect.get` private-member bug; CI Docker (Node 22) canonical
+- [-] pnpm e2e — same Node-25 bug also affects `next dev`, so the local web-server start fails; CI runs green on Node 22 per Phase-3 report
+- Result: ok / commits TBD (integration flake fix + format sweep)
 - Detailed report: `.planning/phase-7-report.md`
 
 ## Phase 8 — Release v1.5.0
