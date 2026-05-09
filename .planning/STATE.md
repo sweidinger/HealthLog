@@ -1,179 +1,205 @@
-# v1.5 marathon — state log
+# v1.4.15 marathon — state log
 
-Status: finished
-Last update: 2026-05-09T18:35:00+02:00
+Status: phase-0-done
+Last update: 2026-05-09T20:06:00+02:00
 
-> Previous milestone: see `docs/audit/v146-summary.md` (v1.4.6 marathon).
-> Codex-OAuth iteration v1.4.7 → v1.4.13 landed in CHANGELOG between
-> the v1.4.6 release and this marathon kickoff.
+> Previous milestone: see `docs/audit/v1414-summary.md` (live in production at https://healthlog.bombeck.io, /api/version=1.4.14, image digest `sha256:0ced46004a54…`).
 
 ## Phase 0 — Bootstrap
 
-- [x] STATE+ROADMAP rewritten for v1.5
-- [x] git status clean
-- [x] CI status captured (v1.4.13 docker-publish still in_progress; e2e on cfa8ea6 = failure)
-- [x] /api/version=1.4.13 confirmed — **DISCREPANCY**: prod still on 1.4.12 because the v1.4.13 GHCR build is mid-flight; phase-1 will need to confirm 1.4.13 lives after the build completes (force-pull recipe per hard-rule #10)
+- [x] STATE+ROADMAP rewritten for v1.4.15
+- [x] git status clean (10 leftover phase reports from v1.4.14 marathon left as untracked — they belong to the previous milestone, not this one; will not be folded into v1.4.15 commits)
+- [x] codex-protocol-spec.md re-read (canonical reference for Phase C1 AI-hardening work)
 - Result: ok / commit `<filled in by commit step>`
 - Detailed report: `.planning/phase-0-report.md`
 
-## Phase 1 — Verify Codex-OAuth flow end-to-end
+## Phase A — Quick fixes (5 parallel buckets)
 
-- [x] /api/version=1.4.13 confirmed (force-pulled at 13:43 UTC after GHCR builds finished)
-- [x] device-start endpoint returns spec-shaped response (`userCode`, `verificationUrl=https://auth.openai.com/codex/device`, `intervalSeconds`)
-- [x] prod logs reviewed for codex.\* events (DB row confirms 13:06 connect; v1.4.12 ai_test_body_excerpt captured the original failure)
-- [x] gpt-5 model accepted by chatgpt.com backend — actually NO, rejected; switched default to `gpt-5.3-codex` (commit `5df74f7`), live test against Marc's account succeeded
-- [x] /tmp/v15-codex-working.png captured showing `/settings/ai` with "ChatGPT connected" badge
-- Result: ok / commit `5df74f7 fix(ai): default Codex model to gpt-5.3-codex for ChatGPT-account auth`
-- Detailed report: `.planning/phase-1-report.md`
+### A1 — Nav conditionals + sidebar context-awareness
 
-## Phase 2 — v1.4.6 deferred backlog
+- [ ] Bug-Report-Toggle hides Sidebar nav (also bottom-nav, topbar)
+- [ ] Skip-link does NOT block logo click on desktop
+- [ ] Sidebar admin sub-items only expand when on `/admin/*` route (view-context-aware)
+- [ ] Feedback section visible only when admin enabled feedback toggle
+- Detailed report: `.planning/phase-A1-report.md`
 
-- [x] T2.1 notification-channel scope of "Wipe all data" — commit `512a6a6`
-- [x] T2.2 Berlin TZ DST math in cross-metric joins — commit `cb6a59a`
-- [x] T2.3 /api/insights/generate provider-error → 422/503 — commit `5403821`
-- [ ] T2.4 status-card-grid test brittleness — deferred to phase 4b
-- [x] T2.5 redactSecrets regex word-boundary — commit `d6696cf`
-- [ ] T2.6 Backups dedicated admin section — deferred to phase 4b
-- [ ] T2.7 /admin/users dedicated sub-route — deferred to phase 4b
-- Result: ok / commits `512a6a6 cb6a59a 5403821 d6696cf` (+ format sweep `6b88e56`)
-- Detailed report: `.planning/phase-2-report.md`
+### A2 — /admin overview redesign + /admin/api-tokens responsive
 
-## Phase 3 — End-to-end test coverage
+- [ ] `/admin` overview replaces section-grid with audit-log preview + system-status snapshot
+- [ ] `/admin/api-tokens` table responsive (overflow-x-auto + column-hide on mobile)
+- Detailed report: `.planning/phase-A2-report.md`
 
-- [x] Authenticated dashboard render — `e2e/dashboard.spec.ts` — commit `3999ea7`
-- [x] Add measurement flow — `e2e/measurement-flow.spec.ts` — commit `3999ea7`
-- [x] Settings → KI Codex flow (mocked) — `e2e/codex-flow.spec.ts` — commit `2b6f959`
-- [x] Doctor report PDF — `e2e/doctor-report.spec.ts` — commit `a106547`
-- [x] Insights generation flow (mocked) — `e2e/insights-generate.spec.ts` — commit `2b6f959`
-- [x] Mobile-viewport smoke (Pixel 5) — `e2e/mobile-viewport.spec.ts` — commit `a106547`
-- [x] axe-core extended to `/` and `/settings/integrations`; `/admin` parked as `test.fixme()` (admin shell off-limits this phase, restructured by 4b) — commit `ca3c599` (+ a11y fixes `7af1f59`)
-- Foundation: seeded test user + storageState fixture — commit `535465c`
-- Result: 41/41 active specs green locally (Node 22, fresh DB); 3 skipped (mobile-only spec on desktop project × 2 + `/admin` a11y fixme × 2 projects)
-- Detailed report: `.planning/phase-3-report.md`
+### A3 — Quick-add labels + Stimmung-Card mobile + onboarding flicker
 
-## Phase 4 — Performance audit
+- [ ] Quick-Add submenu disambiguation (no double "Hinzufügen")
+- [ ] Stimmung-Card mobile: large number + label only (no doubled number/label)
+- [ ] Onboarding flicker: don't render until status loaded; don't auto-open when complete
+- Detailed report: `.planning/phase-A3-report.md`
 
-- [x] Playwright capture: /, /settings/integrations, /admin, /insights at desktop+mobile (prod=1.4.13, captured 2026-05-09T14:14Z)
-- [x] Report at `docs/audit/v15-performance.md` — commit `41fa203`
-- [x] Top 3 wins identified, <30 LOC ones implemented inline:
-  - W1 commit `bb2b1de` — defer Recharts ScatterChart imports on `/insights` via `next/dynamic` (~108 KiB initial-JS savings)
-  - W2 commit `519e36e` — skip checklist API fetches once onboarding is complete (~950 ms network savings on dashboard)
-  - W3 deferred to v1.5.1 — replace Recharts (effort L + needs new dep)
-- Result: ok / commits `bb2b1de 519e36e 41fa203`
-- Detailed report: `.planning/phase-4-report.md`
+### A4 — Dashboard analytics fixes
 
-## Phase 4b — Admin Panel refactor (Settings-style dynamic routes)
+- [ ] BD-Zielbereich 0% bug — calculation review
+- [ ] Medikamente graph missing in Dashboard layout
+- [ ] Stimmung-chart: week/month aggregation matching other metrics
+- [ ] "7-Tage-Schnitt" → "7-Tage-Trend" + trend indicator (+/-)
+- [ ] Dashboard layout settings: top tiles selectable (currently only bottom rows)
+- Detailed report: `.planning/phase-A4-report.md`
 
-- [x] /admin/[section]/page.tsx + admin-shell sidebar — commit `d8b71b3`
-- [x] Sections moved to /admin/<slug> routes (system-status, general, services, integrations, feedback, reminders, users, api-tokens, login-overview, backups, danger-zone) — commit `12b280b`
-- [x] T2.6 Backups dedicated admin section + manual run — commit `69c5225`
-- [x] T2.7 /admin/users with role filters + force-logout — commit `5957e18`
-- [x] i18n keys reorganised under admin.section.<slug>.\* (EN + DE parity) — commit `a34cd8c`
-- [x] Sidebar nav expandable Admin group — commit `73965cd`
-- [x] Status-card CTAs use real routes (no #anchor) — commit `961e2a9`
-- [x] Legacy section-anchor → new route redirect in proxy.ts (path-style only; pure `#fragments` cannot be redirected server-side, callsites rewritten directly) — commit `7a47532`
-- [x] Tests: status-card-grid asserts route existence + per-section render smoke + i18n parity (existing) — commit `1a7e3d6`
-- [x] Bundle-size win verified architecturally (overview no longer imports section components); `pnpm build` blocked by pre-existing Node 25 issue
-- Result: ok / commits `d8b71b3 12b280b 69c5225 5957e18 a34cd8c 73965cd 961e2a9 7a47532 1a7e3d6`
-- Detailed report: `.planning/phase-4b-report.md`
+### A5 — Mobile UX audit + fixes
 
-## Phase 5 — UX polish
+- [ ] Headless audit at Pixel 5 of `/`, `/dashboard`, `/insights`, `/admin/*`, `/settings/*`
+- [ ] Fix scroll lockup on charts (touch-action / passive listeners)
+- [ ] Document remaining items for v1.4.16
+- Detailed report: `.planning/phase-A5-report.md`
 
-- [x] /admin a11y reactivated — `e2e/a11y.spec.ts` now covers /admin,
-      /admin/system-status, /admin/users (no more `test.fixme`); fixed
-      duplicate `<PasswordInput>` no-aria-label, icon-only button-name
-      violations on /admin/users, empty `<dd>` on the audit-log card
-- [x] design-review walkthrough top-10 friction points filed at
-      `docs/audit/v15-ux-friction.md`
-- [x] CRITICAL/HIGH triage — 6 inline fixes; LOW items deferred to
-      v1.5.1 with backlog in the audit doc
-- [x] v1.4.6 deferred polish picked up: - trend-arrow direction-as-good metric-aware (`directionSentiment`
-      prop, `up-good`/`up-bad`/`neutral`) - "Remove saved AI key" button with AlertDialog confirmation - semantic `--success`/`--warning`/`--info` tokens, migrated
-      feedback BUG / published badges, medication status, AI section
-      connection badges (charts untouched)
-- [x] +2 inline friction items: dashboard quick-add menu disambiguation
-      (`Add` collision from phase-3) and `/admin` overview nav landmark
-- Result: ok / commits `987ce0d 38f12df 788c8ad 569300e e3a6899
-5ffe750 65cfb27` — `pnpm typecheck && pnpm lint && pnpm test` green
-  (97 files / 752 tests)
-- Detailed report: `.planning/phase-5-report.md`
+## Phase B — Bigger features (6 parallelizable items)
 
-## Phase 6 — Multi-agent QA (parallel)
+### B1 — Backup completeness
 
-- [ ] superpowers:code-reviewer
+- [ ] Restore from backup (server endpoint + UI)
+- [ ] Download backup as JSON
+- [ ] Upload backup
+- [ ] Audit log of backup ops
+- [ ] Docs link to "Backup structure" page on docs site
+- Detailed report: `.planning/phase-B1-report.md`
+
+### B2 — Withings + moodLog sync robustness
+
+- [ ] Status UI in Settings → Integrations
+- [ ] Refresh token rotation handling
+- [ ] Telegram-notify on persistent failure (if admin enabled the channel)
+- [ ] Audit-log entry on failure
+- Detailed report: `.planning/phase-B2-report.md`
+
+### B3 — Notification reliability
+
+- [ ] Auto-disable channel on persistent 410 / hard rejects
+- [ ] Retry strategy with exponential backoff
+- [ ] Status visible in Settings
+- Detailed report: `.planning/phase-B3-report.md`
+
+### B4 — Achievements UI
+
+- [ ] Surface in dashboard or dedicated page
+- [ ] Unlocked-at timestamp visible
+- Detailed report: `.planning/phase-B4-report.md`
+
+### B5 — Onboarding tour first-run
+
+- [ ] Welcome flow for new users (after passkey registration)
+- [ ] Skippable
+- Detailed report: `.planning/phase-B5-report.md`
+
+### B6 — Doctor-report v2
+
+- [ ] Configurable date range
+- [ ] Practice-name on cover page
+- Detailed report: `.planning/phase-B6-report.md`
+
+## Phase C — Hardening
+
+### C1 — AI/Codex hardening (infrastructure for hallucination-resistance)
+
+- [ ] Provider abstraction review — multi-provider readiness
+- [ ] Schema enforcement — output structured (JSON-schema), no free-form unbounded text
+- [ ] Citation requirement — every claim must reference user-data point
+- [ ] System-prompt scope hardening — medical-context-only, refuse out-of-scope
+- [ ] Slug-drift defense — model fallback chain, dynamic discovery
+- [ ] Document v1.4.16 backlog: medical-reference grounding (AHA guidelines etc.), multi-provider redundancy
+- Detailed report: `.planning/phase-C1-report.md`
+
+### C2 — Auto-deployment
+
+- [ ] Coolify webhook on GHCR push (or watchtower equivalent)
+- [ ] Failure path: admin Telegram notify (if configured) + audit log entry
+- [ ] Test by tagging next release and watching auto-deploy fire
+- Detailed report: `.planning/phase-C2-report.md`
+
+### C3 — CI/e2e reliability audit
+
+- [ ] Audit gh workflow runs: which fail / are flaky / inconsistent
+- [ ] Identify root causes (not just rerun)
+- [ ] Fix flaky specs
+- [ ] Ensure docker-publish ALWAYS builds (v1.4.14 main hang was a clear example)
+- [ ] Self-test workflow: every commit must build green for both main and tag paths
+- Detailed report: `.planning/phase-C3-report.md`
+
+### C4 — i18n coverage audit
+
+- [ ] `admin.section.<slug>.*` fully populated EN+DE
+- [ ] Other namespaces audited
+- [ ] Test guards parity AND non-empty
+- Detailed report: `.planning/phase-C4-report.md`
+
+### C5 — Empty-states audit
+
+- [ ] `/admin/users`, `/admin/backups` empty states
+- [ ] Other admin sub-routes
+- [ ] Dashboard empty state for very-new users
+- Detailed report: `.planning/phase-C5-report.md`
+
+## Phase D — Multi-agent QA (parallel, write-only)
+
+- [ ] code-reviewer
 - [ ] security review
-- [ ] visual / UX review
+- [ ] design / UX review
+- [ ] senior-dev review (architecture/maintainability — separate from code-review)
 - [ ] simplify on changed file set
-- Detailed report: `.planning/phase-6-report.md`
+- [ ] reconcile + apply CRITICAL/HIGH inline
+- Detailed report: `.planning/phase-D-report.md`
 
-## Phase 7 — Pre-release verification
+## Phase E — Release v1.4.15
 
-- [x] pnpm typecheck — clean
-- [x] pnpm lint — 0 errors / 12 pre-existing warnings
-- [x] pnpm format:check — clean except `src/components/charts/__tests__/trend-card.test.tsx` (Marc constraint forbids editing charts)
-- [x] pnpm test — 97 files / 754 tests green
-- [x] pnpm test:integration — 5 files / 11 tests green; flake (mock-leak between `admin-data-wipe.test.ts` + `idempotency-replay.test.ts` under `isolate: false`) fixed via shared `tests/integration/mock-next-headers.ts`; 10/10 consecutive runs green
-- [-] pnpm build — Node-25 `Reflect.get` private-member bug; CI Docker (Node 22) canonical
-- [-] pnpm e2e — same Node-25 bug also affects `next dev`, so the local web-server start fails; CI runs green on Node 22 per Phase-3 report
-- Result: ok / commits TBD (integration flake fix + format sweep)
-- Detailed report: `.planning/phase-7-report.md`
+- [ ] Pre-release verify: typecheck, lint, format, test, integration, build (Node-22 CI), e2e
+- [ ] Bump package.json to 1.4.15
+- [ ] CHANGELOG.md entry
+- [ ] Tag + push v1.4.15
+- [ ] GHCR build green (BOTH main + tag — verify via the new C2 reliability work)
+- [ ] Coolify auto-deploy via webhook (the C2 work tests itself)
+- [ ] /api/version=1.4.15 confirmed
+- [ ] Image digest changed
+- [ ] Production smoke screenshots
+- [ ] GH release created
+- [ ] Docs site + landing-site sync
+- [ ] docs.healthlog.dev: new pages "Backup structure", "User-deletion lifecycle"
+- [ ] Final summary `docs/audit/v1415-summary.md` (Marc-Brief)
+- Detailed report: `.planning/phase-E-report.md`
 
-## Phase 8 — Release v1.5.0
+---
 
-- [ ] package.json bumped
-- [ ] CHANGELOG entry
-- [ ] tag v1.5.0 pushed
-- [ ] GHCR build green
-- [ ] Coolify deploy + force-pull
-- [ ] /api/version=1.5.0 confirmed
-- [ ] image digest changed
-- [ ] prod smoke screenshots saved
-- Detailed report: `.planning/phase-8-report.md`
+## Previous milestone — v1.4.14 (completed 2026-05-09T18:35+02:00)
 
-### Phase 8 — Release v1.4.14 (rebrand patch deploy 2026-05-09)
+LIVE at https://healthlog.bombeck.io · `/api/version=1.4.14` · image digest
+`sha256:0ced46004a54…` (was `791c2cd2…` on v1.4.12).
 
-- [x] package.json bumped to 1.4.14 (commit `e5fae9b`)
-- [x] CHANGELOG v1.4.14 section written
-- [x] tag v1.4.14 pushed
-- [x] GHCR tag-build green (run 25605648606, finished 16:29Z, pushed 1.4.14 + 1.4 + sha-e5fae9b + latest)
-- [x] main-branch GHCR build cancelled (hung >45min on same SHA — harmless, tag build already published :latest)
-- [x] Coolify deploy via host-side retag of `:1.4.14` → `:latest` (no compose-file edit) + `docker compose up -d app`
-- [x] /api/version=1.4.14 confirmed (live in 0s after recreate)
-- [x] image digest changed: `791c2cd2…` → `0ced46004a54…`
-- [x] prod smoke (curl with session cookie): /, /auth/login, /settings/integrations, /admin all 200
-- [x] GitHub release v1.4.14 published: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.14
-- Note: GHCR OCI tag is `:1.4.14` (no `v` prefix) — git tag is `v1.4.14`. Hard-rule's `:v1.4.14` slug needs a docs fix.
-- Result: ok / no new commits (planning-only deploy)
-- Detailed report: `.planning/phase-8-report.md`
+Full Marc-Brief, commit table, deferred items, CI/prod state and
+Codex-OAuth resolution: `docs/audit/v1414-summary.md`.
 
-## Phase 9 — Docs + landing sync
+Phases run during v1.4.14 marathon:
 
-- [x] healthlog-docs updated to v1.5 — Codex device-code rewrite, new
-      Backups + Users admin sections, CODEX_MODEL env var, dashboard
-      perf note, Codex troubleshooting block (7 files)
-- [x] healthlog-landing updated — softwareVersion 1.4.6→1.5.0 in
-      JSON-LD, AI-providers copy mentions one-click device-code flow
-- [x] both committed + pushed (docs `95a3523`, landing `0c62bb2`)
-- [x] rebranded to v1.4.14 in commit `06bc616` (docs), `92c6588` (landing)
-- Result: ok / docs `95a3523` + landing `0c62bb2` — Coolify
-  auto-redeploys docs.healthlog.dev on push
-- Detailed report: `.planning/phase-9-report.md`
+- Phase 0 — Bootstrap (STATE+ROADMAP for v1.5/v1.4.14, git+CI sanity)
+- Phase 1 — Verify Codex-OAuth flow end-to-end (`gpt-5.3-codex` slug landed in commit `5df74f7`)
+- Phase 2 — v1.4.6 deferred backlog (T2.1, T2.2, T2.3, T2.5; T2.4 + T2.6 + T2.7 deferred to phase 4b)
+- Phase 3 — End-to-end test coverage (41/41 specs green)
+- Phase 4 — Performance audit (`/insights` −108 KiB initial JS, dashboard −950 ms checklist)
+- Phase 4b — Admin Panel refactor (per-section dynamic routes, T2.6 + T2.7 folded in)
+- Phase 5 — UX polish (a11y violations cleared, trend-arrow direction-as-good, saved-AI-key removal)
+- Phase 6 — Multi-agent QA (code-review, security, design, simplify; CRITICAL/HIGH applied inline; HIGH+MEDIUM deferred items recorded in `.planning/v1415-backlog.md`)
+- Phase 7 — Pre-release verification (typecheck/lint/format/test/integration green; build/e2e Node-25 local issue, Node-22 CI canonical)
+- Phase 8 — Release v1.4.14 (rebrand patch, GHCR `:1.4.14`, host-side retag deploy, image digest `0ced46004a54…`)
+- Phase 9 — Docs + landing sync (commits `06bc616` docs, `92c6588` landing)
+- Phase 10 — Backfill GitHub releases v1.4.7..v1.4.13
+- Phase 11 — Final summary `docs/audit/v1414-summary.md`
 
-## Phase 10 — Backfill GitHub releases v1.4.7-v1.4.13
+---
 
-- [x] Releases for v1.4.7..v1.4.13 created from CHANGELOG
-- [x] `gh release list --limit 20` confirms v1.4.7..v1.4.13 all present
-- Result: ok / 1 release created (v1.4.13 → https://github.com/MBombeck/HealthLog/releases/tag/v1.4.13), 6 already existed (v1.4.7-v1.4.12 were published in real time alongside the Codex-OAuth iteration earlier on 2026-05-09)
-- Detailed report: `.planning/phase-10-report.md`
+## Status block — Phase 0 (v1.4.15)
 
-## Phase 11 — Final summary doc
-
-- [x] `docs/audit/v1414-summary.md` written with Marc-Brief (DE,
-      ≤200 words at top), commit history table, deferred items, CI
-      status, prod state, Codex-OAuth resolution, v1.4.15 backlog seed
-- [x] STATE.md status flipped to `finished`
-- Result: ok / commit `<filled in by commit step>` (single
-  `docs(audit): v1.4.14 release summary` commit, push to origin/main)
-- Marathon completed 2026-05-09T18:35+02:00 — v1.4.14 LIVE in prod,
-  /api/version=1.4.14, image digest 0ced46004a54…
-- Detailed report: this file
+- 2026-05-09T20:06:00+02:00 — Phase 0 complete. STATE.md + ROADMAP.md
+  scaffolded for v1.4.15 marathon (phases A1-A5, B1-B6, C1-C5, D, E).
+  Previous v1.4.14 entries archived above. v1.4.14 leftover phase reports
+  (10 untracked files) deliberately not folded into this Phase 0 commit
+  (they belong to the previous milestone). Phase 0 commit will contain
+  only `.planning/STATE.md`, `.planning/ROADMAP.md`,
+  `.planning/phase-0-report.md`. Marc-status: awake, watching — speed
+  matters.

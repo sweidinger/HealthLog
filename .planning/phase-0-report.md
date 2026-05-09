@@ -1,61 +1,51 @@
-# Phase 0 — Bootstrap report
+# Phase 0 — v1.4.15 marathon bootstrap
 
 Status: **done**
-Timestamp: 2026-05-09T15:25:00+02:00
-Commit: see `chore(planning): bootstrap v1.5 marathon` on origin/main.
+Timestamp: 2026-05-09T20:06:00+02:00
+Commit: see `chore(planning): bootstrap v1.4.15 marathon` on origin/main.
+
+## What this phase did
+
+Pivoted `.planning/STATE.md` and `.planning/ROADMAP.md` from the
+completed v1.4.14 marathon (which shipped at 18:35+02:00 today and is
+LIVE on https://healthlog.bombeck.io with `/api/version=1.4.14`, image
+digest `sha256:0ced46004a54…`) to the v1.4.15 marathon scaffold.
+
+The v1.4.14 entries were archived in-place: STATE.md keeps a one-line
+"previous milestone" reference plus a phase-summary block; ROADMAP.md
+keeps the full v1.4.14 phase table below the active v1.4.15 table. No
+information lost — `docs/audit/v1414-summary.md` remains the canonical
+release record.
+
+Phases scaffolded for v1.4.15: A1-A5 (5 quick-fix buckets), B1-B6 (6
+bigger features), C1-C5 (hardening — including AI/Codex
+hallucination-resistance C1 and Coolify auto-deploy C2), D (multi-agent
+QA, write-only), and E (release).
+
+## Pre-flight checks
+
+- Codex protocol spec at `docs/codex-protocol-spec.md` confirmed
+  present (741 LOC) — canonical reference for Phase C1 AI hardening.
+- Backlog at `.planning/v1415-backlog.md` confirmed present (HIGH /
+  MEDIUM / LOW findings from the v1.4.14 phase-6 multi-agent QA).
+- Summary at `docs/audit/v1414-summary.md` confirmed present (Marc-Brief
+  + 53-commit table).
 
 ## Working tree
 
-`git status` clean, branch `main` up to date with `origin/main`.
+`git status` shows `main` up to date with `origin/main`. 10 untracked
+files from the v1.4.14 marathon (phase-4-visual-verify, phase-6-{code-
+review, design, reconcile, security, simplify}-findings, phase-8 / 9 /
+10, v1414-rebrand-report) were intentionally left untracked — they
+belong to the previous milestone, not this one. Folding them into the
+Phase 0 commit would muddy v1.4.15 history. The Phase 0 commit
+contains ONLY `.planning/STATE.md`, `.planning/ROADMAP.md`,
+`.planning/phase-0-report.md`.
 
-## Recent commits (`git log --oneline -15`)
+## Constraints honoured
 
-```
-cfa8ea6 fix(ai): use plain gpt-5 model slug for ChatGPT-account auth
-e4a07bc fix(ai): complete Codex backend protocol implementation per spec
-e0de659 fix(ai): CodexClient consumes SSE stream from chatgpt.com backend
-68e5797 fix(ai): Codex backend request body matches OpenAI Responses schema
-3dbc8af fix(ai): device-code flow uses OAuth access token directly (v1.4.8 follow-up)
-19eb1d9 fix(ai): switch ChatGPT-OAuth to device-code flow (v1.4.7-followup)
-2f7f487 fix(ai): Codex OAuth flow — correct issuer + api-key exchange
-3bca826 docs(release): v1.4.6 marathon summary
-a852612 chore(release): v1.4.6
-02b9955 chore(style): repo-wide prettier sweep before v1.4.6 tag
-6757518 fix(qa): apply pre-release multi-agent QA findings
-dc4507a fix(admin/status-overview): one failed probe no longer blanks the grid
-2654337 fix(admin): surface query errors instead of an infinite spinner
-86a4b52 fix(admin): danger-zone result colour driven by mutation state
-505f318 style(admin): switch feedback-category badges to dracula tokens
-```
-
-The full v1.4.7 → v1.4.13 Codex iteration is in commits `2f7f487` →
-`cfa8ea6`. v1.4.13 (`cfa8ea6`) is tagged but its docker-publish run
-is still in_progress, so production has not yet swung over.
-
-## CI status (`gh run list --limit 8`)
-
-- v1.4.13 SHA `cfa8ea6`: docker-publish **in_progress** (two runs queued —
-  one is the duplicate that GHCR triggers per tag); e2e **failure** (the
-  e2e on the v1.4.13 SHA — known, not a hard release gate per v1.4.6
-  marathon doctrine, but worth a phase-1 follow-up if it persists);
-  Integration tests **success**; Security & Quality **success**.
-- v1.4.12 SHA `e4a07bc`: docker-publish **success** (×2), Integration
-  tests **success** — i.e. v1.4.12 is the latest fully published image.
-
-## Production state
-
-`curl https://healthlog.bombeck.io/api/version` returns
-`{"version":"1.4.12", ...}` — **production is one tag behind HEAD**.
-Cause: the v1.4.13 docker-publish workflow is still building, and even
-once it finishes, the Coolify-deploy quirk (hard-rule #10) means we
-need to force-pull on apps-01 before /api/version flips to 1.4.13.
-Phase 1 owns that confirmation step.
-
-## Files written
-
-- `.planning/STATE.md` — rewritten for v1.5 marathon, all phases stubbed.
-- `.planning/ROADMAP.md` — v1.5 milestone with phases 0–11 lifted from
-  the marathon prompt.
-- `.planning/phase-0-report.md` — this file.
-
-`PROJECT.md` left untouched (no v1.5-specific changes needed yet).
+- Single chore commit `chore(planning): bootstrap v1.4.15 marathon`
+  with `Co-Authored-By: Claude Opus 4.7 (1M context)`.
+- No `--no-verify`, no `--no-gpg-sign`.
+- Only `.planning/` files touched. No source files modified.
+- Pushed to `origin/main`.
