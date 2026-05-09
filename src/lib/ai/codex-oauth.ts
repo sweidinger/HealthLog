@@ -227,6 +227,123 @@ export function decryptCodexCreds(encrypted: {
   };
 }
 
+// ─── Device-code flow ────────────────────────────────────────────────
+//
+// For hosted apps (HealthLog), the standard authorization-code redirect
+// flow does not work because OpenAI's Hydra only allow-lists localhost
+// callbacks for the public Codex CLI client ID. The device-code flow is
+// the documented escape hatch: the user goes to chatgpt.com on any
+// device, enters a short code, and approves the connection — no
+// redirect URI on our domain is involved at all.
+
+const DEVICE_VERIFICATION_URL = `${ISSUER}/codex/device`;
+const DEVICE_REDIRECT_URI = `${ISSUER}/deviceauth/callback`;
+
+export interface DeviceCodeStart {
+  /** Short user-facing code, e.g. "RGRP-N5F7U". */
+  userCode: string;
+  /** URL the user opens in their browser to approve. */
+  verificationUrl: string;
+  /** Opaque per-attempt id used for polling. Server-side only. */
+  deviceAuthId: string;
+  /** Polling interval in seconds. */
+  intervalSeconds: number;
+}
+
+export async function requestDeviceCode(): Promise<DeviceCodeStart> {
+  const res = await fetch(`${ISSUER}/api/accounts/deviceauth/usercode`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ client_id: getCodexClientId() }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `Codex device-code request failed (${res.status}): ${body}`,
+    );
+  }
+  const json = (await res.json()) as {
+    device_auth_id: string;
+    user_code: string;
+    interval: string | number;
+  };
+  return {
+    userCode: json.user_code,
+    verificationUrl: DEVICE_VERIFICATION_URL,
+    deviceAuthId: json.device_auth_id,
+    intervalSeconds:
+      typeof json.interval === "string"
+        ? Number(json.interval) || 5
+        : json.interval || 5,
+  };
+}
+
+export type DevicePollResult =
+  | { status: "pending" }
+  | { status: "connected"; tokens: CodexTokens };
+
+/**
+ * Single poll attempt against the device-auth token endpoint. Returns
+ * "pending" while the user has not yet approved (Hydra answers with
+ * 403/404), and "connected" with already-exchanged Codex tokens once
+ * the user finishes the approval flow on chatgpt.com.
+ */
+export async function pollDeviceCode(params: {
+  deviceAuthId: string;
+  userCode: string;
+}): Promise<DevicePollResult> {
+  const res = await fetch(`${ISSUER}/api/accounts/deviceauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      device_auth_id: params.deviceAuthId,
+      user_code: params.userCode,
+    }),
+  });
+
+  if (res.status === 403 || res.status === 404) {
+    return { status: "pending" };
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Codex device-code poll failed (${res.status}): ${body}`);
+  }
+
+  const json = (await res.json()) as {
+    authorization_code: string;
+    code_challenge: string;
+    code_verifier: string;
+  };
+
+  // Standard PKCE exchange — but with the deviceauth callback URI
+  // that Hydra uses internally for this flow. The user never visits
+  // this URL; it's just the value Hydra associates with the
+  // authorization code so the exchange typechecks.
+  const tokenRes = await postForm(`${ISSUER}/oauth/token`, {
+    grant_type: "authorization_code",
+    client_id: getCodexClientId(),
+    code: json.authorization_code,
+    redirect_uri: DEVICE_REDIRECT_URI,
+    code_verifier: json.code_verifier,
+  });
+  if (!tokenRes.ok) {
+    const body = await tokenRes.text().catch(() => "");
+    throw new Error(
+      `Codex device-code token exchange failed (${tokenRes.status}): ${body}`,
+    );
+  }
+  const tokens = (await tokenRes.json()) as RawTokenResponse;
+  const apiKey = await obtainApiKey(tokens.id_token);
+  return {
+    status: "connected",
+    tokens: {
+      apiKey,
+      refreshToken: tokens.refresh_token,
+      expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+    },
+  };
+}
+
 // ─── Backwards-compat shims so older callers keep compiling ──────────
 
 /** @deprecated use `encryptCodexCreds`. */

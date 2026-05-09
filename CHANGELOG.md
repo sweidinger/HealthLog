@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.4.8] — 2026-05-09
+
+### Fixed — Settings · KI
+
+- **"Mit ChatGPT verbinden" funktioniert jetzt wirklich.** v1.4.7 hat
+  zwar die OAuth-Endpoints korrigiert, ist aber an OpenAIs Hydra-
+  Allow-List gescheitert: die Public-Codex-Client-ID hat in der
+  Server-Allow-List nur `localhost:1455/1457` als Redirect-URI, jeder
+  hosted-Domain-Callback wird mit "An error occurred during
+  authentication (unknown_error)" abgelehnt. v1.4.8 schaltet auf den
+  **Device-Code-Flow** um — den selben Mechanismus den der offizielle
+  Codex CLI für Headless-/Hosted-Umgebungen nutzt: HealthLog zeigt
+  einen kurzen Code (`RGRP-N5F7U`-Stil), du gehst auf
+  https://auth.openai.com/codex/device, gibst den Code ein, bestätigst
+  bei dir im Browser, fertig. Kein Redirect zurück nötig, also keine
+  Allow-List-Konflikte. Die Settings-Seite pollt im Hintergrund und
+  schließt das Modal sobald deine Approval durch ist.
+
 ## [1.4.7] — 2026-05-09
 
 ### Fixed — Settings · KI

@@ -166,8 +166,94 @@ function InsightsSettingsCard({
   const hasProvider =
     settings?.codexStatus === "connected" || settings?.hasAdminKey;
 
-  function handleConnect() {
-    window.location.href = "/api/auth/codex/authorize";
+  // v1.4.7.1: device-code flow. The earlier "redirect to
+  // auth.openai.com" path fails because the public Codex CLI client
+  // ID's redirect-URI allow-list only covers localhost. The device
+  // flow side-steps that — the user types a short code on chatgpt.com
+  // and we poll for confirmation.
+  const [deviceCode, setDeviceCode] = useState<{
+    userCode: string;
+    verificationUrl: string;
+    intervalSeconds: number;
+  } | null>(null);
+  const [devicePolling, setDevicePolling] = useState(false);
+
+  async function handleConnect() {
+    setMsg(null);
+    setDevicePolling(true);
+    try {
+      const res = await fetch("/api/auth/codex/device-start", {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || t("settings.savingError"));
+      setDeviceCode({
+        userCode: json.data.userCode,
+        verificationUrl: json.data.verificationUrl,
+        intervalSeconds: json.data.intervalSeconds,
+      });
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t("settings.savingError"));
+      setMsgType("error");
+      setDevicePolling(false);
+    }
+  }
+
+  // Poll until the user finishes the approval at chatgpt.com or the
+  // 15-minute device-code window expires. Polling stops as soon as
+  // `deviceCode` is cleared (success / cancel / unmount).
+  useEffect(() => {
+    if (!deviceCode) {
+      // No active device code → make sure the spinner is off. setState
+      // inside an effect is intentional here; the alternative (deriving
+      // `devicePolling` from `deviceCode`) would force every error
+      // path to also reset `deviceCode`, which we don't want — the
+      // start handler resets `devicePolling` itself when fetch fails.
+      return;
+    }
+    let cancelled = false;
+    const intervalMs = Math.max(deviceCode.intervalSeconds, 3) * 1000;
+
+    async function tick() {
+      try {
+        const res = await fetch("/api/auth/codex/device-poll", {
+          method: "POST",
+        });
+        const json = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          throw new Error(json.error || t("settings.savingError"));
+        }
+        if (json.data?.status === "connected") {
+          setDeviceCode(null);
+          setDevicePolling(false);
+          setMsg(t("settings.codexConnected"));
+          setMsgType("success");
+          queryClient.invalidateQueries({ queryKey: ["insights"] });
+          return;
+        }
+        // Pending → schedule next tick.
+        if (!cancelled) setTimeout(tick, intervalMs);
+      } catch (err) {
+        if (cancelled) return;
+        setMsg(err instanceof Error ? err.message : t("settings.savingError"));
+        setMsgType("error");
+        setDeviceCode(null);
+        setDevicePolling(false);
+      }
+    }
+
+    const handle = setTimeout(tick, intervalMs);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceCode]);
+
+  function handleCancelDevice() {
+    setDeviceCode(null);
+    setDevicePolling(false);
   }
 
   async function handleDisconnect() {
@@ -312,14 +398,73 @@ function InsightsSettingsCard({
                 </p>
               </div>
               {settings?.codexOauthConfigured ? (
-                <Button
-                  variant="outline"
-                  onClick={handleConnect}
-                  className="w-full sm:w-auto"
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {t("settings.ai.connectChatgptCta")}
-                </Button>
+                deviceCode ? (
+                  <div className="border-dracula-purple bg-dracula-purple/5 space-y-3 rounded-lg border-l-4 p-4">
+                    <p className="text-sm font-medium">
+                      {t("settings.ai.deviceCodeHeading")}
+                    </p>
+                    <ol className="text-muted-foreground list-decimal space-y-2 pl-5 text-sm">
+                      <li>
+                        {t("settings.ai.deviceCodeStep1")}{" "}
+                        <a
+                          href={deviceCode.verificationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-dracula-purple font-medium underline"
+                        >
+                          {deviceCode.verificationUrl}
+                        </a>
+                      </li>
+                      <li>
+                        {t("settings.ai.deviceCodeStep2")}
+                        <div className="bg-card border-border mt-2 inline-flex items-center gap-2 rounded border px-3 py-2 font-mono text-lg tracking-widest">
+                          {deviceCode.userCode}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigator.clipboard?.writeText(
+                                deviceCode.userCode,
+                              )
+                            }
+                            className="text-muted-foreground hover:text-foreground text-xs underline"
+                          >
+                            {t("settings.ai.deviceCodeCopy")}
+                          </button>
+                        </div>
+                      </li>
+                      <li>{t("settings.ai.deviceCodeStep3")}</li>
+                    </ol>
+                    <div className="flex items-center gap-3 text-xs">
+                      {devicePolling && (
+                        <span className="text-muted-foreground inline-flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          {t("settings.ai.deviceCodeWaiting")}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleCancelDevice}
+                        className="text-muted-foreground hover:text-foreground underline"
+                      >
+                        {t("settings.ai.deviceCodeCancel")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={handleConnect}
+                    disabled={devicePolling}
+                    className="w-full sm:w-auto"
+                  >
+                    {devicePolling ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4" />
+                    )}
+                    {t("settings.ai.connectChatgptCta")}
+                  </Button>
+                )
               ) : (
                 <p className="text-muted-foreground text-xs italic">
                   {t("settings.ai.oauthNotConfigured")}
