@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { StatusBadge, buildCards } from "../status-card-grid";
+import { ADMIN_SECTION_SLUGS } from "../section-slugs";
 import type { StatusOverview } from "@/app/api/admin/status-overview/route";
 
 const mockOverview: StatusOverview = {
@@ -99,36 +102,42 @@ describe("buildCards()", () => {
     expect(cards[5].severity).toBe("info"); // audit log
   });
 
-  it("links each card to a real anchor on the admin page", () => {
-    // Source-of-truth list of section IDs rendered by `src/app/admin/page.tsx`.
-    // If you add a new section to the admin page, add the ID here. The test
-    // proves every status-card href can actually scroll to something —
-    // `startsWith("/admin")` was too lax and let the v1.4.5 regression slip
-    // (every CTA bounced to `/admin#integrations` which does not exist).
-    const realAnchorIds = new Set([
-      "section-system-status",
-      "section-admin-general",
-      "section-admin-services",
-      "section-admin-umami",
-      "section-admin-glitchtip",
-      "section-admin-webpush",
-      "section-admin-bugreport",
-      "section-admin-feedback",
-      "section-admin-reminders",
-      "section-user-management",
-      "section-api-tokens",
-      "section-login-overview",
-      "section-danger-zone",
-    ]);
+  it("links each card to a real `/admin/<slug>` route that exists on disk", () => {
+    // v1.5: status-card CTAs no longer use `#anchor` fragments — every href
+    // points at a dynamic-route slug under `/admin/[section]`. This test
+    // proves the slug exists (a) in the static `ADMIN_SECTION_SLUGS` list
+    // that drives `generateStaticParams()` AND (b) that the dynamic route
+    // file `src/app/admin/[section]/page.tsx` exists on disk. If a future
+    // refactor moves the dynamic route, the second check fails loudly.
+    const validSlugs = new Set<string>(ADMIN_SECTION_SLUGS);
+
+    // `__dirname` here is `.../src/components/admin/__tests__`, so walk
+    // up four levels to the repo root.
+    const repoRoot = join(__dirname, "..", "..", "..", "..");
+    const dynamicRoute = join(
+      repoRoot,
+      "src",
+      "app",
+      "admin",
+      "[section]",
+      "page.tsx",
+    );
+    expect(
+      existsSync(dynamicRoute),
+      `Dynamic admin route missing — expected ${dynamicRoute}`,
+    ).toBe(true);
 
     const cards = buildCards(mockOverview);
     for (const card of cards) {
       expect(card.cta.length).toBeGreaterThan(0);
-      // Hrefs must be `/admin#section-...` — sub-routes like `/admin/users`
-      // do not exist as of v1.4.6 and were the original regression.
-      expect(card.href).toMatch(/^\/admin#section-/);
-      const anchor = card.href.replace(/^\/admin#/, "");
-      expect(realAnchorIds.has(anchor)).toBe(true);
+      // Hrefs must be real sub-routes; `/admin#section-*` was the v1.4.6
+      // honesty problem the v1.5 refactor permanently removed.
+      expect(card.href).toMatch(/^\/admin\/[a-z][a-z0-9-]*$/);
+      const slug = card.href.replace(/^\/admin\//, "");
+      expect(
+        validSlugs.has(slug),
+        `Card ${card.title} -> ${card.href} is not in ADMIN_SECTION_SLUGS`,
+      ).toBe(true);
     }
   });
 
