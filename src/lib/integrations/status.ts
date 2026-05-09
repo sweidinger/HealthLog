@@ -382,13 +382,59 @@ function safeDecryptError(ciphertext: string): string {
   }
 }
 
-interface AlertInput {
+export interface AlertInput {
   userId: string;
   integration: IntegrationKey;
   kind: FailureKind;
   message: string;
   errorCode: string | undefined;
   consecutiveFailures: number;
+  /** Caller-resolved subject label (usually the user's email). */
+  subjectLabel?: string;
+}
+
+/**
+ * Pure formatter for the admin-Telegram payload — extracted so we
+ * can unit-test the message shape without standing up Prisma. Kept
+ * deterministic on purpose: same input, byte-identical output.
+ *
+ * The 280-char trim on the upstream error message protects admins
+ * from a 4 KB stack trace landing in chat. Telegram's own cap is
+ * 4096 characters but our envelope (title + summary + action line)
+ * eats ~150 chars so we keep a comfortable margin.
+ */
+export function formatAdminAlertPayload(input: AlertInput): {
+  title: string;
+  message: string;
+  metadata: Record<string, unknown>;
+} {
+  const integrationLabel =
+    input.integration === "withings" ? "Withings" : "moodLog";
+  const subjectLabel = input.subjectLabel ?? input.userId;
+  const reasonLabel =
+    input.kind === "reauth_required" ? "re-auth required" : "transient error";
+  const codeLabel = input.errorCode ? ` (${input.errorCode})` : "";
+  const trimmed =
+    input.message.length > 280
+      ? `${input.message.slice(0, 277)}...`
+      : input.message;
+
+  const title = `${integrationLabel} sync failing for ${subjectLabel}`;
+  const message =
+    `${integrationLabel} sync has failed ${input.consecutiveFailures} times in a row for ${subjectLabel}.\n` +
+    `Last error: ${reasonLabel}${codeLabel} — ${trimmed}\n` +
+    `Action: ${input.kind === "reauth_required" ? "ask the user to reconnect the integration." : "investigate the upstream service."}`;
+
+  return {
+    title,
+    message,
+    metadata: {
+      integration: input.integration,
+      affectedUserId: input.userId,
+      consecutiveFailures: input.consecutiveFailures,
+      errorCode: input.errorCode ?? null,
+    },
+  };
 }
 
 /**
@@ -421,37 +467,18 @@ async function maybeAlertAdmins(input: AlertInput): Promise<void> {
     return;
   }
 
-  const integrationLabel =
-    input.integration === "withings" ? "Withings" : "moodLog";
-  const subjectLabel = subject?.email ?? input.userId;
-  const reasonLabel =
-    input.kind === "reauth_required" ? "re-auth required" : "transient error";
-  const codeLabel = input.errorCode ? ` (${input.errorCode})` : "";
-  // Trim message — Telegram caps at 4096 chars and we don't want to
-  // drown the admin in stack traces.
-  const trimmed =
-    input.message.length > 280
-      ? `${input.message.slice(0, 277)}...`
-      : input.message;
-
-  const title = `${integrationLabel} sync failing for ${subjectLabel}`;
-  const message =
-    `${integrationLabel} sync has failed ${input.consecutiveFailures} times in a row for ${subjectLabel}.\n` +
-    `Last error: ${reasonLabel}${codeLabel} — ${trimmed}\n` +
-    `Action: ${input.kind === "reauth_required" ? "ask the user to reconnect the integration." : "investigate the upstream service."}`;
+  const payload = formatAdminAlertPayload({
+    ...input,
+    subjectLabel: subject?.email ?? input.userId,
+  });
 
   for (const admin of admins) {
     await dispatchNotification({
       eventType: "SYSTEM_ALERT",
       userId: admin.id,
-      title,
-      message,
-      metadata: {
-        integration: input.integration,
-        affectedUserId: input.userId,
-        consecutiveFailures: input.consecutiveFailures,
-        errorCode: input.errorCode ?? null,
-      },
+      title: payload.title,
+      message: payload.message,
+      metadata: payload.metadata,
     });
   }
 }
