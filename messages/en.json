@@ -1109,6 +1109,15 @@
     "withingsDisconnectDescription": "The connection to Withings will be disconnected. Previously synced data will be preserved.",
     "withingsConnect": "Connect with Withings",
     "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
+    "integrationStatus": {
+      "stateConnected": "Connected",
+      "stateError": "Error",
+      "stateReauthRequired": "Reconnect required",
+      "stateDisconnected": "Disconnected",
+      "consecutiveFailures": "{count}/{threshold} consecutive failures",
+      "lastSuccess": "Last successful sync",
+      "lastAttempt": "Last attempt"
+    },
     "apiTokens": "API Tokens",
     "apiTokensDescription": "Create API tokens for external medication intake (e.g., Shortcuts, automations).",
     "tokenName": "Token name",
@@ -1257,6 +1266,22 @@
         "rate_limited_self": "Too many test requests",
         "generic": "Test failed"
       }
+    },
+    "notificationStatus": {
+      "title": "Channel reliability",
+      "description": "Live status of every notification channel — Auto-disabled means HealthLog stopped retrying after a permanent error.",
+      "emptyDescription": "No channels configured yet. Add a channel below to start tracking its delivery health.",
+      "stateActive": "Active",
+      "stateAutoDisabled": "Auto-disabled",
+      "stateSendingPaused": "Sending paused",
+      "stateManuallyDisabled": "Disabled",
+      "lastSuccess": "Last successful send",
+      "lastFailure": "Last failure",
+      "consecutiveFailures": "Consecutive failures",
+      "disabledReason": "Reason",
+      "nextRetry": "Next retry",
+      "reEnable": "Re-enable",
+      "sendTest": "Send test"
     }
   },
   "admin": {
@@ -1562,7 +1587,16 @@
         "uploadButton": "Upload file",
         "uploadHelp": "JSON file matching the current backup schema. Max 10 MB.",
         "uploadSuccess": "Backup uploaded ({count} records)",
-        "uploadFailed": "Upload failed"
+        "uploadFailed": "Upload failed",
+        "restore": "Restore",
+        "restoreAria": "Restore from backup for {username}",
+        "restoreTitle": "Restore from backup",
+        "restoreDescription": "This will replace ALL current data for {username} with the snapshot from {when}. Existing measurements, medications, intake events, mood entries, notification channels, push subscriptions and queued Telegram deletions will be deleted.",
+        "restorePromptLabel": "Type RESTORE to continue",
+        "restoreConfirm": "Restore now",
+        "restoreInProgress": "Restoring...",
+        "restoreSuccess": "Restore complete",
+        "restoreFailed": "Restore failed"
       },
       "danger-zone": {
         "title": "Danger Zone",

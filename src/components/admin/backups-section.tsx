@@ -12,15 +12,134 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Database, Download, Loader2, PlayCircle, Upload } from "lucide-react";
+import {
+  Database,
+  Download,
+  History,
+  Loader2,
+  PlayCircle,
+  Upload,
+} from "lucide-react";
 import { useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import type { BackupRow, BackupsList } from "@/app/api/admin/backups/route";
 import { getApiErrorMessage } from "./_shared";
+
+/**
+ * Typed-confirmation dialog for restore. The destructive Restore button
+ * is gated behind:
+ *   1. Opening the dialog (one click).
+ *   2. Reading the warning copy (Title + Description spell out exactly
+ *      what's about to happen + which user it affects).
+ *   3. Typing the literal string `RESTORE` into the prompt input —
+ *      anything else keeps the confirm button disabled.
+ *
+ * Three independent steps before the request fires == "triple confirm".
+ * Mirrors the wipe dialog's pattern but adds the typed gate because the
+ * blast radius is bigger (re-creates rows, not just deletes).
+ */
+function RestoreRowDialog({
+  row,
+  pending,
+  onConfirm,
+}: {
+  row: BackupRow;
+  pending: boolean;
+  onConfirm: () => void;
+}) {
+  const { t } = useTranslations();
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const matched = typed.trim() === "RESTORE";
+
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setTyped("");
+      }}
+    >
+      <AlertDialogTrigger asChild>
+        <Button
+          size="sm"
+          variant="destructive"
+          disabled={pending}
+          aria-label={t("admin.section.backups.restoreAria", {
+            username: row.username,
+          })}
+        >
+          {pending ? (
+            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <History className="mr-1 h-3.5 w-3.5" />
+          )}
+          {t("admin.section.backups.restore")}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {t("admin.section.backups.restoreTitle")}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t("admin.section.backups.restoreDescription", {
+              username: row.username,
+              when: formatDateTime(row.createdAt),
+            })}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor={`restore-prompt-${row.id}`}>
+            {t("admin.section.backups.restorePromptLabel")}
+          </Label>
+          <Input
+            id={`restore-prompt-${row.id}`}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="RESTORE"
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={!matched || pending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              if (!matched) return;
+              setOpen(false);
+              setTyped("");
+              onConfirm();
+            }}
+          >
+            {pending
+              ? t("admin.section.backups.restoreInProgress")
+              : t("admin.section.backups.restoreConfirm")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 function formatBytes(bytes: number, fmt: ReturnType<typeof useFormatters>) {
   if (bytes < 1024) return `${bytes} B`;
@@ -129,6 +248,44 @@ export function BackupsSection() {
     const file = e.target.files?.[0];
     if (file) upload.mutate(file);
   }
+
+  // Restore: typed-confirmation dialog. The mutation is keyed by row id
+  // and used inline by `<RestoreRowDialog>` below — keeping the
+  // mutation here lets the parent invalidate the list query on success.
+  const restore = useMutation({
+    mutationFn: async (row: BackupRow) => {
+      // Idempotency-Key prevents a double-click from re-running the
+      // destructive transaction. Include the row id so two different
+      // backups can both be restored independently in the same minute.
+      const idempotencyKey = `restore-${row.id}-${crypto.randomUUID()}`;
+      const res = await fetch(`/api/admin/backups/${row.id}/restore`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify({ confirm: "RESTORE" }),
+      });
+      if (!res.ok) {
+        throw new Error(await getApiErrorMessage(res));
+      }
+      return (await res.json()).data as { restored: true };
+    },
+    onSuccess: () => {
+      toast.success(t("admin.section.backups.restoreSuccess"));
+      queryClient.invalidateQueries({ queryKey: ["admin", "backups"] });
+      // Restore touches every personal-data table; nuke the broader
+      // cache so dashboards / lists rebuild against the new state.
+      queryClient.invalidateQueries();
+    },
+    onError: (err) => {
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : t("admin.section.backups.restoreFailed"),
+      );
+    },
+  });
 
   async function handleDownload(row: BackupRow) {
     setDownloadingId(row.id);
@@ -294,22 +451,31 @@ export function BackupsSection() {
                     {formatDateTime(row.createdAt)}
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={downloadingId === row.id}
-                      onClick={() => handleDownload(row)}
-                      aria-label={t("admin.section.backups.downloadAria", {
-                        username: row.username,
-                      })}
-                    >
-                      {downloadingId === row.id ? (
-                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Download className="mr-1 h-3.5 w-3.5" />
-                      )}
-                      {t("admin.section.backups.download")}
-                    </Button>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={downloadingId === row.id}
+                        onClick={() => handleDownload(row)}
+                        aria-label={t("admin.section.backups.downloadAria", {
+                          username: row.username,
+                        })}
+                      >
+                        {downloadingId === row.id ? (
+                          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="mr-1 h-3.5 w-3.5" />
+                        )}
+                        {t("admin.section.backups.download")}
+                      </Button>
+                      <RestoreRowDialog
+                        row={row}
+                        pending={
+                          restore.isPending && restore.variables?.id === row.id
+                        }
+                        onConfirm={() => restore.mutate(row)}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}

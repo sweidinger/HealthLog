@@ -1109,6 +1109,15 @@
     "withingsDisconnectDescription": "Die Verbindung zu Withings wird getrennt. Bereits synchronisierte Daten bleiben erhalten.",
     "withingsConnect": "Mit Withings verbinden",
     "withingsNoCredentials": "Bitte zuerst die API-Zugangsdaten oben eingeben, um Withings zu verbinden.",
+    "integrationStatus": {
+      "stateConnected": "Verbunden",
+      "stateError": "Fehler",
+      "stateReauthRequired": "Neu verbinden erforderlich",
+      "stateDisconnected": "Getrennt",
+      "consecutiveFailures": "{count}/{threshold} aufeinanderfolgende Fehler",
+      "lastSuccess": "Letzte erfolgreiche Synchronisierung",
+      "lastAttempt": "Letzter Versuch"
+    },
     "apiTokens": "API-Tokens",
     "apiTokensDescription": "Erstelle API-Tokens für die externe Medikamenten-Einnahme (z.B. Shortcuts, Automationen).",
     "tokenName": "Token-Name",
@@ -1257,6 +1266,22 @@
         "rate_limited_self": "Zu viele Test-Anfragen",
         "generic": "Test fehlgeschlagen"
       }
+    },
+    "notificationStatus": {
+      "title": "Kanalzuverlässigkeit",
+      "description": "Live-Status jedes Benachrichtigungskanals — \"Automatisch deaktiviert\" bedeutet, HealthLog hat nach einem dauerhaften Fehler aufgehört, weiterzusenden.",
+      "emptyDescription": "Noch keine Kanäle konfiguriert. Lege unten einen Kanal an, um die Zustellung zu überwachen.",
+      "stateActive": "Aktiv",
+      "stateAutoDisabled": "Automatisch deaktiviert",
+      "stateSendingPaused": "Versand pausiert",
+      "stateManuallyDisabled": "Deaktiviert",
+      "lastSuccess": "Letzter erfolgreicher Versand",
+      "lastFailure": "Letzter Fehler",
+      "consecutiveFailures": "Fehler in Folge",
+      "disabledReason": "Grund",
+      "nextRetry": "Nächster Versuch",
+      "reEnable": "Wieder aktivieren",
+      "sendTest": "Test senden"
     }
   },
   "admin": {
@@ -1562,7 +1587,16 @@
         "uploadButton": "Datei hochladen",
         "uploadHelp": "JSON-Datei passend zum aktuellen Backup-Schema. Max. 10 MB.",
         "uploadSuccess": "Backup hochgeladen ({count} Datensätze)",
-        "uploadFailed": "Upload fehlgeschlagen"
+        "uploadFailed": "Upload fehlgeschlagen",
+        "restore": "Wiederherstellen",
+        "restoreAria": "Backup für {username} wiederherstellen",
+        "restoreTitle": "Aus Backup wiederherstellen",
+        "restoreDescription": "Dies ersetzt ALLE aktuellen Daten von {username} mit dem Snapshot von {when}. Vorhandene Messungen, Medikamente, Einnahmen, Stimmungseinträge, Benachrichtigungs-Kanäle, Push-Abos und Telegram-Lösch-Aufträge werden entfernt.",
+        "restorePromptLabel": "Tippe RESTORE zum Fortfahren",
+        "restoreConfirm": "Jetzt wiederherstellen",
+        "restoreInProgress": "Wiederherstellung läuft...",
+        "restoreSuccess": "Wiederherstellung abgeschlossen",
+        "restoreFailed": "Wiederherstellung fehlgeschlagen"
       },
       "danger-zone": {
         "title": "Gefahrenzone",
