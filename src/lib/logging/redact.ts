@@ -15,6 +15,9 @@
  *     Withings webhooks and OAuth callbacks (already scrubbed at the
  *     URL level in `reportToGlitchtip`, but error.message can carry
  *     the URL too).
+ *   - `sk-…` and `sk-ant-…` — OpenAI / Anthropic API keys. We never
+ *     log them on purpose, but a misconfigured client error or a
+ *     dump of the request body could carry one. Scrub before egress.
  *
  * The substitution is intentionally generic ([REDACTED]) — we don't
  * want partial revelation of token entropy.
@@ -23,6 +26,7 @@ export function redactSecrets(input: string): string {
   return input
     .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
     .replace(/bot\d+:[A-Za-z0-9_-]+/g, "bot[REDACTED]")
+    .replace(/sk-(?:ant-)?[A-Za-z0-9_-]+/g, "[REDACTED]")
     .replace(
       /([?&])(secret|code|token|api[_-]?key)=[^&\s]+/gi,
       "$1$2=[REDACTED]",

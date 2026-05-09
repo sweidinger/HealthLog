@@ -29,6 +29,20 @@ describe("redactSecrets", () => {
     expect(redactSecrets("api?api_key=secret")).toBe("api?api_key=[REDACTED]");
   });
 
+  it("redacts OpenAI and Anthropic API keys", () => {
+    expect(
+      redactSecrets("error: invalid key sk-1234567890abcdefABCDEF"),
+    ).toBe("error: invalid key [REDACTED]");
+    expect(
+      redactSecrets("Authorization: Bearer sk-ant-api03-xyzABC_42-token"),
+    ).toBe("Authorization: Bearer [REDACTED]");
+    // Standalone Anthropic key (no Bearer prefix) — make sure the sk-ant-
+    // path matches independently of the Bearer rule.
+    expect(redactSecrets("body={apiKey: sk-ant-abcDEF123_-}")).toBe(
+      "body={apiKey: [REDACTED]}",
+    );
+  });
+
   it("leaves non-secret-shaped strings alone", () => {
     expect(redactSecrets("HTTP 503 from upstream")).toBe(
       "HTTP 503 from upstream",
