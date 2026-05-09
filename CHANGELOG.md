@@ -1,5 +1,192 @@
 # Changelog
 
+## [1.4.14] — 2026-05-09
+
+### Added
+
+- **Admin-Bereich nach Sektionen aufgeteilt.** Statt einer monolithischen
+  `/admin`-Seite mit Anker-Sprüngen hat jede Sektion jetzt ihre eigene
+  Route: `/admin/system-status`, `/admin/services`,
+  `/admin/integrations`, `/admin/feedback`, `/admin/reminders`,
+  `/admin/users`, `/admin/api-tokens`, `/admin/login-overview`,
+  `/admin/backups`, `/admin/danger-zone`. Sidebar bekommt eine
+  ausklappbare Admin-Gruppe; Status-Cards verlinken direkt auf die
+  passende Unterseite. Alte `/admin#section-…`-Pfade werden serverseitig
+  weitergeleitet.
+  _The admin area is split into per-section pages instead of one
+  monolithic dashboard with anchor jumps. Each section has its own URL
+  (`/admin/system-status`, `/admin/services`, `/admin/integrations`,
+  `/admin/feedback`, `/admin/reminders`, `/admin/users`,
+  `/admin/api-tokens`, `/admin/login-overview`, `/admin/backups`,
+  `/admin/danger-zone`); the sidebar grows an expandable Admin group;
+  status cards link to the relevant sub-page; legacy
+  `/admin#section-…` paths are redirected server-side._
+- **Neue Backups-Sektion** unter `/admin/backups` mit Tabelle aller
+  bisherigen Sicherungen (Größe, Typ, Erstellungszeit) und einem
+  „Backup jetzt erstellen“-Button, der einen Ad-hoc-Job auf der
+  pg-boss-Queue auslöst.
+  _New `/admin/backups` view with a table of all stored backups (size,
+  type, timestamp) and a “Backup now” button that enqueues an ad-hoc
+  pg-boss job._
+- **Neue User-Verwaltung** unter `/admin/users` mit Filter-Pills
+  (alle / nur Admins / nur Standardnutzer) und einer
+  „Force-Logout“-Aktion pro Nutzer hinter einem Bestätigungsdialog
+  (löscht alle aktiven Sessions des Ziels und schreibt einen
+  Audit-Log-Eintrag). Selbst-Logout ist gesperrt.
+  _New `/admin/users` view with role filter pills (all / admins only /
+  users only) and a per-row force-logout action behind a confirmation
+  dialog (deletes every active session of the target and writes an
+  audit-log entry). Self-target is disabled._
+- **„Gespeicherten KI-Schlüssel entfernen“** in Settings → KI: ein
+  klar betitelter Knopf mit Bestätigungsdialog löscht den
+  gespeicherten OpenAI- bzw. lokalen Provider-Key, ohne Settings
+  ansonsten anzufassen.
+  _New “Remove saved AI key” button in Settings → AI: a clearly
+  labelled button behind a confirmation dialog clears the stored
+  OpenAI or local provider key without touching anything else._
+- **`CODEX_MODEL`-Env-Var** als Operator-Override für das Codex-
+  Modell-Slug, damit alternative Modelle ohne Rebuild getestet werden
+  können (z. B. wenn dein ChatGPT-Plan ein anderes Default-Modell
+  bevorzugt).
+  _New `CODEX_MODEL` env var lets operators override the Codex model
+  slug without a rebuild — useful for testing alternate slugs against
+  different ChatGPT plan tiers._
+
+### Changed
+
+- **Trend-Pfeil-Farben sind jetzt metrik-bewusst.** Steigende Tendenz
+  bedeutet je nach Messwert etwas anderes: Blutdruck und Gewicht ↑ =
+  orange (Warnung), Stimmung ↑ = grün (positiv), Puls ↑ = neutral
+  (kontextabhängig). Die Pfeil-Richtung selbst bleibt unverändert.
+  _Trend-arrow colors are metric-aware: BP and weight rising = orange
+  (warning), mood rising = green (positive), pulse rising = neutral
+  (context-dependent). Arrow direction itself is unchanged._
+- **Wipe-all-data deckt jetzt auch Notification-Channels und Web-Push-
+  Subscriptions ab.** Verschlüsselte Telegram-Bot-Tokens und
+  Web-Push-Endpoints überleben einen vollständigen Account-Wipe nicht
+  länger. Feedback und Audit-Log bleiben erhalten (wie bisher).
+  Bestätigungstext im UI nennt den neuen Umfang explizit.
+  _“Wipe all data” now also clears notification channels and web-push
+  subscriptions: encrypted Telegram bot tokens and web-push endpoints
+  no longer survive a full account wipe. Feedback and audit log stay
+  untouched (unchanged). The confirmation copy spells out the new
+  scope._
+- **i18n-Schlüssel im Admin-Bereich** unter `admin.section.<slug>.*`
+  reorganisiert (EN + DE-Parität).
+  _Admin-area i18n keys reorganised under `admin.section.<slug>.*`
+  (EN + DE parity)._
+
+### Fixed
+
+- **Codex/ChatGPT-Modell-Slug korrigiert.** Der Codex-Backend-Endpoint
+  lehnt sowohl `gpt-5-codex` als auch `gpt-5` für ChatGPT-Account-
+  Auth ab; das tatsächliche, codex-optimierte Slug für die Plus/Pro-
+  Tarife heißt `gpt-5.3-codex`. v1.4.14 verdrahtet den richtigen
+  Default. „Verbindung testen“ in Settings → KI und der Insight-
+  Generator laufen damit beide gegen dein ChatGPT-Abo durch.
+  _Codex/ChatGPT model slug corrected: the Codex backend rejects both
+  `gpt-5-codex` and `gpt-5` when authenticated via a ChatGPT account;
+  the codex-optimised slug for the Plus/Pro tiers is `gpt-5.3-codex`.
+  v1.4.14 wires the correct default. Settings → AI “Test connection”
+  and the insight generator now both succeed against your ChatGPT
+  subscription._
+- **Sommerzeit-Wechsel verschiebt keine Tageswerte mehr.** Die
+  Cross-Metric-Tagespaarung in den Insight-Buckets rechnete früher in
+  reinem UTC und verlor an den Berliner DST-Grenzen einen Tag. Die
+  neue Helper `dayOffsetToBerlinDayKey()` arbeitet DST-immun (Anker
+  über Berliner Y-M-D, dann Subtraktion in 86_400_000-ms-Schritten);
+  die Tagespaarung über Blutdruck, Gewicht und Stimmung ist jetzt
+  über DST-Wechsel hinweg konsistent.
+  _DST transitions no longer shift daily values. The cross-metric
+  daily bucket pairing previously did naive UTC math and dropped a
+  day at the Berlin DST boundary. A new `dayOffsetToBerlinDayKey()`
+  helper anchors at Berlin Y-M-D and subtracts in 86_400_000-ms
+  steps; bucket pairing across blood pressure, weight, and mood is
+  now DST-safe._
+- **KI-Provider-Fehler werden korrekt klassifiziert.**
+  `/api/insights/generate` antwortet auf 401/403-Fehler des Providers
+  jetzt mit 422 („KI-Anbieter hat den Request abgelehnt — bitte
+  API-Key in Settings → KI prüfen“), auf 5xx mit 503 („KI-Anbieter
+  vorübergehend nicht erreichbar“) und auf 429 mit 429. Vorher kam
+  pauschal 500. Volle Fehlerdetails landen weiter im Wide-Event-Log.
+  _AI provider errors are now correctly classified by
+  `/api/insights/generate`: provider 401/403 → 422 (“AI provider
+  rejected the request — check your API key in Settings → AI”),
+  provider 5xx → 503 (“AI provider temporarily unavailable”), 429 →
+  429. Previously everything returned 500. Full error context still
+  lands in the structured logs._
+- **Logging-Redactor schluckt keine harmlosen Wörter mehr.** Der
+  Secret-Redactor maskierte zuvor jedes Vorkommen von `sk-…` — auch
+  in `task-force`, `risk-management`, `disk-io`. Die neue Regex
+  verlangt eine Wortgrenze und mindestens 8 Folgezeichen, das Padding
+  bleibt für echte API-Keys (`sk-…`, `sk-ant-…`) intakt.
+  _The structured-logging secret redactor no longer mangles innocent
+  words. The previous regex matched any `sk-…` substring and masked
+  fragments inside `task-force`, `risk-management`, `disk-io`. The
+  new pattern requires a word boundary and at least 8 trailing
+  characters, while still scrubbing real API keys (`sk-…`,
+  `sk-ant-…`)._
+
+### Performance
+
+- **Insights-Seite startet schneller.** Die Recharts-Symbole für die
+  Korrelations-Scatter-Plots werden jetzt bedarfsweise per
+  `next/dynamic` geladen statt eager mitausgeliefert; das spart
+  ca. 108 KiB initiales JavaScript auf der Insights-Seite. Die
+  Chart-Optik bleibt unverändert.
+  _Bundle-size improvements on the insights page: Recharts symbols
+  for the correlation scatter plots are now loaded on demand via
+  `next/dynamic` instead of being shipped eagerly, saving roughly
+  108 KiB of initial JavaScript on `/insights`. Chart visuals are
+  unchanged._
+- **Dashboard fragt die Onboarding-Checkliste nicht mehr ab, wenn
+  sie schon abgeschlossen ist.** Sobald `onboardingCompletedAt`
+  gesetzt ist, entfallen die `withings/status`- und
+  `notifications/preferences`-Calls beim Dashboard-Aufruf. Spart
+  rund 950 ms Netzwerkzeit bei wiederkehrenden Nutzern.
+  _The dashboard skips the onboarding-checklist API requests once
+  onboarding is complete. With `onboardingCompletedAt` set, the
+  `withings/status` and `notifications/preferences` queries no longer
+  fire on dashboard load — saves about 950 ms of network time for
+  established users._
+
+### Tests & A11y
+
+- **Erweiterte End-to-End-Suite.** Neue Playwright-Specs decken den
+  authentifizierten Dashboard-Render, den „Messung anlegen“-Flow,
+  den Doctor-Report-PDF-Download, einen gemockten Codex-Connect-
+  Flow, einen gemockten Insights-Generate-Flow und einen
+  Mobile-Viewport-Smoketest (Pixel 5) ab.
+  _Extended end-to-end suite. New Playwright specs cover the
+  authenticated dashboard render, the “add measurement” flow, the
+  doctor-report PDF download, a mocked Codex connect flow, a mocked
+  insights-generate flow, and a mobile-viewport smoke test (Pixel 5)._
+- **Axe-core-Audit auf allen Schlüsselrouten grün.** Die ernsten
+  und kritischen Verstöße auf `/dashboard`, `/settings/integrations`
+  und `/admin` (inkl. `/admin/system-status` und `/admin/users`)
+  wurden behoben — fehlende `aria-label`s an Icon-Buttons, fehlende
+  Namen am Mobile-User-Menü-Trigger, leere `<dd>`-Platzhalter,
+  Login-Link nur durch Farbe erkennbar, Quick-Add-Menü-Items mit
+  doppeltem Namen.
+  _Axe-core accessibility audit now clean of serious/critical
+  violations on `/dashboard`, `/settings/integrations`, and `/admin`
+  (incl. `/admin/system-status`, `/admin/users`). Fixes: missing
+  aria-labels on icon-only buttons, unnamed mobile user-menu trigger,
+  empty `<dd>` placeholders, sign-up link distinguishable only by
+  color, quick-add menu with two indistinguishable items._
+
+### Docs
+
+- **Dokumentations-Site auf v1.4.14 aktualisiert** — Codex-Device-
+  Code-Pfad neu beschrieben, neue Admin-Sektionen (Backups, Users)
+  dokumentiert, `CODEX_MODEL`-Env-Var aufgenommen,
+  Dashboard-Performance-Hinweis ergänzt, Codex-Troubleshooting-Block
+  überarbeitet.
+  _Documentation site brought up to date with v1.4.14 — Codex
+  device-code flow rewritten, new Admin sections (Backups, Users)
+  documented, `CODEX_MODEL` env var added, dashboard performance note
+  added, Codex troubleshooting block revised._
+
 ## [1.4.13] — 2026-05-09
 
 ### Fixed — KI Insights via ChatGPT
