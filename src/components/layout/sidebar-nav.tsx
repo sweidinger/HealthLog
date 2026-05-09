@@ -218,7 +218,10 @@ export function SidebarNav() {
   const { user } = useAuth();
   const { bugReportEnabled } = useAppSettings();
   const isAdmin = user?.role === "ADMIN";
-  const onAdminPage = pathname.startsWith("/admin");
+  // Match `/admin` exactly or any `/admin/...` sub-route. Plain
+  // `startsWith("/admin")` would also flip for a hypothetical future
+  // `/administrative` page, which is not the same semantic surface.
+  const onAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
