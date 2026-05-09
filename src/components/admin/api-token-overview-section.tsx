@@ -28,7 +28,7 @@ export function ApiTokenOverviewSection() {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Key className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("admin.apiTokens")}</h2>
+          <div className="text-lg font-semibold">{t("admin.apiTokens")}</div>
         </div>
         <Button
           variant="ghost"

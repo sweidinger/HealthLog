@@ -68,9 +68,9 @@ export function DangerZoneSection() {
     <div className="bg-destructive/5 border-destructive/30 rounded-xl border p-6">
       <div className="flex items-center gap-2">
         <AlertTriangle className="text-destructive h-5 w-5" />
-        <h2 className="text-destructive text-lg font-semibold">
+        <div className="text-destructive text-lg font-semibold">
           {t("admin.dangerZone")}
-        </h2>
+        </div>
       </div>
       <div className="mt-4">
         <p className="text-sm font-medium">{t("admin.deleteAllData")}</p>

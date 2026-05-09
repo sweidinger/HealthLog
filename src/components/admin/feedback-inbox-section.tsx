@@ -75,7 +75,7 @@ export function FeedbackInboxSection() {
     <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center gap-2">
         <Inbox className="text-primary h-5 w-5" />
-        <h2 className="text-lg font-semibold">{t("admin.feedback.title")}</h2>
+        <div className="text-lg font-semibold">{t("admin.feedback.title")}</div>
       </div>
       <p className="text-muted-foreground mt-1 text-xs">
         {t("admin.feedback.description")}

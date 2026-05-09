@@ -116,9 +116,9 @@ export function RemindersSection() {
     <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center gap-2">
         <Clock className="text-primary h-5 w-5" />
-        <h2 className="text-lg font-semibold">
+        <div className="text-lg font-semibold">
           {t("admin.medicationReminders")}
-        </h2>
+        </div>
       </div>
       <p className="text-muted-foreground mt-1 text-xs">
         {t("admin.medicationRemindersDescription")}

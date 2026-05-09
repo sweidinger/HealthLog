@@ -76,9 +76,9 @@ export function BackupsSection() {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Database className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">
+          <div className="text-lg font-semibold">
             {t("admin.section.backups.title")}
-          </h2>
+          </div>
           {data && (
             <Badge variant="secondary" className="text-xs">
               {rows.length}
