@@ -11,11 +11,13 @@ vi.mock("@/lib/crypto", () => ({
   encrypt: vi.fn((v: string) => `encrypted:${v}`),
 }));
 vi.mock("@/lib/ai/codex-oauth", () => ({
-  refreshTokens: vi.fn(),
-  encryptCodexCreds: vi.fn((c: { apiKey: string; refreshToken: string }) => ({
-    apiKeyEncrypted: `enc:${c.apiKey}`,
-    refreshEncrypted: `enc:${c.refreshToken}`,
-  })),
+  refreshDeviceTokens: vi.fn(),
+  encryptCodexCreds: vi.fn(
+    (c: { accessToken: string; refreshToken: string; accountId: string }) => ({
+      accessEncrypted: `enc:${c.accessToken}|${c.accountId}`,
+      refreshEncrypted: `enc:${c.refreshToken}`,
+    }),
+  ),
   decryptCodexCreds: vi.fn(),
 }));
 
@@ -39,8 +41,12 @@ describe("resolveProvider", () => {
     vi.mocked(decrypt).mockImplementation((v: string) => `decrypted:${v}`);
     vi.mocked(encrypt).mockImplementation((v: string) => `encrypted:${v}`);
     vi.mocked(encryptCodexCreds).mockImplementation(
-      (c: { apiKey: string; refreshToken: string }) => ({
-        apiKeyEncrypted: `enc:${c.apiKey}`,
+      (c: {
+        accessToken: string;
+        refreshToken: string;
+        accountId: string;
+      }) => ({
+        accessEncrypted: `enc:${c.accessToken}|${c.accountId}`,
         refreshEncrypted: `enc:${c.refreshToken}`,
       }),
     );
@@ -48,8 +54,10 @@ describe("resolveProvider", () => {
 
   it("returns codex provider when user has valid tokens (no explicit choice)", async () => {
     vi.mocked(decryptCodexCreds).mockReturnValue({
-      apiKey: "sk-codex-key",
+      accessToken: "oauth-access",
       refreshToken: "decrypted-refresh",
+      accountId: "acct-123",
+      expiresAt: new Date(Date.now() + 3600_000),
     });
 
     vi.mocked(prisma.user.findUnique)
@@ -265,8 +273,10 @@ describe("resolveProvider", () => {
 
   it("CHATGPT_OAUTH selection routes through Codex when connected", async () => {
     vi.mocked(decryptCodexCreds).mockReturnValue({
-      apiKey: "sk-codex-key",
+      accessToken: "oauth-access",
       refreshToken: "decrypted-refresh",
+      accountId: "acct-123",
+      expiresAt: new Date(Date.now() + 3600_000),
     });
 
     vi.mocked(prisma.user.findUnique)

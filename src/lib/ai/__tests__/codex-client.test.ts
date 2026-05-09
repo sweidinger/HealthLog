@@ -51,7 +51,10 @@ describe("CodexClient", () => {
 
     const client = new CodexClient({
       accessToken: "test-token",
-      onTokenRefresh: vi.fn(),
+      accountId: "acct-test",
+      onTokenRefresh: vi
+        .fn()
+        .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
     });
 
     const result = await client.generateCompletion({
@@ -95,7 +98,10 @@ describe("CodexClient", () => {
 
     const client = new CodexClient({
       accessToken: "test-token",
-      onTokenRefresh: vi.fn(),
+      accountId: "acct-test",
+      onTokenRefresh: vi
+        .fn()
+        .mockResolvedValue({ accessToken: "x", accountId: "acct-test" }),
     });
     const result = await client.generateCompletion({
       systemPrompt: "test",
@@ -122,7 +128,11 @@ describe("CodexClient", () => {
 
     const client = new CodexClient({
       accessToken: "expired-token",
-      onTokenRefresh: onRefresh,
+      accountId: "acct-test",
+      onTokenRefresh: async () => {
+        const t = await onRefresh();
+        return { accessToken: t, accountId: "acct-test" };
+      },
     });
 
     const result = await client.generateCompletion({
@@ -149,7 +159,11 @@ describe("CodexClient", () => {
 
     const client = new CodexClient({
       accessToken: "bad",
-      onTokenRefresh: onRefresh,
+      accountId: "acct-test",
+      onTokenRefresh: async () => {
+        const t = await onRefresh();
+        return { accessToken: t, accountId: "acct-test" };
+      },
     });
 
     await expect(
@@ -170,7 +184,11 @@ describe("CodexClient", () => {
     const onRefresh = vi.fn();
     const client = new CodexClient({
       accessToken: "test",
-      onTokenRefresh: onRefresh,
+      accountId: "acct-test",
+      onTokenRefresh: async () => {
+        const t = await onRefresh();
+        return { accessToken: t, accountId: "acct-test" };
+      },
     });
 
     await expect(

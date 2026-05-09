@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.4.12] — 2026-05-09
+
+### Fixed — KI Insights via ChatGPT (komplette Codex-Integration)
+
+- **Codex-Backend-Aufruf jetzt vollständig nach Spec.** Die letzten
+  Versionen haben den Connect-Schritt richtig hinbekommen, aber der
+  eigentliche Insight-Call ist iterativ an immer neuen 400ern
+  gestorben. Statt weitere Trial-and-Error-Iterationen zu fahren
+  habe ich das vollständige Codex-Backend-Protokoll aus dem
+  offiziellen `openai/codex`-Quellcode dokumentiert
+  (`docs/codex-protocol-spec.md`) und einmal sauber dagegen
+  implementiert. Was alles fehlte: der Header `ChatGPT-Account-ID`
+  (ohne den 401, kommt aus dem `chatgpt_account_id`-Claim im JWT
+  id_token); die Header `originator`, `User-Agent`, `Accept`,
+  `session_id`, `thread_id`; die Body-Felder `reasoning: null` und
+  `include: []`; das richtige Modell-Slug `gpt-5-codex` (statt des
+  Test-Placeholders `gpt-5.3-codex`); JSON-Body beim Refresh
+  (vorher form-urlencoded); Persistenz des `accountId` neben dem
+  Access-Token. SSE-Streaming wird unverändert konsumiert
+  (output_text.delta + output_item.done).
+- **Aufräumen:** der Browser-Authorization-Code-Pfad
+  (`/api/auth/codex/authorize` + `/callback`) ist gelöscht — er
+  funktioniert auf hosted Domains grundsätzlich nicht (Hydra-
+  Whitelist nur für localhost), war aber als Safety-Net noch da.
+  Device-Code ist jetzt der einzige Pfad.
+- **Re-Connect nötig:** wer in v1.4.7-v1.4.11 schon connected hat,
+  muss einmal "Trennen" + "Mit ChatGPT verbinden" — die alte
+  Storage-Form trug die `accountId` nicht und kann nicht
+  nach-bereichert werden.
+
 ## [1.4.11] — 2026-05-09
 
 ### Fixed — KI Insights via ChatGPT

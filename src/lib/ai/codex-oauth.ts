@@ -2,43 +2,42 @@ import { createHash, randomBytes } from "node:crypto";
 import { encrypt, decrypt } from "@/lib/crypto";
 
 /**
- * Codex / ChatGPT-OAuth flow — mirrors the official `openai/codex` CLI
- * (`codex-rs/login/src/server.rs`).
+ * Codex / ChatGPT-OAuth flow — implemented against `docs/codex-protocol-spec.md`,
+ * which mirrors the official `openai/codex` CLI.
  *
- * The previous v1.4.2-v1.4.6 implementation hit `chatgpt.com/authorize`
- * + `chatgpt.com/oauth/token`, which are NOT OAuth endpoints. ChatGPT
- * silently rendered its normal web-app and the flow dead-ended. The
- * canonical issuer is `auth.openai.com` for both authorize and token
- * exchange.
+ * Production-only path: **device-code flow**. The browser/auth-code flow
+ * does not work for hosted apps — Hydra's redirect-URI allow-list for the
+ * public Codex CLI client ID covers only `localhost:1455/1457`. The
+ * device-code flow side-steps that: the user types a short code on
+ * `auth.openai.com/codex/device`, we poll, on success we get an
+ * authorization-code internally and exchange it for OAuth tokens.
  *
- * Flow:
- *   1. PKCE authorize → user consents at auth.openai.com
- *   2. Token exchange → returns `{ id_token, access_token, refresh_token }`
- *   3. **API-key exchange** (token-exchange grant, RFC 8693) → trades
- *      the `id_token` for a regular OpenAI API key that bills against
- *      the user's ChatGPT subscription.
- *   4. HealthLog stores the API key (encrypted) and uses it via the
- *      standard OpenAIClient against `https://api.openai.com/v1`.
- *      Refresh tokens are stored too so the API key can be re-issued
- *      when it ages out — the refresh token is the long-lived secret.
+ * After the exchange we hold three pieces:
+ *   - `accessToken` — the OAuth access token used as `Authorization: Bearer`
+ *     on every Codex request.
+ *   - `refreshToken` — long-lived; rotates on every refresh.
+ *   - `accountId`    — the `chatgpt_account_id` claim from the id_token,
+ *     required as the `ChatGPT-Account-ID` header (without it: 401).
+ *
+ * All three are persisted (JSON-encoded then encrypted) on the user row
+ * so we don't need a schema migration.
  */
 
 const ISSUER = "https://auth.openai.com";
 
 /**
  * Public PKCE client ID hardcoded in the official `openai/codex` CLI
- * (`codex-rs/login/src/auth/manager.rs`). Allows OPS to override via
- * env var if a private OAuth app is registered for this deployment.
+ * (`codex-rs/login/src/auth/manager.rs`). Operators with a private OAuth
+ * app can override via env var.
  */
 const DEFAULT_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
 
-/**
- * Scopes the official Codex CLI requests. Without these the
- * `id_token` returned has no `chatgpt_subscription_active_until` claim
- * and the api-key exchange downstream rejects it.
- */
+/** Same scopes the official CLI requests. */
 const CODEX_SCOPES =
   "openid profile email offline_access api.connectors.read api.connectors.invoke";
+
+const DEVICE_VERIFICATION_URL = `${ISSUER}/codex/device`;
+const DEVICE_REDIRECT_URI = `${ISSUER}/deviceauth/callback`;
 
 function base64url(buffer: Buffer): string {
   return buffer.toString("base64url");
@@ -55,9 +54,9 @@ export function generateState(): string {
 }
 
 /**
- * Backwards-compatible no-op type. Kept so any existing callers that
- * imported the error type don't break — the helpers below now always
- * return a value (the public Codex client ID is the safe default).
+ * Backwards-compatible no-op type. Older callers that imported the error
+ * type continue to compile. Codex OAuth always considers itself
+ * configured because we ship the public client ID as the default.
  */
 export class CodexOAuthNotConfiguredError extends Error {
   constructor() {
@@ -72,181 +71,118 @@ export function getCodexClientId(): string {
   return process.env.CODEX_OAUTH_CLIENT_ID?.trim() || DEFAULT_CLIENT_ID;
 }
 
-/**
- * Codex OAuth is always considered configured because we ship the
- * public Codex CLI client ID as a default. Operators can override via
- * env var if they have a private OAuth app registered with OpenAI.
- */
 export function isCodexOAuthConfigured(): boolean {
   return true;
 }
 
-export function buildAuthorizationUrl(params: {
-  codeChallenge: string;
-  state: string;
-  redirectUri: string;
-}): string {
-  const url = new URL(`${ISSUER}/oauth/authorize`);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", getCodexClientId());
-  url.searchParams.set("redirect_uri", params.redirectUri);
-  url.searchParams.set("scope", CODEX_SCOPES);
-  url.searchParams.set("code_challenge", params.codeChallenge);
-  url.searchParams.set("code_challenge_method", "S256");
-  url.searchParams.set("state", params.state);
-  // Required for the api-key exchange step to work — without these
-  // claims the id_token cannot be traded for an OpenAI API key.
-  url.searchParams.set("id_token_add_organizations", "true");
-  url.searchParams.set("codex_cli_simplified_flow", "true");
-  return url.toString();
+// ─── JWT inspection ──────────────────────────────────────────────────
+
+interface JwtClaims {
+  exp?: number;
+  chatgpt_account_id?: string;
+  /**
+   * The official Codex CLI also accepts the URI-namespaced variant
+   * (`https://api.openai.com/auth.chatgpt_account_id`) in the
+   * `https://api.openai.com/auth` claim object — see
+   * `codex-rs/login/src/auth/manager.rs:891`.
+   */
+  "https://api.openai.com/auth"?: { chatgpt_account_id?: string };
+  [key: string]: unknown;
+}
+
+function decodeJwtClaims(token: string): JwtClaims | null {
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  try {
+    const padded = parts[1].padEnd(
+      parts[1].length + ((4 - (parts[1].length % 4)) % 4),
+      "=",
+    );
+    const json = Buffer.from(padded, "base64url").toString("utf8");
+    return JSON.parse(json) as JwtClaims;
+  } catch {
+    return null;
+  }
+}
+
+function extractAccountId(idToken: string): string | null {
+  const claims = decodeJwtClaims(idToken);
+  if (!claims) return null;
+  if (typeof claims.chatgpt_account_id === "string") {
+    return claims.chatgpt_account_id;
+  }
+  const namespaced = claims["https://api.openai.com/auth"];
+  if (
+    namespaced &&
+    typeof namespaced === "object" &&
+    typeof namespaced.chatgpt_account_id === "string"
+  ) {
+    return namespaced.chatgpt_account_id;
+  }
+  return null;
+}
+
+function extractExpiry(idToken: string): Date | null {
+  const claims = decodeJwtClaims(idToken);
+  if (!claims || typeof claims.exp !== "number") return null;
+  return new Date(claims.exp * 1000);
+}
+
+// ─── Token shape persisted on the user row ───────────────────────────
+
+export interface CodexCreds {
+  /** OAuth access token used directly against chatgpt.com/backend-api. */
+  accessToken: string;
+  /** OAuth refresh token; rotates on every refresh. */
+  refreshToken: string;
+  /**
+   * `chatgpt_account_id` claim from the id_token. Required as the
+   * `ChatGPT-Account-ID` header on every Codex backend request.
+   */
+  accountId: string;
+  /** Wall-clock expiry. Derived from id_token `exp`, fallback expires_in. */
+  expiresAt: Date;
 }
 
 interface RawTokenResponse {
   id_token: string;
   access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  token_type: string;
+  refresh_token?: string;
+  expires_in?: number;
+  token_type?: string;
 }
 
-async function postForm(
-  endpoint: string,
-  fields: Record<string, string>,
-): Promise<Response> {
-  const body = new URLSearchParams(fields).toString();
-  return fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-  });
-}
-
-export interface CodexTokens {
-  /** OpenAI API key obtained via the token-exchange grant. */
-  apiKey: string;
-  /** OAuth refresh token; long-lived, re-issues fresh tokens. */
-  refreshToken: string;
-  /**
-   * Wall-clock expiry of the API key. Once this passes we re-run the
-   * refresh + api-key exchange before the next request.
-   */
-  expiresAt: Date;
-}
-
-export async function exchangeCodeForTokens(params: {
-  code: string;
-  codeVerifier: string;
-  redirectUri: string;
-}): Promise<CodexTokens> {
-  const res = await postForm(`${ISSUER}/oauth/token`, {
-    grant_type: "authorization_code",
-    client_id: getCodexClientId(),
-    code: params.code,
-    redirect_uri: params.redirectUri,
-    code_verifier: params.codeVerifier,
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Codex token exchange failed (${res.status}): ${body}`);
+function buildCreds(
+  raw: RawTokenResponse,
+  prevRefresh: string | null,
+): CodexCreds {
+  const accountId = extractAccountId(raw.id_token);
+  if (!accountId) {
+    throw new Error(
+      "Codex token exchange returned id_token without chatgpt_account_id",
+    );
   }
-  const tokens = (await res.json()) as RawTokenResponse;
-  const apiKey = await obtainApiKey(tokens.id_token);
-  return {
-    apiKey,
-    refreshToken: tokens.refresh_token,
-    expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-  };
-}
-
-export async function refreshTokens(
-  refreshToken: string,
-): Promise<CodexTokens> {
-  const res = await postForm(`${ISSUER}/oauth/token`, {
-    grant_type: "refresh_token",
-    client_id: getCodexClientId(),
-    refresh_token: refreshToken,
-    // The same scopes must be requested on refresh, otherwise the
-    // re-issued id_token loses the claims the api-key exchange needs.
-    scope: CODEX_SCOPES,
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Codex token refresh failed (${res.status}): ${body}`);
+  const refreshToken = raw.refresh_token ?? prevRefresh ?? "";
+  if (!refreshToken) {
+    throw new Error("Codex token exchange returned no refresh_token");
   }
-  const tokens = (await res.json()) as RawTokenResponse;
-  const apiKey = await obtainApiKey(tokens.id_token);
+  const jwtExp = extractExpiry(raw.id_token);
+  const expiresAt =
+    jwtExp ?? new Date(Date.now() + (raw.expires_in ?? 3600) * 1000);
   return {
-    apiKey,
-    refreshToken: tokens.refresh_token ?? refreshToken,
-    expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-  };
-}
-
-/**
- * Trade an OpenID `id_token` for an OpenAI API key via the OAuth
- * token-exchange grant (RFC 8693). The resulting key is special: it
- * bills against the user's ChatGPT subscription rather than a separate
- * API plan, which is the entire point of the Codex flow.
- */
-export async function obtainApiKey(idToken: string): Promise<string> {
-  const res = await postForm(`${ISSUER}/oauth/token`, {
-    grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
-    client_id: getCodexClientId(),
-    requested_token: "openai-api-key",
-    subject_token: idToken,
-    subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Codex api-key exchange failed (${res.status}): ${body}`);
-  }
-  const json = (await res.json()) as { access_token?: string };
-  if (!json.access_token) {
-    throw new Error("Codex api-key exchange returned no access_token");
-  }
-  return json.access_token;
-}
-
-export function encryptCodexCreds(creds: {
-  apiKey: string;
-  refreshToken: string;
-}): { apiKeyEncrypted: string; refreshEncrypted: string } {
-  return {
-    apiKeyEncrypted: encrypt(creds.apiKey),
-    refreshEncrypted: encrypt(creds.refreshToken),
-  };
-}
-
-export function decryptCodexCreds(encrypted: {
-  apiKeyEncrypted: string;
-  refreshEncrypted: string;
-}): { apiKey: string; refreshToken: string } {
-  return {
-    apiKey: decrypt(encrypted.apiKeyEncrypted),
-    refreshToken: decrypt(encrypted.refreshEncrypted),
+    accessToken: raw.access_token,
+    refreshToken,
+    accountId,
+    expiresAt,
   };
 }
 
 // ─── Device-code flow ────────────────────────────────────────────────
-//
-// For hosted apps (HealthLog), the standard authorization-code redirect
-// flow does not work because OpenAI's Hydra only allow-lists localhost
-// callbacks for the public Codex CLI client ID. The device-code flow is
-// the documented escape hatch: the user goes to chatgpt.com on any
-// device, enters a short code, and approves the connection — no
-// redirect URI on our domain is involved at all.
-
-const DEVICE_VERIFICATION_URL = `${ISSUER}/codex/device`;
-const DEVICE_REDIRECT_URI = `${ISSUER}/deviceauth/callback`;
 
 export interface DeviceCodeStart {
-  /** Short user-facing code, e.g. "RGRP-N5F7U". */
   userCode: string;
-  /** URL the user opens in their browser to approve. */
   verificationUrl: string;
-  /** Opaque per-attempt id used for polling. Server-side only. */
   deviceAuthId: string;
-  /** Polling interval in seconds. */
   intervalSeconds: number;
 }
 
@@ -278,36 +214,15 @@ export async function requestDeviceCode(): Promise<DeviceCodeStart> {
   };
 }
 
-export interface DeviceTokens {
-  /**
-   * OAuth access token. Used directly against
-   * `https://chatgpt.com/backend-api/codex/responses` — the Codex
-   * backend that bills against the ChatGPT subscription.
-   *
-   * The device-code flow deliberately does NOT call the api-key
-   * exchange the browser flow uses, because the id_token returned
-   * here lacks the `organization_id` claim (that claim only gets
-   * added when the authorize URL was hit with
-   * `id_token_add_organizations=true`, which we cannot do during
-   * device-code auth — the user types the code on chatgpt.com
-   * directly without us controlling the authorize step).
-   */
-  accessToken: string;
-  /** OAuth refresh token; used to mint a new access token before expiry. */
-  refreshToken: string;
-  /** Wall-clock expiry of `accessToken`. */
-  expiresAt: Date;
-}
-
 export type DevicePollResult =
   | { status: "pending" }
-  | { status: "connected"; tokens: DeviceTokens };
+  | { status: "connected"; creds: CodexCreds };
 
 /**
- * Single poll attempt against the device-auth token endpoint. Returns
- * "pending" while the user has not yet approved (Hydra answers with
- * 403/404), and "connected" with already-exchanged Codex tokens once
- * the user finishes the approval flow on chatgpt.com.
+ * One poll attempt against the device-auth token endpoint. Returns
+ * `pending` while the user has not yet approved (Hydra answers with
+ * 403/404), and `connected` with fully resolved Codex credentials
+ * once the user finishes the approval on chatgpt.com.
  */
 export async function pollDeviceCode(params: {
   deviceAuthId: string;
@@ -336,16 +251,19 @@ export async function pollDeviceCode(params: {
     code_verifier: string;
   };
 
-  // Standard PKCE exchange — but with the deviceauth callback URI
-  // that Hydra uses internally for this flow. The user never visits
-  // this URL; it's just the value Hydra associates with the
-  // authorization code so the exchange typechecks.
-  const tokenRes = await postForm(`${ISSUER}/oauth/token`, {
-    grant_type: "authorization_code",
-    client_id: getCodexClientId(),
-    code: json.authorization_code,
-    redirect_uri: DEVICE_REDIRECT_URI,
-    code_verifier: json.code_verifier,
+  // Standard PKCE exchange against the OAuth token endpoint, with the
+  // device-auth callback URI Hydra associates with this authorization
+  // code internally.
+  const tokenRes = await fetch(`${ISSUER}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: getCodexClientId(),
+      code: json.authorization_code,
+      redirect_uri: DEVICE_REDIRECT_URI,
+      code_verifier: json.code_verifier,
+    }).toString(),
   });
   if (!tokenRes.ok) {
     const body = await tokenRes.text().catch(() => "");
@@ -356,27 +274,31 @@ export async function pollDeviceCode(params: {
   const tokens = (await tokenRes.json()) as RawTokenResponse;
   return {
     status: "connected",
-    tokens: {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-    },
+    creds: buildCreds(tokens, null),
   };
 }
 
 /**
- * Refresh an OAuth access token without going through the api-key
- * exchange. Used by the device-code path where the resulting id_token
- * never has the organization claims the api-key exchange requires.
+ * Refresh an OAuth access token using the long-lived refresh token.
+ * Per `docs/codex-protocol-spec.md` §6d, the refresh endpoint takes
+ * a JSON body (NOT form-urlencoded — that detail bit us once before).
+ *
+ * The refresh token rotates on every call; the new value (when
+ * present in the response) MUST be persisted, otherwise the next
+ * attempt fails with `refresh_token_reused`.
  */
 export async function refreshDeviceTokens(
   refreshToken: string,
-): Promise<DeviceTokens> {
-  const res = await postForm(`${ISSUER}/oauth/token`, {
-    grant_type: "refresh_token",
-    client_id: getCodexClientId(),
-    refresh_token: refreshToken,
-    scope: CODEX_SCOPES,
+): Promise<CodexCreds> {
+  const res = await fetch(`${ISSUER}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: getCodexClientId(),
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      scope: CODEX_SCOPES,
+    }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -385,36 +307,60 @@ export async function refreshDeviceTokens(
     );
   }
   const tokens = (await res.json()) as RawTokenResponse;
-  return {
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token ?? refreshToken,
-    expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-  };
+  return buildCreds(tokens, refreshToken);
 }
 
-// ─── Backwards-compat shims so older callers keep compiling ──────────
+// ─── Encrypted-storage codec ────────────────────────────────────────
+//
+// We re-purpose `codexAccessTokenEncrypted` to store the entire creds
+// blob (access_token + accountId + expiresAt) JSON-encoded then
+// encrypted. `codexRefreshTokenEncrypted` continues to hold just the
+// refresh token (encrypted), so a future migration to a dedicated
+// column shape stays simple. Old v1.4.9-v1.4.11 tokens stored without
+// the accountId field will fail to parse — the user has to re-connect
+// once after the v1.4.12 deploy. Acceptable since those connects
+// never produced a working session anyway.
 
-/** @deprecated use `encryptCodexCreds`. */
-export function encryptTokens(t: {
+interface StoredAccess {
   accessToken: string;
-  refreshToken: string;
-}): { accessEncrypted: string; refreshEncrypted: string } {
-  return {
-    accessEncrypted: encrypt(t.accessToken),
-    refreshEncrypted: encrypt(t.refreshToken),
-  };
+  accountId: string;
+  expiresAt: string; // ISO
 }
 
-/** @deprecated use `decryptCodexCreds`. */
-export function decryptTokens(e: {
+export function encryptCodexCreds(creds: CodexCreds): {
   accessEncrypted: string;
   refreshEncrypted: string;
-}): { accessToken: string; refreshToken: string } {
+} {
+  const stored: StoredAccess = {
+    accessToken: creds.accessToken,
+    accountId: creds.accountId,
+    expiresAt: creds.expiresAt.toISOString(),
+  };
   return {
-    accessToken: decrypt(e.accessEncrypted),
-    refreshToken: decrypt(e.refreshEncrypted),
+    accessEncrypted: encrypt(JSON.stringify(stored)),
+    refreshEncrypted: encrypt(creds.refreshToken),
   };
 }
 
-/** @deprecated alias for `refreshTokens`. */
-export const refreshAccessToken = refreshTokens;
+export function decryptCodexCreds(encrypted: {
+  accessEncrypted: string;
+  refreshEncrypted: string;
+}): CodexCreds | null {
+  let parsed: StoredAccess;
+  try {
+    const raw = decrypt(encrypted.accessEncrypted);
+    parsed = JSON.parse(raw) as StoredAccess;
+  } catch {
+    // Pre-v1.4.12 stored format (raw access token / api key string).
+    // We cannot recover the accountId from that — caller must treat
+    // the connection as expired and ask the user to re-link.
+    return null;
+  }
+  if (!parsed.accessToken || !parsed.accountId) return null;
+  return {
+    accessToken: parsed.accessToken,
+    refreshToken: decrypt(encrypted.refreshEncrypted),
+    accountId: parsed.accountId,
+    expiresAt: new Date(parsed.expiresAt),
+  };
+}

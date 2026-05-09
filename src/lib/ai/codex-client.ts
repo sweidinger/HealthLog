@@ -1,20 +1,55 @@
+import { randomUUID } from "node:crypto";
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
 
+/**
+ * Codex backend client — talks to `chatgpt.com/backend-api/codex/responses`
+ * via the OpenAI Responses API (SSE streaming, ChatGPT-Account-ID
+ * header, OAuth Bearer auth). Implemented against the spec at
+ * `docs/codex-protocol-spec.md`, which mirrors the official `openai/codex`
+ * CLI.
+ *
+ * Required headers:
+ *   - `Authorization: Bearer <oauth-access-token>`
+ *   - `ChatGPT-Account-ID: <chatgpt_account_id JWT claim>`
+ *   - `Content-Type: application/json`
+ *   - `Accept: text/event-stream`
+ *   - `originator`, `User-Agent`, `session_id`, `thread_id`
+ *
+ * Response is always SSE (server rejects `stream: false` with 400).
+ */
+
 const CODEX_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses";
-const CODEX_MODEL = "gpt-5.3-codex";
+
+/**
+ * `gpt-5.3-codex` is a *test placeholder* in the upstream codebase
+ * (`codex-rs/codex-api/src/sse/responses.rs:1374`), not a real model
+ * slug. The real CLI default is `gpt-5-codex`. The server safety-routes
+ * if needed and reports the actual model in the `OpenAI-Model`
+ * response header.
+ */
+const CODEX_MODEL = "gpt-5-codex";
+
+const ORIGINATOR = "healthlog";
+const USER_AGENT = "HealthLog/1.0 (+https://healthlog.bombeck.io)";
 
 interface CodexClientConfig {
   accessToken: string;
-  onTokenRefresh: () => Promise<string>;
+  accountId: string;
+  onTokenRefresh: () => Promise<{ accessToken: string; accountId: string }>;
 }
 
 export class CodexClient implements AIProvider {
   readonly type = "codex" as const;
   private accessToken: string;
-  private onTokenRefresh: () => Promise<string>;
+  private accountId: string;
+  private onTokenRefresh: () => Promise<{
+    accessToken: string;
+    accountId: string;
+  }>;
 
   constructor(config: CodexClientConfig) {
     this.accessToken = config.accessToken;
+    this.accountId = config.accountId;
     this.onTokenRefresh = config.onTokenRefresh;
   }
 
@@ -24,7 +59,9 @@ export class CodexClient implements AIProvider {
     const firstAttempt = await this.doRequest(params);
 
     if (firstAttempt.status === 401) {
-      this.accessToken = await this.onTokenRefresh();
+      const fresh = await this.onTokenRefresh();
+      this.accessToken = fresh.accessToken;
+      this.accountId = fresh.accountId;
       const retryAttempt = await this.doRequest(params);
       if (!retryAttempt.ok) {
         throw await this.buildUpstreamError(
@@ -42,13 +79,6 @@ export class CodexClient implements AIProvider {
     return this.parseResponse(firstAttempt);
   }
 
-  /**
-   * Build a structured error from a non-OK upstream response. Mirrors the
-   * pattern used in `OpenAIClient.generateCompletion` so logs and Glitchtip
-   * issues for both providers carry the same fields (httpStatus, upstream,
-   * model, bodyExcerpt). The body excerpt is truncated to 500 chars and any
-   * `sk-…` / `Bearer …` token is masked before it reaches log shipping.
-   */
   private async buildUpstreamError(
     res: Response,
     message: string,
@@ -69,15 +99,21 @@ export class CodexClient implements AIProvider {
   }
 
   private async doRequest(params: CompletionParams): Promise<Response> {
-    // The chatgpt.com/backend-api/codex/responses endpoint expects the
-    // OpenAI Responses API shape: `input` is an array of typed message
-    // items, NOT a raw string. The Codex CLI's `ResponsesApiRequest`
-    // (`codex-rs/codex-api/src/common.rs`) is the canonical definition.
+    const sessionId = randomUUID();
+    const threadId = randomUUID();
     return fetch(CODEX_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "text/event-stream",
         Authorization: `Bearer ${this.accessToken}`,
+        "ChatGPT-Account-ID": this.accountId,
+        originator: ORIGINATOR,
+        "User-Agent": USER_AGENT,
+        session_id: sessionId,
+        "session-id": sessionId,
+        thread_id: threadId,
+        "thread-id": threadId,
       },
       body: JSON.stringify({
         model: CODEX_MODEL,
@@ -92,37 +128,34 @@ export class CodexClient implements AIProvider {
         tools: [],
         tool_choice: "auto",
         parallel_tool_calls: false,
+        // Reasoning is required-but-nullable on the wire. We don't ask
+        // for reasoning summaries — emit `null` so the JSON has the
+        // field present and the server stops complaining about a
+        // missing key (it returned 400 in earlier iterations).
+        reasoning: null,
         store: false,
-        // Codex backend rejects sync responses with
-        // `Stream must be set to true`. We have to consume SSE.
         stream: true,
+        // Required field; empty array when not asking for reasoning.
+        include: [],
       }),
     });
   }
 
   /**
    * Consume the Codex SSE stream and assemble the final assistant
-   * message. The Codex backend emits OpenAI-Responses-API events:
+   * message. Event types per the spec:
    *
-   *   event: response.output_text.delta
-   *   data: { "delta": "Hello" }
+   *   - `response.output_item.done` — final assembled item; an
+   *     assistant `Message` carries the canonical reply in
+   *     `item.content[].text`.
+   *   - `response.output_text.delta` — incremental chunks; fallback
+   *     when no done event arrives.
+   *   - `response.completed` — terminal; carries `usage.total_tokens`.
+   *   - `response.failed` / `response.incomplete` — terminal errors.
    *
-   *   event: response.output_item.done
-   *   data: { "type": "message", "role": "assistant",
-   *           "content": [{ "type": "output_text", "text": "Hello world" }] }
-   *
-   *   event: response.completed
-   *   data: { "type": "response.completed",
-   *           "response": { "id": "...", "usage": { "total_tokens": 123 } } }
-   *
-   * Strategy:
-   *   - Prefer the assembled text in `response.output_item.done` (any
-   *     `message` item with `assistant` role and `output_text` content).
-   *     This avoids re-stitching `delta` chunks ourselves.
-   *   - Fall back to concatenating all `output_text.delta` chunks if no
-   *     output_item.done arrived before the stream ended.
-   *   - Pick up token usage from `response.completed` when present.
-   *   - Throw on `response.error` events with the upstream message.
+   * Reasoning deltas (`response.reasoning_*.delta`) are deliberately
+   * NOT folded into the visible text — they belong to a separate
+   * channel.
    */
   private async parseResponse(res: Response): Promise<CompletionResult> {
     if (!res.body) {
@@ -135,6 +168,12 @@ export class CodexClient implements AIProvider {
     let assembledText = "";
     let deltaText = "";
     let tokensUsed: number | null = null;
+    let serverModel: string | null = null;
+
+    // The server reports the actual routed model in the OpenAI-Model
+    // response header — useful when safety-routing kicks in.
+    const headerModel = res.headers.get("OpenAI-Model");
+    if (headerModel) serverModel = headerModel;
 
     try {
       while (true) {
@@ -142,7 +181,6 @@ export class CodexClient implements AIProvider {
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
-        // SSE messages are separated by a blank line (\n\n).
         let separator: number;
         while ((separator = buffer.indexOf("\n\n")) !== -1) {
           const rawEvent = buffer.slice(0, separator);
@@ -153,7 +191,7 @@ export class CodexClient implements AIProvider {
             .find((l) => l.startsWith("data:"));
           if (!dataLine) continue;
           const payload = dataLine.slice(5).trim();
-          if (!payload || payload === "[DONE]") continue;
+          if (!payload) continue;
 
           let parsed: {
             type?: string;
@@ -163,8 +201,12 @@ export class CodexClient implements AIProvider {
               role?: string;
               content?: Array<{ type?: string; text?: string }>;
             };
-            response?: { usage?: { total_tokens?: number } };
-            error?: { message?: string };
+            response?: {
+              usage?: { total_tokens?: number };
+              error?: { code?: string; message?: string };
+              incomplete_details?: { reason?: string };
+            };
+            error?: { code?: string; message?: string };
           };
           try {
             parsed = JSON.parse(payload);
@@ -172,32 +214,54 @@ export class CodexClient implements AIProvider {
             continue;
           }
 
-          if (parsed.type === "response.output_text.delta" && parsed.delta) {
-            deltaText += parsed.delta;
-            continue;
-          }
-
-          if (parsed.type === "response.output_item.done" && parsed.item) {
-            const item = parsed.item;
-            if (item.type === "message" && item.role === "assistant") {
-              const text = item.content
-                ?.filter((c) => c.type === "output_text" && c.text)
-                .map((c) => c.text!)
-                .join("");
-              if (text) assembledText += text;
+          switch (parsed.type) {
+            case "response.output_text.delta": {
+              if (parsed.delta) deltaText += parsed.delta;
+              break;
             }
-            continue;
-          }
-
-          if (parsed.type === "response.completed") {
-            tokensUsed = parsed.response?.usage?.total_tokens ?? null;
-            continue;
-          }
-
-          if (parsed.type === "response.error" || parsed.type === "error") {
-            const message =
-              parsed.error?.message ?? "Codex stream returned an error event";
-            throw new Error(message);
+            case "response.output_item.done": {
+              const item = parsed.item;
+              if (item?.type === "message" && item.role === "assistant") {
+                const text = item.content
+                  ?.filter((c) => c.type === "output_text" && c.text)
+                  .map((c) => c.text!)
+                  .join("");
+                if (text) assembledText += text;
+              }
+              break;
+            }
+            case "response.completed": {
+              tokensUsed = parsed.response?.usage?.total_tokens ?? null;
+              break;
+            }
+            case "response.failed": {
+              const err = parsed.response?.error;
+              const message =
+                err?.message ?? "Codex stream returned response.failed";
+              const e = new Error(message);
+              Object.assign(e, {
+                upstream: "codex",
+                errorCode: err?.code ?? null,
+                model: serverModel ?? CODEX_MODEL,
+              });
+              throw e;
+            }
+            case "response.incomplete": {
+              const reason =
+                parsed.response?.incomplete_details?.reason ??
+                "incomplete response";
+              throw new Error(`Codex stream incomplete: ${reason}`);
+            }
+            case "error":
+            case "response.error": {
+              const message =
+                parsed.error?.message ?? "Codex stream returned an error event";
+              throw new Error(message);
+            }
+            default:
+              // Unknown event types are tolerated and ignored, same
+              // as the official client.
+              break;
           }
         }
       }
@@ -213,7 +277,7 @@ export class CodexClient implements AIProvider {
     return {
       content,
       tokensUsed,
-      model: CODEX_MODEL,
+      model: serverModel ?? CODEX_MODEL,
       providerType: "codex",
     };
   }

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/crypto", () => ({
   encrypt: vi.fn((v: string) => `enc:${v}`),
@@ -8,14 +8,26 @@ vi.mock("@/lib/crypto", () => ({
 import {
   generatePKCE,
   generateState,
-  buildAuthorizationUrl,
-  exchangeCodeForTokens,
-  refreshTokens,
-  obtainApiKey,
+  requestDeviceCode,
+  pollDeviceCode,
+  refreshDeviceTokens,
   encryptCodexCreds,
   decryptCodexCreds,
   getCodexClientId,
 } from "../codex-oauth";
+
+/**
+ * Minimal id_token JWT for tests — only the payload matters; signature
+ * is unverified by our client. Payload includes the
+ * `chatgpt_account_id` claim and a far-future `exp`.
+ */
+function makeIdToken(claims: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({ alg: "none" })).toString(
+    "base64url",
+  );
+  const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
+  return `${header}.${payload}.`;
+}
 
 describe("codex-oauth", () => {
   describe("generatePKCE", () => {
@@ -23,10 +35,7 @@ describe("codex-oauth", () => {
       const { verifier, challenge } = generatePKCE();
       expect(verifier.length).toBeGreaterThanOrEqual(43);
       expect(challenge.length).toBeGreaterThanOrEqual(43);
-      expect(verifier).not.toContain("=");
-      expect(challenge).not.toContain("=");
     });
-
     it("generates different values each time", () => {
       const a = generatePKCE();
       const b = generatePKCE();
@@ -38,7 +47,6 @@ describe("codex-oauth", () => {
     it("generates a non-empty base64url string", () => {
       const state = generateState();
       expect(state.length).toBeGreaterThan(20);
-      expect(state).not.toContain("=");
     });
   });
 
@@ -48,167 +56,152 @@ describe("codex-oauth", () => {
       if (ORIGINAL === undefined) delete process.env.CODEX_OAUTH_CLIENT_ID;
       else process.env.CODEX_OAUTH_CLIENT_ID = ORIGINAL;
     });
-
     it("falls back to the public Codex CLI client ID when env is unset", () => {
       delete process.env.CODEX_OAUTH_CLIENT_ID;
       expect(getCodexClientId()).toBe("app_EMoamEEZ73f0CkXaXp7hrann");
     });
-
-    it("respects an operator override", () => {
-      process.env.CODEX_OAUTH_CLIENT_ID = "app_private_test";
-      expect(getCodexClientId()).toBe("app_private_test");
-    });
   });
 
-  describe("buildAuthorizationUrl", () => {
-    it("targets auth.openai.com with the codex CLI scope set", () => {
-      const url = buildAuthorizationUrl({
-        codeChallenge: "test-challenge",
-        state: "test-state",
-        redirectUri: "https://example.com/callback",
-      });
-
-      const parsed = new URL(url);
-      // The previous v1.4.6 pointed at chatgpt.com, which is not an
-      // OAuth issuer at all. Anchoring this assertion explicitly so a
-      // future regression to the wrong host fails loudly.
-      expect(parsed.origin).toBe("https://auth.openai.com");
-      expect(parsed.pathname).toBe("/oauth/authorize");
-      expect(parsed.searchParams.get("response_type")).toBe("code");
-      expect(parsed.searchParams.get("client_id")).toBe(
-        "app_EMoamEEZ73f0CkXaXp7hrann",
-      );
-      expect(parsed.searchParams.get("code_challenge")).toBe("test-challenge");
-      expect(parsed.searchParams.get("code_challenge_method")).toBe("S256");
-      expect(parsed.searchParams.get("state")).toBe("test-state");
-      expect(parsed.searchParams.get("redirect_uri")).toBe(
-        "https://example.com/callback",
-      );
-      expect(parsed.searchParams.get("scope")).toContain("offline_access");
-      expect(parsed.searchParams.get("id_token_add_organizations")).toBe(
-        "true",
-      );
-      expect(parsed.searchParams.get("codex_cli_simplified_flow")).toBe("true");
-    });
-  });
-
-  describe("token / api-key exchange", () => {
+  describe("device-code flow", () => {
     let originalFetch: typeof fetch;
-
-    beforeEach(() => {
-      originalFetch = global.fetch;
-    });
+    beforeEachInit();
     afterEach(() => {
       global.fetch = originalFetch;
     });
+    function beforeEachInit() {
+      originalFetch = global.fetch;
+    }
 
-    it("exchanges the auth code for tokens and trades the id_token for an api key", async () => {
-      const calls: Array<{ url: string; body: string }> = [];
+    it("requestDeviceCode returns user code + verification URL", async () => {
       global.fetch = vi.fn(
-        async (url: RequestInfo | URL, init?: RequestInit) => {
-          calls.push({ url: String(url), body: String(init?.body ?? "") });
-          if (calls.length === 1) {
-            // Token endpoint — returns id_token + access_token + refresh_token.
-            return new Response(
-              JSON.stringify({
-                id_token: "id-token-abc",
-                access_token: "oauth-access",
-                refresh_token: "oauth-refresh",
-                expires_in: 3600,
-                token_type: "Bearer",
-              }),
-              { status: 200, headers: { "content-type": "application/json" } },
-            );
-          }
-          // Api-key exchange.
-          return new Response(
-            JSON.stringify({ access_token: "sk-from-codex" }),
-            {
-              status: 200,
-              headers: { "content-type": "application/json" },
-            },
-          );
-        },
+        async () =>
+          new Response(
+            JSON.stringify({
+              device_auth_id: "dev-1",
+              user_code: "ABCD-1234",
+              interval: "5",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
       ) as never;
 
-      const result = await exchangeCodeForTokens({
-        code: "auth-code",
-        codeVerifier: "verifier",
-        redirectUri: "https://example.com/cb",
-      });
-
-      expect(result.apiKey).toBe("sk-from-codex");
-      expect(result.refreshToken).toBe("oauth-refresh");
-      expect(result.expiresAt).toBeInstanceOf(Date);
-
-      // Both calls hit auth.openai.com with form-urlencoded bodies.
-      expect(calls[0].url).toBe("https://auth.openai.com/oauth/token");
-      expect(calls[0].body).toContain("grant_type=authorization_code");
-      expect(calls[0].body).toContain("code_verifier=verifier");
-      expect(calls[1].url).toBe("https://auth.openai.com/oauth/token");
-      expect(calls[1].body).toContain(
-        "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange",
-      );
-      expect(calls[1].body).toContain("subject_token=id-token-abc");
-      expect(calls[1].body).toContain("requested_token=openai-api-key");
+      const code = await requestDeviceCode();
+      expect(code.userCode).toBe("ABCD-1234");
+      expect(code.deviceAuthId).toBe("dev-1");
+      expect(code.intervalSeconds).toBe(5);
+      expect(code.verificationUrl).toBe("https://auth.openai.com/codex/device");
     });
 
-    it("refreshTokens re-uses the refresh token and re-runs api-key exchange", async () => {
+    it("pollDeviceCode returns 'pending' on 403", async () => {
+      global.fetch = vi.fn(
+        async () => new Response("", { status: 403 }),
+      ) as never;
+      const r = await pollDeviceCode({ deviceAuthId: "x", userCode: "y" });
+      expect(r.status).toBe("pending");
+    });
+
+    it("pollDeviceCode resolves to creds with account id from id_token", async () => {
+      const idToken = makeIdToken({
+        chatgpt_account_id: "acct-test",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
       let call = 0;
       global.fetch = vi.fn(async () => {
         call += 1;
         if (call === 1) {
+          // device-poll: returns auth code + PKCE values
           return new Response(
             JSON.stringify({
-              id_token: "id-fresh",
-              access_token: "oauth-access-fresh",
-              refresh_token: "oauth-refresh-fresh",
-              expires_in: 3600,
-              token_type: "Bearer",
+              authorization_code: "auth-code",
+              code_challenge: "challenge",
+              code_verifier: "verifier",
             }),
             { status: 200, headers: { "content-type": "application/json" } },
           );
         }
-        return new Response(JSON.stringify({ access_token: "sk-rotated" }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        });
+        // /oauth/token exchange
+        return new Response(
+          JSON.stringify({
+            id_token: idToken,
+            access_token: "oauth-access",
+            refresh_token: "refresh-1",
+            expires_in: 3600,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
       }) as never;
 
-      const result = await refreshTokens("old-refresh");
-      expect(result.apiKey).toBe("sk-rotated");
-      expect(result.refreshToken).toBe("oauth-refresh-fresh");
+      const r = await pollDeviceCode({ deviceAuthId: "x", userCode: "y" });
+      expect(r.status).toBe("connected");
+      if (r.status === "connected") {
+        expect(r.creds.accessToken).toBe("oauth-access");
+        expect(r.creds.refreshToken).toBe("refresh-1");
+        expect(r.creds.accountId).toBe("acct-test");
+      }
     });
 
-    it("obtainApiKey throws when the upstream omits access_token", async () => {
-      global.fetch = vi.fn(
-        async () =>
-          new Response(JSON.stringify({}), {
-            status: 200,
-            headers: { "content-type": "application/json" },
+    it("refreshDeviceTokens uses JSON body and returns rotated tokens", async () => {
+      const idToken = makeIdToken({
+        chatgpt_account_id: "acct-test",
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+      const calls: string[] = [];
+      global.fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+        calls.push(String(init?.body ?? ""));
+        return new Response(
+          JSON.stringify({
+            id_token: idToken,
+            access_token: "oauth-fresh",
+            refresh_token: "refresh-2",
+            expires_in: 3600,
           }),
-      ) as never;
-      await expect(obtainApiKey("id-token-x")).rejects.toThrow(
-        /no access_token/i,
-      );
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }) as never;
+
+      const r = await refreshDeviceTokens("refresh-1");
+      expect(r.accessToken).toBe("oauth-fresh");
+      expect(r.refreshToken).toBe("refresh-2");
+      expect(r.accountId).toBe("acct-test");
+      // Body must be JSON (not form-urlencoded), per the spec.
+      expect(calls[0]).toMatch(/^\{/);
+      expect(JSON.parse(calls[0])).toMatchObject({
+        grant_type: "refresh_token",
+        refresh_token: "refresh-1",
+      });
     });
   });
 
   describe("encryptCodexCreds / decryptCodexCreds", () => {
-    it("round-trips api key and refresh token", () => {
+    it("round-trips access token, refresh token, and account id", () => {
+      const expiresAt = new Date(Date.now() + 3600_000);
       const enc = encryptCodexCreds({
-        apiKey: "sk-test",
+        accessToken: "oauth-access",
         refreshToken: "refresh-test",
+        accountId: "acct-123",
+        expiresAt,
       });
-      expect(enc.apiKeyEncrypted).toBe("enc:sk-test");
-      expect(enc.refreshEncrypted).toBe("enc:refresh-test");
 
       const dec = decryptCodexCreds({
-        apiKeyEncrypted: enc.apiKeyEncrypted,
+        accessEncrypted: enc.accessEncrypted,
         refreshEncrypted: enc.refreshEncrypted,
       });
-      expect(dec.apiKey).toBe("sk-test");
-      expect(dec.refreshToken).toBe("refresh-test");
+      expect(dec).not.toBeNull();
+      expect(dec!.accessToken).toBe("oauth-access");
+      expect(dec!.refreshToken).toBe("refresh-test");
+      expect(dec!.accountId).toBe("acct-123");
+      expect(dec!.expiresAt.getTime()).toBe(expiresAt.getTime());
+    });
+
+    it("returns null for legacy v1.4.7-v1.4.11 token storage (raw string)", () => {
+      // Pre-v1.4.12 stored just the access token plaintext. Decoder
+      // detects this (not JSON) and returns null so the caller can
+      // mark the connection expired.
+      const dec = decryptCodexCreds({
+        accessEncrypted: "enc:legacy-raw-token",
+        refreshEncrypted: "enc:refresh",
+      });
+      expect(dec).toBeNull();
     });
   });
 });

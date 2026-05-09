@@ -1,11 +1,15 @@
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
 import { prisma } from "@/lib/db";
-import { decrypt, encrypt } from "@/lib/crypto";
+import { decrypt } from "@/lib/crypto";
 import { CodexClient } from "./codex-client";
 import { OpenAIClient } from "./openai-client";
 import { AnthropicClient } from "./anthropic-client";
 import { LocalOpenAICompatibleClient } from "./local-client";
-import { refreshDeviceTokens } from "./codex-oauth";
+import {
+  refreshDeviceTokens,
+  encryptCodexCreds,
+  decryptCodexCreds,
+} from "./codex-oauth";
 import { isPublicUrl } from "@/lib/validations/notifications";
 
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes
@@ -102,20 +106,18 @@ async function resolveAdminProvider(): Promise<AIProvider> {
 }
 
 /**
- * Codex flow (v1.4.8+, device-code path): the user authorised against
- * chatgpt.com/codex/device, we store the resulting OAuth access_token
- * (encrypted) in `codexAccessTokenEncrypted` and the refresh_token in
- * `codexRefreshTokenEncrypted`. The active token is forwarded to
- * `https://chatgpt.com/backend-api/codex/responses` — the same Codex
- * backend the official CLI uses, which bills against the user's
- * ChatGPT subscription. When the access token is about to expire we
- * refresh it transparently using the long-lived refresh token.
+ * Codex provider — device-code path.
  *
- * Note: v1.4.7's authorisation-code-flow path also wrote to these
- * columns, but stored an OpenAI API key (post-RFC-8693 exchange)
- * rather than an OAuth access token. That path is dead in production
- * because Hydra rejects our redirect URI. The device-code path is the
- * canonical replacement.
+ * `codexAccessTokenEncrypted` stores an encrypted JSON blob with the
+ * OAuth access token AND the `chatgpt_account_id` claim from the
+ * id_token (the latter is mandatory in the `ChatGPT-Account-ID`
+ * header). `codexRefreshTokenEncrypted` continues to hold just the
+ * refresh token. See `codex-oauth.ts` for the storage codec.
+ *
+ * Old v1.4.7-v1.4.11 rows that stored a raw token string instead of
+ * the JSON envelope cannot be revived (the account id was never
+ * captured), so `decryptCodexCreds` returns null and we treat the
+ * connection as expired — the user re-runs the connect flow once.
  */
 async function resolveCodexProvider(
   userId: string,
@@ -125,7 +127,6 @@ async function resolveCodexProvider(
     select: {
       codexAccessTokenEncrypted: true,
       codexRefreshTokenEncrypted: true,
-      codexTokenExpiresAt: true,
       codexConnectionStatus: true,
     },
   });
@@ -138,54 +139,79 @@ async function resolveCodexProvider(
     return null;
   }
 
-  const storedAccessToken = decrypt(user.codexAccessTokenEncrypted);
-  const storedRefreshToken = decrypt(user.codexRefreshTokenEncrypted);
+  const stored = decryptCodexCreds({
+    accessEncrypted: user.codexAccessTokenEncrypted,
+    refreshEncrypted: user.codexRefreshTokenEncrypted,
+  });
+  if (!stored) {
+    // Pre-v1.4.12 record without account_id — the token cannot
+    // satisfy the ChatGPT-Account-ID header. Mark the row as
+    // disconnected so the UI prompts the user to re-link.
+    await prisma.user.update({
+      where: { id: userId },
+      data: { codexConnectionStatus: "expired" },
+    });
+    return null;
+  }
 
-  let activeAccessToken = storedAccessToken;
+  let active = stored;
 
-  // Proactive refresh if the access token expires within 5 minutes.
-  const expiresAt = user.codexTokenExpiresAt?.getTime() ?? 0;
-  if (expiresAt < Date.now() + TOKEN_REFRESH_BUFFER_MS) {
+  // Proactive refresh if the access token is within 5 min of expiry.
+  if (stored.expiresAt.getTime() < Date.now() + TOKEN_REFRESH_BUFFER_MS) {
     try {
-      const fresh = await refreshDeviceTokens(storedRefreshToken);
-      activeAccessToken = fresh.accessToken;
+      const fresh = await refreshDeviceTokens(stored.refreshToken);
+      active = fresh;
 
+      const enc = encryptCodexCreds(fresh);
       await prisma.user.update({
         where: { id: userId },
         data: {
-          codexAccessTokenEncrypted: encrypt(fresh.accessToken),
-          codexRefreshTokenEncrypted: encrypt(fresh.refreshToken),
+          codexAccessTokenEncrypted: enc.accessEncrypted,
+          codexRefreshTokenEncrypted: enc.refreshEncrypted,
           codexTokenExpiresAt: fresh.expiresAt,
         },
       });
     } catch {
-      // Proactive refresh failures fall through — the CodexClient
-      // retries via onTokenRefresh on a real 401 and writes the
-      // updated tokens then.
+      // Fall through — CodexClient will trigger an on-401 refresh
+      // and persist there.
     }
   }
 
   return new CodexClient({
-    accessToken: activeAccessToken,
+    accessToken: active.accessToken,
+    accountId: active.accountId,
     onTokenRefresh: async () => {
       const freshUser = await prisma.user.findUnique({
         where: { id: userId },
-        select: { codexRefreshTokenEncrypted: true },
+        select: {
+          codexAccessTokenEncrypted: true,
+          codexRefreshTokenEncrypted: true,
+        },
       });
-      if (!freshUser?.codexRefreshTokenEncrypted) {
+      if (
+        !freshUser?.codexAccessTokenEncrypted ||
+        !freshUser.codexRefreshTokenEncrypted
+      ) {
         throw new Error("No refresh token available");
       }
-      const currentRefresh = decrypt(freshUser.codexRefreshTokenEncrypted);
-      const fresh = await refreshDeviceTokens(currentRefresh);
+      const decoded = decryptCodexCreds({
+        accessEncrypted: freshUser.codexAccessTokenEncrypted,
+        refreshEncrypted: freshUser.codexRefreshTokenEncrypted,
+      });
+      if (!decoded) {
+        throw new Error("Codex token storage corrupt; user must re-link");
+      }
+      const fresh = await refreshDeviceTokens(decoded.refreshToken);
+      const enc = encryptCodexCreds(fresh);
       await prisma.user.update({
         where: { id: userId },
         data: {
-          codexAccessTokenEncrypted: encrypt(fresh.accessToken),
-          codexRefreshTokenEncrypted: encrypt(fresh.refreshToken),
+          codexAccessTokenEncrypted: enc.accessEncrypted,
+          codexRefreshTokenEncrypted: enc.refreshEncrypted,
           codexTokenExpiresAt: fresh.expiresAt,
         },
       });
-      return fresh.accessToken;
+      return { accessToken: fresh.accessToken, accountId: fresh.accountId };
     },
   });
 }
