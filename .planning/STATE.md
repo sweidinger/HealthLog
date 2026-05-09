@@ -98,13 +98,38 @@ Last update: 2026-05-09T23:12:52+02:00
 - [ ] App-log preview: tail of structured wide-events for last 1h, filterable by trace_id
 - Detailed report: `.planning/phase-B4-report.md`
 
-### B5 — AI hallucination-hardening v2 (medical grounding + multi-provider)
+### B5a — Medical-reference grounding
 
-- [ ] Medical-reference grounding: AHA/ESH/WHO target-range citations in system context
-- [ ] Multi-provider redundancy: try-each-on-hard-failure
-- [ ] Per-recommendation explainability + confidence score
-- [ ] User-feedback loop ("was this helpful?" → prompt-tuning over time)
-- Detailed report: `.planning/phase-B5-report.md`
+- [ ] AHA / ESC / ESH / WHO target ranges as system context
+- [ ] Citations link to source guideline in UI
+- Detailed report: `.planning/phase-B5a-report.md`
+
+### B5b — Multi-provider redundancy
+
+- [ ] try-each-on-hard-failure across configured providers
+- [ ] Fallback ordering configurable per user
+- Detailed report: `.planning/phase-B5b-report.md`
+
+### B5c — Per-Recommendation Explainability
+
+- [ ] Each rec carries: WHY (what user-data triggered it), WINDOW (which time range was analyzed), CITATIONS (which medical guideline + which user metric)
+- [ ] UI: expand-arrow on each rec → reveals the explainability card with mini-chart of the data window
+- [ ] Schema enforces presence (extends v1.4.15 C1's strict schema)
+- Detailed report: `.planning/phase-B5c-report.md`
+
+### B5d — Confidence Score per Recommendation
+
+- [ ] Each rec carries a 0-100 confidence score derived from: data sufficiency (n samples), recency, signal strength
+- [ ] UI: visual confidence indicator (e.g., color-coded ring or 5-bar meter) per rec
+- [ ] Below-threshold recs are tagged "Low confidence — based on limited data" rather than hidden
+- Detailed report: `.planning/phase-B5d-report.md`
+
+### B5e — User-Feedback Loop
+
+- [ ] "War das hilfreich?" thumbs-up/down on each rec, persisted as RecommendationFeedback (new table)
+- [ ] Aggregated feedback feeds into prompt-tuning: low-helpful patterns get a system-prompt addendum next generation
+- [ ] Privacy: feedback is per-user; no cross-user training (offline only, opt-in for any aggregation)
+- Detailed report: `.planning/phase-B5e-report.md`
 
 ### B6 — Settings naming-audit
 
@@ -119,6 +144,14 @@ Last update: 2026-05-09T23:12:52+02:00
 - [ ] Properly designed: card per export type, clear preview + filter + download button
 - [ ] Rename current doctor-report entry-point to live under /settings/export
 - Detailed report: `.planning/phase-B7-report.md`
+
+### B8 — Extended Comparison Views (Vormonat / Vorjahr)
+
+- [ ] Each chart + tile + insight gets toggleable comparison overlay: "vs. last month" / "vs. last year"
+- [ ] Visual treatment: dimmed historical line beneath current; delta callout (Δ +5%, etc.)
+- [ ] Insights surface narrates the comparison ("Your average BP improved by 4 mmHg vs. last month")
+- [ ] Mobile-friendly comparison toggle (not a fragile hover-only interaction)
+- Detailed report: `.planning/phase-B8-report.md`
 
 ## Wave C — Catch-up (deferred from v1.4.15)
 

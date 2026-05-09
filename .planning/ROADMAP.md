@@ -18,9 +18,14 @@ Latest tag at start: v1.4.15 (live in prod, image digest `sha256:ace7d441f47b…
 | B2    | AI provider settings UX cleanup — single pulldown-driven form, no top/bottom split                                | pending |
 | B3    | Admin System-Status host-load chart — CPU/memory/disk-io graph last 2h                                            | pending |
 | B4    | Admin logs visibility deepening — filterable audit log + structured wide-event tail                               | pending |
-| B5    | AI hallucination-hardening v2 — medical-reference grounding + multi-provider + explainability                     | pending |
+| B5a   | Medical-reference grounding — AHA / ESC / ESH / WHO target ranges as system context + UI citations                | pending |
+| B5b   | Multi-provider redundancy — try-each-on-hard-failure, configurable fallback order                                 | pending |
+| B5c   | Per-recommendation explainability — WHY / WINDOW / CITATIONS card with mini-chart                                 | pending |
+| B5d   | Confidence score per recommendation — 0-100 from sufficiency / recency / signal strength                          | pending |
+| B5e   | User-feedback loop — thumbs up/down persisted to RecommendationFeedback, fed into prompt tuning                   | pending |
 | B6    | Settings naming-audit — stringency, consistency, no double naming                                                 | pending |
 | B7    | Settings → Export menu (Arztbrief consolidated) — new `/settings/export` route                                    | pending |
+| B8    | Extended comparison views — Vormonat / Vorjahr overlay across charts + tiles + insights                           | pending |
 | C     | Catch-up — 8 deferred HIGH + 5 mobile MED + Coolify image-digest trigger + docker-publish hang                    | pending |
 | D     | Multi-agent QA + Product-Lead — code-review, security, design (Apple-Health lens), senior, simplify, product-lead | pending |
 | E     | Release v1.4.16 — bump, CHANGELOG, tag, GHCR, deploy, /api/version=1.4.16, smoke, docs+landing sync               | pending |
@@ -30,7 +35,7 @@ or budget short of polish — write status doc, do not auto-rollback.
 
 Time-runs-short minimum to ship v1.4.16: Wave A (any subset) + Wave D
 
-- Phase E. Wave B (B1-B7) and Wave C catch-up are deferrable to v1.4.17
+- Phase E. Wave B (B1-B8) and Wave C catch-up are deferrable to v1.4.17
   if context budget tightens.
 
 Phase 0 spec for this marathon: orchestrator user message in this
