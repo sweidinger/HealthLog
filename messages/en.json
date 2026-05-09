@@ -989,7 +989,42 @@
       },
       "advanced": {
         "title": "Advanced",
-        "description": "Export, import, danger zone."
+        "description": "Import, danger zone."
+      },
+      "export": {
+        "title": "Export",
+        "description": "Download your health data as PDF, CSV, or a full JSON backup.",
+        "actions": {
+          "download": "Download"
+        },
+        "filters": {
+          "since": "From",
+          "until": "Until"
+        },
+        "cards": {
+          "doctorReport": {
+            "title": "Doctor Report",
+            "description": "Printable PDF for the doctor's appointment — vitals, BMI, BP classification, medication compliance, mood.",
+            "action": "Configure & generate"
+          },
+          "measurementsCsv": {
+            "title": "Measurements",
+            "description": "Weight, blood pressure, pulse, glucose, and every other measurement as comma-separated values."
+          },
+          "medicationsCsv": {
+            "title": "Medications",
+            "description": "Your medication list with dosage, schedules, and (optionally) the full intake history.",
+            "includeIntake": "Include intake history"
+          },
+          "moodCsv": {
+            "title": "Mood",
+            "description": "Daily mood entries with score, tags, and timestamps."
+          },
+          "fullBackup": {
+            "title": "Full backup",
+            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload."
+          }
+        }
       },
       "about": {
         "title": "About",

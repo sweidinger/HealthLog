@@ -989,7 +989,42 @@
       },
       "advanced": {
         "title": "Erweitert",
-        "description": "Export, Import, Daten löschen."
+        "description": "Import, Daten löschen."
+      },
+      "export": {
+        "title": "Export",
+        "description": "Lade deine Gesundheitsdaten als PDF, CSV oder vollständiges JSON-Backup herunter.",
+        "actions": {
+          "download": "Herunterladen"
+        },
+        "filters": {
+          "since": "Von",
+          "until": "Bis"
+        },
+        "cards": {
+          "doctorReport": {
+            "title": "Arztbericht",
+            "description": "Druckbares PDF für den Arzttermin — Vitalwerte, BMI, BD-Klassifikation, Medikamenten-Compliance, Stimmung.",
+            "action": "Konfigurieren & generieren"
+          },
+          "measurementsCsv": {
+            "title": "Messwerte",
+            "description": "Gewicht, Blutdruck, Puls, Glukose und alle weiteren Messungen als CSV-Datei."
+          },
+          "medicationsCsv": {
+            "title": "Medikamente",
+            "description": "Deine Medikamentenliste mit Dosierung, Zeitplan und (optional) der vollständigen Einnahmehistorie.",
+            "includeIntake": "Einnahmehistorie einschließen"
+          },
+          "moodCsv": {
+            "title": "Stimmung",
+            "description": "Tägliche Stimmungs-Einträge mit Score, Tags und Zeitstempeln."
+          },
+          "fullBackup": {
+            "title": "Voll-Backup",
+            "description": "Eine einzige JSON-Datei mit allen Daten — gleiches Format wie das wöchentliche Auto-Backup. Praktisch zum Selbst-Wiederherstellen via Admin-Upload."
+          }
+        }
       },
       "about": {
         "title": "Über",
