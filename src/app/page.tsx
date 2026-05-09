@@ -459,6 +459,7 @@ export default function DashboardPage() {
                 )}
                 slope30={w?.slope30 ?? null}
                 icon={Activity}
+                directionSentiment="up-bad"
               />
             ),
           });
@@ -500,6 +501,7 @@ export default function DashboardPage() {
                 )}
                 slope30={sys?.slope30 ?? null}
                 icon={Heart}
+                directionSentiment="up-bad"
               />
             ),
           });
@@ -536,6 +538,7 @@ export default function DashboardPage() {
                 )}
                 slope30={dia?.slope30 ?? null}
                 icon={Heart}
+                directionSentiment="up-bad"
               />
             ),
           });
@@ -590,6 +593,7 @@ export default function DashboardPage() {
                 avg30={bf?.avg30 ?? null}
                 slope30={bf?.slope30 ?? null}
                 icon={Percent}
+                directionSentiment="up-bad"
               />
             ),
           });
@@ -608,6 +612,7 @@ export default function DashboardPage() {
                 avg30={moodSummary?.avg30 ?? null}
                 slope30={moodSummary?.slope30 ?? null}
                 icon={Smile}
+                directionSentiment="up-good"
               />
             ),
           });
@@ -626,6 +631,7 @@ export default function DashboardPage() {
                 avg30={sleepSummary?.avg30 ?? null}
                 slope30={sleepSummary?.slope30 ?? null}
                 icon={Moon}
+                directionSentiment="up-good"
               />
             ),
           });
@@ -644,6 +650,7 @@ export default function DashboardPage() {
                 avg30={stepsSummary?.avg30 ?? null}
                 slope30={stepsSummary?.slope30 ?? null}
                 icon={Footprints}
+                directionSentiment="up-good"
               />
             ),
           });
@@ -662,6 +669,7 @@ export default function DashboardPage() {
                 avg30={null}
                 slope30={null}
                 icon={Target}
+                directionSentiment="up-good"
               />
             ),
           });

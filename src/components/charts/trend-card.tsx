@@ -18,6 +18,26 @@ interface SecondaryMetric {
   avg30: number | null;
 }
 
+/**
+ * Maps a metric's "up means" direction to colour sentiment for the small
+ * trend arrow on each tile. v1.4.6 P4 stripped the colour entirely after
+ * the original up=red / down=green mapping was wrong for half the metrics
+ * (mood up = good, BP up = bad, pulse up = neutral). v1.5 phase-5 restores
+ * the colour but per-metric:
+ *
+ *   - `up-good`   — higher value is better (mood, sleep hours, steps).
+ *                   ↑ green, ↓ orange.
+ *   - `up-bad`    — higher value is worse (BP, weight, body fat).
+ *                   ↑ orange, ↓ green.
+ *   - `neutral`   — direction doesn't carry a value judgement (pulse,
+ *                   "BP in target %" — those have their own range
+ *                   colouring on the avg7/avg30 numbers already).
+ *
+ * Strictly affects the ↑/↓/→ arrow next to the latest reading. Chart
+ * lines, axes, and the avg7/avg30 colour classes are untouched.
+ */
+export type TrendDirectionSentiment = "up-good" | "up-bad" | "neutral";
+
 interface TrendCardProps {
   label: string;
   latest: number | null;
@@ -30,6 +50,12 @@ interface TrendCardProps {
   avg30Hint?: React.ReactNode;
   slope30: TrendSlope | null;
   icon: React.ComponentType<{ className?: string }>;
+  /**
+   * Whether an upward slope is good, bad, or neutral for this metric.
+   * Defaults to `"neutral"` so existing call sites that haven't been
+   * updated keep the v1.4.6 behaviour (muted-foreground arrow).
+   */
+  directionSentiment?: TrendDirectionSentiment;
   /** Optional second value rendered next to the primary as `X / Y` (used for
    *  paired metrics like blood-pressure systolic/diastolic so a single tile
    *  shows both numbers). */
@@ -48,6 +74,7 @@ export function TrendCard({
   avg30Hint,
   slope30,
   icon: Icon,
+  directionSentiment = "neutral",
   secondary,
 }: TrendCardProps) {
   const { t } = useTranslations();
@@ -61,9 +88,24 @@ export function TrendCard({
           ? ArrowRight
           : Minus;
 
-  // P4: Direction-as-good-or-bad is metric-specific (v1.5+ scope) —
-  // keep the arrow flat at muted-foreground for both up/down/flat.
-  const trendColor = "text-muted-foreground";
+  // v1.5: per-metric arrow sentiment. Flat ("→") and "no slope yet" ("—")
+  // always stay muted; only an actual rise / fall paints colour, and the
+  // colour direction depends on what's good for *this* metric. The
+  // `text-muted-foreground` default keeps every metric tagged `neutral`
+  // (pulse, BP-in-target %) visually identical to v1.4.6.
+  const trendColor = ((): string => {
+    // No data yet (Minus icon) or a "stable" slope (ArrowRight) stays muted —
+    // we don't celebrate or scold a flat metric.
+    if (!slope30 || slope30.direction === "stable") {
+      return "text-muted-foreground";
+    }
+    if (directionSentiment === "neutral") return "text-muted-foreground";
+    const isUp = slope30.direction === "up";
+    const isGood =
+      (directionSentiment === "up-good" && isUp) ||
+      (directionSentiment === "up-bad" && !isUp);
+    return isGood ? "text-dracula-green" : "text-dracula-orange";
+  })();
 
   const formatValue = (value: number) => fmt.number(value, 1);
 
