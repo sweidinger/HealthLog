@@ -17,11 +17,33 @@ Last update: 2026-05-09T20:06:00+02:00
 
 ### A1 — Nav conditionals + sidebar context-awareness
 
-- [ ] Bug-Report-Toggle hides Sidebar nav (also bottom-nav, topbar)
-- [ ] Skip-link does NOT block logo click on desktop
-- [ ] Sidebar admin sub-items only expand when on `/admin/*` route (view-context-aware)
-- [ ] Feedback section visible only when admin enabled feedback toggle
+- [x] Bug-Report-Toggle hides Sidebar nav (also bottom-nav, topbar)
+- [x] Skip-link does NOT block logo click on desktop
+- [x] Sidebar admin sub-items only expand when on `/admin/*` route (view-context-aware)
+- [x] Feedback section visible only when admin enabled feedback toggle
 - Detailed report: `.planning/phase-A1-report.md`
+
+#### Status — 2026-05-09T20:23+02:00 — Phase A1 complete
+
+All four fixes landed on `origin/main`:
+
+- `85aa15b` fix(nav): hide bug-report entry in nav when admin disables the toggle
+- `786b395` fix(a11y): skip-link no longer blocks logo click outside focus
+- `73afae0` refactor(nav): admin sub-items predicate tightened to `pathname === "/admin" || startsWith("/admin/")` (folded into A4's medication-compliance commit on push race; the sidebar-nav.tsx hunk inside that commit is mine)
+- `bde167d` + `c63e4de` fix(feedback): hide ErrorDetails report-bug button when admin disables the feature (impl + test split because a sibling agent's `git add` raced mine; both halves on main)
+
+New shared primitive: `src/components/app-settings-provider.tsx` exposes
+`useAppSettings()` to any client component. Today it carries
+`bugReportEnabled`; future admin feature flags should join the same
+context to avoid parallel fetches.
+
+Tests: 779/779 unit pass (was 754/754 before A1). Typecheck clean,
+lint clean (12 pre-existing warnings, none in A1 files). One new
+Playwright e2e case (`a11y.spec.ts` — logo click reachable through the
+skip-link area).
+
+Marc-status: speed mattered, hit by parallel-agent worktree contention
+mid-session but all behavioural changes shipped.
 
 ### A2 — /admin overview redesign + /admin/api-tokens responsive
 
@@ -31,10 +53,34 @@ Last update: 2026-05-09T20:06:00+02:00
 
 ### A3 — Quick-add labels + Stimmung-Card mobile + onboarding flicker
 
-- [ ] Quick-Add submenu disambiguation (no double "Hinzufügen")
-- [ ] Stimmung-Card mobile: large number + label only (no doubled number/label)
-- [ ] Onboarding flicker: don't render until status loaded; don't auto-open when complete
+- [x] Quick-Add submenu disambiguation (no double "Hinzufügen") — `3e45a7b`
+- [x] Stimmung-Card mobile: large number + label only (no doubled number/label) — `2c227fb`
+- [x] Onboarding flicker: don't render until status loaded; don't auto-open when complete — `bb4dc12`
 - Detailed report: `.planning/phase-A3-report.md`
+
+A3 status @ 2026-05-09T20:25:00+02:00 — done.
+
+DE labels switched from nouns ("Messung" / "Stimmungseintrag") to
+verb-phrases ("Messung erfassen" / "Stimmung erfassen"); EN matched
+("Log measurement" / "Log mood"). Unit guard at
+`src/app/__tests__/quick-add-labels.test.ts` locks distinctness from
+each other AND from `common.add` (the trigger). Mood-list mobile branch
+no longer prints the score digit twice — title line is now just the
+localized label, badge keeps the digit. Onboarding card refuses to
+mount while `analyticsQuery.data === undefined`, eliminating the
+~500 ms flash for established users; new users see a collapsed shell
+with the progress meter visible (chevron toggle is `aria-expanded` +
+`aria-controls`). Two new Playwright specs on the `chromium-mobile`
+project: `e2e/mood-card-mobile.spec.ts` (one occurrence of score per
+row) and `e2e/onboarding-flicker.spec.ts` (50ms sample-loop during a
+deliberately-slowed analytics fetch + collapsed-by-default assertion).
+
+Tests: 779/779 unit pass, typecheck clean, lint clean (12 pre-existing
+warnings, none in A3 files). 3 atomic commits, all pushed after
+rebase-with-autostash; no force-pushes, no `--no-verify`. One race
+landed `.planning/phase-A1-report.md` + `STATE.md` into A3's staging
+area mid-commit; restored those to A1's ownership before committing
+fix 3.
 
 ### A4 — Dashboard analytics fixes
 
