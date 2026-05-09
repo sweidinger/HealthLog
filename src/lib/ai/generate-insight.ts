@@ -2,6 +2,7 @@ import type { z } from "zod/v4";
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
 import {
   aiInsightResponseSchema,
+  findRecommendationsMissingRationale,
   findUncitedRecommendations,
   InsightSchemaError,
   type AIInsightResponse,
@@ -56,15 +57,23 @@ include prose, markdown fences, or commentary outside the JSON.
 Required top-level fields:
   - summary: string (2-3 sentences)
   - recommendations: array of objects with
-      { id: string, text: string, severity: "info" | "suggestion" | "important" | "urgent",
-        metricSource: { type: string, timeRange: string, summary: string, n?: number } }
+      { id: string,
+        text: string,
+        severity: "info" | "suggestion" | "important" | "urgent",
+        metricSource: { type: string, timeRange: string, summary: string, n?: number },
+        rationale: { dataWindow: "last7days" | "last30days" | "last90days" | "allTime",
+                     comparedTo: non-empty string,
+                     deviation: non-empty string } }
   - citations: array of objects with { type: string, timeRange: string, summary: string }
   - warnings: array of objects with { topic: string, message: string, severity?: same enum }
 
 Every recommendation's metricSource MUST also appear in citations[]
-(same type + timeRange). If you cannot ground a recommendation in
-user data from the snapshot you were given, OMIT it. An empty
-recommendations[] is acceptable.
+(same type + timeRange). Every recommendation MUST carry a
+rationale object — dataWindow, comparedTo, and deviation are all
+required and rationale.dataWindow MUST equal metricSource.timeRange.
+If you cannot ground a recommendation in user data from the
+snapshot you were given, OMIT it. An empty recommendations[] is
+acceptable.
 `;
 }
 
@@ -136,9 +145,17 @@ async function tryOnce(
  * Forward the citation-coverage breakdown into the active Wide-Event
  * via `annotate()` (no-op outside a request context). Keys are
  * snake_case to match the rest of the AI Wide-Event vocabulary.
+ *
+ * v1.4.16 phase B5c — additionally emit `ai_rationale_*` keys so the
+ * admin AI quality dashboard can chart rationale-coverage per
+ * payload alongside citation-coverage. Rationale is required by the
+ * strict schema; the missing-ids list will only ever populate when
+ * a legacy payload sneaks through `.passthrough()` — useful as an
+ * observability tripwire for the migration window.
  */
 function annotateCitationCoverage(parsed: AIInsightResponse): void {
   const coverage = computeCitationCoverage(parsed);
+  const rationaleMissing = findRecommendationsMissingRationale(parsed);
   annotate({
     meta: {
       ai_total_recommendations: coverage.totalRecommendations,
@@ -147,6 +164,10 @@ function annotateCitationCoverage(parsed: AIInsightResponse): void {
         coverage.citedNormativeRecommendations,
       ai_uncited_normative_recommendation_ids:
         coverage.uncitedNormativeRecommendationIds,
+      ai_rationale_total_recommendations: coverage.totalRecommendations,
+      ai_rationale_with_rationale:
+        coverage.totalRecommendations - rationaleMissing.length,
+      ai_rationale_missing_recommendation_ids: rationaleMissing,
     },
   });
 }
