@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.4.9] — 2026-05-09
+
+### Fixed — Settings · KI
+
+- **Device-Code-Flow läuft jetzt komplett durch.** v1.4.8 hat den
+  Code richtig zugestellt und du konntest auf chatgpt.com
+  bestätigen, aber der Connect-Schritt am Ende ist mit "missing
+  organization_id" gestorben. Ursache: der id_token aus dem
+  Device-Flow trägt das `organization_id`-Claim nicht (das
+  bekommt nur die Browser-Authorize-Variante via
+  `id_token_add_organizations=true`-Param), und unsere
+  RFC-8693-API-Key-Exchange hat genau dieses Claim erwartet. v1.4.9
+  übernimmt das Verhalten des offiziellen Codex CLI im Device-Pfad:
+  den OAuth-Access-Token direkt verwenden und gegen den Codex-
+  Backend-Endpoint (`chatgpt.com/backend-api/codex/responses`)
+  schicken — kein API-Key-Tausch nötig. Refresh läuft analog: nur
+  Token-Rotation, keine Exchange.
+
 ## [1.4.8] — 2026-05-09
 
 ### Fixed — Settings · KI

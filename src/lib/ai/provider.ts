@@ -1,14 +1,11 @@
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
 import { prisma } from "@/lib/db";
-import { decrypt } from "@/lib/crypto";
+import { decrypt, encrypt } from "@/lib/crypto";
+import { CodexClient } from "./codex-client";
 import { OpenAIClient } from "./openai-client";
 import { AnthropicClient } from "./anthropic-client";
 import { LocalOpenAICompatibleClient } from "./local-client";
-import {
-  refreshTokens,
-  encryptCodexCreds,
-  decryptCodexCreds,
-} from "./codex-oauth";
+import { refreshDeviceTokens } from "./codex-oauth";
 import { isPublicUrl } from "@/lib/validations/notifications";
 
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes
@@ -105,14 +102,20 @@ async function resolveAdminProvider(): Promise<AIProvider> {
 }
 
 /**
- * Codex flow (v1.4.7+): the user's ChatGPT-OAuth produced an OpenAI
- * API key via the token-exchange grant. We store that key (encrypted)
- * in `codexAccessTokenEncrypted` and the OAuth refresh token (encrypted)
- * in `codexRefreshTokenEncrypted`. When the API key is about to expire
- * we run the refresh + api-key exchange transparently and persist the
- * new pair. The downstream client is the standard `OpenAIClient`
- * tagged with `providerType: "codex"` so logs/analytics still
- * distinguish ChatGPT-subscription billing from BYOK.
+ * Codex flow (v1.4.8+, device-code path): the user authorised against
+ * chatgpt.com/codex/device, we store the resulting OAuth access_token
+ * (encrypted) in `codexAccessTokenEncrypted` and the refresh_token in
+ * `codexRefreshTokenEncrypted`. The active token is forwarded to
+ * `https://chatgpt.com/backend-api/codex/responses` — the same Codex
+ * backend the official CLI uses, which bills against the user's
+ * ChatGPT subscription. When the access token is about to expire we
+ * refresh it transparently using the long-lived refresh token.
+ *
+ * Note: v1.4.7's authorisation-code-flow path also wrote to these
+ * columns, but stored an OpenAI API key (post-RFC-8693 exchange)
+ * rather than an OAuth access token. That path is dead in production
+ * because Hydra rejects our redirect URI. The device-code path is the
+ * canonical replacement.
  */
 async function resolveCodexProvider(
   userId: string,
@@ -135,46 +138,55 @@ async function resolveCodexProvider(
     return null;
   }
 
-  const { apiKey: storedApiKey, refreshToken } = decryptCodexCreds({
-    apiKeyEncrypted: user.codexAccessTokenEncrypted,
-    refreshEncrypted: user.codexRefreshTokenEncrypted,
-  });
+  const storedAccessToken = decrypt(user.codexAccessTokenEncrypted);
+  const storedRefreshToken = decrypt(user.codexRefreshTokenEncrypted);
 
-  let activeApiKey = storedApiKey;
+  let activeAccessToken = storedAccessToken;
 
-  // Proactive refresh if the API key expires within 5 minutes.
+  // Proactive refresh if the access token expires within 5 minutes.
   const expiresAt = user.codexTokenExpiresAt?.getTime() ?? 0;
   if (expiresAt < Date.now() + TOKEN_REFRESH_BUFFER_MS) {
     try {
-      const fresh = await refreshTokens(refreshToken);
-      activeApiKey = fresh.apiKey;
-
-      const encrypted = encryptCodexCreds({
-        apiKey: fresh.apiKey,
-        refreshToken: fresh.refreshToken,
-      });
+      const fresh = await refreshDeviceTokens(storedRefreshToken);
+      activeAccessToken = fresh.accessToken;
 
       await prisma.user.update({
         where: { id: userId },
         data: {
-          codexAccessTokenEncrypted: encrypted.apiKeyEncrypted,
-          codexRefreshTokenEncrypted: encrypted.refreshEncrypted,
+          codexAccessTokenEncrypted: encrypt(fresh.accessToken),
+          codexRefreshTokenEncrypted: encrypt(fresh.refreshToken),
           codexTokenExpiresAt: fresh.expiresAt,
         },
       });
     } catch {
-      // If proactive refresh fails, still try with the stored key —
-      // OpenAIClient will surface the upstream 401 and the user can
-      // re-connect. Refresh failures are logged via the upstream
-      // `Codex token refresh failed` error message.
+      // Proactive refresh failures fall through — the CodexClient
+      // retries via onTokenRefresh on a real 401 and writes the
+      // updated tokens then.
     }
   }
 
-  return new OpenAIClient({
-    apiKey: activeApiKey,
-    model: "gpt-4o-mini",
-    baseUrl: "https://api.openai.com/v1",
-    providerType: "codex",
+  return new CodexClient({
+    accessToken: activeAccessToken,
+    onTokenRefresh: async () => {
+      const freshUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { codexRefreshTokenEncrypted: true },
+      });
+      if (!freshUser?.codexRefreshTokenEncrypted) {
+        throw new Error("No refresh token available");
+      }
+      const currentRefresh = decrypt(freshUser.codexRefreshTokenEncrypted);
+      const fresh = await refreshDeviceTokens(currentRefresh);
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          codexAccessTokenEncrypted: encrypt(fresh.accessToken),
+          codexRefreshTokenEncrypted: encrypt(fresh.refreshToken),
+          codexTokenExpiresAt: fresh.expiresAt,
+        },
+      });
+      return fresh.accessToken;
+    },
   });
 }
 

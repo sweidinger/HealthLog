@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { pollDeviceCode, encryptCodexCreds } from "@/lib/ai/codex-oauth";
+import { pollDeviceCode } from "@/lib/ai/codex-oauth";
+import { encrypt } from "@/lib/crypto";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
@@ -67,16 +68,16 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiSuccess({ status: "pending" });
   }
 
-  // status === "connected" → persist creds, audit, drop the cookie.
-  const encrypted = encryptCodexCreds({
-    apiKey: result.tokens.apiKey,
-    refreshToken: result.tokens.refreshToken,
-  });
+  // status === "connected" → persist OAuth tokens directly. Device-
+  // code flow uses the access_token against
+  // https://chatgpt.com/backend-api/codex/responses — no api-key
+  // exchange, because the id_token here lacks the organization claim
+  // that exchange would require.
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      codexAccessTokenEncrypted: encrypted.apiKeyEncrypted,
-      codexRefreshTokenEncrypted: encrypted.refreshEncrypted,
+      codexAccessTokenEncrypted: encrypt(result.tokens.accessToken),
+      codexRefreshTokenEncrypted: encrypt(result.tokens.refreshToken),
       codexTokenExpiresAt: result.tokens.expiresAt,
       codexConnectedAt: new Date(),
       codexConnectionStatus: "connected",

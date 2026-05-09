@@ -278,9 +278,30 @@ export async function requestDeviceCode(): Promise<DeviceCodeStart> {
   };
 }
 
+export interface DeviceTokens {
+  /**
+   * OAuth access token. Used directly against
+   * `https://chatgpt.com/backend-api/codex/responses` — the Codex
+   * backend that bills against the ChatGPT subscription.
+   *
+   * The device-code flow deliberately does NOT call the api-key
+   * exchange the browser flow uses, because the id_token returned
+   * here lacks the `organization_id` claim (that claim only gets
+   * added when the authorize URL was hit with
+   * `id_token_add_organizations=true`, which we cannot do during
+   * device-code auth — the user types the code on chatgpt.com
+   * directly without us controlling the authorize step).
+   */
+  accessToken: string;
+  /** OAuth refresh token; used to mint a new access token before expiry. */
+  refreshToken: string;
+  /** Wall-clock expiry of `accessToken`. */
+  expiresAt: Date;
+}
+
 export type DevicePollResult =
   | { status: "pending" }
-  | { status: "connected"; tokens: CodexTokens };
+  | { status: "connected"; tokens: DeviceTokens };
 
 /**
  * Single poll attempt against the device-auth token endpoint. Returns
@@ -333,14 +354,41 @@ export async function pollDeviceCode(params: {
     );
   }
   const tokens = (await tokenRes.json()) as RawTokenResponse;
-  const apiKey = await obtainApiKey(tokens.id_token);
   return {
     status: "connected",
     tokens: {
-      apiKey,
+      accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
     },
+  };
+}
+
+/**
+ * Refresh an OAuth access token without going through the api-key
+ * exchange. Used by the device-code path where the resulting id_token
+ * never has the organization claims the api-key exchange requires.
+ */
+export async function refreshDeviceTokens(
+  refreshToken: string,
+): Promise<DeviceTokens> {
+  const res = await postForm(`${ISSUER}/oauth/token`, {
+    grant_type: "refresh_token",
+    client_id: getCodexClientId(),
+    refresh_token: refreshToken,
+    scope: CODEX_SCOPES,
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `Codex device-token refresh failed (${res.status}): ${body}`,
+    );
+  }
+  const tokens = (await res.json()) as RawTokenResponse;
+  return {
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token ?? refreshToken,
+    expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
   };
 }
 
