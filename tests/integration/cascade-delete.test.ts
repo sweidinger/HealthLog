@@ -97,6 +97,22 @@ describe("user.delete cascades to all personal-data tables", () => {
       },
     });
 
+    // v1.4.16 phase B5e: rec-feedback rows must follow the user on
+    // erasure (provider attribution makes them personal data).
+    await prisma.recommendationFeedback.create({
+      data: {
+        userId: user.id,
+        recommendationId: "rec-cascade-1",
+        recommendationText: "Discuss home BP log with your physician.",
+        recommendationSeverity: "important",
+        metricSourceType: "bloodPressure",
+        metricSourceTimeRange: "last7days",
+        helpful: true,
+        providerType: "codex",
+        promptVersion: "4.16.0",
+      },
+    });
+
     await prisma.idempotencyKey.create({
       data: {
         userId: user.id,
@@ -167,6 +183,9 @@ describe("user.delete cascades to all personal-data tables", () => {
     );
     expect(
       await prisma.userAchievement.count({ where: { userId: user.id } }),
+    ).toBe(0);
+    expect(
+      await prisma.recommendationFeedback.count({ where: { userId: user.id } }),
     ).toBe(0);
     expect(
       await prisma.idempotencyKey.count({ where: { userId: user.id } }),

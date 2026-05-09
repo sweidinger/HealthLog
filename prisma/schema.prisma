@@ -129,6 +129,7 @@ model User {
   dataBackups          DataBackup[]
   achievements         UserAchievement[]
   feedback             Feedback[]
+  recommendationFeedback RecommendationFeedback[]
   idempotencyKeys      IdempotencyKey[]
   devices              Device[]
   integrationStatuses  IntegrationStatus[]
@@ -547,6 +548,20 @@ model AppSettings {
   adminAiModel          String  @default("gpt-4o-mini") @map("admin_ai_model")
   adminAiBaseUrl        String  @default("https://api.openai.com/v1") @map("admin_ai_base_url")
 
+  // v1.4.16 phase B5e — daily-aggregated rec-feedback summary written
+  // by `feedback-aggregator.ts`. Shape:
+  //   {
+  //     "generatedAt": "2026-05-09T04:00:00.000Z",
+  //     "windowDays": 30,
+  //     "buckets": [
+  //       { "severity": "important", "metricSourceType": "bloodPressure",
+  //         "providerType": "codex", "promptVersion": "4.16.0",
+  //         "helpful": 12, "notHelpful": 3, "total": 15, "helpfulRate": 0.8 }
+  //     ]
+  //   }
+  // Null = aggregator hasn't run yet OR there's no feedback in the window.
+  adminAiInsightsFeedbackSummary Json? @map("admin_ai_insights_feedback_summary")
+
   @@map("app_settings")
 }
 
@@ -791,4 +806,46 @@ model HostMetric {
 
   @@index([capturedAt])
   @@map("host_metrics")
+}
+
+// ─── Recommendation Feedback (v1.4.16 phase B5e) ───────────────
+//
+// Per-recommendation thumbs-up / thumbs-down rating. Captured client-
+// side under each rec card; persisted with provider attribution
+// (providerType + promptVersion) so the daily aggregator can slice
+// helpful-rate per (severity x provider x prompt) for the admin AI
+// quality dashboard.
+//
+// Default-on for the single-user case (only the user's ratings shape
+// the user's future prompts); cross-user aggregate stays admin-only
+// (no prompt-tuning flow yet — that ratchet is v1.4.17).
+//
+// Privacy: server-side fills providerType + promptVersion from the
+// user's most recent cached payload (User.insightsCachedText) so the
+// client can't tamper with the attribution.
+//
+// `(userId, recommendationId, recommendationText)` is the dedup key.
+// recommendationText snapshots the rec at submission time so a re-
+// generation that rewrites the same id with new text counts as a
+// different row — that's intentional, the aggregator wants per-text
+// signal not per-id signal.
+model RecommendationFeedback {
+  id                     String   @id @default(cuid())
+  userId                 String   @map("user_id")
+  recommendationId       String   @map("recommendation_id")
+  recommendationText     String   @map("recommendation_text")
+  recommendationSeverity String   @map("recommendation_severity")
+  metricSourceType       String   @map("metric_source_type")
+  metricSourceTimeRange  String   @map("metric_source_time_range")
+  helpful                Boolean
+  providerType           String   @map("provider_type")
+  promptVersion          String   @map("prompt_version")
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recommendationId, recommendationText], map: "rec_feedback_user_rec_text_key")
+  @@index([userId, createdAt])
+  @@index([recommendationSeverity, helpful, createdAt])
+  @@map("recommendation_feedback")
 }
