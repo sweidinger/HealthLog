@@ -13,6 +13,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  BookOpen,
   Database,
   Download,
   History,
@@ -351,7 +352,19 @@ export function BackupsSection() {
         </Button>
       </div>
       <p className="text-muted-foreground mt-1 text-xs">
-        {t("admin.section.backups.description")}
+        {t("admin.section.backups.description")}{" "}
+        {/* External docs link — Phase E will publish the matching page on
+            the docs site. `noopener noreferrer` because this leaves the
+            admin shell. */}
+        <a
+          href="https://docs.healthlog.dev/admin/backups"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary inline-flex items-center gap-1 underline-offset-2 hover:underline"
+        >
+          <BookOpen className="h-3 w-3" aria-hidden="true" />
+          {t("admin.section.backups.docsLink")}
+        </a>
       </p>
 
       {/* Upload card — separate from the table so admins can ingest a

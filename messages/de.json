@@ -1596,7 +1596,8 @@
         "restoreConfirm": "Jetzt wiederherstellen",
         "restoreInProgress": "Wiederherstellung läuft...",
         "restoreSuccess": "Wiederherstellung abgeschlossen",
-        "restoreFailed": "Wiederherstellung fehlgeschlagen"
+        "restoreFailed": "Wiederherstellung fehlgeschlagen",
+        "docsLink": "Dokumentation"
       },
       "danger-zone": {
         "title": "Gefahrenzone",

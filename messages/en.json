@@ -1596,7 +1596,8 @@
         "restoreConfirm": "Restore now",
         "restoreInProgress": "Restoring...",
         "restoreSuccess": "Restore complete",
-        "restoreFailed": "Restore failed"
+        "restoreFailed": "Restore failed",
+        "docsLink": "Documentation"
       },
       "danger-zone": {
         "title": "Danger Zone",
