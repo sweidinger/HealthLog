@@ -88,7 +88,7 @@ describe("GET /api/admin/status-overview", () => {
     expect(body.data).toHaveProperty("auditLog");
   });
 
-  it("batches DB calls in a single Promise.all (no N+1)", async () => {
+  it("batches DB calls in a single Promise.allSettled (no N+1)", async () => {
     await GET();
     // 3 user.count + 1 withings + 1 ntfy notifications + 1 webPush + 3
     // moodLog/telegram done via user.count → expect user.count called 4 times
@@ -99,6 +99,30 @@ describe("GET /api/admin/status-overview", () => {
     expect(mocks.pushSubscription.count).toHaveBeenCalledTimes(1);
     // The route does not loop — every aggregate is a single query.
     expect(mocks.dataBackup.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("P20: a single failed probe still returns the rest of the grid", async () => {
+    // Simulate a transient DB failure on the withings count probe only.
+    // Without Promise.allSettled the whole route would 500 and the entire
+    // admin overview grid would go blank — with allSettled the failure
+    // is isolated to its card (severity → "alert", value → 0) and the
+    // other 5 cards still render.
+    mocks.withingsConnection.count.mockRejectedValueOnce(
+      new Error("simulated db timeout"),
+    );
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        users: { severity: string };
+        integrations: { severity: string; withings: number };
+        backups: { severity: string };
+      };
+    };
+    expect(body.data.integrations.severity).toBe("alert");
+    expect(body.data.integrations.withings).toBe(0);
+    // Untouched cards keep their normal severity.
+    expect(body.data.users.severity).toBe("good");
   });
 
   it("flags backups as alert when none exist", async () => {
