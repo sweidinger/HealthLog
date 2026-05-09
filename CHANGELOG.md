@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.11] — 2026-05-09
+
+### Fixed — KI Insights via ChatGPT
+
+- **Codex-Backend bekommt jetzt SSE-Streaming.** Nach dem v1.4.10-
+  Body-Format-Fix kam der nächste 400er: `Stream must be set to true`
+  — der `chatgpt.com/backend-api/codex/responses`-Endpoint akzeptiert
+  ausschließlich Server-Sent-Events-Antworten, kein synchrones JSON.
+  v1.4.11 baut den CodexClient so um, dass er die Antwort als SSE
+  konsumiert: `output_item.done`-Events liefern den vollständigen
+  Assistant-Text, `output_text.delta`-Chunks dienen als Fallback,
+  `response.completed` trägt die Token-Usage. Damit läuft das gesamte
+  KI-Insights-Feature jetzt durch dein ChatGPT-Abo.
+
 ## [1.4.10] — 2026-05-09
 
 ### Fixed — KI Insights via ChatGPT
