@@ -757,3 +757,29 @@ model UserAchievement {
   @@index([userId])
   @@map("user_achievements")
 }
+
+// ─── Host Metrics (admin system-status host-load chart) ──────
+
+/// Per-minute snapshot of host-process load + memory captured by the
+/// pg-boss `host-metric-sample` job. Read by `/api/admin/host-metrics`
+/// to render the host-load trend above the system-status section.
+/// 7-day retention is enforced inside the sampler — we keep the table
+/// small enough that a single `findMany` over the last 2 hours stays
+/// well under 200 rows.
+model HostMetric {
+  id             String   @id @default(cuid())
+  capturedAt     DateTime @default(now()) @map("captured_at")
+  loadAvg1       Float    @map("load_avg_1")
+  loadAvg5       Float    @map("load_avg_5")
+  loadAvg15      Float    @map("load_avg_15")
+  memUsedBytes   BigInt   @map("mem_used_bytes")
+  memTotalBytes  BigInt   @map("mem_total_bytes")
+  // Optional rolling-window byte counters from /proc/diskstats. Null
+  // outside Linux (macOS dev machines, Windows). The API endpoint
+  // converts deltas into bytes-per-second client-side.
+  diskReadBytes  BigInt?  @map("disk_read_bytes")
+  diskWriteBytes BigInt?  @map("disk_write_bytes")
+
+  @@index([capturedAt])
+  @@map("host_metrics")
+}
