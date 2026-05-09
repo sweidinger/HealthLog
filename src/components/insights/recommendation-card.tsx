@@ -12,6 +12,11 @@ import { HealthChart } from "@/components/charts/health-chart";
 import { MoodChart } from "@/components/charts/mood-chart";
 import { getMedicalReferenceById } from "@/lib/ai/medical-references";
 import type { Locale } from "@/lib/i18n/config";
+import {
+  RecommendationFeedback,
+  type RecommendationFeedbackSeverity,
+  type RecommendationFeedbackTimeRange,
+} from "./recommendation-feedback";
 
 /**
  * v1.4.16 phase B5c — Oura-style RecommendationCard.
@@ -170,11 +175,19 @@ function RationaleCard({
   metricSource,
   referenceId,
   locale,
+  feedbackProps,
 }: {
   rationale: InsightRecommendationRationale;
   metricSource: { type: string; timeRange: string; summary: string } | undefined;
   referenceId: string | undefined;
   locale: Locale;
+  feedbackProps: {
+    recId: string;
+    recText: string;
+    recSeverity: RecommendationFeedbackSeverity;
+    metricSourceType: string;
+    metricSourceTimeRange: RecommendationFeedbackTimeRange;
+  } | null;
 }) {
   const { t } = useTranslations();
   const metricType = metricSource?.type;
@@ -220,9 +233,37 @@ function RationaleCard({
         </div>
       )}
 
-      <div data-slot="rec-feedback-slot" />
+      {/* v1.4.16 phase B5e — fills the rec-feedback-slot reserved by
+       * B5c. The feedback row only appears when the rec carries the
+       * full attribute set the API endpoint requires; legacy recs
+       * without an id stay un-rateable (the empty slot keeps the DOM
+       * stable for downstream tests). */}
+      <div data-slot="rec-feedback-slot">
+        {feedbackProps && <RecommendationFeedback {...feedbackProps} />}
+      </div>
     </div>
   );
+}
+
+/**
+ * Validate the rec's metricSource.timeRange against the four-window
+ * vocabulary the feedback endpoint accepts. Returns null when the
+ * value is missing or out-of-vocabulary so the feedback slot stays
+ * empty rather than rendering a feedback row that would 422 on
+ * submit.
+ */
+function asFeedbackTimeRange(
+  value: string | undefined,
+): RecommendationFeedbackTimeRange | null {
+  switch (value) {
+    case "last7days":
+    case "last30days":
+    case "last90days":
+    case "allTime":
+      return value;
+    default:
+      return null;
+  }
 }
 
 export function RecommendationCard({
@@ -234,6 +275,25 @@ export function RecommendationCard({
   const norm = normalise(rec);
   const expandable = norm.rationale !== undefined;
   const [expanded, setExpanded] = useState(initiallyExpanded);
+
+  // Feedback row is only renderable when the rec carries every
+  // attribute the API endpoint validates. Legacy / partial recs
+  // (no id, no severity, or an unknown timeRange) leave the slot
+  // empty so a thumbs-click can never produce a 422.
+  const feedbackTimeRange = asFeedbackTimeRange(norm.metricSource?.timeRange);
+  const feedbackProps =
+    norm.id &&
+    norm.severity &&
+    norm.metricSource?.type &&
+    feedbackTimeRange
+      ? {
+          recId: norm.id,
+          recText: norm.text,
+          recSeverity: norm.severity,
+          metricSourceType: norm.metricSource.type,
+          metricSourceTimeRange: feedbackTimeRange,
+        }
+      : null;
 
   return (
     <li
@@ -300,6 +360,7 @@ export function RecommendationCard({
             metricSource={norm.metricSource}
             referenceId={norm.referenceId}
             locale={locale}
+            feedbackProps={feedbackProps}
           />
         </div>
       )}

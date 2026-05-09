@@ -32,7 +32,22 @@ vi.mock("@/components/charts/mood-chart", () => ({
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: null, isLoading: false }),
+  useMutation: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+  }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { id: "test-user", username: "tester", role: "USER" },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";

@@ -35,7 +35,22 @@ vi.mock("@/components/charts/mood-chart", () => ({
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: null, isLoading: false }),
+  useMutation: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+  }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { id: "test-user", username: "tester", role: "USER" },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
 }));
 
 const knownRef = MEDICAL_REFERENCES[0];
@@ -197,5 +212,35 @@ describe("<RecommendationCard>", () => {
     );
     expect(html).toContain('data-testid="mood-chart-mock"');
     expect(html).toContain('data-mini="true"');
+  });
+
+  // ── v1.4.16 phase B5e — feedback wiring ───────────────────────
+  // Verifies B5c's named slot is now filled by RecommendationFeedback
+  // when the rec carries every attribute the feedback API requires.
+  it("wires the feedback thumbs into the expanded rationale card when fully attributed", () => {
+    const html = render(
+      <RecommendationCard rec={recBase} index={0} initiallyExpanded />,
+    );
+    expect(html).toContain('data-feedback-thumb="up"');
+    expect(html).toContain('data-feedback-thumb="down"');
+  });
+
+  it("does NOT render feedback thumbs when the rec lacks an id (defence-in-depth)", () => {
+    const recNoId = { ...recBase, id: undefined };
+    const html = render(
+      <RecommendationCard rec={recNoId} index={0} initiallyExpanded />,
+    );
+    expect(html).not.toContain('data-feedback-thumb=');
+  });
+
+  it("does NOT render feedback thumbs when the metricSource.timeRange is out of vocabulary", () => {
+    const recBadWindow = {
+      ...recBase,
+      metricSource: { ...recBase.metricSource, timeRange: "lastFortnight" },
+    };
+    const html = render(
+      <RecommendationCard rec={recBadWindow} index={0} initiallyExpanded />,
+    );
+    expect(html).not.toContain('data-feedback-thumb=');
   });
 });
