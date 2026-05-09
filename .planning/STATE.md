@@ -362,9 +362,56 @@ sibling agent removed an unrelated unused-var).
 
 ### B4 — Achievements UI
 
-- [ ] Surface in dashboard or dedicated page
-- [ ] Unlocked-at timestamp visible
+- [x] Surface in dashboard or dedicated page (both)
+- [x] Unlocked-at timestamp visible
 - Detailed report: `.planning/phase-B4-report.md`
+
+#### B4 status block — 2026-05-09T21:22+02:00 — done
+
+3 commits on `origin/main`:
+
+- `34c967c` `feat(achievements): dedicated /achievements page with
+  locked/unlocked list` — full page rewrite. Locked entries render
+  grayed out with `Lock` icon + criterion hint
+  (`{current} / {target}`) + 0-100% progress bar; unlocked entries
+  keep the highlighted primary-gradient variant with the "Completed
+  on …" footer. Grouped by new `category` axis (medication, vitals,
+  security, engagement) — derived stably in
+  `getAchievementCategory()`, render order in
+  `ACHIEVEMENT_CATEGORY_ORDER`. Sidebar link was already in place
+  under `navItems`.
+- `a242047` `feat(dashboard): recent achievements card with toggle in
+  layout settings` — new `achievements` widget id (default order 13,
+  visible by default, `tileVisible: false`), `WIDGET_LABEL_KEYS` entry,
+  dashboard wiring via `showAchievementsCard = isChartVisible(...)`.
+- `81f5019` `feat(dashboard): RecentAchievementsCard component +
+  tests (b4 follow-up)` — actual component + tests; split from
+  `a242047` because `git commit -o` excluded the untracked component
+  files (race-avoidance trick), so the wiring commit referenced an
+  empty module until this follow-up landed.
+
+i18n: 9 new keys under `achievements.*` (EN + DE). C4 will sweep.
+
+Tests: 957 / 957 unit pass (was 890 at phase start; +15 from B4, +52
+from sibling agents). +1 e2e (`e2e/achievements.spec.ts` walks the
+desktop sidebar → `/achievements` heading visible). Pre-existing
+typecheck errors in `dashboard-layout.test.ts` (3) and
+`doctor-report-pdf-core.test.ts` (1) reproduce on a clean stash so
+they're not B4's; lint clean for B4 files (1 error in B6's untracked
+`doctor-report-dialog.tsx` — outside scope).
+
+Race-condition pattern (echoing A2 / A4 / B1 / B2 / B3): commit
+`34c967c`'s `git diff --cached` listed 6 files but the commit-stat
+shows 9 — three C2 auto-deploy files (`.env.example`,
+`.github/workflows/docker-publish.yml`,
+`docs/audit/v1415-auto-deploy.md`) got swept in between staging and
+commit. Files correct on `main`; message scope narrower than diff.
+v1.4.16: adopt `superpowers:using-git-worktrees` per agent.
+
+Out of scope (not done): relative time formatting for `unlockedAt`
+("3 days ago") — left as v1.4.16 polish (no `Intl.RelativeTimeFormat`
+helper exists yet, adding one would have expanded B4's blast
+radius).
 
 ### B5 — Onboarding tour first-run
 
