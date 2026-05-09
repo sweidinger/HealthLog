@@ -31,6 +31,19 @@ export const POST = apiHandler(
       },
     });
 
+    // Mirror the UI gate at user-management-section.tsx:295 — admins
+    // mid-action shouldn't bounce themselves to /auth/login. A
+    // determined admin can revoke another admin (intentional today),
+    // but the self-target case is always a footgun.
+    if (admin.id === id) {
+      await auditLog("admin.user.force-logout.denied", {
+        userId: admin.id,
+        ipAddress: getClientIp(request),
+        details: { targetUserId: id, reason: "self_target" },
+      });
+      return apiError("Cannot force-logout your own session", 422);
+    }
+
     const target = await prisma.user.findUnique({
       where: { id },
       select: { id: true, username: true },
