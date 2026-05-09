@@ -15,11 +15,6 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   const userId = user.id;
 
-  const rl = await checkRateLimit(`insights:${userId}`, 2, 60 * 60 * 1000);
-  if (!rl.allowed) {
-    return apiError("Maximum 2 insight generations per hour.", 429);
-  }
-
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -51,6 +46,15 @@ export const POST = apiHandler(async (request: NextRequest) => {
     } catch {
       // Invalid cache, regenerate
     }
+  }
+
+  // P13: rate-limit check moved BELOW the cache return so a hit on the
+  // 24h cache never burns one of the 2/hour LLM-generation tokens.
+  // Otherwise a noisy reload loop on the dashboard would lock out real
+  // refreshes for an hour for no benefit.
+  const rl = await checkRateLimit(`insights:${userId}`, 2, 60 * 60 * 1000);
+  if (!rl.allowed) {
+    return apiError("Maximum 2 insight generations per hour.", 429);
   }
 
   const provider = await resolveProvider(userId);
