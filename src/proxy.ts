@@ -49,6 +49,34 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   "/zielwerte": "/targets",
 };
 
+/**
+ * v1.5 admin refactor — sections moved from `/admin#section-<id>` anchors
+ * to per-section dynamic routes under `/admin/<slug>`. Pure URL fragments
+ * (`#foo`) are never sent to the server, so we cannot redirect those
+ * here; the in-app callsites (status-card-grid, anything else linking
+ * into admin) have all been rewritten to use the new routes directly.
+ *
+ * What we *can* redirect server-side is the path-style form, in case
+ * anyone bookmarked `/admin/section-XYZ` (which never existed but is a
+ * plausible mis-typing) or is following an old URL where the fragment
+ * was somehow promoted to a path segment by a referrer rewriter.
+ */
+const LEGACY_ADMIN_ANCHORS: Record<string, string> = {
+  "/admin/section-system-status": "/admin/system-status",
+  "/admin/section-admin-general": "/admin/general",
+  "/admin/section-admin-services": "/admin/services",
+  "/admin/section-admin-umami": "/admin/integrations",
+  "/admin/section-admin-glitchtip": "/admin/integrations",
+  "/admin/section-admin-webpush": "/admin/integrations",
+  "/admin/section-admin-bugreport": "/admin/integrations",
+  "/admin/section-admin-feedback": "/admin/feedback",
+  "/admin/section-admin-reminders": "/admin/reminders",
+  "/admin/section-user-management": "/admin/users",
+  "/admin/section-api-tokens": "/admin/api-tokens",
+  "/admin/section-login-overview": "/admin/login-overview",
+  "/admin/section-danger-zone": "/admin/danger-zone",
+};
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -70,6 +98,12 @@ export function proxy(request: NextRequest) {
   const redirect = LEGACY_REDIRECTS[pathname];
   if (redirect) {
     return NextResponse.redirect(new URL(redirect, request.url), 301);
+  }
+
+  // 301 for the v1.5 admin section-anchor → dynamic-route migration.
+  const legacyAdmin = LEGACY_ADMIN_ANCHORS[pathname];
+  if (legacyAdmin) {
+    return NextResponse.redirect(new URL(legacyAdmin, request.url), 301);
   }
 
   // Demo mode: block all mutations except login
