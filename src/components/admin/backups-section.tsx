@@ -87,6 +87,7 @@ function RestoreRowDialog({
           aria-label={t("admin.section.backups.restoreAria", {
             username: row.username,
           })}
+          className="min-h-11"
         >
           {pending ? (
             <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -343,6 +344,7 @@ export function BackupsSection() {
           size="sm"
           disabled={runBackup.isPending}
           onClick={() => runBackup.mutate()}
+          className="min-h-11"
         >
           {runBackup.isPending ? (
             <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -398,6 +400,7 @@ export function BackupsSection() {
             variant="outline"
             disabled={upload.isPending}
             onClick={() => fileInputRef.current?.click()}
+            className="min-h-11"
           >
             {upload.isPending ? (
               <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -438,6 +441,7 @@ export function BackupsSection() {
                 size="sm"
                 disabled={runBackup.isPending}
                 onClick={() => runBackup.mutate()}
+                className="min-h-11"
               >
                 {runBackup.isPending ? (
                   <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -496,6 +500,7 @@ export function BackupsSection() {
                         aria-label={t("admin.section.backups.downloadAria", {
                           username: row.username,
                         })}
+                        className="min-h-11"
                       >
                         {downloadingId === row.id ? (
                           <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />

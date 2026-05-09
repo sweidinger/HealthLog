@@ -417,13 +417,19 @@ export function OnboardingTour({
           {t(stop.bodyKey)}
         </p>
 
+        {/* v1.4.15 H4 design: tour footer buttons reach the WCAG 2.5.5
+            44 px tap-target floor on mobile. The `size="sm"` default
+            of `h-8` clipped to ~32 px which Marc reported as too small
+            on the iPad / iPhone PWA shell. Bumping to `min-h-11` (44 px)
+            keeps the desktop visual close enough — the buttons grow
+            ~4 px taller — while making mobile usable. */}
         <footer className="mt-5 flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={handleSkip}
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground min-h-11"
           >
             {t("onboarding.tour.skip")}
           </Button>
@@ -434,6 +440,7 @@ export function OnboardingTour({
                 variant="outline"
                 size="sm"
                 onClick={handlePrev}
+                className="min-h-11"
               >
                 {t("onboarding.tour.back")}
               </Button>
@@ -444,6 +451,7 @@ export function OnboardingTour({
               size="sm"
               onClick={handleNext}
               data-testid="onboarding-tour-primary"
+              className="min-h-11"
             >
               {isLast ? t("onboarding.tour.done") : t("onboarding.tour.next")}
             </Button>

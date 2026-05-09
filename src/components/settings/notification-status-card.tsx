@@ -256,6 +256,10 @@ function ChannelRow({
         </dl>
       </div>
 
+      {/* v1.4.15 H4 design: action buttons hit the WCAG 2.5.5 44 px
+          floor on mobile via `min-h-11`. Settings is the most-touched
+          mobile surface; `size="sm"` here clips to ~32 px which Marc
+          flagged as too small on the iPad/iPhone PWA shell. */}
       <div className="flex flex-wrap gap-2">
         {channel.state === "auto_disabled" && (
           <Button
@@ -265,6 +269,7 @@ function ChannelRow({
             onClick={onReEnable}
             disabled={reEnablePending}
             data-testid={`re-enable-${channel.type}`}
+            className="min-h-11"
           >
             {reEnablePending ? (
               <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
@@ -281,6 +286,7 @@ function ChannelRow({
           onClick={onTest}
           disabled={testPending || channel.state === "auto_disabled"}
           data-testid={`send-test-${channel.type}`}
+          className="min-h-11"
         >
           {testPending ? (
             <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
