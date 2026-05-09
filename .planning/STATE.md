@@ -272,10 +272,50 @@ pattern A2 + A4 documented. v1.4.16 should adopt
 
 ### B3 — Notification reliability
 
-- [ ] Auto-disable channel on persistent 410 / hard rejects
-- [ ] Retry strategy with exponential backoff
-- [ ] Status visible in Settings
+- [x] Auto-disable channel on persistent 410 / hard rejects
+- [x] Retry strategy with exponential backoff
+- [x] Status visible in Settings
 - Detailed report: `.planning/phase-B3-report.md`
+
+#### B3 status block — 2026-05-09T21:05+02:00 — done
+
+All three criteria shipped:
+
+- `87a40fd` `fix(notifications): auto-disable channels on persistent
+  hard rejects (410, etc.)` — migration 0028 (6 cols on
+  `notification_channels`), `retry-policy.ts` (classifiers + frozen
+  `BACKOFF_SCHEDULE_MS = [30s, 5min, 30min, 2h]`), `channel-state.ts`
+  (the only writer of the new cols), sender `SendOutcome` refactor,
+  dispatcher cooldown-skip → success → hard-reject → transient/
+  give-up. Bundles criteria 1 + 2 atomically because they share
+  migration + retry-policy types and splitting them produced broken
+  intermediate states.
+- `a3c0130` `feat(settings): notification channel status UI with
+  re-enable + test` — wires `<NotificationStatusCard />` into the
+  notifications section. Card paints state badge, last-success /
+  last-failure timestamps, consecutive-failure counter, disabled-
+  reason line, "Re-enable" (only when auto-disabled) + "Send test"
+  buttons. `GET /api/notifications/status` + `POST` for re-enable.
+
+**Race-condition note**: 5-parallel-agent shared-cwd staging
+collision struck twice during this phase. (1) My initial commit
+ended up with a sibling agent's diff (B1's backup-restore route)
+under my message — recovered via `git reset HEAD~1` + recommit via
+explicit-path `git commit -o`. (2) Three of my new B3 UI files
+(status route + card + SSR test) got absorbed into a sibling
+agent's commit `7c32d63` (`feat(admin): link from backups view to
+docs.healthlog.dev`) during their `git add`. Files are correct on
+main, just under a misleading subject. My follow-up `a3c0130`
+makes the wiring + criterion-3 intent explicit. STATE.md A2 / B-
+mobile already flagged this; v1.4.16 should adopt
+`superpowers:using-git-worktrees` per agent.
+
+Tests: 883 / 883 unit pass (was 863 at B3 start; +20 across 4 new
+files). Integration: 31 / 31 pass. Typecheck: 0 new errors (only
+pre-existing dashboard-layout.test.ts + integrations-section.tsx
+errors remain, both outside B3 scope). Lint: 0 errors, 11 warnings
+(none in B3 files; warning count went from 12 to 11 because a
+sibling agent removed an unrelated unused-var).
 
 ### B4 — Achievements UI
 
