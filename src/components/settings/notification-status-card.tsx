@@ -327,7 +327,6 @@ function stateBadgeFor(
         icon: <Clock className="h-3 w-3" aria-hidden />,
       };
     case "manually_disabled":
-    default:
       return {
         label: t("settings.notificationStatus.stateManuallyDisabled"),
         variant: "secondary",

@@ -8,7 +8,6 @@
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 import {
-  MAX_CONSECUTIVE_FAILURES,
   nextRetryAt,
   shouldAutoDisableAfterTransient,
   type SendOutcome,
@@ -167,5 +166,3 @@ export function isChannelInCooldown(
 ): boolean {
   return channel.nextRetryAt !== null && channel.nextRetryAt > now;
 }
-
-export const TEST_CONSTANTS = { MAX_CONSECUTIVE_FAILURES } as const;

@@ -5,6 +5,7 @@ import { apiSuccess } from "@/lib/api-response";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { getUserWithingsCredentials } from "@/lib/withings/credentials";
 import { refreshAccessToken } from "@/lib/withings/client";
+import { isWithingsRefreshReauthFailure } from "@/lib/withings/sync";
 import { markReauthRequired } from "@/lib/integrations/status";
 
 /**
@@ -80,17 +81,7 @@ export const GET = apiHandler(async () => {
       // the user reconnects. We mirror the same status-code parsing
       // the sync path does.
       const message = error instanceof Error ? error.message : String(error);
-      const statusMatch = /Withings\s+\w+\s+error:\s*(\d+)/.exec(message);
-      const statusCode = statusMatch
-        ? Number.parseInt(statusMatch[1], 10)
-        : NaN;
-      const isReauth =
-        Number.isFinite(statusCode) &&
-        (statusCode === 100 ||
-          statusCode === 101 ||
-          statusCode === 102 ||
-          (statusCode >= 200 && statusCode <= 299));
-      if (isReauth) {
+      if (isWithingsRefreshReauthFailure(message)) {
         await markReauthRequired(user.id, "withings", message).catch(() => {});
       }
     }

@@ -237,7 +237,7 @@ export async function syncUserMeasurements(
  * The error message format from `refreshAccessToken()` is
  * "Withings refresh error: <status> - <error>".
  */
-function isWithingsRefreshReauthFailure(message: string): boolean {
+export function isWithingsRefreshReauthFailure(message: string): boolean {
   const status = extractWithingsStatus(message);
   if (!status) return false;
   const n = Number.parseInt(status, 10);
@@ -247,7 +247,7 @@ function isWithingsRefreshReauthFailure(message: string): boolean {
   return false;
 }
 
-function extractWithingsStatus(message: string): string | undefined {
+export function extractWithingsStatus(message: string): string | undefined {
   // Captures the digit run after "Withings <verb> error:" — same shape
   // exchangeCode and refreshAccessToken use.
   const m = /Withings\s+\w+\s+error:\s*(\d+)/.exec(message);

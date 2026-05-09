@@ -4,7 +4,6 @@ import {
   setCachedCodexSlug,
   invalidateCachedCodexSlug,
   clearCodexSlugCache,
-  inspectCodexSlugCache,
   CODEX_SLUG_CACHE_TTL_MS,
 } from "../codex-slug-cache";
 
@@ -19,7 +18,6 @@ describe("Codex slug cache", () => {
 
   it("starts empty", () => {
     expect(getCachedCodexSlug()).toBeNull();
-    expect(inspectCodexSlugCache()).toBeNull();
   });
 
   it("set + get returns the cached slug within TTL", () => {
@@ -43,8 +41,8 @@ describe("Codex slug cache", () => {
   it("expired entry is evicted on read", () => {
     setCachedCodexSlug("gpt-5.3-codex", 1_000);
     getCachedCodexSlug(1_000 + CODEX_SLUG_CACHE_TTL_MS + 1);
-    // Subsequent inspect should be null too.
-    expect(inspectCodexSlugCache(1_000 + CODEX_SLUG_CACHE_TTL_MS + 1)).toBeNull();
+    // Subsequent get should be null too (no resurrection).
+    expect(getCachedCodexSlug(1_000 + CODEX_SLUG_CACHE_TTL_MS + 1)).toBeNull();
   });
 
   it("invalidate clears the slot", () => {
@@ -57,11 +55,5 @@ describe("Codex slug cache", () => {
     setCachedCodexSlug("a", 1_000);
     setCachedCodexSlug("b", 2_000);
     expect(getCachedCodexSlug(2_500)).toBe("b");
-  });
-
-  it("inspect reports age in ms", () => {
-    setCachedCodexSlug("gpt-5.3-codex", 1_000);
-    const inspected = inspectCodexSlugCache(1_500);
-    expect(inspected).toEqual({ slug: "gpt-5.3-codex", ageMs: 500 });
   });
 });

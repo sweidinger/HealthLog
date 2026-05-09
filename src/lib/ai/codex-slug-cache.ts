@@ -59,16 +59,4 @@ export function clearCodexSlugCache(): void {
   cache.clear();
 }
 
-/**
- * Diagnostic helper — exposes (slug, ageMs) for Wide-Event annotation.
- * Returns null when nothing is cached.
- */
-export function inspectCodexSlugCache(
-  now: number = Date.now(),
-): { slug: string; ageMs: number } | null {
-  const entry = cache.get(CACHE_KEY);
-  if (!entry) return null;
-  return { slug: entry.slug, ageMs: now - entry.cachedAtMs };
-}
-
 export const CODEX_SLUG_CACHE_TTL_MS = CACHE_TTL_MS;

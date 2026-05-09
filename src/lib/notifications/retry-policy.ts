@@ -25,8 +25,6 @@
  *    response that doesn't match the hard-reject rules.
  */
 
-export type RejectKind = "hard" | "soft" | "ok";
-
 export interface SendOutcome {
   ok: boolean;
   /** True iff the upstream signaled a permanent failure (410, blocked-by-user, …). */

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { CodexClient, __test } from "../codex-client";
 import {
   clearCodexSlugCache,
-  inspectCodexSlugCache,
+  getCachedCodexSlug,
   setCachedCodexSlug,
   CODEX_SLUG_CACHE_TTL_MS,
 } from "../codex-slug-cache";
@@ -105,7 +105,7 @@ describe("Codex slug fallback chain", () => {
     expect(diagnostics?.cacheState).toBe("miss");
     expect(diagnostics?.workingSlug).toBe("gpt-5.3-codex");
 
-    expect(inspectCodexSlugCache()?.slug).toBe("gpt-5.3-codex");
+    expect(getCachedCodexSlug()).toBe("gpt-5.3-codex");
   });
 
   it("walks past first slug on 'not supported when using Codex with a ChatGPT account' 400", async () => {
@@ -134,7 +134,7 @@ describe("Codex slug fallback chain", () => {
     expect(diagnostics?.workingSlug).toBe("gpt-5.3-codex");
 
     // The working slug — not the rejected one — is now cached.
-    expect(inspectCodexSlugCache()?.slug).toBe("gpt-5.3-codex");
+    expect(getCachedCodexSlug()).toBe("gpt-5.3-codex");
   });
 
   it("walks past first slug on 400 with model_not_found body", async () => {
@@ -302,7 +302,7 @@ describe("Codex slug fallback chain", () => {
 
   it("cache invalidated when cached slug starts rejecting", async () => {
     setCachedCodexSlug("gpt-5-codex");
-    expect(inspectCodexSlugCache()?.slug).toBe("gpt-5-codex");
+    expect(getCachedCodexSlug()).toBe("gpt-5-codex");
 
     const mockFetch = vi
       .fn()
@@ -320,7 +320,7 @@ describe("Codex slug fallback chain", () => {
 
     // After walking to "gpt-5.3-codex" (the next entry after the
     // cached one), the cache is updated to the new working slug.
-    expect(inspectCodexSlugCache()?.slug).toBe("gpt-5.3-codex");
+    expect(getCachedCodexSlug()).toBe("gpt-5.3-codex");
   });
 
   it("isSlugRejection helper recognises canonical rejection bodies", () => {

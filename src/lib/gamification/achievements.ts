@@ -41,11 +41,6 @@ export interface AchievementDefinition {
   format: "count" | "days" | "percent";
 }
 
-/**
- * Stable metric → category mapping. Add a metric here when it joins the
- * `AchievementMetricKey` union; the page falls back to "engagement" if
- * a future definition slips through, so there is no silent drop-off.
- */
 export function getAchievementCategory(
   metric: AchievementMetricKey,
 ): AchievementCategory {
