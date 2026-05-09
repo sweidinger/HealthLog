@@ -98,6 +98,17 @@ describe("settings sections — SSR smoke", () => {
     expect(html).not.toContain("settings.sections.");
   });
 
+  it("<AccountSection> exposes a Restart-tour button for B5 replay", () => {
+    const html = render(<AccountSection />);
+    // v1.4.15 phase B5 acceptance criterion 4: Settings → Account
+    // exposes a "Restart onboarding tour" button that resets the
+    // server-side flag. Rendered as a card next to Password reset.
+    expect(html).toContain('data-testid="settings-restart-tour"');
+    expect(html).toContain("Restart onboarding tour");
+    // No raw i18n key leaks.
+    expect(html).not.toContain("onboarding.tour.");
+  });
+
   it("<AboutSection> renders version + license + check-for-updates button", () => {
     const html = render(<AboutSection />);
     expect(html).toContain("About");

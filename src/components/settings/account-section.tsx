@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Compass,
   KeyRound,
   Loader2,
   Save,
@@ -75,6 +76,19 @@ export function AccountSection() {
     "success" | "error" | null
   >(null);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+
+  // v1.4.15 Phase B5 — onboarding-tour replay state. Settings → Account
+  // exposes a "Restart onboarding tour" button that resets the
+  // server-side flag (`users.onboarding_tour_completed = false`) and
+  // dispatches a `healthlog:tour-restart` window event so the dashboard's
+  // <TourLauncher> picks it up immediately on the user's next nav. The
+  // confirmation message goes through the same announce channel as
+  // every other settings save (status: "success" | "error" | null).
+  const [tourRestarting, setTourRestarting] = useState(false);
+  const [tourMsg, setTourMsg] = useState<string | null>(null);
+  const [tourMsgType, setTourMsgType] = useState<"success" | "error" | null>(
+    null,
+  );
 
   // Passkey registration state.
   const [passkeyLoading, setPasskeyLoading] = useState(false);
@@ -183,6 +197,41 @@ export function AccountSection() {
       setPasskeyMsgType("error");
     } finally {
       setPasskeyLoading(false);
+    }
+  }
+
+  async function handleRestartTour() {
+    setTourRestarting(true);
+    setTourMsg(null);
+    setTourMsgType(null);
+    try {
+      const res = await fetch("/api/onboarding/tour", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed: false }),
+      });
+      if (!res.ok) {
+        setTourMsg(t("settings.savingError"));
+        setTourMsgType("error");
+        return;
+      }
+      // Refetch the auth payload so `<TourLauncher>` re-evaluates
+      // with the new flag, AND fire a window event so a launcher
+      // already mounted on the dashboard reopens immediately
+      // without waiting for a navigation.
+      await refetch();
+      try {
+        window.dispatchEvent(new CustomEvent("healthlog:tour-restart"));
+      } catch {
+        /* ignore — only matters if the dashboard is already mounted */
+      }
+      setTourMsg(t("onboarding.tour.restartConfirmation"));
+      setTourMsgType("success");
+    } catch {
+      setTourMsg(t("common.networkError"));
+      setTourMsgType("error");
+    } finally {
+      setTourRestarting(false);
     }
   }
 
@@ -429,6 +478,50 @@ export function AccountSection() {
         <p className="text-muted-foreground mt-1 text-xs">
           {t("settings.changePasswordDescription")}
         </p>
+      </div>
+
+      {/* Tour replay card. v1.4.15 Phase B5: a one-shot button that
+          resets `users.onboarding_tour_completed` on the server AND
+          dispatches a window event so a dashboard already in the
+          background reopens the spotlight tour immediately. */}
+      <div className="bg-card border-border rounded-xl border p-6">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Compass className="text-primary h-5 w-5" />
+            <h2 className="text-lg font-semibold">
+              {t("onboarding.tour.restart")}
+            </h2>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleRestartTour}
+            disabled={tourRestarting}
+            data-testid="settings-restart-tour"
+          >
+            {tourRestarting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Compass className="mr-2 h-4 w-4" />
+            )}
+            {t("onboarding.tour.restart")}
+          </Button>
+        </div>
+        <p className="text-muted-foreground mt-1 text-xs">
+          {t("onboarding.tour.restartHint")}
+        </p>
+        {tourMsg && (
+          <p
+            role="alert"
+            className={`mt-2 text-xs ${
+              tourMsgType === "success"
+                ? "text-dracula-green"
+                : "text-destructive"
+            }`}
+          >
+            {tourMsg}
+          </p>
+        )}
       </div>
 
       <Dialog
