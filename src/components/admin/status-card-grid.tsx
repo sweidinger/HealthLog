@@ -144,7 +144,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "Admins", value: data.users.admins },
         { label: "New 7d", value: data.users.newThisWeek },
       ],
-      href: "/admin#section-user-management",
+      href: "/admin/users",
       cta: "Manage users",
     },
     {
@@ -156,7 +156,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "moodLog", value: data.integrations.moodLog },
         { label: "Push", value: data.integrations.webPush },
       ],
-      href: "/admin#section-admin-umami",
+      href: "/admin/integrations",
       cta: "Open integrations",
     },
     {
@@ -174,7 +174,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         },
         { label: "Last err", value: fmtRelative(data.monitoring.lastErrorAt) },
       ],
-      href: "/admin#section-admin-glitchtip",
+      href: "/admin/integrations",
       cta: "View monitoring",
     },
     {
@@ -186,8 +186,8 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "Users", value: data.backups.backedUpUsers },
         { label: "Retain", value: `${data.backups.retentionDays}d` },
       ],
-      href: "/admin#section-system-status",
-      cta: "Open system status",
+      href: "/admin/backups",
+      cta: "Open backups",
     },
     {
       title: "Maintenance",
@@ -207,7 +207,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
           value: fmtRelative(data.maintenance.lastIdempotencyCleanup),
         },
       ],
-      href: "/admin#section-admin-reminders",
+      href: "/admin/reminders",
       cta: "View jobs",
     },
     {
@@ -219,7 +219,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "Last login", value: fmtRelative(data.auditLog.lastLoginAt) },
         { label: "—", value: "" },
       ],
-      href: "/admin#section-login-overview",
+      href: "/admin/login-overview",
       cta: "Open viewer",
     },
   ];
