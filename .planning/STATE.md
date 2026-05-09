@@ -98,18 +98,18 @@ fix 3.
 ### A4 — Dashboard analytics fixes
 
 - [x] BD-Zielbereich 0% bug — calculation review (`a967895` — Fix 1 files
-  bundled into A2's commit by index-race; new helper at
-  `src/lib/analytics/bp-in-target.ts` + 7 unit tests)
+      bundled into A2's commit by index-race; new helper at
+      `src/lib/analytics/bp-in-target.ts` + 7 unit tests)
 - [x] Medikamente graph wired to layout toggle (`bffdccb` — Fix 2 files
-  also caught by index-race; new
-  `src/components/charts/medication-compliance-chart.tsx` + 7 tests)
+      also caught by index-race; new
+      `src/components/charts/medication-compliance-chart.tsx` + 7 tests)
 - [x] Stimmung-chart auto-aggregates to weekly/monthly + chip in header
-  (`47ac14b`)
+      (`47ac14b`)
 - [x] "7-Tage-Schnitt" → "7-Tage-Trend" with metric-aware delta
-  indicator on every tile (`4e2386e`)
+      indicator on every tile (`4e2386e`)
 - [x] Dashboard layout settings: tiles independently selectable from
-  charts; new `tileVisible` field with mirror-fallback for legacy
-  saved layouts (`8ccdfac`)
+      charts; new `tileVisible` field with mirror-fallback for legacy
+      saved layouts (`8ccdfac`)
 - Detailed report: `.planning/phase-A4-report.md`
 
 #### A4 status block — 2026-05-09T20:38+02:00
@@ -165,13 +165,14 @@ Audit complete. 26 findings across 16 routes:
   to `e2e/` per scope).
 
 **Most impactful 3 fixes (best impact-per-LOC, ordered for fix-agent)**:
+
 1. Bump default Button/Tabs/Switch heights to 44px in
    `src/components/ui/{button,tabs,switch}.tsx` — closes 12+ tap-target
    findings in one change.
 2. Add `touch-action: pan-y` (Tailwind `touch-pan-y`) to the chart
    wrapper `<div>` in 5 chart components — fixes Marc's
    "Scrolling-Hänger im Dashboard auf Charts".
-3. Replace overflowing tab strips on /settings/* and /admin/* with
+3. Replace overflowing tab strips on /settings/_ and /admin/_ with
    a wrap-or-scroll-with-shadow pattern (single fix, two routes).
 
 **Scroll-lockup root cause**: Recharts 3.8.1 wrapper has
@@ -183,6 +184,44 @@ devices. Empirical measurement on production: `cancelable=true`,
 React passive listeners). One-line CSS fix per chart wrapper.
 
 ## Phase B — Bigger features (6 parallelizable items)
+
+### B-mobile — Mobile audit fix-application
+
+- [x] CRITICAL #1 — chart wrappers gain `touch-pan-y` (5 charts)
+  — `316c3b0`
+- [x] CRITICAL #2 — `/admin/users` mobile card-list at `< md`
+  (landed under `41945b2`'s message — see report for race detail)
+- [x] HIGH cluster — chart range buttons + chart switches +
+  medication primary buttons + mood-list mobile icon buttons all
+  44px-aligned — `8370b2d`
+- [x] HIGH — `/settings/account` passkey table responsive (card-
+  list at `< md`) — `00f8cd5`
+- [x] MEDIUM — `/auth/login` Sign-in CTAs to 44px — `c0b14f4`
+- [ ] DEFERRED to v1.4.16 — `/insights` + `/admin` tab strip
+  overflow (cross-cutting `tabs.tsx`)
+- [ ] DEFERRED to v1.4.16 — `/measurements` BP sys/dia row
+  grouping
+- [ ] DEFERRED to v1.4.16 — bottom-nav 5+More IA decision
+- Detailed report: `.planning/phase-B-mobile-report.md`
+
+#### B-mobile status block — 2026-05-09T20:54+02:00
+
+5 commits shipped, 2 / 2 CRITICAL fixed, 6 / 8 HIGH addressed,
+3 MEDIUM picked up opportunistically. Remaining 5 deferred items
+all touch cross-cutting primitives (`tabs.tsx`) or larger logic
+changes (BP grouping, bottom-nav IA) better done in a single
+v1.4.16 design-systems / nav-IA pass.
+
+Tests: 863 / 863 unit pass (was 812 at phase start). Typecheck:
+1 pre-existing error (dashboard-layout.test.ts narrow-string
+mismatch) reproduces on `git stash` — not mine. Lint: 0 errors,
+12 warnings (none in B-mobile files).
+
+Race observations: shared-cwd commit race reproduced twice (fix 2 +
+fix 3 first attempts had wrong files committed under correct
+messages); switched to `git commit -- <pathspec>` for fixes 3 / 4 /
+5 which behaved atomically. v1.4.16 should adopt
+`superpowers:using-git-worktrees` per agent.
 
 ### B1 — Backup completeness
 
