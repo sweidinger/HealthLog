@@ -40,13 +40,14 @@ Last update: 2026-05-09T16:10:00+02:00
 
 ## Phase 3 — End-to-end test coverage
 
-- [x] Authenticated dashboard render — `e2e/dashboard.spec.ts` (commit pending)
-- [x] Add measurement flow — `e2e/measurement-flow.spec.ts` (commit pending)
-- [x] Settings → KI Codex flow (mocked) — `e2e/codex-flow.spec.ts` (commit pending)
-- [x] Doctor report PDF — `e2e/doctor-report.spec.ts` (commit pending)
-- [x] Insights generation flow (mocked) — `e2e/insights-generate.spec.ts` (commit pending)
-- [x] Mobile-viewport smoke (Pixel 5) — `e2e/mobile-viewport.spec.ts` (commit pending)
-- [x] axe-core extended to `/` and `/settings/integrations`; `/admin` parked as `test.fixme()` (admin shell off-limits this phase, restructured by 4b)
+- [x] Authenticated dashboard render — `e2e/dashboard.spec.ts` — commit `3999ea7`
+- [x] Add measurement flow — `e2e/measurement-flow.spec.ts` — commit `3999ea7`
+- [x] Settings → KI Codex flow (mocked) — `e2e/codex-flow.spec.ts` — commit `2b6f959`
+- [x] Doctor report PDF — `e2e/doctor-report.spec.ts` — commit `a106547`
+- [x] Insights generation flow (mocked) — `e2e/insights-generate.spec.ts` — commit `2b6f959`
+- [x] Mobile-viewport smoke (Pixel 5) — `e2e/mobile-viewport.spec.ts` — commit `a106547`
+- [x] axe-core extended to `/` and `/settings/integrations`; `/admin` parked as `test.fixme()` (admin shell off-limits this phase, restructured by 4b) — commit `ca3c599` (+ a11y fixes `7af1f59`)
+- Foundation: seeded test user + storageState fixture — commit `535465c`
 - Result: 41/41 active specs green locally (Node 22, fresh DB); 3 skipped (mobile-only spec on desktop project × 2 + `/admin` a11y fixme × 2 projects)
 - Detailed report: `.planning/phase-3-report.md`
 
