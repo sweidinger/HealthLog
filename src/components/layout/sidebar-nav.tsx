@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { useTheme } from "@/components/providers";
+import { useAppSettings } from "@/components/app-settings-provider";
 import { useTranslations } from "@/lib/i18n/context";
 import { ADMIN_SECTIONS } from "@/components/admin/admin-shell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -215,6 +216,7 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { t } = useTranslations();
   const { user } = useAuth();
+  const { bugReportEnabled } = useAppSettings();
   const isAdmin = user?.role === "ADMIN";
   const onAdminPage = pathname.startsWith("/admin");
   const [collapsed, setCollapsed] = useState(() => {
@@ -371,27 +373,29 @@ export function SidebarNav() {
         <div className={cn("space-y-1 pb-1", collapsed ? "px-1.5" : "px-3")}>
           {collapsed ? (
             <>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link
-                    href="/bugreport"
-                    aria-current={
-                      pathname === "/bugreport" ? "page" : undefined
-                    }
-                    className={cn(
-                      "flex items-center justify-center rounded-lg p-2.5 transition-colors",
-                      pathname === "/bugreport"
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <Bug className="h-4 w-4" />
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8}>
-                  {t("nav.bugreport")}
-                </TooltipContent>
-              </Tooltip>
+              {bugReportEnabled && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="/bugreport"
+                      aria-current={
+                        pathname === "/bugreport" ? "page" : undefined
+                      }
+                      className={cn(
+                        "flex items-center justify-center rounded-lg p-2.5 transition-colors",
+                        pathname === "/bugreport"
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-accent",
+                      )}
+                    >
+                      <Bug className="h-4 w-4" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={8}>
+                    {t("nav.bugreport")}
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {isAdmin && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -437,19 +441,21 @@ export function SidebarNav() {
             </>
           ) : (
             <>
-              <Link
-                href="/bugreport"
-                aria-current={pathname === "/bugreport" ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  pathname === "/bugreport"
-                    ? "bg-primary/10 text-primary"
-                    : "text-foreground hover:bg-accent",
-                )}
-              >
-                <Bug className="h-4 w-4" />
-                {t("nav.bugreport")}
-              </Link>
+              {bugReportEnabled && (
+                <Link
+                  href="/bugreport"
+                  aria-current={pathname === "/bugreport" ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    pathname === "/bugreport"
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground hover:bg-accent",
+                  )}
+                >
+                  <Bug className="h-4 w-4" />
+                  {t("nav.bugreport")}
+                </Link>
+              )}
               {isAdmin && (
                 <>
                   <Link

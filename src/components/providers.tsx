@@ -12,6 +12,7 @@ import {
 import { I18nProvider } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/config";
 import { Toaster } from "@/components/ui/sonner";
+import { AppSettingsProvider } from "@/components/app-settings-provider";
 
 // ── Theme Context ────────────────────────────────────
 
@@ -126,8 +127,10 @@ export function Providers({
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <I18nProvider initialLocale={initialLocale}>
-          {children}
-          <Toaster position="bottom-right" richColors />
+          <AppSettingsProvider>
+            {children}
+            <Toaster position="bottom-right" richColors />
+          </AppSettingsProvider>
         </I18nProvider>
       </ThemeProvider>
     </QueryClientProvider>
