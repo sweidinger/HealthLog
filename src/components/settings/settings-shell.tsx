@@ -19,6 +19,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  Download,
   Info,
   KeyRound,
   LayoutDashboard,
@@ -87,6 +88,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   },
   { slug: "ai", titleKey: "settings.sections.ai.title", icon: Sparkles },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
+  {
+    slug: "export",
+    titleKey: "settings.sections.export.title",
+    icon: Download,
+  },
   {
     slug: "advanced",
     titleKey: "settings.sections.advanced.title",

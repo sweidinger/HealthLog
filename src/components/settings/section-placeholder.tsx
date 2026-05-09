@@ -13,6 +13,7 @@
 
 import {
   Bell,
+  Download,
   Info,
   KeyRound,
   LayoutDashboard,
@@ -36,6 +37,7 @@ const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   thresholds: SlidersHorizontal,
   ai: Sparkles,
   api: KeyRound,
+  export: Download,
   advanced: Settings2,
   about: Info,
 };

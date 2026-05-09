@@ -14,6 +14,7 @@ export const SETTINGS_SECTION_SLUGS = [
   "thresholds",
   "ai",
   "api",
+  "export",
   "advanced",
   "about",
 ] as const;

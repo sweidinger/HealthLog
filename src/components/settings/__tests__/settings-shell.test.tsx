@@ -35,12 +35,15 @@ function renderShell(props: {
 }
 
 describe("SETTINGS_SECTION_SLUGS", () => {
-  it("declares exactly the nine sections agreed for v1.4.3", () => {
+  it("declares the ten sections agreed for v1.4.16", () => {
     // Order matters — `generateStaticParams()` and the sidebar derive their
     // ordering from this constant, so a reorder is a behaviour change.
     // v1.4.3 split the dashboard panel: layout stays under `dashboard`,
     // per-metric overrides moved to their own `thresholds` slug so it's
     // a top-level entry in the settings nav.
+    // v1.4.16 phase B7 added the consolidated `export` section between
+    // `api` and `advanced` so every "give me my data out" path lives in
+    // one place.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "integrations",
@@ -49,6 +52,7 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "thresholds",
       "ai",
       "api",
+      "export",
       "advanced",
       "about",
     ]);
@@ -133,6 +137,9 @@ describe("<SettingsShell>", () => {
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
     // form so we don't accidentally match a parser that double-escapes.
     expect(html).toContain("API &amp; Tokens");
+    // v1.4.16 phase B7: the consolidated Export section is a top-level
+    // entry in the sidebar; the link must be present in both locales.
+    expect(html).toContain('href="/settings/export"');
     expect(html).toContain("Advanced");
     expect(html).toContain("About");
   });
