@@ -12,14 +12,28 @@ import { apiHandler, requireAdmin, HttpError } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 const DATA_BACKUP_QUEUE = "data-backup";
 
 export const POST = apiHandler(async () => {
-  await requireAdmin();
+  const { user: admin } = await requireAdmin();
   annotate({ action: { name: "admin.backups.run" } });
+
+  // pg-boss does not dedupe by payload; without a rate-limit, an
+  // impatient admin (or compromised admin session) can stack dozens of
+  // identical jobs on the queue. Three runs/min per admin is plenty
+  // for ad-hoc snapshots — the weekly cron carries the regular cadence.
+  const rl = await checkRateLimit(
+    `admin-backups-run:${admin.id}`,
+    3,
+    60 * 1000,
+  );
+  if (!rl.allowed) {
+    throw new HttpError(429, "Too many backup runs");
+  }
 
   const boss = getGlobalBoss();
   if (!boss) {
