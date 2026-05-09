@@ -861,15 +861,50 @@ notifications, messages mass refactor, correlation-card inline empty
 surfaces inside /insights (already use a tighter custom variant —
 refactor would be churn-only, deferred to v1.4.16).
 
-## Phase D — Multi-agent QA (parallel, write-only)
+## Phase D — Multi-agent QA (parallel)
 
-- [ ] code-reviewer
-- [ ] security review
-- [ ] design / UX review
-- [ ] senior-dev review (architecture/maintainability — separate from code-review)
-- [ ] simplify on changed file set
-- [ ] reconcile + apply CRITICAL/HIGH inline
-- Detailed report: `.planning/phase-D-report.md`
+- [x] code-reviewer (4 HIGH, 12 MED/LOW — `phase-D-code-review-findings.md`)
+- [x] security review (0 HIGH, 8 MED/LOW — `phase-D-security-findings.md`)
+- [x] design / UX review (5 HIGH, 11 MED/LOW — `phase-D-design-findings.md`)
+- [x] senior-dev review (4 HIGH, 8 MED/LOW — `phase-D-senior-dev-findings.md`)
+- [x] simplify on changed file set (6 yes, 4 no — `phase-D-simplify-findings.md`)
+- [x] reconcile + apply CRITICAL/HIGH inline (`phase-D-reconcile-report.md`)
+- Detailed report: `.planning/phase-D-reconcile-report.md`
+
+#### Phase D status block — 2026-05-09T22:25+02:00 — done
+
+5 reviewers + reconcile complete. 0 CRITICAL across all reviewers.
+Triage:
+
+- **Simplify-yes**: 6 / 6 applied, 0 reverted (commit `cd3b890`).
+- **HIGH fixed** (5): design H1/H2/H3 tour focus-trap + DE-overflow +
+  backdrop ring (`6465412`), design H5 Withings error wrap
+  (`66d2e07`), senior-dev H4 MockAIProvider strict-schema default
+  (`79bb167`).
+- **HIGH deferred** (8): code-review H1-H4 (admin-only leaks /
+  edge-cases / charts visual constraint / multi-account only),
+  design H4 (cross-cutting `button.tsx` 44px sweep), senior-dev H1-H3
+  (1031 LOC `page.tsx` split, 883 LOC `integrations-section.tsx`
+  split, worktree adoption process). All in `v1416-backlog.md`.
+
+Tests: 1047 / 1047 unit pass. Typecheck: 3 pre-existing errors in
+`dashboard-layout.test.ts` (A4 owns; reproduces on clean stash).
+Lint: 0 errors, 11 pre-existing warnings. Format: touched files
+clean; pre-existing 41-file format drift across the wider tree
+flagged for v1.4.16.
+
+5 commits on `origin/main`:
+- `cd3b890` simplify-review safe suggestions
+- `6465412` tour focus-trap + DE-overflow + backdrop ring (a11y)
+- `66d2e07` Withings error string break-words (a11y)
+- `79bb167` MockAIProvider DEFAULT_RESPONSE strict schema
+- `d947563` prettier sweep on touched files
+
+Backlog written: `.planning/v1416-backlog.md` —
+8 deferred HIGH + 39 MED/LOW + 4 simplify-no + 3 process items.
+Most impactful pre-v1.4.16 fast-track: M4 dispatcher legacy
+Telegram migration (silently unwinds B3 hard-rejects) and M6
+senior-dev AI strict-schema route migration.
 
 ## Phase E — Release v1.4.15
 
