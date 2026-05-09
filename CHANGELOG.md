@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.10] — 2026-05-09
+
+### Fixed — KI Insights via ChatGPT
+
+- **Codex-Backend bekommt jetzt das richtige Request-Format.** Nach
+  dem v1.4.9-Connect war der OAuth durch, aber jeder echte Insight-
+  Call ist mit `Codex request failed (400) — "Input must be a list"`
+  gestorben. Der `chatgpt.com/backend-api/codex/responses`-Endpoint
+  spricht das OpenAI-Responses-API-Schema (`input: ResponseItem[]`)
+  und nicht das Chat-Completions-Schema mit String-Input. v1.4.10
+  baut den Body korrekt — `input` ist eine Liste mit einem
+  Message-Item, das wiederum eine Liste von `input_text`-Content-
+  Blöcken trägt — exakt wie die `ResponsesApiRequest`-Struktur im
+  offiziellen `codex-rs/codex-api/src/common.rs`. Settings → KI
+  "Verbindung testen" und der Insight-Generator laufen damit jetzt
+  beide gegen dein ChatGPT-Abo durch.
+
 ## [1.4.9] — 2026-05-09
 
 ### Fixed — Settings · KI

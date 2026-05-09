@@ -69,6 +69,10 @@ export class CodexClient implements AIProvider {
   }
 
   private async doRequest(params: CompletionParams): Promise<Response> {
+    // The chatgpt.com/backend-api/codex/responses endpoint expects the
+    // OpenAI Responses API shape: `input` is an array of typed message
+    // items, NOT a raw string. The Codex CLI's `ResponsesApiRequest`
+    // (`codex-rs/codex-api/src/common.rs`) is the canonical definition.
     return fetch(CODEX_ENDPOINT, {
       method: "POST",
       headers: {
@@ -78,7 +82,17 @@ export class CodexClient implements AIProvider {
       body: JSON.stringify({
         model: CODEX_MODEL,
         instructions: params.systemPrompt,
-        input: params.userPrompt,
+        input: [
+          {
+            type: "message",
+            role: "user",
+            content: [{ type: "input_text", text: params.userPrompt }],
+          },
+        ],
+        tools: [],
+        tool_choice: "auto",
+        parallel_tool_calls: false,
+        store: false,
         stream: false,
       }),
     });
