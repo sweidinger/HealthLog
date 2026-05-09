@@ -39,39 +39,27 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
-// Recharts is ~108 KiB Brotli — defer-import the scatter primitives so they
-// only land in the bundle once a correlation card actually renders. Every
-// `<ResponsiveContainer>`/`<ScatterChart>`/`<Scatter>`/axis/grid/tooltip use
-// site sits inside a `length >= 5` gate and is below the fold, so the first
-// paint never waits on Recharts. v1.5 perf audit (docs/audit/v15-performance.md).
-const ScatterChart = dynamic(
-  () => import("recharts").then((mod) => ({ default: mod.ScatterChart })),
-  { ssr: false },
-);
-const Scatter = dynamic(
-  () => import("recharts").then((mod) => ({ default: mod.Scatter })),
-  { ssr: false },
-);
-const XAxis = dynamic(
-  () => import("recharts").then((mod) => ({ default: mod.XAxis })),
-  { ssr: false },
-);
-const YAxis = dynamic(
-  () => import("recharts").then((mod) => ({ default: mod.YAxis })),
-  { ssr: false },
-);
-const CartesianGrid = dynamic(
-  () => import("recharts").then((mod) => ({ default: mod.CartesianGrid })),
-  { ssr: false },
-);
-const Tooltip = dynamic(
-  () => import("recharts").then((mod) => ({ default: mod.Tooltip })),
-  { ssr: false },
-);
-const ResponsiveContainer = dynamic(
+// Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
+// wrapper so the bundle only lands once a correlation card actually renders.
+// Every scatter card sits inside a `length >= 5` gate and below the fold,
+// matching the existing HealthChart / MoodChart pattern. The earlier attempt
+// (v1.5 phase 4) wrapped each Recharts primitive (XAxis/YAxis/etc.) in
+// next/dynamic individually, which broke Recharts' internal child-type
+// detection (`findAllByType` compares against the original component
+// identity, not the dynamic HOC). Splitting at the wrapper level keeps the
+// bundle savings while preserving visual parity. See
+// docs/audit/v15-performance.md (v1.5 phase-4 perf audit).
+const ScatterCorrelationChart = dynamic(
   () =>
-    import("recharts").then((mod) => ({ default: mod.ResponsiveContainer })),
-  { ssr: false },
+    import("@/components/charts/scatter-correlation-chart").then((mod) => ({
+      default: mod.ScatterCorrelationChart,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-muted/40 h-[250px] w-full animate-pulse rounded-md motion-reduce:animate-none" />
+    ),
+  },
 );
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import {
@@ -1004,61 +992,25 @@ export default function InsightsPage() {
             <CardContent>
               {data.bpMedicationScatterData.length >= 5 ? (
                 <div className="space-y-2">
-                  <ResponsiveContainer width="100%" height={250}>
-                    <ScatterChart
-                      margin={{ top: 10, right: 20, bottom: 36, left: 12 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="hsl(var(--border))"
-                      />
-                      <XAxis
-                        dataKey="continuityPct"
-                        type="number"
-                        name={t("insights.continuityLabel")}
-                        unit="%"
-                        tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-                        tickMargin={8}
-                        height={52}
-                        interval="preserveStartEnd"
-                        padding={{ left: 8, right: 8 }}
-                        stroke="var(--dracula-comment)"
-                        label={{
-                          value: t("insights.continuityBpLabel"),
-                          position: "bottom",
-                          fontSize: 12,
-                          fill: "var(--dracula-comment)",
-                        }}
-                      />
-                      <YAxis
-                        dataKey="sysBP"
-                        type="number"
-                        name="Sys. BP"
-                        unit=" mmHg"
-                        tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-                        stroke="var(--dracula-comment)"
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "0.5rem",
-                          fontSize: "0.75rem",
-                        }}
-                        itemStyle={{ color: "var(--dracula-fg)" }}
-                        labelStyle={{ color: "var(--dracula-fg)" }}
-                        formatter={(value, name) => [
-                          `${value}${name === t("insights.continuityLabel") ? "%" : " mmHg"}`,
-                          name,
-                        ]}
-                      />
-                      <Scatter
-                        data={data.bpMedicationScatterData}
-                        fill="var(--dracula-orange)"
-                        opacity={0.8}
-                      />
-                    </ScatterChart>
-                  </ResponsiveContainer>
+                  <ScatterCorrelationChart
+                    data={data.bpMedicationScatterData}
+                    fill="var(--dracula-orange)"
+                    xAxis={{
+                      dataKey: "continuityPct",
+                      name: t("insights.continuityLabel"),
+                      unit: "%",
+                      label: t("insights.continuityBpLabel"),
+                    }}
+                    yAxis={{
+                      dataKey: "sysBP",
+                      name: "Sys. BP",
+                      unit: " mmHg",
+                    }}
+                    tooltipFormatter={(value, name) => [
+                      `${value}${name === t("insights.continuityLabel") ? "%" : " mmHg"}`,
+                      name,
+                    ]}
+                  />
                   {data.bpMedicationCorrelation && (
                     <p className="text-muted-foreground text-center text-xs">
                       {data.bpMedicationCorrelation.r < 0
@@ -1108,56 +1060,22 @@ export default function InsightsPage() {
               <CardContent>
                 {(data?.moodBpScatterData?.length ?? 0) >= 5 ? (
                   <div className="space-y-2">
-                    <ResponsiveContainer width="100%" height={250}>
-                      <ScatterChart
-                        margin={{ top: 10, right: 20, bottom: 36, left: 12 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke="hsl(var(--border))"
-                        />
-                        <XAxis
-                          dataKey="mood"
-                          type="number"
-                          name={t("insights.moodScoreLabel")}
-                          tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-                          tickMargin={8}
-                          height={52}
-                          domain={[1, 5]}
-                          ticks={[1, 2, 3, 4, 5]}
-                          stroke="var(--dracula-comment)"
-                          label={{
-                            value: t("insights.moodScoreLabel"),
-                            position: "bottom",
-                            fontSize: 12,
-                            fill: "var(--dracula-comment)",
-                          }}
-                        />
-                        <YAxis
-                          dataKey="sysBP"
-                          type="number"
-                          name="Sys. BP"
-                          unit=" mmHg"
-                          tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-                          stroke="var(--dracula-comment)"
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "0.5rem",
-                            fontSize: "0.75rem",
-                          }}
-                          itemStyle={{ color: "var(--dracula-fg)" }}
-                          labelStyle={{ color: "var(--dracula-fg)" }}
-                        />
-                        <Scatter
-                          data={data?.moodBpScatterData}
-                          fill="var(--dracula-lavender)"
-                          opacity={0.8}
-                        />
-                      </ScatterChart>
-                    </ResponsiveContainer>
+                    <ScatterCorrelationChart
+                      data={data?.moodBpScatterData}
+                      fill="var(--dracula-lavender)"
+                      xAxis={{
+                        dataKey: "mood",
+                        name: t("insights.moodScoreLabel"),
+                        label: t("insights.moodScoreLabel"),
+                        domain: [1, 5],
+                        ticks: [1, 2, 3, 4, 5],
+                      }}
+                      yAxis={{
+                        dataKey: "sysBP",
+                        name: "Sys. BP",
+                        unit: " mmHg",
+                      }}
+                    />
                     {data?.moodBpCorrelation && (
                       <p className="text-muted-foreground text-center text-xs">
                         {data.moodBpCorrelation.strength === "stark"
@@ -1275,62 +1193,26 @@ export default function InsightsPage() {
             <CardContent>
               {data.scatterData.length >= 5 ? (
                 <div className="space-y-2">
-                  <ResponsiveContainer width="100%" height={250}>
-                    <ScatterChart
-                      margin={{ top: 10, right: 20, bottom: 36, left: 12 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="hsl(var(--border))"
-                      />
-                      <XAxis
-                        dataKey="weight"
-                        type="number"
-                        name={t("dashboard.weight")}
-                        unit=" kg"
-                        tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-                        tickMargin={8}
-                        height={52}
-                        interval="preserveStartEnd"
-                        padding={{ left: 8, right: 8 }}
-                        tickFormatter={(value: number) => value.toFixed(1)}
-                        stroke="var(--dracula-comment)"
-                        label={{
-                          value: t("insights.weightKgLabel"),
-                          position: "bottom",
-                          fontSize: 12,
-                          fill: "var(--dracula-comment)",
-                        }}
-                      />
-                      <YAxis
-                        dataKey="sysBP"
-                        type="number"
-                        name="Sys. BP"
-                        unit=" mmHg"
-                        tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-                        stroke="var(--dracula-comment)"
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "0.5rem",
-                          fontSize: "0.75rem",
-                        }}
-                        itemStyle={{ color: "var(--dracula-fg)" }}
-                        labelStyle={{ color: "var(--dracula-fg)" }}
-                        formatter={(value, name) => [
-                          `${value} ${name === t("dashboard.weight") ? "kg" : "mmHg"}`,
-                          name,
-                        ]}
-                      />
-                      <Scatter
-                        data={data.scatterData}
-                        fill="var(--dracula-cyan)"
-                        opacity={0.8}
-                      />
-                    </ScatterChart>
-                  </ResponsiveContainer>
+                  <ScatterCorrelationChart
+                    data={data.scatterData}
+                    fill="var(--dracula-cyan)"
+                    xAxis={{
+                      dataKey: "weight",
+                      name: t("dashboard.weight"),
+                      unit: " kg",
+                      label: t("insights.weightKgLabel"),
+                      tickFormatter: (value: number) => value.toFixed(1),
+                    }}
+                    yAxis={{
+                      dataKey: "sysBP",
+                      name: "Sys. BP",
+                      unit: " mmHg",
+                    }}
+                    tooltipFormatter={(value, name) => [
+                      `${value} ${name === t("dashboard.weight") ? "kg" : "mmHg"}`,
+                      name,
+                    ]}
+                  />
                   {data.weightBpCorrelation && (
                     <p className="text-muted-foreground text-center text-xs">
                       {data.weightBpCorrelation.strength === "stark"
@@ -1376,56 +1258,22 @@ export default function InsightsPage() {
               <CardContent>
                 {(data?.moodWeightScatterData?.length ?? 0) >= 5 ? (
                   <div className="space-y-2">
-                    <ResponsiveContainer width="100%" height={250}>
-                      <ScatterChart
-                        margin={{ top: 10, right: 20, bottom: 36, left: 12 }}
-                      >
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke="hsl(var(--border))"
-                        />
-                        <XAxis
-                          dataKey="mood"
-                          type="number"
-                          name={t("insights.moodScoreLabel")}
-                          tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-                          tickMargin={8}
-                          height={52}
-                          domain={[1, 5]}
-                          ticks={[1, 2, 3, 4, 5]}
-                          stroke="var(--dracula-comment)"
-                          label={{
-                            value: t("insights.moodScoreLabel"),
-                            position: "bottom",
-                            fontSize: 12,
-                            fill: "var(--dracula-comment)",
-                          }}
-                        />
-                        <YAxis
-                          dataKey="weight"
-                          type="number"
-                          name={t("dashboard.weight")}
-                          unit=" kg"
-                          tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-                          stroke="var(--dracula-comment)"
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "0.5rem",
-                            fontSize: "0.75rem",
-                          }}
-                          itemStyle={{ color: "var(--dracula-fg)" }}
-                          labelStyle={{ color: "var(--dracula-fg)" }}
-                        />
-                        <Scatter
-                          data={data?.moodWeightScatterData}
-                          fill="var(--dracula-lavender)"
-                          opacity={0.8}
-                        />
-                      </ScatterChart>
-                    </ResponsiveContainer>
+                    <ScatterCorrelationChart
+                      data={data?.moodWeightScatterData}
+                      fill="var(--dracula-lavender)"
+                      xAxis={{
+                        dataKey: "mood",
+                        name: t("insights.moodScoreLabel"),
+                        label: t("insights.moodScoreLabel"),
+                        domain: [1, 5],
+                        ticks: [1, 2, 3, 4, 5],
+                      }}
+                      yAxis={{
+                        dataKey: "weight",
+                        name: t("dashboard.weight"),
+                        unit: " kg",
+                      }}
+                    />
                     {data?.moodWeightCorrelation && (
                       <p className="text-muted-foreground text-center text-xs">
                         {data.moodWeightCorrelation.strength === "stark"
