@@ -52,6 +52,39 @@ describe("redactSecrets", () => {
     );
   });
 
+  // v1.4.6 P11 hardening: the original `/sk-(?:ant-)?[A-Za-z0-9_-]+/`
+  // regex over-matched any word ending in `sk-…`, redacting common
+  // English compounds in error messages and PR descriptions. v1.5
+  // tightens the regex to require a non-alphanumeric prefix so the
+  // `sk-` token must actually start a secret.
+  it("does NOT redact common English compounds containing 'sk-'", () => {
+    expect(redactSecrets("task-force ABC")).toBe("task-force ABC");
+    expect(redactSecrets("risk-management note")).toBe("risk-management note");
+    expect(redactSecrets("disk-io 1234")).toBe("disk-io 1234");
+    // Mid-word matches must also be ignored (the `sk-` is preceded by a
+    // letter / digit, so it's part of an identifier, not a secret).
+    expect(redactSecrets("workflow:risk-management")).toBe(
+      "workflow:risk-management",
+    );
+    expect(redactSecrets("e2e_disk-io_check")).toBe("e2e_disk-io_check");
+  });
+
+  it("still redacts genuine sk- and sk-ant- API keys", () => {
+    // Start of string.
+    expect(redactSecrets("sk-1234567890abcdef")).toBe("[REDACTED]");
+    expect(redactSecrets("sk-ant-1234567890abcdef")).toBe("[REDACTED]");
+    // Preceded by whitespace, equals, brace, comma, etc. — the
+    // non-alphanumeric-prefix requirement.
+    expect(redactSecrets("apiKey=sk-1234567890abcdef end")).toBe(
+      "apiKey=[REDACTED] end",
+    );
+    expect(redactSecrets("OPENAI_API_KEY=sk-prod-abcDEF123456789012")).toBe(
+      "OPENAI_API_KEY=[REDACTED]",
+    );
+    // Trailing context preserved, leading separator preserved.
+    expect(redactSecrets(",sk-1234567890abcdef,")).toBe(",[REDACTED],");
+  });
+
   it("handles multiple secrets in one string", () => {
     // Bearer matches `\S+` so it greedily consumes `hlk_x;` — that's
     // safe (over-redaction is fine when the alternative is leaking).
