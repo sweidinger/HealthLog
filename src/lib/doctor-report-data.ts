@@ -44,7 +44,12 @@ export interface DoctorReportMood {
 }
 
 export interface DoctorReportData {
-  period: { days: number; since: string };
+  /**
+   * Reporting period bounds. `start` and `end` are ISO timestamps; `days` is
+   * the inclusive day-count between the two (rounded up) so existing callers
+   * that displayed "last N days" continue to work without a UI rewrite.
+   */
+  period: { days: number; since: string; start: string; end: string };
   patient: {
     username: string | null;
     dateOfBirth: string | null;
@@ -93,21 +98,100 @@ export function normaliseDays(value: unknown, fallback = 90): number {
   return fallback;
 }
 
+const MIN_RANGE_DAYS = 1;
 /**
- * Aggregate the doctor-report payload for a user over the last `days` days.
+ * Maximum span between `startDate` and `endDate`. Two years balances the
+ * "give me everything I have" case (chronic condition follow-up) against
+ * unbounded server work; the existing `days` fallback is capped at 365 so a
+ * caller asking for a 730-day window must come through the explicit-range
+ * surface and proves they want it.
+ */
+const MAX_RANGE_DAYS = 730;
+const DEFAULT_RANGE_DAYS = 90;
+
+export interface DoctorReportRange {
+  /** Start of the reporting window (UTC, inclusive). */
+  start: Date;
+  /** End of the reporting window (UTC, inclusive). */
+  end: Date;
+  /** Inclusive day-count between `start` and `end` (rounded up). */
+  days: number;
+}
+
+function parseIsoDate(value: unknown): Date | null {
+  if (typeof value !== "string" || value.length === 0) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+/**
+ * Turn an arbitrary `{ startDate?, endDate?, days? }` payload into a validated
+ * inclusive reporting window.
+ *
+ * Resolution order:
+ *  1. Both `startDate` AND `endDate` parse as valid ISO timestamps with
+ *     `endDate >= startDate` and span <= 730 days → use them.
+ *  2. Neither/invalid range, but a valid `days` integer (1..365) is provided
+ *     → fall back to "last `days` days ending now".
+ *  3. Otherwise fall back to "last 90 days ending now" (the v1.4.14 default).
+ *
+ * The function is intentionally tolerant: invalid input never throws — bad
+ * shapes silently fall through to the next tier so a malformed request
+ * still produces a useful report rather than a 422.
+ */
+export function normaliseDateRange(
+  value: unknown,
+  now: Date = new Date(),
+): DoctorReportRange {
+  const body =
+    typeof value === "object" && value !== null
+      ? (value as Record<string, unknown>)
+      : {};
+  const startCandidate = parseIsoDate(body.startDate);
+  const endCandidate = parseIsoDate(body.endDate);
+
+  if (startCandidate && endCandidate) {
+    const startMs = startCandidate.getTime();
+    const endMs = endCandidate.getTime();
+    if (endMs >= startMs) {
+      const spanMs = endMs - startMs;
+      const spanDays = Math.ceil(spanMs / 86_400_000) || 1;
+      if (spanDays >= MIN_RANGE_DAYS && spanDays <= MAX_RANGE_DAYS) {
+        return {
+          start: startCandidate,
+          end: endCandidate,
+          days: spanDays,
+        };
+      }
+    }
+  }
+
+  const days = normaliseDays(body.days, DEFAULT_RANGE_DAYS);
+  const end = now;
+  const start = new Date(end);
+  start.setDate(start.getDate() - days);
+  return { start, end, days };
+}
+
+/**
+ * Aggregate the doctor-report payload for a user over a `[start, end]` range.
  * Pure data assembly — no auth, no rate-limit, no audit. Idempotent.
+ *
+ * `range` is validated via `normaliseDateRange()` upstream; this function
+ * trusts it and uses both bounds in the Prisma `where` clause so a custom
+ * window (not just "last N days") filters correctly.
  */
 export async function collectDoctorReportData(
   userId: string,
-  days: number,
+  range: DoctorReportRange,
 ): Promise<DoctorReportData> {
-  const since = new Date();
-  since.setDate(since.getDate() - days);
+  const { start, end, days } = range;
 
   const [measurements, medications, intakeEvents, moodEntries, userProfile] =
     await Promise.all([
       prisma.measurement.findMany({
-        where: { userId, measuredAt: { gte: since } },
+        where: { userId, measuredAt: { gte: start, lte: end } },
         orderBy: { measuredAt: "asc" },
       }),
       prisma.medication.findMany({
@@ -115,12 +199,12 @@ export async function collectDoctorReportData(
         include: { schedules: true },
       }),
       prisma.medicationIntakeEvent.findMany({
-        where: { userId, scheduledFor: { gte: since } },
+        where: { userId, scheduledFor: { gte: start, lte: end } },
         include: { medication: { select: { name: true } } },
         orderBy: { scheduledFor: "asc" },
       }),
       prisma.moodEntry.findMany({
-        where: { userId, moodLoggedAt: { gte: since } },
+        where: { userId, moodLoggedAt: { gte: start, lte: end } },
         orderBy: { moodLoggedAt: "asc" },
       }),
       prisma.user.findUnique({
@@ -239,7 +323,14 @@ export async function collectDoctorReportData(
   }
 
   return {
-    period: { days, since: since.toISOString() },
+    period: {
+      days,
+      // `since` is preserved for backwards compatibility with any in-flight
+      // clients that read the old field name; mirrors `start`.
+      since: start.toISOString(),
+      start: start.toISOString(),
+      end: end.toISOString(),
+    },
     patient: {
       username: userProfile?.username ?? null,
       dateOfBirth: userProfile?.dateOfBirth

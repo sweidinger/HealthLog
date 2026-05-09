@@ -6,7 +6,7 @@ import { apiError, getClientIp } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   collectDoctorReportData,
-  normaliseDays,
+  normaliseDateRange,
 } from "@/lib/doctor-report-data";
 import { renderDoctorReportPdfBytes } from "@/lib/doctor-report-pdf-core";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
@@ -37,13 +37,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // Body is optional — JSON is allowed but not required.
   const body = await readOptionalJsonBody(request);
-  const days = normaliseDays(body?.days);
+  const range = normaliseDateRange(body ?? undefined);
   const locale = resolveLocale(
     body?.locale,
     request.headers.get("accept-language"),
   );
 
-  const data = await collectDoctorReportData(user.id, days);
+  const data = await collectDoctorReportData(user.id, range);
 
   const { t } = getServerTranslator(locale);
   const pdfBytes = renderDoctorReportPdfBytes(data, { t, locale });
@@ -51,10 +51,23 @@ export const POST = apiHandler(async (request: NextRequest) => {
   await auditLog("doctor-report.pdf.generate", {
     userId: user.id,
     ipAddress: getClientIp(request),
-    details: { days, locale },
+    details: {
+      days: range.days,
+      startDate: range.start.toISOString(),
+      endDate: range.end.toISOString(),
+      locale,
+    },
   });
 
-  annotate({ meta: { report_days: days, locale, bytes: pdfBytes.byteLength } });
+  annotate({
+    meta: {
+      report_days: range.days,
+      report_start: range.start.toISOString(),
+      report_end: range.end.toISOString(),
+      locale,
+      bytes: pdfBytes.byteLength,
+    },
+  });
 
   const filename = `healthlog-report-${new Date().toISOString().slice(0, 10)}.pdf`;
   // NextResponse accepts a BodyInit; copy to a fresh ArrayBuffer to avoid
@@ -73,6 +86,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
 interface PdfRequestBody {
   days?: unknown;
+  startDate?: unknown;
+  endDate?: unknown;
   locale?: unknown;
 }
 

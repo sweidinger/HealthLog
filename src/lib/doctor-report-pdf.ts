@@ -13,7 +13,7 @@ import type { Locale } from "./i18n/config";
 import { convertGlucose, resolveGlucoseUnit } from "./glucose";
 
 interface ReportData {
-  period: { days: number; since: string };
+  period: { days: number; since: string; start?: string; end?: string };
   patient: {
     username: string | null;
     dateOfBirth: string | null;
@@ -185,8 +185,12 @@ export function generateDoctorReportPDF(
       `${t("doctorReport.height")}: ${data.patient.heightCm} cm`,
     );
   }
+  // Reporting period uses explicit start/end when available; falls back to
+  // (since, now()) for legacy payloads.
+  const periodStart = data.period.start ?? data.period.since;
+  const periodEnd = data.period.end ?? new Date().toISOString();
   patientInfo.push(
-    `${t("doctorReport.period")}: ${fmtDate(data.period.since)} — ${fmtDate(new Date().toISOString())}`,
+    `${t("doctorReport.period")}: ${fmtDate(periodStart)} — ${fmtDate(periodEnd)}`,
   );
   patientInfo.push(
     `${t("doctorReport.createdOn")}: ${fmtDate(new Date().toISOString())}`,

@@ -25,7 +25,12 @@ const FIXED_NOW = new Date("2026-05-03T12:00:00.000Z");
 
 function makeData(overrides?: Partial<DoctorReportData>): DoctorReportData {
   return {
-    period: { days: 90, since: "2026-02-02T00:00:00.000Z" },
+    period: {
+      days: 90,
+      since: "2026-02-02T00:00:00.000Z",
+      start: "2026-02-02T00:00:00.000Z",
+      end: "2026-05-03T12:00:00.000Z",
+    },
     patient: {
       username: "marc",
       dateOfBirth: "1985-06-15T00:00:00.000Z",
@@ -253,6 +258,29 @@ describe("doctor-report-pdf-core type-map coverage", () => {
     expect(text).toContain("Sauerstoffsättigung");
     expect(text).toContain("97,4");
     expect(text).toContain("%");
+  });
+
+  // ── v1.4.15 phase B6 ── configurable date range on cover page.
+
+  it("includes the explicit period start AND end on the cover page", async () => {
+    const data = makeData({
+      period: {
+        days: 89,
+        since: "2026-02-01T00:00:00.000Z",
+        start: "2026-02-01T00:00:00.000Z",
+        end: "2026-04-30T00:00:00.000Z",
+      },
+    });
+    const bytes = renderDoctorReportPdfBytes(data, {
+      t: getServerTranslator("de").t,
+      locale: "de",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    // German formatting: dd.mm.yyyy. Berlin tz on these UTC midnight
+    // boundaries shifts the date by one day forward (CET = UTC+1).
+    expect(text).toContain("01.02.2026");
+    expect(text).toContain("30.04.2026");
   });
 
   it("renders body composition rows in English when locale is en", async () => {

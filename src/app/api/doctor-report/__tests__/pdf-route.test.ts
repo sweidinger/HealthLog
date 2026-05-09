@@ -183,4 +183,62 @@ describe("POST /api/doctor-report/pdf", () => {
       }),
     );
   });
+
+  // ── v1.4.15 phase B6 ── configurable date range + practice name.
+
+  it("accepts an explicit startDate / endDate range in the body", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetAt: Date.now() + 3600_000,
+    });
+    vi.mocked(auditLog).mockResolvedValue(undefined as never);
+    setEmptyDataMocks();
+
+    const startDate = "2026-01-01T00:00:00.000Z";
+    const endDate = "2026-04-01T00:00:00.000Z";
+    const res = await POST(makeRequest({ startDate, endDate }));
+    expect(res.status).toBe(200);
+    expect(prisma.measurement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          measuredAt: { gte: new Date(startDate), lte: new Date(endDate) },
+        }),
+      }),
+    );
+    expect(auditLog).toHaveBeenCalledWith(
+      "doctor-report.pdf.generate",
+      expect.objectContaining({
+        details: expect.objectContaining({ startDate, endDate }),
+      }),
+    );
+  });
+
+  it("falls back when range is invalid (end < start)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetAt: Date.now() + 3600_000,
+    });
+    vi.mocked(auditLog).mockResolvedValue(undefined as never);
+    setEmptyDataMocks();
+
+    const res = await POST(
+      makeRequest({
+        startDate: "2026-04-01T00:00:00.000Z",
+        endDate: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    expect(res.status).toBe(200);
+    // Falls back to days=90.
+    expect(auditLog).toHaveBeenCalledWith(
+      "doctor-report.pdf.generate",
+      expect.objectContaining({
+        details: expect.objectContaining({ days: 90 }),
+      }),
+    );
+  });
+
 });

@@ -16,6 +16,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DoctorReportDialog,
+  type DoctorReportSubmitPayload,
+} from "@/components/doctor-report/doctor-report-dialog";
 import { useTranslations } from "@/lib/i18n/context";
 
 export function AdvancedSection() {
@@ -48,6 +52,7 @@ function ExportCard() {
   const { t, locale } = useTranslations();
   const [exporting, setExporting] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
   async function handleExport(format: "csv" | "json") {
     setExporting(true);
@@ -69,13 +74,16 @@ function ExportCard() {
     }
   }
 
-  async function handleDoctorReport() {
+  async function handleDoctorReport(payload: DoctorReportSubmitPayload) {
     setGeneratingReport(true);
     try {
       const res = await fetch("/api/doctor-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ days: 90 }),
+        body: JSON.stringify({
+          startDate: payload.startDate,
+          endDate: payload.endDate,
+        }),
       });
       if (!res.ok) return;
       const json = await res.json();
@@ -85,6 +93,7 @@ function ExportCard() {
       const doc = generateDoctorReportPDF(json.data, { t, locale });
       const fileSlug = locale === "de" ? "gesundheitsbericht" : "health-report";
       doc.save(`${fileSlug}-${new Date().toISOString().slice(0, 10)}.pdf`);
+      setReportDialogOpen(false);
     } finally {
       setGeneratingReport(false);
     }
@@ -121,7 +130,7 @@ function ExportCard() {
         <Button
           variant="outline"
           size="sm"
-          onClick={handleDoctorReport}
+          onClick={() => setReportDialogOpen(true)}
           disabled={generatingReport}
         >
           {generatingReport && (
@@ -130,6 +139,11 @@ function ExportCard() {
           {t("settings.doctorReport")}
         </Button>
       </div>
+      <DoctorReportDialog
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
+        onSubmit={handleDoctorReport}
+      />
     </div>
   );
 }

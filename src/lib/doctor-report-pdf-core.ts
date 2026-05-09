@@ -198,8 +198,13 @@ export function buildDoctorReportPdfDocument(
       `${t("doctorReport.height")}: ${data.patient.heightCm} cm`,
     );
   }
+  // Reporting period uses the explicit `start`/`end` from the data payload
+  // (set by `normaliseDateRange()`). For older payloads that only carried
+  // `since`, fall back to (since, now()) to preserve previous behaviour.
+  const periodStart = data.period.start ?? data.period.since;
+  const periodEnd = data.period.end ?? now.toISOString();
   patientInfo.push(
-    `${t("doctorReport.period")}: ${fmtDate(data.period.since)} — ${fmtDate(now.toISOString())}`,
+    `${t("doctorReport.period")}: ${fmtDate(periodStart)} — ${fmtDate(periodEnd)}`,
   );
   patientInfo.push(
     `${t("doctorReport.createdOn")}: ${fmtDate(now.toISOString())}`,

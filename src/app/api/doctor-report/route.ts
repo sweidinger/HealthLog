@@ -11,12 +11,21 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 import {
   collectDoctorReportData,
-  normaliseDays,
+  normaliseDateRange,
 } from "@/lib/doctor-report-data";
 
 /**
  * Collect data for doctor report PDF generation (client-side).
  * Returns aggregated health data for the specified time range.
+ *
+ * Body shape (all fields optional — sensible defaults apply):
+ *   {
+ *     startDate?: string,  // ISO timestamp, inclusive
+ *     endDate?: string,    // ISO timestamp, inclusive
+ *     days?: number        // legacy "last N days" fallback (1..365)
+ *   }
+ *
+ * Resolution: explicit range wins; otherwise `days` (default 90) is applied.
  */
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
@@ -34,16 +43,26 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { data: body, error: jsonError } = await safeJson(request);
   if (jsonError) return jsonError;
 
-  const days = normaliseDays((body as Record<string, unknown>)?.days);
-  const data = await collectDoctorReportData(user.id, days);
+  const range = normaliseDateRange(body);
+  const data = await collectDoctorReportData(user.id, range);
 
   await auditLog("doctor-report.generate", {
     userId: user.id,
     ipAddress: getClientIp(request),
-    details: { days },
+    details: {
+      days: range.days,
+      startDate: range.start.toISOString(),
+      endDate: range.end.toISOString(),
+    },
   });
 
-  annotate({ meta: { report_days: days } });
+  annotate({
+    meta: {
+      report_days: range.days,
+      report_start: range.start.toISOString(),
+      report_end: range.end.toISOString(),
+    },
+  });
 
   return apiSuccess(data);
 });
