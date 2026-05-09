@@ -179,7 +179,7 @@ export function UserManagementSection() {
               key={value}
               variant={filter === value ? "default" : "ghost"}
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="min-h-11 min-w-11 px-3 text-xs"
               onClick={() => setFilter(value)}
               aria-pressed={filter === value}
             >
@@ -238,7 +238,7 @@ export function UserManagementSection() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs"
+                        className="min-h-11 min-w-11 px-3 text-xs"
                         onClick={() =>
                           updateUser.mutate({
                             id: u.id,
@@ -264,7 +264,7 @@ export function UserManagementSection() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs"
+                        className="min-h-11 min-w-11 px-2 text-xs"
                         onClick={() => startEdit(u)}
                         title={t("admin.editUser")}
                         aria-label={t("admin.editUser")}
@@ -274,7 +274,7 @@ export function UserManagementSection() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs"
+                        className="min-h-11 min-w-11 px-2 text-xs"
                         onClick={() => startReset(u)}
                         title={t("admin.resetPassword")}
                         aria-label={t("admin.resetPassword")}
@@ -284,7 +284,7 @@ export function UserManagementSection() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-destructive hover:text-destructive h-7 px-2 text-xs"
+                        className="text-destructive hover:text-destructive min-h-11 min-w-11 px-2 text-xs"
                         onClick={() => setLogoutTarget(u)}
                         disabled={u.id === currentUserId}
                         title={

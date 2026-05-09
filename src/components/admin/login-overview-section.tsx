@@ -74,7 +74,7 @@ export function LoginOverviewSection() {
             <Button
               variant={filter === "all" ? "default" : "ghost"}
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="min-h-11 min-w-11 px-3 text-xs"
               onClick={() => setFilter("all")}
             >
               {t("admin.allAuthEvents")}
@@ -82,7 +82,7 @@ export function LoginOverviewSection() {
             <Button
               variant={filter === "failed" ? "default" : "ghost"}
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="min-h-11 min-w-11 px-3 text-xs"
               onClick={() => setFilter("failed")}
             >
               {t("admin.failedOnly")}
