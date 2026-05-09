@@ -9,6 +9,7 @@ import {
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
+import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import {
   pearsonCorrelation,
   type PairedPoint,
@@ -236,10 +237,9 @@ export async function generateBloodPressureStatusForUser(
     inTarget:
       bpTargets == null
         ? null
-        : entry.a >= bpTargets.sysLow &&
-          entry.a <= bpTargets.sysHigh &&
-          entry.b >= bpTargets.diaLow &&
-          entry.b <= bpTargets.diaHigh,
+        : // v1.4.16 A2 — one-sided "at or below ceiling" semantics with a
+          // clinical hypotension floor. See lib/analytics/bp-in-target.ts.
+          isBpReadingInTarget(entry.a, entry.b, bpTargets),
   }));
 
   const bpInTargetPctLast30DailyPoints =

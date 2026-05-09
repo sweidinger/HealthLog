@@ -12,6 +12,7 @@ import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
+import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import {
   generateAlerts,
   type HealthAlert,
@@ -112,12 +113,10 @@ export const GET = apiHandler(async () => {
     const diaData = byType("BLOOD_PRESSURE_DIA");
     const pairs = pairByTimestamp(sysData, diaData, 5 * 60_000);
     if (pairs.length > 0) {
-      const inTarget = pairs.filter(
-        (p) =>
-          p.a >= bpTargets.sysLow &&
-          p.a <= bpTargets.sysHigh &&
-          p.b >= bpTargets.diaLow &&
-          p.b <= bpTargets.diaHigh,
+      // v1.4.16 A2 — one-sided ceiling semantics with hypotension
+      // floor. See lib/analytics/bp-in-target.ts.
+      const inTarget = pairs.filter((p) =>
+        isBpReadingInTarget(p.a, p.b, bpTargets),
       ).length;
       bpPctInTarget = Math.round((inTarget / pairs.length) * 100);
     }

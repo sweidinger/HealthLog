@@ -2,32 +2,45 @@
  * BP-in-target percentage helper.
  *
  * The "BD im Zielbereich" tile on the dashboard reports the share of
- * recent blood-pressure readings that fall inside the user's age-band
- * target zone. Up to v1.4.14 this lived inline in
+ * recent blood-pressure readings that are at or below the user's
+ * age-band ceiling. Up to v1.4.14 this lived inline in
  * `src/app/api/analytics/route.ts` and had two latent bugs that made
  * the tile read 0 % even when the user clearly had readings inside the
  * target band:
  *
- * 1. **Wrong denominator.** The legacy code divided `inTarget /
- *    sysData.length`, but readings are only countable when a matching
- *    diastolic exists within 5 minutes. So a user with 30 sys + 30 dia
- *    that all paired and 6 in target read `6/30 = 20 %` — but a user
- *    where only 10 of 30 sys had a matching dia inside 5 minutes (the
- *    other 20 were close-pair-less imports) capped at `<= 10/30 = 33 %`
- *    no matter what. Worse: when none paired, the numerator stayed 0
- *    so the tile reported a flat 0 %.
+ * 1. **Wrong denominator (v1.4.14).** The legacy code divided
+ *    `inTarget / sysData.length`, but readings are only countable when
+ *    a matching diastolic exists within 5 minutes. v1.4.15 A4 fixed the
+ *    denominator to count only paired readings.
  *
- * 2. **No fallback when timestamps don't pair.** Withings imports and
- *    moodLog.app imports each write sys + dia as separate Measurement
- *    rows that ought to share a `measuredAt` to the second — but
- *    rounding through different timezones can drift them by minutes.
- *    The 5-minute window was tight; data imported with hour-level
- *    rounding (some legacy Withings ranges) had `timeDiff > 5 min` and
- *    the tile flat-lined to 0 %.
+ * 2. **Wrong target semantics (v1.4.15 -> v1.4.16 A2 regression).** The
+ *    v1.4.15 fix kept the original "within narrow goal band" semantics:
+ *    `sys >= sysLow && sys <= sysHigh && dia >= diaLow && dia <= diaHigh`.
+ *    With ESH 2023 narrow targets (Sys 120-129, Dia 70-79 for under-65)
+ *    this collapses to 0 % for healthy normotensive users whose
+ *    readings sit BELOW the goal band — Marc's actual data has many
+ *    readings like 117/79 (textbook normotensive, well-controlled) that
+ *    were marked OUT of target because sys < 120. Users intuitively
+ *    consider those readings *in target* — and so does clinical
+ *    practice ("BP is well-controlled" = "at goal or below the goal
+ *    ceiling, not implausibly hypotensive"). The v1.4.16 fix changes
+ *    semantics from a narrow band to a one-sided ceiling check with a
+ *    clinical floor for true hypotension:
  *
- * Fix: pair sys + dia by **same Berlin calendar day** as a fallback if
- * the within-5-minutes pairing yields nothing, and always divide by the
- * count of *paired* readings (the denominator that gets a vote).
+ *      in-target := sys >= 90 AND sys <= sysHigh
+ *                  AND dia >= 50 AND dia <= diaHigh
+ *
+ *    The 90/50 floors are well below any plausible "normal-low" and
+ *    flag symptomatic hypotension as out-of-target instead of silently
+ *    counting it as good control.
+ *
+ * 3. **No fallback when timestamps don't pair (v1.4.15 fix).** Withings
+ *    imports and moodLog.app imports each write sys + dia as separate
+ *    Measurement rows that ought to share a `measuredAt` to the second
+ *    — but rounding through different timezones can drift them by
+ *    minutes. The 5-minute window was tight; data imported with
+ *    hour-level rounding (some legacy Withings ranges) had `timeDiff >
+ *    5 min`. The fallback to same-Berlin-day pairing covers that.
  *
  * Pure & deterministic so the unit test suite can pin the exact %.
  */
@@ -37,6 +50,15 @@ export interface BpReading {
   measuredAt: Date;
   value: number;
 }
+
+/**
+ * Clinical floors below which a reading is symptomatic hypotension and
+ * NOT a desirable "well-controlled BP" outcome. Roughly mid-band
+ * shock-onset thresholds; well below any reasonable normotensive
+ * resting reading.
+ */
+const SYS_HYPOTENSION_FLOOR = 90;
+const DIA_HYPOTENSION_FLOOR = 50;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Berlin",
@@ -78,6 +100,26 @@ function findClosestDia(
 }
 
 /**
+ * `true` when a paired reading is at or below the upper bound for both
+ * sys and dia, AND above the clinical hypotension floors. This is the
+ * canonical "BP in target" definition shared across every call site
+ * (dashboard tile, insight cards, AI snapshot, comprehensive endpoint,
+ * targets endpoint). Exported so the other modules don't drift.
+ */
+export function isBpReadingInTarget(
+  sys: number,
+  dia: number,
+  targets: BpTargets,
+): boolean {
+  return (
+    sys >= SYS_HYPOTENSION_FLOOR &&
+    sys <= targets.sysHigh &&
+    dia >= DIA_HYPOTENSION_FLOOR &&
+    dia <= targets.diaHigh
+  );
+}
+
+/**
  * Compute the share (0-100, rounded to nearest integer) of paired BP
  * readings inside `targets` over the supplied series. Returns `null`
  * when no pairs can be formed (caller renders the tile as "no data"
@@ -95,6 +137,9 @@ function findClosestDia(
  * Denominator is the number of accepted pairs, NOT `sysData.length` —
  * that was the v1.4.14 bug that made the tile read 0 % when imports
  * had drifted timestamps.
+ *
+ * In-target check is the one-sided ceiling defined by
+ * `isBpReadingInTarget()` — see file-header comment for the rationale.
  */
 export function computeBpInTargetPct(
   sysSeries: BpReading[],
@@ -119,12 +164,7 @@ export function computeBpInTargetPct(
     if (!sameSession && !sameBerlinDay) continue;
 
     pairs += 1;
-    if (
-      sys.value >= targets.sysLow &&
-      sys.value <= targets.sysHigh &&
-      match.dia.value >= targets.diaLow &&
-      match.dia.value <= targets.diaHigh
-    ) {
+    if (isBpReadingInTarget(sys.value, match.dia.value, targets)) {
       inTarget += 1;
     }
   }

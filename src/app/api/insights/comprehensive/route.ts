@@ -3,6 +3,7 @@ import { resolveProvider } from "@/lib/ai/provider";
 import { apiSuccess } from "@/lib/api-response";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
+import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import {
   classifyBMI,
   classifyBP,
@@ -121,12 +122,10 @@ export const GET = apiHandler(async () => {
     const sysPairs = pairByTimestamp(sysData, diaData, 5 * 60 * 1000);
 
     if (sysPairs.length > 0) {
-      const inTarget = sysPairs.filter(
-        (p) =>
-          p.a >= bpTargets.sysLow &&
-          p.a <= bpTargets.sysHigh &&
-          p.b >= bpTargets.diaLow &&
-          p.b <= bpTargets.diaHigh,
+      // v1.4.16 A2 — one-sided ceiling semantics with hypotension
+      // floor. See lib/analytics/bp-in-target.ts.
+      const inTarget = sysPairs.filter((p) =>
+        isBpReadingInTarget(p.a, p.b, bpTargets),
       ).length;
       bpPctInTarget = Math.round((inTarget / sysPairs.length) * 100);
     }

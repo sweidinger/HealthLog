@@ -5,6 +5,7 @@ import {
   getGeneralStatusUserPrompt,
 } from "@/lib/ai/prompts/general-status";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
+import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import {
@@ -258,12 +259,10 @@ export async function generateGeneralStatusForUser(
       .filter((point) => point.dayOffset < 30);
 
     if (paired.length > 0) {
-      const inTargetCount = paired.filter(
-        (point) =>
-          point.sys >= bpTargets.sysLow &&
-          point.sys <= bpTargets.sysHigh &&
-          point.dia >= bpTargets.diaLow &&
-          point.dia <= bpTargets.diaHigh,
+      const inTargetCount = paired.filter((point) =>
+        // v1.4.16 A2 — one-sided ceiling semantics with hypotension
+        // floor. See lib/analytics/bp-in-target.ts.
+        isBpReadingInTarget(point.sys, point.dia, bpTargets),
       ).length;
       bpInTargetLast30Days = round((inTargetCount / paired.length) * 100, 1);
     }

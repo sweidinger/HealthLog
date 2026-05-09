@@ -8,6 +8,7 @@ import { summarize } from "@/lib/analytics/trends";
 import type { DataPoint } from "@/lib/analytics/trends";
 import { calculateCompliance } from "@/lib/analytics/compliance";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
+import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import {
   pairByTimestamp,
   pearsonCorrelation,
@@ -369,12 +370,9 @@ export async function extractFeatures(
         const sysVal = sysByTime.get(dia.measuredAt.getTime());
         if (sysVal === undefined) continue;
         pairedCount++;
-        if (
-          sysVal >= bpTargets.sysLow &&
-          sysVal <= bpTargets.sysHigh &&
-          dia.value >= bpTargets.diaLow &&
-          dia.value <= bpTargets.diaHigh
-        ) {
+        // v1.4.16 A2 — one-sided ceiling semantics with hypotension
+        // floor. See lib/analytics/bp-in-target.ts.
+        if (isBpReadingInTarget(sysVal, dia.value, bpTargets)) {
           inTargetCount++;
         }
       }

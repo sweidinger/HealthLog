@@ -13,6 +13,7 @@ import {
 } from "@/lib/analytics/classifications";
 import { calculateCompliance } from "@/lib/analytics/compliance";
 import { pairByTimestamp } from "@/lib/analytics/correlations";
+import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import {
   classifyPulseByTarget,
   getPersonalizedPulseTarget,
@@ -228,12 +229,10 @@ export const GET = apiHandler(async () => {
       }));
 
     const bpPairs = pairByTimestamp(sysPoints, diaPoints, 5 * 60 * 1000);
-    const bpInTargetCount = bpPairs.filter(
-      (pair) =>
-        pair.a >= bpRange.sysLow &&
-        pair.a <= bpRange.sysHigh &&
-        pair.b >= bpRange.diaLow &&
-        pair.b <= bpRange.diaHigh,
+    // v1.4.16 A2 — one-sided ceiling semantics with hypotension
+    // floor. See lib/analytics/bp-in-target.ts.
+    const bpInTargetCount = bpPairs.filter((pair) =>
+      isBpReadingInTarget(pair.a, pair.b, bpRange),
     ).length;
     const bpInTargetRate =
       bpPairs.length > 0
