@@ -253,11 +253,50 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ## Wave C — Catch-up (deferred from v1.4.15)
 
-- [ ] 8 deferred HIGH-Findings from v1.4.15 Wave-D (see `v1416-backlog.md`)
-- [ ] 5 deferred MED items from A5 mobile findings
-- [ ] Coolify image-digest auto-deploy trigger (replace git-push trigger so deploys only happen on actual new image)
-- [ ] docker-publish main-branch hang root-cause + fix (C3 v1.4.15 only fixed tag-path)
+- [x] CI Integration tests + e2e workflows pre-existing red since
+  `d8c549e` — both green from this phase forward
+- [x] 5 of 8 deferred HIGH from v1.4.15 Wave-D (H1, H2, H4 code-review,
+  H4 design, H3 senior in-use; H3 mood-chart skipped per charts/
+  ownership; H1+H2 senior splits deferred)
+- [x] 3 of 5 deferred MED from A5 mobile (tabs scroll, bottom-nav
+  5+More, system-status retry; measurements BP grouping + DOM
+  weight deferred to v1.5)
+- [x] Coolify image-digest auto-deploy trigger — DEFERRED with v1.5
+  plan documented in `docs/audit/v1416-auto-deploy-fix.md` (Marc-
+  side UI flip is the 5-min realistic fix; MCP API doesn't expose
+  the toggle)
+- [x] docker-publish main-branch hang — root cause was qemu-arm64
+  SIGILL; dropped arm64 from the platforms list, v1.5 to re-add via
+  native `ubuntu-24.04-arm` matrix
+- Bonus: B5a i18n parity for `insights.recommendation.{source,viewSource}`
 - Detailed report: `.planning/phase-C-report.md`
+
+### Status block — Wave C
+- 2026-05-10T00:44:00+02:00 — Wave C complete on origin/main.
+  Worktree-isolated agent at `/Users/marc/Projects/HealthLog-c` on
+  `agent/wave-c-catchup` shipped 11 commits without a single shared-
+  cwd race. CI Integration green (5 successive successes), e2e
+  in-progress at write time on `0d08e33`. `pnpm test` 1303/1303,
+  `pnpm test:integration` 53/53 (after `pnpm db:generate` for B5b's
+  new `aiProviderChain` column), `pnpm typecheck` 0 errors,
+  `pnpm lint` 12 pre-existing warnings.
+  - **CI fix:** `fbcd106` — quoted `ENCRYPTION_KEY` YAML scalar (was
+    parsed as integer 0) + seeded `onboarding_tour_completed = true`
+    in e2e global-setup so the spotlight tour overlay stops
+    intercepting clicks across 9 specs.
+  - **HIGH H1:** `fdac9e2` admin restore-failed scrubs raw Prisma
+    error.
+  - **HIGH H2:** `7f1a4de` moodEntry.tags refined to JSON-array.
+  - **HIGH H4 code:** `2afe3c4` tour-launcher sessionStorage scoped
+    by user id.
+  - **HIGH H4 design:** `b863e2c` 44 px tap targets on tour /
+    backups / notifications.
+  - **i18n parity:** `2a7ef72` Quelle / Leitlinie translations.
+  - **MED tabs:** `d7c2b2a` horizontal scroll on mobile.
+  - **MED bottom-nav:** `072eee6` 5+More with overflow sheet.
+  - **MED system-status:** `65b4bf9` Retry button.
+  - **Auto-deploy doc:** `4be6465` defer + v1.5 plan.
+  - **docker-publish:** `cc0f343` drop qemu-arm64.
 
 ## Wave D — Multi-agent QA + Product-Lead
 
