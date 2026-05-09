@@ -134,7 +134,8 @@ export const POST = apiHandler(async () => {
           const config = JSON.parse(
             decrypt(channel.config),
           ) as NtfyChannelConfig;
-          success = await sendViaNtfy(config, payload);
+          const ntfyResult = await sendViaNtfy(config, payload);
+          success = ntfyResult.ok;
           if (!success) {
             results.push({
               channel: "NTFY",
@@ -146,7 +147,8 @@ export const POST = apiHandler(async () => {
           break;
         }
         case "WEB_PUSH": {
-          success = await sendViaWebPush(user.id, payload);
+          const webPushResult = await sendViaWebPush(user.id, payload);
+          success = webPushResult.ok;
           break;
         }
         default:

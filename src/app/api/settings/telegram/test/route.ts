@@ -27,13 +27,13 @@ export const POST = apiHandler(async () => {
   }
 
   const botToken = decrypt(dbUser.telegramBotToken);
-  const ok = await sendTelegramMessage(
+  const result = await sendTelegramMessage(
     botToken,
     dbUser.telegramChatId,
     "HealthLog: Connection successful! Telegram notifications are active.",
   );
 
-  if (!ok) {
+  if (!result.ok) {
     return apiError(
       "Failed to send message. Check bot token and chat ID.",
       422,

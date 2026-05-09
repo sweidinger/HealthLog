@@ -34,14 +34,14 @@ export const POST = apiHandler(async () => {
     return apiError("Server URL and topic are required", 400);
   }
 
-  const success = await sendViaNtfy(config, {
+  const result = await sendViaNtfy(config, {
     eventType: "SYSTEM_ALERT",
     userId: user.id,
     title: "HealthLog Test",
     message: "HealthLog: Connection successful! ntfy notifications are active.",
   });
 
-  if (!success) {
+  if (!result.ok) {
     return apiError("Failed to send test message", 500);
   }
 

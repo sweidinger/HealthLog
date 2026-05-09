@@ -1,12 +1,22 @@
 import { sendTelegramMessage, deleteMessage } from "@/lib/telegram";
-import type { SendMessageResult } from "@/lib/telegram";
 import type {
   TelegramChannelConfig,
   NotificationPayload,
 } from "@/lib/notifications/types";
+import type { SendOutcome } from "@/lib/notifications/retry-policy";
+import { classifyTelegramError } from "@/lib/notifications/retry-policy";
 import { prisma } from "@/lib/db";
 import type { ReminderPhase } from "@/generated/prisma/client";
 import { getEvent } from "@/lib/logging/context";
+
+/**
+ * Telegram sender result. Inherits from `SendOutcome` so the dispatcher
+ * can classify hard vs soft rejects, and tacks on `messageId` for the
+ * reminder-tracking flow that wants to delete the message later.
+ */
+export interface TelegramSendResult extends SendOutcome {
+  messageId?: number;
+}
 
 /**
  * Delete ALL existing Telegram reminder messages for a medication (any date).
@@ -52,7 +62,7 @@ async function deleteExistingReminders(
 export async function sendViaTelegram(
   config: TelegramChannelConfig,
   payload: NotificationPayload,
-): Promise<SendMessageResult> {
+): Promise<TelegramSendResult> {
   const medicationId = payload.metadata?.medicationId as string | undefined;
   const scheduleId = payload.metadata?.scheduleId as string | undefined;
   const phase = payload.metadata?.phase as string | undefined;
@@ -143,5 +153,14 @@ export async function sendViaTelegram(
     }
   }
 
-  return result;
+  if (result.ok) {
+    return { ok: true, messageId: result.messageId };
+  }
+  const classified = classifyTelegramError(result.errorDescription);
+  return {
+    ok: false,
+    hardReject: classified.hardReject,
+    reason: classified.reason,
+    message: result.errorDescription,
+  };
 }

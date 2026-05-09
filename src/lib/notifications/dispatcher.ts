@@ -9,6 +9,13 @@ import type {
 import { sendViaTelegram } from "@/lib/notifications/senders/telegram";
 import { sendViaNtfy } from "@/lib/notifications/senders/ntfy";
 import { sendViaWebPush } from "@/lib/notifications/senders/web-push";
+import type { SendOutcome } from "@/lib/notifications/retry-policy";
+import {
+  isChannelInCooldown,
+  recordChannelHardReject,
+  recordChannelSuccess,
+  recordChannelTransientFailure,
+} from "@/lib/notifications/channel-state";
 import { getEvent } from "@/lib/logging/context";
 
 /**
@@ -16,9 +23,12 @@ import { getEvent } from "@/lib/logging/context";
  * Best-effort: logs errors but never throws.
  *
  * For each channel:
- *  1. Check if the channel is enabled
- *  2. Check if a preference exists for this eventType (default: enabled / opt-out)
- *  3. Call the appropriate sender
+ *  1. Skip if `enabled=false` (manually or auto-disabled).
+ *  2. Skip if currently in retry-cooldown (`nextRetryAt > now`).
+ *  3. Check the per-channel preference for this eventType (default: enabled).
+ *  4. Call the appropriate sender — which now returns a `SendOutcome` so
+ *     the dispatcher can classify hard rejects (410, blocked-by-user) vs
+ *     soft errors (5xx, 429, network) and update channel state accordingly.
  *
  * Also handles legacy Telegram config stored on the User model by
  * auto-migrating it to a NotificationChannel record on first dispatch.
@@ -94,20 +104,84 @@ export async function dispatchNotification(
       }
     }
 
+    const now = new Date();
     for (const channel of channels) {
       // Opt-out model: if no preference row exists, default to enabled
       const pref = channel.preferences[0];
       if (pref && !pref.enabled) continue;
 
+      // Backoff cooldown — skip the channel until `nextRetryAt`. Without
+      // this guard, a flapping upstream would burn API quota every
+      // reminder-tick (every 60s by default), defeating the whole point
+      // of the exponential backoff.
+      if (isChannelInCooldown({ nextRetryAt: channel.nextRetryAt }, now)) {
+        getEvent()?.addMeta(
+          `notification_skip_${channel.type.toLowerCase()}_cooldown`,
+          channel.nextRetryAt?.toISOString() ?? "unknown",
+        );
+        continue;
+      }
+
       try {
-        await sendToChannel(
+        const outcome = await sendToChannel(
           channel.type as ChannelType,
           channel.config,
           payload,
         );
-      } catch (err) {
+
+        if (outcome.ok) {
+          await recordChannelSuccess({
+            id: channel.id,
+            userId: channel.userId,
+            type: channel.type as ChannelType,
+          });
+          continue;
+        }
+
+        if (outcome.hardReject) {
+          await recordChannelHardReject(
+            {
+              id: channel.id,
+              userId: channel.userId,
+              type: channel.type as ChannelType,
+            },
+            outcome,
+          );
+          getEvent()?.addWarning(
+            `Notification channel ${channel.type} auto-disabled: ${outcome.reason}`,
+          );
+          continue;
+        }
+
+        const result = await recordChannelTransientFailure(
+          {
+            id: channel.id,
+            userId: channel.userId,
+            type: channel.type as ChannelType,
+          },
+          outcome,
+          now,
+        );
         getEvent()?.addWarning(
-          `Notification dispatch failed for channel ${channel.type}: ${err}`,
+          `Notification dispatch failed for channel ${channel.type}: ${outcome.reason}` +
+            (result.autoDisabled ? " (auto-disabled after 5 failures)" : ""),
+        );
+      } catch (err) {
+        // Sender threw unexpectedly — treat as a soft failure so the
+        // backoff schedule absorbs the blip. (Senders are supposed to
+        // be no-throw, this is defence-in-depth.)
+        const message = err instanceof Error ? err.message : String(err);
+        await recordChannelTransientFailure(
+          {
+            id: channel.id,
+            userId: channel.userId,
+            type: channel.type as ChannelType,
+          },
+          { reason: "sender_threw", message },
+          now,
+        );
+        getEvent()?.addWarning(
+          `Notification sender threw for ${channel.type}: ${message}`,
         );
       }
     }
@@ -120,13 +194,17 @@ async function sendToChannel(
   type: ChannelType,
   encryptedConfig: string,
   payload: NotificationPayload,
-): Promise<boolean> {
+): Promise<SendOutcome> {
   let decrypted: string;
   try {
     decrypted = decrypt(encryptedConfig);
   } catch {
     getEvent()?.addWarning(`Failed to decrypt ${type} channel config`);
-    return false;
+    return {
+      ok: false,
+      hardReject: false,
+      reason: `${type.toLowerCase()}_config_decrypt_failed`,
+    };
   }
 
   switch (type) {
@@ -136,10 +214,13 @@ async function sendToChannel(
         config = JSON.parse(decrypted) as TelegramChannelConfig;
       } catch {
         getEvent()?.addWarning("Failed to parse Telegram channel config");
-        return false;
+        return {
+          ok: false,
+          hardReject: false,
+          reason: "telegram_config_parse_failed",
+        };
       }
-      const result = await sendViaTelegram(config, payload);
-      return result.ok;
+      return sendViaTelegram(config, payload);
     }
     case "NTFY": {
       let config: NtfyChannelConfig;
@@ -147,7 +228,11 @@ async function sendToChannel(
         config = JSON.parse(decrypted) as NtfyChannelConfig;
       } catch {
         getEvent()?.addWarning("Failed to parse ntfy channel config");
-        return false;
+        return {
+          ok: false,
+          hardReject: false,
+          reason: "ntfy_config_parse_failed",
+        };
       }
       return sendViaNtfy(config, payload);
     }
@@ -156,6 +241,10 @@ async function sendToChannel(
     }
     default:
       getEvent()?.addWarning(`Unknown notification channel type: ${type}`);
-      return false;
+      return {
+        ok: false,
+        hardReject: false,
+        reason: "unknown_channel_type",
+      };
   }
 }

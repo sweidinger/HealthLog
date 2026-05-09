@@ -106,6 +106,7 @@ model User {
   feedback             Feedback[]
   idempotencyKeys      IdempotencyKey[]
   devices              Device[]
+  integrationStatuses  IntegrationStatus[]
 
   @@map("users")
 }
@@ -444,6 +445,46 @@ model MoodEntry {
   @@map("mood_entries")
 }
 
+// ─── Integration Status (v1.4.15) ─────────────────────────
+//
+// Per-(user, integration) row that captures the most recent sync attempt
+// outcome so the Settings → Integrations UI can show:
+//   - state ("connected", "error_reauth", "error_transient", "disconnected")
+//   - last successful sync timestamp
+//   - last attempted sync timestamp
+//   - last error message (encrypted at rest if non-null — see crypto.ts)
+//   - consecutive failure counter (resets on success)
+//
+// `recordSyncSuccess` / `recordSyncFailure` helpers in
+// `src/lib/integrations/status.ts` are the only writers. The
+// `consecutiveFailures` counter feeds the admin-Telegram alerting
+// threshold (default 3). State `error_reauth` parks scheduled syncs
+// until the user reconnects (the sync entry-points consult this row
+// before doing any external work).
+//
+// `integration` values are bare strings ("withings", "moodlog") rather
+// than an enum so future integrations don't require a migration.
+model IntegrationStatus {
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  integration          String   // "withings" | "moodlog"
+  state                String   @default("connected") // "connected" | "error_reauth" | "error_transient" | "disconnected"
+  lastSuccessAt        DateTime? @map("last_success_at")
+  lastAttemptAt        DateTime? @map("last_attempt_at")
+  lastError            String?  @map("last_error") // AES-256-GCM encrypted (may contain token-fragment metadata)
+  consecutiveFailures  Int      @default(0) @map("consecutive_failures")
+  alertedAt            DateTime? @map("alerted_at") // last time admin Telegram alert fired (idempotency guard)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, integration])
+  @@index([userId])
+  @@index([state])
+  @@map("integration_statuses")
+}
+
 // ─── App Settings ─────────────────────────────────────────
 
 model AppSettings {
@@ -558,6 +599,23 @@ model NotificationChannel {
   config    String   // AES-256-GCM encrypted JSON (channel-specific config)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  // ── v1.4.15 Phase B3: reliability fields ─────────────────────
+  // Reason the channel was auto-disabled (e.g. "hard_reject_410",
+  // "telegram_blocked_by_user", "telegram_chat_not_found",
+  // "give_up_after_5_failures"). NULL when the channel is healthy
+  // OR was disabled manually (in which case `enabled=false` alone
+  // is enough — no automated process should treat that as
+  // re-enable-able).
+  disabledReason       String?   @map("disabled_reason")
+  consecutiveFailures  Int       @default(0) @map("consecutive_failures")
+  lastSuccessAt        DateTime? @map("last_success_at")
+  lastFailureAt        DateTime? @map("last_failure_at")
+  lastFailureReason    String?   @map("last_failure_reason")
+  // The next time the dispatcher is allowed to attempt a send for
+  // this channel after a transient failure. NULL = no cooldown.
+  // Hard rejects flip `enabled=false` instead of writing this.
+  nextRetryAt          DateTime? @map("next_retry_at")
 
   user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   preferences NotificationPreference[]

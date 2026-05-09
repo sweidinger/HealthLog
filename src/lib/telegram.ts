@@ -63,11 +63,18 @@ async function telegramApiRequest(
 export interface SendMessageResult {
   ok: boolean;
   messageId?: number;
+  /**
+   * Bot-API `description` field on failure. Surfaced so the dispatcher
+   * (v1.4.15 Phase B3) can classify "chat not found" / "blocked by the
+   * user" as hard rejects vs a generic 5xx as a soft reject.
+   */
+  errorDescription?: string;
 }
 
 /**
  * Send a text message via the Telegram Bot API.
- * Returns { ok, messageId } on success, { ok: false } on failure (never throws).
+ * Returns { ok, messageId } on success, { ok: false, errorDescription } on
+ * failure (never throws).
  */
 export async function sendTelegramMessage(
   botToken: string,
@@ -85,7 +92,7 @@ export async function sendTelegramMessage(
     getEvent()?.addWarning(
       `[telegram] sendMessage failed: ${json.description}`,
     );
-    return { ok: false };
+    return { ok: false, errorDescription: json.description };
   }
   const messageId = (json.result as { message_id?: number })?.message_id;
   return { ok: true, messageId };

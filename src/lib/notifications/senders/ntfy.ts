@@ -2,16 +2,23 @@ import type {
   NtfyChannelConfig,
   NotificationPayload,
 } from "@/lib/notifications/types";
+import type { SendOutcome } from "@/lib/notifications/retry-policy";
+import { classifyHttpStatus } from "@/lib/notifications/retry-policy";
 import { getEvent } from "@/lib/logging/context";
 
 /**
  * Send notification via ntfy (simple HTTP POST).
  * See https://docs.ntfy.sh/publish/
+ *
+ * Returns a structured `SendOutcome` so the dispatcher (v1.4.15 Phase B3)
+ * can distinguish hard rejects (HTTP 410, topic deleted) from soft errors
+ * (5xx, 429, network timeout) and apply the right retry / auto-disable
+ * policy.
  */
 export async function sendViaNtfy(
   config: NtfyChannelConfig,
   payload: NotificationPayload,
-): Promise<boolean> {
+): Promise<SendOutcome> {
   const start = performance.now();
   try {
     const url = `${config.serverUrl.replace(/\/$/, "")}/${encodeURIComponent(config.topic)}`;
@@ -44,14 +51,29 @@ export async function sendViaNtfy(
       status: res.status,
     });
 
-    return res.ok;
+    if (res.ok) {
+      return { ok: true, statusCode: res.status };
+    }
+    const classified = classifyHttpStatus(res.status, "ntfy");
+    return {
+      ok: false,
+      statusCode: res.status,
+      hardReject: classified.hardReject,
+      reason: classified.reason,
+    };
   } catch (err) {
+    const message = err instanceof Error ? err.message : "request_failed";
     getEvent()?.addExternalCall({
       service: "ntfy",
       method: "sendNotification",
       duration_ms: Math.round(performance.now() - start),
-      error: err instanceof Error ? err.message : "request_failed",
+      error: message,
     });
-    return false;
+    return {
+      ok: false,
+      hardReject: false,
+      reason: "ntfy_network_error",
+      message,
+    };
   }
 }
