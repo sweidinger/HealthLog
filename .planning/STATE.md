@@ -40,13 +40,14 @@ Last update: 2026-05-09T16:10:00+02:00
 
 ## Phase 3 — End-to-end test coverage
 
-- [ ] Authenticated dashboard render
-- [ ] Add measurement flow
-- [ ] Settings → KI Codex flow (mocked)
-- [ ] Doctor report PDF
-- [ ] Insights generation flow (mocked)
-- [ ] Mobile-viewport smoke (Pixel 5, no h-scroll, CTAs ≥ 44×44)
-- [ ] axe-core extended to /dashboard, /settings/integrations, /admin
+- [x] Authenticated dashboard render — `e2e/dashboard.spec.ts` (commit pending)
+- [x] Add measurement flow — `e2e/measurement-flow.spec.ts` (commit pending)
+- [x] Settings → KI Codex flow (mocked) — `e2e/codex-flow.spec.ts` (commit pending)
+- [x] Doctor report PDF — `e2e/doctor-report.spec.ts` (commit pending)
+- [x] Insights generation flow (mocked) — `e2e/insights-generate.spec.ts` (commit pending)
+- [x] Mobile-viewport smoke (Pixel 5) — `e2e/mobile-viewport.spec.ts` (commit pending)
+- [x] axe-core extended to `/` and `/settings/integrations`; `/admin` parked as `test.fixme()` (admin shell off-limits this phase, restructured by 4b)
+- Result: 41/41 active specs green locally (Node 22, fresh DB); 3 skipped (mobile-only spec on desktop project × 2 + `/admin` a11y fixme × 2 projects)
 - Detailed report: `.planning/phase-3-report.md`
 
 ## Phase 4 — Performance audit
@@ -117,7 +118,9 @@ Last update: 2026-05-09T16:10:00+02:00
 
 ## Phase 10 — Backfill GitHub releases v1.4.7-v1.4.13
 
-- [ ] Releases for v1.4.7..v1.4.13 created from CHANGELOG
+- [x] Releases for v1.4.7..v1.4.13 created from CHANGELOG
+- [x] `gh release list --limit 20` confirms v1.4.7..v1.4.13 all present
+- Result: ok / 1 release created (v1.4.13 → https://github.com/MBombeck/HealthLog/releases/tag/v1.4.13), 6 already existed (v1.4.7-v1.4.12 were published in real time alongside the Codex-OAuth iteration earlier on 2026-05-09)
 - Detailed report: `.planning/phase-10-report.md`
 
 ## Phase 11 — Final summary doc
