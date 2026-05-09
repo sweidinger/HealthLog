@@ -4,6 +4,7 @@ import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
+import { computeBpInTargetPct } from "@/lib/analytics/bp-in-target";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 
@@ -75,34 +76,13 @@ export const GET = apiHandler(async () => {
       }),
     ]);
 
-    if (sysData.length > 0 && diaData.length > 0) {
-      let inTarget = 0;
-      for (const sys of sysData) {
-        const closestDia = diaData.reduce((closest, dia) =>
-          Math.abs(dia.measuredAt.getTime() - sys.measuredAt.getTime()) <
-          Math.abs(closest.measuredAt.getTime() - sys.measuredAt.getTime())
-            ? dia
-            : closest,
-        );
-        const timeDiff = Math.abs(
-          closestDia.measuredAt.getTime() - sys.measuredAt.getTime(),
-        );
-        if (timeDiff < 5 * 60 * 1000) {
-          if (
-            sys.value >= bpTargets.sysLow &&
-            sys.value <= bpTargets.sysHigh &&
-            closestDia.value >= bpTargets.diaLow &&
-            closestDia.value <= bpTargets.diaHigh
-          ) {
-            inTarget++;
-          }
-        }
-      }
-      bpInTargetPct =
-        sysData.length > 0
-          ? Math.round((inTarget / sysData.length) * 100)
-          : null;
-    }
+    // Pure pair-and-count helper (see lib/analytics/bp-in-target.ts).
+    // Replaces an earlier inline implementation that divided by
+    // `sysData.length` and ignored a same-Berlin-day fallback for
+    // imports rounded past the 5-minute window — which made the tile
+    // read 0 % even when readings clearly sat inside target.
+    const result = computeBpInTargetPct(sysData, diaData, bpTargets);
+    bpInTargetPct = result?.pct ?? null;
   }
 
   // Per-context glucose summaries (canonical mg/dL).

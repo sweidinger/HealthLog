@@ -1,22 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
-import { AdminShell, ADMIN_SECTIONS } from "@/components/admin/admin-shell";
-import { StatusCardGrid } from "@/components/admin/status-card-grid";
+import { AdminShell } from "@/components/admin/admin-shell";
+import { SystemStatusSummary } from "@/components/admin/system-status-summary";
+import { RecentAuditPreview } from "@/components/admin/recent-audit-preview";
 import { useAdminSettings } from "@/components/admin/_shared";
 
 /**
- * `/admin` — overview landing page. The long monolithic admin scroll has
- * moved to per-section dynamic routes under `/admin/[section]`; this page
- * is now the system-wide status grid plus a quick-jump menu of the
- * available sub-sections.
- *
- * Bundle-size note: by extracting each section into its own route, the
- * overview no longer ships the umami / glitchtip / feedback /
- * users / etc. component trees. See `.planning/phase-4b-report.md`.
+ * `/admin` — overview landing page. v1.4.15 (phase A2) replaces the
+ * previous status-card grid + section quick-jump menu with two
+ * at-a-glance panes: a compact system snapshot and the 10 most recent
+ * audit entries. The section navigation is already exposed in the
+ * shell sidebar (and in the global app sidebar after Phase 4b), so the
+ * old grid duplicated existing nav. See `.planning/phase-A2-report.md`.
  */
 export default function AdminOverviewPage() {
   const { user } = useAuth();
@@ -32,12 +29,12 @@ export default function AdminOverviewPage() {
   return (
     <AdminShell>
       <div className="space-y-6">
-        <div>
+        <header>
           <h1 className="text-2xl font-bold tracking-tight">
             {t("admin.title")}
           </h1>
           <p className="text-muted-foreground text-sm">{t("admin.subtitle")}</p>
-        </div>
+        </header>
 
         {settingsError && (
           <div
@@ -48,44 +45,25 @@ export default function AdminOverviewPage() {
           </div>
         )}
 
-        <StatusCardGrid />
-
-        {/* v1.5 phase-5: wrap the quick-jump list in a labelled <nav> so
-            screen-reader landmark navigation can distinguish it from the
-            sidebar nav (which already has its own aria-label). */}
-        <nav aria-labelledby="admin-overview-sections-heading">
+        {/* Welcome card — greeting with admin context indicator. */}
+        <section
+          aria-labelledby="admin-overview-welcome-heading"
+          className="bg-card border-border rounded-xl border p-6"
+        >
           <h2
-            id="admin-overview-sections-heading"
-            className="text-muted-foreground mb-3 text-sm font-semibold tracking-wider uppercase"
+            id="admin-overview-welcome-heading"
+            className="text-lg font-semibold"
           >
-            {t("admin.shell.sectionsNav")}
+            {t("admin.overview.welcomeTitle", { name: user.username })}
           </h2>
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {ADMIN_SECTIONS.map((section) => {
-              const Icon = section.icon;
-              return (
-                <li key={section.slug}>
-                  <Link
-                    href={`/admin/${section.slug}`}
-                    className="bg-card border-border hover:bg-accent flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm font-medium transition-colors"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Icon
-                        className="text-muted-foreground h-4 w-4"
-                        aria-hidden="true"
-                      />
-                      {t(section.titleKey)}
-                    </span>
-                    <ArrowRight
-                      className="text-muted-foreground h-4 w-4"
-                      aria-hidden="true"
-                    />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {t("admin.overview.welcomeSubtitle")}
+          </p>
+        </section>
+
+        <SystemStatusSummary />
+
+        <RecentAuditPreview />
       </div>
     </AdminShell>
   );

@@ -1,165 +1,95 @@
-import { describe, expect, it } from "vitest";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { StatusBadge, buildCards } from "../status-card-grid";
-import { ADMIN_SECTION_SLUGS } from "../section-slugs";
-import type { StatusOverview } from "@/app/api/admin/status-overview/route";
+/**
+ * v1.4.15 phase A2: the `/admin` overview no longer renders the
+ * `StatusCardGrid` (the section-card grid Marc described as redundant
+ * with the sidebar nav). The status-card component itself was removed
+ * from the codebase. This test guards the *new* overview composition:
+ * a welcome card, the system snapshot, and the recent-audit preview.
+ *
+ * The file kept its old name so git history follows it. Nothing else
+ * imports `status-card-grid`.
+ */
 
-const mockOverview: StatusOverview = {
-  users: { severity: "good", total: 3, admins: 1, newThisWeek: 1 },
-  integrations: {
-    severity: "good",
-    withings: 1,
-    moodLog: 0,
-    telegram: 1,
-    ntfy: 0,
-    webPush: 2,
-  },
-  monitoring: {
-    severity: "caution",
-    glitchtipEnabled: true,
-    umamiEnabled: false,
-    wideEventsEnabled: true,
-    lastErrorAt: null,
-  },
-  backups: {
-    severity: "alert",
-    lastBackupAt: null,
-    backedUpUsers: 0,
-    retentionDays: 90,
-  },
-  maintenance: {
-    severity: "good",
-    workerRunning: true,
-    workerUptimeSeconds: 3600,
-    lastIdempotencyCleanup: new Date(Date.now() - 60_000).toISOString(),
-    lastAuditLogCleanup: null,
-  },
-  auditLog: {
-    severity: "info",
-    eventsLast30d: 42,
-    lastLoginAt: new Date(Date.now() - 5 * 60_000).toISOString(),
-  },
-};
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/admin",
+}));
 
-describe("<StatusBadge>", () => {
-  it("renders a colored dot plus a text label (never color-only)", () => {
-    const html = renderToStaticMarkup(<StatusBadge severity="good" />);
-    // dot must be aria-hidden so SR users don't hear it
-    expect(html).toContain('aria-hidden="true"');
-    // label must be present so color-blind users can read state
-    expect(html).toContain("Healthy");
-    // wrapper carries the announcement
-    expect(html).toContain('aria-label="Status: Healthy"');
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: () => ({
+    data: null,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useMutation: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+}));
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: {
+      id: "u1",
+      username: "marc",
+      email: "marc@example.com",
+      role: "ADMIN",
+    },
+    isAuthenticated: true,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
+
+import { I18nProvider } from "@/lib/i18n/context";
+import AdminOverviewPage from "@/app/admin/page";
+import { SystemStatusSummary } from "../system-status-summary";
+import { RecentAuditPreview } from "../recent-audit-preview";
+
+function render(node: React.ReactElement) {
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale="en">{node}</I18nProvider>,
+  );
+}
+
+describe("/admin overview composition", () => {
+  it("does NOT render the legacy section-card grid", () => {
+    const html = render(<AdminOverviewPage />);
+    // The old grid surfaced six card titles ("Users", "Integrations",
+    // "Monitoring", "Backups", "Maintenance", "Audit log") in headings.
+    // The redesigned overview must not paint that grid anymore.
+    expect(html).not.toContain(">Maintenance<");
+    expect(html).not.toContain(">Monitoring<");
+    // No "Manage users"/"Open backups" CTAs from the StatusCard CTAs.
+    expect(html).not.toContain("Manage users");
+    expect(html).not.toContain("Open backups");
   });
 
-  it("maps severity to the §2.6 dracula color tokens", () => {
-    const cases: Array<
-      [Parameters<typeof StatusBadge>[0]["severity"], string]
-    > = [
-      ["good", "var(--dracula-green)"],
-      ["info", "var(--dracula-cyan)"],
-      ["caution", "var(--dracula-orange)"],
-      ["alert", "var(--dracula-red)"],
-      ["pending", "var(--muted-foreground)"],
-    ];
-    for (const [severity, token] of cases) {
-      const html = renderToStaticMarkup(<StatusBadge severity={severity} />);
-      expect(html).toContain(token);
-    }
+  it("renders the welcome card with the admin's username", () => {
+    const html = render(<AdminOverviewPage />);
+    // `welcomeTitle` interpolates the username; the mocked auth hook
+    // returns "marc".
+    expect(html).toContain("Welcome, marc");
+    expect(html).toContain("admin-overview-welcome-heading");
   });
 
-  it("respects an explicit label override", () => {
-    const html = renderToStaticMarkup(
-      <StatusBadge severity="alert" label="Disk full" />,
-    );
-    expect(html).toContain("Disk full");
-    expect(html).toContain('aria-label="Status: Disk full"');
-  });
-});
-
-describe("buildCards()", () => {
-  it("returns exactly 6 cards in the §3.4 admin order", () => {
-    const cards = buildCards(mockOverview);
-    expect(cards).toHaveLength(6);
-    expect(cards.map((c) => c.title)).toEqual([
-      "Users",
-      "Integrations",
-      "Monitoring",
-      "Backups",
-      "Maintenance",
-      "Audit log",
-    ]);
+  it("renders the system snapshot section heading", () => {
+    const html = render(<SystemStatusSummary />);
+    expect(html).toContain("System snapshot");
+    expect(html).toContain("admin-overview-snapshot-heading");
   });
 
-  it("propagates severity from the aggregator response", () => {
-    const cards = buildCards(mockOverview);
-    expect(cards[0].severity).toBe("good"); // users
-    expect(cards[2].severity).toBe("caution"); // monitoring
-    expect(cards[3].severity).toBe("alert"); // backups (no backup yet)
-    expect(cards[5].severity).toBe("info"); // audit log
-  });
-
-  it("links each card to a real `/admin/<slug>` route that exists on disk", () => {
-    // v1.5: status-card CTAs no longer use `#anchor` fragments — every href
-    // points at a dynamic-route slug under `/admin/[section]`. This test
-    // proves the slug exists (a) in the static `ADMIN_SECTION_SLUGS` list
-    // that drives `generateStaticParams()` AND (b) that the dynamic route
-    // file `src/app/admin/[section]/page.tsx` exists on disk. If a future
-    // refactor moves the dynamic route, the second check fails loudly.
-    const validSlugs = new Set<string>(ADMIN_SECTION_SLUGS);
-
-    // `__dirname` here is `.../src/components/admin/__tests__`, so walk
-    // up four levels to the repo root.
-    const repoRoot = join(__dirname, "..", "..", "..", "..");
-    const dynamicRoute = join(
-      repoRoot,
-      "src",
-      "app",
-      "admin",
-      "[section]",
-      "page.tsx",
-    );
-    expect(
-      existsSync(dynamicRoute),
-      `Dynamic admin route missing — expected ${dynamicRoute}`,
-    ).toBe(true);
-
-    const cards = buildCards(mockOverview);
-    for (const card of cards) {
-      expect(card.cta.length).toBeGreaterThan(0);
-      // Hrefs must be real sub-routes; `/admin#section-*` was the v1.4.6
-      // honesty problem the v1.5 refactor permanently removed.
-      expect(card.href).toMatch(/^\/admin\/[a-z][a-z0-9-]*$/);
-      const slug = card.href.replace(/^\/admin\//, "");
-      expect(
-        validSlugs.has(slug),
-        `Card ${card.title} -> ${card.href} is not in ADMIN_SECTION_SLUGS`,
-      ).toBe(true);
-    }
-  });
-
-  it("includes between 1 and 3 metric tuples per card with non-empty labels", () => {
-    // v1.5 phase-5 a11y fix: dropped the empty-string filler "—"/"" tuple from
-    // the audit-log card so the rendered <dl> has no zero-content <dd>. Cards
-    // must still have at least one metric (otherwise the grid collapses) and
-    // every metric needs a real label (axe `definition-list` rule).
-    const cards = buildCards(mockOverview);
-    for (const card of cards) {
-      expect(card.metrics.length).toBeGreaterThanOrEqual(1);
-      expect(card.metrics.length).toBeLessThanOrEqual(3);
-      for (const metric of card.metrics) {
-        expect(metric.label.trim()).not.toBe("");
-        expect(metric.label).not.toBe("—");
-      }
-    }
-  });
-
-  it("renders worker status as plain text, not color alone", () => {
-    const cards = buildCards(mockOverview);
-    const maintenance = cards.find((c) => c.title === "Maintenance");
-    expect(maintenance?.metrics[0].value).toBe("Running");
+  it("renders the recent-activity section with a 'View all' link", () => {
+    const html = render(<RecentAuditPreview />);
+    expect(html).toContain("Recent activity");
+    expect(html).toContain("admin-overview-audit-heading");
+    expect(html).toContain('href="/admin/login-overview"');
+    expect(html).toContain("View all");
   });
 });
