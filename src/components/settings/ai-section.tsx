@@ -4,6 +4,17 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw, Save, Sparkles, Trash2 } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -639,6 +650,48 @@ function UserAIProviderSubsection() {
     },
   });
 
+  // v1.5 phase-5 — "Remove saved key" closes the v1.4.6 deferred polish.
+  // Sends an explicit `null` for whichever provider key is stored so the
+  // PATCH route clears it (the route already handles the empty-string /
+  // null case). Provider/model/baseUrl are left alone so the user can
+  // keep their selection while just rotating the secret.
+  const removeKeyMutation = useMutation({
+    mutationFn: async (target: "openaiKey" | "anthropicKey" | "localKey") => {
+      const res = await fetch("/api/user/ai-provider", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [target]: null }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || t("settings.ai.saveFailed"));
+    },
+    onSuccess: () => {
+      setSaveMsg(t("settings.ai.keyRemoved"));
+      setSaveOk(true);
+      queryClient.invalidateQueries({ queryKey: ["user", "ai-provider"] });
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+    },
+    onError: (e) => {
+      setSaveMsg(
+        e instanceof Error ? e.message : t("settings.ai.errorGeneric"),
+      );
+      setSaveOk(false);
+    },
+  });
+
+  /**
+   * Maps the currently selected provider to its stored-key flag and the
+   * PATCH-body field name. Returns null when there is no saved key for
+   * the active provider — the "Remove saved key" button hides itself.
+   */
+  const removableKey: "openaiKey" | "anthropicKey" | "localKey" | null = (() => {
+    if (provider === "OPENAI" && data?.hasOpenaiKey) return "openaiKey";
+    if (provider === "ANTHROPIC" && data?.hasAnthropicKey)
+      return "anthropicKey";
+    if (provider === "LOCAL" && data?.hasLocalKey) return "localKey";
+    return null;
+  })();
+
   async function runTest() {
     setTesting(true);
     setTestMsg(null);
@@ -862,6 +915,44 @@ function UserAIProviderSubsection() {
           )}
           {t("settings.ai.testCta")}
         </Button>
+        {removableKey && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive"
+                disabled={removeKeyMutation.isPending}
+              >
+                {removeKeyMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                {t("settings.ai.removeKeyCta")}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("settings.ai.removeKeyConfirmTitle")}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("settings.ai.removeKeyConfirmBody")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => removeKeyMutation.mutate(removableKey)}
+                >
+                  {t("settings.ai.removeKeyCta")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       {saveMsg && (
