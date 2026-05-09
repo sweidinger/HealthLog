@@ -85,12 +85,52 @@ export const POST = apiHandler(async (request: NextRequest) => {
     locale,
   );
 
-  const result = await provider.generateCompletion({
-    systemPrompt: getInsightsSystemPrompt(locale),
-    userPrompt,
-    temperature: 0.3,
-    maxTokens: 1500,
-  });
+  let result;
+  try {
+    result = await provider.generateCompletion({
+      systemPrompt: getInsightsSystemPrompt(locale),
+      userPrompt,
+      temperature: 0.3,
+      maxTokens: 1500,
+    });
+  } catch (e) {
+    // v1.4.6 T5 mapped only the parse-error branch from 502→422. Provider
+    // errors (e.g. invalid OpenAI key surfacing as
+    // `OpenAI request failed (401)`) still propagated to the apiHandler
+    // generic 500. Cloudflare rewrites 5xx to its own HTML error page,
+    // which breaks `await res.json()` on the dashboard. Mirror the v1.4.5
+    // ai/test categorisation so the React Query mutation can read the
+    // body and surface a readable message.
+    const err = e as Error & { httpStatus?: number; bodyExcerpt?: string };
+    annotate({
+      meta: {
+        insights_provider_error: err.message.slice(0, 500),
+        insights_provider_status: err.httpStatus ?? null,
+        insights_provider_body_excerpt: err.bodyExcerpt?.slice(0, 500) ?? null,
+        insights_provider_type: provider.type,
+      },
+    });
+    const status = err.httpStatus ?? 0;
+    if (status === 401 || status === 403) {
+      return apiError(
+        "AI provider rejected the request — check your API key in Settings > AI",
+        422,
+      );
+    }
+    if (status === 429) {
+      return apiError("AI provider rate-limited the request", 429);
+    }
+    if (status >= 500) {
+      return apiError(
+        "AI provider temporarily unavailable, try again in a moment",
+        503,
+      );
+    }
+    return apiError(
+      "AI provider connection failed — check your AI settings",
+      422,
+    );
+  }
 
   let insights: InsightResult | Record<string, unknown>;
   try {
