@@ -12,6 +12,7 @@ import {
   AllProvidersFailedError,
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
+import { isLegacyInsightPayload } from "@/lib/ai/legacy-payload";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
@@ -94,14 +95,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
   ) {
     try {
       const cached = JSON.parse(dbUser.insightsCachedText);
+      // v1.4.16 B5c: detect legacy payloads (pre-rationale) so the UI
+      // can show a "regenerate for new explainability features" CTA.
+      // We don't auto-regenerate — that would burn rate-limit tokens
+      // on a cache-hit silently. User-initiated only.
+      const legacyPayload = isLegacyInsightPayload(cached);
       annotate({
         action: { name: "insights.generate" },
-        meta: { cached: true },
+        meta: { cached: true, legacyPayload },
       });
       return apiSuccess({
         insights: cached,
         cached: true,
         cachedAt: dbUser.insightsCachedAt,
+        legacyPayload,
       });
     } catch {
       // Invalid cache, regenerate
@@ -312,5 +319,5 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   });
 
-  return apiSuccess({ insights, cached: false });
+  return apiSuccess({ insights, cached: false, legacyPayload: false });
 });
