@@ -206,15 +206,18 @@ function FeedbackCategoryBadge({
   > = {
     BUG: {
       label: t("admin.feedback.categoryBug"),
-      className: "bg-red-500/15 text-red-400 border-red-500/30",
+      className:
+        "bg-dracula-red/15 text-dracula-red border-dracula-red/30",
     },
     FEATURE_REQUEST: {
       label: t("admin.feedback.categoryFeature"),
-      className: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+      className:
+        "bg-dracula-purple/15 text-dracula-purple border-dracula-purple/30",
     },
     QUESTION: {
       label: t("admin.feedback.categoryQuestion"),
-      className: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+      className:
+        "bg-dracula-cyan/15 text-dracula-cyan border-dracula-cyan/30",
     },
     OTHER: {
       label: t("admin.feedback.categoryOther"),
