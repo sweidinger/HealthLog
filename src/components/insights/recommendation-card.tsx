@@ -17,6 +17,7 @@ import {
   type RecommendationFeedbackSeverity,
   type RecommendationFeedbackTimeRange,
 } from "./recommendation-feedback";
+import { ConfidenceMeter } from "./confidence-meter";
 
 /**
  * v1.4.16 phase B5c — Oura-style RecommendationCard.
@@ -68,6 +69,13 @@ interface NormalisedRec {
   metricSource?: { type: string; timeRange: string; summary: string };
   referenceId?: string;
   id?: string;
+  /**
+   * v1.4.16 phase B5d — server-computed confidence (0-100). Optional
+   * because legacy cached payloads predate the field; the rec card's
+   * confidence slot stays empty in that case rather than tagging
+   * legacy recs as "draft".
+   */
+  confidence?: number;
 }
 
 function normalise(rec: InsightRecommendation): NormalisedRec {
@@ -79,8 +87,19 @@ function normalise(rec: InsightRecommendation): NormalisedRec {
     metricSource: rec.metricSource,
     referenceId: rec.referenceId,
     id: rec.id,
+    confidence: rec.confidence,
   };
 }
+
+/**
+ * v1.4.16 phase B5d — caption threshold. Below 50, the expanded
+ * rationale card surfaces a "Low confidence — based on limited data"
+ * sentence so the rec stays visible but framed as preliminary.
+ * Above 50 the meter alone speaks; below 25 the meter is replaced by
+ * a draft pill (handled inside `<ConfidenceMeter>`) and the caption
+ * still applies (draft <= low).
+ */
+const LOW_CONFIDENCE_CAPTION_THRESHOLD = 50;
 
 /**
  * Map a `metricSource.type` value to the chart-types[] the dashboard
@@ -174,12 +193,14 @@ function RationaleCard({
   rationale,
   metricSource,
   referenceId,
+  confidence,
   locale,
   feedbackProps,
 }: {
   rationale: InsightRecommendationRationale;
   metricSource: { type: string; timeRange: string; summary: string } | undefined;
   referenceId: string | undefined;
+  confidence: number | undefined;
   locale: Locale;
   feedbackProps: {
     recId: string;
@@ -192,6 +213,9 @@ function RationaleCard({
   const { t } = useTranslations();
   const metricType = metricSource?.type;
   const chartTypes = metricTypeToChartTypes(metricType);
+  const showLowConfidenceCaption =
+    typeof confidence === "number" &&
+    confidence < LOW_CONFIDENCE_CAPTION_THRESHOLD;
 
   return (
     <div
@@ -226,6 +250,15 @@ function RationaleCard({
           windowOverride={rationale.dataWindow}
         />
       ) : null}
+
+      {showLowConfidenceCaption && (
+        <p
+          data-slot="rec-low-confidence-caption"
+          className="text-muted-foreground text-xs italic"
+        >
+          {t("insights.recommendation.confidenceLow")}
+        </p>
+      )}
 
       {referenceId && (
         <div>
@@ -326,7 +359,11 @@ export function RecommendationCard({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span data-slot="rec-confidence-slot" />
+          <span data-slot="rec-confidence-slot">
+            {typeof norm.confidence === "number" && (
+              <ConfidenceMeter value={norm.confidence} />
+            )}
+          </span>
           {expandable && (
             <button
               type="button"
@@ -359,6 +396,7 @@ export function RecommendationCard({
             rationale={norm.rationale}
             metricSource={norm.metricSource}
             referenceId={norm.referenceId}
+            confidence={norm.confidence}
             locale={locale}
             feedbackProps={feedbackProps}
           />
