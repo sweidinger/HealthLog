@@ -1217,8 +1217,63 @@
           "anthropic": "Anthropic (Claude)",
           "local": "Local model",
           "admin-openai": "Admin OpenAI"
-        }
-      }
+        },
+        "title": "Fallback chain",
+        "description": "If the primary provider fails, HealthLog walks the chain in order. Drag the rows to reorder, toggle the switch to disable a provider without removing it.",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "removeFromChain": "Remove from chain",
+        "addProvider": "Add provider",
+        "addNoneAvailable": "All providers already in chain",
+        "saveOrder": "Save chain order",
+        "saved": "Chain saved",
+        "saveFailed": "Saving the chain failed",
+        "resetDefaults": "Reset to defaults",
+        "resetConfirmTitle": "Reset chain to defaults?",
+        "resetConfirmBody": "The chain reverts to Codex → OpenAI → Anthropic → Local → Admin OpenAI. Your saved credentials are not touched."
+      },
+      "activeProviderHeading": "Active AI provider",
+      "activeProviderBody": "Pick the provider you want to use first. The form below configures only the selected provider; the fallback chain at the bottom decides what happens if it fails.",
+      "activeProviderLabel": "Primary provider",
+      "providerConfigTitle": "Provider configuration",
+      "providerSelect": {
+        "codex": "ChatGPT account (Codex)",
+        "openai": "OpenAI (your API key)",
+        "anthropic": "Anthropic (Claude)",
+        "local": "Local model (OpenAI-compatible)",
+        "admin-openai": "Admin-provided OpenAI"
+      },
+      "openai": {
+        "modelSelect": "Model",
+        "modelOptionCustom": "Custom slug…",
+        "modelCustomLabel": "Custom model slug",
+        "modelCustomPlaceholder": "gpt-5",
+        "baseUrlLabel": "Base URL (advanced)",
+        "baseUrlPlaceholder": "https://api.openai.com/v1",
+        "baseUrlHelp": "Override only when using an OpenAI-compatible gateway. Leave blank for OpenAI itself.",
+        "showAdvanced": "Show advanced",
+        "hideAdvanced": "Hide advanced",
+        "apiKey": "API key",
+        "apiKeyPlaceholder": "sk-…"
+      },
+      "codex": {
+        "statusConnected": "Connected",
+        "statusDisconnected": "Not connected",
+        "statusExpired": "Connection expired",
+        "connectButton": "Connect with ChatGPT",
+        "disconnectButton": "Disconnect",
+        "modelSlugLabel": "Model slug",
+        "modelSlugBody": "Codex uses the model your ChatGPT subscription routes to. The CODEX_MODEL environment variable lets ops override this on the instance.",
+        "lastInsight": "Last insight: {when}"
+      },
+      "adminOpenai": {
+        "title": "Admin OpenAI",
+        "body": "Operator-provided OpenAI key. Used as a last-ditch fallback when no personal provider is configured. There is nothing to configure on this row — visibility means the operator has set it up.",
+        "notConfigured": "The operator has not configured a shared OpenAI key on this instance."
+      },
+      "testProvider": "Test active provider",
+      "testSuccess": "OK — {provider} ({model})",
+      "testFailedShort": "Test failed: {message}"
     },
     "withings": "Withings",
     "withingsDescription": "Connect your Withings scale and blood pressure monitors.",

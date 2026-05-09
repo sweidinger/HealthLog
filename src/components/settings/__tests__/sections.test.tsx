@@ -3,10 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 // Stub out next/navigation. The settings sections that read it (Account)
 // only call `useRouter().push()` from inside an effect after mount, so a
-// no-op stub is enough for SSR smoke rendering.
+// no-op stub is enough for SSR smoke rendering. v1.4.16 phase B2:
+// `<AiSection>` reads `?provider=…` via `useSearchParams()` to pick the
+// dropdown branch, so the mock has to expose that hook too.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/settings/account",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 // Stub TanStack Query — every section reads from it but we only need the

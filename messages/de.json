@@ -1217,8 +1217,63 @@
           "anthropic": "Anthropic (Claude)",
           "local": "Lokales Modell",
           "admin-openai": "Admin-OpenAI"
-        }
-      }
+        },
+        "title": "Fallback-Kette",
+        "description": "Wenn der primäre Provider ausfällt, läuft HealthLog die Kette der Reihe nach durch. Reihenfolge per Pfeile ändern, Schalter deaktiviert einen Eintrag ohne ihn zu entfernen.",
+        "moveUp": "Nach oben",
+        "moveDown": "Nach unten",
+        "removeFromChain": "Aus Kette entfernen",
+        "addProvider": "Provider hinzufügen",
+        "addNoneAvailable": "Alle Provider sind bereits in der Kette",
+        "saveOrder": "Reihenfolge speichern",
+        "saved": "Kette gespeichert",
+        "saveFailed": "Speichern der Kette fehlgeschlagen",
+        "resetDefaults": "Zurücksetzen",
+        "resetConfirmTitle": "Kette auf Standard zurücksetzen?",
+        "resetConfirmBody": "Die Kette wird auf Codex → OpenAI → Anthropic → Lokal → Admin-OpenAI zurückgesetzt. Gespeicherte Zugangsdaten bleiben erhalten."
+      },
+      "activeProviderHeading": "Aktiver KI-Provider",
+      "activeProviderBody": "Wähle den Provider, der zuerst genutzt wird. Das Formular darunter konfiguriert ausschließlich den ausgewählten Provider; die Fallback-Kette unten regelt, was passiert, wenn er ausfällt.",
+      "activeProviderLabel": "Primärer Provider",
+      "providerConfigTitle": "Provider-Konfiguration",
+      "providerSelect": {
+        "codex": "ChatGPT-Account (Codex)",
+        "openai": "OpenAI (eigener API-Key)",
+        "anthropic": "Anthropic (Claude)",
+        "local": "Lokales Modell (OpenAI-kompatibel)",
+        "admin-openai": "Admin-OpenAI"
+      },
+      "openai": {
+        "modelSelect": "Modell",
+        "modelOptionCustom": "Eigener Slug…",
+        "modelCustomLabel": "Eigener Modell-Slug",
+        "modelCustomPlaceholder": "gpt-5",
+        "baseUrlLabel": "Base URL (erweitert)",
+        "baseUrlPlaceholder": "https://api.openai.com/v1",
+        "baseUrlHelp": "Nur überschreiben, wenn ein OpenAI-kompatibles Gateway genutzt wird. Für OpenAI selbst leer lassen.",
+        "showAdvanced": "Erweitert anzeigen",
+        "hideAdvanced": "Erweitert ausblenden",
+        "apiKey": "API-Key",
+        "apiKeyPlaceholder": "sk-…"
+      },
+      "codex": {
+        "statusConnected": "Verbunden",
+        "statusDisconnected": "Nicht verbunden",
+        "statusExpired": "Verbindung abgelaufen",
+        "connectButton": "Mit ChatGPT verbinden",
+        "disconnectButton": "Trennen",
+        "modelSlugLabel": "Modell-Slug",
+        "modelSlugBody": "Codex nutzt das Modell, auf das dein ChatGPT-Abo routet. Die Umgebungsvariable CODEX_MODEL kann das instanzweit überschreiben.",
+        "lastInsight": "Letzte Analyse: {when}"
+      },
+      "adminOpenai": {
+        "title": "Admin-OpenAI",
+        "body": "Vom Betreiber bereitgestellter OpenAI-Key. Wird als letzter Fallback genutzt, wenn kein persönlicher Provider konfiguriert ist. Hier ist nichts einzustellen — die Anzeige bedeutet, dass der Betreiber ihn eingerichtet hat.",
+        "notConfigured": "Der Betreiber hat keinen geteilten OpenAI-Key auf dieser Instanz konfiguriert."
+      },
+      "testProvider": "Aktiven Provider testen",
+      "testSuccess": "OK — {provider} ({model})",
+      "testFailedShort": "Test fehlgeschlagen: {message}"
     },
     "withings": "Withings",
     "withingsDescription": "Verbinde deine Withings-Waage und Blutdruckmessgeräte.",

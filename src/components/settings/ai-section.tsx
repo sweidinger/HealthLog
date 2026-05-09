@@ -1,8 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RefreshCw, Save, Sparkles, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Loader2,
+  PlusCircle,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -50,28 +62,85 @@ interface UserAIProvider {
 }
 
 /**
- * Model presets per provider — keeps users out of the freetext box for
- * the common case and signals which models the resolver will actually
- * use as defaults if the field is left blank. The `__custom__` sentinel
- * surfaces a freetext Input so power users can still target any model
- * the underlying API speaks (e.g. preview models, fine-tunes).
+ * v1.4.16 phase B2 — provider tags exposed to the UI. Mirrors
+ * `PROVIDER_CHAIN_TYPES` server-side; kept as a const-array here to
+ * avoid pulling a server-only module into the client bundle.
  */
-const MODEL_PRESETS: Record<string, ReadonlyArray<string>> = {
-  // P15: dropped `gpt-5` (not a released model — would surface as
-  // model_not_found) and `o3-mini` (uses the o-series param contract:
-  // `max_completion_tokens` instead of `max_tokens`, no `temperature`
-  // override — would 400 with the current OpenAIClient body shape).
-  OPENAI: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
-  ANTHROPIC: [
-    "claude-sonnet-4-6",
-    "claude-opus-4-7",
-    "claude-haiku-4-5",
-    "claude-3-5-sonnet-latest",
-  ],
-  LOCAL: ["llama3.1:8b", "llama3.1:70b", "mistral", "qwen2.5"],
-};
+const PROVIDER_TYPES = [
+  "codex",
+  "openai",
+  "anthropic",
+  "local",
+  "admin-openai",
+] as const;
+type ProviderType = (typeof PROVIDER_TYPES)[number];
 
+interface ChainEntry {
+  providerType: ProviderType;
+  enabled: boolean;
+}
+
+interface ProviderChainData {
+  activeProvider: ProviderType | null;
+  cachedActiveProvider: ProviderType | null;
+  configuredChain: { providerType: ProviderType; available: boolean }[];
+}
+
+const DEFAULT_CHAIN: readonly ChainEntry[] = [
+  { providerType: "codex", enabled: true },
+  { providerType: "openai", enabled: true },
+  { providerType: "anthropic", enabled: true },
+  { providerType: "local", enabled: true },
+  { providerType: "admin-openai", enabled: true },
+];
+
+/**
+ * OpenAI model presets — the wire-up keeps users out of the freetext
+ * box for the common case. The `__custom__` sentinel surfaces a
+ * freetext input so power users can target preview models or
+ * fine-tunes (e.g. `gpt-5`, which is admitted via the env override on
+ * the Codex backend but not yet a documented OpenAI model id).
+ */
+const OPENAI_MODEL_PRESETS = [
+  "gpt-4o",
+  "gpt-4o-mini",
+  "gpt-4-turbo",
+] as const;
+const ANTHROPIC_MODEL_PRESETS = [
+  "claude-sonnet-4-6",
+  "claude-opus-4-7",
+  "claude-haiku-4-5",
+  "claude-3-5-sonnet-latest",
+] as const;
+const LOCAL_MODEL_PRESETS = [
+  "llama3.1:8b",
+  "llama3.1:70b",
+  "mistral",
+  "qwen2.5",
+] as const;
 const CUSTOM_MODEL_SENTINEL = "__custom__";
+
+/**
+ * Map UI provider tag → the `aiProvider` enum understood by the
+ * legacy single-result `resolveProvider()` resolver. `codex` and
+ * `admin-openai` aren't user-level provider columns (they're handled
+ * by Codex OAuth + admin-key fallback), so they map to null and the
+ * legacy column is left blank.
+ */
+function uiToLegacyProviderEnum(p: ProviderType): string | null {
+  switch (p) {
+    case "openai":
+      return "OPENAI";
+    case "anthropic":
+      return "ANTHROPIC";
+    case "local":
+      return "LOCAL";
+    case "codex":
+    case "admin-openai":
+    default:
+      return null;
+  }
+}
 
 export function AiSection() {
   const { t } = useTranslations();
@@ -91,24 +160,31 @@ export function AiSection() {
         </p>
       </header>
 
-      <InsightsSettingsCard isAuthenticated={isAuthenticated} />
+      <AiInsightsCard isAuthenticated={isAuthenticated} />
     </section>
   );
 }
 
-function InsightsSettingsCard({
-  isAuthenticated,
-}: {
-  isAuthenticated: boolean;
-}) {
+/**
+ * The single dropdown-driven configuration card. Replaces the
+ * v1.4.15-vintage two-card layout (Codex connect at the top, personal
+ * provider form at the bottom) per Marc's
+ * `feedback_settings_no_split.md`: one provider Select, one matching
+ * form below, one fallback-chain card at the bottom.
+ *
+ * The active-provider Select is URL-synced via `?provider=…` so deep
+ * links to a specific config form work, the SSR test can drive the
+ * branch deterministically, and a refresh keeps the user on the form
+ * they were editing.
+ */
+function AiInsightsCard({ isAuthenticated }: { isAuthenticated: boolean }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
-  const [disconnecting, setDisconnecting] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const { data: settings } = useQuery({
+  const { data: insightsSettings } = useQuery({
     queryKey: ["insights", "settings"],
     queryFn: async () => {
       const res = await fetch("/api/insights/settings");
@@ -119,26 +195,265 @@ function InsightsSettingsCard({
     enabled: isAuthenticated,
   });
 
-  const updateSettings = useMutation({
-    mutationFn: async (body: Record<string, unknown>) => {
-      const res = await fetch("/api/insights/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+  const { data: userProvider } = useQuery({
+    queryKey: ["user", "ai-provider"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/ai-provider");
+      if (!res.ok) return null;
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      return json.data as UserAIProvider;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["insights"] });
-    },
+    enabled: isAuthenticated,
   });
 
-  // OAuth callback handler — reads `?codex_connected=true|codex_error=...`
-  // from the URL and surfaces a toast-equivalent inline message. We do the
-  // read at render time (via a `useState` lazy initialiser) so the strict
-  // `react-hooks/set-state-in-effect` rule isn't triggered. The effect then
-  // drains the result by clearing the URL params and invalidating queries.
+  const { data: chainData } = useQuery({
+    queryKey: ["insights", "provider-chain"],
+    queryFn: async () => {
+      const res = await fetch("/api/insights/provider-chain");
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data as ProviderChainData;
+    },
+    enabled: isAuthenticated,
+  });
+
+  // The Select is URL-driven so the SSR test can pick the branch and
+  // a deep link works. Default = `?provider=…` query param when the
+  // user navigated here intentionally, else the chain's active entry,
+  // else "codex". The seed-on-data-arrival pattern below avoids
+  // setState-in-effect (lint rule `react-hooks/set-state-in-effect`)
+  // by reading the resolved value at render time and consulting a
+  // `seededFor` marker so we only re-seed when the relevant inputs
+  // actually changed.
+  const queryProvider = searchParams?.get("provider") ?? null;
+  const [selectedProvider, setSelectedProvider] = useState<ProviderType>(() =>
+    isProviderType(queryProvider) ? queryProvider : "codex",
+  );
+  const seedKey = `${queryProvider ?? ""}|${chainData?.activeProvider ?? ""}`;
+  const [seededFor, setSeededFor] = useState<string>(seedKey);
+  if (seedKey !== seededFor) {
+    setSeededFor(seedKey);
+    if (isProviderType(queryProvider)) {
+      setSelectedProvider(queryProvider);
+    } else if (chainData?.activeProvider) {
+      setSelectedProvider(chainData.activeProvider);
+    }
+  }
+
+  function pickProvider(next: ProviderType) {
+    setSelectedProvider(next);
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("provider", next);
+    router.replace(`${pathname}?${params.toString()}`);
+  }
+
+  return (
+    <div className="bg-card border-border space-y-6 rounded-xl border p-6">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="text-primary h-5 w-5" />
+          <h2 className="text-lg font-semibold">{t("settings.kiInsights")}</h2>
+        </div>
+        <ProviderStatusBadges
+          settings={insightsSettings}
+          activeProvider={chainData?.activeProvider ?? null}
+        />
+      </div>
+      <p className="text-muted-foreground text-xs">
+        {t("settings.kiInsightsDescription")}
+      </p>
+
+      <ActiveProviderSelect
+        value={selectedProvider}
+        onChange={pickProvider}
+      />
+
+      <ProviderConfigCard
+        provider={selectedProvider}
+        insightsSettings={insightsSettings}
+        userProvider={userProvider}
+      />
+
+      <FallbackChainCard
+        chain={chainData?.configuredChain ?? []}
+        selected={selectedProvider}
+        onSelect={pickProvider}
+      />
+
+      <RuntimeActionsRow
+        provider={selectedProvider}
+        userProvider={userProvider}
+        canRegenerate={
+          insightsSettings?.codexStatus === "connected" ||
+          insightsSettings?.hasAdminKey ||
+          Boolean(userProvider?.provider)
+        }
+        privacyMode={insightsSettings?.privacyMode ?? "aggregated"}
+        lastInsightAt={insightsSettings?.lastInsightAt ?? null}
+        onRegenerated={() =>
+          queryClient.invalidateQueries({ queryKey: ["insights"] })
+        }
+        onPrivacyChanged={() =>
+          queryClient.invalidateQueries({ queryKey: ["insights"] })
+        }
+      />
+    </div>
+  );
+}
+
+function isProviderType(v: string | null): v is ProviderType {
+  return v != null && (PROVIDER_TYPES as readonly string[]).includes(v);
+}
+
+function ProviderStatusBadges({
+  settings,
+  activeProvider,
+}: {
+  settings: InsightsSettings | null | undefined;
+  activeProvider: ProviderType | null;
+}) {
+  const { t } = useTranslations();
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {settings?.codexStatus === "connected" && activeProvider === "codex" && (
+        <Badge className="border-success/30 bg-success/15 text-success">
+          {t("settings.ai.chatgptConnectedBadge")}
+        </Badge>
+      )}
+      {settings?.codexStatus !== "connected" &&
+        settings?.hasAdminKey &&
+        activeProvider !== "codex" && (
+          <Badge className="border-dracula-purple/30 bg-dracula-purple/15 text-dracula-purple">
+            {t("settings.ai.adminAiActiveBadge")}
+          </Badge>
+        )}
+      {settings?.codexStatus === "expired" && (
+        <Badge className="border-warning/30 bg-warning/15 text-warning">
+          {t("settings.ai.connectionExpiredBadge")}
+        </Badge>
+      )}
+      {settings?.lastInsightAt && (
+        <Badge variant="outline" className="text-xs">
+          {t("settings.lastGeneratedAt")}:{" "}
+          {formatDateTime(settings.lastInsightAt)}
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The single Pulldown that drives every form below it. Uses a native
+ * `<select>` so the SSR-only settings test renders deterministically
+ * without a portal-based Radix tree. Mobile: full-width, generous
+ * height (`h-10`) so finger taps land cleanly on the chevron.
+ */
+function ActiveProviderSelect({
+  value,
+  onChange,
+}: {
+  value: ProviderType;
+  onChange: (next: ProviderType) => void;
+}) {
+  const { t } = useTranslations();
+  return (
+    <div className="bg-muted/50 rounded-lg p-4">
+      <p className="text-sm font-medium">
+        {t("settings.ai.activeProviderHeading")}
+      </p>
+      <p className="text-muted-foreground mb-3 text-xs">
+        {t("settings.ai.activeProviderBody")}
+      </p>
+      <Label htmlFor="ai-active-provider-select">
+        {t("settings.ai.activeProviderLabel")}
+      </Label>
+      <select
+        id="ai-active-provider-select"
+        data-testid="ai-active-provider-select"
+        value={value}
+        onChange={(e) => {
+          const next = e.target.value;
+          if (isProviderType(next)) onChange(next);
+        }}
+        className="bg-background border-input mt-1 h-10 w-full rounded-md border px-3 text-sm sm:max-w-md"
+      >
+        {PROVIDER_TYPES.map((p) => (
+          <option key={p} value={p}>
+            {t(`settings.ai.providerSelect.${p}` as const)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/**
+ * Switch-rendered provider configuration. The component is the
+ * "form below adapts dynamically" half of Marc's pulldown contract:
+ * pick Codex → see Codex form; pick OpenAI → see API-key + model
+ * dropdown + base-URL override. The card frame is the same in every
+ * branch so transitions feel like updating a single concept rather
+ * than swapping pages.
+ */
+function ProviderConfigCard({
+  provider,
+  insightsSettings,
+  userProvider,
+}: {
+  provider: ProviderType;
+  insightsSettings: InsightsSettings | null | undefined;
+  userProvider: UserAIProvider | null | undefined;
+}) {
+  const { t } = useTranslations();
+  return (
+    <div className="bg-muted/50 space-y-4 rounded-lg p-4">
+      <p className="text-sm font-medium">
+        {t("settings.ai.providerConfigTitle")}
+      </p>
+      {provider === "codex" && (
+        <CodexProviderForm settings={insightsSettings} />
+      )}
+      {provider === "openai" && (
+        <OpenAIProviderForm userProvider={userProvider} />
+      )}
+      {provider === "anthropic" && (
+        <AnthropicProviderForm userProvider={userProvider} />
+      )}
+      {provider === "local" && (
+        <LocalProviderForm userProvider={userProvider} />
+      )}
+      {provider === "admin-openai" && (
+        <AdminOpenAIProviderForm hasAdminKey={insightsSettings?.hasAdminKey} />
+      )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Codex (ChatGPT account) form — connect / disconnect / status.
+ * ──────────────────────────────────────────────────────────────── */
+
+function CodexProviderForm({
+  settings,
+}: {
+  settings: InsightsSettings | null | undefined;
+}) {
+  const { t } = useTranslations();
+  const queryClient = useQueryClient();
+
+  const [msg, setMsg] = useState<string | null>(null);
+  const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [deviceCode, setDeviceCode] = useState<{
+    userCode: string;
+    verificationUrl: string;
+    intervalSeconds: number;
+  } | null>(null);
+  const [devicePolling, setDevicePolling] = useState(false);
+
+  // OAuth callback handler — reads `?codex_connected=true|codex_error=…`
+  // from the URL and surfaces an inline message.
   const [oauthOutcome] = useState<
     { kind: "connected" } | { kind: "error" } | null
   >(() => {
@@ -151,17 +466,15 @@ function InsightsSettingsCard({
 
   useEffect(() => {
     if (!oauthOutcome) return;
-    // The browser-history rewrite is the side effect; the matching i18n
-    // message is already painted via the lazy initialiser below.
-    window.history.replaceState({}, "", window.location.pathname);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("codex_connected");
+    url.searchParams.delete("codex_error");
+    window.history.replaceState({}, "", url.toString());
     if (oauthOutcome.kind === "connected") {
       queryClient.invalidateQueries({ queryKey: ["insights"] });
     }
   }, [oauthOutcome, queryClient]);
 
-  // Seed the initial inline message from the OAuth outcome. Reads happen
-  // during render (allowed) — `setMsg` is only called by user actions after
-  // mount, never inside an effect.
   const [oauthMsgSeeded, setOauthMsgSeeded] = useState(false);
   if (!oauthMsgSeeded && oauthOutcome) {
     setOauthMsgSeeded(true);
@@ -173,21 +486,6 @@ function InsightsSettingsCard({
       setMsgType("error");
     }
   }
-
-  const hasProvider =
-    settings?.codexStatus === "connected" || settings?.hasAdminKey;
-
-  // v1.4.7.1: device-code flow. The earlier "redirect to
-  // auth.openai.com" path fails because the public Codex CLI client
-  // ID's redirect-URI allow-list only covers localhost. The device
-  // flow side-steps that — the user types a short code on chatgpt.com
-  // and we poll for confirmation.
-  const [deviceCode, setDeviceCode] = useState<{
-    userCode: string;
-    verificationUrl: string;
-    intervalSeconds: number;
-  } | null>(null);
-  const [devicePolling, setDevicePolling] = useState(false);
 
   async function handleConnect() {
     setMsg(null);
@@ -210,9 +508,6 @@ function InsightsSettingsCard({
     }
   }
 
-  // Poll until the user finishes the approval at chatgpt.com or the
-  // 15-minute device-code window expires. Polling stops as soon as
-  // `deviceCode` is cleared (success / cancel / unmount).
   useEffect(() => {
     if (!deviceCode) return;
     let cancelled = false;
@@ -236,7 +531,6 @@ function InsightsSettingsCard({
           queryClient.invalidateQueries({ queryKey: ["insights"] });
           return;
         }
-        // Pending → schedule next tick.
         if (!cancelled) setTimeout(tick, intervalMs);
       } catch (err) {
         if (cancelled) return;
@@ -282,344 +576,203 @@ function InsightsSettingsCard({
     }
   }
 
-  async function togglePrivacyMode() {
-    const newMode = settings?.privacyMode === "raw" ? "aggregated" : "raw";
-    await updateSettings.mutateAsync({ privacyMode: newMode });
-  }
-
-  async function handleRegenerate() {
-    setRegenerating(true);
-    setMsg(null);
-    setMsgType(null);
-    try {
-      const res = await fetch("/api/insights/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force: true }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        if (res.status === 429) {
-          setMsg(t("settings.regenerateRateLimit"));
-        } else {
-          setMsg(json.error || t("settings.savingError"));
-        }
-        setMsgType("error");
-        return;
-      }
-      setMsg(t("settings.regenerateSuccess"));
-      setMsgType("success");
-      queryClient.invalidateQueries({ queryKey: ["insights"] });
-    } catch {
-      setMsg(t("settings.savingError"));
-      setMsgType("error");
-    } finally {
-      setRegenerating(false);
-    }
-  }
+  const status = settings?.codexStatus;
+  const isConnected = status === "connected";
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.kiInsights")}</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {settings?.codexStatus === "connected" && (
-            <Badge className="border-success/30 bg-success/15 text-success">
-              {t("settings.ai.chatgptConnectedBadge")}
-            </Badge>
-          )}
-          {settings?.codexStatus !== "connected" && settings?.hasAdminKey && (
-            <Badge className="border-dracula-purple/30 bg-dracula-purple/15 text-dracula-purple">
-              {t("settings.ai.adminAiActiveBadge")}
-            </Badge>
-          )}
-          {settings?.codexStatus === "expired" && (
-            <Badge className="border-warning/30 bg-warning/15 text-warning">
-              {t("settings.ai.connectionExpiredBadge")}
-            </Badge>
-          )}
-          {settings?.lastInsightAt && (
-            <Badge variant="outline" className="text-xs">
-              {t("settings.lastGeneratedAt")}:{" "}
-              {formatDateTime(settings.lastInsightAt)}
-            </Badge>
-          )}
-        </div>
+    <div data-testid="ai-provider-config-codex" className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-medium">
+          {t("settings.ai.codex.modelSlugLabel")}
+        </span>
+        {isConnected ? (
+          <Badge className="border-success/30 bg-success/15 text-success">
+            {t("settings.ai.codex.statusConnected")}
+          </Badge>
+        ) : status === "expired" ? (
+          <Badge className="border-warning/30 bg-warning/15 text-warning">
+            {t("settings.ai.codex.statusExpired")}
+          </Badge>
+        ) : (
+          <Badge variant="outline">
+            {t("settings.ai.codex.statusDisconnected")}
+          </Badge>
+        )}
       </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.kiInsightsDescription")}
+      <p className="text-muted-foreground text-xs">
+        {t("settings.ai.codex.modelSlugBody")}
       </p>
+      {settings?.lastInsightAt && (
+        <p className="text-muted-foreground text-xs">
+          {t("settings.ai.codex.lastInsight", {
+            when: formatDateTime(settings.lastInsightAt),
+          })}
+        </p>
+      )}
+      {settings?.codexConnectedAt && isConnected && (
+        <p className="text-muted-foreground text-xs">
+          {t("settings.ai.connectedSince", {
+            when: formatDateTime(settings.codexConnectedAt),
+          })}
+        </p>
+      )}
 
-      <div className="mt-4 space-y-4">
-        <div className="bg-muted/50 rounded-lg p-4">
-          {settings?.codexStatus === "connected" ? (
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium">
-                  {t("settings.ai.chatgptConnectedHeading")}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {t("settings.ai.chatgptConnectedBody")}
-                  {settings.codexConnectedAt && (
-                    <>
-                      {" "}
-                      {t("settings.ai.connectedSince", {
-                        when: formatDateTime(settings.codexConnectedAt),
-                      })}
-                    </>
-                  )}
-                </p>
-              </div>
-              {/* v1.4.3: aligned with the Withings/moodLog disconnect
-                  buttons — outline + text-destructive so the same action
-                  reads the same everywhere in Settings. */}
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive shrink-0"
-                onClick={handleDisconnect}
-                disabled={disconnecting}
-              >
-                {disconnecting ? (
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-1 h-4 w-4" />
-                )}
-                {t("settings.ai.disconnect")}
-              </Button>
-            </div>
+      {settings?.codexOauthConfigured === false ? (
+        <p className="text-muted-foreground text-xs italic">
+          {t("settings.ai.oauthNotConfigured")}
+        </p>
+      ) : isConnected ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive shrink-0"
+          onClick={handleDisconnect}
+          disabled={disconnecting}
+        >
+          {disconnecting ? (
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
           ) : (
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm font-medium">
-                  {t("settings.ai.connectChatgptHeading")}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {t("settings.ai.connectChatgptBody")}
-                </p>
-              </div>
-              {settings?.codexOauthConfigured ? (
-                deviceCode ? (
-                  <div className="border-dracula-purple bg-dracula-purple/5 space-y-3 rounded-lg border-l-4 p-4">
-                    <p className="text-sm font-medium">
-                      {t("settings.ai.deviceCodeHeading")}
-                    </p>
-                    <ol className="text-muted-foreground list-decimal space-y-2 pl-5 text-sm">
-                      <li>
-                        {t("settings.ai.deviceCodeStep1")}{" "}
-                        <a
-                          href={deviceCode.verificationUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-dracula-purple font-medium underline"
-                        >
-                          {deviceCode.verificationUrl}
-                        </a>
-                      </li>
-                      <li>
-                        {t("settings.ai.deviceCodeStep2")}
-                        <div className="bg-card border-border mt-2 inline-flex items-center gap-2 rounded border px-3 py-2 font-mono text-lg tracking-widest">
-                          {deviceCode.userCode}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigator.clipboard?.writeText(
-                                deviceCode.userCode,
-                              )
-                            }
-                            className="text-muted-foreground hover:text-foreground text-xs underline"
-                          >
-                            {t("settings.ai.deviceCodeCopy")}
-                          </button>
-                        </div>
-                      </li>
-                      <li>{t("settings.ai.deviceCodeStep3")}</li>
-                    </ol>
-                    <div className="flex items-center gap-3 text-xs">
-                      {devicePolling && (
-                        <span className="text-muted-foreground inline-flex items-center gap-1">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          {t("settings.ai.deviceCodeWaiting")}
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleCancelDevice}
-                        className="text-muted-foreground hover:text-foreground underline"
-                      >
-                        {t("settings.ai.deviceCodeCancel")}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    onClick={handleConnect}
-                    disabled={devicePolling}
-                    className="w-full sm:w-auto"
-                  >
-                    {devicePolling ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="mr-2 h-4 w-4" />
-                    )}
-                    {t("settings.ai.connectChatgptCta")}
-                  </Button>
-                )
-              ) : (
-                <p className="text-muted-foreground text-xs italic">
-                  {t("settings.ai.oauthNotConfigured")}
-                </p>
-              )}
-              {settings?.hasAdminKey && (
-                <p className="text-muted-foreground text-xs">
-                  {t("settings.ai.adminFallback")}
-                </p>
-              )}
-            </div>
+            <Trash2 className="mr-1 h-4 w-4" />
           )}
-        </div>
-
-        {msg && (
-          <p
-            role="alert"
-            className={`text-sm ${msgType === "success" ? "text-success" : "text-destructive"}`}
-          >
-            {msg}
+          {t("settings.ai.codex.disconnectButton")}
+        </Button>
+      ) : deviceCode ? (
+        <div className="border-dracula-purple bg-dracula-purple/5 space-y-3 rounded-lg border-l-4 p-4">
+          <p className="text-sm font-medium">
+            {t("settings.ai.deviceCodeHeading")}
           </p>
-        )}
-
-        {hasProvider && (
-          <div className="bg-muted/50 rounded-lg p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="pr-2">
-                <p className="text-sm font-medium">{t("settings.rawData")}</p>
-                <p className="text-muted-foreground text-xs">
-                  {settings?.privacyMode === "raw"
-                    ? t("settings.rawDataOnDescription")
-                    : t("settings.rawDataOffDescription")}
-                </p>
+          <ol className="text-muted-foreground list-decimal space-y-2 pl-5 text-sm">
+            <li>
+              {t("settings.ai.deviceCodeStep1")}{" "}
+              <a
+                href={deviceCode.verificationUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-dracula-purple font-medium underline"
+              >
+                {deviceCode.verificationUrl}
+              </a>
+            </li>
+            <li>
+              {t("settings.ai.deviceCodeStep2")}
+              <div className="bg-card border-border mt-2 inline-flex items-center gap-2 rounded border px-3 py-2 font-mono text-lg tracking-widest">
+                {deviceCode.userCode}
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigator.clipboard?.writeText(deviceCode.userCode)
+                  }
+                  className="text-muted-foreground hover:text-foreground text-xs underline"
+                >
+                  {t("settings.ai.deviceCodeCopy")}
+                </button>
               </div>
-              <div className="ml-2 shrink-0">
-                <Switch
-                  checked={settings?.privacyMode === "raw"}
-                  onCheckedChange={togglePrivacyMode}
-                />
-              </div>
-            </div>
-            {settings?.privacyMode === "raw" && (
-              <div className="bg-warning/15 text-warning mt-2 rounded-lg p-2 text-xs">
-                {t("settings.rawDataWarning")}
-              </div>
+            </li>
+            <li>{t("settings.ai.deviceCodeStep3")}</li>
+          </ol>
+          <div className="flex items-center gap-3 text-xs">
+            {devicePolling && (
+              <span className="text-muted-foreground inline-flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {t("settings.ai.deviceCodeWaiting")}
+              </span>
             )}
+            <button
+              type="button"
+              onClick={handleCancelDevice}
+              className="text-muted-foreground hover:text-foreground underline"
+            >
+              {t("settings.ai.deviceCodeCancel")}
+            </button>
           </div>
-        )}
+        </div>
+      ) : (
+        <Button
+          variant="outline"
+          onClick={handleConnect}
+          disabled={devicePolling}
+          className="w-full sm:w-auto"
+        >
+          {devicePolling ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="mr-2 h-4 w-4" />
+          )}
+          {t("settings.ai.codex.connectButton")}
+        </Button>
+      )}
 
-        {hasProvider && (
-          <Button
-            variant="outline"
-            onClick={handleRegenerate}
-            disabled={regenerating}
-            className="w-full sm:w-auto"
-          >
-            {regenerating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
-            {t("settings.regenerateInsights")}
-          </Button>
-        )}
-
-        <ProviderChainSummary />
-
-        <UserAIProviderSubsection />
-      </div>
+      {msg && (
+        <p
+          role="alert"
+          className={`text-sm ${msgType === "success" ? "text-success" : "text-destructive"}`}
+        >
+          {msg}
+        </p>
+      )}
     </div>
   );
 }
 
-function UserAIProviderSubsection() {
+/* ────────────────────────────────────────────────────────────────
+ * OpenAI form — API key + model select + collapsed Base URL override.
+ * Save mutation flips both `aiProvider` (for the legacy single-result
+ * resolver) and `aiOpenaiKeyEncrypted` (the user's key) so an OPENAI
+ * pick is visible to every code path that reads the row.
+ * ──────────────────────────────────────────────────────────────── */
+
+function OpenAIProviderForm({
+  userProvider,
+}: {
+  userProvider: UserAIProvider | null | undefined;
+}) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
-  const [provider, setProvider] = useState<string>("");
+
+  const [apiKey, setApiKey] = useState("");
   const [modelChoice, setModelChoice] = useState<string>("");
-  const [customModel, setCustomModel] = useState<string>("");
-  const [baseUrl, setBaseUrl] = useState<string>("");
-  const [anthropicKey, setAnthropicKey] = useState<string>("");
-  const [localKey, setLocalKey] = useState<string>("");
-  const [openaiKey, setOpenaiKey] = useState<string>("");
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
-  const [saveOk, setSaveOk] = useState<boolean>(false);
-  const [testMsg, setTestMsg] = useState<string | null>(null);
-  const [testOk, setTestOk] = useState<boolean>(false);
-  const [testing, setTesting] = useState<boolean>(false);
+  const [customModel, setCustomModel] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["user", "ai-provider"],
-    queryFn: async () => {
-      const res = await fetch("/api/user/ai-provider");
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as UserAIProvider;
-    },
-  });
-
-  // React-recommended sync-from-server pattern (no setState-in-effect).
-  // The model dropdown reflects the saved value: an exact match against
-  // the preset list selects that preset; anything else (or the empty
-  // "use default" string) collapses to the custom-input mode so the
-  // user keeps full control.
-  const dataKey = data
-    ? `${data.provider ?? ""}|${data.model ?? ""}|${data.baseUrl ?? ""}`
-    : null;
-  const [seededKey, setSeededKey] = useState<string | null>(null);
-  if (dataKey && dataKey !== seededKey) {
-    setSeededKey(dataKey);
-    const nextProvider = data!.provider ?? "";
-    setProvider(nextProvider);
-    const presets = MODEL_PRESETS[nextProvider] ?? [];
-    const savedModel = data!.model ?? "";
-    if (savedModel && presets.includes(savedModel)) {
-      setModelChoice(savedModel);
-      setCustomModel("");
-    } else if (savedModel) {
-      setModelChoice(CUSTOM_MODEL_SENTINEL);
-      setCustomModel(savedModel);
-    } else {
-      setModelChoice("");
-      setCustomModel("");
+  const seededKey =
+    userProvider != null
+      ? `${userProvider.provider ?? ""}|${userProvider.model ?? ""}|${userProvider.baseUrl ?? ""}`
+      : null;
+  const [previousSeed, setPreviousSeed] = useState<string | null>(null);
+  if (seededKey && seededKey !== previousSeed) {
+    setPreviousSeed(seededKey);
+    if (userProvider?.provider === "OPENAI") {
+      const saved = userProvider.model ?? "";
+      if (
+        saved &&
+        (OPENAI_MODEL_PRESETS as readonly string[]).includes(saved)
+      ) {
+        setModelChoice(saved);
+        setCustomModel("");
+      } else if (saved) {
+        setModelChoice(CUSTOM_MODEL_SENTINEL);
+        setCustomModel(saved);
+      }
+      setBaseUrl(userProvider.baseUrl ?? "");
     }
-    setBaseUrl(data!.baseUrl ?? "");
   }
 
-  const presets = MODEL_PRESETS[provider] ?? [];
   const effectiveModel =
     modelChoice === CUSTOM_MODEL_SENTINEL
       ? customModel.trim()
       : modelChoice.trim();
 
-  // Reset model dropdown when provider changes — the preset list is
-  // provider-specific. Don't wipe the custom model the user typed in
-  // case they wanted to keep using it (rare but cheap).
-  function handleProviderChange(next: string) {
-    setProvider(next);
-    setModelChoice("");
-  }
-
   const saveMutation = useMutation({
     mutationFn: async () => {
       const body: Record<string, unknown> = {
-        provider: provider || null,
+        provider: uiToLegacyProviderEnum("openai"),
         model: effectiveModel || null,
-        baseUrl: baseUrl || null,
+        baseUrl: baseUrl.trim() || null,
       };
-      if (anthropicKey.trim()) body.anthropicKey = anthropicKey.trim();
-      if (localKey.trim()) body.localKey = localKey.trim();
-      if (openaiKey.trim()) body.openaiKey = openaiKey.trim();
+      if (apiKey.trim()) body.openaiKey = apiKey.trim();
       const res = await fetch("/api/user/ai-provider", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -629,263 +782,108 @@ function UserAIProviderSubsection() {
       if (!res.ok) throw new Error(json.error || t("settings.ai.saveFailed"));
     },
     onSuccess: () => {
-      setSaveMsg(t("settings.ai.saved"));
-      setSaveOk(true);
-      setAnthropicKey("");
-      setLocalKey("");
-      setOpenaiKey("");
+      setOk(true);
+      setMsg(t("settings.ai.saved"));
+      setApiKey("");
       queryClient.invalidateQueries({ queryKey: ["user", "ai-provider"] });
       queryClient.invalidateQueries({ queryKey: ["insights"] });
     },
     onError: (e) => {
-      setSaveMsg(
-        e instanceof Error ? e.message : t("settings.ai.errorGeneric"),
-      );
-      setSaveOk(false);
+      setOk(false);
+      setMsg(e instanceof Error ? e.message : t("settings.ai.errorGeneric"));
     },
   });
-
-  // v1.5 phase-5 — "Remove saved key" closes the v1.4.6 deferred polish.
-  // Sends an explicit `null` for whichever provider key is stored so the
-  // PATCH route clears it (the route already handles the empty-string /
-  // null case). Provider/model/baseUrl are left alone so the user can
-  // keep their selection while just rotating the secret.
-  const removeKeyMutation = useMutation({
-    mutationFn: async (target: "openaiKey" | "anthropicKey" | "localKey") => {
-      const res = await fetch("/api/user/ai-provider", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [target]: null }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || t("settings.ai.saveFailed"));
-    },
-    onSuccess: () => {
-      setSaveMsg(t("settings.ai.keyRemoved"));
-      setSaveOk(true);
-      queryClient.invalidateQueries({ queryKey: ["user", "ai-provider"] });
-      queryClient.invalidateQueries({ queryKey: ["insights"] });
-    },
-    onError: (e) => {
-      setSaveMsg(
-        e instanceof Error ? e.message : t("settings.ai.errorGeneric"),
-      );
-      setSaveOk(false);
-    },
-  });
-
-  /**
-   * Maps the currently selected provider to its stored-key flag and the
-   * PATCH-body field name. Returns null when there is no saved key for
-   * the active provider — the "Remove saved key" button hides itself.
-   */
-  const removableKey: "openaiKey" | "anthropicKey" | "localKey" | null =
-    (() => {
-      if (provider === "OPENAI" && data?.hasOpenaiKey) return "openaiKey";
-      if (provider === "ANTHROPIC" && data?.hasAnthropicKey)
-        return "anthropicKey";
-      if (provider === "LOCAL" && data?.hasLocalKey) return "localKey";
-      return null;
-    })();
-
-  async function runTest() {
-    setTesting(true);
-    setTestMsg(null);
-    try {
-      const overrideBody: Record<string, string> = {};
-      if (provider) overrideBody.provider = provider;
-      if (effectiveModel) overrideBody.model = effectiveModel;
-      if (baseUrl.trim()) overrideBody.baseUrl = baseUrl.trim();
-      if (anthropicKey.trim()) overrideBody.anthropicKey = anthropicKey.trim();
-      if (localKey.trim()) overrideBody.localKey = localKey.trim();
-      if (openaiKey.trim()) overrideBody.openaiKey = openaiKey.trim();
-      const hasOverride = Object.keys(overrideBody).length > 0;
-      const res = await fetch("/api/ai/test", {
-        method: "POST",
-        headers: hasOverride ? { "Content-Type": "application/json" } : {},
-        body: hasOverride ? JSON.stringify(overrideBody) : undefined,
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setTestMsg(json.error || `HTTP ${res.status}`);
-        setTestOk(false);
-        return;
-      }
-      setTestMsg(
-        `OK — ${json.data.providerType} (${json.data.model})${
-          json.data.tokensUsed ? `, ${json.data.tokensUsed} tokens` : ""
-        }`,
-      );
-      setTestOk(true);
-    } catch (e) {
-      setTestMsg(e instanceof Error ? e.message : t("settings.ai.testFailed"));
-      setTestOk(false);
-    } finally {
-      setTesting(false);
-    }
-  }
-
-  if (isLoading) return null;
 
   return (
-    <div className="bg-muted/50 mt-2 rounded-lg p-4">
-      <div className="mb-3">
-        <p className="text-sm font-medium">
-          {t("settings.ai.personalProviderHeading")}
-        </p>
-        <p className="text-muted-foreground text-xs">
-          {t("settings.ai.personalProviderBody")}
-        </p>
+    <div data-testid="ai-provider-config-openai" className="space-y-3">
+      <div>
+        <Label htmlFor="ai-openai-key">
+          {t("settings.ai.openai.apiKey")}
+          {userProvider?.hasOpenaiKey && (
+            <span className="text-muted-foreground ml-2 text-xs">
+              {t("settings.ai.savedPreview", {
+                preview: userProvider.openaiKeyPreview ?? "",
+              })}
+            </span>
+          )}
+        </Label>
+        <PasswordInput
+          id="ai-openai-key"
+          data-testid="ai-openai-api-key"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder={t("settings.ai.openai.apiKeyPlaceholder")}
+          className="mt-1"
+        />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div>
+        <Label htmlFor="ai-openai-model">
+          {t("settings.ai.openai.modelSelect")}
+        </Label>
+        <select
+          id="ai-openai-model"
+          data-testid="ai-openai-model"
+          value={modelChoice}
+          onChange={(e) => setModelChoice(e.target.value)}
+          className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
+        >
+          <option value="">{t("settings.ai.modelOptionDefault")}</option>
+          {OPENAI_MODEL_PRESETS.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+          <option value={CUSTOM_MODEL_SENTINEL}>
+            {t("settings.ai.openai.modelOptionCustom")}
+          </option>
+        </select>
+      </div>
+
+      {modelChoice === CUSTOM_MODEL_SENTINEL && (
         <div>
-          <Label htmlFor="ai-provider-select">
-            {t("settings.ai.providerLabel")}
+          <Label htmlFor="ai-openai-model-custom">
+            {t("settings.ai.openai.modelCustomLabel")}
           </Label>
-          <select
-            id="ai-provider-select"
-            value={provider}
-            onChange={(e) => handleProviderChange(e.target.value)}
-            className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
-          >
-            <option value="">{t("settings.ai.providerOptionDefault")}</option>
-            <option value="OPENAI">
-              {t("settings.ai.providerOptionOpenai")}
-            </option>
-            <option value="ANTHROPIC">
-              {t("settings.ai.providerOptionAnthropic")}
-            </option>
-            <option value="LOCAL">
-              {t("settings.ai.providerOptionLocal")}
-            </option>
-          </select>
+          <Input
+            id="ai-openai-model-custom"
+            value={customModel}
+            onChange={(e) => setCustomModel(e.target.value)}
+            placeholder={t("settings.ai.openai.modelCustomPlaceholder")}
+            className="mt-1"
+          />
         </div>
+      )}
 
-        <div>
-          <Label htmlFor="ai-model-select">{t("settings.ai.modelLabel")}</Label>
-          <select
-            id="ai-model-select"
-            value={modelChoice}
-            onChange={(e) => setModelChoice(e.target.value)}
-            disabled={!provider}
-            className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm disabled:opacity-60"
-          >
-            <option value="">{t("settings.ai.modelOptionDefault")}</option>
-            {presets.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-            {provider && (
-              <option value={CUSTOM_MODEL_SENTINEL}>
-                {t("settings.ai.modelOptionCustom")}
-              </option>
-            )}
-          </select>
-        </div>
-
-        {modelChoice === CUSTOM_MODEL_SENTINEL && provider && (
-          <div className="sm:col-span-2">
-            <Label htmlFor="ai-model-custom">
-              {t("settings.ai.customModelLabel")}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="text-muted-foreground hover:text-foreground text-xs underline"
+        >
+          {showAdvanced
+            ? t("settings.ai.openai.hideAdvanced")
+            : t("settings.ai.openai.showAdvanced")}
+        </button>
+        {showAdvanced && (
+          <div className="mt-2 space-y-1">
+            <Label htmlFor="ai-openai-base-url">
+              {t("settings.ai.openai.baseUrlLabel")}
             </Label>
             <Input
-              id="ai-model-custom"
-              value={customModel}
-              onChange={(e) => setCustomModel(e.target.value)}
-              placeholder={
-                provider === "ANTHROPIC"
-                  ? "claude-3-5-sonnet-latest"
-                  : provider === "LOCAL"
-                    ? "llama3:8b"
-                    : "gpt-4o-mini"
-              }
-              className="mt-1"
+              id="ai-openai-base-url"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder={t("settings.ai.openai.baseUrlPlaceholder")}
             />
-          </div>
-        )}
-
-        {provider === "OPENAI" && (
-          <div className="sm:col-span-2">
-            <Label htmlFor="ai-openai-key">
-              {t("settings.ai.openaiKeyLabel")}
-              {data?.hasOpenaiKey && (
-                <span className="text-muted-foreground ml-2 text-xs">
-                  {t("settings.ai.savedPreview", {
-                    preview: data.openaiKeyPreview ?? "",
-                  })}
-                </span>
-              )}
-            </Label>
-            <PasswordInput
-              id="ai-openai-key"
-              value={openaiKey}
-              onChange={(e) => setOpenaiKey(e.target.value)}
-              placeholder="sk-..."
-              className="mt-1"
-            />
-            <p className="text-muted-foreground mt-1 text-xs">
-              {t("settings.ai.openaiKeyHelp")}
+            <p className="text-muted-foreground text-xs">
+              {t("settings.ai.openai.baseUrlHelp")}
             </p>
           </div>
         )}
-
-        {provider === "ANTHROPIC" && (
-          <div className="sm:col-span-2">
-            <Label htmlFor="ai-anthropic-key">
-              {t("settings.ai.anthropicKeyLabel")}
-              {data?.hasAnthropicKey && (
-                <span className="text-muted-foreground ml-2 text-xs">
-                  {t("settings.ai.savedPreview", {
-                    preview: data.anthropicKeyPreview ?? "",
-                  })}
-                </span>
-              )}
-            </Label>
-            <PasswordInput
-              id="ai-anthropic-key"
-              value={anthropicKey}
-              onChange={(e) => setAnthropicKey(e.target.value)}
-              placeholder="sk-ant-..."
-              className="mt-1"
-            />
-          </div>
-        )}
-
-        {provider === "LOCAL" && (
-          <>
-            <div className="sm:col-span-2">
-              <Label htmlFor="ai-base-url">
-                {t("settings.ai.baseUrlLabel")}
-              </Label>
-              <Input
-                id="ai-base-url"
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder="http://localhost:11434/v1"
-                className="mt-1"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Label htmlFor="ai-local-key">
-                {t("settings.ai.localKeyLabel")}
-              </Label>
-              <PasswordInput
-                id="ai-local-key"
-                value={localKey}
-                onChange={(e) => setLocalKey(e.target.value)}
-                placeholder={
-                  data?.hasLocalKey ? t("settings.ai.savedShort") : ""
-                }
-                className="mt-1"
-              />
-            </div>
-          </>
-        )}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           size="sm"
           onClick={() => saveMutation.mutate()}
@@ -898,142 +896,830 @@ function UserAIProviderSubsection() {
           )}
           {t("settings.ai.saveCta")}
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={runTest}
-          disabled={testing}
-        >
-          {testing ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="mr-2 h-4 w-4" />
-          )}
-          {t("settings.ai.testCta")}
-        </Button>
-        {removableKey && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive"
-                disabled={removeKeyMutation.isPending}
-              >
-                {removeKeyMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="mr-2 h-4 w-4" />
-                )}
-                {t("settings.ai.removeKeyCta")}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {t("settings.ai.removeKeyConfirmTitle")}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("settings.ai.removeKeyConfirmBody")}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => removeKeyMutation.mutate(removableKey)}
-                >
-                  {t("settings.ai.removeKeyCta")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
       </div>
 
-      {saveMsg && (
-        <p
-          className={`mt-2 text-xs ${
-            saveOk ? "text-success" : "text-destructive"
-          }`}
-        >
-          {saveMsg}
-        </p>
-      )}
-      {testMsg && (
-        <p
-          className={`mt-2 text-xs ${
-            testOk ? "text-success" : "text-destructive"
-          }`}
-        >
-          {testMsg}
+      {msg && (
+        <p className={`text-xs ${ok ? "text-success" : "text-destructive"}`}>
+          {msg}
         </p>
       )}
     </div>
   );
 }
 
-interface ProviderChainSummaryData {
-  activeProvider: string | null;
-  cachedActiveProvider: string | null;
-  configuredChain: { providerType: string; available: boolean }[];
-}
+/* ────────────────────────────────────────────────────────────────
+ * Anthropic form — API key + model dropdown.
+ * ──────────────────────────────────────────────────────────────── */
 
-/**
- * v1.4.16 phase B5b — read-only summary of the user's AI provider
- * fallback chain. Surfaces "Active provider: codex" + "Configured:
- * codex, openai" so the user can see the cascade order without going
- * through admin logs. Full management UX (drag-to-reorder, add/remove)
- * is owned by phase B2 (AI provider settings cleanup); this panel is
- * deliberately tight so the two phases don't collide.
- */
-function ProviderChainSummary() {
+function AnthropicProviderForm({
+  userProvider,
+}: {
+  userProvider: UserAIProvider | null | undefined;
+}) {
   const { t } = useTranslations();
-  const { data } = useQuery({
-    queryKey: ["insights", "provider-chain"],
-    queryFn: async () => {
-      const res = await fetch("/api/insights/provider-chain");
-      if (!res.ok) return null;
+  const queryClient = useQueryClient();
+
+  const [apiKey, setApiKey] = useState("");
+  const [modelChoice, setModelChoice] = useState<string>("");
+  const [customModel, setCustomModel] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+
+  const seededKey =
+    userProvider != null
+      ? `${userProvider.provider ?? ""}|${userProvider.model ?? ""}`
+      : null;
+  const [previousSeed, setPreviousSeed] = useState<string | null>(null);
+  if (seededKey && seededKey !== previousSeed) {
+    setPreviousSeed(seededKey);
+    if (userProvider?.provider === "ANTHROPIC") {
+      const saved = userProvider.model ?? "";
+      if (
+        saved &&
+        (ANTHROPIC_MODEL_PRESETS as readonly string[]).includes(saved)
+      ) {
+        setModelChoice(saved);
+        setCustomModel("");
+      } else if (saved) {
+        setModelChoice(CUSTOM_MODEL_SENTINEL);
+        setCustomModel(saved);
+      }
+    }
+  }
+
+  const effectiveModel =
+    modelChoice === CUSTOM_MODEL_SENTINEL
+      ? customModel.trim()
+      : modelChoice.trim();
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const body: Record<string, unknown> = {
+        provider: uiToLegacyProviderEnum("anthropic"),
+        model: effectiveModel || null,
+      };
+      if (apiKey.trim()) body.anthropicKey = apiKey.trim();
+      const res = await fetch("/api/user/ai-provider", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       const json = await res.json();
-      return json.data as ProviderChainSummaryData;
+      if (!res.ok) throw new Error(json.error || t("settings.ai.saveFailed"));
+    },
+    onSuccess: () => {
+      setOk(true);
+      setMsg(t("settings.ai.saved"));
+      setApiKey("");
+      queryClient.invalidateQueries({ queryKey: ["user", "ai-provider"] });
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+    },
+    onError: (e) => {
+      setOk(false);
+      setMsg(e instanceof Error ? e.message : t("settings.ai.errorGeneric"));
     },
   });
 
-  if (!data) return null;
-  if (data.configuredChain.length === 0) return null;
+  return (
+    <div data-testid="ai-provider-config-anthropic" className="space-y-3">
+      <div>
+        <Label htmlFor="ai-anthropic-key">
+          {t("settings.ai.anthropicKeyLabel")}
+          {userProvider?.hasAnthropicKey && (
+            <span className="text-muted-foreground ml-2 text-xs">
+              {t("settings.ai.savedPreview", {
+                preview: userProvider.anthropicKeyPreview ?? "",
+              })}
+            </span>
+          )}
+        </Label>
+        <PasswordInput
+          id="ai-anthropic-key"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="sk-ant-…"
+          className="mt-1"
+        />
+      </div>
 
-  const activeLabel = data.activeProvider
-    ? t(`settings.ai.providerChain.types.${data.activeProvider}`)
-    : t("settings.ai.providerChain.none");
-  const chainLabels = data.configuredChain
-    .map((entry) => t(`settings.ai.providerChain.types.${entry.providerType}`))
-    .join(", ");
+      <div>
+        <Label htmlFor="ai-anthropic-model">
+          {t("settings.ai.modelLabel")}
+        </Label>
+        <select
+          id="ai-anthropic-model"
+          value={modelChoice}
+          onChange={(e) => setModelChoice(e.target.value)}
+          className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
+        >
+          <option value="">{t("settings.ai.modelOptionDefault")}</option>
+          {ANTHROPIC_MODEL_PRESETS.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+          <option value={CUSTOM_MODEL_SENTINEL}>
+            {t("settings.ai.modelOptionCustom")}
+          </option>
+        </select>
+      </div>
+
+      {modelChoice === CUSTOM_MODEL_SENTINEL && (
+        <div>
+          <Label htmlFor="ai-anthropic-model-custom">
+            {t("settings.ai.customModelLabel")}
+          </Label>
+          <Input
+            id="ai-anthropic-model-custom"
+            value={customModel}
+            onChange={(e) => setCustomModel(e.target.value)}
+            placeholder="claude-3-5-sonnet-latest"
+            className="mt-1"
+          />
+        </div>
+      )}
+
+      <div>
+        <Button
+          size="sm"
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+        >
+          {saveMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
+          {t("settings.ai.saveCta")}
+        </Button>
+      </div>
+
+      {msg && (
+        <p className={`text-xs ${ok ? "text-success" : "text-destructive"}`}>
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Local (OpenAI-compatible) form — base URL + optional key + model.
+ * ──────────────────────────────────────────────────────────────── */
+
+function LocalProviderForm({
+  userProvider,
+}: {
+  userProvider: UserAIProvider | null | undefined;
+}) {
+  const { t } = useTranslations();
+  const queryClient = useQueryClient();
+
+  const [baseUrl, setBaseUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [modelChoice, setModelChoice] = useState<string>("");
+  const [customModel, setCustomModel] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+
+  const seededKey =
+    userProvider != null
+      ? `${userProvider.provider ?? ""}|${userProvider.model ?? ""}|${userProvider.baseUrl ?? ""}`
+      : null;
+  const [previousSeed, setPreviousSeed] = useState<string | null>(null);
+  if (seededKey && seededKey !== previousSeed) {
+    setPreviousSeed(seededKey);
+    if (userProvider?.provider === "LOCAL") {
+      setBaseUrl(userProvider.baseUrl ?? "");
+      const saved = userProvider.model ?? "";
+      if (
+        saved &&
+        (LOCAL_MODEL_PRESETS as readonly string[]).includes(saved)
+      ) {
+        setModelChoice(saved);
+        setCustomModel("");
+      } else if (saved) {
+        setModelChoice(CUSTOM_MODEL_SENTINEL);
+        setCustomModel(saved);
+      }
+    }
+  }
+
+  const effectiveModel =
+    modelChoice === CUSTOM_MODEL_SENTINEL
+      ? customModel.trim()
+      : modelChoice.trim();
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const body: Record<string, unknown> = {
+        provider: uiToLegacyProviderEnum("local"),
+        baseUrl: baseUrl.trim() || null,
+        model: effectiveModel || null,
+      };
+      if (apiKey.trim()) body.localKey = apiKey.trim();
+      const res = await fetch("/api/user/ai-provider", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || t("settings.ai.saveFailed"));
+    },
+    onSuccess: () => {
+      setOk(true);
+      setMsg(t("settings.ai.saved"));
+      setApiKey("");
+      queryClient.invalidateQueries({ queryKey: ["user", "ai-provider"] });
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+    },
+    onError: (e) => {
+      setOk(false);
+      setMsg(e instanceof Error ? e.message : t("settings.ai.errorGeneric"));
+    },
+  });
+
+  return (
+    <div data-testid="ai-provider-config-local" className="space-y-3">
+      <div>
+        <Label htmlFor="ai-local-base-url">
+          {t("settings.ai.baseUrlLabel")}
+        </Label>
+        <Input
+          id="ai-local-base-url"
+          value={baseUrl}
+          onChange={(e) => setBaseUrl(e.target.value)}
+          placeholder="http://localhost:11434/v1"
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label htmlFor="ai-local-key">{t("settings.ai.localKeyLabel")}</Label>
+        <PasswordInput
+          id="ai-local-key"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder={
+            userProvider?.hasLocalKey ? t("settings.ai.savedShort") : ""
+          }
+          className="mt-1"
+        />
+      </div>
+      <div>
+        <Label htmlFor="ai-local-model">{t("settings.ai.modelLabel")}</Label>
+        <select
+          id="ai-local-model"
+          value={modelChoice}
+          onChange={(e) => setModelChoice(e.target.value)}
+          className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
+        >
+          <option value="">{t("settings.ai.modelOptionDefault")}</option>
+          {LOCAL_MODEL_PRESETS.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+          <option value={CUSTOM_MODEL_SENTINEL}>
+            {t("settings.ai.modelOptionCustom")}
+          </option>
+        </select>
+      </div>
+      {modelChoice === CUSTOM_MODEL_SENTINEL && (
+        <div>
+          <Label htmlFor="ai-local-model-custom">
+            {t("settings.ai.customModelLabel")}
+          </Label>
+          <Input
+            id="ai-local-model-custom"
+            value={customModel}
+            onChange={(e) => setCustomModel(e.target.value)}
+            placeholder="llama3:8b"
+            className="mt-1"
+          />
+        </div>
+      )}
+
+      <div>
+        <Button
+          size="sm"
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+        >
+          {saveMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
+          {t("settings.ai.saveCta")}
+        </Button>
+      </div>
+
+      {msg && (
+        <p className={`text-xs ${ok ? "text-success" : "text-destructive"}`}>
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Admin OpenAI form — read-only "the operator has set this up".
+ * ──────────────────────────────────────────────────────────────── */
+
+function AdminOpenAIProviderForm({
+  hasAdminKey,
+}: {
+  hasAdminKey: boolean | undefined;
+}) {
+  const { t } = useTranslations();
+  return (
+    <div data-testid="ai-provider-config-admin-openai" className="space-y-2">
+      <p className="text-sm font-medium">
+        {t("settings.ai.adminOpenai.title")}
+      </p>
+      <p className="text-muted-foreground text-xs">
+        {hasAdminKey
+          ? t("settings.ai.adminOpenai.body")
+          : t("settings.ai.adminOpenai.notConfigured")}
+      </p>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Fallback chain card — reorder via arrows, toggle, remove, add,
+ * reset. Uses no new dependency (dnd-kit isn't in package.json).
+ * ──────────────────────────────────────────────────────────────── */
+
+function FallbackChainCard({
+  chain,
+  selected,
+  onSelect,
+}: {
+  chain: { providerType: ProviderType; available: boolean }[];
+  selected: ProviderType;
+  onSelect: (next: ProviderType) => void;
+}) {
+  const { t } = useTranslations();
+  const queryClient = useQueryClient();
+
+  // Local working copy. Server-confirmed values arrive via `chain`
+  // prop; we keep our own state so the user can shuffle multiple rows
+  // before clicking "Save chain order".
+  const seededKey = chain.map((c) => c.providerType).join(",");
+  const [seeded, setSeeded] = useState<string | null>(null);
+  const [entries, setEntries] = useState<ChainEntry[]>(() =>
+    chain.map((c) => ({ providerType: c.providerType, enabled: true })),
+  );
+  if (seededKey !== seeded) {
+    setSeeded(seededKey);
+    setEntries(
+      chain.map((c) => ({
+        providerType: c.providerType,
+        enabled: true,
+      })),
+    );
+  }
+
+  const [msg, setMsg] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+
+  const saveMutation = useMutation({
+    mutationFn: async (next: ChainEntry[]) => {
+      const body = {
+        chain: next.map((entry, idx) => ({
+          providerType: entry.providerType,
+          priority: idx + 1,
+          enabled: entry.enabled,
+        })),
+      };
+      const res = await fetch("/api/insights/provider-chain", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          json.error || t("settings.ai.providerChain.saveFailed"),
+        );
+      }
+    },
+    onSuccess: () => {
+      setOk(true);
+      setMsg(t("settings.ai.providerChain.saved"));
+      queryClient.invalidateQueries({ queryKey: ["insights"] });
+    },
+    onError: (e) => {
+      setOk(false);
+      setMsg(
+        e instanceof Error
+          ? e.message
+          : t("settings.ai.providerChain.saveFailed"),
+      );
+    },
+  });
+
+  function move(idx: number, delta: -1 | 1) {
+    setEntries((prev) => {
+      const next = [...prev];
+      const target = idx + delta;
+      if (target < 0 || target >= next.length) return prev;
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
+  }
+
+  function toggle(idx: number) {
+    setEntries((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], enabled: !next[idx].enabled };
+      return next;
+    });
+  }
+
+  function remove(idx: number) {
+    setEntries((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  const present = useMemo(
+    () => new Set(entries.map((e) => e.providerType)),
+    [entries],
+  );
+  const addable = PROVIDER_TYPES.filter((p) => !present.has(p));
+
+  function add(p: ProviderType) {
+    setEntries((prev) => [...prev, { providerType: p, enabled: true }]);
+  }
+
+  function resetToDefaults() {
+    setEntries(DEFAULT_CHAIN.map((d) => ({ ...d })));
+  }
 
   return (
     <div
-      className="bg-muted/50 rounded-lg p-4 text-xs"
-      data-slot="ai-provider-chain-summary"
+      data-testid="ai-fallback-chain"
+      className="bg-muted/50 space-y-3 rounded-lg p-4"
     >
-      <p className="text-sm font-medium">
-        {t("settings.ai.providerChain.heading")}
-      </p>
-      <p className="text-muted-foreground mt-1">
-        {t("settings.ai.providerChain.activeLine", { provider: activeLabel })}
-        {data.cachedActiveProvider &&
-        data.cachedActiveProvider !== data.activeProvider
-          ? ` ${t("settings.ai.providerChain.cachedSuffix", {
-              provider: t(
-                `settings.ai.providerChain.types.${data.cachedActiveProvider}`,
-              ),
-            })}`
-          : ""}
-      </p>
-      <p className="text-muted-foreground mt-1">
-        {t("settings.ai.providerChain.chainLine", { chain: chainLabels })}
-      </p>
-      <p className="text-muted-foreground/80 mt-1 italic">
-        {t("settings.ai.providerChain.managementHint")}
-      </p>
+      <div>
+        <p className="text-sm font-medium">
+          {t("settings.ai.providerChain.title")}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          {t("settings.ai.providerChain.description")}
+        </p>
+      </div>
+
+      <ul className="space-y-2">
+        {entries.map((entry, idx) => (
+          <li
+            key={entry.providerType}
+            data-chain-row={entry.providerType}
+            className={`bg-card border-border flex flex-wrap items-center gap-2 rounded-md border p-2 ${
+              entry.providerType === selected
+                ? "border-primary/40 ring-primary/30 ring-1"
+                : ""
+            }`}
+          >
+            <span className="text-muted-foreground w-5 text-center text-xs tabular-nums">
+              {idx + 1}.
+            </span>
+            <button
+              type="button"
+              onClick={() => onSelect(entry.providerType)}
+              className="flex-1 text-left text-sm font-medium hover:underline"
+            >
+              {t(`settings.ai.providerChain.types.${entry.providerType}`)}
+            </button>
+            <Switch
+              checked={entry.enabled}
+              onCheckedChange={() => toggle(idx)}
+              aria-label={t(
+                `settings.ai.providerChain.types.${entry.providerType}`,
+              )}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-label={t("settings.ai.providerChain.moveUp")}
+              disabled={idx === 0}
+              onClick={() => move(idx, -1)}
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-label={t("settings.ai.providerChain.moveDown")}
+              disabled={idx === entries.length - 1}
+              onClick={() => move(idx, 1)}
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-label={t("settings.ai.providerChain.removeFromChain")}
+              className="text-destructive"
+              onClick={() => remove(idx)}
+              disabled={entries.length <= 1}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {addable.length > 0 ? (
+          <AddProviderControl addable={addable} onAdd={add} />
+        ) : (
+          <p className="text-muted-foreground text-xs italic">
+            {t("settings.ai.providerChain.addNoneAvailable")}
+          </p>
+        )}
+        <Button
+          size="sm"
+          onClick={() => saveMutation.mutate(entries)}
+          disabled={saveMutation.isPending || entries.length === 0}
+          data-testid="ai-fallback-chain-save"
+        >
+          {saveMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
+          {t("settings.ai.providerChain.saveOrder")}
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="outline">
+              <RotateCcw className="mr-2 h-4 w-4" />
+              {t("settings.ai.providerChain.resetDefaults")}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t("settings.ai.providerChain.resetConfirmTitle")}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("settings.ai.providerChain.resetConfirmBody")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={resetToDefaults}>
+                {t("settings.ai.providerChain.resetDefaults")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+
+      {msg && (
+        <p className={`text-xs ${ok ? "text-success" : "text-destructive"}`}>
+          {msg}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function AddProviderControl({
+  addable,
+  onAdd,
+}: {
+  addable: readonly ProviderType[];
+  onAdd: (p: ProviderType) => void;
+}) {
+  const { t } = useTranslations();
+  const [picked, setPicked] = useState<string>(addable[0] ?? "");
+
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        aria-label={t("settings.ai.providerChain.addProvider")}
+        value={picked}
+        onChange={(e) => setPicked(e.target.value)}
+        className="bg-background border-input h-8 rounded-md border px-2 text-sm"
+      >
+        {addable.map((p) => (
+          <option key={p} value={p}>
+            {t(`settings.ai.providerChain.types.${p}`)}
+          </option>
+        ))}
+      </select>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => {
+          if (isProviderType(picked)) onAdd(picked);
+        }}
+      >
+        <PlusCircle className="mr-2 h-4 w-4" />
+        {t("settings.ai.providerChain.addProvider")}
+      </Button>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Runtime actions — Test active provider, regenerate insights, raw-mode toggle.
+ * ──────────────────────────────────────────────────────────────── */
+
+function RuntimeActionsRow({
+  provider,
+  userProvider,
+  canRegenerate,
+  privacyMode,
+  lastInsightAt,
+  onRegenerated,
+  onPrivacyChanged,
+}: {
+  provider: ProviderType;
+  userProvider: UserAIProvider | null | undefined;
+  canRegenerate: boolean;
+  privacyMode: string;
+  lastInsightAt: string | null;
+  onRegenerated: () => void;
+  onPrivacyChanged: () => void;
+}) {
+  const { t } = useTranslations();
+
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+  const [testOk, setTestOk] = useState(false);
+  const [regen, setRegen] = useState(false);
+  const [regenMsg, setRegenMsg] = useState<string | null>(null);
+  const [regenOk, setRegenOk] = useState(false);
+
+  async function runTest() {
+    setTesting(true);
+    setTestMsg(null);
+    try {
+      const res = await fetch("/api/ai/test", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        setTestOk(false);
+        setTestMsg(
+          t("settings.ai.testFailedShort", {
+            message: json.error ?? `HTTP ${res.status}`,
+          }),
+        );
+        return;
+      }
+      setTestOk(true);
+      setTestMsg(
+        t("settings.ai.testSuccess", {
+          provider: json.data.providerType,
+          model: json.data.model,
+        }),
+      );
+    } catch (e) {
+      setTestOk(false);
+      setTestMsg(
+        t("settings.ai.testFailedShort", {
+          message: e instanceof Error ? e.message : "fetch error",
+        }),
+      );
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function regenerate() {
+    setRegen(true);
+    setRegenMsg(null);
+    try {
+      const res = await fetch("/api/insights/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setRegenOk(false);
+        setRegenMsg(
+          res.status === 429
+            ? t("settings.regenerateRateLimit")
+            : json.error || t("settings.savingError"),
+        );
+        return;
+      }
+      setRegenOk(true);
+      setRegenMsg(t("settings.regenerateSuccess"));
+      onRegenerated();
+    } catch {
+      setRegenOk(false);
+      setRegenMsg(t("settings.savingError"));
+    } finally {
+      setRegen(false);
+    }
+  }
+
+  async function togglePrivacy() {
+    const next = privacyMode === "raw" ? "aggregated" : "raw";
+    await fetch("/api/insights/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ privacyMode: next }),
+    });
+    onPrivacyChanged();
+  }
+
+  const lastInsightLine = lastInsightAt
+    ? `${t("settings.lastGeneratedAt")}: ${formatDateTime(lastInsightAt)}`
+    : null;
+
+  // Reserved for a future iteration that gates the Test button per
+  // provider (e.g. disable when admin-openai is selected and no admin
+  // key is present). For v1.4.16 the API decides.
+  void provider;
+  void userProvider;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={runTest}
+          disabled={testing}
+          data-testid="ai-test-active-provider"
+        >
+          {testing ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="mr-2 h-4 w-4" />
+          )}
+          {t("settings.ai.testProvider")}
+        </Button>
+        {canRegenerate && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={regenerate}
+            disabled={regen}
+          >
+            {regen ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            {t("settings.regenerateInsights")}
+          </Button>
+        )}
+        {lastInsightLine && (
+          <span className="text-muted-foreground text-xs">
+            {lastInsightLine}
+          </span>
+        )}
+      </div>
+
+      {canRegenerate && (
+        <div className="bg-muted/50 rounded-lg p-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="pr-2">
+              <p className="text-sm font-medium">{t("settings.rawData")}</p>
+              <p className="text-muted-foreground text-xs">
+                {privacyMode === "raw"
+                  ? t("settings.rawDataOnDescription")
+                  : t("settings.rawDataOffDescription")}
+              </p>
+            </div>
+            <Switch
+              checked={privacyMode === "raw"}
+              onCheckedChange={togglePrivacy}
+            />
+          </div>
+          {privacyMode === "raw" && (
+            <div className="bg-warning/15 text-warning mt-2 rounded-lg p-2 text-xs">
+              {t("settings.rawDataWarning")}
+            </div>
+          )}
+        </div>
+      )}
+
+      {testMsg && (
+        <p
+          className={`text-xs ${testOk ? "text-success" : "text-destructive"}`}
+        >
+          {testMsg}
+        </p>
+      )}
+      {regenMsg && (
+        <p
+          className={`text-xs ${regenOk ? "text-success" : "text-destructive"}`}
+        >
+          {regenMsg}
+        </p>
+      )}
     </div>
   );
 }
