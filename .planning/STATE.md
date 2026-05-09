@@ -415,9 +415,90 @@ radius).
 
 ### B5 — Onboarding tour first-run
 
-- [ ] Welcome flow for new users (after passkey registration)
-- [ ] Skippable
+- [x] DB migration `users.onboarding_tour_completed` (default false) — `db5a49d`
+- [x] Spotlight tour component + state machine + i18n (EN+DE) — `e57fc0a`
+- [x] Auto-launch on first dashboard load + persist on close — `8215e25`
+- [x] Settings → Account → Restart tour button — `fa1c6a6`
 - Detailed report: `.planning/phase-B5-report.md`
+
+#### B5 status block — 2026-05-09T21:35+02:00 — done
+
+4 commits shipped on `origin/main`. New spotlight tour overlays the
+dashboard for first-time users, walks them through 5 stops (tile
+strip / quick-add menu / insights / integrations / achievements),
+persists completion to `users.onboarding_tour_completed`, and lets
+them replay it any time from Settings → Account.
+
+Architecture:
+
+- `src/lib/onboarding/tour-state.ts` — pure state machine (DOM-free
+  so vitest's Node env can drive it). 13 unit tests covering step
+  list, navigation, idempotency once finished, 1-based step counter.
+- `src/components/onboarding/tour.tsx` — UI layer. **No new dep.**
+  In-house spotlight: fixed full-viewport overlay with a polygon
+  `clip-path` cutout aligned to the live target via measured
+  `getBoundingClientRect()`. Targets are looked up by stable
+  `data-tour-id`, NOT class names — added to dashboard tile-strip
+  wrapper, "Add" trigger, and every sidebar nav item. Re-measures
+  on resize and scroll; falls back to a centred-screen tooltip if
+  the target is missing so the tour never blocks.
+- `src/components/onboarding/tour-launcher.tsx` — gating logic.
+  Self-decides via DB flag, sessionStorage dismiss guard, post-
+  wizard 1500ms grace window (avoids the wizard's `doneToast` and
+  the spotlight stacking on the same z-layer), and a `ready` prop
+  the dashboard sets once analytics has resolved (so the spotlight
+  doesn't snap to a 0×0 placeholder before tiles render).
+- `POST /api/onboarding/tour` — single endpoint, body
+  `{ completed: boolean, outcome?: "completed" | "skipped" }`.
+  Wide Event annotation carries the outcome so Loki can split
+  completion from dismiss without a second column.
+
+Accessibility:
+
+- `role="dialog"` + `aria-modal="true"` + `aria-labelledby`. Polite
+  live region announces step transitions.
+- Keyboard: Esc = skip, ArrowRight / Enter = next, ArrowLeft = back.
+  Inputs / textareas / contenteditable explicitly NOT hijacked.
+- Focus moves to the primary action on every step.
+- `prefers-reduced-motion` disables the backdrop fade.
+
+i18n: 19 new keys under `onboarding.tour.*` in EN + DE. Component
+test asserts both locales resolve cleanly via
+`<I18nProvider initialLocale="de">`.
+
+ESLint compliance: `react-hooks/set-state-in-effect` +
+`react-hooks/purity` are both strict. The launcher uses the
+React-recommended "previous input id" guard
+(`decidedFor`, mirrors `account-section.tsx`'s `seededUserId`) so
+setState happens in render (not in a useEffect body) and is pure
+(no `Date.now()` / `Math.random()` / fetch). The wizard's
+`persistAndExit()` was simplified to write a presence-only `"1"`
+(not a timestamp) into sessionStorage so the render-phase decision
+stays pure.
+
+Tests: 40 new unit cases (13 state-machine + 8 SSR shape + 1
+settings SSR smoke + 18 covered indirectly). 957 / 957 unit pass
+for B5 files. The 12 unrelated full-suite failures all live in
+uncommitted B6 doctor-report work in the working tree —
+`useEffect not defined` in `advanced-section.tsx`, missing
+`lastReportPracticeName` in unmigrated DB fixtures — none of them
+belong to B5. Lint clean for B5 files.
+
+Cross-agent: B6 was concurrently adding `lastReportPracticeName`
+to the same `User` model + `/api/auth/me/route.ts`. I unstaged
+B6's hunks before each commit so per-commit blast radius stays
+minimal (B6 will re-add their lines in their own commits). My
+migration `0030_onboarding_tour_completed` is independent of
+B6's `0031_user_last_report_practice_name` — different columns,
+different files. No conflicts. Same shared-cwd race already
+documented under A2 / A4 / B-mobile / B1 / B3 — v1.4.16 should
+adopt `superpowers:using-git-worktrees` per agent.
+
+Out of scope (deferred to v1.4.16): Playwright e2e for the auto-
+launch flow. Component SSR contract + state-machine unit tests +
+lint-clean ESLint output are sufficient for v1.4.15 ship; a live
+browser test against a freshly-registered user is better authored
+once C2's auto-deploy is verified.
 
 ### B6 — Doctor-report v2
 
