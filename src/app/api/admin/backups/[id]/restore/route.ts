@@ -376,6 +376,13 @@ const handler = apiHandler(
         };
       });
     } catch (err) {
+      // Scrub the raw Prisma / driver error from the wire response —
+      // even on an admin endpoint, leaking column names, constraint
+      // names or query fragments lowers the cost of a future supply-
+      // chain attack against this surface. The verbose text still
+      // lands in the audit row (admin-readable) and the Wide Event
+      // (operator-readable), so root-cause investigation is unaffected.
+      const verbose = err instanceof Error ? err.message : String(err);
       await auditLog("admin.backups.restore.failed", {
         userId: admin.id,
         ipAddress: getClientIp(request),
@@ -383,13 +390,11 @@ const handler = apiHandler(
           backupId: id,
           ownerId,
           reason: "transaction_failed",
-          message: err instanceof Error ? err.message : String(err),
+          message: verbose,
         },
       });
-      return apiError(
-        `Restore transaction failed: ${err instanceof Error ? err.message : "unknown"}`,
-        500,
-      );
+      annotate({ meta: { restoreFailReason: verbose } });
+      return apiError("Restore failed", 500);
     }
 
     const summary = summarizeBackup(payload);
