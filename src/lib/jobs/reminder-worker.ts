@@ -29,6 +29,7 @@ import {
 import { setGlobalBoss } from "@/lib/jobs/boss-instance";
 import { cleanupExpiredIdempotencyKeys } from "@/lib/jobs/idempotency-cleanup";
 import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
+import { runHostMetricTick } from "@/lib/jobs/host-metric-sampler";
 import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
 import { deleteMessage } from "@/lib/telegram";
 import { decrypt, encrypt } from "@/lib/crypto";
@@ -105,6 +106,9 @@ const OFFHOST_BACKUP_QUEUE = "data-backup-offhost";
 // in-DB DATA_BACKUP at 03:00 (Sundays only) so the off-host copy is
 // always at-or-ahead of the local one.
 const OFFHOST_BACKUP_CRON = "30 2 * * *";
+const HOST_METRIC_QUEUE = "host-metric-sample";
+// Per-minute cadence — matches the chart's 60s polling refetchInterval.
+const HOST_METRIC_CRON = "* * * * *";
 
 interface ReminderCheckPayload {
   triggeredAt: string;
@@ -165,6 +169,10 @@ interface AuditLogCleanupPayload {
 }
 
 interface OffhostBackupPayload {
+  triggeredAt: string;
+}
+
+interface HostMetricSamplePayload {
   triggeredAt: string;
 }
 
@@ -915,6 +923,21 @@ async function handleAuditLogCleanup(jobs: Job<AuditLogCleanupPayload>[]) {
   });
 }
 
+async function handleHostMetricSample(jobs: Job<HostMetricSamplePayload>[]) {
+  void jobs;
+  await withBackgroundEvent("job.host_metric_sample", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const { pruned } = await runHostMetricTick(p);
+      evt.addMeta("host_metric_pruned", pruned);
+    } catch (err) {
+      // The chart degrades gracefully when samples are missing — log
+      // and move on rather than poisoning the boss queue with retries.
+      evt.addWarning(`host-metric-sample failed: ${err}`);
+    }
+  });
+}
+
 async function handleOffhostBackup(jobs: Job<OffhostBackupPayload>[]) {
   void jobs;
   await withBackgroundEvent("job.offhost_backup", async (evt) => {
@@ -1160,6 +1183,7 @@ export async function startReminderWorker() {
     IDEMPOTENCY_CLEANUP_QUEUE,
     AUDIT_LOG_CLEANUP_QUEUE,
     OFFHOST_BACKUP_QUEUE,
+    HOST_METRIC_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -1182,6 +1206,7 @@ export async function startReminderWorker() {
     [IDEMPOTENCY_CLEANUP_QUEUE, IDEMPOTENCY_CLEANUP_CRON],
     [AUDIT_LOG_CLEANUP_QUEUE, AUDIT_LOG_CLEANUP_CRON],
     [OFFHOST_BACKUP_QUEUE, OFFHOST_BACKUP_CRON],
+    [HOST_METRIC_QUEUE, HOST_METRIC_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -1263,6 +1288,11 @@ export async function startReminderWorker() {
     OFFHOST_BACKUP_QUEUE,
     { localConcurrency: 1 },
     handleOffhostBackup,
+  );
+  await boss.work<HostMetricSamplePayload>(
+    HOST_METRIC_QUEUE,
+    { localConcurrency: 1 },
+    handleHostMetricSample,
   );
 
   return boss;
