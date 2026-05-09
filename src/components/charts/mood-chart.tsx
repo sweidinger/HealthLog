@@ -21,6 +21,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { formatDateShort } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import type { DataSummary } from "@/lib/analytics/trends";
+import {
+  bucketTimeSeries,
+  pickBucket,
+  type ChartBucketType,
+} from "@/lib/charts/bucket-time-series";
 
 // --- Types ---
 
@@ -144,6 +149,74 @@ function buildTrendLine(data: Array<{ date: Date; value: number }>): {
   };
 }
 
+// --- Aggregation helpers (exported for unit tests) ---
+
+interface MoodEntryDay {
+  date: string; // "YYYY-MM-DD" Berlin
+  score: number;
+}
+
+/**
+ * Pick the time bucket for a window of mood entries based on the same
+ * thresholds the dashboard charts use. Pure: no DOM/i18n side-effects.
+ *
+ * - ≤ 90 days → "day"   (raw daily averages)
+ * - 91-730   → "week"  (ISO weekly mean)
+ * - > 730    → "month" (Berlin calendar monthly mean)
+ */
+export function pickMoodBucket(entries: MoodEntryDay[]): ChartBucketType {
+  if (entries.length < 2) return "day";
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  const firstTs = dayKeyToTimestamp(sorted[0].date);
+  const lastTs = dayKeyToTimestamp(sorted[sorted.length - 1].date);
+  const rangeDays = Math.round((lastTs - firstTs) / (24 * 60 * 60 * 1000));
+  return pickBucket(rangeDays);
+}
+
+/**
+ * Aggregate daily mood entries into the bucket chosen by `pickMoodBucket`.
+ * Returns `{ timestamp, score }` rows so the chart can render them
+ * without re-formatting. Days/weeks/months without an observation are
+ * skipped, never emitted as 0.
+ *
+ * Pure & deterministic so the unit test can pin the exact aggregated
+ * mean per bucket.
+ */
+export function aggregateMoodEntries(
+  entries: MoodEntryDay[],
+): { bucket: ChartBucketType; points: Array<{ timestamp: number; score: number }> } {
+  if (entries.length === 0) return { bucket: "day", points: [] };
+
+  const bucket = pickMoodBucket(entries);
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+
+  if (bucket === "day") {
+    return {
+      bucket,
+      points: sorted.map((entry) => ({
+        timestamp: dayKeyToTimestamp(entry.date),
+        score: entry.score,
+      })),
+    };
+  }
+
+  const out = bucketTimeSeries(
+    sorted.map((entry) => ({
+      timestamp: dayKeyToTimestamp(entry.date),
+      values: { score: entry.score },
+    })),
+    { bucket },
+  );
+
+  return {
+    bucket,
+    points: out.points.map((point) => ({
+      timestamp: point.timestamp,
+      score: point.values.score,
+    })),
+  };
+}
+
 // --- Component ---
 
 export function MoodChart({ title }: MoodChartProps) {
@@ -182,8 +255,41 @@ export function MoodChart({ title }: MoodChartProps) {
       }))
       .sort((a, b) => a.timestamp - b.timestamp);
 
-    const visibleData =
+    const sliced =
       rangePoints > 0 ? allPoints.slice(-rangePoints) : allPoints;
+
+    // v1.4.15 Fix 3: parity with health-chart's auto-bucketing. Other
+    // dashboard charts (BP, weight, pulse) auto-aggregate to weekly /
+    // monthly when the visible range is long enough that drawing every
+    // daily point would clutter the chart; the mood chart used to show
+    // raw points only, which made multi-month windows unreadable.
+    // Using the same `pickBucket()` thresholds the rest of the
+    // dashboard uses (≤90d → day, 91-730d → week, >730d → month) keeps
+    // the bucketing chip consistent across metrics.
+    const rangeDays =
+      sliced.length < 2
+        ? 0
+        : Math.round(
+            (sliced[sliced.length - 1].timestamp - sliced[0].timestamp) /
+              (24 * 60 * 60 * 1000),
+          );
+    const bucketType = pickBucket(rangeDays);
+
+    const visibleData: ChartDataPoint[] =
+      bucketType === "day"
+        ? sliced
+        : bucketTimeSeries(
+            sliced.map((p) => ({
+              timestamp: p.timestamp,
+              values: { score: p.score },
+            })),
+            { bucket: bucketType },
+          ).points.map((point) => ({
+            date: formatDateShort(new Date(point.timestamp)),
+            timestamp: point.timestamp,
+            pointIndex: 0,
+            score: point.values.score,
+          }));
 
     const enriched: ChartDataPoint[] = visibleData.map((d, index) => ({
       ...d,
@@ -233,6 +339,23 @@ export function MoodChart({ title }: MoodChartProps) {
     return enriched;
   }, [data, rangePoints, showMA, showTrend]);
 
+  // Mirror the activeBucket calculation from health-chart so the chip
+  // in the header reflects the *same* aggregation chartData used.
+  // Computed independently of chartData so an empty/loading dataset
+  // doesn't crash the chip render.
+  const activeBucket: ChartBucketType = useMemo(() => {
+    if (!data?.entries?.length) return "day";
+    const sorted = [...data.entries].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
+    const sliced = rangePoints > 0 ? sorted.slice(-rangePoints) : sorted;
+    if (sliced.length < 2) return "day";
+    const firstTs = dayKeyToTimestamp(sliced[0].date);
+    const lastTs = dayKeyToTimestamp(sliced[sliced.length - 1].date);
+    const rangeDays = Math.round((lastTs - firstTs) / (24 * 60 * 60 * 1000));
+    return pickBucket(rangeDays);
+  }, [data, rangePoints]);
+
   const maxPointIndex = Math.max(0, (chartData?.length ?? 1) - 1);
 
   const moodLabels: Record<number, string> = {
@@ -259,9 +382,20 @@ export function MoodChart({ title }: MoodChartProps) {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-medium">
-            {displayTitle}
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base font-medium">
+              {displayTitle}
+            </CardTitle>
+            {activeBucket !== "day" && (
+              <span className="bg-muted/40 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+                {t(
+                  activeBucket === "week"
+                    ? "charts.bucketWeekly"
+                    : "charts.bucketMonthly",
+                )}
+              </span>
+            )}
+          </div>
           <div className="flex gap-1">
             {TIME_RANGES_KEYS.map((r) => (
               <Button
