@@ -6,6 +6,8 @@ import {
   InsightSchemaError,
   type AIInsightResponse,
 } from "./schema";
+import { computeCitationCoverage } from "./citation-coverage";
+import { annotate } from "@/lib/logging/context";
 
 /**
  * Schema-enforced wrapper around `AIProvider.generateCompletion()`.
@@ -131,6 +133,25 @@ async function tryOnce(
 }
 
 /**
+ * Forward the citation-coverage breakdown into the active Wide-Event
+ * via `annotate()` (no-op outside a request context). Keys are
+ * snake_case to match the rest of the AI Wide-Event vocabulary.
+ */
+function annotateCitationCoverage(parsed: AIInsightResponse): void {
+  const coverage = computeCitationCoverage(parsed);
+  annotate({
+    meta: {
+      ai_total_recommendations: coverage.totalRecommendations,
+      ai_normative_recommendations: coverage.normativeRecommendations,
+      ai_cited_normative_recommendations:
+        coverage.citedNormativeRecommendations,
+      ai_uncited_normative_recommendation_ids:
+        coverage.uncitedNormativeRecommendationIds,
+    },
+  });
+}
+
+/**
  * Run a schema-enforced insight generation. Up to 2 provider calls.
  * Throws `InsightSchemaError` (httpStatus 422) if both attempts fail
  * the schema; provider-level errors bubble untouched.
@@ -141,6 +162,7 @@ export async function generateInsight(
 ): Promise<GenerateInsightOutcome> {
   const first = await tryOnce(provider, params);
   if (first.ok && first.parsed) {
+    annotateCitationCoverage(first.parsed);
     return {
       parsed: first.parsed,
       raw: first.raw,
@@ -160,6 +182,7 @@ export async function generateInsight(
   };
   const second = await tryOnce(provider, retryParams);
   if (second.ok && second.parsed) {
+    annotateCitationCoverage(second.parsed);
     return {
       parsed: second.parsed,
       raw: second.raw,
