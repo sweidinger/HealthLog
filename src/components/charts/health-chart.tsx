@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import {
   ResponsiveContainer,
-  LineChart,
+  ComposedChart,
+  Area,
   Line,
   XAxis,
   YAxis,
@@ -16,6 +17,13 @@ import {
 } from "recharts";
 import { Loader2 } from "lucide-react";
 import { useState, useMemo, useId } from "react";
+import {
+  ChartLinearGradient,
+  chartGradientFill,
+} from "./chart-gradient";
+import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
+import { ChartEmptyState } from "./chart-empty-state";
+import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -175,6 +183,31 @@ function movingAverageByPoints(
       value: Math.round(avg * 100) / 100,
     };
   });
+}
+
+/**
+ * v1.4.16 B1a — personal-baseline helper.
+ *
+ * Computes the median (50th-percentile) value of a daily-aggregated
+ * series, capped at the most-recent 90 daily points (Apple Health uses
+ * the rolling-90-day window for "your normal" framing). Returns `null`
+ * when fewer than 5 points exist — a baseline drawn off 1-2 readings is
+ * misleading; surface nothing instead.
+ *
+ * Pure & deterministic so the unit test pins exact medians.
+ */
+export function computePersonalBaseline(
+  data: Array<{ value: number }>,
+  windowPoints = 90,
+): number | null {
+  if (data.length < 5) return null;
+  const recent = data.slice(-windowPoints);
+  const sorted = recent.map((d) => d.value).sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
 }
 
 function buildTrendSeriesByTime(data: Array<{ date: Date; value: number }>): {
@@ -641,10 +674,28 @@ export function HealthChart({
       .filter((entry): entry is string => entry !== null);
   }, [chartData, showTrend, types, unit, valueMode, t, fmt]);
 
+  // v1.4.16 B1a — personal baseline (90-day rolling median) per type.
+  // Painted as a faint dashed reference line labelled "Your normal" so
+  // the user can read each point against their own baseline, not an
+  // absolute value the chart axis happens to render.
+  const personalBaselines = useMemo(() => {
+    if (!chartData?.length) return new Map<string, number>();
+    const map = new Map<string, number>();
+    for (const type of types) {
+      const series = chartData
+        .filter((d) => typeof d[type] === "number")
+        .map((d) => ({ value: d[type] as number }));
+      const baseline = computePersonalBaseline(series, 90);
+      if (baseline !== null) map.set(type, baseline);
+    }
+    return map;
+  }, [chartData, types]);
+
   if (!isLoading && !data?.length) return null;
 
   const maxPointIndex = Math.max(0, (chartData?.length ?? 1) - 1);
   const showContextDetails = showMA || showTrend || showBands;
+  const animationsEnabled = !prefersReducedMotion();
 
   return (
     <div className="bg-card border-border rounded-xl border p-4 md:p-6">
@@ -724,7 +775,15 @@ export function HealthChart({
         <div className="flex h-48 items-center justify-center">
           <Loader2 className="text-primary h-6 w-6 animate-spin" />
         </div>
-      ) : !chartData?.length ? null : (
+      ) : !chartData?.length ? null : (chartData?.length ?? 0) < 3 ? (
+        // v1.4.16 B1a — sparse-data placeholder. <3 daily points is too
+        // few to render a meaningful trend; paint a friendly hint
+        // instead so the dashboard doesn't look broken.
+        <ChartEmptyState
+          title={t("charts.emptyStateTitle")}
+          description={t("charts.emptyStateDescription")}
+        />
+      ) : (
         <div className="relative h-[240px]">
           {visibleBands.length > 0 ? (
             <div
@@ -754,12 +813,73 @@ export function HealthChart({
             </div>
           ) : null}
 
+          {/* v1.4.16 B1a — sibling SVG <defs> block.
+              ResponsiveContainer is empty during SSR so a gradient
+              defined inside its child <svg> isn't discoverable in
+              static-rendered markup. Emitting the gradient in a
+              standalone hidden <svg> next to the chart keeps it
+              available document-wide; Recharts' <Area fill="url(#id)">
+              looks the gradient up by id at paint time and finds it
+              regardless of which SVG it lives in. */}
+          <svg
+            width={0}
+            height={0}
+            aria-hidden="true"
+            style={{ position: "absolute", pointerEvents: "none" }}
+            data-slot="chart-gradient-defs"
+          >
+            {types.map((type, i) => (
+              <ChartLinearGradient
+                key={`grad-${type}`}
+                id={`chart-gradient-${type}`}
+                colorVar={
+                  // Best-effort mapping from the dot colour back to a
+                  // Dracula token — the chart already accepts an
+                  // arbitrary `colors` array (defaults to purple/pink/
+                  // cyan), so we mirror that here.
+                  colors[i % colors.length]?.startsWith("var(")
+                    ? colors[i % colors.length]
+                        .replace("var(", "")
+                        .replace(")", "")
+                    : "--dracula-purple"
+                }
+              />
+            ))}
+          </svg>
+
           <div className="relative z-10 h-full touch-pan-y">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
+              <ComposedChart
                 data={chartData}
                 margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
               >
+                {/* Inline gradient defs as Recharts children — same id
+                    space as the sibling SVG above, so even browsers
+                    that scope SVG-id resolution to the local document
+                    fragment (Safari edge cases) still find a match. */}
+                <defs>
+                  {types.map((type, i) => (
+                    <linearGradient
+                      key={`inline-grad-${type}`}
+                      id={`chart-gradient-inline-${type}`}
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor={colors[i % colors.length]}
+                        stopOpacity={0.35}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={colors[i % colors.length]}
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  ))}
+                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="var(--border)"
@@ -846,27 +966,116 @@ export function HealthChart({
                     }
                   />
                 ))}
+                {/* v1.4.16 B1a — personal-baseline reference line.
+                    90-day rolling median per type, painted as a faint
+                    dashed line labelled "Your normal" / "Dein Mittel".
+                    Only the *first* baseline gets an inline label so
+                    multi-type charts (e.g. systolic + diastolic) don't
+                    paint two overlapping labels. */}
+                {types.map((type, i) => {
+                  const baseline = personalBaselines.get(type);
+                  if (baseline == null) return null;
+                  return (
+                    <ReferenceLine
+                      key={`baseline-${type}`}
+                      y={baseline}
+                      stroke={colors[i % colors.length]}
+                      strokeDasharray="2 4"
+                      strokeOpacity={0.4}
+                      strokeWidth={1}
+                      ifOverflow="discard"
+                      label={
+                        i === 0
+                          ? {
+                              value: t("charts.personalBaseline"),
+                              position: "insideTopLeft",
+                              fill: "var(--muted-foreground)",
+                              fontSize: 10,
+                              opacity: 0.7,
+                            }
+                          : undefined
+                      }
+                    />
+                  );
+                })}
                 <Tooltip
                   filterNull={false}
-                  contentStyle={{
-                    backgroundColor: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "0.5rem",
-                    fontSize: "0.875rem",
+                  cursor={{
+                    stroke: "var(--muted-foreground)",
+                    strokeOpacity: 0.3,
+                    strokeDasharray: "3 3",
                   }}
-                  formatter={(value) =>
-                    typeof value === "number"
-                      ? `${formatTooltipValue(value)}${unit ? ` ${unit}` : ""}`
-                      : value
-                  }
-                  labelFormatter={(_label, payload) =>
-                    payload?.[0]?.payload?.timestamp
-                      ? formatDateShort(
-                          new Date(payload[0].payload.timestamp),
-                          true,
-                        )
-                      : ""
-                  }
+                  content={(props) => {
+                    const {
+                      active,
+                      payload,
+                      label: rechartsLabel,
+                    } = props as unknown as {
+                      active?: boolean;
+                      payload?: Array<{
+                        name?: string;
+                        value?: number;
+                        color?: string;
+                        dataKey?: string;
+                        payload?: ChartDataPoint;
+                      }>;
+                      label?: number;
+                    };
+                    if (!active || !payload?.length) return null;
+                    const ts =
+                      payload[0]?.payload?.timestamp ??
+                      (typeof rechartsLabel === "number"
+                        ? chartData?.[Math.round(rechartsLabel)]?.timestamp
+                        : undefined);
+                    const dateLabel = ts
+                      ? formatDateShort(new Date(ts), true)
+                      : "";
+                    const rows: RichTooltipRow[] = [];
+                    for (const item of payload) {
+                      if (typeof item.value !== "number") continue;
+                      const dataKey = String(item.dataKey ?? "");
+                      // Skip auxiliary lines (`*_ma`, `*_trend`) so the
+                      // tooltip stays focused on the primary metric
+                      // rows; the user already sees these as dashed
+                      // overlays in the chart.
+                      if (dataKey.endsWith("_ma") || dataKey.endsWith("_trend"))
+                        continue;
+                      const baseline = personalBaselines.get(dataKey);
+                      let delta: string | undefined;
+                      if (baseline != null) {
+                        const diff = item.value - baseline;
+                        if (Math.abs(diff) < 0.05) {
+                          delta = t("charts.deltaUnchanged");
+                        } else {
+                          const sign = diff > 0 ? "+" : "−";
+                          const formatted = `${sign}${fmt.number(
+                            Math.abs(diff),
+                            1,
+                          )}${unit ? ` ${unit}` : ""}`;
+                          delta = t("charts.deltaVsBaseline").replace(
+                            "{delta}",
+                            formatted,
+                          );
+                        }
+                      }
+                      rows.push({
+                        name: item.name ?? dataKey,
+                        value: `${formatTooltipValue(item.value)}${
+                          unit ? ` ${unit}` : ""
+                        }`,
+                        color: item.color ?? "var(--dracula-purple)",
+                        delta,
+                      });
+                    }
+                    if (rows.length === 0) return null;
+                    return (
+                      <RichChartTooltip
+                        active
+                        label={dateLabel}
+                        rows={rows}
+                      />
+                    );
+                  }}
                 />
                 {showContextDetails && (
                   <Legend
@@ -877,6 +1086,26 @@ export function HealthChart({
                     }}
                   />
                 )}
+                {/* v1.4.16 B1a — gradient-filled Area painted *under*
+                    the line. Each type gets its own gradient
+                    referenced by id. The Area's stroke is set to
+                    transparent so only the fill paints; the line on
+                    top of it carries the actual stroke. */}
+                {types.map((type) => (
+                  <Area
+                    key={`area-${type}`}
+                    type="monotone"
+                    dataKey={type}
+                    stroke="transparent"
+                    fill={chartGradientFill(`chart-gradient-inline-${type}`)}
+                    fillOpacity={1}
+                    isAnimationActive={animationsEnabled}
+                    animationDuration={animationsEnabled ? 600 : 0}
+                    animationEasing="ease-out"
+                    connectNulls
+                    legendType="none"
+                  />
+                ))}
                 {types.map((type, i) => (
                   <Line
                     key={type}
@@ -888,6 +1117,9 @@ export function HealthChart({
                     dot={{ r: 3, fill: colors[i % colors.length] }}
                     activeDot={{ r: 5 }}
                     connectNulls
+                    isAnimationActive={animationsEnabled}
+                    animationDuration={animationsEnabled ? 600 : 0}
+                    animationEasing="ease-out"
                   />
                 ))}
                 {showMA &&
@@ -919,7 +1151,7 @@ export function HealthChart({
                       connectNulls
                     />
                   ))}
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>

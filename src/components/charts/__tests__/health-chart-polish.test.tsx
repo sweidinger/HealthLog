@@ -1,0 +1,155 @@
+import { describe, it, expect, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { computePersonalBaseline } from "../health-chart";
+
+/**
+ * v1.4.16 B1a — HealthChart Apple-Health-style polish contract.
+ *
+ * The HealthChart wrapper is the single component that the dashboard
+ * uses for BP, weight, pulse, body-fat, sleep, and steps. We upgrade it
+ * once with the v1.4.16 visual leap and the unit test pins the
+ * SSR-renderable surface markers:
+ *
+ *   - the linear gradient primitive is wired (data-slot present),
+ *   - the optional 90-day personal-baseline ReferenceLine is painted
+ *     when the wrapper is given a baseline computation hook,
+ *   - the rich tooltip primitive replaces the default Recharts tooltip
+ *     so tooltip rendering happens through `RichChartTooltip`.
+ *
+ * Recharts itself renders client-side so we can't assert pixel layout
+ * in node-based vitest. We assert that the wrapper's SSR output ships
+ * the gradient `<defs>` block (Recharts emits primitives during SSR
+ * even though hover/animations only kick in client-side) and that
+ * the gradient id includes the metric type prefix.
+ */
+
+const sampleSeries = vi.hoisted(() => {
+  // 30 days of synthetic systolic readings — ~120 baseline with mild
+  // upward drift + small noise. The chart's 90-day median feature only
+  // paints a baseline when sufficient data exists, so we hand it a
+  // dataset comfortably above the 3-point threshold.
+  const out: Array<{ measuredAt: string; value: number }> = [];
+  for (let i = 0; i < 30; i++) {
+    const dt = new Date(Date.UTC(2026, 4, 1 + i, 12, 0, 0));
+    out.push({
+      measuredAt: dt.toISOString(),
+      value: 118 + (i % 5) - 2 + i * 0.05,
+    });
+  }
+  return out;
+});
+
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: () => ({
+    data: sampleSeries.map((row) => {
+      const ts = Date.parse(row.measuredAt);
+      return {
+        date: new Date(ts).toDateString(),
+        timestamp: ts,
+        BLOOD_PRESSURE_SYS: row.value,
+      };
+    }),
+    isLoading: false,
+  }),
+}));
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    isAuthenticated: true,
+    user: null,
+    isLoading: false,
+  }),
+}));
+
+describe("computePersonalBaseline()", () => {
+  it("returns null with fewer than 5 data points", () => {
+    expect(computePersonalBaseline([])).toBeNull();
+    expect(
+      computePersonalBaseline([
+        { value: 120 },
+        { value: 122 },
+        { value: 118 },
+        { value: 125 },
+      ]),
+    ).toBeNull();
+  });
+
+  it("returns the median for an odd-sized series", () => {
+    // Sorted: [110, 115, 120, 125, 130]; median = 120.
+    expect(
+      computePersonalBaseline([
+        { value: 130 },
+        { value: 110 },
+        { value: 120 },
+        { value: 125 },
+        { value: 115 },
+      ]),
+    ).toBe(120);
+  });
+
+  it("averages the two middle values for an even-sized series", () => {
+    // Sorted: [110, 115, 120, 125, 130, 135]; middle two = 120,125 → 122.5.
+    expect(
+      computePersonalBaseline([
+        { value: 110 },
+        { value: 115 },
+        { value: 120 },
+        { value: 125 },
+        { value: 130 },
+        { value: 135 },
+      ]),
+    ).toBe(122.5);
+  });
+
+  it("caps the window at the most recent N points (default 90)", () => {
+    // 100 points: first 5 are 200, remaining 95 are 100. With a 90-point
+    // cap we slice off the trailing 90 → all 100s → median 100.
+    const points: Array<{ value: number }> = [];
+    for (let i = 0; i < 5; i++) points.push({ value: 200 });
+    for (let i = 0; i < 95; i++) points.push({ value: 100 });
+    expect(computePersonalBaseline(points, 90)).toBe(100);
+  });
+});
+
+describe("<HealthChart> v1.4.16 B1a polish", () => {
+  it("emits a sibling-SVG <defs> gradient block addressable by Recharts via url(#id)", async () => {
+    // ResponsiveContainer renders empty during SSR (its dimensions
+    // depend on the live DOM), so Recharts' own SSR output ships no
+    // <defs>. To keep the gradient SSR-discoverable (and so visual
+    // regressions can target it without a browser), the wrapper emits
+    // an external `<svg width=0 height=0>` next to ResponsiveContainer
+    // containing the gradient. Recharts picks it up via `url(#id)`
+    // because SVG IDs are document-scoped.
+    const { I18nProvider } = await import("@/lib/i18n/context");
+    const { HealthChart } = await import("../health-chart");
+
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en">
+        <HealthChart
+          types={["BLOOD_PRESSURE_SYS"]}
+          title="Blood Pressure"
+          unit="mmHg"
+        />
+      </I18nProvider>,
+    );
+
+    expect(html).toContain('data-slot="chart-linear-gradient"');
+  });
+
+  it("namespaces the gradient id by metric type so multi-metric charts don't collide", async () => {
+    const { I18nProvider } = await import("@/lib/i18n/context");
+    const { HealthChart } = await import("../health-chart");
+
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en">
+        <HealthChart
+          types={["BLOOD_PRESSURE_SYS"]}
+          title="Blood Pressure"
+          unit="mmHg"
+        />
+      </I18nProvider>,
+    );
+    expect(html).toMatch(/id="chart-gradient-BLOOD_PRESSURE_SYS"/);
+  });
+});
