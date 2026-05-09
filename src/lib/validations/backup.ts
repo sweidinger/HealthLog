@@ -69,12 +69,40 @@ const intakeEventSchema = z
   })
   .passthrough();
 
+/**
+ * `MoodEntry.tags` is stored as a JSON-array-as-string in the
+ * `mood_entries.tags` column ("[\"work\",\"sleep\"]"). The previous
+ * schema accepted any `string` here, so a malformed blob in a backup
+ * (or one tampered with mid-restore) would land in the DB and crash
+ * downstream readers that `JSON.parse` it. We now refine to one of
+ * `null` / empty-string (legacy null wire format) / a JSON string
+ * that parses to a `string[]`. v1.4.15 H2.
+ */
+const moodEntryTagsSchema = z
+  .union([z.null(), z.string()])
+  .nullable()
+  .optional()
+  .refine(
+    (v) => {
+      if (v == null || v === "") return true;
+      try {
+        const parsed = JSON.parse(v) as unknown;
+        return (
+          Array.isArray(parsed) && parsed.every((x) => typeof x === "string")
+        );
+      } catch {
+        return false;
+      }
+    },
+    { message: "tags must be null, empty, or a JSON array of strings" },
+  );
+
 const moodEntrySchema = z
   .object({
     date: z.string().min(1),
     mood: z.string().min(1),
     score: z.number().int().min(0).max(10),
-    tags: z.string().nullable().optional(),
+    tags: moodEntryTagsSchema,
     source: z.string().min(1).optional(),
     loggedAt: isoDateTime,
   })
