@@ -225,12 +225,27 @@ export function OnboardingTour({
   }, [stop]);
 
   // Focus management — moves focus to the primary action when the
-  // step changes so keyboard users can hit Enter to advance.
+  // step changes so keyboard users can hit Enter to advance. The
+  // tooltip ref + `previousFocus` carry the focus-trap contract: tab
+  // cycles inside the tooltip, and on close the originally-focused
+  // element (e.g. the Settings → Account "Restart" button) regains
+  // focus.
   const primaryRef = useRef<HTMLButtonElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (!stop) return;
     primaryRef.current?.focus();
   }, [stop]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    return () => {
+      previousFocusRef.current?.focus?.();
+    };
+  }, []);
 
   // Keyboard shortcuts: Esc = skip, ArrowLeft / ArrowRight = nav,
   // Enter = next/done. We attach to window so the listener works
@@ -268,6 +283,29 @@ export function OnboardingTour({
       if (e.key === "Escape") {
         e.preventDefault();
         handleSkip();
+      } else if (e.key === "Tab") {
+        // Trap focus inside the tooltip so the user can't tab onto the
+        // dimmed page underneath while the tour is active.
+        const root = tooltipRef.current;
+        if (!root) return;
+        const focusables = Array.from(
+          root.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+          ),
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey) {
+          if (active === first || !root.contains(active)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else if (active === last) {
+          e.preventDefault();
+          first.focus();
+        }
       } else if (e.key === "ArrowRight" || e.key === "Enter") {
         // Don't hijack Enter inside form inputs (none exist in the
         // tour itself but be defensive against future content).
@@ -328,7 +366,7 @@ export function OnboardingTour({
       <button
         type="button"
         aria-label={t("onboarding.tour.skip")}
-        className="absolute inset-0 cursor-default bg-black/70 transition-opacity duration-150 motion-reduce:transition-none"
+        className="absolute inset-0 cursor-default bg-black/70 transition-opacity duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transition-none"
         style={clipPath ? { clipPath, WebkitClipPath: clipPath } : undefined}
         onClick={handleSkip}
       />
@@ -345,9 +383,10 @@ export function OnboardingTour({
 
       {/* Tooltip card */}
       <div
+        ref={tooltipRef}
         data-testid="onboarding-tour-tooltip"
         data-placement={tooltipPos.placement}
-        className="bg-card border-border absolute rounded-xl border p-5 shadow-2xl"
+        className="bg-card border-border absolute max-h-[80vh] overflow-y-auto rounded-xl border p-5 shadow-2xl"
         style={{
           top: `${tooltipPos.top}px`,
           left: `${tooltipPos.left}px`,
