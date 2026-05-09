@@ -975,6 +975,10 @@ async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
             ]);
 
           const backupJson = JSON.stringify({
+            // Bumped only when the on-disk shape changes incompatibly.
+            // Mirrors `BACKUP_SCHEMA_VERSION` in
+            // `src/lib/validations/backup.ts` — keep them in sync.
+            schemaVersion: "1",
             exportedAt: new Date().toISOString(),
             userId: user.id,
             measurements: measurements.map((m) => ({

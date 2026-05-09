@@ -12,7 +12,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Database, Loader2, PlayCircle } from "lucide-react";
+import { Database, Download, Loader2, PlayCircle } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,46 @@ export function BackupsSection() {
   });
 
   const rows: BackupRow[] = data?.rows ?? [];
+
+  // Per-row download in-flight state — keyed by backup id so two
+  // parallel clicks on different rows don't share a single spinner.
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function handleDownload(row: BackupRow) {
+    setDownloadingId(row.id);
+    try {
+      const res = await fetch(`/api/admin/backups/${row.id}/download`);
+      if (!res.ok) {
+        throw new Error(await getApiErrorMessage(res));
+      }
+      // Use the server-provided Content-Disposition filename if present,
+      // otherwise fall back to a deterministic client-side name. The
+      // server filename is more accurate (uses the actual createdAt).
+      const cd = res.headers.get("content-disposition") ?? "";
+      const match = cd.match(/filename="?([^";]+)"?/i);
+      const fallback = `healthlog-backup-${row.userId}-${row.createdAt.slice(0, 10)}.json`;
+      const filename = match?.[1] ?? fallback;
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(t("admin.section.backups.downloadStarted"));
+    } catch (err) {
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : t("admin.section.backups.downloadFailed"),
+      );
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
@@ -137,6 +178,9 @@ export function BackupsSection() {
                 <th className="px-3 py-2 text-right font-medium">
                   {t("admin.section.backups.colCreatedAt")}
                 </th>
+                <th className="px-3 py-2 text-right font-medium">
+                  {t("admin.section.backups.colActions")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
@@ -153,6 +197,24 @@ export function BackupsSection() {
                   </td>
                   <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
                     {formatDateTime(row.createdAt)}
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={downloadingId === row.id}
+                      onClick={() => handleDownload(row)}
+                      aria-label={t("admin.section.backups.downloadAria", {
+                        username: row.username,
+                      })}
+                    >
+                      {downloadingId === row.id ? (
+                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Download className="mr-1 h-3.5 w-3.5" />
+                      )}
+                      {t("admin.section.backups.download")}
+                    </Button>
                   </td>
                 </tr>
               ))}

@@ -1551,7 +1551,12 @@
         "colType": "Type",
         "colSize": "Size",
         "colCreatedAt": "Last snapshot",
-        "retentionLabel": "Retention: {days} days"
+        "colActions": "Actions",
+        "retentionLabel": "Retention: {days} days",
+        "download": "Download",
+        "downloadAria": "Download backup for {username}",
+        "downloadFailed": "Download failed",
+        "downloadStarted": "Download started"
       },
       "danger-zone": {
         "title": "Danger Zone",
