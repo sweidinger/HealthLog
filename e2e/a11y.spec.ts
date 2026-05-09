@@ -5,21 +5,20 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 
 /**
  * Accessibility regression gate — fails the build if any WCAG 2.1 AA
- * violation lands in the `serious` or `critical` bucket. v1.5 phase-3
- * extends the original public-only sweep to cover the authenticated
- * surfaces a real user actually spends time on:
+ * violation lands in the `serious` or `critical` bucket. v1.5 phase-5
+ * re-enables the `/admin` surface that phase-3 had parked while phase-4b
+ * restructured the admin into per-section dynamic routes:
  *
  *   - `/auth/login`             (public)
  *   - `/`                        (dashboard, authenticated)
  *   - `/settings/integrations`   (authenticated)
- *   - `/admin`                   (admin-only — seeded user has ADMIN)
+ *   - `/admin`                   (admin overview — `<StatusCardGrid>`)
+ *   - `/admin/system-status`     (representative admin sub-route)
+ *   - `/admin/users`             (admin users management — icon-only buttons)
  *
  * The seeded user (`e2e-tester`) is provisioned with `role: ADMIN` in
  * `e2e/setup/global-setup.ts` so the same fixture covers both regular
- * and admin surfaces without a second user. The /admin page audit is
- * intentionally limited to the overview route — phase 4b is currently
- * restructuring the admin sub-routes in parallel and we don't want to
- * race that work.
+ * and admin surfaces without a second user.
  */
 
 function reportBlocking(
@@ -93,7 +92,13 @@ test.describe("axe-core authenticated surfaces", () => {
     );
   });
 
-  for (const path of ["/", "/settings/integrations"]) {
+  for (const path of [
+    "/",
+    "/settings/integrations",
+    "/admin",
+    "/admin/system-status",
+    "/admin/users",
+  ]) {
     test(`${path} has no serious or critical a11y violations`, async ({
       page,
     }) => {
@@ -105,22 +110,4 @@ test.describe("axe-core authenticated surfaces", () => {
       expect(blocking).toHaveLength(0);
     });
   }
-
-  // /admin is being restructured by Phase 4b in parallel — the overview
-  // page currently surfaces critical button-name + select-name + colour-
-  // contrast violations that originate in `src/components/admin/**`,
-  // which is OFF-LIMITS for this phase by explicit instruction. The
-  // assertion is parked as a fixme so the rest of the a11y suite stays
-  // green and the regression remains visible. Re-enable once Phase 4b
-  // ships the new admin shell.
-  test.fixme("/admin has no serious or critical a11y violations", async ({
-    page,
-  }) => {
-    await page.goto("/admin", { waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle");
-
-    const blocking = await runAxe(page);
-    reportBlocking(blocking);
-    expect(blocking).toHaveLength(0);
-  });
 });

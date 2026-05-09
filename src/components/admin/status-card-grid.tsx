@@ -217,7 +217,6 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
       metrics: [
         { label: "Events 30d", value: data.auditLog.eventsLast30d },
         { label: "Last login", value: fmtRelative(data.auditLog.lastLoginAt) },
-        { label: "—", value: "" },
       ],
       href: "/admin/login-overview",
       cta: "Open viewer",

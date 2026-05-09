@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
+import { PasswordInput as SettingsPasswordInput } from "@/components/settings/password-input";
+
+/**
+ * Re-export the canonical password input so admin sections have access to
+ * the same accessible (aria-labelled) toggle the settings sections use.
+ * The earlier in-file copy lacked an aria-label which surfaced as a
+ * `button-name` violation on `/admin/integrations` and
+ * `/admin/users` (axe-core, WCAG 2.1.2).
+ */
+export const PasswordInput = SettingsPasswordInput;
 
 export interface AdminUser {
   id: string;
@@ -140,23 +147,6 @@ export const FEEDBACK_STATUS_TABS: FeedbackStatusType[] = [
   "RESOLVED",
   "ARCHIVED",
 ];
-
-export function PasswordInput(props: React.ComponentProps<typeof Input>) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <div className="relative">
-      <Input {...props} type={visible ? "text" : "password"} />
-      <button
-        type="button"
-        tabIndex={-1}
-        onClick={() => setVisible((v) => !v)}
-        className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2"
-      >
-        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
-    </div>
-  );
-}
 
 export function StatusItem({
   icon: Icon,

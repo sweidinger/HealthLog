@@ -262,7 +262,7 @@ export function UserManagementSection({
                               : t("admin.promoteToAdmin")
                         }
                       >
-                        <Shield className="mr-1 h-3 w-3" />
+                        <Shield className="mr-1 h-3 w-3" aria-hidden="true" />
                         {u.role === "ADMIN"
                           ? t("admin.toUser")
                           : t("admin.toAdmin")}
@@ -273,8 +273,9 @@ export function UserManagementSection({
                         className="h-7 px-2 text-xs"
                         onClick={() => startEdit(u)}
                         title={t("admin.editUser")}
+                        aria-label={t("admin.editUser")}
                       >
-                        <Pencil className="mr-1 h-3 w-3" />
+                        <Pencil className="h-3 w-3" aria-hidden="true" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -282,8 +283,9 @@ export function UserManagementSection({
                         className="h-7 px-2 text-xs"
                         onClick={() => startReset(u)}
                         title={t("admin.resetPassword")}
+                        aria-label={t("admin.resetPassword")}
                       >
-                        <KeyRound className="mr-1 h-3 w-3" />
+                        <KeyRound className="h-3 w-3" aria-hidden="true" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -296,8 +298,13 @@ export function UserManagementSection({
                             ? t("admin.section.users.cannotLogoutSelf")
                             : t("admin.section.users.forceLogout")
                         }
+                        aria-label={
+                          u.id === currentUserId
+                            ? t("admin.section.users.cannotLogoutSelf")
+                            : t("admin.section.users.forceLogout")
+                        }
                       >
-                        <LogOut className="mr-1 h-3 w-3" />
+                        <LogOut className="h-3 w-3" aria-hidden="true" />
                       </Button>
                     </div>
                   </td>

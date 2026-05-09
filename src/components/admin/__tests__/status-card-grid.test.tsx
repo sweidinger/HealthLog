@@ -141,10 +141,19 @@ describe("buildCards()", () => {
     }
   });
 
-  it("includes 3 metric tuples per card", () => {
+  it("includes between 1 and 3 metric tuples per card with non-empty labels", () => {
+    // v1.5 phase-5 a11y fix: dropped the empty-string filler "—"/"" tuple from
+    // the audit-log card so the rendered <dl> has no zero-content <dd>. Cards
+    // must still have at least one metric (otherwise the grid collapses) and
+    // every metric needs a real label (axe `definition-list` rule).
     const cards = buildCards(mockOverview);
     for (const card of cards) {
-      expect(card.metrics).toHaveLength(3);
+      expect(card.metrics.length).toBeGreaterThanOrEqual(1);
+      expect(card.metrics.length).toBeLessThanOrEqual(3);
+      for (const metric of card.metrics) {
+        expect(metric.label.trim()).not.toBe("");
+        expect(metric.label).not.toBe("—");
+      }
     }
   });
 
