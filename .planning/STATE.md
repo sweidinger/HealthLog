@@ -291,3 +291,16 @@ B3, B4, C1, C5).
   - Verification: `pnpm test` 1081/1081 (+32 net), `pnpm typecheck`
     0 errors, `pnpm lint` 12 pre-existing warnings / 0 errors.
     Detailed report: `.planning/phase-A4-A5-A8b-report.md`.
+
+## Status block — Wave-A verification gate
+
+- 2026-05-10T00:08:00+02:00 — [x] Wave-A verification gate green, ready
+  for Wave B (gate-run sha `94c748d`). Local clean clone passes
+  typecheck (0 errors), lint (12 pre-existing warnings), `pnpm test`
+  1153/1153, `pnpm test:integration` 41/41. CI Security & Quality
+  workflow consistently passes Wave-A commits. Integration + e2e CI
+  workflows are pre-existing red (predate Wave A by hours; identical
+  failure shape on v1.4.15 release commit `0985c93`); not a Wave-A
+  regression. `pnpm format:check` flags 34 .planning/docs/test files
+  but is not in any CI workflow. Detailed report:
+  `.planning/phase-wave-a-gate-report.md`.

@@ -1,19 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle2,
   ChevronDown,
+  Download,
   Loader2,
   ScrollText,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
+import { toCSV } from "@/lib/export";
 import { type AdminAuditEntry } from "./_shared";
+
+type DateRangePreset = "all" | "24h" | "7d" | "30d";
+type PerPageValue = 25 | 50 | 100;
+
+const PER_PAGE_OPTIONS: PerPageValue[] = [25, 50, 100];
+
+interface AuditLogResponse {
+  entries: AdminAuditEntry[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+    page: number;
+    perPage: number;
+  };
+}
+
+function rangeToSince(range: DateRangePreset): string | undefined {
+  if (range === "all") return undefined;
+  const now = Date.now();
+  const ms = range === "24h" ? 24 : range === "7d" ? 24 * 7 : 24 * 30;
+  return new Date(now - ms * 60 * 60 * 1000).toISOString();
+}
 
 export function LoginOverviewSection() {
   const { t } = useTranslations();
@@ -22,7 +55,17 @@ export function LoginOverviewSection() {
   // audit log by visiting the page. Default to expanded; the toggle
   // stays as an escape hatch.
   const [expanded, setExpanded] = useState(true);
+
+  // Quick-filter pill (kept from the v1.4.x UI for one-tap "show failed").
   const [filter, setFilter] = useState<"all" | "failed">("all");
+
+  // v1.4.16 phase B4 — deeper filter/pagination/export.
+  const [actor, setActor] = useState("");
+  const [actionFilter, setActionFilter] = useState<string>("");
+  const [target, setTarget] = useState("");
+  const [range, setRange] = useState<DateRangePreset>("7d");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState<PerPageValue>(50);
 
   const AUTH_ACTION_LABELS: Record<string, string> = {
     "auth.register": t("admin.authRegister"),
@@ -35,23 +78,94 @@ export function LoginOverviewSection() {
     "auth.passkey.delete": t("admin.authPasskeyDelete"),
   };
 
+  // Build the query string once so it's reused by the data-query key, the
+  // export download, and the next-/prev- buttons.
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("perPage", String(perPage));
+    if (actor.trim()) params.set("actor", actor.trim());
+    if (actionFilter && actionFilter !== "__all__") {
+      params.set("action", actionFilter);
+    }
+    if (target.trim()) params.set("target", target.trim());
+    const since = rangeToSince(range);
+    if (since) params.set("since", since);
+    return params;
+  }, [page, perPage, actor, actionFilter, target, range]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "audit-log", filter],
+    queryKey: [
+      "admin",
+      "audit-log",
+      "filtered",
+      filter,
+      page,
+      perPage,
+      actor,
+      actionFilter,
+      target,
+      range,
+    ],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/audit-log?limit=100&filter=auth`);
+      const params = new URLSearchParams(queryParams);
+      // Quick-filter pill stacks on top of the new filters.
+      if (filter === "failed") {
+        params.set("action", "auth.login.failed");
+      }
+      const res = await fetch(`/api/admin/audit-log?${params.toString()}`);
       if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as {
-        entries: AdminAuditEntry[];
-        meta: { total: number };
-      };
+      return (await res.json()).data as AuditLogResponse;
     },
     enabled: expanded,
   });
 
-  const entries =
-    filter === "failed"
-      ? data?.entries?.filter((e) => e.action === "auth.login.failed")
-      : data?.entries;
+  // Distinct actions for the dropdown — populated lazily.
+  const { data: actionsData } = useQuery({
+    queryKey: ["admin", "audit-log", "actions"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/audit-log/actions");
+      if (!res.ok) throw new Error("Failed");
+      return (await res.json()).data as { actions: string[] };
+    },
+    enabled: expanded,
+    staleTime: 5 * 60_000,
+  });
+
+  const entries = data?.entries ?? [];
+  const total = data?.meta.total ?? 0;
+  const lastPage = Math.max(1, Math.ceil(total / perPage));
+
+  function downloadCsv() {
+    if (entries.length === 0) return;
+    const records = entries.map((entry) => ({
+      timestamp: entry.createdAt,
+      actor_id: entry.user?.id ?? "",
+      actor_username: entry.user?.username ?? "",
+      action: entry.action,
+      ip_address: entry.ipAddress ?? "",
+      location: entry.location ?? "",
+      details: entry.details ?? "",
+    }));
+    const csv = toCSV(records);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const ts = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+    a.download = `healthlog-audit-${ts}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function resetPageOnFilterChange<T>(setter: (v: T) => void): (v: T) => void {
+    return (v) => {
+      setPage(1);
+      setter(v);
+    };
+  }
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
@@ -77,12 +191,14 @@ export function LoginOverviewSection() {
 
       {expanded && (
         <div className="mt-4 space-y-3">
+          {/* Quick-filter pills. Failed-only is the most common
+              admin "is something wrong" question — keep the one-tap shortcut. */}
           <div className="flex gap-1">
             <Button
               variant={filter === "all" ? "default" : "ghost"}
               size="sm"
               className="min-h-11 min-w-11 px-3 text-xs"
-              onClick={() => setFilter("all")}
+              onClick={resetPageOnFilterChange(() => setFilter("all"))}
             >
               {t("admin.allAuthEvents")}
             </Button>
@@ -90,9 +206,121 @@ export function LoginOverviewSection() {
               variant={filter === "failed" ? "default" : "ghost"}
               size="sm"
               className="min-h-11 min-w-11 px-3 text-xs"
-              onClick={() => setFilter("failed")}
+              onClick={resetPageOnFilterChange(() => setFilter("failed"))}
             >
               {t("admin.failedOnly")}
+            </Button>
+          </div>
+
+          {/* Detailed filter row */}
+          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+            <Input
+              type="search"
+              placeholder={t("admin.section.auditLog.filterActor")}
+              value={actor}
+              onChange={(e) => {
+                setPage(1);
+                setActor(e.target.value);
+              }}
+              aria-label={t("admin.section.auditLog.filterActor")}
+            />
+            <Select
+              value={actionFilter || "__all__"}
+              onValueChange={(v) => {
+                setPage(1);
+                setActionFilter(v === "__all__" ? "" : v);
+              }}
+            >
+              <SelectTrigger
+                aria-label={t("admin.section.auditLog.filterAction")}
+              >
+                <SelectValue
+                  placeholder={t("admin.section.auditLog.filterAction")}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">
+                  {t("admin.section.auditLog.filterActionAll")}
+                </SelectItem>
+                {(actionsData?.actions ?? []).map((a) => (
+                  <SelectItem key={a} value={a}>
+                    {AUTH_ACTION_LABELS[a] ?? a}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="search"
+              placeholder={t("admin.section.auditLog.filterTarget")}
+              value={target}
+              onChange={(e) => {
+                setPage(1);
+                setTarget(e.target.value);
+              }}
+              aria-label={t("admin.section.auditLog.filterTarget")}
+            />
+            <Select
+              value={range}
+              onValueChange={(v) => {
+                setPage(1);
+                setRange(v as DateRangePreset);
+              }}
+            >
+              <SelectTrigger
+                aria-label={t("admin.section.auditLog.filterDate")}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="24h">
+                  {t("admin.section.auditLog.range24h")}
+                </SelectItem>
+                <SelectItem value="7d">
+                  {t("admin.section.auditLog.range7d")}
+                </SelectItem>
+                <SelectItem value="30d">
+                  {t("admin.section.auditLog.range30d")}
+                </SelectItem>
+                <SelectItem value="all">
+                  {t("admin.section.auditLog.rangeAll")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Toolbar row: per-page + export */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground">
+                {t("admin.section.auditLog.perPage")}
+              </span>
+              <Select
+                value={String(perPage)}
+                onValueChange={(v) => {
+                  setPage(1);
+                  setPerPage(Number(v) as PerPageValue);
+                }}
+              >
+                <SelectTrigger className="h-8 w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PER_PAGE_OPTIONS.map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadCsv}
+              disabled={entries.length === 0}
+            >
+              <Download className="mr-1 h-3.5 w-3.5" />
+              {t("admin.section.auditLog.export")}
             </Button>
           </div>
 
@@ -100,17 +328,13 @@ export function LoginOverviewSection() {
             <div className="flex justify-center py-4">
               <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
             </div>
-          ) : !entries?.length ? (
-            // v1.4.15 phase-C5: surface a real empty state. Filter-aware
-            // copy distinguishes "no auth events at all" (genuinely
-            // empty system) from "no failed sign-ins" (the safe case)
-            // and offers a "show all events" reset.
+          ) : !entries.length ? (
             <EmptyState
               icon={<ScrollText className="size-6" />}
               title={
                 filter === "failed"
                   ? t("admin.loginEmptyFailedTitle")
-                  : t("admin.loginEmptyTitle")
+                  : t("admin.section.auditLog.empty")
               }
               description={
                 filter === "failed"
@@ -122,7 +346,7 @@ export function LoginOverviewSection() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setFilter("all")}
+                    onClick={resetPageOnFilterChange(() => setFilter("all"))}
                   >
                     {t("admin.loginEmptyResetFilter")}
                   </Button>
@@ -193,14 +417,38 @@ export function LoginOverviewSection() {
                   })}
                 </tbody>
               </table>
-              {data && data.meta.total > entries.length && (
-                <p className="text-muted-foreground mt-3 text-center text-xs">
+              <div className="text-muted-foreground mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span>
                   {t("admin.showingEntries", {
                     count: entries.length,
-                    total: data.meta.total,
+                    total,
                   })}
-                </p>
-              )}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    {t("admin.section.auditLog.prev")}
+                  </Button>
+                  <span>
+                    {t("admin.section.auditLog.pageOf", {
+                      page,
+                      total: lastPage,
+                    })}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= lastPage}
+                    onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
+                  >
+                    {t("admin.section.auditLog.next")}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </div>
