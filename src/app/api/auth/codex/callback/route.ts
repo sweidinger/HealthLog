@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { exchangeCodeForTokens, encryptTokens } from "@/lib/ai/codex-oauth";
+import { exchangeCodeForTokens, encryptCodexCreds } from "@/lib/ai/codex-oauth";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 import { getClientIp } from "@/lib/api-response";
@@ -57,22 +57,28 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const redirectUri = `${appUrl}/api/auth/codex/callback`;
 
   try {
-    const tokens = await exchangeCodeForTokens({
+    const creds = await exchangeCodeForTokens({
       code,
       codeVerifier: storedVerifier,
       redirectUri,
     });
-    const encrypted = encryptTokens({
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
+    const encrypted = encryptCodexCreds({
+      apiKey: creds.apiKey,
+      refreshToken: creds.refreshToken,
     });
 
+    // The DB field is named `codexAccessTokenEncrypted` for historical
+    // reasons. Since v1.4.7 the value stored is the **OpenAI API key**
+    // obtained via the token-exchange grant (RFC 8693), not the OAuth
+    // access token. The schema name stays for migration-free rollout;
+    // the helpers (`encryptCodexCreds` / `decryptCodexCreds`) are the
+    // canonical surface from now on.
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        codexAccessTokenEncrypted: encrypted.accessEncrypted,
+        codexAccessTokenEncrypted: encrypted.apiKeyEncrypted,
         codexRefreshTokenEncrypted: encrypted.refreshEncrypted,
-        codexTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+        codexTokenExpiresAt: creds.expiresAt,
         codexConnectedAt: new Date(),
         codexConnectionStatus: "connected",
         insightsCachedAt: null,

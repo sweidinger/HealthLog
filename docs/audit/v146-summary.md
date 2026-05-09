@@ -43,59 +43,59 @@ Seiten zu Native-API, Skalierung, Dashboard-Customization.
 
 ### Tier 1 — release blockers (`docs/audit/v146-findings.md`)
 
-| ID | Commit | Summary |
-|----|--------|---------|
-| T1+T2 | `8aae7d6` | tile fill + muted-foreground hierarchy |
-| T3 | `a75fbc6` | primary recommendation parses chart tokens |
-| T4 | `eba898f` | aiBaseUrl provider-leak guard + tests |
-| T5 | `c8ee28d` | insights/generate parse error 502 → 422 |
-| T6 | `4aeb8c9` | admin status-card hrefs + tightened test |
-| T7 | `31959e4` | bug-report toggle now blocks /api/feedback + UI |
-| T8 | `c3ca861` | data-wipe preserves AuditLog + scope copy |
-| T9 | `1adda80` | per-card insight window 360 daily + 24 monthly across 7 generators |
+| ID    | Commit    | Summary                                                            |
+| ----- | --------- | ------------------------------------------------------------------ |
+| T1+T2 | `8aae7d6` | tile fill + muted-foreground hierarchy                             |
+| T3    | `a75fbc6` | primary recommendation parses chart tokens                         |
+| T4    | `eba898f` | aiBaseUrl provider-leak guard + tests                              |
+| T5    | `c8ee28d` | insights/generate parse error 502 → 422                            |
+| T6    | `4aeb8c9` | admin status-card hrefs + tightened test                           |
+| T7    | `31959e4` | bug-report toggle now blocks /api/feedback + UI                    |
+| T8    | `c3ca861` | data-wipe preserves AuditLog + scope copy                          |
+| T9    | `1adda80` | per-card insight window 360 daily + 24 monthly across 7 generators |
 
 ### New feature
 
-| Commit | Summary |
-|--------|---------|
+| Commit    | Summary                                                               |
+| --------- | --------------------------------------------------------------------- |
 | `6a64df0` | chart bucketing for ranges > 1y (weekly / monthly aggregation + chip) |
 
 ### Tier 2 — polish
 
-| Commit | Summary |
-|--------|---------|
+| Commit    | Summary                                                                           |
+| --------- | --------------------------------------------------------------------------------- |
 | `fda8dd8` | trend-card P1-P5 (tabular nums, KPI typography, padding parity, always-show avgs) |
-| `dc6db82` | P6 + P10 (visible muted subtitle, medications card padding) |
-| `5c884b3` | P7-P9 (mobile nav buffer, trend-hint title, font-mono drop) |
-| `e903d9a` | P11 — redactSecrets sk-/sk-ant- |
-| `c7b6005` | P12 — idempotency body-content guard |
-| `4a159d2` | P13 — rate-limit moved below cache return |
-| `dcc697c` | P14 — codex-client structured errors |
-| `89b5b80` | P15+P16 — drop unreleased presets, i18n the AI section |
-| `505f318` | P17 — feedback badges → dracula tokens |
-| `86a4b52` | P18 — danger-zone colour follows mutation state |
-| `2654337` | P19 — useSystemStatus / useAdminSettings isError UI |
-| `dc4507a` | P20 — status-overview Promise.allSettled |
+| `dc6db82` | P6 + P10 (visible muted subtitle, medications card padding)                       |
+| `5c884b3` | P7-P9 (mobile nav buffer, trend-hint title, font-mono drop)                       |
+| `e903d9a` | P11 — redactSecrets sk-/sk-ant-                                                   |
+| `c7b6005` | P12 — idempotency body-content guard                                              |
+| `4a159d2` | P13 — rate-limit moved below cache return                                         |
+| `dcc697c` | P14 — codex-client structured errors                                              |
+| `89b5b80` | P15+P16 — drop unreleased presets, i18n the AI section                            |
+| `505f318` | P17 — feedback badges → dracula tokens                                            |
+| `86a4b52` | P18 — danger-zone colour follows mutation state                                   |
+| `2654337` | P19 — useSystemStatus / useAdminSettings isError UI                               |
+| `dc4507a` | P20 — status-overview Promise.allSettled                                          |
 
 ### CI / housekeeping
 
-| Commit | Summary |
-|--------|---------|
-| `bcd1de4` | drop e2e pnpm-version override (was failing every run) |
+| Commit    | Summary                                                       |
+| --------- | ------------------------------------------------------------- |
+| `bcd1de4` | drop e2e pnpm-version override (was failing every run)        |
 | `46e686f` | switch e2e mobile project to chromium + repair spec flakiness |
-| `02b9955` | repo-wide prettier sweep before tag |
-| `ecca54d` | `.planning` bootstrap |
+| `02b9955` | repo-wide prettier sweep before tag                           |
+| `ecca54d` | `.planning` bootstrap                                         |
 
 ### Multi-agent QA follow-ups
 
-| Commit | Summary |
-|--------|---------|
+| Commit    | Summary                                                                                                                    |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `6757518` | qa pass — orange→dracula tokens, status-card cta copy honest, idempotency `sk-` regex tightening with false-positive tests |
 
 ### Release
 
-| Commit | Summary |
-|--------|---------|
+| Commit    | Summary                                                  |
+| --------- | -------------------------------------------------------- |
 | `a852612` | `chore(release): v1.4.6` (package.json bump + CHANGELOG) |
 
 ## What was deferred (v1.5 backlog)

@@ -11,18 +11,18 @@ vi.mock("@/lib/crypto", () => ({
   encrypt: vi.fn((v: string) => `encrypted:${v}`),
 }));
 vi.mock("@/lib/ai/codex-oauth", () => ({
-  refreshAccessToken: vi.fn(),
-  encryptTokens: vi.fn((t: { accessToken: string; refreshToken: string }) => ({
-    accessEncrypted: `enc:${t.accessToken}`,
-    refreshEncrypted: `enc:${t.refreshToken}`,
+  refreshTokens: vi.fn(),
+  encryptCodexCreds: vi.fn((c: { apiKey: string; refreshToken: string }) => ({
+    apiKeyEncrypted: `enc:${c.apiKey}`,
+    refreshEncrypted: `enc:${c.refreshToken}`,
   })),
-  decryptTokens: vi.fn(),
+  decryptCodexCreds: vi.fn(),
 }));
 
 import { resolveProvider } from "../provider";
 import { prisma } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
-import { decryptTokens, encryptTokens } from "@/lib/ai/codex-oauth";
+import { decryptCodexCreds, encryptCodexCreds } from "@/lib/ai/codex-oauth";
 
 /**
  * resolveProvider() makes up to TWO findUnique calls per invocation:
@@ -38,17 +38,17 @@ describe("resolveProvider", () => {
     vi.resetAllMocks();
     vi.mocked(decrypt).mockImplementation((v: string) => `decrypted:${v}`);
     vi.mocked(encrypt).mockImplementation((v: string) => `encrypted:${v}`);
-    vi.mocked(encryptTokens).mockImplementation(
-      (t: { accessToken: string; refreshToken: string }) => ({
-        accessEncrypted: `enc:${t.accessToken}`,
-        refreshEncrypted: `enc:${t.refreshToken}`,
+    vi.mocked(encryptCodexCreds).mockImplementation(
+      (c: { apiKey: string; refreshToken: string }) => ({
+        apiKeyEncrypted: `enc:${c.apiKey}`,
+        refreshEncrypted: `enc:${c.refreshToken}`,
       }),
     );
   });
 
   it("returns codex provider when user has valid tokens (no explicit choice)", async () => {
-    vi.mocked(decryptTokens).mockReturnValue({
-      accessToken: "decrypted-access",
+    vi.mocked(decryptCodexCreds).mockReturnValue({
+      apiKey: "sk-codex-key",
       refreshToken: "decrypted-refresh",
     });
 
@@ -264,8 +264,8 @@ describe("resolveProvider", () => {
   });
 
   it("CHATGPT_OAUTH selection routes through Codex when connected", async () => {
-    vi.mocked(decryptTokens).mockReturnValue({
-      accessToken: "decrypted-access",
+    vi.mocked(decryptCodexCreds).mockReturnValue({
+      apiKey: "sk-codex-key",
       refreshToken: "decrypted-refresh",
     });
 

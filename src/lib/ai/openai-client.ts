@@ -4,14 +4,25 @@ interface OpenAIClientConfig {
   apiKey: string;
   model: string;
   baseUrl: string;
+  /**
+   * Override the provider tag used in logs and analytics. Defaults to
+   * "admin-key". The Codex flow uses the same OpenAI API but the key
+   * was obtained via the token-exchange grant against a ChatGPT
+   * subscription — for billing and observability we want that path
+   * to log as "codex" instead.
+   */
+  providerType?: "admin-key" | "codex";
 }
 
+type OpenAIProviderType = "admin-key" | "codex";
+
 export class OpenAIClient implements AIProvider {
-  readonly type = "admin-key" as const;
+  readonly type: OpenAIProviderType;
   private config: OpenAIClientConfig;
 
   constructor(config: OpenAIClientConfig) {
     this.config = config;
+    this.type = config.providerType ?? "admin-key";
   }
 
   async generateCompletion(
@@ -71,7 +82,7 @@ export class OpenAIClient implements AIProvider {
       content,
       tokensUsed: json.usage?.total_tokens ?? null,
       model: this.config.model,
-      providerType: "admin-key",
+      providerType: this.type,
     };
   }
 }

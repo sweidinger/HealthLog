@@ -15,16 +15,16 @@ Committed `ecca54d`.
 
 ## Phase 2 — Tier 1 fixes (T1–T9) ✅
 
-| ID | Commit | Note |
-|----|--------|------|
-| T1 + T2 | `8aae7d6` | tile fill + muted-foreground hierarchy |
-| T3 | `a75fbc6` | primary recommendation chart-token render |
-| T4 | `eba898f` | aiBaseUrl cross-provider leak fix + test |
-| T5 | `c8ee28d` | insights/generate 502 → 422 |
-| T6 | `4aeb8c9` | admin status-card hrefs + tightened test |
-| T7 | `31959e4` | bug-report toggle now blocks /api/feedback + UI |
-| T8 | `c3ca861` | data-wipe preserves AuditLog + scope copy |
-| T9 | `1adda80` | per-card window 360+24 buckets, 7 generators + tests |
+| ID      | Commit    | Note                                                 |
+| ------- | --------- | ---------------------------------------------------- |
+| T1 + T2 | `8aae7d6` | tile fill + muted-foreground hierarchy               |
+| T3      | `a75fbc6` | primary recommendation chart-token render            |
+| T4      | `eba898f` | aiBaseUrl cross-provider leak fix + test             |
+| T5      | `c8ee28d` | insights/generate 502 → 422                          |
+| T6      | `4aeb8c9` | admin status-card hrefs + tightened test             |
+| T7      | `31959e4` | bug-report toggle now blocks /api/feedback + UI      |
+| T8      | `c3ca861` | data-wipe preserves AuditLog + scope copy            |
+| T9      | `1adda80` | per-card window 360+24 buckets, 7 generators + tests |
 
 ## Phase 3 — Chart bucketing ✅
 

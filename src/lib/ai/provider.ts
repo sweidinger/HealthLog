@@ -1,14 +1,13 @@
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
-import { CodexClient } from "./codex-client";
 import { OpenAIClient } from "./openai-client";
 import { AnthropicClient } from "./anthropic-client";
 import { LocalOpenAICompatibleClient } from "./local-client";
 import {
-  refreshAccessToken,
-  encryptTokens,
-  decryptTokens,
+  refreshTokens,
+  encryptCodexCreds,
+  decryptCodexCreds,
 } from "./codex-oauth";
 import { isPublicUrl } from "@/lib/validations/notifications";
 
@@ -105,6 +104,16 @@ async function resolveAdminProvider(): Promise<AIProvider> {
   return new NoProvider();
 }
 
+/**
+ * Codex flow (v1.4.7+): the user's ChatGPT-OAuth produced an OpenAI
+ * API key via the token-exchange grant. We store that key (encrypted)
+ * in `codexAccessTokenEncrypted` and the OAuth refresh token (encrypted)
+ * in `codexRefreshTokenEncrypted`. When the API key is about to expire
+ * we run the refresh + api-key exchange transparently and persist the
+ * new pair. The downstream client is the standard `OpenAIClient`
+ * tagged with `providerType: "codex"` so logs/analytics still
+ * distinguish ChatGPT-subscription billing from BYOK.
+ */
 async function resolveCodexProvider(
   userId: string,
 ): Promise<AIProvider | null> {
@@ -126,76 +135,46 @@ async function resolveCodexProvider(
     return null;
   }
 
-  const { accessToken, refreshToken } = decryptTokens({
-    accessEncrypted: user.codexAccessTokenEncrypted,
+  const { apiKey: storedApiKey, refreshToken } = decryptCodexCreds({
+    apiKeyEncrypted: user.codexAccessTokenEncrypted,
     refreshEncrypted: user.codexRefreshTokenEncrypted,
   });
 
-  let currentAccessToken = accessToken;
+  let activeApiKey = storedApiKey;
 
-  // Proactive refresh if token expires within 5 minutes
+  // Proactive refresh if the API key expires within 5 minutes.
   const expiresAt = user.codexTokenExpiresAt?.getTime() ?? 0;
   if (expiresAt < Date.now() + TOKEN_REFRESH_BUFFER_MS) {
     try {
-      const newTokens = await refreshAccessToken(refreshToken);
-      currentAccessToken = newTokens.access_token;
+      const fresh = await refreshTokens(refreshToken);
+      activeApiKey = fresh.apiKey;
 
-      const encrypted = encryptTokens({
-        accessToken: newTokens.access_token,
-        refreshToken: newTokens.refresh_token,
+      const encrypted = encryptCodexCreds({
+        apiKey: fresh.apiKey,
+        refreshToken: fresh.refreshToken,
       });
 
       await prisma.user.update({
         where: { id: userId },
         data: {
-          codexAccessTokenEncrypted: encrypted.accessEncrypted,
+          codexAccessTokenEncrypted: encrypted.apiKeyEncrypted,
           codexRefreshTokenEncrypted: encrypted.refreshEncrypted,
-          codexTokenExpiresAt: new Date(
-            Date.now() + newTokens.expires_in * 1000,
-          ),
+          codexTokenExpiresAt: fresh.expiresAt,
         },
       });
     } catch {
-      // If proactive refresh fails, still try with current token
-      // CodexClient will retry via onTokenRefresh on 401
+      // If proactive refresh fails, still try with the stored key —
+      // OpenAIClient will surface the upstream 401 and the user can
+      // re-connect. Refresh failures are logged via the upstream
+      // `Codex token refresh failed` error message.
     }
   }
 
-  return new CodexClient({
-    accessToken: currentAccessToken,
-    onTokenRefresh: async () => {
-      const freshUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          codexRefreshTokenEncrypted: true,
-        },
-      });
-
-      if (!freshUser?.codexRefreshTokenEncrypted) {
-        throw new Error("No refresh token available");
-      }
-
-      const currentRefreshToken = decrypt(freshUser.codexRefreshTokenEncrypted);
-
-      const newTokens = await refreshAccessToken(currentRefreshToken);
-      const encrypted = encryptTokens({
-        accessToken: newTokens.access_token,
-        refreshToken: newTokens.refresh_token,
-      });
-
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          codexAccessTokenEncrypted: encrypted.accessEncrypted,
-          codexRefreshTokenEncrypted: encrypted.refreshEncrypted,
-          codexTokenExpiresAt: new Date(
-            Date.now() + newTokens.expires_in * 1000,
-          ),
-        },
-      });
-
-      return newTokens.access_token;
-    },
+  return new OpenAIClient({
+    apiKey: activeApiKey,
+    model: "gpt-4o-mini",
+    baseUrl: "https://api.openai.com/v1",
+    providerType: "codex",
   });
 }
 

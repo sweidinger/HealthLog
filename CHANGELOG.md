@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.7] — 2026-05-09
+
+### Fixed — Settings · KI
+
+- **"Mit ChatGPT verbinden" funktioniert wieder.** Seit der Funktion
+  Anfang v1.4.x existiert war der OAuth-Pfad gegen die falsche Domain
+  verdrahtet — ChatGPT hat unsere Authorize-/Token-Requests still
+  geschluckt und das normale Web-Interface gerendert, kein Callback,
+  kein Fehler. Der Flow läuft jetzt über `auth.openai.com/oauth/...`,
+  identisch zum offiziellen `openai/codex` CLI: PKCE-Authorize, Token-
+  Exchange, dann ein zweiter RFC-8693-Token-Exchange, der den
+  `id_token` gegen einen OpenAI-API-Key tauscht. Dieser Key bucht
+  gegen das ChatGPT-Abo, kein separates API-Plan-Quota nötig. Der
+  Refresh-Token wird verschlüsselt mitgespeichert; vor jeder Anfrage
+  rotiert HealthLog den API-Key transparent wenn er abläuft.
+
 ## [1.4.6] — 2026-05-09
 
 ### Fixed — Dashboard
@@ -18,8 +34,8 @@
 - **Trend cards land aligned with the chart strip below.**
   Padding bumped from `p-3` to `p-4 md:p-6` so the tiles match
   the surrounding chart cards. KPI typography (`text-3xl
-  tracking-tight tabular-nums` for the value, `text-xs uppercase
-  tracking-wide` for the label) gives the number proper weight
+tracking-tight tabular-nums` for the value, `text-xs uppercase
+tracking-wide` for the label) gives the number proper weight
   without making the tile feel tall.
 - **Always-on Ø7d / Ø30d chips** — when an average is missing
   the chip renders `—` instead of disappearing, so vertical
@@ -140,7 +156,7 @@
   digits stop jiggling on every refresh.
 - The bottom-nav buffer is tighter on mobile and removed on
   desktop (`pb-[calc(4rem+env(safe-area-inset-bottom,0px))]
-  md:pb-0`), so desktop content sits flush instead of leaving
+md:pb-0`), so desktop content sits flush instead of leaving
   an unused 5 rem strip.
 - Onboarding "X von Y" / "%" progress drops the monospace font
   and keeps tabular-nums.
