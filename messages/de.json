@@ -636,7 +636,14 @@
     "legendOnTime": "Pünktlich",
     "legendLate": "Spät",
     "legendVeryLate": "Sehr spät",
-    "legendMissed": "Verpasst"
+    "legendMissed": "Verpasst",
+    "emptyStateTitle": "Erfasse mehr Messungen, um Trends zu sehen",
+    "emptyStateDescription": "Erfasse mindestens 3 Einträge, um die Trendlinie freizuschalten.",
+    "personalBaseline": "Dein Mittel",
+    "deltaVsBaseline": "{delta} vs. dein Mittel",
+    "deltaUnchanged": "entspricht deinem Mittel",
+    "targetWeight": "Ziel",
+    "deltaVsTarget": "{delta} vs. Ziel"
   },
   "insights": {
     "aiAnalysisTitle": "KI-Gesundheitsanalyse",

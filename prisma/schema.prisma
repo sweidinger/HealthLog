@@ -76,6 +76,15 @@ model User {
   // before storage.
   aiOpenaiKeyEncrypted String? @map("ai_openai_key_encrypted")
 
+  // v1.4.16 phase B5b — ordered fallback chain for multi-provider AI
+  // redundancy. Each entry is `{ providerType, priority, enabled }`,
+  // sorted by ascending priority at runtime. Credentials live in the
+  // dedicated encrypted columns (codex* / aiAnthropicKeyEncrypted /
+  // aiLocalKeyEncrypted / aiOpenaiKeyEncrypted) — the chain just
+  // enumerates which providers to try and in what order. Null = legacy
+  // behaviour (single-provider resolution via `aiProvider`).
+  aiProviderChain Json? @map("ai_provider_chain")
+
   // Onboarding
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
   // v1.4.15 Phase B5: tracks whether the user has finished (or

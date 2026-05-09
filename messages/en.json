@@ -636,7 +636,14 @@
     "legendOnTime": "On time",
     "legendLate": "Late",
     "legendVeryLate": "Very late",
-    "legendMissed": "Missed"
+    "legendMissed": "Missed",
+    "emptyStateTitle": "Add more measurements to see trends",
+    "emptyStateDescription": "Log at least 3 entries to unlock the trend line.",
+    "personalBaseline": "Your normal",
+    "deltaVsBaseline": "{delta} vs. your normal",
+    "deltaUnchanged": "matches your normal",
+    "targetWeight": "Target",
+    "deltaVsTarget": "{delta} vs. target"
   },
   "insights": {
     "aiAnalysisTitle": "AI Health Analysis",
