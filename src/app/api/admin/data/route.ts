@@ -56,6 +56,15 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
     const withingsConnections = await tx.withingsConnection.deleteMany({});
     const authChallenges = await tx.authChallenge.deleteMany({});
 
+    // v1.4.6 left these out, so encrypted Telegram bot tokens
+    // (NotificationChannel.config) and Web Push endpoints survived a
+    // wipe. Cascading via NotificationPreference is handled by the
+    // schema's onDelete: Cascade on the channel FK.
+    const notificationChannels = await tx.notificationChannel.deleteMany({});
+    const pushSubscriptions = await tx.pushSubscription.deleteMany({});
+    const telegramScheduledDeletions =
+      await tx.telegramScheduledDeletion.deleteMany({});
+
     await tx.user.updateMany({
       data: {
         heightCm: null,
@@ -80,6 +89,9 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
       apiTokens: apiTokens.count,
       withingsConnections: withingsConnections.count,
       authChallenges: authChallenges.count,
+      notificationChannels: notificationChannels.count,
+      pushSubscriptions: pushSubscriptions.count,
+      telegramScheduledDeletions: telegramScheduledDeletions.count,
     };
   });
 

@@ -38,6 +38,9 @@ export function DangerZoneSection({ id }: { id: string }) {
         apiTokens: number;
         withingsConnections: number;
         authChallenges: number;
+        notificationChannels: number;
+        pushSubscriptions: number;
+        telegramScheduledDeletions: number;
       };
     },
     onSuccess: (data) => {
@@ -50,6 +53,9 @@ export function DangerZoneSection({ id }: { id: string }) {
           apiTokens: data.apiTokens,
           withingsConnections: data.withingsConnections,
           authChallenges: data.authChallenges,
+          notificationChannels: data.notificationChannels,
+          pushSubscriptions: data.pushSubscriptions,
+          telegramScheduledDeletions: data.telegramScheduledDeletions,
         }),
       );
     },
