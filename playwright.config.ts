@@ -16,6 +16,8 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: ["setup/**"],
+  globalSetup: "./e2e/setup/global-setup.ts",
   timeout: 30_000,
   expect: { timeout: 5_000 },
   fullyParallel: true,
