@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { InsightResult, InsightFinding } from "@/lib/ai/types";
+import type {
+  InsightResult,
+  InsightFinding,
+  InsightRecommendation,
+} from "@/lib/ai/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
+  ExternalLink,
 } from "lucide-react";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { HealthChart } from "@/components/charts/health-chart";
@@ -27,6 +32,8 @@ import {
   tokenToMetric,
   type ChartToken,
 } from "@/lib/insights/chart-tokens";
+import { getMedicalReferenceById } from "@/lib/ai/medical-references";
+import type { Locale } from "@/lib/i18n/config";
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -263,6 +270,62 @@ function InlineCharts({ tokens }: { tokens: ChartToken[] }) {
 
 // ─── Section Separator ────────────────────────────────────
 
+// ─── Recommendation Citation Footnote ─────────────────────
+//
+// v1.4.16 phase B5a — render a small "Source: …" footnote under a
+// recommendation when the model emitted a `referenceId` pointing into
+// the curated medical-reference bundle. The link opens the guideline
+// in a new tab; per Marc's research §7 we never open the URL inside
+// an in-app webview.
+//
+// `getMedicalReferenceById()` returns undefined for unknown ids — in
+// that case we silently drop the footnote rather than render a broken
+// link. The schema check would already have rejected the payload, so
+// this is defence in depth.
+
+function CitationFootnote({
+  referenceId,
+  locale,
+}: {
+  referenceId: string;
+  locale: Locale;
+}) {
+  const { t } = useTranslations();
+  const ref = getMedicalReferenceById(referenceId);
+  if (!ref) return null;
+  const label = locale === "de" ? ref.titleDe : ref.title;
+  return (
+    <a
+      href={ref.url}
+      target="_blank"
+      rel="noreferrer"
+      title={t("insights.recommendation.viewSource")}
+      className="text-muted-foreground hover:text-foreground mt-0.5 ml-6 inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
+      data-slot="insight-recommendation-source"
+      data-reference-id={referenceId}
+    >
+      <span className="font-medium">
+        {t("insights.recommendation.source")}:
+      </span>
+      <span>
+        {ref.org} {ref.publishedYear} — {label}
+      </span>
+      <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+    </a>
+  );
+}
+
+/** Normalise the legacy string-rec OR new structured-rec into a uniform shape. */
+function normaliseRecommendation(rec: InsightRecommendation): {
+  text: string;
+  referenceId?: string;
+} {
+  if (typeof rec === "string") return { text: rec };
+  return { text: rec.text, referenceId: rec.referenceId };
+}
+
+// ─── Section Separator ────────────────────────────────────
+
 function SectionSeparator({ label }: { label: string }) {
   return (
     <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
@@ -284,7 +347,7 @@ export function InsightAdvisorCard({
   regenerating = false,
   cachedAt,
 }: InsightAdvisorCardProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fmt = useFormatters();
   const [dataQualityOpen, setDataQualityOpen] = useState(false);
 
@@ -507,14 +570,25 @@ export function InsightAdvisorCard({
           <div className="space-y-3">
             <SectionSeparator label={t("insights.recommendationsTitle")} />
             <ol className="space-y-1.5 pl-0">
-              {insight.recommendations.map((rec, i) => (
-                <li key={i} className="flex gap-2 text-sm">
-                  <span className="text-muted-foreground shrink-0 font-medium">
-                    {i + 1}.
-                  </span>
-                  <span>{rec}</span>
-                </li>
-              ))}
+              {insight.recommendations.map((rec, i) => {
+                const { text, referenceId } = normaliseRecommendation(rec);
+                return (
+                  <li key={i} className="flex flex-col gap-0.5 text-sm">
+                    <div className="flex gap-2">
+                      <span className="text-muted-foreground shrink-0 font-medium">
+                        {i + 1}.
+                      </span>
+                      <span>{text}</span>
+                    </div>
+                    {referenceId && (
+                      <CitationFootnote
+                        referenceId={referenceId}
+                        locale={locale}
+                      />
+                    )}
+                  </li>
+                );
+              })}
             </ol>
           </div>
         )}

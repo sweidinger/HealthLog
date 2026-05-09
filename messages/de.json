@@ -658,6 +658,10 @@
     "heroFindingWarning": "Wichtigster Alarm",
     "correlationsTitle": "Zusammenhänge",
     "recommendationsTitle": "Empfehlungen",
+    "recommendation": {
+      "source": "Quelle",
+      "viewSource": "Leitlinie in neuem Tab öffnen"
+    },
     "dataFoundation": "Datengrundlage",
     "dataGaps": "Datenlücken:",
     "lastUpdated": "Zuletzt aktualisiert",

@@ -21,6 +21,23 @@ export const insightDataQualitySchema = z.object({
   confidence: z.enum(["hoch", "mittel", "gering"]),
 });
 
+/**
+ * v1.4.16 — recommendations can be either the legacy plain-string
+ * shape OR a structured object carrying an optional medical-reference
+ * citation. The card renders a footnote with a labelled link when
+ * `referenceId` is set and resolves to a known entry in
+ * `MEDICAL_REFERENCES`.
+ */
+export const insightRecommendationSchema = z.union([
+  z.string(),
+  z.object({
+    text: z.string(),
+    referenceId: z.string().optional(),
+  }),
+]);
+
+export type InsightRecommendation = z.infer<typeof insightRecommendationSchema>;
+
 export const insightResultSchema = z.object({
   insightType: z.string().optional(),
   summary: z.string(),
@@ -35,7 +52,7 @@ export const insightResultSchema = z.object({
   findings: z.array(insightFindingSchema),
   correlations: z.array(insightCorrelationSchema),
   primaryRecommendation: z.string().optional(),
-  recommendations: z.array(z.string()),
+  recommendations: z.array(insightRecommendationSchema),
   dataQuality: insightDataQualitySchema,
   disclaimer: z.string(),
 });

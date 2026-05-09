@@ -658,6 +658,10 @@
     "heroFindingWarning": "Top alert",
     "correlationsTitle": "Correlations",
     "recommendationsTitle": "Recommendations",
+    "recommendation": {
+      "source": "Source",
+      "viewSource": "Open guideline in a new tab"
+    },
     "dataFoundation": "Data coverage",
     "dataGaps": "Data gaps:",
     "lastUpdated": "Last updated",
