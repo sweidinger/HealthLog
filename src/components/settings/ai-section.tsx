@@ -362,7 +362,7 @@ function InsightsSettingsCard({
               </div>
             </div>
             {settings?.privacyMode === "raw" && (
-              <div className="mt-2 rounded-lg bg-orange-500/10 p-2 text-xs text-orange-400">
+              <div className="bg-dracula-orange/15 text-dracula-orange mt-2 rounded-lg p-2 text-xs">
                 {t("settings.rawDataWarning")}
               </div>
             )}

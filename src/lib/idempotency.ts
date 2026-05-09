@@ -224,14 +224,15 @@ export function withIdempotency<
       // with, but if a future caller forgets we refuse to leak.
       //   `hlk_`    = our access tokens
       //   `hlr_`    = our refresh tokens
-      //   `sk-`     = OpenAI keys (also matches `sk-ant-` Anthropic keys)
+      //   `sk-…`    = OpenAI / Anthropic keys (full token form, not the
+      //               raw substring — a 422 body explaining "task-id…"
+      //               or any other word containing `sk-` would otherwise
+      //               silently break idempotency for benign retries).
+      const SECRET_PATTERN =
+        /(?:\b(?:hlk_|hlr_)[A-Za-z0-9_-]+|\bsk-(?:ant-)?[A-Za-z0-9_-]{8,})/;
       const cloned = response.clone();
       const text = await cloned.text();
-      if (
-        !text.includes("hlk_") &&
-        !text.includes("hlr_") &&
-        !text.includes("sk-")
-      ) {
+      if (!SECRET_PATTERN.test(text)) {
         await persistCached(ctx, response, text);
       }
     }

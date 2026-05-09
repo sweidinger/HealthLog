@@ -157,7 +157,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "Push", value: data.integrations.webPush },
       ],
       href: "/admin#section-admin-umami",
-      cta: "Configure",
+      cta: "Open integrations",
     },
     {
       title: "Monitoring",
@@ -187,7 +187,7 @@ export function buildCards(data: StatusOverview): StatusCardProps[] {
         { label: "Retain", value: `${data.backups.retentionDays}d` },
       ],
       href: "/admin#section-system-status",
-      cta: "View backups",
+      cta: "Open system status",
     },
     {
       title: "Maintenance",

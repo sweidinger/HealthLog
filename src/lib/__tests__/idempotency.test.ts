@@ -300,6 +300,24 @@ describe("withIdempotency body-content exclusion (P12)", () => {
     expect(prisma.idempotencyKey.create).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["task-id substring", '{"error":"task-id must not contain spaces"}'],
+    ["risk-management word", '{"data":{"note":"risk-management"}}'],
+    ["disk-io metric", '{"data":{"metric":"disk-io"}}'],
+  ])(
+    "still caches a benign payload whose text contains %s (no false positive)",
+    async (_label, body) => {
+      const handler = vi.fn(
+        async () => new NextResponse(body, { status: 422 }),
+      );
+      const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
+      await wrapped(
+        makeRequest("POST", { "idempotency-key": "key-12345678" }),
+      );
+      expect(prisma.idempotencyKey.create).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("still caches a normal payload that does not carry a secret", async () => {
     const handler = vi.fn(
       async () =>
