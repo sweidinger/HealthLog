@@ -47,9 +47,22 @@ mid-session but all behavioural changes shipped.
 
 ### A2 — /admin overview redesign + /admin/api-tokens responsive
 
-- [ ] `/admin` overview replaces section-grid with audit-log preview + system-status snapshot
-- [ ] `/admin/api-tokens` table responsive (overflow-x-auto + column-hide on mobile)
+- [x] `/admin` overview replaces section-grid with audit-log preview + system-status snapshot — `a967895`
+- [x] `/admin/api-tokens` table responsive (overflow-x-auto + column-hide on mobile) — `dddc18c`
 - Detailed report: `.planning/phase-A2-report.md`
+
+A2 status @ 2026-05-09T20:26:00+02:00 — done.
+
+Both fixes landed on `origin/main`:
+
+- `a967895` feat(admin): replace overview section-grid with audit-log preview + system snapshot — new `<SystemStatusSummary>` + `<RecentAuditPreview>` subcomponents reuse existing data sources; `<StatusCardGrid>` deleted; test rewritten to assert new composition. (Commit also swept in A4's `bp-in-target.ts` files due to push race — files correct, message a touch wider than scope.)
+- `dddc18c` fix(admin): make api-tokens table responsive on mobile — user / last-used / created columns gated behind `sm:` / `md:` breakpoints with inline username fallback so hiding doesn't drop data. New `api-token-overview-responsive.test.tsx` locks the contract.
+
+Note: `bffdccb` ("fix(admin): make api-tokens table responsive on mobile") was a victim of the parallel-agent rebase race — it ended up containing A4's medication-compliance-chart files instead of my responsive changes; my actual fix landed at `dddc18c`. Code base is correct; only the message-to-diff mapping is misleading.
+
+i18n: 15 new `admin.overview.*` keys added (EN + DE).
+
+Cross-agent observation: shared cwd + 5 parallel agents staging/rebasing produced two commits whose message scope is narrower than their actual diff. Recommended for v1.4.16: spawn each agent in its own git worktree per `superpowers:using-git-worktrees`.
 
 ### A3 — Quick-add labels + Stimmung-Card mobile + onboarding flicker
 
@@ -84,19 +97,90 @@ fix 3.
 
 ### A4 — Dashboard analytics fixes
 
-- [ ] BD-Zielbereich 0% bug — calculation review
-- [ ] Medikamente graph missing in Dashboard layout
-- [ ] Stimmung-chart: week/month aggregation matching other metrics
-- [ ] "7-Tage-Schnitt" → "7-Tage-Trend" + trend indicator (+/-)
-- [ ] Dashboard layout settings: top tiles selectable (currently only bottom rows)
+- [x] BD-Zielbereich 0% bug — calculation review (`a967895` — Fix 1 files
+  bundled into A2's commit by index-race; new helper at
+  `src/lib/analytics/bp-in-target.ts` + 7 unit tests)
+- [x] Medikamente graph wired to layout toggle (`bffdccb` — Fix 2 files
+  also caught by index-race; new
+  `src/components/charts/medication-compliance-chart.tsx` + 7 tests)
+- [x] Stimmung-chart auto-aggregates to weekly/monthly + chip in header
+  (`47ac14b`)
+- [x] "7-Tage-Schnitt" → "7-Tage-Trend" with metric-aware delta
+  indicator on every tile (`4e2386e`)
+- [x] Dashboard layout settings: tiles independently selectable from
+  charts; new `tileVisible` field with mirror-fallback for legacy
+  saved layouts (`8ccdfac`)
 - Detailed report: `.planning/phase-A4-report.md`
+
+#### A4 status block — 2026-05-09T20:38+02:00
+
+5 / 5 fixes shipped. Tests: 812 / 812 green (was 758 at phase start;
++54 across 9 new files). Typecheck 0 errors, lint 0 errors (12
+pre-existing warnings unchanged).
+
+Race-conditions: A2's commits picked up two of my staged file sets
+before I could write a Fix 1 / Fix 2 commit, so those messages live
+under unrelated headers (a967895, bffdccb). The actual code is in
+the working tree where it belongs. Fix 3, 4, 5 commits land cleanly
+under A4 ownership.
+
+Visual / behavioural impact:
+
+- BD-in-target tile no longer reports 0 % when imports drift the
+  sys/dia timestamps past 5 min — same-Berlin-day fallback +
+  pair-count denominator.
+- Tile strip every metric paints a coloured `(±N.N)` next to the
+  7-day average, with the label flipped to "7d trend" / "7T-Trend".
+- Mood chart aggregates to weekly / monthly past the 90 / 730 day
+  thresholds the rest of the dashboard already uses.
+- Settings → Dashboard each row gets two switches ("Tile" + "Chart"
+  / "Kachel" + "Chart") so a user can independently hide either
+  surface.
+- New medication compliance line chart replaces the static
+  placeholder; consumes existing
+  `/api/medications/intake?scope=compliance` endpoint.
 
 ### A5 — Mobile UX audit + fixes
 
-- [ ] Headless audit at Pixel 5 of `/`, `/dashboard`, `/insights`, `/admin/*`, `/settings/*`
+- [x] Headless audit at Pixel 5 of `/`, `/dashboard`, `/insights`, `/admin/*`, `/settings/*` (2026-05-09T20:25+02:00)
 - [ ] Fix scroll lockup on charts (touch-action / passive listeners)
 - [ ] Document remaining items for v1.4.16
 - Detailed report: `.planning/phase-A5-report.md`
+
+#### A5 status block — 2026-05-09T20:25+02:00
+
+Audit complete. 26 findings across 16 routes:
+**2 CRITICAL · 8 HIGH · 12 MEDIUM · 4 LOW**.
+
+- Findings document: `.planning/phase-A5-mobile-findings.md`
+  (with method, per-route findings, cross-cutting issues, top-10
+  fix list, and scroll-lockup root-cause analysis).
+- Screenshots + raw JSON: `/tmp/v1415-audit/v1415-mobile-*.png`,
+  `/tmp/v1415-audit/raw-results.json`,
+  `/tmp/v1415-audit/retry-results.json`.
+- Tools used: Playwright 1.59.1 against production
+  `https://healthlog.bombeck.io` (`/api/version=1.4.14`) with
+  `devices["Pixel 5"]` profile + Marc's session cookie.
+- Test scripts at `/tmp/v1415-audit/*.spec.ts` (one-off, **not** added
+  to `e2e/` per scope).
+
+**Most impactful 3 fixes (best impact-per-LOC, ordered for fix-agent)**:
+1. Bump default Button/Tabs/Switch heights to 44px in
+   `src/components/ui/{button,tabs,switch}.tsx` — closes 12+ tap-target
+   findings in one change.
+2. Add `touch-action: pan-y` (Tailwind `touch-pan-y`) to the chart
+   wrapper `<div>` in 5 chart components — fixes Marc's
+   "Scrolling-Hänger im Dashboard auf Charts".
+3. Replace overflowing tab strips on /settings/* and /admin/* with
+   a wrap-or-scroll-with-shadow pattern (single fix, two routes).
+
+**Scroll-lockup root cause**: Recharts 3.8.1 wrapper has
+`touch-action: auto` (browser default). Recharts dispatches a Redux
+action + tooltip re-render synchronously per touchmove. Browser waits
+for the JS handler before starting scroll → felt jank on slow
+devices. Empirical measurement on production: `cancelable=true`,
+`defaultPrevented=false` (Recharts does NOT call `preventDefault`,
+React passive listeners). One-line CSS fix per chart wrapper.
 
 ## Phase B — Bigger features (6 parallelizable items)
 
