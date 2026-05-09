@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { AIProvider, CompletionParams, CompletionResult } from "./types";
+import {
+  getCachedCodexSlug,
+  invalidateCachedCodexSlug,
+  setCachedCodexSlug,
+} from "./codex-slug-cache";
 
 /**
  * Codex backend client — talks to `chatgpt.com/backend-api/codex/responses`
@@ -16,35 +21,67 @@ import type { AIProvider, CompletionParams, CompletionResult } from "./types";
  *   - `originator`, `User-Agent`, `session_id`, `thread_id`
  *
  * Response is always SSE (server rejects `stream: false` with 400).
+ *
+ * v1.4.15 (Phase C1) adds a slug-drift defence — see
+ * `docs/codex-protocol-spec.md` §7b. The client walks an ordered
+ * fallback chain on every fresh request series (short-circuiting on
+ * a cached working slug) so a single upstream allow-list rotation no
+ * longer bricks the integration.
  */
 
 const CODEX_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses";
 
 /**
- * Model slug for the ChatGPT-account auth path.
- *
- * The ChatGPT/Codex backend has a tight allow-list of slugs accepted for
- * subscription auth. As of 2026-05 the bundled Codex models in the
- * official `openai/codex` client are `gpt-5.5` / `gpt-5.4` /
- * `gpt-5.4-mini` / `gpt-5.3-codex` / `gpt-5.2`; `gpt-5` and `gpt-5-codex`
- * are both rejected on this auth path with a 400:
- *
- *   {"detail":"The 'gpt-5' model is not supported when using Codex with
- *   a ChatGPT account."}
- *
- * `gpt-5.3-codex` is the codex-optimized slug available on Plus/Pro
- * plans (per `codex-rs/models-manager/models.json` `available_in_plans`)
- * and accepts our HealthLog "summarize health metrics" prompts without
- * issue (verified live 2026-05-09).
- *
- * The server safety-routes when needed and reports the actual routed
- * model in the `OpenAI-Model` response header — we trust that header
- * for downstream logging.
- *
- * Operators on a different plan can override via the `CODEX_MODEL` env
- * var on apps01 (e.g. `gpt-5.5` on Free, `gpt-5.4` on Plus/Pro).
+ * Default fallback chain — most-current-first as of 2026-05-09. Override
+ * via `CODEX_MODEL_FALLBACK_CHAIN` (comma-separated) on apps01 if a
+ * specific plan ladder needs different ordering. `CODEX_MODEL` is
+ * folded into position 0 of the chain when set; duplicates are dropped.
  */
-const CODEX_MODEL = process.env.CODEX_MODEL?.trim() || "gpt-5.3-codex";
+const DEFAULT_SLUG_FALLBACK_CHAIN = [
+  "gpt-5.3-codex", // verified accepted on Plus/Pro 2026-05-09
+  "gpt-5-codex", // historical default — kept as second-chance retry; backend may flip back
+  "gpt-5", // bare slug — rejected on ChatGPT-auth as of 2026-05; safe to keep as ladder-rung
+  "gpt-4o", // last-ditch capability fallback
+] as const;
+
+function loadFallbackChain(): string[] {
+  const envChain = process.env.CODEX_MODEL_FALLBACK_CHAIN?.trim();
+  const fromEnv = envChain
+    ? envChain
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [...DEFAULT_SLUG_FALLBACK_CHAIN];
+  const pinned = process.env.CODEX_MODEL?.trim();
+  const merged = pinned ? [pinned, ...fromEnv] : fromEnv;
+  // Stable de-duplication.
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const slug of merged) {
+    if (seen.has(slug)) continue;
+    seen.add(slug);
+    result.push(slug);
+  }
+  return result;
+}
+
+/**
+ * Triggers per spec §7b — body / status that mean "this slug is no
+ * longer accepted, walk to the next one in the chain".
+ */
+function isSlugRejection(status: number, bodyExcerpt: string): boolean {
+  if (status === 404) return true;
+  if (status !== 400) return false;
+  const lower = bodyExcerpt.toLowerCase();
+  if (lower.includes("not supported when using codex with a chatgpt account")) {
+    return true;
+  }
+  if (lower.includes("model_not_found")) return true;
+  if (lower.includes("does not exist") && lower.includes("model")) {
+    return true;
+  }
+  return false;
+}
 
 const ORIGINATOR = "healthlog";
 const USER_AGENT = "HealthLog/1.0 (+https://healthlog.bombeck.io)";
@@ -53,6 +90,18 @@ interface CodexClientConfig {
   accessToken: string;
   accountId: string;
   onTokenRefresh: () => Promise<{ accessToken: string; accountId: string }>;
+  /**
+   * Override the slug fallback chain (test-only). When unset, the
+   * chain is loaded from env + DEFAULT_SLUG_FALLBACK_CHAIN.
+   */
+  slugChain?: string[];
+}
+
+/** Diagnostic shape returned to the route layer for Wide-Event logging. */
+export interface CodexAttemptDiagnostics {
+  attempted: string[];
+  cacheState: "hit" | "miss" | "expired";
+  workingSlug: string | null;
 }
 
 export class CodexClient implements AIProvider {
@@ -63,59 +112,174 @@ export class CodexClient implements AIProvider {
     accessToken: string;
     accountId: string;
   }>;
+  private readonly slugChain: string[];
+  private lastDiagnostics: CodexAttemptDiagnostics | null = null;
 
   constructor(config: CodexClientConfig) {
     this.accessToken = config.accessToken;
     this.accountId = config.accountId;
     this.onTokenRefresh = config.onTokenRefresh;
+    this.slugChain = config.slugChain ?? loadFallbackChain();
+    if (this.slugChain.length === 0) {
+      // Hardcoded floor — even with a misconfigured env var we always
+      // try at least one slug.
+      this.slugChain = [...DEFAULT_SLUG_FALLBACK_CHAIN];
+    }
+  }
+
+  /**
+   * Diagnostics for the most recent generateCompletion() call, used by
+   * the route layer for Wide-Event annotations. Captures the order of
+   * attempted slugs, whether the cache was hit, and which slug
+   * eventually worked (or null on all-failed).
+   */
+  getLastDiagnostics(): CodexAttemptDiagnostics | null {
+    return this.lastDiagnostics;
+  }
+
+  /**
+   * Build the slug-attempt order: cached slug first (if any and not
+   * expired), then the rest of the fallback chain in order, deduped
+   * against the cached slug.
+   */
+  private buildAttemptOrder(): { order: string[]; cacheState: "hit" | "miss" } {
+    const cached = getCachedCodexSlug();
+    if (cached === null) {
+      return { order: [...this.slugChain], cacheState: "miss" };
+    }
+    const order = [cached, ...this.slugChain.filter((s) => s !== cached)];
+    return { order, cacheState: "hit" };
   }
 
   async generateCompletion(
     params: CompletionParams,
   ): Promise<CompletionResult> {
-    const firstAttempt = await this.doRequest(params);
+    const { order, cacheState } = this.buildAttemptOrder();
+    const attempted: string[] = [];
+    let lastSlugRejectionError: Error | null = null;
 
-    if (firstAttempt.status === 401) {
-      const fresh = await this.onTokenRefresh();
-      this.accessToken = fresh.accessToken;
-      this.accountId = fresh.accountId;
-      const retryAttempt = await this.doRequest(params);
-      if (!retryAttempt.ok) {
+    for (const slug of order) {
+      attempted.push(slug);
+
+      const firstAttempt = await this.doRequest(params, slug);
+
+      if (firstAttempt.status === 401) {
+        // Token-refresh path — don't walk the chain, this is auth-state
+        // not slug-state. Refresh once and re-try the SAME slug.
+        const fresh = await this.onTokenRefresh();
+        this.accessToken = fresh.accessToken;
+        this.accountId = fresh.accountId;
+        const retryAfterRefresh = await this.doRequest(params, slug);
+        if (retryAfterRefresh.ok) {
+          this.lastDiagnostics = {
+            attempted,
+            cacheState,
+            workingSlug: slug,
+          };
+          setCachedCodexSlug(slug);
+          return this.parseResponse(retryAfterRefresh, slug);
+        }
+        // Even after refresh — surface the auth failure verbatim, do
+        // NOT walk the chain (auth issues don't get fixed by changing
+        // the slug).
         throw await this.buildUpstreamError(
-          retryAttempt,
+          retryAfterRefresh,
           "Codex request failed after token refresh",
+          slug,
         );
       }
-      return this.parseResponse(retryAttempt);
+
+      if (firstAttempt.ok) {
+        this.lastDiagnostics = {
+          attempted,
+          cacheState,
+          workingSlug: slug,
+        };
+        setCachedCodexSlug(slug);
+        return this.parseResponse(firstAttempt, slug);
+      }
+
+      // Capture the body for the slug-rejection check.
+      const rawBody = await firstAttempt.text().catch(() => "");
+      const bodyExcerpt = redactBody(rawBody);
+
+      if (isSlugRejection(firstAttempt.status, bodyExcerpt)) {
+        // Slug rejected — drop the cache (in case it pointed here),
+        // record the failure for diagnostics, and walk to the next
+        // chain slot.
+        invalidateCachedCodexSlug();
+        const slugErr = new Error(
+          `Codex slug "${slug}" rejected (${firstAttempt.status})`,
+        );
+        Object.assign(slugErr, {
+          httpStatus: firstAttempt.status,
+          upstream: "codex",
+          model: slug,
+          bodyExcerpt,
+        });
+        lastSlugRejectionError = slugErr;
+        continue;
+      }
+
+      // Non-slug error (5xx, 429, invalid_prompt, etc.) — propagate
+      // immediately. Walking the chain wouldn't help.
+      const err = new Error(`Codex request failed (${firstAttempt.status})`);
+      Object.assign(err, {
+        httpStatus: firstAttempt.status,
+        upstream: "codex",
+        model: slug,
+        bodyExcerpt,
+      });
+      this.lastDiagnostics = {
+        attempted,
+        cacheState,
+        workingSlug: null,
+      };
+      throw err;
     }
 
-    if (!firstAttempt.ok) {
-      throw await this.buildUpstreamError(firstAttempt, "Codex request failed");
-    }
-
-    return this.parseResponse(firstAttempt);
+    // All slugs exhausted — every one rejected as not-supported.
+    this.lastDiagnostics = {
+      attempted,
+      cacheState,
+      workingSlug: null,
+    };
+    const message =
+      "AI provider unreachable — all configured Codex slugs were rejected";
+    const err = new Error(message);
+    Object.assign(err, {
+      httpStatus: 503,
+      upstream: "codex",
+      model: attempted[attempted.length - 1] ?? null,
+      bodyExcerpt: lastSlugRejectionError
+        ? (lastSlugRejectionError as Error & { bodyExcerpt?: string }).bodyExcerpt
+        : null,
+      attempted,
+    });
+    throw err;
   }
 
   private async buildUpstreamError(
     res: Response,
     message: string,
+    slug: string,
   ): Promise<Error> {
     const rawBody = await res.text().catch(() => "");
-    const bodyExcerpt = rawBody
-      .slice(0, 500)
-      .replace(/sk-(?:ant-)?[A-Za-z0-9_-]{8,}/g, "sk-***redacted***")
-      .replace(/Bearer\s+[A-Za-z0-9_.-]+/gi, "Bearer ***redacted***");
+    const bodyExcerpt = redactBody(rawBody);
     const err = new Error(`${message} (${res.status})`);
     Object.assign(err, {
       httpStatus: res.status,
       upstream: "codex",
-      model: CODEX_MODEL,
+      model: slug,
       bodyExcerpt,
     });
     return err;
   }
 
-  private async doRequest(params: CompletionParams): Promise<Response> {
+  private async doRequest(
+    params: CompletionParams,
+    slug: string,
+  ): Promise<Response> {
     const sessionId = randomUUID();
     const threadId = randomUUID();
     return fetch(CODEX_ENDPOINT, {
@@ -133,7 +297,7 @@ export class CodexClient implements AIProvider {
         "thread-id": threadId,
       },
       body: JSON.stringify({
-        model: CODEX_MODEL,
+        model: slug,
         instructions: params.systemPrompt,
         input: [
           {
@@ -174,7 +338,10 @@ export class CodexClient implements AIProvider {
    * NOT folded into the visible text — they belong to a separate
    * channel.
    */
-  private async parseResponse(res: Response): Promise<CompletionResult> {
+  private async parseResponse(
+    res: Response,
+    requestedSlug: string,
+  ): Promise<CompletionResult> {
     if (!res.body) {
       throw new Error("Codex returned no response body");
     }
@@ -259,7 +426,7 @@ export class CodexClient implements AIProvider {
               Object.assign(e, {
                 upstream: "codex",
                 errorCode: err?.code ?? null,
-                model: serverModel ?? CODEX_MODEL,
+                model: serverModel ?? requestedSlug,
               });
               throw e;
             }
@@ -294,8 +461,23 @@ export class CodexClient implements AIProvider {
     return {
       content,
       tokensUsed,
-      model: serverModel ?? CODEX_MODEL,
+      model: serverModel ?? requestedSlug,
       providerType: "codex",
     };
   }
 }
+
+function redactBody(rawBody: string): string {
+  return rawBody
+    .slice(0, 500)
+    .replace(/sk-(?:ant-)?[A-Za-z0-9_-]{8,}/g, "sk-***redacted***")
+    .replace(/Bearer\s+[A-Za-z0-9_.-]+/gi, "Bearer ***redacted***");
+}
+
+// Test-only re-exports — keeps the spec-driven defaults visible to unit
+// tests without exporting a settable mutable.
+export const __test = {
+  DEFAULT_SLUG_FALLBACK_CHAIN,
+  isSlugRejection,
+  loadFallbackChain,
+};

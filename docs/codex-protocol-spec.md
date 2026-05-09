@@ -635,6 +635,47 @@ Confirmed-accepted slugs on a ChatGPT Plus subscription (per `available_in_plans
 
 The `codex-rs/tui/src/model_migration.rs` references to `gpt-5-codex` etc. are _migration prompts_ shown to existing users — they are NOT the slugs sent on the wire after migration. The wire slugs come from `models.json`. Always cross-check `models.json` (`gh api repos/openai/codex/contents/codex-rs/models-manager/models.json`) before picking a default.
 
+### 7b. Slug-drift defence — fallback chain (HealthLog v1.4.15+)
+
+The ChatGPT-Codex allow-list is rotated by OpenAI without prior notice (`gpt-5-codex` → `gpt-5.3-codex` happened over 48 h in May 2026 and bricked HealthLog twice while the v1.4.7..v1.4.13 saga unrolled). The cause: a single hard-coded slug in `CODEX_MODEL` flips invalid the moment the upstream rotates it. Marc, verbatim 2026-05-09: "Die Integration des Slug Drift Risiko darf halt immer überhaupt nicht sein."
+
+To eliminate that risk class, HealthLog's `CodexClient` walks an ordered chain on every fresh request series.
+
+**Chain** (top = first try; default order is the empirically-safest most-current-first ordering as of 2026-05):
+
+```ts
+const DEFAULT_SLUG_FALLBACK_CHAIN = [
+  "gpt-5.3-codex", // current allow-list entry (verified 2026-05-09)
+  "gpt-5-codex",   // historical default (rejected as of 2026-05 but safe to retry — backend may flip)
+  "gpt-5",         // bare slug — rejected on ChatGPT-auth as of 2026-05 but lives on api-key auth
+  "gpt-4o",        // ladder-rung for last-ditch capability
+];
+```
+
+The chain is overridable via the env var `CODEX_MODEL_FALLBACK_CHAIN` (comma-separated). The first env-var-named slug supersedes `CODEX_MODEL`; if both are set, `CODEX_MODEL` is folded into position 0 and de-duplicated.
+
+**Trigger condition** (when to walk to the next slug):
+
+| Status                                                                                | Action      |
+| ------------------------------------------------------------------------------------- | ----------- |
+| `400` body matches `/not supported when using Codex with a ChatGPT account/i`         | walk        |
+| `400` body contains `model_not_found`                                                 | walk        |
+| `400` body contains `does not exist` AND mentions a model name                        | walk        |
+| `404` (any body)                                                                      | walk        |
+| `401` first time                                                                      | refresh and re-try same slug; do NOT walk |
+| `401` after refresh, `403`, `429`, `5xx`                                              | propagate (don't walk) |
+| `200` with SSE `response.failed.error.code === "invalid_prompt"`                      | propagate (request shape is wrong, slug is fine) |
+
+**Positive cache** — when a slug is observed working (HTTP 200 with at least one `response.completed` event), record `(slug, timestamp)` in a process-local Map. On the next request, jump straight to the cached slug. TTL: 1 hour. Cache scope: per-process (no DB write).
+
+**Cache invalidation**: on first 400/404 walk, the cached entry is dropped. The next-best slug is promoted into the cache only after it succeeds.
+
+**All-failed case**: if every slug in the chain rejects with the walk-trigger, the client throws a structured error with `httpStatus: 503` and message `"AI provider unreachable — all configured Codex slugs were rejected"`. The route layer surfaces this to the user with "AI provider unreachable — check Settings".
+
+**Observability**: each attempted slug is recorded in the Wide-Event annotation `codex.slug.attempts: ["gpt-5.3-codex","gpt-5-codex"]` so Loki can answer "which slug carried this request" and "how often did the cache hit". Cache hits emit `codex.slug.cache: "hit" | "miss" | "expired"`.
+
+The implementation lives in `src/lib/ai/codex-client.ts`; the contract is unit-tested in `src/lib/ai/__tests__/codex-client.test.ts`.
+
 ---
 
 ## 8. Worked example — minimal end-to-end
