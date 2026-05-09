@@ -42,6 +42,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { InsightsPageHero } from "@/components/insights/insights-page-hero";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
 // wrapper so the bundle only lands once a correlation card actually renders.
 // Every scatter card sits inside a `length >= 5` gate and below the fold,
@@ -268,6 +269,29 @@ function getRangeHint(
       </p>
     </>
   );
+}
+
+/**
+ * v1.4.16 phase B1b — pick the freshest ISO timestamp from a list so the
+ * page hero's "Generated …" caption surfaces a single representative
+ * value across the per-section caches. Returns null when nothing's
+ * been generated yet so the caption hides cleanly.
+ */
+function freshestUpdatedAt(
+  candidates: Array<string | null | undefined>,
+): string | null {
+  let freshest: number | null = null;
+  let freshestIso: string | null = null;
+  for (const iso of candidates) {
+    if (!iso) continue;
+    const ms = new Date(iso).getTime();
+    if (Number.isNaN(ms)) continue;
+    if (freshest === null || ms > freshest) {
+      freshest = ms;
+      freshestIso = iso;
+    }
+  }
+  return freshestIso;
 }
 
 type HealthBandState = "green" | "orange" | "red";
@@ -831,14 +855,23 @@ export default function InsightsPage() {
     );
   }
 
+  // Wire the hero's "Generated …" caption from the freshest of the per-
+  // section caches so the user gets a single timestamp without having to
+  // expand every card. Falls back to null when no section has shipped a
+  // payload yet (the hero just hides the caption).
+  const heroUpdatedAt = freshestUpdatedAt([
+    generalStatus?.updatedAt,
+    bloodPressureStatus?.updatedAt,
+    weightStatus?.updatedAt,
+    pulseStatus?.updatedAt,
+    bmiStatus?.updatedAt,
+    moodStatus?.updatedAt,
+    medicationComplianceStatus?.updatedAt,
+  ]);
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">{t("insights.title")}</h1>
-        <p className="text-muted-foreground hidden text-sm sm:block">
-          {t("insights.overviewSubtitle")}
-        </p>
-      </div>
+      <InsightsPageHero updatedAt={heroUpdatedAt} />
 
       <InsightsSectionNav />
 
