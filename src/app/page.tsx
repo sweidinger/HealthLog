@@ -995,28 +995,40 @@ export default function DashboardPage() {
              * makes the scroll feel deliberate rather than arbitrary on
              * touch.
              */}
-            <div
-              // CSS Grid with `auto-fit + minmax(9rem, 1fr)` is the v1.4.4
-              // attempt's flex-strip replacement: every tile gets EXACTLY
-              // the same width (1fr each in the row's track list), the gap
-              // is symmetric, and the strip starts and ends at the same
-              // x-coordinates as the charts below because both inherit the
-              // same parent container. When the row no longer fits a 9rem
-              // floor, the grid wraps to a new row instead of horizontal-
-              // scrolling — Marc tested both and prefers the v1.3-era
-              // wrap behaviour over the one-row scroll for the symmetry
-              // it preserves.
-              className="grid auto-rows-fr [grid-template-columns:repeat(auto-fit,minmax(9rem,1fr))] gap-3 pb-2"
-              data-slot="dashboard-tile-strip"
-              data-tour-id="dashboard-tile-strip"
-              data-tile-count={trendCards.length}
-            >
-              {trendCards.map((entry) => (
-                <div key={entry.id} className="flex">
-                  {entry.node}
-                </div>
-              ))}
-            </div>
+            {/* v1.4.16 Fix A5: hide the strip entirely when the user
+                turned off every tile. Until v1.4.15 the wrapper rendered
+                an empty grid even with zero tiles — visually a thin gap
+                Marc described as "awkward". Charts below still render so
+                the page is not empty; the tile-strip just goes away.
+                The constraint Marc named — "immer die gesamte Spalte
+                breit und immer der gleichen Höhe" — is preserved by the
+                CSS-grid `auto-fit + minmax + auto-rows-fr` track that
+                continues to give every visible tile equal width / equal
+                height for any non-zero count. */}
+            {trendCards.length > 0 && (
+              <div
+                // CSS Grid with `auto-fit + minmax(9rem, 1fr)` is the v1.4.4
+                // attempt's flex-strip replacement: every tile gets EXACTLY
+                // the same width (1fr each in the row's track list), the gap
+                // is symmetric, and the strip starts and ends at the same
+                // x-coordinates as the charts below because both inherit the
+                // same parent container. When the row no longer fits a 9rem
+                // floor, the grid wraps to a new row instead of horizontal-
+                // scrolling — Marc tested both and prefers the v1.3-era
+                // wrap behaviour over the one-row scroll for the symmetry
+                // it preserves.
+                className="grid auto-rows-fr [grid-template-columns:repeat(auto-fit,minmax(9rem,1fr))] gap-3 pb-2"
+                data-slot="dashboard-tile-strip"
+                data-tour-id="dashboard-tile-strip"
+                data-tile-count={trendCards.length}
+              >
+                {trendCards.map((entry) => (
+                  <div key={entry.id} className="flex">
+                    {entry.node}
+                  </div>
+                ))}
+              </div>
+            )}
             {charts.map((entry) => (
               <div key={entry.id} className="space-y-2">
                 {entry.node}

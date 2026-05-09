@@ -5,21 +5,33 @@
  * what the default layout is for new users. Null / missing = default.
  */
 
-export type DashboardWidgetId =
-  | "weight"
-  | "bp"
-  | "pulse"
-  | "bodyFat"
-  | "mood"
-  | "medications"
-  | "sleep"
-  | "steps"
-  | "glucose"
-  | "totalBodyWater"
-  | "boneMass"
-  | "bpInTarget"
-  | "oxygenSaturation"
-  | "achievements";
+/**
+ * Every widget the dashboard layout knows about. The order of
+ * entries here is irrelevant — `DEFAULT_DASHBOARD_LAYOUT.widgets[].order`
+ * is the visual order. This array is exported so the API Zod
+ * `widgetIdEnum` (in `src/app/api/dashboard/widgets/route.ts`) can be
+ * built from a single source of truth — v1.4.16 Fix A5 root cause was
+ * the enum drifting away from the default-layout list, which silently
+ * 422'd every save.
+ */
+export const DASHBOARD_WIDGET_IDS = [
+  "weight",
+  "bp",
+  "pulse",
+  "bodyFat",
+  "mood",
+  "medications",
+  "sleep",
+  "steps",
+  "glucose",
+  "totalBodyWater",
+  "boneMass",
+  "bpInTarget",
+  "oxygenSaturation",
+  "achievements",
+] as const;
+
+export type DashboardWidgetId = (typeof DASHBOARD_WIDGET_IDS)[number];
 
 export interface DashboardWidgetConfig {
   id: DashboardWidgetId;

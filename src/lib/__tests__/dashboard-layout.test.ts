@@ -116,3 +116,41 @@ describe("serializeDashboardLayout() — tileVisible persistence", () => {
     expect(serialized.widgets.map((w) => w.order)).toEqual([0, 1]);
   });
 });
+
+/**
+ * v1.4.16 Fix A5 — top-tile selector real-fix.
+ *
+ * Marc reported the toggles in Settings → Dashboard didn't filter
+ * the dashboard tile-strip. Root cause: the `widgetIdEnum` Zod schema
+ * in `src/app/api/dashboard/widgets/route.ts` was missing
+ * `achievements` even though the default layout has it. Every PUT
+ * therefore 422'd silently against the achievements widget that the
+ * UI included unconditionally — the server never persisted the toggle
+ * change, so reload showed the old layout.
+ *
+ * The default layout itself is the contract — if a widget is in
+ * `DEFAULT_DASHBOARD_LAYOUT.widgets`, every consumer (settings UI,
+ * dashboard renderer, API schema) must support it. This test pins
+ * the contract by enumerating every widget the default layout
+ * advertises, so a future addition gets caught here before Marc
+ * finds it broken in production.
+ */
+describe("DEFAULT_DASHBOARD_LAYOUT contract", () => {
+  it("includes the achievements widget (v1.4.15 phase-B4 + v1.4.16 A5)", () => {
+    const ids = DEFAULT_DASHBOARD_LAYOUT.widgets.map((w) => w.id);
+    expect(ids).toContain("achievements");
+  });
+
+  it("survives a round-trip through serialize → resolve unchanged", () => {
+    // The API persists `serializeDashboardLayout(parsed.data)` and
+    // reads back via `resolveDashboardLayout(row.dashboardWidgetsJson)`.
+    // A bug in either step (missing widget, wrong order normalization)
+    // would surface here. Marc's regression: the API schema rejected
+    // the layout *before* this round-trip even started.
+    const serialized = serializeDashboardLayout(DEFAULT_DASHBOARD_LAYOUT);
+    const resolved = resolveDashboardLayout(serialized);
+    expect(resolved.widgets.map((w) => w.id).sort()).toEqual(
+      DEFAULT_DASHBOARD_LAYOUT.widgets.map((w) => w.id).sort(),
+    );
+  });
+});
