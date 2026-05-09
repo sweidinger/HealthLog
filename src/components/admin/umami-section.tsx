@@ -16,7 +16,7 @@ import {
   useUpdateSettings,
 } from "./_shared";
 
-export function UmamiSection({ id }: { id?: string } = {}) {
+export function UmamiSection() {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();
@@ -75,10 +75,7 @@ export function UmamiSection({ id }: { id?: string } = {}) {
   }
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <Activity className="text-primary h-5 w-5" />

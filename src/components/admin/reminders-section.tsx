@@ -22,7 +22,7 @@ import {
   useUpdateSettings,
 } from "./_shared";
 
-export function RemindersSection({ id }: { id?: string } = {}) {
+export function RemindersSection() {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();
@@ -113,10 +113,7 @@ export function RemindersSection({ id }: { id?: string } = {}) {
   });
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center gap-2">
         <Clock className="text-primary h-5 w-5" />
         <h2 className="text-lg font-semibold">

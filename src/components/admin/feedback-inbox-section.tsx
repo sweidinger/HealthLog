@@ -45,7 +45,7 @@ import {
   useSystemStatus,
 } from "./_shared";
 
-export function FeedbackInboxSection({ id }: { id?: string } = {}) {
+export function FeedbackInboxSection() {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const { data: status } = useSystemStatus();
@@ -72,10 +72,7 @@ export function FeedbackInboxSection({ id }: { id?: string } = {}) {
   }
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center gap-2">
         <Inbox className="text-primary h-5 w-5" />
         <h2 className="text-lg font-semibold">{t("admin.feedback.title")}</h2>

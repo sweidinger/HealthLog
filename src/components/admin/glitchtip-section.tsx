@@ -16,7 +16,7 @@ import {
   useUpdateSettings,
 } from "./_shared";
 
-export function GlitchtipSection({ id }: { id?: string } = {}) {
+export function GlitchtipSection() {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();
@@ -72,10 +72,7 @@ export function GlitchtipSection({ id }: { id?: string } = {}) {
   }
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <AlertTriangle className="text-primary h-5 w-5" />

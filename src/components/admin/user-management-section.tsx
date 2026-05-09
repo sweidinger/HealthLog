@@ -19,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from "@/hooks/use-auth";
 import { formatDate } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { type AdminUser, PasswordInput } from "./_shared";
@@ -32,14 +33,10 @@ import { type AdminUser, PasswordInput } from "./_shared";
  */
 type UserFilter = "all" | "admin" | "user";
 
-export function UserManagementSection({
-  id,
-  currentUserId,
-}: {
-  id?: string;
-  currentUserId: string;
-}) {
+export function UserManagementSection() {
   const { t } = useTranslations();
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? "";
   const queryClient = useQueryClient();
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [editUsername, setEditUsername] = useState("");
@@ -157,10 +154,7 @@ export function UserManagementSection({
   }
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Users className="text-primary h-5 w-5" />

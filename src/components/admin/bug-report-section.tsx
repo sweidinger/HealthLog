@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
 import { PasswordInput, useAdminSettings, useUpdateSettings } from "./_shared";
 
-export function BugReportSection({ id }: { id?: string } = {}) {
+export function BugReportSection() {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();
@@ -45,10 +45,7 @@ export function BugReportSection({ id }: { id?: string } = {}) {
   }
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <Bug className="text-primary h-5 w-5" />

@@ -9,7 +9,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { type ApiTokenInfo } from "./_shared";
 
-export function ApiTokenOverviewSection({ id }: { id?: string } = {}) {
+export function ApiTokenOverviewSection() {
   const { t } = useTranslations();
   const [expanded, setExpanded] = useState(false);
 
@@ -24,10 +24,7 @@ export function ApiTokenOverviewSection({ id }: { id?: string } = {}) {
   });
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Key className="text-primary h-5 w-5" />

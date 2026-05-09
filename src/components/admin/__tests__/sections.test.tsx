@@ -106,7 +106,7 @@ describe("admin sections — SSR smoke", () => {
   });
 
   it("<UserManagementSection> renders with filter pills", () => {
-    const html = render(<UserManagementSection currentUserId="u1" />);
+    const html = render(<UserManagementSection />);
     expect(html).toContain("User Management");
     // Filter pills painted from i18n
     expect(html).toContain("All");

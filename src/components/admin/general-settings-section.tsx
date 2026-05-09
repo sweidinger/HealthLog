@@ -4,16 +4,13 @@ import { Settings } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { SettingsToggle, useAdminSettings, useUpdateSettings } from "./_shared";
 
-export function GeneralSettingsSection({ id }: { id?: string } = {}) {
+export function GeneralSettingsSection() {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center gap-2">
         <Settings className="text-primary h-5 w-5" />
         <h2 className="text-lg font-semibold">{t("admin.appSettings")}</h2>

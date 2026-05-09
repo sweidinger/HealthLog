@@ -16,10 +16,8 @@
  * does not produce 360 zero-rows of noise.
  */
 
-const BERLIN_TZ = "Europe/Berlin";
-
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  timeZone: BERLIN_TZ,
+  timeZone: "Europe/Berlin",
   year: "numeric",
   month: "2-digit",
   day: "2-digit",

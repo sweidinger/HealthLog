@@ -17,8 +17,6 @@ import {
 } from "@/lib/insights/bucket-series";
 import { annotate } from "@/lib/logging/context";
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
   year: "numeric",
@@ -285,7 +283,7 @@ export async function generateMoodStatusForUser(
   // ~90-day window so the model still gets a recency-weighted view of
   // tag patterns. The mood DB query already pulls 3 years (no where
   // filter); we slice by date here, not by record count.
-  const tagWindowCutoff = new Date(now.getTime() - 90 * MS_PER_DAY);
+  const tagWindowCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
   const recentEntries = entries.filter(
     (entry) => entry.moodLoggedAt.getTime() >= tagWindowCutoff.getTime(),
   );

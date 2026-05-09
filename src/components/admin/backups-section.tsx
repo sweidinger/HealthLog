@@ -29,7 +29,7 @@ function formatBytes(bytes: number, fmt: ReturnType<typeof useFormatters>) {
   return `${fmt.number(bytes / 1024 / 1024, 2)} MB`;
 }
 
-export function BackupsSection({ id }: { id?: string } = {}) {
+export function BackupsSection() {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const queryClient = useQueryClient();
@@ -72,10 +72,7 @@ export function BackupsSection({ id }: { id?: string } = {}) {
   const rows: BackupRow[] = data?.rows ?? [];
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Database className="text-primary h-5 w-5" />

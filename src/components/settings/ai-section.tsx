@@ -214,14 +214,7 @@ function InsightsSettingsCard({
   // 15-minute device-code window expires. Polling stops as soon as
   // `deviceCode` is cleared (success / cancel / unmount).
   useEffect(() => {
-    if (!deviceCode) {
-      // No active device code → make sure the spinner is off. setState
-      // inside an effect is intentional here; the alternative (deriving
-      // `devicePolling` from `deviceCode`) would force every error
-      // path to also reset `deviceCode`, which we don't want — the
-      // start handler resets `devicePolling` itself when fetch fails.
-      return;
-    }
+    if (!deviceCode) return;
     let cancelled = false;
     const intervalMs = Math.max(deviceCode.intervalSeconds, 3) * 1000;
 

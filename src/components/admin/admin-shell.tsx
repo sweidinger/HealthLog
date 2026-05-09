@@ -33,17 +33,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
-import {
-  ADMIN_SECTION_SLUGS,
-  isAdminSectionSlug,
-  type AdminSectionSlug,
-} from "./section-slugs";
-
-// Re-export so callers don't have to chase two modules. New server-side
-// callers (e.g. `generateStaticParams()`) should still import from
-// `./section-slugs` directly — values exported through this client
-// boundary become unusable proxies on the server.
-export { ADMIN_SECTION_SLUGS, isAdminSectionSlug, type AdminSectionSlug };
+import { isAdminSectionSlug, type AdminSectionSlug } from "./section-slugs";
 
 interface AdminSection {
   slug: AdminSectionSlug;

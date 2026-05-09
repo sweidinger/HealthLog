@@ -19,16 +19,13 @@ import { formatDateTime } from "@/lib/format";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { StatusItem, useSystemStatus } from "./_shared";
 
-export function SystemStatusSection({ id }: { id?: string } = {}) {
+export function SystemStatusSection() {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const { data: status, isError } = useSystemStatus();
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center gap-2">
         <Server className="text-primary h-5 w-5" />
         <h2 className="text-lg font-semibold">{t("admin.systemStatus")}</h2>

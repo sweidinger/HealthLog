@@ -106,7 +106,7 @@ export function AdminSectionRenderer({
           title={t("admin.section.users.title")}
           subtitle={t("admin.section.users.subtitle")}
         >
-          <UserManagementSection currentUserId={user.id} />
+          <UserManagementSection />
         </SectionFrame>
       );
     case "api-tokens":
@@ -145,12 +145,9 @@ export function AdminSectionRenderer({
           <DangerZoneSection />
         </SectionFrame>
       );
-    default: {
-      // exhaustiveness guard — TS will flag a missing case here
-      const _exhaustive: never = slug;
-      void _exhaustive;
+    default:
+      slug satisfies never;
       return null;
-    }
   }
 }
 

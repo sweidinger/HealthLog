@@ -14,7 +14,7 @@ import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { type AdminAuditEntry } from "./_shared";
 
-export function LoginOverviewSection({ id }: { id?: string } = {}) {
+export function LoginOverviewSection() {
   const { t } = useTranslations();
   const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<"all" | "failed">("all");
@@ -49,10 +49,7 @@ export function LoginOverviewSection({ id }: { id?: string } = {}) {
       : data?.entries;
 
   return (
-    <div
-      id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <ScrollText className="text-primary h-5 w-5" />

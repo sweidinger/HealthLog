@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 
-export function DangerZoneSection({ id }: { id?: string } = {}) {
+export function DangerZoneSection() {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const [wipeMsg, setWipeMsg] = useState<string | null>(null);
@@ -65,10 +65,7 @@ export function DangerZoneSection({ id }: { id?: string } = {}) {
   });
 
   return (
-    <div
-      id={id}
-      className="bg-destructive/5 border-destructive/30 scroll-mt-28 rounded-xl border p-6"
-    >
+    <div className="bg-destructive/5 border-destructive/30 rounded-xl border p-6">
       <div className="flex items-center gap-2">
         <AlertTriangle className="text-destructive h-5 w-5" />
         <h2 className="text-destructive text-lg font-semibold">
