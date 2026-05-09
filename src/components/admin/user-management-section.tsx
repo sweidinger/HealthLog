@@ -1,23 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Loader2, Pencil, Shield, Users } from "lucide-react";
+import { KeyRound, Loader2, LogOut, Pencil, Shield, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordStrength } from "@/components/ui/password-strength";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatDate } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { type AdminUser, PasswordInput } from "./_shared";
+
+/**
+ * Filter values for the v1.5 users sub-route. The User model does NOT
+ * carry a "suspended" boolean today (a force-logout deletes sessions but
+ * leaves the row intact), so the spec's `suspended` bucket is mapped to
+ * a passthrough — we keep the slug for forward compatibility but it
+ * shows the same set as `all`. Documented in the phase 4b report.
+ */
+type UserFilter = "all" | "admin" | "user";
 
 export function UserManagementSection({
   id,
   currentUserId,
 }: {
-  id: string;
+  id?: string;
   currentUserId: string;
 }) {
   const { t } = useTranslations();
@@ -28,6 +47,8 @@ export function UserManagementSection({
   const [resetUser, setResetUser] = useState<AdminUser | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [filter, setFilter] = useState<UserFilter>("all");
+  const [logoutTarget, setLogoutTarget] = useState<AdminUser | null>(null);
 
   const { data: users } = useQuery({
     queryKey: ["admin", "users"],
@@ -37,6 +58,13 @@ export function UserManagementSection({
       return (await res.json()).data as AdminUser[];
     },
   });
+
+  const filteredUsers = useMemo<AdminUser[] | undefined>(() => {
+    if (!users) return undefined;
+    if (filter === "admin") return users.filter((u) => u.role === "ADMIN");
+    if (filter === "user") return users.filter((u) => u.role !== "ADMIN");
+    return users;
+  }, [users, filter]);
 
   const updateUser = useMutation({
     mutationFn: async ({
@@ -87,6 +115,35 @@ export function UserManagementSection({
     },
   });
 
+  const forceLogout = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const res = await fetch(`/api/admin/users/${id}/force-logout`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || t("common.error"));
+      return json.data as { sessionsRevoked: number };
+    },
+    onSuccess: (result, vars) => {
+      const username =
+        users?.find((u) => u.id === vars.id)?.username ?? vars.id;
+      toast.success(
+        t("admin.section.users.forceLogoutSuccess", {
+          name: username,
+          count: result.sessionsRevoked,
+        }),
+      );
+      setLogoutTarget(null);
+    },
+    onError: (err) => {
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : t("admin.section.users.forceLogoutFailed"),
+      );
+    },
+  });
+
   function startEdit(u: AdminUser) {
     setEditingUser(u);
     setEditUsername(u.username);
@@ -104,17 +161,41 @@ export function UserManagementSection({
       id={id}
       className="bg-card border-border scroll-mt-28 rounded-xl border p-6"
     >
-      <div className="flex items-center gap-2">
-        <Users className="text-primary h-5 w-5" />
-        <h2 className="text-lg font-semibold">{t("admin.userManagement")}</h2>
-        {users && (
-          <Badge variant="secondary" className="text-xs">
-            {users.length}
-          </Badge>
-        )}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Users className="text-primary h-5 w-5" />
+          <h2 className="text-lg font-semibold">{t("admin.userManagement")}</h2>
+          {filteredUsers && (
+            <Badge variant="secondary" className="text-xs">
+              {filteredUsers.length}
+              {filter !== "all" &&
+                users &&
+                filteredUsers.length !== users.length && (
+                  <span className="text-muted-foreground ml-1">
+                    / {users.length}
+                  </span>
+                )}
+            </Badge>
+          )}
+        </div>
+        {/* Filters mirror the Settings-style horizontal pills */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(["all", "admin", "user"] as const).map((value) => (
+            <Button
+              key={value}
+              variant={filter === value ? "default" : "ghost"}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setFilter(value)}
+              aria-pressed={filter === value}
+            >
+              {t(`admin.section.users.filter.${value}`)}
+            </Button>
+          ))}
+        </div>
       </div>
 
-      {users ? (
+      {filteredUsers ? (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -140,7 +221,7 @@ export function UserManagementSection({
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
-              {users.map((u, i) => (
+              {filteredUsers.map((u, i) => (
                 <tr key={u.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                   <td className="px-3 py-2 font-medium">{u.username}</td>
                   <td className="text-muted-foreground px-3 py-2 text-xs">
@@ -191,6 +272,7 @@ export function UserManagementSection({
                         size="sm"
                         className="h-7 px-2 text-xs"
                         onClick={() => startEdit(u)}
+                        title={t("admin.editUser")}
                       >
                         <Pencil className="mr-1 h-3 w-3" />
                       </Button>
@@ -199,8 +281,23 @@ export function UserManagementSection({
                         size="sm"
                         className="h-7 px-2 text-xs"
                         onClick={() => startReset(u)}
+                        title={t("admin.resetPassword")}
                       >
                         <KeyRound className="mr-1 h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive h-7 px-2 text-xs"
+                        onClick={() => setLogoutTarget(u)}
+                        disabled={u.id === currentUserId}
+                        title={
+                          u.id === currentUserId
+                            ? t("admin.section.users.cannotLogoutSelf")
+                            : t("admin.section.users.forceLogout")
+                        }
+                      >
+                        <LogOut className="mr-1 h-3 w-3" />
                       </Button>
                     </div>
                   </td>
@@ -336,6 +433,43 @@ export function UserManagementSection({
           </div>
         </div>
       )}
+
+      {/* Force-logout confirmation */}
+      <AlertDialog
+        open={logoutTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setLogoutTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("admin.section.users.forceLogoutConfirmTitle", {
+                name: logoutTarget?.username ?? "",
+              })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("admin.section.users.forceLogoutConfirmBody")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (logoutTarget) {
+                  forceLogout.mutate({ id: logoutTarget.id });
+                }
+              }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {forceLogout.isPending ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              {t("admin.section.users.forceLogout")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
