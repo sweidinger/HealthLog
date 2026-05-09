@@ -40,6 +40,7 @@ import { MeasurementForm } from "@/components/measurements/measurement-form";
 import { MoodForm } from "@/components/mood/mood-form";
 import { TrendCard } from "@/components/charts/trend-card";
 import { TrendHint } from "@/components/charts/trend-hint";
+import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
 
 const HealthChart = dynamic(
@@ -471,6 +472,7 @@ export default function DashboardPage() {
                   fmt.number,
                 )}
                 slope30={w?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(w)}
                 icon={Activity}
                 directionSentiment="up-bad"
               />
@@ -513,6 +515,7 @@ export default function DashboardPage() {
                   fmt.number,
                 )}
                 slope30={sys?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(sys)}
                 icon={Heart}
                 directionSentiment="up-bad"
               />
@@ -550,6 +553,7 @@ export default function DashboardPage() {
                   fmt.number,
                 )}
                 slope30={dia?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(dia)}
                 icon={Heart}
                 directionSentiment="up-bad"
               />
@@ -587,6 +591,7 @@ export default function DashboardPage() {
                   fmt.number,
                 )}
                 slope30={p?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(p)}
                 icon={TrendingUp}
               />
             ),
@@ -605,6 +610,7 @@ export default function DashboardPage() {
                 avg7={bf?.avg7 ?? null}
                 avg30={bf?.avg30 ?? null}
                 slope30={bf?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(bf)}
                 icon={Percent}
                 directionSentiment="up-bad"
               />
@@ -624,6 +630,7 @@ export default function DashboardPage() {
                 avg7={moodSummary?.avg7 ?? null}
                 avg30={moodSummary?.avg30 ?? null}
                 slope30={moodSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(moodSummary)}
                 icon={Smile}
                 directionSentiment="up-good"
               />
@@ -643,6 +650,7 @@ export default function DashboardPage() {
                 avg7={sleepSummary?.avg7 ?? null}
                 avg30={sleepSummary?.avg30 ?? null}
                 slope30={sleepSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(sleepSummary)}
                 icon={Moon}
                 directionSentiment="up-good"
               />
@@ -662,6 +670,7 @@ export default function DashboardPage() {
                 avg7={stepsSummary?.avg7 ?? null}
                 avg30={stepsSummary?.avg30 ?? null}
                 slope30={stepsSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(stepsSummary)}
                 icon={Footprints}
                 directionSentiment="up-good"
               />

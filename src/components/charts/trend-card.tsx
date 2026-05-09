@@ -60,6 +60,20 @@ interface TrendCardProps {
    *  paired metrics like blood-pressure systolic/diastolic so a single tile
    *  shows both numbers). */
   secondary?: SecondaryMetric;
+  /**
+   * v1.4.15 Fix 4 — 7-day trend delta. When provided, the avg7 line
+   * shows a signed delta (e.g. "+1.2 kg") next to the average and the
+   * label switches from `charts.avg7dShort` (just "7d") to
+   * `charts.trend7dShort` ("7d trend"). Color of the delta follows the
+   * same `directionSentiment` rules as the headline arrow:
+   *   - up-good metric, positive delta → green
+   *   - up-bad metric, positive delta → orange
+   *   - neutral metric → muted regardless of sign
+   *
+   * Pass `null` (default) to keep the legacy avg-only behaviour for
+   * call sites that haven't been migrated yet.
+   */
+  trend7Delta?: number | null;
 }
 
 export function TrendCard({
@@ -76,6 +90,7 @@ export function TrendCard({
   icon: Icon,
   directionSentiment = "neutral",
   secondary,
+  trend7Delta = null,
 }: TrendCardProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -109,6 +124,34 @@ export function TrendCard({
 
   const formatValue = (value: number) => fmt.number(value, 1);
 
+  // v1.4.15 Fix 4 — color the 7-day delta with the same metric-aware
+  // sentiment rules the headline arrow already uses. Tiny absolute
+  // deltas (< 0.05) read as "no movement" and stay muted.
+  const deltaColor = ((): string => {
+    if (trend7Delta == null || Math.abs(trend7Delta) < 0.05) {
+      return "text-muted-foreground";
+    }
+    if (directionSentiment === "neutral") return "text-muted-foreground";
+    const isUp = trend7Delta > 0;
+    const isGood =
+      (directionSentiment === "up-good" && isUp) ||
+      (directionSentiment === "up-bad" && !isUp);
+    return isGood ? "text-dracula-green" : "text-dracula-orange";
+  })();
+
+  const formatDelta = (value: number): string => {
+    if (Math.abs(value) < 0.05) return `±0`;
+    const sign = value > 0 ? "+" : "−";
+    return `${sign}${fmt.number(Math.abs(value), 1)}`;
+  };
+
+  // The label flips from "7d" / "7T" (mean) to "7d trend" / "7T-Trend"
+  // when the call site supplies a delta. Marc's v1.4.15 feedback —
+  // "7-Tage-Schnitt" sounds like an average, but the value next to it
+  // is now a TREND. Distinct keys keep the label change in i18n.
+  const avg7LabelKey =
+    trend7Delta != null ? "charts.trend7dShort" : "charts.avg7dShort";
+
   const renderPair = (
     primary: number | null,
     secondaryValue: number | null | undefined,
@@ -140,7 +183,7 @@ export function TrendCard({
       <TooltipProvider>
         <div className="text-muted-foreground mt-auto flex gap-3 pt-1 text-xs">
           <span>
-            {t("charts.avg7dShort")}:{" "}
+            {t(avg7LabelKey)}:{" "}
             {avg7Hint ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -157,6 +200,15 @@ export function TrendCard({
             ) : (
               <span className={cn("font-medium tabular-nums", avg7ColorClass)}>
                 {avg7 !== null ? renderPair(avg7, secondary?.avg7) : "—"}
+              </span>
+            )}
+            {trend7Delta != null && (
+              <span
+                className={cn("ml-1 font-medium tabular-nums", deltaColor)}
+                data-slot="trend7-delta"
+                aria-label={`7-day trend ${formatDelta(trend7Delta)}`}
+              >
+                ({formatDelta(trend7Delta)})
               </span>
             )}
           </span>

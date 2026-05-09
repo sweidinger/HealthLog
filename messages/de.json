@@ -554,6 +554,7 @@
     "movingAverage7d": "7T-Schnitt",
     "avg7dShort": "7T",
     "avg30dShort": "30T",
+    "trend7dShort": "7T-Trend",
     "trend": "Trend",
     "targetRanges": "Zielbereiche",
     "perWeek": "/Woche",
