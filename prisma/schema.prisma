@@ -97,6 +97,12 @@ model User {
   // Display name (optional override of username for greetings).
   displayName String? @map("display_name")
 
+  // Doctor-report personalization (v1.4.15 phase B6).
+  // Persisted between report exports so the dialog can pre-fill the last-used
+  // practice / clinic name. Free-text, hard-capped to 120 chars upstream by
+  // `sanitisePracticeName()`. Null = user has never set one.
+  lastReportPracticeName String? @map("last_report_practice_name")
+
   // Relations
   passkeys    Passkey[]
   sessions    Session[]

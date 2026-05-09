@@ -3,8 +3,8 @@
 /**
  * Doctor-report export dialog (v1.4.15 phase B6).
  *
- * Wraps the trigger button so the user picks a reporting period before the
- * PDF is generated.
+ * Wraps the trigger button so the user picks a reporting period and
+ * (optionally) a practice / clinic name before the PDF is generated.
  *
  * Defaults:
  *   - end   = today
@@ -34,16 +34,20 @@ import { useTranslations } from "@/lib/i18n/context";
 
 const ONE_DAY_MS = 86_400_000;
 const MAX_RANGE_DAYS = 730;
+const PRACTICE_NAME_MAX_LENGTH = 120;
 
 export interface DoctorReportSubmitPayload {
   startDate: string;
   endDate: string;
+  practiceName: string | null;
 }
 
 interface DoctorReportDialogProps {
   /** Controlled open state. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Last-used practice name from `/api/auth/me`; pre-fills the input. */
+  defaultPracticeName?: string | null;
   /**
    * Resolves with the user-confirmed payload. The dialog stays open and
    * shows the spinner while the promise is pending; closes on resolve.
@@ -73,25 +77,28 @@ function defaultStartIso(): string {
 export function DoctorReportDialog({
   open,
   onOpenChange,
+  defaultPracticeName,
   onSubmit,
 }: DoctorReportDialogProps) {
   const { t } = useTranslations();
   const [startDate, setStartDate] = useState<string>(defaultStartIso);
   const [endDate, setEndDate] = useState<string>(todayIso);
+  const [practiceName, setPracticeName] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset on open: re-anchor dates to defaults each time the dialog appears
-  // so a follow-up export doesn't reuse the previous custom range. Using
-  // the React-recommended "track-the-trigger" pattern (store the last
-  // observed `open` state and react during render) so the reset happens in
-  // the render phase rather than a setState-in-effect — that's the cleanest
-  // way to satisfy the strict `react-hooks/set-state-in-effect` rule.
+  // Reset on open: re-anchor dates + practice-name to defaults each time
+  // the dialog appears so a follow-up export doesn't reuse the previous
+  // custom range. Using the React-recommended "track-the-trigger" pattern
+  // (store the last observed `open` state and react during render) so the
+  // reset happens in the render phase rather than a setState-in-effect —
+  // satisfies the strict `react-hooks/set-state-in-effect` rule.
   const [lastOpen, setLastOpen] = useState(false);
   if (open && !lastOpen) {
     setLastOpen(true);
     setStartDate(defaultStartIso());
     setEndDate(todayIso());
+    setPracticeName(defaultPracticeName ?? "");
     setError(null);
     setSubmitting(false);
   } else if (!open && lastOpen) {
@@ -143,7 +150,15 @@ export function DoctorReportDialog({
       // captures everything logged on each boundary day.
       const startIso = new Date(`${startDate}T00:00:00`).toISOString();
       const endIso = new Date(`${endDate}T23:59:59.999`).toISOString();
-      await onSubmit({ startDate: startIso, endDate: endIso });
+      const trimmedPractice = practiceName.trim();
+      await onSubmit({
+        startDate: startIso,
+        endDate: endIso,
+        practiceName:
+          trimmedPractice.length > 0
+            ? trimmedPractice.slice(0, PRACTICE_NAME_MAX_LENGTH)
+            : null,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -223,6 +238,21 @@ export function DoctorReportDialog({
             >
               {t("doctorReport.dialog.preset365d")}
             </Button>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="dr-practice">
+              {t("doctorReport.dialog.practiceLabel")}
+            </Label>
+            <Input
+              id="dr-practice"
+              type="text"
+              value={practiceName}
+              maxLength={PRACTICE_NAME_MAX_LENGTH}
+              placeholder={t("doctorReport.dialog.practicePlaceholder")}
+              onChange={(e) => setPracticeName(e.target.value)}
+              autoComplete="organization"
+            />
           </div>
 
           {error && (

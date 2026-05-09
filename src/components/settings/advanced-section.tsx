@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Download, Loader2, Trash2 } from "lucide-react";
 
@@ -53,6 +53,28 @@ function ExportCard() {
   const [exporting, setExporting] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [lastPracticeName, setLastPracticeName] = useState<string | null>(null);
+
+  // Fetch the previously-stored practice name so the dialog can pre-fill it.
+  // `useEffect` is the right place for a one-shot side-effect on mount; the
+  // ESLint `set-state-in-effect` rule is fine here because we are not
+  // setting state on every render — we are reacting to a fetch.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (cancelled || !json) return;
+        const name = json?.data?.lastReportPracticeName;
+        if (typeof name === "string") setLastPracticeName(name);
+      })
+      .catch(() => {
+        // Best-effort; the dialog still works without the pre-fill.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleExport(format: "csv" | "json") {
     setExporting(true);
@@ -83,6 +105,7 @@ function ExportCard() {
         body: JSON.stringify({
           startDate: payload.startDate,
           endDate: payload.endDate,
+          practiceName: payload.practiceName,
         }),
       });
       if (!res.ok) return;
@@ -93,6 +116,9 @@ function ExportCard() {
       const doc = generateDoctorReportPDF(json.data, { t, locale });
       const fileSlug = locale === "de" ? "gesundheitsbericht" : "health-report";
       doc.save(`${fileSlug}-${new Date().toISOString().slice(0, 10)}.pdf`);
+      // Remember the last-used practice name so the next open of the dialog
+      // pre-fills it without a roundtrip to /api/auth/me.
+      if (payload.practiceName) setLastPracticeName(payload.practiceName);
       setReportDialogOpen(false);
     } finally {
       setGeneratingReport(false);
@@ -142,6 +168,7 @@ function ExportCard() {
       <DoctorReportDialog
         open={reportDialogOpen}
         onOpenChange={setReportDialogOpen}
+        defaultPracticeName={lastPracticeName}
         onSubmit={handleDoctorReport}
       />
     </div>

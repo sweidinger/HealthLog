@@ -7,7 +7,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import {
   collectDoctorReportData,
   normaliseDateRange,
+  sanitisePracticeName,
 } from "@/lib/doctor-report-data";
+import { prisma } from "@/lib/db";
 import { renderDoctorReportPdfBytes } from "@/lib/doctor-report-pdf-core";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { parseLocaleFromAcceptLanguage } from "@/lib/format-locale";
@@ -42,8 +44,21 @@ export const POST = apiHandler(async (request: NextRequest) => {
     body?.locale,
     request.headers.get("accept-language"),
   );
+  const rawPracticeName = body?.practiceName;
+  const practiceName = sanitisePracticeName(rawPracticeName);
 
-  const data = await collectDoctorReportData(user.id, range);
+  if (typeof rawPracticeName === "string" && practiceName !== null) {
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastReportPracticeName: practiceName },
+      });
+    } catch {
+      // Best-effort; never let preference persistence break the report.
+    }
+  }
+
+  const data = await collectDoctorReportData(user.id, range, { practiceName });
 
   const { t } = getServerTranslator(locale);
   const pdfBytes = renderDoctorReportPdfBytes(data, { t, locale });
@@ -56,6 +71,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       startDate: range.start.toISOString(),
       endDate: range.end.toISOString(),
       locale,
+      practiceNameProvided: practiceName !== null,
     },
   });
 
@@ -66,6 +82,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       report_end: range.end.toISOString(),
       locale,
       bytes: pdfBytes.byteLength,
+      practice_name_provided: practiceName !== null,
     },
   });
 
@@ -89,6 +106,7 @@ interface PdfRequestBody {
   startDate?: unknown;
   endDate?: unknown;
   locale?: unknown;
+  practiceName?: unknown;
 }
 
 /**

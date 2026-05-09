@@ -9,7 +9,7 @@ vi.mock("@/lib/db", () => ({
     medication: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
-    user: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn(), update: vi.fn() },
     auditLog: { create: vi.fn() },
   },
 }));
@@ -241,4 +241,30 @@ describe("POST /api/doctor-report/pdf", () => {
     );
   });
 
+  it("persists practiceName as a user preference and includes it in audit", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetAt: Date.now() + 3600_000,
+    });
+    vi.mocked(auditLog).mockResolvedValue(undefined as never);
+    setEmptyDataMocks();
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await POST(
+      makeRequest({ days: 30, practiceName: "Praxis Dr. Müller" }),
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { lastReportPracticeName: "Praxis Dr. Müller" },
+    });
+    expect(auditLog).toHaveBeenCalledWith(
+      "doctor-report.pdf.generate",
+      expect.objectContaining({
+        details: expect.objectContaining({ practiceNameProvided: true }),
+      }),
+    );
+  });
 });

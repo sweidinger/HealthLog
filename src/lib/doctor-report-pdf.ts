@@ -20,6 +20,8 @@ interface ReportData {
     gender: string | null;
     heightCm: number | null;
   };
+  /** Free-text practice / clinic name printed on the cover. Optional. */
+  practiceName?: string | null;
   stats: Record<
     string,
     { avg: number; min: number; max: number; count: number; latest: number }
@@ -154,6 +156,21 @@ export function generateDoctorReportPDF(
   doc.setTextColor(100, 100, 100);
   doc.text(t("doctorReport.subtitle"), margin, y);
   y += 6;
+
+  // Practice / clinic name (optional). Rendered prominently above the
+  // separator so the addressee is visible at first glance.
+  if (data.practiceName) {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text(
+      `${t("doctorReport.practiceLabel")}: ${data.practiceName}`,
+      margin,
+      y,
+    );
+    y += 6;
+    doc.setFont("helvetica", "normal");
+  }
 
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.5);

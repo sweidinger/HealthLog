@@ -12,7 +12,9 @@ import { NextRequest } from "next/server";
 import {
   collectDoctorReportData,
   normaliseDateRange,
+  sanitisePracticeName,
 } from "@/lib/doctor-report-data";
+import { prisma } from "@/lib/db";
 
 /**
  * Collect data for doctor report PDF generation (client-side).
@@ -20,9 +22,10 @@ import {
  *
  * Body shape (all fields optional — sensible defaults apply):
  *   {
- *     startDate?: string,  // ISO timestamp, inclusive
- *     endDate?: string,    // ISO timestamp, inclusive
- *     days?: number        // legacy "last N days" fallback (1..365)
+ *     startDate?: string,   // ISO timestamp, inclusive
+ *     endDate?: string,     // ISO timestamp, inclusive
+ *     days?: number,        // legacy "last N days" fallback (1..365)
+ *     practiceName?: string // free-text, persisted as user preference
  *   }
  *
  * Resolution: explicit range wins; otherwise `days` (default 90) is applied.
@@ -44,7 +47,27 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (jsonError) return jsonError;
 
   const range = normaliseDateRange(body);
-  const data = await collectDoctorReportData(user.id, range);
+  const rawPracticeName = (body as Record<string, unknown> | null)
+    ?.practiceName;
+  const practiceName = sanitisePracticeName(rawPracticeName);
+
+  // Persist the most-recent practice name as a user preference so the
+  // dialog can pre-fill it next time. We only write when the caller
+  // actually supplied a non-empty string — passing `null`/empty does NOT
+  // clear the stored preference (use the dedicated profile endpoint for
+  // that). Best-effort: a write failure here MUST NOT break the report.
+  if (typeof rawPracticeName === "string" && practiceName !== null) {
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastReportPracticeName: practiceName },
+      });
+    } catch {
+      // Non-fatal — preference persistence is a UX nicety, not a contract.
+    }
+  }
+
+  const data = await collectDoctorReportData(user.id, range, { practiceName });
 
   await auditLog("doctor-report.generate", {
     userId: user.id,
@@ -53,6 +76,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       days: range.days,
       startDate: range.start.toISOString(),
       endDate: range.end.toISOString(),
+      practiceNameProvided: practiceName !== null,
     },
   });
 
@@ -61,6 +85,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       report_days: range.days,
       report_start: range.start.toISOString(),
       report_end: range.end.toISOString(),
+      practice_name_provided: practiceName !== null,
     },
   });
 

@@ -168,6 +168,23 @@ export function buildDoctorReportPdfDocument(
   doc.text(t("doctorReport.subtitle"), margin, y);
   y += 6;
 
+  // Practice / clinic name on the cover. Rendered prominently above the
+  // separator so the addressee is the first thing the doctor sees when
+  // skimming the printout. Skipped entirely when the user did not supply
+  // one — keeps the cover compact for self-archive use.
+  if (data.practiceName) {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 30, 30);
+    doc.text(
+      `${t("doctorReport.practiceLabel")}: ${data.practiceName}`,
+      margin,
+      y,
+    );
+    y += 6;
+    doc.setFont("helvetica", "normal");
+  }
+
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.5);
   doc.line(margin, y, pageWidth - margin, y);

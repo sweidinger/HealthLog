@@ -37,6 +37,7 @@ function makeData(overrides?: Partial<DoctorReportData>): DoctorReportData {
       gender: "MALE",
       heightCm: 182,
     },
+    practiceName: null,
     measurements: {
       WEIGHT: [
         { value: 80, measuredAt: "2026-02-10T08:00:00.000Z" },
@@ -260,7 +261,43 @@ describe("doctor-report-pdf-core type-map coverage", () => {
     expect(text).toContain("%");
   });
 
-  // ── v1.4.15 phase B6 ── configurable date range on cover page.
+  // ── v1.4.15 phase B6 ── practice name on cover page.
+
+  it("renders the practice name on the cover when supplied (DE)", async () => {
+    const data = makeData({ practiceName: "Praxis Dr. Müller" });
+    const bytes = renderDoctorReportPdfBytes(data, {
+      t: getServerTranslator("de").t,
+      locale: "de",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    expect(text).toContain("Praxis Dr. Müller");
+    expect(text).toContain("Praxis:");
+  });
+
+  it("renders the practice name on the cover when supplied (EN)", async () => {
+    const data = makeData({ practiceName: "Family Practice Smith & Co." });
+    const bytes = renderDoctorReportPdfBytes(data, {
+      t: getServerTranslator("en").t,
+      locale: "en",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    expect(text).toContain("Family Practice Smith & Co.");
+    expect(text).toContain("Practice:");
+  });
+
+  it("omits the practice line when practiceName is null", async () => {
+    const data = makeData({ practiceName: null });
+    const bytes = renderDoctorReportPdfBytes(data, {
+      t: getServerTranslator("de").t,
+      locale: "de",
+      now: FIXED_NOW,
+    });
+    const text = await extractText(bytes);
+    // Cover should NOT carry the "Praxis:" label when no name is set.
+    expect(text).not.toContain("Praxis:");
+  });
 
   it("includes the explicit period start AND end on the cover page", async () => {
     const data = makeData({

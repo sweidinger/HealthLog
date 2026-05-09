@@ -23,5 +23,6 @@ export const GET = apiHandler(async () => {
     onboardingTourCompleted: user.onboardingTourCompleted,
     gravatarUrl: user.email ? getGravatarUrl(user.email) : null,
     glucoseUnit: user.glucoseUnit ?? null,
+    lastReportPracticeName: user.lastReportPracticeName ?? null,
   });
 });
