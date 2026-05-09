@@ -366,7 +366,7 @@ export function OnboardingTour({
       <button
         type="button"
         aria-label={t("onboarding.tour.skip")}
-        className="absolute inset-0 cursor-default bg-black/70 transition-opacity duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transition-none"
+        className="focus-visible:ring-primary absolute inset-0 cursor-default bg-black/70 transition-opacity duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none"
         style={clipPath ? { clipPath, WebkitClipPath: clipPath } : undefined}
         onClick={handleSkip}
       />
@@ -398,7 +398,7 @@ export function OnboardingTour({
       >
         <header className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-muted-foreground text-xs font-medium tracking-wide tabular-nums uppercase">
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase tabular-nums">
               {t("onboarding.tour.stepOf", {
                 current: counter.current,
                 total: counter.total,
@@ -445,9 +445,7 @@ export function OnboardingTour({
               onClick={handleNext}
               data-testid="onboarding-tour-primary"
             >
-              {isLast
-                ? t("onboarding.tour.done")
-                : t("onboarding.tour.next")}
+              {isLast ? t("onboarding.tour.done") : t("onboarding.tour.next")}
             </Button>
           </div>
         </footer>

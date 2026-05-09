@@ -222,9 +222,7 @@ describe("Codex slug fallback chain", () => {
   it("does NOT walk on 401 — refreshes and retries same slug", async () => {
     const mockFetch = vi
       .fn()
-      .mockResolvedValueOnce(
-        new Response("unauthorized", { status: 401 }),
-      )
+      .mockResolvedValueOnce(new Response("unauthorized", { status: 401 }))
       .mockResolvedValueOnce(sseSuccessResponse());
     vi.stubGlobal("fetch", mockFetch);
 

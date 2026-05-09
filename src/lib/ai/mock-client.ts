@@ -62,7 +62,8 @@ export class MockAIProvider implements AIProvider {
     this.model = opts.model ?? "mock-model";
     this.rejectWith = opts.rejectWith;
     if (Array.isArray(opts.responses)) {
-      this.responses = opts.responses.length > 0 ? opts.responses : [DEFAULT_RESPONSE];
+      this.responses =
+        opts.responses.length > 0 ? opts.responses : [DEFAULT_RESPONSE];
     } else if (typeof opts.responses === "string") {
       this.responses = [opts.responses];
     } else {
