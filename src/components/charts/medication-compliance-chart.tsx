@@ -9,7 +9,16 @@
  * visible. This wrapper shows daily compliance % across all of the user's
  * scheduled medications for the last N days, matching the same visual
  * pattern the other dashboard charts use (Card surface, Dracula tokens,
- * range chips in the header, ReferenceLine target at 80 %).
+ * range chips in the header, ReferenceLine target at 100 % goal +
+ * 80 % minimum-acceptable threshold).
+ *
+ * v1.4.16 A6 — feature-parity with the other charts:
+ *   - Computes a 7-day trend chip in the header (signed delta, metric-
+ *     aware sentiment colour: rising compliance → green, falling →
+ *     orange).
+ *   - Adds a 100 % goal ReferenceLine (in addition to the existing 80 %
+ *     minimum-acceptable threshold) so the target range is explicitly
+ *     visualised the way BP/weight charts paint their target zones.
  *
  * Data source: `GET /api/medications/intake?scope=compliance&days=N`
  * already returns `{ date, scheduled, taken }[]`. We aggregate to
@@ -35,11 +44,12 @@ import {
   Tooltip,
   ReferenceLine,
 } from "recharts";
-import { Loader2, Pill } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, Loader2, Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { formatDateShort } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 interface DailyCompliancePoint {
   /** Berlin calendar day, "YYYY-MM-DD". */
@@ -55,7 +65,8 @@ interface ChartPoint {
 }
 
 const COLOR_LINE = "var(--dracula-purple)";
-const COLOR_TARGET = "var(--dracula-green)";
+const COLOR_GOAL = "var(--dracula-green)";
+const COLOR_THRESHOLD = "var(--dracula-yellow)";
 
 /** Days for the range buttons. v1.4.15 keeps this in sync with the
  *  health-chart range presets so the dashboard reads consistently. */
@@ -89,6 +100,50 @@ export function aggregateMedicationCompliance(
     });
 }
 
+/**
+ * Compute the 7-day compliance trend over the last 14 days of data —
+ * mean of the most-recent 7 daily rates minus the mean of the prior 7
+ * (or fewer if the user has fewer than 14 days).
+ *
+ * Returns `null` when fewer than 2 daily points exist (a single point
+ * has no trend), or when both halves of the window collapse to < 2
+ * points (insufficient signal).
+ *
+ * Pure & deterministic so unit tests pin the exact delta.
+ *
+ * Why "second-half mean − first-half mean" instead of slope-of-line:
+ * the dashboard tile reports a *delta in percentage points* — a slope
+ * over 7 days expressed in pp/day would multiply by 7 anyway, and the
+ * mean-difference variant is more robust to a single outlier day.
+ */
+export function computeMedicationTrend7d(
+  points: ChartPoint[],
+): { delta: number; direction: "up" | "down" | "stable" } | null {
+  if (points.length < 2) return null;
+
+  // Take the most recent 14 points (sorted ascending in the input
+  // because aggregateMedicationCompliance sorts by date).
+  const recent = points.slice(-14);
+  if (recent.length < 2) return null;
+
+  const mid = Math.floor(recent.length / 2);
+  const firstHalf = recent.slice(0, mid);
+  const secondHalf = recent.slice(mid);
+
+  if (firstHalf.length === 0 || secondHalf.length === 0) return null;
+
+  const meanOf = (arr: ChartPoint[]) =>
+    arr.reduce((s, p) => s + p.rate, 0) / arr.length;
+  const delta = Math.round((meanOf(secondHalf) - meanOf(firstHalf)) * 10) / 10;
+
+  // Same threshold the trend-arrow on tiles uses (~1 pp shift counts
+  // as movement; below that is "stable" so we don't celebrate noise).
+  const direction: "up" | "down" | "stable" =
+    Math.abs(delta) < 1 ? "stable" : delta > 0 ? "up" : "down";
+
+  return { delta, direction };
+}
+
 interface MedicationComplianceChartProps {
   /** Override the visible label, primarily for tests. */
   title?: string;
@@ -120,6 +175,37 @@ export function MedicationComplianceChart({
     [data],
   );
 
+  // v1.4.16 A6 — 7-day trend chip. Computed off the *full* range so a
+  // user toggled to "7 days" still sees a trend (which would otherwise
+  // be empty if we only used the visible window). The 14-day cap inside
+  // computeMedicationTrend7d() bounds the comparison window.
+  const trend = useMemo(() => computeMedicationTrend7d(chartData), [chartData]);
+
+  // v1.4.16 A6 — metric-aware sentiment for medication compliance:
+  // up-good (rising compliance is the desired direction). Mirrors the
+  // `directionSentiment="up-good"` rule used by the trend-card pulse +
+  // mood tiles.
+  const trendColor = ((): string => {
+    if (!trend || trend.direction === "stable") return "text-muted-foreground";
+    return trend.direction === "up"
+      ? "text-dracula-green"
+      : "text-dracula-orange";
+  })();
+
+  const TrendIcon = !trend
+    ? null
+    : trend.direction === "up"
+      ? ArrowUp
+      : trend.direction === "down"
+        ? ArrowDown
+        : ArrowRight;
+
+  const formatTrendDelta = (delta: number): string => {
+    if (Math.abs(delta) < 0.05) return "±0";
+    const sign = delta > 0 ? "+" : "−";
+    return `${sign}${fmt.number(Math.abs(delta), 1)}`;
+  };
+
   const displayTitle = title ?? t("dashboard.medications");
   const yAxisFormatter = (value: number) => `${fmt.integer(value)} %`;
 
@@ -139,6 +225,25 @@ export function MedicationComplianceChart({
         <div className="flex items-center gap-2">
           <Pill className="text-muted-foreground h-4 w-4" />
           <h3 className="text-sm font-semibold">{displayTitle}</h3>
+          {/* v1.4.16 A6 — 7-day trend chip (mirror of the BP/weight
+              chart's bucket-chip). Painted only when the trend is
+              computable (>= 2 daily points). */}
+          {trend && TrendIcon ? (
+            <span
+              className={cn(
+                "bg-muted/40 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase",
+                trendColor,
+              )}
+              data-slot="medication-trend-chip"
+              aria-label={`${t("charts.trend7dShort")} ${formatTrendDelta(trend.delta)}`}
+            >
+              <TrendIcon className="h-3 w-3" aria-hidden="true" />
+              <span>{t("charts.trend7dShort")}</span>
+              <span className="tabular-nums">
+                {formatTrendDelta(trend.delta)} pp
+              </span>
+            </span>
+          ) : null}
         </div>
         <div className="flex flex-wrap justify-end gap-1">
           {RANGE_DAYS.map((r) => (
@@ -211,11 +316,23 @@ export function MedicationComplianceChart({
                     : ""
                 }
               />
+              {/* v1.4.16 A6 — minimum-acceptable threshold (yellow,
+                  paler dash) and 100 % goal line (green, solid-ish).
+                  Two lines together visualise "target range" the way
+                  HealthChart's targetZone band does for BP/weight. */}
               <ReferenceLine
                 y={80}
-                stroke={COLOR_TARGET}
+                stroke={COLOR_THRESHOLD}
+                strokeDasharray="3 5"
+                strokeOpacity={0.6}
+                data-slot="medication-threshold-line"
+              />
+              <ReferenceLine
+                y={100}
+                stroke={COLOR_GOAL}
                 strokeDasharray="5 5"
-                strokeOpacity={0.7}
+                strokeOpacity={0.85}
+                data-slot="medication-goal-line"
               />
               <Line
                 type="monotone"

@@ -14,6 +14,52 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 
+const DEFAULT_INSIGHTS_RATE_LIMIT_PER_HOUR = 10;
+
+/**
+ * Reads `INSIGHTS_RATE_LIMIT_PER_HOUR` from the environment with a
+ * sensible 10/hour default. The previous hard-coded 2/hour limit (from
+ * v1.4 P13) was too aggressive for users iterating on settings or
+ * regenerating after adding measurements. Operators who run on a
+ * stricter LLM budget can dial it down via env without redeploying
+ * code; values <1 fall back to the default.
+ */
+export function resolveInsightsRateLimit(): number {
+  const raw = process.env.INSIGHTS_RATE_LIMIT_PER_HOUR;
+  if (!raw) return DEFAULT_INSIGHTS_RATE_LIMIT_PER_HOUR;
+  const parsed = parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return DEFAULT_INSIGHTS_RATE_LIMIT_PER_HOUR;
+  }
+  return parsed;
+}
+
+/**
+ * Per-status insight cache rows live in `audit_logs` keyed by
+ * `action = "insights.{scope}-status.{locale}"` (see
+ * `src/lib/insights/memory.ts` for the canonical scope list and
+ * `src/lib/insights/{general,blood-pressure,weight,pulse,bmi,
+ * mood,medication-compliance}-status.ts` for the writers). Each scope
+ * has its own per-day eviction, so before v1.4.16 a force-regeneration
+ * of the comprehensive insight would leave yesterday's per-status
+ * cards visible on the insights page until the next calendar day
+ * flipped. Drop them here so the next status fetch has to call the
+ * LLM again with the same fresh feature set the comprehensive blob
+ * just used.
+ */
+async function evictPerStatusInsightCache(userId: string): Promise<void> {
+  await prisma.auditLog.deleteMany({
+    where: {
+      userId,
+      action: { startsWith: "insights." },
+      // Keep the `insights.generate` row this request just wrote and
+      // the `insights.settings.*` rows — only the per-status cache
+      // entries (`insights.<scope>-status.<locale>`) carry stale text.
+      AND: [{ action: { contains: "-status." } }],
+    },
+  });
+}
+
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   const userId = user.id;
@@ -59,12 +105,19 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   // P13: rate-limit check moved BELOW the cache return so a hit on the
-  // 24h cache never burns one of the 2/hour LLM-generation tokens.
-  // Otherwise a noisy reload loop on the dashboard would lock out real
-  // refreshes for an hour for no benefit.
-  const rl = await checkRateLimit(`insights:${userId}`, 2, 60 * 60 * 1000);
+  // 24h cache never burns one of the LLM-generation tokens. Otherwise a
+  // noisy reload loop on the dashboard would lock out real refreshes
+  // for an hour for no benefit.
+  //
+  // v1.4.16 A7: limit raised from 2 → 10 per hour (env-configurable via
+  // `INSIGHTS_RATE_LIMIT_PER_HOUR`). The 2/hour limit triggered too
+  // aggressively when a user iterated on settings or regenerated after
+  // adding a few measurements; 10/hour still cleanly bounds cost while
+  // staying out of the way for legitimate use.
+  const limit = resolveInsightsRateLimit();
+  const rl = await checkRateLimit(`insights:${userId}`, limit, 60 * 60 * 1000);
   if (!rl.allowed) {
-    return apiError("Maximum 2 insight generations per hour.", 429);
+    return apiError(`Maximum ${limit} insight generations per hour.`, 429);
   }
 
   const provider = await resolveProvider(userId);
@@ -153,6 +206,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
       insightsCachedText: JSON.stringify(insights),
     },
   });
+
+  // v1.4.16 A7: a fresh comprehensive insight always supersedes the
+  // per-status cache. Otherwise the dashboard re-paints itself with the
+  // newly generated comprehensive while the insights-page status cards
+  // still show yesterday's text until midnight Berlin time.
+  await evictPerStatusInsightCache(userId);
 
   await auditLog("insights.generate", {
     userId,
