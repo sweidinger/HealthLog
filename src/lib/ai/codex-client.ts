@@ -23,17 +23,28 @@ const CODEX_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses";
 /**
  * Model slug for the ChatGPT-account auth path.
  *
- * Caveat: `gpt-5-codex` is the API-key-auth Codex slug but is rejected
- * by the chatgpt.com backend with "model is not supported when using
- * Codex with a ChatGPT account". For ChatGPT-OAuth we send the plain
- * `gpt-5` slug — that's the Pro/Plus subscription model the backend
- * routes by default. The server may safety-route to a different slug
- * and reports the actual model in the `OpenAI-Model` response header.
+ * The ChatGPT/Codex backend has a tight allow-list of slugs accepted for
+ * subscription auth. As of 2026-05 the bundled Codex models in the
+ * official `openai/codex` client are `gpt-5.5` / `gpt-5.4` /
+ * `gpt-5.4-mini` / `gpt-5.3-codex` / `gpt-5.2`; `gpt-5` and `gpt-5-codex`
+ * are both rejected on this auth path with a 400:
  *
- * Operators can override via `CODEX_MODEL` env var on apps01 if a
- * different slug works better for their ChatGPT plan tier.
+ *   {"detail":"The 'gpt-5' model is not supported when using Codex with
+ *   a ChatGPT account."}
+ *
+ * `gpt-5.3-codex` is the codex-optimized slug available on Plus/Pro
+ * plans (per `codex-rs/models-manager/models.json` `available_in_plans`)
+ * and accepts our HealthLog "summarize health metrics" prompts without
+ * issue (verified live 2026-05-09).
+ *
+ * The server safety-routes when needed and reports the actual routed
+ * model in the `OpenAI-Model` response header — we trust that header
+ * for downstream logging.
+ *
+ * Operators on a different plan can override via the `CODEX_MODEL` env
+ * var on apps01 (e.g. `gpt-5.5` on Free, `gpt-5.4` on Plus/Pro).
  */
-const CODEX_MODEL = process.env.CODEX_MODEL?.trim() || "gpt-5";
+const CODEX_MODEL = process.env.CODEX_MODEL?.trim() || "gpt-5.3-codex";
 
 const ORIGINATOR = "healthlog";
 const USER_AGENT = "HealthLog/1.0 (+https://healthlog.bombeck.io)";

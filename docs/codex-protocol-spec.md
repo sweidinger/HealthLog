@@ -613,6 +613,26 @@ The CLI sends the model slug verbatim in the `model` field. There is no enum on 
 
 The ChatGPT backend ignores `model` strings the user's account doesn't have entitlements for — the server may safety-route to a different model and report the actual model used in the `OpenAI-Model` response header (§4f). Trust that header, not the request value, when logging.
 
+### 7a. ChatGPT-account-auth allow-list (verified 2026-05-09)
+
+When authenticating via the ChatGPT-OAuth path (Bearer token + `ChatGPT-Account-ID` header, §3a), the backend rejects model slugs that are NOT in the active `codex-rs/models-manager/models.json` bundle. The rejection is HTTP 400 with body:
+
+```json
+{ "detail": "The '<slug>' model is not supported when using Codex with a ChatGPT account." }
+```
+
+Confirmed-rejected slugs (despite the source-tree references in the table above):
+
+- `gpt-5` — rejected
+- `gpt-5-codex` — rejected (the API-key-auth Codex slug; not the ChatGPT-auth one)
+
+Confirmed-accepted slugs on a ChatGPT Plus subscription (per `available_in_plans` in `models.json`):
+
+- `gpt-5.3-codex` — coding-optimized, accepted; HealthLog uses this as default
+- `gpt-5.5` / `gpt-5.4` / `gpt-5.4-mini` / `gpt-5.2` — also expected to work per plan
+
+The `codex-rs/tui/src/model_migration.rs` references to `gpt-5-codex` etc. are *migration prompts* shown to existing users — they are NOT the slugs sent on the wire after migration. The wire slugs come from `models.json`. Always cross-check `models.json` (`gh api repos/openai/codex/contents/codex-rs/models-manager/models.json`) before picking a default.
+
 ---
 
 ## 8. Worked example — minimal end-to-end
