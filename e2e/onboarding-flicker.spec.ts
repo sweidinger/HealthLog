@@ -94,6 +94,19 @@ test.describe("dashboard onboarding card flicker guard", () => {
         }),
       }),
     );
+    // Same `/api/dashboard/widgets` stub as the incomplete-onboarding
+    // test below — keeps the dashboard from error-boundary-bailing
+    // when this query 500s in CI without a real session.
+    await page.route("**/api/dashboard/widgets", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { tilesVisible: { weight: true, bp: true, pulse: true } },
+          error: null,
+        }),
+      }),
+    );
 
     const card = page.locator('[data-testid="onboarding-card"]');
 
@@ -190,6 +203,21 @@ test.describe("dashboard onboarding card flicker guard", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ data: { channels: [] }, error: null }),
+      }),
+    );
+    // v1.4.16 Wave-C — the dashboard added `/api/dashboard/widgets`
+    // (A5 tile-strip persistence) since this spec was written. Without
+    // a stub the unauthenticated layout query 500s in CI and React
+    // Query's error boundary swallows the page render before
+    // `<GettingStartedChecklist>` can mount.
+    await page.route("**/api/dashboard/widgets", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { tilesVisible: { weight: true, bp: true, pulse: true } },
+          error: null,
+        }),
       }),
     );
 

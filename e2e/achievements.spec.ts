@@ -55,11 +55,23 @@ test.describe("achievements page is reachable from the sidebar", () => {
     );
   });
 
-  test("desktop sidebar exposes the achievements link", async ({ page }) => {
+  test("desktop sidebar exposes the achievements link", async ({
+    page,
+    viewport,
+  }) => {
+    // The sidebar nav is hidden on small viewports (`md:flex`). The
+    // chromium-mobile profile (Pixel 5, 393 px wide) cannot satisfy
+    // this contract by design — skip there so the spec only runs in
+    // the chromium-desktop project (1280×720). Without this guard
+    // every push fails 1 / 4 specs purely because the same suite is
+    // sharded across both projects.
+    test.skip(
+      (viewport?.width ?? 0) < 768,
+      "sidebar is hidden on mobile by design (md:flex breakpoint)",
+    );
+
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    // The sidebar nav is hidden on small viewports (`md:flex`); the
-    // chromium-desktop project uses 1280×720 so it's visible here. Match
-    // by aria-label so we don't accidentally pick up a tooltip.
+    // Match by aria-label so we don't accidentally pick up a tooltip.
     const sidebar = page.locator('aside[aria-label="Sidebar"]');
     await expect(sidebar).toBeVisible();
     await sidebar.getByRole("link", { name: "Achievements" }).click();

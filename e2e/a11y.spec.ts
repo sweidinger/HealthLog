@@ -119,7 +119,19 @@ test.describe("axe-core authenticated surfaces", () => {
   // bounding box must accept the click.
   test("skip-link does not block logo click outside focus", async ({
     page,
+    viewport,
   }) => {
+    // The desktop sidebar (and its logo) is `hidden md:flex` — the
+    // mobile profile (Pixel 5) hides it by design. The skip-link
+    // regression Marc originally reported in v1.4.14 was a desktop-
+    // only artifact (mobile uses the topbar logo, which is a
+    // different DOM node). Skip the mobile project so we don't
+    // flake on a contract that doesn't apply there.
+    test.skip(
+      (viewport?.width ?? 0) < 768,
+      "desktop sidebar logo is hidden on mobile by design",
+    );
+
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle");
 
