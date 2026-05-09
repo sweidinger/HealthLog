@@ -6,6 +6,7 @@ import { annotate } from "@/lib/logging/context";
 import { decrypt } from "@/lib/crypto";
 import { unsubscribeWebhook } from "@/lib/withings/client";
 import { getWithingsWebhookCallbackUrl } from "@/lib/withings/sync";
+import { markDisconnected } from "@/lib/integrations/status";
 
 /**
  * Disconnect Withings integration for the current user.
@@ -38,6 +39,8 @@ export const POST = apiHandler(async () => {
   await auditLog("withings.disconnect", {
     userId: user.id,
   });
+
+  await markDisconnected(user.id, "withings");
 
   return apiSuccess({ disconnected: true });
 });

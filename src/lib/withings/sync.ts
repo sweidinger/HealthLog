@@ -13,6 +13,11 @@ import {
 } from "./client";
 import { getUserWithingsCredentials } from "./credentials";
 import { getEvent } from "@/lib/logging/context";
+import {
+  isReauthRequired,
+  recordSyncFailure,
+  recordSyncSuccess,
+} from "@/lib/integrations/status";
 
 export function getWithingsWebhookCallbackUrl(): string {
   const baseUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/withings/webhook`;
@@ -48,6 +53,16 @@ export async function getValidToken(userId: string): Promise<{
         getEvent()?.addWarning(
           `No credentials found for user ${userId} during token refresh`,
         );
+        // Without credentials we cannot refresh OR re-authenticate — the
+        // user has to re-enter the client_id/secret. Mark as reauth so
+        // scheduled syncs back off.
+        await recordSyncFailure({
+          userId,
+          integration: "withings",
+          kind: "reauth_required",
+          message: "Withings credentials missing — token refresh skipped",
+          errorCode: "credentials_missing",
+        });
         return null;
       }
 
@@ -72,6 +87,20 @@ export async function getValidToken(userId: string): Promise<{
       };
     } catch (err) {
       getEvent()?.addWarning(`Token refresh failed for user ${userId}: ${err}`);
+      // Withings refresh failures expose the upstream `status` code in
+      // the error message (see refreshAccessToken). We treat any of the
+      // documented permanent-revoke statuses (100, 101, 102, 200..299
+      // for invalid_grant) as reauth-required and everything else as a
+      // transient retryable failure.
+      const message = err instanceof Error ? err.message : String(err);
+      const isReauth = isWithingsRefreshReauthFailure(message);
+      await recordSyncFailure({
+        userId,
+        integration: "withings",
+        kind: isReauth ? "reauth_required" : "transient",
+        message,
+        errorCode: extractWithingsStatus(message),
+      });
       return null;
     }
   }
@@ -88,12 +117,34 @@ export async function getValidToken(userId: string): Promise<{
 /**
  * Sync measurements from Withings for a given user.
  * Fetches data since last sync (or last 30 days if first sync).
+ *
+ * Status-tracking contract:
+ *   - On any failure (refresh failure, fetch failure, downstream
+ *     measurement-upsert that fails ALL items) we call
+ *     `recordSyncFailure` so the IntegrationStatus row + audit log
+ *     reflect the burst, and so the persistent-failure threshold can
+ *     trip an admin alert.
+ *   - On full success we call `recordSyncSuccess` to clear the streak.
+ *   - If the connection is parked at `error_reauth` we short-circuit
+ *     immediately — the user has to reconnect first.
  */
 export async function syncUserMeasurements(
   userId: string,
   opts: { fullSync?: boolean } = {},
 ): Promise<number> {
+  // Park: if the last burst said reauth_required, do nothing until
+  // the OAuth callback flips state back to "connected". Returning 0
+  // matches the existing contract for "no-op sync".
+  if (await isReauthRequired(userId, "withings")) {
+    getEvent()?.addWarning(
+      `withings sync skipped for ${userId}: parked at error_reauth`,
+    );
+    return 0;
+  }
+
   const tokenInfo = await getValidToken(userId);
+  // Note: getValidToken already calls recordSyncFailure on the refresh
+  // path, so we don't double-record here.
   if (!tokenInfo) return 0;
 
   const connection = await prisma.withingsConnection.findUnique({
@@ -107,7 +158,22 @@ export async function syncUserMeasurements(
       ? new Date(connection.lastSyncedAt.getTime() - 60 * 1000) // overlap 1 min to avoid gaps
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days back
 
-  const measures = await fetchMeasurements(tokenInfo.accessToken, startDate);
+  let measures: Awaited<ReturnType<typeof fetchMeasurements>>;
+  try {
+    measures = await fetchMeasurements(tokenInfo.accessToken, startDate);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await recordSyncFailure({
+      userId,
+      integration: "withings",
+      kind: isWithingsRefreshReauthFailure(message)
+        ? "reauth_required"
+        : "transient",
+      message,
+      errorCode: extractWithingsStatus(message),
+    });
+    throw err;
+  }
 
   let imported = 0;
 
@@ -146,7 +212,46 @@ export async function syncUserMeasurements(
     data: { lastSyncedAt: new Date() },
   });
 
+  // Record success — even when measures.length === 0, completing the
+  // round-trip is the signal "the connection is healthy". A user who
+  // doesn't weigh themselves for a week shouldn't see "error" on
+  // their settings page.
+  await recordSyncSuccess(userId, "withings");
+
   return imported;
+}
+
+/**
+ * Withings status codes that indicate a permanent-revoke condition
+ * (the refresh_token will not work again — the user has to redo OAuth).
+ *
+ * Documented values per
+ * https://developer.withings.com/api-reference#tag/oauth2/operation/oauth2-getaccesstoken :
+ *
+ *   100 → "Authentication failed"
+ *   101 → "Invalid token"
+ *   102 → "User does not exist"
+ *   200..299 → various OAuth/grant failures (treated as reauth-required
+ *              by Withings' own libraries)
+ *
+ * The error message format from `refreshAccessToken()` is
+ * "Withings refresh error: <status> - <error>".
+ */
+function isWithingsRefreshReauthFailure(message: string): boolean {
+  const status = extractWithingsStatus(message);
+  if (!status) return false;
+  const n = Number.parseInt(status, 10);
+  if (!Number.isFinite(n)) return false;
+  if (n === 100 || n === 101 || n === 102) return true;
+  if (n >= 200 && n <= 299) return true;
+  return false;
+}
+
+function extractWithingsStatus(message: string): string | undefined {
+  // Captures the digit run after "Withings <verb> error:" — same shape
+  // exchangeCode and refreshAccessToken use.
+  const m = /Withings\s+\w+\s+error:\s*(\d+)/.exec(message);
+  return m?.[1];
 }
 
 /**

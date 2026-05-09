@@ -6,6 +6,7 @@ import { encrypt } from "@/lib/crypto";
 import { exchangeCode } from "@/lib/withings/client";
 import { getUserWithingsCredentials } from "@/lib/withings/credentials";
 import { setupWebhook } from "@/lib/withings/sync";
+import { markReconnected } from "@/lib/integrations/status";
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 
@@ -98,6 +99,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
       userId: user.id,
       details: { withingsUserId: tokens.userid },
     });
+
+    // Re-completing OAuth clears any prior `error_reauth` state. We
+    // don't write a fresh success-time — that's the next sync's job.
+    await markReconnected(user.id, "withings");
 
     const response = NextResponse.redirect(
       new URL(

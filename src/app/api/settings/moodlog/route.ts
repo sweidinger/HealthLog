@@ -7,6 +7,7 @@ import { encryptMoodLogSecret, readMoodLogSecret } from "@/lib/moodlog-secret";
 import { moodLogCredentialsSchema } from "@/lib/validations/moodlog";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { markDisconnected, markReconnected } from "@/lib/integrations/status";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,11 @@ export const PUT = apiHandler(async (request: NextRequest) => {
 
   annotate({ action: { name: "settings.moodlog.update" } });
 
+  // Re-saving credentials clears any prior `error_reauth` state so the
+  // next scheduled sync can run again. We don't write a fresh
+  // success-time — that happens on the first real sync.
+  await markReconnected(user.id, "moodlog");
+
   return apiSuccess({
     configured: true,
     enabled: true,
@@ -81,6 +87,8 @@ export const DELETE = apiHandler(async () => {
   });
 
   annotate({ action: { name: "settings.moodlog.disconnect" } });
+
+  await markDisconnected(user.id, "moodlog");
 
   return apiSuccess({ disconnected: true });
 });

@@ -2,6 +2,11 @@ import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
 import { getEvent } from "@/lib/logging/context";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import {
+  isReauthRequired,
+  recordSyncFailure,
+  recordSyncSuccess,
+} from "@/lib/integrations/status";
 
 /**
  * Sync mood entries from a user's moodLog instance.
@@ -30,6 +35,16 @@ export async function syncMoodLogEntries(
     return 0;
   }
 
+  // Park: if we already know the apiKey is rejected, skip the network
+  // round-trip until the user re-saves credentials. The settings PUT
+  // route clears this state (see /api/settings/moodlog).
+  if (await isReauthRequired(userId, "moodlog")) {
+    getEvent()?.addWarning(
+      `moodlog sync skipped for ${userId}: parked at error_reauth`,
+    );
+    return 0;
+  }
+
   const baseUrl = decrypt(user.moodLogUrlEncrypted);
   const apiKey = decrypt(user.moodLogApiKeyEncrypted);
 
@@ -42,6 +57,13 @@ export async function syncMoodLogEntries(
     getEvent()?.addWarning(
       `moodLog sync refused for user ${userId}: stored URL points at non-public host`,
     );
+    await recordSyncFailure({
+      userId,
+      integration: "moodlog",
+      kind: "reauth_required",
+      message: "Stored moodLog URL points at a non-public host",
+      errorCode: "ssrf_refused",
+    });
     return 0;
   }
 
@@ -79,20 +101,44 @@ export async function syncMoodLogEntries(
       // the apiKey to the internal hop.
       redirect: "manual",
     });
-  } finally {
+  } catch (err) {
     clearTimeout(timeout);
     getEvent()?.addExternalCall({
       service: "moodlog",
       method: "syncMoodLogEntries",
       duration_ms: Math.round(performance.now() - fetchStart),
     });
+    const message = err instanceof Error ? err.message : String(err);
+    await recordSyncFailure({
+      userId,
+      integration: "moodlog",
+      kind: "transient",
+      message,
+      errorCode: "fetch_failed",
+    });
+    return 0;
+  } finally {
+    clearTimeout(timeout);
   }
+  getEvent()?.addExternalCall({
+    service: "moodlog",
+    method: "syncMoodLogEntries",
+    duration_ms: Math.round(performance.now() - fetchStart),
+    status: response.status,
+  });
 
   // Treat any 3xx as failure (manual redirect mode surfaces them).
   if (response.status >= 300 && response.status < 400) {
     getEvent()?.addWarning(
       `moodLog sync refused redirect for user ${userId}: HTTP ${response.status}`,
     );
+    await recordSyncFailure({
+      userId,
+      integration: "moodlog",
+      kind: "transient",
+      message: `moodLog sync refused redirect (HTTP ${response.status})`,
+      errorCode: `http_${response.status}`,
+    });
     return 0;
   }
 
@@ -100,23 +146,66 @@ export async function syncMoodLogEntries(
     getEvent()?.addWarning(
       `Sync failed for user ${userId}: HTTP ${response.status}`,
     );
+    // 401/403 — apiKey rejected. Park the integration so we don't
+    // hammer the upstream until the user re-saves credentials.
+    const isAuthFailure = response.status === 401 || response.status === 403;
+    await recordSyncFailure({
+      userId,
+      integration: "moodlog",
+      kind: isAuthFailure ? "reauth_required" : "transient",
+      message: `moodLog sync HTTP ${response.status}`,
+      errorCode: `http_${response.status}`,
+    });
     return 0;
   }
 
-  const data = await response.json();
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await recordSyncFailure({
+      userId,
+      integration: "moodlog",
+      kind: "transient",
+      message: `moodLog sync invalid JSON: ${message}`,
+      errorCode: "invalid_json",
+    });
+    return 0;
+  }
 
   // Validate response has entries array
-  if (!data?.entries || !Array.isArray(data.entries)) {
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !("entries" in data) ||
+    !Array.isArray((data as { entries?: unknown }).entries)
+  ) {
     getEvent()?.addWarning(`Invalid response format for user ${userId}`);
+    await recordSyncFailure({
+      userId,
+      integration: "moodlog",
+      kind: "transient",
+      message: "moodLog sync invalid response format (missing 'entries' array)",
+      errorCode: "invalid_format",
+    });
     return 0;
   }
+  const entries = (data as { entries: unknown[] }).entries;
 
   // 4. Upsert entries (note field is intentionally NOT imported)
   let imported = 0;
-  for (const entry of data.entries) {
+  for (const e of entries) {
+    const entry = e as {
+      time: string;
+      date: string;
+      mood: string;
+      score: number;
+      tags?: string[];
+    };
     try {
       const moodLoggedAt = new Date(entry.time);
-      const date = entry.date as string;
+      const date = entry.date;
 
       await prisma.moodEntry.upsert({
         where: {
@@ -148,11 +237,12 @@ export async function syncMoodLogEntries(
     }
   }
 
-  // 5. Update lastSyncedAt
+  // 5. Update lastSyncedAt + clear sync-status streak
   await prisma.user.update({
     where: { id: userId },
     data: { moodLogLastSyncedAt: now },
   });
+  await recordSyncSuccess(userId, "moodlog");
 
   return imported;
 }
