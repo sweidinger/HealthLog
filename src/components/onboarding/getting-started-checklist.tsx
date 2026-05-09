@@ -174,6 +174,15 @@ export function GettingStartedChecklist() {
     enabled: !!user,
   });
 
+  // v1.5 perf audit: skip these two fetches once the user is past
+  // onboarding. The checklist hides itself anyway via shouldShowChecklist
+  // when onboardingCompletedAt != null AND measurementCount >= 5; the
+  // analytics + medications queries above piggy-back on the dashboard's
+  // shared cache, but withings/status and notifications/preferences are
+  // unique to this component and were burning ~950 ms of network on every
+  // dashboard load for established users. See docs/audit/v15-performance.md.
+  const onboardingPending = !!user && user.onboardingCompletedAt == null;
+
   const { data: withingsData } = useQuery<WithingsStatus>({
     queryKey: ["withings", "status"],
     queryFn: async () => {
@@ -182,7 +191,7 @@ export function GettingStartedChecklist() {
       const json = await res.json();
       return json.data;
     },
-    enabled: !!user,
+    enabled: onboardingPending,
   });
 
   const { data: notificationsData } = useQuery<NotificationsPreferences>({
@@ -193,7 +202,7 @@ export function GettingStartedChecklist() {
       const json = await res.json();
       return json.data;
     },
-    enabled: !!user,
+    enabled: onboardingPending,
   });
 
   const measurementCount = useMemo(() => {
