@@ -36,7 +36,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
   ResponsiveContainer,
-  LineChart,
+  ComposedChart,
+  Area,
   Line,
   XAxis,
   YAxis,
@@ -50,6 +51,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ChartLinearGradient, chartGradientFill } from "./chart-gradient";
+import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
+import { ChartEmptyState } from "./chart-empty-state";
+import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 
 interface DailyCompliancePoint {
   /** Berlin calendar day, "YYYY-MM-DD". */
@@ -208,6 +213,7 @@ export function MedicationComplianceChart({
 
   const displayTitle = title ?? t("dashboard.medications");
   const yAxisFormatter = (value: number) => `${fmt.integer(value)} %`;
+  const animationsEnabled = !prefersReducedMotion();
 
   // Empty-state guard: if the user has zero scheduled doses across the
   // whole window we render the title + a "no data" hint, mirroring how
@@ -260,6 +266,21 @@ export function MedicationComplianceChart({
         </div>
       </div>
 
+      {/* v1.4.16 B1a — sibling SVG <defs> block for SSR-discoverable
+          gradient. */}
+      <svg
+        width={0}
+        height={0}
+        aria-hidden="true"
+        style={{ position: "absolute", pointerEvents: "none" }}
+        data-slot="chart-gradient-defs"
+      >
+        <ChartLinearGradient
+          id="chart-gradient-medication"
+          colorVar="--dracula-purple"
+        />
+      </svg>
+
       {isLoading ? (
         <div className="flex h-48 items-center justify-center">
           <Loader2 className="text-primary h-6 w-6 animate-spin" />
@@ -268,13 +289,32 @@ export function MedicationComplianceChart({
         <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
           {t("charts.noData")}
         </div>
+      ) : chartData.length < 3 ? (
+        // v1.4.16 B1a — sparse-data placeholder consistent with the
+        // BP/weight/pulse/mood charts.
+        <ChartEmptyState
+          title={t("charts.emptyStateTitle")}
+          description={t("charts.emptyStateDescription")}
+        />
       ) : (
         <div className="h-[240px] touch-pan-y">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
+            <ComposedChart
               data={chartData}
               margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
             >
+              <defs>
+                <linearGradient
+                  id="chart-gradient-medication-inline"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor={COLOR_LINE} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={COLOR_LINE} stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="var(--border)"
@@ -296,25 +336,53 @@ export function MedicationComplianceChart({
                 tickFormatter={yAxisFormatter}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "0.5rem",
-                  fontSize: "0.875rem",
+                cursor={{
+                  stroke: "var(--muted-foreground)",
+                  strokeOpacity: 0.3,
+                  strokeDasharray: "3 3",
                 }}
-                formatter={(value) =>
-                  typeof value === "number"
-                    ? [`${fmt.integer(value)} %`, t("dashboard.compliance7d")]
-                    : value
-                }
-                labelFormatter={(_label, payload) =>
-                  payload?.[0]?.payload?.timestamp
-                    ? formatDateShort(
-                        new Date(payload[0].payload.timestamp as number),
-                        true,
-                      )
-                    : ""
-                }
+                content={(props) => {
+                  const { active, payload } = props as unknown as {
+                    active?: boolean;
+                    payload?: Array<{
+                      value?: number;
+                      color?: string;
+                      payload?: ChartPoint;
+                    }>;
+                  };
+                  if (!active || !payload?.length) return null;
+                  const ts = payload[0]?.payload?.timestamp;
+                  const dateLabel = ts
+                    ? formatDateShort(new Date(ts), true)
+                    : "";
+                  const rate = payload[0]?.value;
+                  if (typeof rate !== "number") return null;
+                  // Delta vs. the 100 % goal — a positive delta means
+                  // "100 % target hit" and reads as success; a
+                  // negative delta is the gap to close.
+                  const gap = 100 - rate;
+                  let delta: string | undefined;
+                  if (gap < 0.5) {
+                    delta = t("charts.deltaUnchanged");
+                  } else {
+                    const formatted = `−${fmt.integer(gap)} pp`;
+                    delta = t("charts.deltaVsTarget").replace(
+                      "{delta}",
+                      formatted,
+                    );
+                  }
+                  const rows: RichTooltipRow[] = [
+                    {
+                      name: t("dashboard.compliance7d"),
+                      value: `${fmt.integer(rate)} %`,
+                      color: payload[0]?.color ?? COLOR_LINE,
+                      delta,
+                    },
+                  ];
+                  return (
+                    <RichChartTooltip active label={dateLabel} rows={rows} />
+                  );
+                }}
               />
               {/* v1.4.16 A6 — minimum-acceptable threshold (yellow,
                   paler dash) and 100 % goal line (green, solid-ish).
@@ -334,6 +402,21 @@ export function MedicationComplianceChart({
                 strokeOpacity={0.85}
                 data-slot="medication-goal-line"
               />
+              {/* v1.4.16 B1a — gradient-filled Area painted under the
+                  line. Animated on first render unless the user opts
+                  for reduced motion. */}
+              <Area
+                type="monotone"
+                dataKey="rate"
+                stroke="transparent"
+                fill={chartGradientFill("chart-gradient-medication-inline")}
+                fillOpacity={1}
+                isAnimationActive={animationsEnabled}
+                animationDuration={animationsEnabled ? 600 : 0}
+                animationEasing="ease-out"
+                connectNulls
+                legendType="none"
+              />
               <Line
                 type="monotone"
                 dataKey="rate"
@@ -342,8 +425,11 @@ export function MedicationComplianceChart({
                 dot={{ r: 2, fill: COLOR_LINE }}
                 activeDot={{ r: 4 }}
                 connectNulls
+                isAnimationActive={animationsEnabled}
+                animationDuration={animationsEnabled ? 600 : 0}
+                animationEasing="ease-out"
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       )}
