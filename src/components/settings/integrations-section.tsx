@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircle,
   Download,
   Link2,
   Loader2,
@@ -50,6 +51,162 @@ interface GlobalServiceAvailability {
   moodLogGlobal: boolean;
 }
 
+// v1.4.15 Phase B2: shared status payload for both integration cards.
+// Mirrors the `IntegrationViewModel` shape returned by
+// `GET /api/integrations/status` (single roundtrip, two integrations).
+type IntegrationKey = "withings" | "moodlog";
+type IntegrationState =
+  | "connected"
+  | "error_transient"
+  | "error_reauth"
+  | "disconnected";
+
+interface IntegrationStatusViewModel {
+  integration: IntegrationKey;
+  state: IntegrationState;
+  lastSuccessAt: string | null;
+  lastAttemptAt: string | null;
+  lastError: string | null;
+  consecutiveFailures: number;
+  configured?: boolean;
+  connected?: boolean;
+  connectedAt?: string | null;
+  legacyLastSyncedAt?: string | null;
+  tokenExpiresAt?: string | null;
+  tokenExpired?: boolean | null;
+  enabled?: boolean;
+}
+
+interface IntegrationStatusEnvelope {
+  threshold: number;
+  integrations: IntegrationStatusViewModel[];
+}
+
+/**
+ * Shared status fetch for the Settings → Integrations card. Returns
+ * the per-integration view-model AND the global threshold so the
+ * "{n}/{threshold} consecutive failures" string in the UI is single-
+ * sourced from the server.
+ */
+function useIntegrationStatuses(enabled: boolean) {
+  return useQuery({
+    queryKey: ["integrations", "status"],
+    queryFn: async () => {
+      const res = await fetch("/api/integrations/status");
+      if (!res.ok) throw new Error("Failed");
+      return (await res.json()).data as IntegrationStatusEnvelope;
+    },
+    enabled,
+    // The status endpoint is light (one DB read per integration) and
+    // the user typically lands here right after a sync — refetching
+    // on focus avoids a stale "last sync 5 min ago" reading.
+    refetchOnWindowFocus: true,
+  });
+}
+
+function pickStatus(
+  envelope: IntegrationStatusEnvelope | undefined,
+  integration: IntegrationKey,
+): IntegrationStatusViewModel | undefined {
+  return envelope?.integrations.find((i) => i.integration === integration);
+}
+
+/**
+ * Connection-state badge + "X consecutive failures" + last-error
+ * surface. Renders nothing when the integration has no history yet
+ * AND is connected — there's nothing useful to show in that case.
+ */
+function IntegrationStatusBanner({
+  status,
+  threshold,
+}: {
+  status: IntegrationStatusViewModel | undefined;
+  threshold: number | undefined;
+}) {
+  const { t } = useTranslations();
+  if (!status) return null;
+
+  const showBanner =
+    status.state !== "connected" ||
+    status.consecutiveFailures > 0 ||
+    !!status.lastError ||
+    !!status.lastAttemptAt;
+  if (!showBanner) return null;
+
+  return (
+    <div
+      data-testid="integration-status-banner"
+      className="bg-muted/40 border-border space-y-2 rounded-md border p-3 text-xs"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge state={status.state} />
+        {status.state !== "connected" && (
+          <Badge variant="outline" className="text-xs">
+            {t("settings.integrationStatus.consecutiveFailures", {
+              count: status.consecutiveFailures,
+              threshold: threshold ?? 3,
+            })}
+          </Badge>
+        )}
+      </div>
+      <dl className="text-muted-foreground grid gap-1 sm:grid-cols-2">
+        {status.lastSuccessAt && (
+          <div>
+            <dt className="font-medium">
+              {t("settings.integrationStatus.lastSuccess")}
+            </dt>
+            <dd>{formatDateTime(status.lastSuccessAt)}</dd>
+          </div>
+        )}
+        {status.lastAttemptAt && (
+          <div>
+            <dt className="font-medium">
+              {t("settings.integrationStatus.lastAttempt")}
+            </dt>
+            <dd>{formatDateTime(status.lastAttemptAt)}</dd>
+          </div>
+        )}
+      </dl>
+      {status.lastError && (
+        <div className="text-destructive flex items-start gap-1.5">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span data-testid="integration-status-error">{status.lastError}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusBadge({ state }: { state: IntegrationState }) {
+  const { t } = useTranslations();
+  switch (state) {
+    case "connected":
+      return (
+        <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green text-xs">
+          {t("settings.integrationStatus.stateConnected")}
+        </Badge>
+      );
+    case "error_reauth":
+      return (
+        <Badge variant="destructive" className="text-xs">
+          {t("settings.integrationStatus.stateReauthRequired")}
+        </Badge>
+      );
+    case "error_transient":
+      return (
+        <Badge variant="destructive" className="text-xs">
+          {t("settings.integrationStatus.stateError")}
+        </Badge>
+      );
+    case "disconnected":
+      return (
+        <Badge variant="outline" className="text-xs">
+          {t("settings.integrationStatus.stateDisconnected")}
+        </Badge>
+      );
+  }
+}
+
 export function IntegrationsSection() {
   const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
@@ -63,6 +220,8 @@ export function IntegrationsSection() {
     },
     enabled: isAuthenticated,
   });
+
+  const { data: integrationStatus } = useIntegrationStatuses(isAuthenticated);
 
   const moodLogEnabled = globalServices?.moodLogGlobal ?? true;
 
@@ -83,13 +242,36 @@ export function IntegrationsSection() {
         </p>
       </header>
 
-      <WithingsCard isAuthenticated={isAuthenticated} />
-      {moodLogEnabled && <MoodLogCard />}
+      <WithingsCard
+        isAuthenticated={isAuthenticated}
+        statusBanner={
+          <IntegrationStatusBanner
+            status={pickStatus(integrationStatus, "withings")}
+            threshold={integrationStatus?.threshold}
+          />
+        }
+      />
+      {moodLogEnabled && (
+        <MoodLogCard
+          statusBanner={
+            <IntegrationStatusBanner
+              status={pickStatus(integrationStatus, "moodlog")}
+              threshold={integrationStatus?.threshold}
+            />
+          }
+        />
+      )}
     </section>
   );
 }
 
-function WithingsCard({ isAuthenticated }: { isAuthenticated: boolean }) {
+function WithingsCard({
+  isAuthenticated,
+  statusBanner,
+}: {
+  isAuthenticated: boolean;
+  statusBanner: React.ReactNode;
+}) {
   const { t } = useTranslations();
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
@@ -129,6 +311,7 @@ function WithingsCard({ isAuthenticated }: { isAuthenticated: boolean }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["withings"] });
+      queryClient.invalidateQueries({ queryKey: ["integrations", "status"] });
     },
   });
 
@@ -153,6 +336,7 @@ function WithingsCard({ isAuthenticated }: { isAuthenticated: boolean }) {
         );
         setSyncMsgType("success");
         void invalidateKeys(queryClient, measurementDependentKeys);
+        queryClient.invalidateQueries({ queryKey: ["integrations", "status"] });
       } else {
         setSyncMsg(json.error || t("settings.withingsSyncFailed"));
         setSyncMsgType("error");
@@ -239,6 +423,7 @@ function WithingsCard({ isAuthenticated }: { isAuthenticated: boolean }) {
       </p>
 
       <div className="mt-4 space-y-4">
+        {statusBanner}
         <div className="space-y-3">
           <h3 className="text-sm font-medium">
             {t("settings.withingsCredentials")}
@@ -417,8 +602,9 @@ function WithingsCard({ isAuthenticated }: { isAuthenticated: boolean }) {
   );
 }
 
-function MoodLogCard() {
+function MoodLogCard({ statusBanner }: { statusBanner: React.ReactNode }) {
   const { t } = useTranslations();
+  const queryClient = useQueryClient();
   const [url, setUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
@@ -450,6 +636,7 @@ function MoodLogCard() {
       setUrl("");
       setApiKey("");
       await refetchStatus();
+      queryClient.invalidateQueries({ queryKey: ["integrations", "status"] });
     } else {
       const json = await res.json();
       setMsg(json.error || t("settings.savingError"));
@@ -477,6 +664,7 @@ function MoodLogCard() {
         );
         setMsgType("success");
         await refetchStatus();
+        queryClient.invalidateQueries({ queryKey: ["integrations", "status"] });
       } else {
         setMsg(t("settings.moodLogSyncFailed"));
         setMsgType("error");
@@ -494,6 +682,7 @@ function MoodLogCard() {
       setMsg(t("settings.moodLogDisconnected"));
       setMsgType("success");
       await refetchStatus();
+      queryClient.invalidateQueries({ queryKey: ["integrations", "status"] });
     }
   }
 
@@ -524,6 +713,8 @@ function MoodLogCard() {
       <p className="text-muted-foreground text-xs">
         {t("settings.moodLogDescription")}
       </p>
+
+      {statusBanner}
 
       <form onSubmit={handleSave} className="space-y-3">
         <div>
