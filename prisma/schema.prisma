@@ -78,6 +78,16 @@ model User {
 
   // Onboarding
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  // v1.4.15 Phase B5: tracks whether the user has finished (or
+  // explicitly dismissed) the spotlight tour that overlays the
+  // dashboard on first arrival. Distinct from the wizard at
+  // `/onboarding` (which is gated by `onboardingCompletedAt`); the
+  // tour runs *after* the wizard, on the dashboard itself, walking
+  // the user through the tile strip, quick-add menu, insights,
+  // integrations, and achievements. Default false; flipped to true
+  // on tour completion or dismiss; users can replay the tour from
+  // Settings → Account.
+  onboardingTourCompleted Boolean @default(false) @map("onboarding_tour_completed")
 
   // HealthKit (iOS) integration config — list of per-metric direction toggles.
   // Shape: { entries: [{ id, kind, direction, enabled }], lastSyncedAt }
