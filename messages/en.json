@@ -682,7 +682,13 @@
       "feedbackNotHelpful": "Not helpful",
       "feedbackThanks": "Thanks for your feedback",
       "feedbackConfirmed": "Feedback recorded",
-      "feedbackAlreadyRated": "Already rated"
+      "feedbackAlreadyRated": "Already rated",
+      "confidence": "Confidence",
+      "confidenceAria": "Confidence: {value} of 100",
+      "confidenceHigh": "High confidence",
+      "confidenceMedium": "Moderate confidence",
+      "confidenceLow": "Low confidence — based on limited data",
+      "confidenceDraft": "Draft"
     },
     "dataFoundation": "Data coverage",
     "dataGaps": "Data gaps:",

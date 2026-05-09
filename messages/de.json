@@ -682,7 +682,13 @@
       "feedbackNotHelpful": "Nicht hilfreich",
       "feedbackThanks": "Danke für dein Feedback",
       "feedbackConfirmed": "Feedback gespeichert",
-      "feedbackAlreadyRated": "Bereits bewertet"
+      "feedbackAlreadyRated": "Bereits bewertet",
+      "confidence": "Vertrauen",
+      "confidenceAria": "Vertrauen: {value} von 100",
+      "confidenceHigh": "Hohes Vertrauen",
+      "confidenceMedium": "Mittleres Vertrauen",
+      "confidenceLow": "Geringes Vertrauen — wenige Datenpunkte",
+      "confidenceDraft": "Entwurf"
     },
     "dataFoundation": "Datengrundlage",
     "dataGaps": "Datenlücken:",
