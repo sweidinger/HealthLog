@@ -1436,7 +1436,8 @@
     "activeTokens": "Active API Tokens",
     "activeSessions": "Active Sessions",
     "loadingStatus": "Loading status...",
-    "systemStatusLoadError": "Failed to load system status. Try refreshing the page.",
+    "systemStatusLoadError": "Failed to load system status.",
+    "systemStatusRetry": "Retry",
     "adminSettingsLoadError": "Failed to load admin settings. Toggles below may not reflect the live state — refresh the page.",
     "hostMetrics": {
       "title": "Host load",

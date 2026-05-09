@@ -13,9 +13,11 @@ import {
   Globe,
   Key,
   Loader2,
+  RotateCw,
   Server,
   Users,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { StatusItem, useSystemStatus } from "./_shared";
@@ -41,7 +43,7 @@ const HostMetricsChart = dynamic(
 export function SystemStatusSection() {
   const { t } = useTranslations();
   const fmt = useFormatters();
-  const { data: status, isError } = useSystemStatus();
+  const { data: status, isError, refetch, isFetching } = useSystemStatus();
 
   return (
     <div className="space-y-6">
@@ -164,11 +166,30 @@ export function SystemStatusSection() {
         // P19: surface load failures inline instead of leaving the
         // section spinning forever. The hook throws on non-OK
         // responses, so isError is true on 500s, network errors, etc.
+        // v1.4.16 Wave-C MED — pair the alert with a Retry button so a
+        // transient 500 (rolling deploy, DB blip) doesn't require a
+        // full page reload to recover.
         <div
           role="alert"
-          className="text-destructive bg-destructive/10 border-destructive/30 mt-4 rounded-md border px-3 py-2 text-sm"
+          className="text-destructive bg-destructive/10 border-destructive/30 mt-4 flex flex-col items-start gap-2 rounded-md border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
         >
-          {t("admin.systemStatusLoadError")}
+          <span>{t("admin.systemStatusLoadError")}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+            className="min-h-9"
+            data-testid="system-status-retry"
+          >
+            {isFetching ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RotateCw className="mr-1 h-3.5 w-3.5" />
+            )}
+            {t("admin.systemStatusRetry")}
+          </Button>
         </div>
       ) : (
         <div className="mt-4 flex items-center gap-2">
