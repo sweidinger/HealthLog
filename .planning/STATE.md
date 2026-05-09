@@ -79,8 +79,26 @@ Last update: 2026-05-09T16:10:00+02:00
 
 ## Phase 5 — UX polish
 
-- [ ] design-review walkthrough top-10 friction points
-- [ ] CRITICAL/HIGH triage
+- [x] /admin a11y reactivated — `e2e/a11y.spec.ts` now covers /admin,
+      /admin/system-status, /admin/users (no more `test.fixme`); fixed
+      duplicate `<PasswordInput>` no-aria-label, icon-only button-name
+      violations on /admin/users, empty `<dd>` on the audit-log card
+- [x] design-review walkthrough top-10 friction points filed at
+      `docs/audit/v15-ux-friction.md`
+- [x] CRITICAL/HIGH triage — 6 inline fixes; LOW items deferred to
+      v1.5.1 with backlog in the audit doc
+- [x] v1.4.6 deferred polish picked up:
+      - trend-arrow direction-as-good metric-aware (`directionSentiment`
+        prop, `up-good`/`up-bad`/`neutral`)
+      - "Remove saved AI key" button with AlertDialog confirmation
+      - semantic `--success`/`--warning`/`--info` tokens, migrated
+        feedback BUG / published badges, medication status, AI section
+        connection badges (charts untouched)
+- [x] +2 inline friction items: dashboard quick-add menu disambiguation
+      (`Add` collision from phase-3) and `/admin` overview nav landmark
+- Result: ok / commits `987ce0d 38f12df 788c8ad 569300e e3a6899
+  5ffe750 65cfb27` — `pnpm typecheck && pnpm lint && pnpm test` green
+  (97 files / 752 tests)
 - Detailed report: `.planning/phase-5-report.md`
 
 ## Phase 6 — Multi-agent QA (parallel)
@@ -116,9 +134,14 @@ Last update: 2026-05-09T16:10:00+02:00
 
 ## Phase 9 — Docs + landing sync
 
-- [ ] healthlog-docs updated to v1.5
-- [ ] healthlog-landing updated
-- [ ] both committed + pushed
+- [x] healthlog-docs updated to v1.5 — Codex device-code rewrite, new
+      Backups + Users admin sections, CODEX_MODEL env var, dashboard
+      perf note, Codex troubleshooting block (7 files)
+- [x] healthlog-landing updated — softwareVersion 1.4.6→1.5.0 in
+      JSON-LD, AI-providers copy mentions one-click device-code flow
+- [x] both committed + pushed (docs `95a3523`, landing `0c62bb2`)
+- Result: ok / docs `95a3523` + landing `0c62bb2` — Coolify
+  auto-redeploys docs.healthlog.dev on push
 - Detailed report: `.planning/phase-9-report.md`
 
 ## Phase 10 — Backfill GitHub releases v1.4.7-v1.4.13
