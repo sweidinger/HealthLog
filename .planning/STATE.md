@@ -392,10 +392,56 @@ sibling agent removed an unrelated unused-var).
 
 ### C2 — Auto-deployment
 
-- [ ] Coolify webhook on GHCR push (or watchtower equivalent)
-- [ ] Failure path: admin Telegram notify (if configured) + audit log entry
-- [ ] Test by tagging next release and watching auto-deploy fire
+- [x] Coolify webhook on GHCR push (`docker-publish.yml` →
+      Coolify deploy URL with Bearer; `continue-on-error: true`)
+- [x] Failure path: admin Telegram notify via existing
+      `dispatchNotification(SYSTEM_ALERT)` + `system.deploy.{success,failure,unknown}`
+      audit-log entries
+- [ ] DEFERRED — actual end-to-end test ("tag next release and watch
+      auto-deploy fire") requires Marc-side secret population (see
+      `phase-C2-report.md` "Marc-side follow-up"); code paths are
+      unit-tested
 - Detailed report: `.planning/phase-C2-report.md`
+- Audit deep-dive: `docs/audit/v1415-auto-deploy.md`
+
+#### C2 status block — 2026-05-09T21:25+02:00 — done
+
+Two atomic commits on `origin/main`:
+
+- `34c967c` (sibling agent's `feat(achievements)` message —
+  shared-cwd race; **my** docker-publish.yml + .env.example +
+  docs/audit/v1415-auto-deploy.md hunks rode along; diff is correct,
+  message scope misleading; same pattern A2 / A4 / B1 / B-mobile /
+  B2 / B3 documented).
+- `ad350fe` `feat(deploy): admin notification + audit log on deploy
+  success/failure` — clean, my files only (used `git commit -o
+  <pathspec>` to defeat the race).
+
+Investigation: Coolify `4.0.0-beta.470` running on `apps-01` exposes a
+Bearer-protected `GET /api/v1/deploy?uuid=…` endpoint. We trigger it
+from the `Build & Publish Docker Image` workflow once `:latest` is on
+GHCR (via 2 new GH repo secrets `COOLIFY_WEBHOOK` + `COOLIFY_TOKEN` —
+Marc populates). Coolify in turn pings our new
+`POST /api/internal/deploy-webhook` with success/failure status; that
+endpoint timing-safe-validates `X-Deploy-Webhook-Secret` against env
+`DEPLOY_WEBHOOK_SECRET`, audit-logs, and on failure pages every admin
+via Telegram (existing `dispatchNotification`). Watchtower rejected
+in favour of native Coolify path.
+
+Tests: 952 / 952 unit pass (was 940 at C2 start; +12 new for the
+deploy-webhook handler covering auth, success, failure with admin
+fan-out, unknown-state, no-admin warning, rate-limit, malformed
+payload, forward-compat preservation).
+
+Files committed (4): `.github/workflows/docker-publish.yml`,
+`.env.example`, `docs/audit/v1415-auto-deploy.md`,
+`src/app/api/internal/deploy-webhook/{route.ts,__tests__/route.test.ts}`.
+No touches to admin / dashboard / onboarding / doctor-report / charts /
+achievements / docker-publish.yml-from-C3 scope.
+
+Marc-side follow-up (4 manual steps tracked in
+`phase-C2-report.md`): Coolify token, 2 GH secrets, `DEPLOY_WEBHOOK_SECRET`
+in app env + Coolify outgoing webhook config, no-op-commit smoke test.
 
 ### C3 — CI/e2e reliability audit
 
