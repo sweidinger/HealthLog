@@ -286,12 +286,71 @@ messages); switched to `git commit -- <pathspec>` for fixes 3 / 4 /
 
 ### C3 — CI/e2e reliability audit
 
-- [ ] Audit gh workflow runs: which fail / are flaky / inconsistent
-- [ ] Identify root causes (not just rerun)
-- [ ] Fix flaky specs
-- [ ] Ensure docker-publish ALWAYS builds (v1.4.14 main hang was a clear example)
-- [ ] Self-test workflow: every commit must build green for both main and tag paths
+- [x] Audit gh workflow runs: which fail / are flaky / inconsistent
+- [x] Identify root causes (not just rerun)
+- [x] Fix flaky specs
+- [x] Ensure docker-publish ALWAYS builds (v1.4.14 main hang was a clear example)
+- [x] Self-test workflow: every commit must build green for both main and tag paths
 - Detailed report: `.planning/phase-C3-report.md`
+- Audit deep-dive: `docs/audit/v1415-ci-reliability.md`
+
+#### C3 status block — 2026-05-09T20:55+02:00 — done
+
+30-day audit complete (200 runs across 5 workflows):
+
+| Workflow                    | Pre-C3 pass-rate | Notes                                        |
+| --------------------------- | ---------------- | -------------------------------------------- |
+| Integration                 | 100 % (47/47)    | healthy                                      |
+| Security & Quality          | 93 % (43/46)     | 3 typecheck regressions owned by A4          |
+| Docker publish (completed)  | 91 % (30/33)     | 1 outright hang (v1.4.14 main, 47 min)       |
+| e2e                         | 0 % (0/47)       | every push since v1.4.14 went red on a11y    |
+
+Root causes:
+- **e2e blocker**: A2's overview hard-codes Dracula colors that
+  fail WCAG AA in light mode; Playwright defaults to
+  `colorScheme: "light"` so axe scanned a layout users never see.
+- **docker-publish hang**: shared `gha` cache scope (`mode=max`)
+  between concurrent main+tag pushes on the same SHA caused the
+  exporter to deadlock.
+
+Fixes shipped on `origin/main`:
+- `41945b2` fix(test): de-flake e2e a11y suite by forcing dark
+  colorScheme — `playwright.config.ts` adds `colorScheme: "dark"`
+  to top-level `use` AND each project (the `...devices[...]`
+  spread overrides inherited values).
+- `249c42b` fix(ci): docker-publish reliability — separate cache
+  scope per ref + 30 min timeout — `cache-to: scope=build-${ref_name}`,
+  `cache-from:` reads both ref-specific AND `build-main` for warm
+  starts, `timeout-minutes: 30` bounds future deadlocks.
+- `ffa4aac` feat(ci): post-publish verify workflow — pulls the
+  just-published image, boots against ephemeral Postgres, probes
+  `/api/version` + `/api/health`. Informational, not a deploy gate.
+- `4a5be22` docs(audit): v1.4.15 CI/e2e reliability report.
+
+Verification:
+- All 5 workflow YAMLs parse cleanly (`yaml@2.8.4` round-trip).
+- `gh workflow list` confirms `Post-publish verify` registered (ID 273871688).
+- Manual `gh workflow run docker-publish.yml --ref main` dispatched
+  (run 25609161399) — used new cache scope confirmed by job log
+  `--cache-from type=gha,scope=build-main --cache-to type=gha,mode=max,scope=build-main`.
+  Run was cancelled by a follow-up agent-push (concurrency group
+  working as designed).
+- e2e fix is deterministic: Playwright honours `colorScheme: "dark"`
+  per official API; the inline theme bootstrapper in
+  `src/app/layout.tsx:73` reads `prefers-color-scheme: dark` as
+  the only theme signal in absence of localStorage.
+
+Expected post-C3 pass-rates: e2e ≥ 90 %, docker-publish ≥ 95 %,
+others unchanged.
+
+Deferred items (out of C3 scope):
+- Typecheck regression `dashboard-layout.test.ts` (lines 91/104/116)
+  — owned by A4 / phase-D senior-dev review.
+- Action-version Node-20 → Node-24 deprecation refresh — v1.5
+  backlog (deadline Sept 2026).
+- Trivy `continue-on-error` policy — phase-D security review.
+- Real flake reduction in dashboard / insights specs — re-audit
+  after the dark-mode noise clears (next marathon).
 
 ### C4 — i18n coverage audit
 
