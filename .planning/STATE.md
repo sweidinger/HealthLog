@@ -1,7 +1,7 @@
 # v1.5 marathon — state log
 
-Status: phase-1-done
-Last update: 2026-05-09T15:50:00+02:00
+Status: phase-2-done
+Last update: 2026-05-09T16:10:00+02:00
 
 > Previous milestone: see `docs/audit/v146-summary.md` (v1.4.6 marathon).
 > Codex-OAuth iteration v1.4.7 → v1.4.13 landed in CHANGELOG between
@@ -28,13 +28,14 @@ Last update: 2026-05-09T15:50:00+02:00
 
 ## Phase 2 — v1.4.6 deferred backlog
 
-- [ ] T2.1 notification-channel scope of "Wipe all data"
-- [ ] T2.2 Berlin TZ DST math in cross-metric joins
-- [ ] T2.3 /api/insights/generate provider-error → 422/503
-- [ ] T2.4 status-card-grid test brittleness
-- [ ] T2.5 redactSecrets regex word-boundary
-- [ ] T2.6 Backups dedicated admin section
-- [ ] T2.7 /admin/users dedicated sub-route
+- [x] T2.1 notification-channel scope of "Wipe all data" — commit `512a6a6`
+- [x] T2.2 Berlin TZ DST math in cross-metric joins — commit `cb6a59a`
+- [x] T2.3 /api/insights/generate provider-error → 422/503 — commit `5403821`
+- [ ] T2.4 status-card-grid test brittleness — deferred to phase 4b
+- [x] T2.5 redactSecrets regex word-boundary — commit `d6696cf`
+- [ ] T2.6 Backups dedicated admin section — deferred to phase 4b
+- [ ] T2.7 /admin/users dedicated sub-route — deferred to phase 4b
+- Result: ok / commits `512a6a6 cb6a59a 5403821 d6696cf` (+ format sweep `6b88e56`)
 - Detailed report: `.planning/phase-2-report.md`
 
 ## Phase 3 — End-to-end test coverage
