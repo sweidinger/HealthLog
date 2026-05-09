@@ -169,7 +169,10 @@
     "sidebar": "Sidebar",
     "mainNavigation": "Main navigation",
     "mobileNavigation": "Mobile navigation",
-    "loadingScreen": "Loading…"
+    "loadingScreen": "Loading…",
+    "more": "More",
+    "moreSheetTitle": "More",
+    "moreSheetDescription": "Pages that don't fit the bottom bar."
   },
   "auth": {
     "login": "Sign in",

@@ -169,7 +169,10 @@
     "sidebar": "Sidebar",
     "mainNavigation": "Hauptnavigation",
     "mobileNavigation": "Mobile Navigation",
-    "loadingScreen": "Laden…"
+    "loadingScreen": "Laden…",
+    "more": "Mehr",
+    "moreSheetTitle": "Mehr",
+    "moreSheetDescription": "Seiten, die nicht in die untere Leiste passen."
   },
   "auth": {
     "login": "Anmelden",
