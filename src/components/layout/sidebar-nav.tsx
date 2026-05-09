@@ -15,6 +15,7 @@ import {
   MoreVertical,
   Pill,
   Settings,
+  Shield,
   Sun,
   Target,
   Trophy,
@@ -27,6 +28,7 @@ import { Logo } from "@/components/ui/logo";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { useTheme } from "@/components/providers";
 import { useTranslations } from "@/lib/i18n/context";
+import { ADMIN_SECTIONS } from "@/components/admin/admin-shell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -212,6 +214,9 @@ function SidebarUserSection({ collapsed }: { collapsed: boolean }) {
 export function SidebarNav() {
   const pathname = usePathname();
   const { t } = useTranslations();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const onAdminPage = pathname.startsWith("/admin");
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -387,6 +392,27 @@ export function SidebarNav() {
                   {t("nav.bugreport")}
                 </TooltipContent>
               </Tooltip>
+              {isAdmin && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="/admin"
+                      aria-current={onAdminPage ? "page" : undefined}
+                      className={cn(
+                        "flex items-center justify-center rounded-lg p-2.5 transition-colors",
+                        onAdminPage
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-accent",
+                      )}
+                    >
+                      <Shield className="h-4 w-4" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={8}>
+                    {t("nav.admin")}
+                  </TooltipContent>
+                </Tooltip>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link
@@ -424,6 +450,56 @@ export function SidebarNav() {
                 <Bug className="h-4 w-4" />
                 {t("nav.bugreport")}
               </Link>
+              {isAdmin && (
+                <>
+                  <Link
+                    href="/admin"
+                    aria-current={onAdminPage ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      onAdminPage
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground hover:bg-accent",
+                    )}
+                  >
+                    <Shield className="h-4 w-4" />
+                    {t("nav.admin")}
+                  </Link>
+                  {/* Expandable section list — only visible while
+                      navigating inside `/admin/*`. Mirrors the in-shell
+                      sidebar so the user can jump between sections from
+                      the global nav too. */}
+                  {onAdminPage && (
+                    <ul
+                      className="space-y-1 pl-3"
+                      aria-label={t("admin.shell.sectionsNav")}
+                    >
+                      {ADMIN_SECTIONS.map((section) => {
+                        const sectionPath = `/admin/${section.slug}`;
+                        const isActive = pathname.startsWith(sectionPath);
+                        const Icon = section.icon;
+                        return (
+                          <li key={section.slug}>
+                            <Link
+                              href={sectionPath}
+                              aria-current={isActive ? "page" : undefined}
+                              className={cn(
+                                "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+                                isActive
+                                  ? "bg-primary/10 text-primary"
+                                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                              )}
+                            >
+                              <Icon className="h-3.5 w-3.5" />
+                              {t(section.titleKey)}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
+              )}
               <Link
                 href="/settings/account"
                 aria-current={
