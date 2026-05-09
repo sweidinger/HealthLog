@@ -164,7 +164,7 @@ export function MedicationComplianceChart({
           {t("charts.noData")}
         </div>
       ) : (
-        <div className="h-[240px]">
+        <div className="h-[240px] touch-pan-y">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}

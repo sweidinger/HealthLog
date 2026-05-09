@@ -712,7 +712,7 @@ export function HealthChart({
             </div>
           ) : null}
 
-          <div className="relative z-10 h-full">
+          <div className="relative z-10 h-full touch-pan-y">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={chartData}

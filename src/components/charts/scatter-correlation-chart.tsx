@@ -83,58 +83,60 @@ export function ScatterCorrelationChart<T extends Record<string, number>>({
   height = 250,
 }: ScatterCorrelationChartProps<T>) {
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <ScatterChart margin={{ top: 10, right: 20, bottom: 36, left: 12 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis
-          dataKey={xAxis.dataKey}
-          type="number"
-          name={xAxis.name}
-          unit={xAxis.unit}
-          tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-          tickMargin={8}
-          height={52}
-          interval="preserveStartEnd"
-          padding={{ left: 8, right: 8 }}
-          stroke="var(--dracula-comment)"
-          domain={xAxis.domain}
-          ticks={xAxis.ticks}
-          tickFormatter={xAxis.tickFormatter}
-          label={
-            xAxis.label
-              ? {
-                  value: xAxis.label,
-                  position: "bottom",
-                  fontSize: 12,
-                  fill: "var(--dracula-comment)",
-                }
-              : undefined
-          }
-        />
-        <YAxis
-          dataKey={yAxis.dataKey}
-          type="number"
-          name={yAxis.name}
-          unit={yAxis.unit}
-          tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
-          stroke="var(--dracula-comment)"
-          domain={yAxis.domain}
-          ticks={yAxis.ticks}
-          tickFormatter={yAxis.tickFormatter}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            borderRadius: "0.5rem",
-            fontSize: "0.75rem",
-          }}
-          itemStyle={{ color: "var(--dracula-fg)" }}
-          labelStyle={{ color: "var(--dracula-fg)" }}
-          formatter={tooltipFormatter}
-        />
-        <Scatter data={data} fill={fill} opacity={0.8} />
-      </ScatterChart>
-    </ResponsiveContainer>
+    <div className="touch-pan-y" style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <ScatterChart margin={{ top: 10, right: 20, bottom: 36, left: 12 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <XAxis
+            dataKey={xAxis.dataKey}
+            type="number"
+            name={xAxis.name}
+            unit={xAxis.unit}
+            tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
+            tickMargin={8}
+            height={52}
+            interval="preserveStartEnd"
+            padding={{ left: 8, right: 8 }}
+            stroke="var(--dracula-comment)"
+            domain={xAxis.domain}
+            ticks={xAxis.ticks}
+            tickFormatter={xAxis.tickFormatter}
+            label={
+              xAxis.label
+                ? {
+                    value: xAxis.label,
+                    position: "bottom",
+                    fontSize: 12,
+                    fill: "var(--dracula-comment)",
+                  }
+                : undefined
+            }
+          />
+          <YAxis
+            dataKey={yAxis.dataKey}
+            type="number"
+            name={yAxis.name}
+            unit={yAxis.unit}
+            tick={{ fontSize: 12, fill: "var(--dracula-fg)" }}
+            stroke="var(--dracula-comment)"
+            domain={yAxis.domain}
+            ticks={yAxis.ticks}
+            tickFormatter={yAxis.tickFormatter}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "hsl(var(--card))",
+              border: "1px solid hsl(var(--border))",
+              borderRadius: "0.5rem",
+              fontSize: "0.75rem",
+            }}
+            itemStyle={{ color: "var(--dracula-fg)" }}
+            labelStyle={{ color: "var(--dracula-fg)" }}
+            formatter={tooltipFormatter}
+          />
+          <Scatter data={data} fill={fill} opacity={0.8} />
+        </ScatterChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

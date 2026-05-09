@@ -457,7 +457,7 @@ export function MoodChart({ title }: MoodChartProps) {
             {t("charts.noData")}
           </div>
         ) : (
-          <div className="h-[280px]">
+          <div className="h-[280px] touch-pan-y">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={chartData}

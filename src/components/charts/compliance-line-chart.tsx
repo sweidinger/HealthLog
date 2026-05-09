@@ -88,59 +88,61 @@ export function ComplianceLineChart({
           Keine Daten im gewählten Zeitraum
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={chartData}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--border)"
-              opacity={0.5}
-            />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              tickLine={false}
-              axisLine={false}
-              unit="%"
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "var(--card)",
-                border: "1px solid var(--border)",
-                borderRadius: "0.5rem",
-                fontSize: "0.875rem",
-              }}
-              formatter={(value) => [`${value}%`, "Compliance"]}
-            />
-            <ReferenceLine
-              y={80}
-              stroke="var(--dracula-green)"
-              strokeDasharray="5 5"
-              strokeOpacity={0.7}
-              label={{
-                value: "Ziel 80%",
-                position: "right",
-                fill: "var(--muted-foreground)",
-                fontSize: 10,
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="rate"
-              name="Compliance"
-              stroke="var(--dracula-purple)"
-              strokeWidth={2}
-              dot={{ r: 2, fill: "var(--dracula-purple)" }}
-              activeDot={{ r: 4 }}
-              connectNulls
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="touch-pan-y">
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={chartData}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="var(--border)"
+                opacity={0.5}
+              />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                domain={[0, 100]}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+                unit="%"
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "0.5rem",
+                  fontSize: "0.875rem",
+                }}
+                formatter={(value) => [`${value}%`, "Compliance"]}
+              />
+              <ReferenceLine
+                y={80}
+                stroke="var(--dracula-green)"
+                strokeDasharray="5 5"
+                strokeOpacity={0.7}
+                label={{
+                  value: "Ziel 80%",
+                  position: "right",
+                  fill: "var(--muted-foreground)",
+                  fontSize: 10,
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="rate"
+                name="Compliance"
+                stroke="var(--dracula-purple)"
+                strokeWidth={2}
+                dot={{ r: 2, fill: "var(--dracula-purple)" }}
+                activeDot={{ r: 4 }}
+                connectNulls
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       )}
     </div>
   );
