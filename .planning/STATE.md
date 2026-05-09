@@ -213,10 +213,41 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B5d — Confidence Score per Recommendation
 
-- [ ] Each rec carries a 0-100 confidence score derived from: data sufficiency (n samples), recency, signal strength
-- [ ] UI: visual confidence indicator (e.g., color-coded ring or 5-bar meter) per rec
-- [ ] Below-threshold recs are tagged "Low confidence — based on limited data" rather than hidden
+- [x] Each rec carries a 0-100 confidence score derived from: data sufficiency (n samples), recency, signal strength
+- [x] UI: visual confidence indicator (e.g., color-coded ring or 5-bar meter) per rec
+- [x] Below-threshold recs are tagged "Low confidence — based on limited data" rather than hidden
 - Detailed report: `.planning/phase-B5d-report.md`
+- Commits on origin/main:
+  - `0cb0373 feat(ai): deterministic confidence-score computation per recommendation`
+  - `af21d4d feat(ai): wrapper overrides recommendation confidence with deterministic computation`
+  - `7ec1030 feat(insights): ConfidenceMeter component (bars + ring + draft pill below 25)`
+  - `63cfd8e feat(insights): RecommendationCard renders ConfidenceMeter in named slot`
+  - `d343ab5 test(insights): coverage for confidence computation + meter rendering`
+  - `173c3e1 test(insights): rec-card-confidence test plays nice with B5e thumbs`
+- Status block — 2026-05-10T01:40+02:00: B5d complete on origin/main.
+  6 atomic TDD-first commits, +48 net tests (15 confidence + 8 schema +
+  6 wrapper + 17 meter + 8 rec-card-wiring + 2 integration − 8 fixture
+  updates). Full suite 1457/1457, integration 59/59, typecheck 0
+  errors, lint 12 pre-existing warnings. New `src/lib/ai/confidence.ts`
+  exposes pure `computeConfidence({ n, recencyDays, deviationStdRatio })`
+  returning 0..100 (log-saturating n curve, capped at 40, n<3 hard-cap
+  5*n; linear recency decay 30→0 over 30d; signal contribution 30 at
+  |z|≥1.5, null → neutral 15). `generateInsight()` post-validation step
+  OVERRIDES `rec.confidence` deterministically — model's claimed value
+  is discarded per research §7 Q1 (Marc-acked). Optional
+  `confidenceContext` resolver param lets a future route-layer wiring
+  feed bucket-series-aware inputs; default fallback is
+  `{ n: metricSource.n ?? 0, recencyDays: 0, deviationStdRatio: null }`
+  so the override fires regardless. Wide-Event annotation
+  `ai_confidence_override_pairs` carries per-rec `{id, model, computed}`
+  for admin observability. New `<ConfidenceMeter>` (bars + ring + draft
+  pill <25) with EN/DE i18n + a11y aria-label. Cross-agent race with
+  parallel B5e: 2 clean rebases (messages keep-both, rec-card keep-both)
+  + 1 fixup commit to add the same useAuth/useMutation SSR mocks the
+  existing rec-card test file carries (needed because B5e wired
+  RecommendationFeedback into the same component while we both ran).
+  Worktree-isolated under `agent/b5d-confidence`. Bucket-series-aware
+  resolver wiring + schema flip-to-required deferred to v1.4.17.
 
 ### B5e — User-Feedback Loop
 
