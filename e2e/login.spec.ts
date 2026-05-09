@@ -15,7 +15,9 @@ async function openPasswordForm(page: import("@playwright/test").Page) {
   // mounted only after clicking the "Login with password" / "Mit
   // Passwort anmelden" outline button.
   await page
-    .getByRole("button", { name: /login with password|mit passwort/i })
+    .getByRole("button", {
+      name: /sign in with password|login with password|mit passwort/i,
+    })
     .click();
 }
 
@@ -56,7 +58,13 @@ test.describe("login page", () => {
       }),
     );
 
-    await page.getByRole("button", { name: /login|anmelden|sign in/i }).click();
+    // The form has multiple buttons matching /sign in/ — both the
+    // passkey CTA and the password submit. Filter to the submit button
+    // so the click lands on the right one.
+    await page
+      .locator('button[type="submit"]')
+      .filter({ hasText: /login|anmelden|sign in/i })
+      .click();
 
     await expect(
       page.getByText(/invalid credentials|ungültig|falsch/i),
