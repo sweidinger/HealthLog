@@ -153,9 +153,88 @@ export function UserManagementSection() {
     setResetMsg(null);
   }
 
+  /**
+   * Action buttons are reused for both the desktop-table (cramped) row
+   * and the mobile-card layout. Pulling them into a single helper keeps
+   * the two layouts in lock-step — when we add a new admin action we
+   * never have to remember to add it to both.
+   */
+  const renderUserActions = (u: AdminUser) => (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="min-h-11 min-w-11 px-3 text-xs"
+        onClick={() =>
+          updateUser.mutate({
+            id: u.id,
+            data: {
+              role: u.role === "ADMIN" ? "USER" : "ADMIN",
+            },
+          })
+        }
+        disabled={u.id === currentUserId}
+        title={
+          u.id === currentUserId
+            ? t("admin.ownRoleUnchangeable")
+            : u.role === "ADMIN"
+              ? t("admin.demoteToUser")
+              : t("admin.promoteToAdmin")
+        }
+      >
+        <Shield className="mr-1 h-3 w-3" aria-hidden="true" />
+        {u.role === "ADMIN" ? t("admin.toUser") : t("admin.toAdmin")}
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="min-h-11 min-w-11 px-2 text-xs"
+        onClick={() => startEdit(u)}
+        title={t("admin.editUser")}
+        aria-label={t("admin.editUser")}
+      >
+        <Pencil className="h-3 w-3" aria-hidden="true" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="min-h-11 min-w-11 px-2 text-xs"
+        onClick={() => startReset(u)}
+        title={t("admin.resetPassword")}
+        aria-label={t("admin.resetPassword")}
+      >
+        <KeyRound className="h-3 w-3" aria-hidden="true" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-destructive hover:text-destructive min-h-11 min-w-11 px-2 text-xs"
+        onClick={() => setLogoutTarget(u)}
+        disabled={u.id === currentUserId}
+        title={
+          u.id === currentUserId
+            ? t("admin.section.users.cannotLogoutSelf")
+            : t("admin.section.users.forceLogout")
+        }
+        aria-label={
+          u.id === currentUserId
+            ? t("admin.section.users.cannotLogoutSelf")
+            : t("admin.section.users.forceLogout")
+        }
+      >
+        <LogOut className="h-3 w-3" aria-hidden="true" />
+      </Button>
+    </>
+  );
+
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex items-center justify-between gap-2">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      {/* Header: stacks vertically on mobile so the filter pills get
+          their own row instead of overlapping the title. The audit
+          flagged this as CRITICAL #2 — at 393px the filter row was
+          colliding with the count Badge and the user-count digit was
+          floating into the title's gap. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
         <div className="flex items-center gap-2">
           <Users className="text-primary h-5 w-5" />
           <div className="text-lg font-semibold">
@@ -192,123 +271,107 @@ export function UserManagementSection() {
       </div>
 
       {filteredUsers ? (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-muted-foreground border-b text-xs">
-                <th className="px-3 py-2 text-left font-medium">
-                  {t("admin.users")}
-                </th>
-                <th className="px-3 py-2 text-left font-medium">
-                  {t("admin.userEmail")}
-                </th>
-                <th className="px-3 py-2 text-center font-medium">
-                  {t("admin.userRole")}
-                </th>
-                <th className="px-3 py-2 text-center font-medium">
-                  {t("admin.userPasskeys")}
-                </th>
-                <th className="px-3 py-2 text-right font-medium">
-                  {t("admin.userCreated")}
-                </th>
-                <th className="px-3 py-2 text-right font-medium">
-                  {t("admin.userActions")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {filteredUsers.map((u, i) => (
-                <tr key={u.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
-                  <td className="px-3 py-2 font-medium">{u.username}</td>
-                  <td className="text-muted-foreground px-3 py-2 text-xs">
-                    {u.email || "—"}
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <Badge
-                      variant={u.role === "ADMIN" ? "default" : "secondary"}
-                      className="text-xs"
-                    >
-                      {u.role}
-                    </Badge>
-                  </td>
-                  <td className="px-3 py-2 text-center">{u.passkeyCount}</td>
-                  <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
-                    {formatDate(u.createdAt)}
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="min-h-11 min-w-11 px-3 text-xs"
-                        onClick={() =>
-                          updateUser.mutate({
-                            id: u.id,
-                            data: {
-                              role: u.role === "ADMIN" ? "USER" : "ADMIN",
-                            },
-                          })
-                        }
-                        disabled={u.id === currentUserId}
-                        title={
-                          u.id === currentUserId
-                            ? t("admin.ownRoleUnchangeable")
-                            : u.role === "ADMIN"
-                              ? t("admin.demoteToUser")
-                              : t("admin.promoteToAdmin")
-                        }
-                      >
-                        <Shield className="mr-1 h-3 w-3" aria-hidden="true" />
-                        {u.role === "ADMIN"
-                          ? t("admin.toUser")
-                          : t("admin.toAdmin")}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="min-h-11 min-w-11 px-2 text-xs"
-                        onClick={() => startEdit(u)}
-                        title={t("admin.editUser")}
-                        aria-label={t("admin.editUser")}
-                      >
-                        <Pencil className="h-3 w-3" aria-hidden="true" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="min-h-11 min-w-11 px-2 text-xs"
-                        onClick={() => startReset(u)}
-                        title={t("admin.resetPassword")}
-                        aria-label={t("admin.resetPassword")}
-                      >
-                        <KeyRound className="h-3 w-3" aria-hidden="true" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive min-h-11 min-w-11 px-2 text-xs"
-                        onClick={() => setLogoutTarget(u)}
-                        disabled={u.id === currentUserId}
-                        title={
-                          u.id === currentUserId
-                            ? t("admin.section.users.cannotLogoutSelf")
-                            : t("admin.section.users.forceLogout")
-                        }
-                        aria-label={
-                          u.id === currentUserId
-                            ? t("admin.section.users.cannotLogoutSelf")
-                            : t("admin.section.users.forceLogout")
-                        }
-                      >
-                        <LogOut className="h-3 w-3" aria-hidden="true" />
-                      </Button>
-                    </div>
-                  </td>
+        <>
+          {/* Desktop table: kept verbatim — only the wrapping
+              `md:block hidden` swaps it out for the card-list below at
+              `< md`. Hiding the table-only wrapper (instead of just
+              the cells) saves DOM weight on mobile too. */}
+          <div className="mt-4 hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-muted-foreground border-b text-xs">
+                  <th className="px-3 py-2 text-left font-medium">
+                    {t("admin.users")}
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium">
+                    {t("admin.userEmail")}
+                  </th>
+                  <th className="px-3 py-2 text-center font-medium">
+                    {t("admin.userRole")}
+                  </th>
+                  <th className="px-3 py-2 text-center font-medium">
+                    {t("admin.userPasskeys")}
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    {t("admin.userCreated")}
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    {t("admin.userActions")}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-border divide-y">
+                {filteredUsers.map((u, i) => (
+                  <tr key={u.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="px-3 py-2 font-medium">{u.username}</td>
+                    <td className="text-muted-foreground px-3 py-2 text-xs">
+                      {u.email || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <Badge
+                        variant={u.role === "ADMIN" ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {u.role}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {u.passkeyCount}
+                    </td>
+                    <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                      {formatDate(u.createdAt)}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {renderUserActions(u)}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile card list: each user renders as a self-contained
+              card with the meta line + a flex-wrapping action row.
+              All four actions stay visible and tap-targetable; nothing
+              is hidden behind a horizontal scroll. */}
+          <ul
+            className="mt-4 space-y-2 md:hidden"
+            data-testid="admin-users-mobile-list"
+          >
+            {filteredUsers.map((u) => (
+              <li
+                key={u.id}
+                className="bg-muted/30 border-border rounded-lg border p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate font-medium">{u.username}</span>
+                      <Badge
+                        variant={u.role === "ADMIN" ? "default" : "secondary"}
+                        className="text-[10px]"
+                      >
+                        {u.role}
+                      </Badge>
+                    </div>
+                    <p className="text-muted-foreground truncate text-xs">
+                      {u.email || "—"}
+                    </p>
+                    <p className="text-muted-foreground text-[11px]">
+                      {t("admin.userPasskeys")}: {u.passkeyCount} ·{" "}
+                      {formatDate(u.createdAt)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1">
+                  {renderUserActions(u)}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : (
         <div className="mt-4 flex items-center gap-2">
           <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />

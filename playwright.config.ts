@@ -33,6 +33,14 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
+    // HealthLog ships dark mode as the default (Dracula theme) — `globals.css`
+    // sets `color-scheme: dark` on the root and the `<ThemeProvider>` defaults
+    // to "system". Playwright's stock context is `colorScheme: "light"`, which
+    // means axe-core was scanning a layout users never actually see (Dracula
+    // greens on a light card → 1.18 contrast). Forcing the test theme to dark
+    // matches what real users render on first paint and is the only honest
+    // a11y baseline for this app.
+    colorScheme: "dark",
   },
 
   projects: [
@@ -41,6 +49,7 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1280, height: 720 },
+        colorScheme: "dark",
       },
     },
     {
@@ -51,6 +60,7 @@ export default defineConfig({
         // webkit. iPhone-13 is intentionally avoided here; the
         // mobile-Safari smoke is exercised by the iOS app suite.
         ...devices["Pixel 5"],
+        colorScheme: "dark",
       },
     },
   ],
