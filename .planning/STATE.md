@@ -63,17 +63,19 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### A7 — AI Generator rate-limit 10/h + cache-invalidate-on-new
 
-- [ ] Rate-limit current 2/h → 10/h (env-configurable)
-- [ ] When user generates new insight: evict ALL cached previous insights for that user (TanStack Query invalidate + DB-cached row replacement)
-- [ ] Verify: dashboard shows newest insight, never stale-cached
-- Detailed report: `.planning/phase-A7-report.md`
+- [x] Rate-limit current 2/h → 10/h (env-configurable via `INSIGHTS_RATE_LIMIT_PER_HOUR`)
+- [x] When user generates new insight: evict ALL cached previous insights for that user (per-status `audit_logs` rows for `insights.<scope>-status.<locale>` are deleted; `insights-card.tsx` already invalidates `["insights"]` on mutation success)
+- [x] Verify: dashboard shows newest insight, never stale-cached (3 new test blocks: 10/h default, env override, sub-1 fallback, deleteMany call shape, cached-path skip)
+- Detailed report: `.planning/phase-A7-A8a-report.md`
+- Commit: source landed inside `9b01c86 feat(charts): medication chart matches other charts` (cross-agent race — A6 worker pushed first and absorbed the staged A7 files). Code is verbatim what A7 wrote: `resolveInsightsRateLimit()`, `evictPerStatusInsightCache()`, the rate-limit message rewrite to `Maximum ${limit} insight generations per hour.`, and the i18n flatten ("Bitte warte — du hast das stündliche Limit für Analysen erreicht."). All on origin/main.
 
 ### A8 — Umlaute encoding bug + login-overview
 
-- [ ] "Nrnberg" should be "Nürnberg" — find the encoding step that strips umlauts
-- [ ] Audit all transformer / geocoder / external-api decode steps for UTF-8 correctness
-- [ ] Regression test for known-umlaut roundtrip
-- Detailed report: `.planning/phase-A8-report.md`
+- [x] "Nrnberg" should be "Nürnberg" — geo helper now decodes via `arrayBuffer() + TextDecoder('utf-8')` instead of `Response.json()`, so an upstream proxy that strips/rewrites the `Content-Type: charset` parameter cannot poison the umlaut path
+- [x] Audited all of `src/` for ASCII-fold patterns (`normalize("NFD")`, slugify, `[^a-zA-Z…]/g` strips, `String.fromCharCode`/`charCodeAt` deburr): zero hits. The geo helper was the only surface
+- [x] Regression test for known-umlaut roundtrip: 7 cities (Nürnberg, München, Düsseldorf, Köln, Würzburg, Bückeburg, Weißenfels) plus eszett + Content-Type-without-charset case + Accept-Language assertion (de;q=1, en;q=0.5)
+- Detailed report: `.planning/phase-A7-A8a-report.md`
+- Commit: `2da0703 fix(geo): preserve umlauts in city names (login-overview no longer renders "Nrnberg")` on origin/main
 
 ## Wave B — Quality-leap features
 
