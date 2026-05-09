@@ -219,12 +219,19 @@ export function withIdempotency<
 
     if (isCachableStatus(response.status)) {
       // Defence-in-depth: never persist a body that carries a freshly-issued
-      // bearer or refresh token. Auth routes shouldn't be wrapped in
-      // withIdempotency to begin with, but if a future caller forgets we
-      // refuse to leak. `hlk_` = access tokens, `hlr_` = refresh tokens.
+      // bearer / refresh token or a third-party AI provider key. Auth and
+      // settings routes shouldn't be wrapped in withIdempotency to begin
+      // with, but if a future caller forgets we refuse to leak.
+      //   `hlk_`    = our access tokens
+      //   `hlr_`    = our refresh tokens
+      //   `sk-`     = OpenAI keys (also matches `sk-ant-` Anthropic keys)
       const cloned = response.clone();
       const text = await cloned.text();
-      if (!text.includes("hlk_") && !text.includes("hlr_")) {
+      if (
+        !text.includes("hlk_") &&
+        !text.includes("hlr_") &&
+        !text.includes("sk-")
+      ) {
         await persistCached(ctx, response, text);
       }
     }

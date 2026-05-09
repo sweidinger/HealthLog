@@ -270,6 +270,47 @@ describe("defaultUserIdResolver (audit C-4)", () => {
   });
 });
 
+// P12: bodies that contain a freshly-issued bearer token, refresh token,
+// or third-party AI provider key must NEVER be persisted to the
+// idempotency cache. Even if a future caller forgets and wraps an
+// auth/settings route in withIdempotency, the body-content guard refuses
+// to write the secret into the DB.
+describe("withIdempotency body-content exclusion (P12)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(prisma.idempotencyKey.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.idempotencyKey.create).mockResolvedValue({} as never);
+  });
+
+  it.each([
+    ["hlk_ access token", '{"data":{"token":"hlk_abc123"},"error":null}'],
+    ["hlr_ refresh token", '{"data":{"refresh":"hlr_xyz789"},"error":null}'],
+    ["sk- OpenAI key", '{"data":{"echoed":"sk-1234567890"},"error":null}'],
+    [
+      "sk-ant- Anthropic key",
+      '{"data":{"echoed":"sk-ant-api03-xyz"},"error":null}',
+    ],
+  ])("does NOT cache responses containing %s", async (_label, body) => {
+    const handler = vi.fn(
+      async () => new NextResponse(body, { status: 201 }),
+    );
+    const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
+    await wrapped(makeRequest("POST", { "idempotency-key": "abc-12345678" }));
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(prisma.idempotencyKey.create).not.toHaveBeenCalled();
+  });
+
+  it("still caches a normal payload that does not carry a secret", async () => {
+    const handler = vi.fn(
+      async () =>
+        new NextResponse('{"data":{"id":"m-1"},"error":null}', { status: 201 }),
+    );
+    const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
+    await wrapped(makeRequest("POST", { "idempotency-key": "abc-12345678" }));
+    expect(prisma.idempotencyKey.create).toHaveBeenCalledTimes(1);
+  });
+});
+
 // V3 audit STILL-V2-NEW: the cachable-status filter (do-not-cache for
 // 401/403/408/429/5xx) had zero tests, so a regression that re-cached an
 // expired bearer token's 401 would have been silent.
