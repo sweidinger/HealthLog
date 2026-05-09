@@ -383,29 +383,36 @@ export function MoodList() {
               </Table>
             </div>
 
-            {/* Mobile list */}
+            {/* Mobile list — v1.4.15 phase-A3 fix #2: previously the row
+                rendered the score TWICE on mobile (the big number in the
+                left badge AND a duplicate in the title line: "2 (schlecht)").
+                Desktop's table version only ever showed one. The badge is
+                the visual anchor; next to it the user wants the textual
+                label, not a second copy of the digit. The
+                `data-testid="mood-row"` hook is what the Playwright Pixel-5
+                guard at `e2e/mood-card-mobile.spec.ts` queries to assert
+                "exactly one occurrence of the score per row". */}
             <div className="space-y-2 md:hidden">
               {data.entries.map((entry) => (
                 <div
                   key={entry.id}
+                  data-testid="mood-row"
                   className="bg-card border-border flex items-center justify-between rounded-lg border p-3"
                 >
                   <div className="flex items-center gap-2.5 overflow-hidden">
                     <div className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
-                      <span className="text-lg font-bold tabular-nums">
+                      <span
+                        data-testid="mood-row-score"
+                        className="text-lg font-bold tabular-nums"
+                      >
                         {entry.score}
                       </span>
                     </div>
                     <div className="min-w-0">
-                      <span className="text-sm font-semibold tabular-nums">
-                        {entry.score}{" "}
-                        <span className="text-muted-foreground font-normal">
-                          (
-                          {MOOD_LABEL_KEYS[entry.mood]
-                            ? t(MOOD_LABEL_KEYS[entry.mood])
-                            : entry.mood}
-                          )
-                        </span>
+                      <span className="text-sm font-semibold">
+                        {MOOD_LABEL_KEYS[entry.mood]
+                          ? t(MOOD_LABEL_KEYS[entry.mood])
+                          : entry.mood}
                       </span>
                       <p className="text-muted-foreground truncate text-xs">
                         {formatDateTime(entry.moodLoggedAt)}
