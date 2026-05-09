@@ -11,6 +11,29 @@ vi.mock("@/components/charts/mood-chart", () => ({
   MoodChart: () => <div data-testid="mood-chart-mock" />,
 }));
 
+// B5e wired RecommendationFeedback into the rec card; that component
+// pulls in useAuth + useMutation from tanstack-query, both of which
+// need stubbing for SSR rendering in tests.
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: () => ({ data: null, isLoading: false }),
+  useMutation: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+  }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}));
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { id: "test-user", username: "tester", role: "USER" },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+}));
+
 /**
  * v1.4.16 phase B5d — confidence meter wiring inside
  * `<RecommendationCard>`.
@@ -126,7 +149,7 @@ describe("<RecommendationCard> — confidence slot wiring", () => {
     expect(html).toMatch(/Geringes Vertrauen/);
   });
 
-  it("does NOT touch rec-feedback-slot (owned by B5e)", () => {
+  it("rec-feedback-slot is still rendered (B5e plug-in point intact)", () => {
     const html = render(
       <RecommendationCard
         rec={{ ...recBase, confidence: 85 }}
@@ -134,8 +157,10 @@ describe("<RecommendationCard> — confidence slot wiring", () => {
         initiallyExpanded
       />,
     );
-    // The feedback slot is still present, but B5d must not have
-    // injected anything into it.
-    expect(html).toMatch(/data-slot="rec-feedback-slot"[^>]*>\s*<\/div>/);
+    // The feedback slot itself is present so B5e (or future phases)
+    // can plug in. We don't assert anything about its contents
+    // because B5e fills it with the thumbs component on its own
+    // surface.
+    expect(html).toMatch(/data-slot="rec-feedback-slot"/);
   });
 });
