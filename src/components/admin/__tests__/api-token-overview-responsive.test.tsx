@@ -2,17 +2,18 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 /**
- * v1.4.15 phase A2 — `/admin/api-tokens` table responsive guard.
+ * v1.4.16 phase A3 — `/admin/api-tokens` no horizontal overflow on
+ * Pixel-5-class viewports (393 CSS px).
  *
- * The token table previously rendered six full-width columns at every
- * breakpoint. On Pixel-5-class viewports (360 CSS px) the row exceeded
- * the card and forced the document itself to scroll horizontally. The
- * fix hides three lower-priority columns (user, last-used, created)
- * until `sm:`/`md:` and surfaces the user inline under the token name
- * on mobile so no data is lost.
- *
- * This test asserts the responsive classes are present in the rendered
- * markup so a future refactor can't silently drop them.
+ * The v1.4.15 fix tried hiding columns + tightening padding, but a
+ * scrollbar still showed up because the wrapper kept `overflow-x-auto`
+ * on mobile and content like long permission badges or token names
+ * could exceed the available width. v1.4.16 mirrors the
+ * `<UserManagementSection>` pattern: the desktop `<table>` is gated
+ * behind `hidden md:block` and a real card-list renders at <md. No
+ * `overflow-x-auto` on mobile — every cell wraps within the card,
+ * `break-all` on the name + permission badges, and the document never
+ * grows wider than the viewport.
  */
 
 vi.mock("next/navigation", () => ({
@@ -75,41 +76,65 @@ function render() {
 }
 
 describe("ApiTokenOverviewSection — responsive", () => {
-  it("wraps the table in an overflow-x-auto container", () => {
+  it("hides the desktop table on mobile (<md) via hidden md:block", () => {
     const html = render();
-    expect(html).toContain("overflow-x-auto");
+    // The desktop table wrapper carries `hidden md:block` so the
+    // <table> never paints (and never tries to scroll) on phones.
+    expect(html).toMatch(/<div[^>]*\bhidden\b[^>]*md:block[^>]*>[\s\S]*<table/);
   });
 
-  it("hides the user column until sm:", () => {
+  it("renders a mobile card-list at <md (md:hidden)", () => {
     const html = render();
-    // <th> for user column carries the hidden-then-table-cell pattern.
-    expect(html).toMatch(/<th[^>]*hidden[^>]*sm:table-cell[^>]*>/);
+    // The mobile fallback is a <ul> tagged with `md:hidden` and a
+    // stable test id. Mirrors `<UserManagementSection>`'s pattern.
+    expect(html).toContain('data-testid="admin-tokens-mobile-list"');
+    expect(html).toMatch(/<ul[^>]*md:hidden/);
   });
 
-  it("hides the last-used and created columns until md:", () => {
+  it("mobile card-list has no overflow-x-auto wrapper", () => {
     const html = render();
-    // Both columns share the same md: pattern; expect at least two
-    // matches (one per column).
-    const matches = html.match(/hidden[^"]*md:table-cell/g) ?? [];
-    expect(matches.length).toBeGreaterThanOrEqual(2);
+    // Mobile cards must let content wrap within the card rather than
+    // forcing a scroll container — that was the v1.4.15 bug Marc
+    // re-reported. Confirm there's no overflow-x-auto INSIDE the
+    // mobile <ul>.
+    const mobileMatch = html.match(
+      /<ul[^>]*md:hidden[^>]*>([\s\S]*?)<\/ul>/,
+    );
+    expect(mobileMatch).not.toBeNull();
+    expect(mobileMatch![1]).not.toContain("overflow-x-auto");
   });
 
-  it("surfaces the username inline under the token name on mobile", () => {
+  it("surfaces the username, permissions, status, last-used, and created on mobile cards", () => {
     const html = render();
-    // The mobile-only fallback span carries `sm:hidden` and the
-    // username text. Without it, hiding the user column would lose
-    // information on phones.
-    expect(html).toContain("sm:hidden");
-    // Username appears twice: once in the hidden user column TD, once
-    // in the inline mobile fallback span.
-    const userOccurrences = (html.match(/marc/g) ?? []).length;
-    expect(userOccurrences).toBeGreaterThanOrEqual(2);
+    // All data points the desktop table shows must also appear in the
+    // mobile cards. Token name + username + a permission badge + the
+    // last-used/created labels are all present.
+    expect(html).toContain("marc"); // username
+    expect(html).toContain("iOS app"); // token name
+    expect(html).toMatch(/\*/); // permission badge content
   });
 
   it("uses a smaller card padding on mobile (p-4 sm:p-6)", () => {
     const html = render();
     // The card root carries the responsive padding to leave more room
-    // for the table within a 360 CSS-px viewport.
+    // for content within a 393 CSS-px viewport.
     expect(html).toMatch(/class="[^"]*\bp-4\b[^"]*sm:p-6/);
+  });
+
+  it("mobile timestamp lines wrap (no nowrap on the meta paragraphs)", () => {
+    const html = render();
+    const mobileMatch = html.match(
+      /<ul[^>]*md:hidden[^>]*>([\s\S]*?)<\/ul>/,
+    );
+    expect(mobileMatch).not.toBeNull();
+    // The Last-used + Created lines use <p class="text-[11px]…"> — no
+    // whitespace-nowrap so a long German date+time can flow onto a
+    // second line within the card. The shadcn `<Badge>` primitive
+    // does carry `whitespace-nowrap`, which is fine for the short
+    // permission strings we render — those are scoped to a flex-wrap
+    // container that line-breaks at the badge boundary.
+    expect(mobileMatch![1]).toMatch(
+      /<p[^>]*text-\[11px\][^>]*>(?![^<]*whitespace-nowrap)/,
+    );
   });
 });
