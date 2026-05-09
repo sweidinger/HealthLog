@@ -972,7 +972,7 @@
     "sections": {
       "account": {
         "title": "Konto",
-        "description": "Profil, Anmeldemethoden und Konto-Löschung."
+        "description": "Profil, Passwort, Passkeys und deine Onboarding-Tour."
       },
       "integrations": {
         "title": "Integrationen",
@@ -996,11 +996,11 @@
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Bearer-Tokens für Drittanbieter-Clients."
+        "description": "Bearer-Tokens für eigene Skripte und Apps — erfasse Messwerte oder Einnahmen von überall."
       },
       "advanced": {
         "title": "Erweitert",
-        "description": "Import, Daten löschen."
+        "description": "Account-weiter Notausgang — unwiderruflich alle Gesundheitsdaten löschen, Account bleibt erhalten."
       },
       "export": {
         "title": "Export",

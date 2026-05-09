@@ -972,7 +972,7 @@
     "sections": {
       "account": {
         "title": "Account",
-        "description": "Profile, sign-in methods, and account deletion."
+        "description": "Profile, password, passkeys, and your onboarding tour."
       },
       "integrations": {
         "title": "Integrations",
@@ -996,11 +996,11 @@
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Bearer tokens for headless clients."
+        "description": "Bearer tokens for your own scripts and apps — log measurements or medication intake from anywhere."
       },
       "advanced": {
         "title": "Advanced",
-        "description": "Import, danger zone."
+        "description": "Account-wide danger zone — irreversibly wipe every health record while keeping your account."
       },
       "export": {
         "title": "Export",

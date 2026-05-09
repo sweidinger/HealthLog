@@ -11,7 +11,7 @@ import { ExportSection } from "@/components/settings/export-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
-import { ThresholdsSettingsSection } from "@/components/settings/thresholds-settings-section";
+import { ThresholdsSection } from "@/components/settings/thresholds-section";
 import {
   SETTINGS_SECTION_SLUGS,
   isSettingsSectionSlug,
@@ -44,7 +44,7 @@ const SECTION_COMPONENTS: Record<
   integrations: IntegrationsSection,
   notifications: NotificationsSection,
   dashboard: DashboardSection,
-  thresholds: ThresholdsSettingsSection,
+  thresholds: ThresholdsSection,
   api: ApiSection,
   export: ExportSection,
   advanced: AdvancedSection,

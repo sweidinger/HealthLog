@@ -67,8 +67,14 @@ vi.mock("@/hooks/use-auth", () => ({
 vi.mock("@/components/settings/dashboard-layout-section", () => ({
   DashboardLayoutSection: () => <div data-testid="dashboard-layout" />,
 }));
-vi.mock("@/components/settings/thresholds-section", () => ({
-  ThresholdsSection: () => <div data-testid="thresholds" />,
+// v1.4.16 phase B6: the inner editor moved from `thresholds-section.tsx` to
+// `thresholds-editor-section.tsx` so the route-level wrapper can claim the
+// canonical `<slug>-section.tsx` filename. The wrapper itself is now
+// `<ThresholdsSection>`. This stub mocks the inner editor so the
+// SSR smoke test for `<DashboardSection>` (which never imports thresholds)
+// stays unaffected.
+vi.mock("@/components/settings/thresholds-editor-section", () => ({
+  ThresholdsEditorSection: () => <div data-testid="thresholds-editor" />,
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
