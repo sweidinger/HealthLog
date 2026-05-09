@@ -16,10 +16,16 @@ import { SystemStatusSection } from "@/components/admin/system-status-section";
 import { UmamiSection } from "@/components/admin/umami-section";
 import { UserManagementSection } from "@/components/admin/user-management-section";
 import { WebPushVapidSection } from "@/components/admin/web-push-vapid-section";
+import { useAdminSettings } from "@/components/admin/_shared";
 
 export default function AdminPage() {
   const { user } = useAuth();
   const { t } = useTranslations();
+  // P19: surface admin-settings fetch failures once at the top of the
+  // page. Many child sections share `useAdminSettings()` and render
+  // defaults silently on error — the banner makes the failure visible
+  // so the admin knows the toggles below aren't reflecting real state.
+  const { isError: settingsError } = useAdminSettings();
 
   if (!user || user.role !== "ADMIN") return null;
 
@@ -31,6 +37,15 @@ export default function AdminPage() {
         </h1>
         <p className="text-muted-foreground text-sm">{t("admin.subtitle")}</p>
       </div>
+
+      {settingsError && (
+        <div
+          role="alert"
+          className="text-destructive bg-destructive/10 border-destructive/30 rounded-md border px-3 py-2 text-sm"
+        >
+          {t("admin.adminSettingsLoadError")}
+        </div>
+      )}
 
       <StatusCardGrid />
 

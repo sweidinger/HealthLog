@@ -22,7 +22,7 @@ import { StatusItem, useSystemStatus } from "./_shared";
 export function SystemStatusSection({ id }: { id: string }) {
   const { t } = useTranslations();
   const fmt = useFormatters();
-  const { data: status } = useSystemStatus();
+  const { data: status, isError } = useSystemStatus();
 
   return (
     <div
@@ -141,6 +141,16 @@ export function SystemStatusSection({ id }: { id: string }) {
               className="text-dracula-green"
             />
           )}
+        </div>
+      ) : isError ? (
+        // P19: surface load failures inline instead of leaving the
+        // section spinning forever. The hook throws on non-OK
+        // responses, so isError is true on 500s, network errors, etc.
+        <div
+          role="alert"
+          className="text-destructive bg-destructive/10 border-destructive/30 mt-4 rounded-md border px-3 py-2 text-sm"
+        >
+          {t("admin.systemStatusLoadError")}
         </div>
       ) : (
         <div className="mt-4 flex items-center gap-2">

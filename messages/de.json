@@ -1259,6 +1259,8 @@
     "activeTokens": "Aktive API-Tokens",
     "activeSessions": "Aktive Sessions",
     "loadingStatus": "Lade Status...",
+    "systemStatusLoadError": "System-Status konnte nicht geladen werden. Bitte die Seite neu laden.",
+    "adminSettingsLoadError": "Admin-Einstellungen konnten nicht geladen werden. Schalter unten zeigen evtl. nicht den Live-Zustand — Seite neu laden.",
     "workerStatus": "Job-Worker",
     "workerRunning": "Aktiv",
     "workerStopped": "Gestoppt",

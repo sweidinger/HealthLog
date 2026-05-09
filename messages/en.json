@@ -1259,6 +1259,8 @@
     "activeTokens": "Active API Tokens",
     "activeSessions": "Active Sessions",
     "loadingStatus": "Loading status...",
+    "systemStatusLoadError": "Failed to load system status. Try refreshing the page.",
+    "adminSettingsLoadError": "Failed to load admin settings. Toggles below may not reflect the live state — refresh the page.",
     "workerStatus": "Job Worker",
     "workerRunning": "Running",
     "workerStopped": "Stopped",
