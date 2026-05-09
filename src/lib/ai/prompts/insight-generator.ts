@@ -21,6 +21,10 @@
  */
 
 import type { Locale } from "@/lib/i18n/config";
+import {
+  selectReferencesForMetrics,
+  type MedicalReferenceMetric,
+} from "../medical-references";
 
 /** Stable identifier for the active system prompt revision. */
 export const PROMPT_VERSION = "4.16.0" as const;
@@ -242,6 +246,73 @@ und dürfen NICHT übersetzt werden.`;
  */
 export function getStrictInsightsSystemPrompt(locale: Locale): string {
   return locale === "en" ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_DE;
+}
+
+/**
+ * v1.4.16 phase B5a — return the scope-hardened prompt with a
+ * dynamically-built SOURCES block injected at the end. Only
+ * references whose `metricApplicability` overlaps the current
+ * `metrics[]` are listed, so a weight-only call doesn't burn tokens
+ * on ESH BP guidance.
+ *
+ * The model is told to cite the SOURCES id from the
+ * `recommendation.referenceId` field (validated against the curated
+ * bundle in `src/lib/ai/medical-references.ts`). When no metrics are
+ * supplied the function returns the plain prompt unchanged — useful
+ * for legacy call-sites and the existing prompt assertions.
+ */
+export function buildSystemPromptWithReferences(
+  locale: Locale,
+  metrics: readonly MedicalReferenceMetric[],
+): string {
+  const base = getStrictInsightsSystemPrompt(locale);
+  if (metrics.length === 0) return base;
+
+  const refs = selectReferencesForMetrics(metrics);
+  if (refs.length === 0) return base;
+
+  if (locale === "en") {
+    const sourcesBlock = refs
+      .map(
+        (r) =>
+          `- id: ${r.id} | org: ${r.org} | year: ${r.publishedYear} | title: ${r.title} | url: ${r.url}`,
+      )
+      .join("\n");
+    return `${base}
+
+SOURCES — curated medical references applicable to the current metrics
+${sourcesBlock}
+
+GROUND RULE — REFERENCE CITATION
+When making a target-range claim or normative comparison ("target
+< 140/90", "BMI 18.5-24.9", "≥ 7h sleep"), cite the matching
+reference id from the SOURCES list above by setting
+"recommendation.referenceId" to that id (lowercase, exact match).
+Use null / omit the field when the recommendation is observational
+only (e.g. "your avg7 is 4 mmHg above your 90-day median"). Never
+invent an id — the parser rejects fabricated values.`;
+  }
+
+  const sourcesBlock = refs
+    .map(
+      (r) =>
+        `- id: ${r.id} | org: ${r.org} | jahr: ${r.publishedYear} | titel: ${r.titleDe} | url: ${r.url}`,
+    )
+    .join("\n");
+  return `${base}
+
+SOURCES — kuratierte medizinische Referenzen für die aktuellen Metriken
+${sourcesBlock}
+
+GROUNDREGEL — REFERENZ-ZITAT
+Bei einer Zielwert-Aussage oder einem normativen Vergleich ("Ziel
+< 140/90", "BMI 18,5-24,9", "≥ 7 h Schlaf") zitiere die passende
+Referenz-ID aus der obigen SOURCES-Liste, indem du
+"recommendation.referenceId" auf diese ID setzt (Kleinbuchstaben,
+exakter Treffer). Lass das Feld weg oder setze null, wenn die
+Empfehlung rein beobachtend ist (z.B. "dein avg7 liegt 4 mmHg über
+deinem 90-Tage-Median"). Erfinde nie eine ID — der Parser lehnt
+erfundene Werte ab.`;
 }
 
 /**
