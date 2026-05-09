@@ -1457,6 +1457,79 @@
       "archiveConfirm": "Archive this feedback entry?",
       "submittedBy": "Submitted by",
       "sectionTitle": "Feedback"
+    },
+    "shell": {
+      "overview": "Overview",
+      "sectionsNav": "Admin sections"
+    },
+    "section": {
+      "system-status": {
+        "title": "System Status",
+        "subtitle": "Worker, database, and integration health at a glance."
+      },
+      "general": {
+        "title": "General",
+        "subtitle": "Registration, default language, and other app-wide toggles."
+      },
+      "services": {
+        "title": "Services",
+        "subtitle": "Enable or disable notification channels system-wide."
+      },
+      "integrations": {
+        "title": "Integrations",
+        "subtitle": "Configure Umami, GlitchTip, Web Push, and bug reports."
+      },
+      "feedback": {
+        "title": "Feedback",
+        "subtitle": "Triage user-submitted feedback and bug reports."
+      },
+      "reminders": {
+        "title": "Reminders",
+        "subtitle": "Tune medication reminder thresholds and run a manual check."
+      },
+      "users": {
+        "title": "Users",
+        "subtitle": "Manage user accounts, roles, and active sessions.",
+        "filter": {
+          "all": "All",
+          "admin": "Admins",
+          "user": "Users"
+        },
+        "forceLogout": "Force logout",
+        "forceLogoutConfirmTitle": "Force logout {name}?",
+        "forceLogoutConfirmBody": "All active sessions for this user will be revoked. They will need to sign in again on every device.",
+        "forceLogoutSuccess": "Logged {name} out of {count} session(s)",
+        "forceLogoutFailed": "Failed to force logout",
+        "cannotLogoutSelf": "Cannot force-logout yourself"
+      },
+      "api-tokens": {
+        "title": "API Tokens",
+        "subtitle": "Active bearer tokens issued to native clients and integrations."
+      },
+      "login-overview": {
+        "title": "Login Overview",
+        "subtitle": "Audit trail of authentication and admin events."
+      },
+      "backups": {
+        "title": "Backups",
+        "subtitle": "Weekly per-user data snapshots stored in PostgreSQL.",
+        "description": "Each user gets one rolling snapshot per backup type. Sizes show the encrypted blob — payloads are not downloadable from this page.",
+        "runNow": "Backup now",
+        "runEnqueued": "Backup job enqueued",
+        "runFailed": "Failed to enqueue backup",
+        "loading": "Loading backups...",
+        "loadError": "Failed to load backups.",
+        "empty": "No backups recorded yet.",
+        "colUser": "User",
+        "colType": "Type",
+        "colSize": "Size",
+        "colCreatedAt": "Last snapshot",
+        "retentionLabel": "Retention: {days} days"
+      },
+      "danger-zone": {
+        "title": "Danger Zone",
+        "subtitle": "Destructive system-wide operations."
+      }
     }
   },
   "achievements": {

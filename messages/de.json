@@ -1457,6 +1457,79 @@
       "archiveConfirm": "Diesen Feedback-Eintrag archivieren?",
       "submittedBy": "Eingereicht von",
       "sectionTitle": "Feedback"
+    },
+    "shell": {
+      "overview": "Übersicht",
+      "sectionsNav": "Admin-Bereiche"
+    },
+    "section": {
+      "system-status": {
+        "title": "Systemstatus",
+        "subtitle": "Worker, Datenbank und Integrationen im Überblick."
+      },
+      "general": {
+        "title": "Allgemein",
+        "subtitle": "Registrierung, Standardsprache und weitere globale Schalter."
+      },
+      "services": {
+        "title": "Dienste",
+        "subtitle": "Benachrichtigungskanäle systemweit aktivieren oder deaktivieren."
+      },
+      "integrations": {
+        "title": "Integrationen",
+        "subtitle": "Umami, GlitchTip, Web Push und Bug-Reports konfigurieren."
+      },
+      "feedback": {
+        "title": "Feedback",
+        "subtitle": "Feedback und Bug-Reports der Nutzer sichten."
+      },
+      "reminders": {
+        "title": "Erinnerungen",
+        "subtitle": "Schwellwerte für Medikamentenerinnerungen anpassen."
+      },
+      "users": {
+        "title": "Benutzer",
+        "subtitle": "Konten, Rollen und aktive Sitzungen verwalten.",
+        "filter": {
+          "all": "Alle",
+          "admin": "Admins",
+          "user": "Nutzer"
+        },
+        "forceLogout": "Abmeldung erzwingen",
+        "forceLogoutConfirmTitle": "{name} abmelden?",
+        "forceLogoutConfirmBody": "Alle aktiven Sitzungen dieses Benutzers werden widerrufen. Auf allen Geräten ist eine erneute Anmeldung erforderlich.",
+        "forceLogoutSuccess": "{name} aus {count} Sitzung(en) abgemeldet",
+        "forceLogoutFailed": "Abmeldung fehlgeschlagen",
+        "cannotLogoutSelf": "Eigene Sitzungen können nicht beendet werden"
+      },
+      "api-tokens": {
+        "title": "API-Tokens",
+        "subtitle": "Aktive Bearer-Tokens für native Clients und Integrationen."
+      },
+      "login-overview": {
+        "title": "Login-Übersicht",
+        "subtitle": "Audit-Spur für Authentifizierungs- und Admin-Ereignisse."
+      },
+      "backups": {
+        "title": "Backups",
+        "subtitle": "Wöchentliche Daten-Snapshots pro Nutzer in PostgreSQL.",
+        "description": "Jeder Nutzer hat einen rollierenden Snapshot pro Backup-Typ. Größen zeigen den verschlüsselten Blob — die Inhalte sind hier nicht herunterladbar.",
+        "runNow": "Jetzt sichern",
+        "runEnqueued": "Backup-Job eingeplant",
+        "runFailed": "Backup konnte nicht eingeplant werden",
+        "loading": "Backups werden geladen...",
+        "loadError": "Backups konnten nicht geladen werden.",
+        "empty": "Noch keine Backups vorhanden.",
+        "colUser": "Nutzer",
+        "colType": "Typ",
+        "colSize": "Größe",
+        "colCreatedAt": "Letzter Snapshot",
+        "retentionLabel": "Aufbewahrung: {days} Tage"
+      },
+      "danger-zone": {
+        "title": "Gefahrenzone",
+        "subtitle": "Destruktive systemweite Operationen."
+      }
     }
   },
   "achievements": {
