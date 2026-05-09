@@ -96,9 +96,10 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B3 — Admin System-Status host-load chart
 
-- [ ] Host CPU/memory/disk-io graph last 2h (use existing Sentinel or pull from Coolify metrics)
-- [ ] Render above current system-status section
+- [x] Host CPU/memory/disk-io graph last 2h (in-process sampler — Coolify Sentinel had no clean read endpoint)
+- [x] Render above current system-status section
 - Detailed report: `.planning/phase-B3-report.md`
+- Commits on origin/main: `5d1ece1 feat(db): HostMetric model for host-load sampling`, `f1bd801 feat(jobs): host-metric sampler captures load + memory every minute, 7d retention`, `2877710 feat(api): /api/admin/host-metrics returns last 2h of host load + memory`. Chart component + system-status wiring + i18n landed inside `8d9f864 docs(planning): mark Wave-B B5a (medical-reference grounding) complete` due to a parallel-agent staging race during the verification-gate stash/restore loop — files are correct on origin/main, just under a misleading subject. 8 sampler unit tests + 6 API integration tests + 5 chart component tests all green; i18n parity test green.
 
 ### B4 — Admin logs visibility deepening
 

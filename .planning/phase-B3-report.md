@@ -1,129 +1,88 @@
-# Phase B3 — Notification reliability
+# Phase B3 — Admin System-Status host-load chart (v1.4.16)
 
-Status: complete · 2026-05-09T21:05+02:00
+Marc asked for a 2-hour host-load graph above /admin/system-status — CPU,
+memory, disk-IO. Phase ran in Wave-B in parallel with B4/B5a/B7 and the
+verification gate.
 
-## What shipped
+## Approach
 
-Three layered fixes on top of a dispatcher that previously fired
-channels best-effort and kept retrying on a 410 Gone every 60s:
+Picked Option B (in-process sampler) over Option A (Coolify Sentinel
+scrape). Coolify exposes no clean read endpoint for per-server metrics
+without HTML scraping or private RPC; an `os.loadavg()` + `os.totalmem()`
++ /proc/diskstats sampler is self-contained, costs one row per minute,
+and works on macOS dev as well as Linux production.
 
-### 1. Auto-disable on persistent hard rejects
+## Deliverables
 
-- Migration 0028 adds 6 columns to `notification_channels`
-  (`disabled_reason`, `consecutive_failures`, `last_success_at`,
-  `last_failure_at`, `last_failure_reason`, `next_retry_at` — all
-  nullable / zero-default, no-op for existing rows).
-- `src/lib/notifications/retry-policy.ts` exports
-  `classifyTelegramError()` (maps "chat not found" / "blocked by the
-  user" / "user is deactivated" → hard reject) and
-  `classifyHttpStatus()` (web-push 410/404 + ntfy 410 → hard reject).
-- `src/lib/notifications/channel-state.ts` is the only writer of the
-  new columns. `recordChannelHardReject()` flips `enabled=false`,
-  captures the reason, and writes audit log
-  `notification.channel.auto_disabled` with `kind=hard_reject`.
-
-### 2. Exponential backoff with give-up after 5 transient failures
-
-- Same retry-policy module exports `BACKOFF_SCHEDULE_MS = [30s, 5min,
-  30min, 2h]` (frozen) and `nextRetryAt(consecutiveFailures, now)`.
-- `recordChannelTransientFailure()` increments the counter, schedules
-  the next retry, and on the 5th in-a-row auto-disables the channel
-  with reason `give_up_after_5_failures` (audit kind
-  `transient_give_up`).
-- Dispatcher checks `isChannelInCooldown()` BEFORE the sender call,
-  so a flapping upstream doesn't burn quota every reminder-tick.
-
-### 3. Status UI in Settings → Notifications
-
-- `GET /api/notifications/status` returns each channel's derived
-  state (`active` / `auto_disabled` / `sending_paused` /
-  `manually_disabled`), last success/failure timestamps,
-  consecutive-failure counter, and `next_retry_at` when in
-  cooldown.
-- `POST /api/notifications/status { channelId }` re-enables an
-  auto-disabled channel via `reEnableChannel()` which audit-logs
-  `notification.channel.re_enabled`.
-- `<NotificationStatusCard />` paints state badge, dl rows for
-  every relevant timestamp, "Re-enable" (only when auto-disabled)
-  + "Send test" buttons. TanStack Query polls every 30s.
-- Wired as the FIRST card in the Notifications settings section so
-  reliability state is visible above the per-channel config cards.
+1. **`HostMetric` model + migration `0032_host_metric`** —
+   `prisma/schema.prisma`, indexed by `captured_at`. Disk fields nullable
+   so non-Linux hosts don't fail.
+2. **Per-minute sampler** — `src/lib/jobs/host-metric-sampler.ts`. Reads
+   `os.loadavg()`, `os.totalmem() - os.freemem()`, and (Linux)
+   /proc/diskstats. Skips loop/ram/dm-/md/sr/fd/nbd/zram pseudo-devices.
+   Wired into `reminder-worker.ts` with `* * * * *` cron. 7-day retention
+   enforced inside the worker; env override `HOST_METRIC_RETENTION_DAYS`
+   capped at >= 1 day.
+3. **`GET /api/admin/host-metrics?since=2h`** — `requireAdmin()`-gated.
+   Returns `{ samples, meta }`. Server-side BPS derivation across
+   consecutive samples handles counter resets (host reboot) by emitting
+   `null` instead of negative deltas. Six `since` presets: 30m / 1h / 2h
+   (default) / 6h / 12h / 24h.
+4. **`<HostMetricsChart>` component** —
+   `src/components/admin/host-metrics-chart.tsx`. Recharts wrapper with
+   load (yellow, left axis) + memory % (cyan, right axis) + disk-IO %
+   (purple, right axis, hidden when no disk data). `next/dynamic` import
+   from the consumer keeps the Recharts bundle off the rest of the admin
+   panel. 60s `refetchInterval` matches sampler cadence.
+5. **System-status section wiring** — `system-status-section.tsx` now
+   wraps the existing card in a `space-y-6` flex with the chart above.
+6. **i18n** — 9 EN+DE keys under `admin.hostMetrics.*` (title, load1,
+   memUsedPercent, diskBusyPercent, diskReadBps, diskWriteBps,
+   last2hours, empty, loadError).
 
 ## Tests
 
-- `src/lib/notifications/__tests__/retry-policy.test.ts` — 18 tests
-  covering classifier truth-table + backoff schedule + give-up
-  threshold.
-- `src/lib/notifications/__tests__/channel-state.test.ts` — cooldown
-  helper boundary cases.
-- `src/lib/notifications/__tests__/dispatcher.test.ts` — 5 scenarios:
-  web-push 410 → auto-disable + audit + no retry; web-push 429 →
-  backoff scheduled + counter + no audit; 5th failure → give-up +
-  audit; cooldown skip → no sender call; cooldown expired → sender
-  called.
-- `src/components/settings/__tests__/notification-status-card.test.tsx`
-  — 6 SSR smoke tests, every state branch + EN/DE locale.
+- 8 unit tests for the sampler (env retention parsing, disk-stats null
+  + throw fallbacks, create + deleteMany call shape).
+- 6 integration tests against testcontainer Postgres for the API
+  endpoint (auth gating, 2h default window, BPS derivation across a
+  counter reset, `?since=30m` preset, empty-DB happy path).
+- 5 component tests for the chart helper + loading skeleton render.
+- All 13 unit + 6 integration tests green; i18n parity test green.
 
-883/883 unit tests pass · 31/31 integration tests pass · typecheck
-clean (only pre-existing dashboard-layout and integrations-section
-errors remain, both outside B3 scope) · lint 0 errors / 11 warnings
-(all pre-existing).
+## Cross-agent collisions
 
-## Commits on origin/main
+The verification-gate stash/restore loop in this marathon repeatedly
+wiped my untracked files (chart component + tests) and hijacked my
+`git commit` invocations so commits 4-6 ended up landing under another
+agent's commit message (`8d9f864 docs(planning): mark Wave-B B5a …`).
+Functionally everything is on origin/main; commit attribution is
+muddled. Commits 1-3 (db, jobs, api) landed cleanly under my titles
+(`5d1ece1`, `f1bd801`, `2877710`). Commit 3 (`2877710`) is missing the
+Co-Authored-By trailer due to a one-line oversight in my heredoc.
 
-- `87a40fd` `fix(notifications): auto-disable channels on persistent
-  hard rejects (410, etc.)` — schema + migration + retry-policy +
-  channel-state + dispatcher reliability + sender outcome refactor +
-  20 unit tests. Bundles criteria 1 + 2 atomically because they
-  share migration + retry-policy types and splitting them produced
-  broken intermediate states.
-- `a3c0130` `feat(settings): notification channel status UI with
-  re-enable + test` — wires `<NotificationStatusCard />` into the
-  notifications settings section.
-
-## Cross-agent collisions encountered
-
-Marathon's "5 parallel agents on shared cwd" pattern produced two
-race-conditions during this phase:
-
-1. My initial commit (planned hash, would-be `0805452`) ended up
-   with a sibling agent's diff (B1's backup-restore route) carrying
-   my commit message — the same kind of collision STATE.md flagged
-   during phase A. I `git reset HEAD~1` + recommitted via
-   `git commit -o <files>` to bind exact paths.
-2. Three of my new B3 UI files (status route + card + SSR test) got
-   absorbed into a sibling agent's commit `7c32d63`
-   (`feat(admin): link from backups view to docs.healthlog.dev/...`)
-   during their `git add`. The files are correct on main, just under
-   a misleading subject. My follow-up commit `a3c0130` makes the
-   wiring + criterion-3 intent explicit.
-
-Recommendation for v1.4.16: spawn each agent in its own git worktree
+Recommendation for v1.4.17: spawn each agent in its own git worktree
 (`superpowers:using-git-worktrees`) to eliminate the shared-cwd
-staging race entirely. STATE.md flagged this after phase A; phase B
-shows the same pattern repeats predictably whenever > 2 agents stage
-files concurrently.
+staging race entirely. The current marathon's verification gate keeps
+collapsing concurrent untracked files into shared stashes, which makes
+even simple `git add path/to/file && git commit` racy.
+
+## Files added / modified (final state on origin/main)
+
+- `prisma/schema.prisma`, `prisma/migrations/0032_host_metric/migration.sql`
+- `src/lib/jobs/host-metric-sampler.ts` + `__tests__/host-metric-sampler.test.ts`
+- `src/lib/jobs/reminder-worker.ts` (sampler queue registration)
+- `src/app/api/admin/host-metrics/route.ts`
+- `tests/integration/admin-host-metrics.test.ts`
+- `src/components/admin/host-metrics-chart.tsx` + `__tests__/host-metrics-chart.test.tsx`
+- `src/components/admin/system-status-section.tsx` (wiring)
+- `messages/en.json`, `messages/de.json` (admin.hostMetrics.*)
+- `tests/integration/setup.ts` (truncate `host_metrics`)
 
 ## Did NOT touch (scope guards)
 
-- `src/components/admin/backups-section.tsx` and backup endpoints
-  (B1's territory).
-- `src/lib/withings/`, `src/lib/moodlog/`, integrations-section.tsx
-  (B2's territory).
-- `.github/workflows/*` (C3's territory).
-
-## Notes for follow-up work
-
-- `consecutive_failures` is incremented on hard-reject too (so the
-  status UI can show "5 in a row before we gave up"). Re-enable
-  resets to 0.
-- The reminder-worker still calls `dispatchNotification()` once per
-  scheduled phase; the cooldown-skip protects against quota burn,
-  but a future v1.4.16 follow-up could surface "X reminders skipped
-  while channel paused" as a Wide Event metric.
-- Telegram webhook flow (`src/app/api/telegram/webhook/route.ts`)
-  still uses `sendTelegramMessage` directly with the legacy
-  `SendMessageResult` shape — not in scope for B3 (it's the inbound
-  bot reply path, not a dispatch). The `errorDescription` field
-  added in this phase is available there if a future refactor wants
-  to consume it.
+- `src/lib/ai/`, `src/components/insights/`,
+  `src/components/charts/scatter-correlation-chart.tsx` (B5a/B5c-e)
+- `src/components/settings/*` (B2/B6/B7)
+- audit-log section (B4)
+- No new dependencies — Recharts pattern reuse only.
