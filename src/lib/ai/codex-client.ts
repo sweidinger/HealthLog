@@ -25,16 +25,45 @@ export class CodexClient implements AIProvider {
       this.accessToken = await this.onTokenRefresh();
       const retryAttempt = await this.doRequest(params);
       if (!retryAttempt.ok) {
-        throw new Error(`Codex request failed after token refresh (${retryAttempt.status})`);
+        throw await this.buildUpstreamError(
+          retryAttempt,
+          "Codex request failed after token refresh",
+        );
       }
       return this.parseResponse(retryAttempt);
     }
 
     if (!firstAttempt.ok) {
-      throw new Error(`Codex request failed (${firstAttempt.status})`);
+      throw await this.buildUpstreamError(firstAttempt, "Codex request failed");
     }
 
     return this.parseResponse(firstAttempt);
+  }
+
+  /**
+   * Build a structured error from a non-OK upstream response. Mirrors the
+   * pattern used in `OpenAIClient.generateCompletion` so logs and Glitchtip
+   * issues for both providers carry the same fields (httpStatus, upstream,
+   * model, bodyExcerpt). The body excerpt is truncated to 500 chars and any
+   * `sk-…` / `Bearer …` token is masked before it reaches log shipping.
+   */
+  private async buildUpstreamError(
+    res: Response,
+    message: string,
+  ): Promise<Error> {
+    const rawBody = await res.text().catch(() => "");
+    const bodyExcerpt = rawBody
+      .slice(0, 500)
+      .replace(/sk-(?:ant-)?[A-Za-z0-9_-]{8,}/g, "sk-***redacted***")
+      .replace(/Bearer\s+[A-Za-z0-9_.-]+/gi, "Bearer ***redacted***");
+    const err = new Error(`${message} (${res.status})`);
+    Object.assign(err, {
+      httpStatus: res.status,
+      upstream: "codex",
+      model: CODEX_MODEL,
+      bodyExcerpt,
+    });
+    return err;
   }
 
   private async doRequest(params: CompletionParams): Promise<Response> {
