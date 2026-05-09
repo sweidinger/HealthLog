@@ -329,7 +329,7 @@ export function RecommendationCard({
       : null;
 
   return (
-    <li
+    <div
       data-slot="rec-card"
       data-index={index}
       className="border-border/40 bg-card/20 rounded-lg border px-3 py-2.5"
@@ -412,6 +412,6 @@ export function RecommendationCard({
           <CitationFootnote referenceId={norm.referenceId} locale={locale} />
         </div>
       )}
-    </li>
+    </div>
   );
 }

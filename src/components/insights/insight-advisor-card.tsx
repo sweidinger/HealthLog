@@ -27,7 +27,7 @@ import {
   tokenToMetric,
   type ChartToken,
 } from "@/lib/insights/chart-tokens";
-import { RecommendationCard } from "./recommendation-card";
+import { RecommendationsGrid } from "./recommendations-grid";
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -542,22 +542,15 @@ export function InsightAdvisorCard({
           </div>
         )}
 
-        {/* Recommendations — v1.4.16 phase B5c uses RecommendationCard
-         * so each rec gets the Oura-style expand-card with rationale
-         * rows + mini-chart + citation footnote. Plain-string recs
-         * and recs without rationale render non-expanded. */}
+        {/* Recommendations — v1.4.16 phase B1b polish: severity-ordered
+         * 2-col responsive grid via <RecommendationsGrid>. Each card
+         * keeps the Oura-style expand reveal from B5c and gains a
+         * severity-coloured left border + hover-lift + staggered
+         * fade-in around its outer shell. */}
         {insight.recommendations.length > 0 && (
           <div className="space-y-3">
             <SectionSeparator label={t("insights.recommendationsTitle")} />
-            <ol className="space-y-2 pl-0">
-              {insight.recommendations.map((rec, i) => (
-                <RecommendationCard
-                  key={typeof rec === "string" ? `${i}-${rec}` : (rec.id ?? i)}
-                  rec={rec}
-                  index={i}
-                />
-              ))}
-            </ol>
+            <RecommendationsGrid recs={insight.recommendations} />
           </div>
         )}
 
