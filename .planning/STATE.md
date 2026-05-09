@@ -194,12 +194,22 @@ Last update: 2026-05-09T23:12:52+02:00
   i18n parity green. Cross-agent race: commit 2 subject was hijacked
   by parallel B1a worker (mood-chart polish); my code IS on origin.
 
-### B5c — Per-Recommendation Explainability
+### B5c — Per-recommendation explainability
 
-- [ ] Each rec carries: WHY (what user-data triggered it), WINDOW (which time range was analyzed), CITATIONS (which medical guideline + which user metric)
-- [ ] UI: expand-arrow on each rec → reveals the explainability card with mini-chart of the data window
-- [ ] Schema enforces presence (extends v1.4.15 C1's strict schema)
+- [x] Each rec carries: WHY (what user-data triggered it), WINDOW (which time range was analyzed), CITATIONS (which medical guideline + which user metric)
+- [x] UI: expand-arrow on each rec → reveals the explainability card with mini-chart of the data window
+- [x] Schema enforces presence (extends v1.4.15 C1's strict schema)
 - Detailed report: `.planning/phase-B5c-report.md`
+- Commits on origin/main:
+  - `8a438a0 feat(ai): schema requires rationale (window + comparedTo + deviation) per recommendation`
+  - `c39a527 feat(ai): system prompt requires rationale per recommendation`
+  - `13f1ae5 feat(ai): corrective retry covers missing rationale fields`
+  - `c8b30c1 feat(ai): legacy insight payload detection with regenerate CTA`
+  - `7f54c0c feat(charts): mini-mode + windowOverride prop for embedded rationale charts`
+  - `680f84c feat(charts): mood chart mini-mode + windowOverride`
+  - `10a67ff feat(insights): RecommendationCard with expandable rationale + mini-chart of data window`
+  - `fed2e7e test(insights): coverage for RecommendationCard expand + rationale rendering`
+- Status block — 2026-05-10T01:17+02:00: B5c complete on origin/main. 8 atomic TDD-first commits, +37 net tests (10 schema + 6 prompt + 4 wrapper + 7 legacy-payload + 7 chart-mini + 11 rec-card + 2 integration − fixture updates). Full suite 1361/1361, integration 53/53, typecheck 0 errors, lint 12 pre-existing warnings. New `aiRecommendationRationaleSchema` requires `dataWindow` (enum) + non-empty `comparedTo` + non-empty `deviation` on every rec. New `<RecommendationCard>` subcomponent renders Oura-style "Contributors" expand-card: severity badge + chevron + 3-row rationale + pinned mini-chart (HealthChart for measurement metrics, MoodChart for mood) + B5a citation footnote. Default-collapsed; 200ms ease-out reveal. Named slots (`data-slot="rec-confidence-slot"`, `data-slot="rec-feedback-slot"`) reserved for B5d / B5e plug-in. HealthChart + MoodChart gain `mini` + `windowOverride` props. Legacy payload detection via `isLegacyInsightPayload()` surfaces a "regenerate for new explainability features" CTA on cache-hits where the cached blob predates B5c (no auto-regen — user-initiated only). Worktree-isolated under `agent/b5c-explainability` so the parallel B2 worker couldn't bleed in. E2E (Playwright) NOT added — `<InsightAdvisorCard>` has zero non-test imports in the production tree, so there's no live route reaching the card surface today; the SSR integration test exercises the full flow end-to-end. Medication-compliance mini-chart wrapper deferred — the heatmap doesn't shrink cleanly to 140px and rec authors don't currently emit compliance-keyed recs. Both items flagged for v1.4.17.
 
 ### B5d — Confidence Score per Recommendation
 
