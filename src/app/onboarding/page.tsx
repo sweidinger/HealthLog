@@ -121,6 +121,20 @@ export default function OnboardingPage() {
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
       toast.success(t("onboarding.v2.doneToast"));
 
+      // v1.4.15 Phase B5: leave a presence flag so the dashboard's
+      // tour launcher knows the user JUST came from the wizard and
+      // delays the spotlight by ~1.5s. Avoids the doneToast and
+      // tour overlay stacking on the same z-layer. We use a
+      // presence-only `"1"` (not a timestamp) so the launcher's
+      // render-phase decision can stay pure under
+      // `react-hooks/purity` — the launcher consumes-and-clears the
+      // key on first read.
+      try {
+        window.sessionStorage.setItem("healthlog-tour-referrer", "1");
+      } catch {
+        /* ignore — storage disabled or full */
+      }
+
       if (opts?.gotoSettingsHash) {
         router.replace(`/settings/notifications#${opts.gotoSettingsHash}`);
       } else {

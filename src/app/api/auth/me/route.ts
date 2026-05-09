@@ -20,6 +20,7 @@ export const GET = apiHandler(async () => {
     gender: user.gender,
     timezone: user.timezone,
     onboardingCompletedAt: user.onboardingCompletedAt,
+    onboardingTourCompleted: user.onboardingTourCompleted,
     gravatarUrl: user.email ? getGravatarUrl(user.email) : null,
     glucoseUnit: user.glucoseUnit ?? null,
   });

@@ -42,6 +42,7 @@ import { TrendCard } from "@/components/charts/trend-card";
 import { TrendHint } from "@/components/charts/trend-hint";
 import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
+import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
 
 const HealthChart = dynamic(
@@ -406,7 +407,11 @@ export default function DashboardPage() {
                 `size="sm"` (h-8 = 32px) was below threshold; the explicit
                 min-h-11 ensures we hit 44px on the Pixel 5 viewport while
                 keeping the desktop visual unchanged. */}
-            <Button size="sm" className="min-h-11">
+            <Button
+              size="sm"
+              className="min-h-11"
+              data-tour-id="dashboard-quick-add"
+            >
               <Plus className="mr-1 h-4 w-4" />
               {t("common.add")}
             </Button>
@@ -438,6 +443,16 @@ export default function DashboardPage() {
        * || measurementCount < 5) and disappears once dismissed
        * or fully complete. See B2 in the v1.4 discovery summary. */}
       <GettingStartedChecklist />
+
+      {/* v1.4.15 Phase B5 — spotlight tour for first-time users.
+       * Self-gates on `user.onboardingTourCompleted` (DB flag) plus
+       * a session-storage dismiss guard. We pass `ready=true` only
+       * after analytics has resolved — the tour anchors to the tile
+       * strip and we don't want the cutout snapping to a 0×0
+       * placeholder before tiles render. The launcher mounts a no-op
+       * `null` when the user has already seen the tour, so this
+       * line is free for established users. */}
+      <TourLauncher ready={data !== undefined} />
 
       {/* Quick Entry Dialogs */}
       <Dialog
@@ -963,6 +978,7 @@ export default function DashboardPage() {
               // it preserves.
               className="grid auto-rows-fr [grid-template-columns:repeat(auto-fit,minmax(9rem,1fr))] gap-3 pb-2"
               data-slot="dashboard-tile-strip"
+              data-tour-id="dashboard-tile-strip"
               data-tile-count={trendCards.length}
             >
               {trendCards.map((entry) => (

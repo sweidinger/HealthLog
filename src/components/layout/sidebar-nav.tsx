@@ -51,13 +51,36 @@ import {
 const STORAGE_KEY = "healthlog-sidebar-collapsed";
 
 const navItems = [
-  { href: "/", tKey: "nav.dashboard", icon: Home },
-  { href: "/measurements", tKey: "nav.measurements", icon: Activity },
-  { href: "/mood", tKey: "nav.mood", icon: Waves },
-  { href: "/medications", tKey: "nav.medications", icon: Pill },
-  { href: "/insights", tKey: "nav.insights", icon: Lightbulb },
-  { href: "/targets", tKey: "nav.targets", icon: Target },
-  { href: "/achievements", tKey: "nav.achievements", icon: Trophy },
+  { href: "/", tKey: "nav.dashboard", icon: Home, tourId: "nav-dashboard" },
+  {
+    href: "/measurements",
+    tKey: "nav.measurements",
+    icon: Activity,
+    tourId: "nav-measurements",
+  },
+  { href: "/mood", tKey: "nav.mood", icon: Waves, tourId: "nav-mood" },
+  {
+    href: "/medications",
+    tKey: "nav.medications",
+    icon: Pill,
+    tourId: "nav-medications",
+  },
+  // v1.4.15 Phase B5: `tourId` values match `data-tour-id` lookups
+  // performed by the onboarding tour. Keep these stable — renaming
+  // them silently breaks the spotlight cutout for that step.
+  {
+    href: "/insights",
+    tKey: "nav.insights",
+    icon: Lightbulb,
+    tourId: "nav-insights",
+  },
+  { href: "/targets", tKey: "nav.targets", icon: Target, tourId: "nav-targets" },
+  {
+    href: "/achievements",
+    tKey: "nav.achievements",
+    icon: Trophy,
+    tourId: "nav-achievements",
+  },
 ];
 
 function getInitials(name: string): string {
@@ -335,6 +358,7 @@ export function SidebarNav() {
                       <Link
                         href={item.href}
                         aria-current={isActive ? "page" : undefined}
+                        data-tour-id={item.tourId}
                         className={cn(
                           "flex items-center justify-center rounded-lg p-2.5 transition-colors",
                           isActive
@@ -357,6 +381,7 @@ export function SidebarNav() {
                   key={item.href}
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
+                  data-tour-id={item.tourId}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive
@@ -427,6 +452,7 @@ export function SidebarNav() {
                     aria-current={
                       pathname.startsWith("/settings") ? "page" : undefined
                     }
+                    data-tour-id="nav-settings"
                     className={cn(
                       "flex items-center justify-center rounded-lg p-2.5 transition-colors",
                       pathname.startsWith("/settings")
@@ -514,6 +540,7 @@ export function SidebarNav() {
                 aria-current={
                   pathname.startsWith("/settings") ? "page" : undefined
                 }
+                data-tour-id="nav-settings"
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname.startsWith("/settings")

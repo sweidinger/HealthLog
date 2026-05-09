@@ -13,6 +13,13 @@ export interface AuthUser {
   gender: string | null;
   timezone: string;
   onboardingCompletedAt: string | null;
+  /**
+   * v1.4.15 Phase B5: whether the user has finished or dismissed
+   * the spotlight tour overlaid on the dashboard. Distinct from
+   * `onboardingCompletedAt` (the wizard at /onboarding) — see the
+   * `<TourLauncher>` component for the gating logic.
+   */
+  onboardingTourCompleted: boolean;
   gravatarUrl: string | null;
   glucoseUnit: string | null;
 }
