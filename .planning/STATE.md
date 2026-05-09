@@ -64,13 +64,17 @@ Last update: 2026-05-09T16:10:00+02:00
 
 ## Phase 4b — Admin Panel refactor (Settings-style dynamic routes)
 
-- [ ] /admin/[section]/page.tsx + admin-shell sidebar
-- [ ] Sections moved to /admin/<slug> routes (system-status, services, integrations, feedback, reminders, users, api-tokens, login-overview, backups, danger-zone)
-- [ ] Status-card CTAs use real routes (no #anchor)
-- [ ] i18n keys reorganised under admin.section.<slug>.\*
-- [ ] Sidebar nav expandable Admin group
-- [ ] Legacy #anchor → new route redirect in proxy.ts
-- [ ] Bundle-size win on /admin overview verified
+- [x] /admin/[section]/page.tsx + admin-shell sidebar — commit `d8b71b3`
+- [x] Sections moved to /admin/<slug> routes (system-status, general, services, integrations, feedback, reminders, users, api-tokens, login-overview, backups, danger-zone) — commit `12b280b`
+- [x] T2.6 Backups dedicated admin section + manual run — commit `69c5225`
+- [x] T2.7 /admin/users with role filters + force-logout — commit `5957e18`
+- [x] i18n keys reorganised under admin.section.<slug>.\* (EN + DE parity) — commit `a34cd8c`
+- [x] Sidebar nav expandable Admin group — commit `73965cd`
+- [x] Status-card CTAs use real routes (no #anchor) — commit `961e2a9`
+- [x] Legacy section-anchor → new route redirect in proxy.ts (path-style only; pure `#fragments` cannot be redirected server-side, callsites rewritten directly) — commit `7a47532`
+- [x] Tests: status-card-grid asserts route existence + per-section render smoke + i18n parity (existing) — commit `1a7e3d6`
+- [x] Bundle-size win verified architecturally (overview no longer imports section components); `pnpm build` blocked by pre-existing Node 25 issue
+- Result: ok / commits `d8b71b3 12b280b 69c5225 5957e18 a34cd8c 73965cd 961e2a9 7a47532 1a7e3d6`
 - Detailed report: `.planning/phase-4b-report.md`
 
 ## Phase 5 — UX polish
