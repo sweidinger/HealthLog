@@ -26,6 +26,10 @@ import {
   pickBucket,
   type ChartBucketType,
 } from "@/lib/charts/bucket-time-series";
+import {
+  computeWindowTrend,
+  SPLIT_HALF_THRESHOLD_DAYS,
+} from "@/lib/analytics/window-trend";
 
 const TIME_RANGES_KEYS = [
   {
@@ -575,15 +579,56 @@ export function HealthChart({
         const days = (last.timestamp - first.timestamp) / 86400000;
         if (!Number.isFinite(days) || days <= 0) return null;
 
-        const firstTrend = first[`${type}_trend`] as number;
-        const lastTrend = last[`${type}_trend`] as number;
-        const weeklyDelta = ((lastTrend - firstTrend) / days) * 7;
-        const base = first[type] as number;
+        const rawValues = series.map((point) => point[type] as number);
+        const trendValues = series.map(
+          (point) => point[`${type}_trend`] as number,
+        );
+
+        // v1.4.16 Fix A8b — delegate to the pure helper so the long-
+        // window split-half delta gets a unit-test that doesn't depend
+        // on Recharts. See `src/lib/analytics/window-trend.ts`.
+        const computed = computeWindowTrend({
+          rawValues,
+          trendValues,
+          windowDays: days,
+        });
+        if (!computed) return null;
+
+        const { weeklyDelta, splitHalfDelta } = computed;
+        const base = rawValues[0];
         const weeklyPct =
           Math.abs(base) > Number.EPSILON
             ? (weeklyDelta / Math.abs(base)) * 100
             : null;
         const unitSuffix = unit ? ` ${unit}` : "";
+
+        // v1.4.16 Fix A8b: when the visible window is long (e.g. "All"
+        // on a multi-year account), the per-week delta becomes vanishingly
+        // small and rounds to ±0.0 in the formatter — Marc's complaint
+        // "Wenn ich alle anklicke, dann wird einfach Null Veränderung
+        // angezeigt" was exactly this: a slope of ~0.5 kg/year prints
+        // as "+0.0 kg/week" and the user reads it as "no change". For
+        // windows ≥ SPLIT_HALF_THRESHOLD_DAYS we additionally surface
+        // the first-half vs. second-half mean delta — a single,
+        // meaningful number that cannot round to zero unless the metric
+        // truly didn't move.
+        let totalDeltaSegment = "";
+        if (days >= SPLIT_HALF_THRESHOLD_DAYS && splitHalfDelta !== null) {
+          const meanFirst =
+            rawValues
+              .slice(0, Math.floor(rawValues.length / 2))
+              .reduce((sum, value) => sum + value, 0) /
+            Math.max(1, Math.floor(rawValues.length / 2));
+          const totalDeltaPct =
+            Math.abs(meanFirst) > Number.EPSILON
+              ? (splitHalfDelta / Math.abs(meanFirst)) * 100
+              : null;
+          totalDeltaSegment = ` · ${t(
+            "charts.totalDelta",
+          )} ${formatSigned(splitHalfDelta)}${unitSuffix}${
+            totalDeltaPct != null ? ` (${formatSigned(totalDeltaPct)} %)` : ""
+          }`;
+        }
 
         return `${getTypeLabel(type, valueMode, t)}: ${formatSigned(
           weeklyDelta,
@@ -591,7 +636,7 @@ export function HealthChart({
           weeklyPct != null
             ? ` (${formatSigned(weeklyPct)} %${t("charts.perWeek")})`
             : ""
-        }`;
+        }${totalDeltaSegment}`;
       })
       .filter((entry): entry is string => entry !== null);
   }, [chartData, showTrend, types, unit, valueMode, t, fmt]);
