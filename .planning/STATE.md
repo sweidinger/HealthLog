@@ -724,10 +724,61 @@ first attempt. v1.4.16 should still adopt
 
 ### C5 — Empty-states audit
 
-- [ ] `/admin/users`, `/admin/backups` empty states
-- [ ] Other admin sub-routes
-- [ ] Dashboard empty state for very-new users
+- [x] `/admin/users`, `/admin/backups` empty states (`0c20119`)
+- [x] Other admin sub-routes — login-overview, api-tokens, feedback,
+      overview audit-preview (`0c20119`)
+- [x] Dashboard empty state for very-new users (`65faf1d`)
 - Detailed report: `.planning/phase-C5-report.md`
+- Audit deep-dive: `docs/audit/v1415-empty-states.md`
+
+#### C5 status block — 2026-05-09T21:55+02:00 — done
+
+13 empty-state surfaces upgraded: 6 admin (users, backups,
+login-overview, api-tokens, feedback, overview audit-preview), 4
+feature lists (measurements, mood, medications, achievements), 2
+insights (top-level no-data, BMI height-not-set), 1 dashboard
+(fully-empty tile + chart row). Every surface now mounts the shared
+`<EmptyState>` primitive with icon + localized title + description +
+CTA-where-appropriate so brand-new accounts always have a one-click
+path forward.
+
+5 commits on `origin/main`:
+
+- `5510ed5` `docs(audit): v1.4.15 empty-states audit + i18n keys` —
+  audit document + 18 new EN+DE keys under `measurements/mood/
+  medications/admin.section.users/admin.section.backups/admin.
+  {loginEmpty,tokensEmpty}/admin.feedback/insights/dashboard`. Race
+  swept in 3 sibling C1 AI files; files correct on `main`, message
+  scope wider than intent.
+- `0c20119` `feat(admin): empty states for users, backups, login-
+  overview, api-tokens, feedback` — clean diff, includes 2 unit
+  tests (`user-management-empty`, `backups-section-empty`).
+- `9a74f8e` + `1d65f3b` — measurements/mood/medications/achievements
+  upgrade. Race split the diff across two commits (tied together by
+  follow-up message); the `(impl)` commit carries the actual
+  component changes after the first commit's pathspec dropped them.
+- `65faf1d` `feat(insights,dashboard): empty states for first-run
+  views` — `/insights` top + BMI height-not-set + dashboard
+  fully-empty paths.
+
+Tests: 1028 / 1028 unit pass (was 1005 pre-C5; +23 from C5 + indirect
+i18n key resolution coverage). Typecheck: only pre-existing A4
+`dashboard-layout.test.ts` errors. Lint: 0 errors, 11 pre-existing
+warnings (none in C5 files).
+
+i18n: 18 new EN+DE keys, additive only. C4 sweep can fold these into
+the parity guard without refactoring.
+
+Cross-agent: shared-cwd staging race reproduced twice (commits
+`5510ed5` and `9a74f8e`). Documented in
+`docs/audit/v1415-empty-states.md` and matches the v1.4.15 marathon
+pattern flagged by every prior phase. v1.4.16 should adopt
+`superpowers:using-git-worktrees` per agent.
+
+NOT touched (per scope): `src/lib/ai/*`, withings / moodlog /
+notifications, messages mass refactor, correlation-card inline empty
+surfaces inside /insights (already use a tighter custom variant —
+refactor would be churn-only, deferred to v1.4.16).
 
 ## Phase D — Multi-agent QA (parallel, write-only)
 
