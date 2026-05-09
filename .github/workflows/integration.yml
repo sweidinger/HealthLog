@@ -29,6 +29,12 @@ jobs:
           # The integration suite boots a Postgres testcontainer and points
           # Prisma at it via DATABASE_URL set inside `tests/integration/setup.ts`.
           # These env vars satisfy code paths that read them at module load.
-          API_TOKEN_HMAC_KEY: integration-tests-do-not-use-in-prod
-          ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
-          SESSION_SECRET: integration-tests
+          #
+          # ENCRYPTION_KEY MUST be quoted: YAML 1.2 parses an unquoted run of
+          # zeros as the integer 0, which then arrives in `process.env` as the
+          # string "0" — failing crypto's hex/base64 length check and breaking
+          # the backups + integration-status suites for 50+ runs (regression
+          # since v1.4.13). Quoting forces a literal scalar.
+          API_TOKEN_HMAC_KEY: "integration-tests-do-not-use-in-prod"
+          ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+          SESSION_SECRET: "integration-tests"

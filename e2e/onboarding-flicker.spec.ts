@@ -46,6 +46,7 @@ test.describe("dashboard onboarding card flicker guard", () => {
             gender: "MALE",
             timezone: "Europe/Berlin",
             onboardingCompletedAt: "2025-01-01T00:00:00.000Z",
+            onboardingTourCompleted: true,
             gravatarUrl: null,
             glucoseUnit: "mg/dL",
           },
@@ -138,6 +139,11 @@ test.describe("dashboard onboarding card flicker guard", () => {
             gender: null,
             timezone: "Europe/Berlin",
             onboardingCompletedAt: null,
+            // Suppress the spotlight tour overlay during this spec so
+            // the onboarding-card visibility probe is not occluded by
+            // the tour's z-200 dialog. The tour itself is exercised by
+            // a dedicated spec — not in scope here.
+            onboardingTourCompleted: true,
             gravatarUrl: null,
             glucoseUnit: "mg/dL",
           },

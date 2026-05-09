@@ -89,7 +89,14 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
     // SET clause clears any leftover Codex / insights state from a
     // previous run so the "Settings → AI" spec sees the disconnected
     // baseline; we also stamp `onboarding_completed_at` so the auth
-    // shell does not bounce the user to /onboarding.
+    // shell does not bounce the user to /onboarding, AND set
+    // `onboarding_tour_completed = true` so the spotlight tour does
+    // NOT auto-launch on the dashboard. Without that flag the tour
+    // mounts a full-viewport `role="dialog"` overlay with `z-index:200`
+    // that intercepts every pointer event — every authenticated spec
+    // that tries to click a header / sidebar / quick-add button times
+    // out (50+ failed CI runs since v1.4.13). Specs that need the
+    // tour can opt back in by mocking `/api/auth/me`.
     await pool.query(
       `INSERT INTO users
         (id, username, email, password_hash, role,
@@ -97,13 +104,15 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
          height_cm, date_of_birth, gender,
          codex_connection_status,
          insights_privacy_mode,
-         onboarding_completed_at)
+         onboarding_completed_at,
+         onboarding_tour_completed)
        VALUES ($1, $2, $3, $4, $5,
                $6, $6,
                180, $7, 'MALE',
                'disconnected',
                'aggregated',
-               $6)
+               $6,
+               true)
        ON CONFLICT (username) DO UPDATE SET
          email = EXCLUDED.email,
          password_hash = EXCLUDED.password_hash,
@@ -119,7 +128,8 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
          codex_connection_status = 'disconnected',
          insights_cached_at = NULL,
          insights_cached_text = NULL,
-         onboarding_completed_at = EXCLUDED.onboarding_completed_at`,
+         onboarding_completed_at = EXCLUDED.onboarding_completed_at,
+         onboarding_tour_completed = EXCLUDED.onboarding_tour_completed`,
       [
         cuid(),
         E2E_USER.username,
