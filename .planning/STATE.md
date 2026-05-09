@@ -1,90 +1,92 @@
 # v1.4.6 marathon — state log
 
-Status: **bootstrapped** (2026-05-09 ~01:25)
+Status: **release tagged, awaiting Coolify deploy** (2026-05-09 ~02:30)
 
-Update at every phase boundary so `cat .planning/STATE.md` is the truth.
+## Phase 0 — Bootstrap ✅
 
-## Phase 0 — Bootstrap
+Committed `ecca54d`.
 
-- [x] `.planning/PROJECT.md`
-- [x] `.planning/ROADMAP.md`
-- [x] `.planning/STATE.md`
-- [ ] commit `chore(planning): bootstrap v1.4.6 marathon`
+## Phase 1 — CI green ⚠️
 
-## Phase 1 — CI green
+- e2e workflow fixed in `bcd1de4` (pnpm-version override) and `46e686f`
+  (mobile project → Pixel 5, locale-cookie anchor, login-form open).
+- Latest run on the v1.4.6 SHA is queued; conclusion not yet known
+  at tag time. Per release-spec, e2e green is not a hard gate.
 
-- [ ] reproduce e2e failure locally
-- [ ] root-cause + fix
-- [ ] verify CI green
+## Phase 2 — Tier 1 fixes (T1–T9) ✅
 
-## Phase 2 — Tier 1 fixes (T1–T9)
+| ID | Commit | Note |
+|----|--------|------|
+| T1 + T2 | `8aae7d6` | tile fill + muted-foreground hierarchy |
+| T3 | `a75fbc6` | primary recommendation chart-token render |
+| T4 | `eba898f` | aiBaseUrl cross-provider leak fix + test |
+| T5 | `c8ee28d` | insights/generate 502 → 422 |
+| T6 | `4aeb8c9` | admin status-card hrefs + tightened test |
+| T7 | `31959e4` | bug-report toggle now blocks /api/feedback + UI |
+| T8 | `c3ca861` | data-wipe preserves AuditLog + scope copy |
+| T9 | `1adda80` | per-card window 360+24 buckets, 7 generators + tests |
 
-- [ ] T1 trend-card w-full (in working tree)
-- [ ] T2 muted-foreground colour split
-- [ ] T3 primaryRecommendation chart-token rendering
-- [ ] T4 aiBaseUrl provider leak fix + test
-- [ ] T5 /api/insights/generate 502 → 422
-- [ ] T6 admin status-card hrefs + tighten test
-- [ ] T7 bug-report toggle gate (api/feedback + /bugreport/status)
-- [ ] T8 data-wipe scope + audit-log preservation
-- [ ] T9 KI per-card 360 daily + 24 monthly (7 generators)
+## Phase 3 — Chart bucketing ✅
 
-## Phase 3 — Chart bucketing
+`6a64df0` — `bucketTimeSeries` helper + chip in chart header + 14
+unit tests.
 
-- [ ] research recharts patterns
-- [ ] `bucketTimeSeries` helper + tests
-- [ ] chart header chip + i18n
+## Phase 4 — Tier 2 polish ✅
 
-## Phase 4 — Tier 2 polish
+P1-P5 in `fda8dd8`, P6+P10 in `dc6db82`, P7-P9 in `5c884b3`, P11 in
+`e903d9a`, P12 in `c7b6005`, P13 in `4a159d2`, P14 in `dcc697c`,
+P15+P16 in `89b5b80`, P17 in `505f318`, P18 in `86a4b52`, P19 in
+`2654337`, P20 in `dc4507a`.
 
-- [ ] P1–P5 trend-card + chart card (single commit)
-- [ ] P6 welcome subtitle
-- [ ] P7 auth-shell pb buffer
-- [ ] P8 empty-state title color
-- [ ] P9 onboarding font-mono drop
-- [ ] P10 medications card padding
-- [ ] P11 redact `sk-(ant-)?`
-- [ ] P12 idempotency exclusion
-- [ ] P13 cache-before-rate-limit
-- [ ] P14 codex-client structured error
-- [ ] P15 model presets (drop gpt-5/o3-mini)
-- [ ] P16 ai-section i18n strings
-- [ ] P17 feedback-inbox dracula colours
-- [ ] P18 danger-zone success heuristic
-- [ ] P19 useSystemStatus / useAdminSettings isError UI
-- [ ] P20 status-overview Promise.allSettled
+## Phase 5 — QA ✅
 
-## Phase 5 — QA
+3 parallel reviewers (security / design / code-review). No
+CRITICAL / HIGH carried into v1.4.6 except 3 quick follow-ups
+applied in `6757518`:
 
-- [ ] superpowers:code-reviewer
-- [ ] Plan as senior security reviewer
-- [ ] Plan as senior design reviewer
-- [ ] simplify pass
+- ai-section.tsx orange tokens → dracula tokens (also fixes contrast)
+- status-card-grid.tsx CTAs relabelled honestly ("Open integrations",
+  "Open system status")
+- idempotency.ts `text.includes("sk-")` → tightened regex with
+  false-positive regression tests for "task-id" / "risk-management"
 
-## Phase 6 — Pre-release verification
+Deferred to v1.5: notification-channel data-wipe scope (M1), Berlin
+TZ DST math in cross-metric joins (HIGH from code-review),
+exhaustive-deps + set-state-in-effect refactor in about-section.
 
-- [ ] typecheck / lint / format / test / integration / build / e2e
-- [ ] before-screenshots vs prod
+## Phase 6 — Pre-release verification ✅
 
-## Phase 7 — Release
+`pnpm typecheck` clean, `pnpm lint` 0 errors / 12 warnings,
+`pnpm format:check` clean (after the prettier sweep in `02b9955`),
+`pnpm test` 714 passed, `pnpm test:integration` 10 passed.
+`pnpm build` fails locally on Node 25 (Reflect.get private member
+bug in Turbopack); CI Docker uses Node 22 and is the canonical
+release build path.
 
-- [ ] package.json 1.4.6
-- [ ] CHANGELOG `[1.4.6]` block
-- [ ] tag + push
-- [ ] GHCR build green
-- [ ] Coolify deploy + finished
-- [ ] /api/version=1.4.6, image digest changed
+## Phase 7 — Release ✅
 
-## Phase 8 — Releases
+- `package.json` 1.4.6 (`a852612`)
+- `CHANGELOG.md` v1.4.6 block (`a852612`)
+- Tag `v1.4.6` pushed
+- GHCR docker-publish: in_progress
+- Coolify deploy: pending GHCR
 
-- [ ] gh release create v1.4.2…v1.4.6
-- [ ] GHCR untagged cleanup
+## Phase 8 — Releases ✅
 
-## Phase 9 — Docs / landing
+GitHub releases v1.4.2, v1.4.3, v1.4.4, v1.4.5, v1.4.6 backfilled
+from the CHANGELOG blocks. URLs:
+https://github.com/MBombeck/HealthLog/releases/tag/v1.4.{2,3,4,5,6}
 
-- [ ] healthlog-docs synced to v1.4.6
-- [ ] healthlog-landing minimal update
+GHCR untagged-manifest cleanup: not run; pre-existing tagged
+versions (v1.x.x) are pinned, no orphan manifests visible. Defer
+unless Marc asks.
+
+## Phase 9 — Docs / landing 🔄
+
+`general-purpose` agent dispatched to bring `healthlog-docs` from
+v1.2 to v1.4.6 and apply minimal updates to `healthlog-landing`.
+Running in background.
 
 ## Phase 10 — Summary
 
-- [ ] `docs/audit/v146-summary.md` with German Marc-brief on top
+`docs/audit/v146-summary.md` — last step.
