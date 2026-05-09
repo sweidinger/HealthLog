@@ -622,7 +622,7 @@ export function HealthChart({
               key={r.labelKey}
               variant={rangePoints === r.points ? "default" : "ghost"}
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="min-h-9 px-2.5 text-xs"
               onClick={() => setRangePoints(r.points)}
               title={t(r.titleKey)}
             >
@@ -638,7 +638,6 @@ export function HealthChart({
             id={maToggleId}
             checked={showMA}
             onCheckedChange={setShowMA}
-            className="scale-75"
           />
           <Label htmlFor={maToggleId} className="cursor-pointer text-xs">
             {t("charts.movingAverage7d")}
@@ -649,7 +648,6 @@ export function HealthChart({
             id={trendToggleId}
             checked={showTrend}
             onCheckedChange={setShowTrend}
-            className="scale-75"
           />
           <Label htmlFor={trendToggleId} className="cursor-pointer text-xs">
             {t("charts.trend")}
@@ -661,7 +659,6 @@ export function HealthChart({
               id={bandsToggleId}
               checked={showBands}
               onCheckedChange={setShowBands}
-              className="scale-75"
             />
             <Label htmlFor={bandsToggleId} className="cursor-pointer text-xs">
               {t("charts.targetRanges")}

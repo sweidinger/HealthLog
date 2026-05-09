@@ -146,7 +146,7 @@ export function MedicationComplianceChart({
               key={r}
               variant={days === r ? "default" : "ghost"}
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="min-h-9 px-2.5 text-xs"
               onClick={() => setDays(r)}
             >
               {r}T

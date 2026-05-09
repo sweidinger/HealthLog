@@ -425,17 +425,23 @@ export function MoodList() {
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
+                    {/* Phase A5 mobile audit: bumped from h-8 w-8 (32px)
+                        to min-h-11 min-w-11 (44px) so the per-row edit
+                        and delete actions meet WCAG 2.5.5 on touch
+                        devices. The desktop table keeps its denser
+                        h-8 w-8 since pointer targets allow it. */}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="min-h-11 min-w-11"
                       onClick={() => startEdit(entry)}
                       aria-label={t("common.edit")}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <DeleteButton
                       onConfirm={() => deleteMutation.mutate(entry.id)}
+                      mobile
                     />
                   </div>
                 </div>
@@ -685,7 +691,13 @@ function SortableHead({
   );
 }
 
-function DeleteButton({ onConfirm }: { onConfirm: () => void }) {
+function DeleteButton({
+  onConfirm,
+  mobile = false,
+}: {
+  onConfirm: () => void;
+  mobile?: boolean;
+}) {
   const { t } = useTranslations();
   return (
     <AlertDialog>
@@ -693,10 +705,14 @@ function DeleteButton({ onConfirm }: { onConfirm: () => void }) {
         <Button
           variant="ghost"
           size="icon"
-          className="text-destructive h-8 w-8"
+          className={
+            mobile
+              ? "text-destructive min-h-11 min-w-11"
+              : "text-destructive h-8 w-8"
+          }
           aria-label={t("common.delete")}
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className={mobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>

@@ -385,25 +385,29 @@ export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
             </div>
           </div>
           <div className="flex items-center gap-0.5">
+            {/* Phase A5: bumped from `h-8 w-8` (32px) to `min-h-11
+                min-w-11` (44px) so these meet the WCAG 2.5.5 minimum
+                tap-target on mobile without the icon glyph itself
+                changing size. */}
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="min-h-11 min-w-11"
               asChild
               aria-label={t("medications.intakeHistory")}
             >
               <Link href={`/medications/${medication.id}/history`}>
-                <History className="h-3.5 w-3.5" />
+                <History className="h-4 w-4" />
               </Link>
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="min-h-11 min-w-11"
               onClick={() => onEdit(medication)}
               aria-label={t("common.edit")}
             >
-              <Pencil className="h-3.5 w-3.5" />
+              <Pencil className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -541,32 +545,35 @@ export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
           </div>
         )}
 
-        {/* Quick actions */}
+        {/* Quick actions — primary buttons of the medication card.
+            Phase A5 mobile audit flagged the previous size="sm" / 32-px
+            height as below the WCAG 44-px minimum. These are the most-
+            tapped controls in HealthLog, so they get the full default
+            button height. */}
         {medication.active && (
           <div className="flex gap-2">
             <Button
-              size="sm"
-              className="flex-1"
+              className="min-h-11 flex-1"
               onClick={() => recordIntake(false)}
               disabled={!!intakeLoading}
             >
               {intakeLoading === "take" ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
               ) : (
-                <Check className="mr-1 h-3.5 w-3.5" />
+                <Check className="mr-1 h-4 w-4" />
               )}
               {t("medications.taken")}
             </Button>
             <Button
-              size="sm"
               variant="outline"
+              className="min-h-11"
               onClick={() => recordIntake(true)}
               disabled={!!intakeLoading}
             >
               {intakeLoading === "skip" ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
               ) : (
-                <SkipForward className="mr-1 h-3.5 w-3.5" />
+                <SkipForward className="mr-1 h-4 w-4" />
               )}
               {t("medications.skipped")}
             </Button>

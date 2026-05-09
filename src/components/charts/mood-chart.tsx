@@ -182,9 +182,10 @@ export function pickMoodBucket(entries: MoodEntryDay[]): ChartBucketType {
  * Pure & deterministic so the unit test can pin the exact aggregated
  * mean per bucket.
  */
-export function aggregateMoodEntries(
-  entries: MoodEntryDay[],
-): { bucket: ChartBucketType; points: Array<{ timestamp: number; score: number }> } {
+export function aggregateMoodEntries(entries: MoodEntryDay[]): {
+  bucket: ChartBucketType;
+  points: Array<{ timestamp: number; score: number }>;
+} {
   if (entries.length === 0) return { bucket: "day", points: [] };
 
   const bucket = pickMoodBucket(entries);
@@ -255,8 +256,7 @@ export function MoodChart({ title }: MoodChartProps) {
       }))
       .sort((a, b) => a.timestamp - b.timestamp);
 
-    const sliced =
-      rangePoints > 0 ? allPoints.slice(-rangePoints) : allPoints;
+    const sliced = rangePoints > 0 ? allPoints.slice(-rangePoints) : allPoints;
 
     // v1.4.15 Fix 3: parity with health-chart's auto-bucketing. Other
     // dashboard charts (BP, weight, pulse) auto-aggregate to weekly /
@@ -402,7 +402,7 @@ export function MoodChart({ title }: MoodChartProps) {
                 key={r.labelKey}
                 variant={rangePoints === r.points ? "default" : "ghost"}
                 size="sm"
-                className="h-7 px-2 text-xs"
+                className="min-h-9 px-2.5 text-xs"
                 onClick={() => setRangePoints(r.points)}
                 title={t(r.titleKey)}
               >
@@ -417,7 +417,6 @@ export function MoodChart({ title }: MoodChartProps) {
               id={maToggleId}
               checked={showMA}
               onCheckedChange={setShowMA}
-              className="scale-75"
             />
             <Label htmlFor={maToggleId} className="cursor-pointer text-xs">
               {t("charts.moodMA")}
@@ -428,7 +427,6 @@ export function MoodChart({ title }: MoodChartProps) {
               id={trendToggleId}
               checked={showTrend}
               onCheckedChange={setShowTrend}
-              className="scale-75"
             />
             <Label htmlFor={trendToggleId} className="cursor-pointer text-xs">
               {t("charts.trend")}
@@ -439,7 +437,6 @@ export function MoodChart({ title }: MoodChartProps) {
               id={bandsToggleId}
               checked={showBands}
               onCheckedChange={setShowBands}
-              className="scale-75"
             />
             <Label htmlFor={bandsToggleId} className="cursor-pointer text-xs">
               {t("charts.targetRanges")}
