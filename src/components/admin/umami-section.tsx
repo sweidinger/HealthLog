@@ -16,7 +16,7 @@ import {
   useUpdateSettings,
 } from "./_shared";
 
-export function UmamiSection({ id }: { id: string }) {
+export function UmamiSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();

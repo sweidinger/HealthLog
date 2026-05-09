@@ -45,7 +45,7 @@ import {
   useSystemStatus,
 } from "./_shared";
 
-export function FeedbackInboxSection({ id }: { id: string }) {
+export function FeedbackInboxSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const { data: status } = useSystemStatus();

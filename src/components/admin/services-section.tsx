@@ -4,7 +4,7 @@ import { Bell, Globe, Key, MessageCircle } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { SettingsToggle, useAdminSettings, useUpdateSettings } from "./_shared";
 
-export function ServicesSection({ id }: { id: string }) {
+export function ServicesSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();

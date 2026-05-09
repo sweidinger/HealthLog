@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 
-export function DangerZoneSection({ id }: { id: string }) {
+export function DangerZoneSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const [wipeMsg, setWipeMsg] = useState<string | null>(null);

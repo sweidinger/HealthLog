@@ -1,92 +1,86 @@
 "use client";
 
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
-import { ApiTokenOverviewSection } from "@/components/admin/api-token-overview-section";
-import { BugReportSection } from "@/components/admin/bug-report-section";
-import { DangerZoneSection } from "@/components/admin/danger-zone-section";
-import { FeedbackInboxSection } from "@/components/admin/feedback-inbox-section";
-import { GeneralSettingsSection } from "@/components/admin/general-settings-section";
-import { GlitchtipSection } from "@/components/admin/glitchtip-section";
-import { LoginOverviewSection } from "@/components/admin/login-overview-section";
-import { RemindersSection } from "@/components/admin/reminders-section";
-import { ServicesSection } from "@/components/admin/services-section";
+import { AdminShell, ADMIN_SECTIONS } from "@/components/admin/admin-shell";
 import { StatusCardGrid } from "@/components/admin/status-card-grid";
-import { SystemStatusSection } from "@/components/admin/system-status-section";
-import { UmamiSection } from "@/components/admin/umami-section";
-import { UserManagementSection } from "@/components/admin/user-management-section";
-import { WebPushVapidSection } from "@/components/admin/web-push-vapid-section";
 import { useAdminSettings } from "@/components/admin/_shared";
 
-export default function AdminPage() {
+/**
+ * `/admin` — overview landing page. The long monolithic admin scroll has
+ * moved to per-section dynamic routes under `/admin/[section]`; this page
+ * is now the system-wide status grid plus a quick-jump menu of the
+ * available sub-sections.
+ *
+ * Bundle-size note: by extracting each section into its own route, the
+ * overview no longer ships the umami / glitchtip / feedback /
+ * users / etc. component trees. See `.planning/phase-4b-report.md`.
+ */
+export default function AdminOverviewPage() {
   const { user } = useAuth();
   const { t } = useTranslations();
-  // P19: surface admin-settings fetch failures once at the top of the
-  // page. Many child sections share `useAdminSettings()` and render
-  // defaults silently on error — the banner makes the failure visible
-  // so the admin knows the toggles below aren't reflecting real state.
+  // Surface admin-settings fetch failures once at the top of the page.
+  // Many sub-sections share `useAdminSettings()` and render defaults
+  // silently on error — the banner makes the failure visible so the
+  // admin knows the toggles below aren't reflecting real state.
   const { isError: settingsError } = useAdminSettings();
 
   if (!user || user.role !== "ADMIN") return null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t("admin.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm">{t("admin.subtitle")}</p>
-      </div>
-
-      {settingsError && (
-        <div
-          role="alert"
-          className="text-destructive bg-destructive/10 border-destructive/30 rounded-md border px-3 py-2 text-sm"
-        >
-          {t("admin.adminSettingsLoadError")}
-        </div>
-      )}
-
-      <StatusCardGrid />
-
+    <AdminShell>
       <div className="space-y-6">
-        <SystemStatusSection id="section-system-status" />
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {t("admin.title")}
+          </h1>
+          <p className="text-muted-foreground text-sm">{t("admin.subtitle")}</p>
+        </div>
 
-        <h2 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
-          {t("admin.sectionGeneral")}
-        </h2>
-        <GeneralSettingsSection id="section-admin-general" />
-        <ServicesSection id="section-admin-services" />
+        {settingsError && (
+          <div
+            role="alert"
+            className="text-destructive bg-destructive/10 border-destructive/30 rounded-md border px-3 py-2 text-sm"
+          >
+            {t("admin.adminSettingsLoadError")}
+          </div>
+        )}
 
-        <h2 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
-          {t("admin.sectionIntegrations")}
-        </h2>
-        <UmamiSection id="section-admin-umami" />
-        <GlitchtipSection id="section-admin-glitchtip" />
-        <WebPushVapidSection id="section-admin-webpush" />
-        <BugReportSection id="section-admin-bugreport" />
+        <StatusCardGrid />
 
-        <h2 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
-          {t("admin.feedback.sectionTitle")}
-        </h2>
-        <FeedbackInboxSection id="section-admin-feedback" />
-
-        <h2 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
-          {t("admin.sectionMedication")}
-        </h2>
-        <RemindersSection id="section-admin-reminders" />
-
-        <h2 className="text-muted-foreground text-sm font-semibold tracking-wider uppercase">
-          {t("admin.sectionManagement")}
-        </h2>
-        <UserManagementSection
-          id="section-user-management"
-          currentUserId={user.id}
-        />
-        <ApiTokenOverviewSection id="section-api-tokens" />
-        <LoginOverviewSection id="section-login-overview" />
-        <DangerZoneSection id="section-danger-zone" />
+        <div>
+          <h2 className="text-muted-foreground mb-3 text-sm font-semibold tracking-wider uppercase">
+            {t("admin.shell.sectionsNav")}
+          </h2>
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {ADMIN_SECTIONS.map((section) => {
+              const Icon = section.icon;
+              return (
+                <li key={section.slug}>
+                  <Link
+                    href={`/admin/${section.slug}`}
+                    className="bg-card border-border hover:bg-accent flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm font-medium transition-colors"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Icon
+                        className="text-muted-foreground h-4 w-4"
+                        aria-hidden="true"
+                      />
+                      {t(section.titleKey)}
+                    </span>
+                    <ArrowRight
+                      className="text-muted-foreground h-4 w-4"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </div>
-    </div>
+    </AdminShell>
   );
 }

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
 import { PasswordInput, useAdminSettings, useUpdateSettings } from "./_shared";
 
-export function WebPushVapidSection({ id }: { id: string }) {
+export function WebPushVapidSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();

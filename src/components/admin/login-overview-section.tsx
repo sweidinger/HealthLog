@@ -14,7 +14,7 @@ import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { type AdminAuditEntry } from "./_shared";
 
-export function LoginOverviewSection({ id }: { id: string }) {
+export function LoginOverviewSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<"all" | "failed">("all");

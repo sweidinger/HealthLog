@@ -16,7 +16,7 @@ import {
   useUpdateSettings,
 } from "./_shared";
 
-export function GlitchtipSection({ id }: { id: string }) {
+export function GlitchtipSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();

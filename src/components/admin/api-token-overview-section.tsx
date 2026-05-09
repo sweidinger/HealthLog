@@ -9,7 +9,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { type ApiTokenInfo } from "./_shared";
 
-export function ApiTokenOverviewSection({ id }: { id: string }) {
+export function ApiTokenOverviewSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const [expanded, setExpanded] = useState(false);
 

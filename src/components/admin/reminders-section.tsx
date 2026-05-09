@@ -22,7 +22,7 @@ import {
   useUpdateSettings,
 } from "./_shared";
 
-export function RemindersSection({ id }: { id: string }) {
+export function RemindersSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();

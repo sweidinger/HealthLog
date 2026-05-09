@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
 import { PasswordInput, useAdminSettings, useUpdateSettings } from "./_shared";
 
-export function BugReportSection({ id }: { id: string }) {
+export function BugReportSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();

@@ -19,7 +19,7 @@ import { formatDateTime } from "@/lib/format";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { StatusItem, useSystemStatus } from "./_shared";
 
-export function SystemStatusSection({ id }: { id: string }) {
+export function SystemStatusSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const { data: status, isError } = useSystemStatus();

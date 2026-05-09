@@ -4,7 +4,7 @@ import { Settings } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { SettingsToggle, useAdminSettings, useUpdateSettings } from "./_shared";
 
-export function GeneralSettingsSection({ id }: { id: string }) {
+export function GeneralSettingsSection({ id }: { id?: string } = {}) {
   const { t } = useTranslations();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();
