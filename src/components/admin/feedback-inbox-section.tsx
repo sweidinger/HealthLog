@@ -206,7 +206,11 @@ function FeedbackCategoryBadge({
   > = {
     BUG: {
       label: t("admin.feedback.categoryBug"),
-      className: "bg-dracula-red/15 text-dracula-red border-dracula-red/30",
+      // Bug = something that's broken → semantic `destructive` token instead
+      // of raw `dracula-red`. Visually identical in dark mode (both resolve
+      // to #ff5555); light mode now picks up the AA-contrast `#cb3a2a`.
+      className:
+        "bg-destructive/15 text-destructive border-destructive/30",
     },
     FEATURE_REQUEST: {
       label: t("admin.feedback.categoryFeature"),
@@ -500,7 +504,7 @@ function FeedbackDetailDialog({
               </Button>
             )}
             {issueUrl && (
-              <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green ml-auto">
+              <Badge className="border-success/30 bg-success/15 text-success ml-auto">
                 {t("admin.feedback.publishedToGithub")}
               </Badge>
             )}

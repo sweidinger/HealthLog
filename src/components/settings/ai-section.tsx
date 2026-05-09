@@ -334,7 +334,7 @@ function InsightsSettingsCard({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {settings?.codexStatus === "connected" && (
-            <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
+            <Badge className="border-success/30 bg-success/15 text-success">
               {t("settings.ai.chatgptConnectedBadge")}
             </Badge>
           )}
@@ -344,7 +344,7 @@ function InsightsSettingsCard({
             </Badge>
           )}
           {settings?.codexStatus === "expired" && (
-            <Badge className="border-dracula-orange/30 bg-dracula-orange/15 text-dracula-orange">
+            <Badge className="border-warning/30 bg-warning/15 text-warning">
               {t("settings.ai.connectionExpiredBadge")}
             </Badge>
           )}
@@ -493,7 +493,7 @@ function InsightsSettingsCard({
         {msg && (
           <p
             role="alert"
-            className={`text-sm ${msgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+            className={`text-sm ${msgType === "success" ? "text-success" : "text-destructive"}`}
           >
             {msg}
           </p>
@@ -518,7 +518,7 @@ function InsightsSettingsCard({
               </div>
             </div>
             {settings?.privacyMode === "raw" && (
-              <div className="bg-dracula-orange/15 text-dracula-orange mt-2 rounded-lg p-2 text-xs">
+              <div className="bg-warning/15 text-warning mt-2 rounded-lg p-2 text-xs">
                 {t("settings.rawDataWarning")}
               </div>
             )}
@@ -958,7 +958,7 @@ function UserAIProviderSubsection() {
       {saveMsg && (
         <p
           className={`mt-2 text-xs ${
-            saveOk ? "text-dracula-green" : "text-destructive"
+            saveOk ? "text-success" : "text-destructive"
           }`}
         >
           {saveMsg}
@@ -967,7 +967,7 @@ function UserAIProviderSubsection() {
       {testMsg && (
         <p
           className={`mt-2 text-xs ${
-            testOk ? "text-dracula-green" : "text-destructive"
+            testOk ? "text-success" : "text-destructive"
           }`}
         >
           {testMsg}

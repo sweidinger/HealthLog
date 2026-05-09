@@ -55,6 +55,20 @@
   --color-dracula-red: var(--dracula-red);
   --color-dracula-yellow: var(--dracula-yellow);
   --color-dracula-lavender: var(--dracula-lavender);
+
+  /*
+   * Semantic feedback tokens — aliases over the Dracula palette so badges,
+   * banners, and status pills can stop hard-coding `text-dracula-green` /
+   * `bg-dracula-orange/15` and ask for the *meaning* instead. Each is a
+   * straight alias of the existing colour at the time of introduction so
+   * the visual stays pixel-identical to v1.4.6 — what changes is intent.
+   *   - success → dracula-green   (positive outcome, e.g. published)
+   *   - warning → dracula-orange  (caution / non-blocking attention)
+   *   - info    → dracula-cyan    (neutral informational note)
+   */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
 }
 
 /*
@@ -77,6 +91,16 @@
   --dracula-red: #ff5555;
   --dracula-yellow: #f1fa8c;
   --dracula-lavender: #d6acff;
+
+  /*
+   * Semantic feedback tokens (see @theme `--color-success` / `--color-warning`
+   * / `--color-info` re-exports). Aliased over the Dracula palette so existing
+   * dark-mode visuals stay identical; light mode (Alucard) below provides the
+   * higher-contrast counterpart so AA contrast lands on the white card.
+   */
+  --success: var(--dracula-green);
+  --warning: var(--dracula-orange);
+  --info: var(--dracula-cyan);
 
   --radius: 0.625rem;
 }
@@ -135,6 +159,14 @@
   --accent: #dcdeef;
   --accent-foreground: #1f1f1f;
   --destructive: #cb3a2a;
+  /*
+   * Alucard light-mode overrides for the semantic tokens — straight Dracula
+   * green/orange/cyan would fail AA contrast on a white card. These match the
+   * darker palette already used for `--destructive`/`--chart-*` in light mode.
+   */
+  --success: #14720a;
+  --warning: #a34d14;
+  --info: #036a96;
   --border: #cfcfde;
   --input: #cfcfde;
   --ring: #644ac9;

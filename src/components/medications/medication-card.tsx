@@ -416,10 +416,10 @@ export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
             <span
               className={
                 currentWindowStatus.status === "in_window"
-                  ? "text-dracula-green font-medium"
+                  ? "text-success font-medium"
                   : currentWindowStatus.status === "late"
                     ? "text-dracula-yellow font-medium"
-                    : "text-dracula-orange font-medium"
+                    : "text-warning font-medium"
               }
             >
               {currentWindowStatus.status === "in_window"
