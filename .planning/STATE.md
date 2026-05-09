@@ -1,7 +1,7 @@
 # v1.5 marathon — state log
 
-Status: phase-7-done
-Last update: 2026-05-09T18:15:00+02:00
+Status: finished
+Last update: 2026-05-09T18:35:00+02:00
 
 > Previous milestone: see `docs/audit/v146-summary.md` (v1.4.6 marathon).
 > Codex-OAuth iteration v1.4.7 → v1.4.13 landed in CHANGELOG between
@@ -130,6 +130,22 @@ Last update: 2026-05-09T18:15:00+02:00
 - [ ] prod smoke screenshots saved
 - Detailed report: `.planning/phase-8-report.md`
 
+### Phase 8 — Release v1.4.14 (rebrand patch deploy 2026-05-09)
+
+- [x] package.json bumped to 1.4.14 (commit `e5fae9b`)
+- [x] CHANGELOG v1.4.14 section written
+- [x] tag v1.4.14 pushed
+- [x] GHCR tag-build green (run 25605648606, finished 16:29Z, pushed 1.4.14 + 1.4 + sha-e5fae9b + latest)
+- [x] main-branch GHCR build cancelled (hung >45min on same SHA — harmless, tag build already published :latest)
+- [x] Coolify deploy via host-side retag of `:1.4.14` → `:latest` (no compose-file edit) + `docker compose up -d app`
+- [x] /api/version=1.4.14 confirmed (live in 0s after recreate)
+- [x] image digest changed: `791c2cd2…` → `0ced46004a54…`
+- [x] prod smoke (curl with session cookie): /, /auth/login, /settings/integrations, /admin all 200
+- [x] GitHub release v1.4.14 published: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.14
+- Note: GHCR OCI tag is `:1.4.14` (no `v` prefix) — git tag is `v1.4.14`. Hard-rule's `:v1.4.14` slug needs a docs fix.
+- Result: ok / no new commits (planning-only deploy)
+- Detailed report: `.planning/phase-8-report.md`
+
 ## Phase 9 — Docs + landing sync
 
 - [x] healthlog-docs updated to v1.5 — Codex device-code rewrite, new
@@ -152,5 +168,12 @@ Last update: 2026-05-09T18:15:00+02:00
 
 ## Phase 11 — Final summary doc
 
-- [ ] docs/audit/v15-summary.md with Marc-Brief
-- Detailed report: `.planning/phase-11-report.md`
+- [x] `docs/audit/v1414-summary.md` written with Marc-Brief (DE,
+      ≤200 words at top), commit history table, deferred items, CI
+      status, prod state, Codex-OAuth resolution, v1.4.15 backlog seed
+- [x] STATE.md status flipped to `finished`
+- Result: ok / commit `<filled in by commit step>` (single
+  `docs(audit): v1.4.14 release summary` commit, push to origin/main)
+- Marathon completed 2026-05-09T18:35+02:00 — v1.4.14 LIVE in prod,
+  /api/version=1.4.14, image digest 0ced46004a54…
+- Detailed report: this file
