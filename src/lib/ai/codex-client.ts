@@ -21,13 +21,19 @@ import type { AIProvider, CompletionParams, CompletionResult } from "./types";
 const CODEX_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses";
 
 /**
- * `gpt-5.3-codex` is a *test placeholder* in the upstream codebase
- * (`codex-rs/codex-api/src/sse/responses.rs:1374`), not a real model
- * slug. The real CLI default is `gpt-5-codex`. The server safety-routes
- * if needed and reports the actual model in the `OpenAI-Model`
- * response header.
+ * Model slug for the ChatGPT-account auth path.
+ *
+ * Caveat: `gpt-5-codex` is the API-key-auth Codex slug but is rejected
+ * by the chatgpt.com backend with "model is not supported when using
+ * Codex with a ChatGPT account". For ChatGPT-OAuth we send the plain
+ * `gpt-5` slug — that's the Pro/Plus subscription model the backend
+ * routes by default. The server may safety-route to a different slug
+ * and reports the actual model in the `OpenAI-Model` response header.
+ *
+ * Operators can override via `CODEX_MODEL` env var on apps01 if a
+ * different slug works better for their ChatGPT plan tier.
  */
-const CODEX_MODEL = "gpt-5-codex";
+const CODEX_MODEL = process.env.CODEX_MODEL?.trim() || "gpt-5";
 
 const ORIGINATOR = "healthlog";
 const USER_AGENT = "HealthLog/1.0 (+https://healthlog.bombeck.io)";

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.13] — 2026-05-09
+
+### Fixed — KI Insights via ChatGPT
+
+- **Modell-Slug für ChatGPT-Auth korrigiert.** Der Codex-Backend
+  lehnt `gpt-5-codex` mit ChatGPT-Subscription ab
+  (`The 'gpt-5-codex' model is not supported when using Codex with a
+ChatGPT account.`) — dieses Slug ist nur für API-Key-Auth gültig.
+  Wechsel auf `gpt-5`, das Standard-Modell der ChatGPT-Plus/Pro-Tarife.
+  Operator-Override via `CODEX_MODEL`-Env-Var möglich falls dein
+  Plan einen anderen Default kennt.
+
 ## [1.4.12] — 2026-05-09
 
 ### Fixed — KI Insights via ChatGPT (komplette Codex-Integration)
