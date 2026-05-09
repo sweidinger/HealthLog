@@ -4,14 +4,16 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 
 /**
  * Doctor-report PDF flow. The real flow:
- *   1. User clicks "Doctor report (PDF)" on `/settings/advanced`
- *   2. Frontend POSTs `/api/doctor-report` to fetch aggregated data
- *   3. Frontend dynamic-imports `src/lib/doctor-report-pdf.ts` and
+ *   1. User clicks "Configure & generate" on `/settings/export`
+ *      (relocated from `/settings/advanced` in v1.4.16 phase B7)
+ *   2. The dialog opens; user picks dates and submits.
+ *   3. Frontend POSTs `/api/doctor-report` to fetch aggregated data
+ *   4. Frontend dynamic-imports `src/lib/doctor-report-pdf.ts` and
  *      generates the PDF client-side via jsPDF; calls `doc.save(...)`
  *      which triggers a download.
  *
- * This spec mocks step 2 (so we don't need 90 days of seeded data) and
- * captures step 3's download via Playwright's download API. We then
+ * This spec mocks step 3 (so we don't need 90 days of seeded data) and
+ * captures step 4's download via Playwright's download API. We then
  * confirm the file is non-empty and starts with `%PDF` magic bytes.
  */
 test.describe("doctor report PDF generation", () => {
@@ -59,19 +61,24 @@ test.describe("doctor report PDF generation", () => {
         pageErrors.push(`console.error: ${msg.text()}`);
     });
 
-    await page.goto("/settings/advanced", { waitUntil: "domcontentloaded" });
+    await page.goto("/settings/export", { waitUntil: "domcontentloaded" });
 
-    // The button label varies by locale; match the EN string but keep
-    // the regex permissive so a future i18n rename still passes if the
-    // word "report" survives.
-    const reportBtn = page.getByRole("button", {
-      name: /doctor report|arztbericht|gesundheitsbericht/i,
-    });
+    // The card carries a stable testid so the e2e suite can target it
+    // without depending on the localised "Configure & generate" label.
+    const reportBtn = page.getByTestId("export-action-doctor-report");
     await expect(reportBtn).toBeVisible({ timeout: 10_000 });
 
-    // Trigger the download and capture the resulting Download object.
+    // Click opens the dialog; the dialog's submit button triggers the PDF
+    // generation. Trigger the download and capture the resulting Download
+    // object once the user confirms.
     const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
     await reportBtn.click();
+    // Submit the dialog with the default dates (last 90 days).
+    const submitBtn = page.getByRole("button", {
+      name: /generate pdf|pdf generieren/i,
+    });
+    await expect(submitBtn).toBeVisible({ timeout: 5_000 });
+    await submitBtn.click();
     const download = await downloadPromise.catch((err) => {
       throw new Error(
         `Download did not fire. Page errors:\n${pageErrors.join("\n")}\n\nOriginal: ${err}`,

@@ -155,9 +155,15 @@ describe("settings sections — SSR smoke", () => {
     expect(html).toContain("API &amp; Tokens");
   });
 
-  it("<AdvancedSection> renders export + danger-zone cards", () => {
+  it("<AdvancedSection> renders the danger-zone card only (export moved to /settings/export)", () => {
     const html = render(<AdvancedSection />);
+    // v1.4.16 phase B7: every export path moved out into the dedicated
+    // `<ExportSection>` so what remains is the irreversible delete-all
+    // path. The section heading + dangerZone surface are the only
+    // primary surfaces here now.
     expect(html).toContain("Advanced");
+    expect(html).not.toContain("settings.export");
+    expect(html).not.toContain("doctorReport");
   });
 
   it("<AboutSection> resolves about.* keys in German", () => {

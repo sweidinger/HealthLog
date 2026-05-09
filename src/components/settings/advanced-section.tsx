@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Download, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
 import {
   AlertDialog,
@@ -16,12 +16,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  DoctorReportDialog,
-  type DoctorReportSubmitPayload,
-} from "@/components/doctor-report/doctor-report-dialog";
 import { useTranslations } from "@/lib/i18n/context";
 
+/**
+ * Settings → Advanced.
+ *
+ * v1.4.16 phase B7: every export path (CSV, JSON, doctor-report PDF)
+ * moved out into the dedicated `<ExportSection>` under `/settings/export`.
+ * What stays here is the irreversible danger-zone — the "wipe all my
+ * data" surface that should never live next to a single-click export
+ * button.
+ */
 export function AdvancedSection() {
   const { t } = useTranslations();
 
@@ -42,136 +47,8 @@ export function AdvancedSection() {
         </p>
       </header>
 
-      <ExportCard />
       <DataResetCard />
     </section>
-  );
-}
-
-function ExportCard() {
-  const { t, locale } = useTranslations();
-  const [exporting, setExporting] = useState(false);
-  const [generatingReport, setGeneratingReport] = useState(false);
-  const [reportDialogOpen, setReportDialogOpen] = useState(false);
-  const [lastPracticeName, setLastPracticeName] = useState<string | null>(null);
-
-  // Fetch the previously-stored practice name so the dialog can pre-fill it.
-  // `useEffect` is the right place for a one-shot side-effect on mount; the
-  // ESLint `set-state-in-effect` rule is fine here because we are not
-  // setting state on every render — we are reacting to a fetch.
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/auth/me")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        if (cancelled || !json) return;
-        const name = json?.data?.lastReportPracticeName;
-        if (typeof name === "string") setLastPracticeName(name);
-      })
-      .catch(() => {
-        // Best-effort; the dialog still works without the pre-fill.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function handleExport(format: "csv" | "json") {
-    setExporting(true);
-    try {
-      const res = await fetch(`/api/export?format=${format}&type=all`);
-      if (!res.ok) return;
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `healthlog-export-${new Date().toISOString().slice(0, 10)}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } finally {
-      setExporting(false);
-    }
-  }
-
-  async function handleDoctorReport(payload: DoctorReportSubmitPayload) {
-    setGeneratingReport(true);
-    try {
-      const res = await fetch("/api/doctor-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          startDate: payload.startDate,
-          endDate: payload.endDate,
-          practiceName: payload.practiceName,
-        }),
-      });
-      if (!res.ok) return;
-      const json = await res.json();
-
-      const { generateDoctorReportPDF } =
-        await import("@/lib/doctor-report-pdf");
-      const doc = generateDoctorReportPDF(json.data, { t, locale });
-      const fileSlug = locale === "de" ? "gesundheitsbericht" : "health-report";
-      doc.save(`${fileSlug}-${new Date().toISOString().slice(0, 10)}.pdf`);
-      // Remember the last-used practice name so the next open of the dialog
-      // pre-fills it without a roundtrip to /api/auth/me.
-      if (payload.practiceName) setLastPracticeName(payload.practiceName);
-      setReportDialogOpen(false);
-    } finally {
-      setGeneratingReport(false);
-    }
-  }
-
-  return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex items-center gap-2">
-        <Download className="text-primary h-5 w-5" />
-        <h2 className="text-lg font-semibold">{t("settings.export")}</h2>
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.exportDescription")}
-      </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleExport("json")}
-          disabled={exporting}
-        >
-          {exporting && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-          {t("settings.exportJson")}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleExport("csv")}
-          disabled={exporting}
-        >
-          {exporting && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-          {t("settings.exportCsv")}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setReportDialogOpen(true)}
-          disabled={generatingReport}
-        >
-          {generatingReport && (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-          )}
-          {t("settings.doctorReport")}
-        </Button>
-      </div>
-      <DoctorReportDialog
-        open={reportDialogOpen}
-        onOpenChange={setReportDialogOpen}
-        defaultPracticeName={lastPracticeName}
-        onSubmit={handleDoctorReport}
-      />
-    </div>
   );
 }
 
