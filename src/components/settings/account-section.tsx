@@ -568,8 +568,15 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
       <p className="text-muted-foreground mt-1 text-xs">
         {t("settings.passkeysDescription")}
       </p>
-      <div className="border-border mt-3 overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[620px] text-sm">
+      {/* Phase A5 / B-mobile HIGH: the passkey table previously
+          rendered with `min-w-[620px]` inside `overflow-x-auto`,
+          which on a 393px viewport hid the right-most column —
+          including the destructive delete action. Render the desktop
+          table only at `≥ md`, and at `< md` paint a card-list where
+          every passkey's name, device type, backup status, created
+          date, and delete action are all visible without scrolling. */}
+      <div className="border-border mt-3 hidden overflow-x-auto rounded-lg border md:block">
+        <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40 text-muted-foreground border-b text-xs">
               <th className="px-3 py-2 text-left font-medium">
@@ -618,6 +625,7 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
                         size="icon"
                         className="text-destructive h-8 w-8"
                         disabled={deletePasskey.isPending}
+                        aria-label={t("settings.deletePasskey")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -650,6 +658,77 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
           </tbody>
         </table>
       </div>
+
+      {/* Mobile card list — < md only. Each passkey gets its own
+          card so the delete action stays visible and tap-targetable
+          (44px) without the user having to horizontally scroll
+          through a wide table. */}
+      <ul
+        className="mt-3 space-y-2 md:hidden"
+        data-testid="passkeys-mobile-list"
+      >
+        {passkeys.map((pk) => (
+          <li
+            key={pk.id}
+            className="bg-card border-border rounded-lg border p-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{pk.name}</p>
+                <p className="text-muted-foreground text-xs">
+                  {DEVICE_TYPE_LABELS[pk.credentialDeviceType] ??
+                    pk.credentialDeviceType}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <Badge
+                    variant={pk.credentialBackedUp ? "secondary" : "outline"}
+                    className="text-[11px]"
+                  >
+                    {pk.credentialBackedUp
+                      ? t("settings.backedUp")
+                      : t("common.no")}
+                  </Badge>
+                  <span className="text-muted-foreground">
+                    {formatDate(pk.createdAt)}
+                  </span>
+                </div>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive min-h-11 min-w-11"
+                    disabled={deletePasskey.isPending}
+                    aria-label={t("settings.deletePasskey")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("settings.deletePasskey")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("settings.deletePasskeyDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => deletePasskey.mutate(pk.id)}
+                    >
+                      {t("common.delete")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </li>
+        ))}
+      </ul>
       {deleteMsg && (
         <div
           role="alert"
