@@ -216,8 +216,8 @@
     "trendDown": "falling",
     "trendStable": "stable",
     "quickEntry": "Quick entry",
-    "quickAddMeasurement": "Measurement",
-    "quickAddMood": "Mood entry",
+    "quickAddMeasurement": "Log measurement",
+    "quickAddMood": "Log mood",
     "addMeasurement": "Add measurement",
     "compliance7d": "Compliance (7 days)",
     "complianceGood": "Good",
@@ -1467,6 +1467,24 @@
     "shell": {
       "overview": "Overview",
       "sectionsNav": "Admin sections"
+    },
+    "overview": {
+      "welcomeTitle": "Welcome, {name}",
+      "welcomeSubtitle": "You are signed in as administrator. Pick a section from the sidebar to manage HealthLog.",
+      "snapshotTitle": "System snapshot",
+      "snapshotVersion": "Version",
+      "snapshotDatabase": "Database",
+      "snapshotWorker": "Worker",
+      "snapshotStarted": "Started",
+      "snapshotBuildSha": "Build SHA",
+      "snapshotBuiltAt": "Built at",
+      "snapshotLoadError": "Failed to load system snapshot.",
+      "snapshotLoading": "Loading snapshot...",
+      "auditTitle": "Recent activity",
+      "auditEmpty": "No recent audit entries.",
+      "auditLoadError": "Failed to load recent activity.",
+      "auditLoading": "Loading activity...",
+      "auditViewAll": "View all"
     },
     "section": {
       "system-status": {

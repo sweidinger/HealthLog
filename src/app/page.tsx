@@ -373,10 +373,13 @@ export default function DashboardPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {/* v1.5 phase-5: the menu items used to share the literal label
-                "Add" with the dialog titles, so screen-reader users heard
-                two indistinguishable "Add" rows in the same dropdown. The
-                trigger already says "Add" — these label what's being added. */}
+            {/* Menu items must each carry a self-contained verb-phrase
+                ("Log measurement", "Log mood") — the trigger above already
+                says "Add", and the icon is `aria-hidden`, so the visible
+                text is the only thing distinguishing the rows. v1.4.15
+                phase-A3 fix #1 hardened this with a unit guard at
+                `src/app/__tests__/quick-add-labels.test.ts` — both labels
+                must differ from each other AND from `common.add`. */}
             <DropdownMenuItem
               onClick={() => setQuickEntryDialog("measurement")}
             >

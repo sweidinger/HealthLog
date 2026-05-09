@@ -10,17 +10,20 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
-// Auth + theme + logout — the user section is rendered inside the
-// sidebar and otherwise pulls in TanStack Query + the auth endpoint.
+// Each test mutates `mockUserRef.value.role` before rendering so we can
+// exercise both regular-user and admin layouts from the same suite.
+const mockUserRef = {
+  value: {
+    id: "u1",
+    username: "marc",
+    email: "marc@example.com",
+    role: "USER" as "USER" | "ADMIN",
+    gravatarUrl: null,
+  },
+};
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
-    user: {
-      id: "u1",
-      username: "marc",
-      email: "marc@example.com",
-      role: "USER",
-      gravatarUrl: null,
-    },
+    user: mockUserRef.value,
     isAuthenticated: true,
     isLoading: false,
     refetch: vi.fn(),
@@ -36,7 +39,7 @@ vi.mock("@/components/providers", () => ({
   }),
 }));
 
-// The flag-under-test. Each test mutates `mockSettingsRef.value` before
+// The bug-report flag — each test mutates `mockSettingsRef.value` before
 // rendering so the sidebar reads the desired state.
 const mockSettingsRef = { value: { bugReportEnabled: true } };
 vi.mock("@/components/app-settings-provider", () => ({
@@ -45,13 +48,20 @@ vi.mock("@/components/app-settings-provider", () => ({
 
 import { I18nProvider } from "@/lib/i18n/context";
 import { SidebarNav } from "../sidebar-nav";
+import { ADMIN_SECTIONS } from "@/components/admin/admin-shell";
 
 function render({
   pathname = "/",
   bugReportEnabled = true,
-}: { pathname?: string; bugReportEnabled?: boolean } = {}) {
+  role = "USER" as "USER" | "ADMIN",
+}: {
+  pathname?: string;
+  bugReportEnabled?: boolean;
+  role?: "USER" | "ADMIN";
+} = {}) {
   mockPathnameRef.value = pathname;
   mockSettingsRef.value = { bugReportEnabled };
+  mockUserRef.value = { ...mockUserRef.value, role };
   return renderToStaticMarkup(
     <I18nProvider initialLocale="en">
       <SidebarNav />
@@ -71,5 +81,44 @@ describe("<SidebarNav> bug-report toggle", () => {
   it("hides the Bug Report entry when the admin flag is disabled", () => {
     const html = render({ bugReportEnabled: false });
     expect(html).not.toContain('href="/bugreport"');
+  });
+});
+
+describe("<SidebarNav> admin sub-items context-awareness", () => {
+  it("does not render admin entries at all for a regular user", () => {
+    const html = render({ role: "USER", pathname: "/admin/system-status" });
+    expect(html).not.toContain('href="/admin"');
+    for (const section of ADMIN_SECTIONS) {
+      expect(html).not.toContain(`href="/admin/${section.slug}"`);
+    }
+  });
+
+  it("for an admin off /admin/* shows a single Admin link without sub-items", () => {
+    const html = render({ role: "ADMIN", pathname: "/" });
+    expect(html).toContain('href="/admin"');
+    // No sub-route links — sidebar collapses into a single Admin entry.
+    for (const section of ADMIN_SECTIONS) {
+      expect(html).not.toContain(`href="/admin/${section.slug}"`);
+    }
+  });
+
+  it("for an admin on /admin/* expands the section sub-list", () => {
+    const html = render({ role: "ADMIN", pathname: "/admin/system-status" });
+    expect(html).toContain('href="/admin"');
+    // All section sub-items must render — the global sidebar mirrors
+    // the in-shell sidebar so users can jump between sections.
+    for (const section of ADMIN_SECTIONS) {
+      expect(html).toContain(`href="/admin/${section.slug}"`);
+    }
+  });
+
+  it("expands sub-items on the /admin overview page (mirrors in-shell sidebar)", () => {
+    // The in-shell `<AdminShell>` sidebar already lists every section on
+    // `/admin`. The global sidebar must mirror that so the navigation
+    // experience is identical between the two viewports.
+    const html = render({ role: "ADMIN", pathname: "/admin" });
+    for (const section of ADMIN_SECTIONS) {
+      expect(html).toContain(`href="/admin/${section.slug}"`);
+    }
   });
 });

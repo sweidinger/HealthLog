@@ -216,8 +216,8 @@
     "trendDown": "fallend",
     "trendStable": "stabil",
     "quickEntry": "Schnelleingabe",
-    "quickAddMeasurement": "Messung",
-    "quickAddMood": "Stimmungseintrag",
+    "quickAddMeasurement": "Messung erfassen",
+    "quickAddMood": "Stimmung erfassen",
     "addMeasurement": "Messwert hinzufügen",
     "compliance7d": "Einnahmetreue (7 Tage)",
     "complianceGood": "Gut",
@@ -1467,6 +1467,24 @@
     "shell": {
       "overview": "Übersicht",
       "sectionsNav": "Admin-Bereiche"
+    },
+    "overview": {
+      "welcomeTitle": "Willkommen, {name}",
+      "welcomeSubtitle": "Du bist als Administrator angemeldet. Wähle einen Bereich in der Seitenleiste, um HealthLog zu verwalten.",
+      "snapshotTitle": "System-Snapshot",
+      "snapshotVersion": "Version",
+      "snapshotDatabase": "Datenbank",
+      "snapshotWorker": "Worker",
+      "snapshotStarted": "Gestartet",
+      "snapshotBuildSha": "Build-SHA",
+      "snapshotBuiltAt": "Gebaut am",
+      "snapshotLoadError": "System-Snapshot konnte nicht geladen werden.",
+      "snapshotLoading": "Snapshot wird geladen...",
+      "auditTitle": "Letzte Aktivitäten",
+      "auditEmpty": "Keine aktuellen Audit-Einträge.",
+      "auditLoadError": "Letzte Aktivitäten konnten nicht geladen werden.",
+      "auditLoading": "Aktivitäten werden geladen...",
+      "auditViewAll": "Alle anzeigen"
     },
     "section": {
       "system-status": {
