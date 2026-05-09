@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -111,9 +112,15 @@ export function FeedbackInboxSection() {
                 </span>
               </div>
             ) : !data?.items?.length ? (
-              <p className="text-muted-foreground text-sm">
-                {t("admin.feedback.noEntries")}
-              </p>
+              // v1.4.15 phase-C5: per-tab empty state. Compact size so
+              // it sits naturally under the tab strip without dwarfing
+              // a typical 1-2-row inbox once entries arrive.
+              <EmptyState
+                size="compact"
+                icon={<Inbox className="size-5" />}
+                title={t("admin.feedback.emptyTitle")}
+                description={t("admin.feedback.emptyDescription")}
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

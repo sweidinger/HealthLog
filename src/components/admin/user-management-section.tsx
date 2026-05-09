@@ -6,6 +6,7 @@ import { KeyRound, Loader2, LogOut, Pencil, Shield, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordStrength } from "@/components/ui/password-strength";
@@ -271,6 +272,30 @@ export function UserManagementSection() {
       </div>
 
       {filteredUsers ? (
+        filteredUsers.length === 0 ? (
+          // v1.4.15 phase-C5: dedicated empty state. The previous build
+          // rendered an empty `<tbody>` so an admin filter that returned
+          // no rows produced a blank rectangle; the icon + filter-aware
+          // copy + "Show all users" CTA make the state explicit.
+          <div className="mt-4">
+            <EmptyState
+              icon={<Users className="size-6" />}
+              title={t("admin.section.users.emptyTitle")}
+              description={t("admin.section.users.emptyDescription")}
+              action={
+                filter !== "all" ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFilter("all")}
+                  >
+                    {t("admin.section.users.emptyResetFilter")}
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
+        ) : (
         <>
           {/* Desktop table: kept verbatim — only the wrapping
               `md:block hidden` swaps it out for the card-list below at
@@ -370,6 +395,7 @@ export function UserManagementSection() {
             ))}
           </ul>
         </>
+        )
       ) : (
         <div className="mt-4 flex items-center gap-2">
           <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />

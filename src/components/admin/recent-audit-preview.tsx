@@ -18,6 +18,7 @@ import {
   ScrollText,
   XCircle,
 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { type AdminAuditEntry } from "./_shared";
@@ -102,9 +103,15 @@ export function RecentAuditPreview() {
             {t("admin.overview.auditLoadError")}
           </div>
         ) : entries.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {t("admin.overview.auditEmpty")}
-          </p>
+          // v1.4.15 phase-C5: compact + plain so it nests inside the
+          // overview card without doubling the dashed border. Reuses
+          // the existing audit-empty string.
+          <EmptyState
+            size="compact"
+            variant="plain"
+            icon={<ScrollText className="size-5" />}
+            title={t("admin.overview.auditEmpty")}
+          />
         ) : (
           <ul className="divide-border divide-y">
             {entries.map((entry) => {

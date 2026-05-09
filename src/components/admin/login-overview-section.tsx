@@ -10,6 +10,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { type AdminAuditEntry } from "./_shared";
@@ -100,9 +101,34 @@ export function LoginOverviewSection() {
               <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
             </div>
           ) : !entries?.length ? (
-            <p className="text-muted-foreground text-sm">
-              {t("admin.noEntries")}
-            </p>
+            // v1.4.15 phase-C5: surface a real empty state. Filter-aware
+            // copy distinguishes "no auth events at all" (genuinely
+            // empty system) from "no failed sign-ins" (the safe case)
+            // and offers a "show all events" reset.
+            <EmptyState
+              icon={<ScrollText className="size-6" />}
+              title={
+                filter === "failed"
+                  ? t("admin.loginEmptyFailedTitle")
+                  : t("admin.loginEmptyTitle")
+              }
+              description={
+                filter === "failed"
+                  ? t("admin.loginEmptyFailedDescription")
+                  : t("admin.loginEmptyDescription")
+              }
+              action={
+                filter === "failed" ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFilter("all")}
+                  >
+                    {t("admin.loginEmptyResetFilter")}
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

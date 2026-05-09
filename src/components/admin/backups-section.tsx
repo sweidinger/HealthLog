@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
@@ -423,8 +424,30 @@ export function BackupsSection() {
           {t("admin.section.backups.loadError")}
         </div>
       ) : rows.length === 0 ? (
-        <div className="text-muted-foreground mt-4 text-sm">
-          {t("admin.section.backups.empty")}
+        // v1.4.15 phase-C5: replace bare text with the EmptyState
+        // primitive. The header already exposes "Backup now" but a
+        // brand-new admin lands inside the card and benefits from a
+        // duplicate CTA right next to the explanation.
+        <div className="mt-4">
+          <EmptyState
+            icon={<Database className="size-6" />}
+            title={t("admin.section.backups.emptyTitle")}
+            description={t("admin.section.backups.emptyDescription")}
+            action={
+              <Button
+                size="sm"
+                disabled={runBackup.isPending}
+                onClick={() => runBackup.mutate()}
+              >
+                {runBackup.isPending ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <PlayCircle className="mr-1 h-3.5 w-3.5" />
+                )}
+                {t("admin.section.backups.runNow")}
+              </Button>
+            }
+          />
         </div>
       ) : (
         <div className="mt-4 overflow-x-auto">

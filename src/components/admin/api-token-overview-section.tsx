@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Key, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { type ApiTokenInfo } from "./_shared";
@@ -53,9 +54,14 @@ export function ApiTokenOverviewSection() {
               <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
             </div>
           ) : !tokens?.length ? (
-            <p className="text-muted-foreground text-sm">
-              {t("admin.noTokens")}
-            </p>
+            // v1.4.15 phase-C5: empty state explains where tokens come
+            // from (native client sign-in / Settings → Account) so a
+            // fresh admin doesn't think they need to create them here.
+            <EmptyState
+              icon={<Key className="size-6" />}
+              title={t("admin.tokensEmptyTitle")}
+              description={t("admin.tokensEmptyDescription")}
+            />
           ) : (
             // Mobile fits within the card by hiding lower-priority
             // columns (user, last-used, created) until `sm`. The
