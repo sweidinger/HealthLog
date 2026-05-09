@@ -129,9 +129,14 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-8 space-y-4">
+          {/* Phase A5 / B-mobile: bumped from default size (h-9, 36px)
+              to size="lg" so the login CTAs meet WCAG 2.5.5 (44px
+              minimum) on mobile. Login is the most-tapped flow on a
+              fresh install. */}
           <Button
             onClick={handlePasskeyLogin}
-            className="w-full"
+            className="min-h-11 w-full"
+            size="lg"
             disabled={loading}
           >
             {loading && mode === "passkey" ? (
@@ -153,7 +158,8 @@ export default function LoginPage() {
           {mode === "passkey" ? (
             <Button
               variant="outline"
-              className="w-full"
+              className="min-h-11 w-full"
+              size="lg"
               onClick={() => setMode("password")}
             >
               <Lock className="mr-2 h-4 w-4" />
@@ -185,7 +191,12 @@ export default function LoginPage() {
                   placeholder="********"
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button
+                type="submit"
+                className="min-h-11 w-full"
+                size="lg"
+                disabled={loading}
+              >
                 {loading && mode === "password" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
