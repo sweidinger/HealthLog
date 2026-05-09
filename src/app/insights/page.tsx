@@ -39,15 +39,40 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+// Recharts is ~108 KiB Brotli — defer-import the scatter primitives so they
+// only land in the bundle once a correlation card actually renders. Every
+// `<ResponsiveContainer>`/`<ScatterChart>`/`<Scatter>`/axis/grid/tooltip use
+// site sits inside a `length >= 5` gate and is below the fold, so the first
+// paint never waits on Recharts. v1.5 perf audit (docs/audit/v15-performance.md).
+const ScatterChart = dynamic(
+  () => import("recharts").then((mod) => ({ default: mod.ScatterChart })),
+  { ssr: false },
+);
+const Scatter = dynamic(
+  () => import("recharts").then((mod) => ({ default: mod.Scatter })),
+  { ssr: false },
+);
+const XAxis = dynamic(
+  () => import("recharts").then((mod) => ({ default: mod.XAxis })),
+  { ssr: false },
+);
+const YAxis = dynamic(
+  () => import("recharts").then((mod) => ({ default: mod.YAxis })),
+  { ssr: false },
+);
+const CartesianGrid = dynamic(
+  () => import("recharts").then((mod) => ({ default: mod.CartesianGrid })),
+  { ssr: false },
+);
+const Tooltip = dynamic(
+  () => import("recharts").then((mod) => ({ default: mod.Tooltip })),
+  { ssr: false },
+);
+const ResponsiveContainer = dynamic(
+  () =>
+    import("recharts").then((mod) => ({ default: mod.ResponsiveContainer })),
+  { ssr: false },
+);
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import {
   buildTrafficRange,
