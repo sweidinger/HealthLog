@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Activity, Bell, Check, Pill, User2, Wifi, X } from "lucide-react";
+import {
+  Activity,
+  Bell,
+  Check,
+  ChevronDown,
+  Pill,
+  User2,
+  Wifi,
+  X,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +28,7 @@ import {
 
 const DISMISSED_ITEMS_KEY = "healthlog-getting-started-dismissed";
 const DISMISSED_ALL_KEY = "healthlog-getting-started-hidden";
+const EXPANDED_KEY = "healthlog-getting-started-expanded";
 
 const ITEM_ICONS: Record<ChecklistItemId, LucideIcon> = {
   profile: User2,
@@ -102,6 +112,21 @@ function readDismissedAll(): boolean {
   }
 }
 
+function readExpanded(): boolean {
+  // Default = collapsed. v1.4.15 phase-A3 fix #3: the card auto-opening
+  // on every page-load was the dominant complaint after the flicker —
+  // it pushed the actual dashboard tiles below the fold every visit.
+  // We persist the user's last choice so a deliberate expand survives
+  // reloads, but the *default* for a brand-new user (no key set) is
+  // collapsed.
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(EXPANDED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Persistent dashboard checklist surfaced to brand-new users. Mirrors
  * the Linear/Notion pattern: visible until the user has either
@@ -118,6 +143,12 @@ export function GettingStartedChecklist() {
   const [dismissedAll, setDismissedAll] = useState<boolean>(() =>
     readDismissedAll(),
   );
+  // v1.4.15 phase-A3 fix #3 — collapsed by default. The card used to
+  // render expanded on every load, pushing actual dashboard tiles below
+  // the fold. The collapsed shell still surfaces the progress meter +
+  // CTA-row count via `gettingStarted.progress`, so users see at a
+  // glance how much setup is left without the visual noise.
+  const [expanded, setExpanded] = useState<boolean>(() => readExpanded());
 
   // Sync state to localStorage. Effect, not setState-in-effect.
   useEffect(() => {
@@ -141,6 +172,15 @@ export function GettingStartedChecklist() {
     }
   }, [dismissedAll]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(EXPANDED_KEY, expanded ? "1" : "0");
+    } catch {
+      /* storage may be full or disabled */
+    }
+  }, [expanded]);
+
   // Light-weight queries: each fetch is small and cached by tanstack.
   // We rely on the React Query cache the dashboard already uses for
   // analytics, so this won't fire a second request when the dashboard
@@ -152,7 +192,7 @@ export function GettingStartedChecklist() {
   // makes the canonical consumers' `data?.summaries` / `data?.length`
   // reads silently return undefined — that's how the v1.4.2 dashboard
   // ended up rendering only the mood tile.
-  const { data: analyticsData } = useQuery<AnalyticsData>({
+  const analyticsQuery = useQuery<AnalyticsData>({
     queryKey: ["analytics"],
     queryFn: async () => {
       const res = await fetch("/api/analytics");
@@ -162,6 +202,7 @@ export function GettingStartedChecklist() {
     },
     enabled: !!user,
   });
+  const analyticsData = analyticsQuery.data;
 
   const { data: medsData } = useQuery<Array<{ id: string }>>({
     queryKey: ["medications"],
@@ -256,25 +297,58 @@ export function GettingStartedChecklist() {
     items,
   });
 
-  if (!user || !show) return null;
+  // v1.4.15 phase-A3 fix #3 — flicker guard. Until BOTH the auth user
+  // AND the analytics query have resolved we render NOTHING. The
+  // previous version rendered a default-true `show` branch while
+  // `measurementCount` was still 0 (because analytics hadn't returned),
+  // so a user whose actual `measurementCount >= 5` saw the card flash
+  // for ~500 ms before `shouldShowChecklist` flipped to false. We rely
+  // on `analyticsQuery.data === undefined` as the loading sentinel —
+  // tanstack-query writes `data` exactly once per fetch, so this is
+  // race-free across hot-reloads and stale-cache invalidation. (The
+  // dashboard's `/api/analytics` query shares the cache key, so the
+  // checklist almost always sees the cached value synchronously on
+  // mount and never blocks UI.)
+  if (!user) return null;
+  if (analyticsQuery.data === undefined) return null;
+  if (!show) return null;
 
   return (
     <section
+      data-testid="onboarding-card"
       aria-labelledby="getting-started-title"
       className="bg-card border-border space-y-4 rounded-2xl border p-5 sm:p-6"
     >
       <header className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h2
-            id="getting-started-title"
-            className="text-base font-semibold tracking-tight"
-          >
-            {t("gettingStarted.title")}
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            {t("gettingStarted.subtitle")}
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          aria-expanded={expanded}
+          aria-controls="getting-started-body"
+          className="hover:text-foreground -m-1 flex flex-1 items-center gap-2 rounded-md p-1 text-left transition-colors"
+        >
+          <ChevronDown
+            aria-hidden="true"
+            className={
+              expanded
+                ? "size-4 shrink-0 transition-transform"
+                : "size-4 shrink-0 -rotate-90 transition-transform"
+            }
+          />
+          <div className="space-y-1">
+            <h2
+              id="getting-started-title"
+              className="text-base font-semibold tracking-tight"
+            >
+              {t("gettingStarted.title")}
+            </h2>
+            {expanded ? (
+              <p className="text-muted-foreground text-sm">
+                {t("gettingStarted.subtitle")}
+              </p>
+            ) : null}
+          </div>
+        </button>
         <Button
           type="button"
           variant="ghost"
@@ -286,7 +360,10 @@ export function GettingStartedChecklist() {
         </Button>
       </header>
 
-      {/* Progress meter — non-decorative, exposed to screen readers. */}
+      {/* Progress meter — non-decorative, exposed to screen readers.
+          Stays visible in both expanded and collapsed states so a
+          glance at the card tells the user how much setup is left
+          without forcing the full row-list back open. */}
       <div
         role="progressbar"
         aria-valuemin={0}
@@ -315,66 +392,68 @@ export function GettingStartedChecklist() {
         </div>
       </div>
 
-      <ul className="space-y-1.5">
-        {visible.map((item) => {
-          const Icon = ITEM_ICONS[item.id];
-          const labels = ITEM_LABEL_KEYS[item.id];
-          return (
-            <li
-              key={item.id}
-              className="hover:bg-accent/40 group flex items-center gap-3 rounded-md px-2 py-2"
-            >
-              <span
-                aria-hidden="true"
-                className={
-                  item.done
-                    ? "bg-primary/20 text-primary flex size-7 shrink-0 items-center justify-center rounded-full"
-                    : "bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-full"
-                }
+      {expanded ? (
+        <ul id="getting-started-body" className="space-y-1.5">
+          {visible.map((item) => {
+            const Icon = ITEM_ICONS[item.id];
+            const labels = ITEM_LABEL_KEYS[item.id];
+            return (
+              <li
+                key={item.id}
+                className="hover:bg-accent/40 group flex items-center gap-3 rounded-md px-2 py-2"
               >
-                {item.done ? (
-                  <Check className="size-4" />
-                ) : (
-                  <Icon className="size-4" />
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p
+                <span
+                  aria-hidden="true"
                   className={
                     item.done
-                      ? "text-muted-foreground truncate text-sm line-through"
-                      : "truncate text-sm font-medium"
+                      ? "bg-primary/20 text-primary flex size-7 shrink-0 items-center justify-center rounded-full"
+                      : "bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-full"
                   }
                 >
-                  {t(labels.title)}
-                </p>
-                <p className="text-muted-foreground truncate text-xs">
-                  {t(labels.description)}
-                </p>
-              </div>
-              {!item.done ? (
-                <Button asChild size="sm" variant="outline">
-                  <Link href={item.href}>{t(labels.cta)}</Link>
-                </Button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() =>
-                  setDismissedIds((prev) => {
-                    const next = new Set(prev);
-                    next.add(item.id);
-                    return next;
-                  })
-                }
-                aria-label={t("gettingStarted.dismissTooltip")}
-                className="text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
-              >
-                <X className="size-4" />
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                  {item.done ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <Icon className="size-4" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={
+                      item.done
+                        ? "text-muted-foreground truncate text-sm line-through"
+                        : "truncate text-sm font-medium"
+                    }
+                  >
+                    {t(labels.title)}
+                  </p>
+                  <p className="text-muted-foreground truncate text-xs">
+                    {t(labels.description)}
+                  </p>
+                </div>
+                {!item.done ? (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={item.href}>{t(labels.cta)}</Link>
+                  </Button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDismissedIds((prev) => {
+                      const next = new Set(prev);
+                      next.add(item.id);
+                      return next;
+                    })
+                  }
+                  aria-label={t("gettingStarted.dismissTooltip")}
+                  className="text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
+                >
+                  <X className="size-4" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
     </section>
   );
 }

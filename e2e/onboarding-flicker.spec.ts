@@ -1,0 +1,214 @@
+import { expect, test } from "@playwright/test";
+
+import { STORAGE_STATE_PATH } from "./setup/global-setup";
+
+/**
+ * v1.4.15 phase-A3 fix #3 — onboarding card flicker on dashboard load.
+ *
+ * The previous version of `<GettingStartedChecklist>` rendered against a
+ * default-true `shouldShowChecklist` decision while `measurementCount`
+ * was still 0 (analytics query in flight). For a fully-onboarded user
+ * (`onboardingCompletedAt != null` AND `measurementCount >= 5`), the
+ * card briefly flashed before tanstack-query wrote the real value and
+ * `show` flipped to false on the next render.
+ *
+ * This spec asserts the card is NEVER visible — at any sampled instant
+ * during page load — when both:
+ *   - the auth user has `onboardingCompletedAt != null`, AND
+ *   - `/api/analytics` returns ≥5 measurements.
+ *
+ * We slow `/api/analytics` deliberately so any "render-before-data"
+ * race condition would be fully visible to a Playwright `isVisible()`
+ * probe; with the fix in place, the card stays unmounted because the
+ * component refuses to render until `analyticsQuery.data !== undefined`.
+ */
+test.describe("dashboard onboarding card flicker guard", () => {
+  test.use({ storageState: STORAGE_STATE_PATH });
+
+  test("complete-onboarding user never sees the card during load", async ({
+    page,
+  }) => {
+    // Set the seed user to onboarding-complete BEFORE navigation. The
+    // global setup leaves `onboardingCompletedAt` null by default so we
+    // intercept `/api/auth/me` and pin a non-null timestamp.
+    await page.route("**/api/auth/me", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            id: "user_e2e",
+            username: "e2e-tester",
+            email: "e2e@healthlog.test",
+            role: "ADMIN",
+            heightCm: 180,
+            dateOfBirth: "1990-01-01",
+            gender: "MALE",
+            timezone: "Europe/Berlin",
+            onboardingCompletedAt: "2025-01-01T00:00:00.000Z",
+            gravatarUrl: null,
+            glucoseUnit: "mg/dL",
+          },
+          error: null,
+        }),
+      }),
+    );
+
+    // Slow the analytics endpoint by ~250 ms so a race-condition flash
+    // would be unmistakable to the visibility probes below; the fix
+    // works by NOT rendering until this resolves, so even with the
+    // delay the card stays invisible the whole time.
+    await page.route("**/api/analytics", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            summaries: {
+              // ≥5 readings → past the `measurementCount < 5` setup gate.
+              WEIGHT: {
+                latest: 80,
+                avg7: 80,
+                avg30: 80,
+                slope30: { slope: 0, direction: "stable" },
+                count: 30,
+              },
+            },
+            bpInTargetPct: null,
+            glucoseByContext: {},
+          },
+          error: null,
+        }),
+      });
+    });
+
+    await page.route("**/api/mood/analytics", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { entries: [], summary: { count: 0 } },
+          error: null,
+        }),
+      }),
+    );
+
+    const card = page.locator('[data-testid="onboarding-card"]');
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    // Sample visibility every 50 ms for ~600 ms (covers the 250 ms
+    // analytics delay + render commit + a buffer). If the card mounts
+    // at any sampled instant, the assertion fails.
+    const samples: boolean[] = [];
+    for (let i = 0; i < 12; i++) {
+      samples.push(await card.isVisible().catch(() => false));
+      await page.waitForTimeout(50);
+    }
+
+    expect(samples.every((visible) => visible === false)).toBe(true);
+
+    // After the network has settled the card is still hidden — the
+    // user is past the setup gate, so `shouldShowChecklist` returns
+    // false even with real data.
+    await page.waitForLoadState("networkidle");
+    await expect(card).toBeHidden();
+  });
+
+  test("incomplete-onboarding user sees the card collapsed by default", async ({
+    page,
+  }) => {
+    // Onboarding is incomplete AND profile fields are missing → the
+    // `shouldShowChecklist` gate is true. With the fix, the card mounts
+    // collapsed: header + progress meter visible, full row list hidden
+    // until the user clicks the chevron.
+    await page.route("**/api/auth/me", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            id: "user_e2e",
+            username: "e2e-tester",
+            email: "e2e@healthlog.test",
+            role: "ADMIN",
+            heightCm: null,
+            dateOfBirth: null,
+            gender: null,
+            timezone: "Europe/Berlin",
+            onboardingCompletedAt: null,
+            gravatarUrl: null,
+            glucoseUnit: "mg/dL",
+          },
+          error: null,
+        }),
+      }),
+    );
+    await page.route("**/api/analytics", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { summaries: {}, bpInTargetPct: null, glucoseByContext: {} },
+          error: null,
+        }),
+      }),
+    );
+    await page.route("**/api/mood/analytics", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { entries: [], summary: { count: 0 } },
+          error: null,
+        }),
+      }),
+    );
+    await page.route("**/api/medications", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: [], error: null }),
+      }),
+    );
+    await page.route("**/api/withings/status", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { connected: false }, error: null }),
+      }),
+    );
+    await page.route("**/api/notifications/preferences", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { channels: [] }, error: null }),
+      }),
+    );
+
+    // Make sure no localStorage carries an `expanded=1` from a previous
+    // session — the spec asserts the *default* is collapsed.
+    await page.addInitScript(() => {
+      try {
+        window.localStorage.removeItem("healthlog-getting-started-expanded");
+      } catch {
+        /* storage unavailable */
+      }
+    });
+
+    const card = page.locator('[data-testid="onboarding-card"]');
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
+
+    await expect(card).toBeVisible({ timeout: 10_000 });
+
+    // The collapsed shell exposes the toggle as `aria-expanded=false`;
+    // the row list (`#getting-started-body`) is unmounted, not just
+    // hidden, so a `count()` query returns 0 in the collapsed state.
+    const toggle = card.getByRole("button", { expanded: false });
+    await expect(toggle).toBeVisible();
+    await expect(card.locator("#getting-started-body")).toHaveCount(0);
+  });
+});
