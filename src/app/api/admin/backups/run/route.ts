@@ -8,8 +8,10 @@
  * If the worker isn't running (no global boss instance) the route returns
  * 503 — the caller can then route the user to the system-status page.
  */
+import type { NextRequest } from "next/server";
 import { apiHandler, requireAdmin, HttpError } from "@/lib/api-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, getClientIp } from "@/lib/api-response";
+import { auditLog } from "@/lib/auth/audit";
 import { annotate } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -18,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 const DATA_BACKUP_QUEUE = "data-backup";
 
-export const POST = apiHandler(async () => {
+export const POST = apiHandler(async (request: NextRequest) => {
   const { user: admin } = await requireAdmin();
   annotate({ action: { name: "admin.backups.run" } });
 
@@ -32,11 +34,23 @@ export const POST = apiHandler(async () => {
     60 * 1000,
   );
   if (!rl.allowed) {
+    // Audit the rate-limited attempt so a compromised session burning
+    // through the cap is visible in the trail.
+    await auditLog("admin.backups.run.denied", {
+      userId: admin.id,
+      ipAddress: getClientIp(request),
+      details: { reason: "rate_limited" },
+    });
     throw new HttpError(429, "Too many backup runs");
   }
 
   const boss = getGlobalBoss();
   if (!boss) {
+    await auditLog("admin.backups.run.denied", {
+      userId: admin.id,
+      ipAddress: getClientIp(request),
+      details: { reason: "worker_not_running" },
+    });
     // 503 instead of 500 — the request is well-formed; the worker just
     // isn't reachable from this process. Same response shape as other
     // worker-required endpoints.
@@ -48,6 +62,18 @@ export const POST = apiHandler(async () => {
   });
 
   annotate({ meta: { job_id: jobId ?? null } });
+
+  // Mirrors the audit shape of upload / download / restore: actor =
+  // admin.id, action = admin.backups.run, with the boss job id so a
+  // forensic trail can correlate "admin enqueued" → "worker ran".
+  await auditLog("admin.backups.run", {
+    userId: admin.id,
+    ipAddress: getClientIp(request),
+    details: {
+      queue: DATA_BACKUP_QUEUE,
+      jobId: jobId ?? null,
+    },
+  });
 
   return apiSuccess({
     jobId,
