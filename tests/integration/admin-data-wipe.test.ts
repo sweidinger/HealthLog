@@ -18,31 +18,34 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { cookieJar, headerJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
 
 // next/headers cookie + ip headers stub for getSession() inside
 // requireAdmin(). The admin route reads x-forwarded-for too; we stub
-// both to keep the handler reachable.
-const cookieJar = new Map<string, string>();
-const headerJar = new Map<string, string>();
-
-vi.mock("next/headers", () => ({
-  headers: vi.fn(async () => ({
-    get: (name: string) => headerJar.get(name.toLowerCase()) ?? null,
-  })),
-  cookies: vi.fn(async () => ({
-    get: (name: string) => {
-      const value = cookieJar.get(name);
-      return value ? { name, value } : undefined;
-    },
-    set: (name: string, value: string) => {
-      cookieJar.set(name, value);
-    },
-    delete: (name: string) => {
-      cookieJar.delete(name);
-    },
-  })),
-}));
+// both to keep the handler reachable. Maps live in
+// `mock-next-headers.ts` — see that file for the rationale (suite
+// runs with vitest `isolate: false`, so per-file Maps would leak).
+vi.mock("next/headers", async () => {
+  const { cookieJar, headerJar } = await import("./mock-next-headers");
+  return {
+    headers: vi.fn(async () => ({
+      get: (name: string) => headerJar.get(name.toLowerCase()) ?? null,
+    })),
+    cookies: vi.fn(async () => ({
+      get: (name: string) => {
+        const value = cookieJar.get(name);
+        return value ? { name, value } : undefined;
+      },
+      set: (name: string, value: string) => {
+        cookieJar.set(name, value);
+      },
+      delete: (name: string) => {
+        cookieJar.delete(name);
+      },
+    })),
+  };
+});
 
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),

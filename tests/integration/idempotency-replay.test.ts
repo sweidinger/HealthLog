@@ -9,32 +9,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { cookieJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
 
 // `withIdempotency()` calls `getSession()` (cookie-backed) by default and
-// falls back to a Bearer-token lookup. We stub `next/headers` to return
-// a fixed user id via the cookie path so the integration stays focused
-// on the cache-replay contract rather than the auth machinery.
+// falls back to a Bearer-token lookup. We seed a real Session row +
+// cookie jar so the integration exercises the production auth path —
+// no `vi.mock("@/lib/auth/session", ...)` (a module-level mock leaks
+// across files under vitest `isolate: false` and made
+// `admin-data-wipe.test.ts` flake when this file loaded first).
 const TEST_USER_ID = "user-idempotency-test";
 
-vi.mock("next/headers", () => ({
-  headers: vi.fn(async () => ({ get: () => null })),
-  cookies: vi.fn(async () => ({
-    get: () => undefined,
-    set: () => {},
-    delete: () => {},
-  })),
-}));
-
-vi.mock("@/lib/auth/session", () => ({
-  getSession: vi.fn(async () => ({
-    session: {
-      id: "session-stub",
-      expiresAt: new Date(Date.now() + 1_000_000),
-    },
-    user: { id: TEST_USER_ID },
-  })),
-}));
+vi.mock("next/headers", async () => {
+  const { cookieJar, headerJar } = await import("./mock-next-headers");
+  return {
+    headers: vi.fn(async () => ({
+      get: (name: string) => headerJar.get(name.toLowerCase()) ?? null,
+    })),
+    cookies: vi.fn(async () => ({
+      get: (name: string) => {
+        const value = cookieJar.get(name);
+        return value ? { name, value } : undefined;
+      },
+      set: (name: string, value: string) => {
+        cookieJar.set(name, value);
+      },
+      delete: (name: string) => {
+        cookieJar.delete(name);
+      },
+    })),
+  };
+});
 
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
@@ -42,6 +47,7 @@ vi.mock("@/lib/db-compat", () => ({
 
 beforeEach(async () => {
   await truncateAllTables(getPrismaClient());
+  cookieJar.clear();
   // Seed the user the resolver claims to authenticate as so the FK
   // constraint on idempotency_keys.user_id holds.
   await getPrismaClient().user.create({
@@ -51,6 +57,15 @@ beforeEach(async () => {
       email: "idempotency@example.test",
     },
   });
+  // Real Session row + cookie so getSession() returns the seeded user
+  // via the production code path.
+  const session = await getPrismaClient().session.create({
+    data: {
+      userId: TEST_USER_ID,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    },
+  });
+  cookieJar.set("healthlog_session", session.id);
 });
 
 function makeRequest(key: string | null, path = "/api/test"): NextRequest {

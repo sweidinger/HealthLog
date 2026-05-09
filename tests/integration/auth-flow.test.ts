@@ -9,28 +9,34 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { cookieJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
 
 // Stateful in-memory cookie jar so `createSession()` (which calls
 // cookies().set) hands the value off to a subsequent `getSession()`
 // (which calls cookies().get), exactly as the request lifecycle does.
-const cookieJar = new Map<string, string>();
-
-vi.mock("next/headers", () => ({
-  headers: vi.fn(async () => ({ get: () => null })),
-  cookies: vi.fn(async () => ({
-    get: (name: string) => {
-      const value = cookieJar.get(name);
-      return value ? { name, value } : undefined;
-    },
-    set: (name: string, value: string) => {
-      cookieJar.set(name, value);
-    },
-    delete: (name: string) => {
-      cookieJar.delete(name);
-    },
-  })),
-}));
+// The Map lives in `mock-next-headers.ts` so all integration files
+// share the same backing store under vitest `isolate: false`.
+vi.mock("next/headers", async () => {
+  const { cookieJar, headerJar } = await import("./mock-next-headers");
+  return {
+    headers: vi.fn(async () => ({
+      get: (name: string) => headerJar.get(name.toLowerCase()) ?? null,
+    })),
+    cookies: vi.fn(async () => ({
+      get: (name: string) => {
+        const value = cookieJar.get(name);
+        return value ? { name, value } : undefined;
+      },
+      set: (name: string, value: string) => {
+        cookieJar.set(name, value);
+      },
+      delete: (name: string) => {
+        cookieJar.delete(name);
+      },
+    })),
+  };
+});
 
 // `db-compat` runs ALTER TABLE IF NOT EXISTS statements that are no-ops
 // against a freshly-migrated schema but slow tests down — short-circuit.
