@@ -44,6 +44,12 @@ const baseCitation = {
   summary: "avg 138/86 across 9 readings",
 };
 
+const baseRationale = {
+  dataWindow: "last7days" as const,
+  comparedTo: "your 90-day median (122/78)",
+  deviation: "+16/+8 mmHg above baseline over 9 of 9 readings",
+};
+
 const baseValid: AIInsightResponse = {
   summary: "BP runs slightly above your 90-day median.",
   recommendations: [
@@ -52,6 +58,7 @@ const baseValid: AIInsightResponse = {
       text: "Discuss home BP log with your physician.",
       severity: "important",
       metricSource: baseMetricSource,
+      rationale: baseRationale,
     },
   ],
   citations: [baseCitation],
@@ -155,6 +162,11 @@ describe("citation-from-data — cross-check enforcement", () => {
             timeRange: "last7days",
             summary: "no diet logging available",
           },
+          rationale: {
+            dataWindow: "last7days",
+            comparedTo: "general DGE intake guideline",
+            deviation: "n/a — no salt tracking present",
+          },
         },
       ],
       citations: [baseCitation], // diet citation missing
@@ -181,6 +193,11 @@ describe("citation-from-data — cross-check enforcement", () => {
             timeRange: "last30days", // citation only covers last7days
             summary: "avg over 30 days",
           },
+          rationale: {
+            dataWindow: "last30days",
+            comparedTo: "your 90-day median",
+            deviation: "+2 mmHg over 30-day window",
+          },
         },
       ],
       citations: [baseCitation],
@@ -199,6 +216,7 @@ describe("citation-from-data — cross-check enforcement", () => {
           text: "Continue daily logging.",
           severity: "info",
           metricSource: { ...baseMetricSource },
+          rationale: baseRationale,
         },
       ],
       citations: [baseCitation],

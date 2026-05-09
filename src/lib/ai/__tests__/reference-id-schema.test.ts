@@ -37,6 +37,11 @@ const baseRec = {
   text: "Discuss home BP log with your physician.",
   severity: "important" as const,
   metricSource: baseMetricSource,
+  rationale: {
+    dataWindow: "last7days" as const,
+    comparedTo: "your 90-day median (122/78)",
+    deviation: "+16/+8 mmHg above baseline over 9 of 9 readings",
+  },
 };
 
 const baseValid: AIInsightResponse = {

@@ -29,6 +29,12 @@ const baseCitation = {
   summary: "avg 138/86 across 9 readings",
 };
 
+const baseRationale = {
+  dataWindow: "last7days" as const,
+  comparedTo: "your 90-day median (128/82)",
+  deviation: "+10/+4 mmHg above baseline",
+};
+
 /**
  * v1.4.16 phase B5a — citation-coverage post-validation logging.
  *
@@ -115,6 +121,7 @@ describe("computeCitationCoverage()", () => {
           text: "Aim for a target below 140/90",
           severity: "important",
           metricSource: baseMetricSource,
+          rationale: baseRationale,
           referenceId: knownRefId,
         },
       ],
@@ -136,6 +143,7 @@ describe("computeCitationCoverage()", () => {
           text: "Aim for a target below 140/90",
           severity: "important",
           metricSource: baseMetricSource,
+          rationale: baseRationale,
         },
       ],
       citations: [baseCitation],
@@ -157,6 +165,7 @@ describe("computeCitationCoverage()", () => {
           text: "Your avg7 (78 bpm) is 5 bpm higher than your 90-day median",
           severity: "info",
           metricSource: baseMetricSource,
+          rationale: baseRationale,
         },
       ],
       citations: [baseCitation],
@@ -180,6 +189,7 @@ describe("computeCitationCoverage()", () => {
           text: "Your avg7 is 5 mmHg above your 90-day median",
           severity: "info",
           metricSource: baseMetricSource,
+          rationale: baseRationale,
         },
       ],
       citations: [baseCitation],
@@ -197,6 +207,7 @@ describe("computeCitationCoverage()", () => {
           text: "Aim for target range 130/80",
           severity: "important",
           metricSource: baseMetricSource,
+          rationale: baseRationale,
           referenceId: knownRefId,
         },
         {
@@ -204,6 +215,7 @@ describe("computeCitationCoverage()", () => {
           text: "Your weight should drop by 2 kg",
           severity: "suggestion",
           metricSource: baseMetricSource,
+          rationale: baseRationale,
         },
         {
           id: "observational-1",
@@ -211,6 +223,7 @@ describe("computeCitationCoverage()", () => {
           text: "Your avg7 (78 bpm) is 5 bpm higher than your 90-day median",
           severity: "info",
           metricSource: baseMetricSource,
+          rationale: baseRationale,
         },
       ],
       citations: [baseCitation],
@@ -238,6 +251,7 @@ describe("generateInsight() — citation-coverage annotation", () => {
             text: "Aim for a target below 140/90",
             severity: "important",
             metricSource: baseMetricSource,
+            rationale: baseRationale,
             referenceId: knownRefId,
           },
         ],
@@ -269,6 +283,7 @@ describe("generateInsight() — citation-coverage annotation", () => {
             text: "Your BP should stay below 140/90",
             severity: "important",
             metricSource: baseMetricSource,
+            rationale: baseRationale,
           },
         ],
         citations: [baseCitation],

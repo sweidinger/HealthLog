@@ -20,6 +20,11 @@ const validResponse = {
         summary: "avg 142/88 across 12 readings",
         n: 12,
       },
+      rationale: {
+        dataWindow: "last7days",
+        comparedTo: "your 90-day median (128/82)",
+        deviation: "+14/+6 mmHg above baseline over 7 of 7 days",
+      },
     },
   ],
   citations: [
@@ -117,6 +122,11 @@ describe("aiInsightResponseSchema", () => {
             timeRange: "last30days",
             summary: "no salt logging available",
           },
+          rationale: {
+            dataWindow: "last30days",
+            comparedTo: "general DGE intake guideline",
+            deviation: "n/a — no salt tracking present",
+          },
         },
       ],
     };
@@ -194,6 +204,11 @@ describe("generateInsight wrapper", () => {
             type: "diet",
             timeRange: "last7days",
             summary: "no sugar tracking present",
+          },
+          rationale: {
+            dataWindow: "last7days",
+            comparedTo: "general DGE intake guideline",
+            deviation: "n/a — no sugar tracking present",
           },
         },
       ],
