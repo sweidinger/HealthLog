@@ -13,22 +13,20 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 # Cancel in-progress runs when a new commit is pushed to the same ref.
+# main + a v* tag at the same SHA are different refs, so the per-ref
+# gha cache scope below keeps them from contending on cache writes.
 concurrency:
   group: docker-publish-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build-and-push:
-    name: Build & push multi-arch image
+    name: Build & push image
     runs-on: ubuntu-latest
-    # 30 min wall clock — a healthy multi-arch build finishes inside 17 min
-    # (see v1.4.7..v1.4.13 history). The v1.4.14 main run hung 47 min on
-    # `[linux/amd64 runner 2/14]` before Marc cancelled because tag + branch
-    # were exporting to the same gha cache scope concurrently (see fix below).
-    # 30 min is enough for a clean build + a slow exporter, while still
-    # rescuing the runner if buildkit deadlocks instead of waiting for a
-    # human to notice.
-    timeout-minutes: 30
+    # 25 min wall clock — a healthy amd64-only build finishes inside 12 min.
+    # The qemu-arm64 path that was hanging at 47 min on `[linux/amd64 runner
+    # 2/14]` is gone; see commit message for v1.4.16 C5 rationale below.
+    timeout-minutes: 25
     permissions:
       contents: read
       packages: write
@@ -36,9 +34,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up QEMU (multi-arch)
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -71,29 +66,35 @@ jobs:
             org.opencontainers.image.licenses=AGPL-3.0-only
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
-      # Per-ref gha cache scope: previously both `cache-from: type=gha` and
-      # `cache-to: type=gha,mode=max` used buildx's default scope name
-      # (`buildkit`). When a release commit lands, GitHub fires the workflow
-      # twice in parallel — once for the `main` push, once for the `v*` tag
-      # — both pointed at the same SHA, both writing to the same gha cache
-      # key. mode=max exports every stage of every platform; the concurrent
-      # writers race on the cache manifest and one deadlocks. The v1.4.14
-      # main run sat on `[linux/amd64 runner 2/14] RUN apk add tzdata` for
-      # 47 minutes (cancelled by hand) while the tag run on the same SHA
-      # finished cleanly in 17 minutes — clear smoking-gun.
+      # v1.4.16 C5 — drop linux/arm64 from the multi-arch build.
       #
-      # Splitting the scope by `github.ref_name` (e.g. `main`, `v1.4.15`,
-      # `pr-123`) gives each invocation its own cache slot. We `cache-from`
-      # both the ref-specific scope AND the canonical `main` scope so:
-      #   - feature branches/tags can warm-start off main's last good build
-      #   - a tag built right after a main push hits main's cache for layer
-      #     reuse without contending on writes
+      # Root cause of the main-branch hang since v1.4.14: the qemu-arm64
+      # path (`docker/setup-qemu-action` + `tonistiigi/binfmt`) was
+      # SIGILL-crashing Next.js's static-page-generation workers
+      # (`Next.js build worker exited with code: null and signal: SIGILL`
+      # at 64-66/86 pages). V8's optimising tier emits CPU instructions
+      # that qemu's user-mode emulation cannot reliably translate under
+      # heavy load, and Node 22 + Alpine 3.21 hit it deterministically.
+      # Tag-builds appeared to "work" only because they happened to
+      # finish their static pages before the crash window; main-branch
+      # builds rarely got that lucky.
+      #
+      # Marc's prod target is x86_64 only (Coolify on apps-01, all other
+      # self-hosted instances we know of); the arm64 image was a
+      # courtesy build for OSS users, not production. v1.5 will re-add
+      # arm64 via a matrix that uses the GitHub-hosted `ubuntu-24.04-arm`
+      # runner (free for public repos, native arm64, no qemu) — see
+      # `docs/audit/v1416-auto-deploy-fix.md` for the broader CI plan.
+      #
+      # Per-ref gha cache scope (kept from v1.4.15 C3): tag + main
+      # builds at the same SHA do not contend on writes; tag warm-starts
+      # off main's last good build for layer reuse.
       - name: Build & push image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
