@@ -26,10 +26,12 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### A2 — BD-Zielbereich real-fix (regression from v1.4.15 A4)
 
-- [ ] Investigate root cause — A4 in v1.4.15 marked this fixed but Marc still sees 0%
-- [ ] Verify against actual user data with measurements
-- [ ] Fix root cause + add E2E test that exercises full flow against real session
-- Detailed report: `.planning/phase-A2-report.md`
+- [x] Investigate root cause — A4 in v1.4.15 marked this fixed but Marc still sees 0%
+- [x] Verify against actual user data with measurements (pulled from production apps-01 DB)
+- [x] Fix root cause + add E2E test that exercises full flow against real session
+- Detailed report: `.planning/phase-A2-A6-report.md`
+- Commit: `577d8dd fix(insights): BD-Zielbereich computes correctly for real measurement data` on origin/main
+- Root cause: v1.4.15 fix corrected the denominator but kept the ESH narrow-band predicate (`sysLow <= sys <= sysHigh AND diaLow <= dia <= diaHigh`); Marc's normotensive readings (e.g. 117/79) were below sysLow=120 and so counted as OUT. Marc's actual production data: 0/10 paired readings in target under v1.4.15. Fix: change to one-sided ceiling semantics with hypotension floor (`90 <= sys <= sysHigh AND 50 <= dia <= diaHigh`); centralised in `isBpReadingInTarget()` shared by 6 call sites. Marc's data now reports 50% (was 0%).
 
 ### A3 — /admin/api-tokens table responsive (still scrolling)
 
@@ -54,8 +56,10 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### A6 — Medication-chart 7d-trend + target-range
 
-- [ ] Medication-chart matches other charts: 7d-trend label + indicator + target-range visualization
-- Detailed report: `.planning/phase-A6-report.md`
+- [x] Medication-chart matches other charts: 7d-trend label + indicator + target-range visualization
+- Detailed report: `.planning/phase-A2-A6-report.md`
+- Commit: `9b01c86 feat(charts): medication chart matches other charts (7d trend + indicator + target-range)` on origin/main
+- Added `computeMedicationTrend7d()` helper (split-half mean comparison, 14-day cap), trend chip in header (signed Δ-pp + arrow icon, `up-good` sentiment colours), 100% goal ReferenceLine alongside the existing 80% threshold. 6 new unit tests pin trend computation. Cross-agent race note: `9b01c86` accidentally bundled A7's `INSIGHTS_RATE_LIMIT_PER_HOUR` work — see report for details.
 
 ### A7 — AI Generator rate-limit 10/h + cache-invalidate-on-new
 
