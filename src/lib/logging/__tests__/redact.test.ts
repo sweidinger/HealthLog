@@ -85,6 +85,32 @@ describe("redactSecrets", () => {
     expect(redactSecrets(",sk-1234567890abcdef,")).toBe(",[REDACTED],");
   });
 
+  it("redacts standalone HealthLog native API tokens (hlk_ / hlr_)", () => {
+    // Start of string.
+    expect(
+      redactSecrets("hlk_abc123def4567890abcdef1234567890ABCDEF1234567890abcd"),
+    ).toBe("[REDACTED]");
+    expect(
+      redactSecrets("hlr_abc123def4567890abcdef1234567890ABCDEF1234567890abcd"),
+    ).toBe("[REDACTED]");
+    // Preceded by separator, leading separator preserved.
+    expect(
+      redactSecrets(
+        "refresh: hlr_abc123def4567890abcdef1234567890ABCDEF1234567890abcd end",
+      ),
+    ).toBe("refresh: [REDACTED] end");
+    expect(
+      redactSecrets('{"token": "hlk_0123456789abcdef0123456789abcdef0123"}'),
+    ).toBe('{"token": "[REDACTED]"}');
+  });
+
+  it("does NOT redact non-token strings starting with `hl`", () => {
+    expect(redactSecrets("html_render finished")).toBe("html_render finished");
+    expect(redactSecrets("healthcheck ok")).toBe("healthcheck ok");
+    // Too-short trailing hex — keep as-is.
+    expect(redactSecrets("hlk_short")).toBe("hlk_short");
+  });
+
   it("handles multiple secrets in one string", () => {
     // Bearer matches `\S+` so it greedily consumes `hlk_x;` — that's
     // safe (over-redaction is fine when the alternative is leaking).
