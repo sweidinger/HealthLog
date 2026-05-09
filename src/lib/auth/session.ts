@@ -42,7 +42,11 @@ export async function getSession(): Promise<{
   try {
     await ensureDbCompatibility();
   } catch (error) {
-    getEvent()?.setError(error instanceof Error ? error : new Error("DB compatibility check failed"));
+    getEvent()?.setError(
+      error instanceof Error
+        ? error
+        : new Error("DB compatibility check failed"),
+    );
   }
 
   const cookieStore = await cookies();

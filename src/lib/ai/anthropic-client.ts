@@ -26,8 +26,13 @@ export class AnthropicClient implements AIProvider {
     this.config = config;
   }
 
-  async generateCompletion(params: CompletionParams): Promise<CompletionResult> {
-    const baseUrl = (this.config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+  async generateCompletion(
+    params: CompletionParams,
+  ): Promise<CompletionResult> {
+    const baseUrl = (this.config.baseUrl ?? DEFAULT_BASE_URL).replace(
+      /\/$/,
+      "",
+    );
     const url = `${baseUrl}/messages`;
 
     const res = await fetch(url, {
@@ -42,9 +47,7 @@ export class AnthropicClient implements AIProvider {
         max_tokens: params.maxTokens ?? 1000,
         temperature: params.temperature ?? 0.3,
         system: params.systemPrompt,
-        messages: [
-          { role: "user", content: wrapForJson(params.userPrompt) },
-        ],
+        messages: [{ role: "user", content: wrapForJson(params.userPrompt) }],
       }),
     });
 

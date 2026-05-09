@@ -127,6 +127,10 @@ export function AboutSection() {
   // Auto-check on mount when the last successful check is older than the
   // refresh interval (or has never run). Keeps the UI populated without
   // requiring a click — but won't spam GitHub on every navigation.
+  // The setState inside runCheck() is intentional: the check is the
+  // whole point of the effect, and the staleness gate prevents a
+  // cascading-render loop because the timestamp resets after the run.
+  /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!version) return;
     const last = readLastCheckedISO();
@@ -136,8 +140,8 @@ export function AboutSection() {
     if (stale) {
       void runCheck();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version?.version]);
+  /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
   return (
     <section
@@ -176,14 +180,14 @@ export function AboutSection() {
         ) : (
           <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-3 text-sm">
             <div className="flex items-baseline gap-2">
-              <dt className="text-muted-foreground text-xs uppercase tracking-wide">
+              <dt className="text-muted-foreground text-xs tracking-wide uppercase">
                 {t("settings.about.version")}
               </dt>
               <dd className="font-mono font-medium">v{version.version}</dd>
             </div>
 
             <div className="flex items-baseline gap-2">
-              <dt className="text-muted-foreground text-xs uppercase tracking-wide">
+              <dt className="text-muted-foreground text-xs tracking-wide uppercase">
                 {t("settings.about.license")}
               </dt>
               <dd className="font-mono">{version.license}</dd>
@@ -191,7 +195,7 @@ export function AboutSection() {
 
             {version.buildSha && (
               <div className="flex items-baseline gap-2">
-                <dt className="text-muted-foreground text-xs uppercase tracking-wide">
+                <dt className="text-muted-foreground text-xs tracking-wide uppercase">
                   {t("settings.about.gitSha")}
                 </dt>
                 <dd className="font-mono">{version.buildSha.slice(0, 7)}</dd>
@@ -200,7 +204,7 @@ export function AboutSection() {
 
             {version.builtAt && (
               <div className="flex items-baseline gap-2">
-                <dt className="text-muted-foreground text-xs uppercase tracking-wide">
+                <dt className="text-muted-foreground text-xs tracking-wide uppercase">
                   {t("settings.about.builtAt", { time: "" }).trim() ||
                     t("settings.about.gitSha")}
                 </dt>

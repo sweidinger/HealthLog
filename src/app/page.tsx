@@ -894,7 +894,7 @@ export default function DashboardPage() {
               // scrolling — Marc tested both and prefers the v1.3-era
               // wrap behaviour over the one-row scroll for the symmetry
               // it preserves.
-              className="grid auto-rows-fr gap-3 [grid-template-columns:repeat(auto-fit,minmax(9rem,1fr))] pb-2"
+              className="grid auto-rows-fr [grid-template-columns:repeat(auto-fit,minmax(9rem,1fr))] gap-3 pb-2"
               data-slot="dashboard-tile-strip"
               data-tile-count={trendCards.length}
             >

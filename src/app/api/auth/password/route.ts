@@ -7,7 +7,12 @@ import {
 } from "@/lib/auth/password";
 import { changePasswordSchema } from "@/lib/validations/auth";
 import { auditLog } from "@/lib/auth/audit";
-import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
@@ -23,10 +28,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     15 * 60 * 1000,
   );
   if (!rl.allowed) {
-    return apiError(
-      "Too many attempts. Please wait 15 minutes.",
-      429,
-    );
+    return apiError("Too many attempts. Please wait 15 minutes.", 429);
   }
 
   const { data: body, error: jsonError } = await safeJson(request);
@@ -42,19 +44,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("No password set for this account", 400);
   }
 
-  const currentValid = await verifyPassword(
-    user.passwordHash,
-    currentPassword,
-  );
+  const currentValid = await verifyPassword(user.passwordHash, currentPassword);
   if (!currentValid) {
     return apiError("Current password is incorrect", 401);
   }
 
   if (currentPassword === newPassword) {
-    return apiError(
-      "New password must differ from current password",
-      422,
-    );
+    return apiError("New password must differ from current password", 422);
   }
 
   const locale = await resolveServerLocale({

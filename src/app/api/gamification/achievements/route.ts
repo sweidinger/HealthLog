@@ -456,10 +456,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const now = new Date();
   const userId = user.id;
-  const startDate = maxDate(
-    user.createdAt,
-    GAMIFICATION_ROLLOUT_AT,
-  );
+  const startDate = maxDate(user.createdAt, GAMIFICATION_ROLLOUT_AT);
 
   const [measurements, intakeEvents, medications, passkeys, auditEvents] =
     await Promise.all([
@@ -469,12 +466,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
           measuredAt: { gte: startDate, lte: now },
           source: { not: "IMPORT" },
           type: {
-            in: [
-              "WEIGHT",
-              "BLOOD_PRESSURE_SYS",
-              "BLOOD_PRESSURE_DIA",
-              "PULSE",
-            ],
+            in: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA", "PULSE"],
           },
         },
         select: {
@@ -741,14 +733,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
     mergedDates[id] = date;
   }
 
-  const result = evaluateAchievementsWithCompletionDates(
-    metrics,
-    mergedDates,
-  );
+  const result = evaluateAchievementsWithCompletionDates(metrics, mergedDates);
 
   // Persist newly unlocked achievements
   const newUnlocks = result.achievements.filter(
-    (a) => a.unlocked && a.completedAt && !persisted.some((p) => p.achievementId === a.id),
+    (a) =>
+      a.unlocked &&
+      a.completedAt &&
+      !persisted.some((p) => p.achievementId === a.id),
   );
   if (newUnlocks.length > 0) {
     await prisma.userAchievement.createMany({

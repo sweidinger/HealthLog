@@ -12,7 +12,10 @@ export const registerSchema = z.object({
     .regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, _ and -"),
   password: z
     .string()
-    .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`),
+    .min(
+      PASSWORD_MIN_LENGTH,
+      `Password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+    ),
 });
 
 export const loginPasswordSchema = z.object({
@@ -32,7 +35,10 @@ export const changePasswordSchema = z
     currentPassword: z.string().min(1, "Current password is required"),
     newPassword: z
       .string()
-      .min(PASSWORD_MIN_LENGTH, `New password must be at least ${PASSWORD_MIN_LENGTH} characters`),
+      .min(
+        PASSWORD_MIN_LENGTH,
+        `New password must be at least ${PASSWORD_MIN_LENGTH} characters`,
+      ),
     confirmPassword: z.string().min(1, "Password confirmation is required"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {

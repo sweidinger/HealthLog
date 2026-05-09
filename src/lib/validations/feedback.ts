@@ -27,7 +27,10 @@ export const createFeedbackSchema = z.object({
   screenshot: z
     .string()
     .max(7_000_000, "Screenshot too large (max 5 MB)")
-    .regex(SCREENSHOT_DATA_URL, "Screenshot must be a base64-encoded PNG/JPEG/WEBP/GIF data URL")
+    .regex(
+      SCREENSHOT_DATA_URL,
+      "Screenshot must be a base64-encoded PNG/JPEG/WEBP/GIF data URL",
+    )
     .optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });

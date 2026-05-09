@@ -84,7 +84,11 @@ export async function sendViaWebPush(
 
     return anySuccess;
   } catch (err) {
-    getEvent()?.setError(err instanceof Error ? err : new Error("[web-push] sendViaWebPush failed"));
+    getEvent()?.setError(
+      err instanceof Error
+        ? err
+        : new Error("[web-push] sendViaWebPush failed"),
+    );
     return false;
   }
 }

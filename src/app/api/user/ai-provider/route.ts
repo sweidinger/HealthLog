@@ -46,7 +46,8 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "user.ai-provider.update" } });
 
-  const { data: body, error } = await safeJson<Record<string, unknown>>(request);
+  const { data: body, error } =
+    await safeJson<Record<string, unknown>>(request);
   if (error) return error;
 
   const updates: Record<string, unknown> = {};
@@ -54,7 +55,10 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
   if (body.provider !== undefined) {
     if (body.provider === null || body.provider === "") {
       updates.aiProvider = null;
-    } else if (typeof body.provider === "string" && ALLOWED.has(body.provider)) {
+    } else if (
+      typeof body.provider === "string" &&
+      ALLOWED.has(body.provider)
+    ) {
       updates.aiProvider = body.provider;
     } else {
       throw new HttpError(422, "Invalid provider");

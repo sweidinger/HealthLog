@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/api-handler", () => ({
   apiHandler: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
-  requireAuth: vi.fn(async () => ({ user: { id: "u-1" }, session: { id: "s-1" } })),
+  requireAuth: vi.fn(async () => ({
+    user: { id: "u-1" },
+    session: { id: "s-1" },
+  })),
 }));
 
 vi.mock("@/lib/db", () => ({

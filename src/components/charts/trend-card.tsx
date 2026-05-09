@@ -88,9 +88,7 @@ export function TrendCard({
       </div>
       <div className="mt-2 flex items-baseline gap-2">
         <span className="text-3xl font-bold tracking-tight tabular-nums">
-          {latest !== null
-            ? renderPair(latest, secondary?.latest)
-            : "—"}
+          {latest !== null ? renderPair(latest, secondary?.latest) : "—"}
         </span>
         <span className="text-muted-foreground text-sm tabular-nums">
           {unit}
@@ -115,9 +113,7 @@ export function TrendCard({
                 </TooltipContent>
               </Tooltip>
             ) : (
-              <span
-                className={cn("font-medium tabular-nums", avg7ColorClass)}
-              >
+              <span className={cn("font-medium tabular-nums", avg7ColorClass)}>
                 {avg7 !== null ? renderPair(avg7, secondary?.avg7) : "—"}
               </span>
             )}
@@ -138,9 +134,7 @@ export function TrendCard({
                 </TooltipContent>
               </Tooltip>
             ) : (
-              <span
-                className={cn("font-medium tabular-nums", avg30ColorClass)}
-              >
+              <span className={cn("font-medium tabular-nums", avg30ColorClass)}>
                 {avg30 !== null ? renderPair(avg30, secondary?.avg30) : "—"}
               </span>
             )}

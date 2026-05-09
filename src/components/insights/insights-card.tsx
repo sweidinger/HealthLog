@@ -74,7 +74,8 @@ export function InsightsCard() {
   });
 
   // Don't show if no API key configured
-  if (!(settings?.codexStatus === "connected" || settings?.hasAdminKey)) return null;
+  if (!(settings?.codexStatus === "connected" || settings?.hasAdminKey))
+    return null;
 
   const insights = generate.data?.insights;
 
@@ -84,7 +85,9 @@ export function InsightsCard() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="text-dracula-purple h-5 w-5" />
-            <CardTitle className="text-lg">{t("insights.aiInsights")}</CardTitle>
+            <CardTitle className="text-lg">
+              {t("insights.aiInsights")}
+            </CardTitle>
           </div>
           <Button
             variant="ghost"
@@ -97,7 +100,9 @@ export function InsightsCard() {
             ) : (
               <RefreshCw className="mr-1 h-3.5 w-3.5" />
             )}
-            {insights ? t("insights.refreshButton") : t("insights.generateButton")}
+            {insights
+              ? t("insights.refreshButton")
+              : t("insights.generateButton")}
           </Button>
         </div>
       </CardHeader>
@@ -123,7 +128,8 @@ export function InsightsCard() {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Badge className={CONFIDENCE_COLORS[insights.confidence] ?? ""}>
-                {t("insights.confidence")}: {t(`insights.confidence_${insights.confidence}`)}
+                {t("insights.confidence")}:{" "}
+                {t(`insights.confidence_${insights.confidence}`)}
               </Badge>
               {generate.data?.cached && (
                 <Badge variant="outline" className="text-xs">
@@ -132,10 +138,22 @@ export function InsightsCard() {
               )}
             </div>
 
-            <Section title={t("insights.sectionChanged")} text={insights.changed} />
-            <Section title={t("insights.sectionStable")} text={insights.stable} />
-            <Section title={t("insights.sectionDrivers")} text={insights.drivers} />
-            <Section title={t("insights.sectionNextSteps")} text={insights.nextSteps} />
+            <Section
+              title={t("insights.sectionChanged")}
+              text={insights.changed}
+            />
+            <Section
+              title={t("insights.sectionStable")}
+              text={insights.stable}
+            />
+            <Section
+              title={t("insights.sectionDrivers")}
+              text={insights.drivers}
+            />
+            <Section
+              title={t("insights.sectionNextSteps")}
+              text={insights.nextSteps}
+            />
 
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-muted-foreground text-xs">

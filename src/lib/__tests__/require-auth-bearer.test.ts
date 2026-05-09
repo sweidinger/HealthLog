@@ -33,7 +33,11 @@ vi.mock("@/lib/logging/transports", () => ({
 const headersGet = vi.fn<(name: string) => string | null>();
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: headersGet })),
-  cookies: vi.fn(async () => ({ get: () => undefined, set: () => {}, delete: () => {} })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
 }));
 
 // --- Imports use the mocked modules above. ---

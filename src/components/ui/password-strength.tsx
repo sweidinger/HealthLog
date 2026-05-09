@@ -23,10 +23,7 @@ export function PasswordStrength({
   minLength = 12,
 }: PasswordStrengthProps) {
   const { t, locale } = useTranslations();
-  const { translate } = useMemo(
-    () => getZxcvbnTranslations(locale),
-    [locale],
-  );
+  const { translate } = useMemo(() => getZxcvbnTranslations(locale), [locale]);
   const [result, setResult] = useState<{
     score: number;
     feedback: { warning: string; suggestions: string[] };

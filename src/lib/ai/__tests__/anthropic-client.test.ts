@@ -47,9 +47,7 @@ describe("AnthropicClient", () => {
     expect(body.temperature).toBe(0.4);
     // System prompt is a separate top-level field, NOT a message.
     expect(body.system).toBe("You are a doctor.");
-    expect(body.messages).toEqual([
-      expect.objectContaining({ role: "user" }),
-    ]);
+    expect(body.messages).toEqual([expect.objectContaining({ role: "user" })]);
     // User message should be wrapped to coerce JSON output.
     expect(body.messages[0].content).toContain("Analyze this data.");
     expect(body.messages[0].content.toLowerCase()).toContain("json");
@@ -87,7 +85,7 @@ describe("AnthropicClient", () => {
         status: 529,
         text: () =>
           Promise.resolve(
-            'overloaded; debug=sk-ant-supersecretkey1234567890 leaked',
+            "overloaded; debug=sk-ant-supersecretkey1234567890 leaked",
           ),
       }),
     );

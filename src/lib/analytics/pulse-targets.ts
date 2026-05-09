@@ -108,7 +108,11 @@ export function classifyPulseByTarget(
   target: PersonalizedPulseTarget,
 ): PulseTargetClassification {
   if (bpm < target.orangeMin) {
-    return { category: "Significantly low", color: "#8be9fd", severity: "info" };
+    return {
+      category: "Significantly low",
+      color: "#8be9fd",
+      severity: "info",
+    };
   }
   if (bpm < target.greenMin) {
     return {
@@ -121,7 +125,15 @@ export function classifyPulseByTarget(
     return { category: "On target", color: "#50fa7b", severity: "normal" };
   }
   if (bpm <= target.orangeMax) {
-    return { category: "Slightly elevated", color: "#ffb86c", severity: "warning" };
+    return {
+      category: "Slightly elevated",
+      color: "#ffb86c",
+      severity: "warning",
+    };
   }
-  return { category: "Significantly elevated", color: "#ff5555", severity: "danger" };
+  return {
+    category: "Significantly elevated",
+    color: "#ff5555",
+    severity: "danger",
+  };
 }

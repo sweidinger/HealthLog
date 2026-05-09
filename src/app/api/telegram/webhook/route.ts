@@ -244,7 +244,9 @@ async function handleCallback(update: TelegramUpdate) {
     });
 
     const duration =
-      minutes <= 60 ? t("telegram.snoozeOneHour") : t("telegram.snoozeThreeHours");
+      minutes <= 60
+        ? t("telegram.snoozeOneHour")
+        : t("telegram.snoozeThreeHours");
     await answerTelegramCallbackQuery(
       botToken,
       callback.id,
@@ -350,7 +352,8 @@ async function handleCallback(update: TelegramUpdate) {
     // Format: "add:{medicationId}" or "add:{medicationId}:umid:{userMsgId}"
     const withoutPrefix = data.slice("add:".length);
     const umidIdx = withoutPrefix.indexOf(":umid:");
-    const medicationId = umidIdx >= 0 ? withoutPrefix.slice(0, umidIdx) : withoutPrefix.trim();
+    const medicationId =
+      umidIdx >= 0 ? withoutPrefix.slice(0, umidIdx) : withoutPrefix.trim();
     if (!medicationId) {
       await answerTelegramCallbackQuery(
         botToken,
@@ -395,7 +398,11 @@ async function handleCallback(update: TelegramUpdate) {
         await deleteMessage(botToken, chatId, userMsgId).catch(() => {});
       }
     }
-    await answerTelegramCallbackQuery(botToken, callback.id, t("telegram.cancelled"));
+    await answerTelegramCallbackQuery(
+      botToken,
+      callback.id,
+      t("telegram.cancelled"),
+    );
   } else {
     await answerTelegramCallbackQuery(
       botToken,

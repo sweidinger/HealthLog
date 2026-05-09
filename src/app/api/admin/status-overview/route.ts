@@ -107,7 +107,10 @@ export const GET = apiHandler(async () => {
       () => prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     ],
     ["withingsCount", () => prisma.withingsConnection.count()],
-    ["moodLogCount", () => prisma.user.count({ where: { moodLogEnabled: true } })],
+    [
+      "moodLogCount",
+      () => prisma.user.count({ where: { moodLogEnabled: true } }),
+    ],
     [
       "telegramCount",
       () => prisma.user.count({ where: { telegramEnabled: true } }),
@@ -207,20 +210,21 @@ export const GET = apiHandler(async () => {
   const telegramCount = (results.telegramCount as number | null) ?? 0;
   const ntfyCount = (results.ntfyCount as number | null) ?? 0;
   const webPushCount = (results.webPushCount as number | null) ?? 0;
-  const appSettings = results.appSettings as
-    | { glitchtipEnabled: boolean; umamiEnabled: boolean }
-    | null;
+  const appSettings = results.appSettings as {
+    glitchtipEnabled: boolean;
+    umamiEnabled: boolean;
+  } | null;
   const lastErrorEntry = results.lastErrorEntry as { createdAt: Date } | null;
   const latestBackup = results.latestBackup as { createdAt: Date } | null;
   const backedUpUsers = (results.backedUpUsers as number | null) ?? 0;
   const last30dEvents = (results.last30dEvents as number | null) ?? 0;
   const lastLoginEntry = results.lastLoginEntry as { createdAt: Date } | null;
-  const lastIdempotencyCleanup = results.lastIdempotencyCleanup as
-    | { createdAt: Date }
-    | null;
-  const lastAuditLogCleanup = results.lastAuditLogCleanup as
-    | { createdAt: Date }
-    | null;
+  const lastIdempotencyCleanup = results.lastIdempotencyCleanup as {
+    createdAt: Date;
+  } | null;
+  const lastAuditLogCleanup = results.lastAuditLogCleanup as {
+    createdAt: Date;
+  } | null;
 
   if (failed.length > 0) {
     annotate({ meta: { statusOverviewProbeFailures: failed } });
@@ -300,7 +304,8 @@ export const GET = apiHandler(async () => {
       workerUptimeSeconds,
       lastIdempotencyCleanup:
         lastIdempotencyCleanup?.createdAt?.toISOString() ?? null,
-      lastAuditLogCleanup: lastAuditLogCleanup?.createdAt?.toISOString() ?? null,
+      lastAuditLogCleanup:
+        lastAuditLogCleanup?.createdAt?.toISOString() ?? null,
     },
     auditLog: {
       severity: anyFailed("last30dEvents", "lastLoginEntry") ? "alert" : "info",

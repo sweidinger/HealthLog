@@ -26,9 +26,7 @@ describe("queryKeys factory", () => {
 
 describe("dependent-key bundles", () => {
   it("measurementDependentKeys invalidates analytics/insights/targets", () => {
-    const keyStrings = measurementDependentKeys.map((k) =>
-      JSON.stringify(k),
-    );
+    const keyStrings = measurementDependentKeys.map((k) => JSON.stringify(k));
     expect(keyStrings).toContain(JSON.stringify(["measurements"]));
     expect(keyStrings).toContain(JSON.stringify(["analytics"]));
     expect(keyStrings).toContain(JSON.stringify(["insights"]));

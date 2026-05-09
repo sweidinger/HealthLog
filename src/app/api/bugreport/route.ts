@@ -1,6 +1,11 @@
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate, getEvent } from "@/lib/logging/context";
-import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
@@ -17,7 +22,10 @@ const bugReportSchema = z.object({
   screenshot: z
     .string()
     .max(7_000_000, "Screenshot too large (max 5 MB)")
-    .regex(SCREENSHOT_DATA_URL, "Screenshot must be a base64-encoded PNG/JPEG/WEBP/GIF data URL")
+    .regex(
+      SCREENSHOT_DATA_URL,
+      "Screenshot must be a base64-encoded PNG/JPEG/WEBP/GIF data URL",
+    )
     .optional(),
 });
 
@@ -92,10 +100,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const safeUsername = user.username.replace(/[`*_~<>\[\]|]/g, "");
   const safeDescription = description
     .replace(/<[^>]*>/g, "") // strip HTML tags
-    .replace(
-      /\]\(\s*(javascript|data|vbscript|file):/gi,
-      "](about:blank#",
-    ) // neutralise dangerous markdown link schemes
+    .replace(/\]\(\s*(javascript|data|vbscript|file):/gi, "](about:blank#") // neutralise dangerous markdown link schemes
     .replace(/```/g, "\\`\\`\\`")
     .slice(0, 5000);
 

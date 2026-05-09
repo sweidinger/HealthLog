@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/db";
 import { verifyRegistration } from "@/lib/auth/passkey";
 import { auditLog } from "@/lib/auth/audit";
-import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
@@ -9,7 +14,8 @@ import { annotate } from "@/lib/logging/context";
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
-  const { data: body, error: jsonError } = await safeJson<Record<string, unknown>>(request);
+  const { data: body, error: jsonError } =
+    await safeJson<Record<string, unknown>>(request);
 
   if (jsonError) return jsonError;
   const challengeId = body.challengeId as string | undefined;
@@ -35,7 +41,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
       counter: BigInt(registrationInfo.credential.counter),
       credentialDeviceType: registrationInfo.credentialDeviceType,
       credentialBackedUp: registrationInfo.credentialBackedUp,
-      transports: ((credential.response as Record<string, unknown> | undefined)?.transports as string[]) ?? [],
+      transports:
+        ((credential.response as Record<string, unknown> | undefined)
+          ?.transports as string[]) ?? [],
     },
   });
 

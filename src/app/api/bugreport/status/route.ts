@@ -18,11 +18,7 @@ export const GET = apiHandler(async () => {
 
   // Light rate limit — the endpoint is cheap, but no reason to let a logged-in
   // client hammer Postgres in a loop.
-  const rl = await checkRateLimit(
-    `bugreport-status:${user.id}`,
-    30,
-    60 * 1000,
-  );
+  const rl = await checkRateLimit(`bugreport-status:${user.id}`, 30, 60 * 1000);
   if (!rl.allowed) {
     return apiError("Rate limit exceeded", 429);
   }

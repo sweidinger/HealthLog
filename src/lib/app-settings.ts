@@ -66,7 +66,9 @@ export async function getReminderThresholds(): Promise<ReminderThresholds> {
       missedMinutes: settings?.reminderMissedMinutes ?? 240,
     };
   } catch {
-    getEvent()?.addWarning("Failed to load reminder thresholds, using defaults");
+    getEvent()?.addWarning(
+      "Failed to load reminder thresholds, using defaults",
+    );
     return { lateMinutes: 120, missedMinutes: 240 };
   }
 }

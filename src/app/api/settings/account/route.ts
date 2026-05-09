@@ -34,10 +34,7 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
   if (user.role === "ADMIN") {
     const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
     if (adminCount <= 1) {
-      return apiError(
-        "The last admin account cannot be deleted",
-        400,
-      );
+      return apiError("The last admin account cannot be deleted", 400);
     }
   }
 

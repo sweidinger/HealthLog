@@ -103,7 +103,7 @@ describe("LocalOpenAICompatibleClient", () => {
         status: 500,
         text: () =>
           Promise.resolve(
-            'upstream rejected: Bearer sk-localabcdef12345 hit /v1',
+            "upstream rejected: Bearer sk-localabcdef12345 hit /v1",
           ),
       }),
     );

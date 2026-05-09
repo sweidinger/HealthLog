@@ -8,7 +8,12 @@
  * DELETE with ?metric=... resets one metric to default.
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiSuccess, apiError, safeJson, getClientIp } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  safeJson,
+  getClientIp,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
@@ -36,9 +41,8 @@ async function loadProfileAndOverrides(userId: string) {
     },
   });
   if (!profile) return null;
-  const overrides = (profile.thresholdsJson ?? null) as
-    | ThresholdOverridesJson
-    | null;
+  const overrides = (profile.thresholdsJson ??
+    null) as ThresholdOverridesJson | null;
   return { profile, overrides };
 }
 
@@ -130,8 +134,7 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      thresholdsJson:
-        Object.keys(after).length === 0 ? Prisma.JsonNull : after,
+      thresholdsJson: Object.keys(after).length === 0 ? Prisma.JsonNull : after,
     },
   });
 

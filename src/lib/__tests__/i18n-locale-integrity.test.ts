@@ -8,7 +8,9 @@ const DE_PATH = join(ROOT, "messages/de.json");
 
 // JSON.parse silently keeps the last value when an object has duplicate keys,
 // which lets shadowed keys hide bugs. Walk the source manually to surface them.
-function findDuplicateKeys(src: string): { path: string; line: number; firstLine: number }[] {
+function findDuplicateKeys(
+  src: string,
+): { path: string; line: number; firstLine: number }[] {
   const dups: { path: string; line: number; firstLine: number }[] = [];
   const pathStack: string[] = [];
   let i = 0;
@@ -22,8 +24,10 @@ function findDuplicateKeys(src: string): { path: string; line: number; firstLine
     while (i < src.length) {
       const c = src[i];
       if (c === " " || c === "\t" || c === "\r") i++;
-      else if (c === "\n") { i++; line++; }
-      else break;
+      else if (c === "\n") {
+        i++;
+        line++;
+      } else break;
     }
   }
 
@@ -55,23 +59,46 @@ function findDuplicateKeys(src: string): { path: string; line: number; firstLine
     const c = src[i];
     if (c === "{") return parseObject();
     if (c === "[") return parseArray();
-    if (c === '"') { readString(); return; }
+    if (c === '"') {
+      readString();
+      return;
+    }
     while (i < src.length) {
       const ch = src[i];
-      if (ch === "," || ch === "}" || ch === "]" || ch === " " || ch === "\n" || ch === "\t" || ch === "\r") break;
+      if (
+        ch === "," ||
+        ch === "}" ||
+        ch === "]" ||
+        ch === " " ||
+        ch === "\n" ||
+        ch === "\t" ||
+        ch === "\r"
+      )
+        break;
       if (ch === "\n") line++;
       i++;
     }
   }
 
   function parseArray() {
-    i++; skipWs();
-    if (src[i] === "]") { i++; return; }
+    i++;
+    skipWs();
+    if (src[i] === "]") {
+      i++;
+      return;
+    }
     while (true) {
       parseValue();
       skipWs();
-      if (src[i] === ",") { i++; skipWs(); continue; }
-      if (src[i] === "]") { i++; return; }
+      if (src[i] === ",") {
+        i++;
+        skipWs();
+        continue;
+      }
+      if (src[i] === "]") {
+        i++;
+        return;
+      }
       err("expected , or ] in array");
     }
   }
@@ -80,13 +107,20 @@ function findDuplicateKeys(src: string): { path: string; line: number; firstLine
     i++;
     const seen = new Map<string, number>();
     skipWs();
-    if (src[i] === "}") { i++; return; }
+    if (src[i] === "}") {
+      i++;
+      return;
+    }
     while (true) {
       skipWs();
       const { value: key, line: keyLine } = readString();
       const seenAt = seen.get(key);
       if (seenAt != null) {
-        dups.push({ path: [...pathStack, key].join("."), line: keyLine, firstLine: seenAt });
+        dups.push({
+          path: [...pathStack, key].join("."),
+          line: keyLine,
+          firstLine: seenAt,
+        });
       } else {
         seen.set(key, keyLine);
       }
@@ -97,8 +131,14 @@ function findDuplicateKeys(src: string): { path: string; line: number; firstLine
       parseValue();
       pathStack.pop();
       skipWs();
-      if (src[i] === ",") { i++; continue; }
-      if (src[i] === "}") { i++; return; }
+      if (src[i] === ",") {
+        i++;
+        continue;
+      }
+      if (src[i] === "}") {
+        i++;
+        return;
+      }
       err("expected , or } in object");
     }
   }
@@ -114,7 +154,10 @@ describe("i18n locale file integrity", () => {
       dups,
       `Duplicate keys silently shadow earlier definitions:\n` +
         dups
-          .map((d) => `  ${d.path} at line ${d.line} (first defined at line ${d.firstLine})`)
+          .map(
+            (d) =>
+              `  ${d.path} at line ${d.line} (first defined at line ${d.firstLine})`,
+          )
           .join("\n"),
     ).toEqual([]);
   });
@@ -125,14 +168,23 @@ describe("i18n locale file integrity", () => {
       dups,
       `Duplicate keys silently shadow earlier definitions:\n` +
         dups
-          .map((d) => `  ${d.path} at line ${d.line} (first defined at line ${d.firstLine})`)
+          .map(
+            (d) =>
+              `  ${d.path} at line ${d.line} (first defined at line ${d.firstLine})`,
+          )
           .join("\n"),
     ).toEqual([]);
   });
 
   it("en and de share the same key shape (locale parity)", () => {
-    const en = JSON.parse(readFileSync(EN_PATH, "utf8")) as Record<string, unknown>;
-    const de = JSON.parse(readFileSync(DE_PATH, "utf8")) as Record<string, unknown>;
+    const en = JSON.parse(readFileSync(EN_PATH, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    const de = JSON.parse(readFileSync(DE_PATH, "utf8")) as Record<
+      string,
+      unknown
+    >;
 
     function flatten(obj: unknown, prefix: string, out: string[]) {
       if (obj == null || typeof obj !== "object") return;

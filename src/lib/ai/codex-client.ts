@@ -18,7 +18,9 @@ export class CodexClient implements AIProvider {
     this.onTokenRefresh = config.onTokenRefresh;
   }
 
-  async generateCompletion(params: CompletionParams): Promise<CompletionResult> {
+  async generateCompletion(
+    params: CompletionParams,
+  ): Promise<CompletionResult> {
     const firstAttempt = await this.doRequest(params);
 
     if (firstAttempt.status === 401) {
@@ -85,9 +87,12 @@ export class CodexClient implements AIProvider {
   private async parseResponse(res: Response): Promise<CompletionResult> {
     const json = await res.json();
 
-    const messageOutput = (json.output as Array<{ type: string; content?: Array<{ type: string; text?: string }> }>)?.find(
-      (o) => o.type === "message",
-    );
+    const messageOutput = (
+      json.output as Array<{
+        type: string;
+        content?: Array<{ type: string; text?: string }>;
+      }>
+    )?.find((o) => o.type === "message");
     const textContent = messageOutput?.content?.find(
       (c) => c.type === "output_text",
     );

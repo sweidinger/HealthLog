@@ -67,8 +67,7 @@ export async function resolveServerLocale(
 
   if (isLocale(options.userLocale)) return options.userLocale;
 
-  const accept =
-    options.request?.headers.get("accept-language") ?? null;
+  const accept = options.request?.headers.get("accept-language") ?? null;
   const fromHeader = pickLocaleFromAcceptLanguage(accept);
   if (fromHeader) return fromHeader;
 

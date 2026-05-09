@@ -545,7 +545,11 @@ export function MeasurementList({ onEdit }: MeasurementListProps) {
               </div>
 
               {editError && (
-                <div role="alert" aria-live="assertive" className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
+                >
                   {editError}
                 </div>
               )}

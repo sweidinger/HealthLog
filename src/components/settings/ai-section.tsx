@@ -487,7 +487,9 @@ function UserAIProviderSubsection() {
       queryClient.invalidateQueries({ queryKey: ["insights"] });
     },
     onError: (e) => {
-      setSaveMsg(e instanceof Error ? e.message : t("settings.ai.errorGeneric"));
+      setSaveMsg(
+        e instanceof Error ? e.message : t("settings.ai.errorGeneric"),
+      );
       setSaveOk(false);
     },
   });
@@ -522,9 +524,7 @@ function UserAIProviderSubsection() {
       );
       setTestOk(true);
     } catch (e) {
-      setTestMsg(
-        e instanceof Error ? e.message : t("settings.ai.testFailed"),
-      );
+      setTestMsg(e instanceof Error ? e.message : t("settings.ai.testFailed"));
       setTestOk(false);
     } finally {
       setTesting(false);
@@ -556,11 +556,15 @@ function UserAIProviderSubsection() {
             className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
           >
             <option value="">{t("settings.ai.providerOptionDefault")}</option>
-            <option value="OPENAI">{t("settings.ai.providerOptionOpenai")}</option>
+            <option value="OPENAI">
+              {t("settings.ai.providerOptionOpenai")}
+            </option>
             <option value="ANTHROPIC">
               {t("settings.ai.providerOptionAnthropic")}
             </option>
-            <option value="LOCAL">{t("settings.ai.providerOptionLocal")}</option>
+            <option value="LOCAL">
+              {t("settings.ai.providerOptionLocal")}
+            </option>
           </select>
         </div>
 

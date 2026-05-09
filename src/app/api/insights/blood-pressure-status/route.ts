@@ -21,13 +21,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
   });
   const locale = resolveBloodPressureStatusLocale(resolved);
 
-  const result = await generateBloodPressureStatusForUser(
-    user.id,
-    {
-      locale,
-      force: false,
-    },
-  );
+  const result = await generateBloodPressureStatusForUser(user.id, {
+    locale,
+    force: false,
+  });
 
   annotate({ action: { name: "insights.blood-pressure-status" } });
 

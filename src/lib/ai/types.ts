@@ -24,7 +24,13 @@ export const insightDataQualitySchema = z.object({
 export const insightResultSchema = z.object({
   insightType: z.string().optional(),
   summary: z.string(),
-  classification: z.enum(["optimal", "gut", "grenzwertig", "erhoht", "kritisch"]),
+  classification: z.enum([
+    "optimal",
+    "gut",
+    "grenzwertig",
+    "erhoht",
+    "kritisch",
+  ]),
   classificationLabel: z.string().optional(),
   findings: z.array(insightFindingSchema),
   correlations: z.array(insightCorrelationSchema),
@@ -39,7 +45,12 @@ export type InsightFinding = z.infer<typeof insightFindingSchema>;
 
 // ─── Provider Types ────────────────────────────────────────
 
-export type ProviderType = "codex" | "admin-key" | "anthropic" | "local" | "none";
+export type ProviderType =
+  | "codex"
+  | "admin-key"
+  | "anthropic"
+  | "local"
+  | "none";
 
 export interface AIProvider {
   type: ProviderType;

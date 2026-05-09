@@ -238,12 +238,15 @@ export function MedicationForm({
   const fmt = useFormatters();
 
   const doseUnits = [
-    "mg", "g", "ml",
+    "mg",
+    "g",
+    "ml",
     t("medications.unitDrops"),
     t("medications.unitTablets"),
     t("medications.unitCapsules"),
     t("medications.unitPieces"),
-    "IE", "µg",
+    "IE",
+    "µg",
   ];
 
   const [name, setName] = useState(initial?.name ?? "");
@@ -739,7 +742,11 @@ export function MedicationForm({
       </div>
 
       {error && (
-        <div role="alert" aria-live="assertive" className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
+        >
           {error}
         </div>
       )}

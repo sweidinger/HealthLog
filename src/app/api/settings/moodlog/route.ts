@@ -3,10 +3,7 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { encrypt } from "@/lib/crypto";
-import {
-  encryptMoodLogSecret,
-  readMoodLogSecret,
-} from "@/lib/moodlog-secret";
+import { encryptMoodLogSecret, readMoodLogSecret } from "@/lib/moodlog-secret";
 import { moodLogCredentialsSchema } from "@/lib/validations/moodlog";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";

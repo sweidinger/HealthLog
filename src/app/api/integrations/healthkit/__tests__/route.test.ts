@@ -21,7 +21,11 @@ vi.mock("@/lib/db-compat", () => ({
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
-  cookies: vi.fn(async () => ({ get: () => undefined, set: () => {}, delete: () => {} })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
 }));
 
 import { GET, PATCH } from "../route";
@@ -102,7 +106,8 @@ describe("PATCH /api/integrations/healthkit", () => {
     );
     expect(res.status).toBe(200);
     expect(prisma.user.update).toHaveBeenCalledTimes(1);
-    const updateArgs = vi.mocked(prisma.user.update).mock.calls[0][0] as unknown as {
+    const updateArgs = vi.mocked(prisma.user.update).mock
+      .calls[0][0] as unknown as {
       data: { healthKitConfigJson: { entries: Array<{ id: string }> } };
     };
     const ids = updateArgs.data.healthKitConfigJson.entries.map((e) => e.id);

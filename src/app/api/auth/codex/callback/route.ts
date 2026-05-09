@@ -14,7 +14,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const rl = await checkRateLimit(`codex-callback:${user.id}`, 10, 60_000);
   if (!rl.allowed) {
     const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
-    return NextResponse.redirect(`${appUrl}/settings/integrations?codex_error=rate_limited`);
+    return NextResponse.redirect(
+      `${appUrl}/settings/integrations?codex_error=rate_limited`,
+    );
   }
 
   const url = new URL(request.url);

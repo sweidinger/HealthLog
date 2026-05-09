@@ -8,7 +8,12 @@
  */
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiError, apiSuccess, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { applyProfileUpdate } from "@/lib/auth/profile-update";
 import { prisma } from "@/lib/db";

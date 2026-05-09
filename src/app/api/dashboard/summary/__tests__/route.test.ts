@@ -22,7 +22,11 @@ vi.mock("@/lib/db-compat", () => ({
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
-  cookies: vi.fn(async () => ({ get: () => undefined, set: () => {}, delete: () => {} })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
 }));
 
 import { GET } from "../route";
@@ -50,7 +54,9 @@ function makeReq(): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
-  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+    [] as never,
+  );
 });
 
 describe("GET /api/dashboard/summary", () => {

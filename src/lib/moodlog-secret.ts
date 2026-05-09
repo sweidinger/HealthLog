@@ -51,7 +51,9 @@ export function isLegacyPlaintext(stored: string | null): boolean {
 }
 
 interface MoodLogSecretMigrationDeps {
-  findLegacy: () => Promise<Array<{ id: string; moodLogWebhookSecret: string | null }>>;
+  findLegacy: () => Promise<
+    Array<{ id: string; moodLogWebhookSecret: string | null }>
+  >;
   rotate: (id: string, encryptedSecret: string) => Promise<void>;
 }
 

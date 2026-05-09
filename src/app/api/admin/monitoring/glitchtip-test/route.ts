@@ -30,7 +30,14 @@ export const POST = apiHandler(async () => {
   });
 
   if (!delivery.ok) {
-    getEvent()?.addWarning("Glitchtip test event rejected: " + delivery.method + " " + delivery.status + " " + delivery.details);
+    getEvent()?.addWarning(
+      "Glitchtip test event rejected: " +
+        delivery.method +
+        " " +
+        delivery.status +
+        " " +
+        delivery.details,
+    );
     return apiError(
       `Glitchtip test event rejected (HTTP ${delivery.status ?? 502})`,
       502,

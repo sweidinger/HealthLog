@@ -52,7 +52,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
         userId: user.id,
         details: { reason: "token_owned_by_other_user", deviceId: existing.id },
       });
-      return apiError("Device token already registered to another account", 409);
+      return apiError(
+        "Device token already registered to another account",
+        409,
+      );
     }
     const updated = await prisma.device.update({
       where: { token },

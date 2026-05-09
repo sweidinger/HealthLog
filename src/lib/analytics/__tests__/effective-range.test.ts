@@ -76,8 +76,16 @@ describe("getEffectiveRange", () => {
   });
 
   it("has different defaults for postprandial vs fasting", () => {
-    const fasting = getEffectiveRange("BLOOD_GLUCOSE_FASTING", baseProfile, null);
-    const post = getEffectiveRange("BLOOD_GLUCOSE_POSTPRANDIAL", baseProfile, null);
+    const fasting = getEffectiveRange(
+      "BLOOD_GLUCOSE_FASTING",
+      baseProfile,
+      null,
+    );
+    const post = getEffectiveRange(
+      "BLOOD_GLUCOSE_POSTPRANDIAL",
+      baseProfile,
+      null,
+    );
     expect(post.range!.greenMax).toBeGreaterThan(fasting.range!.greenMax);
   });
 });

@@ -76,7 +76,13 @@ export function ComplianceHeatmap({
   } | null>(null);
 
   const WEEKDAY_LABELS = [
-    t("charts.weekdays.mon"), "", t("charts.weekdays.wed"), "", t("charts.weekdays.fri"), "", t("charts.weekdays.sun"),
+    t("charts.weekdays.mon"),
+    "",
+    t("charts.weekdays.wed"),
+    "",
+    t("charts.weekdays.fri"),
+    "",
+    t("charts.weekdays.sun"),
   ];
   useEffect(() => {
     if (!stretch) return;
@@ -98,10 +104,18 @@ export function ComplianceHeatmap({
 
   const { cells, weeks, monthMarkers } = useMemo(() => {
     const MONTH_LABELS = [
-      t("charts.months.jan"), t("charts.months.feb"), t("charts.months.mar"),
-      t("charts.months.apr"), t("charts.months.may"), t("charts.months.jun"),
-      t("charts.months.jul"), t("charts.months.aug"), t("charts.months.sep"),
-      t("charts.months.oct"), t("charts.months.nov"), t("charts.months.dec"),
+      t("charts.months.jan"),
+      t("charts.months.feb"),
+      t("charts.months.mar"),
+      t("charts.months.apr"),
+      t("charts.months.may"),
+      t("charts.months.jun"),
+      t("charts.months.jul"),
+      t("charts.months.aug"),
+      t("charts.months.sep"),
+      t("charts.months.oct"),
+      t("charts.months.nov"),
+      t("charts.months.dec"),
     ];
     const now = new Date();
     const cellList: Array<{

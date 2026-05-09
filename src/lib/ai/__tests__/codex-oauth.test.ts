@@ -69,7 +69,9 @@ describe("codex-oauth", () => {
       expect(parsed.searchParams.get("code_challenge")).toBe("test-challenge");
       expect(parsed.searchParams.get("code_challenge_method")).toBe("S256");
       expect(parsed.searchParams.get("state")).toBe("test-state");
-      expect(parsed.searchParams.get("redirect_uri")).toBe("https://example.com/callback");
+      expect(parsed.searchParams.get("redirect_uri")).toBe(
+        "https://example.com/callback",
+      );
     });
 
     it("throws CodexOAuthNotConfiguredError when CODEX_OAUTH_CLIENT_ID is unset", () => {

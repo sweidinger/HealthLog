@@ -2,7 +2,12 @@ import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
-import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { createMedicationSchema } from "@/lib/validations/medication";
 import {
   getMedicationCategories,

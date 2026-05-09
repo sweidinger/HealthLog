@@ -91,10 +91,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     try {
       appBaseUrl = new URL(appUrl);
     } catch {
-      return apiError(
-        "Server configuration error: APP_URL is invalid.",
-        500,
-      );
+      return apiError("Server configuration error: APP_URL is invalid.", 500);
     }
 
     if (appBaseUrl.protocol !== "https:") {

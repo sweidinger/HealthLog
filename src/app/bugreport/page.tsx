@@ -13,13 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Loader2,
-  CheckCircle2,
-  Bug,
-  GitPullRequest,
-  Info,
-} from "lucide-react";
+import { Loader2, CheckCircle2, Bug, GitPullRequest, Info } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -154,16 +148,16 @@ export default function BugReportPage() {
       </div>
 
       {status?.configured && (
-        <div className="bg-card border-border flex gap-2 rounded-lg border-l-4 border-l-dracula-cyan p-3 text-sm">
-          <GitPullRequest className="mt-0.5 h-4 w-4 shrink-0 text-dracula-cyan" />
+        <div className="bg-card border-border border-l-dracula-cyan flex gap-2 rounded-lg border-l-4 p-3 text-sm">
+          <GitPullRequest className="text-dracula-cyan mt-0.5 h-4 w-4 shrink-0" />
           <p className="text-muted-foreground">
             {t("bugreport.githubEscalationNote")}
           </p>
         </div>
       )}
       {!status?.configured && (
-        <div className="bg-card border-border flex gap-2 rounded-lg border-l-4 border-l-dracula-purple p-3 text-sm">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-dracula-purple" />
+        <div className="bg-card border-border border-l-dracula-purple flex gap-2 rounded-lg border-l-4 p-3 text-sm">
+          <Info className="text-dracula-purple mt-0.5 h-4 w-4 shrink-0" />
           <p className="text-muted-foreground">
             {t("bugreport.internalOnlyNote")}
           </p>

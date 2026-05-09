@@ -38,8 +38,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
   if (!["csv", "json"].includes(format)) {
     return apiError("Format must be csv or json", 422);
   }
-  if (!["measurements", "medications", "intake", "mood", "all"].includes(type)) {
-    return apiError("Type must be measurements, medications, intake, mood, or all", 422);
+  if (
+    !["measurements", "medications", "intake", "mood", "all"].includes(type)
+  ) {
+    return apiError(
+      "Type must be measurements, medications, intake, mood, or all",
+      422,
+    );
   }
 
   const userId = user.id;

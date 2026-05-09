@@ -6,7 +6,12 @@
  * the database (≤5 MB each).
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiError, apiSuccess, safeJson, getClientIp } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  safeJson,
+  getClientIp,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { auditLog } from "@/lib/auth/audit";

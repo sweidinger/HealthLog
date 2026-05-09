@@ -92,7 +92,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   annotate({
     action: { name: "medication.intake_summary" },
-    meta: { point_count: points.length, medication_count: medicationNames.size },
+    meta: {
+      point_count: points.length,
+      medication_count: medicationNames.size,
+    },
   });
 
   return apiSuccess({

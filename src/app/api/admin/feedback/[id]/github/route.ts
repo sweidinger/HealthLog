@@ -37,10 +37,7 @@ export const POST = apiHandler(
     if (!feedback) return apiError("Feedback not found", 404);
 
     if (feedback.gitHubIssueUrl) {
-      return apiError(
-        `Already published: ${feedback.gitHubIssueUrl}`,
-        409,
-      );
+      return apiError(`Already published: ${feedback.gitHubIssueUrl}`, 409);
     }
 
     // Atomic claim to prevent concurrent admin clicks from creating two

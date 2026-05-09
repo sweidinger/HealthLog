@@ -12,7 +12,10 @@ describe("CodexClient", () => {
       json: () =>
         Promise.resolve({
           output: [
-            { type: "message", content: [{ type: "output_text", text: '{"summary":"ok"}' }] },
+            {
+              type: "message",
+              content: [{ type: "output_text", text: '{"summary":"ok"}' }],
+            },
           ],
           usage: { total_tokens: 50 },
         }),
@@ -44,13 +47,20 @@ describe("CodexClient", () => {
 
     const mockFetch = vi
       .fn()
-      .mockResolvedValueOnce({ ok: false, status: 401, text: () => Promise.resolve("unauthorized") })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        text: () => Promise.resolve("unauthorized"),
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: () =>
           Promise.resolve({
             output: [
-              { type: "message", content: [{ type: "output_text", text: '{"test":true}' }] },
+              {
+                type: "message",
+                content: [{ type: "output_text", text: '{"test":true}' }],
+              },
             ],
             usage: { total_tokens: 10 },
           }),
@@ -69,7 +79,9 @@ describe("CodexClient", () => {
 
     expect(onRefresh).toHaveBeenCalledOnce();
     expect(result.content).toBe('{"test":true}');
-    expect(mockFetch.mock.calls[1][1].headers.Authorization).toBe(`Bearer ${newToken}`);
+    expect(mockFetch.mock.calls[1][1].headers.Authorization).toBe(
+      `Bearer ${newToken}`,
+    );
   });
 
   it("throws after retry if still 401", async () => {

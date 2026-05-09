@@ -5,17 +5,20 @@ Status: **bootstrapped** (2026-05-09 ~01:25)
 Update at every phase boundary so `cat .planning/STATE.md` is the truth.
 
 ## Phase 0 — Bootstrap
+
 - [x] `.planning/PROJECT.md`
 - [x] `.planning/ROADMAP.md`
 - [x] `.planning/STATE.md`
 - [ ] commit `chore(planning): bootstrap v1.4.6 marathon`
 
 ## Phase 1 — CI green
+
 - [ ] reproduce e2e failure locally
 - [ ] root-cause + fix
 - [ ] verify CI green
 
 ## Phase 2 — Tier 1 fixes (T1–T9)
+
 - [ ] T1 trend-card w-full (in working tree)
 - [ ] T2 muted-foreground colour split
 - [ ] T3 primaryRecommendation chart-token rendering
@@ -27,11 +30,13 @@ Update at every phase boundary so `cat .planning/STATE.md` is the truth.
 - [ ] T9 KI per-card 360 daily + 24 monthly (7 generators)
 
 ## Phase 3 — Chart bucketing
+
 - [ ] research recharts patterns
 - [ ] `bucketTimeSeries` helper + tests
 - [ ] chart header chip + i18n
 
 ## Phase 4 — Tier 2 polish
+
 - [ ] P1–P5 trend-card + chart card (single commit)
 - [ ] P6 welcome subtitle
 - [ ] P7 auth-shell pb buffer
@@ -50,16 +55,19 @@ Update at every phase boundary so `cat .planning/STATE.md` is the truth.
 - [ ] P20 status-overview Promise.allSettled
 
 ## Phase 5 — QA
+
 - [ ] superpowers:code-reviewer
 - [ ] Plan as senior security reviewer
 - [ ] Plan as senior design reviewer
 - [ ] simplify pass
 
 ## Phase 6 — Pre-release verification
+
 - [ ] typecheck / lint / format / test / integration / build / e2e
 - [ ] before-screenshots vs prod
 
 ## Phase 7 — Release
+
 - [ ] package.json 1.4.6
 - [ ] CHANGELOG `[1.4.6]` block
 - [ ] tag + push
@@ -68,12 +76,15 @@ Update at every phase boundary so `cat .planning/STATE.md` is the truth.
 - [ ] /api/version=1.4.6, image digest changed
 
 ## Phase 8 — Releases
+
 - [ ] gh release create v1.4.2…v1.4.6
 - [ ] GHCR untagged cleanup
 
 ## Phase 9 — Docs / landing
+
 - [ ] healthlog-docs synced to v1.4.6
 - [ ] healthlog-landing minimal update
 
 ## Phase 10 — Summary
+
 - [ ] `docs/audit/v146-summary.md` with German Marc-brief on top

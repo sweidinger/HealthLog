@@ -88,7 +88,11 @@ function dateTimeLocalToISO(value: string): string {
   return new Date(value).toISOString();
 }
 
-export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange }: IntakeHistoryListProps) {
+export function IntakeHistoryList({
+  medicationId,
+  createOpen,
+  onCreateOpenChange,
+}: IntakeHistoryListProps) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const { t } = useTranslations();
@@ -120,16 +124,19 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
   const [createSkipped, setCreateSkipped] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const setCreatingRaw = onCreateOpenChange ?? setInternalCreating;
-  const setCreating = useCallback((open: boolean) => {
-    if (open) {
-      const now = toDateTimeLocalValue(new Date().toISOString());
-      setCreateScheduledFor(now);
-      setCreateTakenAt(now);
-      setCreateSkipped(false);
-      setCreateError(null);
-    }
-    setCreatingRaw(open);
-  }, [setCreatingRaw]);
+  const setCreating = useCallback(
+    (open: boolean) => {
+      if (open) {
+        const now = toDateTimeLocalValue(new Date().toISOString());
+        setCreateScheduledFor(now);
+        setCreateTakenAt(now);
+        setCreateSkipped(false);
+        setCreateError(null);
+      }
+      setCreatingRaw(open);
+    },
+    [setCreatingRaw],
+  );
 
   function toggleSort(column: string) {
     if (sortBy === column) {
@@ -142,14 +149,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: [
-      "medications",
-      medicationId,
-      "intake",
-      page,
-      sortBy,
-      sortDir,
-    ],
+    queryKey: ["medications", medicationId, "intake", page, sortBy, sortDir],
     queryFn: async () => {
       const params = new URLSearchParams();
       params.set("limit", String(PAGE_SIZE));
@@ -227,14 +227,11 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
       takenAt: string | null;
       skipped: boolean;
     }) => {
-      const res = await fetch(
-        `/api/medications/${medicationId}/intake`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scheduledFor, takenAt, skipped }),
-        },
-      );
+      const res = await fetch(`/api/medications/${medicationId}/intake`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledFor, takenAt, skipped }),
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Create failed");
     },
@@ -267,7 +264,6 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
     setEditDeleteDialogOpen(false);
   }
 
-
   function closeCreate() {
     if (createMutation.isPending) return;
     setCreating(false);
@@ -299,9 +295,8 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
     updateMutation.mutate({
       eventId: editing.id,
       scheduledFor: dateTimeLocalToISO(editScheduledFor),
-      takenAt: editSkipped || !editTakenAt
-        ? null
-        : dateTimeLocalToISO(editTakenAt),
+      takenAt:
+        editSkipped || !editTakenAt ? null : dateTimeLocalToISO(editTakenAt),
       skipped: editSkipped,
     });
   }
@@ -318,9 +313,10 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
     setCreateError(null);
     createMutation.mutate({
       scheduledFor: dateTimeLocalToISO(createScheduledFor),
-      takenAt: createSkipped || !createTakenAt
-        ? null
-        : dateTimeLocalToISO(createTakenAt),
+      takenAt:
+        createSkipped || !createTakenAt
+          ? null
+          : dateTimeLocalToISO(createTakenAt),
       skipped: createSkipped,
     });
   }
@@ -336,7 +332,10 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
     }
     if (event.takenAt) {
       return (
-        <Badge variant="secondary" className="gap-1 bg-green-500/20 text-green-400">
+        <Badge
+          variant="secondary"
+          className="gap-1 bg-green-500/20 text-green-400"
+        >
           <Check className="h-3 w-3" />
           {t("medications.intakeStatusTaken")}
         </Badge>
@@ -398,7 +397,9 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                       currentDir={sortDir}
                       onSort={toggleSort}
                     />
-                    <TableHead className="w-32">{t("medications.intakeStatus")}</TableHead>
+                    <TableHead className="w-32">
+                      {t("medications.intakeStatus")}
+                    </TableHead>
                     <SortableHead
                       column="source"
                       label={t("medications.intakeSource")}
@@ -419,9 +420,7 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                         {formatDateTime(event.scheduledFor)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm tabular-nums">
-                        {event.takenAt
-                          ? formatDateTime(event.takenAt)
-                          : "—"}
+                        {event.takenAt ? formatDateTime(event.takenAt) : "—"}
                       </TableCell>
                       <TableCell>{getStatusBadge(event)}</TableCell>
                       <TableCell>
@@ -442,7 +441,9 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                           </Button>
                           <DeleteButton
                             label={t("medications.intakeDeleteConfirm")}
-                            description={t("medications.intakeDeleteDescription")}
+                            description={t(
+                              "medications.intakeDeleteDescription",
+                            )}
                             onConfirm={() => deleteMutation.mutate(event.id)}
                           />
                         </div>
@@ -467,7 +468,8 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
                       </p>
                       {event.takenAt && (
                         <p className="text-muted-foreground text-xs tabular-nums">
-                          {t("medications.intakeTakenAt")}: {formatDateTime(event.takenAt)}
+                          {t("medications.intakeTakenAt")}:{" "}
+                          {formatDateTime(event.takenAt)}
                         </p>
                       )}
                       <div className="flex items-center gap-1.5">
@@ -550,7 +552,9 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-takenAt">{t("medications.intakeTakenAt")}</Label>
+                <Label htmlFor="edit-takenAt">
+                  {t("medications.intakeTakenAt")}
+                </Label>
                 <Input
                   id="edit-takenAt"
                   type="datetime-local"
@@ -575,7 +579,11 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
               </div>
 
               {editError && (
-                <div role="alert" aria-live="assertive" className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
+                >
                   {editError}
                 </div>
               )}
@@ -688,7 +696,9 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="create-takenAt">{t("medications.intakeTakenAt")}</Label>
+              <Label htmlFor="create-takenAt">
+                {t("medications.intakeTakenAt")}
+              </Label>
               <Input
                 id="create-takenAt"
                 type="datetime-local"
@@ -713,7 +723,11 @@ export function IntakeHistoryList({ medicationId, createOpen, onCreateOpenChange
             </div>
 
             {createError && (
-              <div role="alert" aria-live="assertive" className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
+              >
                 {createError}
               </div>
             )}

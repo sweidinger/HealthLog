@@ -90,7 +90,10 @@ export function I18nProvider({
     // Prefer the server-resolved initial locale to eliminate the hydration
     // flash where the server renders EN ("Loading…") and the client then
     // flips to DE ("Laden…") once localStorage/cookie is read at mount.
-    if (initialLocale && (locales as readonly string[]).includes(initialLocale)) {
+    if (
+      initialLocale &&
+      (locales as readonly string[]).includes(initialLocale)
+    ) {
       return initialLocale;
     }
     return getSavedLocale() ?? detectSystemLocale();

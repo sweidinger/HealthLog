@@ -14,7 +14,12 @@
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiError, apiSuccess, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
@@ -175,8 +180,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     });
   } else {
     // snoozed: snoozedUntil lives on the Medication row.
-    const until =
-      snoozedUntil ?? new Date(Date.now() + 30 * 60_000); // default +30min
+    const until = snoozedUntil ?? new Date(Date.now() + 30 * 60_000); // default +30min
     await prisma.medication.update({
       where: { id: existing.medicationId },
       data: { snoozedUntil: until },

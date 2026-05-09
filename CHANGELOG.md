@@ -8,7 +8,7 @@
   bad.** The endpoint mapped every upstream error to HTTP 502, which
   Cloudflare intercepts and replaces with its own HTML error page.
   `await res.json()` in the browser then crashed with `Unexpected
-  token '<', "<!DOCTYPE "`. 401/403 from the provider now map to 422,
+token '<', "<!DOCTYPE "`. 401/403 from the provider now map to 422,
   429 to 429, and only genuine 5xx upstream errors keep the 502 —
   Cloudflare passes 4xx through untouched, so the React Query
   mutation reads the JSON body and surfaces a readable message.
@@ -69,8 +69,8 @@
   "Zuletzt geprüft am …" timestamp so you can tell when the answer
   was confirmed.
 - **About restructured into three titled cards** — HealthLog (version
-  + license inline, no boxed badge), Quellen & Dokumentation, and
-  Updates.
+  - license inline, no boxed badge), Quellen & Dokumentation, and
+    Updates.
 - **KI provider — OpenAI users can enter their own API key.** Schema
   didn't have a column for it before; added it, plumbed it through
   the resolver and test endpoint, surfaced the input in the Settings

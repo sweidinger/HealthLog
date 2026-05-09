@@ -62,9 +62,7 @@ export default function LoginPage() {
       }
 
       const { options, challengeId } = optJson.data;
-      const { startAuthentication } = await import(
-        "@simplewebauthn/browser"
-      );
+      const { startAuthentication } = await import("@simplewebauthn/browser");
       const credential = await startAuthentication({ optionsJSON: options });
 
       const verifyRes = await fetch("/api/auth/passkey/login-verify", {

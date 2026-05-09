@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAdmin } from "@/lib/api-handler";
 import { auditLog } from "@/lib/auth/audit";
-import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { encrypt } from "@/lib/crypto";
 import { adminSettingsSchema } from "@/lib/validations/admin";
@@ -27,8 +32,8 @@ export const GET = apiHandler(async () => {
     webPushVapidSubject: settings?.webPushVapidSubject ?? null,
     webPushVapidConfigured: Boolean(
       settings?.webPushVapidPublicKey &&
-        settings?.webPushVapidPrivateKeyEncrypted &&
-        settings?.webPushVapidSubject,
+      settings?.webPushVapidPrivateKeyEncrypted &&
+      settings?.webPushVapidSubject,
     ),
     apiGlobal: settings?.apiGlobal ?? true,
     umamiEnabled: settings?.umamiEnabled ?? false,
@@ -207,8 +212,8 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     webPushVapidSubject: settings.webPushVapidSubject,
     webPushVapidConfigured: Boolean(
       settings.webPushVapidPublicKey &&
-        settings.webPushVapidPrivateKeyEncrypted &&
-        settings.webPushVapidSubject,
+      settings.webPushVapidPrivateKeyEncrypted &&
+      settings.webPushVapidSubject,
     ),
     apiGlobal: settings.apiGlobal,
     umamiEnabled: settings.umamiEnabled,
@@ -216,8 +221,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     umamiWebsiteId: settings.umamiWebsiteId,
     glitchtipEnabled: settings.glitchtipEnabled,
     glitchtipDsn: settings.glitchtipDsn,
-    glitchtipEnvironment:
-      settings.glitchtipEnvironment ?? "production",
+    glitchtipEnvironment: settings.glitchtipEnvironment ?? "production",
     bugReportRepo: settings.githubIssueRepo,
     bugReportConfigured: Boolean(
       settings.githubIssueRepo && settings.githubIssueTokenEncrypted,

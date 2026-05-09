@@ -82,7 +82,9 @@ export async function sendTelegramMessage(
     ...(options.replyMarkup ? { reply_markup: options.replyMarkup } : {}),
   });
   if (!json.ok) {
-    getEvent()?.addWarning(`[telegram] sendMessage failed: ${json.description}`);
+    getEvent()?.addWarning(
+      `[telegram] sendMessage failed: ${json.description}`,
+    );
     return { ok: false };
   }
   const messageId = (json.result as { message_id?: number })?.message_id;
@@ -99,7 +101,9 @@ export async function answerTelegramCallbackQuery(
     ...(text ? { text, show_alert: false } : {}),
   });
   if (!json.ok) {
-    getEvent()?.addWarning(`[telegram] answerCallbackQuery failed: ${json.description}`);
+    getEvent()?.addWarning(
+      `[telegram] answerCallbackQuery failed: ${json.description}`,
+    );
   }
   return json.ok;
 }
@@ -116,7 +120,9 @@ export async function editMessageReplyMarkup(
     reply_markup: replyMarkup ?? { inline_keyboard: [] },
   });
   if (!json.ok) {
-    getEvent()?.addWarning(`[telegram] editMessageReplyMarkup failed: ${json.description}`);
+    getEvent()?.addWarning(
+      `[telegram] editMessageReplyMarkup failed: ${json.description}`,
+    );
   }
   return json.ok;
 }
@@ -148,7 +154,9 @@ export async function deleteMessage(
     message_id: messageId,
   });
   if (!json.ok) {
-    getEvent()?.addWarning(`[telegram] deleteMessage failed: ${json.description}`);
+    getEvent()?.addWarning(
+      `[telegram] deleteMessage failed: ${json.description}`,
+    );
   }
   return json.ok;
 }
@@ -160,7 +168,9 @@ export async function deleteTelegramWebhook(
     drop_pending_updates: false,
   });
   if (!json.ok) {
-    getEvent()?.addWarning(`[telegram] deleteWebhook failed: ${json.description}`);
+    getEvent()?.addWarning(
+      `[telegram] deleteWebhook failed: ${json.description}`,
+    );
     return false;
   }
   return true;

@@ -74,7 +74,8 @@ export const GET = apiHandler(async () => {
     date: e.moodLoggedAt,
     value: e.score,
   }));
-  const moodSummary = moodDataPoints.length > 0 ? summarize(moodDataPoints) : null;
+  const moodSummary =
+    moodDataPoints.length > 0 ? summarize(moodDataPoints) : null;
 
   const byType = (t: MeasurementType): DataPoint[] =>
     allMeasurements
@@ -173,7 +174,9 @@ export const GET = apiHandler(async () => {
   // Mood vs Systolic BP
   const moodBpPairs = buildMoodMetricPairs(
     dailyMoodEntries,
-    allMeasurements.filter((m) => m.type === "BLOOD_PRESSURE_SYS").map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
+    allMeasurements
+      .filter((m) => m.type === "BLOOD_PRESSURE_SYS")
+      .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
   );
   const moodBpCorrelation = pearsonCorrelation(moodBpPairs);
   const moodBpScatterData = moodBpPairs.map((p) => ({ mood: p.a, sysBP: p.b }));
@@ -181,18 +184,28 @@ export const GET = apiHandler(async () => {
   // Mood vs Weight
   const moodWeightPairs = buildMoodMetricPairs(
     dailyMoodEntries,
-    allMeasurements.filter((m) => m.type === "WEIGHT").map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
+    allMeasurements
+      .filter((m) => m.type === "WEIGHT")
+      .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
   );
   const moodWeightCorrelation = pearsonCorrelation(moodWeightPairs);
-  const moodWeightScatterData = moodWeightPairs.map((p) => ({ mood: p.a, weight: p.b }));
+  const moodWeightScatterData = moodWeightPairs.map((p) => ({
+    mood: p.a,
+    weight: p.b,
+  }));
 
   // Mood vs Pulse
   const moodPulsePairs = buildMoodMetricPairs(
     dailyMoodEntries,
-    allMeasurements.filter((m) => m.type === "PULSE").map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
+    allMeasurements
+      .filter((m) => m.type === "PULSE")
+      .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
   );
   const moodPulseCorrelation = pearsonCorrelation(moodPulsePairs);
-  const moodPulseScatterData = moodPulsePairs.map((p) => ({ mood: p.a, pulse: p.b }));
+  const moodPulseScatterData = moodPulsePairs.map((p) => ({
+    mood: p.a,
+    pulse: p.b,
+  }));
 
   // Medication compliance
   const medications = await prisma.medication.findMany({

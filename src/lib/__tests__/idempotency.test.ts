@@ -205,9 +205,11 @@ describe("withIdempotency", () => {
 describe("defaultUserIdResolver (audit C-4)", () => {
   function mockHeader(value: string | null) {
     vi.mocked(headers).mockResolvedValue({
-      get: vi.fn().mockImplementation((name: string) =>
-        name.toLowerCase() === "authorization" ? value : null,
-      ),
+      get: vi
+        .fn()
+        .mockImplementation((name: string) =>
+          name.toLowerCase() === "authorization" ? value : null,
+        ),
     } as unknown as ReturnType<typeof headers> extends Promise<infer T>
       ? T
       : never);
@@ -291,9 +293,7 @@ describe("withIdempotency body-content exclusion (P12)", () => {
       '{"data":{"echoed":"sk-ant-api03-xyz"},"error":null}',
     ],
   ])("does NOT cache responses containing %s", async (_label, body) => {
-    const handler = vi.fn(
-      async () => new NextResponse(body, { status: 201 }),
-    );
+    const handler = vi.fn(async () => new NextResponse(body, { status: 201 }));
     const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
     await wrapped(makeRequest("POST", { "idempotency-key": "abc-12345678" }));
     expect(handler).toHaveBeenCalledTimes(1);
@@ -310,10 +310,11 @@ describe("withIdempotency body-content exclusion (P12)", () => {
       const handler = vi.fn(
         async () => new NextResponse(body, { status: 422 }),
       );
-      const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
-      await wrapped(
-        makeRequest("POST", { "idempotency-key": "key-12345678" }),
+      const wrapped = withIdempotency<[NextRequest]>(
+        handler,
+        async () => "u-1",
       );
+      await wrapped(makeRequest("POST", { "idempotency-key": "key-12345678" }));
       expect(prisma.idempotencyKey.create).toHaveBeenCalledTimes(1);
     },
   );

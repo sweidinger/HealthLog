@@ -23,7 +23,8 @@ export const GET = apiHandler(async () => {
   });
 
   const configured =
-    !!dbUser?.withingsClientIdEncrypted && !!dbUser?.withingsClientSecretEncrypted;
+    !!dbUser?.withingsClientIdEncrypted &&
+    !!dbUser?.withingsClientSecretEncrypted;
 
   const connection = await prisma.withingsConnection.findUnique({
     where: { userId: user.id },

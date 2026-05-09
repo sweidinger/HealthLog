@@ -68,7 +68,9 @@ describe("moodLog secret encrypt-at-rest", () => {
     for (const update of updates) {
       // Each rotation must produce a value that decrypts back to the
       // original legacy plaintext — no data loss.
-      const original = rows.find((r) => r.id === update.id)!.moodLogWebhookSecret;
+      const original = rows.find(
+        (r) => r.id === update.id,
+      )!.moodLogWebhookSecret;
       expect(readMoodLogSecret(update.encrypted)).toBe(original);
     }
 

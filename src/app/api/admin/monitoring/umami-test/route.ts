@@ -54,10 +54,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Umami is disabled", 422);
   }
   if (!settings.umamiScriptUrl || !settings.umamiWebsiteId) {
-    return apiError(
-      "Umami script URL and website ID must be configured",
-      422,
-    );
+    return apiError("Umami script URL and website ID must be configured", 422);
   }
 
   const targetUrls = resolveUmamiSendUrls(settings.umamiScriptUrl);
@@ -116,8 +113,5 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   getEvent()?.addWarning("Umami test event rejected: " + lastStatus);
-  return apiError(
-    `Umami test event rejected (HTTP ${lastStatus})`,
-    502,
-  );
+  return apiError(`Umami test event rejected (HTTP ${lastStatus})`, 502);
 });

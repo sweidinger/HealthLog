@@ -21,7 +21,9 @@ export class LocalOpenAICompatibleClient implements AIProvider {
     this.config = config;
   }
 
-  async generateCompletion(params: CompletionParams): Promise<CompletionResult> {
+  async generateCompletion(
+    params: CompletionParams,
+  ): Promise<CompletionResult> {
     const url = `${this.config.baseUrl.replace(/\/$/, "")}/chat/completions`;
 
     const headers: Record<string, string> = {

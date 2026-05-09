@@ -12,7 +12,8 @@ export function shouldEmit(event: WideEvent): boolean {
   if (!isLevelEnabled(event.level)) return false;
 
   // Fehler und Warnungen immer behalten
-  if (LOG_LEVEL_PRIORITY[event.level] >= LOG_LEVEL_PRIORITY["warn"]) return true;
+  if (LOG_LEVEL_PRIORITY[event.level] >= LOG_LEVEL_PRIORITY["warn"])
+    return true;
 
   // Langsame Requests immer behalten
   const config = getLoggingConfig();

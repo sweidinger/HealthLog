@@ -25,9 +25,7 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const windowInterval = `${windowMs} milliseconds`;
 
-  const rows = await prisma.$queryRaw<
-    { count: number; reset_at: Date }[]
-  >`
+  const rows = await prisma.$queryRaw<{ count: number; reset_at: Date }[]>`
     INSERT INTO rate_limits (key, count, reset_at)
     VALUES (${key}, 1, NOW() + ${windowInterval}::interval)
     ON CONFLICT (key) DO UPDATE SET

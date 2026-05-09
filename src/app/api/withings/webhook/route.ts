@@ -72,7 +72,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     const formData = await request.formData();
     withingsUserId = formData.get("userid") as string;
   } else {
-    const { data: body, error: jsonError } = await safeJson<{ userid?: string | number }>(request);
+    const { data: body, error: jsonError } = await safeJson<{
+      userid?: string | number;
+    }>(request);
     if (jsonError) return jsonError;
     withingsUserId = body.userid?.toString() ?? null;
   }
@@ -89,13 +91,17 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   if (!connection) {
-    getEvent()?.addWarning("Webhook for unknown withings user: " + withingsUserId);
+    getEvent()?.addWarning(
+      "Webhook for unknown withings user: " + withingsUserId,
+    );
     return NextResponse.json({ status: "unknown_user" }, { status: 200 });
   }
 
   // Sync measurements (non-blocking response for Withings)
   syncUserMeasurements(connection.userId).catch((err) => {
-    getEvent()?.addWarning("Sync failed for user " + connection.userId + ": " + err);
+    getEvent()?.addWarning(
+      "Sync failed for user " + connection.userId + ": " + err,
+    );
   });
 
   return NextResponse.json({ status: "ok" }, { status: 200 });

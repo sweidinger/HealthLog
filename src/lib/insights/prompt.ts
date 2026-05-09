@@ -60,7 +60,9 @@ OUTPUT FORMAT (JSON):
 Reply with VALID JSON ONLY in the format above. All natural-language fields in English.`;
 
 export function getInsightsSystemPrompt(locale: Locale): string {
-  return locale === "en" ? INSIGHTS_SYSTEM_PROMPT_EN : INSIGHTS_SYSTEM_PROMPT_DE;
+  return locale === "en"
+    ? INSIGHTS_SYSTEM_PROMPT_EN
+    : INSIGHTS_SYSTEM_PROMPT_DE;
 }
 
 /** @deprecated Use getInsightsSystemPrompt(locale) instead. Kept for backwards compatibility. */

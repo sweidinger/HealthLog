@@ -23,10 +23,7 @@ export const POST = apiHandler(async () => {
   });
 
   if (!dbUser?.telegramBotToken || !dbUser?.telegramChatId) {
-    return apiError(
-      "Bot token and chat ID must be saved first",
-      422,
-    );
+    return apiError("Bot token and chat ID must be saved first", 422);
   }
 
   const botToken = decrypt(dbUser.telegramBotToken);
@@ -43,7 +40,10 @@ export const POST = apiHandler(async () => {
     );
   }
 
-  annotate({ action: { name: "settings.telegram.test" }, meta: { success: true } });
+  annotate({
+    action: { name: "settings.telegram.test" },
+    meta: { success: true },
+  });
 
   return apiSuccess({ sent: true });
 });

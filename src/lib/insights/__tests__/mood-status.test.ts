@@ -43,7 +43,7 @@ describe("generateMoodStatusForUser — v1.4.6 bucketed payload", () => {
         // `date` string here is irrelevant for bucketing — keep it
         // ISO-shaped so other downstream consumers don't choke.
         date: t.toISOString().slice(0, 10),
-        score: 3 + ((day % 3) * 0.5),
+        score: 3 + (day % 3) * 0.5,
         tags: [],
         moodLoggedAt: t,
       });

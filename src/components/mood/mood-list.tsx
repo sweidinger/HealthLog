@@ -76,7 +76,6 @@ const MOOD_LABEL_KEYS: Record<string, string> = {
   LAUSIG: "mood.levelLausig",
 };
 
-
 interface MoodEntry {
   id: string;
   date: string;
@@ -342,7 +341,11 @@ export function MoodList() {
                       <TableCell className="pl-4 font-semibold tabular-nums">
                         {entry.score}{" "}
                         <span className="text-muted-foreground font-normal">
-                          ({MOOD_LABEL_KEYS[entry.mood] ? t(MOOD_LABEL_KEYS[entry.mood]) : entry.mood})
+                          (
+                          {MOOD_LABEL_KEYS[entry.mood]
+                            ? t(MOOD_LABEL_KEYS[entry.mood])
+                            : entry.mood}
+                          )
                         </span>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
@@ -388,7 +391,7 @@ export function MoodList() {
                   className="bg-card border-border flex items-center justify-between rounded-lg border p-3"
                 >
                   <div className="flex items-center gap-2.5 overflow-hidden">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <div className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
                       <span className="text-lg font-bold tabular-nums">
                         {entry.score}
                       </span>
@@ -397,7 +400,11 @@ export function MoodList() {
                       <span className="text-sm font-semibold tabular-nums">
                         {entry.score}{" "}
                         <span className="text-muted-foreground font-normal">
-                          ({MOOD_LABEL_KEYS[entry.mood] ? t(MOOD_LABEL_KEYS[entry.mood]) : entry.mood})
+                          (
+                          {MOOD_LABEL_KEYS[entry.mood]
+                            ? t(MOOD_LABEL_KEYS[entry.mood])
+                            : entry.mood}
+                          )
                         </span>
                       </span>
                       <p className="text-muted-foreground truncate text-xs">
@@ -471,7 +478,11 @@ export function MoodList() {
             <form onSubmit={submitEdit} className="space-y-4">
               <div className="space-y-2">
                 <Label id="edit-mood-level-label">{t("mood.moodLevel")}</Label>
-                <div role="radiogroup" aria-labelledby="edit-mood-level-label" className="grid grid-cols-5 gap-2">
+                <div
+                  role="radiogroup"
+                  aria-labelledby="edit-mood-level-label"
+                  className="grid grid-cols-5 gap-2"
+                >
                   {MOOD_LEVELS_LIST.map((level) => {
                     const isSelected = editMood === level;
                     return (
@@ -530,7 +541,11 @@ export function MoodList() {
               </div>
 
               {editError && (
-                <div role="alert" aria-live="assertive" className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
+                <div
+                  role="alert"
+                  aria-live="assertive"
+                  className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
+                >
                   {editError}
                 </div>
               )}

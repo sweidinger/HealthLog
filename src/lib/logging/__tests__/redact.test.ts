@@ -30,9 +30,9 @@ describe("redactSecrets", () => {
   });
 
   it("redacts OpenAI and Anthropic API keys", () => {
-    expect(
-      redactSecrets("error: invalid key sk-1234567890abcdefABCDEF"),
-    ).toBe("error: invalid key [REDACTED]");
+    expect(redactSecrets("error: invalid key sk-1234567890abcdefABCDEF")).toBe(
+      "error: invalid key [REDACTED]",
+    );
     expect(
       redactSecrets("Authorization: Bearer sk-ant-api03-xyzABC_42-token"),
     ).toBe("Authorization: Bearer [REDACTED]");

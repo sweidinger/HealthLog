@@ -33,8 +33,8 @@ export function InsightStatusCard({
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-dracula-purple" />
-          <span className="ml-2 text-sm text-muted-foreground">
+          <Loader2 className="text-dracula-purple h-5 w-5 animate-spin" />
+          <span className="text-muted-foreground ml-2 text-sm">
             {t("common.loading")}
           </span>
         </CardContent>
@@ -52,7 +52,7 @@ export function InsightStatusCard({
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {t("insights.noProviderConfigured")}
           </p>
         </CardContent>
@@ -70,7 +70,7 @@ export function InsightStatusCard({
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {t("insights.noAnalysisYet")}
           </p>
         </CardContent>
@@ -79,7 +79,7 @@ export function InsightStatusCard({
   }
 
   return (
-    <Card className="animate-insight-in border-l-2 border-l-dracula-purple">
+    <Card className="animate-insight-in border-l-dracula-purple border-l-2">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -87,14 +87,14 @@ export function InsightStatusCard({
             <CardTitle className="text-base">{title}</CardTitle>
           </div>
           {cached && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               {t("insights.cached")}
             </span>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
+        <p className="text-muted-foreground text-sm leading-relaxed">{text}</p>
         <LastUpdatedFooter updatedAt={updatedAt} />
       </CardContent>
     </Card>
@@ -106,7 +106,7 @@ function LastUpdatedFooter({ updatedAt }: { updatedAt: string | null }) {
   const fmt = useFormatters();
   if (!updatedAt) return null;
   return (
-    <p className="text-xs text-muted-foreground">
+    <p className="text-muted-foreground text-xs">
       {t("insights.lastUpdated")}: {fmt.dateTime(updatedAt)}
     </p>
   );

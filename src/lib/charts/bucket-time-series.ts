@@ -124,7 +124,9 @@ export function bucketTimeSeries(
   points: BucketInputPoint[],
   options: BucketTimeSeriesOptions = {},
 ): BucketedChartSeries {
-  const sorted = [...points].sort((a, b) => toMs(a.timestamp) - toMs(b.timestamp));
+  const sorted = [...points].sort(
+    (a, b) => toMs(a.timestamp) - toMs(b.timestamp),
+  );
 
   const bucket =
     options.bucket ??

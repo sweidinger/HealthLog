@@ -1,5 +1,8 @@
 import { z } from "zod/v4";
-import { METRIC_BOUNDS, type ThresholdMetric } from "@/lib/analytics/effective-range";
+import {
+  METRIC_BOUNDS,
+  type ThresholdMetric,
+} from "@/lib/analytics/effective-range";
 
 const metricKeys = Object.keys(METRIC_BOUNDS) as ThresholdMetric[];
 

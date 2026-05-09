@@ -100,6 +100,7 @@ Same one-liner pattern as the v1.4.5 ai/test fix (see CHANGELOG).
 `src/components/admin/status-card-grid.tsx:147, 159, 177, 189, 210, 222`
 
 Hrefs to non-existent routes/anchors:
+
 - `/admin/users`, `/admin/audit-log` — sub-routes don't exist
 - `/admin#integrations`, `/admin#monitoring`, `/admin#backups`,
   `/admin#maintenance` — anchor IDs don't match the rendered DOM
@@ -110,6 +111,7 @@ The `status-card-grid.test.tsx:105` only asserts `startsWith("/admin")`
 — so this regression slipped through.
 
 **Fix:** Point hrefs at the existing anchor IDs:
+
 - Users → `/admin#section-user-management`
 - Audit log → `/admin#section-login-overview`
 - Integrations → `/admin#section-admin-umami`
@@ -134,6 +136,7 @@ The CLAUDE.md / commit message claim ("the report button gracefully
 disappears") is false.
 
 **Fix:** Pick one approach:
+
 - **(a)** Add `bugReportEnabled` to `/api/bugreport/status` and to
   `/api/feedback` POST so the form is hidden + blocked when off.
   Recommended.
@@ -158,6 +161,7 @@ Worse: `tx.auditLog.deleteMany({})` runs in the same transaction —
 primary purpose is auditability, this is wrong.
 
 **Fix:**
+
 - **Stop deleting `AuditLog`.** Keep the audit trail. (If retention is
   desired, add a separate maintenance route that prunes by age.)
 - Reflect the actual scope in the response toast (the API already
@@ -229,6 +233,7 @@ in the selected range. For the dashboard "All" / "Alle" range filter
 this can be 1000s of points and is unreadable.
 
 Add **automatic bucketing** based on the rendered range:
+
 - `≤ 90 days` → daily points (current behaviour)
 - `91-730 days` → weekly average
 - `> 730 days` → monthly average
@@ -256,28 +261,28 @@ this. Don't reinvent.
 
 ## Tier 2 — Polish (also for v1.4.6)
 
-| ID | File | Change |
-|----|------|--------|
-| P1 | `trend-card.tsx:93,109,118,130,139` | Add `tabular-nums` to numeric spans (digits jiggle on refresh) |
-| P2 | `trend-card.tsx:87,93` | Bump value `text-2xl` → `text-3xl tracking-tight`, label `text-sm font-medium` → `text-xs uppercase tracking-wide` (KPI hierarchy) |
-| P3 | `trend-card.tsx:85` vs `health-chart.tsx:551` | Match padding: tile `p-3` → `p-4 md:p-6` to align with chart cards |
-| P4 | `trend-card.tsx:64-69` | Trend-arrow color: keep flat at muted; up/down both `text-foreground` (neutral). Direction-as-good-or-bad is metric-specific and v1.5+ work. |
-| P5 | `trend-card.tsx:103-145` | Always render avg7/avg30 chips; use `—` when null so vertical rhythm is consistent across tiles |
-| P6 | `page.tsx:362` | Welcome subtitle: drop `hidden sm:block`, add `text-muted-foreground` (visible on mobile, muted) |
-| P7 | `auth-shell.tsx:129` | Bottom-nav buffer: `pb-[calc(5rem+env(safe-area-inset-bottom,0px))]` → `pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0` |
-| P8 | `empty-state.tsx:71-77` | TrendHint title default: add `text-muted-foreground` so the title doesn't fight chart titles after T2 |
-| P9 | `getting-started-checklist.tsx:299` | Drop `font-mono` from "X von Y" / "%" — keep `tabular-nums` |
-| P10 | `page.tsx:846-862` | Medications card: `rounded-lg border p-4` → `rounded-xl border p-4 md:p-6` (match other chart cards) |
-| P11 | `src/lib/logging/redact.ts:22` | Add `sk-(ant-)?` regex to `redactSecrets` to scrub OpenAI/Anthropic keys centrally |
-| P12 | `src/lib/idempotency.ts:227` | Extend the `hlk_` / `hlr_` exclusion to also reject bodies containing `"sk-"` or `"sk-ant-"` |
-| P13 | `src/app/api/insights/generate/route.ts:18-22` | Move `checkRateLimit` BELOW the cache-return so cached hits don't burn rate-limit tokens |
-| P14 | `src/lib/ai/codex-client.ts:28,34` | Copy structured-error pattern from `openai-client.ts:42-58` (httpStatus, bodyExcerpt, upstream fields) |
-| P15 | `src/components/settings/ai-section.tsx:49` | Drop `gpt-5` from `MODEL_PRESETS["OPENAI"]` (not a released model). Drop `o3-mini` too unless you wire the o-series param contract (`max_completion_tokens` not `max_tokens`, no `temperature` override). |
-| P16 | `src/components/settings/ai-section.tsx` (~29 strings) | i18n: pipe German strings through `t("settings.ai.…")` — add keys to `messages/en.json` + `messages/de.json` |
-| P17 | `src/components/admin/feedback-inbox-section.tsx:209-222` | Replace `bg-red-500/15 text-red-400` with `bg-dracula-red/15 text-dracula-red` etc. for theme consistency |
-| P18 | `src/components/admin/danger-zone-section.tsx:110` | Drop string-prefix-matches-success heuristic — track via `mutation.isSuccess` / `mutation.isError` |
-| P19 | `src/components/admin/_shared.tsx:268-277,216-225` | `useSystemStatus()` and `useAdminSettings()`: surface `isError` with an inline "Failed to load settings" message instead of infinite spinner |
-| P20 | `src/app/api/admin/status-overview/route.ts` | `Promise.all` → `Promise.allSettled` server-side so one failed probe doesn't blank the whole grid |
+| ID  | File                                                      | Change                                                                                                                                                                                                    |
+| --- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1  | `trend-card.tsx:93,109,118,130,139`                       | Add `tabular-nums` to numeric spans (digits jiggle on refresh)                                                                                                                                            |
+| P2  | `trend-card.tsx:87,93`                                    | Bump value `text-2xl` → `text-3xl tracking-tight`, label `text-sm font-medium` → `text-xs uppercase tracking-wide` (KPI hierarchy)                                                                        |
+| P3  | `trend-card.tsx:85` vs `health-chart.tsx:551`             | Match padding: tile `p-3` → `p-4 md:p-6` to align with chart cards                                                                                                                                        |
+| P4  | `trend-card.tsx:64-69`                                    | Trend-arrow color: keep flat at muted; up/down both `text-foreground` (neutral). Direction-as-good-or-bad is metric-specific and v1.5+ work.                                                              |
+| P5  | `trend-card.tsx:103-145`                                  | Always render avg7/avg30 chips; use `—` when null so vertical rhythm is consistent across tiles                                                                                                           |
+| P6  | `page.tsx:362`                                            | Welcome subtitle: drop `hidden sm:block`, add `text-muted-foreground` (visible on mobile, muted)                                                                                                          |
+| P7  | `auth-shell.tsx:129`                                      | Bottom-nav buffer: `pb-[calc(5rem+env(safe-area-inset-bottom,0px))]` → `pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0`                                                                          |
+| P8  | `empty-state.tsx:71-77`                                   | TrendHint title default: add `text-muted-foreground` so the title doesn't fight chart titles after T2                                                                                                     |
+| P9  | `getting-started-checklist.tsx:299`                       | Drop `font-mono` from "X von Y" / "%" — keep `tabular-nums`                                                                                                                                               |
+| P10 | `page.tsx:846-862`                                        | Medications card: `rounded-lg border p-4` → `rounded-xl border p-4 md:p-6` (match other chart cards)                                                                                                      |
+| P11 | `src/lib/logging/redact.ts:22`                            | Add `sk-(ant-)?` regex to `redactSecrets` to scrub OpenAI/Anthropic keys centrally                                                                                                                        |
+| P12 | `src/lib/idempotency.ts:227`                              | Extend the `hlk_` / `hlr_` exclusion to also reject bodies containing `"sk-"` or `"sk-ant-"`                                                                                                              |
+| P13 | `src/app/api/insights/generate/route.ts:18-22`            | Move `checkRateLimit` BELOW the cache-return so cached hits don't burn rate-limit tokens                                                                                                                  |
+| P14 | `src/lib/ai/codex-client.ts:28,34`                        | Copy structured-error pattern from `openai-client.ts:42-58` (httpStatus, bodyExcerpt, upstream fields)                                                                                                    |
+| P15 | `src/components/settings/ai-section.tsx:49`               | Drop `gpt-5` from `MODEL_PRESETS["OPENAI"]` (not a released model). Drop `o3-mini` too unless you wire the o-series param contract (`max_completion_tokens` not `max_tokens`, no `temperature` override). |
+| P16 | `src/components/settings/ai-section.tsx` (~29 strings)    | i18n: pipe German strings through `t("settings.ai.…")` — add keys to `messages/en.json` + `messages/de.json`                                                                                              |
+| P17 | `src/components/admin/feedback-inbox-section.tsx:209-222` | Replace `bg-red-500/15 text-red-400` with `bg-dracula-red/15 text-dracula-red` etc. for theme consistency                                                                                                 |
+| P18 | `src/components/admin/danger-zone-section.tsx:110`        | Drop string-prefix-matches-success heuristic — track via `mutation.isSuccess` / `mutation.isError`                                                                                                        |
+| P19 | `src/components/admin/_shared.tsx:268-277,216-225`        | `useSystemStatus()` and `useAdminSettings()`: surface `isError` with an inline "Failed to load settings" message instead of infinite spinner                                                              |
+| P20 | `src/app/api/admin/status-overview/route.ts`              | `Promise.all` → `Promise.allSettled` server-side so one failed probe doesn't blank the whole grid                                                                                                         |
 
 ---
 
@@ -351,7 +356,7 @@ After all fixes, the autonomous executor MUST:
    - Marc's session: `cmox4d6fj000101p8w9ykhcnm` (still valid as of
      2026-05-09; if expired, re-pull from prod DB —
      `SELECT id FROM sessions WHERE user_id='cmlupy4tn000001rpzx1pxvz7'
-      AND expires_at > now() ORDER BY created_at DESC LIMIT 1;`)
+AND expires_at > now() ORDER BY created_at DESC LIMIT 1;`)
    - Hit `/api/ai/test` with fake key → still returns 422
    - Hit `/api/insights/generate` with `forceRefresh=false` and a
      fresh user → does not consume rate-limit token (P13 verify).
@@ -385,7 +390,7 @@ create an orphan release.
 
 `ghcr.io/mbombeck/healthlog` packages page may have stale tags from
 the v1.4.0/v1.4.1 deploy thrash. Don't delete `v1.x.x` tagged
-versions (some users may pin). Only delete explicitly *untagged*
+versions (some users may pin). Only delete explicitly _untagged_
 manifests if any exist.
 
 ### Docs site (`/Users/marc/Projects/healthlog-docs`)

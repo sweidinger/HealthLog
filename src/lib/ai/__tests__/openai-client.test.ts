@@ -79,7 +79,10 @@ describe("OpenAIClient", () => {
       baseUrl: "https://openrouter.ai/api/v1",
     });
 
-    await client.generateCompletion({ systemPrompt: "test", userPrompt: "test" });
+    await client.generateCompletion({
+      systemPrompt: "test",
+      userPrompt: "test",
+    });
 
     expect(mockFetch.mock.calls[0][0]).toBe(
       "https://openrouter.ai/api/v1/chat/completions",

@@ -3,7 +3,12 @@
  * DELETE /api/admin/feedback/[id] — archive (soft: sets status to ARCHIVED).
  */
 import { apiHandler, requireAdmin } from "@/lib/api-handler";
-import { apiError, apiSuccess, safeJson, getClientIp } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  safeJson,
+  getClientIp,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";

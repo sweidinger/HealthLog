@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SlidersHorizontal, RotateCcw, Loader2, AlertTriangle } from "lucide-react";
+import {
+  SlidersHorizontal,
+  RotateCcw,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,7 +96,9 @@ export function ThresholdsSection({ id }: { id: string }) {
       toast.success(t("thresholds.saveSuccess"));
     },
     onError: (err) =>
-      toast.error(err instanceof Error ? err.message : t("thresholds.saveError")),
+      toast.error(
+        err instanceof Error ? err.message : t("thresholds.saveError"),
+      ),
   });
 
   const resetMutation = useMutation({
@@ -114,7 +121,7 @@ export function ThresholdsSection({ id }: { id: string }) {
   return (
     <div
       id={id}
-      className="bg-card border-border scroll-mt-28 rounded-xl border p-6 space-y-5"
+      className="bg-card border-border scroll-mt-28 space-y-5 rounded-xl border p-6"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -138,7 +145,7 @@ export function ThresholdsSection({ id }: { id: string }) {
       </p>
 
       {isLoading || !data ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="text-muted-foreground flex items-center gap-2 text-sm">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("common.loading")}
         </div>
@@ -202,7 +209,7 @@ function MetricRow({
   const defaultRange = effective?.default;
 
   return (
-    <div className="rounded-lg border border-border p-4 space-y-3">
+    <div className="border-border space-y-3 rounded-lg border p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium">{t(METRIC_LABEL_KEYS[metric])}</p>
@@ -212,7 +219,7 @@ function MetricRow({
               : t("thresholds.unsetExplanation")}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           <Label htmlFor={`override-${metric}`} className="text-xs">
             {overrideMode
               ? t("thresholds.overrideModeLabel")
@@ -300,8 +307,8 @@ function MetricRow({
             defaultRange &&
             (override!.min < defaultRange.greenMin * 0.7 ||
               override!.max > defaultRange.greenMax * 1.3) && (
-              <div className="flex items-start gap-2 rounded-md border-l-2 border-dracula-orange/50 bg-dracula-orange/5 p-2 text-xs">
-                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-dracula-orange" />
+              <div className="border-dracula-orange/50 bg-dracula-orange/5 flex items-start gap-2 rounded-md border-l-2 p-2 text-xs">
+                <AlertTriangle className="text-dracula-orange mt-0.5 h-3 w-3 shrink-0" />
                 <span>{t("thresholds.overrideWarning")}</span>
               </div>
             )}

@@ -88,7 +88,9 @@ export async function exchangeCodeForTokens(params: {
   return res.json();
 }
 
-export async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
+export async function refreshAccessToken(
+  refreshToken: string,
+): Promise<TokenResponse> {
   const res = await fetch("https://chatgpt.com/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

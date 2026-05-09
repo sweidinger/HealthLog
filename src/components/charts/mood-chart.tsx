@@ -17,12 +17,7 @@ import { useState, useMemo, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { formatDateShort } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import type { DataSummary } from "@/lib/analytics/trends";
@@ -50,10 +45,26 @@ interface MoodChartProps {
 // --- Constants ---
 
 const TIME_RANGES_KEYS = [
-  { labelKey: "charts.points7Label", points: 7, titleKey: "charts.points7Title" },
-  { labelKey: "charts.points30Label", points: 30, titleKey: "charts.points30Title" },
-  { labelKey: "charts.points90Label", points: 90, titleKey: "charts.points90Title" },
-  { labelKey: "charts.pointsAllLabel", points: 0, titleKey: "charts.pointsAllTitle" },
+  {
+    labelKey: "charts.points7Label",
+    points: 7,
+    titleKey: "charts.points7Title",
+  },
+  {
+    labelKey: "charts.points30Label",
+    points: 30,
+    titleKey: "charts.points30Title",
+  },
+  {
+    labelKey: "charts.points90Label",
+    points: 90,
+    titleKey: "charts.points90Title",
+  },
+  {
+    labelKey: "charts.pointsAllLabel",
+    points: 0,
+    titleKey: "charts.pointsAllTitle",
+  },
 ] as const;
 
 // MOOD_LABELS built dynamically via t() in the component
@@ -95,9 +106,10 @@ function movingAverageByPoints(
   });
 }
 
-function buildTrendLine(
-  data: Array<{ date: Date; value: number }>,
-): { points: Array<{ date: Date; value: number }>; slopePerDay: number } | null {
+function buildTrendLine(data: Array<{ date: Date; value: number }>): {
+  points: Array<{ date: Date; value: number }>;
+  slopePerDay: number;
+} | null {
   if (data.length < 2) return null;
 
   const sorted = [...data].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -188,9 +200,7 @@ export function MoodChart({ title }: MoodChartProps) {
         const ma = movingAverageByPoints(scoreData, 7);
         for (const point of ma) {
           const pointTimestamp = point.date.getTime();
-          const existing = enriched.find(
-            (d) => d.timestamp === pointTimestamp,
-          );
+          const existing = enriched.find((d) => d.timestamp === pointTimestamp);
           if (existing) {
             existing.ma = point.value;
           }

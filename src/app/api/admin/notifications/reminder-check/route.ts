@@ -158,7 +158,9 @@ export const POST = apiHandler(async () => {
           notificationSent = true;
           notificationsSent++;
         } catch (err) {
-          getEvent()?.addWarning("Notification failed for " + med.name + ": " + err);
+          getEvent()?.addWarning(
+            "Notification failed for " + med.name + ": " + err,
+          );
         }
       }
 

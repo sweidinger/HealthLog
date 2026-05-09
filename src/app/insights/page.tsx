@@ -427,9 +427,10 @@ function getBmiSectionStatus(input: {
   };
 }
 
-function getMoodSectionStatus(input: {
-  avg30: number | null | undefined;
-}): { level: "good" | "watch" | "critical"; className: string } {
+function getMoodSectionStatus(input: { avg30: number | null | undefined }): {
+  level: "good" | "watch" | "critical";
+  className: string;
+} {
   if (input.avg30 == null) {
     return {
       level: "watch",
@@ -463,7 +464,10 @@ function getMedicationComplianceSectionStatus(input: {
 }): { level: "good" | "watch" | "critical"; className: string } {
   const MIN_EVENTS_FOR_ASSESSMENT = 14;
 
-  if (input.average30 == null || input.totalEvents < MIN_EVENTS_FOR_ASSESSMENT) {
+  if (
+    input.average30 == null ||
+    input.totalEvents < MIN_EVENTS_FOR_ASSESSMENT
+  ) {
     return {
       level: "watch",
       className: "border-yellow-500/30 bg-yellow-500/15 text-yellow-300",
@@ -524,10 +528,7 @@ export default function InsightsPage() {
     enabled: isAuthenticated,
   });
 
-  const {
-    data: generalStatus,
-    isLoading: isGeneralStatusLoading,
-  } = useQuery({
+  const { data: generalStatus, isLoading: isGeneralStatusLoading } = useQuery({
     queryKey: ["insights", "general-status", locale],
     queryFn: async () => {
       const res = await fetch(`/api/insights/general-status?locale=${locale}`);
@@ -539,27 +540,22 @@ export default function InsightsPage() {
     staleTime: 60 * 1000,
   });
 
-  const {
-    data: bloodPressureStatus,
-    isLoading: isBloodPressureStatusLoading,
-  } = useQuery({
-    queryKey: ["insights", "blood-pressure-status", locale],
-    queryFn: async () => {
-      const res = await fetch(
-        `/api/insights/blood-pressure-status?locale=${locale}`,
-      );
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as BloodPressureStatusData;
-    },
-    enabled: isAuthenticated,
-    staleTime: 60 * 1000,
-  });
+  const { data: bloodPressureStatus, isLoading: isBloodPressureStatusLoading } =
+    useQuery({
+      queryKey: ["insights", "blood-pressure-status", locale],
+      queryFn: async () => {
+        const res = await fetch(
+          `/api/insights/blood-pressure-status?locale=${locale}`,
+        );
+        if (!res.ok) throw new Error("Failed");
+        const json = await res.json();
+        return json.data as BloodPressureStatusData;
+      },
+      enabled: isAuthenticated,
+      staleTime: 60 * 1000,
+    });
 
-  const {
-    data: weightStatus,
-    isLoading: isWeightStatusLoading,
-  } = useQuery({
+  const { data: weightStatus, isLoading: isWeightStatusLoading } = useQuery({
     queryKey: ["insights", "weight-status", locale],
     queryFn: async () => {
       const res = await fetch(`/api/insights/weight-status?locale=${locale}`);
@@ -571,10 +567,7 @@ export default function InsightsPage() {
     staleTime: 60 * 1000,
   });
 
-  const {
-    data: pulseStatus,
-    isLoading: isPulseStatusLoading,
-  } = useQuery({
+  const { data: pulseStatus, isLoading: isPulseStatusLoading } = useQuery({
     queryKey: ["insights", "pulse-status", locale],
     queryFn: async () => {
       const res = await fetch(`/api/insights/pulse-status?locale=${locale}`);
@@ -586,10 +579,7 @@ export default function InsightsPage() {
     staleTime: 60 * 1000,
   });
 
-  const {
-    data: bmiStatus,
-    isLoading: isBmiStatusLoading,
-  } = useQuery({
+  const { data: bmiStatus, isLoading: isBmiStatusLoading } = useQuery({
     queryKey: ["insights", "bmi-status", locale],
     queryFn: async () => {
       const res = await fetch(`/api/insights/bmi-status?locale=${locale}`);
@@ -601,10 +591,7 @@ export default function InsightsPage() {
     staleTime: 60 * 1000,
   });
 
-  const {
-    data: moodStatus,
-    isLoading: isMoodStatusLoading,
-  } = useQuery({
+  const { data: moodStatus, isLoading: isMoodStatusLoading } = useQuery({
     queryKey: ["insights", "mood-status", locale],
     queryFn: async () => {
       const res = await fetch(`/api/insights/mood-status?locale=${locale}`);
@@ -883,8 +870,18 @@ export default function InsightsPage() {
           avg30ColorClass={getRangeColorClass(p?.avg30, {
             range: pulseDisplayRange,
           })}
-          avg7Hint={getRangeHint("bpm", { range: pulseDisplayRange }, t, fmt.number)}
-          avg30Hint={getRangeHint("bpm", { range: pulseDisplayRange }, t, fmt.number)}
+          avg7Hint={getRangeHint(
+            "bpm",
+            { range: pulseDisplayRange },
+            t,
+            fmt.number,
+          )}
+          avg30Hint={getRangeHint(
+            "bpm",
+            { range: pulseDisplayRange },
+            t,
+            fmt.number,
+          )}
           slope30={p?.slope30 ?? null}
           icon={TrendingUp}
         />
@@ -1153,7 +1150,9 @@ export default function InsightsPage() {
                   <div className="text-muted-foreground flex flex-col items-center justify-center py-8 text-sm">
                     <Smile className="mb-2 h-8 w-8 opacity-50" />
                     <p>{t("insights.notEnoughMoodCorrelationData")}</p>
-                    <p className="text-xs">{t("insights.minMoodCorrelationData")}</p>
+                    <p className="text-xs">
+                      {t("insights.minMoodCorrelationData")}
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -1419,7 +1418,9 @@ export default function InsightsPage() {
                   <div className="text-muted-foreground flex flex-col items-center justify-center py-8 text-sm">
                     <Smile className="mb-2 h-8 w-8 opacity-50" />
                     <p>{t("insights.notEnoughMoodCorrelationData")}</p>
-                    <p className="text-xs">{t("insights.minMoodCorrelationData")}</p>
+                    <p className="text-xs">
+                      {t("insights.minMoodCorrelationData")}
+                    </p>
                   </div>
                 )}
               </CardContent>

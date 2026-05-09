@@ -25,7 +25,11 @@ vi.mock("@/lib/db-compat", () => ({
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
-  cookies: vi.fn(async () => ({ get: () => undefined, set: () => {}, delete: () => {} })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
 }));
 
 import { GET } from "../route";
@@ -47,7 +51,9 @@ const SESSION_OK = {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
-  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+    [] as never,
+  );
   vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.passkey.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.auditLog.findMany).mockResolvedValue([] as never);

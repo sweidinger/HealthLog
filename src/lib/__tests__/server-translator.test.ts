@@ -14,9 +14,9 @@ describe("getServerTranslator", () => {
 
   it("interpolates {param} placeholders", () => {
     const { t } = getServerTranslator("en");
-    expect(t("telegram.snoozedFor", { name: "Ramipril", duration: "1 hour" })).toBe(
-      "Ramipril snoozed for 1 hour.",
-    );
+    expect(
+      t("telegram.snoozedFor", { name: "Ramipril", duration: "1 hour" }),
+    ).toBe("Ramipril snoozed for 1 hour.");
   });
 
   it("falls back to English when a key is missing in the German bundle", () => {

@@ -53,7 +53,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   if (!delivery.ok) {
-    getEvent()?.addWarning("Glitchtip event rejected: " + delivery.method + " " + delivery.status + " " + delivery.details);
+    getEvent()?.addWarning(
+      "Glitchtip event rejected: " +
+        delivery.method +
+        " " +
+        delivery.status +
+        " " +
+        delivery.details,
+    );
     return apiError("Glitchtip could not accept error", 502);
   }
 

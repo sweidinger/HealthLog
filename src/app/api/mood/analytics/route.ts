@@ -47,7 +47,10 @@ export const GET = apiHandler(async () => {
 
   const summary = summarize(dataPoints);
 
-  annotate({ action: { name: "mood.analytics" }, meta: { entryCount: moodEntries.length } });
+  annotate({
+    action: { name: "mood.analytics" },
+    meta: { entryCount: moodEntries.length },
+  });
 
   return apiSuccess({ entries, summary });
 });

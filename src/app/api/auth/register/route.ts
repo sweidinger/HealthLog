@@ -3,7 +3,12 @@ import { registerSchema } from "@/lib/validations/auth";
 import { hashPassword, checkPasswordStrength } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
-import { apiSuccess, apiError, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { ensureDbCompatibility } from "@/lib/db-compat";
 import { NextRequest, NextResponse } from "next/server";
@@ -18,8 +23,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return NextResponse.json(
       {
         data: null,
-        error:
-          "Too many registration attempts. Please try again later.",
+        error: "Too many registration attempts. Please try again later.",
       },
       { status: 429, headers: rateLimitHeaders(rl) },
     );

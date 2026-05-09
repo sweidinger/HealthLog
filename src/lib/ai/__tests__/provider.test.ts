@@ -22,10 +22,7 @@ vi.mock("@/lib/ai/codex-oauth", () => ({
 import { resolveProvider } from "../provider";
 import { prisma } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
-import {
-  decryptTokens,
-  encryptTokens,
-} from "@/lib/ai/codex-oauth";
+import { decryptTokens, encryptTokens } from "@/lib/ai/codex-oauth";
 
 /**
  * resolveProvider() makes up to TWO findUnique calls per invocation:

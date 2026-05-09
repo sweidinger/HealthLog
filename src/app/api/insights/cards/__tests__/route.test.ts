@@ -24,7 +24,11 @@ vi.mock("@/lib/db-compat", () => ({
 
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
-  cookies: vi.fn(async () => ({ get: () => undefined, set: () => {}, delete: () => {} })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
 }));
 
 import { GET } from "../route";
@@ -40,7 +44,9 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
-  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+    [] as never,
+  );
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     heightCm: null,
     dateOfBirth: null,
@@ -80,10 +86,20 @@ describe("GET /api/insights/cards", () => {
     }> = [];
     for (let i = 0; i < 10; i++) {
       const at = new Date(now.getTime() - i * 86_400_000);
-      measurements.push({ type: "BLOOD_PRESSURE_SYS", value: 180, measuredAt: at });
-      measurements.push({ type: "BLOOD_PRESSURE_DIA", value: 110, measuredAt: at });
+      measurements.push({
+        type: "BLOOD_PRESSURE_SYS",
+        value: 180,
+        measuredAt: at,
+      });
+      measurements.push({
+        type: "BLOOD_PRESSURE_DIA",
+        value: 110,
+        measuredAt: at,
+      });
     }
-    vi.mocked(prisma.measurement.findMany).mockResolvedValue(measurements as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue(
+      measurements as never,
+    );
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       heightCm: null,
       dateOfBirth: null,

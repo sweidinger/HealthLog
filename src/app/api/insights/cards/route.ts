@@ -68,12 +68,7 @@ export const GET = apiHandler(async () => {
       where: {
         userId: user.id,
         type: {
-          in: [
-            "WEIGHT",
-            "BLOOD_PRESSURE_SYS",
-            "BLOOD_PRESSURE_DIA",
-            "PULSE",
-          ],
+          in: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA", "PULSE"],
         },
         measuredAt: { gte: ninetyDaysAgo },
       },
@@ -91,7 +86,9 @@ export const GET = apiHandler(async () => {
       .filter((m) => m.type === t)
       .map((m) => ({ date: m.measuredAt, value: m.value }));
 
-  const summaries: Partial<Record<MeasurementType, ReturnType<typeof summarize>>> = {};
+  const summaries: Partial<
+    Record<MeasurementType, ReturnType<typeof summarize>>
+  > = {};
   for (const t of [
     "WEIGHT",
     "BLOOD_PRESSURE_SYS",
@@ -105,8 +102,7 @@ export const GET = apiHandler(async () => {
   let bmi: number | null = null;
   if (dbUser?.heightCm && summaries.WEIGHT?.latest) {
     const heightM = dbUser.heightCm / 100;
-    bmi =
-      Math.round((summaries.WEIGHT.latest / (heightM * heightM)) * 10) / 10;
+    bmi = Math.round((summaries.WEIGHT.latest / (heightM * heightM)) * 10) / 10;
   }
 
   let bpPctInTarget: number | null = null;
@@ -142,7 +138,12 @@ export const GET = apiHandler(async () => {
         medicationId: { in: activeMeds.map((m) => m.id) },
         scheduledFor: { gte: new Date(Date.now() - 30 * 86_400_000) },
       },
-      select: { medicationId: true, takenAt: true, skipped: true, scheduledFor: true },
+      select: {
+        medicationId: true,
+        takenAt: true,
+        skipped: true,
+        scheduledFor: true,
+      },
     });
     const eventsByMed = new Map<string, typeof allEvents>();
     for (const e of allEvents) {
@@ -154,15 +155,22 @@ export const GET = apiHandler(async () => {
     for (const med of activeMeds) {
       const events = eventsByMed.get(med.id) ?? [];
       const takenLast7 = events.filter(
-        (e) => e.takenAt !== null && !e.skipped && e.scheduledFor.getTime() >= cutoff7,
+        (e) =>
+          e.takenAt !== null &&
+          !e.skipped &&
+          e.scheduledFor.getTime() >= cutoff7,
       ).length;
-      const taken30 = events.filter((e) => e.takenAt !== null && !e.skipped).length;
+      const taken30 = events.filter(
+        (e) => e.takenAt !== null && !e.skipped,
+      ).length;
       const expected7 = med.schedules.length * 7;
       const expected30 = med.schedules.length * 30;
       medicationCompliance.push({
         name: med.name,
-        compliance7: expected7 > 0 ? Math.round((takenLast7 / expected7) * 100) : 0,
-        compliance30: expected30 > 0 ? Math.round((taken30 / expected30) * 100) : 0,
+        compliance7:
+          expected7 > 0 ? Math.round((takenLast7 / expected7) * 100) : 0,
+        compliance30:
+          expected30 > 0 ? Math.round((taken30 / expected30) * 100) : 0,
       });
     }
   }

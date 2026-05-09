@@ -2,7 +2,10 @@ import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
 import { extractFeatures } from "@/lib/insights/features";
-import { getInsightsSystemPrompt, buildUserPrompt } from "@/lib/insights/prompt";
+import {
+  getInsightsSystemPrompt,
+  buildUserPrompt,
+} from "@/lib/insights/prompt";
 import { insightResultSchema, type InsightResult } from "@/lib/ai/types";
 import { resolveProvider } from "@/lib/ai/provider";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -41,8 +44,15 @@ export const POST = apiHandler(async (request: NextRequest) => {
   ) {
     try {
       const cached = JSON.parse(dbUser.insightsCachedText);
-      annotate({ action: { name: "insights.generate" }, meta: { cached: true } });
-      return apiSuccess({ insights: cached, cached: true, cachedAt: dbUser.insightsCachedAt });
+      annotate({
+        action: { name: "insights.generate" },
+        meta: { cached: true },
+      });
+      return apiSuccess({
+        insights: cached,
+        cached: true,
+        cachedAt: dbUser.insightsCachedAt,
+      });
     } catch {
       // Invalid cache, regenerate
     }
@@ -60,7 +70,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const provider = await resolveProvider(userId);
 
   if (provider.type === "none") {
-    return apiError("No AI provider configured. Connect ChatGPT in settings or ask your admin to set up an API key.", 422);
+    return apiError(
+      "No AI provider configured. Connect ChatGPT in settings or ask your admin to set up an API key.",
+      422,
+    );
   }
 
   const includeRaw = dbUser?.insightsPrivacyMode === "raw";

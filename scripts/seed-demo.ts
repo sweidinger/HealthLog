@@ -36,7 +36,12 @@ function cuid(): string {
 function daysAgo(n: number): Date {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  d.setHours(7 + Math.floor(Math.random() * 3), Math.floor(Math.random() * 60), 0, 0);
+  d.setHours(
+    7 + Math.floor(Math.random() * 3),
+    Math.floor(Math.random() * 60),
+    0,
+    0,
+  );
   return d;
 }
 
@@ -45,7 +50,12 @@ function formatDate(d: Date): string {
 }
 
 // Smooth random walk with mean reversion
-function randomWalk(start: number, target: number, days: number, volatility: number): number[] {
+function randomWalk(
+  start: number,
+  target: number,
+  days: number,
+  volatility: number,
+): number[] {
   const values: number[] = [start];
   for (let i = 1; i < days; i++) {
     const prev = values[i - 1];
@@ -88,12 +98,24 @@ async function seed() {
     // argon2id hash of "demo123demo123" — pre-computed
     // We'll use a bcrypt-compatible approach: register via API later
     // For now, insert with a placeholder and we'll set it via the app
-    const passwordHash = "$argon2id$v=19$m=65536,t=3,p=4$Kips6OxPAl0vmspO9SoKZQ$oX9gLgwHVnnENCqBloyM13ewuqmhPnw8EpLoemS3MNI";
+    const passwordHash =
+      "$argon2id$v=19$m=65536,t=3,p=4$Kips6OxPAl0vmspO9SoKZQ$oX9gLgwHVnnENCqBloyM13ewuqmhPnw8EpLoemS3MNI";
 
     await client.query(
       `INSERT INTO users (id, username, email, password_hash, role, height_cm, date_of_birth, gender, timezone, locale, onboarding_completed_at, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW(), NOW())`,
-      [userId, "demo", "demo@healthlog.app", passwordHash, "ADMIN", 182.0, "1990-05-15", "MALE", "Europe/Berlin", "en"]
+      [
+        userId,
+        "demo",
+        "demo@healthlog.app",
+        passwordHash,
+        "ADMIN",
+        182.0,
+        "1990-05-15",
+        "MALE",
+        "Europe/Berlin",
+        "en",
+      ],
     );
 
     // ── Measurements (90 days) ────────────────
@@ -122,26 +144,26 @@ async function seed() {
       await client.query(
         `INSERT INTO measurements (id, user_id, type, value, unit, source, measured_at, created_at, updated_at)
          VALUES ($1, $2, 'WEIGHT', $3, 'kg', 'MANUAL', $4, $4, $4)`,
-        [cuid(), userId, weights[i], date]
+        [cuid(), userId, weights[i], date],
       );
 
       // Blood pressure (daily)
       await client.query(
         `INSERT INTO measurements (id, user_id, type, value, unit, source, measured_at, created_at, updated_at)
          VALUES ($1, $2, 'BLOOD_PRESSURE_SYS', $3, 'mmHg', 'MANUAL', $4, $4, $4)`,
-        [cuid(), userId, Math.round(sysBP[i]), date]
+        [cuid(), userId, Math.round(sysBP[i]), date],
       );
       await client.query(
         `INSERT INTO measurements (id, user_id, type, value, unit, source, measured_at, created_at, updated_at)
          VALUES ($1, $2, 'BLOOD_PRESSURE_DIA', $3, 'mmHg', 'MANUAL', $4, $4, $4)`,
-        [cuid(), userId, Math.round(diaBP[i]), date]
+        [cuid(), userId, Math.round(diaBP[i]), date],
       );
 
       // Pulse (daily)
       await client.query(
         `INSERT INTO measurements (id, user_id, type, value, unit, source, measured_at, created_at, updated_at)
          VALUES ($1, $2, 'PULSE', $3, 'bpm', 'MANUAL', $4, $4, $4)`,
-        [cuid(), userId, Math.round(pulse[i]), date]
+        [cuid(), userId, Math.round(pulse[i]), date],
       );
 
       // Body fat (every 2-3 days)
@@ -149,7 +171,7 @@ async function seed() {
         await client.query(
           `INSERT INTO measurements (id, user_id, type, value, unit, source, measured_at, created_at, updated_at)
            VALUES ($1, $2, 'BODY_FAT', $3, '%', 'MANUAL', $4, $4, $4)`,
-          [cuid(), userId, bodyFat[i], date]
+          [cuid(), userId, bodyFat[i], date],
         );
       }
 
@@ -157,14 +179,14 @@ async function seed() {
       await client.query(
         `INSERT INTO measurements (id, user_id, type, value, unit, source, measured_at, created_at, updated_at)
          VALUES ($1, $2, 'SLEEP_DURATION', $3, 'hours', 'MANUAL', $4, $4, $4)`,
-        [cuid(), userId, Math.round(sleep[i] * 10) / 10, date]
+        [cuid(), userId, Math.round(sleep[i] * 10) / 10, date],
       );
 
       // Steps (daily)
       await client.query(
         `INSERT INTO measurements (id, user_id, type, value, unit, source, measured_at, created_at, updated_at)
          VALUES ($1, $2, 'ACTIVITY_STEPS', $3, 'steps', 'MANUAL', $4, $4, $4)`,
-        [cuid(), userId, Math.round(steps[i]), date]
+        [cuid(), userId, Math.round(steps[i]), date],
       );
     }
 
@@ -176,13 +198,13 @@ async function seed() {
     await client.query(
       `INSERT INTO medications (id, user_id, name, dose, active, notifications_enabled, created_at, updated_at)
        VALUES ($1, $2, 'Ramipril', '5mg', true, true, $3, $3)`,
-      [med1Id, userId, daysAgo(120)]
+      [med1Id, userId, daysAgo(120)],
     );
     const sched1Id = cuid();
     await client.query(
       `INSERT INTO medication_schedules (id, medication_id, window_start, window_end, label)
        VALUES ($1, $2, '08:00', '10:00', 'Morning')`,
-      [sched1Id, med1Id]
+      [sched1Id, med1Id],
     );
 
     // Medication 2: Vitamin D3
@@ -190,13 +212,13 @@ async function seed() {
     await client.query(
       `INSERT INTO medications (id, user_id, name, dose, active, notifications_enabled, created_at, updated_at)
        VALUES ($1, $2, 'Vitamin D3', '2000 IE', true, true, $3, $3)`,
-      [med2Id, userId, daysAgo(90)]
+      [med2Id, userId, daysAgo(90)],
     );
     const sched2Id = cuid();
     await client.query(
       `INSERT INTO medication_schedules (id, medication_id, window_start, window_end, label)
        VALUES ($1, $2, '08:00', '10:00', 'Morning')`,
-      [sched2Id, med2Id]
+      [sched2Id, med2Id],
     );
 
     // Medication 3: Magnesium (evening)
@@ -204,13 +226,13 @@ async function seed() {
     await client.query(
       `INSERT INTO medications (id, user_id, name, dose, active, notifications_enabled, created_at, updated_at)
        VALUES ($1, $2, 'Magnesium', '400mg', true, true, $3, $3)`,
-      [med3Id, userId, daysAgo(60)]
+      [med3Id, userId, daysAgo(60)],
     );
     const sched3Id = cuid();
     await client.query(
       `INSERT INTO medication_schedules (id, medication_id, window_start, window_end, label)
        VALUES ($1, $2, '20:00', '22:00', 'Evening')`,
-      [sched3Id, med3Id]
+      [sched3Id, med3Id],
     );
 
     // ── Medication Intake Events ──────────────
@@ -227,13 +249,13 @@ async function seed() {
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
            VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5)`,
-          [cuid(), userId, med1Id, date, takenTime]
+          [cuid(), userId, med1Id, date, takenTime],
         );
       } else {
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
            VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4)`,
-          [cuid(), userId, med1Id, date]
+          [cuid(), userId, med1Id, date],
         );
       }
 
@@ -245,13 +267,13 @@ async function seed() {
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
            VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5)`,
-          [cuid(), userId, med2Id, date, takenTime]
+          [cuid(), userId, med2Id, date, takenTime],
         );
       } else {
         await client.query(
           `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
            VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4)`,
-          [cuid(), userId, med2Id, date]
+          [cuid(), userId, med2Id, date],
         );
       }
 
@@ -264,13 +286,13 @@ async function seed() {
           await client.query(
             `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
              VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5)`,
-            [cuid(), userId, med3Id, date, takenTime]
+            [cuid(), userId, med3Id, date, takenTime],
           );
         } else {
           await client.query(
             `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
              VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4)`,
-            [cuid(), userId, med3Id, date]
+            [cuid(), userId, med3Id, date],
           );
         }
       }
@@ -305,7 +327,15 @@ async function seed() {
       await client.query(
         `INSERT INTO mood_entries (id, user_id, date, mood, score, tags, source, mood_logged_at, synced_at, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, 'WEB', $7, $7, $7, $7)`,
-        [cuid(), userId, formatDate(date), mood, rawScore, JSON.stringify(tags), loggedAt]
+        [
+          cuid(),
+          userId,
+          formatDate(date),
+          mood,
+          rawScore,
+          JSON.stringify(tags),
+          loggedAt,
+        ],
       );
     }
 
@@ -332,7 +362,7 @@ async function seed() {
       await client.query(
         `INSERT INTO user_achievements (id, user_id, achievement_id, unlocked_at, created_at)
          VALUES ($1, $2, $3, $4, $4)`,
-        [cuid(), userId, ach.id, unlocked]
+        [cuid(), userId, ach.id, unlocked],
       );
     }
 
@@ -341,7 +371,7 @@ async function seed() {
     await client.query(
       `INSERT INTO app_settings (id, registration_enabled, default_locale)
        VALUES ('singleton', false, 'en')
-       ON CONFLICT (id) DO UPDATE SET registration_enabled = false, default_locale = 'en'`
+       ON CONFLICT (id) DO UPDATE SET registration_enabled = false, default_locale = 'en'`,
     );
 
     // ── Audit Log (some login entries) ──────
@@ -351,7 +381,7 @@ async function seed() {
       await client.query(
         `INSERT INTO audit_logs (id, user_id, action, details, ip_address, created_at)
          VALUES ($1, $2, 'auth.login', '{"method":"password"}', '203.0.113.42', $3)`,
-        [cuid(), userId, loginDate]
+        [cuid(), userId, loginDate],
       );
     }
 

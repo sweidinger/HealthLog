@@ -56,9 +56,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Static files (fonts, icons, images) — cache-first with long TTL
-  if (
-    /\.(png|svg|jpg|jpeg|gif|webp|ico|woff2?|ttf|eot)$/i.test(url.pathname)
-  ) {
+  if (/\.(png|svg|jpg|jpeg|gif|webp|ico|woff2?|ttf|eot)$/i.test(url.pathname)) {
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;
   }

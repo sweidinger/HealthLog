@@ -21,13 +21,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
   });
   const locale = resolveMedicationComplianceStatusLocale(resolved);
 
-  const result = await generateMedicationComplianceStatusForUser(
-    user.id,
-    {
-      locale,
-      force: false,
-    },
-  );
+  const result = await generateMedicationComplianceStatusForUser(user.id, {
+    locale,
+    force: false,
+  });
 
   annotate({ action: { name: "insights.medication-compliance-status" } });
 

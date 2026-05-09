@@ -39,8 +39,7 @@ export function ErrorDetails({
     // in the query string (Withings connect, password reset) and we don't
     // want users pasting those into public GitHub issues. Preserve the count
     // for context without exposing values.
-    const loc =
-      typeof window !== "undefined" ? window.location : null;
+    const loc = typeof window !== "undefined" ? window.location : null;
     const urlPath = loc?.pathname ?? null;
     const searchParamCount = loc?.search
       ? new URLSearchParams(loc.search).toString().split("&").filter(Boolean)
@@ -55,8 +54,7 @@ export function ErrorDetails({
       requestId: requestId ?? null,
       urlPath,
       searchParamCount,
-      userAgent:
-        typeof navigator !== "undefined" ? navigator.userAgent : null,
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
       locale,
       timestamp: new Date().toISOString(),
       context,
@@ -79,7 +77,7 @@ export function ErrorDetails({
       <p className="text-muted-foreground text-sm">
         {t("errorBoundary.description")}
       </p>
-      <div className="bg-muted/50 rounded-md border p-3 font-mono text-xs text-muted-foreground break-all">
+      <div className="bg-muted/50 text-muted-foreground rounded-md border p-3 font-mono text-xs break-all">
         {error.message || t("common.unknownError")}
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -91,7 +89,7 @@ export function ErrorDetails({
         )}
         <Button onClick={handleCopy} variant="outline" size="sm">
           {copied ? (
-            <CheckCircle2 className="mr-2 h-4 w-4 text-dracula-green" />
+            <CheckCircle2 className="text-dracula-green mr-2 h-4 w-4" />
           ) : (
             <Copy className="mr-2 h-4 w-4" />
           )}

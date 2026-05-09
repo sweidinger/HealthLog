@@ -59,7 +59,8 @@ export async function getGithubConfig(): Promise<{
   }
 
   const token = configuredToken || process.env.GITHUB_ISSUE_TOKEN || "";
-  const repo = appSettings?.githubIssueRepo || process.env.GITHUB_ISSUE_REPO || "";
+  const repo =
+    appSettings?.githubIssueRepo || process.env.GITHUB_ISSUE_REPO || "";
 
   if (!token || !repo) return null;
   return { token, repo };
@@ -134,19 +135,22 @@ export async function publishFeedbackToGithub(
 
   const title = `[${categoryLabel}] ${safeSubject || `Feedback – ${dateStr}`}`;
 
-  const res = await fetch(`https://api.github.com/repos/${config.repo}/issues`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.token}`,
-      "Content-Type": "application/json",
-      Accept: "application/vnd.github.v3+json",
+  const res = await fetch(
+    `https://api.github.com/repos/${config.repo}/issues`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.token}`,
+        "Content-Type": "application/json",
+        Accept: "application/vnd.github.v3+json",
+      },
+      body: JSON.stringify({
+        title,
+        body,
+        labels: [categoryLabel, "user-reported"],
+      }),
     },
-    body: JSON.stringify({
-      title,
-      body,
-      labels: [categoryLabel, "user-reported"],
-    }),
-  });
+  );
 
   if (!res.ok) {
     const errBody = await res.text();

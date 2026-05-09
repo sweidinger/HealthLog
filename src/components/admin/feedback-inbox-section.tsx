@@ -206,8 +206,7 @@ function FeedbackCategoryBadge({
   > = {
     BUG: {
       label: t("admin.feedback.categoryBug"),
-      className:
-        "bg-dracula-red/15 text-dracula-red border-dracula-red/30",
+      className: "bg-dracula-red/15 text-dracula-red border-dracula-red/30",
     },
     FEATURE_REQUEST: {
       label: t("admin.feedback.categoryFeature"),
@@ -216,8 +215,7 @@ function FeedbackCategoryBadge({
     },
     QUESTION: {
       label: t("admin.feedback.categoryQuestion"),
-      className:
-        "bg-dracula-cyan/15 text-dracula-cyan border-dracula-cyan/30",
+      className: "bg-dracula-cyan/15 text-dracula-cyan border-dracula-cyan/30",
     },
     OTHER: {
       label: t("admin.feedback.categoryOther"),

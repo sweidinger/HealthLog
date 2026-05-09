@@ -43,9 +43,24 @@ export interface HealthKitEntry {
 }
 
 export const DEFAULT_HEALTHKIT_ENTRIES: HealthKitEntry[] = [
-  { id: "bodyMass", kind: "bodyMass", direction: "bidirectional", enabled: true },
-  { id: "bp", kind: "bloodPressure", direction: "bidirectional", enabled: true },
-  { id: "glucose", kind: "bloodGlucose", direction: "bidirectional", enabled: true },
+  {
+    id: "bodyMass",
+    kind: "bodyMass",
+    direction: "bidirectional",
+    enabled: true,
+  },
+  {
+    id: "bp",
+    kind: "bloodPressure",
+    direction: "bidirectional",
+    enabled: true,
+  },
+  {
+    id: "glucose",
+    kind: "bloodGlucose",
+    direction: "bidirectional",
+    enabled: true,
+  },
   { id: "heartRate", kind: "heartRate", direction: "readOnly", enabled: true },
   { id: "stepCount", kind: "stepCount", direction: "readOnly", enabled: true },
   { id: "sleep", kind: "sleepAnalysis", direction: "readOnly", enabled: true },
@@ -135,9 +150,7 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
   const stored = parseStored(row?.healthKitConfigJson ?? null);
 
   // Resolve known ids set: default ids + already-stored ids.
-  const knownIds = new Set<string>(
-    DEFAULT_HEALTHKIT_ENTRIES.map((e) => e.id),
-  );
+  const knownIds = new Set<string>(DEFAULT_HEALTHKIT_ENTRIES.map((e) => e.id));
   if (stored) for (const e of stored.entries) knownIds.add(e.id);
 
   // Merge by id; unknown ids are silently ignored per spec.
