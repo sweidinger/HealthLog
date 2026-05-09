@@ -29,7 +29,6 @@ import { useAuth, useLogout } from "@/hooks/use-auth";
 import { useTheme } from "@/components/providers";
 import { useAppSettings } from "@/components/app-settings-provider";
 import { useTranslations } from "@/lib/i18n/context";
-import { ADMIN_SECTIONS } from "@/components/admin/admin-shell";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -246,9 +245,12 @@ export function SidebarNav() {
   const { user } = useAuth();
   const { bugReportEnabled } = useAppSettings();
   const isAdmin = user?.role === "ADMIN";
-  // Match `/admin` exactly or any `/admin/...` sub-route. Plain
-  // `startsWith("/admin")` would also flip for a hypothetical future
-  // `/administrative` page, which is not the same semantic surface.
+  // Match `/admin` exactly or any `/admin/...` sub-route for active-link
+  // styling. Plain `startsWith("/admin")` would also flip for a
+  // hypothetical future `/administrative` page, which is not the same
+  // semantic surface. The Admin entry mirrors Settings: a single link
+  // with no sub-item expansion in the global sidebar — `<AdminShell>`
+  // renders its own per-section nav inside the page itself.
   const onAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -491,54 +493,19 @@ export function SidebarNav() {
                 </Link>
               )}
               {isAdmin && (
-                <>
-                  <Link
-                    href="/admin"
-                    aria-current={onAdminPage ? "page" : undefined}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                      onAdminPage
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <Shield className="h-4 w-4" />
-                    {t("nav.admin")}
-                  </Link>
-                  {/* Expandable section list — only visible while
-                      navigating inside `/admin/*`. Mirrors the in-shell
-                      sidebar so the user can jump between sections from
-                      the global nav too. */}
-                  {onAdminPage && (
-                    <ul
-                      className="space-y-1 pl-3"
-                      aria-label={t("admin.shell.sectionsNav")}
-                    >
-                      {ADMIN_SECTIONS.map((section) => {
-                        const sectionPath = `/admin/${section.slug}`;
-                        const isActive = pathname.startsWith(sectionPath);
-                        const Icon = section.icon;
-                        return (
-                          <li key={section.slug}>
-                            <Link
-                              href={sectionPath}
-                              aria-current={isActive ? "page" : undefined}
-                              className={cn(
-                                "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
-                                isActive
-                                  ? "bg-primary/10 text-primary"
-                                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                              )}
-                            >
-                              <Icon className="h-3.5 w-3.5" />
-                              {t(section.titleKey)}
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                <Link
+                  href="/admin"
+                  aria-current={onAdminPage ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    onAdminPage
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground hover:bg-accent",
                   )}
-                </>
+                >
+                  <Shield className="h-4 w-4" />
+                  {t("nav.admin")}
+                </Link>
               )}
               <Link
                 href="/settings/account"

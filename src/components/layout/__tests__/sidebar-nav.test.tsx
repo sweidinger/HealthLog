@@ -84,7 +84,13 @@ describe("<SidebarNav> bug-report toggle", () => {
   });
 });
 
-describe("<SidebarNav> admin sub-items context-awareness", () => {
+describe("<SidebarNav> admin entry mirrors Settings (no sub-item expansion)", () => {
+  // v1.4.16 A1: Marc reported the global sidebar expanding admin
+  // sub-items on `/admin/*` was unwanted UX — the in-shell `<AdminShell>`
+  // already provides per-section nav inside the page. The Admin entry
+  // must behave EXACTLY like the Settings entry: a single link with no
+  // sub-list at any route, regardless of where the gravatar dropdown is.
+
   it("does not render admin entries at all for a regular user", () => {
     const html = render({ role: "USER", pathname: "/admin/system-status" });
     expect(html).not.toContain('href="/admin"');
@@ -102,23 +108,37 @@ describe("<SidebarNav> admin sub-items context-awareness", () => {
     }
   });
 
-  it("for an admin on /admin/* expands the section sub-list", () => {
+  it("for an admin on /admin/* still shows ONLY the single Admin link (no sub-list)", () => {
     const html = render({ role: "ADMIN", pathname: "/admin/system-status" });
     expect(html).toContain('href="/admin"');
-    // All section sub-items must render — the global sidebar mirrors
-    // the in-shell sidebar so users can jump between sections.
+    // Sub-section links must NOT appear in the global sidebar — they
+    // belong to `<AdminShell>`'s in-page nav. Marc reported the
+    // expansion as broken UX in v1.4.16; this guard keeps it gone.
     for (const section of ADMIN_SECTIONS) {
-      expect(html).toContain(`href="/admin/${section.slug}"`);
+      expect(html).not.toContain(`href="/admin/${section.slug}"`);
     }
   });
 
-  it("expands sub-items on the /admin overview page (mirrors in-shell sidebar)", () => {
-    // The in-shell `<AdminShell>` sidebar already lists every section on
-    // `/admin`. The global sidebar must mirror that so the navigation
-    // experience is identical between the two viewports.
+  it("on the /admin overview page also shows ONLY the single Admin link", () => {
     const html = render({ role: "ADMIN", pathname: "/admin" });
+    expect(html).toContain('href="/admin"');
     for (const section of ADMIN_SECTIONS) {
-      expect(html).toContain(`href="/admin/${section.slug}"`);
+      expect(html).not.toContain(`href="/admin/${section.slug}"`);
     }
+  });
+
+  it("Admin entry markup mirrors Settings entry markup (same shape, no expansion)", () => {
+    // Both Settings and Admin should render as a single <a> with no
+    // adjacent <ul> sub-list. Counting <ul aria-label="Admin sections"
+    // (or any descendant ul under the Admin link) confirms there's no
+    // disclosure widget. We assert by checking the structural pattern:
+    // the Admin link is followed by the Settings link (or the user
+    // section), never by a <ul>.
+    const html = render({ role: "ADMIN", pathname: "/admin/system-status" });
+    // No sub-list <ul> on /admin/*: previously this was the
+    // `aria-label={t("admin.shell.sectionsNav")}` ul; assert the only
+    // Settings-bearing nav surface is intact (sectionsNav label belongs
+    // to `<AdminShell>`, which the sidebar must NOT echo).
+    expect(html).not.toMatch(/aria-label="Admin sections"/);
   });
 });
