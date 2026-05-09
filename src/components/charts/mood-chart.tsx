@@ -51,6 +51,17 @@ interface ChartDataPoint {
 
 interface MoodChartProps {
   title?: string;
+  /**
+   * v1.4.16 phase B5c — compact mode for embedding inside the
+   * RecommendationCard. Hides the range tabs / toggle row and shrinks
+   * padding. Tooltip + emoji glyphs at data points stay intact.
+   */
+  mini?: boolean;
+  /**
+   * v1.4.16 phase B5c — pin the chart to a specific rationale data
+   * window regardless of any parent UI state.
+   */
+  windowOverride?: "last7days" | "last30days" | "last90days" | "allTime";
 }
 
 // --- Constants ---
@@ -226,10 +237,23 @@ export function aggregateMoodEntries(entries: MoodEntryDay[]): {
 
 // --- Component ---
 
-export function MoodChart({ title }: MoodChartProps) {
+const MINI_RANGE_POINTS: Record<
+  NonNullable<MoodChartProps["windowOverride"]>,
+  number
+> = {
+  last7days: 7,
+  last30days: 30,
+  last90days: 90,
+  allTime: 0,
+};
+
+export function MoodChart({ title, mini = false, windowOverride }: MoodChartProps) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
-  const [rangePoints, setRangePoints] = useState(30);
+  const initialRangePoints = windowOverride
+    ? MINI_RANGE_POINTS[windowOverride]
+    : 30;
+  const [rangePoints, setRangePoints] = useState(initialRangePoints);
   const [showMA, setShowMA] = useState(false);
   const [showTrend, setShowTrend] = useState(false);
   const [showBands, setShowBands] = useState(false);
@@ -408,14 +432,20 @@ export function MoodChart({ title }: MoodChartProps) {
   if (!isLoading && !data?.entries?.length) return null;
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <Card data-slot={mini ? "chart-mini" : undefined}>
+      <CardHeader className={mini ? "pb-1" : "pb-2"}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-base font-medium">
+            <CardTitle
+              className={
+                mini
+                  ? "text-muted-foreground text-[10px] font-medium tracking-wider uppercase"
+                  : "text-base font-medium"
+              }
+            >
               {displayTitle}
             </CardTitle>
-            {activeBucket !== "day" && (
+            {activeBucket !== "day" && !mini && (
               <span className="bg-muted/40 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
                 {t(
                   activeBucket === "week"
@@ -425,53 +455,64 @@ export function MoodChart({ title }: MoodChartProps) {
               </span>
             )}
           </div>
-          <div className="flex gap-1">
-            {TIME_RANGES_KEYS.map((r) => (
-              <Button
-                key={r.labelKey}
-                variant={rangePoints === r.points ? "default" : "ghost"}
-                size="sm"
-                className="min-h-9 px-2.5 text-xs"
-                onClick={() => setRangePoints(r.points)}
-                title={t(r.titleKey)}
+          {!mini && (
+            <div className="flex gap-1">
+              {TIME_RANGES_KEYS.map((r) => (
+                <Button
+                  key={r.labelKey}
+                  variant={rangePoints === r.points ? "default" : "ghost"}
+                  size="sm"
+                  className="min-h-9 px-2.5 text-xs"
+                  onClick={() => setRangePoints(r.points)}
+                  title={t(r.titleKey)}
+                  data-slot="chart-range-tab"
+                >
+                  {t(r.labelKey)}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+        {!mini && (
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <Switch
+                id={maToggleId}
+                checked={showMA}
+                onCheckedChange={setShowMA}
+              />
+              <Label htmlFor={maToggleId} className="cursor-pointer text-xs">
+                {t("charts.moodMA")}
+              </Label>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Switch
+                id={trendToggleId}
+                checked={showTrend}
+                onCheckedChange={setShowTrend}
+              />
+              <Label
+                htmlFor={trendToggleId}
+                className="cursor-pointer text-xs"
               >
-                {t(r.labelKey)}
-              </Button>
-            ))}
+                {t("charts.trend")}
+              </Label>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Switch
+                id={bandsToggleId}
+                checked={showBands}
+                onCheckedChange={setShowBands}
+              />
+              <Label
+                htmlFor={bandsToggleId}
+                className="cursor-pointer text-xs"
+              >
+                {t("charts.targetRanges")}
+              </Label>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <Switch
-              id={maToggleId}
-              checked={showMA}
-              onCheckedChange={setShowMA}
-            />
-            <Label htmlFor={maToggleId} className="cursor-pointer text-xs">
-              {t("charts.moodMA")}
-            </Label>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Switch
-              id={trendToggleId}
-              checked={showTrend}
-              onCheckedChange={setShowTrend}
-            />
-            <Label htmlFor={trendToggleId} className="cursor-pointer text-xs">
-              {t("charts.trend")}
-            </Label>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Switch
-              id={bandsToggleId}
-              checked={showBands}
-              onCheckedChange={setShowBands}
-            />
-            <Label htmlFor={bandsToggleId} className="cursor-pointer text-xs">
-              {t("charts.targetRanges")}
-            </Label>
-          </div>
-        </div>
+        )}
       </CardHeader>
       <CardContent>
         {/* v1.4.16 B1a — sibling SVG <defs> block for the gradient
@@ -506,7 +547,7 @@ export function MoodChart({ title }: MoodChartProps) {
             height={280}
           />
         ) : (
-          <div className="h-[280px] touch-pan-y">
+          <div className={`${mini ? "h-[140px]" : "h-[280px]"} touch-pan-y`}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartData}
