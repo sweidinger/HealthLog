@@ -46,7 +46,11 @@ interface UserAIProvider {
  * the underlying API speaks (e.g. preview models, fine-tunes).
  */
 const MODEL_PRESETS: Record<string, ReadonlyArray<string>> = {
-  OPENAI: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-5", "o3-mini"],
+  // P15: dropped `gpt-5` (not a released model — would surface as
+  // model_not_found) and `o3-mini` (uses the o-series param contract:
+  // `max_completion_tokens` instead of `max_tokens`, no `temperature`
+  // override — would 400 with the current OpenAIClient body shape).
+  OPENAI: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
   ANTHROPIC: [
     "claude-sonnet-4-6",
     "claude-opus-4-7",
@@ -234,17 +238,17 @@ function InsightsSettingsCard({
         <div className="flex flex-wrap items-center gap-2">
           {settings?.codexStatus === "connected" && (
             <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-              ChatGPT verbunden
+              {t("settings.ai.chatgptConnectedBadge")}
             </Badge>
           )}
           {settings?.codexStatus !== "connected" && settings?.hasAdminKey && (
             <Badge className="border-dracula-purple/30 bg-dracula-purple/15 text-dracula-purple">
-              Admin-KI aktiv
+              {t("settings.ai.adminAiActiveBadge")}
             </Badge>
           )}
           {settings?.codexStatus === "expired" && (
             <Badge className="border-dracula-orange/30 bg-dracula-orange/15 text-dracula-orange">
-              Verbindung abgelaufen
+              {t("settings.ai.connectionExpiredBadge")}
             </Badge>
           )}
           {settings?.lastInsightAt && (
@@ -264,15 +268,17 @@ function InsightsSettingsCard({
           {settings?.codexStatus === "connected" ? (
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium">ChatGPT verbunden</p>
+                <p className="text-sm font-medium">
+                  {t("settings.ai.chatgptConnectedHeading")}
+                </p>
                 <p className="text-muted-foreground text-xs">
-                  Insights werden über dein ChatGPT-Abo generiert — keine
-                  zusätzlichen Kosten.
+                  {t("settings.ai.chatgptConnectedBody")}
                   {settings.codexConnectedAt && (
                     <>
                       {" "}
-                      Verbunden seit {formatDateTime(settings.codexConnectedAt)}
-                      .
+                      {t("settings.ai.connectedSince", {
+                        when: formatDateTime(settings.codexConnectedAt),
+                      })}
                     </>
                   )}
                 </p>
@@ -292,17 +298,17 @@ function InsightsSettingsCard({
                 ) : (
                   <Trash2 className="mr-1 h-4 w-4" />
                 )}
-                Trennen
+                {t("settings.ai.disconnect")}
               </Button>
             </div>
           ) : (
             <div className="space-y-3">
               <div>
-                <p className="text-sm font-medium">Mit ChatGPT verbinden</p>
+                <p className="text-sm font-medium">
+                  {t("settings.ai.connectChatgptHeading")}
+                </p>
                 <p className="text-muted-foreground text-xs">
-                  Verbinde dein ChatGPT Pro/Max-Konto um KI-gestützte
-                  Gesundheitsanalysen basierend auf aktuellen medizinischen
-                  Leitlinien zu erhalten. Keine zusätzlichen API-Kosten.
+                  {t("settings.ai.connectChatgptBody")}
                 </p>
               </div>
               {settings?.codexOauthConfigured ? (
@@ -312,18 +318,16 @@ function InsightsSettingsCard({
                   className="w-full sm:w-auto"
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
-                  Mit ChatGPT verbinden
+                  {t("settings.ai.connectChatgptCta")}
                 </Button>
               ) : (
                 <p className="text-muted-foreground text-xs italic">
-                  ChatGPT-OAuth ist auf dieser Instanz nicht konfiguriert —
-                  nutze stattdessen einen eigenen API-Key unten.
+                  {t("settings.ai.oauthNotConfigured")}
                 </p>
               )}
               {settings?.hasAdminKey && (
                 <p className="text-muted-foreground text-xs">
-                  Alternativ nutzt HealthLog den vom Administrator
-                  konfigurierten KI-Anbieter.
+                  {t("settings.ai.adminFallback")}
                 </p>
               )}
             </div>
@@ -388,6 +392,7 @@ function InsightsSettingsCard({
 }
 
 function UserAIProviderSubsection() {
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
   const [provider, setProvider] = useState<string>("");
   const [modelChoice, setModelChoice] = useState<string>("");
@@ -470,10 +475,10 @@ function UserAIProviderSubsection() {
         body: JSON.stringify(body),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Save failed");
+      if (!res.ok) throw new Error(json.error || t("settings.ai.saveFailed"));
     },
     onSuccess: () => {
-      setSaveMsg("Gespeichert");
+      setSaveMsg(t("settings.ai.saved"));
       setSaveOk(true);
       setAnthropicKey("");
       setLocalKey("");
@@ -482,7 +487,7 @@ function UserAIProviderSubsection() {
       queryClient.invalidateQueries({ queryKey: ["insights"] });
     },
     onError: (e) => {
-      setSaveMsg(e instanceof Error ? e.message : "Fehler");
+      setSaveMsg(e instanceof Error ? e.message : t("settings.ai.errorGeneric"));
       setSaveOk(false);
     },
   });
@@ -517,7 +522,9 @@ function UserAIProviderSubsection() {
       );
       setTestOk(true);
     } catch (e) {
-      setTestMsg(e instanceof Error ? e.message : "Test fehlgeschlagen");
+      setTestMsg(
+        e instanceof Error ? e.message : t("settings.ai.testFailed"),
+      );
       setTestOk(false);
     } finally {
       setTesting(false);
@@ -529,32 +536,36 @@ function UserAIProviderSubsection() {
   return (
     <div className="bg-muted/50 mt-2 rounded-lg p-4">
       <div className="mb-3">
-        <p className="text-sm font-medium">KI-Provider (persönlich)</p>
+        <p className="text-sm font-medium">
+          {t("settings.ai.personalProviderHeading")}
+        </p>
         <p className="text-muted-foreground text-xs">
-          Eigener KI-Anbieter überschreibt die Admin-Einstellung. Leer lassen
-          für Standard. Für ChatGPT-Pro/Max-OAuth nutze den Verbinden-Button
-          oben.
+          {t("settings.ai.personalProviderBody")}
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <Label htmlFor="ai-provider-select">Provider</Label>
+          <Label htmlFor="ai-provider-select">
+            {t("settings.ai.providerLabel")}
+          </Label>
           <select
             id="ai-provider-select"
             value={provider}
             onChange={(e) => handleProviderChange(e.target.value)}
             className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
           >
-            <option value="">— Standard (Admin/Codex) —</option>
-            <option value="OPENAI">OpenAI (API-Key)</option>
-            <option value="ANTHROPIC">Anthropic (Claude)</option>
-            <option value="LOCAL">Lokal (OpenAI-kompatibel)</option>
+            <option value="">{t("settings.ai.providerOptionDefault")}</option>
+            <option value="OPENAI">{t("settings.ai.providerOptionOpenai")}</option>
+            <option value="ANTHROPIC">
+              {t("settings.ai.providerOptionAnthropic")}
+            </option>
+            <option value="LOCAL">{t("settings.ai.providerOptionLocal")}</option>
           </select>
         </div>
 
         <div>
-          <Label htmlFor="ai-model-select">Modell</Label>
+          <Label htmlFor="ai-model-select">{t("settings.ai.modelLabel")}</Label>
           <select
             id="ai-model-select"
             value={modelChoice}
@@ -562,21 +573,25 @@ function UserAIProviderSubsection() {
             disabled={!provider}
             className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm disabled:opacity-60"
           >
-            <option value="">— Standard —</option>
+            <option value="">{t("settings.ai.modelOptionDefault")}</option>
             {presets.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
             ))}
             {provider && (
-              <option value={CUSTOM_MODEL_SENTINEL}>Eigenes…</option>
+              <option value={CUSTOM_MODEL_SENTINEL}>
+                {t("settings.ai.modelOptionCustom")}
+              </option>
             )}
           </select>
         </div>
 
         {modelChoice === CUSTOM_MODEL_SENTINEL && provider && (
           <div className="sm:col-span-2">
-            <Label htmlFor="ai-model-custom">Eigener Modellname</Label>
+            <Label htmlFor="ai-model-custom">
+              {t("settings.ai.customModelLabel")}
+            </Label>
             <Input
               id="ai-model-custom"
               value={customModel}
@@ -596,10 +611,12 @@ function UserAIProviderSubsection() {
         {provider === "OPENAI" && (
           <div className="sm:col-span-2">
             <Label htmlFor="ai-openai-key">
-              OpenAI API Key
+              {t("settings.ai.openaiKeyLabel")}
               {data?.hasOpenaiKey && (
                 <span className="text-muted-foreground ml-2 text-xs">
-                  (gespeichert {data.openaiKeyPreview})
+                  {t("settings.ai.savedPreview", {
+                    preview: data.openaiKeyPreview ?? "",
+                  })}
                 </span>
               )}
             </Label>
@@ -611,8 +628,7 @@ function UserAIProviderSubsection() {
               className="mt-1"
             />
             <p className="text-muted-foreground mt-1 text-xs">
-              Eigener Key — keine Verbindung zu deinem ChatGPT-Abo. Für das
-              Abo nutze den Verbinden-Button oben.
+              {t("settings.ai.openaiKeyHelp")}
             </p>
           </div>
         )}
@@ -620,10 +636,12 @@ function UserAIProviderSubsection() {
         {provider === "ANTHROPIC" && (
           <div className="sm:col-span-2">
             <Label htmlFor="ai-anthropic-key">
-              Anthropic API Key
+              {t("settings.ai.anthropicKeyLabel")}
               {data?.hasAnthropicKey && (
                 <span className="text-muted-foreground ml-2 text-xs">
-                  (gespeichert {data.anthropicKeyPreview})
+                  {t("settings.ai.savedPreview", {
+                    preview: data.anthropicKeyPreview ?? "",
+                  })}
                 </span>
               )}
             </Label>
@@ -640,7 +658,9 @@ function UserAIProviderSubsection() {
         {provider === "LOCAL" && (
           <>
             <div className="sm:col-span-2">
-              <Label htmlFor="ai-base-url">Base URL</Label>
+              <Label htmlFor="ai-base-url">
+                {t("settings.ai.baseUrlLabel")}
+              </Label>
               <Input
                 id="ai-base-url"
                 value={baseUrl}
@@ -650,12 +670,16 @@ function UserAIProviderSubsection() {
               />
             </div>
             <div className="sm:col-span-2">
-              <Label htmlFor="ai-local-key">API Key (optional)</Label>
+              <Label htmlFor="ai-local-key">
+                {t("settings.ai.localKeyLabel")}
+              </Label>
               <PasswordInput
                 id="ai-local-key"
                 value={localKey}
                 onChange={(e) => setLocalKey(e.target.value)}
-                placeholder={data?.hasLocalKey ? "(gespeichert)" : ""}
+                placeholder={
+                  data?.hasLocalKey ? t("settings.ai.savedShort") : ""
+                }
                 className="mt-1"
               />
             </div>
@@ -674,7 +698,7 @@ function UserAIProviderSubsection() {
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
-          Speichern
+          {t("settings.ai.saveCta")}
         </Button>
         <Button
           size="sm"
@@ -687,7 +711,7 @@ function UserAIProviderSubsection() {
           ) : (
             <Sparkles className="mr-2 h-4 w-4" />
           )}
-          Verbindung testen
+          {t("settings.ai.testCta")}
         </Button>
       </div>
 
