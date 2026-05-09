@@ -10,7 +10,6 @@ import {
   Heart,
   Moon,
   Percent,
-  Pill,
   Plus,
   Smile,
   Target,
@@ -54,6 +53,13 @@ const MoodChart = dynamic(
   () =>
     import("@/components/charts/mood-chart").then((mod) => ({
       default: mod.MoodChart,
+    })),
+  { ssr: false },
+);
+const MedicationComplianceChart = dynamic(
+  () =>
+    import("@/components/charts/medication-compliance-chart").then((mod) => ({
+      default: mod.MedicationComplianceChart,
     })),
   { ssr: false },
 );
@@ -863,25 +869,15 @@ export default function DashboardPage() {
           });
         }
         if (showMedicationsCard) {
+          // v1.4.15 Fix 2: the toggle existed since v1.1 but the dashboard
+          // slot only rendered a static placeholder (icon + title), so
+          // flipping the layout switch on did nothing visible. Wire the
+          // real chart that consumes
+          // `/api/medications/intake?scope=compliance&days=N`.
           charts.push({
             id: "medications",
             order: widgetOrder("medications"),
-            node: (
-              <div
-                key="medications"
-                className="bg-card rounded-xl border p-4 md:p-6"
-              >
-                <div className="mb-3 flex items-center gap-2">
-                  <Pill className="h-4 w-4" />
-                  <h3 className="text-sm font-medium">
-                    {t("dashboard.medications")}
-                  </h3>
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  {t("medications.title") ?? ""}
-                </p>
-              </div>
-            ),
+            node: <MedicationComplianceChart key="medications" />,
           });
         }
 
