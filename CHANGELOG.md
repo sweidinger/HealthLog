@@ -1,5 +1,176 @@
 # Changelog
 
+## [1.4.6] — 2026-05-09
+
+### Fixed — Dashboard
+
+- **Tile strip fills its row.** Each tile in the dashboard's
+  measurement strip now stretches to its grid cell instead of
+  shrinking to content width. On a 375 px viewport tiles in the
+  same row are no longer 122-166 px wide — every tile takes the
+  same share of the row.
+- **Secondary text is finally distinguishable from primary.**
+  `--muted-foreground` was identical to `--foreground` in both
+  light and dark mode, which flattened the entire visual
+  hierarchy. Tile labels, "Ø7d:" prefixes, units, and inactive
+  nav items now render in `#9aa3b3` (dark) / `#5b6273` (light) —
+  both ≥ 4.5:1 against the surface.
+- **Trend cards land aligned with the chart strip below.**
+  Padding bumped from `p-3` to `p-4 md:p-6` so the tiles match
+  the surrounding chart cards. KPI typography (`text-3xl
+  tracking-tight tabular-nums` for the value, `text-xs uppercase
+  tracking-wide` for the label) gives the number proper weight
+  without making the tile feel tall.
+- **Always-on Ø7d / Ø30d chips** — when an average is missing
+  the chip renders `—` instead of disappearing, so vertical
+  rhythm stays consistent across tiles.
+- **Welcome subtitle is visible on mobile** (was hidden below
+  the `sm` breakpoint) and uses muted-foreground so it doesn't
+  fight the headline.
+- **Medications card matches the other cards** — `rounded-xl`
+  and `p-4 md:p-6` instead of the smaller `rounded-lg p-4`.
+
+### New — Charts
+
+- **Long-range charts now bucket their data.** Hitting "All" on
+  an account with several years of measurements used to render
+  thousands of daily dots — unreadable, and slow on mobile. The
+  chart now picks an aggregation level from the visible range:
+  daily for ≤ 90 days, weekly mean for 91-730 days, monthly
+  mean for everything beyond. A small chip beside the chart
+  title surfaces the active bucket ("Wochendurchschnitt" /
+  "Monatsdurchschnitt" in DE, "Weekly avg" / "Monthly avg" in
+  EN) so the bucket is never silent. Empty buckets are dropped
+  rather than zero-padded.
+
+### Fixed — KI
+
+- **Hero recommendation no longer prints raw `metric:WEIGHT`
+  tokens.** When the model embedded a chart token in the
+  primary recommendation the renderer was printing the literal
+  string. The "Key Takeaway" card now strips the tokens for
+  prose and renders them as inline charts under the
+  recommendation, the same pattern the summary block has used
+  since v1.4.5.
+- **"Verbindung testen" stays readable when the model returns
+  bad JSON.** `/api/insights/generate` returned 502 for parse
+  errors, which Cloudflare swapped for an HTML error page;
+  `await res.json()` in the browser then crashed. Same
+  Cloudflare-rewrite trap the v1.4.5 ai/test fix solved — parse
+  errors now map to 422 so the JSON body actually reaches the
+  client.
+- **Saved API keys cannot leak to a stale local URL.** A user
+  who had configured the Local provider with `http://192.168.x.x`
+  and later switched to OpenAI / Anthropic kept that URL in the
+  shared `aiBaseUrl` column, and the OpenAI / Anthropic clients
+  were forwarding their cloud keys to that LAN host on every
+  request. The PATCH that switches providers now wipes the
+  column, and the OpenAI / Anthropic clients hardcode the
+  canonical base URL regardless of what the column carries.
+
+### Improved — KI Insights
+
+- **The model now sees three years of history per metric.** Each
+  per-card insight payload (general, blood pressure, pulse,
+  weight, BMI, mood, medication compliance) used to clip the
+  series to the last 30 daily means — way too narrow to detect
+  drift that plays out over a year. The new payload combines
+  360 daily means (`dayOffset 0..359`) with 24 monthly means for
+  the older window (`monthOffset 12..35`), with a 50 KB safety
+  guard that re-buckets at 180 daily days when a particularly
+  noisy account would blow past the prompt token budget.
+
+### Fixed — Admin
+
+- **Status-card CTAs go to the right place.** Every "Manage
+  users" / "View backups" link in the admin status grid was
+  bouncing back to `/admin` because the hrefs were pointing at
+  sub-routes that never shipped (`/admin/users`,
+  `/admin/audit-log`) or at anchors whose IDs do not exist
+  (`#integrations`, `#monitoring`, `#backups`). Each href now
+  points at a real `section-*` anchor on the admin page, the
+  CTA copy describes the destination honestly ("Open
+  integrations", "Open system status"), and the unit test
+  asserts each href maps to a known section ID — so the next
+  refactor cannot regress this silently.
+- **Bug-report toggle finally hides the form.** The admin
+  "Bug reports" switch had no effect because the gate lived on
+  a legacy route the form does not call. The actual `/api/feedback`
+  endpoint and the `/bugreport` page now both honor the toggle —
+  the form disappears, and direct API calls return 503 with a
+  readable error.
+- **Audit trail survives the data wipe.** The `Wipe all data`
+  admin action used to delete `AuditLog` in the same transaction
+  as the rest of the user data, which silently destroyed the
+  one record actually saying "an admin wiped data". The wipe
+  now leaves the audit log alone and adds an explicit
+  `admin.data.clear.start` entry before the transaction begins,
+  so even a crash mid-wipe leaves a trail. The success copy
+  also enumerates the full scope (API tokens, Withings
+  connections, auth challenges) instead of pretending only
+  measurements / medications / intakes are affected.
+- **Cached insight reloads no longer burn a rate-limit token.**
+  `POST /api/insights/generate` checked the rate limit before
+  the cache return, so a noisy dashboard refresh would lock you
+  out for an hour even when every request returned the same
+  cached envelope. The check moved below the cache return.
+- **One failing health probe no longer blanks the whole admin
+  status grid.** `Promise.all` in the status-overview API
+  short-circuited on the first rejection. `Promise.allSettled`
+  forces failed probes to the `alert` severity and lets the
+  rest render normally, with a Wide Event annotation noting
+  which probe(s) failed.
+- **Settings load errors surface inline instead of spinning
+  forever.** When `useSystemStatus` or `useAdminSettings`
+  rejects, the admin page now shows a "Failed to load…"
+  banner instead of an indefinite skeleton.
+
+### Improved — Settings · KI
+
+- The KI section is fully internationalised — about 30 hard-coded
+  German strings now flow through `t("settings.ai.…")` keys, and
+  the model-preset list drops `gpt-5` (not a released model) and
+  `o3-mini` (would require an o-series parameter contract that
+  isn't wired up yet). The privacy "Raw data" warning uses
+  Dracula tokens so the colour matches the rest of the panel.
+
+### Improved — Polish
+
+- Numeric spans on the dashboard tiles use `tabular-nums` so
+  digits stop jiggling on every refresh.
+- The bottom-nav buffer is tighter on mobile and removed on
+  desktop (`pb-[calc(4rem+env(safe-area-inset-bottom,0px))]
+  md:pb-0`), so desktop content sits flush instead of leaving
+  an unused 5 rem strip.
+- Onboarding "X von Y" / "%" progress drops the monospace font
+  and keeps tabular-nums.
+- Feedback inbox category badges use Dracula tokens
+  (`bg-dracula-red/15 text-dracula-red`) for theme cohesion.
+- Codex provider mirrors the OpenAI client's structured-error
+  format (httpStatus / model / bodyExcerpt) so failures from
+  ChatGPT-OAuth show the same readable message as failures from
+  the BYO-key paths.
+- Logging redacts third-party AI keys: `redactSecrets` now scrubs
+  `sk-` / `sk-ant-` patterns so a misconfigured client cannot
+  leak its key into Wide Events. The idempotency body-content
+  guard refuses to cache responses that contain those prefixes
+  (with a regex tight enough to avoid false positives on words
+  like "task-id" or "risk-management").
+- Danger-zone result colour follows mutation state instead of
+  string-prefix-matching localized copy.
+
+### Repo housekeeping
+
+- `e2e` workflow is back to green: dropped the `pnpm/action-setup`
+  version override (now reads `packageManager` from
+  `package.json`), switched the mobile Playwright project from
+  iPhone 13 (webkit) to Pixel 5 so chromium-only CI installs are
+  enough, anchored the locale-cookie test at the configured base
+  URL, and made the login spec open the password form before
+  asserting on its inputs.
+- Repo-wide prettier sweep — long-deferred reformatting drift
+  closed before the v1.4.6 tag.
+
 ## [1.4.5] — 2026-05-09
 
 ### Fixed — Settings · KI
