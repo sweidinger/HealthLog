@@ -51,9 +51,13 @@ Last update: 2026-05-09T16:10:00+02:00
 
 ## Phase 4 — Performance audit
 
-- [ ] Playwright capture: /, /settings/integrations, /admin, /insights at desktop+mobile
-- [ ] Report at `docs/audit/v15-performance.md`
-- [ ] Top 3 wins identified, <30 LOC ones implemented inline
+- [x] Playwright capture: /, /settings/integrations, /admin, /insights at desktop+mobile (prod=1.4.13, captured 2026-05-09T14:14Z)
+- [x] Report at `docs/audit/v15-performance.md` — commit `41fa203`
+- [x] Top 3 wins identified, <30 LOC ones implemented inline:
+  - W1 commit `bb2b1de` — defer Recharts ScatterChart imports on `/insights` via `next/dynamic` (~108 KiB initial-JS savings)
+  - W2 commit `519e36e` — skip checklist API fetches once onboarding is complete (~950 ms network savings on dashboard)
+  - W3 deferred to v1.5.1 — replace Recharts (effort L + needs new dep)
+- Result: ok / commits `bb2b1de 519e36e 41fa203`
 - Detailed report: `.planning/phase-4-report.md`
 
 ## Phase 4b — Admin Panel refactor (Settings-style dynamic routes)
