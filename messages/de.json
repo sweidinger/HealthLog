@@ -677,7 +677,12 @@
       "rationaleDeviation": "Abweichung",
       "rationaleExpand": "Begründung anzeigen",
       "rationaleCollapse": "Begründung ausblenden",
-      "legacyPayloadCta": "Insights aktualisiert — Neugenerierung lädt die neuen Erklärfunktionen"
+      "legacyPayloadCta": "Insights aktualisiert — Neugenerierung lädt die neuen Erklärfunktionen",
+      "feedbackHelpful": "Hilfreich",
+      "feedbackNotHelpful": "Nicht hilfreich",
+      "feedbackThanks": "Danke für dein Feedback",
+      "feedbackConfirmed": "Feedback gespeichert",
+      "feedbackAlreadyRated": "Bereits bewertet"
     },
     "dataFoundation": "Datengrundlage",
     "dataGaps": "Datenlücken:",

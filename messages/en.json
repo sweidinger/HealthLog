@@ -677,7 +677,12 @@
       "rationaleDeviation": "Deviation",
       "rationaleExpand": "Show why",
       "rationaleCollapse": "Hide why",
-      "legacyPayloadCta": "Insights updated — regenerate for new explainability features"
+      "legacyPayloadCta": "Insights updated — regenerate for new explainability features",
+      "feedbackHelpful": "Helpful",
+      "feedbackNotHelpful": "Not helpful",
+      "feedbackThanks": "Thanks for your feedback",
+      "feedbackConfirmed": "Feedback recorded",
+      "feedbackAlreadyRated": "Already rated"
     },
     "dataFoundation": "Data coverage",
     "dataGaps": "Data gaps:",
