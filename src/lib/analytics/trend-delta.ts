@@ -12,9 +12,17 @@
  *   delta = slope.slope * 7  // units per day → unit delta over 7d
  *
  * The trend-card then paints the delta with metric-aware sentiment
- * colour (up-good vs up-bad).  Returning `null` when slope7 is not
- * available keeps the tile rendering the legacy avg label for back-
- * compat with call sites that haven't been migrated.
+ * colour (up-good vs up-bad).
+ *
+ * v1.4.16 Fix A4: fall back to slope30 (projected onto 7 days) when
+ * slope7 is unavailable. Some metrics (mood, sleep) have <2 entries
+ * within the trailing 7-day window for users who don't log daily,
+ * which used to surface as a missing delta on the dashboard tile —
+ * Marc's complaint: "Bei Stimmung wird zum Beispiel kein Trend in
+ * Zahlen dargestellt." A 30-day slope still answers the question
+ * "is this metric drifting up or down?" — we just project it onto
+ * a 7-day window for label consistency. Returning `null` is reserved
+ * for the truly insufficient case where neither slope is available.
  *
  * Pure & deterministic — pinned by unit test.
  */
@@ -22,14 +30,26 @@ import type { TrendSlope } from "@/lib/analytics/trends";
 
 export interface TrendCapableSummary {
   slope7: TrendSlope | null;
+  slope30?: TrendSlope | null;
 }
 
 export function summaryToTrend7Delta(
   summary: TrendCapableSummary | undefined | null,
 ): number | null {
-  const slope7 = summary?.slope7;
-  if (!slope7) return null;
-  // slope.slope is units per day (see lib/analytics/trends.ts) → 7 days
-  // is the projected end-to-end delta of the regression line.
-  return slope7.slope * 7;
+  if (!summary) return null;
+  // Primary: trailing-7-day linear-regression slope projected to a
+  // 7-day window. slope.slope is units per day (see
+  // lib/analytics/trends.ts).
+  if (summary.slope7) {
+    return summary.slope7.slope * 7;
+  }
+  // Fallback: slope30 projected onto 7 days. Same units (per day) so
+  // we still multiply by 7. This keeps the delta visible for sparser
+  // metrics (mood, sleep) that don't accumulate enough points in
+  // every trailing 7-day window. The arrow + colour interpretation
+  // stays correct because slope30 is computed the same way.
+  if (summary.slope30) {
+    return summary.slope30.slope * 7;
+  }
+  return null;
 }

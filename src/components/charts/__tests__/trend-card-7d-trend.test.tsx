@@ -50,7 +50,7 @@ describe("<TrendCard> 7-day trend label", () => {
       />,
     );
     // New label flips on for the trend variant.
-    expect(html).toContain("7d trend");
+    expect(html).toContain("7-day trend");
     // Legacy avg7 short label must NOT appear in the trend variant —
     // this is the whole point of the rename.
     expect(html).not.toContain(">7d:<");
@@ -65,13 +65,13 @@ describe("<TrendCard> 7-day trend label", () => {
       />,
       "de",
     );
-    expect(html).toContain("7T-Trend");
+    expect(html).toContain("7-Tage-Trend");
   });
 
   it("keeps the legacy avg7 label when no delta is supplied (back-compat)", () => {
     const html = render(<TrendCard {...baseProps} />);
     expect(html).toContain("7d");
-    expect(html).not.toContain("7d trend");
+    expect(html).not.toContain("7-day trend");
   });
 
   it("renders a positive delta with `+` sign and one decimal", () => {
