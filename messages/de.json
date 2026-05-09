@@ -120,7 +120,24 @@
     "glucoseRow": "{label}: Ø {avg} {unit} (Ziel {rangeMin}–{rangeMax}) — {class}",
     "glucoseInTarget": "im Ziel",
     "glucoseBelowTarget": "unter Ziel",
-    "glucoseAboveTarget": "über Ziel"
+    "glucoseAboveTarget": "über Ziel",
+    "practiceLabel": "Praxis",
+    "dialog": {
+      "title": "Arztbericht (PDF)",
+      "description": "Lege den Auswertungszeitraum fest und (optional) den Praxisnamen — beide erscheinen auf dem Deckblatt.",
+      "startLabel": "Von",
+      "endLabel": "Bis",
+      "practiceLabel": "Praxis / Klinik (optional)",
+      "practicePlaceholder": "z. B. Dr. Müller — Hausarztpraxis",
+      "preset90d": "Letzte 90 Tage",
+      "preset180d": "Letzte 6 Monate",
+      "preset365d": "Letzte 12 Monate",
+      "submit": "PDF erstellen",
+      "cancel": "Abbrechen",
+      "errorEndBeforeStart": "Das Ende-Datum darf nicht vor dem Start liegen.",
+      "errorRangeTooLong": "Der Auswertungszeitraum darf maximal 2 Jahre umfassen.",
+      "errorInvalidDate": "Bitte wähle ein gültiges Start- und Ende-Datum."
+    }
   },
   "errorBoundary": {
     "title": "Da ist etwas schiefgelaufen",
@@ -846,6 +863,38 @@
         "openSettings": "In den Einstellungen fortsetzen"
       },
       "doneToast": "Alles eingerichtet — willkommen an Bord."
+    },
+    "tour": {
+      "stepOf": "Schritt {current} von {total}",
+      "next": "Weiter",
+      "back": "Zurück",
+      "skip": "Tour überspringen",
+      "done": "Verstanden",
+      "restart": "Tour neu starten",
+      "restartHint": "Zeige die Dashboard-Tour beim nächsten Aufruf erneut.",
+      "restartConfirmation": "Die Tour startet bei deinem nächsten Dashboard-Besuch erneut.",
+      "steps": {
+        "tileStrip": {
+          "title": "Deine Tageswerte",
+          "body": "Die Kachel-Leiste zeigt den letzten Wert und den 7-Tage-Trend für jede Metrik — Gewicht, Blutdruck, Puls, Stimmung. Was du nicht brauchst, blendest du in Einstellungen → Dashboard aus."
+        },
+        "quickAdd": {
+          "title": "In zwei Taps erfasst",
+          "body": "Über den Hinzufügen-Button kannst du Messungen oder Stimmungseinträge anlegen, ohne das Dashboard zu verlassen. Das Formular merkt sich deinen letzten Kontext und Tags."
+        },
+        "insights": {
+          "title": "KI-gestützte Einblicke",
+          "body": "Insights verwandelt deine Werte in eine klare Gesundheits-Zusammenfassung, mit Einordnung von Blutdruck, Gewicht und Stimmung. Eigener KI-Key oder Standard — du entscheidest."
+        },
+        "integrations": {
+          "title": "Geräte verbinden",
+          "body": "In den Einstellungen verbindest du Withings (Auto-Sync für Gewicht, Blutdruck, Puls), moodLog oder deinen KI-Provider. Alles bleibt optional und verschlüsselt."
+        },
+        "achievements": {
+          "title": "Streaks und Badges sammeln",
+          "body": "Die Achievements-Seite trackt tägliche Logging-Streaks, Blutdruck-Meilensteine und Konsistenz-Abzeichen. Ein kleiner Anreiz, dranzubleiben."
+        }
+      }
     }
   },
   "gettingStarted": {

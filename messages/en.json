@@ -120,7 +120,24 @@
     "glucoseRow": "{label}: avg {avg} {unit} (target {rangeMin}–{rangeMax}) — {class}",
     "glucoseInTarget": "in target",
     "glucoseBelowTarget": "below target",
-    "glucoseAboveTarget": "above target"
+    "glucoseAboveTarget": "above target",
+    "practiceLabel": "Practice",
+    "dialog": {
+      "title": "Doctor report (PDF)",
+      "description": "Pick the reporting period and (optionally) the practice name; both are printed on the cover.",
+      "startLabel": "Start date",
+      "endLabel": "End date",
+      "practiceLabel": "Practice / clinic name (optional)",
+      "practicePlaceholder": "e.g. Dr. Müller — Family practice",
+      "preset90d": "Last 90 days",
+      "preset180d": "Last 6 months",
+      "preset365d": "Last 12 months",
+      "submit": "Generate PDF",
+      "cancel": "Cancel",
+      "errorEndBeforeStart": "End date must be on or after the start date.",
+      "errorRangeTooLong": "The reporting period cannot exceed 2 years.",
+      "errorInvalidDate": "Please select a valid start and end date."
+    }
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -846,6 +863,38 @@
         "openSettings": "Continue in Settings"
       },
       "doneToast": "You're all set — welcome aboard."
+    },
+    "tour": {
+      "stepOf": "Step {current} of {total}",
+      "next": "Next",
+      "back": "Back",
+      "skip": "Skip tour",
+      "done": "Got it",
+      "restart": "Restart onboarding tour",
+      "restartHint": "Replay the dashboard walkthrough from the start.",
+      "restartConfirmation": "Tour will restart on your next dashboard visit.",
+      "steps": {
+        "tileStrip": {
+          "title": "Your daily numbers",
+          "body": "The tile strip shows the latest reading and a 7-day trend for every metric you log — weight, blood pressure, pulse, mood. Hide what you don't need from Settings → Dashboard."
+        },
+        "quickAdd": {
+          "title": "Log anything in two taps",
+          "body": "Use the Add button to drop a measurement or mood entry without leaving the dashboard. The form remembers your last context and tags."
+        },
+        "insights": {
+          "title": "AI-assisted insights",
+          "body": "Insights turns your readings into a plain-English health summary, with classifications for blood pressure, weight trend and mood. Bring your own AI key or use the built-in default."
+        },
+        "integrations": {
+          "title": "Connect your devices",
+          "body": "Open Settings to link Withings (auto-sync weight, BP and pulse), moodLog, or your AI provider. Everything stays optional and encrypted."
+        },
+        "achievements": {
+          "title": "Earn streaks and badges",
+          "body": "The Achievements page tracks daily logging streaks, blood-pressure milestones and consistency badges. A small nudge to keep going."
+        }
+      }
     }
   },
   "gettingStarted": {
