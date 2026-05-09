@@ -34,7 +34,7 @@ NOT done in v1.4.15 (deliberately deferred):
 - The `/api/insights/generate` route does NOT yet adopt
   `generateInsight()` — the existing UI consumes the rich legacy
   shape (`{summary, classification, findings, correlations,
-  dataQuality, ...}`). Migrating the consumer is v1.4.16 work because
+dataQuality, ...}`). Migrating the consumer is v1.4.16 work because
   it requires UI changes to `<InsightAdvisorCard />` and
   `<InsightsCard />` to render the new strict shape.
 - The scope-hardened prompt at `src/lib/ai/prompts/insight-generator.ts`
@@ -61,9 +61,9 @@ guideline document, with a rendered footnote in the UI.
      plain language for the German UI.
    - DGE healthy-weight (BMI bands).
    - AASM 2015 sleep duration consensus.
-   Each excerpt: `{ id, source, citation, excerpt, locale, validity }`.
-   Curated by hand (NOT scraped) — no quote longer than 200 characters
-   to stay inside fair-use.
+     Each excerpt: `{ id, source, citation, excerpt, locale, validity }`.
+     Curated by hand (NOT scraped) — no quote longer than 200 characters
+     to stay inside fair-use.
 
 2. **Inject relevant excerpts as system context per request.** A
    pre-flight step `selectRelevantReferences(features)` looks at the
@@ -76,7 +76,7 @@ guideline document, with a rendered footnote in the UI.
    `citations[]` entry gains an optional `referenceId` field pointing
    into the bundle — the model uses an excerpt's `id` to back its
    citation. The UI then renders a footnote `[1] ESH/ESC 2024,
-   p. 17 — "..."` next to the recommendation.
+p. 17 — "..."` next to the recommendation.
 
 4. **Hallucination guard for references.** Schema rejects any
    `referenceId` not in the bundle. The model cannot fabricate a
@@ -112,7 +112,7 @@ Goal: a single provider's outage no longer breaks insights generation.
    that). Per-request total wall-clock budget: 60 s.
 
 4. **Telemetry.** Wide-Event `ai.cascade.attempts: ["codex","admin-key"]`
-   + `ai.cascade.outcome: "success" | "all-failed"`.
+   - `ai.cascade.outcome: "success" | "all-failed"`.
 
 ## v1.4.16 — Per-recommendation explainability
 

@@ -252,7 +252,8 @@ export class CodexClient implements AIProvider {
       upstream: "codex",
       model: attempted[attempted.length - 1] ?? null,
       bodyExcerpt: lastSlugRejectionError
-        ? (lastSlugRejectionError as Error & { bodyExcerpt?: string }).bodyExcerpt
+        ? (lastSlugRejectionError as Error & { bodyExcerpt?: string })
+            .bodyExcerpt
         : null,
       attempted,
     });

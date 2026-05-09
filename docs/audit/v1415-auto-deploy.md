@@ -42,18 +42,18 @@ The current application config (UUID `pg8wggwogo8c4gc4ks0kk4ss`,
   mode for `dockercompose`-typed apps.
 - `manual_webhook_secret_github: null` — no webhook secret configured today.
 
-What Coolify *does* support natively (per the Coolify docs):
+What Coolify _does_ support natively (per the Coolify docs):
 
 1. **GitHub App auto-deploy**: pushes to `main` trigger an immediate redeploy.
-   For us this would deploy from a SHA *before* GHCR finishes building, since
+   For us this would deploy from a SHA _before_ GHCR finishes building, since
    GHCR runs in the same push event in parallel. Race-prone.
 2. **Deploy webhook URL**: every Coolify resource exposes
    `GET https://<coolify-fqdn>/api/v1/deploy?uuid=<resource-uuid>` with
-   Bearer-token auth. This is a *trigger-only* surface — it queues a
+   Bearer-token auth. This is a _trigger-only_ surface — it queues a
    redeploy. Coolify treats this as an authenticated remote-control command;
    the recipe in the docs is "GitHub Actions builds the image, pushes to
    GHCR, then `curl --request GET '${{ secrets.COOLIFY_WEBHOOK }}'
-   --header 'Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}'`."
+--header 'Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}'`."
 3. **Notification webhook (outgoing)**: Coolify can POST a deployment-event
    payload to a configured URL on success and failure. This is how we get a
    notification back into the app for audit logging + admin alerts.
@@ -86,8 +86,8 @@ proves unreliable):** Watchtower with a per-image label
      step, add a final `Trigger Coolify deploy` step that runs only on the
      publish path (push to `main` or to a `v*` tag — never on PRs). It uses
      `secrets.COOLIFY_WEBHOOK` (the full Bearer-protected URL with `?uuid=…`)
-     + `secrets.COOLIFY_TOKEN`. Failure of the deploy trigger does **not**
-     fail the build (the image is already published; deploy is a follow-up).
+     - `secrets.COOLIFY_TOKEN`. Failure of the deploy trigger does **not**
+       fail the build (the image is already published; deploy is a follow-up).
    - Document required secrets in `.env.example`.
 
 2. **`feat(deploy): admin notification + audit log on deploy success/failure`**

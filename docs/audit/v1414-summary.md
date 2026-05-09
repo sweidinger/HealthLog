@@ -53,21 +53,21 @@ Reset einplanen.
 
 ### Release
 
-| SHA       | Summary                              |
-| --------- | ------------------------------------ |
-| `e5fae9b` | chore(release): v1.4.14              |
+| SHA       | Summary                                                         |
+| --------- | --------------------------------------------------------------- |
+| `e5fae9b` | chore(release): v1.4.14                                         |
 | `f0d53fb` | chore(release): rebrand artifacts as v1.4.14 (patch, not minor) |
 
 ### Codex-OAuth verification (Phase 1)
 
-| SHA       | Summary                                                                |
-| --------- | ---------------------------------------------------------------------- |
+| SHA       | Summary                                                                  |
+| --------- | ------------------------------------------------------------------------ |
 | `5df74f7` | fix(ai): default Codex model to `gpt-5.3-codex` for ChatGPT-account auth |
 
 ### v1.4.6 deferred bugfix backlog (Phase 2)
 
-| SHA       | Summary                                                              |
-| --------- | -------------------------------------------------------------------- |
+| SHA       | Summary                                                                                      |
+| --------- | -------------------------------------------------------------------------------------------- |
 | `512a6a6` | fix(admin): wipe-all-data clears notification channels, push subs, telegram deletions (T2.1) |
 | `cb6a59a` | fix(insights): correct DST handling in cross-metric daily bucket pairing (T2.2)              |
 | `5403821` | fix(insights): map AI provider errors to 422/503 instead of 500 (T2.3)                       |
@@ -75,17 +75,17 @@ Reset einplanen.
 
 ### Admin Panel refactor (Phase 4b — folds T2.6 + T2.7)
 
-| SHA       | Summary                                                                  |
-| --------- | ------------------------------------------------------------------------ |
+| SHA       | Summary                                                                             |
+| --------- | ----------------------------------------------------------------------------------- |
 | `d8b71b3` | feat(admin): scaffold per-section dynamic routes (admin-shell + [section]/page.tsx) |
-| `12b280b` | refactor(admin): move sections to dynamic-route pattern + reduce overview |
-| `69c5225` | feat(admin): backups view + manual backup trigger (T2.6 deferred)        |
-| `5957e18` | feat(admin): users management with filters + force-logout action (T2.7 deferred) |
-| `a34cd8c` | refactor(i18n): namespace admin keys under `admin.section.<slug>.*`      |
-| `73965cd` | feat(admin): expandable sidebar nav for admin sections                   |
-| `961e2a9` | fix(admin): status-card CTAs use real routes (not `#anchor`)             |
-| `7a47532` | feat(admin): redirect legacy section-anchor paths to dynamic routes      |
-| `1a7e3d6` | test(admin): tighten status-card-grid + add per-section render smoke    |
+| `12b280b` | refactor(admin): move sections to dynamic-route pattern + reduce overview           |
+| `69c5225` | feat(admin): backups view + manual backup trigger (T2.6 deferred)                   |
+| `5957e18` | feat(admin): users management with filters + force-logout action (T2.7 deferred)    |
+| `a34cd8c` | refactor(i18n): namespace admin keys under `admin.section.<slug>.*`                 |
+| `73965cd` | feat(admin): expandable sidebar nav for admin sections                              |
+| `961e2a9` | fix(admin): status-card CTAs use real routes (not `#anchor`)                        |
+| `7a47532` | feat(admin): redirect legacy section-anchor paths to dynamic routes                 |
+| `1a7e3d6` | test(admin): tighten status-card-grid + add per-section render smoke                |
 
 ### UX polish (Phase 5)
 
@@ -100,44 +100,44 @@ Reset einplanen.
 
 ### Multi-agent QA reconcile (Phase 6)
 
-| SHA       | Summary                                                                  |
-| --------- | ------------------------------------------------------------------------ |
-| `88c8db1` | refactor: apply simplify-review safe-to-apply suggestions (11 of 11)    |
-| `b3f282a` | fix(security): block force-logout from targeting the admin's own session |
-| `8e17f22` | fix(admin): rate-limit `/api/admin/backups/run` to 3/min per admin       |
-| `f0cfd26` | fix(security): redact standalone `hlk_` / `hlr_` native API tokens in logs |
-| `bd24f13` | fix(a11y): drop duplicate h2 inside single-section `/admin/<slug>` routes |
+| SHA       | Summary                                                                            |
+| --------- | ---------------------------------------------------------------------------------- |
+| `88c8db1` | refactor: apply simplify-review safe-to-apply suggestions (11 of 11)               |
+| `b3f282a` | fix(security): block force-logout from targeting the admin's own session           |
+| `8e17f22` | fix(admin): rate-limit `/api/admin/backups/run` to 3/min per admin                 |
+| `f0cfd26` | fix(security): redact standalone `hlk_` / `hlr_` native API tokens in logs         |
+| `bd24f13` | fix(a11y): drop duplicate h2 inside single-section `/admin/<slug>` routes          |
 | `499cfad` | fix(a11y): bump `/admin/users` + `/admin/login-overview` tap targets to WCAG 2.5.5 |
-| `ef96e87` | fix(admin): default api-tokens + login-overview routes to expanded       |
+| `ef96e87` | fix(admin): default api-tokens + login-overview routes to expanded                 |
 
 ### End-to-end test coverage (Phase 3)
 
-| SHA       | Summary                                                  |
-| --------- | -------------------------------------------------------- |
-| `535465c` | test(e2e): seeded test user + auth storageState fixture  |
-| `3999ea7` | test(e2e): authenticated dashboard + add-measurement flow |
-| `2b6f959` | test(e2e): mocked Codex device-flow + insights regenerate specs |
-| `a106547` | test(e2e): doctor-report PDF + mobile-viewport smoke      |
+| SHA       | Summary                                                               |
+| --------- | --------------------------------------------------------------------- |
+| `535465c` | test(e2e): seeded test user + auth storageState fixture               |
+| `3999ea7` | test(e2e): authenticated dashboard + add-measurement flow             |
+| `2b6f959` | test(e2e): mocked Codex device-flow + insights regenerate specs       |
+| `a106547` | test(e2e): doctor-report PDF + mobile-viewport smoke                  |
 | `ca3c599` | test(e2e): extend axe-core to authenticated surfaces; fix login regex |
-| `7af1f59` | fix(a11y): close violations the new e2e axe-core sweep surfaced |
+| `7af1f59` | fix(a11y): close violations the new e2e axe-core sweep surfaced       |
 
 ### Performance (Phase 4)
 
-| SHA       | Summary                                                  |
-| --------- | -------------------------------------------------------- |
-| `bb2b1de` | perf(insights): defer Recharts ScatterChart imports via `next/dynamic` |
+| SHA       | Summary                                                                 |
+| --------- | ----------------------------------------------------------------------- |
+| `bb2b1de` | perf(insights): defer Recharts ScatterChart imports via `next/dynamic`  |
 | `519e36e` | perf(dashboard): skip checklist API fetches once onboarding is complete |
-| `1a85da0` | fix(insights): preserve chart visual parity in deferred bundle |
-| `41fa203` | docs(audit): v1.4.14 performance audit report           |
+| `1a85da0` | fix(insights): preserve chart visual parity in deferred bundle          |
+| `41fa203` | docs(audit): v1.4.14 performance audit report                           |
 
 ### CI / housekeeping
 
-| SHA       | Summary                                                  |
-| --------- | -------------------------------------------------------- |
+| SHA       | Summary                                                           |
+| --------- | ----------------------------------------------------------------- |
 | `3cacdf2` | fix(tests): share next/headers cookieJar across integration suite |
-| `c847b80` | chore(format): trend-card test file prettier sweep       |
-| `badd380` | style(admin): apply prettier to phase-6 reconcile changes |
-| `6b88e56` | chore(format): prettier sweep over phase-2 touched files |
+| `c847b80` | chore(format): trend-card test file prettier sweep                |
+| `badd380` | style(admin): apply prettier to phase-6 reconcile changes         |
+| `6b88e56` | chore(format): prettier sweep over phase-2 touched files          |
 
 ---
 

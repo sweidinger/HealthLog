@@ -646,9 +646,9 @@ To eliminate that risk class, HealthLog's `CodexClient` walks an ordered chain o
 ```ts
 const DEFAULT_SLUG_FALLBACK_CHAIN = [
   "gpt-5.3-codex", // current allow-list entry (verified 2026-05-09)
-  "gpt-5-codex",   // historical default (rejected as of 2026-05 but safe to retry — backend may flip)
-  "gpt-5",         // bare slug — rejected on ChatGPT-auth as of 2026-05 but lives on api-key auth
-  "gpt-4o",        // ladder-rung for last-ditch capability
+  "gpt-5-codex", // historical default (rejected as of 2026-05 but safe to retry — backend may flip)
+  "gpt-5", // bare slug — rejected on ChatGPT-auth as of 2026-05 but lives on api-key auth
+  "gpt-4o", // ladder-rung for last-ditch capability
 ];
 ```
 
@@ -656,15 +656,15 @@ The chain is overridable via the env var `CODEX_MODEL_FALLBACK_CHAIN` (comma-sep
 
 **Trigger condition** (when to walk to the next slug):
 
-| Status                                                                                | Action      |
-| ------------------------------------------------------------------------------------- | ----------- |
-| `400` body matches `/not supported when using Codex with a ChatGPT account/i`         | walk        |
-| `400` body contains `model_not_found`                                                 | walk        |
-| `400` body contains `does not exist` AND mentions a model name                        | walk        |
-| `404` (any body)                                                                      | walk        |
-| `401` first time                                                                      | refresh and re-try same slug; do NOT walk |
-| `401` after refresh, `403`, `429`, `5xx`                                              | propagate (don't walk) |
-| `200` with SSE `response.failed.error.code === "invalid_prompt"`                      | propagate (request shape is wrong, slug is fine) |
+| Status                                                                        | Action                                           |
+| ----------------------------------------------------------------------------- | ------------------------------------------------ |
+| `400` body matches `/not supported when using Codex with a ChatGPT account/i` | walk                                             |
+| `400` body contains `model_not_found`                                         | walk                                             |
+| `400` body contains `does not exist` AND mentions a model name                | walk                                             |
+| `404` (any body)                                                              | walk                                             |
+| `401` first time                                                              | refresh and re-try same slug; do NOT walk        |
+| `401` after refresh, `403`, `429`, `5xx`                                      | propagate (don't walk)                           |
+| `200` with SSE `response.failed.error.code === "invalid_prompt"`              | propagate (request shape is wrong, slug is fine) |
 
 **Positive cache** — when a slug is observed working (HTTP 200 with at least one `response.completed` event), record `(slug, timestamp)` in a process-local Map. On the next request, jump straight to the cached slug. TTL: 1 hour. Cache scope: per-process (no DB write).
 

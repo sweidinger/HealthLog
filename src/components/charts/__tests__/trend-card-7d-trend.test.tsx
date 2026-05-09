@@ -53,7 +53,7 @@ describe("<TrendCard> 7-day trend label", () => {
     expect(html).toContain("7d trend");
     // Legacy avg7 short label must NOT appear in the trend variant —
     // this is the whole point of the rename.
-    expect(html).not.toContain('>7d:<');
+    expect(html).not.toContain(">7d:<");
   });
 
   it("paints the trend-label in German", () => {

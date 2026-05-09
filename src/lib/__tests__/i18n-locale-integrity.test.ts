@@ -214,7 +214,11 @@ describe("i18n locale file integrity", () => {
   });
 
   // Flat helper used by the value-quality checks below.
-  function flattenValues(obj: unknown, prefix: string, out: [string, string][]) {
+  function flattenValues(
+    obj: unknown,
+    prefix: string,
+    out: [string, string][],
+  ) {
     if (obj == null || typeof obj !== "object") return;
     for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
       const key = prefix ? `${prefix}.${k}` : k;
@@ -295,24 +299,21 @@ describe("i18n locale file integrity", () => {
   it.each([
     ["en", EN_PATH],
     ["de", DE_PATH],
-  ])(
-    "%s locale has no TODO/FIXME placeholders in values",
-    (_locale, path) => {
-      const data = JSON.parse(readFileSync(path, "utf8")) as Record<
-        string,
-        unknown
-      >;
-      const flat: [string, string][] = [];
-      flattenValues(data, "", flat);
-      const todoRe = /\b(TODO|FIXME|XXX|TBD)\b/;
-      const todos = flat
-        .filter(([, v]) => todoRe.test(v))
-        .map(([k, v]) => `${k} = ${JSON.stringify(v)}`);
-      expect(
-        todos,
-        `Found TODO/FIXME/XXX/TBD placeholders in translation values:\n` +
-          todos.map((s) => `  ${s}`).join("\n"),
-      ).toEqual([]);
-    },
-  );
+  ])("%s locale has no TODO/FIXME placeholders in values", (_locale, path) => {
+    const data = JSON.parse(readFileSync(path, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    const flat: [string, string][] = [];
+    flattenValues(data, "", flat);
+    const todoRe = /\b(TODO|FIXME|XXX|TBD)\b/;
+    const todos = flat
+      .filter(([, v]) => todoRe.test(v))
+      .map(([k, v]) => `${k} = ${JSON.stringify(v)}`);
+    expect(
+      todos,
+      `Found TODO/FIXME/XXX/TBD placeholders in translation values:\n` +
+        todos.map((s) => `  ${s}`).join("\n"),
+    ).toEqual([]);
+  });
 });

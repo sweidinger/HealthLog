@@ -83,7 +83,11 @@ describe("citation-from-data — schema-level enforcement", () => {
           id: "rec-1",
           text: "Walk more.",
           severity: "suggestion",
-          metricSource: { type: "activity", timeRange: "last7days", summary: "" },
+          metricSource: {
+            type: "activity",
+            timeRange: "last7days",
+            summary: "",
+          },
         },
       ],
     };
@@ -158,7 +162,10 @@ describe("citation-from-data — cross-check enforcement", () => {
     const missing = findUncitedRecommendations(orphan);
     expect(missing).toHaveLength(1);
     expect(missing[0].recommendationId).toBe("rec-orphan");
-    expect(missing[0].missing).toEqual({ type: "diet", timeRange: "last7days" });
+    expect(missing[0].missing).toEqual({
+      type: "diet",
+      timeRange: "last7days",
+    });
   });
 
   it("partial-key match on type alone is NOT enough — timeRange must also match", () => {

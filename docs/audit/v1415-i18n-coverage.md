@@ -59,12 +59,12 @@ These appeared in the grep but are deliberately excluded:
 
 5 entries where both locales return the key's last segment unchanged:
 
-| Path                            | Value     | Reason                                              |
-| ------------------------------- | --------- | --------------------------------------------------- |
-| `settings.ntfy`                 | `ntfy`    | brand name, not translated                          |
-| `classifications.bp.Optimal`    | `Optimal` | identical word in EN and DE                         |
-| `classifications.bp.Normal`     | `Normal`  | identical                                           |
-| `classifications.pulse.Normal`  | `Normal`  | identical                                           |
+| Path                              | Value     | Reason                                              |
+| --------------------------------- | --------- | --------------------------------------------------- |
+| `settings.ntfy`                   | `ntfy`    | brand name, not translated                          |
+| `classifications.bp.Optimal`      | `Optimal` | identical word in EN and DE                         |
+| `classifications.bp.Normal`       | `Normal`  | identical                                           |
+| `classifications.pulse.Normal`    | `Normal`  | identical                                           |
 | `classifications.bodyFat.Fitness` | `Fitness` | identical (anglicism in DE medical/fitness context) |
 
 A further 25 entries are EN==key but DE has an actual translation
@@ -73,16 +73,16 @@ fine.
 
 ### v1.4.15 new namespaces — coverage check
 
-| Namespace                       | Origin         | EN keys | DE keys | Drift | Empty |
-| ------------------------------- | -------------- | ------: | ------: | ----: | ----: |
-| `admin.section.backups.*`       | B1 backups     |      35 |      35 |     0 |     0 |
-| `achievements.*`                | B4             |     106 |     106 |     0 |     0 |
-| `onboarding.tour.*`             | B5             |      18 |      18 |     0 |     0 |
-| `admin.overview.*`              | A2             |      16 |      16 |     0 |     0 |
-| `settings.notificationStatus.*` | B3             |      13 |      13 |     0 |     0 |
-| `settings.integrationStatus.*`  | B2             |       6 |       6 |     0 |     0 |
-| `doctorReport.*`                | B6             |      90 |      90 |     0 |     0 |
-| `quickAdd.*` (`common.add` etc) | A3             | (`common`) |  —    |     0 |     0 |
+| Namespace                       | Origin     |    EN keys | DE keys | Drift | Empty |
+| ------------------------------- | ---------- | ---------: | ------: | ----: | ----: |
+| `admin.section.backups.*`       | B1 backups |         35 |      35 |     0 |     0 |
+| `achievements.*`                | B4         |        106 |     106 |     0 |     0 |
+| `onboarding.tour.*`             | B5         |         18 |      18 |     0 |     0 |
+| `admin.overview.*`              | A2         |         16 |      16 |     0 |     0 |
+| `settings.notificationStatus.*` | B3         |         13 |      13 |     0 |     0 |
+| `settings.integrationStatus.*`  | B2         |          6 |       6 |     0 |     0 |
+| `doctorReport.*`                | B6         |         90 |      90 |     0 |     0 |
+| `quickAdd.*` (`common.add` etc) | A3         | (`common`) |       — |     0 |     0 |
 
 ### Naming consistency
 

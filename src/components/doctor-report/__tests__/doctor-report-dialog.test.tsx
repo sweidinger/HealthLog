@@ -48,9 +48,15 @@ describe("doctor-report dialog — i18n contract", () => {
     it(`exposes every doctor-report dialog key in ${locale}.json`, () => {
       const messages = loadMessages(locale);
       const root = messages.doctorReport as Record<string, unknown> | undefined;
-      expect(root, `doctorReport namespace missing in ${locale}.json`).toBeDefined();
+      expect(
+        root,
+        `doctorReport namespace missing in ${locale}.json`,
+      ).toBeDefined();
       const dialog = root!.dialog as Record<string, unknown> | undefined;
-      expect(dialog, `doctorReport.dialog missing in ${locale}.json`).toBeDefined();
+      expect(
+        dialog,
+        `doctorReport.dialog missing in ${locale}.json`,
+      ).toBeDefined();
       for (const key of REQUIRED_KEYS) {
         expect(
           dialog![key],

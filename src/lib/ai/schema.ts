@@ -59,7 +59,9 @@ export const metricSourceSchema = z.object({
    * 12 readings" or "compliance 0.71 / 30d". Empty value rejected so
    * the model cannot fake a citation.
    */
-  summary: z.string().min(1, "metricSource.summary required (zero-hallucination)"),
+  summary: z
+    .string()
+    .min(1, "metricSource.summary required (zero-hallucination)"),
   /** Sample count behind the value, when known. */
   n: z.number().int().nonnegative().optional(),
 });
@@ -156,9 +158,10 @@ export class InsightSchemaError extends Error {
  * Returns the list of missing-citation issues; an empty list means
  * the response is internally consistent.
  */
-export function findUncitedRecommendations(
-  parsed: AIInsightResponse,
-): Array<{ recommendationId: string; missing: { type: string; timeRange: string } }> {
+export function findUncitedRecommendations(parsed: AIInsightResponse): Array<{
+  recommendationId: string;
+  missing: { type: string; timeRange: string };
+}> {
   const cited = new Set(
     parsed.citations.map((c) => `${c.type}::${c.timeRange}`),
   );

@@ -5,10 +5,7 @@ import {
   OUT_OF_SCOPE_REFUSAL_EN,
   OUT_OF_SCOPE_REFUSAL_DE,
 } from "../prompts/insight-generator";
-import {
-  aiInsightResponseSchema,
-  findUncitedRecommendations,
-} from "../schema";
+import { aiInsightResponseSchema, findUncitedRecommendations } from "../schema";
 import { generateInsight } from "../generate-insight";
 import { MockAIProvider } from "../mock-client";
 

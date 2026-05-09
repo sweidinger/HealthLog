@@ -145,10 +145,7 @@ describe("generateInsight wrapper", () => {
 
   it("retries once with correction message and succeeds on second attempt", async () => {
     const provider = new MockAIProvider({
-      responses: [
-        "definitely not json",
-        JSON.stringify(validResponse),
-      ],
+      responses: ["definitely not json", JSON.stringify(validResponse)],
     });
     const outcome = await generateInsight(provider, {
       systemPrompt: "sys",
@@ -203,7 +200,10 @@ describe("generateInsight wrapper", () => {
       citations: [], // empty — fails cross-check
     };
     const provider = new MockAIProvider({
-      responses: [JSON.stringify(orphanResponse), JSON.stringify(validResponse)],
+      responses: [
+        JSON.stringify(orphanResponse),
+        JSON.stringify(validResponse),
+      ],
     });
     const outcome = await generateInsight(provider, {
       systemPrompt: "sys",

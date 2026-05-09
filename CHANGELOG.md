@@ -1,5 +1,308 @@
 # Changelog
 
+## [1.4.15] — 2026-05-09
+
+### Added
+
+- **Backups: vollständig.** Die Sicherung am Sonntag früh ist jetzt
+  nur noch der Anfang. `/admin/backups` lässt jeden Snapshot als
+  `.json` herunterladen, neue Snapshots hochladen und — hinter einer
+  dreifachen Bestätigung („RESTORE“ tippen + Dialog + Confirm) —
+  einen Snapshot direkt in die Datenbank zurückspielen. Jede
+  Operation (Run, Download, Upload, Restore inkl. Start/Failure)
+  landet im Audit-Log mit Akteur und Ziel-Snapshot.
+  _Backups become a full lifecycle. The Sunday-morning snapshot is
+  no longer the end of the road. `/admin/backups` lets you download
+  any snapshot as `.json`, upload a new one, and — behind a
+  triple-confirm gate (type “RESTORE” + dialog + confirm) — restore
+  a snapshot straight into the database. Every operation (run,
+  download, upload, restore including start/failure) is recorded in
+  the audit log with actor and target snapshot._
+- **Erfolge-Seite (`/achievements`) und Dashboard-Karte.** Dedizierte
+  Seite zeigt freigeschaltete und gesperrte Erfolge inklusive
+  Fortschrittsbalken (`{aktuell} / {ziel}`), gruppiert nach
+  Kategorie (Medikation, Vitalwerte, Sicherheit, Engagement). Auf
+  dem Dashboard sitzt eine zuschaltbare „Letzte Erfolge“-Karte; die
+  Sichtbarkeit lässt sich in den Layout-Einstellungen umschalten.
+  _New `/achievements` page lists locked + unlocked achievements
+  with progress bars (`{current} / {target}`), grouped by category
+  (medication, vitals, security, engagement). The dashboard gains a
+  toggleable “Recent achievements” card; visibility lives in the
+  Layout settings._
+- **Onboarding-Tour für Erstnutzer.** Beim ersten Dashboard-Besuch
+  läuft ein Spotlight-Walk-Through über die Tile-Strip, das
+  Quick-Add-Menü, Insights, Integrationen und Erfolge. Skippable mit
+  Esc, Tastatur-navigierbar, `prefers-reduced-motion` respektiert.
+  Erneut anstoßen jederzeit unter Settings → Account → „Tour
+  wiederholen“.
+  _New onboarding tour for first-run users. A spotlight walk-through
+  on first dashboard load points out the tile strip, quick-add menu,
+  insights, integrations, and achievements. Skippable with Esc,
+  fully keyboard-navigable, honors `prefers-reduced-motion`. Replay
+  the tour any time from Settings → Account._
+- **Doctor-Report v2.** Vor dem PDF-Generieren öffnet sich ein
+  Dialog mit konfigurierbarem Zeitraum (Voreinstellungen 90 Tage / 6
+  Monate / 12 Monate, manuell editierbar, max. 2 Jahre) und einem
+  optionalen Praxis-Namen, der auf der Titelseite des PDFs
+  erscheint. Der Praxis-Name wird als Nutzervorgabe gespeichert.
+  _Doctor-report v2. Before the PDF is generated a dialog asks for
+  the date range (presets 90 days / 6 months / 12 months, manually
+  editable, max 2 years) and an optional practice name that appears
+  on the PDF cover page. The practice name is persisted as a user
+  preference._
+- **Auto-Deploy nach GHCR-Push.** Sobald die Docker-Publish-Action
+  ein neues `:latest`-Image hochgeladen hat, ruft sie den
+  Coolify-Deploy-Webhook auf. Coolify pingt anschließend einen
+  internen Endpoint mit dem Ergebnis; Erfolg/Fehler/Unbekannt
+  landen im Audit-Log, persistente Failures triggern eine
+  Telegram-Benachrichtigung an alle Admins. Kein manuelles
+  Force-Pull mehr nötig.
+  _Auto-deploy on GHCR push. Once the Docker publish action ships a
+  new `:latest`, it calls the Coolify deploy webhook. Coolify in
+  turn pings an internal endpoint with the result; success / failure
+  / unknown all land in the audit log; persistent failures send a
+  Telegram alert to every admin. No more manual force-pull on the
+  host._
+- **Empty-States überall.** Brandneue Accounts und leere Listen
+  bekommen jetzt überall einen sinnvollen Empty-State (Icon +
+  Beschreibung + Call-to-Action), wo vorher nur weiße Fläche stand.
+  Betroffen: Admin-Tabellen (Users, Backups, Login-Overview,
+  API-Tokens, Feedback, Audit-Preview), Messungs-, Stimmungs-,
+  Medikamenten- und Erfolge-Listen, Insights-Top-Level + BMI-ohne-
+  Größe, Dashboard für komplett leere Accounts.
+  _Empty states everywhere. Brand-new accounts and empty lists now
+  always show a sensible empty state (icon + description + CTA)
+  where there used to be just white space. Coverage: admin tables
+  (users, backups, login-overview, api-tokens, feedback,
+  audit-preview), measurement / mood / medication / achievement
+  lists, the insights top-level + BMI-without-height view, and the
+  dashboard for fully empty accounts._
+- **Status-Karten für Notification-Channels.** Settings →
+  Benachrichtigungen zeigt für jeden Kanal (Telegram, ntfy, Web
+  Push) den aktuellen Status (verbunden / fehlerhaft / deaktiviert),
+  letzten Erfolg, letzten Fehler, Counter aufeinanderfolgender
+  Fehlversuche und ggf. Deaktivierungsgrund. Buttons: „Wieder
+  aktivieren“ (nur wenn auto-deaktiviert) + „Test-Nachricht
+  senden“.
+  _Notification channel status UI. Settings → Notifications now
+  shows per-channel (Telegram, ntfy, Web Push) the current state
+  (connected / error / disabled), last success, last failure,
+  consecutive-failure counter, and disable reason if any. Buttons
+  for “Re-enable” (only when auto-disabled) and “Send test”._
+- **Status-Karten für Withings + moodLog.** Settings → Integrationen
+  zeigt für beide Provider Verbindungsstatus, letzten Sync, letzten
+  Fehler und einen Reauth-Hinweis, sobald ein Refresh-Token
+  abgelehnt wurde. Auf persistente Fehler (≥ 3 in Folge) bekommen
+  Admins eine Telegram-Benachrichtigung, sofern der Kanal aktiviert
+  ist.
+  _Withings + moodLog integration status UI. Settings → Integrations
+  shows per-provider the connection state, last sync, last error,
+  and a reauth hint as soon as a refresh-token was rejected. After
+  persistent failures (≥ 3 in a row) admins receive a Telegram alert
+  if the channel is enabled._
+- **Top-Tiles unabhängig wählbar.** In den Layout-Einstellungen lässt
+  sich für jede Metrik die Sichtbarkeit der Trend-Kachel oben und
+  des Charts unten getrennt steuern. Bestehende Layouts behalten ihr
+  bisheriges Verhalten (eine Schaltfläche steuert beide), bis du
+  explizit den neuen Schalter umlegst.
+  _Top dashboard tiles selectable. The layout settings now expose a
+  separate toggle for each metric’s upper-row tile and lower-row
+  chart. Existing saved layouts keep their previous behaviour (one
+  switch controls both surfaces) until you explicitly flip the new
+  toggle._
+- **7-Tage-Trend statt 7-Tage-Schnitt.** Auf jeder Tile-Kachel zeigt
+  ein farbiger Delta-Indikator `(±N.N)` neben dem Wert die
+  metrik-bewusste Veränderung der letzten 7 Tage gegenüber den
+  davor. Label umbenannt von „7-Tage-Schnitt“ auf „7-Tage-Trend“.
+  _7-day-trend instead of 7-day-average. Each tile gains a coloured
+  delta indicator `(±N.N)` next to the value, showing the
+  metric-aware change of the last 7 days vs. the prior 7. Label
+  renamed from “7d average” to “7d trend”._
+
+### Changed
+
+- **`/admin`-Übersicht neu gestaltet.** Statt einer Section-Grid
+  zeigt die Übersicht jetzt eine Audit-Log-Vorschau (letzte
+  Einträge, Akteur, Zielressource) und einen
+  System-Status-Snapshot. Die Section-Grid wandert in die Sidebar.
+  _The `/admin` overview replaces the section grid with an
+  audit-log preview (recent entries, actor, target resource) and a
+  system-status snapshot. The section grid moved into the sidebar._
+- **Sidebar-Admin-Submenu kontextbewusst.** Die Admin-Untereinträge
+  klappen nur noch auf, wenn man tatsächlich auf einer
+  `/admin/*`-Route ist. Auf allen anderen Seiten bleibt die
+  Admin-Gruppe eingeklappt.
+  _The sidebar Admin sub-items only expand when you are actually on
+  an `/admin/*` route. Everywhere else the Admin group stays
+  collapsed._
+- **Stimmung-Chart aggregiert wie die anderen Metriken.** Über 90
+  Tage wechselt das Stimmung-Diagramm automatisch auf wöchentliche
+  Aggregation, über 730 Tage auf monatliche — analog zu Gewicht und
+  Blutdruck. Im Header zeigt ein Chip die aktive Aggregationsstufe.
+  _The mood chart now auto-aggregates: weekly past 90 days, monthly
+  past 730 days — same thresholds as weight and BP. A chip in the
+  chart header shows the active aggregation level._
+- **KI-Insights mit harten Anti-Halluzinations-Leitplanken.** Die
+  Provider-Antwort wird gegen ein striktes Zod-Schema geprüft
+  (Zusammenfassung, Empfehlungen mit Pflichtfeld `metricSource`,
+  Zitate, Warnungen). Empfehlungen, die Datenpunkte zitieren, die
+  nicht in der Snapshot-Liste stehen, werden abgewiesen. Der
+  Wrapper retried genau einmal mit korrigierender Systemnachricht;
+  scheitert auch der zweite Versuch, kommt 422 zurück statt
+  unsauberen Ausgaben. Slug-Drift im Codex-Backend (z. B. Wechsel
+  `gpt-5-codex` → `gpt-5.3-codex`) ist jetzt durch eine
+  konfigurierbare Fallback-Kette + 1-Stunden-Cache abgefedert; alle
+  Slugs durch → strukturierter 503 mit `attempted[]`-Liste.
+  _AI insights gain hard anti-hallucination guardrails. Provider
+  responses are validated against a strict Zod schema (summary,
+  recommendations with mandatory `metricSource`, citations,
+  warnings). Recommendations citing data points not present in the
+  snapshot are rejected. The wrapper retries exactly once with a
+  corrective system message; if the second attempt also fails, it
+  returns 422 instead of unsanitised output. Codex-backend slug
+  drift (e.g. `gpt-5-codex` → `gpt-5.3-codex`) is now cushioned by
+  a configurable fallback chain + 1-hour positive cache; if every
+  slug fails the route returns a structured 503 with the
+  `attempted[]` list._
+- **`/admin/api-tokens`-Tabelle mobil.** Auf schmalen Viewports
+  blenden Spalten gestaffelt aus (zuletzt benutzt, erstellt am,
+  Owner) und der Owner-Username wandert inline neben den Token-
+  Namen, damit beim Ausblenden keine Information verloren geht.
+  _The `/admin/api-tokens` table is responsive on mobile. Narrow
+  viewports gate columns behind breakpoints (last-used, created-at,
+  owner) and the owner username falls back inline next to the token
+  name so hiding the column never drops data._
+- **Stimmung-Kachel mobil.** Auf schmalen Viewports zeigt die
+  Mood-Karte oben jetzt nur noch die große Score-Zahl + Label statt
+  der doppelten Darstellung von vorher.
+  _Mood tile on mobile shows only the large score number + label,
+  no more doubled rendering._
+- **Quick-Add-Submenu eindeutiger.** Die beiden Einträge im
+  Quick-Add-Menü heißen jetzt „Messung erfassen“ und „Stimmung
+  erfassen“ (DE) bzw. „Log measurement“ und „Log mood“ (EN) —
+  vorher beide schlicht „Hinzufügen“.
+  _Quick-add submenu disambiguated. The two entries are now called
+  “Messung erfassen” / “Stimmung erfassen” (DE) and “Log
+  measurement” / “Log mood” (EN) — previously both simply “Add”._
+
+### Fixed
+
+- **Blutdruck-Zielbereich-Prozent.** Die Zielbereich-Kachel zählte
+  Sys/Dia-Paare nicht korrekt, sobald durch Importe die Sys/Dia-
+  Zeitstempel weiter als 5 Minuten auseinander lagen — Ergebnis
+  konnte 0 % anzeigen, obwohl die meisten Werte im Zielbereich
+  waren. Fix: Tagesschlüssel-Fallback (gleicher Berliner Tag) +
+  Paaranzahl als Nenner.
+  _Blood-pressure target-range percentage. The target-range tile
+  miscounted sys/dia pairs once import drift pushed sys/dia
+  timestamps more than 5 minutes apart — the tile could show 0 %
+  even though most readings were inside the target range. Fix: a
+  same-Berlin-day key fallback + pair-count as denominator._
+- **Onboarding-Flackern.** Auf bereits abgeschlossenen Accounts
+  rendert die Onboarding-Karte nicht mehr für ~500 ms, bevor sie
+  wieder verschwindet. Sie wird erst gemountet, sobald der
+  Analytics-Status geladen ist, und öffnet sich nicht mehr
+  automatisch, wenn alles erledigt ist.
+  _Onboarding flicker. On accounts where onboarding is already
+  complete, the onboarding card no longer renders for ~500 ms
+  before vanishing. It mounts only after the analytics status has
+  loaded, and refuses to auto-open when nothing is left to do._
+- **Skip-Link blockiert Logo nicht.** Der „Zum Inhalt
+  springen“-Skip-Link liegt zwar weiterhin am Anfang des Tabbing-
+  Reihenfolge, blockiert aber nicht mehr Klicks aufs Logo.
+  _The “Skip to content” skip-link still leads the tab order but
+  no longer blocks clicks on the logo._
+- **Bug-Report-Eintrag richtet sich nach dem Admin-Toggle.** Wenn
+  der Admin den Bug-Report deaktiviert hat, verschwindet der
+  Eintrag aus Sidebar, Bottom-Nav, Topbar und der Fehler-Detail-
+  „Bug melden“-Schaltfläche.
+  _The “Report a bug” entry follows the admin feature flag. With
+  bug reporting disabled, the entry vanishes from the sidebar,
+  bottom-nav, topbar, and the error-detail “Report bug” button._
+- **Feedback-Link richtet sich nach dem Admin-Toggle.** Wenn die
+  Feedback-Sammlung deaktiviert ist, ist auch der UI-Einstieg
+  weg.
+  _The Feedback link follows its admin feature flag. With feedback
+  disabled, the UI entry point disappears too._
+- **Notification-Channels deaktivieren sich auf harte Reject-
+  Fehler.** Antworten Telegram / ntfy / Web Push wiederholt mit
+  410 oder anderen permanenten Reject-Codes, deaktiviert sich der
+  Kanal automatisch und schreibt einen Audit-Log-Eintrag. Status
+  - Re-Enable-Button finden sich in Settings → Benachrichtigungen.
+    _Notification channels auto-disable on persistent hard rejects.
+    If Telegram / ntfy / Web Push respond repeatedly with 410 or
+    other permanent reject codes, the channel disables itself and
+    writes an audit-log entry. Status + re-enable button live in
+    Settings → Notifications._
+- **Refresh-Token-Fehler markiert Integration als reauth-pflichtig.**
+  Bricht der Withings- oder moodLog-Refresh-Token-Tausch ab
+  (typischerweise nach 90 Tagen ohne Re-Auth), wechselt die
+  Integration in `error_reauth` und der Settings-Eintrag bittet um
+  Neu-Verbindung — statt jeden Sync-Tick weiter gegen den Provider
+  zu hämmern.
+  _Refresh-token failures flip the integration to “needs reauth”.
+  When the Withings or moodLog refresh-token exchange fails
+  (typically after 90 days without re-auth), the integration
+  switches to `error_reauth` and the Settings entry asks for
+  re-connect — instead of hammering the upstream every sync
+  tick._
+- **Charts blockieren das Wischen nicht mehr.** Auf Touch-Geräten
+  fingen die Recharts-Wrapper vertikales Wischen ab; das fühlte
+  sich auf langsamen Geräten wie Hänger an. Fix: `touch-action:
+pan-y` auf den Chart-Containern, vertikaler Scroll geht jetzt
+  durch.
+  _Mobile chart containers no longer eat vertical scroll. On touch
+  devices the Recharts wrappers swallowed vertical pans; on slower
+  devices that felt like a scroll lockup. Fix: `touch-action:
+pan-y` on the chart wrappers, vertical scroll passes through
+  again._
+- **`/admin/users` mobil ohne Overflow.** Auf schmalen Viewports
+  rendert die User-Tabelle als Card-List statt einer
+  horizontal-scrollenden Tabelle.
+  _`/admin/users` on mobile renders as a card list instead of a
+  horizontally-scrolling table._
+- **A11y-Verbesserungen.** Chart-Range-Buttons, Medikamenten-
+  Primary-Buttons, Mood-List-Mobile-Icon-Buttons, Login-CTAs,
+  Settings → Account-Passkey-Tabelle, Onboarding-Tour-Focus-Trap +
+  DE-Overflow + Backdrop-Ring — alles auf 44 px Mindest-
+  Tap-Target bzw. mit `aria-label` / Keyboard-Bedienbarkeit
+  versehen.
+  _Accessibility round of fixes: chart range buttons, medication
+  primary buttons, mood-list mobile icon buttons, login CTAs,
+  Settings → Account passkey table, onboarding-tour focus trap +
+  DE-locale overflow + backdrop ring — all aligned to 44 px tap
+  targets and labelled / keyboard-navigable._
+
+### Security
+
+- **AI-Provider-Antworten gegen striktes Schema validiert.** Der
+  Insight-Wrapper akzeptiert nur Antworten, die das strikte
+  `aiInsightResponseSchema` erfüllen, und verweigert Empfehlungen,
+  die Datenpunkte zitieren, die nicht im übergebenen Snapshot
+  stehen. Schemafehler triggern einen einmaligen Retry mit
+  korrigierender Systemnachricht; ein zweiter Fehler liefert 422
+  statt halluzinierter Ausgaben.
+  _AI provider responses are validated against a strict Zod
+  schema. The insight wrapper only accepts responses that satisfy
+  the strict `aiInsightResponseSchema`, and rejects recommendations
+  citing data points absent from the supplied snapshot. Schema
+  failures trigger a single retry with a corrective system message;
+  a second failure returns 422 instead of hallucinated output._
+- **Backup-Operationen vollständig auditiert.** Run, Download,
+  Upload und Restore — inklusive Start-Marker, Denial-Reasons und
+  Failures — schreiben jeweils einen Audit-Log-Eintrag mit Akteur
+  und Snapshot-ID. Restore wird zusätzlich durch fünf unabhängige
+  Gates abgesichert (Cookie-Auth-only-Admin, `confirm: "RESTORE"`-
+  Body, getypte UI-Bestätigung, Idempotency-Key, Pre-Tx-Enum-
+  Validation).
+  _Backup operations are fully audited. Run, download, upload, and
+  restore — including start markers, denial reasons, and failures
+  — each write an audit-log entry with actor and snapshot ID.
+  Restore is additionally protected by five independent gates
+  (cookie-only admin auth, `confirm: "RESTORE"` body, typed UI
+  confirmation, idempotency-key wrap, pre-transaction enum
+  validation)._
+
 ## [1.4.14] — 2026-05-09
 
 ### Added
@@ -94,15 +397,15 @@
   Cross-Metric-Tagespaarung in den Insight-Buckets rechnete früher in
   reinem UTC und verlor an den Berliner DST-Grenzen einen Tag. Die
   neue Helper `dayOffsetToBerlinDayKey()` arbeitet DST-immun (Anker
-  über Berliner Y-M-D, dann Subtraktion in 86_400_000-ms-Schritten);
+  über Berliner Y-M-D, dann Subtraktion in 86*400_000-ms-Schritten);
   die Tagespaarung über Blutdruck, Gewicht und Stimmung ist jetzt
   über DST-Wechsel hinweg konsistent.
-  _DST transitions no longer shift daily values. The cross-metric
+  \_DST transitions no longer shift daily values. The cross-metric
   daily bucket pairing previously did naive UTC math and dropped a
   day at the Berlin DST boundary. A new `dayOffsetToBerlinDayKey()`
   helper anchors at Berlin Y-M-D and subtracts in 86_400_000-ms
   steps; bucket pairing across blood pressure, weight, and mood is
-  now DST-safe._
+  now DST-safe.*
 - **KI-Provider-Fehler werden korrekt klassifiziert.**
   `/api/insights/generate` antwortet auf 401/403-Fehler des Providers
   jetzt mit 422 („KI-Anbieter hat den Request abgelehnt — bitte
@@ -112,8 +415,7 @@
   _AI provider errors are now correctly classified by
   `/api/insights/generate`: provider 401/403 → 422 (“AI provider
   rejected the request — check your API key in Settings → AI”),
-  provider 5xx → 503 (“AI provider temporarily unavailable”), 429 →
-  429. Previously everything returned 500. Full error context still
+  provider 5xx → 503 (“AI provider temporarily unavailable”), 429 → 429. Previously everything returned 500. Full error context still
   lands in the structured logs._
 - **Logging-Redactor schluckt keine harmlosen Wörter mehr.** Der
   Secret-Redactor maskierte zuvor jedes Vorkommen von `sk-…` — auch

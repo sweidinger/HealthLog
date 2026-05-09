@@ -58,9 +58,7 @@ describe("formatAdminAlertPayload — moodLog transient", () => {
       subjectLabel: "marc@example.com",
     });
     expect(out.title).toBe("moodLog sync failing for marc@example.com");
-    expect(out.message).toContain(
-      "Action: investigate the upstream service.",
-    );
+    expect(out.message).toContain("Action: investigate the upstream service.");
     expect(out.message).toContain("(http_502)");
   });
 });

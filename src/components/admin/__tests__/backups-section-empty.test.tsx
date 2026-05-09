@@ -64,9 +64,7 @@ describe("BackupsSection — empty state", () => {
   it("includes the localized title and description", () => {
     const html = render();
     expect(html).toContain("No backups yet");
-    expect(html).toContain(
-      "Backups run automatically every Sunday at 03:00",
-    );
+    expect(html).toContain("Backups run automatically every Sunday at 03:00");
   });
 
   it("exposes the Backup-now CTA inside the empty card", () => {

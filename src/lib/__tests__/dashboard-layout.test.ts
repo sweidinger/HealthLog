@@ -3,6 +3,7 @@ import {
   DEFAULT_DASHBOARD_LAYOUT,
   resolveDashboardLayout,
   serializeDashboardLayout,
+  type DashboardLayout,
 } from "@/lib/dashboard-layout";
 
 /**
@@ -73,15 +74,13 @@ describe("resolveDashboardLayout() — tileVisible upgrade", () => {
 
   it("defaults the layout when raw input is null / not an object", () => {
     expect(resolveDashboardLayout(null)).toEqual(DEFAULT_DASHBOARD_LAYOUT);
-    expect(resolveDashboardLayout(undefined)).toEqual(
-      DEFAULT_DASHBOARD_LAYOUT,
-    );
+    expect(resolveDashboardLayout(undefined)).toEqual(DEFAULT_DASHBOARD_LAYOUT);
   });
 });
 
 describe("serializeDashboardLayout() — tileVisible persistence", () => {
   it("persists tileVisible explicitly so a re-read keeps the user's choice", () => {
-    const layout = {
+    const layout: DashboardLayout = {
       version: 1,
       widgets: [
         // User toggled tileVisible to false but kept the chart visible.
@@ -94,7 +93,7 @@ describe("serializeDashboardLayout() — tileVisible persistence", () => {
   });
 
   it("derives tileVisible from visible when the field is missing on input", () => {
-    const layout = {
+    const layout: DashboardLayout = {
       version: 1,
       widgets: [
         // Field omitted — serialize must not produce undefined; mirror.
@@ -106,7 +105,7 @@ describe("serializeDashboardLayout() — tileVisible persistence", () => {
   });
 
   it("normalizes order to 0-based dense", () => {
-    const layout = {
+    const layout: DashboardLayout = {
       version: 1,
       widgets: [
         { id: "weight", visible: true, tileVisible: true, order: 5 },

@@ -74,7 +74,12 @@ const navItems = [
     icon: Lightbulb,
     tourId: "nav-insights",
   },
-  { href: "/targets", tKey: "nav.targets", icon: Target, tourId: "nav-targets" },
+  {
+    href: "/targets",
+    tKey: "nav.targets",
+    icon: Target,
+    tourId: "nav-targets",
+  },
   {
     href: "/achievements",
     tKey: "nav.achievements",

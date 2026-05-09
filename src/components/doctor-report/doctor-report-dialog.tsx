@@ -107,12 +107,18 @@ export function DoctorReportDialog({
 
   const validation = useMemo(() => {
     if (!startDate || !endDate) {
-      return { ok: false as const, key: "doctorReport.dialog.errorInvalidDate" };
+      return {
+        ok: false as const,
+        key: "doctorReport.dialog.errorInvalidDate",
+      };
     }
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return { ok: false as const, key: "doctorReport.dialog.errorInvalidDate" };
+      return {
+        ok: false as const,
+        key: "doctorReport.dialog.errorInvalidDate",
+      };
     }
     if (end.getTime() < start.getTime()) {
       return {
@@ -122,7 +128,10 @@ export function DoctorReportDialog({
     }
     const spanDays = Math.ceil((end.getTime() - start.getTime()) / ONE_DAY_MS);
     if (spanDays > MAX_RANGE_DAYS) {
-      return { ok: false as const, key: "doctorReport.dialog.errorRangeTooLong" };
+      return {
+        ok: false as const,
+        key: "doctorReport.dialog.errorRangeTooLong",
+      };
     }
     return { ok: true as const };
   }, [startDate, endDate]);

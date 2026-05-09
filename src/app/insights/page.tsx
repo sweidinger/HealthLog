@@ -822,7 +822,9 @@ export default function InsightsPage() {
         description={t("insights.emptyDescription")}
         action={
           <Button size="sm" asChild>
-            <Link href="/measurements">{t("insights.emptyAddMeasurement")}</Link>
+            <Link href="/measurements">
+              {t("insights.emptyAddMeasurement")}
+            </Link>
           </Button>
         }
       />

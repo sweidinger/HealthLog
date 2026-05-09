@@ -47,10 +47,7 @@ describe("<DashboardLayoutSection> — tile + chart split", () => {
   });
 
   it("renders both column headers in German", () => {
-    const html = render(
-      <DashboardLayoutSection id="dashboard-layout" />,
-      "de",
-    );
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />, "de");
     expect(html).toContain("Kachel");
     expect(html).toContain("Chart");
   });

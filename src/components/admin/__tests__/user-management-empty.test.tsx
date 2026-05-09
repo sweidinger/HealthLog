@@ -75,9 +75,7 @@ describe("UserManagementSection — empty state", () => {
   it("carries the localized title and description", () => {
     const html = render();
     expect(html).toContain("No users in this view");
-    expect(html).toContain(
-      "There are no users matching the current filter.",
-    );
+    expect(html).toContain("There are no users matching the current filter.");
   });
 
   it("does not render the reset CTA when the default filter is active", () => {

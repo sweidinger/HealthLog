@@ -252,10 +252,7 @@ describe("POST /api/internal/deploy-webhook", () => {
 
   it("tolerates malformed (non-string) status fields by treating them as unknown", async () => {
     const res = await POST(
-      jsonRequest(
-        { status: 42 },
-        { "x-deploy-webhook-secret": "test-secret" },
-      ),
+      jsonRequest({ status: 42 }, { "x-deploy-webhook-secret": "test-secret" }),
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as { outcome: string };
@@ -291,18 +288,24 @@ describe("POST /api/internal/deploy-webhook", () => {
 
 describe("GET /api/internal/deploy-webhook (reachability check)", () => {
   it("returns 200 with valid secret header", async () => {
-    const req = new NextRequest("http://localhost/api/internal/deploy-webhook", {
-      method: "GET",
-      headers: { "x-deploy-webhook-secret": "test-secret" },
-    });
+    const req = new NextRequest(
+      "http://localhost/api/internal/deploy-webhook",
+      {
+        method: "GET",
+        headers: { "x-deploy-webhook-secret": "test-secret" },
+      },
+    );
     const res = await GET(req);
     expect(res.status).toBe(200);
   });
 
   it("returns 401 without a secret", async () => {
-    const req = new NextRequest("http://localhost/api/internal/deploy-webhook", {
-      method: "GET",
-    });
+    const req = new NextRequest(
+      "http://localhost/api/internal/deploy-webhook",
+      {
+        method: "GET",
+      },
+    );
     const res = await GET(req);
     expect(res.status).toBe(401);
   });

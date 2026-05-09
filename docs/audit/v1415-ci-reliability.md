@@ -24,12 +24,12 @@ more than coverage breadth.
 
 ## Per-workflow pass-rate
 
-| Workflow                       | Total | Success | Failure | Cancelled | Completed pass-rate |
-| ------------------------------ | ----: | ------: | ------: | --------: | ------------------: |
-| Integration tests              |    47 |      47 |       0 |         0 |               100 % |
-| Security & Quality             |    46 |      43 |       3 |         0 |                93 % |
-| Build & Publish Docker Image   |    60 |      30 |       3 |        26 |                91 % |
-| e2e                            |    47 |       0 |      34 |        13 |                 0 % |
+| Workflow                     | Total | Success | Failure | Cancelled | Completed pass-rate |
+| ---------------------------- | ----: | ------: | ------: | --------: | ------------------: |
+| Integration tests            |    47 |      47 |       0 |         0 |               100 % |
+| Security & Quality           |    46 |      43 |       3 |         0 |                93 % |
+| Build & Publish Docker Image |    60 |      30 |       3 |        26 |                91 % |
+| e2e                          |    47 |       0 |      34 |        13 |                 0 % |
 
 `Completed pass-rate = success / (success + failure)` — strips out
 the "cancelled" entries that come from the `concurrency.cancel-in-progress`
@@ -89,6 +89,7 @@ in 17 minutes. Both runs wrote to the same gha cache scope
 (`buildkit` default) with `mode=max`, deadlocking the exporter.
 
 **Fix shipped (`249c42b`)**:
+
 - `cache-to: type=gha,mode=max,scope=build-${{ github.ref_name }}`
 - `cache-from:` reads BOTH `build-${ref}` AND `build-main` so
   tag/PR runs warm-start off main without contending on writes.
@@ -117,12 +118,12 @@ fragility. No action needed beyond what's already in the workflow.
 
 - [x] **e2e dark colorScheme**: `41945b2`. Unblocks the 0 % gate.
 - [x] **docker-publish per-ref cache + timeout**: `249c42b`. Bounds
-  deadlocks at 30 min and prevents the v1.4.14 hang from recurring.
+      deadlocks at 30 min and prevents the v1.4.14 hang from recurring.
 - [x] **post-publish-verify workflow**: `ffa4aac`. Pulls the just-
-  published image, boots it against an ephemeral Postgres, probes
-  `/api/version` + `/api/health`. Informational (no `continue-on-error`
-  blocking), surfaces "manifest pushed but image won't boot" failures
-  the build step alone can't see.
+      published image, boots it against an ephemeral Postgres, probes
+      `/api/version` + `/api/health`. Informational (no `continue-on-error`
+      blocking), surfaces "manifest pushed but image won't boot" failures
+      the build step alone can't see.
 
 ### Defer to v1.4.16 (out of C3 scope, owned elsewhere)
 

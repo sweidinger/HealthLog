@@ -52,7 +52,10 @@ interface NormalizedEvent {
   raw: CoolifyDeployPayload;
 }
 
-function asStringOr<T extends string | null>(value: unknown, fallback: T): string | T {
+function asStringOr<T extends string | null>(
+  value: unknown,
+  fallback: T,
+): string | T {
   return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
@@ -63,7 +66,8 @@ function classifyOutcome(status: unknown): NormalizedEvent["outcome"] {
   // "failed" / "error" / "stopped" for unhappy. Anything else is
   // logged but doesn't trigger a Telegram page (avoids alert fatigue
   // on intermediate states like "queued" or "in_progress").
-  if (s === "success" || s === "finished" || s === "succeeded") return "success";
+  if (s === "success" || s === "finished" || s === "succeeded")
+    return "success";
   if (s === "failed" || s === "error" || s === "stopped" || s === "failure") {
     return "failure";
   }
@@ -148,7 +152,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // Coolify's per-event burst (typically 1-2 per deploy) but well below
   // a hostile actor flooding to fish for a working secret.
   const ip = getClientIp(request);
-  const rl = await checkRateLimit(`deploy-webhook:${ip ?? "unknown"}`, 60, 60_000);
+  const rl = await checkRateLimit(
+    `deploy-webhook:${ip ?? "unknown"}`,
+    60,
+    60_000,
+  );
   if (!rl.allowed) {
     return NextResponse.json(
       { status: "rate_limited" },
@@ -204,7 +212,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
     await notifyAdminsOfFailure(event);
   }
 
-  return NextResponse.json({ status: "ok", outcome: event.outcome }, { status: 200 });
+  return NextResponse.json(
+    { status: "ok", outcome: event.outcome },
+    { status: 200 },
+  );
 });
 
 /**

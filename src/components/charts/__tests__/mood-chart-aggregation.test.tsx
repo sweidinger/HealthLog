@@ -9,13 +9,13 @@ import { renderToStaticMarkup } from "react-dom/server";
  * exported so the contract can be locked in unit tests.
  */
 
-import {
-  aggregateMoodEntries,
-  pickMoodBucket,
-  MoodChart,
-} from "../mood-chart";
+import { aggregateMoodEntries, pickMoodBucket, MoodChart } from "../mood-chart";
 
-function dayEntries(start: string, count: number, score = 4): Array<{
+function dayEntries(
+  start: string,
+  count: number,
+  score = 4,
+): Array<{
   date: string;
   score: number;
 }> {

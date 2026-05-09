@@ -42,10 +42,7 @@ export interface GenerateInsightOutcome {
  * what went wrong on the first attempt. Includes the violated zod
  * issues verbatim (truncated to 1KB) so the model can self-correct.
  */
-function buildRetryCorrectionMessage(
-  reason: string,
-  details: string,
-): string {
+function buildRetryCorrectionMessage(reason: string, details: string): string {
   return `
 Your previous response did not satisfy the required JSON schema.
 Reason: ${reason}
@@ -144,7 +141,12 @@ export async function generateInsight(
 ): Promise<GenerateInsightOutcome> {
   const first = await tryOnce(provider, params);
   if (first.ok && first.parsed) {
-    return { parsed: first.parsed, raw: first.raw, attempts: 1, retried: false };
+    return {
+      parsed: first.parsed,
+      raw: first.raw,
+      attempts: 1,
+      retried: false,
+    };
   }
 
   // Retry-once with corrective context appended to the user prompt.

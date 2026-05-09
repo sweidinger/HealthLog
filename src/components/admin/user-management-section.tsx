@@ -296,105 +296,109 @@ export function UserManagementSection() {
             />
           </div>
         ) : (
-        <>
-          {/* Desktop table: kept verbatim — only the wrapping
+          <>
+            {/* Desktop table: kept verbatim — only the wrapping
               `md:block hidden` swaps it out for the card-list below at
               `< md`. Hiding the table-only wrapper (instead of just
               the cells) saves DOM weight on mobile too. */}
-          <div className="mt-4 hidden overflow-x-auto md:block">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-muted-foreground border-b text-xs">
-                  <th className="px-3 py-2 text-left font-medium">
-                    {t("admin.users")}
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium">
-                    {t("admin.userEmail")}
-                  </th>
-                  <th className="px-3 py-2 text-center font-medium">
-                    {t("admin.userRole")}
-                  </th>
-                  <th className="px-3 py-2 text-center font-medium">
-                    {t("admin.userPasskeys")}
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium">
-                    {t("admin.userCreated")}
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium">
-                    {t("admin.userActions")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {filteredUsers.map((u, i) => (
-                  <tr key={u.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
-                    <td className="px-3 py-2 font-medium">{u.username}</td>
-                    <td className="text-muted-foreground px-3 py-2 text-xs">
-                      {u.email || "—"}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <Badge
-                        variant={u.role === "ADMIN" ? "default" : "secondary"}
-                        className="text-xs"
-                      >
-                        {u.role}
-                      </Badge>
-                    </td>
-                    <td className="px-3 py-2 text-center">{u.passkeyCount}</td>
-                    <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
-                      {formatDate(u.createdAt)}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {renderUserActions(u)}
-                      </div>
-                    </td>
+            <div className="mt-4 hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-muted-foreground border-b text-xs">
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("admin.users")}
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("admin.userEmail")}
+                    </th>
+                    <th className="px-3 py-2 text-center font-medium">
+                      {t("admin.userRole")}
+                    </th>
+                    <th className="px-3 py-2 text-center font-medium">
+                      {t("admin.userPasskeys")}
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      {t("admin.userCreated")}
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      {t("admin.userActions")}
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-border divide-y">
+                  {filteredUsers.map((u, i) => (
+                    <tr key={u.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                      <td className="px-3 py-2 font-medium">{u.username}</td>
+                      <td className="text-muted-foreground px-3 py-2 text-xs">
+                        {u.email || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <Badge
+                          variant={u.role === "ADMIN" ? "default" : "secondary"}
+                          className="text-xs"
+                        >
+                          {u.role}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {u.passkeyCount}
+                      </td>
+                      <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                        {formatDate(u.createdAt)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {renderUserActions(u)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          {/* Mobile card list: each user renders as a self-contained
+            {/* Mobile card list: each user renders as a self-contained
               card with the meta line + a flex-wrapping action row.
               All four actions stay visible and tap-targetable; nothing
               is hidden behind a horizontal scroll. */}
-          <ul
-            className="mt-4 space-y-2 md:hidden"
-            data-testid="admin-users-mobile-list"
-          >
-            {filteredUsers.map((u) => (
-              <li
-                key={u.id}
-                className="bg-muted/30 border-border rounded-lg border p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-medium">{u.username}</span>
-                      <Badge
-                        variant={u.role === "ADMIN" ? "default" : "secondary"}
-                        className="text-[10px]"
-                      >
-                        {u.role}
-                      </Badge>
+            <ul
+              className="mt-4 space-y-2 md:hidden"
+              data-testid="admin-users-mobile-list"
+            >
+              {filteredUsers.map((u) => (
+                <li
+                  key={u.id}
+                  className="bg-muted/30 border-border rounded-lg border p-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-medium">
+                          {u.username}
+                        </span>
+                        <Badge
+                          variant={u.role === "ADMIN" ? "default" : "secondary"}
+                          className="text-[10px]"
+                        >
+                          {u.role}
+                        </Badge>
+                      </div>
+                      <p className="text-muted-foreground truncate text-xs">
+                        {u.email || "—"}
+                      </p>
+                      <p className="text-muted-foreground text-[11px]">
+                        {t("admin.userPasskeys")}: {u.passkeyCount} ·{" "}
+                        {formatDate(u.createdAt)}
+                      </p>
                     </div>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {u.email || "—"}
-                    </p>
-                    <p className="text-muted-foreground text-[11px]">
-                      {t("admin.userPasskeys")}: {u.passkeyCount} ·{" "}
-                      {formatDate(u.createdAt)}
-                    </p>
                   </div>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1">
-                  {renderUserActions(u)}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </>
+                  <div className="mt-2 flex flex-wrap items-center gap-1">
+                    {renderUserActions(u)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         )
       ) : (
         <div className="mt-4 flex items-center gap-2">

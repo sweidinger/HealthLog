@@ -124,7 +124,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       */}
       <a
         href="#main-content"
-        className="bg-primary text-primary-foreground fixed top-2 left-2 z-[100] -translate-y-full rounded-md px-4 py-2 text-sm font-medium opacity-0 transition-transform pointer-events-none focus:translate-y-0 focus:opacity-100 focus:pointer-events-auto"
+        className="bg-primary text-primary-foreground pointer-events-none fixed top-2 left-2 z-[100] -translate-y-full rounded-md px-4 py-2 text-sm font-medium opacity-0 transition-transform focus:pointer-events-auto focus:translate-y-0 focus:opacity-100"
       >
         {t("nav.skipToContent")}
       </a>
