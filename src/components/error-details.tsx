@@ -5,6 +5,7 @@ import { Copy, CheckCircle2, RotateCcw, Bug } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
+import { useAppSettings } from "@/components/app-settings-provider";
 
 export interface ErrorDetailsProps {
   /** The error object, whether it's a runtime Error or a typed API error. */
@@ -32,6 +33,7 @@ export function ErrorDetails({
   reportHref = "/bugreport",
 }: ErrorDetailsProps) {
   const { t, locale } = useTranslations();
+  const { bugReportEnabled } = useAppSettings();
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -95,12 +97,14 @@ export function ErrorDetails({
           )}
           {copied ? t("common.copied") : t("common.copyDetails")}
         </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href={reportHref}>
-            <Bug className="mr-2 h-4 w-4" />
-            {t("common.reportIssue")}
-          </Link>
-        </Button>
+        {bugReportEnabled && (
+          <Button asChild variant="outline" size="sm">
+            <Link href={reportHref}>
+              <Bug className="mr-2 h-4 w-4" />
+              {t("common.reportIssue")}
+            </Link>
+          </Button>
+        )}
       </div>
     </div>
   );
