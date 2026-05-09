@@ -39,14 +39,13 @@ export interface MockAIProviderOptions {
   tokensUsed?: number | number[] | null;
 }
 
+// Conforms to v1.4.15 strict `aiInsightResponseSchema`. Tests that need
+// the legacy v1.4.14 rich shape opt in via `responses: [...]`.
 const DEFAULT_RESPONSE = JSON.stringify({
   summary: "mock",
-  classification: "gut",
-  findings: [],
-  correlations: [],
   recommendations: [],
-  dataQuality: { coverage: "mock", gaps: [], confidence: "mittel" },
-  disclaimer: "mock disclaimer",
+  citations: [],
+  warnings: [],
 });
 
 export class MockAIProvider implements AIProvider {
