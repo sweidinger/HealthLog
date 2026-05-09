@@ -97,6 +97,23 @@ export function DashboardLayoutSection({ id }: { id: string }) {
     });
   }
 
+  /**
+   * v1.4.15 Fix 5 — independent toggle for the *strip tile* (the upper
+   * row of trend cards). Until v1.4.14 a single switch controlled both
+   * the tile AND the chart for the same metric, which Marc found too
+   * coarse: he wanted a chart visible without the tile (for metrics he
+   * tracks without wanting the at-a-glance number) or vice versa.
+   */
+  function toggleTile(widgetId: DashboardWidgetId, tileVisible: boolean) {
+    if (!layout) return;
+    setDraft({
+      ...layout,
+      widgets: layout.widgets.map((w) =>
+        w.id === widgetId ? { ...w, tileVisible } : w,
+      ),
+    });
+  }
+
   function move(widgetId: DashboardWidgetId, delta: -1 | 1) {
     if (!layout) return;
     const sorted = [...layout.widgets].sort((a, b) => a.order - b.order);
@@ -146,10 +163,26 @@ export function DashboardLayoutSection({ id }: { id: string }) {
         </div>
       ) : (
         <div className="space-y-2">
+          {/* v1.4.15 Fix 5 — table-style header naming the two
+              switches. The "tile" column controls the strip tile in
+              the upper row; the "chart" column controls the line
+              chart in the lower row. Marc wanted independent control
+              of the two surfaces (memory feedback_dashboard_top_tiles
+              _selectable.md). */}
+          <div className="text-muted-foreground flex items-center gap-3 px-3 pb-1 text-[10px] font-medium tracking-wide uppercase">
+            <span className="w-5" aria-hidden="true" />
+            <span className="flex-1" />
+            <span className="w-12 text-center">{t("dashboard.layoutTileColumn")}</span>
+            <span className="w-12 text-center">{t("dashboard.layoutChartColumn")}</span>
+          </div>
           {[...layout.widgets]
             .sort((a, b) => a.order - b.order)
             .map((widget, index, arr) => {
               const labelKey = WIDGET_LABEL_KEYS[widget.id] ?? widget.id;
+              const tileChecked =
+                typeof widget.tileVisible === "boolean"
+                  ? widget.tileVisible
+                  : widget.visible;
               return (
                 <div
                   key={widget.id}
@@ -182,12 +215,24 @@ export function DashboardLayoutSection({ id }: { id: string }) {
                     </Button>
                   </div>
                   <span className="flex-1 text-sm">{t(labelKey)}</span>
-                  <Switch
-                    checked={widget.visible}
-                    onCheckedChange={(v) => toggle(widget.id, v)}
-                    aria-label={t(labelKey)}
-                    disabled={saveMutation.isPending}
-                  />
+                  <div className="w-12 flex justify-center">
+                    <Switch
+                      checked={tileChecked}
+                      onCheckedChange={(v) => toggleTile(widget.id, v)}
+                      aria-label={`${t(labelKey)} — ${t("dashboard.layoutTileColumn")}`}
+                      disabled={saveMutation.isPending}
+                      data-slot="widget-tile-switch"
+                    />
+                  </div>
+                  <div className="w-12 flex justify-center">
+                    <Switch
+                      checked={widget.visible}
+                      onCheckedChange={(v) => toggle(widget.id, v)}
+                      aria-label={`${t(labelKey)} — ${t("dashboard.layoutChartColumn")}`}
+                      disabled={saveMutation.isPending}
+                      data-slot="widget-chart-switch"
+                    />
+                  </div>
                 </div>
               );
             })}

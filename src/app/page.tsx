@@ -215,8 +215,22 @@ export default function DashboardPage() {
 
   // Resolve full dashboard layout — controls visibility + order of every widget
   const layout = resolveDashboardLayout(layoutData);
-  const isWidgetVisible = (id: string) =>
+  /** Whether the widget's *chart* (lower row) shows. */
+  const isChartVisible = (id: string) =>
     layout.widgets.find((widget) => widget.id === id)?.visible ?? false;
+  /**
+   * v1.4.15 Fix 5 — whether the widget's *tile* in the strip shows.
+   * Independent of the chart visibility so the user can hide chart but
+   * keep the tile (or vice versa) from Settings → Dashboard. Falls back
+   * to chart visibility for layouts saved before v1.4.15.
+   */
+  const isTileVisible = (id: string) => {
+    const widget = layout.widgets.find((w) => w.id === id);
+    if (!widget) return false;
+    return typeof widget.tileVisible === "boolean"
+      ? widget.tileVisible
+      : widget.visible;
+  };
   const widgetOrder = (id: string) =>
     layout.widgets.find((widget) => widget.id === id)?.order ?? 999;
 
@@ -230,18 +244,30 @@ export default function DashboardPage() {
   const hasSteps = (stepsSummary?.count ?? 0) > 0;
   const hasBpInTarget = data?.bpInTargetPct != null;
 
-  const showWeightCard = isWidgetVisible("weight") && hasWeight;
-  const showBpCards = isWidgetVisible("bp") && hasBp;
-  const showPulseCard = isWidgetVisible("pulse") && hasPulse;
-  const showBodyFatCard = isWidgetVisible("bodyFat") && hasBodyFat;
-  const showMoodCard = isWidgetVisible("mood") && hasMood;
-  const showSleepCard = isWidgetVisible("sleep") && hasSleep;
-  const showStepsCard = isWidgetVisible("steps") && hasSteps;
-  const showBpInTargetCard = isWidgetVisible("bpInTarget") && hasBpInTarget;
-  const showMedicationsCard = isWidgetVisible("medications");
+  // Tile (strip) gates — controlled by the new `tileVisible` flag.
+  const showWeightTile = isTileVisible("weight") && hasWeight;
+  const showBpTiles = isTileVisible("bp") && hasBp;
+  const showPulseTile = isTileVisible("pulse") && hasPulse;
+  const showBodyFatTile = isTileVisible("bodyFat") && hasBodyFat;
+  const showMoodTile = isTileVisible("mood") && hasMood;
+  const showSleepTile = isTileVisible("sleep") && hasSleep;
+  const showStepsTile = isTileVisible("steps") && hasSteps;
+  const showBpInTargetTile = isTileVisible("bpInTarget") && hasBpInTarget;
+
+  // Chart (lower row) gates — controlled by the legacy `visible` flag.
+  const showWeightChart = isChartVisible("weight") && hasWeight;
+  const showBpCharts = isChartVisible("bp") && hasBp;
+  const showPulseChart = isChartVisible("pulse") && hasPulse;
+  const showBodyFatChart = isChartVisible("bodyFat") && hasBodyFat;
+  const showMoodChart = isChartVisible("mood") && hasMood;
+  const showSleepChart = isChartVisible("sleep") && hasSleep;
+  const showStepsChart = isChartVisible("steps") && hasSteps;
+  const showMedicationsCard = isChartVisible("medications");
 
   // Glucose widget — visible iff layout enables it AND at least one reading exists.
-  const glucoseWidgetVisible = isWidgetVisible("glucose");
+  // Glucose has no separate chart slot today, so the tile flag is the
+  // single source of truth for it.
+  const glucoseWidgetVisible = isTileVisible("glucose");
   const displayGlucoseUnit = resolveGlucoseUnit(user?.glucoseUnit ?? null);
   const glucoseByContext = data?.glucoseByContext ?? {};
   const glucoseContexts = [
@@ -441,7 +467,7 @@ export default function DashboardPage() {
         type TrendEntry = { id: string; order: number; node: React.ReactNode };
         const trendCards: TrendEntry[] = [];
 
-        if (showWeightCard) {
+        if (showWeightTile) {
           trendCards.push({
             id: "weight",
             order: widgetOrder("weight"),
@@ -479,7 +505,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showBpCards) {
+        if (showBpTiles) {
           // BP is conceptually one signal but visually two tiles (sys + dia)
           // so the user sees both numbers side by side at the same size as
           // every other tile in the strip. v1.4.3 first attempted a
@@ -560,7 +586,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showPulseCard) {
+        if (showPulseTile) {
           trendCards.push({
             id: "pulse",
             order: widgetOrder("pulse"),
@@ -597,7 +623,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showBodyFatCard) {
+        if (showBodyFatTile) {
           trendCards.push({
             id: "bodyFat",
             order: widgetOrder("bodyFat"),
@@ -617,7 +643,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showMoodCard) {
+        if (showMoodTile) {
           trendCards.push({
             id: "mood",
             order: widgetOrder("mood"),
@@ -637,7 +663,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showSleepCard) {
+        if (showSleepTile) {
           trendCards.push({
             id: "sleep",
             order: widgetOrder("sleep"),
@@ -657,7 +683,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showStepsCard) {
+        if (showStepsTile) {
           trendCards.push({
             id: "steps",
             order: widgetOrder("steps"),
@@ -677,7 +703,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showBpInTargetCard) {
+        if (showBpInTargetTile) {
           trendCards.push({
             id: "bpInTarget",
             order: widgetOrder("bpInTarget"),
@@ -746,7 +772,7 @@ export default function DashboardPage() {
           count?: number;
         };
         const charts: ChartEntry[] = [];
-        if (showWeightCard) {
+        if (showWeightChart) {
           charts.push({
             id: "weight-chart",
             order: widgetOrder("weight"),
@@ -786,7 +812,7 @@ export default function DashboardPage() {
             });
           }
         }
-        if (showBpCards) {
+        if (showBpCharts) {
           charts.push({
             id: "bp-chart",
             order: widgetOrder("bp"),
@@ -804,7 +830,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showPulseCard) {
+        if (showPulseChart) {
           charts.push({
             id: "pulse-chart",
             order: widgetOrder("pulse"),
@@ -821,7 +847,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showBodyFatCard) {
+        if (showBodyFatChart) {
           charts.push({
             id: "bodyFat-chart",
             order: widgetOrder("bodyFat"),
@@ -838,7 +864,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showMoodCard) {
+        if (showMoodChart) {
           charts.push({
             id: "mood-chart",
             order: widgetOrder("mood"),
@@ -846,7 +872,7 @@ export default function DashboardPage() {
             node: <MoodChart key="mood-chart" />,
           });
         }
-        if (showSleepCard) {
+        if (showSleepChart) {
           charts.push({
             id: "sleep-chart",
             order: widgetOrder("sleep"),
@@ -862,7 +888,7 @@ export default function DashboardPage() {
             ),
           });
         }
-        if (showStepsCard) {
+        if (showStepsChart) {
           charts.push({
             id: "steps-chart",
             order: widgetOrder("steps"),

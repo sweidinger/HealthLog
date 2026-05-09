@@ -42,6 +42,10 @@ const layoutSchema = z.object({
       z.object({
         id: widgetIdEnum,
         visible: z.boolean(),
+        // v1.4.15 Fix 5 — independent strip-tile visibility. Optional
+        // for back-compat with v1.4.14 clients that haven't been
+        // updated; the resolver mirrors `visible` when omitted.
+        tileVisible: z.boolean().optional(),
         order: z.number().int().min(0).max(99),
       }),
     )

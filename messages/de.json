@@ -232,7 +232,9 @@
     "layoutUsingDefaults": "Standard-Layout aktiv",
     "layoutCustomized": "Eigenes Layout aktiv",
     "moveUp": "Nach oben",
-    "moveDown": "Nach unten"
+    "moveDown": "Nach unten",
+    "layoutTileColumn": "Kachel",
+    "layoutChartColumn": "Chart"
   },
   "measurements": {
     "title": "Messungen",

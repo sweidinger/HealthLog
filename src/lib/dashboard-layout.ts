@@ -22,7 +22,23 @@ export type DashboardWidgetId =
 
 export interface DashboardWidgetConfig {
   id: DashboardWidgetId;
+  /**
+   * Whether the widget shows up in the *charts* row (the lower section
+   * of the dashboard with the line graphs). The legacy single-toggle
+   * field — kept on the wire for back-compat with users who saved a
+   * layout pre-v1.4.15.
+   */
   visible: boolean;
+  /**
+   * v1.4.15 Fix 5 — independent visibility for the *strip tile* (the
+   * upper row of trend cards). When omitted, the resolver mirrors
+   * `visible` so existing saved layouts keep their previous behaviour
+   * (one toggle controls both surfaces). When set explicitly the user
+   * can show the chart but hide the tile, or show the tile but hide
+   * the chart, which is what Marc asked for in the v1.4.15 follow-up
+   * (memory `feedback_dashboard_top_tiles_selectable.md`).
+   */
+  tileVisible?: boolean;
   order: number;
 }
 
@@ -41,19 +57,19 @@ export const DASHBOARD_LAYOUT_VERSION = 1;
 export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
   version: DASHBOARD_LAYOUT_VERSION,
   widgets: [
-    { id: "weight", visible: true, order: 0 },
-    { id: "bp", visible: true, order: 1 },
-    { id: "pulse", visible: true, order: 2 },
-    { id: "bodyFat", visible: true, order: 3 },
-    { id: "mood", visible: true, order: 4 },
-    { id: "bpInTarget", visible: true, order: 5 },
-    { id: "medications", visible: true, order: 6 },
-    { id: "sleep", visible: false, order: 7 },
-    { id: "steps", visible: false, order: 8 },
-    { id: "glucose", visible: false, order: 9 },
-    { id: "totalBodyWater", visible: false, order: 10 },
-    { id: "boneMass", visible: false, order: 11 },
-    { id: "oxygenSaturation", visible: false, order: 12 },
+    { id: "weight", visible: true, tileVisible: true, order: 0 },
+    { id: "bp", visible: true, tileVisible: true, order: 1 },
+    { id: "pulse", visible: true, tileVisible: true, order: 2 },
+    { id: "bodyFat", visible: true, tileVisible: true, order: 3 },
+    { id: "mood", visible: true, tileVisible: true, order: 4 },
+    { id: "bpInTarget", visible: true, tileVisible: true, order: 5 },
+    { id: "medications", visible: true, tileVisible: true, order: 6 },
+    { id: "sleep", visible: false, tileVisible: false, order: 7 },
+    { id: "steps", visible: false, tileVisible: false, order: 8 },
+    { id: "glucose", visible: false, tileVisible: false, order: 9 },
+    { id: "totalBodyWater", visible: false, tileVisible: false, order: 10 },
+    { id: "boneMass", visible: false, tileVisible: false, order: 11 },
+    { id: "oxygenSaturation", visible: false, tileVisible: false, order: 12 },
   ],
 };
 
@@ -77,14 +93,22 @@ export function resolveDashboardLayout(raw: unknown): DashboardLayout {
   const appended = missing.map((w, i) => ({
     ...w,
     visible: false, // default-invisible on auto-upgrade
+    tileVisible: false,
     order: maxOrder + 1 + i,
+  }));
+
+  // Default `tileVisible` to mirror `visible` for legacy entries that
+  // never had the field (the v1.4.15 schema upgrade). Users who saved
+  // a layout before this release see no behavioural change until they
+  // explicitly toggle the new strip switch.
+  const normalized = candidate.widgets.map((w) => ({
+    ...w,
+    tileVisible: typeof w.tileVisible === "boolean" ? w.tileVisible : w.visible,
   }));
 
   return {
     version: DASHBOARD_LAYOUT_VERSION,
-    widgets: [...candidate.widgets, ...appended].sort(
-      (a, b) => a.order - b.order,
-    ),
+    widgets: [...normalized, ...appended].sort((a, b) => a.order - b.order),
   };
 }
 
@@ -96,6 +120,14 @@ export function serializeDashboardLayout(
     widgets: layout.widgets
       .slice()
       .sort((a, b) => a.order - b.order)
-      .map((w, i) => ({ ...w, order: i })), // normalize to 0-based dense order
+      .map((w, i) => ({
+        ...w,
+        // Persist tileVisible explicitly so a follow-up read of the
+        // saved layout doesn't have to re-mirror from `visible` and
+        // discard the user's actual choice.
+        tileVisible:
+          typeof w.tileVisible === "boolean" ? w.tileVisible : w.visible,
+        order: i, // normalize to 0-based dense order
+      })),
   };
 }

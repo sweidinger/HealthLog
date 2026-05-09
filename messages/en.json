@@ -232,7 +232,9 @@
     "layoutUsingDefaults": "Using default layout",
     "layoutCustomized": "Custom layout active",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "layoutTileColumn": "Tile",
+    "layoutChartColumn": "Chart"
   },
   "measurements": {
     "title": "Measurements",
