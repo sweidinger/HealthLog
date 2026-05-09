@@ -103,3 +103,45 @@ jobs:
           cache-to: type=gha,mode=max,scope=build-${{ github.ref_name }}
           provenance: true
           sbom: true
+
+      # Phase C2 (v1.4.15): trigger Coolify deploy automatically once GHCR has
+      # the new image. Removes the manual SSH + force-pull recipe documented
+      # in `.planning/phase-8-report.md`.
+      #
+      # Runs only on the publish path (push to `main` or to a `v*` tag), never
+      # on PRs. `continue-on-error: true` because the image is *already*
+      # published to GHCR by the time we reach this step — a Coolify-side
+      # outage must not retroactively fail the build. Marc still has the
+      # manual recipe as fallback.
+      #
+      # Required GitHub repository secrets (set by Marc once):
+      #   COOLIFY_WEBHOOK = full deploy URL incl. ?uuid=...&force=false
+      #   COOLIFY_TOKEN   = Bearer token from Coolify UI -> Keys & Tokens
+      # Both secrets are referenced exclusively here. If either is unset, the
+      # step short-circuits to a skip rather than calling Coolify with empty
+      # auth.
+      - name: Trigger Coolify deploy
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::warning::COOLIFY_WEBHOOK or COOLIFY_TOKEN secret missing — skipping auto-deploy. Configure in repo Settings → Secrets to enable."
+            exit 0
+          fi
+          echo "Triggering Coolify deploy for ref ${{ github.ref_name }} (sha ${GITHUB_SHA::7})"
+          response=$(curl --silent --show-error --max-time 30 \
+            --write-out "\n__HTTP_STATUS__:%{http_code}" \
+            --request GET "$COOLIFY_WEBHOOK" \
+            --header "Authorization: Bearer $COOLIFY_TOKEN")
+          status="${response##*__HTTP_STATUS__:}"
+          body="${response%__HTTP_STATUS__:*}"
+          echo "Coolify response (HTTP $status):"
+          echo "$body"
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "::error::Coolify deploy webhook returned HTTP $status — image is published, but auto-deploy did not fire. Marc: deploy manually via SSH recipe in .planning/phase-8-report.md."
+            exit 1
+          fi
+          echo "Coolify deploy queued — awaiting outgoing notification webhook to /api/internal/deploy-webhook for final status."

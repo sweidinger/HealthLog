@@ -1779,7 +1779,21 @@
       }
     },
     "nextProgressLabel": "Progress to unlock",
-    "completedOn": "Completed on {date}"
+    "completedOn": "Completed on {date}",
+    "locked": "Locked",
+    "criterionHint": "{current} / {target}",
+    "progressPercent": "{percent}%",
+    "categories": {
+      "medication": "Medication",
+      "vitals": "Vitals",
+      "security": "Account & security",
+      "engagement": "Engagement"
+    },
+    "dashboardCard": {
+      "title": "Recent unlocks",
+      "viewAll": "View all",
+      "empty": "No achievements yet — keep logging to unlock your first."
+    }
   },
   "bugreport": {
     "title": "Bug Report",

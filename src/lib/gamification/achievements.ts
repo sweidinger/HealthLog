@@ -17,6 +17,19 @@ export type AchievementMetricKey =
   | "loginDayStreak"
   | "bugReportCount";
 
+/**
+ * Achievement categories — used by the /achievements UI to visually group
+ * the badges. Pure presentation: the computation logic in this file does
+ * not branch on category, and the metric → category mapping is derived in
+ * `getAchievementCategory` below so a metric is always in exactly one
+ * group.
+ */
+export type AchievementCategory =
+  | "medication"
+  | "vitals"
+  | "security"
+  | "engagement";
+
 export interface AchievementDefinition {
   id: string;
   metric: AchievementMetricKey;
@@ -27,6 +40,47 @@ export interface AchievementDefinition {
   tDescription: string;
   format: "count" | "days" | "percent";
 }
+
+/**
+ * Stable metric → category mapping. Add a metric here when it joins the
+ * `AchievementMetricKey` union; the page falls back to "engagement" if
+ * a future definition slips through, so there is no silent drop-off.
+ */
+export function getAchievementCategory(
+  metric: AchievementMetricKey,
+): AchievementCategory {
+  switch (metric) {
+    case "totalTakenIntakes":
+    case "overIntakeCount":
+    case "skippedIntakeCount":
+    case "onTimePerfectDayStreak":
+    case "compliance80DayStreak":
+      return "medication";
+    case "bmiGreenStreak":
+    case "bpGreenStreak":
+    case "pulseGreenStreak":
+      return "vitals";
+    case "passkeyCreatedCount":
+    case "passkeyLoginCount":
+    case "passwordLoginCount":
+      return "security";
+    case "loginDayStreak":
+    case "bugReportCount":
+      return "engagement";
+  }
+}
+
+/**
+ * Stable category render order on the /achievements page. Medication is
+ * the densest category (16 / 38 today) so it goes first; engagement is
+ * the smallest, last.
+ */
+export const ACHIEVEMENT_CATEGORY_ORDER: readonly AchievementCategory[] = [
+  "medication",
+  "vitals",
+  "security",
+  "engagement",
+] as const;
 
 export interface AchievementMetrics {
   totalTakenIntakes: number;
@@ -47,6 +101,7 @@ export interface AchievementMetrics {
 export interface AchievementProgress {
   id: string;
   metric: AchievementMetricKey;
+  category: AchievementCategory;
   titleKey: string;
   descriptionKey: string;
   icon: string;
@@ -335,6 +390,7 @@ export function evaluateAchievementsWithCompletionDates(
     return {
       id: definition.id,
       metric: definition.metric,
+      category: getAchievementCategory(definition.metric),
       titleKey: definition.tTitle,
       descriptionKey: definition.tDescription,
       icon: definition.icon,

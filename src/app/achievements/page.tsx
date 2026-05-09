@@ -11,6 +11,7 @@ import {
   Heart,
   KeyRound,
   Loader2,
+  Lock,
   LogIn,
   Pill,
   ShieldCheck,
@@ -25,10 +26,12 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatDate } from "@/lib/format";
-import type {
-  AchievementMetrics,
-  AchievementProgress,
-  AchievementSummary,
+import {
+  ACHIEVEMENT_CATEGORY_ORDER,
+  type AchievementCategory,
+  type AchievementMetrics,
+  type AchievementProgress,
+  type AchievementSummary,
 } from "@/lib/gamification/achievements";
 
 interface AchievementsData {
@@ -54,6 +57,13 @@ const iconMap: Record<string, LucideIcon> = {
   SkipForward,
 };
 
+const CATEGORY_LABEL_KEY: Record<AchievementCategory, string> = {
+  medication: "achievements.categories.medication",
+  vitals: "achievements.categories.vitals",
+  security: "achievements.categories.security",
+  engagement: "achievements.categories.engagement",
+};
+
 function formatMetric(
   format: AchievementProgress["format"],
   value: number,
@@ -63,6 +73,136 @@ function formatMetric(
     return t("achievements.metricPercent", { count: value });
   if (format === "days") return t("achievements.metricDays", { count: value });
   return t("achievements.metricCount", { count: value });
+}
+
+/**
+ * Pure helper: bucket the achievements by their declared category in
+ * ACHIEVEMENT_CATEGORY_ORDER's order. Categories with no badges (a
+ * theoretical future state) are dropped from the output. Inside a
+ * category, unlocked badges sort to the top so the user's progress is
+ * always visible without scrolling.
+ */
+export function groupByCategory(
+  achievements: AchievementProgress[],
+): Array<{ category: AchievementCategory; items: AchievementProgress[] }> {
+  const buckets = new Map<AchievementCategory, AchievementProgress[]>();
+  for (const item of achievements) {
+    const list = buckets.get(item.category) ?? [];
+    list.push(item);
+    buckets.set(item.category, list);
+  }
+  for (const list of buckets.values()) {
+    list.sort((a, b) => {
+      if (a.unlocked !== b.unlocked) return a.unlocked ? -1 : 1;
+      // For locked items show the closest-to-unlock first; for unlocked
+      // items keep them in insertion (definition) order — completedAt is
+      // not always populated and would push newer unlocks below older
+      // ones in a way that hides recent progress.
+      if (a.unlocked && b.unlocked) return 0;
+      return b.progressPercent - a.progressPercent;
+    });
+  }
+  return ACHIEVEMENT_CATEGORY_ORDER.filter((category) =>
+    buckets.has(category),
+  ).map((category) => ({
+    category,
+    items: buckets.get(category) ?? [],
+  }));
+}
+
+interface AchievementCardProps {
+  achievement: AchievementProgress;
+  t: ReturnType<typeof useTranslations>["t"];
+}
+
+function AchievementCard({ achievement, t }: AchievementCardProps) {
+  const Icon = iconMap[achievement.icon] ?? Star;
+  const unlocked = achievement.unlocked;
+
+  return (
+    <div
+      data-slot={
+        unlocked ? "achievement-card-unlocked" : "achievement-card-locked"
+      }
+      className={
+        unlocked
+          ? "border-primary/30 from-primary/8 to-primary/0 rounded-xl border bg-gradient-to-br p-3"
+          : "border-border bg-card/50 rounded-xl border p-3 opacity-70"
+      }
+    >
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div
+            className={
+              unlocked
+                ? "bg-primary/15 text-primary rounded-lg p-2"
+                : "bg-muted text-muted-foreground rounded-lg p-2"
+            }
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">{t(achievement.titleKey)}</h3>
+            <p className="text-muted-foreground line-clamp-2 text-xs">
+              {t(achievement.descriptionKey)}
+            </p>
+          </div>
+        </div>
+        <Badge
+          variant={unlocked ? "default" : "secondary"}
+          className="shrink-0"
+        >
+          {unlocked ? (
+            t("achievements.completed")
+          ) : (
+            <>
+              <Lock className="mr-1 h-3 w-3" aria-hidden="true" />
+              {t("achievements.locked")}
+            </>
+          )}
+        </Badge>
+      </div>
+
+      {!unlocked && (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-muted-foreground text-xs">
+            {t("achievements.criterionHint", {
+              current: formatMetric(
+                achievement.format,
+                achievement.current,
+                t,
+              ),
+              target: formatMetric(achievement.format, achievement.target, t),
+            })}
+          </p>
+          <Progress value={achievement.progressPercent} className="h-1.5" />
+        </div>
+      )}
+
+      <div className="text-muted-foreground mt-3 flex items-center justify-between text-xs">
+        <span className="font-medium">
+          {t("achievements.pointsValue", {
+            points: achievement.points,
+          })}
+        </span>
+        {unlocked ? (
+          <span>
+            {achievement.completedAt
+              ? t("achievements.completedOn", {
+                  date: formatDate(achievement.completedAt),
+                })
+              : t("achievements.goalReached")}
+          </span>
+        ) : (
+          <span>
+            {t("achievements.progressPercent", {
+              percent: achievement.progressPercent,
+            })}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function AchievementsPage() {
@@ -103,7 +243,7 @@ export default function AchievementsPage() {
 
   const summary = data?.summary;
   const achievements = data?.achievements ?? [];
-  const unlockedAchievements = achievements.filter((item) => item.unlocked);
+  const grouped = groupByCategory(achievements);
   const remainingUnlocks = Math.max(
     0,
     (summary?.totalCount ?? 0) - (summary?.unlockedCount ?? 0),
@@ -199,58 +339,48 @@ export default function AchievementsPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {unlockedAchievements.map((achievement) => {
-          const Icon = iconMap[achievement.icon] ?? Star;
-
-          return (
-            <div
-              key={achievement.id}
-              className="border-primary/30 from-primary/8 to-primary/0 rounded-xl border bg-gradient-to-br p-3"
-            >
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/15 text-primary rounded-lg p-2">
-                    <Icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-sm font-semibold">
-                      {t(achievement.titleKey)}
-                    </h2>
-                    <p className="text-muted-foreground line-clamp-2 text-xs">
-                      {t(achievement.descriptionKey)}
-                    </p>
-                  </div>
-                </div>
-                <Badge variant="default" className="shrink-0">
-                  {t("achievements.completed")}
-                </Badge>
-              </div>
-
-              <div className="text-muted-foreground mt-3 flex items-center justify-between text-xs">
-                <span className="font-medium">
-                  {t("achievements.pointsValue", {
-                    points: achievement.points,
-                  })}
-                </span>
-                <span>
-                  {achievement.completedAt
-                    ? t("achievements.completedOn", {
-                        date: formatDate(achievement.completedAt),
-                      })
-                    : t("achievements.goalReached")}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {unlockedAchievements.length === 0 && (
+      {grouped.length === 0 ? (
         <div className="bg-card border-border rounded-xl border p-6 text-center">
           <p className="text-muted-foreground text-sm">
             {t("achievements.noneUnlockedYet")}
           </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {grouped.map(({ category, items }) => {
+            const unlockedInCategory = items.filter(
+              (item) => item.unlocked,
+            ).length;
+            return (
+              <section
+                key={category}
+                aria-labelledby={`achievements-category-${category}`}
+                data-slot="achievements-category"
+                data-category={category}
+              >
+                <div className="mb-3 flex items-baseline justify-between gap-3">
+                  <h2
+                    id={`achievements-category-${category}`}
+                    className="text-base font-semibold tracking-tight"
+                  >
+                    {t(CATEGORY_LABEL_KEY[category])}
+                  </h2>
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {unlockedInCategory} / {items.length}
+                  </span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {items.map((achievement) => (
+                    <AchievementCard
+                      key={achievement.id}
+                      achievement={achievement}
+                      t={t}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </div>
       )}
     </div>

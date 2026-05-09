@@ -1779,7 +1779,21 @@
       }
     },
     "nextProgressLabel": "Fortschritt bis Freischaltung",
-    "completedOn": "Abgeschlossen am {date}"
+    "completedOn": "Abgeschlossen am {date}",
+    "locked": "Gesperrt",
+    "criterionHint": "{current} / {target}",
+    "progressPercent": "{percent}%",
+    "categories": {
+      "medication": "Medikation",
+      "vitals": "Vitalwerte",
+      "security": "Konto & Sicherheit",
+      "engagement": "Engagement"
+    },
+    "dashboardCard": {
+      "title": "Zuletzt freigeschaltet",
+      "viewAll": "Alle anzeigen",
+      "empty": "Noch keine Erfolge — trage weiter ein, um deinen ersten freizuschalten."
+    }
   },
   "bugreport": {
     "title": "Bugreport",
