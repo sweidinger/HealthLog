@@ -1,7 +1,7 @@
 # v1.5 marathon — state log
 
-Status: phase-0-done
-Last update: 2026-05-09T15:25:00+02:00
+Status: phase-1-done
+Last update: 2026-05-09T15:50:00+02:00
 
 > Previous milestone: see `docs/audit/v146-summary.md` (v1.4.6 marathon).
 > Codex-OAuth iteration v1.4.7 → v1.4.13 landed in CHANGELOG between
@@ -18,11 +18,13 @@ Last update: 2026-05-09T15:25:00+02:00
 
 ## Phase 1 — Verify Codex-OAuth flow end-to-end
 
-- [ ] /api/version=1.4.13 confirmed (currently 1.4.12 — needs force-pull after GHCR build completes)
-- [ ] device-start endpoint returns spec-shaped response
-- [ ] prod logs reviewed for codex.* events
-- [ ] gpt-5 model accepted by chatgpt.com backend
-- Detailed report: `.planning/phase-1-report.md` (will be written by phase-1 agent)
+- [x] /api/version=1.4.13 confirmed (force-pulled at 13:43 UTC after GHCR builds finished)
+- [x] device-start endpoint returns spec-shaped response (`userCode`, `verificationUrl=https://auth.openai.com/codex/device`, `intervalSeconds`)
+- [x] prod logs reviewed for codex.* events (DB row confirms 13:06 connect; v1.4.12 ai_test_body_excerpt captured the original failure)
+- [x] gpt-5 model accepted by chatgpt.com backend — actually NO, rejected; switched default to `gpt-5.3-codex` (commit `5df74f7`), live test against Marc's account succeeded
+- [x] /tmp/v15-codex-working.png captured showing `/settings/ai` with "ChatGPT connected" badge
+- Result: ok / commit `5df74f7 fix(ai): default Codex model to gpt-5.3-codex for ChatGPT-account auth`
+- Detailed report: `.planning/phase-1-report.md`
 
 ## Phase 2 — v1.4.6 deferred backlog
 
