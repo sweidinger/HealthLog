@@ -50,8 +50,14 @@ export default function AdminOverviewPage() {
 
         <StatusCardGrid />
 
-        <div>
-          <h2 className="text-muted-foreground mb-3 text-sm font-semibold tracking-wider uppercase">
+        {/* v1.5 phase-5: wrap the quick-jump list in a labelled <nav> so
+            screen-reader landmark navigation can distinguish it from the
+            sidebar nav (which already has its own aria-label). */}
+        <nav aria-labelledby="admin-overview-sections-heading">
+          <h2
+            id="admin-overview-sections-heading"
+            className="text-muted-foreground mb-3 text-sm font-semibold tracking-wider uppercase"
+          >
             {t("admin.shell.sectionsNav")}
           </h2>
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -79,7 +85,7 @@ export default function AdminOverviewPage() {
               );
             })}
           </ul>
-        </div>
+        </nav>
       </div>
     </AdminShell>
   );
