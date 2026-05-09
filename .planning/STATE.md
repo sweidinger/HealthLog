@@ -679,10 +679,48 @@ Deferred items (out of C3 scope):
 
 ### C4 — i18n coverage audit
 
-- [ ] `admin.section.<slug>.*` fully populated EN+DE
-- [ ] Other namespaces audited
-- [ ] Test guards parity AND non-empty
+- [x] `admin.section.<slug>.*` fully populated EN+DE
+- [x] Other namespaces audited
+- [x] Test guards parity AND non-empty
 - Detailed report: `.planning/phase-C4-report.md`
+- Audit deep-dive: `docs/audit/v1415-i18n-coverage.md`
+
+#### C4 status block — 2026-05-09T21:45+02:00 — done
+
+0 gaps closed. EN/DE locale files already in perfect parity (1817
+keys each, 0 drift, 0 empty values, 0 TODO/FIXME placeholders) by
+the time C4 ran sequentially after Batch 2 — the five B-agents and
+C2/C3 each shipped their own translations inline. Audit converted to
+a quality-assurance sweep instead of a back-fill.
+
+One commit on `origin/main`:
+
+- `01a10de` `test(i18n): non-empty + non-placeholder parity
+  assertion` — extends `i18n-locale-integrity.test.ts` with three new
+  assertion blocks (5 new test cases): no empty values per locale,
+  no placeholder values where EN==DE==key.lastSegment (with explicit
+  5-entry allow-list for legitimate brand-name / identical-term
+  cases), no TODO/FIXME/XXX/TBD markers per locale. EN-only key=value
+  matches (e.g. `"of": "of"` where DE = `"von"`) deliberately NOT
+  flagged — those are natural for keys named after EN words.
+
+All v1.4.15 namespaces verified populated EN+DE: `admin.section.backups.*`
+(35), `achievements.*` (106), `onboarding.tour.*` (18),
+`admin.overview.*` (16), `settings.notificationStatus.*` (13),
+`settings.integrationStatus.*` (6), `doctorReport.*` (90). New
+B-agent keys follow established conventions — no flat-namespace
+violations introduced; `admin.section.<slug>.*` Phase 4b pattern
+honoured everywhere.
+
+Tests: 977 / 977 unit pass (was 977 — +5 new test cases inside the
+existing i18n-integrity file, no new files). Typecheck has 3
+pre-existing errors in `dashboard-layout.test.ts` (owned by A4,
+untouched). Lint clean for C4 files.
+
+Cross-agent: NO race this round. Batch 2 had finished before C4
+started; `git add <pathspec>` + commit + push landed cleanly on
+first attempt. v1.4.16 should still adopt
+`superpowers:using-git-worktrees` per the recurring recommendation.
 
 ### C5 — Empty-states audit
 
