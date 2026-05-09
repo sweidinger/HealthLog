@@ -114,9 +114,17 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       {showUnlockNotifier && user?.id ? (
         <AchievementUnlockNotifier userId={user.id} />
       ) : null}
+      {/*
+        Keyboard-only skip link. The non-focused state has both
+        `pointer-events-none` (so a mouse click in the top-left corner
+        passes through to the logo behind it) AND `-translate-y-full`
+        (so even an accidental tap with stylus / touch can't activate
+        it). Focus restores both — the element jumps back into the
+        viewport and becomes clickable.
+      */}
       <a
         href="#main-content"
-        className="bg-primary text-primary-foreground fixed top-2 left-2 z-[100] rounded-md px-4 py-2 text-sm font-medium opacity-0 focus:opacity-100"
+        className="bg-primary text-primary-foreground fixed top-2 left-2 z-[100] -translate-y-full rounded-md px-4 py-2 text-sm font-medium opacity-0 transition-transform pointer-events-none focus:translate-y-0 focus:opacity-100 focus:pointer-events-auto"
       >
         {t("nav.skipToContent")}
       </a>

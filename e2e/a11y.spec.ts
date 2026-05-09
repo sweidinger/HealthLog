@@ -110,4 +110,43 @@ test.describe("axe-core authenticated surfaces", () => {
       expect(blocking).toHaveLength(0);
     });
   }
+
+  // The keyboard-only "skip to content" link is fixed at the top-left
+  // corner of every authenticated page. Marc reported it intercepting
+  // logo clicks in v1.4.14 — the fix combines `pointer-events-none`
+  // with `-translate-y-full` so the element sits offscreen until
+  // focused. Regression guard: with no keyboard focus, the logo's own
+  // bounding box must accept the click.
+  test("skip-link does not block logo click outside focus", async ({
+    page,
+  }) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
+
+    // Find the desktop sidebar logo link — `<Logo>` is rendered inside
+    // a `<Link href="/">` and the only logo at the absolute top-left
+    // of the layout. We resolve it by role / accessible name to avoid
+    // brittle selectors.
+    const logoLink = page
+      .locator("a[href='/']")
+      .filter({ hasText: "HealthLog" })
+      .first();
+    await expect(logoLink).toBeVisible();
+
+    const logoBox = await logoLink.boundingBox();
+    expect(logoBox).not.toBeNull();
+    if (!logoBox) return;
+
+    // Click the centre of the logo. If the skip-link is intercepting
+    // pointer events, Playwright's auto-waiting click would either time
+    // out or report the wrong element. The defensive `force: false`
+    // (default) ensures we go through the full hit-test pipeline.
+    await logoLink.click({
+      position: { x: logoBox.width / 2, y: logoBox.height / 2 },
+    });
+
+    // Logo points at "/", so we either stay on "/" or get a no-op
+    // reload. Either way the URL must remain on the dashboard.
+    await page.waitForURL(/\/$/);
+  });
 });
