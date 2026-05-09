@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/ui/logo";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
+import { tourReferrerKey } from "@/components/onboarding/tour-launcher";
+import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { locales, localeLabels, type Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
@@ -74,6 +76,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { t, locale, setLocale } = useTranslations();
+  const { user } = useAuth();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [saving, setSaving] = useState(false);
@@ -129,10 +132,19 @@ export default function OnboardingPage() {
       // render-phase decision can stay pure under
       // `react-hooks/purity` — the launcher consumes-and-clears the
       // key on first read.
-      try {
-        window.sessionStorage.setItem("healthlog-tour-referrer", "1");
-      } catch {
-        /* ignore — storage disabled or full */
+      //
+      // v1.4.15 H4: key is scoped by user id so a shared browser
+      // (admin impersonation, family laptop) keeps each user's
+      // wizard-referrer state independent. Skip the write entirely
+      // if the auth payload hasn't loaded — the worst-case is the
+      // tour pops up immediately instead of after the 1.5s grace
+      // window, which is harmless.
+      if (user?.id) {
+        try {
+          window.sessionStorage.setItem(tourReferrerKey(user.id), "1");
+        } catch {
+          /* ignore — storage disabled or full */
+        }
       }
 
       if (opts?.gotoSettingsHash) {

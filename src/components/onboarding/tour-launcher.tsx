@@ -43,9 +43,26 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { OnboardingTour } from "./tour";
 
-const SESSION_DISMISS_KEY = "healthlog-tour-session-dismissed";
 const POST_WIZARD_GRACE_MS = 1500;
-const REFERRER_KEY = "healthlog-tour-referrer";
+
+// v1.4.15 H4 — sessionStorage keys are now scoped by user id so an
+// admin impersonating a second user does not inherit the first user's
+// "tour dismissed for this session" state. The previous global keys
+// (`healthlog-tour-session-dismissed`, `healthlog-tour-referrer`)
+// kept v1.4.16's multi-tenant prep clean too: anyone using the same
+// browser to switch accounts via the typical user-menu sign-out flow
+// will not see the tour suppressed under their second identity.
+//
+// Exported for the unit-test suite so the key-construction stays
+// pinned across refactors (and so the keys themselves stay stable —
+// changing them would re-fire the tour for everyone).
+export function tourSessionDismissedKey(userId: string): string {
+  return `healthlog-tour-session-dismissed:${userId}`;
+}
+
+export function tourReferrerKey(userId: string): string {
+  return `healthlog-tour-referrer:${userId}`;
+}
 
 /**
  * Whether the user just navigated here from `/onboarding`. Read
@@ -56,41 +73,48 @@ const REFERRER_KEY = "healthlog-tour-referrer";
  * before navigating, and the launcher consumes-and-clears it on
  * first mount so a back-button to the wizard and forward again
  * doesn't double-defer.
+ *
+ * `userId` is required — until the auth payload arrives the launcher
+ * does not consult sessionStorage at all (the gating effect waits
+ * for `inputsReady` first).
  */
-function readAndClearJustFromWizard(): boolean {
+function readAndClearJustFromWizard(userId: string): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const value = window.sessionStorage.getItem(REFERRER_KEY);
+    const key = tourReferrerKey(userId);
+    const value = window.sessionStorage.getItem(key);
     if (value !== "1") return false;
-    window.sessionStorage.removeItem(REFERRER_KEY);
+    window.sessionStorage.removeItem(key);
     return true;
   } catch {
     return false;
   }
 }
 
-function readSessionDismissed(): boolean {
+function readSessionDismissed(userId: string): boolean {
   if (typeof window === "undefined") return false;
   try {
-    return window.sessionStorage.getItem(SESSION_DISMISS_KEY) === "1";
+    return (
+      window.sessionStorage.getItem(tourSessionDismissedKey(userId)) === "1"
+    );
   } catch {
     return false;
   }
 }
 
-function writeSessionDismissed() {
+function writeSessionDismissed(userId: string) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(SESSION_DISMISS_KEY, "1");
+    window.sessionStorage.setItem(tourSessionDismissedKey(userId), "1");
   } catch {
     /* ignore — sandboxed iframes etc. */
   }
 }
 
-function clearSessionDismissed() {
+function clearSessionDismissed(userId: string) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.removeItem(SESSION_DISMISS_KEY);
+    window.sessionStorage.removeItem(tourSessionDismissedKey(userId));
   } catch {
     /* ignore */
   }
@@ -116,18 +140,6 @@ export function TourLauncher({ ready }: TourLauncherProps) {
   // closing the tour transitions true→false and we never re-open
   // unless the restart event fires.
   const [showTour, setShowTour] = useState<boolean | null>(null);
-  // Lazy initial check for "user just exited the wizard". The
-  // initialiser runs once at mount — sessionStorage is pure-enough
-  // there because React only invokes the initialiser one time per
-  // component instance, and in dev StrictMode's double-call merely
-  // returns the same `true` (the second call sees the cleared key
-  // and returns `false`, but the state has already been seeded). We
-  // accept that tiny behavioural quirk because it only affects dev
-  // mode and the consequence is "tour doesn't auto-launch on first
-  // dev mount" — never surfaces in production.
-  const [justFromWizard] = useState<boolean>(() =>
-    readAndClearJustFromWizard(),
-  );
   // Track post-wizard deferral as a boolean so the render path stays
   // pure (no Date.now() comparisons). The effect below reads / clears it.
   const [deferredFromWizard, setDeferredFromWizard] = useState(false);
@@ -154,11 +166,14 @@ export function TourLauncher({ ready }: TourLauncherProps) {
       decidedFor.flag !== user.onboardingTourCompleted)
   ) {
     setDecidedFor({ userId: user.id, flag: user.onboardingTourCompleted });
+    // sessionStorage reads happen via per-user keyed helpers, so a
+    // browser shared by two HealthLog users (admin impersonation,
+    // family laptop, etc.) keeps each user's tour state independent.
     if (user.onboardingTourCompleted) {
       setShowTour(false);
-    } else if (readSessionDismissed()) {
+    } else if (readSessionDismissed(user.id)) {
       setShowTour(false);
-    } else if (justFromWizard) {
+    } else if (readAndClearJustFromWizard(user.id)) {
       // Mark "deferred"; the effect below schedules a fixed-duration
       // timer + flips `showTour` from inside the timeout callback
       // (which the set-state-in-effect rule allows).
@@ -174,28 +189,31 @@ export function TourLauncher({ ready }: TourLauncherProps) {
   // set-state-in-effect rule is satisfied.
   useEffect(() => {
     if (!deferredFromWizard) return;
+    const userId = user?.id;
+    if (!userId) return;
     const id = window.setTimeout(() => {
-      if (!readSessionDismissed()) {
+      if (!readSessionDismissed(userId)) {
         setShowTour(true);
       }
       setDeferredFromWizard(false);
     }, POST_WIZARD_GRACE_MS);
     return () => window.clearTimeout(id);
-  }, [deferredFromWizard]);
+  }, [deferredFromWizard, user?.id]);
 
   // Listen for explicit restart events from Settings → Account.
   // setState inside a window-event listener is fine under the
   // set-state-in-effect rule.
+  const userIdForRestart = user?.id;
   useEffect(() => {
     function onRestart() {
-      clearSessionDismissed();
+      if (userIdForRestart) clearSessionDismissed(userIdForRestart);
       setShowTour(true);
     }
     window.addEventListener("healthlog:tour-restart", onRestart);
     return () => {
       window.removeEventListener("healthlog:tour-restart", onRestart);
     };
-  }, []);
+  }, [userIdForRestart]);
 
   if (showTour !== true) return null;
 
@@ -210,7 +228,7 @@ export function TourLauncher({ ready }: TourLauncherProps) {
         // `/api/auth/me` (which the user gets on any nav) will
         // surface any divergence.
         setShowTour(false);
-        writeSessionDismissed();
+        if (user?.id) writeSessionDismissed(user.id);
         try {
           await fetch("/api/onboarding/tour", {
             method: "POST",
