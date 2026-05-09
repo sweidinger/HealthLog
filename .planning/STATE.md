@@ -247,3 +247,33 @@ B3, B4, C1, C5).
   - Verification: `pnpm typecheck` clean, `pnpm lint` 12 pre-existing
     warnings / 0 errors, `pnpm test` 1056/1057 (the single failure
     is in A2's `bp-in-target.test.ts`, out of bucket-1 scope).
+
+## Status block — Wave A bucket-3 (A4 + A5 + A8b)
+
+- 2026-05-09T23:31:00+02:00 — A4 + A5 + A8b complete on origin/main.
+  - **A4** "7-Tage-Trend" rename across DE/EN (`movingAverage7d`,
+    `moodMA`, `trend7dShort` all use the long form now), plus
+    `summaryToTrend7Delta()` falls back to `slope30` when `slope7`
+    is null so sparser metrics like mood (logged < daily) show a
+    delta number instead of dropping the indicator. Commit `4df6dac`.
+  - **A5** root-cause: `widgetIdEnum` in
+    `src/app/api/dashboard/widgets/route.ts` was missing
+    `achievements`, so every PUT against the default layout 422'd
+    silently and the toggle never persisted. Extracted
+    `DASHBOARD_WIDGET_IDS` as the single source of truth in
+    `src/lib/dashboard-layout.ts` and derived the Zod enum from it
+    so the lists cannot drift again. Also hide the tile-strip
+    wrapper when zero tiles are visible (Marc's
+    "ganze Spalte breit, gleicher Höhe" constraint). Commit `93e712d`.
+  - **A8b** chart trend on "All" filter rounded to ±0 because
+    per-week rate over multi-year windows falls below the
+    1-decimal display precision. Added pure
+    `computeWindowTrend()` helper at
+    `src/lib/analytics/window-trend.ts` that returns both the
+    per-week delta and a split-half mean delta (second-half mean
+    minus first-half mean) for windows ≥ 90 days. The chart now
+    surfaces "Total +5.4 kg (6.7 %)" alongside the per-week rate
+    on long ranges. 7 unit tests pin the helper. Commit `af77e5e`.
+  - Verification: `pnpm test` 1081/1081 (+32 net), `pnpm typecheck`
+    0 errors, `pnpm lint` 12 pre-existing warnings / 0 errors.
+    Detailed report: `.planning/phase-A4-A5-A8b-report.md`.
