@@ -159,10 +159,31 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B7 — Settings → Export menu (Arztbrief consolidated)
 
-- [ ] New /settings/export route with consolidated UI: Doctor-report (PDF, configurable date range + practice name from B6 v1.4.15) + CSV/JSON exports (measurements/medications/mood per CLAUDE.md src/lib/export.ts)
-- [ ] Properly designed: card per export type, clear preview + filter + download button
-- [ ] Rename current doctor-report entry-point to live under /settings/export
+- [x] New /settings/export route with consolidated UI: Doctor-report (PDF, configurable date range + practice name from B6 v1.4.15) + CSV/JSON exports (measurements/medications/mood per CLAUDE.md src/lib/export.ts)
+- [x] Properly designed: card per export type, clear preview + filter + download button
+- [x] Rename current doctor-report entry-point to live under /settings/export
 - Detailed report: `.planning/phase-B7-report.md`
+- Commits on origin/main:
+  - `621109c feat(settings): export-section consolidates doctor-report, CSVs, JSON backup`
+  - `a512650 feat(settings): /settings/export dynamic route wired into sidebar`
+  - `94c748d refactor(doctor-report): entry-point relocated under /settings/export`
+  - `226cac4 docs(planning): mark phase B3 (host-load chart) complete` — absorbed
+    the four `/api/export/*` route files + per-type unit tests + integration suite
+    via a parallel-agent staging race during the verification gate's stash/restore
+    loop. Code authored by me (Marc + Co-Authored-By Claude Opus), commit summary
+    name belongs to B3.
+  - `d5c8912 fix(export-section): point download buttons at the new plain-segment endpoints`
+  - `830b2b0 test(export): integration test points at the new plain-segment endpoints`
+  - `e628f33 test(export): coverage for export-section + endpoints`
+- 5 cards rendered (Doctor Report PDF / Measurements CSV / Medications CSV with
+  optional intake-history toggle / Mood CSV / Full JSON Backup), each on its
+  own `data-testid` so the e2e suite can target without relying on i18n labels.
+  Mobile stacks; `>=md` is a 2-column grid. AdvancedSection is now danger-zone-only.
+  Routes use plain segments (`/api/export/measurements` rather than `.csv` —
+  vitest can't resolve dotted segments cleanly; the file extension lives in
+  `Content-Disposition`). All four endpoints share the global `export:<userId>`
+  10/h rate-limit bucket and write a `user.export.<kind>` audit-log entry.
+  10 unit + 9 integration + 2 e2e tests pin the contract.
 
 ### B8 — Extended Comparison Views (Vormonat / Vorjahr)
 
