@@ -19,9 +19,10 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### A1 — Sidebar admin-expand bug
 
-- [ ] Clicking Admin from non-admin route does NOT auto-expand sub-items (mirror Settings exact pattern)
-- [ ] Gravatar dropdown does NOT trigger sidebar expansion side-effect
-- Detailed report: `.planning/phase-A1-report.md`
+- [x] Clicking Admin from non-admin route does NOT auto-expand sub-items (mirror Settings exact pattern)
+- [x] Gravatar dropdown does NOT trigger sidebar expansion side-effect
+- Detailed report: `.planning/phase-A1-A3-report.md`
+- Commit: `77fe256 fix(nav): admin sub-items don't expand from gravatar dropdown or admin-link click` on origin/main
 
 ### A2 — BD-Zielbereich real-fix (regression from v1.4.15 A4)
 
@@ -32,9 +33,10 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### A3 — /admin/api-tokens table responsive (still scrolling)
 
-- [ ] Inspect current state on prod with Marc's session — overflow-x scrollbar visible
-- [ ] Fix properly: card-list mobile fallback OR proper column-hide chain at xs/sm/md breakpoints
-- Detailed report: `.planning/phase-A3-report.md`
+- [x] Inspect current state on prod with Marc's session — overflow-x scrollbar visible
+- [x] Fix properly: card-list mobile fallback OR proper column-hide chain at xs/sm/md breakpoints
+- Detailed report: `.planning/phase-A1-A3-report.md`
+- Commit: `277a5aa fix(admin): api-tokens table no horizontal overflow on Pixel-5 viewport` on origin/main
 
 ### A4 — "7-Tage-Schnitt" → "7-Tage-Trend" DE + indicator on ALL charts
 
@@ -226,3 +228,22 @@ B3, B4, C1, C5).
   place — they belong to previous milestones, not v1.4.16. Phase 0
   commit contains only `.planning/STATE.md`, `.planning/ROADMAP.md`,
   `.planning/phase-0-report.md`. Marc-status: speed matters.
+
+## Status block — Wave A bucket-1 (A1 + A3)
+
+- 2026-05-09T23:26:00+02:00 — A1 + A3 complete on origin/main.
+  - **A1** removed the entire admin sub-list expansion from
+    `sidebar-nav.tsx`; the Admin entry now mirrors the Settings entry
+    exactly (single link, no sub-items at any route, gravatar
+    dropdown unaffected). Vitest + new e2e
+    `e2e/sidebar-admin-no-expand.spec.ts` cover the contract.
+    Commit `77fe256`.
+  - **A3** swapped the api-tokens desktop `<table>` for a real mobile
+    card-list at <md (mirrors `<UserManagementSection>`). No
+    `overflow-x-auto` inside the mobile container; long names + perm
+    badges wrap within the card. New e2e
+    `e2e/admin-api-tokens-mobile.spec.ts` asserts no page scroll at
+    Pixel 5 with a worst-case payload. Commit `277a5aa`.
+  - Verification: `pnpm typecheck` clean, `pnpm lint` 12 pre-existing
+    warnings / 0 errors, `pnpm test` 1056/1057 (the single failure
+    is in A2's `bp-in-target.test.ts`, out of bucket-1 scope).
