@@ -1526,6 +1526,21 @@
       "empty": "Erfassung läuft — Daten erscheinen in 1–2 Minuten.",
       "loadError": "Host-Metriken konnten nicht geladen werden. Bitte die Seite neu laden."
     },
+    "aiQuality": {
+      "title": "KI-Qualität",
+      "loading": "Feedback-Zusammenfassung wird geladen...",
+      "loadError": "KI-Qualitätszusammenfassung konnte nicht geladen werden. Bitte die Seite neu laden.",
+      "empty": "Noch kein Feedback. Der Aggregator läuft täglich um 04:00 — sobald Nutzer Empfehlungen bewerten, erscheinen hier die Hilfreich-Quoten.",
+      "windowLabel": "Letzte {days} Tage",
+      "generatedAtLabel": "Erstellt",
+      "colSeverity": "Schweregrad",
+      "colMetric": "Metrik",
+      "colProvider": "Provider",
+      "colPromptVersion": "Prompt",
+      "colHelpful": "Hilfreich",
+      "colNotHelpful": "Nicht hilfreich",
+      "colHelpfulRate": "Hilfreich-Quote"
+    },
     "workerStatus": "Job-Worker",
     "workerRunning": "Aktiv",
     "workerStopped": "Gestoppt",
@@ -1761,6 +1776,10 @@
       "integrations": {
         "title": "Integrationen",
         "subtitle": "Umami, GlitchTip, Web Push und Bug-Reports konfigurieren."
+      },
+      "ai-quality": {
+        "title": "KI-Qualität",
+        "subtitle": "Hilfreich-Quote pro (Schweregrad x Provider) aus Nutzer-Feedback der letzten 30 Tage."
       },
       "feedback": {
         "title": "Feedback",

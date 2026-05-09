@@ -42,6 +42,7 @@ vi.mock("@/hooks/use-auth", () => ({
 
 import { I18nProvider } from "@/lib/i18n/context";
 import { ADMIN_SECTION_SLUGS } from "../section-slugs";
+import { AiQualitySection } from "../ai-quality-section";
 import { ApiTokenOverviewSection } from "../api-token-overview-section";
 import { BackupsSection } from "../backups-section";
 import { DangerZoneSection } from "../danger-zone-section";
@@ -132,5 +133,19 @@ describe("admin sections — SSR smoke", () => {
   it("<DangerZoneSection> renders", () => {
     const html = render(<DangerZoneSection />);
     expect(html).toContain("Danger Zone");
+  });
+
+  // v1.4.16 phase B5e — admin AI quality preview. The mocked useQuery
+  // returns `data: null, isLoading: false` so the empty-state branch
+  // paints; the table-render branch is exercised by the dedicated
+  // ai-quality-section test.
+  it("<AiQualitySection> renders the empty-state when no summary exists", () => {
+    const html = render(<AiQualitySection />);
+    expect(html).toContain("AI Quality");
+    expect(html).toContain("No feedback yet");
+  });
+
+  it("admin slug list contains ai-quality (renderer parity)", () => {
+    expect(ADMIN_SECTION_SLUGS).toContain("ai-quality");
   });
 });

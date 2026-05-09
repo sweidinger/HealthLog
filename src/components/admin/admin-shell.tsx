@@ -28,6 +28,7 @@ import {
   Server,
   Settings,
   ShieldAlert,
+  Sparkles,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -68,6 +69,11 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     slug: "integrations",
     titleKey: "admin.section.integrations.title",
     icon: AlertTriangle,
+  },
+  {
+    slug: "ai-quality",
+    titleKey: "admin.section.ai-quality.title",
+    icon: Sparkles,
   },
   {
     slug: "feedback",

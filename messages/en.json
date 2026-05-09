@@ -1526,6 +1526,21 @@
       "empty": "Sampling started — data appears in 1–2 minutes.",
       "loadError": "Failed to load host metrics. Try refreshing the page."
     },
+    "aiQuality": {
+      "title": "AI Quality",
+      "loading": "Loading feedback summary...",
+      "loadError": "Failed to load AI quality summary. Try refreshing the page.",
+      "empty": "No feedback yet. The aggregator runs daily at 04:00 — once users start rating recommendations, helpful-rate bands appear here.",
+      "windowLabel": "Last {days} days",
+      "generatedAtLabel": "Generated",
+      "colSeverity": "Severity",
+      "colMetric": "Metric",
+      "colProvider": "Provider",
+      "colPromptVersion": "Prompt",
+      "colHelpful": "Helpful",
+      "colNotHelpful": "Not helpful",
+      "colHelpfulRate": "Helpful rate"
+    },
     "workerStatus": "Job Worker",
     "workerRunning": "Running",
     "workerStopped": "Stopped",
@@ -1761,6 +1776,10 @@
       "integrations": {
         "title": "Integrations",
         "subtitle": "Configure Umami, GlitchTip, Web Push, and bug reports."
+      },
+      "ai-quality": {
+        "title": "AI Quality",
+        "subtitle": "Helpful-rate per (severity x provider) from user feedback over the last 30 days."
       },
       "feedback": {
         "title": "Feedback",

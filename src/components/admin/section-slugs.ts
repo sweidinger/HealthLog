@@ -14,6 +14,7 @@ export const ADMIN_SECTION_SLUGS = [
   "general",
   "services",
   "integrations",
+  "ai-quality",
   "feedback",
   "reminders",
   "users",
