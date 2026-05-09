@@ -241,6 +241,23 @@ describe("generateInsight() — citation-coverage annotation", () => {
     annotateMock.mockReset();
   });
 
+  /**
+   * v1.4.16 phase B5d — `applyConfidenceOverride()` also calls
+   * `annotate()` (action: "confidence.override.applied"), so the
+   * citation-coverage assertions filter by meta-key rather than by
+   * call count.
+   */
+  function findCoverageCall(calls: Array<unknown[]>): Record<string, unknown> {
+    for (const call of calls) {
+      const arg = call[0] as { meta?: Record<string, unknown> } | undefined;
+      const meta = arg?.meta;
+      if (meta && "ai_total_recommendations" in meta) {
+        return meta;
+      }
+    }
+    throw new Error("citation-coverage annotate() call not found");
+  }
+
   it("emits an annotate() call with the coverage breakdown on success", async () => {
     const provider = new MockAIProvider({
       responses: JSON.stringify({
@@ -263,8 +280,7 @@ describe("generateInsight() — citation-coverage annotation", () => {
       systemPrompt: "system",
       userPrompt: "user",
     });
-    expect(annotateMock).toHaveBeenCalledTimes(1);
-    const meta = annotateMock.mock.calls[0][0]?.meta as Record<string, unknown>;
+    const meta = findCoverageCall(annotateMock.mock.calls);
     expect(meta).toMatchObject({
       ai_total_recommendations: 1,
       ai_normative_recommendations: 1,
@@ -294,8 +310,7 @@ describe("generateInsight() — citation-coverage annotation", () => {
       systemPrompt: "system",
       userPrompt: "user",
     });
-    expect(annotateMock).toHaveBeenCalledTimes(1);
-    const meta = annotateMock.mock.calls[0][0]?.meta as Record<string, unknown>;
+    const meta = findCoverageCall(annotateMock.mock.calls);
     expect(meta).toMatchObject({
       ai_normative_recommendations: 1,
       ai_cited_normative_recommendations: 0,

@@ -6,8 +6,10 @@ import {
   findUncitedRecommendations,
   InsightSchemaError,
   type AIInsightResponse,
+  type AIRecommendation,
 } from "./schema";
 import { computeCitationCoverage } from "./citation-coverage";
+import { computeConfidence, type ConfidenceInputs } from "./confidence";
 import { annotate } from "@/lib/logging/context";
 
 /**
@@ -173,17 +175,107 @@ function annotateCitationCoverage(parsed: AIInsightResponse): void {
 }
 
 /**
+ * v1.4.16 phase B5d — confidence resolver.
+ *
+ * The wrapper does NOT have direct access to the user's bucket-series
+ * data, so the caller can pass an optional resolver that maps each
+ * recommendation to its `ConfidenceInputs`. When omitted, the wrapper
+ * falls back to inputs derivable from the parsed payload alone:
+ *
+ *   - n: `metricSource.n` (or 0 when missing — triggers the n<3 hard
+ *     cap so a recommendation cited from no quantified data is never
+ *     dressed up as confident).
+ *   - recencyDays: 0. Defensive default — assumes the cited window
+ *     ends "now" because we have no fresher source. The route layer
+ *     can supply a real value via the resolver.
+ *   - deviationStdRatio: null. Yields the neutral 15-point signal
+ *     contribution so a wrapper-only path never over-claims.
+ *
+ * The resolver fires once per recommendation in payload order so the
+ * caller can side-effect (e.g. log per-rec inputs) deterministically.
+ */
+export type ConfidenceContextResolver = (
+  rec: AIRecommendation,
+) => ConfidenceInputs;
+
+const DEFAULT_CONFIDENCE_RESOLVER: ConfidenceContextResolver = (rec) => ({
+  n: rec.metricSource.n ?? 0,
+  recencyDays: 0,
+  deviationStdRatio: null,
+});
+
+/**
+ * Apply the deterministic confidence override to every recommendation.
+ * The model's value (if any) is REPLACED. Returns a Wide-Event
+ * payload with per-rec model-vs-computed pairs so admin observability
+ * can chart drift between what the LLM thinks and what the formula
+ * produces.
+ */
+function applyConfidenceOverride(
+  parsed: AIInsightResponse,
+  resolver: ConfidenceContextResolver,
+): void {
+  const overrides: Array<{
+    id: string;
+    model: number | null;
+    computed: number;
+  }> = [];
+  for (const rec of parsed.recommendations) {
+    const inputs = resolver(rec);
+    const computed = computeConfidence(inputs);
+    const modelValue =
+      typeof rec.confidence === "number" ? rec.confidence : null;
+    rec.confidence = computed;
+    overrides.push({ id: rec.id, model: modelValue, computed });
+  }
+  if (overrides.length > 0) {
+    annotate({
+      meta: {
+        ai_confidence_override_event: "confidence.override.applied",
+        ai_confidence_override_count: overrides.length,
+        ai_confidence_override_pairs: overrides,
+      },
+    });
+  }
+}
+
+export interface GenerateInsightOptions {
+  /**
+   * v1.4.16 phase B5d — per-recommendation `ConfidenceInputs`
+   * resolver. When supplied, the wrapper uses these inputs to
+   * `computeConfidence()` and OVERWRITES `rec.confidence`. When
+   * omitted, the wrapper falls back to a parsed-payload-only default
+   * (n from `metricSource.n`, recencyDays=0, ratio=null).
+   *
+   * The override happens regardless — calibrated probabilities are
+   * not a small-LLM strength and the deterministic path keeps the
+   * v1.4.17 feedback ratchet reproducible.
+   */
+  confidenceContext?: ConfidenceContextResolver;
+}
+
+/**
  * Run a schema-enforced insight generation. Up to 2 provider calls.
  * Throws `InsightSchemaError` (httpStatus 422) if both attempts fail
  * the schema; provider-level errors bubble untouched.
+ *
+ * v1.4.16 phase B5d — after a successful parse, every recommendation's
+ * `confidence` field is overwritten with the deterministic
+ * `computeConfidence()` value. The model's number (if any) is
+ * discarded; admin observability sees both via the
+ * `confidence.override.applied` Wide-Event annotation.
  */
 export async function generateInsight(
   provider: AIProvider,
   params: CompletionParams,
+  options: GenerateInsightOptions = {},
 ): Promise<GenerateInsightOutcome> {
+  const resolver =
+    options.confidenceContext ?? DEFAULT_CONFIDENCE_RESOLVER;
   const first = await tryOnce(provider, params);
   if (first.ok && first.parsed) {
     annotateCitationCoverage(first.parsed);
+    applyConfidenceOverride(first.parsed, resolver);
     return {
       parsed: first.parsed,
       raw: first.raw,
@@ -204,6 +296,7 @@ export async function generateInsight(
   const second = await tryOnce(provider, retryParams);
   if (second.ok && second.parsed) {
     annotateCitationCoverage(second.parsed);
+    applyConfidenceOverride(second.parsed, resolver);
     return {
       parsed: second.parsed,
       raw: second.raw,
