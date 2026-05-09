@@ -167,11 +167,7 @@ function AchievementCard({ achievement, t }: AchievementCardProps) {
         <div className="mt-2 space-y-1.5">
           <p className="text-muted-foreground text-xs">
             {t("achievements.criterionHint", {
-              current: formatMetric(
-                achievement.format,
-                achievement.current,
-                t,
-              ),
+              current: formatMetric(achievement.format, achievement.current, t),
               target: formatMetric(achievement.format, achievement.target, t),
             })}
           </p>

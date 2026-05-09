@@ -33,6 +33,7 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   boneMass: "measurements.typeBoneMass",
   bpInTarget: "dashboard.bpInTarget",
   oxygenSaturation: "measurements.typeOxygenSaturation",
+  achievements: "achievements.title",
 };
 
 export function DashboardLayoutSection({ id }: { id: string }) {
@@ -172,8 +173,12 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           <div className="text-muted-foreground flex items-center gap-3 px-3 pb-1 text-[10px] font-medium tracking-wide uppercase">
             <span className="w-5" aria-hidden="true" />
             <span className="flex-1" />
-            <span className="w-12 text-center">{t("dashboard.layoutTileColumn")}</span>
-            <span className="w-12 text-center">{t("dashboard.layoutChartColumn")}</span>
+            <span className="w-12 text-center">
+              {t("dashboard.layoutTileColumn")}
+            </span>
+            <span className="w-12 text-center">
+              {t("dashboard.layoutChartColumn")}
+            </span>
           </div>
           {[...layout.widgets]
             .sort((a, b) => a.order - b.order)
@@ -215,7 +220,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
                     </Button>
                   </div>
                   <span className="flex-1 text-sm">{t(labelKey)}</span>
-                  <div className="w-12 flex justify-center">
+                  <div className="flex w-12 justify-center">
                     <Switch
                       checked={tileChecked}
                       onCheckedChange={(v) => toggleTile(widget.id, v)}
@@ -224,7 +229,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
                       data-slot="widget-tile-switch"
                     />
                   </div>
-                  <div className="w-12 flex justify-center">
+                  <div className="flex w-12 justify-center">
                     <Switch
                       checked={widget.visible}
                       onCheckedChange={(v) => toggle(widget.id, v)}

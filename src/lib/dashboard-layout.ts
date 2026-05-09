@@ -18,7 +18,8 @@ export type DashboardWidgetId =
   | "totalBodyWater"
   | "boneMass"
   | "bpInTarget"
-  | "oxygenSaturation";
+  | "oxygenSaturation"
+  | "achievements";
 
 export interface DashboardWidgetConfig {
   id: DashboardWidgetId;
@@ -70,6 +71,13 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     { id: "totalBodyWater", visible: false, tileVisible: false, order: 10 },
     { id: "boneMass", visible: false, tileVisible: false, order: 11 },
     { id: "oxygenSaturation", visible: false, tileVisible: false, order: 12 },
+    // v1.4.15 phase-B4 — recent-unlocks card (dashboard surface for the
+    // gamification feature). Visible by default — the card is small,
+    // self-gates on having any achievements (otherwise it shows a brief
+    // "no achievements yet" + link), and Marc-asked-for-it explicitly.
+    // `tileVisible` is forced false because there is no tile surface
+    // for this widget; only the chart-row card.
+    { id: "achievements", visible: true, tileVisible: false, order: 13 },
   ],
 };
 

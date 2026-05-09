@@ -42,6 +42,7 @@ import { TrendCard } from "@/components/charts/trend-card";
 import { TrendHint } from "@/components/charts/trend-hint";
 import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
+import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
 
 const HealthChart = dynamic(
   () =>
@@ -263,6 +264,11 @@ export default function DashboardPage() {
   const showSleepChart = isChartVisible("sleep") && hasSleep;
   const showStepsChart = isChartVisible("steps") && hasSteps;
   const showMedicationsCard = isChartVisible("medications");
+  // v1.4.15 phase-B4 — recent unlocks dashboard surface. The card itself
+  // self-handles the empty state (CTA → /achievements), so we only need
+  // the layout-toggle gate here. No data-floor check (the empty card is
+  // intentional — Marc wants the user to discover the feature).
+  const showAchievementsCard = isChartVisible("achievements");
 
   // Glucose widget — visible iff layout enables it AND at least one reading exists.
   // Glucose has no separate chart slot today, so the tile flag is the
@@ -913,6 +919,17 @@ export default function DashboardPage() {
             id: "medications",
             order: widgetOrder("medications"),
             node: <MedicationComplianceChart key="medications" />,
+          });
+        }
+        if (showAchievementsCard) {
+          // v1.4.15 phase-B4 — slotted at the user's chosen position via
+          // the layout `order`. Default order from
+          // `DEFAULT_DASHBOARD_LAYOUT` puts it last (below the chart row)
+          // which matches Marc's brief "below the chart row".
+          charts.push({
+            id: "achievements",
+            order: widgetOrder("achievements"),
+            node: <RecentAchievementsCard key="achievements" />,
           });
         }
 
