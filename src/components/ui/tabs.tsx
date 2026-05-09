@@ -25,8 +25,17 @@ function Tabs({
   );
 }
 
+// v1.4.16 Wave-C MED — horizontal tab strips overflow viewport on
+// mobile when more than ~3 tabs render at typical label widths
+// (`/insights`, `/admin`, `/settings/*`). Tab labels are i18n-driven
+// so we cannot truncate them deterministically. Instead, the list
+// becomes horizontally scrollable on mobile via `overflow-x-auto`
+// plus `touch-pan-x` for the iOS PWA, and the wrapping tabs preserve
+// `whitespace-nowrap` so labels never word-wrap mid-tab. Desktop
+// looks identical because the inline-flex shrink-wraps inside the
+// wider container.
 const tabsListVariants = cva(
-  "rounded-lg p-[3px] group-data-[orientation=horizontal]/tabs:h-9 data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col",
+  "rounded-lg p-[3px] group-data-[orientation=horizontal]/tabs:h-9 data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit max-w-full items-center justify-center overflow-x-auto touch-pan-x scrollbar-thin group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col group-data-[orientation=vertical]/tabs:overflow-x-visible",
   {
     variants: {
       variant: {
