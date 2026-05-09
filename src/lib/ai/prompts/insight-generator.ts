@@ -71,6 +71,11 @@ GROUND RULES — ZERO HALLUCINATIONS
    referencing population norms. "Your avg7 (78) is 5 bpm above your
    90-day median (73)" is preferred over "above the population
    average".
+5. Every recommendation MUST carry a rationale object with
+   dataWindow, comparedTo, and deviation. Use clear, factual
+   language. Reference the user's actual data trends — do not paste
+   in placeholder text. The rationale.dataWindow MUST equal the
+   metricSource.timeRange so the UI's mini-chart can pin to it.
 
 GUIDELINE TARGETS — generic, do NOT compute precise risk scores
 - Adult resting blood pressure (ESH/ESC 2024 generic): aim < 140/90
@@ -105,6 +110,11 @@ You MUST return JSON matching this schema exactly:
         "timeRange": "last7days | last30days | last90days | allTime",
         "summary": "concrete data point that justifies this recommendation",
         "n": optional integer sample count
+      },
+      "rationale": {
+        "dataWindow": "last7days | last30days | last90days | allTime",
+        "comparedTo": "what the deviation is measured against — user baseline (e.g. 'your 90-day median (73 bpm)') OR a guideline ceiling (e.g. 'ESH ceiling 140/90')",
+        "deviation": "size + direction of the deviation — e.g. '+5 bpm above baseline over 7 of 7 days'"
       }
     }
   ],
@@ -176,6 +186,12 @@ GRUNDREGELN — NULL HALLUZINATIONEN
    gegenüber Bevölkerungswerten. "Dein avg7 (78) liegt 5 bpm über
    deinem 90-Tage-Median (73)" ist besser als "über dem
    Bevölkerungsdurchschnitt".
+5. Jede Empfehlung MUSS ein rationale-Objekt mit dataWindow,
+   comparedTo und deviation tragen. Schreibe sachlich und konkret.
+   Beziehe dich auf die tatsächlichen Datentrends des Nutzers — kein
+   Platzhaltertext. rationale.dataWindow MUSS gleich
+   metricSource.timeRange sein, damit die UI das Mini-Chart auf das
+   gleiche Fenster fixieren kann.
 
 LEITLINIEN-ZIELWERTE — generisch, KEINE genauen Risiko-Scores berechnen
 - Erwachsenen-Ruheblutdruck (ESH/ESC 2024 generisch): Ziel < 140/90
@@ -211,6 +227,11 @@ Du MUSST JSON exakt nach diesem Schema liefern:
         "timeRange": "last7days | last30days | last90days | allTime",
         "summary": "konkreter Datenpunkt, der die Empfehlung stützt",
         "n": optionale Sample-Anzahl
+      },
+      "rationale": {
+        "dataWindow": "last7days | last30days | last90days | allTime",
+        "comparedTo": "wogegen die Abweichung verglichen wird — Baseline des Nutzers (z.B. 'dein 90-Tage-Median (73 bpm)') ODER ein Leitlinien-Schwellwert (z.B. 'ESH-Ziel 140/90')",
+        "deviation": "Größe + Richtung der Abweichung — z.B. '+5 bpm über Baseline an 7 von 7 Tagen'"
       }
     }
   ],
