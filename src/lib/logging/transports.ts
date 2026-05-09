@@ -1,6 +1,7 @@
 import type { WideEvent } from "./types";
 import { getLoggingConfig } from "./config";
 import { shouldEmit } from "./sampler";
+import { appendLogEvent } from "./in-memory-buffer";
 
 /** Event auf stdout als einzelne JSON-Zeile schreiben */
 function emitToStdout(event: WideEvent): void {
@@ -88,9 +89,19 @@ export function emitIfSampled(event: WideEvent): void {
   }
 }
 
-/** Zentraler Emit: stdout + optional Loki-Buffer */
+/** Zentraler Emit: stdout + optional Loki-Buffer + in-memory ring buffer */
 export function emitEvent(event: WideEvent): void {
   emitToStdout(event);
+
+  // Push into the per-process in-memory ring buffer so admins can drill
+  // into the most recent ~500 wide events from the `/admin/app-logs`
+  // page without standing up a Loki stack. See `in-memory-buffer.ts`.
+  // Wrapped in try/catch so a buffer bug never poisons the request.
+  try {
+    appendLogEvent(event);
+  } catch {
+    /* logging must never crash the handler */
+  }
 
   const config = getLoggingConfig();
   if (config.lokiEndpoint) {

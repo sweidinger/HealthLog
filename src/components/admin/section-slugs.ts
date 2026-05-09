@@ -19,6 +19,7 @@ export const ADMIN_SECTION_SLUGS = [
   "users",
   "api-tokens",
   "login-overview",
+  "app-logs",
   "backups",
   "danger-zone",
 ] as const;

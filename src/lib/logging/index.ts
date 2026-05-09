@@ -11,3 +11,11 @@ export { eventStorage, getEvent, annotate } from "./context";
 export { shouldEmit } from "./sampler";
 export { emitEvent, emitIfSampled } from "./transports";
 export { withBackgroundEvent, withBackgroundEventSafe } from "./background";
+export {
+  appendLogEvent,
+  readLogBuffer,
+  clearLogBuffer,
+  getLogBufferSize,
+  LOG_BUFFER_MAX,
+  type ReadLogBufferOptions,
+} from "./in-memory-buffer";

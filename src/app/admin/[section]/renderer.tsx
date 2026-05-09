@@ -17,6 +17,7 @@ import type { JSX } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { ApiTokenOverviewSection } from "@/components/admin/api-token-overview-section";
+import { AppLogPreviewSection } from "@/components/admin/app-log-preview-section";
 import { BackupsSection } from "@/components/admin/backups-section";
 import { DangerZoneSection } from "@/components/admin/danger-zone-section";
 import { FeedbackInboxSection } from "@/components/admin/feedback-inbox-section";
@@ -125,6 +126,15 @@ export function AdminSectionRenderer({
           subtitle={t("admin.section.login-overview.subtitle")}
         >
           <LoginOverviewSection />
+        </SectionFrame>
+      );
+    case "app-logs":
+      return (
+        <SectionFrame
+          title={t("admin.section.app-logs.title")}
+          subtitle={t("admin.section.app-logs.subtitle")}
+        >
+          <AppLogPreviewSection />
         </SectionFrame>
       );
     case "backups":
