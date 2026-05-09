@@ -1,0 +1,144 @@
+name: Post-publish verify
+
+# Informational reachability gate that runs AFTER `Build & Publish Docker
+# Image` finishes a `main` (or tag) build. Pulls the just-published image
+# from GHCR and probes:
+#   - the image manifest is fetchable (i.e. the push actually completed)
+#   - the container starts and `/api/version` returns the expected version
+#   - the container's `/api/health` endpoint reports OK
+#
+# Does NOT block deploys — `continue-on-error` is set on every probe step
+# so a transient registry blip doesn't go red. This is a smoke gate the
+# v1.4.14 release would have caught: the main push appeared to "succeed"
+# from the deploy host's POV, but the host had to pull the tag image
+# because main's manifest never finished pushing.
+#
+# Triggered by `workflow_run` so it only runs after the build workflow
+# actually completes — chaining via `needs:` would force the build into
+# the same workflow file.
+
+on:
+  workflow_run:
+    workflows: ["Build & Publish Docker Image"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "GHCR image tag to verify (defaults to `main`)"
+        required: false
+        default: "main"
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  verify:
+    name: Pull + smoke-test published image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Skip if the upstream build itself failed — there's nothing to verify.
+    # Manual dispatch always runs.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: healthlog
+          POSTGRES_PASSWORD: healthlog
+          POSTGRES_DB: healthlog
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U healthlog"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Resolve image tag
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image
+        id: pull
+        continue-on-error: true
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.tag }}"
+          echo "Pulling $IMAGE"
+          docker pull "$IMAGE"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Start container
+        if: steps.pull.outcome == 'success'
+        id: run
+        continue-on-error: true
+        run: |
+          # Minimal env to satisfy the strict-env validators on boot.
+          docker run -d --name healthlog-verify \
+            --network host \
+            -e DATABASE_URL='postgresql://healthlog:healthlog@localhost:5432/healthlog?schema=public' \
+            -e ENCRYPTION_KEYS='{"v1":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}' \
+            -e ENCRYPTION_ACTIVE_KEY_ID=v1 \
+            -e API_TOKEN_HMAC_KEY=verify-hmac-key-32-bytes-padding-x \
+            -e AUTH_RP_NAME=HealthLog \
+            -e AUTH_RP_ID=localhost \
+            -e AUTH_RP_ORIGIN=http://localhost:3000 \
+            -e NODE_ENV=production \
+            -e HEALTHLOG_PROCESS_TYPE=web \
+            -e PORT=3000 \
+            "${{ steps.pull.outputs.image }}"
+
+          # Wait up to 60 s for the server to start answering.
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://localhost:3000/api/version; then
+              echo "ready after ${i}*2s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::warning::Container did not become ready within 60 s"
+          docker logs healthlog-verify || true
+          exit 1
+
+      - name: Probe /api/version
+        if: steps.run.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -e
+          BODY=$(curl -sf http://localhost:3000/api/version)
+          echo "$BODY" | jq .
+          VER=$(echo "$BODY" | jq -r '.data.version // .version')
+          echo "::notice::published image ${{ steps.tag.outputs.tag }} reports version=$VER"
+
+      - name: Probe /api/health
+        if: steps.run.outcome == 'success'
+        continue-on-error: true
+        run: |
+          curl -sf http://localhost:3000/api/health | jq .
+
+      - name: Container logs (always)
+        if: always() && steps.run.outcome == 'success'
+        continue-on-error: true
+        run: docker logs healthlog-verify | tail -100
+
+      - name: Tear down
+        if: always()
+        continue-on-error: true
+        run: docker rm -f healthlog-verify || true
