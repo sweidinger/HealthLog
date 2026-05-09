@@ -216,6 +216,8 @@
     "trendDown": "falling",
     "trendStable": "stable",
     "quickEntry": "Quick entry",
+    "quickAddMeasurement": "Measurement",
+    "quickAddMood": "Mood entry",
     "addMeasurement": "Add measurement",
     "compliance7d": "Compliance (7 days)",
     "complianceGood": "Good",

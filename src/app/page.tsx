@@ -373,15 +373,19 @@ export default function DashboardPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {/* v1.5 phase-5: the menu items used to share the literal label
+                "Add" with the dialog titles, so screen-reader users heard
+                two indistinguishable "Add" rows in the same dropdown. The
+                trigger already says "Add" — these label what's being added. */}
             <DropdownMenuItem
               onClick={() => setQuickEntryDialog("measurement")}
             >
-              <Activity className="mr-2 h-4 w-4" />
-              {t("measurements.addMeasurement")}
+              <Activity className="mr-2 h-4 w-4" aria-hidden="true" />
+              {t("dashboard.quickAddMeasurement")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setQuickEntryDialog("mood")}>
-              <Waves className="mr-2 h-4 w-4" />
-              {t("mood.addEntry")}
+              <Waves className="mr-2 h-4 w-4" aria-hidden="true" />
+              {t("dashboard.quickAddMood")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

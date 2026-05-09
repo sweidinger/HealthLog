@@ -216,6 +216,8 @@
     "trendDown": "fallend",
     "trendStable": "stabil",
     "quickEntry": "Schnelleingabe",
+    "quickAddMeasurement": "Messung",
+    "quickAddMood": "Stimmungseintrag",
     "addMeasurement": "Messwert hinzufügen",
     "compliance7d": "Einnahmetreue (7 Tage)",
     "complianceGood": "Gut",

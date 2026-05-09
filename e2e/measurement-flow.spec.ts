@@ -101,14 +101,12 @@ test.describe("add measurement flow", () => {
       .first()
       .click();
 
-    // The Radix DropdownMenu mounts its content in a portal; the role
-    // is `menuitem`. Both items currently render the literal "Add" in
-    // EN (measurements.addMeasurement = "Add", mood.addEntry = "Add"),
-    // so we disambiguate by hitting the FIRST one — that's the
-    // measurement entry per the dashboard JSX order. Sub-optimal, but
-    // robust against the i18n collision we don't want to fix in this
-    // phase (would touch dashboard copy).
-    await page.getByRole("menuitem").first().click();
+    // v1.5 phase-5: the menu items now have distinct labels — the
+    // measurement entry says "Measurement" / "Messung" instead of "Add",
+    // so we can target it directly.
+    await page
+      .getByRole("menuitem", { name: /measurement|messung/i })
+      .click();
 
     // Form should be visible inside the dialog. Switch type to WEIGHT
     // (combo-box defaults to BLOOD_PRESSURE).
