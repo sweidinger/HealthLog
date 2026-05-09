@@ -544,13 +544,94 @@ B1 / B2 / B3: v1.4.16 should adopt
 
 ### C1 — AI/Codex hardening (infrastructure for hallucination-resistance)
 
-- [ ] Provider abstraction review — multi-provider readiness
-- [ ] Schema enforcement — output structured (JSON-schema), no free-form unbounded text
-- [ ] Citation requirement — every claim must reference user-data point
-- [ ] System-prompt scope hardening — medical-context-only, refuse out-of-scope
-- [ ] Slug-drift defense — model fallback chain, dynamic discovery
-- [ ] Document v1.4.16 backlog: medical-reference grounding (AHA guidelines etc.), multi-provider redundancy
+- [x] Provider abstraction review — `MockAIProvider` + 7-test contract suite (`27310e4`)
+- [x] Schema enforcement — `aiInsightResponseSchema` (zod) + `generateInsight()` retry-once wrapper + 422-on-fail (swept into sibling commit `5510ed5`; diff correct on main)
+- [x] Citation requirement — every recommendation must cite a snapshot data point; cross-check enforced (`d657f79`)
+- [x] System-prompt scope hardening — versioned prompt with refusal pattern, doctor-consult CTA, ESH/ESC 2024 generic guidance (`4e85c38`)
+- [x] Slug-drift defense — fallback chain + 1h positive cache + structured 503 on all-failed; spec §7b extended (`4bba951`)
+- [x] Document v1.4.16 backlog — `docs/audit/v1416-ai-roadmap.md` (`fa11f10`)
 - Detailed report: `.planning/phase-C1-report.md`
+
+#### C1 status block — 2026-05-09T22:00+02:00 — done
+
+6 commits on `origin/main`. Tests +67 unit (965 → 1048; some
+sibling-agent tests merged too), 31 / 31 integration pass, typecheck
+clean for C1 files, lint 0 errors.
+
+Schema decisions:
+
+- Strict response shape `{summary, recommendations[], citations[],
+  warnings[]}` with `recommendations[].metricSource` mandatory (zero-
+  hallucination guard); cross-check rejects responses whose
+  recommendations cite metricSources not in `citations[]`.
+- Wrapper `generateInsight()` calls provider once, parses+validates,
+  retries ONCE with corrective system message embedding the violated
+  zod issues, throws `InsightSchemaError(httpStatus 422)` on second
+  failure. Provider-level errors (5xx, 401-after-refresh, 429) bubble
+  through untouched — wrapper retries only on schema violation.
+- `.passthrough()` on the strict schema lets legacy fields ride along
+  so cached v1.4.14 payloads still hydrate the dashboard. v1.4.16
+  retires the passthrough.
+
+Slug-drift defence rationale:
+
+- v1.4.7..v1.4.13 lost a week to upstream allow-list rotation
+  (`gpt-5-codex` → `gpt-5.3-codex`). Marc: "Slug drift darf halt
+  immer überhaupt nicht sein." Hard mandate.
+- Fix: `CodexClient` walks `[cached?, ...DEFAULT_SLUG_FALLBACK_CHAIN]`
+  on every fresh request. Walk triggers on 400 + canonical rejection
+  body / `model_not_found` / `does not exist` / 404. Auth (401) goes
+  through refresh + same-slug retry — does NOT walk. 5xx / 429 / SSE
+  `invalid_prompt` propagate immediately. All-failed: structured 503
+  with `attempted[]` list.
+- Cache: process-local 1h TTL (`src/lib/ai/codex-slug-cache.ts`),
+  single slot, auto-evict on read. Cache hit short-circuits chain
+  walk. Cache invalidated on first slug-rejection walk.
+- `CODEX_MODEL_FALLBACK_CHAIN` env override; `CODEX_MODEL` folds into
+  position 0 of the chain when set.
+- Spec source-of-truth FIRST (per Marc's v1.4.6 hard rule):
+  `docs/codex-protocol-spec.md` §7b extended before implementation.
+
+Out-of-scope refusal: prompt instructs the model to return a fixed
+JSON payload (`OUT_OF_SCOPE_REFUSAL_EN/DE`) when the snapshot is
+empty or off-topic. Both variants validate against the strict schema
+so the wrapper passes them through cleanly.
+
+NOT done in v1.4.15 (deliberately deferred to v1.4.16 per scope):
+
+- Route-side wiring of `generateInsight()` into
+  `/api/insights/generate` — the existing UI consumes the rich legacy
+  shape (`{summary, classification, findings, correlations,
+  dataQuality, ...}`); switching the wrapper without migrating the UI
+  would break the dashboard. v1.4.16 ships both together.
+- Reading `client.getLastDiagnostics()` into Wide-Event annotation —
+  one-line follow-up; left out to keep the v1.4.15 diff scoped to
+  provider / wrapper / schema / prompt / cache.
+
+Roadmap items captured in `docs/audit/v1416-ai-roadmap.md`:
+
+1. v1.4.16 — Medical-reference grounding (curated bundle of ~40
+   excerpts: ESH/ESC 2024, AHA/ACC 2017, WHO, AASM, Saint-Maurice
+   2020, DGE/DEGAM; pre-flight relevance selection; schema gains
+   `referenceId`).
+2. v1.4.16 — Multi-provider redundancy (`MultiProviderCascade`
+   wrapping `AIProvider`; admin-tier ordering; per-request 60s budget).
+3. v1.4.16 — Per-recommendation explainability
+   (`rationale.{dataWindow, comparedTo, deviation}` + UI "Why?" tooltip).
+4. v1.4.16 — Route + UI migration to the strict schema.
+5. v1.4.17 — User-feedback loop (`InsightFeedback` table; admin
+   `/admin/ai-quality` dashboard with helpful-rate by recommendation
+   type / locale / provider / `PROMPT_VERSION`).
+6. v1.4.17 — Calibrated per-recommendation confidence score.
+7. v1.5 — Optional "deep mode" with Codex reasoning summaries
+   (separate schema field, never folded into `summary`).
+
+Cross-agent: same shared-cwd race documented across A2 / A4 / B-mobile
+/ B1-B6 / C2 / C3 / C4 struck commit 2 — my schema.ts + generate-
+insight.ts + 11-test file got swept into a sibling agent's empty-states
+commit `5510ed5`. Code on `main` correct (verified via
+`git ls-files src/lib/ai/`); message scope misleading. v1.4.16 should
+adopt `superpowers:using-git-worktrees` per agent.
 
 ### C2 — Auto-deployment
 
