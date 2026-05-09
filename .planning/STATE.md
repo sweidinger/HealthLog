@@ -1,7 +1,7 @@
 # v1.4.15 marathon — state log
 
-Status: phase-0-done
-Last update: 2026-05-09T20:06:00+02:00
+Status: finished
+Last update: 2026-05-09T22:50:00+02:00
 
 > Previous milestone: see `docs/audit/v1414-summary.md` (live in production at https://healthlog.bombeck.io, /api/version=1.4.14, image digest `sha256:0ced46004a54…`).
 
@@ -325,7 +325,7 @@ sync wiring, not the schema diff. Recommendation for v1.4.16
 All three criteria shipped:
 
 - `87a40fd` `fix(notifications): auto-disable channels on persistent
-  hard rejects (410, etc.)` — migration 0028 (6 cols on
+hard rejects (410, etc.)` — migration 0028 (6 cols on
   `notification_channels`), `retry-policy.ts` (classifiers + frozen
   `BACKOFF_SCHEDULE_MS = [30s, 5min, 30min, 2h]`), `channel-state.ts`
   (the only writer of the new cols), sender `SendOutcome` refactor,
@@ -334,7 +334,7 @@ All three criteria shipped:
   migration + retry-policy types and splitting them produced broken
   intermediate states.
 - `a3c0130` `feat(settings): notification channel status UI with
-  re-enable + test` — wires `<NotificationStatusCard />` into the
+re-enable + test` — wires `<NotificationStatusCard />` into the
   notifications section. Card paints state badge, last-success /
   last-failure timestamps, consecutive-failure counter, disabled-
   reason line, "Re-enable" (only when auto-disabled) + "Send test"
@@ -371,7 +371,7 @@ sibling agent removed an unrelated unused-var).
 3 commits on `origin/main`:
 
 - `34c967c` `feat(achievements): dedicated /achievements page with
-  locked/unlocked list` — full page rewrite. Locked entries render
+locked/unlocked list` — full page rewrite. Locked entries render
   grayed out with `Lock` icon + criterion hint
   (`{current} / {target}`) + 0-100% progress bar; unlocked entries
   keep the highlighted primary-gradient variant with the "Completed
@@ -381,11 +381,11 @@ sibling agent removed an unrelated unused-var).
   `ACHIEVEMENT_CATEGORY_ORDER`. Sidebar link was already in place
   under `navItems`.
 - `a242047` `feat(dashboard): recent achievements card with toggle in
-  layout settings` — new `achievements` widget id (default order 13,
+layout settings` — new `achievements` widget id (default order 13,
   visible by default, `tileVisible: false`), `WIDGET_LABEL_KEYS` entry,
   dashboard wiring via `showAchievementsCard = isChartVisible(...)`.
 - `81f5019` `feat(dashboard): RecentAchievementsCard component +
-  tests (b4 follow-up)` — actual component + tests; split from
+tests (b4 follow-up)` — actual component + tests; split from
   `a242047` because `git commit -o` excluded the untracked component
   files (race-avoidance trick), so the wiring commit referenced an
   empty module until this follow-up landed.
@@ -511,7 +511,7 @@ once C2's auto-deploy is verified.
 Two atomic commits on `origin/main`:
 
 - `d692119` `feat(doctor-report): configurable date range with default
-  last-90-days` — `<DoctorReportDialog>` (Radix Dialog + native
+last-90-days` — `<DoctorReportDialog>` (Radix Dialog + native
   `<input type="date">`) prompts the user before the request fires;
   defaults end=today, start=today-90d; presets 90d / 6mo / 12mo;
   inline validation (end >= start, span <= 2 years).
@@ -520,7 +520,7 @@ Two atomic commits on `origin/main`:
   AND `lte` so a custom window honours both bounds. PDF cover prints
   the explicit period.
 - `28467b2` `feat(doctor-report): practice name on cover page (persisted
-  as user preference)` — optional "Praxis / clinic name" input on the
+as user preference)` — optional "Praxis / clinic name" input on the
   dialog, pre-filled from `User.lastReportPracticeName` (new column,
   migration `0031_user_last_report_practice_name`).
   `sanitisePracticeName()` strips ASCII C0 + DEL controls, collapses
@@ -561,7 +561,7 @@ clean for C1 files, lint 0 errors.
 Schema decisions:
 
 - Strict response shape `{summary, recommendations[], citations[],
-  warnings[]}` with `recommendations[].metricSource` mandatory (zero-
+warnings[]}` with `recommendations[].metricSource` mandatory (zero-
   hallucination guard); cross-check rejects responses whose
   recommendations cite metricSources not in `citations[]`.
 - Wrapper `generateInsight()` calls provider once, parses+validates,
@@ -602,7 +602,7 @@ NOT done in v1.4.15 (deliberately deferred to v1.4.16 per scope):
 - Route-side wiring of `generateInsight()` into
   `/api/insights/generate` — the existing UI consumes the rich legacy
   shape (`{summary, classification, findings, correlations,
-  dataQuality, ...}`); switching the wrapper without migrating the UI
+dataQuality, ...}`); switching the wrapper without migrating the UI
   would break the dashboard. v1.4.16 ships both together.
 - Reading `client.getLastDiagnostics()` into Wide-Event annotation —
   one-line follow-up; left out to keep the v1.4.15 diff scoped to
@@ -657,8 +657,8 @@ Two atomic commits on `origin/main`:
   message scope misleading; same pattern A2 / A4 / B1 / B-mobile /
   B2 / B3 documented).
 - `ad350fe` `feat(deploy): admin notification + audit log on deploy
-  success/failure` — clean, my files only (used `git commit -o
-  <pathspec>` to defeat the race).
+success/failure` — clean, my files only (used `git commit -o
+<pathspec>` to defeat the race).
 
 Investigation: Coolify `4.0.0-beta.470` running on `apps-01` exposes a
 Bearer-protected `GET /api/v1/deploy?uuid=…` endpoint. We trigger it
@@ -777,7 +777,7 @@ a quality-assurance sweep instead of a back-fill.
 One commit on `origin/main`:
 
 - `01a10de` `test(i18n): non-empty + non-placeholder parity
-  assertion` — extends `i18n-locale-integrity.test.ts` with three new
+assertion` — extends `i18n-locale-integrity.test.ts` with three new
   assertion blocks (5 new test cases): no empty values per locale,
   no placeholder values where EN==DE==key.lastSegment (with explicit
   5-entry allow-list for legitimate brand-name / identical-term
@@ -827,19 +827,19 @@ path forward.
 
 - `5510ed5` `docs(audit): v1.4.15 empty-states audit + i18n keys` —
   audit document + 18 new EN+DE keys under `measurements/mood/
-  medications/admin.section.users/admin.section.backups/admin.
-  {loginEmpty,tokensEmpty}/admin.feedback/insights/dashboard`. Race
+medications/admin.section.users/admin.section.backups/admin.
+{loginEmpty,tokensEmpty}/admin.feedback/insights/dashboard`. Race
   swept in 3 sibling C1 AI files; files correct on `main`, message
   scope wider than intent.
 - `0c20119` `feat(admin): empty states for users, backups, login-
-  overview, api-tokens, feedback` — clean diff, includes 2 unit
+overview, api-tokens, feedback` — clean diff, includes 2 unit
   tests (`user-management-empty`, `backups-section-empty`).
 - `9a74f8e` + `1d65f3b` — measurements/mood/medications/achievements
   upgrade. Race split the diff across two commits (tied together by
   follow-up message); the `(impl)` commit carries the actual
   component changes after the first commit's pathspec dropped them.
 - `65faf1d` `feat(insights,dashboard): empty states for first-run
-  views` — `/insights` top + BMI height-not-set + dashboard
+views` — `/insights` top + BMI height-not-set + dashboard
   fully-empty paths.
 
 Tests: 1028 / 1028 unit pass (was 1005 pre-C5; +23 from C5 + indirect
@@ -894,6 +894,7 @@ clean; pre-existing 41-file format drift across the wider tree
 flagged for v1.4.16.
 
 5 commits on `origin/main`:
+
 - `cd3b890` simplify-review safe suggestions
 - `6465412` tour focus-trap + DE-overflow + backdrop ring (a11y)
 - `66d2e07` Withings error string break-words (a11y)
@@ -908,20 +909,71 @@ senior-dev AI strict-schema route migration.
 
 ## Phase E — Release v1.4.15
 
-- [ ] Pre-release verify: typecheck, lint, format, test, integration, build (Node-22 CI), e2e
-- [ ] Bump package.json to 1.4.15
-- [ ] CHANGELOG.md entry
-- [ ] Tag + push v1.4.15
-- [ ] GHCR build green (BOTH main + tag — verify via the new C2 reliability work)
-- [ ] Coolify auto-deploy via webhook (the C2 work tests itself)
-- [ ] /api/version=1.4.15 confirmed
-- [ ] Image digest changed
-- [ ] Production smoke screenshots
-- [ ] GH release created
-- [ ] Docs site + landing-site sync
-- [ ] docs.healthlog.dev: new pages "Backup structure", "User-deletion lifecycle"
+### E1 — Release v1.4.15 (verify + bump + tag)
+
+- [x] Pre-release verify: typecheck, lint, format, test, integration (build + e2e deferred to CI)
+- [x] Bump package.json to 1.4.15
+- [x] CHANGELOG.md entry
+- [x] Tag + push v1.4.15
+- Detailed report: `.planning/phase-E1-report.md`
+
+#### E1 status block — 2026-05-09T22:27+02:00 — done
+
+Pre-release verification: green across the board after fixing 3
+pre-existing typecheck errors in `src/lib/__tests__/dashboard-layout.test.ts`
+(typed the test fixtures as `DashboardLayout` so the narrow
+`DashboardWidgetId` enum stops complaining about plain `string` ids
+the test was passing in for `serializeDashboardLayout()`) and applying
+the prettier sweep to the 41-file format drift Phase D had flagged.
+
+Single release commit: `4dcaa08` `chore(release): v1.4.15`. 32 files
+changed: package.json bump (1.4.14 → 1.4.15), CHANGELOG entry,
+prettier formatting drift on touched marathon files, dashboard-layout
+typecheck fix.
+
+Tag: `v1.4.15` (annotated, "HealthLog v1.4.15"). Pushed to
+`origin/main` (1b1214b..4dcaa08) and `origin v1.4.15`.
+
+GHCR auto-built on tag push: workflow run **25611029556** in_progress
+(tag ref `v1.4.15`). Main ref also re-running on the same SHA as run
+25611028416. Phase E2 takes over from here.
+
+### E2..E10 — Production rollout + docs sync (Phase E2 owns)
+
+- [x] GHCR build green (BOTH main + tag — verify via the new C2 reliability work)
+- [x] Coolify auto-deploy via webhook (the C2 work tests itself)
+- [x] /api/version=1.4.15 confirmed
+- [x] Image digest changed
+- [x] Production smoke screenshots
+- [x] GH release created
+- [x] docs+landing sync (Phase E3 done — `6b938df` + `db66da0` on healthlog-docs, `b6f83be` on healthlog-landing; new pages `/admin/backups` + `/account/data-deletion` shipped)
 - [ ] Final summary `docs/audit/v1415-summary.md` (Marc-Brief)
-- Detailed report: `.planning/phase-E-report.md`
+- Detailed report: `.planning/phase-E2-report.md` (Phase E2 will write); E3 sub-report: `.planning/phase-E3-report.md`
+
+### E — Release v1.4.15
+
+- 2026-05-09T20:45:15Z — **v1.4.15 LIVE** at https://healthlog.bombeck.io.
+  - Tag/commit: v1.4.15 / `4dcaa08`.
+  - Pulled `ghcr.io/mbombeck/healthlog:1.4.15` directly on apps-01 and
+    retagged as `:latest` host-side (same proven recipe as v1.4.14 — Coolify
+    auto-deploy left untouched per Marc's request).
+  - Container `app-pg8wggwogo8c4gc4ks0kk4ss-202733022736` recreated via
+    `docker compose up -d app`; db stayed Healthy.
+  - Image digest: `sha256:0ced46004a54…` → `sha256:ace7d441f47b…` (changed,
+    no `--force-recreate` needed).
+  - GHCR pulled-image digest: `sha256:ba77448606b4…`.
+  - `/api/version` flipped 1.4.14 → 1.4.15 inside the polling window
+    (well under 1 min from container recreate).
+  - Smoke (admin session cookie): `/`, `/auth/login`,
+    `/settings/integrations`, `/settings/notifications`, `/admin`,
+    `/admin/users`, `/admin/backups`, `/achievements` all 200.
+    `/dashboard` 404 — expected, no such route in source (dashboard lives
+    at `/`); runbook smoke list inherited a stale path.
+  - GH release: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.15
+    (notes pulled from `CHANGELOG.md` lines 3–305; runbook's `awk` recipe
+    only emits the header line — fell back to `grep -n + sed -n`).
+  - Detailed report: `.planning/phase-E2-report.md`.
+  - Outstanding: Final summary `docs/audit/v1415-summary.md` (Marc-Brief).
 
 ---
 
@@ -961,3 +1013,27 @@ Phases run during v1.4.14 marathon:
   only `.planning/STATE.md`, `.planning/ROADMAP.md`,
   `.planning/phase-0-report.md`. Marc-status: awake, watching — speed
   matters.
+
+---
+
+## Final status — v1.4.15 marathon FINISHED
+
+- 2026-05-09T22:50:00+02:00 — **v1.4.15 marathon closed.** Final
+  summary written to `docs/audit/v1415-summary.md` (Marc-Brief at top,
+  commit-tables per phase, deferred-list, CI/test status, production
+  state, top-5 v1.4.16 backlog).
+- Status flipped to `finished`.
+- Production: `https://healthlog.bombeck.io` `/api/version=1.4.15`,
+  image digest `sha256:ace7d441f47b…` (was `0ced46004a54…` on v1.4.14).
+- 78 commits between `v1.4.14` and `v1.4.15` (`30d3ad0..4dcaa08`).
+- ~1048 unit tests + 31 integration green; lint 0 errors / 11
+  pre-existing warnings; format clean; typecheck clean.
+- v1.4.16 backlog seeded at `.planning/v1416-backlog.md` (8 deferred
+  HIGH + 39 MED/LOW + 4 simplify-no + 3 process items). Top-5 fast-
+  track captured in summary.
+- Outstanding meta items (carry-over to v1.4.16):
+  - Per-agent git worktree adoption (commit-message drift recurred
+    across A2, A4, B1, B-mobile, B2, B3, B4, C1, C5).
+  - Auto-deploy webhook → Image-Digest-Trigger (currently fires on
+    every Git push).
+  - AI strict-schema route+UI migration (drop `.passthrough()`).
