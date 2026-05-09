@@ -38,6 +38,10 @@ import {
   computeWindowTrend,
   SPLIT_HALF_THRESHOLD_DAYS,
 } from "@/lib/analytics/window-trend";
+import {
+  resolveMiniRangePoints,
+  type DataWindow,
+} from "./mini-window";
 
 const TIME_RANGES_KEYS = [
   {
@@ -87,6 +91,20 @@ interface HealthChartProps {
     textColor?: string;
     lineOpacity?: number;
   }>;
+  /**
+   * v1.4.16 phase B5c — compact chart mode used by the Oura-style
+   * rationale card. Drops the range tabs, the moving-average / trend
+   * / target-band toggle row, and shrinks padding. Tooltip + gradient
+   * + personal-baseline behaviour stay intact so the small chart
+   * still tells the same visual story.
+   */
+  mini?: boolean;
+  /**
+   * v1.4.16 phase B5c — pin the chart to a specific rationale data
+   * window regardless of any parent UI state. Used by the rec-card's
+   * mini-chart so it always renders the window the rec is based on.
+   */
+  windowOverride?: DataWindow;
 }
 
 interface ChartDataPoint {
@@ -259,11 +277,19 @@ export function HealthChart({
   showYAxisUnit = true,
   valueBands,
   targetZones,
+  mini = false,
+  windowOverride,
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
   const fmt = useFormatters();
-  const [rangePoints, setRangePoints] = useState(30);
+  // v1.4.16 B5c: when a windowOverride is supplied, seed the range
+  // state from it so the chart pins to that window. Mini mode also
+  // hides the range tabs, so the user can't change it.
+  const initialRangePoints = windowOverride
+    ? resolveMiniRangePoints(windowOverride)
+    : 30;
+  const [rangePoints, setRangePoints] = useState(initialRangePoints);
   const [showMA, setShowMA] = useState(false);
   const [showTrend, setShowTrend] = useState(false);
   const [showBands, setShowBands] = useState(false);
@@ -697,73 +723,96 @@ export function HealthChart({
   const showContextDetails = showMA || showTrend || showBands;
   const animationsEnabled = !prefersReducedMotion();
 
-  return (
-    <div className="bg-card border-border rounded-xl border p-4 md:p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">{title}</h3>
-          {activeBucket !== "day" && (
-            <span className="bg-muted/40 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
-              {t(
-                activeBucket === "week"
-                  ? "charts.bucketWeekly"
-                  : "charts.bucketMonthly",
-              )}
-            </span>
-          )}
-        </div>
-        <div className="flex flex-wrap justify-end gap-1">
-          {TIME_RANGES_KEYS.map((r) => (
-            <Button
-              key={r.labelKey}
-              variant={rangePoints === r.points ? "default" : "ghost"}
-              size="sm"
-              className="min-h-9 px-2.5 text-xs"
-              onClick={() => setRangePoints(r.points)}
-              title={t(r.titleKey)}
-            >
-              {t(r.labelKey)}
-            </Button>
-          ))}
-        </div>
-      </div>
+  // v1.4.16 B5c — mini mode tunes padding + margins so the chart fits
+  // inside the rationale card without overwhelming the surrounding
+  // rows. Range tabs + toggle row are suppressed entirely; the chart
+  // pins to `windowOverride` (or the default 30pt) instead.
+  const containerClass = mini
+    ? "bg-card border-border rounded-md border p-2"
+    : "bg-card border-border rounded-xl border p-4 md:p-6";
+  const chartHeightClass = mini ? "h-[140px]" : "h-[240px]";
 
-      <div className="text-muted-foreground mb-3 flex items-center gap-4 text-xs">
-        <div className="flex items-center gap-1.5">
-          <Switch
-            id={maToggleId}
-            checked={showMA}
-            onCheckedChange={setShowMA}
-          />
-          <Label htmlFor={maToggleId} className="cursor-pointer text-xs">
-            {t("charts.movingAverage7d")}
-          </Label>
+  return (
+    <div className={containerClass} data-slot={mini ? "chart-mini" : undefined}>
+      {!mini && (
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">{title}</h3>
+            {activeBucket !== "day" && (
+              <span className="bg-muted/40 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+                {t(
+                  activeBucket === "week"
+                    ? "charts.bucketWeekly"
+                    : "charts.bucketMonthly",
+                )}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap justify-end gap-1">
+            {TIME_RANGES_KEYS.map((r) => (
+              <Button
+                key={r.labelKey}
+                variant={rangePoints === r.points ? "default" : "ghost"}
+                size="sm"
+                className="min-h-9 px-2.5 text-xs"
+                onClick={() => setRangePoints(r.points)}
+                title={t(r.titleKey)}
+                data-slot="chart-range-tab"
+              >
+                {t(r.labelKey)}
+              </Button>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Switch
-            id={trendToggleId}
-            checked={showTrend}
-            onCheckedChange={setShowTrend}
-          />
-          <Label htmlFor={trendToggleId} className="cursor-pointer text-xs">
-            {t("charts.trend")}
-          </Label>
+      )}
+
+      {mini && (
+        <div className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wider uppercase">
+          {title}
         </div>
-        {valueBands?.length || targetZones?.length ? (
+      )}
+
+      {!mini && (
+        <div className="text-muted-foreground mb-3 flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5">
             <Switch
-              id={bandsToggleId}
-              checked={showBands}
-              onCheckedChange={setShowBands}
+              id={maToggleId}
+              checked={showMA}
+              onCheckedChange={setShowMA}
             />
-            <Label htmlFor={bandsToggleId} className="cursor-pointer text-xs">
-              {t("charts.targetRanges")}
+            <Label htmlFor={maToggleId} className="cursor-pointer text-xs">
+              {t("charts.movingAverage7d")}
             </Label>
           </div>
-        ) : null}
-      </div>
+          <div className="flex items-center gap-1.5">
+            <Switch
+              id={trendToggleId}
+              checked={showTrend}
+              onCheckedChange={setShowTrend}
+            />
+            <Label htmlFor={trendToggleId} className="cursor-pointer text-xs">
+              {t("charts.trend")}
+            </Label>
+          </div>
+          {valueBands?.length || targetZones?.length ? (
+            <div className="flex items-center gap-1.5">
+              <Switch
+                id={bandsToggleId}
+                checked={showBands}
+                onCheckedChange={setShowBands}
+              />
+              <Label
+                htmlFor={bandsToggleId}
+                className="cursor-pointer text-xs"
+              >
+                {t("charts.targetRanges")}
+              </Label>
+            </div>
+          ) : null}
+        </div>
+      )}
 
-      {showTrend && trendInfo.length > 0 ? (
+      {!mini && showTrend && trendInfo.length > 0 ? (
         <div className="text-muted-foreground mb-3 flex flex-wrap gap-3 text-xs">
           {trendInfo.map((info) => (
             <span key={info}>{info}</span>
@@ -784,7 +833,7 @@ export function HealthChart({
           description={t("charts.emptyStateDescription")}
         />
       ) : (
-        <div className="relative h-[240px]">
+        <div className={`relative ${chartHeightClass}`}>
           {visibleBands.length > 0 ? (
             <div
               className="pointer-events-none absolute"
