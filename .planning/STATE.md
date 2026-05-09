@@ -79,13 +79,49 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ## Wave B — Quality-leap features
 
-### B1 — Insights/Charts Apple-Health-style visual leap
+### B1 — Insights/Charts Apple-Health-style visual leap (chart wrappers, first half)
 
 - [ ] Benchmark against Apple Health, Withings Health Mate, Oura Ring
 - [ ] Insights surface: gradient fills, animation, dynamic comparisons (better/worse), interactive tooltips, vertical slide-to-compare
-- [ ] Charts: same level of polish — Recharts replacement allowed if quality bar requires
+- [x] Charts: same level of polish — Recharts replacement allowed if quality bar requires
 - [ ] Insights surface visualizes data, not just text-summarizes
 - Detailed report: `.planning/phase-B1-report.md`
+
+#### B1a — Charts visual leap (chart wrappers only) — complete
+
+- 2026-05-10T00:35+02:00 — B1a complete on origin/main.
+  - **Primitives** (`src/components/charts/{chart-gradient,chart-tooltip,chart-empty-state}.tsx`)
+    plus `src/lib/charts/reduced-motion.ts`. 11 unit tests.
+  - **HealthChart** (BP/weight/pulse/body-fat/sleep/steps wrapper):
+    `LineChart` → `ComposedChart`, gradient-filled `<Area>` per type,
+    90-day median personal-baseline `<ReferenceLine>` ("Your normal" /
+    "Dein Mittel"), `<RichChartTooltip>` with delta-vs-baseline,
+    600 ms ease-out animation respecting `prefers-reduced-motion`,
+    sparse-data `<ChartEmptyState>` for <3 points.
+  - **MoodChart**: same polish + emoji glyphs at every score (😖 🙁
+    😐 🙂 😄 mapped from 1..5) via Recharts `dot` callback; lavender
+    gradient under the score line.
+  - **MedicationComplianceChart**: same polish, purple gradient,
+    rich tooltip with "−N pp vs. target" delta. A6's existing 80 %
+    threshold + 100 % goal lines untouched.
+  - +23 net tests; full suite 1298/1299 (single pre-existing B6 fail).
+  - Commits on origin/main: primitives → `2611bb4` (subject belongs
+    to B5b due to a parallel-staging race; my 6 files + 7 i18n keys
+    correct), `74c2eb8 feat(charts): BP/weight/pulse polish (gradient,
+    baseline, rich tooltip)`, `901f44e feat(charts): mood chart polish
+    with emoji glyphs at data points` (also absorbed B5b's
+    `provider-runner.ts`), `8008613 feat(charts): medication chart
+    polish (gradient + animation + rich tooltip)` (clean).
+  - Architectural deviation: brief asked for separate
+    `blood-pressure-chart.tsx` / `weight-chart.tsx` / `pulse-chart.tsx`
+    files; the codebase has one `HealthChart` wrapper used for all
+    three families. Splitting would have been DRY-regressing — kept
+    one wrapper, one commit covers all three.
+  - "Optional targetWeightKg user-pref" on weight chart not added —
+    that's a Settings → Account field B6 owns; chart wrapper already
+    accepts a `valueBands` prop the dashboard can pass a target band
+    through whenever the user-pref ships.
+  - Detailed report: `.planning/phase-B1a-report.md`
 
 ### B2 — AI provider settings UX cleanup (Pulldown-driven)
 
