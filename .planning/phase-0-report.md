@@ -1,51 +1,51 @@
-# Phase 0 — v1.4.15 marathon bootstrap
+# Phase 0 — v1.4.16 marathon bootstrap
 
 Status: **done**
-Timestamp: 2026-05-09T20:06:00+02:00
-Commit: see `chore(planning): bootstrap v1.4.15 marathon` on origin/main.
+Timestamp: 2026-05-09T23:12:52+02:00
+Commit: `chore(planning): bootstrap v1.4.16 marathon` on origin/main.
 
 ## What this phase did
 
 Pivoted `.planning/STATE.md` and `.planning/ROADMAP.md` from the
-completed v1.4.14 marathon (which shipped at 18:35+02:00 today and is
-LIVE on https://healthlog.bombeck.io with `/api/version=1.4.14`, image
-digest `sha256:0ced46004a54…`) to the v1.4.15 marathon scaffold.
+completed v1.4.15 marathon (which shipped today at 22:50+02:00 — see
+`docs/audit/v1415-summary.md` for the Marc-Brief, commit table, image
+digest `sha256:ace7d441f47b…`, deferred items) to the v1.4.16 scaffold.
 
-The v1.4.14 entries were archived in-place: STATE.md keeps a one-line
-"previous milestone" reference plus a phase-summary block; ROADMAP.md
-keeps the full v1.4.14 phase table below the active v1.4.15 table. No
-information lost — `docs/audit/v1414-summary.md` remains the canonical
-release record.
+STATE.md now lists Wave A (A1–A8 quick fixes), Wave B (B1–B7 quality-leap
+features), Wave C (catch-up of 8 deferred HIGH from Phase D + 5 mobile
+MEDs + Coolify image-digest auto-deploy + docker-publish main-branch
+hang root-cause), Wave D (5 reviewers + Product-Lead + reconcile), Phase
+E (release). ROADMAP.md mirrors the heading-level structure with one-
+line Goal cells; v1.4.15 + v1.4.14 entries archived below the active
+table.
 
-Phases scaffolded for v1.4.15: A1-A5 (5 quick-fix buckets), B1-B6 (6
-bigger features), C1-C5 (hardening — including AI/Codex
-hallucination-resistance C1 and Coolify auto-deploy C2), D (multi-agent
-QA, write-only), and E (release).
+## Working-tree sanity
 
-## Pre-flight checks
+`git status` showed 22 modified `.planning/*.md` files at session start
+— a stray re-run of `prettier --write .planning/` had corrupted the
+v1.4.15-shipped reports (markdown list-marker `+` flipped to `-`,
+breaking semantic content like "+1 e2e" → "-1 e2e" and "command +
+flag" lists). Discarded via `git checkout -- .planning/`. Tracked
+working tree now matches `origin/main`. Untracked phase reports from
+v1.4.14 + v1.4.15 (15 files) left in place — they belong to previous
+milestones and are explicitly out-of-scope for v1.4.16 Phase 0.
 
-- Codex protocol spec at `docs/codex-protocol-spec.md` confirmed
-  present (741 LOC) — canonical reference for Phase C1 AI hardening.
-- Backlog at `.planning/v1415-backlog.md` confirmed present (HIGH /
-  MEDIUM / LOW findings from the v1.4.14 phase-6 multi-agent QA).
-- Summary at `docs/audit/v1414-summary.md` confirmed present (Marc-Brief
-  + 53-commit table).
+## Spec re-read
 
-## Working tree
+Re-read `docs/codex-protocol-spec.md` as required (canonical reference
+for any v1.4.16 AI work — Wave-A A7 rate-limit + cache, Wave-B B5
+hallucination-hardening v2 medical-grounding + multi-provider). §7b
+slug-drift defence already shipped in v1.4.15 C1; v1.4.16 builds on
+top.
 
-`git status` shows `main` up to date with `origin/main`. 10 untracked
-files from the v1.4.14 marathon (phase-4-visual-verify, phase-6-{code-
-review, design, reconcile, security, simplify}-findings, phase-8 / 9 /
-10, v1414-rebrand-report) were intentionally left untracked — they
-belong to the previous milestone, not this one. Folding them into the
-Phase 0 commit would muddy v1.4.15 history. The Phase 0 commit
-contains ONLY `.planning/STATE.md`, `.planning/ROADMAP.md`,
+## Backlog inventoried
+
+`.planning/v1416-backlog.md` confirmed present (8 deferred HIGH + 39
+MED/LOW + 4 simplify-no + 3 process items, severity-grouped, with
+file:line references). Wave C catch-up references this file.
+
+## Marc-status
+
+Speed mattered. Working-tree corruption tax was 30 seconds. Phase 0
+commit contains only `.planning/STATE.md` + `.planning/ROADMAP.md` +
 `.planning/phase-0-report.md`.
-
-## Constraints honoured
-
-- Single chore commit `chore(planning): bootstrap v1.4.15 marathon`
-  with `Co-Authored-By: Claude Opus 4.7 (1M context)`.
-- No `--no-verify`, no `--no-gpg-sign`.
-- Only `.planning/` files touched. No source files modified.
-- Pushed to `origin/main`.
