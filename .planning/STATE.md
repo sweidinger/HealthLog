@@ -264,11 +264,54 @@ pattern A2 + A4 documented. v1.4.16 should adopt
 
 ### B2 — Withings + moodLog sync robustness
 
-- [ ] Status UI in Settings → Integrations
-- [ ] Refresh token rotation handling
-- [ ] Telegram-notify on persistent failure (if admin enabled the channel)
-- [ ] Audit-log entry on failure
+- [x] Status UI in Settings → Integrations (`4db72a8`)
+- [x] Refresh token rotation handling (`b290a77`)
+- [x] Telegram-notify on persistent failure (if admin enabled the channel) (`604dff0`)
+- [x] Audit-log entry on failure (`2fbf56d`)
 - Detailed report: `.planning/phase-B2-report.md`
+
+#### B2 status block — 2026-05-09T21:09+02:00
+
+4 / 4 criteria shipped to `origin/main`. New `IntegrationStatus`
+table (migration `0029_integration_status`) per (user, integration)
+with `state` (`connected | error_transient | error_reauth |
+disconnected`), `lastSuccessAt`, `lastAttemptAt`, encrypted
+`lastError` (AES-256-GCM), `consecutiveFailures` counter, and 24h
+`alertedAt` window-guard. Single writer at
+`src/lib/integrations/status.ts`; Withings + moodLog sync flows wire
+through it for both success and failure. `GET /api/integrations/status`
+returns both snapshots in one round-trip; the Settings →
+Integrations cards both render an `IntegrationStatusBanner` above
+their credentials form (state badge, `{n}/{threshold}` chip,
+last-success / last-attempt times, last-error line).
+
+Withings refresh-token failures classified by upstream status code
+(100/101/102 + 200..299 → `error_reauth`, else transient). moodLog
+401/403 → `error_reauth`. Parked connections short-circuit inside
+`getValidToken()` and `syncMoodLogEntries()` so scheduled syncs
+no longer hammer the upstream. OAuth callback / disconnect /
+re-save-credentials routes flip state to match.
+
+Persistent failures (≥3 consecutive, configurable via
+`INTEGRATION_FAILURE_ALERT_THRESHOLD`) trigger one admin Telegram
+alert per burst via `dispatchNotification(SYSTEM_ALERT)` — no new
+sender / channel type (B3 owns dispatcher reliability). 24h
+`alertedAt` re-alert window prevents flapping.
+
+Tests: +35 unit (16 helper state machine, 7 alert formatter, 4 banner
+SSR) + 8 integration (real Postgres testcontainer covering
+encrypted-at-rest, audit-log shape, alert idempotency, reauth/
+reconnect flow, CASCADE delete). 890 / 890 unit pass; 31 / 31
+integration pass.
+
+Cross-agent: my initial `prisma migrate dev` ran into B3's earlier
+schema drift; rewrote the migration file by hand to contain only the
+`integration_statuses` DDL and renumbered to `0029_`. B3's
+`87a40fd` commit absorbed the schema's `IntegrationStatus` model
+addition as a side effect of overlapping `git add -A` runs — my
+commits therefore carry the migration + helper + API + UI + tests +
+sync wiring, not the schema diff. Recommendation for v1.4.16
+(echoing A2 / A4): one git worktree per parallel agent.
 
 ### B3 — Notification reliability
 
