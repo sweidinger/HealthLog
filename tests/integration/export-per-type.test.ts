@@ -2,10 +2,10 @@
  * Integration regression guard for the per-type export endpoints
  * (v1.4.16 phase B7):
  *
- *   GET /api/export/measurements.csv
- *   GET /api/export/medications.csv
- *   GET /api/export/mood.csv
- *   GET /api/export/full-backup.json
+ *   GET /api/export/measurements
+ *   GET /api/export/medications
+ *   GET /api/export/mood
+ *   GET /api/export/full-backup
  *
  * Each endpoint:
  *   1. Is gated by `requireAuth()`.
@@ -73,11 +73,11 @@ async function seedUserSession(username = "export-user") {
   return user;
 }
 
-describe("GET /api/export/measurements.csv", () => {
+describe("GET /api/export/measurements", () => {
   it("returns 401 without a session", async () => {
-    const { GET } = await import("@/app/api/export/measurements.csv/route");
+    const { GET } = await import("@/app/api/export/measurements/route");
     const res = await GET(
-      new Request("http://localhost/api/export/measurements.csv", {
+      new Request("http://localhost/api/export/measurements", {
         method: "GET",
       }) as Parameters<typeof GET>[0],
     );
@@ -116,9 +116,9 @@ describe("GET /api/export/measurements.csv", () => {
       ],
     });
 
-    const { GET } = await import("@/app/api/export/measurements.csv/route");
+    const { GET } = await import("@/app/api/export/measurements/route");
     const res = await GET(
-      new Request("http://localhost/api/export/measurements.csv", {
+      new Request("http://localhost/api/export/measurements", {
         method: "GET",
       }) as Parameters<typeof GET>[0],
     );
@@ -140,11 +140,11 @@ describe("GET /api/export/measurements.csv", () => {
   });
 });
 
-describe("GET /api/export/medications.csv", () => {
+describe("GET /api/export/medications", () => {
   it("returns 401 without a session", async () => {
-    const { GET } = await import("@/app/api/export/medications.csv/route");
+    const { GET } = await import("@/app/api/export/medications/route");
     const res = await GET(
-      new Request("http://localhost/api/export/medications.csv", {
+      new Request("http://localhost/api/export/medications", {
         method: "GET",
       }) as Parameters<typeof GET>[0],
     );
@@ -174,9 +174,9 @@ describe("GET /api/export/medications.csv", () => {
       },
     });
 
-    const { GET } = await import("@/app/api/export/medications.csv/route");
+    const { GET } = await import("@/app/api/export/medications/route");
     const res = await GET(
-      new Request("http://localhost/api/export/medications.csv", {
+      new Request("http://localhost/api/export/medications", {
         method: "GET",
       }) as Parameters<typeof GET>[0],
     );
@@ -204,9 +204,9 @@ describe("GET /api/export/medications.csv", () => {
       },
     });
 
-    const { GET } = await import("@/app/api/export/medications.csv/route");
+    const { GET } = await import("@/app/api/export/medications/route");
     const res = await GET(
-      new Request("http://localhost/api/export/medications.csv?intake=false", {
+      new Request("http://localhost/api/export/medications?intake=false", {
         method: "GET",
       }) as Parameters<typeof GET>[0],
     );
@@ -217,11 +217,11 @@ describe("GET /api/export/medications.csv", () => {
   });
 });
 
-describe("GET /api/export/mood.csv", () => {
+describe("GET /api/export/mood", () => {
   it("returns 401 without a session", async () => {
-    const { GET } = await import("@/app/api/export/mood.csv/route");
+    const { GET } = await import("@/app/api/export/mood/route");
     const res = await GET(
-      new Request("http://localhost/api/export/mood.csv", {
+      new Request("http://localhost/api/export/mood", {
         method: "GET",
       }) as Parameters<typeof GET>[0],
     );
@@ -237,16 +237,15 @@ describe("GET /api/export/mood.csv", () => {
         date: "2026-05-01",
         mood: "good",
         score: 4,
-        // MoodEntry.source is a plain string column; "WEB" matches the
-        // values the rest of the suite uses.
+        // MoodEntry.source is a plain string column.
         source: "WEB",
         moodLoggedAt: new Date("2026-05-01T20:00:00.000Z"),
       },
     });
 
-    const { GET } = await import("@/app/api/export/mood.csv/route");
+    const { GET } = await import("@/app/api/export/mood/route");
     const res = await GET(
-      new Request("http://localhost/api/export/mood.csv", {
+      new Request("http://localhost/api/export/mood", {
         method: "GET",
       }) as Parameters<typeof GET>[0],
     );
@@ -263,11 +262,11 @@ describe("GET /api/export/mood.csv", () => {
   });
 });
 
-describe("GET /api/export/full-backup.json", () => {
+describe("GET /api/export/full-backup", () => {
   it("returns 401 without a session", async () => {
-    const { GET } = await import("@/app/api/export/full-backup.json/route");
+    const { GET } = await import("@/app/api/export/full-backup/route");
     const res = await GET(
-      new Request("http://localhost/api/export/full-backup.json", {
+      new Request("http://localhost/api/export/full-backup", {
         method: "GET",
       }) as Parameters<typeof GET>[0],
     );
@@ -300,9 +299,9 @@ describe("GET /api/export/full-backup.json", () => {
       },
     });
 
-    const { GET } = await import("@/app/api/export/full-backup.json/route");
+    const { GET } = await import("@/app/api/export/full-backup/route");
     const res = await GET(
-      new Request("http://localhost/api/export/full-backup.json", {
+      new Request("http://localhost/api/export/full-backup", {
         method: "GET",
       }) as Parameters<typeof GET>[0],
     );
