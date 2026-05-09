@@ -11,7 +11,10 @@ import { type ApiTokenInfo } from "./_shared";
 
 export function ApiTokenOverviewSection() {
   const { t } = useTranslations();
-  const [expanded, setExpanded] = useState(false);
+  // v1.5 phase-4b moved this to a dedicated route (`/admin/api-tokens`),
+  // so the user has already opted into seeing tokens by visiting the
+  // page. Default to expanded; the toggle stays as an escape hatch.
+  const [expanded, setExpanded] = useState(true);
 
   const { data: tokens, isLoading } = useQuery({
     queryKey: ["admin", "tokens"],

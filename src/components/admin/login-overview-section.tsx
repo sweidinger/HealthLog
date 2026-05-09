@@ -16,7 +16,11 @@ import { type AdminAuditEntry } from "./_shared";
 
 export function LoginOverviewSection() {
   const { t } = useTranslations();
-  const [expanded, setExpanded] = useState(false);
+  // v1.5 phase-4b moved this to a dedicated route
+  // (`/admin/login-overview`), so the user has already opted into the
+  // audit log by visiting the page. Default to expanded; the toggle
+  // stays as an escape hatch.
+  const [expanded, setExpanded] = useState(true);
   const [filter, setFilter] = useState<"all" | "failed">("all");
 
   const AUTH_ACTION_LABELS: Record<string, string> = {
