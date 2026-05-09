@@ -677,13 +677,14 @@ function UserAIProviderSubsection() {
    * PATCH-body field name. Returns null when there is no saved key for
    * the active provider — the "Remove saved key" button hides itself.
    */
-  const removableKey: "openaiKey" | "anthropicKey" | "localKey" | null = (() => {
-    if (provider === "OPENAI" && data?.hasOpenaiKey) return "openaiKey";
-    if (provider === "ANTHROPIC" && data?.hasAnthropicKey)
-      return "anthropicKey";
-    if (provider === "LOCAL" && data?.hasLocalKey) return "localKey";
-    return null;
-  })();
+  const removableKey: "openaiKey" | "anthropicKey" | "localKey" | null =
+    (() => {
+      if (provider === "OPENAI" && data?.hasOpenaiKey) return "openaiKey";
+      if (provider === "ANTHROPIC" && data?.hasAnthropicKey)
+        return "anthropicKey";
+      if (provider === "LOCAL" && data?.hasLocalKey) return "localKey";
+      return null;
+    })();
 
   async function runTest() {
     setTesting(true);

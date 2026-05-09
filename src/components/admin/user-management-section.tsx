@@ -158,7 +158,9 @@ export function UserManagementSection() {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Users className="text-primary h-5 w-5" />
-          <div className="text-lg font-semibold">{t("admin.userManagement")}</div>
+          <div className="text-lg font-semibold">
+            {t("admin.userManagement")}
+          </div>
           {filteredUsers && (
             <Badge variant="secondary" className="text-xs">
               {filteredUsers.length}

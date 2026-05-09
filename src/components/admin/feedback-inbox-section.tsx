@@ -206,8 +206,7 @@ function FeedbackCategoryBadge({
       // Bug = something that's broken → semantic `destructive` token instead
       // of raw `dracula-red`. Visually identical in dark mode (both resolve
       // to #ff5555); light mode now picks up the AA-contrast `#cb3a2a`.
-      className:
-        "bg-destructive/15 text-destructive border-destructive/30",
+      className: "bg-destructive/15 text-destructive border-destructive/30",
     },
     FEATURE_REQUEST: {
       label: t("admin.feedback.categoryFeature"),

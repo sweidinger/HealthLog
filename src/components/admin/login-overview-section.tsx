@@ -57,7 +57,9 @@ export function LoginOverviewSection() {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <ScrollText className="text-primary h-5 w-5" />
-          <div className="text-lg font-semibold">{t("admin.loginOverview")}</div>
+          <div className="text-lg font-semibold">
+            {t("admin.loginOverview")}
+          </div>
         </div>
         <Button
           variant="ghost"
