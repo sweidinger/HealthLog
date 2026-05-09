@@ -7,7 +7,10 @@ import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 
 const HealthChart = dynamic(
@@ -809,10 +812,20 @@ export default function InsightsPage() {
   }
 
   if (!data) {
+    // v1.4.15 phase-C5: replace bare "no data" text with EmptyState +
+    // CTA into /measurements so the user has a single-click path out
+    // of the empty insights view.
     return (
-      <div className="text-muted-foreground py-20 text-center">
-        {t("common.noData")}
-      </div>
+      <EmptyState
+        icon={<TrendingUp className="size-6" />}
+        title={t("insights.emptyTitle")}
+        description={t("insights.emptyDescription")}
+        action={
+          <Button size="sm" asChild>
+            <Link href="/measurements">{t("insights.emptyAddMeasurement")}</Link>
+          </Button>
+        }
+      />
     );
   }
 
@@ -1491,7 +1504,24 @@ export default function InsightsPage() {
             valueBands={bmiBands}
           />
         ) : (
-          <p className="text-muted-foreground text-sm">{t("common.noData")}</p>
+          // v1.4.15 phase-C5: explicit empty state when the user
+          // hasn't set a height yet — without it the BMI card looked
+          // broken. Plain variant so the dashed border doesn't double
+          // up inside the section card.
+          <EmptyState
+            variant="plain"
+            size="compact"
+            icon={<Ruler className="size-5" />}
+            title={t("insights.bmiEmptyTitle")}
+            description={t("insights.bmiEmptyDescription")}
+            action={
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/settings/account">
+                  {t("insights.bmiEmptyAction")}
+                </Link>
+              </Button>
+            }
+          />
         )}
 
         <InsightStatusCard

@@ -24,6 +24,7 @@ import {
 import type { DataSummary as DataSummaryType } from "@/lib/analytics/trends";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -949,6 +950,35 @@ export default function DashboardPage() {
         }
 
         charts.sort((a, b) => a.order - b.order);
+
+        // v1.4.15 phase-C5: dashboard fully-empty state. When no tile
+        // and no chart has data the dashboard would otherwise paint a
+        // 0-px tile strip with the welcome banner above it — visually
+        // looked like a half-broken page. Render an EmptyState that
+        // re-uses the existing quick-entry dialog so the user has a
+        // single click into "Log measurement" without leaving the page.
+        // The GettingStartedChecklist above renders its own self-gated
+        // surface for very-new accounts; this empty state covers the
+        // case where the checklist has been dismissed but no data was
+        // logged afterwards.
+        if (trendCards.length === 0 && charts.length === 0) {
+          return (
+            <EmptyState
+              icon={<Activity className="size-6" />}
+              title={t("dashboard.emptyTitle")}
+              description={t("dashboard.emptyDescription")}
+              action={
+                <Button
+                  size="sm"
+                  onClick={() => setQuickEntryDialog("measurement")}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  {t("dashboard.emptyAddMeasurement")}
+                </Button>
+              }
+            />
+          );
+        }
 
         return (
           <>
