@@ -12,6 +12,7 @@ import {
 } from "@/lib/analytics/correlations";
 import {
   applyPayloadBudget,
+  dayOffsetToBerlinDayKey,
   type DailyBucket,
 } from "@/lib/insights/bucket-series";
 import { annotate } from "@/lib/logging/context";
@@ -73,25 +74,36 @@ function summarizeSeries(series: Array<{ value: number }>) {
   };
 }
 
+/**
+ * Pair two daily-bucket series on `dayOffset`. The synthesised `date`
+ * field is anchored at the UTC midnight of the Berlin calendar day —
+ * `dayOffsetToBerlinDayKey()` is the source of truth so DST boundaries
+ * don't slip the day-key by one. Each pair also carries `dayKey`
+ * directly so callers can label points without re-formatting.
+ */
 function pairDailyBuckets(
   seriesA: DailyBucket[],
   seriesB: DailyBucket[],
   now: Date,
-): PairedPoint[] {
+): Array<PairedPoint & { dayKey: string }> {
   const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
-  const nowMs = now.getTime();
 
   return seriesA
     .map((entry) => {
       const b = mapB.get(entry.dayOffset);
       if (b == null) return null;
+      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset);
+      const [y, m, d] = dayKey.split("-").map(Number);
       return {
         a: entry.value,
         b,
-        date: new Date(nowMs - entry.dayOffset * MS_PER_DAY),
+        date: new Date(Date.UTC(y, m - 1, d)),
+        dayKey,
       };
     })
-    .filter((entry): entry is PairedPoint => entry !== null);
+    .filter(
+      (entry): entry is PairedPoint & { dayKey: string } => entry !== null,
+    );
 }
 
 export async function generateMoodStatusForUser(

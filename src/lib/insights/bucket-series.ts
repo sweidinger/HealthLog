@@ -83,6 +83,38 @@ function utcMidnightOfBerlinDay(date: Date): number {
   return Date.UTC(year, month - 1, day);
 }
 
+/**
+ * Convert a `dayOffset` (0 = today in Berlin, 1 = yesterday, …) back to
+ * the `YYYY-MM-DD` Berlin calendar day key the offset refers to.
+ *
+ * The naive `new Date(now − dayOffset·86_400_000)` then formatting in
+ * `Europe/Berlin` is OFF-BY-ONE-DAY across DST boundaries — the day of
+ * the spring-forward is 23h long and the day of the fall-back is 25h
+ * long, so a 24h subtraction crawls past the boundary by one hour and
+ * silently lands on the wrong calendar day for ~2 days/year.
+ *
+ * This helper anchors on Berlin Y-M-D first (DST-immune via Intl), then
+ * does the subtraction in UTC-of-Y-M-D space where every day is exactly
+ * 86_400_000 ms wide — so calendar arithmetic stays exact.
+ *
+ * Exported so the cross-metric `pairDailyBuckets` helpers in
+ * `blood-pressure-status.ts`, `weight-status.ts`, `mood-status.ts`,
+ * etc. all use the same source of truth.
+ */
+export function dayOffsetToBerlinDayKey(now: Date, dayOffset: number): string {
+  const todayMidnight = utcMidnightOfBerlinDay(now);
+  // Subtraction in UTC-anchored Berlin-day space: every day is 24h wide
+  // because both endpoints are UTC midnights of consecutive Berlin
+  // calendar days, regardless of how long the wall-clock day actually was.
+  const targetUtc = new Date(todayMidnight - dayOffset * MS_PER_DAY);
+  // Read the Y-M-D off the UTC fields directly — we anchored at UTC
+  // midnight, so `getUTC*` gives back the Berlin calendar day exactly.
+  const year = targetUtc.getUTCFullYear();
+  const month = String(targetUtc.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(targetUtc.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function round(value: number): number {
   return Math.round(value * 100) / 100;
 }

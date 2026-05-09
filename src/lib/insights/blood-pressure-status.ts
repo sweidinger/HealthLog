@@ -19,11 +19,10 @@ import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import { getNoKeyBloodPressureStatusText } from "@/lib/insights/no-key-fallbacks";
 import {
   applyPayloadBudget,
+  dayOffsetToBerlinDayKey,
   type DailyBucket,
 } from "@/lib/insights/bucket-series";
 import { annotate } from "@/lib/logging/context";
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -80,25 +79,39 @@ function summarizeSeries(series: Array<{ value: number }>) {
   };
 }
 
+/**
+ * Pair two daily-bucket series on `dayOffset`. The synthesised `date`
+ * field is anchored at the UTC midnight of the Berlin calendar day —
+ * `dayOffsetToBerlinDayKey()` is the source of truth so DST boundaries
+ * don't slip the day-key by one. Each pair also carries `dayKey`
+ * directly so callers can label points without re-formatting.
+ */
 function pairDailyBuckets(
   seriesA: DailyBucket[],
   seriesB: DailyBucket[],
   now: Date,
-): PairedPoint[] {
+): Array<PairedPoint & { dayKey: string }> {
   const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
-  const nowMs = now.getTime();
 
   return seriesA
     .map((entry) => {
       const b = mapB.get(entry.dayOffset);
       if (b == null) return null;
+      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset);
+      // UTC midnight of the Berlin day — formatting this Date with
+      // `toBerlinDayKey()` is guaranteed DST-safe because the y-m-d
+      // fields below are the Berlin calendar day fields by construction.
+      const [y, m, d] = dayKey.split("-").map(Number);
       return {
         a: entry.value,
         b,
-        date: new Date(nowMs - entry.dayOffset * MS_PER_DAY),
+        date: new Date(Date.UTC(y, m - 1, d)),
+        dayKey,
       };
     })
-    .filter((entry): entry is PairedPoint => entry !== null);
+    .filter(
+      (entry): entry is PairedPoint & { dayKey: string } => entry !== null,
+    );
 }
 
 export async function generateBloodPressureStatusForUser(
@@ -217,7 +230,7 @@ export async function generateBloodPressureStatusForUser(
     diaSeries.daily,
     now,
   ).map((entry) => ({
-    day: toBerlinDayKey(entry.date),
+    day: entry.dayKey,
     sys: entry.a,
     dia: entry.b,
     inTarget:
@@ -322,10 +335,9 @@ export async function generateBloodPressureStatusForUser(
     takenByDay.set(dayKey, (takenByDay.get(dayKey) ?? 0) + 1);
   }
 
-  const nowMs = now.getTime();
   const continuityVsSystolicSeries = sysSeries.daily.map((point) => {
-    const dayDate = new Date(nowMs - point.dayOffset * MS_PER_DAY);
-    const dayKey = toBerlinDayKey(dayDate);
+    // DST-safe: dayOffsetToBerlinDayKey computes calendar days, not 24h ticks.
+    const dayKey = dayOffsetToBerlinDayKey(now, point.dayOffset);
     const taken = takenByDay.get(dayKey) ?? 0;
     const continuityPct =
       expectedBpIntakesPerDay > 0
@@ -361,10 +373,12 @@ export async function generateBloodPressureStatusForUser(
   const continuityVsSystolicPairs: PairedPoint[] = continuityVsSystolicSeries
     .map((entry) => {
       if (entry.continuityPct == null) return null;
+      const [y, m, d] = entry.day.split("-").map(Number);
       return {
         a: entry.continuityPct,
         b: entry.sys,
-        date: new Date(nowMs - entry.dayOffset * MS_PER_DAY),
+        // UTC midnight of the Berlin day — DST-safe (see pairDailyBuckets).
+        date: new Date(Date.UTC(y, m - 1, d)),
       };
     })
     .filter((entry): entry is PairedPoint => entry !== null);
@@ -432,7 +446,7 @@ export async function generateBloodPressureStatusForUser(
     weightVsSystolic: {
       correlation: weightVsSystolicCorrelation,
       pairs: weightVsSystolicPairs.map((entry) => ({
-        day: toBerlinDayKey(entry.date),
+        day: entry.dayKey,
         weight: round(entry.a, 2),
         systolic: round(entry.b, 2),
       })),

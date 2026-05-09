@@ -15,11 +15,10 @@ import {
 } from "@/lib/insights/memory";
 import {
   applyPayloadBudget,
+  dayOffsetToBerlinDayKey,
   type DailyBucket,
 } from "@/lib/insights/bucket-series";
 import { annotate } from "@/lib/logging/context";
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: "Europe/Berlin",
@@ -76,25 +75,36 @@ function summarizeSeries(series: Array<{ value: number }>) {
   };
 }
 
+/**
+ * Pair two daily-bucket series on `dayOffset`. The synthesised `date`
+ * field is anchored at the UTC midnight of the Berlin calendar day —
+ * `dayOffsetToBerlinDayKey()` is the source of truth so DST boundaries
+ * don't slip the day-key by one. Each pair also carries `dayKey`
+ * directly so callers can label points without re-formatting.
+ */
 function pairDailyBuckets(
   seriesA: DailyBucket[],
   seriesB: DailyBucket[],
   now: Date,
-): PairedPoint[] {
+): Array<PairedPoint & { dayKey: string }> {
   const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
-  const nowMs = now.getTime();
 
   return seriesA
     .map((entry) => {
       const b = mapB.get(entry.dayOffset);
       if (b == null) return null;
+      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset);
+      const [y, m, d] = dayKey.split("-").map(Number);
       return {
         a: entry.value,
         b,
-        date: new Date(nowMs - entry.dayOffset * MS_PER_DAY),
+        date: new Date(Date.UTC(y, m - 1, d)),
+        dayKey,
       };
     })
-    .filter((entry): entry is PairedPoint => entry !== null);
+    .filter(
+      (entry): entry is PairedPoint & { dayKey: string } => entry !== null,
+    );
 }
 
 export async function generateWeightStatusForUser(
@@ -169,7 +179,6 @@ export async function generateWeightStatusForUser(
   });
 
   const now = new Date();
-  const nowMs = now.getTime();
 
   const weightSeries = applyPayloadBudget(
     measurements
@@ -232,7 +241,7 @@ export async function generateWeightStatusForUser(
     diaSeries.daily,
     now,
   ).map((entry) => ({
-    day: toBerlinDayKey(entry.date),
+    day: entry.dayKey,
     sys: entry.a,
     dia: entry.b,
     mean: round((entry.a + entry.b) / 2, 2),
@@ -242,9 +251,7 @@ export async function generateWeightStatusForUser(
   // pairDailyBuckets — derive dayOffset from the offsets in sysSeries.
   const sysOffsetByDay = new Map(
     sysSeries.daily.map((bucket) => {
-      const dayKey = toBerlinDayKey(
-        new Date(nowMs - bucket.dayOffset * MS_PER_DAY),
-      );
+      const dayKey = dayOffsetToBerlinDayKey(now, bucket.dayOffset);
       return [dayKey, bucket.dayOffset];
     }),
   );
@@ -267,7 +274,7 @@ export async function generateWeightStatusForUser(
   const latestWeight = weightSeries.daily[0] ?? null;
   const previousWeight = weightSeries.daily[1] ?? null;
   const latestWeightDay = latestWeight
-    ? toBerlinDayKey(new Date(nowMs - latestWeight.dayOffset * MS_PER_DAY))
+    ? dayOffsetToBerlinDayKey(now, latestWeight.dayOffset)
     : null;
   const sameDayBp = latestWeightDay
     ? (pairedSystolicDiastolic.find((entry) => entry.day === latestWeightDay) ??
@@ -338,7 +345,7 @@ export async function generateWeightStatusForUser(
     weightVsSystolic: {
       correlation: weightVsSystolicCorrelation,
       pairs: weightVsSystolicPairs.map((entry) => ({
-        day: toBerlinDayKey(entry.date),
+        day: entry.dayKey,
         weight: round(entry.a, 2),
         systolic: round(entry.b, 2),
       })),
@@ -346,7 +353,7 @@ export async function generateWeightStatusForUser(
     weightVsMeanBloodPressure: {
       correlation: weightVsMeanBpCorrelation,
       pairs: weightVsMeanBpPairs.map((entry) => ({
-        day: toBerlinDayKey(entry.date),
+        day: entry.dayKey,
         weight: round(entry.a, 2),
         meanBloodPressure: round(entry.b, 2),
       })),
