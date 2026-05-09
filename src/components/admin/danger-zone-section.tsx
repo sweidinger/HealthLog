@@ -113,7 +113,9 @@ export function DangerZoneSection({ id }: { id: string }) {
         </div>
         {wipeMsg && (
           <p
-            className={`mt-2 text-sm ${wipeMsg.startsWith(t("admin.deletedResult", { measurements: "", medications: "", intakeEvents: "", apiTokens: "", withingsConnections: "", authChallenges: "" }).split(":")[0]) ? "text-dracula-green" : "text-destructive"}`}
+            className={`mt-2 text-sm ${
+              wipeAllData.isError ? "text-destructive" : "text-dracula-green"
+            }`}
           >
             {wipeMsg}
           </p>
