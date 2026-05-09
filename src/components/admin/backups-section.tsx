@@ -12,8 +12,8 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Database, Download, Loader2, PlayCircle } from "lucide-react";
-import { useState } from "react";
+import { Database, Download, Loader2, PlayCircle, Upload } from "lucide-react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,60 @@ export function BackupsSection() {
   // Per-row download in-flight state — keyed by backup id so two
   // parallel clicks on different rows don't share a single spinner.
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  // Upload state — single-file flow, drives the file input + button.
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const upload = useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/admin/backups/upload", {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) {
+        throw new Error(await getApiErrorMessage(res));
+      }
+      return (await res.json()).data as {
+        id: string;
+        valid: true;
+        summary: {
+          measurements: number;
+          medications: number;
+          intakeEvents: number;
+          moodEntries: number;
+        };
+      };
+    },
+    onSuccess: (data) => {
+      const total =
+        data.summary.measurements +
+        data.summary.medications +
+        data.summary.intakeEvents +
+        data.summary.moodEntries;
+      toast.success(
+        t("admin.section.backups.uploadSuccess", { count: String(total) }),
+      );
+      queryClient.invalidateQueries({ queryKey: ["admin", "backups"] });
+    },
+    onError: (err) => {
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : t("admin.section.backups.uploadFailed"),
+      );
+    },
+    onSettled: () => {
+      // Reset the file input so the same file can be re-selected after a
+      // rejected upload (browsers keep the previous selection otherwise).
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+  });
+
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) upload.mutate(file);
+  }
 
   async function handleDownload(row: BackupRow) {
     setDownloadingId(row.id);
@@ -142,6 +196,47 @@ export function BackupsSection() {
       <p className="text-muted-foreground mt-1 text-xs">
         {t("admin.section.backups.description")}
       </p>
+
+      {/* Upload card — separate from the table so admins can ingest a
+          backup file independently of any existing rows. The visible
+          button proxies a hidden file input so the layout stays clean
+          while keyboard / screen-reader users keep a labelled control. */}
+      <div className="bg-muted/30 border-border mt-4 flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-sm font-medium">
+            {t("admin.section.backups.uploadTitle")}
+          </div>
+          <p className="text-muted-foreground text-xs">
+            {t("admin.section.backups.uploadDescription")}{" "}
+            <span className="opacity-80">
+              {t("admin.section.backups.uploadHelp")}
+            </span>
+          </p>
+        </div>
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            onChange={handleFileChange}
+            aria-label={t("admin.section.backups.uploadButton")}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={upload.isPending}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {upload.isPending ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Upload className="mr-1 h-3.5 w-3.5" />
+            )}
+            {t("admin.section.backups.uploadButton")}
+          </Button>
+        </div>
+      </div>
 
       {isLoading ? (
         <div className="mt-4 flex items-center gap-2">
