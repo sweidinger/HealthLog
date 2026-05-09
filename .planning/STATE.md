@@ -108,9 +108,17 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B5a — Medical-reference grounding
 
-- [ ] AHA / ESC / ESH / WHO target ranges as system context
-- [ ] Citations link to source guideline in UI
+- [x] AHA / ESC / ESH / WHO / DGE target ranges as system context (curated bundle in `src/lib/ai/medical-references.ts`)
+- [x] Citations link to source guideline in UI (`<CitationFootnote>` opens in new tab)
 - Detailed report: `.planning/phase-B5a-report.md`
+- Commits on origin/main:
+  - `27f3933 feat(ai): curated medical-reference bundle for citation grounding`
+  - `466b8b5 feat(ai): schema accepts validated referenceId pointing into the medical-reference bundle`
+  - `7fbfca6 feat(ai): system prompt includes curated medical references for citation grounding`
+  - `53aade9 feat(ai): post-validation logs citation-coverage rate per insight generation`
+  - `a66c128 feat(insights): citation footnote on recommendations with medical reference`
+- 5 atomic TDD-first commits, +44 net tests (15 bundle + 8 schema + 10 prompt + 15 coverage + 6 footnote − overlaps). PROMPT_VERSION bumped 4.15.0 → 4.16.0. Citation-coverage Wide-Event annotation observational in v1.4.16; B5c will flip to required for severity ≥ "important".
+- Cross-agent worktree race captured B4 admin files into commit `a66c128` and my commit-5 content into `aff9add` (host-metrics-chart) — see report for detail.
 
 ### B5b — Multi-provider redundancy
 

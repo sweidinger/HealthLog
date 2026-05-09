@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import {
   Activity,
   AlertTriangle,
@@ -19,13 +20,33 @@ import { formatDateTime } from "@/lib/format";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { StatusItem, useSystemStatus } from "./_shared";
 
+// v1.4.16 phase B3: Recharts is ~108 KiB Brotli — defer-load the host
+// metrics chart so the system-status page only ships it when an admin
+// actually opens this view. Splitting at the wrapper boundary (instead
+// of per-primitive) keeps Recharts' `findAllByType` reconciliation
+// working — same pattern the insights page uses for the scatter chart.
+const HostMetricsChart = dynamic(
+  () =>
+    import("./host-metrics-chart").then((mod) => ({
+      default: mod.HostMetricsChart,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-muted/40 h-[200px] w-full animate-pulse rounded-xl motion-reduce:animate-none" />
+    ),
+  },
+);
+
 export function SystemStatusSection() {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const { data: status, isError } = useSystemStatus();
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="space-y-6">
+      <HostMetricsChart />
+      <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center gap-2">
         <Server className="text-primary h-5 w-5" />
         <div className="text-lg font-semibold">{t("admin.systemStatus")}</div>
@@ -157,6 +178,7 @@ export function SystemStatusSection() {
           </span>
         </div>
       )}
+      </div>
     </div>
   );
 }
