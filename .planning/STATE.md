@@ -125,10 +125,23 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B2 — AI provider settings UX cleanup (Pulldown-driven)
 
-- [ ] Settings → AI: provider dropdown drives form below (no top/bottom split)
-- [ ] All providers configurable from one UI (OpenAI direct + ChatGPT-account + future)
-- [ ] Smooth transition when provider changes
+- [x] Settings → AI: provider dropdown drives form below (no top/bottom split)
+- [x] All providers configurable from one UI (Codex / OpenAI direct / Anthropic / Local / Admin OpenAI)
+- [x] Form switch-renders dynamically when provider changes
 - Detailed report: `.planning/phase-B2-report.md`
+- Status block — 2026-05-10T01:15+02:00: B2 complete on `agent/b2-ai-provider-ux`
+  worktree, ready for fast-forward into `origin/main`. New `PUT
+  /api/insights/provider-chain` (5 unit tests + 2 integration tests).
+  Refactored `<AiSection>` collapses the v1.4.15 top/bottom split per
+  Marc's `feedback_settings_no_split.md`: one Pulldown drives a
+  switch-rendered config card (Codex / OpenAI / Anthropic / Local /
+  Admin OpenAI) and a `<FallbackChainCard>` reorders / toggles /
+  removes / adds entries with arrow controls (no new dependency —
+  `dnd-kit` not in `package.json`). EN+DE i18n keys + 8 new SSR
+  tests + 1 Playwright spec. `pnpm test` 1316/1316,
+  `pnpm test:integration` 55/55, typecheck 0 errors, lint 0 errors.
+  Worktree-isolated under `agent/b2-ai-provider-ux` so the
+  parallel-running B5c agent on the rec-card surface can't bleed in.
 
 ### B3 — Admin System-Status host-load chart
 

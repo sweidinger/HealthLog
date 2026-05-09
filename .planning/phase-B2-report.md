@@ -1,110 +1,93 @@
-# Phase B2 — Withings + moodLog sync robustness
+# Phase B2 — AI provider settings UX cleanup (Pulldown-driven, v1.4.16)
 
-**Status:** done. 4 atomic commits on `origin/main`, all green.
+Completed 2026-05-10 ~01:15 CEST on `agent/b2-ai-provider-ux` worktree.
 
-## Commits
-
-- `4db72a8` — `feat(integrations): connection-state + sync-error UI in Settings → Integrations`
-- `b290a77` — `fix(integrations): refresh-token failure marks integration as needing re-auth`
-- `604dff0` — `feat(integrations): admin Telegram alert on persistent sync failure (>=3 consecutive)`
-- `2fbf56d` — `feat(audit): sync failures logged with structured meta`
+> Previous v1.4.15 phase-B2 report (Withings + moodLog sync robustness)
+> superseded — that work shipped under tag v1.4.15 already and lives
+> in `docs/audit/v1415-summary.md`.
 
 ## What landed
 
-A new `IntegrationStatus` table (migration `0029`) gives every (user,
-integration) pair a row with `state` (`connected | error_transient |
-error_reauth | disconnected`), `lastSuccessAt`, `lastAttemptAt`,
-encrypted `lastError`, `consecutiveFailures` counter, and `alertedAt`
-window-guard. The single writer is `src/lib/integrations/status.ts`,
-exposing `recordSyncSuccess` / `recordSyncFailure` /
-`markReauthRequired` / `markReconnected` / `markDisconnected` /
-`getIntegrationStatus` / `isReauthRequired`.
+Four atomic TDD-first commits on `agent/b2-ai-provider-ux`, ready to
+fast-forward into `origin/main`:
 
-`GET /api/integrations/status` returns both Withings + moodLog
-snapshots in one round-trip, including the global threshold so the UI
-"{n}/{threshold} consecutive failures" string is server-sourced.
+| #   | Commit                                                                                                | What it ships                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `feat(api): PUT /api/insights/provider-chain persists user fallback chain`                            | New `PUT` writes the chain to `User.aiProviderChain`. Server-side priority is recomputed from insertion order so the UI's visual contract ("first row = priority 1") cannot drift from what gets persisted. Unknown provider types and duplicates 422; an empty chain is rejected outright. `parseProviderChain()` still falls back to the default chain when the persisted JSON is malformed, so a stale-tab resubmit cannot poison generation. 5 unit tests pin the contract.                                                              |
+| 2   | `feat(settings): AI provider section with single dropdown driving form below`                         | The big one. Single Pulldown (`ai-active-provider-select`) drives a switch-rendered config card below: Codex (connect/disconnect/status + last-insight + CODEX_MODEL note), OpenAI (API key + model select + collapsed Base URL override), Anthropic (API key + model), Local (Base URL + key + model), Admin OpenAI (read-only). Fallback chain card with up/down arrow reorder + per-row enable Switch + remove + add + reset-to-defaults. URL-synced via `?provider=…` so deep links work and the SSR test drives each branch deterministically. |
+| 3   | `test(insights): integration coverage for PUT /api/insights/provider-chain`                           | Two scenarios pinned end-to-end against the postgres testcontainer: saving a valid reordered chain persists the JSON column with priority normalised; saving an empty chain rejects with 422 + leaves the column untouched.                                                                                                                                                                                                                                                                                                                |
+| 4   | `test(e2e): AI provider dropdown switches the rendered config form`                                   | Playwright spec confirms the dropdown switches every config form (Codex / OpenAI / Anthropic / Local) and the fallback chain card surfaces every row with the right `data-chain-row` markers. Mocks every backend endpoint the section reads so no real keys are needed in CI.                                                                                                                                                                                                                                                              |
 
-The Settings → Integrations cards both render an
-`IntegrationStatusBanner` above the credentials form (state badge,
-counter chip, last-success / last-attempt times, destructive-toned
-last-error line). The banner self-suppresses when the integration is
-fresh-connected with no history.
+## Acceptance criteria mapping
 
-The Withings + moodLog sync flows (`src/lib/withings/sync.ts`,
-`src/lib/moodlog/sync.ts`) now call the helpers on success / failure.
-Refresh-token failures classified by Withings status code
-(100/101/102/200..299 → `error_reauth`, everything else → transient);
-moodLog 401/403 → `error_reauth`. Parked connections short-circuit
-inside `getValidToken()` and `syncMoodLogEntries()` so scheduled
-pg-boss runs no longer burn quota on a bad credential. The
-`/api/withings/callback`, `/api/withings/disconnect`,
-`PUT /api/settings/moodlog`, and `DELETE /api/settings/moodlog` routes
-all flip the state machine to match (`markReconnected` /
-`markDisconnected`).
+- **#1 New section component layout** — `<AiSection>` is the single
+  card; `<ActiveProviderSelect>` is the Pulldown;
+  `<ProviderConfigCard>` switch-renders one of five forms;
+  `<FallbackChainCard>` is the chain manager with arrow controls (no
+  new dependency — `dnd-kit` is not in `package.json`).
+- **#2 Codex form** — `<CodexProviderForm>` shows connect /
+  disconnect / status badge / last-insight / CODEX_MODEL slug note,
+  reusing the unchanged device-code flow + OAuth callback handler.
+- **#3 OpenAI form** — `<OpenAIProviderForm>` has masked API-key
+  input, model dropdown (`gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`,
+  `Custom slug…`), and a collapsed Base-URL override (advanced).
+- **#4 Fallback chain UI** — arrow up/down reorders, per-row Switch
+  enables/disables, X removes, "+ Add Provider" picks from
+  configured-but-not-in-chain providers, "Reset to defaults" with
+  confirm dialog, "Save chain order" calls the new PUT.
+- **#5 i18n keys** — EN + DE keys land under
+  `settings.ai.activeProvider*`, `settings.ai.providerSelect.*`,
+  `settings.ai.providerConfigTitle`,
+  `settings.ai.providerChain.{title, description, moveUp, moveDown,
+  removeFromChain, addProvider, saveOrder, saved, saveFailed,
+  resetDefaults, resetConfirm*}`,
+  `settings.ai.openai.{modelSelect, modelOptionCustom,
+  modelCustomLabel, baseUrl*, showAdvanced, hideAdvanced, apiKey,
+  apiKeyPlaceholder}`,
+  `settings.ai.codex.{statusConnected, statusDisconnected,
+  statusExpired, connectButton, disconnectButton, modelSlugLabel,
+  modelSlugBody, lastInsight}`,
+  `settings.ai.adminOpenai.{title, body, notConfigured}`,
+  `settings.ai.{testProvider, testSuccess, testFailedShort}`. The
+  i18n parity guard test (`src/lib/__tests__/i18n*.test.ts`) is green.
+- **#6 Tests** — 5 new PUT route tests + 8 new component SSR tests
+  + 2 integration tests + 1 Playwright spec (covers form-switch
+  contract + chain row markers). The existing `<AiSection>` smoke
+  test in `sections.test.tsx` still passes (mock now exposes
+  `useSearchParams`).
 
-Persistent failures (≥3 consecutive, configurable via
-`INTEGRATION_FAILURE_ALERT_THRESHOLD`) trigger a single admin Telegram
-alert per failure burst via the existing dispatcher
-(`SYSTEM_ALERT` event type — no new sender, no new channel type, B3
-owns dispatcher reliability). A 24h `alertedAt` window prevents flapping
-integrations from paging on every retry.
+## Verification
 
-Every failure writes one `AuditLog` row with structured meta
-(`integration`, `kind`, `errorCode`, `message`, `attemptNumber`,
-`state`). Successes are intentionally not audited — `lastSuccessAt`
-on the IntegrationStatus row tracks them at one row per integration
-per user instead.
+- `pnpm test` — 1316 / 1316 unit tests pass (was 1299 → +17 net).
+- `pnpm test:integration` — 55 / 55 integration tests pass (was 53
+  → +2 for the new PUT integration tests).
+- `pnpm typecheck` — 0 errors.
+- `pnpm lint` — 12 pre-existing warnings / 0 errors. The
+  `react-hooks/set-state-in-effect` lint required a defensive
+  pattern: the dropdown re-seeds on chain-data arrival via a
+  render-time `seededFor` marker rather than a `useEffect` setter.
 
-The `lastError` column is AES-256-GCM encrypted at rest because
-Withings/moodLog 401 responses can echo URL/apiKey fragments — we
-don't want those to land in a future backup tarball.
+## Notes for B5c / future phases
 
-## Tests
+- The new ai-section.tsx no longer imports `<ProviderChainSummary>`
+  (the read-only summary panel B5b shipped). Its functionality is
+  fully absorbed by `<FallbackChainCard>`. No external references
+  remain — verified via `grep -r "ProviderChainSummary"`.
+- The chain PUT endpoint deduplicates and 422s on unknown provider
+  types, so when B5c adds a new provider tag it must extend
+  `PROVIDER_CHAIN_TYPES` in both `provider-chain.ts` (server) and
+  the client-side `PROVIDER_TYPES` array in `ai-section.tsx`.
+- The `aiProvider` legacy column is updated in lock-step with the
+  chain so the v1.4.x single-result `resolveProvider()` (still used
+  by `weight-status.ts`, `mood-status.ts`, etc.) sees the same
+  selection. When B5c migrates those last consumers off the legacy
+  resolver, the OPENAI / ANTHROPIC / LOCAL save-mutation can drop
+  the `aiProvider` write and rely on the chain alone.
+- E2E spec uses `data-chain-row` + `data-testid` markers so the
+  assertions are locale-independent. Reuse the same convention when
+  B5c adds the per-recommendation explainability card.
 
-- `src/lib/integrations/__tests__/status.test.ts` — 16 unit tests for
-  threshold + alert-window state machine.
-- `src/lib/integrations/__tests__/admin-alert.test.ts` — 7 unit tests
-  for the Telegram alert payload formatter (extracted as a pure
-  function so it's testable without Prisma/dispatcher).
-- `src/components/settings/__tests__/integrations-section.test.tsx` —
-  4 SSR snapshot tests, one per state, locking the banner contract.
-- `tests/integration/integration-status.test.ts` — 8 real-Postgres
-  cases: encrypted-at-rest, audit-log shape, alert idempotency,
-  reauth parking, reconnect flow, CASCADE delete on User.
+## Worktree
 
-Totals: **890 / 890 unit pass** (was 817 baseline; +35 mine + 38 from
-B3 racing in alongside). **31 / 31 integration pass** (8 mine).
-
-Typecheck: 0 errors in B2 files. Lint: 0 errors.
-
-## Constraints respected
-
-- No new dependencies added.
-- No new dispatcher senders (B3's territory) — only the existing
-  `dispatchNotification()` is called.
-- No edits to admin-backups files (B1's territory) or workflows (C3).
-- Migration `0029_integration_status` committed alongside the schema.
-- All sensitive token data stays AES-256-GCM encrypted via
-  `src/lib/crypto.ts` (the new `lastError` column included).
-- Co-Author trailer on every commit. No `--no-verify`. Pre-commit
-  hooks passed.
-
-## Cross-agent observations
-
-- Sibling agents (B3, B-mobile, B1) racing on the same working tree
-  caused two side-effects:
-  1. My initial `prisma migrate dev` saw schema-vs-DB drift from
-     B3's earlier work and emitted irrelevant ALTER statements in the
-     migration file. Hand-rewrote the migration to contain only the
-     `integration_statuses` DDL; renamed the directory from Prisma's
-     timestamp-default to the project's sequential-numeric convention
-     (`0029_`) and updated `_prisma_migrations.migration_name` to
-     match.
-  2. B3's `87a40fd` commit picked up the IntegrationStatus model from
-     `schema.prisma` because my stash overlapped B3's index when they
-     ran `git add -A`. The schema diff is therefore already on main
-     under B3's commit — my commits only carry the migration,
-     helper, API, UI, tests, and sync wiring.
-- Recommendation for v1.4.16 (echoing A2/A4): each parallel agent
-  should run in its own `superpowers:using-git-worktrees` worktree
-  to avoid this class of cross-commit bleed.
+Branch `agent/b2-ai-provider-ux` (4 commits ahead of `origin/main`
+at gate `8352c6d`). Push + fast-forward to main is the next step.
