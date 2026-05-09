@@ -69,6 +69,13 @@ export const insightRecommendationSchema = z.union([
       .enum(["info", "suggestion", "important", "urgent"])
       .optional(),
     id: z.string().optional(),
+    /**
+     * v1.4.16 phase B5d — deterministic confidence score (0-100).
+     * Optional on the UI type because legacy cached payloads predate
+     * the field; `<ConfidenceMeter>` renders a "draft" pill in that
+     * case. Server-side `aiRecommendationSchema` mirrors this shape.
+     */
+    confidence: z.number().int().min(0).max(100).optional(),
   }),
 ]);
 

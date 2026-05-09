@@ -167,6 +167,24 @@ export const aiRecommendationSchema = z
      * when `severity >= "important"`.
      */
     referenceId: z.string().optional(),
+    /**
+     * v1.4.16 phase B5d — deterministic confidence score (0-100).
+     *
+     * Optional at parse-time:
+     *   - The LLM may emit a value (we accept it so the payload round-
+     *     trips cleanly), but `generateInsight()` OVERRIDES with the
+     *     server-computed `computeConfidence()` post-validation. The
+     *     model's number is discarded — calibrated probabilities are
+     *     not a small-LLM strength and the deterministic path keeps
+     *     the v1.4.17 feedback ratchet reproducible.
+     *   - Legacy cached payloads from before B5d landed have no
+     *     confidence field; the meter falls back to a "draft" pill.
+     *
+     * Integer-only and bounded so the meter component can render
+     * without clamping; a renegade provider that emits 101 or 67.5
+     * fails parse and triggers the wrapper's corrective retry.
+     */
+    confidence: z.number().int().min(0).max(100).optional(),
   })
   .superRefine((rec, ctx) => {
     if (rec.referenceId !== undefined) {
