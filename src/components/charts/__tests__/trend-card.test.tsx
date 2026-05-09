@@ -40,11 +40,7 @@ describe("<TrendCard> directionSentiment", () => {
 
   it("paints up-bad metric ↑ as orange (warning)", () => {
     const html = render(
-      <TrendCard
-        {...baseProps}
-        slope30={RISING}
-        directionSentiment="up-bad"
-      />,
+      <TrendCard {...baseProps} slope30={RISING} directionSentiment="up-bad" />,
     );
     expect(html).toContain("text-dracula-orange");
   });
