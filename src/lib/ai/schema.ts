@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { MEDICAL_REFERENCE_IDS } from "./medical-references";
 
 /**
  * Strict response schema for v1.4.15 AI hardening (Phase C1).
@@ -68,24 +69,58 @@ export const metricSourceSchema = z.object({
 
 export type MetricSource = z.infer<typeof metricSourceSchema>;
 
-export const aiRecommendationSchema = z.object({
-  /**
-   * Stable identifier for the recommendation within this response.
-   * Used by the future user-feedback loop ("was this helpful?",
-   * v1.4.16 roadmap). Format: short slug (`rec-1`, `bp-elevated`).
-   */
-  id: z.string().min(1, "recommendation.id required"),
-  /** Human-readable recommendation text. */
-  text: z.string().min(1, "recommendation.text required"),
-  /**
-   * Mandatory citation — the data point that justified the
-   * recommendation. Closes the "ungrounded boilerplate" risk Marc
-   * called out: every recommendation must trace back to user data.
-   */
-  metricSource: metricSourceSchema,
-  /** Severity — generic for v1.4.15, clinically-keyed in v1.4.16. */
-  severity: recommendationSeveritySchema,
-});
+/**
+ * Set of valid `referenceId` values, derived from
+ * `MEDICAL_REFERENCES` so the two cannot drift. Validated lazily
+ * inside `superRefine` instead of `z.enum(...)` because the bundle is
+ * a `string[]` constant — `z.enum` requires a tuple type.
+ */
+const MEDICAL_REFERENCE_ID_SET: ReadonlySet<string> = new Set(
+  MEDICAL_REFERENCE_IDS,
+);
+
+export const aiRecommendationSchema = z
+  .object({
+    /**
+     * Stable identifier for the recommendation within this response.
+     * Used by the future user-feedback loop ("was this helpful?",
+     * v1.4.16 roadmap). Format: short slug (`rec-1`, `bp-elevated`).
+     */
+    id: z.string().min(1, "recommendation.id required"),
+    /** Human-readable recommendation text. */
+    text: z.string().min(1, "recommendation.text required"),
+    /**
+     * Mandatory citation — the data point that justified the
+     * recommendation. Closes the "ungrounded boilerplate" risk Marc
+     * called out: every recommendation must trace back to user data.
+     */
+    metricSource: metricSourceSchema,
+    /** Severity — generic for v1.4.15, clinically-keyed in v1.4.16. */
+    severity: recommendationSeveritySchema,
+    /**
+     * Optional pointer into the curated medical-reference bundle
+     * (`src/lib/ai/medical-references.ts`). When set, the value MUST
+     * be a known id — fabricated ids are rejected.
+     *
+     * Optional in v1.4.16 (B5a): the prompt asks the model to cite a
+     * matching reference for normative claims, but a missing
+     * referenceId is logged as a citation-coverage warning rather
+     * than a parse failure. v1.4.16 phase B5c flips it to required
+     * when `severity >= "important"`.
+     */
+    referenceId: z.string().optional(),
+  })
+  .superRefine((rec, ctx) => {
+    if (rec.referenceId !== undefined) {
+      if (!MEDICAL_REFERENCE_ID_SET.has(rec.referenceId)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `referenceId "${rec.referenceId}" is not in MEDICAL_REFERENCES`,
+          path: ["referenceId"],
+        });
+      }
+    }
+  });
 
 export type AIRecommendation = z.infer<typeof aiRecommendationSchema>;
 

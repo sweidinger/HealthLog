@@ -23,7 +23,7 @@
 import type { Locale } from "@/lib/i18n/config";
 
 /** Stable identifier for the active system prompt revision. */
-export const PROMPT_VERSION = "4.15.0" as const;
+export const PROMPT_VERSION = "4.16.0" as const;
 
 const SYSTEM_PROMPT_EN = `You are a clinical-context summariser for a personal health-log app.
 Prompt version: ${PROMPT_VERSION}.
