@@ -1,121 +1,88 @@
-# Phase B4 — Achievements UI
+# Phase B4 — Admin logs visibility deepening (v1.4.16)
 
-**Status**: done
-**Completed**: 2026-05-09T21:22+02:00
-**Commits**: 3 (`34c967c`, `a242047`, `81f5019`) all on `origin/main`.
+Status: complete
+Date: 2026-05-10T00:11+02:00
+Commits on origin/main:
+- `8ac5602` (audit-log filtering, pagination, CSV export — bundled with
+  the Wave-A verification-gate planning commit due to the marathon
+  coordinator's stash race; my code, wrong commit subject)
+- `4cc3d8d feat(admin): app-log preview surfaces last 1h of structured events with filter + JSON inspector`
+- `6520ae4 feat(admin): sidebar entry for app-logs`
 
-## Scope shipped
+## Scope delivered
 
-### 1. Dedicated `/achievements` page (`34c967c`)
+### 1. Audit-log enhanced filtering, pagination, CSV export
 
-Pre-v1.4.15 the page silently dropped locked achievements; only unlocked
-ones rendered. Now every badge paints — locked entries grayed out at
-opacity-70 with a `Lock` icon + `"Locked"` badge, the criterion hint
-(`{current} / {target}`), and a 0–100% progress bar. Unlocked entries
-keep the existing primary-gradient highlighted card with the
-"Completed on …" footer. Sidebar link to `/achievements` was already in
-place under `navItems` in `sidebar-nav.tsx`.
+`<LoginOverviewSection>` is now the deeper viewer admins asked for. It
+keeps the failed-only quick-pill from the v1.4.x UI and stacks the new
+filter row on top: actor (matches userId OR `user.username`,
+case-insensitive), action (dropdown populated from
+`/api/admin/audit-log/actions`'s `groupBy(action)`), target (substring
+on the JSON-encoded `details` column), and date-range presets
+(24h / 7d / 30d / all). Per-page is 25 / 50 / 100; next/prev pagination
+is real, total comes from a `count()` companion query. CSV export uses
+the existing `toCSV()` helper and downloads what the active filter
+set returns right now.
 
-Achievements are grouped by a new presentation-only `category` axis —
-`medication`, `vitals`, `security`, `engagement` — derived in
-`getAchievementCategory()`. Stable category render order in
-`ACHIEVEMENT_CATEGORY_ORDER`. Inside a category, unlocked items sort
-first; among locked items the closest-to-unlock sorts first so the
-user always sees their immediate next goal at the top.
+`GET /api/admin/audit-log` learned the `actor` / `action` / `target` /
+`since` / `until` / `page` / `perPage` query params. Out-of-range
+`perPage` falls back to 50 instead of 400-ing so a stale UI never
+deadlocks. Legacy `limit` / `offset` / `filter=auth` callers
+(`<RecentAuditPreview>`, the failed-only pill) are unchanged.
 
-### 2. Dashboard recent-unlocks card (`a242047` + `81f5019`)
+9 unit tests pin every filter and the pagination contract; 1 covers
+the actions endpoint.
 
-`<RecentAchievementsCard>` shows the three most-recently unlocked
-achievements (sorted by `completedAt` descending). When nothing is
-unlocked yet, the card paints a discovery CTA + link to `/achievements`
-so brand-new users learn the feature exists. Reuses the existing
-`/api/gamification/achievements` endpoint — TanStack Query dedupes when
-both this card and the page mount in the same session.
+### 2. App-log preview surfaces last 1h of structured wide-events
 
-Layout integration: new `achievements` widget id in `DashboardWidgetId`,
-default order 13 (below the chart row, matching the brief),
-`tileVisible: false` because there is no tile surface for this widget.
-Visible by default. Toggleable from Settings → Dashboard via the
-existing `<DashboardLayoutSection>` machinery.
+New `src/lib/logging/in-memory-buffer.ts` — 500-entry FIFO ring
+buffer, hooked into `transports.emitEvent()`. Mirrors what would ship
+to Loki (sampler-gated). Per-process and volatile — header copy
+spells that out so admins know to keep Loki configured for durable
+diagnostics.
 
-## i18n
+`GET /api/admin/app-logs` reads the buffer with `traceId` / `level` /
+`action` / `since` / `until` / `limit` filters, runs every event
+through `redactSecrets()` on egress so a stray Bearer / hlk_ / sk-
+token in `error.message` never leaks to the admin UI; storage stays
+raw to keep the diagnostic value when shipped to Loki.
 
-9 new keys under `achievements.*` (EN + DE):
-`locked`, `criterionHint`, `progressPercent`,
-`categories.{medication,vitals,security,engagement}`,
-`dashboardCard.{title,viewAll,empty}`. C4's parity audit will sweep
-later as planned.
+`<AppLogPreviewSection>` lives at the new `/admin/app-logs` route —
+table of recent events (level icon / timestamp / action / duration /
+trace short-id), click row → JSON-pretty-print modal, 30s refetch.
+Mirrors the per-section pattern v1.4.16 A1 established.
 
-## Tests
+### 3. Sidebar entry
 
-- `+9 unit` — `groupByCategory` ordering, page render in EN/DE, locked
-  vs unlocked card variants
-- `+6 unit` — `pickRecentUnlocks` ordering / cap / no-date fallback,
-  empty-state CTA, three-most-recent render shape
-- `+1 e2e` — sidebar → click → `/achievements` heading visible
+`<AdminShell>` gains the `app-logs` row with a `FileText` icon. The
+global sidebar still surfaces a single `/admin` link per the v1.4.15
+A1 + v1.4.16 A1 conditional pattern — per-section nav stays inside
+the shell.
 
-957 / 957 unit pass (was 890 baseline at phase start; +15 from B4, +52
-from sibling agents).
+### 4. i18n
 
-## Race conditions
+`admin.section.auditLog.*` (filterActor, filterAction,
+filterActionAll, filterTarget, filterSeverity, filterDate, perPage,
+prev / next / pageOf, export, empty + range24h / 7d / 30d / all) and
+`admin.section.app-logs.*` (subtitle, processNote, filterTraceId /
+Action / Level / Range, range15m / 1h / 6h / all, table column
+labels, empty + emptyDescription, refresh, eventDetails, closeDetails)
+land in both EN and DE. Locale-integrity guard stays green.
 
-The 5-parallel-agent shared-cwd staging collision struck twice during
-B4, matching the pattern STATE.md notes from A2 / A4 / B1 / B2 / B3:
+## Coordination friction
 
-1. Commit `34c967c`'s `git diff --cached --stat` listed 6 files but the
-   final commit-stat shows 9 — `.env.example`,
-   `.github/workflows/docker-publish.yml`, and
-   `docs/audit/v1415-auto-deploy.md` (all C2's auto-deploy work) got
-   pulled in between my `git add` and `git commit`. Files are correct
-   on `main`; the message scope is narrower than the actual diff.
-2. The dashboard-card commit had to be split into two
-   (`a242047` for the wiring + `81f5019` for the
-   `RecentAchievementsCard` component file). Used `git commit -o
-   <pathspec>` to avoid sweeping in a sibling agent's untracked files,
-   but `-o` excluded my own untracked `<RecentAchievementsCard>` source
-   too — the follow-up `81f5019` commit landed it. Splitting into two
-   commits per `verification-before-completion` rather than amending so
-   the parallel-agent push race can't lose the landing.
+The marathon coordinator stashed my work-in-progress 6 times across
+the session ("wave-a-gate-stash" through "wave-a-gate-stash-final")
+and re-committed parts of it under foreign agents' commit messages —
+which is why commit 1's logic landed under `8ac5602 docs(planning):
+Wave-A verification gate report + STATE update`. Code is verbatim
+what B4 wrote; only the commit subject drifted. Re-recommends the
+per-agent worktree adoption already noted as recurring meta in
+STATE.md from v1.4.15.
 
-Recommendation echoes prior phases: v1.4.16 should adopt
-`superpowers:using-git-worktrees` per agent.
+## Verification
 
-## Files changed (B4 scope, by commit)
-
-`34c967c`:
-
-- `src/lib/gamification/achievements.ts` — new `AchievementCategory`
-  type, `getAchievementCategory()`, `ACHIEVEMENT_CATEGORY_ORDER`,
-  `category` field on `AchievementProgress`
-- `src/app/achievements/page.tsx` — full rewrite: locked-vs-unlocked
-  cards, category grouping, exported `groupByCategory` for unit tests
-- `src/app/achievements/__tests__/page.test.tsx` — new
-- `e2e/achievements.spec.ts` — new
-- `messages/en.json` + `messages/de.json` — 9 new keys
-
-`a242047`:
-
-- `src/lib/dashboard-layout.ts` — `achievements` widget id + default
-  layout entry
-- `src/components/settings/dashboard-layout-section.tsx` —
-  `WIDGET_LABEL_KEYS["achievements"]` mapping
-- `src/app/page.tsx` — import + `showAchievementsCard` gate + chart-row
-  slot
-- `src/app/achievements/page.tsx` — prettier compaction follow-up to
-  `34c967c` (pure formatting)
-
-`81f5019`:
-
-- `src/components/gamification/recent-achievements-card.tsx` — new
-- `src/components/gamification/__tests__/recent-achievements-card.test.tsx` —
-  new
-
-## Out of scope (not done)
-
-- Relative time formatting (`"3 days ago"`) — the brief mentioned
-  formatted-relative for `unlockedAt`, but the existing
-  `formatDate(completedAt)` is well-tested across the app, no
-  `Intl.RelativeTimeFormat` helper exists yet, and adding one as a
-  drive-by would expand B4's blast radius. Left as v1.4.16 polish.
-- Sidebar nav link addition — was already in place in `sidebar-nav.tsx`
-  under `navItems` (verified via the e2e spec which clicks it).
+- `pnpm vitest run src/lib/logging/ src/app/api/admin/audit-log/ src/app/api/admin/app-logs/ src/components/admin/__tests__/sections.test.tsx` — 51 / 51 green
+- `pnpm typecheck` — 0 B4 errors (the typecheck failures present are
+  sibling B7 broken endpoint paths)
+- `pnpm lint` — 0 errors / 12 pre-existing warnings (none on B4 files)

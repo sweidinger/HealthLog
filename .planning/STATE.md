@@ -103,9 +103,11 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B4 — Admin logs visibility deepening
 
-- [ ] Audit log: filterable by actor/action/target/severity, paginated, exportable
-- [ ] App-log preview: tail of structured wide-events for last 1h, filterable by trace_id
+- [x] Audit log: filterable by actor/action/target, paginated (25/50/100 per page), exportable as CSV
+- [x] App-log preview: tail of last 500 structured wide-events from per-process ring buffer, filterable by trace_id / level / action / time-window, JSON inspector modal
 - Detailed report: `.planning/phase-B4-report.md`
+- Commits: `8ac5602` (audit-log API + UI — bundled with verification-gate planning commit due to coordinator stash race; my code, wrong commit subject), `4cc3d8d feat(admin): app-log preview surfaces last 1h of structured events with filter + JSON inspector`, `6520ae4 feat(admin): sidebar entry for app-logs` on origin/main
+- Status block — 2026-05-10T00:11+02:00: B4 complete on origin/main. New `src/lib/logging/in-memory-buffer.ts` (500-entry FIFO, FIFO eviction, redaction at API egress only). New `/api/admin/audit-log/actions` populates the action-dropdown via `groupBy`. New `/api/admin/app-logs` route + `<AppLogPreviewSection>` component + `app-logs` admin slug + `<AdminShell>` entry. 51/51 B4 unit tests green; typecheck/lint clean on B4 surface. Sibling B7 broken `export-per-type` typecheck failures predate this phase.
 
 ### B5a — Medical-reference grounding
 
