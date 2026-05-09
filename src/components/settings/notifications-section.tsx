@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import { NotificationStatusCard } from "@/components/settings/notification-status-card";
 import { NtfyCard } from "@/components/settings/ntfy-card";
 import { TelegramCard } from "@/components/settings/telegram-card";
 import { WebPushCard } from "@/components/settings/web-push-card";
@@ -50,6 +51,8 @@ export function NotificationsSection() {
           {t("settings.sections.notifications.description")}
         </p>
       </header>
+
+      <NotificationStatusCard />
 
       {showTelegram && <TelegramCard isAuthenticated={isAuthenticated} />}
       {showNtfy && <NtfyCard isAuthenticated={isAuthenticated} />}
