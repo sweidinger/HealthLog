@@ -7,7 +7,11 @@ import {
   buildUserPrompt,
 } from "@/lib/insights/prompt";
 import { insightResultSchema, type InsightResult } from "@/lib/ai/types";
-import { resolveProvider } from "@/lib/ai/provider";
+import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
+import {
+  AllProvidersFailedError,
+  runRawCompletionWithFallback,
+} from "@/lib/ai/provider-runner";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
@@ -120,13 +124,25 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError(`Maximum ${limit} insight generations per hour.`, 429);
   }
 
-  const provider = await resolveProvider(userId);
-
-  if (provider.type === "none") {
-    return apiError(
-      "No AI provider configured. Connect ChatGPT in settings or ask your admin to set up an API key.",
-      422,
-    );
+  // v1.4.16 phase B5b: resolve the user's full provider chain so a hard
+  // failure on the primary (401, 5xx, network) cascades to the next
+  // configured fallback rather than surfacing a 503/422 to the
+  // dashboard. Falls back to the single-provider resolution when the
+  // chain comes back empty AND the legacy `aiProvider` field still
+  // points at something usable — preserving v1.4.15 behaviour for
+  // accounts that haven't customised the chain.
+  const chain = await resolveProviderChain(userId);
+  if (chain.length === 0) {
+    // Try the legacy single-provider path one more time so users who
+    // configured AI before v1.4.16 don't suddenly see the 422.
+    const legacy = await resolveProvider(userId);
+    if (legacy.type === "none") {
+      return apiError(
+        "No AI provider configured. Connect ChatGPT in settings or ask your admin to set up an API key.",
+        422,
+      );
+    }
+    chain.push({ providerType: "admin-openai", instance: legacy });
   }
 
   const includeRaw = dbUser?.insightsPrivacyMode === "raw";
@@ -139,28 +155,86 @@ export const POST = apiHandler(async (request: NextRequest) => {
   );
 
   let result;
+  let workingProviderType: string;
+  let fallbackHopCount = 0;
   try {
-    result = await provider.generateCompletion({
-      systemPrompt: getInsightsSystemPrompt(locale),
-      userPrompt,
-      temperature: 0.3,
-      maxTokens: 1500,
+    const fallback = await runRawCompletionWithFallback({
+      userId,
+      providers: chain,
+      params: {
+        systemPrompt: getInsightsSystemPrompt(locale),
+        userPrompt,
+        temperature: 0.3,
+        maxTokens: 1500,
+      },
     });
+    result = fallback.result;
+    workingProviderType = fallback.workingProvider.providerType;
+    fallbackHopCount = fallback.fallbackHops.length;
   } catch (e) {
-    // v1.4.6 T5 mapped only the parse-error branch from 502→422. Provider
-    // errors (e.g. invalid OpenAI key surfacing as
-    // `OpenAI request failed (401)`) still propagated to the apiHandler
-    // generic 500. Cloudflare rewrites 5xx to its own HTML error page,
-    // which breaks `await res.json()` on the dashboard. Mirror the v1.4.5
-    // ai/test categorisation so the React Query mutation can read the
-    // body and surface a readable message.
+    if (e instanceof AllProvidersFailedError) {
+      annotate({
+        meta: {
+          insights_chain_outcome: "all-failed",
+          insights_chain_attempts: e.attempts.length,
+          insights_chain_first_provider: e.attempts[0]?.providerType ?? null,
+          insights_chain_first_status: e.attempts[0]?.httpStatus ?? null,
+        },
+      });
+      // Pick the most specific user-facing message we can. Auth-class
+      // failures across the entire chain mean every provider's
+      // credential is bad — keep the v1.4.5 "check your API key"
+      // wording so the user knows where to act. 429 across the chain
+      // is rate-limit; 5xx is upstream brown-out; transport-only
+      // (ECONNRESET, no httpStatus) maps to the generic connection
+      // hint so users on flaky networks don't see "rate-limited".
+      const allAuth = e.attempts.every(
+        (a) => a.httpStatus === 401 || a.httpStatus === 403,
+      );
+      if (allAuth) {
+        return apiError(
+          "AI provider rejected the request — check your API key in Settings > AI",
+          422,
+        );
+      }
+      const all429 = e.attempts.every((a) => a.httpStatus === 429);
+      if (all429) {
+        return apiError("AI provider rate-limited the request", 429);
+      }
+      const has5xx = e.attempts.some(
+        (a) => a.httpStatus !== null && a.httpStatus >= 500,
+      );
+      if (has5xx) {
+        return apiError(
+          "AI provider temporarily unavailable, try again in a moment",
+          503,
+        );
+      }
+      const allTransport = e.attempts.every(
+        (a) => a.httpStatus === null || a.httpStatus <= 0,
+      );
+      if (allTransport) {
+        return apiError(
+          "AI provider connection failed — check your AI settings",
+          422,
+        );
+      }
+      return apiError(
+        "AI provider temporarily unavailable, try again in a moment",
+        503,
+      );
+    }
+    // v1.4.6 T5 mapped only the parse-error branch from 502→422. Non-
+    // hard provider errors (e.g. a custom 4xx from a self-hosted local
+    // model) still propagate here. Cloudflare rewrites 5xx to its own
+    // HTML error page, which breaks `await res.json()` on the
+    // dashboard. Mirror the v1.4.5 ai/test categorisation.
     const err = e as Error & { httpStatus?: number; bodyExcerpt?: string };
     annotate({
       meta: {
         insights_provider_error: err.message.slice(0, 500),
         insights_provider_status: err.httpStatus ?? null,
         insights_provider_body_excerpt: err.bodyExcerpt?.slice(0, 500) ?? null,
-        insights_provider_type: provider.type,
       },
     });
     const status = err.httpStatus ?? 0;
@@ -220,6 +294,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
       privacyMode: dbUser?.insightsPrivacyMode,
       tokensUsed: result.tokensUsed,
       providerType: result.providerType,
+      chainProviderType: workingProviderType,
+      fallbackHopCount,
       model: result.model,
     },
   });
@@ -229,6 +305,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
     meta: {
       cached: false,
       providerType: result.providerType,
+      chainProviderType: workingProviderType,
+      fallbackHopCount,
       model: result.model,
       tokensUsed: result.tokensUsed,
     },

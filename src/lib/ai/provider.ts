@@ -11,6 +11,11 @@ import {
   decryptCodexCreds,
 } from "./codex-oauth";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import {
+  parseProviderChain,
+  type ProviderChainType,
+} from "./provider-chain";
+import type { ProviderChainResolved } from "./provider-runner";
 
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -256,6 +261,118 @@ export async function resolveProvider(userId: string): Promise<AIProvider> {
 
   // 3. Admin OpenAI key (also acts as fallback for user-OPENAI selection)
   return resolveAdminProvider();
+}
+
+/**
+ * v1.4.16 phase B5b — resolve a chain of providers in priority order
+ * for the multi-provider fallback runner. Each entry pairs a logical
+ * `providerType` with a constructed `AIProvider` instance ready to
+ * accept `generateCompletion()` calls.
+ *
+ * Steps:
+ *   1. Read `User.aiProviderChain` (or `PROVIDER_CHAIN_DEFAULT` when
+ *      null). Already sorted + deduplicated by `parseProviderChain`.
+ *   2. For each enabled entry, attempt to materialise the provider
+ *      from the user's saved credentials. Drop entries that have no
+ *      usable credential (e.g. chain says `anthropic` but
+ *      `aiAnthropicKeyEncrypted` is null).
+ *   3. Returns the surviving array — possibly empty if the user has
+ *      no configured providers anywhere. Caller raises 422 in that
+ *      case.
+ *
+ * Reused by the regular insight-generate route (B5b) AND the v1.4.17
+ * feedback-attribution path (B5e) — both need the same resolution
+ * semantics. `resolveProvider()` keeps its single-result shape for
+ * the legacy `weight-status.ts` / `mood-status.ts` / etc. consumers
+ * that have not migrated to the chain runner yet.
+ */
+export async function resolveProviderChain(
+  userId: string,
+): Promise<ProviderChainResolved[]> {
+  const userRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      aiProvider: true,
+      aiModel: true,
+      aiBaseUrl: true,
+      aiAnthropicKeyEncrypted: true,
+      aiLocalKeyEncrypted: true,
+      aiOpenaiKeyEncrypted: true,
+      aiProviderChain: true,
+    },
+  });
+
+  const rawChain = userRow?.aiProviderChain ?? null;
+  const chain = parseProviderChain(rawChain).filter((e) => e.enabled);
+
+  const resolved: ProviderChainResolved[] = [];
+  for (const entry of chain) {
+    const instance = await resolveProviderForType(entry.providerType, {
+      userId,
+      userRow,
+    });
+    if (instance) {
+      resolved.push({ providerType: entry.providerType, instance });
+    }
+  }
+  return resolved;
+}
+
+/**
+ * Materialise a single chain entry. Returns null when the user lacks
+ * the matching credential — the chain runner skips null entries.
+ */
+async function resolveProviderForType(
+  providerType: ProviderChainType,
+  ctx: {
+    userId: string;
+    userRow: {
+      aiAnthropicKeyEncrypted: string | null;
+      aiLocalKeyEncrypted: string | null;
+      aiOpenaiKeyEncrypted: string | null;
+      aiBaseUrl: string | null;
+      aiModel: string | null;
+    } | null;
+  },
+): Promise<AIProvider | null> {
+  switch (providerType) {
+    case "codex": {
+      return resolveCodexProvider(ctx.userId);
+    }
+    case "openai": {
+      const enc = ctx.userRow?.aiOpenaiKeyEncrypted;
+      if (!enc) return null;
+      return new OpenAIClient({
+        apiKey: decrypt(enc),
+        model: ctx.userRow?.aiModel ?? "gpt-4o-mini",
+        baseUrl: "https://api.openai.com/v1",
+      });
+    }
+    case "anthropic": {
+      const enc = ctx.userRow?.aiAnthropicKeyEncrypted;
+      if (!enc) return null;
+      return new AnthropicClient({
+        apiKey: decrypt(enc),
+        model: ctx.userRow?.aiModel ?? "claude-3-5-sonnet-latest",
+      });
+    }
+    case "local": {
+      if (!ctx.userRow?.aiBaseUrl) return null;
+      return new LocalOpenAICompatibleClient({
+        apiKey: ctx.userRow.aiLocalKeyEncrypted
+          ? decrypt(ctx.userRow.aiLocalKeyEncrypted)
+          : null,
+        model: ctx.userRow.aiModel ?? "local-model",
+        baseUrl: ctx.userRow.aiBaseUrl,
+      });
+    }
+    case "admin-openai": {
+      const admin = await resolveAdminProvider();
+      return admin.type === "none" ? null : admin;
+    }
+    default:
+      return null;
+  }
 }
 
 /**

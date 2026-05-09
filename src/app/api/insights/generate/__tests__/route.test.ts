@@ -56,6 +56,11 @@ vi.mock("@/lib/ai/provider", async () => {
   return {
     ...actual,
     resolveProvider: vi.fn(),
+    // v1.4.16 phase B5b: the route consults the multi-provider chain
+    // first; the existing single-provider mocks return an empty chain
+    // so the route falls through to `resolveProvider()` and the legacy
+    // test fixtures keep behaving exactly as before.
+    resolveProviderChain: vi.fn(async () => []),
   };
 });
 
@@ -84,9 +89,15 @@ import { POST, resolveInsightsRateLimit } from "../route";
 import { resolveProvider } from "@/lib/ai/provider";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
+import { clearLastWorkingProviderCache } from "@/lib/ai/provider-runner";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // The B5b fallback runner caches "last working provider" per user
+  // across calls; tests that assert single-provider error mapping
+  // need a fresh cache so the previous test's success doesn't reorder
+  // the chain on the next request.
+  clearLastWorkingProviderCache();
   vi.mocked(checkRateLimit).mockResolvedValue({
     allowed: true,
     remaining: 9,

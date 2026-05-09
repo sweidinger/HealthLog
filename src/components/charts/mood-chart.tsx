@@ -4,13 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import {
   ResponsiveContainer,
-  LineChart,
+  ComposedChart,
+  Area,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ReferenceArea,
+  ReferenceLine,
 } from "recharts";
 import { Loader2 } from "lucide-react";
 import { useState, useMemo, useId } from "react";
@@ -26,6 +28,10 @@ import {
   pickBucket,
   type ChartBucketType,
 } from "@/lib/charts/bucket-time-series";
+import { ChartLinearGradient, chartGradientFill } from "./chart-gradient";
+import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
+import { ChartEmptyState } from "./chart-empty-state";
+import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 
 // --- Types ---
 
@@ -366,6 +372,17 @@ export function MoodChart({ title }: MoodChartProps) {
     5: t("charts.moodLabel5"),
   };
 
+  // v1.4.16 B1a — emoji glyph per integer mood score. Apple Health
+  // surfaces a smiley/frown alongside the value; mirroring that here
+  // makes the chart scannable without a legend.
+  const moodEmoji: Record<number, string> = {
+    1: "\u{1F616}", // 😖
+    2: "\u{1F641}", // 🙁
+    3: "\u{1F610}", // 😐
+    4: "\u{1F642}", // 🙂
+    5: "\u{1F604}", // 😄
+  };
+
   const formatMoodTick = (value: number): string => {
     return moodLabels[value] ?? String(value);
   };
@@ -375,6 +392,18 @@ export function MoodChart({ title }: MoodChartProps) {
     const label = moodLabels[Math.round(value)];
     return label ? `${rounded} (${label})` : String(rounded);
   };
+
+  // v1.4.16 B1a — personal mood baseline (median over visible window).
+  const personalBaseline = useMemo<number | null>(() => {
+    if (!chartData?.length || chartData.length < 5) return null;
+    const sorted = chartData.map((d) => d.score).sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0
+      ? (sorted[mid - 1] + sorted[mid]) / 2
+      : sorted[mid];
+  }, [chartData]);
+
+  const animationsEnabled = !prefersReducedMotion();
 
   if (!isLoading && !data?.entries?.length) return null;
 
@@ -445,6 +474,21 @@ export function MoodChart({ title }: MoodChartProps) {
         </div>
       </CardHeader>
       <CardContent>
+        {/* v1.4.16 B1a — sibling SVG <defs> block for the gradient
+            primitive. SSR-discoverable; Recharts also picks up the id
+            client-side via the inline <defs> below. */}
+        <svg
+          width={0}
+          height={0}
+          aria-hidden="true"
+          style={{ position: "absolute", pointerEvents: "none" }}
+          data-slot="chart-gradient-defs"
+        >
+          <ChartLinearGradient
+            id="chart-gradient-mood"
+            colorVar="--dracula-lavender"
+          />
+        </svg>
         {isLoading ? (
           <div className="flex h-48 items-center justify-center">
             <Loader2 className="text-primary h-6 w-6 animate-spin" />
@@ -453,13 +497,41 @@ export function MoodChart({ title }: MoodChartProps) {
           <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
             {t("charts.noData")}
           </div>
+        ) : chartData.length < 3 ? (
+          // v1.4.16 B1a — sparse-data placeholder consistent with the
+          // BP/weight/pulse charts.
+          <ChartEmptyState
+            title={t("charts.emptyStateTitle")}
+            description={t("charts.emptyStateDescription")}
+            height={280}
+          />
         ) : (
           <div className="h-[280px] touch-pan-y">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
+              <ComposedChart
                 data={chartData}
                 margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
               >
+                <defs>
+                  <linearGradient
+                    id="chart-gradient-mood-inline"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="0%"
+                      stopColor={COLOR_MAIN}
+                      stopOpacity={0.4}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={COLOR_MAIN}
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="hsl(var(--border))"
@@ -477,6 +549,23 @@ export function MoodChart({ title }: MoodChartProps) {
                       ifOverflow="discard"
                     />
                   ))}
+                {personalBaseline != null && (
+                  <ReferenceLine
+                    y={personalBaseline}
+                    stroke={COLOR_MAIN}
+                    strokeDasharray="2 4"
+                    strokeOpacity={0.4}
+                    strokeWidth={1}
+                    ifOverflow="discard"
+                    label={{
+                      value: t("charts.personalBaseline"),
+                      position: "insideTopLeft",
+                      fill: "var(--muted-foreground)",
+                      fontSize: 10,
+                      opacity: 0.7,
+                    }}
+                  />
+                )}
                 <XAxis
                   type="number"
                   dataKey="pointIndex"
@@ -508,35 +597,88 @@ export function MoodChart({ title }: MoodChartProps) {
                   tickFormatter={formatMoodTick}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "0.5rem",
-                    fontSize: "0.875rem",
+                  cursor={{
+                    stroke: "var(--muted-foreground)",
+                    strokeOpacity: 0.3,
+                    strokeDasharray: "3 3",
                   }}
-                  formatter={(value, name) => {
-                    if (typeof value !== "number") return String(value);
-                    if (name === "score") {
-                      return [formatTooltipValue(value), t("charts.moodScore")];
+                  content={(props) => {
+                    const {
+                      active,
+                      payload,
+                      label: rechartsLabel,
+                    } = props as unknown as {
+                      active?: boolean;
+                      payload?: Array<{
+                        name?: string;
+                        value?: number;
+                        color?: string;
+                        dataKey?: string;
+                        payload?: ChartDataPoint;
+                      }>;
+                      label?: number;
+                    };
+                    if (!active || !payload?.length) return null;
+                    const ts =
+                      payload[0]?.payload?.timestamp ??
+                      (typeof rechartsLabel === "number"
+                        ? chartData?.[Math.round(rechartsLabel)]?.timestamp
+                        : undefined);
+                    const dateLabel = ts
+                      ? formatDateShort(new Date(ts), true)
+                      : "";
+                    const rows: RichTooltipRow[] = [];
+                    for (const item of payload) {
+                      if (typeof item.value !== "number") continue;
+                      const dataKey = String(item.dataKey ?? "");
+                      // Skip auxiliary lines (`ma`, `trend`).
+                      if (dataKey === "ma" || dataKey === "trend") continue;
+                      let delta: string | undefined;
+                      if (personalBaseline != null) {
+                        const diff = item.value - personalBaseline;
+                        if (Math.abs(diff) < 0.05) {
+                          delta = t("charts.deltaUnchanged");
+                        } else {
+                          const sign = diff > 0 ? "+" : "−";
+                          const formatted = `${sign}${(
+                            Math.abs(diff)
+                          ).toFixed(1)}`;
+                          delta = t("charts.deltaVsBaseline").replace(
+                            "{delta}",
+                            formatted,
+                          );
+                        }
+                      }
+                      rows.push({
+                        name: t("charts.moodScore"),
+                        value: formatTooltipValue(item.value),
+                        color: item.color ?? COLOR_MAIN,
+                        delta,
+                      });
                     }
-                    if (name === "ma") {
-                      return [formatTooltipValue(value), t("charts.moodMA")];
-                    }
-                    if (name === "trend") {
-                      return [formatTooltipValue(value), t("charts.trend")];
-                    }
-                    return [String(value), String(name)];
+                    if (rows.length === 0) return null;
+                    return (
+                      <RichChartTooltip
+                        active
+                        label={dateLabel}
+                        rows={rows}
+                      />
+                    );
                   }}
-                  labelFormatter={(_label, payload) =>
-                    payload?.[0]?.payload?.timestamp
-                      ? formatDateShort(
-                          new Date(
-                            (payload[0].payload as ChartDataPoint).timestamp,
-                          ),
-                          true,
-                        )
-                      : ""
-                  }
+                />
+                {/* v1.4.16 B1a — gradient-filled Area painted under
+                    the line. */}
+                <Area
+                  type="monotone"
+                  dataKey="score"
+                  stroke="transparent"
+                  fill={chartGradientFill("chart-gradient-mood-inline")}
+                  fillOpacity={1}
+                  isAnimationActive={animationsEnabled}
+                  animationDuration={animationsEnabled ? 600 : 0}
+                  animationEasing="ease-out"
+                  connectNulls
+                  legendType="none"
                 />
                 <Line
                   type="monotone"
@@ -544,9 +686,45 @@ export function MoodChart({ title }: MoodChartProps) {
                   name="score"
                   stroke={COLOR_MAIN}
                   strokeWidth={2}
-                  dot={{ r: 3, fill: COLOR_MAIN }}
-                  activeDot={{ r: 5 }}
+                  // v1.4.16 B1a — emoji glyph at every data point. The
+                  // dot prop accepts a function returning an SVG node,
+                  // so we render <text> with the emoji centred over the
+                  // (cx, cy) the line layout already computed.
+                  dot={(props) => {
+                    const { cx, cy, payload, key } = props as {
+                      cx?: number;
+                      cy?: number;
+                      payload?: ChartDataPoint;
+                      key?: string | number;
+                    };
+                    if (
+                      typeof cx !== "number" ||
+                      typeof cy !== "number" ||
+                      !payload
+                    ) {
+                      return <g key={key} />;
+                    }
+                    const rounded = Math.round(payload.score);
+                    const glyph = moodEmoji[rounded] ?? "•";
+                    return (
+                      <text
+                        key={key}
+                        x={cx}
+                        y={cy + 5}
+                        textAnchor="middle"
+                        fontSize={14}
+                        data-slot="mood-emoji-glyph"
+                        data-score={rounded}
+                      >
+                        {glyph}
+                      </text>
+                    );
+                  }}
+                  activeDot={{ r: 6 }}
                   connectNulls
+                  isAnimationActive={animationsEnabled}
+                  animationDuration={animationsEnabled ? 600 : 0}
+                  animationEasing="ease-out"
                 />
                 {showMA && (
                   <Line
@@ -572,7 +750,7 @@ export function MoodChart({ title }: MoodChartProps) {
                     connectNulls
                   />
                 )}
-              </LineChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         )}
