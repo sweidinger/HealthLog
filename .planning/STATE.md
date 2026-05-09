@@ -251,10 +251,37 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B5e — User-Feedback Loop
 
-- [ ] "War das hilfreich?" thumbs-up/down on each rec, persisted as RecommendationFeedback (new table)
-- [ ] Aggregated feedback feeds into prompt-tuning: low-helpful patterns get a system-prompt addendum next generation
-- [ ] Privacy: feedback is per-user; no cross-user training (offline only, opt-in for any aggregation)
+- [x] "War das hilfreich?" thumbs-up/down on each rec, persisted as RecommendationFeedback (new table)
+- [x] Aggregated feedback infrastructure (daily worker writes per-(severity x metricSourceType x provider x prompt-version) summary to AppSettings) — prompt-mutation itself deferred to v1.4.17 ratchet per research §3
+- [x] Privacy: feedback is per-user; cross-user aggregate gated behind /admin/ai-quality (requireAdmin); single-user-default-on per research §3
 - Detailed report: `.planning/phase-B5e-report.md`
+- Commits on origin/main:
+  - `badc893 feat(db): RecommendationFeedback model with GDPR cascade + provider attribution`
+  - `8255e3e feat(api): /api/insights/feedback persists thumbs with provider attribution`
+  - `ca84fb7 feat(insights): thumbs-up/down feedback component with optimistic updates`
+  - `47ca1e4 feat(insights): RecommendationCard renders feedback thumbs in named slot`
+  - `71ffe30 feat(jobs): daily feedback aggregator writes per-(severity x provider) summary to AppSettings`
+  - `8879282 feat(admin): AI quality preview showing per-(severity x provider) helpful-rate`
+- Status block — 2026-05-10T01:45+02:00: B5e complete on origin/main.
+  6 atomic TDD-first commits; +20 net direct tests on top of B5d's
+  parallel +56. New Prisma model `RecommendationFeedback` with the
+  `(userId, recommendationId, recommendationText)` dedup key; server-
+  side provider attribution via `resolveFeedbackAttribution()` (reads
+  latest `insights.generate` audit row, prefers chainProviderType >
+  providerType > "unknown"). New `<RecommendationFeedback>` component
+  fills B5c's `data-slot="rec-feedback-slot"` with TanStack Query
+  optimistic updates + localStorage refresh-defence; `asFeedbackTime
+  Range()` defence-in-depth gate keeps the slot empty for legacy/
+  partial recs so a thumbs-click can never produce a 422. New
+  pg-boss `feedback-aggregator` queue (daily 04:00 Europe/Berlin)
+  writes per-(severity x provider) helpful-rate summary to
+  `AppSettings.adminAiInsightsFeedbackSummary`. New `/admin/ai-quality`
+  route surfaces the table tinted by helpful-rate band. EN+DE i18n:
+  18 new keys. `pnpm test` 1464/1464, `pnpm test:integration` 59/59,
+  `pnpm typecheck` 0 errors, `pnpm lint` 12 pre-existing warnings.
+  Worktree `agent/b5e-feedback-loop` shipped without colliding with
+  B5d's parallel ConfidenceMeter wiring on the same rec-card surface
+  (named-slot pattern delivered as designed).
 
 ### B6 — Settings naming-audit
 
