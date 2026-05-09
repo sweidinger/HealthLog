@@ -315,9 +315,7 @@ export function UserManagementSection() {
                         {u.role}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      {u.passkeyCount}
-                    </td>
+                    <td className="px-3 py-2 text-center">{u.passkeyCount}</td>
                     <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
                       {formatDate(u.createdAt)}
                     </td>

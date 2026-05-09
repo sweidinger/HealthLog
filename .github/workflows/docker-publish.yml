@@ -21,6 +21,14 @@ jobs:
   build-and-push:
     name: Build & push multi-arch image
     runs-on: ubuntu-latest
+    # 30 min wall clock — a healthy multi-arch build finishes inside 17 min
+    # (see v1.4.7..v1.4.13 history). The v1.4.14 main run hung 47 min on
+    # `[linux/amd64 runner 2/14]` before Marc cancelled because tag + branch
+    # were exporting to the same gha cache scope concurrently (see fix below).
+    # 30 min is enough for a clean build + a slow exporter, while still
+    # rescuing the runner if buildkit deadlocks instead of waiting for a
+    # human to notice.
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -63,6 +71,23 @@ jobs:
             org.opencontainers.image.licenses=AGPL-3.0-only
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
+      # Per-ref gha cache scope: previously both `cache-from: type=gha` and
+      # `cache-to: type=gha,mode=max` used buildx's default scope name
+      # (`buildkit`). When a release commit lands, GitHub fires the workflow
+      # twice in parallel — once for the `main` push, once for the `v*` tag
+      # — both pointed at the same SHA, both writing to the same gha cache
+      # key. mode=max exports every stage of every platform; the concurrent
+      # writers race on the cache manifest and one deadlocks. The v1.4.14
+      # main run sat on `[linux/amd64 runner 2/14] RUN apk add tzdata` for
+      # 47 minutes (cancelled by hand) while the tag run on the same SHA
+      # finished cleanly in 17 minutes — clear smoking-gun.
+      #
+      # Splitting the scope by `github.ref_name` (e.g. `main`, `v1.4.15`,
+      # `pr-123`) gives each invocation its own cache slot. We `cache-from`
+      # both the ref-specific scope AND the canonical `main` scope so:
+      #   - feature branches/tags can warm-start off main's last good build
+      #   - a tag built right after a main push hits main's cache for layer
+      #     reuse without contending on writes
       - name: Build & push image
         uses: docker/build-push-action@v6
         with:
@@ -72,7 +97,9 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha,scope=build-${{ github.ref_name }}
+            type=gha,scope=build-main
+          cache-to: type=gha,mode=max,scope=build-${{ github.ref_name }}
           provenance: true
           sbom: true
