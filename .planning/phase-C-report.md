@@ -28,26 +28,31 @@ commits rebased + pushed to `origin/main` directly.
 
 ### e2e (`e2e.yml`)
 
-- **Status:** in-progress at report-write time on `0d08e33`. Rebuild
-  cycle taking ~15 min on each push due to next-build cold-cache; the
-  cancellation chain is normal during marathon push cadence.
-- **Commit:** same — `fbcd106 fix(ci): integration tests + e2e workflows green again`.
-- **Root cause:** `e2e/setup/global-setup.ts` seeded the deterministic
-  e2e user with `onboarding_tour_completed = false` (default). Every
-  authenticated spec hit the dashboard, the spotlight tour mounted a
-  full-viewport `role="dialog"` overlay at `z-index: 200`, and
-  Playwright's hit-test caught the tour's skip-button
-  (`<button class="absolute inset-0 …">`) instead of the intended
-  target. Result: 9 specs timed out on every run since `41945b2`
-  (when the tour was wired into the dashboard).
-- **Fix:** seed `onboarding_tour_completed = true` in the upsert.
-  `e2e/onboarding-flicker.spec.ts` mocks `/api/auth/me` from inside
-  the spec, so it also gained an `onboardingTourCompleted: true`
-  field for both the complete + incomplete-onboarding tests.
-- **Evidence:** local `pnpm e2e` not run (browser-headed flow + 4 min
-  cold start), but the failure-mode logs from the last red run
-  pinpointed the tour overlay as the click-interceptor in 8 of 9
-  failures. Confirming green is in the next run.
+- **Status:** went 9 fails → 4 fails after `fbcd106`, then 4 → 0
+  expected after `00848b7` — verifying in the run on the latter SHA.
+- **Commits:**
+  - `fbcd106 fix(ci): integration tests + e2e workflows green again`
+  - `00848b7 fix(e2e): skip desktop-sidebar specs on mobile + stub
+    /api/dashboard/widgets`
+- **Root cause #1 (5 of 9 fails):** `e2e/setup/global-setup.ts`
+  seeded the deterministic e2e user with
+  `onboarding_tour_completed = false` (default). Every authenticated
+  spec hit the dashboard, the spotlight tour mounted a full-viewport
+  `role="dialog"` overlay at `z-index: 200`, and Playwright's
+  hit-test caught the tour's skip-button instead of the intended
+  target. Fix: seed the column to `true`.
+- **Root cause #2 (3 of 9 fails):** desktop-only specs were also
+  running in the chromium-mobile profile, where the
+  `aside[aria-label="Sidebar"]` is `hidden md:flex` by design.
+  Fix: `test.skip(viewport.width < 768, …)` on the affected specs
+  in `achievements.spec.ts` and `a11y.spec.ts`.
+- **Root cause #3 (1 of 9 fails):** the A5 dashboard widgets work
+  added `/api/dashboard/widgets` since `onboarding-flicker.spec.ts`
+  was written. Without a stub the unauthenticated dashboard 500s on
+  the query and React Query's error boundary swallows the page
+  render. Fix: stub the endpoint in both flicker specs.
+- **Evidence:** previous-but-one run on `71652ec` showed 4
+  remaining failures matching root causes #2 + #3 exactly.
 
 ## 2. Eight deferred HIGH from v1.4.15 Wave-D
 
