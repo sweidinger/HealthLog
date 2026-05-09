@@ -1,4 +1,4 @@
-# v1.5 UX friction audit (Phase 5)
+# v1.4.14 UX friction audit (Phase 5)
 
 **Date:** 2026-05-09
 **Method:** Static code walkthrough of the canonical user journey:
@@ -10,7 +10,7 @@ already covered there; the local Node-25 build issue (documented in
 list comes from reading the rendered components and route handlers.
 
 Severity: **CRITICAL** ships tonight, **HIGH** ships tonight if scoped,
-**MEDIUM/LOW** parked for v1.5.1 unless a bigger v1.5 audit batches them.
+**MEDIUM/LOW** parked for v1.4.15 unless a bigger v1.4.14 audit batches them.
 
 ## Top friction points
 
@@ -36,7 +36,7 @@ Severity: **CRITICAL** ships tonight, **HIGH** ships tonight if scoped,
   Users couldn't fall back to the admin/Codex provider without a
   workaround.
 - **Fixed tonight** — see commit `feat(settings): allow removing saved
-  AI provider key`.
+AI provider key`.
 
 ### 3. **HIGH** — `/admin/users` icon-only buttons missed accessible names
 
@@ -48,7 +48,7 @@ Severity: **CRITICAL** ships tonight, **HIGH** ships tonight if scoped,
 - **Fixed tonight** — added explicit `aria-label`, set the leading icon
   `aria-hidden`. Part of the a11y commit.
 
-### 4. **HIGH** — `<PasswordInput>` toggle in admin/_shared had no label
+### 4. **HIGH** — `<PasswordInput>` toggle in admin/\_shared had no label
 
 - File: `src/components/admin/_shared.tsx`.
 - Symptom: the eye/eye-off button had no `aria-label`, hitting axe-core
@@ -68,7 +68,7 @@ Severity: **CRITICAL** ships tonight, **HIGH** ships tonight if scoped,
 - **Fixed tonight** — `directionSentiment` prop with three buckets
   (`up-good` / `up-bad` / `neutral`). All dashboard tiles wired. See
   commit `feat(ui): trend arrow color reflects metric-specific
-  direction sentiment`.
+direction sentiment`.
 
 ### 6. **MEDIUM** — Status-card audit-log row had an empty `<dd>`
 
@@ -93,7 +93,7 @@ Severity: **CRITICAL** ships tonight, **HIGH** ships tonight if scoped,
   feedback BUG badge → `destructive`, "published to GitHub" badge →
   `success`, medication status (in-window → success, very-overdue →
   warning), AI section connection badges. See commit `style(ui): use
-  semantic tokens for mood and feedback indicators`.
+semantic tokens for mood and feedback indicators`.
 
 ### 8. **LOW** — Logout from `/settings` requires going to topbar
 
@@ -103,7 +103,7 @@ Severity: **CRITICAL** ships tonight, **HIGH** ships tonight if scoped,
   Logout, but on mobile within `/settings/*` the topbar's user-menu is
   still the only path. Not broken, but the action is two interactions
   away from settings landing.
-- **Deferred to v1.5.1** — would need a new "Sign out" surface in the
+- **Deferred to v1.4.15** — would need a new "Sign out" surface in the
   Settings shell.
 
 ### 9. **LOW** — Insights section nav has no `aria-label`
@@ -113,7 +113,7 @@ Severity: **CRITICAL** ships tonight, **HIGH** ships tonight if scoped,
   is rendered as `<nav>` without `aria-label`, so multiple nav landmarks
   on the page show up as "navigation, navigation, navigation" in screen
   reader landmark lists.
-- **Deferred to v1.5.1** — needs an i18n key plus a check that the same
+- **Deferred to v1.4.15** — needs an i18n key plus a check that the same
   `<nav>` doesn't already have one elsewhere on the page.
 
 ### 10. **LOW** — `/admin` overview "Sections" list has no aria-label
@@ -124,9 +124,9 @@ Severity: **CRITICAL** ships tonight, **HIGH** ships tonight if scoped,
   already exists, so duplicating it as a quick-jump is fine, but the
   list could be wrapped in a `<nav aria-labelledby=...>` for parity
   with the sidebar.
-- **Deferred to v1.5.1**.
+- **Deferred to v1.4.15**.
 
-## v1.5.1 backlog (from this audit)
+## v1.4.15 backlog (from this audit)
 
 - Dedicated Sign-out CTA in `<SettingsShell>` mobile mode.
 - `aria-label` on `<nav>` landmarks across `/insights` and `/admin` overview.

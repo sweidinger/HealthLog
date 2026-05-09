@@ -140,6 +140,7 @@ Last update: 2026-05-09T16:10:00+02:00
 - [x] healthlog-landing updated — softwareVersion 1.4.6→1.5.0 in
       JSON-LD, AI-providers copy mentions one-click device-code flow
 - [x] both committed + pushed (docs `95a3523`, landing `0c62bb2`)
+- [x] rebranded to v1.4.14 in commit `06bc616` (docs), `92c6588` (landing)
 - Result: ok / docs `95a3523` + landing `0c62bb2` — Coolify
   auto-redeploys docs.healthlog.dev on push
 - Detailed report: `.planning/phase-9-report.md`

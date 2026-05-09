@@ -1,6 +1,6 @@
-# v1.5 Performance Audit — Production
+# v1.4.14 Performance Audit — Production
 
-**Status**: phase-4 of the v1.5 marathon
+**Status**: phase-4 of the v1.4.14 marathon
 **Measured against**: `https://healthlog.bombeck.io` (`/api/version` → `1.4.13`)
 **Measured at**: `2026-05-09T14:14:48Z` → `2026-05-09T14:15:27Z`
 **Tool**: standalone Playwright + Chromium 1217 driver, `PerformanceObserver`
@@ -98,13 +98,13 @@ dynamic-imports firing in parallel.
 
 ## Treemap-flavoured grouping
 
-| group                                        | KiB (uncompressed est ×3 or measured) | notes                                                                                                                                                                                           |
-| -------------------------------------------- | ------------------------------------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Recharts (per page that uses it)             |                              ~108 KiB | by far the heaviest single dep; v1.5 candidate for replacement. v1.4.6 already moved `HealthChart`/`MoodChart` to `next/dynamic`, but `/insights` still imports the Scatter primitives eagerly. |
-| Framework (Next.js + React + TanStack Query) |                               ~71 KiB | unavoidable baseline                                                                                                                                                                            |
-| Radix primitives + app-router shell          |                               ~52 KiB | unavoidable baseline                                                                                                                                                                            |
-| Shared app code (i18n, auth-shell, layout)   |                               ~37 KiB | unavoidable baseline                                                                                                                                                                            |
-| Per-page app code                            |                             13–20 KiB | within budget                                                                                                                                                                                   |
+| group                                        | KiB (uncompressed est ×3 or measured) | notes                                                                                                                                                                                              |
+| -------------------------------------------- | ------------------------------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Recharts (per page that uses it)             |                              ~108 KiB | by far the heaviest single dep; v1.4.14 candidate for replacement. v1.4.6 already moved `HealthChart`/`MoodChart` to `next/dynamic`, but `/insights` still imports the Scatter primitives eagerly. |
+| Framework (Next.js + React + TanStack Query) |                               ~71 KiB | unavoidable baseline                                                                                                                                                                               |
+| Radix primitives + app-router shell          |                               ~52 KiB | unavoidable baseline                                                                                                                                                                               |
+| Shared app code (i18n, auth-shell, layout)   |                               ~37 KiB | unavoidable baseline                                                                                                                                                                               |
+| Per-page app code                            |                             13–20 KiB | within budget                                                                                                                                                                                      |
 
 Pages without charts (`/admin`, `/settings/integrations`) are about 132 KiB
 lighter than the chart pages, confirming Recharts is the dominant
@@ -173,7 +173,7 @@ Two surprises:
   `withingsConnected` / `notificationsConfigured` flags. Acceptable —
   the checklist already gracefully renders unknown defaults.
 
-### 3. Replace Recharts on the dashboard (L, **deferred to v1.5.1**)
+### 3. Replace Recharts on the dashboard (L, **deferred to v1.4.15**)
 
 - **What**: Drop Recharts in favour of a smaller library (Visx, Chart.js
   4, or hand-rolled SVG). Recharts is ~108 KiB Brotli for a use case that
@@ -182,8 +182,8 @@ Two surprises:
   TBT win on `/` desktop because Recharts hydration is the dominant
   longtask source.
 - **Effort**: L. New dep + every chart in `src/components/charts/` needs
-  rewrite. Out of scope for v1.5.0 — track in v1.5.1 backlog.
-- **Why deferred**: hard rule "no new dependencies in v1.5".
+  rewrite. Out of scope for v1.4.14 — track in v1.4.15 backlog.
+- **Why deferred**: hard rule "no new dependencies in v1.4.14".
 
 ### Bonus / honourable mentions
 
@@ -201,7 +201,7 @@ Local `pnpm build` cannot complete on this machine due to a Node-25
 upstream regression (`Cannot read private member #state from an object
 whose class did not declare it` in turbopack's prerender path; this is
 the same bug noted in `CLAUDE.md`'s pnpm-build entry). Wins #1 and #2
-therefore can't be re-measured against prod until v1.5.0 ships and
+therefore can't be re-measured against prod until v1.4.14 ships and
 Coolify force-pulls the new bundle. Both wins are nevertheless verified
 by static code review:
 
@@ -219,7 +219,7 @@ by static code review:
   every post-onboarding user with ≥ 5 measurements, so no UI regresses.
   `pnpm test` (95 files / 733 tests) is green after the change.
 
-A re-measure after v1.5.0 ships should show:
+A re-measure after v1.4.14 ships should show:
 
 - `/insights` initial JS dropping from ~419 KiB to ~310 KiB (the 108 KiB
   Recharts chunk moves out of the critical path and is only fetched if a
