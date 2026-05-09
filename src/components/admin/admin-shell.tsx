@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Bell,
   Database,
+  FileText,
   KeyRound,
   Inbox,
   Plug,
@@ -92,6 +93,11 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     slug: "login-overview",
     titleKey: "admin.section.login-overview.title",
     icon: ScrollText,
+  },
+  {
+    slug: "app-logs",
+    titleKey: "admin.section.app-logs.title",
+    icon: FileText,
   },
   {
     slug: "backups",
