@@ -383,7 +383,7 @@ function MeasurementsCsvCard() {
       icon={FileSpreadsheet}
       titleKey="settings.sections.export.cards.measurementsCsv.title"
       descriptionKey="settings.sections.export.cards.measurementsCsv.description"
-      endpoint="/api/export/measurements.csv"
+      endpoint="/api/export/measurements"
       filenamePrefix="healthlog-measurements"
     />
   );
@@ -410,7 +410,7 @@ function MedicationsCsvCard() {
       });
       const stamp = new Date().toISOString().slice(0, 10);
       await downloadFromUrl(
-        `/api/export/medications.csv${query}`,
+        `/api/export/medications${query}`,
         `healthlog-medications-${stamp}.csv`,
       );
     } catch (err) {
@@ -482,7 +482,7 @@ function MoodCsvCard() {
       icon={Waves}
       titleKey="settings.sections.export.cards.moodCsv.title"
       descriptionKey="settings.sections.export.cards.moodCsv.description"
-      endpoint="/api/export/mood.csv"
+      endpoint="/api/export/mood"
       filenamePrefix="healthlog-mood"
     />
   );
@@ -499,7 +499,7 @@ function FullBackupCard() {
     try {
       const stamp = new Date().toISOString().slice(0, 10);
       await downloadFromUrl(
-        "/api/export/full-backup.json",
+        "/api/export/full-backup",
         `healthlog-backup-${stamp}.json`,
       );
     } catch (err) {
