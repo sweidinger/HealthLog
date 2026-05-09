@@ -9,6 +9,7 @@ import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { MedicationForm } from "@/components/medications/medication-form";
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
@@ -173,16 +174,21 @@ export default function MedicationsPage() {
           </div>
         </div>
       ) : !medications?.length ? (
-        <div className="bg-card border-border flex h-64 items-center justify-center rounded-xl border">
-          <div className="text-muted-foreground flex flex-col items-center gap-2">
-            <Pill className="h-8 w-8" />
-            <p>{t("medications.noMedicationsYet")}</p>
-            <Button variant="outline" size="sm" onClick={openCreate}>
-              <Plus className="mr-1 h-3.5 w-3.5" />
+        // v1.4.15 phase-C5: refactor the inline icon+text+button block
+        // to the shared EmptyState primitive so the empty path matches
+        // every other list page in the app (role=status, dashed
+        // border, consistent icon-bubble + spacing).
+        <EmptyState
+          icon={<Pill className="size-6" />}
+          title={t("medications.emptyTitle")}
+          description={t("medications.emptyDescription")}
+          action={
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="mr-1 h-4 w-4" />
               {t("medications.firstMedication")}
             </Button>
-          </div>
-        </div>
+          }
+        />
       ) : (
         <div className="space-y-5">
           {/* Active medications */}

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatDate } from "@/lib/format";
@@ -336,11 +337,14 @@ export default function AchievementsPage() {
       </div>
 
       {grouped.length === 0 ? (
-        <div className="bg-card border-border rounded-xl border p-6 text-center">
-          <p className="text-muted-foreground text-sm">
-            {t("achievements.noneUnlockedYet")}
-          </p>
-        </div>
+        // v1.4.15 phase-C5: upgrade to the EmptyState primitive so the
+        // surface matches the rest of the app. Trophy icon makes the
+        // intent obvious before the user reads the copy. Reuses the
+        // existing `noneUnlockedYet` string to avoid C4 i18n churn.
+        <EmptyState
+          icon={<Trophy className="size-6" />}
+          title={t("achievements.noneUnlockedYet")}
+        />
       ) : (
         <div className="space-y-6">
           {grouped.map(({ category, items }) => {

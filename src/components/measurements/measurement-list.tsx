@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -45,8 +46,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Activity,
   Loader2,
   Pencil,
+  Plus,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -77,6 +80,13 @@ interface Measurement {
 
 interface MeasurementListProps {
   onEdit?: (m: Measurement) => void;
+  /**
+   * v1.4.15 phase-C5: optional callback wired by the parent page so
+   * the empty-state's "Add your first measurement" CTA opens the same
+   * dialog the header button does. When undefined we hide the button
+   * (fallback to the header CTA) instead of crashing.
+   */
+  onAddFirst?: () => void;
 }
 
 const PAGE_SIZE = 25;
@@ -94,7 +104,7 @@ function toDateTimeLocalValue(isoString: string): string {
   return local.toISOString().slice(0, 16);
 }
 
-export function MeasurementList({ onEdit }: MeasurementListProps) {
+export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
@@ -301,9 +311,40 @@ export function MeasurementList({ onEdit }: MeasurementListProps) {
             <Loader2 className="text-primary h-6 w-6 animate-spin" />
           </div>
         ) : !data?.measurements?.length ? (
-          <div className="text-muted-foreground flex h-32 items-center justify-center rounded-lg border border-dashed">
-            {t("measurements.noMeasurements")}
-          </div>
+          // v1.4.15 phase-C5: replaces the bare-text empty rectangle.
+          // Filter-aware copy distinguishes brand-new accounts ("no
+          // measurements yet") from filtered-out lists ("no measurements
+          // match this filter") and exposes the right CTA for each
+          // case.
+          <EmptyState
+            icon={<Activity className="size-6" />}
+            title={
+              typeFilter === "ALL"
+                ? t("measurements.emptyTitle")
+                : t("measurements.emptyFilteredTitle")
+            }
+            description={
+              typeFilter === "ALL"
+                ? t("measurements.emptyDescription")
+                : t("measurements.emptyFilteredDescription")
+            }
+            action={
+              typeFilter !== "ALL" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTypeFilter("ALL")}
+                >
+                  {t("measurements.emptyResetFilter")}
+                </Button>
+              ) : onAddFirst ? (
+                <Button size="sm" onClick={onAddFirst}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  {t("measurements.emptyAddFirst")}
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <>
             {/* Desktop table */}

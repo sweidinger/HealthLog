@@ -67,7 +67,7 @@ export default function MeasurementsPage() {
         </Dialog>
       </div>
 
-      <MeasurementList />
+      <MeasurementList onAddFirst={() => setDialogOpen(true)} />
     </div>
   );
 }

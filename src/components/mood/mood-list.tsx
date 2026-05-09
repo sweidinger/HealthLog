@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -47,6 +48,8 @@ import {
 import {
   Loader2,
   Pencil,
+  Plus,
+  Smile,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -103,7 +106,17 @@ function toDateTimeLocalValue(isoString: string): string {
   return local.toISOString().slice(0, 16);
 }
 
-export function MoodList() {
+interface MoodListProps {
+  /**
+   * v1.4.15 phase-C5: optional callback wired by the parent page so
+   * the empty-state's "Log your first mood" CTA opens the same dialog
+   * the header button does. When undefined, the CTA hides instead of
+   * rendering a no-op button.
+   */
+  onAddFirst?: () => void;
+}
+
+export function MoodList({ onAddFirst }: MoodListProps = {}) {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
@@ -296,9 +309,38 @@ export function MoodList() {
             <Loader2 className="text-primary h-6 w-6 animate-spin" />
           </div>
         ) : !data?.entries?.length ? (
-          <div className="text-muted-foreground flex h-32 items-center justify-center rounded-lg border border-dashed">
-            {t("mood.noEntries")}
-          </div>
+          // v1.4.15 phase-C5: replace bare-text empty rectangle with
+          // EmptyState. Filter-aware copy splits "no mood entries yet"
+          // (brand-new account) from "no entries match this filter".
+          <EmptyState
+            icon={<Smile className="size-6" />}
+            title={
+              moodFilter === "ALL"
+                ? t("mood.emptyTitle")
+                : t("mood.emptyFilteredTitle")
+            }
+            description={
+              moodFilter === "ALL"
+                ? t("mood.emptyDescription")
+                : t("mood.emptyFilteredDescription")
+            }
+            action={
+              moodFilter !== "ALL" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMoodFilter("ALL")}
+                >
+                  {t("mood.emptyResetFilter")}
+                </Button>
+              ) : onAddFirst ? (
+                <Button size="sm" onClick={onAddFirst}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  {t("mood.emptyAddFirst")}
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <>
             {/* Desktop table */}

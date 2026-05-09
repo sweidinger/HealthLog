@@ -67,7 +67,7 @@ export default function MoodPage() {
         </Dialog>
       </div>
 
-      <MoodList />
+      <MoodList onAddFirst={() => setDialogOpen(true)} />
     </div>
   );
 }
