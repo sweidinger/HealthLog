@@ -502,9 +502,43 @@ once C2's auto-deploy is verified.
 
 ### B6 — Doctor-report v2
 
-- [ ] Configurable date range
-- [ ] Practice-name on cover page
+- [x] Configurable date range — `d692119`
+- [x] Practice-name on cover page — `28467b2`
 - Detailed report: `.planning/phase-B6-report.md`
+
+#### B6 status block — 2026-05-09T21:38+02:00 — done
+
+Two atomic commits on `origin/main`:
+
+- `d692119` `feat(doctor-report): configurable date range with default
+  last-90-days` — `<DoctorReportDialog>` (Radix Dialog + native
+  `<input type="date">`) prompts the user before the request fires;
+  defaults end=today, start=today-90d; presets 90d / 6mo / 12mo;
+  inline validation (end >= start, span <= 2 years).
+  `normaliseDateRange()` parses `{ startDate?, endDate?, days? }` with
+  silent fallback. `collectDoctorReportData()` filters with both `gte`
+  AND `lte` so a custom window honours both bounds. PDF cover prints
+  the explicit period.
+- `28467b2` `feat(doctor-report): practice name on cover page (persisted
+  as user preference)` — optional "Praxis / clinic name" input on the
+  dialog, pre-filled from `User.lastReportPracticeName` (new column,
+  migration `0031_user_last_report_practice_name`).
+  `sanitisePracticeName()` strips ASCII C0 + DEL controls, collapses
+  whitespace, hard-caps at 120 chars. PDF cover renders 11pt bold
+  above the separator when set; omitted when null. `/api/auth/me`
+  echoes the value. Audit + Wide-Event log
+  `practiceNameProvided: boolean` (not the value itself).
+
+Tests: 965 / 965 unit pass (was 957), 31 / 31 integration pass,
+typecheck clean for B6 files, lint 0 errors. The 3 pre-existing
+dashboard-layout typecheck errors continue to belong to A4; the 2
+`tour-launcher.tsx` lint errors continue to belong to B5.
+
+Cross-agent: race-conditions on `prisma/schema.prisma` +
+`src/components/settings/advanced-section.tsx` mid-session; recovered
+each time by re-reading + re-applying. Same rec as A2 / A4 / B-mobile /
+B1 / B2 / B3: v1.4.16 should adopt
+`superpowers:using-git-worktrees` per parallel agent.
 
 ## Phase C — Hardening
 
