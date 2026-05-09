@@ -1200,7 +1200,22 @@
       "saved": "Gespeichert",
       "saveFailed": "Speichern fehlgeschlagen",
       "testFailed": "Test fehlgeschlagen",
-      "errorGeneric": "Fehler"
+      "errorGeneric": "Fehler",
+      "providerChain": {
+        "heading": "KI-Provider-Fallback-Kette",
+        "activeLine": "Aktiver Provider: {provider}",
+        "cachedSuffix": "(zwischengespeichert: {provider})",
+        "chainLine": "Konfigurierte Kette: {chain}",
+        "managementHint": "Reihenfolge und Ein/Aus-Schalter kommen mit dem nächsten Release.",
+        "none": "keiner konfiguriert",
+        "types": {
+          "codex": "ChatGPT (Codex)",
+          "openai": "OpenAI (eigener Key)",
+          "anthropic": "Anthropic (Claude)",
+          "local": "Lokales Modell",
+          "admin-openai": "Admin-OpenAI"
+        }
+      }
     },
     "withings": "Withings",
     "withingsDescription": "Verbinde deine Withings-Waage und Blutdruckmessgeräte.",

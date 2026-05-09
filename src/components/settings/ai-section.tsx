@@ -534,6 +534,8 @@ function InsightsSettingsCard({
           </Button>
         )}
 
+        <ProviderChainSummary />
+
         <UserAIProviderSubsection />
       </div>
     </div>
@@ -967,6 +969,71 @@ function UserAIProviderSubsection() {
           {testMsg}
         </p>
       )}
+    </div>
+  );
+}
+
+interface ProviderChainSummaryData {
+  activeProvider: string | null;
+  cachedActiveProvider: string | null;
+  configuredChain: { providerType: string; available: boolean }[];
+}
+
+/**
+ * v1.4.16 phase B5b — read-only summary of the user's AI provider
+ * fallback chain. Surfaces "Active provider: codex" + "Configured:
+ * codex, openai" so the user can see the cascade order without going
+ * through admin logs. Full management UX (drag-to-reorder, add/remove)
+ * is owned by phase B2 (AI provider settings cleanup); this panel is
+ * deliberately tight so the two phases don't collide.
+ */
+function ProviderChainSummary() {
+  const { t } = useTranslations();
+  const { data } = useQuery({
+    queryKey: ["insights", "provider-chain"],
+    queryFn: async () => {
+      const res = await fetch("/api/insights/provider-chain");
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data as ProviderChainSummaryData;
+    },
+  });
+
+  if (!data) return null;
+  if (data.configuredChain.length === 0) return null;
+
+  const activeLabel = data.activeProvider
+    ? t(`settings.ai.providerChain.types.${data.activeProvider}`)
+    : t("settings.ai.providerChain.none");
+  const chainLabels = data.configuredChain
+    .map((entry) => t(`settings.ai.providerChain.types.${entry.providerType}`))
+    .join(", ");
+
+  return (
+    <div
+      className="bg-muted/50 rounded-lg p-4 text-xs"
+      data-slot="ai-provider-chain-summary"
+    >
+      <p className="text-sm font-medium">
+        {t("settings.ai.providerChain.heading")}
+      </p>
+      <p className="text-muted-foreground mt-1">
+        {t("settings.ai.providerChain.activeLine", { provider: activeLabel })}
+        {data.cachedActiveProvider &&
+        data.cachedActiveProvider !== data.activeProvider
+          ? ` ${t("settings.ai.providerChain.cachedSuffix", {
+              provider: t(
+                `settings.ai.providerChain.types.${data.cachedActiveProvider}`,
+              ),
+            })}`
+          : ""}
+      </p>
+      <p className="text-muted-foreground mt-1">
+        {t("settings.ai.providerChain.chainLine", { chain: chainLabels })}
+      </p>
+      <p className="text-muted-foreground/80 mt-1 italic">
+        {t("settings.ai.providerChain.managementHint")}
+      </p>
     </div>
   );
 }

@@ -1200,7 +1200,22 @@
       "saved": "Saved",
       "saveFailed": "Save failed",
       "testFailed": "Test failed",
-      "errorGeneric": "Error"
+      "errorGeneric": "Error",
+      "providerChain": {
+        "heading": "AI provider fallback chain",
+        "activeLine": "Active provider: {provider}",
+        "cachedSuffix": "(cached: {provider})",
+        "chainLine": "Configured chain: {chain}",
+        "managementHint": "Reordering and on/off toggles arrive in the next release.",
+        "none": "none configured",
+        "types": {
+          "codex": "ChatGPT (Codex)",
+          "openai": "OpenAI (your key)",
+          "anthropic": "Anthropic (Claude)",
+          "local": "Local model",
+          "admin-openai": "Admin OpenAI"
+        }
+      }
     },
     "withings": "Withings",
     "withingsDescription": "Connect your Withings scale and blood pressure monitors.",
