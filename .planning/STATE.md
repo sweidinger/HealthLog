@@ -188,19 +188,19 @@ React passive listeners). One-line CSS fix per chart wrapper.
 ### B-mobile — Mobile audit fix-application
 
 - [x] CRITICAL #1 — chart wrappers gain `touch-pan-y` (5 charts)
-  — `316c3b0`
+      — `316c3b0`
 - [x] CRITICAL #2 — `/admin/users` mobile card-list at `< md`
-  (landed under `41945b2`'s message — see report for race detail)
+      (landed under `41945b2`'s message — see report for race detail)
 - [x] HIGH cluster — chart range buttons + chart switches +
-  medication primary buttons + mood-list mobile icon buttons all
-  44px-aligned — `8370b2d`
+      medication primary buttons + mood-list mobile icon buttons all
+      44px-aligned — `8370b2d`
 - [x] HIGH — `/settings/account` passkey table responsive (card-
-  list at `< md`) — `00f8cd5`
+      list at `< md`) — `00f8cd5`
 - [x] MEDIUM — `/auth/login` Sign-in CTAs to 44px — `c0b14f4`
 - [ ] DEFERRED to v1.4.16 — `/insights` + `/admin` tab strip
-  overflow (cross-cutting `tabs.tsx`)
+      overflow (cross-cutting `tabs.tsx`)
 - [ ] DEFERRED to v1.4.16 — `/measurements` BP sys/dia row
-  grouping
+      grouping
 - [ ] DEFERRED to v1.4.16 — bottom-nav 5+More IA decision
 - Detailed report: `.planning/phase-B-mobile-report.md`
 
@@ -225,12 +225,42 @@ messages); switched to `git commit -- <pathspec>` for fixes 3 / 4 /
 
 ### B1 — Backup completeness
 
-- [ ] Restore from backup (server endpoint + UI)
-- [ ] Download backup as JSON
-- [ ] Upload backup
-- [ ] Audit log of backup ops
-- [ ] Docs link to "Backup structure" page on docs site
+- [x] Restore from backup (server endpoint + UI) — `fe85c2c`
+- [x] Download backup as JSON — `d8c549e` (sibling-merged, scope is mine)
+- [x] Upload backup — `30a74ed` (sibling-merged, scope is mine)
+- [x] Audit log of backup ops — `0805452` (sibling-merged, scope is mine)
+- [x] Docs link to "Backup structure" page on docs site — `7c32d63`
 - Detailed report: `.planning/phase-B1-report.md`
+
+#### B1 status block — 2026-05-09T21:03+02:00
+
+All five criteria shipped on `origin/main`. New shared module
+`src/lib/validations/backup.ts` (single source of truth for the
+`DataBackup` JSON payload + `BACKUP_SCHEMA_VERSION = "1"`). pg-boss
+`data-backup` worker now stamps `schemaVersion` on every snapshot.
+
+Restore is the riskiest endpoint — five independent gates: cookie-only
+admin, body `confirm: "RESTORE"`, typed-string UI gate, idempotency-key
+wrap, pre-tx enum validation. Restore scope mirrors the v1.4.14 wipe
+plus `mood_entries`. AuditLog rows survive restore.
+
+Audit actions added (11 total): `admin.backups.run` + `.run.denied`,
+`admin.backups.download` + `.denied` + `.failed`,
+`admin.backups.upload` + `.upload.denied`, `admin.backups.restore` +
+`.start` + `.denied` + `.failed`.
+
+i18n: 19 new keys under `admin.section.backups.*` (EN + DE).
+
+Tests: unit 883 / 883 (was 879), integration 31 / 31 (was 19). Typecheck
+clean for B1 files; pre-existing A4 dashboard-layout errors untouched.
+Lint 0 errors, 11 pre-existing warnings.
+
+Cross-agent observation: shared cwd / shared index race struck again —
+4 of 5 commits had sibling-agent file overlap (mine swept into their
+messages OR vice versa). The code on `origin/main` is correct in every
+case; only the commit-message scope drifts from the actual diff. Same
+pattern A2 + A4 documented. v1.4.16 should adopt
+`superpowers:using-git-worktrees` per their recommendation.
 
 ### B2 — Withings + moodLog sync robustness
 
@@ -298,14 +328,15 @@ messages); switched to `git commit -- <pathspec>` for fixes 3 / 4 /
 
 30-day audit complete (200 runs across 5 workflows):
 
-| Workflow                    | Pre-C3 pass-rate | Notes                                        |
-| --------------------------- | ---------------- | -------------------------------------------- |
-| Integration                 | 100 % (47/47)    | healthy                                      |
-| Security & Quality          | 93 % (43/46)     | 3 typecheck regressions owned by A4          |
-| Docker publish (completed)  | 91 % (30/33)     | 1 outright hang (v1.4.14 main, 47 min)       |
-| e2e                         | 0 % (0/47)       | every push since v1.4.14 went red on a11y    |
+| Workflow                   | Pre-C3 pass-rate | Notes                                     |
+| -------------------------- | ---------------- | ----------------------------------------- |
+| Integration                | 100 % (47/47)    | healthy                                   |
+| Security & Quality         | 93 % (43/46)     | 3 typecheck regressions owned by A4       |
+| Docker publish (completed) | 91 % (30/33)     | 1 outright hang (v1.4.14 main, 47 min)    |
+| e2e                        | 0 % (0/47)       | every push since v1.4.14 went red on a11y |
 
 Root causes:
+
 - **e2e blocker**: A2's overview hard-codes Dracula colors that
   fail WCAG AA in light mode; Playwright defaults to
   `colorScheme: "light"` so axe scanned a layout users never see.
@@ -314,6 +345,7 @@ Root causes:
   exporter to deadlock.
 
 Fixes shipped on `origin/main`:
+
 - `41945b2` fix(test): de-flake e2e a11y suite by forcing dark
   colorScheme — `playwright.config.ts` adds `colorScheme: "dark"`
   to top-level `use` AND each project (the `...devices[...]`
@@ -328,6 +360,7 @@ Fixes shipped on `origin/main`:
 - `4a5be22` docs(audit): v1.4.15 CI/e2e reliability report.
 
 Verification:
+
 - All 5 workflow YAMLs parse cleanly (`yaml@2.8.4` round-trip).
 - `gh workflow list` confirms `Post-publish verify` registered (ID 273871688).
 - Manual `gh workflow run docker-publish.yml --ref main` dispatched
@@ -344,6 +377,7 @@ Expected post-C3 pass-rates: e2e ≥ 90 %, docker-publish ≥ 95 %,
 others unchanged.
 
 Deferred items (out of C3 scope):
+
 - Typecheck regression `dashboard-layout.test.ts` (lines 91/104/116)
   — owned by A4 / phase-D senior-dev review.
 - Action-version Node-20 → Node-24 deprecation refresh — v1.5
