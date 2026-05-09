@@ -217,7 +217,12 @@ export default function LoginPage() {
               {t("auth.noAccount")}{" "}
               <Link
                 href="/auth/register"
-                className="text-primary hover:underline"
+                // axe-core `link-in-text-block` requires a visible
+                // distinction beyond colour alone (WCAG 1.4.1). Forcing
+                // the underline always-on instead of `hover:underline`
+                // satisfies the rule without changing the visual after
+                // hover.
+                className="text-primary underline"
               >
                 {t("auth.register")}
               </Link>

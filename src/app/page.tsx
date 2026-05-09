@@ -363,7 +363,11 @@ export default function DashboardPage() {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm">
+            {/* WCAG 2.5.5 — touch targets must be ≥44×44 CSS px on mobile.
+                `size="sm"` (h-8 = 32px) was below threshold; the explicit
+                min-h-11 ensures we hit 44px on the Pixel 5 viewport while
+                keeping the desktop visual unchanged. */}
+            <Button size="sm" className="min-h-11">
               <Plus className="mr-1 h-4 w-4" />
               {t("common.add")}
             </Button>

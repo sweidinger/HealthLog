@@ -41,7 +41,9 @@
     "copy": "Kopieren",
     "copyDetails": "Details kopieren",
     "retry": "Erneut versuchen",
-    "reportIssue": "Fehler melden"
+    "reportIssue": "Fehler melden",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort verbergen"
   },
   "doctorReport": {
     "title": "Gesundheitsbericht",

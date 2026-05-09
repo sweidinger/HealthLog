@@ -59,7 +59,10 @@ export function TopBar() {
           <div className="bg-muted h-4 w-20 animate-pulse rounded" />
         ) : user ? (
           <DropdownMenu>
-            <DropdownMenuTrigger className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors focus:outline-none">
+            <DropdownMenuTrigger
+              aria-label={t("nav.userMenu")}
+              className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors focus:outline-none"
+            >
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">{user.username}</span>
               <ChevronDown className="h-3 w-3 opacity-60" />

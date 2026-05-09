@@ -41,7 +41,9 @@
     "copy": "Copy",
     "copyDetails": "Copy details",
     "retry": "Retry",
-    "reportIssue": "Report issue"
+    "reportIssue": "Report issue",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "doctorReport": {
     "title": "Health Report",
