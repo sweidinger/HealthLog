@@ -161,9 +161,25 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B5b — Multi-provider redundancy
 
-- [ ] try-each-on-hard-failure across configured providers
-- [ ] Fallback ordering configurable per user
+- [x] try-each-on-hard-failure across configured providers
+- [x] Fallback ordering configurable per user
 - Detailed report: `.planning/phase-B5b-report.md`
+- Commits on origin/main:
+  - `2611bb4 feat(db): User.aiProviderChain for ordered fallback config`
+  - `901f44e feat(charts): mood chart polish ...` (cross-agent race subject — actual diff includes the B5b runner + provider-chain resolver + route wiring; verified via `git show 901f44e`)
+  - `613d661 feat(settings): minimal display of active AI provider + configured chain`
+  - `d2bda42 test(ai): provider fallback covers happy path, hard-fail cascade, cache`
+- 4 atomic TDD-first commits. New module `provider-runner.ts` exposes
+  both a strict `runWithFallback()` (for B5c migration) and a
+  legacy-shape `runRawCompletionWithFallback()` (consumed by the
+  current route). Hard-fail policy: 401/403/429/5xx/transport
+  cascade; schema 422 bubbles. Last-working cache: 1h TTL, in-process,
+  per-userId. New `User.aiProviderChain Json?` column + migration
+  `0033`. New `GET /api/insights/provider-chain` endpoint feeds
+  `<ProviderChainSummary>` (active + cached + configured chain) under
+  Settings → AI; full management UX deferred to B2 per scope. EN+DE
+  i18n parity green. Cross-agent race: commit 2 subject was hijacked
+  by parallel B1a worker (mood-chart polish); my code IS on origin.
 
 ### B5c — Per-Recommendation Explainability
 
