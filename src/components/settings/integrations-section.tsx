@@ -170,7 +170,12 @@ function IntegrationStatusBanner({
       {status.lastError && (
         <div className="text-destructive flex items-start gap-1.5">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span data-testid="integration-status-error">{status.lastError}</span>
+          <span
+            className="min-w-0 break-words"
+            data-testid="integration-status-error"
+          >
+            {status.lastError}
+          </span>
         </div>
       )}
     </div>
