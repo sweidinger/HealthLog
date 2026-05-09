@@ -30,6 +30,7 @@ import { setGlobalBoss } from "@/lib/jobs/boss-instance";
 import { cleanupExpiredIdempotencyKeys } from "@/lib/jobs/idempotency-cleanup";
 import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
 import { runHostMetricTick } from "@/lib/jobs/host-metric-sampler";
+import { aggregateRecommendationFeedback } from "@/lib/jobs/feedback-aggregator";
 import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
 import { deleteMessage } from "@/lib/telegram";
 import { decrypt, encrypt } from "@/lib/crypto";
@@ -109,6 +110,11 @@ const OFFHOST_BACKUP_CRON = "30 2 * * *";
 const HOST_METRIC_QUEUE = "host-metric-sample";
 // Per-minute cadence — matches the chart's 60s polling refetchInterval.
 const HOST_METRIC_CRON = "* * * * *";
+// v1.4.16 phase B5e — daily rec-feedback aggregator. 04:00 Europe/Berlin
+// runs the slot AFTER all the cleanup jobs (rate-limit, idempotency,
+// audit-log) so the previous-day's noise is gone before we aggregate.
+const FEEDBACK_AGGREGATOR_QUEUE = "feedback-aggregator";
+const FEEDBACK_AGGREGATOR_CRON = "0 4 * * *";
 
 interface ReminderCheckPayload {
   triggeredAt: string;
@@ -173,6 +179,10 @@ interface OffhostBackupPayload {
 }
 
 interface HostMetricSamplePayload {
+  triggeredAt: string;
+}
+
+interface FeedbackAggregatorPayload {
   triggeredAt: string;
 }
 
@@ -938,6 +948,29 @@ async function handleHostMetricSample(jobs: Job<HostMetricSamplePayload>[]) {
   });
 }
 
+async function handleFeedbackAggregator(
+  jobs: Job<FeedbackAggregatorPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.feedback_aggregator", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const summary = await aggregateRecommendationFeedback(p);
+      evt.addMeta("feedback_buckets", summary.buckets.length);
+      evt.addMeta(
+        "feedback_total_rows",
+        summary.buckets.reduce((acc, b) => acc + b.total, 0),
+      );
+      evt.addMeta("feedback_window_days", summary.windowDays);
+    } catch (err) {
+      // The admin dashboard tolerates a stale summary — log and move
+      // on rather than poisoning the boss queue with retries that
+      // would block the next cleanup window.
+      evt.addWarning(`feedback-aggregator failed: ${err}`);
+    }
+  });
+}
+
 async function handleOffhostBackup(jobs: Job<OffhostBackupPayload>[]) {
   void jobs;
   await withBackgroundEvent("job.offhost_backup", async (evt) => {
@@ -1184,6 +1217,7 @@ export async function startReminderWorker() {
     AUDIT_LOG_CLEANUP_QUEUE,
     OFFHOST_BACKUP_QUEUE,
     HOST_METRIC_QUEUE,
+    FEEDBACK_AGGREGATOR_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -1207,6 +1241,7 @@ export async function startReminderWorker() {
     [AUDIT_LOG_CLEANUP_QUEUE, AUDIT_LOG_CLEANUP_CRON],
     [OFFHOST_BACKUP_QUEUE, OFFHOST_BACKUP_CRON],
     [HOST_METRIC_QUEUE, HOST_METRIC_CRON],
+    [FEEDBACK_AGGREGATOR_QUEUE, FEEDBACK_AGGREGATOR_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -1293,6 +1328,11 @@ export async function startReminderWorker() {
     HOST_METRIC_QUEUE,
     { localConcurrency: 1 },
     handleHostMetricSample,
+  );
+  await boss.work<FeedbackAggregatorPayload>(
+    FEEDBACK_AGGREGATOR_QUEUE,
+    { localConcurrency: 1 },
+    handleFeedbackAggregator,
   );
 
   return boss;
