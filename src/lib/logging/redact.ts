@@ -23,25 +23,24 @@
  * want partial revelation of token entropy.
  */
 export function redactSecrets(input: string): string {
-  return input
-    .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
-    .replace(/bot\d+:[A-Za-z0-9_-]+/g, "bot[REDACTED]")
-    // `sk-` is a common English-prefix substring (task-force, risk-
-    // management, disk-io). Without a word-boundary, the original
-    // `/sk-(?:ant-)?[A-Za-z0-9_-]+/g` over-matched and made server logs
-    // unreadable. Require the `sk-` token to be at the start of the
-    // string OR preceded by a non-alphanumeric character (whitespace,
-    // `=`, `{`, `,`, `:`, etc.). The minimum length-8 tail keeps a
-    // tiny safety margin against `sk-1`-style false-positives in code
-    // identifiers. Capture group 1 = the leading separator (preserved).
-    .replace(
-      /(^|[^A-Za-z0-9])sk-(?:ant-)?[A-Za-z0-9_-]{8,}/g,
-      "$1[REDACTED]",
-    )
-    .replace(
-      /([?&])(secret|code|token|api[_-]?key)=[^&\s]+/gi,
-      "$1$2=[REDACTED]",
-    );
+  return (
+    input
+      .replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
+      .replace(/bot\d+:[A-Za-z0-9_-]+/g, "bot[REDACTED]")
+      // `sk-` is a common English-prefix substring (task-force, risk-
+      // management, disk-io). Without a word-boundary, the original
+      // `/sk-(?:ant-)?[A-Za-z0-9_-]+/g` over-matched and made server logs
+      // unreadable. Require the `sk-` token to be at the start of the
+      // string OR preceded by a non-alphanumeric character (whitespace,
+      // `=`, `{`, `,`, `:`, etc.). The minimum length-8 tail keeps a
+      // tiny safety margin against `sk-1`-style false-positives in code
+      // identifiers. Capture group 1 = the leading separator (preserved).
+      .replace(/(^|[^A-Za-z0-9])sk-(?:ant-)?[A-Za-z0-9_-]{8,}/g, "$1[REDACTED]")
+      .replace(
+        /([?&])(secret|code|token|api[_-]?key)=[^&\s]+/gi,
+        "$1$2=[REDACTED]",
+      )
+  );
 }
 
 /** Apply `redactSecrets` to a possibly-undefined string. */

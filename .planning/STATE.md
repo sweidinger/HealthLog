@@ -20,7 +20,7 @@ Last update: 2026-05-09T15:50:00+02:00
 
 - [x] /api/version=1.4.13 confirmed (force-pulled at 13:43 UTC after GHCR builds finished)
 - [x] device-start endpoint returns spec-shaped response (`userCode`, `verificationUrl=https://auth.openai.com/codex/device`, `intervalSeconds`)
-- [x] prod logs reviewed for codex.* events (DB row confirms 13:06 connect; v1.4.12 ai_test_body_excerpt captured the original failure)
+- [x] prod logs reviewed for codex.\* events (DB row confirms 13:06 connect; v1.4.12 ai_test_body_excerpt captured the original failure)
 - [x] gpt-5 model accepted by chatgpt.com backend — actually NO, rejected; switched default to `gpt-5.3-codex` (commit `5df74f7`), live test against Marc's account succeeded
 - [x] /tmp/v15-codex-working.png captured showing `/settings/ai` with "ChatGPT connected" badge
 - Result: ok / commit `5df74f7 fix(ai): default Codex model to gpt-5.3-codex for ChatGPT-account auth`
@@ -60,7 +60,7 @@ Last update: 2026-05-09T15:50:00+02:00
 - [ ] /admin/[section]/page.tsx + admin-shell sidebar
 - [ ] Sections moved to /admin/<slug> routes (system-status, services, integrations, feedback, reminders, users, api-tokens, login-overview, backups, danger-zone)
 - [ ] Status-card CTAs use real routes (no #anchor)
-- [ ] i18n keys reorganised under admin.section.<slug>.*
+- [ ] i18n keys reorganised under admin.section.<slug>.\*
 - [ ] Sidebar nav expandable Admin group
 - [ ] Legacy #anchor → new route redirect in proxy.ts
 - [ ] Bundle-size win on /admin overview verified

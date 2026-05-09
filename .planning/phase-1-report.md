@@ -26,11 +26,13 @@ flipped from 1.4.12 to 1.4.13 once the new container was healthy.
 
 `POST /api/auth/codex/device-start` (with Marc's session cookie
 `cmox4d6fj000101p8w9ykhcnm`) returned:
+
 ```
 { "userCode":"RUNZ-DIOCO",
   "verificationUrl":"https://auth.openai.com/codex/device",
   "intervalSeconds":5 }
 ```
+
 — exact spec shape. Marc's `users.codex_connection_status` row was
 already `connected` (token from 13:06 UTC, expiring 14:06 UTC), so the
 poll path didn't need to be re-exercised. The device-poll connect
@@ -43,10 +45,12 @@ it landed.
 `/api/ai/test` against the v1.4.13 image returned `Provider connection
 failed`; the `ai_test_body_excerpt` annotation captured the upstream
 error verbatim:
+
 ```
 {"detail":"The 'gpt-5' model is not supported when using Codex with a
 ChatGPT account."}
 ```
+
 v1.4.13 had switched the default from the rejected `gpt-5-codex` to
 the equally-rejected plain `gpt-5`. Cross-checking
 `codex-rs/models-manager/models.json` in `openai/codex` showed the
@@ -62,7 +66,7 @@ made `/api/ai/test` succeed: `{"ok":true,"providerType":"codex",
 data. Commit `5df74f7` flipped the in-code default to `gpt-5.3-codex`
 and updated `docs/codex-protocol-spec.md` §7a with the
 chatgpt-account-auth allow-list constraint and the lesson that the
-slugs in `model_migration.rs` are migration *prompts*, not wire slugs.
+slugs in `model_migration.rs` are migration _prompts_, not wire slugs.
 
 ## Screenshot
 

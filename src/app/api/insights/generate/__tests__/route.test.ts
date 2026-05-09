@@ -113,7 +113,7 @@ describe("POST /api/insights/generate — provider error mapping", () => {
   it("maps a 401 from the provider to 422 with a readable message", async () => {
     const err = Object.assign(new Error("OpenAI request failed (401)"), {
       httpStatus: 401,
-      bodyExcerpt: "{\"error\":{\"code\":\"invalid_api_key\"}}",
+      bodyExcerpt: '{"error":{"code":"invalid_api_key"}}',
     });
     makeProviderThatThrows(err);
 
