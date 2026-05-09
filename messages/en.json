@@ -670,7 +670,14 @@
     "recommendationsTitle": "Recommendations",
     "recommendation": {
       "source": "Source",
-      "viewSource": "Open guideline in a new tab"
+      "viewSource": "Open guideline in a new tab",
+      "rationale": "Why this recommendation",
+      "rationaleWindow": "Window",
+      "rationaleComparedTo": "Compared to",
+      "rationaleDeviation": "Deviation",
+      "rationaleExpand": "Show why",
+      "rationaleCollapse": "Hide why",
+      "legacyPayloadCta": "Insights updated — regenerate for new explainability features"
     },
     "dataFoundation": "Data coverage",
     "dataGaps": "Data gaps:",
