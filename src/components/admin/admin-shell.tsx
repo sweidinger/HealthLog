@@ -1,0 +1,232 @@
+"use client";
+
+/**
+ * `<AdminShell>` — sidebar + main column shell for the v1.5 admin split.
+ *
+ * Mirrors `<SettingsShell>` (`src/components/settings/settings-shell.tsx`):
+ * each section lives at its own route under `/admin/[section]/page.tsx` and
+ * mounts inside this shell. The shell only owns navigation; the page itself
+ * renders the section heading and content.
+ *
+ * Mobile-first per `docs/ui-guidelines.md`:
+ *   - <md: section selector renders as a horizontal scroll strip at the top.
+ *   - >=md: sticky 220px sidebar + content column with `max-w-screen-xl`.
+ */
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  AlertTriangle,
+  Bell,
+  Database,
+  KeyRound,
+  Inbox,
+  Plug,
+  ScrollText,
+  Server,
+  Settings,
+  ShieldAlert,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n/context";
+import {
+  ADMIN_SECTION_SLUGS,
+  isAdminSectionSlug,
+  type AdminSectionSlug,
+} from "./section-slugs";
+
+// Re-export so callers don't have to chase two modules. New server-side
+// callers (e.g. `generateStaticParams()`) should still import from
+// `./section-slugs` directly — values exported through this client
+// boundary become unusable proxies on the server.
+export { ADMIN_SECTION_SLUGS, isAdminSectionSlug, type AdminSectionSlug };
+
+interface AdminSection {
+  slug: AdminSectionSlug;
+  /** i18n key under `admin.section.<slug>.title`. */
+  titleKey: string;
+  icon: LucideIcon;
+}
+
+/**
+ * Source of truth for the admin section list. Order matches the in-app
+ * navigation order so the sidebar, mobile strip, and `generateStaticParams()`
+ * all line up. Don't reorder without updating tests.
+ */
+export const ADMIN_SECTIONS: readonly AdminSection[] = [
+  {
+    slug: "system-status",
+    titleKey: "admin.section.system-status.title",
+    icon: Server,
+  },
+  {
+    slug: "general",
+    titleKey: "admin.section.general.title",
+    icon: Settings,
+  },
+  {
+    slug: "services",
+    titleKey: "admin.section.services.title",
+    icon: Plug,
+  },
+  {
+    slug: "integrations",
+    titleKey: "admin.section.integrations.title",
+    icon: AlertTriangle,
+  },
+  {
+    slug: "feedback",
+    titleKey: "admin.section.feedback.title",
+    icon: Inbox,
+  },
+  {
+    slug: "reminders",
+    titleKey: "admin.section.reminders.title",
+    icon: Bell,
+  },
+  {
+    slug: "users",
+    titleKey: "admin.section.users.title",
+    icon: Users,
+  },
+  {
+    slug: "api-tokens",
+    titleKey: "admin.section.api-tokens.title",
+    icon: KeyRound,
+  },
+  {
+    slug: "login-overview",
+    titleKey: "admin.section.login-overview.title",
+    icon: ScrollText,
+  },
+  {
+    slug: "backups",
+    titleKey: "admin.section.backups.title",
+    icon: Database,
+  },
+  {
+    slug: "danger-zone",
+    titleKey: "admin.section.danger-zone.title",
+    icon: ShieldAlert,
+  },
+] as const;
+
+export interface AdminShellProps {
+  /**
+   * Optional override for the active section. When omitted the shell reads
+   * the active slug from `usePathname()` (the production behaviour). Tests
+   * pass an explicit value so they don't need to mock the router.
+   */
+  active?: AdminSectionSlug;
+  children: React.ReactNode;
+}
+
+function deriveActiveSlug(
+  pathname: string | null,
+  override?: AdminSectionSlug,
+): AdminSectionSlug | null {
+  if (override) return override;
+  if (!pathname) return null;
+  // Match `/admin/<slug>` and ignore any trailing segments. The
+  // `/admin` overview page falls through to `null` so no entry is
+  // marked active.
+  const match = pathname.match(/^\/admin\/([^/]+)/);
+  const candidate = match?.[1] ?? "";
+  return isAdminSectionSlug(candidate) ? candidate : null;
+}
+
+export function AdminShell({ active, children }: AdminShellProps) {
+  const pathname = usePathname();
+  const { t } = useTranslations();
+  const activeSlug = deriveActiveSlug(pathname, active);
+
+  return (
+    <div className="mx-auto w-full max-w-screen-xl px-4 py-6 md:px-6 md:py-8">
+      {/* Mobile section strip — horizontal scroll, hidden on md+. */}
+      <nav
+        aria-label={t("admin.shell.sectionsNav")}
+        className="-mx-4 mb-4 overflow-x-auto px-4 md:hidden"
+      >
+        <ul className="flex min-w-max gap-2">
+          {ADMIN_SECTIONS.map((section) => {
+            const isActive = section.slug === activeSlug;
+            const Icon = section.icon;
+            return (
+              <li key={section.slug}>
+                <Link
+                  href={`/admin/${section.slug}`}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+                    isActive
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border text-foreground hover:bg-accent",
+                  )}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  {t(section.titleKey)}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
+        {/* Desktop sticky sidebar */}
+        <aside
+          aria-label={t("admin.shell.sectionsNav")}
+          className="hidden md:block"
+        >
+          <div className="sticky top-20">
+            <ul className="space-y-1">
+              <li>
+                <Link
+                  href="/admin"
+                  aria-current={activeSlug === null ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    activeSlug === null
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground hover:bg-accent",
+                  )}
+                >
+                  <ScrollText className="h-4 w-4" aria-hidden="true" />
+                  {t("admin.shell.overview")}
+                </Link>
+              </li>
+              {ADMIN_SECTIONS.map((section) => {
+                const isActive = section.slug === activeSlug;
+                const Icon = section.icon;
+                return (
+                  <li key={section.slug}>
+                    <Link
+                      href={`/admin/${section.slug}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-accent",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden="true" />
+                      {t(section.titleKey)}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </aside>
+
+        {/* Main column — page renders its own h1 + subtitle */}
+        <main className="min-w-0">{children}</main>
+      </div>
+    </div>
+  );
+}
