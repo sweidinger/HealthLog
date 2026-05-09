@@ -27,7 +27,7 @@ export function ApiTokenOverviewSection() {
   });
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Key className="text-primary h-5 w-5" />
@@ -57,11 +57,17 @@ export function ApiTokenOverviewSection() {
               {t("admin.noTokens")}
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            // Mobile fits within the card by hiding lower-priority
+            // columns (user, last-used, created) until `sm`. The
+            // remaining `overflow-x-auto` is a belt-and-suspenders
+            // guard for ultra-narrow viewports — the table still
+            // scrolls within its container instead of forcing the
+            // page itself to scroll horizontally.
+            <div className="-mx-2 overflow-x-auto sm:mx-0">
+              <table className="w-full min-w-0 text-sm">
                 <thead>
                   <tr className="text-muted-foreground border-b text-xs">
-                    <th className="px-3 py-2 text-left font-medium">
+                    <th className="hidden px-3 py-2 text-left font-medium sm:table-cell">
                       {t("admin.tokenUser")}
                     </th>
                     <th className="px-3 py-2 text-left font-medium">
@@ -73,10 +79,10 @@ export function ApiTokenOverviewSection() {
                     <th className="px-3 py-2 text-right font-medium">
                       {t("admin.tokenStatus")}
                     </th>
-                    <th className="px-3 py-2 text-right font-medium">
+                    <th className="hidden px-3 py-2 text-right font-medium md:table-cell">
                       {t("admin.tokenLastUsed")}
                     </th>
-                    <th className="px-3 py-2 text-right font-medium">
+                    <th className="hidden px-3 py-2 text-right font-medium md:table-cell">
                       {t("admin.tokenCreated")}
                     </th>
                   </tr>
@@ -90,10 +96,20 @@ export function ApiTokenOverviewSection() {
                         key={token.id}
                         className={i % 2 === 0 ? "bg-muted/30" : ""}
                       >
-                        <td className="px-3 py-2 font-medium">
+                        <td className="hidden px-3 py-2 font-medium sm:table-cell">
                           {token.user.username}
                         </td>
-                        <td className="px-3 py-2">{token.name}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-col gap-0.5">
+                            <span>{token.name}</span>
+                            {/* On mobile the user column is hidden, so
+                                surface the username inline under the
+                                token name instead of dropping it. */}
+                            <span className="text-muted-foreground text-xs sm:hidden">
+                              {token.user.username}
+                            </span>
+                          </div>
+                        </td>
                         <td className="px-3 py-2">
                           <div className="flex flex-wrap gap-1">
                             {token.permissions.map((p) => (
@@ -122,12 +138,12 @@ export function ApiTokenOverviewSection() {
                             </Badge>
                           )}
                         </td>
-                        <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                        <td className="text-muted-foreground hidden px-3 py-2 text-right text-xs whitespace-nowrap md:table-cell">
                           {token.lastUsedAt
                             ? formatDateTime(token.lastUsedAt)
                             : t("admin.tokenNeverUsed")}
                         </td>
-                        <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                        <td className="text-muted-foreground hidden px-3 py-2 text-right text-xs whitespace-nowrap md:table-cell">
                           {formatDate(token.createdAt)}
                         </td>
                       </tr>
