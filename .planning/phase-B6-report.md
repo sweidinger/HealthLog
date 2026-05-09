@@ -1,74 +1,96 @@
-# Phase B6 — Doctor-report v2
+# Phase B6 — Settings naming-audit + UX consolidation (v1.4.16)
 
-Status: done · 2026-05-09T21:38+02:00 · two commits on origin/main
+Status: complete on origin/main · 2026-05-10T00:28+02:00 · four commits
 
-## Shipped
+> Previous milestone's B6 (Doctor-report v2 in v1.4.15) is preserved in
+> the v1415 audit summary; this file now belongs to v1.4.16's B6.
 
-1. `d692119` `feat(doctor-report): configurable date range with default
-   last-90-days` — new `<DoctorReportDialog>` (Radix Dialog + native
-   `<input type="date">`) prompts before the request fires; defaults end=today,
-   start=today-90d; presets 90d / 6mo / 12mo. New
-   `normaliseDateRange()` parses `{ startDate?, endDate?, days? }` with
-   silent fallback to last-90-days. `collectDoctorReportData()` accepts a
-   range and filters Prisma `findMany` with both `gte` AND `lte` on
-   measurements, intake events, and mood entries. PDF cover renders the
-   explicit period from `period.start`/`period.end` (legacy `period.since`
-   preserved for backwards compat). Audit-log + Wide-Event annotations
-   record `startDate` / `endDate` for forensic replay.
+Audit doc: `docs/audit/v1416-settings-audit.md` — 320-line single-pass
+inventory of every `/settings/<slug>` route, its component, its i18n keys,
+its sidebar label vs page heading, and every inconsistency found, with
+the decision tabulated per row.
 
-2. `28467b2` `feat(doctor-report): practice name on cover page (persisted
-   as user preference)` — new optional "Praxis / clinic name" field on
-   the dialog, pre-filled from the user's last value. Persisted in
-   `User.lastReportPracticeName` (migration `0031_user_last_report_practice_name`).
-   `sanitisePracticeName()` strips ASCII C0 + DEL controls, collapses
-   whitespace, hard-caps at 120 chars before any layout-sensitive
-   rendering. PDF cover prints the line in 11pt bold above the separator
-   when set; omitted when `null`. Both client + server PDF renderers
-   carry the change. `/api/auth/me` echoes the value so the dialog
-   pre-fills without an extra round-trip. Audit + Wide-Event annotations
-   record `practiceNameProvided: boolean` (NOT the value).
+## What shipped
 
-## Validation
+Four atomic commits on `origin/main`, on top of the v1.4.16 B7 marker:
 
-- `pnpm test` — 965 / 965 unit pass (was 957 at phase start; +8 net
-  after the commit-1 / commit-2 split + reorg).
-- `pnpm test:integration` — 31 / 31 pass.
-- `pnpm typecheck` — 0 new errors; the 3 pre-existing dashboard-layout
-  test errors flagged in STATE.md continue to belong to A4.
-- `pnpm lint` — 0 errors, 11 warnings (none in B6 files; the 2
-  errors in `tour-launcher.tsx` are B5 territory and untouched).
+1. `01a05e4 docs(audit): v1.4.16 settings naming + consolidation audit`
+   — every slug + section component file path + i18n key namespace +
+   sidebar label vs `<h1>` checked. Cross-checks against the new memory
+   `feedback_settings_no_split.md` for top/bottom-split anti-patterns.
+   Out of scope per kickoff: `/settings/ai` (B2), `/settings/export`
+   (B7 just shipped, no churn).
 
-## Race-condition notes
+2. `a432cb2 refactor(settings): consistent naming + i18n key namespace`
+   — file renames so every section follows the canonical
+   `<slug>-section.tsx` `<SlugSection>` convention:
+   - `thresholds-settings-section.tsx` (route wrapper) →
+     `thresholds-section.tsx`
+   - inner editor `thresholds-section.tsx` (`<ThresholdsSection>`) →
+     `thresholds-editor-section.tsx` (`<ThresholdsEditorSection>`)
+   - route page import + `SECTION_COMPONENTS` map updated
+   - section test mock points at the new editor module
+   - rewrites three muddy section descriptions in EN + DE
+     (`account` undersold its scope, `api` was framed as "headless
+     clients"/"Drittanbieter" which Marc doesn't speak,
+     `advanced` still mentioned "Import" which B7 removed). No
+     user-facing setting removed.
 
-Sibling agents kept rewriting `prisma/schema.prisma`,
-`src/components/settings/advanced-section.tsx`, and the test fixtures
-mid-session. Recovered each time by reading the current file before the
-next Edit and re-applying the diff. The `useEffect` reset pattern in
-the dialog flagged the strict `react-hooks/set-state-in-effect` rule;
-switched to the codebase-canonical "track-the-trigger" pattern from
-`account-section.tsx` (store last-observed `open`, react during render).
+3. `ed0cfda refactor(settings): remove duplicate toggles, route to canonical owner`
+   — documents the **Settings vs Admin scope rule** in `CLAUDE.md`.
+   The audit found no live duplicate user-facing toggle: notification
+   channels, AI providers, and per-channel test buttons all have
+   legitimate divisions. The rule lands as a new bullet under
+   `## Important Patterns`.
 
-## Files
+4. `d914f76 test(settings): coverage for renamed/consolidated sections`
+   — two new `<ThresholdsSection>` SSR smoke tests, plus brand-new
+   `sections-i18n-parity.test.ts` that walks every slug in
+   `SETTINGS_SECTION_SLUGS` and asserts both `.title` and
+   `.description` resolve to non-empty strings in EN AND DE — and
+   that the DE description is not a verbatim copy of the EN one.
+   The parity test caught a real instance: `notifications.description`
+   was "Telegram, ntfy, Web Push." in both locales because the channel
+   names are proper nouns. Rewrote the description in both locales so
+   the German reads as German.
 
-- New: `src/components/doctor-report/doctor-report-dialog.tsx` +
-  test, `src/lib/__tests__/doctor-report-data.test.ts`,
-  `prisma/migrations/0031_user_last_report_practice_name/migration.sql`.
-- Touched: `src/lib/doctor-report-data.ts`,
-  `src/lib/doctor-report-pdf-core.ts`, `src/lib/doctor-report-pdf.ts`,
-  `src/app/api/doctor-report/route.ts`,
-  `src/app/api/doctor-report/pdf/route.ts`,
-  `src/app/api/auth/me/route.ts`,
-  `src/components/settings/advanced-section.tsx`,
-  `prisma/schema.prisma`, `messages/{en,de}.json`,
-  `src/lib/__tests__/doctor-report-pdf-core.test.ts`,
-  `src/app/api/doctor-report/__tests__/pdf-route.test.ts`.
+## Verification
 
-## Out of scope / deferred
+- Worktree: `/Users/marc/Projects/HealthLog-b6` on
+  `agent/b6-settings-audit`, rebased onto `origin/main` and merged
+  fast-forward into `main` (`74c2eb8..d914f76`), pushed cleanly.
+- `pnpm typecheck` — 0 errors.
+- `pnpm lint` — 12 pre-existing warnings, 0 errors (matches the
+  Wave-A gate baseline).
+- `pnpm test --run src/components/settings` — 7/7 files, 63/63 tests
+  green (was 40/40 before phase B6 — this phase added 23 new tests).
+- The two pre-existing test failures
+  (`i18n-locale-integrity` for `insights.recommendation.source` /
+  `viewSource`, and `insight-citation-footnote` for `Quelle:`) are
+  **not** my work — they reproduce against the gate baseline before
+  any of my changes and trace back to sibling B5a / B1 agents.
+  Out of B6 scope; flagged for whoever owns those phases.
 
-- E2E test for the dialog open → submit flow — the existing
-  `e2e/doctor-report.spec.ts` mocks the data endpoint and clicks the
-  trigger; updating it to drive the new dialog is out of B6 scope and
-  better landed alongside C3's e2e reliability work.
-- DB-level encryption of `lastReportPracticeName` — the field is
-  user-provided, low-sensitivity, and already protected by HealthLog's
-  cookie-session auth. C-3 / phase-D security review can re-evaluate.
+## Out-of-scope items (flagged for follow-up)
+
+- **B2** owns the AI section top/bottom split (Marc's specific
+  call-out — provider dropdown at top, key inputs at bottom) plus
+  the DE sidebar/heading mismatch ("KI-Auswertungen" vs
+  "KI-Insights").
+- **Hygiene PR (post-v1.4.16)** — migrate every flat
+  `settings.<key>` consumer to the `settings.sections.<slug>.cards.*`
+  shape that Export already uses, then delete the legacy flat keys
+  and the dead `settings.adminAreaTitle` keys.
+- **v1.5 product roadmap** — surface achievements opt-out, personal
+  medical-references override, locale-detection toggle.
+
+## Constraints honoured
+
+- No user-facing setting removed.
+- No new dependency.
+- Every new i18n key landed in EN + DE.
+- No `--no-verify`, no `--no-gpg-sign`.
+- Co-Authored-By trailer on every commit.
+- Commit messages in Marc's voice, no agent/Claude/AI mention.
+- Worktree-isolated so sibling-agent uncommitted state in the primary
+  checkout (B1, B5b in flight) could not bleed in.

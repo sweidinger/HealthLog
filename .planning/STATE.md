@@ -152,10 +152,16 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B6 — Settings naming-audit
 
-- [ ] Every settings sub-route reviewed for stringency, naming consistency, logical grouping
-- [ ] No top/bottom split anti-pattern anywhere
-- [ ] No double naming
-- Detailed report: `.planning/phase-B6-report.md`
+- [x] Every settings sub-route reviewed for stringency, naming consistency, logical grouping
+- [x] No top/bottom split anti-pattern anywhere (AI flagged for B2 — only known instance, out of B6 scope)
+- [x] No double naming (audit found no live duplicate; settings vs admin scope rule landed in CLAUDE.md)
+- Detailed report: `.planning/phase-B6-report.md` · audit doc: `docs/audit/v1416-settings-audit.md`
+- Commits on origin/main:
+  - `01a05e4 docs(audit): v1.4.16 settings naming + consolidation audit`
+  - `a432cb2 refactor(settings): consistent naming + i18n key namespace`
+  - `ed0cfda refactor(settings): remove duplicate toggles, route to canonical owner`
+  - `d914f76 test(settings): coverage for renamed/consolidated sections`
+- Status block — 2026-05-10T00:28+02:00: B6 complete on origin/main. Threshold component renames (`thresholds-settings-section.tsx` → `thresholds-section.tsx` route wrapper; old `thresholds-section.tsx` inner editor → `thresholds-editor-section.tsx` `<ThresholdsEditorSection>`) align every section with the canonical `<slug>-section.tsx` `<SlugSection>` convention. Three muddy section descriptions rewritten in EN + DE (`account`, `api`, `advanced`); `notifications.description` rewritten so the DE doesn't verbatim-copy the EN. New `sections-i18n-parity.test.ts` walks every `SETTINGS_SECTION_SLUGS` entry and asserts both `.title` + `.description` resolve in EN+DE and the DE differs from the EN. Settings tests 63/63 (was 40/40, +23 net). Typecheck 0 errors, lint 0 errors / 12 pre-existing warnings. Worktree-isolated under `agent/b6-settings-audit` so the sibling B1/B5b uncommitted state in the primary checkout couldn't bleed in. AI section top/bottom split (Marc's specific call-out) flagged for B2; flat-key hygiene PR flagged for post-v1.4.16.
 
 ### B7 — Settings → Export menu (Arztbrief consolidated)
 
