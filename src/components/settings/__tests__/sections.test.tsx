@@ -86,6 +86,12 @@ import { ApiSection } from "../api-section";
 import { DashboardSection } from "../dashboard-section";
 import { IntegrationsSection } from "../integrations-section";
 import { NotificationsSection } from "../notifications-section";
+// v1.4.16 phase B6: route-level wrapper. The historic
+// `<ThresholdsSettingsSection>` was renamed to `<ThresholdsSection>` and
+// its filename changed from `thresholds-settings-section.tsx` to
+// `thresholds-section.tsx` so the component name + filename match the
+// slug like every other settings section.
+import { ThresholdsSection } from "../thresholds-section";
 
 function render(node: React.ReactElement, locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
@@ -179,5 +185,28 @@ describe("settings sections — SSR smoke", () => {
     expect(html).toContain("Updates");
     expect(html).toContain("Jetzt prüfen");
     expect(html).toContain("Quellen &amp; Dokumentation");
+  });
+
+  it("<ThresholdsSection> renders heading and embeds the editor (B6 rename)", () => {
+    // v1.4.16 phase B6 contract: the route wrapper is named
+    // `<ThresholdsSection>` (was `<ThresholdsSettingsSection>`), lives
+    // at `thresholds-section.tsx`, and embeds the inner editor under
+    // `<ThresholdsEditorSection>` (was `<ThresholdsSection>`). The
+    // mock above stubs the editor as `data-testid="thresholds-editor"`,
+    // so this test asserts:
+    //   - the wrapper renders without throwing
+    //   - the localised page title surfaces
+    //   - the editor mount-point is present
+    //   - no raw i18n key leaks
+    const html = render(<ThresholdsSection />);
+    expect(html).toContain("Personal targets");
+    expect(html).toContain('data-testid="thresholds-editor"');
+    expect(html).not.toContain("settings.sections.thresholds.");
+  });
+
+  it("<ThresholdsSection> resolves the German title (B6 rename)", () => {
+    const html = render(<ThresholdsSection />, "de");
+    expect(html).toContain("Persönliche Zielwerte");
+    expect(html).toContain('data-testid="thresholds-editor"');
   });
 });

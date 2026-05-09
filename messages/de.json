@@ -980,7 +980,7 @@
       },
       "notifications": {
         "title": "Benachrichtigungen",
-        "description": "Telegram, ntfy, Web Push."
+        "description": "Zustellung pro Kanal — Telegram, ntfy, Web Push — und die Live-Übersicht der Kanalzuverlässigkeit."
       },
       "dashboard": {
         "title": "Dashboard",
