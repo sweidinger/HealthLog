@@ -123,6 +123,73 @@ Last update: 2026-05-09T23:12:52+02:00
     through whenever the user-pref ships.
   - Detailed report: `.planning/phase-B1a-report.md`
 
+### B1 — Insights/Charts Apple-Health-style visual leap (insights surface, second half)
+
+#### B1b — Insights surface visual polish — complete
+
+- 2026-05-10T02:08+02:00 — B1b complete on origin/main.
+  - **Page hero** (`src/components/insights/insights-page-hero.tsx`):
+    Dracula-gradient band (purple → cyan, /15 + /8 opacity, /25
+    border) with sparkles glyph, h1 + overview subtitle, "Based on
+    your last 90 days" personal-baseline caption, "Generated
+    <relative-time>" caption from the freshest of the per-section
+    caches via new `freshestUpdatedAt()` helper, optional regenerate
+    button. Animation reuses existing `animate-insight-in` keyframes
+    (already gated on prefers-reduced-motion).
+  - **Recommendations grid**
+    (`src/components/insights/recommendations-grid.tsx`): 1-col mobile,
+    2-col desktop CSS grid with severity-priority ordering
+    (urgent → important → suggestion → info) via stable
+    `sortRecommendationsBySeverity()`. Per-card Dracula left border
+    (red/orange/purple/cyan at /70), `md:hover:-translate-y-0.5
+    md:hover:shadow-lg` lift, 100ms-staggered fade-in via inline
+    `animationDelay`. Internal slots of `<RecommendationCard>`
+    untouched per brief — outer `<li>` flipped to `<div>` so the grid
+    wrapper can layer CSS grid without invalid HTML5 nesting.
+  - **Summary typography**: bumped to `text-foreground/90 max-w-prose
+    text-base leading-relaxed`. Inline-chart-token renderer gains
+    `mini` flag; summary surface passes mini so embedded charts
+    render as 140px sparklines. Per-finding charts keep full chart.
+  - **Loading / empty / error**: skeleton mirrors final layout
+    (3-card grid, `bg-muted/40-60` pulse, 100ms stagger). Empty
+    state gains centred sparkle glyph + max-w-prose copy. Error
+    state gains discoverable retry button when `onRegenerate` is
+    supplied.
+  - **Dashboard `<InsightsCardPreview>`**: replaces the orphan v1.4.0
+    `<InsightsCard>` (zero non-test imports, deprecated schema).
+    Renders top 1-2 severity-ordered recs as compact tiles + "View
+    all" CTA. Same Dracula severity border + ring-variant
+    `<ConfidenceMeter>` inline. Returns null when no recs.
+  - **Dark mode**: page-hero gradient bumped from /10 + /5 to /15 +
+    /8, border /20 → /25 (clears 3:1 UI-element contrast bar against
+    Dracula bg). Skeleton placeholders /30/40/50 → /40/50/60.
+  - +37 net tests on top of B5e's 1464; full suite 1501/1501,
+    integration 59/59, typecheck 0 errors, lint 12 pre-existing
+    warnings. Worktree-isolated under `agent/b1b-insights-surface`,
+    fast-forwarded to origin/main without rebase (origin sat at
+    c8e7639 for the entire run; clean push `c8e7639..3b0d21e`).
+  - Commits on origin/main:
+    - `4d7d074 feat(insights): page hero with gradient header + generation timestamp + personal-baseline indicator`
+    - `9e8be4b feat(insights): recommendations grid with severity ordering + animated reveal`
+    - `b76351e feat(insights): polished summary typography with inline-chart sparklines`
+    - `0c287f1 feat(insights): polished loading + empty + error states`
+    - `d2cdf9d feat(dashboard): InsightsCardPreview matches insights page visual language`
+    - `5063ad7 style(insights): dark-mode contrast verification + tweaks`
+    - `3b0d21e test(insights): coverage for polished page + dashboard preview`
+  - Architectural deviation: brief asked for regex-based inline-
+    sparkline extraction from freeform summary prose. The model
+    already emits structured `metric:<TYPE>` tokens which the
+    existing `<InlineCharts>` renderer handles; flipping summary
+    charts to `mini` mode delivers the same visual effect without
+    fragile NLP. Regex extraction deferred to v1.4.17 if rec
+    authors can't emit structured tokens consistently.
+  - E2E (Playwright) not added — `<InsightAdvisorCard>` isn't
+    mounted on `/insights` in the production tree (per B5c report's
+    same observation); the new SSR integration test
+    (`recommendations-grid-integration.test.tsx`) exercises the
+    full flow against the MockAIProvider.
+  - Detailed report: `.planning/phase-B1b-report.md`
+
 ### B2 — AI provider settings UX cleanup (Pulldown-driven)
 
 - [x] Settings → AI: provider dropdown drives form below (no top/bottom split)
