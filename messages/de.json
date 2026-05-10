@@ -1810,7 +1810,7 @@
     },
     "overview": {
       "welcomeTitle": "Willkommen, {name}",
-      "welcomeSubtitle": "Du bist als Administrator angemeldet. Wähle einen Bereich in der Seitenleiste, um HealthLog zu verwalten.",
+      "welcomeSubtitle": "Du bist als Administrator angemeldet. Wähle einen Bereich, um HealthLog zu verwalten.",
       "snapshotTitle": "System-Snapshot",
       "snapshotVersion": "Version",
       "snapshotDatabase": "Datenbank",

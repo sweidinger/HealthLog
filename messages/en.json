@@ -1810,7 +1810,7 @@
     },
     "overview": {
       "welcomeTitle": "Welcome, {name}",
-      "welcomeSubtitle": "You are signed in as administrator. Pick a section from the sidebar to manage HealthLog.",
+      "welcomeSubtitle": "You are signed in as administrator. Pick a section to manage HealthLog.",
       "snapshotTitle": "System snapshot",
       "snapshotVersion": "Version",
       "snapshotDatabase": "Database",
