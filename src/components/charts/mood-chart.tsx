@@ -77,7 +77,9 @@ interface MoodChartProps {
   /**
    * v1.4.18 — per-chart overlay-prefs key. When supplied, the chart
    * mounts the overlay-controls dropdown and reads its three toggle
-   * states from the persisted user prefs. Default: "mood".
+   * states from the persisted user prefs. Omit (default) when the
+   * chart is being rendered ad-hoc on /insights or any other read-
+   * only surface — the cog stays hidden and overlays are clean.
    */
   chartKey?: ChartOverlayKey;
 }
@@ -270,7 +272,7 @@ export function MoodChart({
   mini = false,
   windowOverride,
   compareBaseline = "none",
-  chartKey = "mood",
+  chartKey,
 }: MoodChartProps) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -547,7 +549,7 @@ export function MoodChart({
             )}
           </div>
           {!mini && (
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center justify-end gap-1">
               {TIME_RANGES_KEYS.map((r) => (
                 <Button
                   key={r.labelKey}
@@ -562,11 +564,15 @@ export function MoodChart({
                 </Button>
               ))}
               {/* v1.4.18 — overlay-controls dropdown next to the
-                  range tabs. */}
-              <ChartOverlayControls
-                prefs={overlayPrefs.prefs}
-                onChange={overlayPrefs.setPrefs}
-              />
+                  range tabs. Only painted when the chart is bound to
+                  a persistent chartKey; ad-hoc usages (/insights mood
+                  preview, recommendation card) stay clean. */}
+              {chartKey ? (
+                <ChartOverlayControls
+                  prefs={overlayPrefs.prefs}
+                  onChange={overlayPrefs.setPrefs}
+                />
+              ) : null}
             </div>
           )}
         </div>
