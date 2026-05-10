@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Trophy } from "lucide-react";
+import { Sparkles, Trophy } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "@/lib/i18n/context";
@@ -116,10 +116,22 @@ export function AchievementUnlockNotifier({
     }
 
     for (const achievement of newlyUnlocked) {
-      toast(t(achievement.titleKey), {
-        description: t(achievement.descriptionKey),
-        icon: <Trophy className="size-4" />,
-      });
+      // v1.4.18 — hidden Easter-eggs get a celebration toast that
+      // names them "hidden". The real title/description are revealed
+      // *only* on the unlock toast (and afterwards on the unlocked
+      // card) so the surprise lands.
+      if (achievement.isHidden) {
+        toast(t("achievements.hiddenUnlockToast.title"), {
+          description: `${t(achievement.titleKey)} — ${t(achievement.descriptionKey)}`,
+          icon: <Sparkles className="size-4" />,
+          duration: 8000,
+        });
+      } else {
+        toast(t(achievement.titleKey), {
+          description: t(achievement.descriptionKey),
+          icon: <Trophy className="size-4" />,
+        });
+      }
       seenIdsRef.current.add(achievement.id);
     }
 
