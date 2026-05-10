@@ -27,7 +27,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { ThumbsUp, ThumbsDown, Loader2, Check } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
@@ -132,7 +132,6 @@ export function RecommendationFeedback({
 }: RecommendationFeedbackProps) {
   const { t } = useTranslations();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
 
   const [state, setState] = useState<FeedbackState>(() => {
     if (initialState) return initialState;
@@ -189,7 +188,13 @@ export function RecommendationFeedback({
       const verdict = result.helpful ? "up" : "down";
       writeLocalState(user.id, recId, recText, verdict);
       setState(`submitted-${verdict}` as const);
-      queryClient.invalidateQueries({ queryKey: ["insights"] });
+      // v1.4.16 phase D reconcile (code-review H6) — feedback doesn't
+      // affect the displayed insight content, so invalidating the entire
+      // ["insights"] tree (8 queries: comprehensive + 7 per-status)
+      // would force expensive refetches on a stale cache. The user-
+      // visible state lives in localStorage + the local React state
+      // above. The v1.4.17 ratchet that consumes feedback into the
+      // next generation will scope its own invalidation.
     },
     onError: () => {
       // Optimistic-rollback: drop back to default so the user can

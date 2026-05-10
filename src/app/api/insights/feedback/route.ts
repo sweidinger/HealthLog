@@ -8,6 +8,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { resolveFeedbackAttribution } from "@/lib/ai/feedback-attribution";
 import { withIdempotency } from "@/lib/idempotency";
 import { annotate } from "@/lib/logging/context";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { recommendationFeedbackRequestSchema } from "@/lib/validations/recommendation-feedback";
 
 /**
@@ -29,6 +30,25 @@ import { recommendationFeedbackRequestSchema } from "@/lib/validations/recommend
  */
 async function handlePost(request: NextRequest) {
   const { user } = await requireAuth();
+
+  // v1.4.16 phase D reconcile (code-review H5 / security M1) — bound
+  // the per-user write rate. Without this, a single client can
+  // distort the daily aggregator's bucket slice by varying
+  // recommendationId/text per request (the unique index only catches
+  // exact replays). 60/h is generous: a comprehensive insight rarely
+  // has >10 recs, so ≥6 regenerations/h before throttle hits.
+  const rl = await checkRateLimit(
+    `insights-feedback:${user.id}`,
+    60,
+    60 * 60 * 1000,
+  );
+  if (!rl.allowed) {
+    annotate({
+      action: { name: "insights.recommendation.feedback" },
+      meta: { outcome: "rate_limited" },
+    });
+    return apiError("Too many feedback submissions, try again later", 429);
+  }
 
   const { data: rawBody, error } = await safeJson<unknown>(request);
   if (error) return error;
