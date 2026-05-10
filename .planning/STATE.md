@@ -38,15 +38,48 @@ Last update: 2026-05-10T12:48+02:00
 - [x] Commit `a856272` pushed to origin/main first attempt.
 - Detailed report: `.planning/phase-A1-report.md`
 
-### A2 — Charts mobile audit (axis-label overflow + X-axis density consistency)
+### A2 — Charts mobile audit (axis-label overflow + X-axis density consistency) ✅
 
-- [ ] Playwright headless against live prod at Pixel 5 + smaller
-      viewports
-- [ ] "Wochendurchschnitt" + "7T/30T/90T/Alle" tabs wrap-break:
-      shorten the label or hide on mobile
-- [ ] Medication chart shows every date on X; weight/BMI charts
-      sparser. Make consistent across all charts
-- [ ] Apply universal x-axis tick-density helper
+- [x] Playwright headless against live PROD at Pixel 5, iPhone 12,
+      iPhone SE, Galaxy Fold compact (280 px) — probe at
+      `.planning/v1419-a2-prod-probe.mjs`, screenshots + JSON in
+      `/tmp/v1419-a2-prod/`. Findings doc:
+      `.planning/phase-A2-mobile-findings.md`.
+- [x] Pre-fix readings: Blood Pressure / Pulse / Mood / Medications
+      cards all wrapped tabs to a 2nd row on iPhone 12 (header 92 →
+      188 px); fold-compact pushed Medications to 3 rows + horizontal
+      overflow.
+- [x] Header layout fix — mobile-first stack (`flex-col` below sm,
+      `flex-row` ≥ sm). Title + chips on row 1, range tabs + cog
+      right-aligned on row 2 with `flex-nowrap` + `px-2 sm:px-3` so
+      tabs always own a single row at 280 px. Bucket-aggregation chip
+      and comparison captions hide on mobile (`hidden sm:inline-flex`).
+      Applied to HealthChart, MoodChart, MedicationComplianceChart.
+- [x] Universal x-axis tick-density helper at
+      `src/lib/charts/x-axis-density.ts` + reactive viewport hook at
+      `src/hooks/use-viewport-width.ts`. Caps visible ticks at 4
+      (Fold) / 6 (Pixel-5 / iPhone-12) / 8 (small tablet) / 10
+      (desktop). Wired into HealthChart, MoodChart,
+      MedicationComplianceChart, ComplianceLineChart. Scatter
+      correlation chart deliberately left alone (numeric x-axis with
+      explicit `ticks` array).
+- [x] e2e regression at `e2e/charts-mobile.spec.ts` — runs only on
+      `chromium-mobile`; asserts 1 row of tabs per card + ≤ 7 visible
+      ticks per axis. Helper unit tests at
+      `src/lib/charts/__tests__/x-axis-density.test.ts` (13 cases).
+- [x] `pnpm test`: 1637 / 1637 green. `pnpm lint`: 0 errors / 17
+      warnings (12 baseline + 5 from concurrent A3 work, none from A2).
+      `pnpm typecheck`: A2 surface clean (one A3-owned error in
+      `src/app/insights/page.tsx` unrelated to A2).
+- [x] Two commits on origin/main: `77a3ad3` (fix), `a739085` (test).
+      Note: parallel-agent race condition during the second commit
+      caused a polluted intermediate commit `0cf23f3` to slip through
+      with the wrong file content but the right message; the same
+      content (mine) was re-committed cleanly as `a739085` immediately
+      after. `0cf23f3` was already pushed by another agent before the
+      cleanup rebase could land, so it remains in history with a
+      stale `phase-A5-report.md` payload — non-destructive but ugly.
+      No `--no-verify` / `--no-gpg-sign` used.
 - Detailed report: `.planning/phase-A2-report.md`
 
 ### A3 — /insights polish + Comparison switch move
@@ -221,6 +254,37 @@ medications.csv,mood.csv}/`) left in place — same call as v1.4.16 /
   Cross-agent race: commit `ba0d6b8` accidentally bundled A4's
   `.planning/STATE.md` and `phase-A4-report.md` edits — same shared-
   cwd race across earlier marathons, no information lost.
+
+- 2026-05-10T13:11+02:00 — Wave A / A6 complete. Settings mobile
+  consistency audited at Pixel-5 (393×851) against production with
+  Marc's session cookie; findings + raw geometry tables in
+  `.planning/phase-A6-settings-audit.md`. Five commits landed:
+  `957f8e9` equalises every form input height to 36 px (AI active-
+  provider select `h-10` -> `h-9`, AI add-provider select `h-8` ->
+  `h-9`, Dashboard "Compare to" trigger drops `min-h-11` so default
+  `h-9` applies); `9fda634` standardises action-button placement —
+  Account → Password, Account → Restart onboarding tour, and
+  Dashboard → Reset to defaults all stack the action below the title
+  on `<sm` (full-width) and right-align on `>=sm`, fixing the
+  Pixel-5 right-edge overflow Marc reported on the tour button (~48
+  px past the card border); `1075784` lifts the Sprache select out
+  of the dob/language pair into its own row at the bottom of the
+  Profile card, plus the duplicated native-select class string is
+  pulled into a shared `NATIVE_SELECT_CLASS` constant; `737b533`
+  uniformises card-internal `space-y` to `space-y-4` (Dashboard
+  layout `space-y-5` -> `space-y-4`, AI provider config forms
+  `space-y-3` -> `space-y-4`); `78f1f3f` adds
+  `e2e/settings-mobile-consistency.spec.ts` — Pixel-5-only Playwright
+  spec that locks in the five invariants (input heights, button-no-
+  overflow, language-not-paired-with-dob, Compare-to-36 px, AI
+  selects-36 px). All 1637 vitest tests + zero source typecheck
+  errors + zero lint errors after the marathon. Cross-agent race:
+  commit `737b533` bundled A5's `.planning/STATE.md` update; STATE
+  content correct, no semantic harm. Detailed report:
+  `.planning/phase-A6-report.md`. Files touched (only mine):
+  `src/components/settings/{account,ai,dashboard-layout}-section.tsx`,
+  `e2e/settings-mobile-consistency.spec.ts`,
+  `.planning/phase-A6-{settings-audit,report}.md`.
 
 ---
 

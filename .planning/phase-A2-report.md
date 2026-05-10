@@ -1,112 +1,107 @@
-# Phase A2 — `/admin/api-tokens` painted scrollbar (3rd attempt)
+# Phase A2 — Charts mobile audit (header overflow + x-axis density)
 
-Marathon: v1.4.18 Wave-A
-Agent: A2 (parallel with A1, A3, B1)
-Started: 2026-05-10T10:08+02:00
-Finished: 2026-05-10T10:21+02:00
-Commit: `3e16074` on origin/main
+Marathon: v1.4.19 Wave-A
+Agent: A2 (parallel with A1, A3, A4, A5, A6, A7, A8)
+Commits: `77a3ad3` (fix), `a739085` (test) on origin/main
 
-## Root cause — confirmed against PROD
+## Scope
 
-The two earlier fixes (v1.4.15 column-hide, v1.4.16 mobile card-list)
-both targeted `<ApiTokenOverviewSection>`. They did remove overflow
-inside that card, and the production probe confirmed it: at Pixel-5
-(393 CSS px) the api-tokens card now reports `scrollWidth=327,
-clientWidth=327, diff=0` and the document itself reports
-`scrollWidth=innerWidth=393` — zero page-level horizontal overflow.
+Marc reported on his Pixel 5 that the chart cards on `/dashboard` and
+`/insights` looked broken in two distinct ways:
 
-The actual scrollbar Marc kept reporting lives one component up, in
-`<AdminShell>`. Its mobile section strip is a horizontal flex with
-13 admin entries and an `overflow-x-auto` wrapper. At Pixel-5 the
-strip reports:
+1. The "Wochendurchschnitt" / "Weekly avg" bucket-aggregation chip
+   plus the optional comparison-period chip plus the four range tabs
+   (`7 Pkt / 30 Pkt / 90 Pkt / Alle`) plus the new cog dropdown all
+   sat on a single `flex justify-between` row. On Pixel 5 the chips
+   ate enough horizontal space that the four tabs wrapped to a 2nd
+   row inside the same flex container; on Galaxy Fold compact (280
+   px) the tabs split across three or four rows and the medication
+   card overflowed horizontally.
 
-```
-<nav aria-label="Admin sections"
-     class="-mx-4 mb-4 overflow-x-auto px-4 md:hidden">
-  scrollWidth: 1692
-  clientWidth:  361
-  diff:        1331
-```
+2. The medication compliance chart drew one tick per data point on
+   the x-axis. A 30-day Pixel-5 window painted thirty overlapping
+   labels into a 393 px gutter, while the weight / BMI charts looked
+   sparser by accident — they auto-bucketed daily → weekly above 90
+   days but at the 30-day range still drew a tick every couple of
+   days. The chart row read inconsistently across metrics.
 
-The strip sits right above the api-tokens card (`rectTop: 112`, three
-lines below the topbar), which is why each previous fix attempt felt
-like it should have helped — Marc was looking at the strip's
-scrollbar, but reporting the page he was on.
+## Method
 
-`<SettingsShell>` is the exact same pattern with 10 entries and the
-same defect; both shells were fixed.
+Playwright headless against live PROD with Marc's session cookie at
+four mobile viewports: Pixel 5 (393 × 851), iPhone 12 (390 × 844),
+iPhone SE (375 × 667), Galaxy Fold compact (280 × 653). For each
+chart card on `/` and `/insights` the probe captured: header
+height, number of distinct y-rows the range tabs occupied,
+horizontal overflow, x-axis visible-tick count.
 
-## Playwright proof
+The probe script lives at `.planning/v1419-a2-prod-probe.mjs`;
+machine-readable findings + per-viewport screenshots in
+`/tmp/v1419-a2-prod/` (kept out of git because they're 1-2 MB of
+PNGs); narrative summary at `.planning/phase-A2-mobile-findings.md`.
 
-Probe script: `/tmp/v1418-api-tokens-prod-probe.mjs` (uses Marc's
-session cookie `cmox4d6fj000101p8w9ykhcnm`, viewport Pixel-5).
+## Fix shipped — `77a3ad3`
 
-Pre-fix readings against `https://healthlog.bombeck.io/admin/api-tokens`:
+The header is now stacked into two rows below the sm breakpoint:
+title + chips on row 1; range tabs + cog right-aligned on row 2 with
+`flex-nowrap` so tabs always fit a single row at 280 px. Tab padding
+shrinks to `px-2` on mobile, `px-3` ≥ sm. The decorative
+bucket-aggregation chip + comparison-caption / unavailable chips all
+become `hidden sm:inline-flex` — the range tabs already communicate
+the visible window and the cog dropdown surfaces the overlay state
+explicitly.
 
-```
-[393x851] dims= { docScrollWidth: 393, innerWidth: 393, ... }
-[393x851] overflow culprits (top of list by diff):
-  <nav.overflow-x-auto> sw=1692 cw=361 diff=1331
-  <span.truncate> sw=331 cw=269 diff=62  (text-overflow:ellipsis,
-                                          no painted scrollbar)
-[1920x1080] dims delta = 0
-```
+Applied to `HealthChart` (BP / weight / pulse / BMI / sleep / steps),
+`MoodChart` and `MedicationComplianceChart` consistently. Above sm
+the original side-by-side layout is preserved with all chips visible.
 
-Post-fix the strip still reports `scrollWidth > clientWidth` (so swipe
-and keyboard-arrow scrolling stay), but with `scrollbar-width: none`
+A new helper at `src/lib/charts/x-axis-density.ts` maps viewport
+width to a maximum tick count and computes the corresponding Recharts
+`interval` skip count: ≤ 360 px → 4 ticks, ≤ 480 px → 6 ticks, ≤ 768
+px → 8 ticks, > 768 px → 10 ticks. A reactive `useViewportWidth`
+hook in `src/hooks/` reads the layout viewport and updates on resize
+/ orientation-change with a desktop default during SSR.
 
-- `::-webkit-scrollbar { display: none }` the painted bar no longer
-  draws. CSS-isolation probe (`/tmp/v1418-css-probe.html` +
-  `v1418-css-probe.mjs`) verified the rule applies cleanly.
+Wired into `HealthChart`, `MoodChart`, `MedicationComplianceChart`,
+`ComplianceLineChart`. The `ScatterCorrelationChart` was deliberately
+left alone — its x-axis is numeric (BP / weight values, not a time
+series) and it already supplies an explicit `ticks` array.
 
-Screenshots: `/tmp/v1418-api-tokens-prod-393x851.png` (pre-fix prod),
-`/tmp/v1418-api-tokens-prod-1920x1080.png` (desktop sanity),
-`/tmp/v1418-css-probe-pixel5.png` (CSS-fix isolation probe).
+## Test deltas — `a739085`
 
-## Fix
-
-`src/app/globals.css` — added a small `.no-scrollbar` utility:
-
-```css
-.no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-```
-
-`src/components/admin/admin-shell.tsx` and
-`src/components/settings/settings-shell.tsx` — added `no-scrollbar`
-to the mobile `<nav>` strip class list. Both shells share the same
-horizontal-strip pattern so both got the same fix.
-
-## Tests
-
-- New `src/components/admin/__tests__/admin-shell.test.tsx` — locks
-  in the class (and the rest of the shell behaviour: per-section
-  links, aria-current, derive-from-pathname).
-- `src/components/settings/__tests__/settings-shell.test.tsx` —
-  added the matching `no-scrollbar` assertion.
-- `e2e/admin-api-tokens-mobile.spec.ts` — added a regression test
-  that asserts the strip declares both `no-scrollbar` and
-  `overflow-x-auto`, and that internal scroll is preserved
-  (`scrollWidth > clientWidth`).
+- 13 helper unit tests at `src/lib/charts/__tests__/x-axis-density.test.ts`:
+  bucket math for Fold / Pixel 5 / tablet / desktop widths over 7 /
+  30 / 90 / 365-point ranges plus invalid-input fallbacks.
+- New e2e spec at `e2e/charts-mobile.spec.ts` running only on the
+  `chromium-mobile` project (Pixel 5). Two assertions:
+  one tab row per chart card, ≤ 7 visible x-axis ticks. Mock data
+  feeds 30 days of measurements + 30 days of compliance points so
+  the chart wrappers actually paint.
 
 ## Verification
 
-- `pnpm test`: 1559 / 1559 green
-- `pnpm typecheck`: clean
-- `pnpm lint`: 0 errors / 12 pre-existing warnings (baseline)
+- `pnpm test`: 1637 / 1637 green.
+- `pnpm typecheck`: A2 surface clean (one A3-owned error in
+  `src/app/insights/page.tsx` is unrelated).
+- `pnpm lint`: 0 errors / 17 warnings (12 baseline + 5 from
+  concurrent A3 commits, none from A2).
 
-## Surfaces and constraints
+## Constraints honoured
 
-Touched only the assigned A2 surface (`<AdminShell>`, css utility,
-api-tokens e2e) plus the matching settings-shell pattern (same
-defect, no other agent owns settings-shell). Did not touch
-`src/lib/insights/*`, `src/components/charts/*`, or
-`src/lib/achievements/*`. No new dependencies.
+Touched only the assigned A2 surface — chart wrappers + new helper /
+hook + new tests. Did not touch `src/lib/insights/*`,
+`src/components/insights/*`, `src/lib/ai/prompts/*`,
+`src/components/settings/*`, `src/components/admin/*`. No new
+dependencies. Pre-commit hooks pass on every commit (no `--no-verify`,
+no `--no-gpg-sign`).
 
-Single commit `3e16074` on origin/main, pushed without --no-verify
-or --no-gpg-sign.
+## Note on the parallel-agent race
+
+The first attempt at the second commit picked up a different agent's
+`phase-A5-report.md` because their `git add` and my `git add`
+overlapped. The polluted commit `0cf23f3` shipped to origin before
+my local rebase-drop could land. The cleanup re-committed my actual
+files as `a739085` immediately after; final origin/main carries both
+commits but only `a739085` corresponds to the message. Non-destructive
+— A5's report stayed in history under the wrong commit message,
+my own files reached origin under the right one. Documented in the
+v1.4.19 backlog so the next planner can clean up if needed.
