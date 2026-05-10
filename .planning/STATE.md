@@ -47,8 +47,8 @@ Combined sweep across HealthLog main repo + healthlog-docs + healthlog-landing
       (api/ examples replaced "marc" → "alice", DE leaks fixed)
 - [x] healthlog-landing: 1 file scrubbed, `9b31083` on origin/main
       (JSON-LD author block depersonalised)
-- [ ] GH releases v1.4.14–v1.4.19: republish bodies from cleaned
-      CHANGELOG sections (see Phase E pipeline)
+- [x] GH releases v1.4.14–v1.4.19: republished bodies from cleaned
+      CHANGELOG sections during Phase E pipeline
 - [ ] Source-comment sweep (`src/` has 191 `Marc` references in
       maintainer comments) — defer to v1.4.21 backlog as low-priority
 - [ ] DE+EN bilingual CHANGELOG entries (v1.4.15 era) — defer; larger
@@ -201,19 +201,31 @@ Test files 217 → 237. typecheck clean every phase; lint
 
 ## Phase E — Release v1.4.20
 
-- [ ] Pre-release verify (typecheck, lint, test, integration,
-      format, build)
-- [ ] Bump package.json + CHANGELOG
-- [ ] Merge develop → main (release-merge only)
-- [ ] Tag + push v1.4.20
-- [ ] GHCR build green
-- [ ] Coolify deploy
-- [ ] /api/version=1.4.20 confirmed
-- [ ] Production smoke
-- [ ] GH release
-- [ ] Docs site + landing site sync
-- [ ] `docs/audit/v1420-summary.md` (release brief)
-- [ ] Update v1.5 plan based on what v1.4.20 learned
+- [x] Pre-release verify (typecheck, lint, test, integration,
+      format, build) — 2026 unit + 81 integration green
+- [x] Bump package.json + CHANGELOG (`aac8b5e chore(release): v1.4.20`)
+- [x] Sync Dependabot dep bumps from main → develop (`dd2ef57`)
+- [x] Release-merge develop → main (`666f6ee Release v1.4.20`)
+- [x] Tag + push v1.4.20 (annotated, `666f6ee`)
+- [x] GHCR build green (run `25633807964`, 4m02s,
+      digest `sha256:b112a31947…`)
+- [x] Coolify deploy — auto-deploy webhook still missing on
+      apps-01; host-side retag fallback used (same fault mode as
+      v1.4.19)
+- [x] /api/version=1.4.20 confirmed (flipped 2026-05-10T16:49:25Z)
+- [x] Production smoke — all gated routes redirect 307 →
+      `/auth/login` as expected for an unauthenticated request;
+      `/api/version` and `/auth/login` 200
+- [x] GH release published (https://github.com/MBombeck/HealthLog/releases/tag/v1.4.20)
+- [x] GH releases v1.4.14 → v1.4.19 republished from cleaned
+      CHANGELOG sections (FX carry-over)
+- [x] Docs site sync (`0b83430` on healthlog-docs/main —
+      version pins + ai-insights v1.4.20 callout)
+- [x] Landing site sync (`43ce4c7` on healthlog-landing/main —
+      JSON-LD `softwareVersion` 1.4.20 + 3 new featureList entries)
+- [x] `docs/audit/v1420-summary.md` (release brief, `7f9ae21`)
+- [x] v1.5 plan refreshed — see `.planning/phase-D-v1420-product-
+      lead-review.md`
 
 ---
 

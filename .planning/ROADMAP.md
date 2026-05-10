@@ -1,40 +1,57 @@
-# HealthLog v1.4.20 — roadmap
+# HealthLog v1.4.21 — roadmap
 
-Milestone: **v1.4.20** (kicked off 2026-05-10)
-Latest tag at start: v1.4.19 (live in prod, image digest
-`sha256:b48f93874cdb…`)
+Milestone: **v1.4.21** (kicked off TBD)
+Latest tag at start: v1.4.20 (live in prod, image digest
+`sha256:b112a31947b9…`)
 
-| Phase | Goal                                                                                                                                                 | State   |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| F0    | Bootstrap — commit dangling v1.4.19 reports, scaffold STATE+ROADMAP for v1.4.20                                                                      | done    |
-| FX    | User-facing artifact cleanup — PII (no real names, no health figures), internal jargon, German leaks; CHANGELOG + docs/audit + GH releases + sites   | pending |
-| F1    | Branch model — long-lived `develop` from `main` HEAD; GHCR builds on `main` + `v*` only; hotfixes from `main` merge back to both                      | pending |
-| F2    | Document branch + release model — extend CONTRIBUTING.md, mirror page on docs site                                                                   | pending |
-| F5    | Best-practice GitHub repo audit — README, LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, .github templates, badges; CRIT/HIGH inline               | pending |
-| F6    | Multi-agent QA on new docs — verify they describe actual deployed state                                                                              | pending |
-| B1    | Hero strip + Daily Briefing + Suggested-prompts — replace `<InsightsPageHero>`, 3 micro-stat tiles, AI Coach entry, Daily Briefing card               | pending |
-| B2    | AI Coach drawer + streaming chat + persistence — SSE endpoint, CoachConversation+CoachMessage models, source-chip provenance, prompt-injection refusals | pending |
-| B3    | Correlation discovery + Trends row — 3 hypotheses (BP×compliance, mood×pulse, weight×weekday), AI annotations under trend mini-charts                | pending |
-| B4    | Weekly Report + Storyboard + Mobile passes — `/insights/report/[week]`, 90-day BP storyboard, mobile equivalents of B1+B2                            | pending |
-| B5    | Personal Health Score — composite 0-100 (BP-target / weight-trend / mood-stability / compliance), 3 bands, "Ask the Coach" CTA                       | pending |
-| D     | Multi-agent QA + Product-Lead review — code-reviewer, security, design, senior, simplify, product-lead (v1.5 strategic)                              | pending |
-| E     | Release v1.4.20 — develop → main release-merge, bump, CHANGELOG, tag, GHCR, deploy, /api/version=1.4.20, smoke, docs+landing sync                    | pending |
+Scope to be set by the maintainer at kickoff. Carry-over candidates
+already captured in `.planning/v1421-backlog.md` include:
 
-Stop conditions: production red, large un-spec'd issue, context cutoff,
-or budget short of polish — write status doc, do not auto-rollback.
-
-Time-runs-short minimum to ship v1.4.20: F0–F2 + FX + B1 + Wave D + Phase E.
-B2 (the AI Coach drawer) is the biggest piece; if context tightens, ship
-B1+B3+B5 and defer B2+B4 to v1.4.21.
-
-Phase F0 spec for this marathon: `/Users/marc/Projects/HealthLog/.planning/v1420-marathon-handoff.md`.
+- 22 MED + 16 LOW + 4 simplify-apply-maybe items from the v1.4.20
+  Phase-D pass (consolidate Pearson / linear-regression maths layer,
+  controlled `<CoachDrawer>` prefill prop, transactional
+  `recordSpend()`, refusal lexicon expansion, …).
+- Schema drift on `medication_schedules.days_of_week` — either
+  deploy the column or drop it from `schema.prisma`.
+- Split `src/app/insights/page.tsx` (now composes nine surfaces).
+- Wire Coolify image-digest auto-deploy hook on apps-01 so the
+  host-side retag fallback isn't needed.
+- Source-comment hygiene sweep (191 maintainer-name references in
+  `src/`); DE+EN bilingual CHANGELOG entry rewrite.
 
 Reserved next strategic milestones:
 
-- **v1.5** — iOS app + Apple Health integration (handoff at
-  `~/Projects/healthlog-iOS`).
+- **v1.5** — iOS app + Apple Health integration + per-metric APNs
+  alerts. Strategic plan at
+  `.planning/phase-D-v1420-product-lead-review.md`.
 - **v1.6+** — Auto-correlation discovery (FDR-controlled), Coach
-  full-page route, conversation-driven goal setting.
+  full-page route at `/insights/coach`, conversation-driven goal
+  setting.
+
+---
+
+## Previous milestone — v1.4.20 (completed 2026-05-10T16:49:25Z)
+
+| Phase | Goal                                                                                                                                                       | State |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| F0    | Bootstrap — commit dangling v1.4.19 reports, scaffold STATE+ROADMAP                                                                                        | done  |
+| F1    | Branch model — long-lived `develop` from `main` HEAD; GHCR builds on `main` + `v*` only                                                                    | done  |
+| F2    | Document branch + release model — CONTRIBUTING.md + docs site mirror page                                                                                  | done  |
+| FX    | User-facing artifact cleanup — PII (no real names, no health figures), internal jargon, German leaks; CHANGELOG + docs/audit + GH releases + docs + landing | done  |
+| F5    | Best-practice GitHub repo audit — CODE_OF_CONDUCT.md, issue + PR templates, dependabot expansion, package.json metadata                                    | done  |
+| F6    | Multi-agent QA on new docs — 38 docs pages cross-checked vs deployed state, CRIT + HIGH inline                                                             | done  |
+| B1    | Hero strip + Daily Briefing + Suggested-prompts                                                                                                            | done  |
+| B2    | AI Coach drawer + SSE streaming + encrypted persistence                                                                                                    | done  |
+| B3    | Correlation discovery + Trends row with AI annotations                                                                                                     | done  |
+| B4    | Weekly Report + Storyboard markers + Mobile passes                                                                                                         | done  |
+| B5    | Personal Health Score (composite 0–100, 3 bands)                                                                                                           | done  |
+| D     | Multi-agent QA — code, security, design, senior-dev, simplify, product-lead; 13 HIGH + 6 MED + 5 simplify-yes inline; 22 MED + 16 LOW deferred             | done  |
+| E     | Release v1.4.20 — develop → main release-merge, bump, CHANGELOG, tag, GHCR, host-side retag deploy fallback, /api/version=1.4.20, smoke, docs+landing sync | done  |
+
+Milestone completed 2026-05-10T16:49:25Z — v1.4.20 LIVE in prod.
+Release brief: `docs/audit/v1420-summary.md`. Backlog seeded to
+`.planning/v1421-backlog.md`. v1.5 strategic plan at
+`.planning/phase-D-v1420-product-lead-review.md`.
 
 ---
 
