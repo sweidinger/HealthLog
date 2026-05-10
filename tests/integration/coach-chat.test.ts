@@ -398,4 +398,54 @@ describe("POST /api/insights/chat — integration", () => {
     };
     expect(persisted.keyValues).toBeUndefined();
   });
+
+  it("never leaks raw ---KEYVALUES--- markers when the provider returns a sentinel-only reply", async () => {
+    // v1.4.22 W5 reconcile (Code-H1) — regression test. The model
+    // emits ONLY the sentinel block with no leading prose AND a
+    // missing close marker, so `parseKeyValuesSentinel` returns
+    // `{ prose: "", malformed: true }`. The route must surface the
+    // structured `coach.provider.empty` error frame instead of
+    // streaming the raw sentinel body to the client.
+    await seedUserWithSession();
+    runProviderMock.mockResolvedValue({
+      result: {
+        content: [
+          "---KEYVALUES---",
+          "avg7 systolic: 138 [mmHg] (last7days)",
+          // Note: no closing ---END--- and no prose before the marker.
+        ].join("\n"),
+        tokensUsed: 64,
+        model: "mock",
+        providerType: "openai",
+      },
+      workingProvider: { providerType: "openai", instance: {} },
+      fallbackHops: [],
+    });
+    const { POST } = await import("@/app/api/insights/chat/route");
+
+    const res = await (POST as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: "How is my BP this week?" }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const text = await readStream(res);
+
+    // Streamed body must NOT contain the raw sentinel markers and must
+    // surface the structured provider-empty error.
+    expect(text).not.toMatch(/---KEYVALUES---/);
+    expect(text).not.toMatch(/---END---/);
+    expect(text).toMatch(/"type":"error"/);
+    expect(text).toMatch(/coach\.provider\.empty/);
+
+    // No assistant message persisted — the empty-prose branch
+    // short-circuits before `appendMessage`.
+    const prisma = getPrismaClient();
+    const messages = await prisma.coachMessage.findMany({
+      where: { role: "assistant" },
+    });
+    expect(messages.length).toBe(0);
+  });
 });

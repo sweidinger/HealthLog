@@ -272,7 +272,26 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   // provenance envelope so the UI can render the collapsible
   // "Worauf bezieht sich das?" disclosure.
   const sentinel = parseKeyValuesSentinel(rawReply);
-  const replyText = sentinel.prose.trim() || rawReply;
+  const proseAfterStrip = sentinel.prose.trim();
+  // v1.4.22 W5 reconcile (Code-H1) — when the model emits a
+  // sentinel-only / malformed reply, `sentinel.prose` is empty after
+  // stripping. The previous fallback `sentinel.prose.trim() || rawReply`
+  // surfaced raw `---KEYVALUES---` markers to the user. The empty-prose
+  // condition signals an unusable provider response: short-circuit to
+  // the structured `coach.provider.empty` error frame instead of
+  // streaming the raw sentinel body.
+  if (!proseAfterStrip) {
+    annotate({
+      action: { name: "coach.keyvalues.parse_failed" },
+      meta: {
+        kept: sentinel.keyValues.length,
+        reason: "empty_prose_after_strip",
+        promptVersion: PROMPT_VERSION,
+      },
+    });
+    return streamProviderError({ code: "coach.provider.empty" });
+  }
+  const replyText = proseAfterStrip;
   const enrichedProvenance =
     sentinel.keyValues.length > 0
       ? { ...snapshot.provenance, keyValues: sentinel.keyValues }
