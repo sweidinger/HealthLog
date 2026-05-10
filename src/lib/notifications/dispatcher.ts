@@ -9,6 +9,7 @@ import type {
 import { sendViaTelegram } from "@/lib/notifications/senders/telegram";
 import { sendViaNtfy } from "@/lib/notifications/senders/ntfy";
 import { sendViaWebPush } from "@/lib/notifications/senders/web-push";
+import { sendViaApns } from "@/lib/notifications/senders/apns";
 import type { SendOutcome } from "@/lib/notifications/retry-policy";
 import {
   isChannelInCooldown,
@@ -103,6 +104,13 @@ export async function dispatchNotification(
         getEvent()?.addWarning(`Legacy Telegram migration failed: ${err}`);
       }
     }
+
+    // Cascade order: APNs first (if the user paired an iPhone), then
+    // Telegram, then ntfy, then Web Push as the universal fallback.
+    // The order matters because each channel is best-effort — sorting
+    // here keeps the payload-delivery sequence deterministic across
+    // dispatches even when Postgres returns rows in physical order.
+    channels.sort((a, b) => channelPriority(a.type) - channelPriority(b.type));
 
     const now = new Date();
     for (const channel of channels) {
@@ -239,6 +247,14 @@ async function sendToChannel(
     case "WEB_PUSH": {
       return sendViaWebPush(payload.userId, payload);
     }
+    case "APNS": {
+      // APNs config lives on the Device row, not in the channel config.
+      // The decrypt above is a no-op (config is the empty object `{}`),
+      // we just keep the symmetric path so future per-user overrides
+      // (e.g. a custom APNs topic) can hang off the channel without
+      // changing the dispatcher shape.
+      return sendViaApns(payload.userId, payload);
+    }
     default:
       getEvent()?.addWarning(`Unknown notification channel type: ${type}`);
       return {
@@ -246,5 +262,30 @@ async function sendToChannel(
         hardReject: false,
         reason: "unknown_channel_type",
       };
+  }
+}
+
+/**
+ * Static cascade order: APNs first, Web Push last. Lower number = earlier.
+ * The order is deliberate:
+ *  - APNs   — native iOS path; best UX when the user has an iPhone.
+ *  - Telegram — explicit user-set chat; high deliverability.
+ *  - ntfy   — self-hosted-friendly; user controls the relay.
+ *  - WebPush — broadest reach, slowest UX (browser must be alive).
+ *
+ * Unknown channel types sort last so they never preempt a real channel.
+ */
+function channelPriority(type: string): number {
+  switch (type) {
+    case "APNS":
+      return 0;
+    case "TELEGRAM":
+      return 1;
+    case "NTFY":
+      return 2;
+    case "WEB_PUSH":
+      return 3;
+    default:
+      return 99;
   }
 }
