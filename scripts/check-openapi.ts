@@ -1,0 +1,62 @@
+#!/usr/bin/env tsx
+/**
+ * Compare the freshly-generated OpenAPI spec against the committed
+ * `docs/api/openapi.yaml`. Exits non-zero on drift.
+ *
+ * Used by the CI gate in `.github/workflows/security.yml`. v1.4.23 runs
+ * the step with `continue-on-error: true` while the registry catches
+ * up with the hand-maintained spec; v1.4.24+ flips it to hard-fail.
+ */
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { stringify } from "yaml";
+import { buildOpenApiDocument } from "../src/lib/openapi/registry";
+
+const SPEC_PATH = resolve(__dirname, "..", "docs", "api", "openapi.yaml");
+
+function main(): void {
+  const document = buildOpenApiDocument();
+  const generated = stringify(document, {
+    sortMapEntries: true,
+    lineWidth: 120,
+  });
+  const committed = readFileSync(SPEC_PATH, "utf8");
+  if (generated === committed) {
+    // eslint-disable-next-line no-console
+    console.log("OpenAPI spec in sync with source schemas.");
+    return;
+  }
+  // eslint-disable-next-line no-console
+  console.error(
+    "OpenAPI spec drift detected. Run `pnpm openapi:generate` and commit the result.",
+  );
+  // Surface a unified-diff-ish hint so PR reviewers see what changed
+  // without having to re-run the generator locally.
+  const genLines = generated.split("\n");
+  const onDiskLines = committed.split("\n");
+  const max = Math.max(genLines.length, onDiskLines.length);
+  for (let i = 0; i < max; i++) {
+    if (genLines[i] !== onDiskLines[i]) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `Line ${i + 1}:\n  generated: ${JSON.stringify(genLines[i] ?? "")}\n  committed: ${JSON.stringify(onDiskLines[i] ?? "")}`,
+      );
+      // Limit the noise — first 5 mismatched lines is enough to point
+      // the maintainer at the regenerate command.
+      let shown = 1;
+      for (let j = i + 1; j < max && shown < 5; j++) {
+        if (genLines[j] !== onDiskLines[j]) {
+          // eslint-disable-next-line no-console
+          console.error(
+            `Line ${j + 1}:\n  generated: ${JSON.stringify(genLines[j] ?? "")}\n  committed: ${JSON.stringify(onDiskLines[j] ?? "")}`,
+          );
+          shown++;
+        }
+      }
+      break;
+    }
+  }
+  process.exit(1);
+}
+
+main();
