@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseKeyValueLine, parseKeyValuesSentinel } from "../keyvalues";
+import {
+  parseKeyValueLine,
+  parseKeyValuesSentinel,
+  tryParseKeyValueLine,
+} from "../keyvalues";
 
 /**
  * v1.4.22 Wave 3 B1+B2 — Coach evidence-block sentinel parser.
@@ -91,6 +95,7 @@ describe("parseKeyValuesSentinel", () => {
       },
     ]);
     expect(out.malformed).toBe(false);
+    expect(out.malformedEntries).toEqual([]);
   });
 
   it("returns prose untouched when no sentinel is present", () => {
@@ -100,6 +105,7 @@ describe("parseKeyValuesSentinel", () => {
     expect(out.prose).toBe("Just a qualitative reply with no numbers cited.");
     expect(out.keyValues).toEqual([]);
     expect(out.malformed).toBe(false);
+    expect(out.malformedEntries).toEqual([]);
   });
 
   it("graceful-degrades when the closing ---END--- is missing", () => {
@@ -115,6 +121,9 @@ describe("parseKeyValuesSentinel", () => {
     expect(out.prose).toBe("Prose still streams cleanly.");
     expect(out.keyValues.length).toBe(1);
     expect(out.malformed).toBe(true);
+    expect(out.malformedEntries).toEqual([
+      { rawLine: "---END---", reason: "no_END_marker" },
+    ]);
   });
 
   it("clips the block to 8 entries (prompt-contract cap)", () => {
@@ -143,7 +152,7 @@ describe("parseKeyValuesSentinel", () => {
     expect(out.malformed).toBe(true);
   });
 
-  it("silently drops malformed lines mixed in with valid ones", () => {
+  it("records malformed lines mixed in with valid ones (v1.4.23 H1)", () => {
     const raw = [
       "Prose.",
       "",
@@ -160,6 +169,65 @@ describe("parseKeyValuesSentinel", () => {
       "avg30 systolic",
       "avg30 mood",
     ]);
+    // Partial malformed surfaces — the good rows survive while the
+    // bad ones land in the entry array with typed reasons.
+    expect(out.malformed).toBe(true);
+    expect(out.malformedEntries).toEqual([
+      { rawLine: "not a valid line", reason: "missing_colon" },
+      { rawLine: ":no-label-here", reason: "missing_colon" },
+    ]);
+  });
+
+  it("flags label_overflow when a row's label exceeds the cap", () => {
+    const longLabel = "x".repeat(120);
+    const raw = [
+      "---KEYVALUES---",
+      "ok label: 138 [mmHg] (last30days)",
+      `${longLabel}: 99 [mmHg]`,
+      "---END---",
+    ].join("\n");
+    const out = parseKeyValuesSentinel(raw);
+    expect(out.keyValues.length).toBe(1);
+    expect(out.keyValues[0].label).toBe("ok label");
+    expect(out.malformed).toBe(true);
+    expect(out.malformedEntries).toEqual([
+      { rawLine: `${longLabel}: 99 [mmHg]`, reason: "label_overflow" },
+    ]);
+  });
+
+  it("flags value_overflow when a row's value exceeds the cap", () => {
+    const longValue = "9".repeat(220);
+    const raw = [
+      "---KEYVALUES---",
+      `avg30 systolic: ${longValue} [mmHg]`,
+      "ok label: 138 [mmHg] (last30days)",
+      "---END---",
+    ].join("\n");
+    const out = parseKeyValuesSentinel(raw);
+    expect(out.keyValues.length).toBe(1);
+    expect(out.keyValues[0].label).toBe("ok label");
+    expect(out.malformed).toBe(true);
+    expect(out.malformedEntries[0]?.reason).toBe("value_overflow");
+  });
+
+  it("flags byte_overflow when the block exceeds the 1 KB cap", () => {
+    const padded = Array.from(
+      { length: 60 },
+      (_, i) => `label-${i}: ${i.toString().padEnd(15, "x")}`,
+    );
+    const raw = ["---KEYVALUES---", ...padded, "---END---"].join("\n");
+    const out = parseKeyValuesSentinel(raw);
+    expect(out.malformed).toBe(true);
+    expect(
+      out.malformedEntries.some((entry) => entry.reason === "byte_overflow"),
+    ).toBe(true);
+  });
+
+  it("tryParseKeyValueLine surfaces missing_colon for separator-less rows", () => {
+    expect(tryParseKeyValueLine("no separator here")).toEqual({
+      ok: false,
+      reason: "missing_colon",
+    });
   });
 
   it("returns malformed when the sentinel block is empty", () => {
@@ -168,6 +236,8 @@ describe("parseKeyValuesSentinel", () => {
     expect(out.keyValues).toEqual([]);
     expect(out.malformed).toBe(true);
     expect(out.prose).toBe("Prose.");
+    // No body lines to record — only the block-level state flips.
+    expect(out.malformedEntries).toEqual([]);
   });
 
   it("returns prose and an empty array for empty input", () => {
@@ -175,5 +245,6 @@ describe("parseKeyValuesSentinel", () => {
     expect(out.prose).toBe("");
     expect(out.keyValues).toEqual([]);
     expect(out.malformed).toBe(false);
+    expect(out.malformedEntries).toEqual([]);
   });
 });

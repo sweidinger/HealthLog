@@ -300,11 +300,24 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   if (sentinel.malformed) {
     // Graceful degrade: log so ops can spot a provider whose
     // sentinel format has drifted, but pass the prose through
-    // unchanged.
+    // unchanged. v1.4.23 H1 — split the annotation:
+    //   - parse_partial: at least one row parsed AND at least one
+    //     row failed (mixed-format drift on a single reply)
+    //   - parse_failed: the whole block was unusable
+    // Both annotations carry the per-line `reasons` array so an ops
+    // dashboard can attribute the failure cause without re-running
+    // the parser.
+    const reasons = sentinel.malformedEntries.map((entry) => entry.reason);
+    const annotationName =
+      sentinel.keyValues.length > 0 && sentinel.malformedEntries.length > 0
+        ? "coach.keyvalues.parse_partial"
+        : "coach.keyvalues.parse_failed";
     annotate({
-      action: { name: "coach.keyvalues.parse_failed" },
+      action: { name: annotationName },
       meta: {
         kept: sentinel.keyValues.length,
+        malformedCount: sentinel.malformedEntries.length,
+        reasons,
         promptVersion: PROMPT_VERSION,
       },
     });
