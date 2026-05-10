@@ -112,6 +112,21 @@ model User {
   // `sanitisePracticeName()`. Null = user has never set one.
   lastReportPracticeName String? @map("last_report_practice_name")
 
+  // v1.4.23 H4 — Coach drawer per-user prompt-tuning preferences.
+  // Shape:
+  //   { "tone": "warm" | "neutral" | "concise",
+  //     "verbosity": "brief" | "default" | "detailed",
+  //     "excludeMetrics": ("bp" | "weight" | "pulse" | "mood" |
+  //                        "compliance" | "hrv" | "sleep" |
+  //                        "resting_hr" | "steps")[],
+  //     "showEvidenceByDefault": boolean }
+  // Null = legacy v1.4.22 defaults (tone=warm, verbosity=default, no
+  // metrics excluded, evidence closed). The Coach prompt builder reads
+  // this column and the snapshot builder filters on `excludeMetrics`
+  // BEFORE the snapshot lands in the system prompt — otherwise the
+  // model would still see the data the user excluded.
+  coachPrefsJson Json? @map("coach_prefs_json")
+
   // Relations
   passkeys    Passkey[]
   sessions    Session[]

@@ -30,6 +30,7 @@ import {
   measurementSourceEnum,
 } from "@/lib/validations/measurement";
 import { loginPasswordSchema } from "@/lib/validations/auth";
+import { coachPrefsSchema } from "@/lib/validations/coach-prefs";
 
 /**
  * Common envelopes — every HealthLog API response wraps payload in
@@ -94,6 +95,12 @@ listMeasurementsSchema.meta({
   id: "ListMeasurementsQuery",
   description:
     "Query params for the measurements list endpoint. `limit` capped at 500.",
+});
+
+coachPrefsSchema.meta({
+  id: "CoachPrefs",
+  description:
+    "Per-user Coach prompt-tuning preferences (v1.4.23 H4). All fields default to the legacy v1.4.22 behaviour when omitted.",
 });
 
 // ── Sub-schemas owned here (route-specific shapes) ───────────────────
@@ -474,6 +481,46 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description:
             "Device or APNs token already registered to another user.",
           content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/coach-prefs": {
+    get: {
+      tags: ["Auth"],
+      summary: "Read per-user Coach prompt-tuning preferences",
+      description:
+        "Returns the persisted preferences with defaults filled in. Null persisted state resolves to the legacy v1.4.22 defaults.",
+      responses: {
+        "200": {
+          description: "Resolved preferences.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(coachPrefsSchema, "GetCoachPrefsResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    put: {
+      tags: ["Auth"],
+      summary: "Replace per-user Coach prompt-tuning preferences",
+      description:
+        "Persists the supplied prefs. Body is validated against `CoachPrefs`; missing keys fall back to the documented defaults.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: coachPrefsSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Saved preferences echoed back.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(coachPrefsSchema, "PutCoachPrefsResponse"),
+            },
+          },
         },
         ...stdResponses,
       },

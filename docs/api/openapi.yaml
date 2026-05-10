@@ -251,6 +251,63 @@ components:
         - data
         - error
       type: object
+    GetCoachPrefsResponse:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            excludeMetrics:
+              default: []
+              items:
+                enum:
+                  - bp
+                  - weight
+                  - pulse
+                  - mood
+                  - compliance
+                  - hrv
+                  - sleep
+                  - resting_hr
+                  - steps
+                type: string
+              maxItems: 9
+              type: array
+            showEvidenceByDefault:
+              default: false
+              type: boolean
+            tone:
+              default: warm
+              enum:
+                - warm
+                - neutral
+                - concise
+              type: string
+            verbosity:
+              default: default
+              enum:
+                - brief
+                - default
+                - detailed
+              type: string
+          required:
+            - tone
+            - verbosity
+            - excludeMetrics
+            - showEvidenceByDefault
+          type: object
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
     InsightsComprehensiveResponse:
       additionalProperties: false
       description: AI-generated insights bundle. Strict-schema validated server-side; Coach-routed when the insight surface
@@ -495,6 +552,63 @@ components:
         - data
         - error
       type: object
+    PutCoachPrefsResponse:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            excludeMetrics:
+              default: []
+              items:
+                enum:
+                  - bp
+                  - weight
+                  - pulse
+                  - mood
+                  - compliance
+                  - hrv
+                  - sleep
+                  - resting_hr
+                  - steps
+                type: string
+              maxItems: 9
+              type: array
+            showEvidenceByDefault:
+              default: false
+              type: boolean
+            tone:
+              default: warm
+              enum:
+                - warm
+                - neutral
+                - concise
+              type: string
+            verbosity:
+              default: default
+              enum:
+                - brief
+                - default
+                - detailed
+              type: string
+          required:
+            - tone
+            - verbosity
+            - excludeMetrics
+            - showEvidenceByDefault
+          type: object
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
     RefreshResponse:
       additionalProperties: false
       properties:
@@ -594,6 +708,79 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
           description: Rate limit exceeded.
       summary: Email-or-username login (password)
+      tags:
+        - Auth
+  /api/auth/me/coach-prefs:
+    get:
+      description: Returns the persisted preferences with defaults filled in. Null persisted state resolves to the legacy
+        v1.4.22 defaults.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCoachPrefsResponse"
+          description: Resolved preferences.
+        "401": *a1
+        "422": *a2
+        "429": *a3
+      summary: Read per-user Coach prompt-tuning preferences
+      tags:
+        - Auth
+    put:
+      description: Persists the supplied prefs. Body is validated against `CoachPrefs`; missing keys fall back to the
+        documented defaults.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                excludeMetrics:
+                  default: []
+                  items:
+                    enum:
+                      - bp
+                      - weight
+                      - pulse
+                      - mood
+                      - compliance
+                      - hrv
+                      - sleep
+                      - resting_hr
+                      - steps
+                    type: string
+                  maxItems: 9
+                  type: array
+                showEvidenceByDefault:
+                  default: false
+                  type: boolean
+                tone:
+                  default: warm
+                  enum:
+                    - warm
+                    - neutral
+                    - concise
+                  type: string
+                verbosity:
+                  default: default
+                  enum:
+                    - brief
+                    - default
+                    - detailed
+                  type: string
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PutCoachPrefsResponse"
+          description: Saved preferences echoed back.
+        "401": *a1
+        "422": *a2
+        "429": *a3
+      summary: Replace per-user Coach prompt-tuning preferences
       tags:
         - Auth
   /api/auth/passkey/login-verify:

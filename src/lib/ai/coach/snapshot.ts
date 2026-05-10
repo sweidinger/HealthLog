@@ -17,6 +17,10 @@
  */
 import { prisma } from "@/lib/db";
 import { extractFeatures } from "@/lib/insights/features";
+import {
+  parseCoachPrefs,
+  type CoachExcludeMetric,
+} from "@/lib/validations/coach-prefs";
 import type {
   CoachProvenance,
   CoachScope,
@@ -249,7 +253,29 @@ export async function buildCoachSnapshot(
   userId: string,
   scope?: CoachScope,
 ): Promise<CoachSnapshotResult> {
-  const { sources, window } = resolveScope(scope);
+  const { sources: scopedSources, window } = resolveScope(scope);
+
+  // v1.4.23 H4 — apply per-user `excludeMetrics` BEFORE we read any
+  // measurement rows so the model never sees data the user opted out
+  // of. The filter intersects with the resolved scope (the explicit
+  // `scope` argument from the request body still wins for the
+  // _maximum_ set; prefs only narrow further).
+  const prefsRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { coachPrefsJson: true },
+  });
+  const prefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
+  const excluded = new Set<CoachExcludeMetric>(prefs.excludeMetrics);
+  const sources = new Set<CoachScopeSource>();
+  for (const src of scopedSources) {
+    // The `excludeMetrics` enum is a strict subset of `CoachScopeSource`
+    // (every excludable key is also a valid scope source); this cast is
+    // safe and the runtime check is just defence-in-depth.
+    if (!excluded.has(src as unknown as CoachExcludeMetric)) {
+      sources.add(src);
+    }
+  }
+
   const windowDays = windowToDays(window);
   const features = await extractFeatures(userId, false, {
     sinceDays: windowDays,

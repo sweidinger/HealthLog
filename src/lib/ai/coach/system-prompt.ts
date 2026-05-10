@@ -18,6 +18,10 @@
  */
 import type { Locale } from "@/lib/i18n/config";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/insight-generator";
+import {
+  DEFAULT_COACH_PREFS,
+  type CoachPrefs,
+} from "@/lib/validations/coach-prefs";
 
 const COACH_PROMPT_EN = `You are the HealthLog Coach. You sit alongside the user as they look at
 their own health data — blood pressure, weight, pulse, mood, medications —
@@ -352,6 +356,59 @@ SPRACHE
 Antworte auf Deutsch, sofern der Nutzer auf Deutsch schreibt; bei
 englischen Nachrichten antworte auf Englisch.`;
 
-export function getCoachSystemPrompt(locale: Locale): string {
-  return locale === "en" ? COACH_PROMPT_EN : COACH_PROMPT_DE;
+export function getCoachSystemPrompt(
+  locale: Locale,
+  prefs: CoachPrefs = DEFAULT_COACH_PREFS,
+): string {
+  const base = locale === "en" ? COACH_PROMPT_EN : COACH_PROMPT_DE;
+  const prefix = buildPrefsPrefix(locale, prefs);
+  return prefix ? `${prefix}\n\n${base}` : base;
+}
+
+/**
+ * v1.4.23 H4 — convert non-default Coach prefs into a one-paragraph
+ * prefix the system prompt prepends. Defaults produce an empty prefix
+ * so legacy users see the unchanged v1.4.22 prompt verbatim.
+ *
+ * Tone "concise" caps verbosity at "brief" regardless of the explicit
+ * verbosity selection — same intuition as concise == short, the picker
+ * just keeps the controls orthogonal in the UI for clarity.
+ */
+function buildPrefsPrefix(locale: Locale, prefs: CoachPrefs): string {
+  const parts: string[] = [];
+  const isEn = locale === "en";
+
+  // Tone
+  if (prefs.tone === "neutral") {
+    parts.push(
+      isEn
+        ? "TONE OVERRIDE: keep the warmth language minimal — match the user's literal register without warmth flourishes."
+        : "TONFALL-OVERRIDE: Halte die Warmth-Sprache zurück — spiegele die wörtliche Tonalität des Nutzers ohne zusätzliche warme Floskeln.",
+    );
+  } else if (prefs.tone === "concise") {
+    parts.push(
+      isEn
+        ? "TONE OVERRIDE: be concise. Drop the motivational-interviewing micro-moves; one short observation + one short follow-up is enough."
+        : "TONFALL-OVERRIDE: Sei knapp. Lass die Motivational-Interviewing-Mikro-Moves weg; eine kurze Beobachtung plus eine kurze Anschlussfrage genügt.",
+    );
+  }
+
+  // Verbosity (concise tone implicitly forces brief).
+  const effectiveVerbosity =
+    prefs.tone === "concise" ? "brief" : prefs.verbosity;
+  if (effectiveVerbosity === "brief") {
+    parts.push(
+      isEn
+        ? "VERBOSITY OVERRIDE: cap replies at ~90 words. One paragraph; no opening recap of the user's question."
+        : "AUSFÜHRLICHKEITS-OVERRIDE: Antworten auf ~90 Wörter begrenzen. Ein Absatz; keine einleitende Wiederholung der Userfrage.",
+    );
+  } else if (effectiveVerbosity === "detailed") {
+    parts.push(
+      isEn
+        ? "VERBOSITY OVERRIDE: 180-250 words is acceptable. The user wants the long-form context; carry every cited number through to a thoughtful close."
+        : "AUSFÜHRLICHKEITS-OVERRIDE: 180-250 Wörter sind in Ordnung. Der Nutzer möchte den ausführlichen Kontext; trage jede genannte Zahl bis zu einem sorgfältigen Schluss.",
+    );
+  }
+
+  return parts.length > 0 ? parts.join("\n\n") : "";
 }

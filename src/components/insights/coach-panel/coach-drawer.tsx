@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus, Settings, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ import { useTranslations } from "@/lib/i18n/context";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachInput } from "./coach-input";
+import { CoachSettingsSheet } from "./coach-settings-sheet";
 import { HistoryRail } from "./history-rail";
 import { MessageThread } from "./message-thread";
 import { DEFAULT_COACH_SCOPE, SourcesRail } from "./sources-rail";
@@ -130,6 +131,10 @@ export function CoachDrawer({
   // data the Coach is using without losing the message thread context.
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
+  // v1.4.23 H4 — Coach prompt-tuning sheet. The v1.4.22 B5 audit had
+  // removed the placeholder cog from the drawer header; v1.4.23 H4
+  // returns it with a real surface backed by `/api/auth/me/coach-prefs`.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // v1.4.23 H3 — `prefill` is now a fully-controlled prop. The
   // v1.4.20 implementation used `key={prefill}` on the parent mount
   // to force a fresh `useState()` initialiser run on every prefill
@@ -226,13 +231,11 @@ export function CoachDrawer({
           "flex h-[100dvh] flex-col gap-0",
         )}
       >
-        {/* Header (full width). Avatar + title + new-chat button.
-            v1.4.22 B5 — the settings cog was removed: it had no real
-            wiring and the matching v1.4.21 placeholder tooltip
-            ("Coach settings arrive in v1.4.21") read as a dead button.
-            A real settings surface for per-user prompt-tuning lands
-            with v1.4.23. pr-12 keeps the new-chat button clear of the
-            Sheet's close-X on narrower viewports. */}
+        {/* Header (full width). Avatar + title + new-chat button +
+            settings cog (v1.4.23 H4 — real per-user prompt-tuning
+            surface, replacing the v1.4.22 B5 dead-button cleanup).
+            pr-12 keeps the buttons clear of the Sheet's close-X on
+            narrower viewports. */}
         <SheetHeader
           data-slot="coach-drawer-header"
           className="border-border/70 flex-row items-center gap-3 border-b p-3 pr-12 sm:p-4 sm:pr-14"
@@ -263,6 +266,17 @@ export function CoachDrawer({
             <span className="hidden sm:inline">
               {t("insights.coach.newChat")}
             </span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setSettingsOpen(true)}
+            data-slot="coach-drawer-settings"
+            aria-label={t("insights.coach.settingsAriaLabel")}
+            className="size-8 shrink-0"
+          >
+            <Settings className="size-3.5" aria-hidden="true" />
           </Button>
         </SheetHeader>
 
@@ -334,6 +348,14 @@ export function CoachDrawer({
             </div>
           </SheetContent>
         </Sheet>
+        {/* v1.4.23 H4 — Coach prompt-tuning sheet. Right-edge sheet so
+            it doesn't conflict with the existing left/right rail
+            trays (those are <lg / <xl only; the settings sheet works
+            on every viewport). */}
+        <CoachSettingsSheet
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+        />
         <Sheet open={sourcesTrayOpen} onOpenChange={setSourcesTrayOpen}>
           <SheetContent
             side="right"

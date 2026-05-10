@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Bot, ChevronRight, Sparkles, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  DEFAULT_COACH_PREFS,
+  type CoachPrefs,
+} from "@/lib/validations/coach-prefs";
 
 import { SourceChips } from "./source-chips";
 import type {
@@ -51,6 +56,22 @@ export function MessageThread({
   const { t } = useTranslations();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const wasPinnedRef = useRef(true);
+
+  // v1.4.23 H4 — read the user's Coach prefs so the evidence
+  // disclosure honours `showEvidenceByDefault`. Cached at the
+  // queryClient level; the settings sheet writes the same key after a
+  // successful save so the new default takes effect on the next reply
+  // without a page reload.
+  const { data: coachPrefs } = useQuery({
+    queryKey: ["coach-prefs"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/me/coach-prefs");
+      if (!res.ok) return DEFAULT_COACH_PREFS;
+      const env = (await res.json()) as { data: CoachPrefs };
+      return env.data;
+    },
+  });
+  const evidenceDefaultOpen = coachPrefs?.showEvidenceByDefault ?? false;
 
   const messages: CoachMessageDTO[] = conversation?.messages ?? [];
   // v1.4.20.1 — once the SSE stream emits `done`, the route's
@@ -158,6 +179,7 @@ export function MessageThread({
             content={m.content}
             metricSource={m.metricSource}
             providerType={m.providerType}
+            evidenceDefaultOpen={evidenceDefaultOpen}
           />
         );
       })}
@@ -174,6 +196,7 @@ export function MessageThread({
             providerType={streaming.inProgress ? "streaming" : null}
             inProgress={streaming.inProgress}
             errorCode={streaming.errorCode}
+            evidenceDefaultOpen={evidenceDefaultOpen}
           />
         </div>
       )}
@@ -203,6 +226,8 @@ interface ChatBubbleProps {
   providerType?: string | null;
   inProgress?: boolean;
   errorCode?: string | null;
+  /** v1.4.23 H4 — when true the evidence `<details>` mounts open. */
+  evidenceDefaultOpen?: boolean;
 }
 
 function ChatBubble({
@@ -212,6 +237,7 @@ function ChatBubble({
   providerType,
   inProgress,
   errorCode,
+  evidenceDefaultOpen,
 }: ChatBubbleProps) {
   const { t } = useTranslations();
   const { user } = useAuth();
@@ -306,6 +332,11 @@ function ChatBubble({
         {keyValues.length > 0 && (
           <details
             data-slot="coach-evidence"
+            // v1.4.23 H4 — open by default when the user's prefs ask
+            // for it. Browsers honour the boolean `open` attribute on
+            // initial mount; toggling at runtime keeps the user's
+            // current expansion state intact.
+            open={evidenceDefaultOpen ? true : undefined}
             className={cn(
               "border-border/50 bg-muted/30 group rounded-md border",
               "px-2.5 py-1.5 text-xs",

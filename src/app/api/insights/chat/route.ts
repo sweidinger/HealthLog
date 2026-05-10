@@ -61,6 +61,7 @@ import { detectRefusal } from "@/lib/ai/coach/refusal";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
 import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
+import { parseCoachPrefs } from "@/lib/validations/coach-prefs";
 import { createSseStream } from "@/lib/sse/create-stream";
 
 /**
@@ -202,9 +203,16 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   });
 
   // Build the prompt: system + (optional) snapshot + recent history +
-  // the new user message.
+  // the new user message. v1.4.23 H4 — fold per-user prefs into the
+  // system-prompt prefix; the snapshot builder reads the same prefs
+  // separately so excluded metrics never even leave the DB.
+  const prefsRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { coachPrefsJson: true },
+  });
+  const coachPrefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
   const snapshot = await buildCoachSnapshot(userId, scope);
-  const systemPrompt = getCoachSystemPrompt(locale);
+  const systemPrompt = getCoachSystemPrompt(locale, coachPrefs);
   const window = buildHistoryWindow([
     ...priorTurns,
     { role: "user", content: message },
