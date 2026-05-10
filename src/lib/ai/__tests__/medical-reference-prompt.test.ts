@@ -27,9 +27,13 @@ describe("PROMPT_VERSION", () => {
   it("is at least 4.16.0 for the v1.4.16 medical-reference grounding update", () => {
     // v1.4.16 phase B5a anchored at 4.16.0; phase B8 bumped the
     // patch component to 4.16.1 when the comparison-mode narrative
-    // ground rule landed. Use a string-prefix check so the test
-    // doesn't bind to a specific patch.
-    expect(PROMPT_VERSION.startsWith("4.16.")).toBe(true);
+    // ground rule landed. v1.4.19 bumped to 4.19.0 when the
+    // no-default-positivity opener ground rule landed. Use a numeric
+    // comparison so future ratchets stay covered without rewriting
+    // this assertion.
+    const [major, minor] = PROMPT_VERSION.split(".").map(Number);
+    expect(major).toBeGreaterThanOrEqual(4);
+    expect(major === 4 ? minor >= 16 : true).toBe(true);
   });
 });
 
@@ -110,7 +114,8 @@ describe("buildSystemPromptWithReferences()", () => {
     const prompt = buildSystemPromptWithReferences("en", ["bp"]);
     expect(prompt).toContain(PROMPT_VERSION);
     // v1.4.16: phase B5a was 4.16.0; phase B8 bumped to 4.16.1.
-    expect(prompt).toMatch(/4\.16\.\d+/);
+    // v1.4.19 bumped to 4.19.0 (no-default-positivity opener).
+    expect(prompt).toMatch(/4\.\d+\.\d+/);
   });
 });
 
@@ -122,6 +127,6 @@ describe("plain getStrictInsightsSystemPrompt() backward compatibility", () => {
 
   it("contains the bumped PROMPT_VERSION", () => {
     const en = getStrictInsightsSystemPrompt("en");
-    expect(en).toMatch(/4\.16\.\d+/);
+    expect(en).toMatch(/4\.\d+\.\d+/);
   });
 });

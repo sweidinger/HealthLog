@@ -45,7 +45,6 @@ import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
 import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
-import { CompareToggle } from "@/components/comparison/compare-toggle";
 import { InsightsCardPreview } from "@/components/insights/insights-card";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 
@@ -492,11 +491,16 @@ export default function DashboardPage() {
         </DropdownMenu>
       </div>
 
-      {/* v1.4.16 phase D reconcile (CRITICAL C3) — on-surface comparison
-          toggle. The Settings-only Select shipped in B8 was buried 3
-          clicks deep; mounting the toggle here makes the Vormonat /
-          Vorjahr overlay flip a single tap on the page that uses it. */}
-      <CompareToggle />
+      {/* v1.4.19 A3 — comparison toggle removed from dashboard.
+          The tile strip is too tight for an extra control band, and
+          Marc rarely wants Vormonat / Vorjahr context at a glance —
+          when he does, it's on `/insights` where the chart sits next
+          to the toggle. The underlying `compareBaseline` value still
+          flows from `/api/dashboard/widgets` into every chart below
+          so nothing visual changes when the user has the comparison
+          on; only the on-surface affordance moves. Settings →
+          Dashboard remains the power-user backdoor for either
+          surface. */}
 
       {/* v1.4: Getting-started checklist for brand-new users.
        * Self-gates visibility on (onboardingCompletedAt == null

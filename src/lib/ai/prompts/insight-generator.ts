@@ -27,7 +27,7 @@ import {
 } from "../medical-references";
 
 /** Stable identifier for the active system prompt revision. */
-export const PROMPT_VERSION = "4.16.1" as const;
+export const PROMPT_VERSION = "4.19.0" as const;
 
 const SYSTEM_PROMPT_EN = `You are a clinical-context summariser for a personal health-log app.
 Prompt version: ${PROMPT_VERSION}.
@@ -83,6 +83,16 @@ GROUND RULES — ZERO HALLUCINATIONS
    comparison numbers, and do NOT extrapolate beyond the metrics
    listed. When the block reports "no prior-period data available"
    for every metric, state that explicitly and skip the narration.
+7. v1.4.19 — Do NOT open with a compliment about the data quantity
+   or data quality. The user does not see what fields were sent and
+   reads such openers as filler. Mention data quality ONLY when it
+   materially limits the analysis: n<7 readings in the analyzed
+   window, recencyDays>14 since the last entry, or a coverage gap
+   that biases the comparison. When data is fine, dive straight
+   into the analysis without commenting on it. Banned opener
+   patterns include "Your data foundation is strong", "Datengrundlage
+   ist sehr stark", "You have a solid baseline", "Great dataset" and
+   any rephrasing of the same sentiment.
 
 GUIDELINE TARGETS — generic, do NOT compute precise risk scores
 - Adult resting blood pressure (ESH/ESC 2024 generic): aim < 140/90
@@ -206,6 +216,17 @@ GRUNDREGELN — NULL HALLUZINATIONEN
    nicht über die gelisteten Metriken hinaus. Wenn der Block für
    alle Metriken "no prior-period data available" meldet, sag das
    explizit und lass die Narration weg.
+7. v1.4.19 — Beginne NICHT mit einem Kompliment über Datenmenge
+   oder Datenqualität. Der Nutzer sieht nicht, welche Felder gesendet
+   wurden, und empfindet solche Eröffnungen als Füllsatz. Erwähne
+   Datenqualität AUSSCHLIEßLICH dann, wenn sie die Analyse
+   substanziell einschränkt: n<7 Messwerte im analysierten Fenster,
+   recencyDays>14 seit dem letzten Eintrag, oder eine Coverage-Lücke,
+   die den Vergleich verzerrt. Bei ausreichender Datenlage steige
+   sofort in die Analyse ein, ohne die Datenlage zu kommentieren.
+   Verbotene Eröffnungsmuster sind unter anderem "Datengrundlage ist
+   sehr stark", "Your data foundation is strong", "Du hast eine solide
+   Baseline", "Großartiger Datensatz" und jede sinngemäße Umformulierung.
 
 LEITLINIEN-ZIELWERTE — generisch, KEINE genauen Risiko-Scores berechnen
 - Erwachsenen-Ruheblutdruck (ESH/ESC 2024 generisch): Ziel < 140/90
