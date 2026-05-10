@@ -22,10 +22,10 @@ B1 dispatches.
 
 ### F1 — Branch model: long-lived `develop`
 
-- [ ] Create `develop` from current `main` HEAD
-- [ ] Push `develop` to origin
-- [ ] Verify GHCR workflow only fires on `main` push + `v*` tag
-- [ ] Set `develop` as default work-target for all v1.4.20 commits
+- [x] Create `develop` from cleaned `main` HEAD (`a1cf9bc`)
+- [x] Push `develop` to origin (tracking set up)
+- [x] GHCR workflow verified — only `branches: [main]` + `tags: ['v*']` push paths build/publish; PRs to `main` build but do not push; develop is build-free
+- [x] All v1.4.20 commits target `develop`; release-merge to `main` only at Phase E
 - Detailed report: `.planning/phase-F1-report.md`
 
 ### F2 — Document branch + release model
@@ -35,23 +35,25 @@ B1 dispatches.
 - [ ] Make user-vs-contributor distinction explicit
 - Detailed report: `.planning/phase-F2-report.md`
 
-### F3 — Repo-cleanup audit (jargon sweep)
+### FX — User-facing artifact cleanup (PII + jargon + German leaks)
 
-- [ ] Multi-agent sweep: `CHANGELOG.md`, `docs/audit/`, `docs/`,
-      `README.md`, healthlog-docs, healthlog-landing
-- [ ] Replace internal jargon (Phase X / Wave Y / marathon /
-      sub-agent / autonomous orchestrator / Claude name) with neutral
-      language
-- [ ] Keep Co-Author trailer on commits (git-meta only)
-- [ ] No git history rewrite — only edit current file state
-- Detailed report: `.planning/phase-F3-report.md`
+Combined sweep across HealthLog main repo + healthlog-docs + healthlog-landing
+(F3 + F4 + new PII rule consolidated into one wave).
 
-### F4 — Release-notes language audit (German leaks)
-
-- [ ] Audit `CHANGELOG.md` v1.4.14–v1.4.19 + GitHub releases + future
-      docs/audit/v*-summary.md
-- [ ] Translate German leaks to English
-- Detailed report: `.planning/phase-F4-report.md`
+- [x] HealthLog main repo: 20 files scrubbed, `a1cf9bc` on origin/main
+      (CHANGELOG.md, docs/audit/v146 / v1414 / v1415 / v1416 / v1418 /
+      v1419, docs/codex-protocol-spec.md, docs/migration/, docs/ops/)
+- [x] healthlog-docs: 7 files scrubbed, `782862b` on origin/main
+      (api/ examples replaced "marc" → "alice", DE leaks fixed)
+- [x] healthlog-landing: 1 file scrubbed, `9b31083` on origin/main
+      (JSON-LD author block depersonalised)
+- [ ] GH releases v1.4.14–v1.4.19: republish bodies from cleaned
+      CHANGELOG sections (see Phase E pipeline)
+- [ ] Source-comment sweep (`src/` has 191 `Marc` references in
+      maintainer comments) — defer to v1.4.21 backlog as low-priority
+- [ ] DE+EN bilingual CHANGELOG entries (v1.4.15 era) — defer; larger
+      rewrite, captured in v1.4.21 backlog
+- Detailed report: `.planning/phase-FX-report.md`
 
 ### F5 — Best-practice GitHub repo audit
 
