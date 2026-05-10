@@ -76,11 +76,12 @@ export const GET = apiHandler(async () => {
     // days. Up to v1.4.18 we filtered to the last 30 days at the DB
     // level and the headline (`bpInTargetPct`) was routed through
     // `windows.last30Days?.pct` — making the headline a literal copy
-    // of the `30T` sub-value. For Marc's data (572 paired readings,
-    // recent 30d = 50 %, all-time ≈ 11 %) the tile pinned 50/50/50
-    // and looked algorithmically broken. The windowed helper now also
-    // returns an independent `allTime` aggregate, which we surface as
-    // the headline so the three numbers can diverge naturally.
+    // of the `30T` sub-value. On a busy account (e.g. 572 paired
+    // readings with recent 30d = 50 %, all-time ≈ 11 %) the tile
+    // pinned 50/50/50 and looked algorithmically broken. The windowed
+    // helper now also returns an independent `allTime` aggregate,
+    // which we surface as the headline so the three numbers can
+    // diverge naturally.
     const [sysData, diaData] = await Promise.all([
       prisma.measurement.findMany({
         where: { userId: user.id, type: "BLOOD_PRESSURE_SYS" },
