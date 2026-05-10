@@ -506,6 +506,20 @@ Last update: 2026-05-09T23:12:52+02:00
     `fb12f09` security H1+H2, `5661439` H4 design, `f3025a8`
     simplify, `6863ecb` H5+H6 code-review, `5f7b9d8` H2
     code-review.
+- [x] CRITICAL C1 wired (commit aae968a); [x] CRITICAL C2 wired (commit 8a5b6de)
+  - 2026-05-10T03:35+02:00 — both deferred CRITICALs wired before the
+    v1.4.16 tag. `<InsightAdvisorCard>` now mounts on `/insights`
+    (consuming `/api/insights/generate` POST cache-aware, no new API);
+    `<InsightsCardPreview>` now mounts on `/` (gated by new
+    `insightsPreview` widget id in `DASHBOARD_WIDGET_IDS` + default
+    layout). New `useInsightsAdvisorQuery()` hook shares the cache
+    between both surfaces. Two new e2e specs prove the live routes
+    reach the polished components (B5c/d/e/B1b). Verification:
+    `pnpm typecheck` 0 errors, `pnpm lint` 0 errors / 12 pre-existing
+    warnings, `pnpm test --run` 1540/1540 (+1 widget-contract test),
+    `pnpm test:integration` 59/59. Detailed report:
+    `.planning/phase-D-c1-c2-wire-report.md`. Style cleanup:
+    `c63cddc style(insights): prettier sweep on C1 + C2 wire-up files`.
 
 ## Phase E — Release v1.4.16
 
