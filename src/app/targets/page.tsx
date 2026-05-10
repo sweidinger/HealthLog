@@ -549,7 +549,11 @@ export default function TargetsPage() {
     });
 
   return (
-    <div className="space-y-8">
+    // v1.4.19 phase A7 — Marc reported "relativ viel Platz" wasted
+    // between the overview header and the first values on `/targets`.
+    // Tighten the rhythm from `space-y-8` (32 px) to `space-y-6`
+    // (24 px) — that matches the admin / settings pages.
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">{t("targets.title")}</h1>
         <p className="mt-2 text-sm">{t("targets.introText")}</p>
