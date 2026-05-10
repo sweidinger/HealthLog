@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.17] — 2026-05-10
+
+### Fixed
+
+- `/insights` no longer crashes for users with cached insights from before
+  v1.4.16. A "Regenerate insights" card is shown for legacy cached
+  payloads (the pre-strict `{changed, stable, drivers, …}` shape) instead
+  of throwing a `Cannot read properties of undefined (reading 'replace')`
+  error. One click on the card refreshes the insight in the new format.
+
 ## [1.4.16] — 2026-05-09
 
 ### Added
