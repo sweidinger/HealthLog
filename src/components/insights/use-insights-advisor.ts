@@ -1,0 +1,101 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { InsightResult } from "@/lib/ai/types";
+import { queryKeys } from "@/lib/query-keys";
+
+/**
+ * v1.4.16 phase D reconcile (CRITICAL C1 + C2) — shared TanStack Query
+ * helper that reads the rich advisor payload from `/api/insights/generate`.
+ *
+ * Why a POST under a `useQuery` rather than a dedicated GET endpoint:
+ * the route already cache-returns the most recent generation (24h TTL on
+ * `User.insightsCachedAt` / `User.insightsCachedText`) without burning a
+ * rate-limit token, so a single POST-without-`force` is functionally a
+ * GET-or-generate. Adding a separate GET would duplicate the cache-read
+ * branch and split the audit-log surface; the reconcile report deferred
+ * C1+C2 specifically because it assumed that duplication was required,
+ * but the route already supports the cache-aware path.
+ *
+ * Both `/insights` (`<InsightAdvisorCard>`) and `/` (`<InsightsCardPreview>`)
+ * mount the query under the same key, so a regenerate from either surface
+ * refreshes the other without a second LLM call.
+ */
+export interface InsightAdvisorPayload {
+  insights: InsightResult;
+  cached: boolean;
+  cachedAt?: string | null;
+  legacyPayload?: boolean;
+}
+
+async function fetchAdvisor(
+  options: { force?: boolean } = {},
+): Promise<InsightAdvisorPayload | null> {
+  const res = await fetch("/api/insights/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options.force ? { force: true } : {}),
+  });
+  if (!res.ok) {
+    // 422 (no provider configured) and 429 (rate-limited) are expected
+    // surfaces — return null so the consuming UI shows the empty / error
+    // state without the query slipping into an `isError` retry loop.
+    if (res.status === 422 || res.status === 429 || res.status === 503) {
+      return null;
+    }
+    throw new Error(`HTTP ${res.status}`);
+  }
+  const json = await res.json();
+  return json.data as InsightAdvisorPayload;
+}
+
+export interface UseInsightsAdvisorResult {
+  payload: InsightAdvisorPayload | null;
+  isLoading: boolean;
+  isError: boolean;
+  error: Error | null;
+  regenerate: () => void;
+  isRegenerating: boolean;
+  regenerateError: Error | null;
+}
+
+/**
+ * Read-only consumer for the advisor payload. Use this on surfaces that
+ * just want to render the cached insight (e.g. dashboard preview).
+ */
+export function useInsightsAdvisorQuery(enabled: boolean): UseInsightsAdvisorResult {
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: queryKeys.insightsAdvisor(),
+    queryFn: () => fetchAdvisor(),
+    enabled,
+    // 24h cache window matches the server-side `insightsCachedAt` TTL.
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  });
+
+  const mutation = useMutation({
+    mutationFn: () => fetchAdvisor({ force: true }),
+    onSuccess: (next) => {
+      if (next) {
+        queryClient.setQueryData(queryKeys.insightsAdvisor(), next);
+      } else {
+        queryClient.invalidateQueries({ queryKey: queryKeys.insightsAdvisor() });
+      }
+      // Per-status caches are evicted server-side on regenerate; refresh
+      // their query subtree so the per-section text below the advisor card
+      // re-fetches.
+      queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot() });
+    },
+  });
+
+  return {
+    payload: query.data ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    error: (query.error as Error | null) ?? null,
+    regenerate: () => mutation.mutate(),
+    isRegenerating: mutation.isPending,
+    regenerateError: (mutation.error as Error | null) ?? null,
+  };
+}

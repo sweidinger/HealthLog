@@ -42,7 +42,9 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { InsightAdvisorCard } from "@/components/insights/insight-advisor-card";
 import { InsightsPageHero } from "@/components/insights/insights-page-hero";
+import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { CompareToggle } from "@/components/comparison/compare-toggle";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
 // wrapper so the bundle only lands once a correlation card actually renders.
@@ -579,6 +581,15 @@ export default function InsightsPage() {
   const compareBaseline =
     resolveDashboardLayout(layoutData).comparisonBaseline ?? "none";
 
+  // v1.4.16 phase D reconcile (CRITICAL C1) — pull the rich advisor
+  // payload (severity-ordered recommendations + rationale + confidence
+  // + medical-citation footnotes + thumbs feedback) so this page
+  // surfaces the polished `<InsightAdvisorCard>` from B5c/d/e/B1b
+  // instead of the v1.4.15 text-only `<InsightStatusCard>` summary.
+  // Cache-aware: a regenerate on the dashboard preview (C2) hot-swaps
+  // this query under the same key.
+  const advisor = useInsightsAdvisorQuery(isAuthenticated);
+
   const { data: analytics } = useQuery({
     queryKey: ["analytics"],
     queryFn: async () => {
@@ -893,7 +904,11 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-8">
-      <InsightsPageHero updatedAt={heroUpdatedAt} />
+      <InsightsPageHero
+        updatedAt={advisor.payload?.cachedAt ?? heroUpdatedAt}
+        onRegenerate={advisor.regenerate}
+        regenerating={advisor.isRegenerating}
+      />
 
       {/* v1.4.16 phase D reconcile (CRITICAL C3) — on-surface comparison
           toggle. Mirrors the dashboard placement so flipping Vormonat /
@@ -902,6 +917,26 @@ export default function InsightsPage() {
       <div className="flex items-center justify-end">
         <CompareToggle />
       </div>
+
+      {/* v1.4.16 phase D reconcile (CRITICAL C1) — wire the polished
+          `<InsightAdvisorCard>` (severity-ordered recommendations grid +
+          per-rec rationale expand + confidence meter + thumbs feedback +
+          medical-citation footnotes) into the live route. Before this
+          fix the page rendered only the text-only `<InsightStatusCard>`
+          per section, hiding all of B5c/d/e/B1b's polish from users.
+          The per-section status cards stay below as supplemental detail. */}
+      <InsightAdvisorCard
+        title={t("insights.aiOverviewTitle")}
+        insight={advisor.payload?.insights ?? null}
+        loading={advisor.isLoading}
+        error={
+          advisor.regenerateError?.message ?? advisor.error?.message ?? null
+        }
+        onRegenerate={advisor.regenerate}
+        regenerating={advisor.isRegenerating}
+        cachedAt={advisor.payload?.cachedAt ?? null}
+        legacyPayload={advisor.payload?.legacyPayload ?? false}
+      />
 
       <InsightsSectionNav />
 

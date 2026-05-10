@@ -681,6 +681,7 @@
   },
   "insights": {
     "aiAnalysisTitle": "AI Health Analysis",
+    "aiOverviewTitle": "Personal advisor",
     "noAnalysisYet": "No analysis yet.",
     "emptyTitle": "Not enough data yet",
     "emptyDescription": "Insights light up once you've logged a handful of measurements. Start with weight or blood pressure.",

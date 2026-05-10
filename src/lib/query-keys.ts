@@ -22,6 +22,14 @@ export const queryKeys = {
   insightsRoot: () => ["insights"] as const,
   insightsComprehensive: () => ["insights", "comprehensive"] as const,
   insightsTargets: () => ["insights", "targets"] as const,
+  /**
+   * v1.4.16 phase D reconcile (CRITICAL C1 + C2) — shared cache key for
+   * the rich `/api/insights/generate` advisor payload. Both `/insights`
+   * (full `<InsightAdvisorCard>`) and `/` (`<InsightsCardPreview>`) read
+   * this key so a regenerate on one surface refreshes the other without
+   * a second LLM round-trip.
+   */
+  insightsAdvisor: () => ["insights", "advisor"] as const,
   insightsGeneralStatus: (locale: string) =>
     ["insights", "general-status", locale] as const,
   insightsBpStatus: (locale: string) =>
