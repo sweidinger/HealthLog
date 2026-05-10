@@ -505,7 +505,7 @@ export function InsightAdvisorCard({
                   ) : (
                     <Sparkles className="mr-1.5 h-3 w-3" />
                   )}
-                  {t("insights.startAnalysis")}
+                  {t("insights.heroRegenerate")}
                 </Button>
               )}
             </div>
@@ -692,7 +692,7 @@ export function InsightAdvisorCard({
                 ) : (
                   <Sparkles className="mr-1.5 h-3 w-3" />
                 )}
-                {t("insights.startAnalysis")}
+                {t("insights.heroRegenerate")}
               </Button>
             </div>
           </div>

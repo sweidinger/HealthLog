@@ -302,6 +302,9 @@ describe("<InsightAdvisorCard> — polished loading / empty / error states (B1b)
     // No crash means the test got here. Surface the regenerate CTA so
     // the user has a one-click escape from the legacy state.
     expect(html).toContain('data-slot="insight-legacy-payload-cta"');
+    // F-06 (v1.4.19): the CTA copy says "regenerate", so the button
+    // label must say "Regenerate" too — not "Start analysis".
+    expect(html).toContain("Regenerate");
   });
 
   it("error state without onRegenerate hides the retry button", () => {
