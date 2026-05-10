@@ -913,11 +913,24 @@ model RecommendationFeedback {
   promptVersion          String   @map("prompt_version")
   createdAt              DateTime @default(now()) @map("created_at")
 
+  // v1.4.23 H7 — polymorphic target so Coach replies share the table.
+  // "recommendation" (default) is the v1.4.16 B5e shape; "coach" is a
+  // Coach assistant message. The aggregator slices on targetType to
+  // bucket each surface independently. Default value lets every
+  // pre-v1.4.23 row read as "recommendation" without a backfill.
+  targetType String @default("recommendation") @map("target_type")
+  // Optional free-form reason — populated when the user clicks
+  // "unhelpful" and selects a category from the small chip strip.
+  // Capped at 200 chars upstream so the table can't bloat from a
+  // pasted essay.
+  reason String? @map("reason")
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, recommendationId, recommendationText], map: "rec_feedback_user_rec_text_key")
   @@index([userId, createdAt])
   @@index([recommendationSeverity, helpful, createdAt])
+  @@index([targetType, createdAt])
   @@map("recommendation_feedback")
 }
 

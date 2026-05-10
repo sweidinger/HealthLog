@@ -919,7 +919,10 @@
       "settingsEvidenceHint": "Open the disclosure under every reply automatically.",
       "settingsSave": "Save",
       "settingsSaved": "Saved.",
-      "settingsCancel": "Cancel"
+      "settingsCancel": "Cancel",
+      "feedbackHelpful": "Helpful",
+      "feedbackUnhelpful": "Not quite",
+      "feedbackThanks": "Thanks for the signal."
     },
     "viewAll": "View all",
     "previewEmpty": "No recommendations yet.",
@@ -1778,6 +1781,21 @@
       "colNotHelpful": "Not helpful",
       "colHelpfulRate": "Helpful rate"
     },
+    "coachFeedback": {
+      "title": "Coach Feedback",
+      "loading": "Loading Coach feedback summary...",
+      "loadError": "Failed to load Coach feedback summary. Try refreshing the page.",
+      "empty": "No Coach feedback yet. The aggregator runs daily at 04:00 — once users rate Coach replies, helpful-rate bands appear here.",
+      "windowLabel": "Last {days} days",
+      "generatedAtLabel": "Generated",
+      "colPromptVersion": "Prompt version",
+      "colTone": "Tone",
+      "colVerbosity": "Verbosity",
+      "colHelpful": "Helpful",
+      "colNotHelpful": "Not helpful",
+      "colN": "n",
+      "colHelpfulRate": "Helpful rate"
+    },
     "workerStatus": "Job Worker",
     "workerRunning": "Running",
     "workerStopped": "Stopped",
@@ -2023,6 +2041,10 @@
       "ai-quality": {
         "title": "AI Quality",
         "subtitle": "Helpfulness scores grouped by severity and provider, from the last 30 days of user feedback."
+      },
+      "coach-feedback": {
+        "title": "Coach Feedback",
+        "subtitle": "Helpful-rate per Coach prompt version, tone, and verbosity from the last 30 days."
       },
       "feedback": {
         "title": "Feedback",

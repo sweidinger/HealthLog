@@ -103,6 +103,17 @@ coachPrefsSchema.meta({
     "Per-user Coach prompt-tuning preferences (v1.4.23 H4). All fields default to the legacy v1.4.22 behaviour when omitted.",
 });
 
+const coachMessageFeedbackBody = z
+  .object({
+    rating: z.enum(["helpful", "unhelpful"]),
+    reason: z.string().min(1).max(200).optional(),
+  })
+  .meta({
+    id: "CoachMessageFeedbackRequest",
+    description:
+      "Per-message helpful/unhelpful feedback (v1.4.23 H7). Optional `reason` is free-form prose, capped at 200 chars.",
+  });
+
 // ── Sub-schemas owned here (route-specific shapes) ───────────────────
 
 const passkeyLoginVerifyRequest = z
@@ -521,6 +532,45 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(coachPrefsSchema, "PutCoachPrefsResponse"),
             },
           },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/chat/messages/{id}/feedback": {
+    post: {
+      tags: ["Insights"],
+      summary: "Rate a Coach assistant message",
+      description:
+        "Persists a helpful/unhelpful rating for a single Coach reply. Reuses the v1.4.16 RecommendationFeedback table via the polymorphic `targetType` column. The aggregator buckets ratings by (promptVersion, tone, verbosity).",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: coachMessageFeedbackBody },
+        },
+      },
+      responses: {
+        "201": {
+          description: "Feedback saved.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  id: z.string(),
+                  createdAt: z.iso.datetime({ offset: true }),
+                }),
+                "CoachMessageFeedbackResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Message not found or not owned by the caller.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "409": {
+          description: "Caller has already rated this message text.",
+          content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
       },

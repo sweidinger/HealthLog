@@ -149,6 +149,49 @@ components:
         - data
         - error
       type: object
+    CoachMessageFeedbackRequest:
+      description: Per-message helpful/unhelpful feedback (v1.4.23 H7). Optional `reason` is free-form prose, capped at 200 chars.
+      properties:
+        rating:
+          enum:
+            - helpful
+            - unhelpful
+          type: string
+        reason:
+          maxLength: 200
+          minLength: 1
+          type: string
+      required:
+        - rating
+      type: object
+    CoachMessageFeedbackResponse:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            createdAt:
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              type: string
+            id:
+              type: string
+          required:
+            - id
+            - createdAt
+          type: object
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
     CreateMeasurementResponse:
       additionalProperties: false
       properties:
@@ -857,6 +900,42 @@ paths:
       summary: Register native device + APNs token
       tags:
         - Devices
+  /api/insights/chat/messages/{id}/feedback:
+    post:
+      description: Persists a helpful/unhelpful rating for a single Coach reply. Reuses the v1.4.16 RecommendationFeedback
+        table via the polymorphic `targetType` column. The aggregator buckets ratings by (promptVersion, tone,
+        verbosity).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CoachMessageFeedbackRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachMessageFeedbackResponse"
+          description: Feedback saved.
+        "401": *a1
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Message not found or not owned by the caller.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Caller has already rated this message text.
+        "422": *a2
+        "429": *a3
+      summary: Rate a Coach assistant message
+      tags:
+        - Insights
   /api/insights/comprehensive:
     get:
       description: Full Insights surface — daily briefing, recommendations with rationale, optional weekly report + storyboard

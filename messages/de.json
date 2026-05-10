@@ -919,7 +919,10 @@
       "settingsEvidenceHint": "Die Belege-Box unter jeder Antwort automatisch öffnen.",
       "settingsSave": "Speichern",
       "settingsSaved": "Gespeichert.",
-      "settingsCancel": "Abbrechen"
+      "settingsCancel": "Abbrechen",
+      "feedbackHelpful": "Hilfreich",
+      "feedbackUnhelpful": "Nicht ganz",
+      "feedbackThanks": "Danke für das Signal."
     },
     "viewAll": "Alle ansehen",
     "previewEmpty": "Noch keine Empfehlungen.",
@@ -1778,6 +1781,21 @@
       "colNotHelpful": "Nicht hilfreich",
       "colHelpfulRate": "Hilfreich-Quote"
     },
+    "coachFeedback": {
+      "title": "Coach-Feedback",
+      "loading": "Coach-Feedback-Zusammenfassung wird geladen...",
+      "loadError": "Coach-Feedback-Zusammenfassung konnte nicht geladen werden. Bitte die Seite neu laden.",
+      "empty": "Noch kein Coach-Feedback. Der Aggregator läuft täglich um 04:00 — sobald Nutzer Coach-Antworten bewerten, erscheinen hier die Hilfreich-Quoten.",
+      "windowLabel": "Letzte {days} Tage",
+      "generatedAtLabel": "Erstellt",
+      "colPromptVersion": "Prompt-Version",
+      "colTone": "Tonfall",
+      "colVerbosity": "Ausführlichkeit",
+      "colHelpful": "Hilfreich",
+      "colNotHelpful": "Nicht hilfreich",
+      "colN": "n",
+      "colHelpfulRate": "Hilfreich-Quote"
+    },
     "workerStatus": "Job-Worker",
     "workerRunning": "Aktiv",
     "workerStopped": "Gestoppt",
@@ -2023,6 +2041,10 @@
       "ai-quality": {
         "title": "KI-Qualität",
         "subtitle": "Hilfreichkeit nach Schweregrad und Provider — Nutzer-Feedback der letzten 30 Tage."
+      },
+      "coach-feedback": {
+        "title": "Coach-Feedback",
+        "subtitle": "Hilfreich-Quote pro Coach-Prompt-Version, Tonfall und Ausführlichkeit der letzten 30 Tage."
       },
       "feedback": {
         "title": "Feedback",
