@@ -8,6 +8,7 @@ vi.mock("@/lib/db", () => ({
     medication: { findMany: vi.fn() },
     passkey: { findMany: vi.fn() },
     auditLog: { findMany: vi.fn() },
+    moodEntry: { findMany: vi.fn() },
     userAchievement: {
       findMany: vi.fn(),
       createMany: vi.fn(),
@@ -61,6 +62,7 @@ beforeEach(() => {
   vi.mocked(prisma.userAchievement.createMany).mockResolvedValue({
     count: 0,
   } as never);
+  vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
 });
 
 describe("GET /api/gamification/achievements?format=ios", () => {

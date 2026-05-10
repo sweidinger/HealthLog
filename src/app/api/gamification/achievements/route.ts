@@ -5,10 +5,15 @@ import { apiSuccess } from "@/lib/api-response";
 import {
   ACHIEVEMENT_DEFINITIONS,
   GAMIFICATION_ROLLOUT_AT,
+  applyDiscoveryFilter,
   calculateLongestStreak,
   evaluateAchievementsWithCompletionDates,
   toBerlinDayKey,
 } from "@/lib/gamification/achievements";
+import {
+  buildExpansionMetricValues,
+  getEarnabilityFlags,
+} from "@/lib/gamification/expansion-metrics";
 import {
   classifyBMI,
   classifyBP,
@@ -458,8 +463,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const userId = user.id;
   const startDate = maxDate(user.createdAt, GAMIFICATION_ROLLOUT_AT);
 
-  const [measurements, intakeEvents, medications, passkeys, auditEvents] =
-    await Promise.all([
+  const [
+    measurements,
+    intakeEvents,
+    medications,
+    passkeys,
+    auditEvents,
+    moodEntries,
+  ] = await Promise.all([
       prisma.measurement.findMany({
         where: {
           userId,
@@ -519,12 +530,31 @@ export const GET = apiHandler(async (request: NextRequest) => {
               "auth.login.passkey",
               "auth.login.password",
               "bugreport.submit",
+              // v1.4.18 — hidden Easter-egg triggers
+              "doctor-report.export",
+              "settings.locale.update",
             ],
           },
         },
         select: {
           action: true,
           createdAt: true,
+        },
+      }),
+      // v1.4.18 — mood entries feed the new mood badges + the
+      // entry-streak/consistent-month engagement metrics. Synced from
+      // moodLog.app or entered directly; we intentionally include all
+      // sources because consistency-of-tracking is what the badge
+      // rewards.
+      prisma.moodEntry.findMany({
+        where: {
+          userId,
+          moodLoggedAt: { gte: startDate, lte: now },
+        },
+        select: {
+          date: true,
+          score: true,
+          moodLoggedAt: true,
         },
       }),
     ]);
@@ -569,6 +599,26 @@ export const GET = apiHandler(async (request: NextRequest) => {
     now,
   );
 
+  const expansionValues = buildExpansionMetricValues({
+    measurements,
+    moodEntries: moodEntries.map((m) => ({
+      date: m.date,
+      score: m.score,
+      moodLoggedAt: m.moodLoggedAt,
+    })),
+    intakeEvents,
+    auditEvents,
+  });
+  const earnability = getEarnabilityFlags({
+    hasMedication: medications.length > 0,
+    moodEntryCount: expansionValues.moodEntryCount,
+    measurementCounts: {
+      weightCount: expansionValues.weightMeasurementCount,
+      bpCount: expansionValues.bpMeasurementCount,
+      pulseCount: expansionValues.pulseMeasurementCount,
+    },
+  });
+
   const metrics = {
     totalTakenIntakes: takenIntakeDates.length,
     overIntakeCount: intakeIssueMetrics.overIntakeCount,
@@ -583,6 +633,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     passwordLoginCount: passwordLoginDates.length,
     loginDayStreak: calculateLongestStreak(loginDaySeries.dayKeys),
     bugReportCount: bugReportDates.length,
+    ...expansionValues,
   };
 
   const completionDates: Partial<Record<string, Date>> = {};
@@ -733,10 +784,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
     mergedDates[id] = date;
   }
 
-  const result = evaluateAchievementsWithCompletionDates(metrics, mergedDates);
+  const fullResult = evaluateAchievementsWithCompletionDates(
+    metrics,
+    mergedDates,
+  );
 
   // Persist newly unlocked achievements
-  const newUnlocks = result.achievements.filter(
+  const newUnlocks = fullResult.achievements.filter(
     (a) =>
       a.unlocked &&
       a.completedAt &&
@@ -752,6 +806,51 @@ export const GET = apiHandler(async (request: NextRequest) => {
       skipDuplicates: true,
     });
   }
+
+  // v1.4.18 — apply the discovery filter so locked badges that the
+  // user has *no path* to earn (e.g. mood badges for someone who has
+  // never logged a mood entry) don't clutter the page. Hidden Easter-
+  // eggs always pass through. Already-unlocked badges always pass
+  // through (regression guard).
+  const visibleAchievements = applyDiscoveryFilter(
+    fullResult.achievements,
+    earnability,
+  );
+
+  // Recompute the summary so the headline counters reflect the
+  // discovered set. Hidden achievements that are still locked are
+  // counted toward `totalCount` so the user sees they exist.
+  const visibleUnlocked = visibleAchievements.filter((a) => a.unlocked);
+  const visibleEarned = visibleUnlocked.reduce(
+    (acc, a) => acc + a.points,
+    0,
+  );
+  const visibleTotalPoints = visibleAchievements.reduce(
+    (acc, a) => acc + a.points,
+    0,
+  );
+  const nextAchievement =
+    visibleAchievements
+      .filter((a) => !a.unlocked && !a.isHidden)
+      .sort((a, b) => b.progressPercent - a.progressPercent)[0] ?? null;
+
+  const result = {
+    summary: {
+      unlockedCount: visibleUnlocked.length,
+      totalCount: visibleAchievements.length,
+      earnedPoints: visibleEarned,
+      totalPoints: visibleTotalPoints,
+      completionPercent:
+        visibleAchievements.length === 0
+          ? 100
+          : Math.round(
+              (visibleUnlocked.length / visibleAchievements.length) * 100,
+            ),
+      nextAchievement,
+    },
+    achievements: visibleAchievements,
+    metrics: fullResult.metrics,
+  };
 
   if (isIosFormat) {
     const locale = await resolveServerLocale({
