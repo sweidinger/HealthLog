@@ -29,6 +29,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
+import { apiSuccess } from "@/lib/api-response";
 import { withIdempotency } from "@/lib/idempotency";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
@@ -50,6 +51,7 @@ import {
   appendMessage,
   createConversation,
   fetchConversationWithMessages,
+  listConversations,
 } from "@/lib/ai/coach/persistence";
 import {
   buildDateKey,
@@ -448,6 +450,35 @@ const handler = apiHandler(async (request: NextRequest) => {
 });
 
 export const POST = handler;
+
+/**
+ * GET /api/insights/chat?cursor=<id>&limit=<n>
+ *
+ * Cursor-paginated list of the caller's conversations for the rail.
+ * Default limit 20, hard cap 50. Cursor is the id of the last item
+ * on the previous page; callers receive `{ nextCursor: null }` when
+ * they have reached the end.
+ */
+export const GET = apiHandler(async (request: NextRequest) => {
+  const auth = await requireAuth();
+  const url = new URL(request.url);
+  const cursor = url.searchParams.get("cursor");
+  const limitRaw = url.searchParams.get("limit");
+  const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
+
+  const page = await listConversations({
+    userId: auth.user.id,
+    cursor,
+    limit: Number.isFinite(limit) ? (limit as number) : undefined,
+  });
+
+  annotate({
+    action: { name: "insights.coach.list" },
+    meta: { count: page.conversations.length },
+  });
+
+  return apiSuccess(page);
+});
 
 // Disable the static-page optimisation; we are always streaming.
 export const dynamic = "force-dynamic";
