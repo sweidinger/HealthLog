@@ -95,9 +95,7 @@ describe("<HealthScoreCard>", () => {
     );
     expect(html).toContain("No history yet");
     // No delta chip in the corner.
-    expect(html).not.toContain(
-      'data-slot="health-score-card-delta-chip"',
-    );
+    expect(html).not.toContain('data-slot="health-score-card-delta-chip"');
   });
 
   it("renders the up-arrow + delta chip when delta > 0", () => {
@@ -190,9 +188,7 @@ describe("<HealthScoreCard>", () => {
         delta={null}
       />,
     );
-    expect(html).not.toContain(
-      'data-slot="health-score-card-ask-coach"',
-    );
+    expect(html).not.toContain('data-slot="health-score-card-ask-coach"');
   });
 
   it("renders the Ask-the-Coach button when onAskCoach is supplied", () => {

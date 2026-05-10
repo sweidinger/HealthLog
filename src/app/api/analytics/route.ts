@@ -222,7 +222,10 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
     dailySys.set(key, list);
   }
 
-  const dailyCompliance = new Map<string, { expected: number; taken: number }>();
+  const dailyCompliance = new Map<
+    string,
+    { expected: number; taken: number }
+  >();
   for (const event of intakeRows) {
     const key = dayKey(event.scheduledFor);
     const slot = dailyCompliance.get(key) ?? { expected: 0, taken: 0 };
@@ -275,8 +278,7 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
   for (const [key, moodScores] of dailyMood.entries()) {
     const pulseValues = dailyPulse.get(key);
     if (!pulseValues || pulseValues.length === 0) continue;
-    const meanMood =
-      moodScores.reduce((s, v) => s + v, 0) / moodScores.length;
+    const meanMood = moodScores.reduce((s, v) => s + v, 0) / moodScores.length;
     const meanPulse =
       pulseValues.reduce((s, v) => s + v, 0) / pulseValues.length;
     moodPulsePairs.push({
@@ -449,9 +451,7 @@ async function computeUserHealthScore(
       // anchor still captures the same logical 30 days.
       const shifted = events.map((e) => ({
         scheduledFor: new Date(e.scheduledFor.getTime() + 7 * DAY_MS),
-        takenAt: e.takenAt
-          ? new Date(e.takenAt.getTime() + 7 * DAY_MS)
-          : null,
+        takenAt: e.takenAt ? new Date(e.takenAt.getTime() + 7 * DAY_MS) : null,
         skipped: e.skipped,
       }));
       return calculateCompliance(shifted, med.schedules, 30, med.createdAt)

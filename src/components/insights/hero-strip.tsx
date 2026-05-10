@@ -188,139 +188,137 @@ export function HeroStrip({
         )}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-5">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Sparkles
-              className="text-dracula-purple h-5 w-5 shrink-0"
-              aria-hidden="true"
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles
+                className="text-dracula-purple h-5 w-5 shrink-0"
+                aria-hidden="true"
+              />
+              <h1
+                data-slot="insights-hero-strip-greeting"
+                className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]"
+              >
+                {greeting}
+              </h1>
+            </div>
+            <p
+              data-slot="insights-hero-strip-subtitle"
+              className="text-muted-foreground max-w-3xl text-sm leading-relaxed"
+            >
+              {subtitle}
+            </p>
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              <span data-slot="insights-hero-strip-baseline">
+                {t("insights.heroPersonalBaseline")}
+              </span>
+              {generatedLine && (
+                <>
+                  <span aria-hidden="true" className="opacity-50">
+                    ·
+                  </span>
+                  <span data-slot="insights-hero-strip-generated">
+                    {generatedLine}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {weeklyReportReady && (
+            <WeeklyReportBanner
+              weekISO={weeklyReportReady.weekISO}
+              href={weeklyReportReady.href}
             />
-            <h1
-              data-slot="insights-hero-strip-greeting"
-              className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]"
-            >
-              {greeting}
-            </h1>
-          </div>
-          <p
-            data-slot="insights-hero-strip-subtitle"
-            className="text-muted-foreground max-w-3xl text-sm leading-relaxed"
-          >
-            {subtitle}
-          </p>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <span data-slot="insights-hero-strip-baseline">
-              {t("insights.heroPersonalBaseline")}
-            </span>
-            {generatedLine && (
-              <>
-                <span aria-hidden="true" className="opacity-50">
-                  ·
-                </span>
-                <span data-slot="insights-hero-strip-generated">
-                  {generatedLine}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
+          )}
 
-        {weeklyReportReady && (
-          <WeeklyReportBanner
-            weekISO={weeklyReportReady.weekISO}
-            href={weeklyReportReady.href}
-          />
-        )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/*
-           * v1.4.20 phase B4 shipped /insights/report/[week]; phase D
-           * reconcile enables this button as a real link to the
-           * current ISO week. Older parents that haven't adopted the
-           * weeklyReportHref prop still get the disabled affordance.
-           */}
-          {weeklyReportHref ? (
-            <Button
-              asChild
-              variant="default"
-              size="sm"
-              data-slot="insights-hero-strip-action-weekly-report"
-              className="gap-1.5"
-            >
-              <Link href={weeklyReportHref}>
+          <div className="flex flex-wrap items-center gap-2">
+            {/*
+             * v1.4.20 phase B4 shipped /insights/report/[week]; phase D
+             * reconcile enables this button as a real link to the
+             * current ISO week. Older parents that haven't adopted the
+             * weeklyReportHref prop still get the disabled affordance.
+             */}
+            {weeklyReportHref ? (
+              <Button
+                asChild
+                variant="default"
+                size="sm"
+                data-slot="insights-hero-strip-action-weekly-report"
+                className="gap-1.5"
+              >
+                <Link href={weeklyReportHref}>
+                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{t("insights.heroActionWeeklyReport")}</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                disabled
+                title={comingSoon}
+                data-slot="insights-hero-strip-action-weekly-report"
+                className="gap-1.5"
+              >
                 <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>{t("insights.heroActionWeeklyReport")}</span>
-              </Link>
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              disabled
-              title={comingSoon}
-              data-slot="insights-hero-strip-action-weekly-report"
-              className="gap-1.5"
-            >
-              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{t("insights.heroActionWeeklyReport")}</span>
-            </Button>
-          )}
-          {/* B2b wires this into the Coach drawer. The button is
+              </Button>
+            )}
+            {/* B2b wires this into the Coach drawer. The button is
               enabled whenever the parent supplies an `onAskCoach`
               handler; older parents that haven't adopted B2b yet
               still get the disabled "Coming soon" affordance so the
               hero doesn't break. */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onAskCoach ? () => onAskCoach() : undefined}
-            disabled={!onAskCoach}
-            title={onAskCoach ? undefined : comingSoon}
-            data-slot="insights-hero-strip-action-coach"
-            className="gap-1.5"
-          >
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{t("insights.heroActionAskCoach")}</span>
-          </Button>
-          {onRegenerate && (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={onRegenerate}
-              disabled={regenerating}
-              data-slot="insights-hero-strip-action-rerun"
+              onClick={onAskCoach ? () => onAskCoach() : undefined}
+              disabled={!onAskCoach}
+              title={onAskCoach ? undefined : comingSoon}
+              data-slot="insights-hero-strip-action-coach"
               className="gap-1.5"
             >
-              {regenerating ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              <span>
-                {regenerating
-                  ? t("insights.heroRegenerating")
-                  : t("insights.heroActionRerun")}
-              </span>
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t("insights.heroActionAskCoach")}</span>
             </Button>
-          )}
-        </div>
+            {onRegenerate && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onRegenerate}
+                disabled={regenerating}
+                data-slot="insights-hero-strip-action-rerun"
+                className="gap-1.5"
+              >
+                {regenerating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                <span>
+                  {regenerating
+                    ? t("insights.heroRegenerating")
+                    : t("insights.heroActionRerun")}
+                </span>
+              </Button>
+            )}
+          </div>
 
-        <div
-          data-slot="insights-hero-strip-prompts"
-          className="border-border/50 border-t pt-4"
-        >
-          {/*
-           * v1.4.20 phase B2b — chip clicks open the Coach drawer
-           * with the localised prompt pre-filled in the composer.
-           * The parent owns drawer state so the chip strip stays
-           * presentational.
-           */}
-          <SuggestedPrompts
-            onPick={onPickPrompt ?? (() => undefined)}
-          />
-        </div>
+          <div
+            data-slot="insights-hero-strip-prompts"
+            className="border-border/50 border-t pt-4"
+          >
+            {/*
+             * v1.4.20 phase B2b — chip clicks open the Coach drawer
+             * with the localised prompt pre-filled in the composer.
+             * The parent owns drawer state so the chip strip stays
+             * presentational.
+             */}
+            <SuggestedPrompts onPick={onPickPrompt ?? (() => undefined)} />
+          </div>
         </div>
 
         {healthScore && (
@@ -330,9 +328,7 @@ export function HeroStrip({
             components={healthScore.components}
             delta={healthScore.delta}
             onAskCoach={
-              onAskCoach
-                ? (prefill: string) => onAskCoach(prefill)
-                : undefined
+              onAskCoach ? (prefill: string) => onAskCoach(prefill) : undefined
             }
           />
         )}
@@ -360,11 +356,11 @@ function WeeklyReportBanner({
   href: string;
 }) {
   const { t } = useTranslations();
-  const printHref = href.includes("?")
-    ? `${href}&print=1`
-    : `${href}?print=1`;
+  const printHref = href.includes("?") ? `${href}&print=1` : `${href}?print=1`;
   const shareUrl =
-    typeof window !== "undefined" ? new URL(href, window.location.origin).toString() : href;
+    typeof window !== "undefined"
+      ? new URL(href, window.location.origin).toString()
+      : href;
 
   async function handleShare() {
     const title = t("insights.heroBanner.shareTitle");
@@ -379,10 +375,7 @@ function WeeklyReportBanner({
         if ((err as DOMException)?.name === "AbortError") return;
       }
     }
-    if (
-      typeof navigator !== "undefined" &&
-      navigator.clipboard?.writeText
-    ) {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(shareUrl);
         toast.success(t("insights.heroBanner.shareCopied"));

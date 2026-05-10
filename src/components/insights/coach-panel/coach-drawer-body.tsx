@@ -70,7 +70,7 @@ export function CoachDrawerBody({
           onClick={onOpenHistoryTray}
           data-slot="coach-drawer-history-tray-trigger"
           aria-label={t("insights.coach.historyTitle")}
-          className="bg-background/80 border-border/60 absolute left-2 top-2 z-10 h-7 gap-1 border px-2 text-[11px] backdrop-blur lg:hidden"
+          className="bg-background/80 border-border/60 absolute top-2 left-2 z-10 h-7 gap-1 border px-2 text-[11px] backdrop-blur lg:hidden"
         >
           <ChevronRight className="size-3" aria-hidden="true" />
           {t("insights.coach.historyTitle")}
@@ -84,7 +84,7 @@ export function CoachDrawerBody({
           onClick={onOpenSourcesTray}
           data-slot="coach-drawer-sources-tray-trigger"
           aria-label={t("insights.coach.sourcesTitle")}
-          className="bg-background/80 border-border/60 absolute right-2 top-2 z-10 h-7 gap-1 border px-2 text-[11px] backdrop-blur xl:hidden"
+          className="bg-background/80 border-border/60 absolute top-2 right-2 z-10 h-7 gap-1 border px-2 text-[11px] backdrop-blur xl:hidden"
         >
           {t("insights.coach.sourcesTitle")}
           <ChevronLeft className="size-3" aria-hidden="true" />

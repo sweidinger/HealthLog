@@ -39,7 +39,10 @@ describe("<TrendAnnotation>", () => {
   });
 
   it("renders the empty hint in German when locale=de", () => {
-    const html = render(<TrendAnnotation metric="weight" annotation={null} />, "de");
+    const html = render(
+      <TrendAnnotation metric="weight" annotation={null} />,
+      "de",
+    );
     expect(html).toContain("Mehr Daten");
   });
 
@@ -57,14 +60,22 @@ describe("<TrendAnnotation>", () => {
 
   it("renders the moderate-confidence chip", () => {
     const html = render(
-      <TrendAnnotation metric="mood" annotation="Mood stable." confidence="moderate" />,
+      <TrendAnnotation
+        metric="mood"
+        annotation="Mood stable."
+        confidence="moderate"
+      />,
     );
     expect(html).toContain("Moderate confidence");
   });
 
   it("renders the low-confidence chip", () => {
     const html = render(
-      <TrendAnnotation metric="mood" annotation="Mood stable." confidence="low" />,
+      <TrendAnnotation
+        metric="mood"
+        annotation="Mood stable."
+        confidence="low"
+      />,
     );
     expect(html).toContain("Low confidence");
   });

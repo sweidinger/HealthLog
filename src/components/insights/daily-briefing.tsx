@@ -1,6 +1,14 @@
 "use client";
 
-import { Activity, FileText, Heart, Pill, Scale, Smile, Sparkles } from "lucide-react";
+import {
+  Activity,
+  FileText,
+  Heart,
+  Pill,
+  Scale,
+  Smile,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -46,7 +54,10 @@ interface DailyBriefingProps {
   metaSlot?: React.ReactNode;
 }
 
-const METRIC_ICON: Record<DailyBriefingKeyFinding["sourceMetric"], React.ComponentType<{ className?: string }>> = {
+const METRIC_ICON: Record<
+  DailyBriefingKeyFinding["sourceMetric"],
+  React.ComponentType<{ className?: string }>
+> = {
   bp: Heart,
   weight: Scale,
   pulse: Activity,
@@ -77,7 +88,10 @@ function DeltaBadge({
   return (
     <span
       data-slot="daily-briefing-delta"
-      className={cn("text-xs font-semibold tabular-nums", TONE_TEXT_CLASSNAME[tone])}
+      className={cn(
+        "text-xs font-semibold tabular-nums",
+        TONE_TEXT_CLASSNAME[tone],
+      )}
     >
       {delta}
     </span>
@@ -99,7 +113,10 @@ function KeyFindingRow({ finding }: { finding: DailyBriefingKeyFinding }) {
         )}
       />
       <Icon
-        className={cn("mt-0.5 h-4 w-4 shrink-0", TONE_TEXT_CLASSNAME[finding.tone])}
+        className={cn(
+          "mt-0.5 h-4 w-4 shrink-0",
+          TONE_TEXT_CLASSNAME[finding.tone],
+        )}
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1 space-y-1">
@@ -107,7 +124,9 @@ function KeyFindingRow({ finding }: { finding: DailyBriefingKeyFinding }) {
           <p className="text-sm leading-snug font-medium">{finding.headline}</p>
           <DeltaBadge delta={finding.delta} tone={finding.tone} />
         </div>
-        <p className="text-muted-foreground text-xs leading-snug">{finding.detail}</p>
+        <p className="text-muted-foreground text-xs leading-snug">
+          {finding.detail}
+        </p>
       </div>
     </div>
   );
@@ -164,7 +183,10 @@ export function DailyBriefing({
             </CardTitle>
           </div>
           {metaSlot && (
-            <div data-slot="daily-briefing-meta-slot" className="flex items-center gap-2">
+            <div
+              data-slot="daily-briefing-meta-slot"
+              className="flex items-center gap-2"
+            >
               {metaSlot}
             </div>
           )}
@@ -194,10 +216,7 @@ export function DailyBriefing({
                 >
                   {t("insights.dailyBriefing.keyFindingsTitle")}
                 </p>
-                <div
-                  data-slot="daily-briefing-findings"
-                  className="space-y-2"
-                >
+                <div data-slot="daily-briefing-findings" className="space-y-2">
                   {briefing.keyFindings.map((finding, index) => (
                     <KeyFindingRow
                       key={`${finding.sourceMetric}-${index}`}
@@ -251,4 +270,3 @@ export function DailyBriefing({
     </Card>
   );
 }
-

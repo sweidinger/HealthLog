@@ -158,7 +158,7 @@ export function weightTrendAlignment(
   // Below the band: slope > 0 closes the gap.
   const closing = latest > target.max ? slope < 0 : slope > 0;
   if (slope === 0) return 50; // exactly stable counts as "neither"
-  return Math.round((closing ? 50 + 50 * normalised : 50 - 50 * normalised));
+  return Math.round(closing ? 50 + 50 * normalised : 50 - 50 * normalised);
 }
 
 /**
@@ -211,9 +211,7 @@ export function computeHealthScore(
   previous?: HealthScoreInput,
 ): HealthScoreResult {
   const bpValue =
-    input.bpInTargetRate === null
-      ? null
-      : clampToHundred(input.bpInTargetRate);
+    input.bpInTargetRate === null ? null : clampToHundred(input.bpInTargetRate);
 
   const target = deriveWeightTarget(input.weightTargetKg);
   const weightValue = weightTrendAlignment(input.weightSeriesLast30d, target);
@@ -261,10 +259,7 @@ function redistribute(values: {
   for (const key of ["bp", "weight", "mood", "compliance"] as const) {
     if (values[key] !== null) present.push(key);
   }
-  const totalBaseWeight = present.reduce(
-    (s, key) => s + BASE_WEIGHTS[key],
-    0,
-  );
+  const totalBaseWeight = present.reduce((s, key) => s + BASE_WEIGHTS[key], 0);
   const weightFor = (key: keyof typeof BASE_WEIGHTS): number => {
     if (values[key] === null) return 0;
     if (totalBaseWeight === 0) return 0;

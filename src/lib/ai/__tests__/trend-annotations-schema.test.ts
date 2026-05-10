@@ -62,9 +62,9 @@ describe("trendAnnotationsSchema", () => {
 
   it("rejects an annotation > 200 chars", () => {
     const tooLong = "x".repeat(201);
-    expect(
-      trendAnnotationsSchema.safeParse({ bp: tooLong }).success,
-    ).toBe(false);
+    expect(trendAnnotationsSchema.safeParse({ bp: tooLong }).success).toBe(
+      false,
+    );
   });
 
   it("accepts an annotation at the 200-char boundary", () => {

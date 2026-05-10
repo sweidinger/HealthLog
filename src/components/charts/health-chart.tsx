@@ -276,7 +276,9 @@ export interface ResolvedAnnotation {
 }
 
 export function resolveAnnotationPositions(
-  annotations: Array<{ date: string; label: string; color: string }> | undefined,
+  annotations:
+    | Array<{ date: string; label: string; color: string }>
+    | undefined,
   chartData: Array<{ timestamp: number }> | undefined,
 ): ResolvedAnnotation[] {
   if (!annotations || !chartData || chartData.length === 0) return [];
@@ -905,7 +907,6 @@ export function HealthChart({
     annotations,
     chartData,
   );
-
 
   const showContextDetails = showMA || showTrend || showBands;
   const animationsEnabled = !prefersReducedMotion();

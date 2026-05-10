@@ -349,7 +349,7 @@ After all fixes:
      differ from current.
    - Authenticated session: pull a current session id from prod DB
      when needed (`SELECT id FROM sessions WHERE user_id='…'
-     AND expires_at > now() ORDER BY created_at DESC LIMIT 1;`).
+AND expires_at > now() ORDER BY created_at DESC LIMIT 1;`).
    - Hit `/api/ai/test` with fake key → still returns 422
    - Hit `/api/insights/generate` with `forceRefresh=false` and a
      fresh user → does not consume rate-limit token (P13 verify).

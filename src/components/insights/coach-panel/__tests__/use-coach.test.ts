@@ -104,8 +104,7 @@ describe("parseSseChunk", () => {
   });
 
   it("ignores malformed frames silently", () => {
-    const chunk =
-      "data: not-json\n\n" + frame({ type: "token", token: "ok" });
+    const chunk = "data: not-json\n\n" + frame({ type: "token", token: "ok" });
     const { events } = parseSseChunk("", chunk);
     expect(events).toHaveLength(1);
     expect(events[0]).toEqual({ type: "token", token: "ok" });
@@ -184,8 +183,9 @@ describe("parseSseChunk", () => {
     }
 
     const tokenText = events
-      .filter((e): e is Extract<CoachStreamEvent, { type: "token" }> =>
-        e.type === "token",
+      .filter(
+        (e): e is Extract<CoachStreamEvent, { type: "token" }> =>
+          e.type === "token",
       )
       .map((e) => e.token)
       .join("");

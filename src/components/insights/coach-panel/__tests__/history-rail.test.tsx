@@ -23,7 +23,11 @@ function makeClientWithConversations(page: CoachConversationsPage) {
   return client;
 }
 
-function render(node: React.ReactNode, client: QueryClient, locale: "en" | "de" = "en") {
+function render(
+  node: React.ReactNode,
+  client: QueryClient,
+  locale: "en" | "de" = "en",
+) {
   return renderToStaticMarkup(
     <I18nProvider initialLocale={locale}>
       <QueryClientProvider client={client}>{node}</QueryClientProvider>
@@ -81,9 +85,7 @@ describe("<HistoryRail>", () => {
       client,
     );
     // c2 is active and gets the data-active flag.
-    expect(html).toMatch(
-      /data-slot="coach-history-item" data-active="true"/,
-    );
+    expect(html).toMatch(/data-slot="coach-history-item" data-active="true"/);
   });
 
   it("renders the empty-state copy when no conversations are cached", () => {

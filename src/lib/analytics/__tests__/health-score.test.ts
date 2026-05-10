@@ -21,9 +21,7 @@ function moodEntries(scores: number[]): Array<{ date: string; score: number }> {
   }));
 }
 
-function weightSeries(
-  values: number[],
-): Array<{ date: string; kg: number }> {
+function weightSeries(values: number[]): Array<{ date: string; kg: number }> {
   return values.map((kg, i) => ({
     date: new Date(Date.UTC(2026, 4, i + 1)).toISOString(),
     kg,
@@ -36,24 +34,28 @@ describe("linearRegressionSlope", () => {
   it("returns null for fewer than two points", () => {
     expect(linearRegressionSlope([])).toBeNull();
     expect(
-      linearRegressionSlope([
-        { date: "2026-05-01T00:00:00Z", value: 80 },
-      ]),
+      linearRegressionSlope([{ date: "2026-05-01T00:00:00Z", value: 80 }]),
     ).toBeNull();
   });
 
   it("detects a clean upward slope (units / day)", () => {
-    const slope = linearRegressionSlope(weightSeries([80, 81, 82, 83, 84]).map(
-      (p) => ({ date: p.date, value: p.kg }),
-    ));
+    const slope = linearRegressionSlope(
+      weightSeries([80, 81, 82, 83, 84]).map((p) => ({
+        date: p.date,
+        value: p.kg,
+      })),
+    );
     expect(slope).not.toBeNull();
     expect(slope!).toBeCloseTo(1, 5);
   });
 
   it("detects a clean downward slope", () => {
-    const slope = linearRegressionSlope(weightSeries([85, 84, 83, 82, 81]).map(
-      (p) => ({ date: p.date, value: p.kg }),
-    ));
+    const slope = linearRegressionSlope(
+      weightSeries([85, 84, 83, 82, 81]).map((p) => ({
+        date: p.date,
+        value: p.kg,
+      })),
+    );
     expect(slope!).toBeCloseTo(-1, 5);
   });
 });
@@ -101,7 +103,9 @@ describe("weightTrendAlignment", () => {
   });
 
   it("returns null with fewer than two readings", () => {
-    expect(weightTrendAlignment(weightSeries([80]), { min: 75, max: 80 })).toBeNull();
+    expect(
+      weightTrendAlignment(weightSeries([80]), { min: 75, max: 80 }),
+    ).toBeNull();
   });
 });
 

@@ -48,9 +48,7 @@ describe("<CoachInput>", () => {
     // localised v1.5 voice tooltip on aria-label. Attribute order is
     // not guaranteed across React versions, so we check for both
     // independently inside the same tag.
-    const micTag = html.match(
-      /<button[^>]*data-slot="coach-input-mic"[^>]*>/,
-    );
+    const micTag = html.match(/<button[^>]*data-slot="coach-input-mic"[^>]*>/);
     expect(micTag).not.toBeNull();
     expect(micTag?.[0]).toContain("disabled");
     expect(micTag?.[0]).toContain(
@@ -120,9 +118,7 @@ describe("<CoachInput>", () => {
     // SSR can't fire DOM events; smoke-check the contract by calling
     // the supplied handler directly.
     const handler = vi.fn();
-    render(
-      <CoachInput value="" onChange={handler} onSubmit={() => {}} />,
-    );
+    render(<CoachInput value="" onChange={handler} onSubmit={() => {}} />);
     handler("typed");
     expect(handler).toHaveBeenCalledWith("typed");
   });
@@ -131,8 +127,6 @@ describe("<CoachInput>", () => {
     const html = render(
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
     );
-    expect(html).toMatch(
-      /data-slot="coach-input-textarea"[^>]*rows="2"/,
-    );
+    expect(html).toMatch(/data-slot="coach-input-textarea"[^>]*rows="2"/);
   });
 });

@@ -114,7 +114,7 @@ export function HealthScoreCard({
           <span
             data-slot="health-score-card-number"
             className={cn(
-              "text-4xl font-semibold tabular-nums leading-none",
+              "text-4xl leading-none font-semibold tabular-nums",
               BAND_NUMBER_CLASS[band],
             )}
           >
@@ -234,9 +234,7 @@ export function HealthScoreCard({
             data-slot="health-score-card-ask-coach"
             className="w-full gap-1.5"
             onClick={() =>
-              onAskCoach(
-                t("insights.healthScore.coachPrompt", { score }),
-              )
+              onAskCoach(t("insights.healthScore.coachPrompt", { score }))
             }
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />

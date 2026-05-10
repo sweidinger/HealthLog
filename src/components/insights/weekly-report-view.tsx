@@ -93,9 +93,7 @@ export function WeeklyReportView({
     );
   }
 
-  return (
-    <WeeklyReportPresentation weekISO={weekISO} report={matchedReport} />
-  );
+  return <WeeklyReportPresentation weekISO={weekISO} report={matchedReport} />;
 }
 
 /**
@@ -158,11 +156,11 @@ export function WeeklyReportPresentation({
       {/* Hero — title + date range + meta. Always visible (incl. print). */}
       <section
         data-slot="weekly-report-hero"
-        className="border-border/60 from-dracula-purple/10 space-y-2 rounded-xl border bg-gradient-to-b to-transparent p-5 sm:p-6 print:rounded-none print:border-0 print:p-0 print:bg-none"
+        className="border-border/60 from-dracula-purple/10 space-y-2 rounded-xl border bg-gradient-to-b to-transparent p-5 sm:p-6 print:rounded-none print:border-0 print:bg-none print:p-0"
       >
         <span
           data-slot="weekly-report-eyebrow"
-          className="bg-dracula-purple/15 text-dracula-purple inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium print:bg-transparent print:px-0 print:text-foreground"
+          className="bg-dracula-purple/15 text-dracula-purple print:text-foreground inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium print:bg-transparent print:px-0"
         >
           <FileText className="h-3 w-3" aria-hidden="true" />
           {t("insights.report.eyebrow")}
@@ -276,7 +274,7 @@ function Section({ slot, title, accent, icon, children }: SectionProps) {
       className="border-border/60 space-y-2 rounded-xl border p-4 sm:p-5 print:rounded-none print:border-0 print:p-0"
     >
       <h2
-        className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${accent}`}
+        className={`flex items-center gap-1.5 text-[11px] font-semibold tracking-wider uppercase ${accent}`}
       >
         {icon}
         <span>{title}</span>

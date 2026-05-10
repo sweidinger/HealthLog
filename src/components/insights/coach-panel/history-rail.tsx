@@ -9,10 +9,7 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
 
-import {
-  useCoachConversations,
-  useDeleteCoachConversation,
-} from "./use-coach";
+import { useCoachConversations, useDeleteCoachConversation } from "./use-coach";
 
 /**
  * v1.4.20 phase B2b — conversation history rail.
@@ -136,9 +133,7 @@ export function HistoryRail({
                   className="min-w-0 flex-1 truncate text-left"
                   data-slot="coach-history-select"
                 >
-                  <span className="block truncate font-medium">
-                    {c.title}
-                  </span>
+                  <span className="block truncate font-medium">{c.title}</span>
                   <span className="text-muted-foreground block text-[10px]">
                     {formatRelativeTime(c.updatedAt, t)}
                   </span>

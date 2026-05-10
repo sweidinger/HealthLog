@@ -38,15 +38,15 @@ v1.5 reserved for iOS app + Apple Health.
 
 ### Cleanup A — bugs + polish
 
-| Bucket | Headline commit | Subject |
-| ------ | --------------- | ------- |
-| A1 | `a856272` | fix(analytics): BD-Zielbereich headline routes through new `allTime` window in `computeBpInTargetWindows()` |
-| A2 | `77a3ad3` + `a739085` | fix(charts): mobile-first header stack + universal x-axis tick density helper |
-| A3 | `60a91af` / `98a3d10` / `335f288` / `fa91a73` | feat(insights): comparison toggle relocated to hero, single page refresh, BP/Weight tile strip removed, lowercase template-token leak fixed |
-| A4 | `b5e9a95` | fix(ai): GROUND RULE 7 — no default-positivity opener; `PROMPT_VERSION` 4.16.1 → 4.19.0 |
-| A5 | `ba0d6b8` / `0dcc91a` / `47a8fc7` | feat(settings): `<IntegrationStatusPill>` consolidates Withings + Mood Log status UI |
-| A6 | `957f8e9` / `9fda634` / `1075784` / `737b533` / `78f1f3f` | fix(settings): mobile consistency sweep — input heights, action button placement, language select row |
-| A7 | `088832a` / `dd8212e` / `7a70db6` / `6507646` / `90a109d` | fix(admin): feedback tab strip, api-tokens scrollbar 4th attempt, Einklappen removal, Zielwerte spacing + DE labels |
+| Bucket | Headline commit                                           | Subject                                                                                                                                     |
+| ------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1     | `a856272`                                                 | fix(analytics): BD-Zielbereich headline routes through new `allTime` window in `computeBpInTargetWindows()`                                 |
+| A2     | `77a3ad3` + `a739085`                                     | fix(charts): mobile-first header stack + universal x-axis tick density helper                                                               |
+| A3     | `60a91af` / `98a3d10` / `335f288` / `fa91a73`             | feat(insights): comparison toggle relocated to hero, single page refresh, BP/Weight tile strip removed, lowercase template-token leak fixed |
+| A4     | `b5e9a95`                                                 | fix(ai): GROUND RULE 7 — no default-positivity opener; `PROMPT_VERSION` 4.16.1 → 4.19.0                                                     |
+| A5     | `ba0d6b8` / `0dcc91a` / `47a8fc7`                         | feat(settings): `<IntegrationStatusPill>` consolidates Withings + Mood Log status UI                                                        |
+| A6     | `957f8e9` / `9fda634` / `1075784` / `737b533` / `78f1f3f` | fix(settings): mobile consistency sweep — input heights, action button placement, language select row                                       |
+| A7     | `088832a` / `dd8212e` / `7a70db6` / `6507646` / `90a109d` | fix(admin): feedback tab strip, api-tokens scrollbar 4th attempt, Einklappen removal, Zielwerte spacing + DE labels                         |
 
 ### Cleanup B — A8 quality findings applied
 
@@ -103,20 +103,20 @@ Full backlog: `.planning/v1420-backlog.md`.
 
 ## Production deploy
 
-| Field | Value |
-| ----- | ----- |
-| URL | `https://healthlog.bombeck.io` |
-| `/api/version` | `1.4.19` (flipped at 2026-05-10T12:39:59Z) |
-| Image digest BEFORE | `sha256:c636fca7db66479b3413a7df82117316c042641f9bc7c0fe7d6e2be6811dfcca` (v1.4.18) |
-| Image digest AFTER | `sha256:b48f93874cdbcd6c2d729f1b8eeb63a6d1bbb90d56f629846ef6eab6cf272aa9` (v1.4.19) |
-| Release commit | `89f00cf chore(release): v1.4.19` |
-| Tag | `v1.4.19` (annotated) |
-| GHCR — tag run | `25628853202` success |
-| Coolify auto-deploy | NO — main-branch deploy hung and was canceled; host-side retag-on-host fallback used |
+| Field                      | Value                                                                                                                                                                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| URL                        | `https://healthlog.bombeck.io`                                                                                                                                                                  |
+| `/api/version`             | `1.4.19` (flipped at 2026-05-10T12:39:59Z)                                                                                                                                                      |
+| Image digest BEFORE        | `sha256:c636fca7db66479b3413a7df82117316c042641f9bc7c0fe7d6e2be6811dfcca` (v1.4.18)                                                                                                             |
+| Image digest AFTER         | `sha256:b48f93874cdbcd6c2d729f1b8eeb63a6d1bbb90d56f629846ef6eab6cf272aa9` (v1.4.19)                                                                                                             |
+| Release commit             | `89f00cf chore(release): v1.4.19`                                                                                                                                                               |
+| Tag                        | `v1.4.19` (annotated)                                                                                                                                                                           |
+| GHCR — tag run             | `25628853202` success                                                                                                                                                                           |
+| Coolify auto-deploy        | NO — main-branch deploy hung and was canceled; host-side retag-on-host fallback used                                                                                                            |
 | Smoke (curl, live session) | `/` 200 · `/insights` 200 · `/admin/api-tokens` 200 · `/settings/integrations` 200 · `/achievements` 200 · `/dashboard` 404 (expected — root is dashboard, no `/dashboard` route in App Router) |
-| GH release | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.19 |
-| Docs site | `6e8840e` on `healthlog-docs/main` (six pages refreshed) |
-| Landing site | `dd5892f` on `healthlog-landing/main` (`softwareVersion` JSON-LD bumped) |
+| GH release                 | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.19                                                                                                                                      |
+| Docs site                  | `6e8840e` on `healthlog-docs/main` (six pages refreshed)                                                                                                                                        |
+| Landing site               | `dd5892f` on `healthlog-landing/main` (`softwareVersion` JSON-LD bumped)                                                                                                                        |
 
 The tag-build pipeline succeeded; the main-branch deploy stalled and
 was canceled, so v1.4.19 was promoted via the documented host-side

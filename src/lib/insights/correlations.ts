@@ -115,7 +115,8 @@ export function pearson(input: {
     throw new Error("pearson: xs and ys must have equal length");
   }
   const n = xs.length;
-  if (n < minPairs) return { status: "insufficient", reason: "too_few_pairs", n };
+  if (n < minPairs)
+    return { status: "insufficient", reason: "too_few_pairs", n };
 
   const sumX = xs.reduce((s, v) => s + v, 0);
   const sumY = ys.reduce((s, v) => s + v, 0);
@@ -158,7 +159,13 @@ export function pearson(input: {
   const zHigh = z + 1.96 * se;
   const confidenceInterval: [number, number] = [tanh(zLow), tanh(zHigh)];
 
-  return { status: "ok", r: roundTo(clamped, 3), n, pValue, confidenceInterval };
+  return {
+    status: "ok",
+    r: roundTo(clamped, 3),
+    n,
+    pValue,
+    confidenceInterval,
+  };
 }
 
 function atanh(x: number): number {
@@ -205,7 +212,7 @@ function normalCdf(x: number): number {
   let p =
     d *
     t *
-    (0.319381530 +
+    (0.31938153 +
       t *
         (-0.356563782 +
           t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
@@ -275,7 +282,13 @@ export function weekdayAnova(
   );
 
   if (n < minN) {
-    return { status: "insufficient", reason: "too_few_pairs", n, means, counts };
+    return {
+      status: "insufficient",
+      reason: "too_few_pairs",
+      n,
+      means,
+      counts,
+    };
   }
 
   const grandMean = daily.reduce((s, p) => s + p.value, 0) / n;
@@ -301,7 +314,7 @@ export function weekdayAnova(
   const dfWithin = n - nonEmptyGroups;
   const fStat =
     dfWithin > 0 && withinSS > 0
-      ? (betweenSS / dfBetween) / (withinSS / dfWithin)
+      ? betweenSS / dfBetween / (withinSS / dfWithin)
       : Number.POSITIVE_INFINITY;
   const etaSquared = roundTo(betweenSS / totalSS, 3);
   const pValue = twoSidedPFromF(fStat, dfBetween, dfWithin);
@@ -379,7 +392,10 @@ export interface BpComplianceInput {
 export function correlateBpCompliance(
   input: BpComplianceInput,
 ): CorrelationResult {
-  const points = input.daily.map((d) => ({ x: d.compliancePct, y: d.systolic }));
+  const points = input.daily.map((d) => ({
+    x: d.compliancePct,
+    y: d.systolic,
+  }));
   const xs = points.map((p) => p.x);
   const ys = points.map((p) => p.y);
   const r = pearson({ xs, ys });
@@ -569,10 +585,7 @@ function bandFromInterval(
   return { low, high, label };
 }
 
-function bandFromEtaSquared(
-  eta: number,
-  n: number,
-): CorrelationConfidenceBand {
+function bandFromEtaSquared(eta: number, n: number): CorrelationConfidenceBand {
   // ANOVA effect-size confidence — Cohen's conventions: eta² >= 0.14
   // is "large", >= 0.06 "medium", < 0.06 "small". n boosts the band.
   const adjusted = eta + (n >= 60 ? 0.02 : 0);

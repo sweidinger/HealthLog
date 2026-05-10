@@ -110,8 +110,7 @@ describe("weeklyReportSchema", () => {
   it("rejects more than 5 entries in any bullet list", () => {
     const six = ["a", "b", "c", "d", "e", "f"];
     expect(
-      weeklyReportSchema.safeParse({ ...validReport, goingWell: six })
-        .success,
+      weeklyReportSchema.safeParse({ ...validReport, goingWell: six }).success,
     ).toBe(false);
     expect(
       weeklyReportSchema.safeParse({ ...validReport, worthWatching: six })
@@ -134,8 +133,7 @@ describe("weeklyReportSchema", () => {
 
   it("rejects empty strings in bullet arrays", () => {
     expect(
-      weeklyReportSchema.safeParse({ ...validReport, goingWell: [""] })
-        .success,
+      weeklyReportSchema.safeParse({ ...validReport, goingWell: [""] }).success,
     ).toBe(false);
   });
 });

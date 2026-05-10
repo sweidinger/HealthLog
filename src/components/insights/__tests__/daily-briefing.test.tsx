@@ -134,9 +134,7 @@ describe("<DailyBriefing>", () => {
 
   it("hides the keyFindings section when the array is empty", () => {
     const html = render(
-      <DailyBriefing
-        briefing={{ ...baseBriefing, keyFindings: [] }}
-      />,
+      <DailyBriefing briefing={{ ...baseBriefing, keyFindings: [] }} />,
     );
     expect(html).not.toContain('data-slot="daily-briefing-findings-title"');
     expect(html).not.toContain('data-slot="daily-briefing-findings"');
@@ -165,15 +163,9 @@ describe("<DailyBriefing>", () => {
 
   it("disables the empty-state CTA while regenerating", () => {
     const html = render(
-      <DailyBriefing
-        briefing={null}
-        onRegenerate={() => {}}
-        regenerating
-      />,
+      <DailyBriefing briefing={null} onRegenerate={() => {}} regenerating />,
     );
-    expect(html).toMatch(
-      /data-slot="daily-briefing-empty-cta"[^>]*disabled/,
-    );
+    expect(html).toMatch(/data-slot="daily-briefing-empty-cta"[^>]*disabled/);
     expect(html).toContain("Regenerating");
   });
 

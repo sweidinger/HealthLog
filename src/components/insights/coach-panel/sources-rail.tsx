@@ -1,6 +1,14 @@
 "use client";
 
-import { Activity, Eye, Heart, HeartPulse, Pill, Scale, Smile } from "lucide-react";
+import {
+  Activity,
+  Eye,
+  Heart,
+  HeartPulse,
+  Pill,
+  Scale,
+  Smile,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
@@ -72,10 +80,7 @@ export function SourcesRail({ className }: SourcesRailProps) {
       className={cn("flex h-full min-h-0 flex-col gap-3 p-3", className)}
     >
       <div className="flex items-center gap-1.5 px-1">
-        <Eye
-          className="text-muted-foreground size-3.5"
-          aria-hidden="true"
-        />
+        <Eye className="text-muted-foreground size-3.5" aria-hidden="true" />
         <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
           {t("insights.coach.sourcesTitle")}
         </span>
@@ -94,7 +99,10 @@ export function SourcesRail({ className }: SourcesRailProps) {
               "rounded-md border px-2.5 py-2",
             )}
           >
-            <row.Icon className={cn("size-3.5", row.accentClass)} aria-hidden="true" />
+            <row.Icon
+              className={cn("size-3.5", row.accentClass)}
+              aria-hidden="true"
+            />
             <span className="text-foreground flex-1 text-xs font-medium">
               {t(row.metricKey)}
             </span>

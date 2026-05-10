@@ -907,9 +907,11 @@ export default function InsightsPage() {
   // cached AI payload carries a weeklyReport block. The banner deep-
   // links into `/insights/report/[week]` for Read / Share / Export PDF.
   const weeklyReport = (
-    advisor.payload?.insights as {
-      weeklyReport?: { weekISO: string } | null;
-    } | undefined
+    advisor.payload?.insights as
+      | {
+          weeklyReport?: { weekISO: string } | null;
+        }
+      | undefined
   )?.weeklyReport;
   const weeklyReportReady = weeklyReport
     ? {
@@ -930,11 +932,13 @@ export default function InsightsPage() {
   // 4.20.2 simply produce an empty array.
   const rawStoryboard = (
     advisor.payload?.insights as
-      | { storyboardAnnotations?: Array<{
-          date: string;
-          label: string;
-          category: string;
-        }> }
+      | {
+          storyboardAnnotations?: Array<{
+            date: string;
+            label: string;
+            category: string;
+          }>;
+        }
       | undefined
   )?.storyboardAnnotations;
   const bpStoryboardAnnotations = (rawStoryboard ?? []).map((entry) => ({
@@ -991,9 +995,7 @@ export default function InsightsPage() {
           with an inline AI-authored sentence below each. Annotations come
           from `advisor.payload.trendAnnotations` (PROMPT_VERSION 4.20.1+);
           legacy cached payloads simply paint the per-metric empty hint. */}
-      <TrendsRow
-        annotations={advisor.payload?.trendAnnotations ?? null}
-      />
+      <TrendsRow annotations={advisor.payload?.trendAnnotations ?? null} />
 
       {/* v1.4.16 phase D reconcile (CRITICAL C1) — wire the polished
           `<InsightAdvisorCard>` (severity-ordered recommendations grid +

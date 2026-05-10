@@ -14,10 +14,7 @@ import { join } from "node:path";
 
 const ROOT = join(__dirname, "../../..");
 const INSIGHTS_PATH = join(ROOT, "src/app/insights/page.tsx");
-const ANALYTICS_ROUTE_PATH = join(
-  ROOT,
-  "src/app/api/analytics/route.ts",
-);
+const ANALYTICS_ROUTE_PATH = join(ROOT, "src/app/api/analytics/route.ts");
 const ADVISOR_HOOK_PATH = join(
   ROOT,
   "src/components/insights/use-insights-advisor.ts",
@@ -30,12 +27,8 @@ function load(path: string): string {
 describe("v1.4.20 B3 — /insights mounts CorrelationRow + TrendsRow", () => {
   it("imports both new components", () => {
     const src = load(INSIGHTS_PATH);
-    expect(src).toContain(
-      'from "@/components/insights/correlation-row"',
-    );
-    expect(src).toContain(
-      'from "@/components/insights/trends-row"',
-    );
+    expect(src).toContain('from "@/components/insights/correlation-row"');
+    expect(src).toContain('from "@/components/insights/trends-row"');
   });
 
   it("mounts <CorrelationRow> behind a non-null analytics.correlations guard", () => {

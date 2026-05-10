@@ -54,8 +54,13 @@ export function SourceChips({ provenance, className }: SourceChipsProps) {
   const primaryWindowKey = windows[0] ?? null;
   const chips = metrics.map((metric) => {
     const metricLabel = t(METRIC_KEYS[metric]);
-    const windowLabel = primaryWindowKey ? t(WINDOW_KEYS[primaryWindowKey]) : null;
-    const count = counts && metric in counts ? counts[metric as keyof typeof counts] : undefined;
+    const windowLabel = primaryWindowKey
+      ? t(WINDOW_KEYS[primaryWindowKey])
+      : null;
+    const count =
+      counts && metric in counts
+        ? counts[metric as keyof typeof counts]
+        : undefined;
     return {
       key: `${metric}-${primaryWindowKey ?? "none"}`,
       metric,

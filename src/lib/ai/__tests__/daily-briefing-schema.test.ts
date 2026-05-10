@@ -82,16 +82,13 @@ describe("dailyBriefingKeyFindingSchema", () => {
     );
   });
 
-  it.each(["good", "watch", "info"] as const)(
-    "accepts tone=%s",
-    (tone) => {
-      const result = dailyBriefingKeyFindingSchema.safeParse({
-        ...baseFinding,
-        tone,
-      });
-      expect(result.success).toBe(true);
-    },
-  );
+  it.each(["good", "watch", "info"] as const)("accepts tone=%s", (tone) => {
+    const result = dailyBriefingKeyFindingSchema.safeParse({
+      ...baseFinding,
+      tone,
+    });
+    expect(result.success).toBe(true);
+  });
 
   it("rejects an unknown tone", () => {
     const result = dailyBriefingKeyFindingSchema.safeParse({

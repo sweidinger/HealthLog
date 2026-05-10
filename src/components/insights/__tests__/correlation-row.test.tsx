@@ -94,8 +94,7 @@ describe("<CorrelationRow>", () => {
         }}
       />,
     );
-    const matches =
-      html.match(/data-slot="correlation-row-disclaimer"/g) ?? [];
+    const matches = html.match(/data-slot="correlation-row-disclaimer"/g) ?? [];
     expect(matches.length).toBe(1);
     expect(html).toContain("Patterns are observational, not causal");
   });

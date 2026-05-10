@@ -70,8 +70,8 @@ describe("pearson", () => {
   it("returns r near 0 for noise, with p above the surface threshold", () => {
     // Deterministic noise (no Math.random) so the test is reproducible.
     const xs = [
-      0.1, 0.5, 0.9, 0.2, 0.7, 0.4, 0.6, 0.3, 0.8, 0.05, 0.95, 0.15, 0.85,
-      0.55, 0.25,
+      0.1, 0.5, 0.9, 0.2, 0.7, 0.4, 0.6, 0.3, 0.8, 0.05, 0.95, 0.15, 0.85, 0.55,
+      0.25,
     ];
     const ys = [
       0.5, 0.1, 0.7, 0.3, 0.2, 0.9, 0.4, 0.6, 0.05, 0.95, 0.85, 0.55, 0.25,
@@ -149,7 +149,10 @@ describe("correlateBpCompliance", () => {
 
   it("returns insufficient (too_few_pairs) at n=13", () => {
     const daily = buildPairs(
-      Array.from({ length: 13 }, (_, i) => [50 + i * 4, 150 - i * 2] as [number, number]),
+      Array.from(
+        { length: 13 },
+        (_, i) => [50 + i * 4, 150 - i * 2] as [number, number],
+      ),
     );
     const result = correlateBpCompliance({ daily });
     expect(result.status).toBe("insufficient");
@@ -161,7 +164,10 @@ describe("correlateBpCompliance", () => {
 
   it("returns ok with negative r for strong compliance↔BP support", () => {
     const daily = buildPairs(
-      Array.from({ length: 20 }, (_, i) => [50 + i * 2.5, 150 - i * 1.5] as [number, number]),
+      Array.from(
+        { length: 20 },
+        (_, i) => [50 + i * 2.5, 150 - i * 1.5] as [number, number],
+      ),
     );
     const result = correlateBpCompliance({ daily });
     expect(result.status).toBe("ok");
@@ -221,7 +227,9 @@ describe("correlateMoodPulse", () => {
     if (result.status === "ok") {
       expect(result.statistic).toBeLessThan(0);
       expect(result.pValue).toBeLessThan(MAX_P_VALUE);
-      expect(result.interpretation).toMatch(/pattern worth watching|do not move/i);
+      expect(result.interpretation).toMatch(
+        /pattern worth watching|do not move/i,
+      );
     }
   });
 

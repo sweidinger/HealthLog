@@ -19,7 +19,10 @@ import { resolveAnnotationPositions } from "../health-chart";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function makeSeries(start: number, count: number): Array<{ timestamp: number }> {
+function makeSeries(
+  start: number,
+  count: number,
+): Array<{ timestamp: number }> {
   return Array.from({ length: count }, (_, i) => ({
     timestamp: start + i * DAY_MS,
   }));
@@ -54,9 +57,7 @@ describe("resolveAnnotationPositions", () => {
 
   it("pins an exact-day annotation to its visible bucket", () => {
     const positions = resolveAnnotationPositions(
-      [
-        { date: "2026-04-15", label: "Started Ramipril", color: "#ff79c6" },
-      ],
+      [{ date: "2026-04-15", label: "Started Ramipril", color: "#ff79c6" }],
       dailySeries,
     );
     expect(positions).toHaveLength(1);

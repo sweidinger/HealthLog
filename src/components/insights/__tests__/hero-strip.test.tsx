@@ -45,10 +45,7 @@ describe("<HeroStrip>", () => {
   });
 
   it("renders the morning greeting in German", () => {
-    const html = render(
-      <HeroStrip briefing={null} now={morningLocal} />,
-      "de",
-    );
+    const html = render(<HeroStrip briefing={null} now={morningLocal} />, "de");
     expect(html).toContain("Guten Morgen");
   });
 
@@ -136,11 +133,7 @@ describe("<HeroStrip>", () => {
 
   it("enables the ask-the-coach button when onAskCoach is supplied (B2b)", () => {
     const html = render(
-      <HeroStrip
-        briefing={null}
-        now={morningLocal}
-        onAskCoach={() => {}}
-      />,
+      <HeroStrip briefing={null} now={morningLocal} onAskCoach={() => {}} />,
     );
     const coachTag = html.match(
       /<button[^>]*data-slot="insights-hero-strip-action-coach"[^>]*>/,
@@ -189,11 +182,7 @@ describe("<HeroStrip>", () => {
 
   it("forwards onPickPrompt down to the prompt strip without throwing", () => {
     const html = render(
-      <HeroStrip
-        briefing={null}
-        now={morningLocal}
-        onPickPrompt={() => {}}
-      />,
+      <HeroStrip briefing={null} now={morningLocal} onPickPrompt={() => {}} />,
     );
     // The chips render verbatim; SSR doesn't run click handlers.
     expect(html).toMatch(/data-slot="insights-suggested-prompts-chip"/);
@@ -201,10 +190,7 @@ describe("<HeroStrip>", () => {
 
   // ── Misc ───────────────────────────────────────────────────────────
   it("supports the German locale fallback subtitle", () => {
-    const html = render(
-      <HeroStrip briefing={null} now={morningLocal} />,
-      "de",
-    );
+    const html = render(<HeroStrip briefing={null} now={morningLocal} />, "de");
     expect(html).toContain("Täglicher Blick auf deine Trends");
   });
 
@@ -259,7 +245,9 @@ describe("<HeroStrip>", () => {
     );
     expect(html).toMatch(/data-slot="insights-hero-strip-weekly-banner-read"/);
     expect(html).toMatch(/data-slot="insights-hero-strip-weekly-banner-share"/);
-    expect(html).toMatch(/data-slot="insights-hero-strip-weekly-banner-export"/);
+    expect(html).toMatch(
+      /data-slot="insights-hero-strip-weekly-banner-export"/,
+    );
     expect(html).toContain("Read");
     expect(html).toContain("Share");
     expect(html).toContain("Export PDF");

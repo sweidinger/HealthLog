@@ -71,9 +71,7 @@ describe("<SourceChips>", () => {
 
   it("uses German labels when locale is 'de'", () => {
     const html = render(
-      <SourceChips
-        provenance={{ windows: ["last30days"], metrics: ["bp"] }}
-      />,
+      <SourceChips provenance={{ windows: ["last30days"], metrics: ["bp"] }} />,
       "de",
     );
     expect(html).toContain("Blutdruck");
@@ -82,9 +80,7 @@ describe("<SourceChips>", () => {
 
   it("renders a metric chip without window when windows are empty", () => {
     const html = render(
-      <SourceChips
-        provenance={{ windows: [], metrics: ["general"] }}
-      />,
+      <SourceChips provenance={{ windows: [], metrics: ["general"] }} />,
     );
     expect(html).toContain('data-metric="general"');
     expect(html).toContain("General");

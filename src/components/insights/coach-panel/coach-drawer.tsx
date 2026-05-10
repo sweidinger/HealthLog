@@ -11,7 +11,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -20,10 +25,7 @@ import { CoachInput } from "./coach-input";
 import { HistoryRail } from "./history-rail";
 import { MessageThread } from "./message-thread";
 import { SourcesRail } from "./sources-rail";
-import {
-  useCoachConversation,
-  useSendCoachMessage,
-} from "./use-coach";
+import { useCoachConversation, useSendCoachMessage } from "./use-coach";
 
 /**
  * v1.4.20 phase B2b — AI Coach drawer (right-side `<Sheet>` overlay).
@@ -289,4 +291,3 @@ export function CoachDrawer({
     </Sheet>
   );
 }
-

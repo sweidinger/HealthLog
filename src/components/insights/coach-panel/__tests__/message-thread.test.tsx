@@ -30,7 +30,8 @@ const baseConversation: CoachConversationDetailDTO = {
     {
       id: "m2",
       role: "assistant",
-      content: "Looking at your last 6 Mondays, the morning systolic averaged …",
+      content:
+        "Looking at your last 6 Mondays, the morning systolic averaged …",
       createdAt: "2026-05-10T09:00:30.000Z",
       metricSource: {
         windows: ["last30days"],
@@ -84,9 +85,8 @@ describe("<MessageThread>", () => {
       />,
     );
     // 1 persisted user + 1 persisted assistant + 1 streaming assistant.
-    const userBubbles = (
-      html.match(/data-slot="coach-bubble-user"/g) ?? []
-    ).length;
+    const userBubbles = (html.match(/data-slot="coach-bubble-user"/g) ?? [])
+      .length;
     const assistantBubbles = (
       html.match(/data-slot="coach-bubble-assistant"/g) ?? []
     ).length;
