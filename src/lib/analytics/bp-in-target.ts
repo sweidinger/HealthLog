@@ -176,3 +176,55 @@ export function computeBpInTargetPct(
     pairs,
   };
 }
+
+/**
+ * v1.4.18 A1 — windowed in-target shares for the dashboard tile.
+ *
+ * The "BD im Zielbereich" tile renders three numbers:
+ *  - Headline: the 30-day in-target % (the existing `computeBpInTargetPct`).
+ *  - `7T:`    the in-target % over the trailing 7 days.
+ *  - `30T:`   the in-target % over the trailing 30 days.
+ *
+ * Up to v1.4.17 only the 30-day headline was computed; the API returned
+ * a single `bpInTargetPct` and the tile rendered `avg7={null}` /
+ * `avg30={null}`, so the sub-values collapsed to "—" even when the user
+ * had paired readings in both windows. The fix surfaces both windows
+ * from a single helper that filters the input series by `measuredAt`
+ * relative to `now`. Caller can pass the unfiltered last-30-day data
+ * and get both windows back without a second DB round-trip.
+ *
+ * `null` for either window means "no paired readings in that window";
+ * the caller should render the "—" placeholder instead of `0`.
+ */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function computeBpInTargetWindows(
+  sysSeries: BpReading[],
+  diaSeries: BpReading[],
+  targets: BpTargets,
+  now: Date = new Date(),
+): {
+  last7Days: { pct: number; pairs: number } | null;
+  last30Days: { pct: number; pairs: number } | null;
+} {
+  const sevenDaysAgoMs = now.getTime() - 7 * DAY_MS;
+  const thirtyDaysAgoMs = now.getTime() - 30 * DAY_MS;
+
+  const sysLast7 = sysSeries.filter(
+    (r) => r.measuredAt.getTime() >= sevenDaysAgoMs,
+  );
+  const diaLast7 = diaSeries.filter(
+    (r) => r.measuredAt.getTime() >= sevenDaysAgoMs,
+  );
+  const sysLast30 = sysSeries.filter(
+    (r) => r.measuredAt.getTime() >= thirtyDaysAgoMs,
+  );
+  const diaLast30 = diaSeries.filter(
+    (r) => r.measuredAt.getTime() >= thirtyDaysAgoMs,
+  );
+
+  return {
+    last7Days: computeBpInTargetPct(sysLast7, diaLast7, targets),
+    last30Days: computeBpInTargetPct(sysLast30, diaLast30, targets),
+  };
+}

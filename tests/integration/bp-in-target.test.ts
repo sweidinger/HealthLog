@@ -22,7 +22,10 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { computeBpInTargetPct } from "@/lib/analytics/bp-in-target";
+import {
+  computeBpInTargetPct,
+  computeBpInTargetWindows,
+} from "@/lib/analytics/bp-in-target";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 
 import { getPrismaClient, truncateAllTables } from "./setup";
@@ -229,5 +232,169 @@ describe("BP-in-target % — production data shape", () => {
     const targets = getBpTargets(user.dateOfBirth);
     const result = computeBpInTargetPct(sysData, diaData, targets!);
     expect(result).toEqual({ pct: 50, pairs: 2 });
+  });
+});
+
+describe("BP-in-target % — windowed (7-day + 30-day) — production data shape", () => {
+  /**
+   * v1.4.18 A1 regression — Marc's BD-Zielbereich tile rendered the
+   * 30-day headline (50 %) but `7T: —` and `30T: —` placeholders even
+   * though he had paired BP readings in both windows. Root cause was
+   * that the API only returned a single `bpInTargetPct`; the tile got
+   * `avg7={null}, avg30={null}` and rendered the dash fallback. The fix
+   * surfaces both windows from `computeBpInTargetWindows()` against the
+   * same input series.
+   *
+   * Seeds 30 days of paired readings (one per day, 8/30 = 26 % in
+   * target) and asserts the 7-day window vs 30-day window agree with a
+   * hand-derivable count.
+   */
+  it("seeds 30 days of BP and returns non-null 7d + 30d shares", async () => {
+    const prisma = getPrismaClient();
+    const user = await prisma.user.create({
+      data: {
+        username: "bp-windows-fixture",
+        email: "bp-windows@example.test",
+        dateOfBirth: new Date("1985-07-09"),
+      },
+    });
+
+    // Anchor the synthetic readings against a "now" that the helper can
+    // see — we seed at fractional-day offsets so the boundary of the
+    // 7-day window (`>= now - 7d`) is unambiguous. Days 0.5..6.5 sit
+    // strictly inside the 7-day window; days 7.5..29.5 sit strictly
+    // outside it but inside the 30-day window.
+    const now = new Date();
+    // A small mix:
+    //   - days 0.5-6.5 (7-day window): 7 readings, 4 in target.
+    //   - days 7.5-29.5 (older 30-day window only): 22 readings,
+    //     11 in target (alternating, starting in-target).
+    // Expected windows:
+    //   last7Days: 4/7 = 57 % (rounded).
+    //   last30Days: 15/29 = 52 % (rounded).
+    const seed: Array<{ daysAgo: number; sys: number; dia: number }> = [
+      // 7-day window (4 IN, 3 OUT)
+      { daysAgo: 0.5, sys: 117, dia: 79 }, // IN
+      { daysAgo: 1.5, sys: 122, dia: 86 }, // OUT (dia)
+      { daysAgo: 2.5, sys: 108, dia: 76 }, // IN
+      { daysAgo: 3.5, sys: 145, dia: 95 }, // OUT (both)
+      { daysAgo: 4.5, sys: 115, dia: 78 }, // IN
+      { daysAgo: 5.5, sys: 124, dia: 82 }, // OUT (dia)
+      { daysAgo: 6.5, sys: 125, dia: 75 }, // IN
+      // older 7-30-day window (alternating, 11 IN / 11 OUT)
+      ...Array.from({ length: 22 }, (_, i) => {
+        const daysAgo = 7.5 + i;
+        const isIn = i % 2 === 0;
+        return isIn
+          ? { daysAgo, sys: 122, dia: 75 }
+          : { daysAgo, sys: 145, dia: 90 };
+      }),
+    ];
+
+    for (const r of seed) {
+      const at = new Date(
+        now.getTime() - r.daysAgo * 24 * 60 * 60 * 1000,
+      );
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_SYS",
+          value: r.sys,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_DIA",
+          value: r.dia,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+    }
+
+    const sysData = await prisma.measurement.findMany({
+      where: { userId: user.id, type: "BLOOD_PRESSURE_SYS" },
+      select: { measuredAt: true, value: true },
+    });
+    const diaData = await prisma.measurement.findMany({
+      where: { userId: user.id, type: "BLOOD_PRESSURE_DIA" },
+      select: { measuredAt: true, value: true },
+    });
+    const targets = getBpTargets(user.dateOfBirth);
+    expect(targets).not.toBeNull();
+
+    const windows = computeBpInTargetWindows(sysData, diaData, targets!, now);
+
+    // Both windows must produce a value — that's the regression.
+    expect(windows.last7Days).not.toBeNull();
+    expect(windows.last30Days).not.toBeNull();
+
+    // Hand-counted: 7-day window = 4/7 paired in target.
+    expect(windows.last7Days!.pairs).toBe(7);
+    expect(windows.last7Days!.pct).toBe(Math.round((4 / 7) * 100));
+
+    // 30-day window = 7 (last week) + 22 (older) = 29 paired readings.
+    // In-target: 4 (last week) + 11 (older, even-indexed alternation
+    // for i ∈ {0,2,4,...,20} = 11) = 15.
+    expect(windows.last30Days!.pairs).toBe(29);
+    expect(windows.last30Days!.pct).toBe(Math.round((15 / 29) * 100));
+  });
+
+  /**
+   * Regression: a user with all readings older than 7 days but inside
+   * 30 days must show a 30-day percentage AND a null 7-day window
+   * (the tile renders "—" for 7T but a real number for 30T). Pre-fix
+   * both rendered "—" because neither was computed at all.
+   */
+  it("returns null 7-day window but a real 30-day window when no recent data", async () => {
+    const prisma = getPrismaClient();
+    const user = await prisma.user.create({
+      data: {
+        username: "bp-no-recent-fixture",
+        email: "bp-no-recent@example.test",
+        dateOfBirth: new Date("1985-07-09"),
+      },
+    });
+
+    const now = new Date();
+    const fourteenDaysAgo = new Date(
+      now.getTime() - 14 * 24 * 60 * 60 * 1000,
+    );
+
+    await prisma.measurement.create({
+      data: {
+        userId: user.id,
+        type: "BLOOD_PRESSURE_SYS",
+        value: 122,
+        unit: "mmHg",
+        measuredAt: fourteenDaysAgo,
+      },
+    });
+    await prisma.measurement.create({
+      data: {
+        userId: user.id,
+        type: "BLOOD_PRESSURE_DIA",
+        value: 75,
+        unit: "mmHg",
+        measuredAt: fourteenDaysAgo,
+      },
+    });
+
+    const sysData = await prisma.measurement.findMany({
+      where: { userId: user.id, type: "BLOOD_PRESSURE_SYS" },
+      select: { measuredAt: true, value: true },
+    });
+    const diaData = await prisma.measurement.findMany({
+      where: { userId: user.id, type: "BLOOD_PRESSURE_DIA" },
+      select: { measuredAt: true, value: true },
+    });
+    const targets = getBpTargets(user.dateOfBirth);
+    const windows = computeBpInTargetWindows(sysData, diaData, targets!, now);
+
+    expect(windows.last7Days).toBeNull();
+    expect(windows.last30Days).toEqual({ pct: 100, pairs: 1 });
   });
 });

@@ -90,6 +90,14 @@ import {
 interface AnalyticsData {
   summaries: Record<string, DataSummary>;
   bpInTargetPct: number | null;
+  /**
+   * v1.4.18 A1 — share of paired BP readings inside target over the
+   * last 7 / 30 days. Drive the BD-Zielbereich tile's `7T:` / `30T:`
+   * sub-values; render "—" when the field is null (no paired readings
+   * in the window).
+   */
+  bpInTargetPct7d?: number | null;
+  bpInTargetPct30d?: number | null;
   glucoseByContext?: Record<string, DataSummaryType>;
 }
 
@@ -802,8 +810,12 @@ export default function DashboardPage() {
                 label={t("dashboard.bpInTarget")}
                 latest={data?.bpInTargetPct ?? null}
                 unit="%"
-                avg7={null}
-                avg30={null}
+                /* v1.4.18 A1 — wire 7T / 30T sub-values from the new
+                   windowed analytics fields. Up to v1.4.17 these were
+                   hard-coded to null and rendered "—" even when the
+                   user had paired BP readings in both windows. */
+                avg7={data?.bpInTargetPct7d ?? null}
+                avg30={data?.bpInTargetPct30d ?? null}
                 slope30={null}
                 icon={Target}
                 directionSentiment="up-good"

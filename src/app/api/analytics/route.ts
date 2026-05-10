@@ -4,7 +4,10 @@ import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
-import { computeBpInTargetPct } from "@/lib/analytics/bp-in-target";
+import {
+  computeBpInTargetPct,
+  computeBpInTargetWindows,
+} from "@/lib/analytics/bp-in-target";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 
@@ -54,9 +57,12 @@ export const GET = apiHandler(async () => {
 
   // BP in-target percentage (auto-calculated from date of birth)
   let bpInTargetPct: number | null = null;
+  let bpInTargetPct7d: number | null = null;
+  let bpInTargetPct30d: number | null = null;
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const [sysData, diaData] = await Promise.all([
       prisma.measurement.findMany({
         where: {
@@ -83,6 +89,22 @@ export const GET = apiHandler(async () => {
     // read 0 % even when readings clearly sat inside target.
     const result = computeBpInTargetPct(sysData, diaData, bpTargets);
     bpInTargetPct = result?.pct ?? null;
+
+    // v1.4.18 A1 — populate the dashboard tile's 7T / 30T sub-values.
+    // The headline (`bpInTargetPct`, also 30 days) is kept for backward
+    // compatibility with cached client bundles; the tile reads the
+    // explicit window fields below for the sub-row. `last30Days` here
+    // is the same calculation as the headline but kept independent so
+    // a future refactor (e.g. headline → "today's reading in target?")
+    // can move without breaking the sub-values.
+    const windows = computeBpInTargetWindows(
+      sysData,
+      diaData,
+      bpTargets,
+      now,
+    );
+    bpInTargetPct7d = windows.last7Days?.pct ?? null;
+    bpInTargetPct30d = windows.last30Days?.pct ?? null;
   }
 
   // Per-context glucose summaries (canonical mg/dL).
@@ -107,6 +129,8 @@ export const GET = apiHandler(async () => {
     summaries: results,
     bmi,
     bpInTargetPct,
+    bpInTargetPct7d,
+    bpInTargetPct30d,
     glucoseByContext,
   });
 });
