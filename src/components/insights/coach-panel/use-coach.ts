@@ -1,0 +1,403 @@
+"use client";
+
+import { useCallback, useRef, useState } from "react";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+import type {
+  CoachConversationDetailDTO,
+  CoachConversationDTO,
+  CoachConversationsPage,
+  CoachProvenance,
+  CoachStreamEvent,
+} from "@/lib/ai/coach/types";
+
+/**
+ * v1.4.20 phase B2b — TanStack Query + SSE client for the AI Coach
+ * drawer.
+ *
+ * The shape mirrors the backend wire format from `phase-B2a-report.md`:
+ * `GET /api/insights/chat`, `GET /api/insights/chat/[id]`,
+ * `DELETE /api/insights/chat/[id]`, and the SSE-streaming
+ * `POST /api/insights/chat`.
+ *
+ * Streaming is implemented with `fetch` + `getReader()` — no third-party
+ * SSE lib pulled in. The byte stream is decoded with `TextDecoder` and
+ * scanned for the `\n\n` frame separator; each frame is JSON-parsed and
+ * dispatched to the event callback. We also export `parseSseChunk` as a
+ * pure helper so the parser can be unit-tested without spinning up a
+ * real network stream.
+ */
+
+const QUERY_KEYS = {
+  list: () => ["coachConversations"] as const,
+  one: (id: string) => ["coachConversation", id] as const,
+};
+
+interface ConversationsApiResponse {
+  data: CoachConversationsPage;
+}
+
+interface ConversationApiResponse {
+  data: CoachConversationDetailDTO;
+}
+
+/**
+ * List of conversations for the rail. Cursor pagination is exposed via
+ * `loadMore` — the rail can call it when the user scrolls past the
+ * end. v1.4.20 lands with default-page-only; cursors are pre-wired so
+ * v1.4.21 / v1.5 can add infinite scroll without reshaping the hook.
+ */
+export function useCoachConversations(enabled = true) {
+  const query = useQuery({
+    queryKey: QUERY_KEYS.list(),
+    queryFn: async (): Promise<CoachConversationsPage> => {
+      const res = await fetch("/api/insights/chat", {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = (await res.json()) as ConversationsApiResponse;
+      return json.data;
+    },
+    enabled,
+    staleTime: 30 * 1000,
+  });
+
+  return {
+    conversations: query.data?.conversations ?? [],
+    nextCursor: query.data?.nextCursor ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+  };
+}
+
+/**
+ * Fetch one conversation with every message decrypted server-side.
+ * `id === null` disables the query so the drawer can mount without a
+ * selection.
+ */
+export function useCoachConversation(id: string | null) {
+  return useQuery({
+    queryKey: id ? QUERY_KEYS.one(id) : ["coachConversation", "null"],
+    queryFn: async (): Promise<CoachConversationDetailDTO> => {
+      if (!id) throw new Error("missing id");
+      const res = await fetch(`/api/insights/chat/${id}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = (await res.json()) as ConversationApiResponse;
+      return json.data;
+    },
+    enabled: id !== null,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Delete a conversation with optimistic removal from the rail cache.
+ * Rolls back if the server responds with a non-2xx.
+ */
+export function useDeleteCoachConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/insights/chat/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return id;
+    },
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.list() });
+      const previous = queryClient.getQueryData<CoachConversationsPage>(
+        QUERY_KEYS.list(),
+      );
+      if (previous) {
+        queryClient.setQueryData<CoachConversationsPage>(QUERY_KEYS.list(), {
+          ...previous,
+          conversations: previous.conversations.filter((c) => c.id !== id),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(QUERY_KEYS.list(), ctx.previous);
+      }
+    },
+    onSettled: (_data, _err, id) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.list() });
+      if (typeof id === "string") {
+        queryClient.removeQueries({ queryKey: QUERY_KEYS.one(id) });
+      }
+    },
+  });
+}
+
+/**
+ * Pure SSE parser used by the streaming hook AND the unit tests.
+ *
+ * Takes a chunk of decoded text + the residual buffer carried from the
+ * previous chunk and returns:
+ *   - `events`: every fully-formed `CoachStreamEvent` parsed out of the
+ *     concatenated buffer
+ *   - `rest`: the trailing partial frame, kept around for the next call
+ *
+ * Frames look like `data: {"type":"token","token":"…"}\n\n`. We split
+ * on `\n\n`, then strip the `data: ` prefix and JSON-parse the
+ * remainder. Lines that don't look like SSE data are silently dropped
+ * (matches the additive-evolution comment on the wire schema).
+ */
+export function parseSseChunk(
+  buffer: string,
+  chunk: string,
+): { events: CoachStreamEvent[]; rest: string } {
+  const combined = buffer + chunk;
+  const events: CoachStreamEvent[] = [];
+  let cursor = 0;
+  while (cursor < combined.length) {
+    const sep = combined.indexOf("\n\n", cursor);
+    if (sep === -1) break;
+    const frame = combined.slice(cursor, sep);
+    cursor = sep + 2;
+    const dataLine = frame
+      .split("\n")
+      .map((l) => l.trim())
+      .find((l) => l.startsWith("data:"));
+    if (!dataLine) continue;
+    const payload = dataLine.slice("data:".length).trim();
+    if (!payload) continue;
+    try {
+      const parsed = JSON.parse(payload) as CoachStreamEvent;
+      if (parsed && typeof parsed === "object" && "type" in parsed) {
+        events.push(parsed);
+      }
+    } catch {
+      // ignore malformed frame; the wire format is forward-compatible.
+    }
+  }
+  return { events, rest: combined.slice(cursor) };
+}
+
+/**
+ * One assistant turn that is currently being streamed. The drawer
+ * renders this alongside the persisted conversation history so the user
+ * sees tokens arrive as they generate.
+ */
+export interface CoachStreamingMessage {
+  /** Concatenated tokens received so far. */
+  content: string;
+  /** Provenance frame — populated once the server emits it. */
+  metricSource: CoachProvenance | null;
+  /** True until the `done` frame closes the stream. */
+  inProgress: boolean;
+  /** Final messageId once `done` lands; null otherwise. */
+  messageId: string | null;
+  /** Server-side error code from an `error` frame, if any. */
+  errorCode: string | null;
+}
+
+const EMPTY_STREAMING: CoachStreamingMessage = {
+  content: "",
+  metricSource: null,
+  inProgress: false,
+  messageId: null,
+  errorCode: null,
+};
+
+export interface SendCoachMessageParams {
+  conversationId?: string;
+  message: string;
+  prefill?: string;
+  locale?: "en" | "de";
+}
+
+export interface UseSendCoachMessageOptions {
+  /**
+   * Fired with the resolved `conversationId` after the `done` frame.
+   * Lets the drawer flip to the just-created conversation when the
+   * user starts a brand-new thread.
+   */
+  onDone?: (conversationId: string) => void;
+}
+
+/**
+ * The streaming hook.
+ *
+ * `send()` POSTs to `/api/insights/chat`, walks the byte stream via
+ * `fetch().body.getReader()`, and updates `streaming` after every
+ * token / provenance / done / error frame. The drawer reads `streaming`
+ * to render the live assistant bubble.
+ *
+ * On `done` we invalidate the conversation cache so the next mount
+ * picks up the persisted shape (including the assistant message id and
+ * any server-side editorialisation of the body).
+ */
+export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
+  const queryClient = useQueryClient();
+  const [streaming, setStreaming] =
+    useState<CoachStreamingMessage>(EMPTY_STREAMING);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const reset = useCallback(() => {
+    setStreaming(EMPTY_STREAMING);
+  }, []);
+
+  const send = useCallback(
+    async (params: SendCoachMessageParams): Promise<void> => {
+      // Cancel any prior in-flight request.
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setStreaming({
+        content: "",
+        metricSource: null,
+        inProgress: true,
+        messageId: null,
+        errorCode: null,
+      });
+
+      let response: Response;
+      try {
+        response = await fetch("/api/insights/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+          },
+          body: JSON.stringify({
+            conversationId: params.conversationId,
+            message: params.message,
+            prefill: params.prefill,
+            locale: params.locale,
+          }),
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        setStreaming({
+          content: "",
+          metricSource: null,
+          inProgress: false,
+          messageId: null,
+          errorCode: "coach.network",
+        });
+        return;
+      }
+
+      if (!response.ok || !response.body) {
+        setStreaming({
+          content: "",
+          metricSource: null,
+          inProgress: false,
+          messageId: null,
+          errorCode: `coach.http.${response.status}`,
+        });
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let resolvedConversationId: string | null = null;
+      let collectedContent = "";
+      let collectedProvenance: CoachProvenance | null = null;
+      let lastError: string | null = null;
+      let messageId: string | null = null;
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const text = decoder.decode(value, { stream: true });
+          const { events, rest } = parseSseChunk(buffer, text);
+          buffer = rest;
+          for (const evt of events) {
+            switch (evt.type) {
+              case "token":
+                collectedContent += evt.token;
+                setStreaming((prev) => ({
+                  ...prev,
+                  content: prev.content + evt.token,
+                }));
+                break;
+              case "provenance":
+                collectedProvenance = evt.metricSource;
+                setStreaming((prev) => ({
+                  ...prev,
+                  metricSource: evt.metricSource,
+                }));
+                break;
+              case "done":
+                resolvedConversationId = evt.conversationId;
+                messageId = evt.messageId;
+                break;
+              case "error":
+                lastError = evt.code;
+                break;
+            }
+          }
+        }
+        // Final flush of any trailing frame in the residual buffer.
+        const tail = parseSseChunk(buffer, "\n\n");
+        for (const evt of tail.events) {
+          if (evt.type === "done") {
+            resolvedConversationId = evt.conversationId;
+            messageId = evt.messageId;
+          } else if (evt.type === "error") {
+            lastError = evt.code;
+          }
+        }
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          lastError = "coach.stream";
+        }
+      }
+
+      setStreaming({
+        content: collectedContent,
+        metricSource: collectedProvenance,
+        inProgress: false,
+        messageId,
+        errorCode: lastError,
+      });
+
+      if (resolvedConversationId) {
+        // Invalidate the freshly-persisted conversation + the rail so
+        // the drawer's next mount picks up the encrypted-on-disk shape
+        // and the rail orders the thread to the top.
+        queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.one(resolvedConversationId),
+        });
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.list() });
+        opts.onDone?.(resolvedConversationId);
+      }
+    },
+    [opts, queryClient],
+  );
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  return {
+    streaming,
+    isStreaming: streaming.inProgress,
+    send,
+    cancel,
+    reset,
+  };
+}
+
+// Re-exports for adjacent components that don't want to reach into
+// `@/lib/ai/coach/types` directly.
+export type {
+  CoachConversationDTO,
+  CoachConversationDetailDTO,
+  CoachProvenance,
+};
