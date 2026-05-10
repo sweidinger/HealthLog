@@ -216,6 +216,71 @@ export const aiWarningSchema = z.object({
 export type AIWarning = z.infer<typeof aiWarningSchema>;
 
 /**
+ * v1.4.20 phase B1 — Daily Briefing block.
+ *
+ * The Insights redesign hero strip + full-width briefing card render a
+ * narrative paragraph synthesised from the day's data plus up to five
+ * "key findings" — one-liners that summarise a single trend with a
+ * tone (good / watch / info), an optional delta string ("↓ 4 mmHg"),
+ * and the metric + window the finding was drawn from.
+ *
+ * The block is `nullable().optional()` so cached payloads from
+ * v1.4.19 (which predate the field) still parse cleanly. Fresh
+ * generations after the v1.4.20 PROMPT_VERSION bump emit the block.
+ *
+ * Marc's "zero hallucinations" mandate stays: the prompt instructs the
+ * model to derive every finding from a number visible in the snapshot,
+ * and `keyFindings.length` is hard-capped at 5 so a runaway model
+ * cannot pad the surface with filler.
+ */
+export const dailyBriefingKeyFindingSchema = z.object({
+  /**
+   * Tone drives the left-bar colour on the finding row:
+   *   - "good"  — Dracula green (target hit, streak, etc.)
+   *   - "watch" — Dracula orange (deviation worth noting)
+   *   - "info"  — Dracula cyan (neutral observation)
+   * Severity stays separate from the recommendation severity ladder
+   * so the briefing surface can be lighter-weight than the advisor.
+   */
+  tone: z.enum(["good", "watch", "info"]),
+  /** Headline — the one-liner the user reads first. */
+  headline: z.string().min(1, "keyFinding.headline required"),
+  /** One-sentence detail expanding on the headline. */
+  detail: z.string().min(1, "keyFinding.detail required"),
+  /**
+   * Optional delta string — e.g. "↓ 4 mmHg" or "+6 bpm". Null when the
+   * finding does not naturally carry a single delta (e.g. compliance
+   * streak: the "delta" is the streak length itself, captured in the
+   * detail).
+   */
+  delta: z.string().nullable(),
+  /** Window the finding was derived from — same enum as elsewhere. */
+  sourceWindow: z.enum(["7d", "30d", "90d", "1y"]).default("30d"),
+  /** Metric the finding was drawn from. */
+  sourceMetric: z.enum(["bp", "weight", "pulse", "mood", "compliance"]),
+});
+
+export type DailyBriefingKeyFinding = z.infer<
+  typeof dailyBriefingKeyFindingSchema
+>;
+
+export const dailyBriefingSchema = z.object({
+  /**
+   * Narrative paragraph — ~80-200 words. Synthesised from the day's
+   * data, conservative phrasing, no medical advice claims. Empty
+   * strings are rejected so the briefing card never paints a void.
+   */
+  paragraph: z.string().min(1, "dailyBriefing.paragraph required"),
+  /**
+   * 0-5 key findings. Empty array is acceptable when the data is
+   * truly flat; the hero strip simply hides the row in that case.
+   */
+  keyFindings: z.array(dailyBriefingKeyFindingSchema).min(0).max(5),
+});
+
+export type DailyBriefing = z.infer<typeof dailyBriefingSchema>;
+
+/**
  * Canonical strict response schema. New strict fields are required;
  * legacy rich fields ride along through `.passthrough()` for back-
  * compat with cached payloads and the existing dashboard renderer.
@@ -230,6 +295,12 @@ export const aiInsightResponseSchema = z
     citations: z.array(aiCitationSchema),
     /** Guideline-flagged values (e.g. BP > 140/90). May be empty. */
     warnings: z.array(aiWarningSchema),
+    /**
+     * v1.4.20 phase B1 — optional Daily Briefing payload. Nullable +
+     * optional so legacy cached payloads (from before PROMPT_VERSION
+     * 4.20.0) round-trip without forcing a regenerate.
+     */
+    dailyBriefing: dailyBriefingSchema.nullable().optional(),
   })
   .passthrough();
 
