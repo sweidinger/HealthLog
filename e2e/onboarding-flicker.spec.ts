@@ -133,10 +133,16 @@ test.describe("dashboard onboarding card flicker guard", () => {
   test("incomplete-onboarding user sees the card collapsed by default", async ({
     page,
   }) => {
-    // Onboarding is incomplete AND profile fields are missing → the
-    // `shouldShowChecklist` gate is true. With the fix, the card mounts
-    // collapsed: header + progress meter visible, full row list hidden
-    // until the user clicks the chevron.
+    // Profile fields are missing AND `measurementCount < 5` so the
+    // `shouldShowChecklist` gate is true (its `stillInSetup` branch is
+    // satisfied by the measurement-count condition). With the fix, the
+    // card mounts collapsed: header + progress meter visible, full row
+    // list hidden until the user clicks the chevron.
+    //
+    // We intentionally pin `onboardingCompletedAt` to a non-null value:
+    // `<AuthShell>` redirects users with a null timestamp straight to
+    // `/onboarding`, so the dashboard never paints. The checklist still
+    // renders here because `summaries: {}` keeps `measurementCount = 0`.
     await page.route("**/api/auth/me", (route) =>
       route.fulfill({
         status: 200,
@@ -151,7 +157,7 @@ test.describe("dashboard onboarding card flicker guard", () => {
             dateOfBirth: null,
             gender: null,
             timezone: "Europe/Berlin",
-            onboardingCompletedAt: null,
+            onboardingCompletedAt: "2025-01-01T00:00:00.000Z",
             // Suppress the spotlight tour overlay during this spec so
             // the onboarding-card visibility probe is not occluded by
             // the tour's z-200 dialog. The tour itself is exercised by
