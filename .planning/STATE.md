@@ -17,10 +17,20 @@ Last update: 2026-05-10T10:02+02:00
 
 ### A1 — BD-Zielbereich tile 7T/30T sub-values
 
-- [ ] Investigate why "7T: —" / "30T: —" render even when user has data
-- [ ] Fix data source / aggregation for the sub-values
-- [ ] E2E test against tile rendering with real measurement data
+- [x] Investigate why "7T: —" / "30T: —" render even when user has data
+- [x] Fix data source / aggregation for the sub-values
+- [x] E2E test against tile rendering with real measurement data
 - Detailed report: `.planning/phase-A1-report.md`
+- Status: 2026-05-09T10:15+02:00 — done. Root cause was an
+  unfinished tile wire: `/api/analytics` only computed a single
+  30-day `bpInTargetPct`, and the dashboard tile passed
+  `avg7={null}, avg30={null}` so the sub-values rendered "—" no
+  matter how much data the user had. Added a windowed helper
+  `computeBpInTargetWindows()` (re-uses the v1.4.16 A2 ceiling
+  predicate, filters input by `measuredAt`), surfaced
+  `bpInTargetPct7d` / `bpInTargetPct30d` from the route, and wired
+  them through the tile. 6 new unit tests + 2 new testcontainer
+  integration tests, all green. Commit `23363ca` on origin/main.
 
 ### A2 — `/admin/api-tokens` table scrollbar (3rd attempt, Playwright live-verified)
 
