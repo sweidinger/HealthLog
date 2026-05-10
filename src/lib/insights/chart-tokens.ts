@@ -58,7 +58,9 @@ const TOKEN_REGEX = /metric:[A-Z_]+/g;
  * non-string input as empty — the legacy-payload CTA owns the user-
  * facing recovery path.
  */
-export function parseChartTokens(text: string | null | undefined): ChartToken[] {
+export function parseChartTokens(
+  text: string | null | undefined,
+): ChartToken[] {
   if (typeof text !== "string") return [];
   const matches: string[] = text.match(TOKEN_REGEX) ?? [];
   return matches.filter((m): m is ChartToken => ALLOWED_SET.has(m));

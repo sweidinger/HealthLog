@@ -335,14 +335,14 @@ export function InsightAdvisorCard({
           <p className="text-muted-foreground text-sm">{title}</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-muted/60 motion-reduce:animate-none h-4 w-3/4 animate-pulse rounded-md" />
-          <div className="bg-muted/50 motion-reduce:animate-none h-3 w-2/3 animate-pulse rounded-md" />
+          <div className="bg-muted/60 h-4 w-3/4 animate-pulse rounded-md motion-reduce:animate-none" />
+          <div className="bg-muted/50 h-3 w-2/3 animate-pulse rounded-md motion-reduce:animate-none" />
           <div className="grid gap-3 lg:grid-cols-2">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
                 data-slot="insight-skeleton-card"
-                className="bg-muted/40 motion-reduce:animate-none h-20 animate-pulse rounded-lg"
+                className="bg-muted/40 h-20 animate-pulse rounded-lg motion-reduce:animate-none"
                 style={{ animationDelay: `${i * 100}ms` }}
               />
             ))}
@@ -384,7 +384,7 @@ export function InsightAdvisorCard({
                   onClick={onRegenerate}
                   disabled={regenerating}
                   data-slot="insight-retry-button"
-                  className="self-start gap-1.5"
+                  className="gap-1.5 self-start"
                 >
                   {regenerating ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
