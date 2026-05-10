@@ -678,7 +678,7 @@ model AuditLog {
 model NotificationChannel {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
-  type      String   // "TELEGRAM" | "NTFY" | "WEB_PUSH"
+  type      String   // "TELEGRAM" | "NTFY" | "WEB_PUSH" | "APNS"
   enabled   Boolean  @default(true)
   config    String   // AES-256-GCM encrypted JSON (channel-specific config)
   createdAt DateTime @default(now()) @map("created_at")
@@ -790,23 +790,35 @@ model IdempotencyKey {
 // ─── Devices (APNs / mobile push targets) ────────────────
 
 /// Registered native-client device for push delivery. Token is unique
-/// across users; re-registering on a different account moves ownership.
+/// across users; re-registering on a different account is rejected with
+/// 409 by `POST /api/devices` (cross-user-hijack guard).
+///
+/// `apnsToken` and `apnsEnvironment` are nullable because today's iOS
+/// builds register through a generic `token` first; a follow-up call
+/// from the iOS app populates the APNs-specific pair once the device
+/// receives its first push token from `application:didRegisterForRemoteNotificationsWithDeviceToken:`.
+/// Loose-typed `apnsEnvironment` (sandbox|production) leaves headroom
+/// for whatever new gateway labels Apple ships next without a forced
+/// migration.
 model Device {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  platform    String   // "ios"
-  token       String   @unique
-  bundleId    String   @map("bundle_id")
-  locale      String?
-  appVersion  String?  @map("app_version")
-  model       String?
-  lastSeen    DateTime @default(now()) @map("last_seen")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  platform        String   // "ios"
+  token           String   @unique
+  bundleId        String   @map("bundle_id")
+  locale          String?
+  appVersion      String?  @map("app_version")
+  model           String?
+  apnsToken       String?  @map("apns_token")
+  apnsEnvironment String?  @map("apns_environment") // "sandbox" | "production"
+  lastSeen        DateTime @default(now()) @map("last_seen")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([apnsToken])
   @@map("devices")
 }
 
