@@ -34,15 +34,27 @@ Last update: 2026-05-10T10:02+02:00
 
 ### A2 — `/admin/api-tokens` table scrollbar (3rd attempt, Playwright live-verified)
 
-- [ ] Inspect prod (https://healthlog.bombeck.io/admin/api-tokens) at
+- [x] Inspect prod (https://healthlog.bombeck.io/admin/api-tokens) at
       Pixel 5 viewport with Playwright headless using Marc's session
       cookie `cmox4d6fj000101p8w9ykhcnm`
-- [ ] Identify the exact element causing horizontal overflow (could be
+- [x] Identify the exact element causing horizontal overflow (could be
       page-level, not table-level)
-- [ ] Fix the actual overflow source (not just table column-hide which
+- [x] Fix the actual overflow source (not just table column-hide which
       earlier attempts already did)
-- [ ] Playwright e2e against PROD asserts no horizontal scroll at 393×851
+- [x] Playwright e2e against PROD asserts no horizontal scroll at 393×851
 - Detailed report: `.planning/phase-A2-report.md`
+- Status: 2026-05-10T10:21+02:00 — done. Production probe at Pixel-5
+  with Marc's session pinned the painted scrollbar to the AdminShell
+  mobile section strip (13 entries, scrollWidth ~1700 vs clientWidth
+  ~360), NOT the api-tokens table. Every previous attempt fixed the
+  wrong component because the strip sits right above the api-tokens
+  card. Added `no-scrollbar` utility to globals.css and applied to
+  both AdminShell + SettingsShell mobile strips (same defect, same
+  pattern); swipe + keyboard-arrow scrolling preserved. Document-
+  level overflow already 0 in prod
+  (innerWidth=scrollWidth=393). Tests: 1559/1559, typecheck clean,
+  lint 0/12-baseline. New AdminShell unit suite + settings-shell
+  assertion + e2e regression guard. Commit `3e16074` on origin/main.
 
 ### A3 — Chart visual revert + per-chart toggles
 
