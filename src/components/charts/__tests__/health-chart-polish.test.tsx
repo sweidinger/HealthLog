@@ -112,15 +112,13 @@ describe("computePersonalBaseline()", () => {
   });
 });
 
-describe("<HealthChart> v1.4.16 B1a polish", () => {
-  it("emits a sibling-SVG <defs> gradient block addressable by Recharts via url(#id)", async () => {
-    // ResponsiveContainer renders empty during SSR (its dimensions
-    // depend on the live DOM), so Recharts' own SSR output ships no
-    // <defs>. To keep the gradient SSR-discoverable (and so visual
-    // regressions can target it without a browser), the wrapper emits
-    // an external `<svg width=0 height=0>` next to ResponsiveContainer
-    // containing the gradient. Recharts picks it up via `url(#id)`
-    // because SVG IDs are document-scoped.
+describe("<HealthChart> v1.4.18 clean-line revert", () => {
+  it("does NOT paint a gradient fill under the line (clean line only)", async () => {
+    // v1.4.18 reverts B1a's gradient-area treatment. Marc explicitly
+    // rejected the soft-color fill below the line: the line itself is
+    // the chart, no painted background under it. We assert the SSR
+    // output ships no `<linearGradient>` defs and no `chart-gradient`
+    // primitive markers.
     const { I18nProvider } = await import("@/lib/i18n/context");
     const { HealthChart } = await import("../health-chart");
 
@@ -134,22 +132,8 @@ describe("<HealthChart> v1.4.16 B1a polish", () => {
       </I18nProvider>,
     );
 
-    expect(html).toContain('data-slot="chart-linear-gradient"');
-  });
-
-  it("namespaces the gradient id by metric type so multi-metric charts don't collide", async () => {
-    const { I18nProvider } = await import("@/lib/i18n/context");
-    const { HealthChart } = await import("../health-chart");
-
-    const html = renderToStaticMarkup(
-      <I18nProvider initialLocale="en">
-        <HealthChart
-          types={["BLOOD_PRESSURE_SYS"]}
-          title="Blood Pressure"
-          unit="mmHg"
-        />
-      </I18nProvider>,
-    );
-    expect(html).toMatch(/id="chart-gradient-BLOOD_PRESSURE_SYS"/);
+    expect(html).not.toContain("data-slot=\"chart-linear-gradient\"");
+    expect(html).not.toContain("chart-gradient-BLOOD_PRESSURE_SYS");
+    expect(html).not.toContain("linearGradient");
   });
 });

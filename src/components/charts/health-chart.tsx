@@ -5,7 +5,6 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   ResponsiveContainer,
   ComposedChart,
-  Area,
   Line,
   XAxis,
   YAxis,
@@ -17,10 +16,6 @@ import {
 } from "recharts";
 import { Loader2 } from "lucide-react";
 import { useState, useMemo, useId } from "react";
-import {
-  ChartLinearGradient,
-  chartGradientFill,
-} from "./chart-gradient";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
@@ -987,73 +982,15 @@ export function HealthChart({
             </div>
           ) : null}
 
-          {/* v1.4.16 B1a — sibling SVG <defs> block.
-              ResponsiveContainer is empty during SSR so a gradient
-              defined inside its child <svg> isn't discoverable in
-              static-rendered markup. Emitting the gradient in a
-              standalone hidden <svg> next to the chart keeps it
-              available document-wide; Recharts' <Area fill="url(#id)">
-              looks the gradient up by id at paint time and finds it
-              regardless of which SVG it lives in. */}
-          <svg
-            width={0}
-            height={0}
-            aria-hidden="true"
-            style={{ position: "absolute", pointerEvents: "none" }}
-            data-slot="chart-gradient-defs"
-          >
-            {types.map((type, i) => (
-              <ChartLinearGradient
-                key={`grad-${type}`}
-                id={`chart-gradient-${type}`}
-                colorVar={
-                  // Best-effort mapping from the dot colour back to a
-                  // Dracula token — the chart already accepts an
-                  // arbitrary `colors` array (defaults to purple/pink/
-                  // cyan), so we mirror that here.
-                  colors[i % colors.length]?.startsWith("var(")
-                    ? colors[i % colors.length]
-                        .replace("var(", "")
-                        .replace(")", "")
-                    : "--dracula-purple"
-                }
-              />
-            ))}
-          </svg>
-
+          {/* v1.4.18 — gradient fill removed per Marc's feedback.
+              The clean line is the chart; no painted background under
+              it. */}
           <div className="relative z-10 h-full touch-pan-y">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartDataWithCompare ?? chartData}
                 margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
               >
-                {/* Inline gradient defs as Recharts children — same id
-                    space as the sibling SVG above, so even browsers
-                    that scope SVG-id resolution to the local document
-                    fragment (Safari edge cases) still find a match. */}
-                <defs>
-                  {types.map((type, i) => (
-                    <linearGradient
-                      key={`inline-grad-${type}`}
-                      id={`chart-gradient-inline-${type}`}
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor={colors[i % colors.length]}
-                        stopOpacity={0.35}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={colors[i % colors.length]}
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                  ))}
-                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="var(--border)"
@@ -1323,26 +1260,8 @@ export function HealthChart({
                     }}
                   />
                 )}
-                {/* v1.4.16 B1a — gradient-filled Area painted *under*
-                    the line. Each type gets its own gradient
-                    referenced by id. The Area's stroke is set to
-                    transparent so only the fill paints; the line on
-                    top of it carries the actual stroke. */}
-                {types.map((type) => (
-                  <Area
-                    key={`area-${type}`}
-                    type="monotone"
-                    dataKey={type}
-                    stroke="transparent"
-                    fill={chartGradientFill(`chart-gradient-inline-${type}`)}
-                    fillOpacity={1}
-                    isAnimationActive={animationsEnabled}
-                    animationDuration={animationsEnabled ? 600 : 0}
-                    animationEasing="ease-out"
-                    connectNulls
-                    legendType="none"
-                  />
-                ))}
+                {/* v1.4.18 — gradient Area removed; only the clean
+                    line below paints the metric. */}
                 {types.map((type, i) => (
                   <Line
                     key={type}

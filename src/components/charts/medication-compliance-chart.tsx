@@ -37,7 +37,6 @@ import { useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   ComposedChart,
-  Area,
   Line,
   XAxis,
   YAxis,
@@ -51,7 +50,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ChartLinearGradient, chartGradientFill } from "./chart-gradient";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
@@ -294,21 +292,7 @@ export function MedicationComplianceChart({
         </p>
       )}
 
-      {/* v1.4.16 B1a — sibling SVG <defs> block for SSR-discoverable
-          gradient. */}
-      <svg
-        width={0}
-        height={0}
-        aria-hidden="true"
-        style={{ position: "absolute", pointerEvents: "none" }}
-        data-slot="chart-gradient-defs"
-      >
-        <ChartLinearGradient
-          id="chart-gradient-medication"
-          colorVar="--dracula-purple"
-        />
-      </svg>
-
+      {/* v1.4.18 — gradient defs removed; clean line only. */}
       {isLoading ? (
         <div className="flex h-48 items-center justify-center">
           <Loader2 className="text-primary h-6 w-6 animate-spin" />
@@ -331,18 +315,6 @@ export function MedicationComplianceChart({
               data={chartData}
               margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
             >
-              <defs>
-                <linearGradient
-                  id="chart-gradient-medication-inline"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop offset="0%" stopColor={COLOR_LINE} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={COLOR_LINE} stopOpacity={0} />
-                </linearGradient>
-              </defs>
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="var(--border)"
@@ -430,21 +402,7 @@ export function MedicationComplianceChart({
                 strokeOpacity={0.85}
                 data-slot="medication-goal-line"
               />
-              {/* v1.4.16 B1a — gradient-filled Area painted under the
-                  line. Animated on first render unless the user opts
-                  for reduced motion. */}
-              <Area
-                type="monotone"
-                dataKey="rate"
-                stroke="transparent"
-                fill={chartGradientFill("chart-gradient-medication-inline")}
-                fillOpacity={1}
-                isAnimationActive={animationsEnabled}
-                animationDuration={animationsEnabled ? 600 : 0}
-                animationEasing="ease-out"
-                connectNulls
-                legendType="none"
-              />
+              {/* v1.4.18 — gradient Area removed; clean line only. */}
               <Line
                 type="monotone"
                 dataKey="rate"

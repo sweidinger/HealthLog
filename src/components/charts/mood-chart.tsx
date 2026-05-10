@@ -5,7 +5,6 @@ import { useAuth } from "@/hooks/use-auth";
 import {
   ResponsiveContainer,
   ComposedChart,
-  Area,
   Line,
   XAxis,
   YAxis,
@@ -28,7 +27,6 @@ import {
   pickBucket,
   type ChartBucketType,
 } from "@/lib/charts/bucket-time-series";
-import { ChartLinearGradient, chartGradientFill } from "./chart-gradient";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
@@ -603,21 +601,7 @@ export function MoodChart({
         )}
       </CardHeader>
       <CardContent>
-        {/* v1.4.16 B1a — sibling SVG <defs> block for the gradient
-            primitive. SSR-discoverable; Recharts also picks up the id
-            client-side via the inline <defs> below. */}
-        <svg
-          width={0}
-          height={0}
-          aria-hidden="true"
-          style={{ position: "absolute", pointerEvents: "none" }}
-          data-slot="chart-gradient-defs"
-        >
-          <ChartLinearGradient
-            id="chart-gradient-mood"
-            colorVar="--dracula-lavender"
-          />
-        </svg>
+        {/* v1.4.18 — gradient defs removed; clean line only. */}
         {isLoading ? (
           <div className="flex h-48 items-center justify-center">
             <Loader2 className="text-primary h-6 w-6 animate-spin" />
@@ -641,26 +625,6 @@ export function MoodChart({
                 data={chartDataWithCompare ?? chartData}
                 margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
               >
-                <defs>
-                  <linearGradient
-                    id="chart-gradient-mood-inline"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="0%"
-                      stopColor={COLOR_MAIN}
-                      stopOpacity={0.4}
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor={COLOR_MAIN}
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="hsl(var(--border))"
@@ -841,20 +805,7 @@ export function MoodChart({
                     );
                   }}
                 />
-                {/* v1.4.16 B1a — gradient-filled Area painted under
-                    the line. */}
-                <Area
-                  type="monotone"
-                  dataKey="score"
-                  stroke="transparent"
-                  fill={chartGradientFill("chart-gradient-mood-inline")}
-                  fillOpacity={1}
-                  isAnimationActive={animationsEnabled}
-                  animationDuration={animationsEnabled ? 600 : 0}
-                  animationEasing="ease-out"
-                  connectNulls
-                  legendType="none"
-                />
+                {/* v1.4.18 — gradient Area removed; clean line only. */}
                 <Line
                   type="monotone"
                   dataKey="score"

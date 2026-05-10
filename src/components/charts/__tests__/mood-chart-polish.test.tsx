@@ -2,14 +2,12 @@ import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 /**
- * v1.4.16 B1a — MoodChart Apple-Health-style polish contract.
+ * v1.4.18 — MoodChart clean-line revert (gradient + emoji rolled back).
  *
- * The mood chart picks up the same gradient-fill + animation polish
- * the rest of the dashboard charts get; the differentiator is per-
- * point emoji glyphs (a smiley, frown, etc.) instead of plain dots so
- * the user can scan a week at a glance — Apple's Health app uses the
- * same affordance for "Mindfulness Minutes" and similar mood-adjacent
- * surfaces.
+ * Marc rejected B1a's coloured area fill below the chart line and the
+ * smiley/emoji glyphs at every data point. The line stroke + Dracula
+ * tokens stay; the chart now paints a clean monotone line with simple
+ * Recharts dots.
  */
 
 const sampleMoodData = vi.hoisted(() => {
@@ -43,8 +41,8 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
-describe("<MoodChart> v1.4.16 B1a polish", () => {
-  it("emits the gradient defs sibling-SVG block", async () => {
+describe("<MoodChart> v1.4.18 clean-line revert", () => {
+  it("does NOT paint a gradient fill under the line", async () => {
     const { I18nProvider } = await import("@/lib/i18n/context");
     const { MoodChart } = await import("../mood-chart");
 
@@ -54,7 +52,8 @@ describe("<MoodChart> v1.4.16 B1a polish", () => {
       </I18nProvider>,
     );
 
-    expect(html).toContain('data-slot="chart-linear-gradient"');
-    expect(html).toContain('id="chart-gradient-mood"');
+    expect(html).not.toContain("data-slot=\"chart-linear-gradient\"");
+    expect(html).not.toContain("chart-gradient-mood");
+    expect(html).not.toContain("linearGradient");
   });
 });

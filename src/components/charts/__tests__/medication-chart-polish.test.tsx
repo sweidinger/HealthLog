@@ -2,12 +2,11 @@ import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 /**
- * v1.4.16 B1a — Medication compliance chart polish contract.
+ * v1.4.18 — Medication compliance chart clean-line revert.
  *
- * The medication chart already has 7-day-trend + target lines from A6;
- * this commit adds the rest of the v1.4.16 visual leap so the surface
- * matches BP/weight/pulse/mood: gradient fill, animated first render,
- * rich tooltip primitive.
+ * Rolls back B1a's gradient fill. The animation, target / threshold
+ * lines, rich tooltip, and 7-day trend chip stay (those weren't
+ * rejected).
  */
 
 const sampleData = vi.hoisted(() =>
@@ -26,8 +25,8 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ isAuthenticated: true, user: null, isLoading: false }),
 }));
 
-describe("<MedicationComplianceChart> v1.4.16 B1a polish", () => {
-  it("emits the gradient defs sibling-SVG block", async () => {
+describe("<MedicationComplianceChart> v1.4.18 clean-line revert", () => {
+  it("does NOT paint a gradient fill under the line", async () => {
     const { I18nProvider } = await import("@/lib/i18n/context");
     const { MedicationComplianceChart } = await import(
       "../medication-compliance-chart"
@@ -39,7 +38,8 @@ describe("<MedicationComplianceChart> v1.4.16 B1a polish", () => {
       </I18nProvider>,
     );
 
-    expect(html).toContain('data-slot="chart-linear-gradient"');
-    expect(html).toContain('id="chart-gradient-medication"');
+    expect(html).not.toContain("data-slot=\"chart-linear-gradient\"");
+    expect(html).not.toContain("chart-gradient-medication");
+    expect(html).not.toContain("linearGradient");
   });
 });
