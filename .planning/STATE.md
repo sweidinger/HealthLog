@@ -81,16 +81,23 @@ ships behind a feature flag and unlocks independently.
 
 ### B1 — Hero strip + Daily Briefing + Suggested-prompts (~3-5 days)
 
-- [ ] Replace `<InsightsPageHero>` with new hero strip (greeting,
-      3 micro-stat tiles, AI Coach entry block, Daily Briefing card)
-- [ ] New `src/components/insights/{hero-strip,daily-briefing,
+- [x] Replace `<InsightsPageHero>` with new hero strip (greeting,
+      action row + suggested-prompt strip; Daily Briefing card mounts
+      full-width below the hero)
+- [x] New `src/components/insights/{hero-strip,daily-briefing,
       suggested-prompts}.tsx`
-- [ ] Extend `aiInsightResponseSchema` with `dailyBriefing`
+- [x] Extend `aiInsightResponseSchema` with `dailyBriefing`
       (`paragraph`, `keyFindings[]`)
-- [ ] PROMPT_VERSION bump 4.19.0 → 4.20.0
-- [ ] Apple Health gated tiles render "Connect Apple Health (iOS app)"
-      placeholder until v1.5 ships
-- Detailed report: `.planning/phase-B1-report.md`
+- [x] PROMPT_VERSION bump 4.19.0 → 4.20.0
+- [~] Apple Health gated tiles — descoped per `phase-D-v1419-product-
+      lead-review.md` decision. The 4-vitals tile row from the artboard
+      uses BP / Weight / Pulse / Mood (all data already in the app);
+      HRV / Sleep / Resting-HR tiles defer to v1.5 / iOS app. The B1
+      tile row itself (Vitals at-a-glance) is deferred to a later
+      B-phase since it duplicates the per-section status cards below
+      — see B1 report for the rationale.
+- Detailed report: `.planning/phase-B1-v1420-report.md` (the older
+  `phase-B1-report.md` is from the v1.4.18 achievements marathon)
 
 ### B2 — AI Coach panel + streaming chat + persistence (~5-7 days)
 
