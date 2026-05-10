@@ -3,10 +3,10 @@ import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
 import { extractFeatures } from "@/lib/insights/features";
 import {
-  getInsightsSystemPrompt,
   buildUserPrompt,
   type ComparisonSnapshot,
 } from "@/lib/insights/prompt";
+import { getStrictInsightsSystemPrompt } from "@/lib/ai/prompts/insight-generator";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import {
   resolveDashboardLayout,
@@ -281,7 +281,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
       userId,
       providers: chain,
       params: {
-        systemPrompt: getInsightsSystemPrompt(locale),
+        // The strict prompt (PROMPT_VERSION 4.20.x) carries GROUND RULE 8
+        // — emit a top-level `dailyBriefing` block when the snapshot has
+        // analysable signal — plus the trendAnnotations / weeklyReport /
+        // storyboardAnnotations rules. The legacy `getInsightsSystemPrompt`
+        // returned the v1.4.5 `{changed, stable, drivers, …}` shape and
+        // never asked the model for dailyBriefing, so the hero strip's
+        // "Re-run analysis" button kept producing a payload with no
+        // briefing block (Issue 1, v1.4.20 post-deploy). The route already
+        // tolerates the strict shape via `insightResultSchema.safeParse`'s
+        // soft fallback to `parsed` and `passthrough()` on the strict
+        // schema, so switching the prompt does not break legacy callers.
+        systemPrompt: getStrictInsightsSystemPrompt(locale),
         userPrompt,
         temperature: 0.3,
         maxTokens: 1500,
