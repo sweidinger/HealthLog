@@ -278,6 +278,18 @@ export async function buildCoachSnapshot(
   const wantsPulse = sources.has("pulse");
   const wantsMood = sources.has("mood");
   const wantsCompliance = sources.has("compliance");
+  // v1.4.23 — additive Apple Health sources. The default scope leaves
+  // them off, so non-iOS accounts never pay the SQL `WHERE type IN`
+  // overhead. iOS callers explicitly include them in `scope.sources`.
+  const wantsHrv = sources.has("hrv");
+  const wantsSleep = sources.has("sleep");
+  const wantsRestingHr = sources.has("resting_hr");
+  const wantsSteps = sources.has("steps");
+  const wantsActiveEnergy = sources.has("active_energy");
+  const wantsFlights = sources.has("flights");
+  const wantsDistance = sources.has("distance");
+  const wantsVo2Max = sources.has("vo2_max");
+  const wantsBodyTemp = sources.has("body_temp");
 
   // Single fetch for all measurement types — Prisma's filter pushes
   // the type list into one SQL `WHERE type IN (…)` so we don't pay
@@ -286,6 +298,15 @@ export async function buildCoachSnapshot(
   if (wantsBp) wantedTypes.push("BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA");
   if (wantsWeight) wantedTypes.push("WEIGHT");
   if (wantsPulse) wantedTypes.push("PULSE");
+  if (wantsHrv) wantedTypes.push("HEART_RATE_VARIABILITY");
+  if (wantsSleep) wantedTypes.push("SLEEP_DURATION");
+  if (wantsRestingHr) wantedTypes.push("RESTING_HEART_RATE");
+  if (wantsSteps) wantedTypes.push("ACTIVITY_STEPS");
+  if (wantsActiveEnergy) wantedTypes.push("ACTIVE_ENERGY_BURNED");
+  if (wantsFlights) wantedTypes.push("FLIGHTS_CLIMBED");
+  if (wantsDistance) wantedTypes.push("WALKING_RUNNING_DISTANCE");
+  if (wantsVo2Max) wantedTypes.push("VO2_MAX");
+  if (wantsBodyTemp) wantedTypes.push("BODY_TEMPERATURE");
 
   const measurementRows =
     wantedTypes.length > 0
@@ -445,6 +466,51 @@ export async function buildCoachSnapshot(
       metrics.add("compliance");
       counts.compliance = intakeRows.length;
     }
+  }
+
+  // ── v1.4.23 Apple Health additive blocks ─────────────────────────
+  //
+  // Each new HealthKit-derived metric ships as a timeline-only block
+  // (recent day rows + older weekly buckets). The aggregate features
+  // pipeline doesn't carry them yet — that's a v1.5 follow-up — but
+  // the timeline alone is enough for the Coach to ground "your HRV
+  // last Tuesday was X" replies in real numbers without inventing a
+  // baseline. The block is omitted entirely when the user has no rows
+  // for that metric, so accounts without iOS data never see a void
+  // section in the prompt.
+  type AppleHealthMetric = Exclude<
+    CoachProvenance["metrics"][number],
+    "general" | "bp" | "weight" | "pulse" | "mood" | "compliance"
+  >;
+  type AppleHealthBlock = {
+    metric: AppleHealthMetric;
+    snapshotKey: string;
+    type: string;
+    enabled: boolean;
+  };
+  const appleHealthBlocks: AppleHealthBlock[] = [
+    { metric: "hrv", snapshotKey: "heartRateVariability", type: "HEART_RATE_VARIABILITY", enabled: wantsHrv },
+    { metric: "sleep", snapshotKey: "sleep", type: "SLEEP_DURATION", enabled: wantsSleep },
+    { metric: "resting_hr", snapshotKey: "restingHeartRate", type: "RESTING_HEART_RATE", enabled: wantsRestingHr },
+    { metric: "steps", snapshotKey: "steps", type: "ACTIVITY_STEPS", enabled: wantsSteps },
+    { metric: "active_energy", snapshotKey: "activeEnergy", type: "ACTIVE_ENERGY_BURNED", enabled: wantsActiveEnergy },
+    { metric: "flights", snapshotKey: "flightsClimbed", type: "FLIGHTS_CLIMBED", enabled: wantsFlights },
+    { metric: "distance", snapshotKey: "walkingRunningDistance", type: "WALKING_RUNNING_DISTANCE", enabled: wantsDistance },
+    { metric: "vo2_max", snapshotKey: "vo2Max", type: "VO2_MAX", enabled: wantsVo2Max },
+    { metric: "body_temp", snapshotKey: "bodyTemperature", type: "BODY_TEMPERATURE", enabled: wantsBodyTemp },
+  ];
+  for (const block of appleHealthBlocks) {
+    if (!block.enabled) continue;
+    const rows = byType(block.type);
+    if (rows.length === 0) continue;
+    snapshot[block.snapshotKey] = {
+      timeline: {
+        recent: buildDailyValueRows(rows, recentCutoff),
+        weekly: bucketWeekly(rows.filter((r) => r.measuredAt < recentCutoff)),
+      },
+    };
+    metrics.add(block.metric);
+    counts[block.metric] = rows.length;
   }
 
   if (Object.keys(snapshot).length === 0) {

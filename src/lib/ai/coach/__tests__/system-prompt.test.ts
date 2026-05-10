@@ -14,9 +14,12 @@ import { getCoachSystemPrompt } from "../system-prompt";
  *   3. The few-shot tone-calibration `<example>` pairs are baked into
  *      the prompt body (per the W1b research output).
  */
-describe("PROMPT_VERSION (v1.4.22 Coach rewrite)", () => {
-  it("matches the 4.22.x train", () => {
-    expect(PROMPT_VERSION).toMatch(/^4\.22\.\d+$/);
+describe("PROMPT_VERSION (v1.4.23 Coach + Apple Health extension)", () => {
+  it("matches the 4.23.x train", () => {
+    // v1.4.23 ratcheted the prompt to add GROUND RULE 12 (Apple Health
+    // optional categories). Future patches stay on 4.23.x until a
+    // behavioural change ships.
+    expect(PROMPT_VERSION).toMatch(/^4\.23\.\d+$/);
   });
 });
 

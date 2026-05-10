@@ -50,11 +50,32 @@ export const coachScopeSourceSchema = z.enum([
   "pulse",
   "mood",
   "compliance",
+  // ── v1.4.23 Apple Health additive ──
+  // Optional scope toggles for the new HealthKit metrics. Web-only
+  // accounts never carry data for these — `buildCoachSnapshot()` only
+  // emits the matching block when Apple-Health rows exist.
+  "hrv",
+  "sleep",
+  "resting_hr",
+  "steps",
+  "active_energy",
+  "flights",
+  "distance",
+  "vo2_max",
+  "body_temp",
 ]);
 
 export const coachScopeSchema = z.object({
-  /** Which sources the snapshot may include. Empty array → no metrics. */
-  sources: z.array(coachScopeSourceSchema).max(5).optional(),
+  /**
+   * Which sources the snapshot may include. Empty array → no metrics.
+   *
+   * v1.4.23 — cap raised from 5 to 14 to admit the Apple Health
+   * additions. The default-source list (`buildCoachSnapshot.DEFAULT_SOURCES`)
+   * still seeds 5 to keep the prompt budget tight for accounts without
+   * Apple Health data; iOS clients pass the extended set when they
+   * have HealthKit-derived rows.
+   */
+  sources: z.array(coachScopeSourceSchema).max(14).optional(),
   /** Window the day-level timeline covers. Defaults to last30days. */
   window: coachScopeWindowSchema.optional(),
 });
@@ -128,16 +149,54 @@ export interface CoachProvenance {
   /**
    * Metric topics referenced. Stable contract keys — translated by the
    * UI, never by the server.
+   *
+   * v1.4.23 — extended with the seven Apple Health categories landed in
+   * Wave 2 (HRV, sleep, resting HR, steps, active energy, flights,
+   * distance, VO2 max, body temp). Web-only accounts never see those
+   * values; the prompt's GROUND RULE 12 tells the model to treat the
+   * tokens as additive rather than required.
    */
   metrics: ReadonlyArray<
-    "bp" | "weight" | "pulse" | "mood" | "compliance" | "general"
+    | "bp"
+    | "weight"
+    | "pulse"
+    | "mood"
+    | "compliance"
+    | "general"
+    // ── v1.4.23 Apple Health additive ──
+    | "hrv"
+    | "sleep"
+    | "resting_hr"
+    | "steps"
+    | "active_energy"
+    | "flights"
+    | "distance"
+    | "vo2_max"
+    | "body_temp"
   >;
   /**
    * Sample-count summary per metric — opaque labels, no raw timestamps
    * or values. Optional; absent when the snapshot was empty.
    */
   counts?: Partial<
-    Record<"bp" | "weight" | "pulse" | "mood" | "compliance", number>
+    Record<
+      | "bp"
+      | "weight"
+      | "pulse"
+      | "mood"
+      | "compliance"
+      // ── v1.4.23 Apple Health additive ──
+      | "hrv"
+      | "sleep"
+      | "resting_hr"
+      | "steps"
+      | "active_energy"
+      | "flights"
+      | "distance"
+      | "vo2_max"
+      | "body_temp",
+      number
+    >
   >;
   /**
    * v1.4.22 — load-bearing numbers the Coach drew on for this turn,

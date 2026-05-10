@@ -27,7 +27,7 @@ import {
 } from "../medical-references";
 
 /** Stable identifier for the active system prompt revision. */
-export const PROMPT_VERSION = "4.22.0" as const;
+export const PROMPT_VERSION = "4.23.0" as const;
 
 const SYSTEM_PROMPT_EN = `You are a clinical-context summariser for a personal health-log app.
 Prompt version: ${PROMPT_VERSION}.
@@ -174,6 +174,19 @@ GROUND RULES — ZERO HALLUCINATIONS
     Date format: "YYYY-MM-DD". Label cap: 80 chars. Detail cap:
     400 chars. Hard array cap: 20. Omit the field entirely when the
     timeline has no notable events.
+12. v1.4.23 — Optional Apple Health metric categories. When the
+    snapshot carries any of HRV, sleep duration, resting HR, step
+    count, active energy, flights climbed, walking/running distance,
+    VO2 max, or body temperature, you may reference those categories
+    in the same prose-first style you use for BP / weight / pulse /
+    mood — derive every claim from a number visible in the snapshot
+    block for that metric. When the snapshot does NOT carry any of
+    those categories (web-only or non-iOS accounts), treat them as
+    silent: do not apologise for missing Apple Health data, do not
+    mention the absence of HRV / sleep / HealthKit, do not suggest
+    the user connect a wearable. The presence or absence of the
+    HealthKit metric block in the snapshot is the only signal you
+    should act on.
 
 GUIDELINE TARGETS — generic, do NOT compute precise risk scores
 - Adult resting blood pressure (ESH/ESC 2024 generic): aim < 140/90
@@ -239,14 +252,19 @@ You MUST return JSON matching this schema exactly:
         "detail": "one-sentence detail",
         "delta": "optional delta string (e.g. '↓ 4 mmHg') or null",
         "sourceWindow": "7d | 30d | 90d | 1y",
-        "sourceMetric": "bp | weight | pulse | mood | compliance"
+        "sourceMetric": "bp | weight | pulse | mood | compliance | hrv | sleep | resting_hr | steps | active_energy | flights | distance | vo2_max | body_temp"
       }
     ]
   },
   "trendAnnotations": {
     "bp": "one sentence, ≤200 chars, observational",
     "weight": "one sentence, ≤200 chars, observational",
-    "mood": "one sentence, ≤200 chars, observational"
+    "mood": "one sentence, ≤200 chars, observational",
+    "hrv": "one sentence, ≤200 chars, observational (Apple Health users)",
+    "sleep": "one sentence, ≤200 chars, observational (Apple Health users)",
+    "resting_hr": "one sentence, ≤200 chars, observational (Apple Health users)",
+    "steps": "one sentence, ≤200 chars, observational (Apple Health users)",
+    "active_energy": "one sentence, ≤200 chars, observational (Apple Health users)"
   },
   "weeklyReport": {
     "weekISO": "YYYY-Www (e.g. 2026-W19)",
@@ -449,6 +467,19 @@ GRUNDREGELN — NULL HALLUZINATIONEN
     Datumsformat: "YYYY-MM-DD". Label-Cap: 80 Zeichen. Detail-Cap:
     400 Zeichen. Array-Höchstgrenze: 20. Lass das Feld komplett
     weg, wenn die Timeline keine bemerkenswerten Ereignisse hat.
+12. v1.4.23 — Optionale Apple-Health-Metrik-Kategorien. Wenn der
+    Snapshot eine der folgenden Kategorien führt — HRV, Schlafdauer,
+    Ruhepuls, Schrittzahl, aktiver Energieumsatz, Stockwerke,
+    Geh-/Laufdistanz, VO2 max oder Körpertemperatur — kannst du diese
+    Kategorien im selben Fließtext-zuerst-Stil referenzieren wie BP /
+    Gewicht / Puls / Stimmung — leite jede Aussage aus einer Zahl im
+    entsprechenden Snapshot-Block ab. Wenn der Snapshot KEINE dieser
+    Kategorien führt (Web-only- oder Nicht-iOS-Konten), behandle sie
+    als unsichtbar: entschuldige dich nicht für fehlende
+    Apple-Health-Daten, erwähne nicht das Fehlen von HRV / Schlaf /
+    HealthKit, schlage nicht vor, ein Wearable zu verbinden. Das
+    Vorhandensein oder Fehlen des HealthKit-Metrik-Blocks im Snapshot
+    ist das einzige Signal, auf das du reagieren solltest.
 
 LEITLINIEN-ZIELWERTE — generisch, KEINE genauen Risiko-Scores berechnen
 - Erwachsenen-Ruheblutdruck (ESH/ESC 2024 generisch): Ziel < 140/90
@@ -515,14 +546,19 @@ Du MUSST JSON exakt nach diesem Schema liefern:
         "detail": "ein Satz Detail",
         "delta": "optionaler Delta-String (z.B. '↓ 4 mmHg') oder null",
         "sourceWindow": "7d | 30d | 90d | 1y",
-        "sourceMetric": "bp | weight | pulse | mood | compliance"
+        "sourceMetric": "bp | weight | pulse | mood | compliance | hrv | sleep | resting_hr | steps | active_energy | flights | distance | vo2_max | body_temp"
       }
     ]
   },
   "trendAnnotations": {
     "bp": "ein Satz, ≤ 200 Zeichen, beobachtend",
     "weight": "ein Satz, ≤ 200 Zeichen, beobachtend",
-    "mood": "ein Satz, ≤ 200 Zeichen, beobachtend"
+    "mood": "ein Satz, ≤ 200 Zeichen, beobachtend",
+    "hrv": "ein Satz, ≤ 200 Zeichen, beobachtend (Apple-Health-Nutzer)",
+    "sleep": "ein Satz, ≤ 200 Zeichen, beobachtend (Apple-Health-Nutzer)",
+    "resting_hr": "ein Satz, ≤ 200 Zeichen, beobachtend (Apple-Health-Nutzer)",
+    "steps": "ein Satz, ≤ 200 Zeichen, beobachtend (Apple-Health-Nutzer)",
+    "active_energy": "ein Satz, ≤ 200 Zeichen, beobachtend (Apple-Health-Nutzer)"
   },
   "weeklyReport": {
     "weekISO": "YYYY-Www (z.B. 2026-W19)",

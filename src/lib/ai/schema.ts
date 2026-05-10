@@ -256,8 +256,33 @@ export const dailyBriefingKeyFindingSchema = z.object({
   delta: z.string().nullable(),
   /** Window the finding was derived from — same enum as elsewhere. */
   sourceWindow: z.enum(["7d", "30d", "90d", "1y"]).default("30d"),
-  /** Metric the finding was drawn from. */
-  sourceMetric: z.enum(["bp", "weight", "pulse", "mood", "compliance"]),
+  /**
+   * Metric the finding was drawn from.
+   *
+   * v1.4.23 — extended with the seven Apple Health categories landed in
+   * Wave 2 so the daily-briefing surface can cite HRV / sleep / resting
+   * HR / steps / active energy / flights / distance findings on iOS-
+   * connected accounts. Web-only accounts never see those metrics in
+   * the snapshot, so the prompt is told (rule 12) to treat the new
+   * tokens as optional.
+   */
+  sourceMetric: z.enum([
+    "bp",
+    "weight",
+    "pulse",
+    "mood",
+    "compliance",
+    // ── v1.4.23 Apple Health additive ──
+    "hrv",
+    "sleep",
+    "resting_hr",
+    "steps",
+    "active_energy",
+    "flights",
+    "distance",
+    "vo2_max",
+    "body_temp",
+  ]),
 });
 
 export type DailyBriefingKeyFinding = z.infer<
@@ -310,6 +335,35 @@ export const trendAnnotationsSchema = z.object({
     .string()
     .min(1, "trendAnnotations.mood required when emitted")
     .max(200, "trendAnnotations.mood must be <= 200 chars")
+    .optional(),
+  // ── v1.4.23 Apple Health additive ──
+  // Each annotation stays one sentence, observational, ≤ 200 chars
+  // (mirrors the bp/weight/mood contract). The prompt instructs the
+  // model to omit any metric the snapshot doesn't carry.
+  hrv: z
+    .string()
+    .min(1, "trendAnnotations.hrv required when emitted")
+    .max(200, "trendAnnotations.hrv must be <= 200 chars")
+    .optional(),
+  sleep: z
+    .string()
+    .min(1, "trendAnnotations.sleep required when emitted")
+    .max(200, "trendAnnotations.sleep must be <= 200 chars")
+    .optional(),
+  resting_hr: z
+    .string()
+    .min(1, "trendAnnotations.resting_hr required when emitted")
+    .max(200, "trendAnnotations.resting_hr must be <= 200 chars")
+    .optional(),
+  steps: z
+    .string()
+    .min(1, "trendAnnotations.steps required when emitted")
+    .max(200, "trendAnnotations.steps must be <= 200 chars")
+    .optional(),
+  active_energy: z
+    .string()
+    .min(1, "trendAnnotations.active_energy required when emitted")
+    .max(200, "trendAnnotations.active_energy must be <= 200 chars")
     .optional(),
 });
 

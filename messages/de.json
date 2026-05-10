@@ -884,7 +884,16 @@
         "pulse": "Puls",
         "mood": "Stimmung",
         "compliance": "Einnahmetreue",
-        "general": "Allgemein"
+        "general": "Allgemein",
+        "hrv": "HRV",
+        "sleep": "Schlaf",
+        "resting_hr": "Ruhepuls",
+        "steps": "Schritte",
+        "active_energy": "Aktive Energie",
+        "flights": "Stockwerke",
+        "distance": "Strecke",
+        "vo2_max": "VO₂ max",
+        "body_temp": "Körpertemperatur"
       },
       "window": {
         "last7days": "letzte 7 Tage",

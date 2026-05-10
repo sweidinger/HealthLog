@@ -884,7 +884,16 @@
         "pulse": "Pulse",
         "mood": "Mood",
         "compliance": "Compliance",
-        "general": "General"
+        "general": "General",
+        "hrv": "HRV",
+        "sleep": "Sleep",
+        "resting_hr": "Resting HR",
+        "steps": "Steps",
+        "active_energy": "Active energy",
+        "flights": "Flights climbed",
+        "distance": "Distance",
+        "vo2_max": "VO₂ max",
+        "body_temp": "Body temperature"
       },
       "window": {
         "last7days": "last 7 days",
