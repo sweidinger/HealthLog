@@ -3,6 +3,185 @@
 Carry-over from v1.4.20 marathon foundation phases. Pick from this list
 when v1.4.21 starts.
 
+## Phase D — v1.4.20 reconcile carry-over
+
+Items raised by the six-reviewer Phase-D pass that were either too
+large for an inline reconcile or otherwise judgment-call-deferred.
+HIGH and CRITICAL items all landed inline (fix counts in
+`.planning/phase-D-v1420-reconcile-report.md`).
+
+### Code review (MED + LOW carry-over)
+
+- **Streaming auto-scroll deps brittleness** (Code-MED-01). MessageThread
+  effect lists `[messages.length, streaming?.content]`; a "" → "" flip
+  on a fresh stream won't fire. Add `streaming?.inProgress` or a turn
+  counter to the dep list.
+- **`bandFromInterval` "high" label on near-zero r** (Code-MED-02).
+  A tight CI of `[-0.05, 0.10]` reads as "high confidence" alongside
+  near-zero r. Demote to moderate when CI straddles zero, or rename
+  the chip to "tight CI" / "wide CI".
+- **Pearson p-value normal approximation** (Code-MED-03). At df=12 the
+  normal approx can put true p≈0.04 at p≈0.025. Either pull in a tiny
+  incomplete-beta implementation (~30 LOC) or raise the surfacing gate
+  to df ≥ 20.
+- **`weightTrendAlignment` ±2 kg target band** (Code-MED-04). Reuse
+  `buildWeightRangeFromHeight()` so the score awards 100 across the
+  user's actual band, not an arbitrary ±2 kg.
+- **`bpInTargetPct` held constant for "vs last week" delta** (Code-MED-05).
+  Recompute the prior-snapshot BP rate or relabel the delta line so the
+  user knows BP is held constant in the comparison.
+- **WeeklyReportView print spinner gate** (Code-MED-06). The 300 ms
+  print timer resets on every advisor.isLoading flip. Pin the timer
+  via a ref so a second-render isLoading change doesn't restart it.
+- **`<TrendsRow>` confidence prop dead** (Code-MED-07). Either wire
+  `analytics.correlations` confidence into the page invocation or drop
+  the prop until B3.x lands the wiring.
+- **`provenanceFromJson` unsafe `windows` filter cast** (Code-MED-08).
+  Validate against the `WINDOW_KEYS` allow-list shared with
+  `source-chips.tsx` so a poisoned legacy row can't surface as
+  `t(undefined)`.
+- **Storyboard category fallback paints purple** (Code-MED-09). Run
+  `advisor.payload.insights.storyboardAnnotations` through
+  `storyboardAnnotationsSchema.safeParse` — same shape as
+  `dailyBriefing` and `trendAnnotations` already use.
+- **`<HeroStrip>` greeting-key + relativetime per-render `Date()`**
+  (Code-LOW-01). Memoise via `useMemo` so a chatty parent doesn't
+  re-allocate on every TanStack tick.
+- **Nested `<Sheet>` portals on mobile rail trays** (Code-LOW-03).
+  Promote the trays to siblings of the outer drawer to avoid the
+  dom-focus-trap fight on iOS Safari.
+- **bpInTargetRate-constant test gap** (Code-LOW-05). Add a test that
+  holds BP constant across both snapshots and verifies the delta
+  reflects only the moving pillars.
+- **`streamRefusal` bypasses budget meter** (Code-LOW-06). Bump
+  `messageCount` (with `tokens: 0`) for refusals so the surface meter
+  is honest, or rate-limit the refusal path separately.
+
+### Security review (MED + LOW carry-over)
+
+- **Refusal path persists messages without budget accounting**
+  (Sec-M-2). Either call `checkRateLimit()` at the top of the POST
+  handler before refusal scanning, or bump `messageCount` inside
+  `streamRefusal()`. Same broader gap covered by Senior-MED-3.
+- **Refusal patterns miss common injection synonyms** (Sec-M-3).
+  Extend `INJECTION_PATTERNS` with `(forget|abandon|drop|skip|toss|
+  bypass|circumvent)` paired with `(instructions?|rules?|prompt|
+  guidelines?|directives?|system\s+message)`, plus a "what
+  (were|are)\s+your.*(instructions|prompt|rules)" probe. Add a
+  zero-width-stripping normalisation pass before regex.
+- **`assistantMessage` persisted before `recordSpend()`** (Sec-M-4).
+  Wrap the `appendMessage(assistant)` + `recordSpend()` pair in a
+  Prisma `$transaction` so the spend ledger stays atomically
+  consistent with the persisted reply.
+- **`coachChatRequestSchema.conversationId` accepts any string up to
+  64 chars** (Sec-L-1). Tighten to `.regex(/^c[a-z0-9]{24}$/)` or a
+  generic `[A-Za-z0-9_-]{8,64}` regex.
+- **Refusal-injection rail pollution** (Sec-L-3). Either skip the
+  `updatedAt` bump for refusal appends or hide refusal-only
+  conversations in the rail UI.
+- **Smoke-test `request.clone()` against Next.js 16** (Sec-U-1).
+  Add a Vitest case posting a new-conversation body and asserting the
+  persisted user message matches the input. (Largely moot now that
+  the chat route no longer wraps in withIdempotency, but still useful
+  paranoia.)
+- **Race window on `enforceBudget` between read + write** (Sec-U-2).
+  Acceptable in practice (cap is per-day, not per-second). Annotate
+  the race window in the route header so the next maintainer knows.
+
+### Design review (MED + LOW carry-over)
+
+- **Hero strip greeting clock is wall-clock, not Berlin** (Design-M1).
+  Pass the current Berlin hour through `Intl.DateTimeFormat("en-CA",
+  { timeZone: "Europe/Berlin", hour: "numeric" })` so a traveller
+  sees the Berlin bucket the rest of the UI uses.
+- **Health Score panel mobile order inversion** (Design-M3). On `<lg`
+  promote the Health Score panel between the meta row and the weekly
+  banner, or render a compact "score chip" inline with the meta row.
+- **Coach drawer focus trap when both rail trays open** (Design-M5).
+  Set the rail-tray Portal container to the parent SheetContent's ref,
+  or use a `<Drawer>`-style stacked-modals primitive (`vaul` is
+  already in deps).
+- **Tone-bar visual clip at rounded corner** (Design-M6). Inset by
+  `left-1` / `top-2 bottom-2`, or add `overflow-hidden` to the parent
+  card, so the bar's straight left edge doesn't poke into the card's
+  rounded corner.
+- **Source chip "n=N" reads as engineering output** (Design-M8). Use
+  `{count} samples` / `{count} Werte`, or drop the count on mobile
+  and surface it in a tooltip.
+- **Hero "personal-baseline" copy** (Design-L1). Either drop the
+  generic line or surface the actual sample size ("From 187 readings
+  over 90 days").
+- **Health Score sub-bars paint at composite band** (Design-L2). Each
+  sub-bar should derive its own band per component for visual
+  fidelity.
+- **Storyboard 24-char truncation has no ellipsis** (Design-L5). Add
+  `…` suffix when `annotation.truncatedLabel` is shorter than the
+  source label.
+- **Coach composer keyboard-hint locale drift** (Design-L6).
+  Reconsider the German `Umschalt+Enter` translation — the rest of
+  the app uses `Shift+Enter` literal even in German.
+
+### Senior-dev review (HIGH + MED + LOW carry-over)
+
+- **Duplicated maths layer (Pearson + linear regression)** (Sr-HIGH-2).
+  Consolidate into `src/lib/analytics/correlation.ts` (singular) +
+  `src/lib/analytics/regression.ts`. Add p-value + CI as optional
+  outputs on the existing `pearsonCorrelation()`. Migrate
+  `correlateBpCompliance` / `correlateMoodPulse` /
+  `correlateWeightWeekday` to import from analytics. The
+  hypothesis-specific runners stay in `lib/insights/`.
+- **`<CoachDrawer key={prefill}>` weaponises React keys for state
+  reset** (Sr-HIGH-4). Make `prefill` a fully-controlled prop on
+  `<CoachDrawer>`. Drop the `key=` re-mount. The drawer reads
+  prefill into the textarea's `value=` and notifies up via
+  `onPrefillConsumed` after submit.
+- **Coach tables not in `cascade-delete.test.ts`** (Sr-MED-1). Add
+  three `expect(...count(...)).toBe(0)` lines for `coachConversation`,
+  `coachMessage`, `coachUsage`. Five-line patch.
+- **`weeklyReport` + `storyboardAnnotations` lifted without
+  `safeParse`** (Sr-MED-2). Lift through `weeklyReportSchema.safeParse`
+  and `storyboardAnnotationsSchema.safeParse` in
+  `useInsightsAdvisorQuery`, the same way `dailyBriefing` and
+  `trendAnnotations` already do.
+- **No rate-limit on `/api/insights/chat`** (Sr-MED-3). Wrap
+  `handleChatRequest` in `enforceRateLimit({ key: \`coach.chat:\${userId}\`,
+  max: 30, windowMs: 60_000 })`.
+- **Fake streaming via `tokeniseForStreaming`** (Sr-MED-4). Wire the
+  provider runner to a true streaming variant with an `onToken`
+  callback. Unlocks "stop generating" as a real feature later.
+- **`medication_schedules.days_of_week` schema drift** (Sr-MED-5).
+  Either land the column with a backfill default or drop the field
+  from `schema.prisma`. v1.4.20 worked around it twice.
+- **`apiHandler`-vs-`withIdempotency` stacking** (Sr-MED-6). Largely
+  moot now that the chat route doesn't wrap in idempotency, but still
+  worth offering `withIdempotency(handler, { skipWhen?: (req) =>
+  boolean })` for the next caller that wants to opt out conditionally.
+- **`coach_usage` redundant index** (Sr-LOW-1). Drop the `@@index`
+  line — the `@@unique` already builds an index.
+- **`metricSourceJson` stored as `String`** (Sr-LOW-2). Migrate to
+  `Jsonb`. Cheap to fix while no consumers exist.
+- **Coach off-topic detector locale-mixed** (Sr-LOW-3). Tighten the
+  allow + deny lists with a `defaultAllow=false` bias. v1.5 work.
+- **`weeklyReport.weekISO` regex doesn't validate week 53/00**
+  (Sr-LOW-4). Tighten to `^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$`. The
+  route page is already strict.
+
+### Simplify review (apply-maybe carry-over)
+
+- **`<CoachDrawer>` slot props (`historyRail` / `sourcesRail` /
+  `composer`) are dead** (S-06). The only production caller never
+  passes these slots; `<CoachDrawerBody>` already exposes equivalent
+  test seams. Remove the props.
+- **`<CoachInput>` `inputId` prop never overridden** (S-07). Drop the
+  prop and inline the default id.
+- **`cloneForCheck` variable dead in chat POST handler** (S-08).
+  Largely moot now (the route no longer peeks at the body before
+  dispatching), but worth a quick re-read.
+- **`health-score-card.tsx` delta-arrow chooser** (S-09). Compress
+  three sibling `&&` blocks into a `deltaIcon` lookup. Borderline —
+  judgement call for the file's owner.
+
+
 ## F5 — Best-practice repo audit (deferred MED + LOW)
 
 - **README badges** (LOW). Add a small badge row: build status (GitHub

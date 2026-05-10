@@ -190,13 +190,13 @@ Test files 217 → 237. typecheck clean every phase; lint
 
 ## Wave D — Multi-agent QA + Product-Lead review
 
-- [ ] code-reviewer
-- [ ] security review
-- [ ] design / UX review
-- [ ] senior-dev review
-- [ ] simplify
-- [ ] Product Lead — v1.5 redesign plan
-- [ ] Reconcile applied CRITICAL + HIGH; defer MED/LOW to v1.4.21
+- [x] code-reviewer (`.planning/phase-D-v1420-code-review.md`)
+- [x] security review (`.planning/phase-D-v1420-security-review.md`)
+- [x] design / UX review (`.planning/phase-D-v1420-design-review.md`)
+- [x] senior-dev review (`.planning/phase-D-v1420-senior-dev-review.md`)
+- [x] simplify (`.planning/phase-D-v1420-simplify-review.md`)
+- [x] Product Lead — v1.5 redesign plan (`.planning/phase-D-v1420-product-lead-review.md`)
+- [x] Reconcile applied CRITICAL + HIGH (13 of 13) + 6 MED inline; 22 MED + 16 LOW + 4 simplify-apply-maybe deferred to `.planning/v1421-backlog.md` "Phase D reconcile carry-over" section
 - Detailed report: `.planning/phase-D-v1420-reconcile-report.md`
 
 ## Phase E — Release v1.4.20
@@ -266,6 +266,22 @@ Test files 217 → 237. typecheck clean every phase; lint
   six new test files: `use-coach`, `source-chips`, `message-thread`,
   `coach-input`, `sources-rail`, `history-rail`). Integration count
   unchanged at 78. typecheck + lint clean (12 baseline warnings).
+
+## Status block — Wave D reconcile (v1.4.20)
+
+- 2026-05-10T18:15+02:00 — Wave D reconcile complete. Six reviewers
+  filed 0 CRIT · 12 HIGH · 28 MED · 22 LOW + 5 simplify-apply-yes +
+  4 simplify-apply-maybe + 3 simplify-apply-no across the code,
+  security, design, senior-dev, simplify, and product-lead lenses.
+  All 12 HIGH items + the design pushback on the disabled weekly-
+  report button + 6 MED items + every simplify-apply-yes item landed
+  inline across 11 atomic commits on `develop` (`e632e26` →
+  `31fbf98`). 22 MED + 16 LOW + 4 simplify-apply-maybe deferred to
+  `.planning/v1421-backlog.md` under "Phase D — v1.4.20 reconcile
+  carry-over". Test counts unchanged (2026 unit / 81 integration);
+  typecheck + lint clean; one observed integration-test flake on
+  `coach-chat.test.ts` "round-trips" (not introduced by Phase-D —
+  consistent re-runs pass). Phase E (release v1.4.20) unblocked.
 
 ## Status block — B5 (v1.4.20)
 
