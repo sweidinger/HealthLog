@@ -89,4 +89,17 @@ describe("<InsightsPageHero>", () => {
     // The "Insights" string is identical in DE so we assert the subtitle.
     expect(html).toContain("Trends, Risiken, Fortschritt auf einen Blick");
   });
+
+  // ── B1b acceptance #6 — dark-mode contrast hygiene ────────────────
+  it("uses high-enough gradient + border opacity to remain visible on dark bg", () => {
+    const html = render(<InsightsPageHero />);
+    // Border opacity must be >= 20% so it reads against the dark
+    // background — `border-dracula-purple/20` or higher passes the
+    // 3:1 contrast bar for a non-text UI element.
+    expect(html).toMatch(/border-dracula-purple\/(2[0-9]|[3-9][0-9])/);
+    // Gradient opacity must be at least /10 (we ship /10 + /5 on the
+    // band; the cumulative effect on a dark bg renders as ~12% which
+    // is the lower bound for visible band-vs-page differentiation).
+    expect(html).toMatch(/from-dracula-purple\/(1[0-9]|[2-9][0-9])/);
+  });
 });

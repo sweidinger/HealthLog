@@ -78,7 +78,7 @@ export function InsightsPageHero({
   return (
     <div
       data-slot="insights-page-hero"
-      className="border-dracula-purple/20 from-dracula-purple/10 via-dracula-cyan/5 animate-insight-in relative overflow-hidden rounded-xl border bg-gradient-to-br to-transparent px-4 py-5 sm:px-6 sm:py-6"
+      className="border-dracula-purple/25 from-dracula-purple/15 via-dracula-cyan/8 animate-insight-in relative overflow-hidden rounded-xl border bg-gradient-to-br to-transparent px-4 py-5 sm:px-6 sm:py-6"
     >
       {/* Decorative sparkle glow — purely visual, kept inert for screen readers. */}
       <div
