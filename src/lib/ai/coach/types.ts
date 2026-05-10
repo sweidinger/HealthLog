@@ -1,0 +1,125 @@
+/**
+ * Type contracts shared between the Coach API route, the persistence
+ * helpers, and the (forthcoming) drawer UI.
+ *
+ * The wire format mirrors the chat-completion shape the OpenAI and
+ * Anthropic SDKs expect — `role` plus `content` — so the provider chain
+ * can pass messages through with minimal translation.
+ */
+import { z } from "zod/v4";
+
+/**
+ * Chat-message role. Stored as a free-form string column server-side
+ * (`coach_messages.role`) but constrained at the application layer so a
+ * malformed import cannot inject a `system` impersonation.
+ */
+export const coachMessageRoleSchema = z.enum(["user", "assistant"]);
+
+export type CoachMessageRole = z.infer<typeof coachMessageRoleSchema>;
+
+/**
+ * Inbound POST /api/insights/chat body.
+ *
+ * - `conversationId` optional; when absent a new conversation is
+ *   created with a title summarised from the user's first message.
+ * - `message` is the user's turn. Hard-cap 4 000 chars to keep prompt
+ *   budgets sane and to make the prompt-injection scanner cheap.
+ * - `prefill` is an optional first-turn nudge from the suggested-prompt
+ *   strip (B2b UI). Server treats it as informational only — the
+ *   user's `message` is the source of truth.
+ * - `locale` lets the route render the refusal copy in the user's
+ *   language without having to re-resolve it from cookies.
+ */
+export const coachChatRequestSchema = z.object({
+  conversationId: z.string().min(1).max(64).optional(),
+  message: z.string().min(1).max(4000),
+  prefill: z.string().max(2000).optional(),
+  locale: z.enum(["en", "de"]).optional(),
+});
+
+export type CoachChatRequest = z.infer<typeof coachChatRequestSchema>;
+
+/**
+ * SSE event shapes emitted by the streaming endpoint.
+ *
+ * The route writes one `data: <json>\n\n` frame per event. Clients
+ * dispatch on `type` and ignore unknown variants — additive evolution.
+ */
+export type CoachStreamEvent =
+  | { type: "token"; token: string }
+  | {
+      type: "provenance";
+      metricSource: CoachProvenance;
+    }
+  | { type: "done"; conversationId: string; messageId: string }
+  | { type: "error"; code: string; message: string };
+
+/**
+ * Provenance envelope attached to assistant messages.
+ *
+ * NOTE: labels only — never raw values. The frontend renders source
+ * chips (e.g. "based on last30days BP, n=12") from these fields. Raw
+ * numbers and PII stay inside `encryptedContent`.
+ */
+export interface CoachProvenance {
+  /**
+   * Time windows the assistant drew on. Same enum the strict insight
+   * schema uses elsewhere so the UI can pin a mini-chart to the chip.
+   */
+  windows: ReadonlyArray<"last7days" | "last30days" | "last90days" | "allTime">;
+  /**
+   * Metric topics referenced. Stable contract keys — translated by the
+   * UI, never by the server.
+   */
+  metrics: ReadonlyArray<
+    "bp" | "weight" | "pulse" | "mood" | "compliance" | "general"
+  >;
+  /**
+   * Sample-count summary per metric — opaque labels, no raw timestamps
+   * or values. Optional; absent when the snapshot was empty.
+   */
+  counts?: Partial<
+    Record<"bp" | "weight" | "pulse" | "mood" | "compliance", number>
+  >;
+}
+
+/**
+ * Lightweight DTO the conversation list endpoint returns.
+ * Decryption deliberately deferred — the rail only needs metadata.
+ */
+export interface CoachConversationDTO {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+}
+
+/**
+ * Full conversation DTO — every message decrypted in memory before
+ * the route serialises the response. Provenance is plain text on disk
+ * so it round-trips without a key.
+ */
+export interface CoachMessageDTO {
+  id: string;
+  role: CoachMessageRole;
+  content: string;
+  createdAt: string;
+  metricSource: CoachProvenance | null;
+  providerType: string | null;
+  promptVersion: string | null;
+}
+
+export interface CoachConversationDetailDTO extends CoachConversationDTO {
+  messages: CoachMessageDTO[];
+}
+
+/**
+ * Pagination cursor for the list endpoint. `nextCursor` is the id of
+ * the last conversation in the current page, or `null` when the caller
+ * has reached the end.
+ */
+export interface CoachConversationsPage {
+  conversations: CoachConversationDTO[];
+  nextCursor: string | null;
+}

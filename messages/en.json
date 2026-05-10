@@ -776,6 +776,12 @@
       "emptyAction": "Generate briefing",
       "loadingLabel": "Synthesising today's briefing"
     },
+    "coach": {
+      "refusalOutOfScope": "I can only help with the health metrics in your log — measurements, medications, mood, trends. I cannot answer questions outside that scope.",
+      "refusalInjection": "I noticed wording that tries to override my instructions. I am the HealthLog Coach and only summarise your own health data — please rephrase your question in those terms.",
+      "errorBudget": "You've reached today's Coach usage limit. The budget refreshes at midnight UTC.",
+      "errorProvider": "The Coach could not reach an AI provider just now. Please try again in a moment."
+    },
     "viewAll": "View all",
     "previewEmpty": "No recommendations yet.",
     "relativeJustNow": "just now",
