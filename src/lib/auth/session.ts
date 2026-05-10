@@ -29,7 +29,12 @@ export async function setOnboardingPendingCookie(
     cookieStore.set(ONBOARDING_COOKIE, "pending", {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      // v1.4.22 W5 reconcile (Sec-MED-1) — Strict (not Lax) because
+      // no cross-site redirect flow ever depends on this cookie. The
+      // sibling `healthlog_session` cookie stays Lax because the
+      // Withings OAuth callback arrives via top-level cross-site
+      // redirect; the onboarding hint has no equivalent flow.
+      sameSite: "strict",
       maxAge: SESSION_MAX_AGE_MS / 1000,
       path: "/",
     });
@@ -38,8 +43,18 @@ export async function setOnboardingPendingCookie(
   }
 }
 
+/**
+ * v1.4.22 W5 reconcile (Sr-H1) — `onboardingPending` is required
+ * (not optional) so issuing a session without anchoring the
+ * onboarding cookie is type-impossible. Every auth surface (login,
+ * passkey-verify, register, password-reset) must thread the user's
+ * `onboardingCompletedAt == null` value through. The onboarding
+ * surface itself flips the cookie via `setOnboardingPendingCookie`
+ * directly when the user hands in the form.
+ */
 export async function createSession(
   userId: string,
+  onboardingPending: boolean,
   ipAddress?: string | null,
   userAgent?: string | null,
 ): Promise<string> {
@@ -62,6 +77,11 @@ export async function createSession(
     maxAge: SESSION_MAX_AGE_MS / 1000,
     path: "/",
   });
+
+  // Anchor the onboarding cookie alongside the session cookie so a
+  // future auth surface added without remembering the helper can never
+  // reintroduce the dashboard flash.
+  await setOnboardingPendingCookie(onboardingPending);
 
   return session.id;
 }

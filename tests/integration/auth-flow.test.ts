@@ -57,7 +57,12 @@ describe("session lifecycle (real Postgres)", () => {
       data: { username: "session-test", email: "session@example.test" },
     });
 
-    const sessionId = await createSession(user.id, "127.0.0.1", "vitest/1.0");
+    const sessionId = await createSession(
+      user.id,
+      true,
+      "127.0.0.1",
+      "vitest/1.0",
+    );
 
     const row = await getPrismaClient().session.findUnique({
       where: { id: sessionId },
@@ -80,7 +85,7 @@ describe("session lifecycle (real Postgres)", () => {
       data: { username: "expired-session", email: "expired@example.test" },
     });
 
-    const sessionId = await createSession(user.id);
+    const sessionId = await createSession(user.id, false);
 
     // Force the row past its expiry — getSession must purge it.
     await getPrismaClient().session.update({
@@ -100,5 +105,44 @@ describe("session lifecycle (real Postgres)", () => {
   it("returns null when no session cookie is present", async () => {
     const { getSession } = await import("@/lib/auth/session");
     expect(await getSession()).toBeNull();
+  });
+
+  /**
+   * v1.4.22 W5 reconcile (Sr-H1) — `createSession` now anchors the
+   * `hl_onboarding` cookie itself so issuing a session without it is
+   * type-impossible. Pin the contract so a future auth surface added
+   * without the helper can never reintroduce the dashboard flash.
+   */
+  it("createSession sets the hl_onboarding cookie when onboardingPending=true", async () => {
+    const { createSession } = await import("@/lib/auth/session");
+    const user = await getPrismaClient().user.create({
+      data: { username: "onb-pending", email: "pending@example.test" },
+    });
+    await createSession(user.id, true);
+    expect(cookieJar.get("hl_onboarding")).toBe("pending");
+  });
+
+  it("createSession clears the hl_onboarding cookie when onboardingPending=false", async () => {
+    const { createSession } = await import("@/lib/auth/session");
+    const user = await getPrismaClient().user.create({
+      data: { username: "onb-done", email: "done@example.test" },
+    });
+    cookieJar.set("hl_onboarding", "pending"); // simulate stale value
+    await createSession(user.id, false);
+    expect(cookieJar.get("hl_onboarding")).toBeUndefined();
+  });
+
+  it("destroySession clears the hl_onboarding cookie alongside the session cookie", async () => {
+    const { createSession, destroySession } = await import(
+      "@/lib/auth/session"
+    );
+    const user = await getPrismaClient().user.create({
+      data: { username: "dest", email: "dest@example.test" },
+    });
+    await createSession(user.id, true);
+    expect(cookieJar.get("hl_onboarding")).toBe("pending");
+    await destroySession();
+    expect(cookieJar.get("hl_onboarding")).toBeUndefined();
+    expect(cookieJar.get("healthlog_session")).toBeUndefined();
   });
 });

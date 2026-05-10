@@ -16,11 +16,7 @@ import {
 import { checkRateLimit } from "@/lib/rate-limit";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
-import {
-  destroyAllSessions,
-  createSession,
-  setOnboardingPendingCookie,
-} from "@/lib/auth/session";
+import { destroyAllSessions, createSession } from "@/lib/auth/session";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 
 export const POST = apiHandler(async (request: NextRequest) => {
@@ -79,16 +75,16 @@ export const POST = apiHandler(async (request: NextRequest) => {
     data: { passwordHash: newHash },
   });
 
-  // Invalidate all existing sessions and create a fresh one
+  // Invalidate all existing sessions and create a fresh one.
+  // v1.4.22 W5 reconcile (Sr-H1) — `createSession` re-anchors the
+  // `hl_onboarding` cookie itself.
   await destroyAllSessions(user.id);
   await createSession(
     user.id,
+    user.onboardingCompletedAt == null,
     getClientIp(request),
     request.headers.get("user-agent"),
   );
-  // v1.4.22 C4 — re-anchor the onboarding cookie to the user's real
-  // status after the session rebuild.
-  await setOnboardingPendingCookie(user.onboardingCompletedAt == null);
 
   await auditLog("auth.password.change", {
     userId: user.id,

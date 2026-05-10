@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
 
-  // v1.4.22 C4 — keep the proxy-readable onboarding cookie in sync
-  // with the DB state on every /me roundtrip. Old sessions that
-  // predate the cookie pick it up on first dashboard load; the
-  // /onboarding/complete handler always wins on the cleared edge.
+  // v1.4.22 W5 reconcile (Sr-H1) — fall-back resync for legacy
+  // sessions that predate the cookie. New sessions anchor the cookie
+  // inside `createSession` itself, so this is no longer the primary
+  // write path; it just makes sure pre-v1.4.22 sessions get their
+  // cookie set on the first /me roundtrip after the upgrade.
   await setOnboardingPendingCookie(user.onboardingCompletedAt == null);
 
   annotate({ action: { name: "auth.me" } });

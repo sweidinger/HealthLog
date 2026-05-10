@@ -1,5 +1,5 @@
 import { verifyAuthentication } from "@/lib/auth/passkey";
-import { createSession, setOnboardingPendingCookie } from "@/lib/auth/session";
+import { createSession } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
 import {
   apiSuccess,
@@ -65,11 +65,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("User not found", 404);
   }
 
+  // v1.4.22 W5 reconcile (Sr-H1) — `createSession` anchors the
+  // `hl_onboarding` cookie itself; pass the user's onboarding state
+  // through so the proxy short-circuits the redirect before
+  // hydration.
   const ua = request.headers.get("user-agent");
-  await createSession(user.id, ip, ua);
-  // v1.4.22 C4 — mirror onboarding status into the proxy-readable cookie
-  // so the redirect short-circuits before the page hydrates.
-  await setOnboardingPendingCookie(user.onboardingCompletedAt == null);
+  await createSession(user.id, user.onboardingCompletedAt == null, ip, ua);
 
   await auditLog("auth.login.passkey", {
     userId: user.id,
