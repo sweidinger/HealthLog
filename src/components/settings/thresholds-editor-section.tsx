@@ -123,10 +123,17 @@ export function ThresholdsEditorSection({ id }: { id: string }) {
       id={id}
       className="bg-card border-border scroll-mt-28 space-y-5 rounded-xl border p-6"
     >
+      {/* v1.4.19 A8 / F-07: page header `settings.sections.thresholds.*`
+          already provides the title + description for this route, so the
+          card-level title + subtitle were a duplicate of the page header.
+          Keep the icon + reset action so the card still has a visible
+          control affordance. */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <SlidersHorizontal className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("thresholds.title")}</h2>
+          <SlidersHorizontal
+            className="text-primary h-5 w-5"
+            aria-hidden="true"
+          />
         </div>
         {data && Object.keys(data.overrides).length > 0 && (
           <Button
@@ -140,9 +147,6 @@ export function ThresholdsEditorSection({ id }: { id: string }) {
           </Button>
         )}
       </div>
-      <p className="text-muted-foreground text-sm">
-        {t("thresholds.subtitle")}
-      </p>
 
       {isLoading || !data ? (
         <div className="text-muted-foreground flex items-center gap-2 text-sm">

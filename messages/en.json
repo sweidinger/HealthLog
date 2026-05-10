@@ -1064,7 +1064,7 @@
         "description": "Tile layout and order."
       },
       "thresholds": {
-        "title": "Personal targets",
+        "title": "Personal thresholds",
         "description": "Override target ranges for every metric."
       },
       "ai": {
