@@ -1,9 +1,13 @@
 "use client";
 
+import Link from "next/link";
+import { toast } from "sonner";
 import {
+  Download,
   FileText,
   Loader2,
   RefreshCw,
+  Share2,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -66,6 +70,16 @@ interface HeroStripProps {
    */
   onAskCoach?: () => void;
   /**
+   * v1.4.20 phase B4 — when the cached AI payload carries a fresh
+   * weeklyReport block, the parent passes this so the hero paints a
+   * slim banner card ("Your Week N report is ready" with Read · Share
+   * · Export PDF actions). Omit to hide the banner.
+   */
+  weeklyReportReady?: {
+    weekISO: string;
+    href: string;
+  };
+  /**
    * Now() override for tests so the greeting bucket is deterministic.
    * Defaults to `new Date()`. Production callers omit this.
    */
@@ -117,6 +131,7 @@ export function HeroStrip({
   regenerating = false,
   onPickPrompt,
   onAskCoach,
+  weeklyReportReady,
   now,
 }: HeroStripProps) {
   const { t } = useTranslations();
@@ -173,6 +188,13 @@ export function HeroStrip({
             )}
           </div>
         </div>
+
+        {weeklyReportReady && (
+          <WeeklyReportBanner
+            weekISO={weeklyReportReady.weekISO}
+            href={weeklyReportReady.href}
+          />
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           {/*
@@ -250,6 +272,115 @@ export function HeroStrip({
             onPick={onPickPrompt ?? (() => undefined)}
           />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * v1.4.20 phase B4 — slim banner card surfacing the fresh weekly report.
+ *
+ * Sits between the hero's title block and the action row. The banner
+ * carries three actions:
+ *   - Read → in-app navigation to `/insights/report/[week]`.
+ *   - Share → `navigator.share` when supported, else clipboard fallback
+ *     with a sonner toast acknowledgement.
+ *   - Export PDF → opens the report URL with `?print=1` so the report
+ *     page auto-fires `window.print()` after first paint.
+ */
+function WeeklyReportBanner({
+  weekISO,
+  href,
+}: {
+  weekISO: string;
+  href: string;
+}) {
+  const { t } = useTranslations();
+  const printHref = href.includes("?")
+    ? `${href}&print=1`
+    : `${href}?print=1`;
+  const shareUrl =
+    typeof window !== "undefined" ? new URL(href, window.location.origin).toString() : href;
+
+  async function handleShare() {
+    const title = t("insights.heroBanner.shareTitle");
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share({ url: shareUrl, title });
+        return;
+      } catch (err) {
+        // Web Share rejects with AbortError when the user cancels —
+        // not an error worth surfacing. Other failures fall through to
+        // the clipboard fallback below.
+        if ((err as DOMException)?.name === "AbortError") return;
+      }
+    }
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.clipboard?.writeText
+    ) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success(t("insights.heroBanner.shareCopied"));
+        return;
+      } catch {
+        // fallthrough
+      }
+    }
+    toast.error(t("insights.heroBanner.shareFailed"));
+  }
+
+  return (
+    <div
+      data-slot="insights-hero-strip-weekly-banner"
+      className="border-dracula-purple/30 bg-dracula-purple/10 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2.5 sm:px-4"
+    >
+      <Sparkles
+        className="text-dracula-purple h-4 w-4 shrink-0"
+        aria-hidden="true"
+      />
+      <p
+        data-slot="insights-hero-strip-weekly-banner-label"
+        className="min-w-0 flex-1 text-sm leading-snug"
+      >
+        {t("insights.heroBanner.ready", { week: weekISO })}
+      </p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button
+          asChild
+          size="sm"
+          variant="default"
+          data-slot="insights-hero-strip-weekly-banner-read"
+          className="gap-1.5"
+        >
+          <Link href={href}>
+            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("insights.heroBanner.read")}</span>
+          </Link>
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={handleShare}
+          data-slot="insights-hero-strip-weekly-banner-share"
+          className="gap-1.5"
+        >
+          <Share2 className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{t("insights.heroBanner.share")}</span>
+        </Button>
+        <Button
+          asChild
+          size="sm"
+          variant="ghost"
+          data-slot="insights-hero-strip-weekly-banner-export"
+          className="gap-1.5"
+        >
+          <Link href={printHref}>
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("insights.heroBanner.exportPdf")}</span>
+          </Link>
+        </Button>
       </div>
     </div>
   );

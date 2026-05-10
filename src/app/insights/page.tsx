@@ -875,6 +875,21 @@ export default function InsightsPage() {
   const briefingPayload = advisor.payload?.dailyBriefing ?? null;
   const heroStripUpdatedAt = advisor.payload?.cachedAt ?? heroUpdatedAt;
 
+  // v1.4.20 phase B4 — surface a banner-card on the hero whenever the
+  // cached AI payload carries a weeklyReport block. The banner deep-
+  // links into `/insights/report/[week]` for Read / Share / Export PDF.
+  const weeklyReport = (
+    advisor.payload?.insights as {
+      weeklyReport?: { weekISO: string } | null;
+    } | undefined
+  )?.weeklyReport;
+  const weeklyReportReady = weeklyReport
+    ? {
+        weekISO: weeklyReport.weekISO,
+        href: `/insights/report/${weeklyReport.weekISO}`,
+      }
+    : undefined;
+
   return (
     <div className="space-y-8">
       <HeroStrip
@@ -891,6 +906,7 @@ export default function InsightsPage() {
           setCoachPrefill(prompt);
           setCoachOpen(true);
         }}
+        weeklyReportReady={weeklyReportReady}
       />
 
       <DailyBriefing
