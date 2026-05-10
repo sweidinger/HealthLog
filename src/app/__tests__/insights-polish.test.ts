@@ -180,3 +180,31 @@ describe("v1.4.19 A3 — chart-token leak hardening", () => {
     expect(parseChartTokens("metric:WEIGHT")).toEqual(["metric:WEIGHT"]);
   });
 });
+
+describe("v1.4.22 A3 — comparison toggle is global Settings only", () => {
+  /**
+   * The comparison-overlay toggle is a global preference. Up to v1.4.21
+   * the toggle existed both in `/settings/dashboard` (canonical) and
+   * `/insights` (via `<DailyBriefing metaSlot={<CompareToggle />} />`).
+   * Per `feedback_settings_no_split.md` the toggle now lives in
+   * Settings only — the on-surface affordance is gone from `/insights`.
+   * Every chart still consumes the resolved `comparisonBaseline` value
+   * the same way it did before, so flipping the Settings toggle still
+   * propagates to the page on next refetch.
+   */
+  it("/insights does NOT mount <CompareToggle /> anywhere", () => {
+    const src = load(INSIGHTS_PATH);
+    expect(src).not.toMatch(/<CompareToggle\b/);
+    expect(src).not.toMatch(
+      /from\s+["']@\/components\/comparison\/compare-toggle["']/,
+    );
+  });
+
+  it("/insights still consumes the resolved comparisonBaseline (only the UI is gone)", () => {
+    // Drift guard — the page must still hand `compareBaseline` to every
+    // chart so the global Settings toggle keeps driving the overlay.
+    const src = load(INSIGHTS_PATH);
+    expect(src).toContain("comparisonBaseline");
+    expect(src).toContain("compareBaseline");
+  });
+});

@@ -49,7 +49,6 @@ import { CorrelationRow } from "@/components/insights/correlation-row";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import type { CorrelationResult } from "@/lib/insights/correlations";
 import { toWeekISO } from "@/lib/insights/week-iso";
-import { CompareToggle } from "@/components/comparison/compare-toggle";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
 // wrapper so the bundle only lands once a correlation card actually renders.
 // Every scatter card sits inside a `length >= 5` gate and below the fold,
@@ -979,7 +978,6 @@ export default function InsightsPage() {
         loading={advisor.isLoading}
         onRegenerate={advisor.regenerate}
         regenerating={advisor.isRegenerating}
-        metaSlot={<CompareToggle />}
       />
 
       {/* v1.4.20 phase B3 — Correlation discovery row. Three pre-defined
