@@ -159,12 +159,12 @@ describe("achievements expansion — fresh user, real prisma rows", () => {
     await prisma.auditLog.create({
       data: {
         userId: user.id,
-        action: "doctor-report.export",
+        action: "doctor-report.pdf.generate",
       },
     });
 
     const auditEvents = await prisma.auditLog.findMany({
-      where: { userId: user.id, action: "doctor-report.export" },
+      where: { userId: user.id, action: "doctor-report.pdf.generate" },
       select: { action: true, createdAt: true },
     });
 

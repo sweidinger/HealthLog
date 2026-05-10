@@ -86,6 +86,21 @@ export async function applyProfileUpdate(
   if (data.locale !== undefined) updates.locale = data.locale;
   if (data.timezone !== undefined) updates.timezone = data.timezone;
 
+  // v1.4.18 — capture the prior locale so we can emit a separate
+  // `settings.locale.update` audit row when the locale actually
+  // changes. The hidden "polyglot" achievement watches that action,
+  // and we don't want to fire it on profile updates that happen to
+  // touch other fields.
+  const priorLocale =
+    data.locale !== undefined
+      ? (
+          await prisma.user.findUnique({
+            where: { id: userId },
+            select: { locale: true },
+          })
+        )?.locale ?? null
+      : null;
+
   const updatedUser = await prisma.user.update({
     where: { id: userId },
     data: updates,
@@ -95,6 +110,14 @@ export async function applyProfileUpdate(
     userId: updatedUser.id,
     ipAddress: ipAddress ?? null,
   });
+
+  if (data.locale !== undefined && priorLocale !== data.locale) {
+    await auditLog("settings.locale.update", {
+      userId: updatedUser.id,
+      ipAddress: ipAddress ?? null,
+      details: { from: priorLocale, to: data.locale ?? null },
+    });
+  }
 
   return {
     ok: true,

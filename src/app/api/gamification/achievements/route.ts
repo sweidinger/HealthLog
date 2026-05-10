@@ -531,7 +531,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
               "auth.login.password",
               "bugreport.submit",
               // v1.4.18 — hidden Easter-egg triggers
-              "doctor-report.export",
+              "doctor-report.generate",
+              "doctor-report.pdf.generate",
               "settings.locale.update",
             ],
           },

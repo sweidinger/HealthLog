@@ -235,8 +235,9 @@ describe("getHiddenMetrics", () => {
       moodEntries: [],
       intakeEvents: [],
       auditEvents: [
-        { action: "doctor-report.export", createdAt: new Date() },
-        { action: "doctor-report.export", createdAt: new Date() },
+        // The route's auditLog filter accepts both `generate` actions.
+        { action: "doctor-report.generate", createdAt: new Date() },
+        { action: "doctor-report.pdf.generate", createdAt: new Date() },
         { action: "settings.locale.update", createdAt: new Date() },
         { action: "auth.login.passkey", createdAt: new Date() }, // ignored
       ],

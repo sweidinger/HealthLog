@@ -276,7 +276,16 @@ export function getHiddenMetrics(input: {
   let doctorPdfCount = 0;
   let localeFlipCount = 0;
   for (const ev of input.auditEvents) {
-    if (ev.action === "doctor-report.export") doctorPdfCount += 1;
+    // Both "generate" + "pdf.generate" count — the PDF route emits the
+    // latter; the JSON-only generate route emits the former. We accept
+    // either as the trigger so the badge fires the first time the user
+    // exercises the doctor-report feature in any shape.
+    if (
+      ev.action === "doctor-report.generate" ||
+      ev.action === "doctor-report.pdf.generate"
+    ) {
+      doctorPdfCount += 1;
+    }
     if (ev.action === "settings.locale.update") localeFlipCount += 1;
   }
 
