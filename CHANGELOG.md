@@ -1,5 +1,77 @@
 # Changelog
 
+## [1.4.18] — 2026-05-10
+
+### Added
+
+- **Per-chart overlay toggles.** Every chart on the dashboard now has a
+  cog menu (44 × 44 tap target) with three independent switches: trend
+  indicator, trend arrow, and target-range overlay. Defaults are off so
+  the default look is a clean line. State is persisted per user per
+  chart in `User.dashboardWidgetsJson.chartOverlayPrefs` (no migration)
+  and round-tripped through a new `PUT /api/dashboard/chart-overlay-prefs`
+  in a Serializable transaction.
+- **Expanded achievements roster.** 21 new achievements bring the total
+  to 59. Adds streak, milestone, consistency, improvement, and discovery
+  categories on top of the existing security / engagement / vitals /
+  medication groups. Locked public badges only render once the user has
+  data for the underlying metric so the page isn't a wall of grey on
+  day one.
+- **Hidden Easter-egg achievements.** Six hidden badges that paint as
+  opaque "Hidden achievement" placeholders until unlocked. The real
+  strings, descriptions, and icons never reach the DOM (or the API
+  response) for locked-and-hidden entries, so peeking the bundle or the
+  network tab doesn't spoil them. Unlock toast adds a longer Sparkles
+  celebration with a "you unlocked a hidden achievement!" headline.
+- **BD-Zielbereich tile 7T / 30T sub-values.** The two sub-values on
+  the blood-pressure-in-target tile now show real measurement data.
+  Backed by a new `computeBpInTargetWindows()` helper that re-uses the
+  v1.4.16 ceiling predicate but filters input by `measuredAt`.
+  `/api/analytics` surfaces `bpInTargetPct7d` / `bpInTargetPct30d`.
+
+### Changed
+
+- **Charts use clean lines without gradient fills.** The v1.4.16
+  Apple-Health-style gradient backgrounds are gone. Lines stay smooth-
+  interpolated, tooltips stay rich, animation-on-render still respects
+  `prefers-reduced-motion` — only the gradient fill area is removed.
+- **Mood chart shows simple dots at data points.** The emoji glyphs
+  introduced in v1.4.16 are replaced with plain coloured dots; the
+  emoji still appears in the tooltip.
+- **Personal-baseline / mean overlays are opt-in.** The 90-day-median
+  reference line on health and mood charts is no longer always-on; it
+  only renders when the per-chart Trend toggle is enabled.
+
+### Fixed
+
+- **`/admin/api-tokens` mobile horizontal scrollbar.** Third attempt,
+  this time pinned to the actual offender via Playwright probe of the
+  prod page at Pixel-5 viewport. The scrollbar was painted by the
+  AdminShell mobile section strip (13 entries, scrollWidth ≈ 1700 px),
+  not the api-tokens table. Added a `.no-scrollbar` utility and applied
+  it to both AdminShell and SettingsShell mobile strips. Swipe and
+  keyboard-arrow scrolling preserved.
+- **`/insights` legacy-payload crash.** Already shipped in the v1.4.17
+  hotfix; documented here for completeness. Cached pre-strict insights
+  in the v1.4.14 `{changed, stable, drivers, …}` shape now render a
+  "Regenerate insights" card instead of throwing
+  `Cannot read properties of undefined (reading 'replace')`.
+- **BD-Zielbereich 7T / 30T sub-values.** Were always rendering "—"
+  because `/api/analytics` only computed a single 30-day window and
+  the tile passed `avg7={null}, avg30={null}`. Wired correctly — see
+  Added.
+
+### Deferred to v1.4.19 / v1.5
+
+- **i18n bundle leak (security HIGH).** The hidden-achievement
+  redaction landed at the API layer, but `messages/en.json` and
+  `messages/de.json` are still statically imported into the client
+  bundle, so a determined user can `Cmd-F` for the hidden strings in
+  `_next/static/chunks/*.js`. Needs a build-time strip or reversible
+  obfuscation. Tracked in `.planning/v1419-backlog.md`.
+- See `.planning/v1419-backlog.md` for the short-list and
+  `.planning/v15-backlog.md` for the strategic v1.5 items.
+
 ## [1.4.17] — 2026-05-10
 
 ### Fixed
