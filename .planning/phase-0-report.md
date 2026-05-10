@@ -1,51 +1,77 @@
-# Phase 0 — v1.4.16 marathon bootstrap
+# Phase 0 — v1.4.18 bootstrap report
 
-Status: **done**
-Timestamp: 2026-05-09T23:12:52+02:00
-Commit: `chore(planning): bootstrap v1.4.16 marathon` on origin/main.
+Timestamp: 2026-05-10T10:02+02:00
+Branch: `main`
+Tracked-files baseline: clean (untracked-only working tree on entry).
 
-## What this phase did
+## What landed
 
-Pivoted `.planning/STATE.md` and `.planning/ROADMAP.md` from the
-completed v1.4.15 marathon (which shipped today at 22:50+02:00 — see
-`docs/audit/v1415-summary.md` for the Marc-Brief, commit table, image
-digest `sha256:ace7d441f47b…`, deferred items) to the v1.4.16 scaffold.
+- `.planning/STATE.md` rewritten for v1.4.18: `Status: phase-0-done`,
+  Phase 0 marked complete, Wave A (A1 BD-Zielbereich tile sub-values,
+  A2 `/admin/api-tokens` 3rd-attempt scrollbar, A3 chart visual revert
+  + per-chart toggles), Wave B (B1 achievements expansion with
+  research + hidden Easter-eggs + lock filter), Wave D multi-agent QA
+  + Product-Lead, Phase E release. v1.4.17 hotfix and v1.4.16 release
+  blocks archived inline above.
+- `.planning/ROADMAP.md` rewritten with the v1.4.18 one-liner table
+  for Phase 0 / A1-A3 / B1 / D / E. v1.4.17 hotfix line + the full
+  v1.4.16 / v1.4.15 / v1.4.14 archive tables retained beneath.
+- `.planning/phase-0-report.md` (this file).
 
-STATE.md now lists Wave A (A1–A8 quick fixes), Wave B (B1–B7 quality-leap
-features), Wave C (catch-up of 8 deferred HIGH from Phase D + 5 mobile
-MEDs + Coolify image-digest auto-deploy + docker-publish main-branch
-hang root-cause), Wave D (5 reviewers + Product-Lead + reconcile), Phase
-E (release). ROADMAP.md mirrors the heading-level structure with one-
-line Goal cells; v1.4.15 + v1.4.14 entries archived below the active
-table.
+## What did NOT land in this commit
 
-## Working-tree sanity
+Source files. Phase 0 is planning-only per the brief.
 
-`git status` showed 22 modified `.planning/*.md` files at session start
-— a stray re-run of `prettier --write .planning/` had corrupted the
-v1.4.15-shipped reports (markdown list-marker `+` flipped to `-`,
-breaking semantic content like "+1 e2e" → "-1 e2e" and "command +
-flag" lists). Discarded via `git checkout -- .planning/`. Tracked
-working tree now matches `origin/main`. Untracked phase reports from
-v1.4.14 + v1.4.15 (15 files) left in place — they belong to previous
-milestones and are explicitly out-of-scope for v1.4.16 Phase 0.
+## Working tree on entry
 
-## Spec re-read
+Branch was already in sync with `origin/main` after v1.4.17 release
+commits. Untracked items left in place (same call as v1.4.16 Phase 0):
 
-Re-read `docs/codex-protocol-spec.md` as required (canonical reference
-for any v1.4.16 AI work — Wave-A A7 rate-limit + cache, Wave-B B5
-hallucination-hardening v2 medical-grounding + multi-provider). §7b
-slug-drift defence already shipped in v1.4.15 C1; v1.4.16 builds on
-top.
+- `.planning/phase-E1-report.md`, `phase-E2-report.md`,
+  `phase-E3-report.md` — v1.4.16 release reports, belong to that
+  milestone.
+- `src/app/api/export/{full-backup.json,measurements.csv,
+  medications.csv,mood.csv}/` — stale dotted-segment route directories;
+  the live plain-segment routes shipped in B7 of v1.4.16 (per
+  `phase-E1-report.md`).
 
-## Backlog inventoried
+## Marc's v1.4.18 input
 
-`.planning/v1416-backlog.md` confirmed present (8 deferred HIGH + 39
-MED/LOW + 4 simplify-no + 3 process items, severity-grouped, with
-file:line references). Wave C catch-up references this file.
+Four items reported by Marc, all reflected as scaffolded checklists:
 
-## Marc-status
+1. BD-Zielbereich tile shows "7T: —" / "30T: —" with real data behind
+   it — investigate root cause and fix the sub-value aggregation.
+2. `/admin/api-tokens` table still scrolls horizontally on mobile (3rd
+   attempt — earlier column-hide passes addressed table-level overflow
+   but page-level overflow may be the real source). Live verify with
+   Playwright headless against prod using Marc's session cookie before
+   touching code.
+3. Chart visual rollback — drop the v1.4.16 B1a gradient fill, drop
+   the mood-chart emoji glyphs, drop the auto-overlay personal-baseline
+   line. Replace with three opt-in toggles per chart (showTrendIndicator
+   / showTargetRange / showPersonalBaseline). Default OFF. Persist
+   per-user per-chart. Keep smooth interpolation, rich tooltip,
+   animation-on-render.
+4. Achievements expansion with proper research first (Apple Health,
+   Withings, Oura benchmarking lens). 15-25 new achievements, 5-8
+   hidden Easter-eggs (playful, not health-coercive). Lock filter
+   hides metrics user has no data for; hidden achievements appear as
+   "Hidden" cards (the user knows there's something to find).
 
-Speed mattered. Working-tree corruption tax was 30 seconds. Phase 0
-commit contains only `.planning/STATE.md` + `.planning/ROADMAP.md` +
-`.planning/phase-0-report.md`.
+## Constraints honoured
+
+- English everywhere, Marc's voice.
+- No "Claude / AI / agent / marathon / phase" leaked into the commit
+  body.
+- Co-Author Claude Opus 4.7 trailer present.
+- No `--no-verify`, no `--no-gpg-sign`.
+- Single chore commit: `chore(planning): bootstrap v1.4.18 marathon`.
+- No source files touched.
+
+## Next
+
+Wave A (A1 + A2 + A3) parallel-bucket dispatch is the obvious next
+step; A3's chart revert is the user-visible one Marc will notice
+first. A2 wants live Playwright reproduction before any code edit.
+B1 starts with a research-first pass per Marc's standing rule on
+complex features — no implementation until the research doc lands.
