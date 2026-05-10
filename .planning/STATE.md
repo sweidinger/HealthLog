@@ -143,17 +143,42 @@ Last update: 2026-05-10T12:48+02:00
 
 ### A7 — Admin polish (Feedback, api-tokens 4th attempt, Zielwerte, i18n)
 
-- [ ] Admin Feedback "offen/bestätigt/erledigt/archiviert" tabs has
-      spurious mini-scrollbar → remove
-- [ ] `/admin/api-tokens` scrollbar 4th attempt: truncate token-name
-      with `text-ellipsis` + tooltip on hover (not column-hide)
-- [ ] `/admin/api-tokens` "Einklappen" button removed (page only has
-      1 section)
-- [ ] Admin Zielwerte page: reduce whitespace between overview header
-      and values
-- [ ] Translate Zielwerte status labels: "Low / On Target / Stable /
-      Moderate" → DE
+- [x] Admin Feedback "offen/bestätigt/erledigt/archiviert" tabs
+      mini-scrollbar removed (tabsListVariants now carries
+      `overflow-y-hidden`; commit `088832a`)
+- [x] `/admin/api-tokens` scrollbar 4th attempt: truncate-with-
+      tooltip pattern on token-name, username, permission badge;
+      `table-fixed` + colgroup widths on desktop table; e2e
+      regression walks every element inside the mobile card-list
+      (commit `dd8212e`)
+- [x] `/admin/api-tokens` "Einklappen" button removed (commit
+      `7a70db6`)
+- [x] Admin Zielwerte page: `space-y-8` → `space-y-6` on outer
+      wrapper (commit `6507646`)
+- [x] Translate Zielwerte status labels: 11 `targets.label.<TYPE>`
+      entries + 41 `targets.status.<key>` entries in EN + DE; page
+      uses `STATUS_CATEGORY_KEY` map to normalise server strings
+      (commit `90a109d`)
+- Result: ok / 5 commits on origin/main, 1658 tests green
 - Detailed report: `.planning/phase-A7-report.md`
+
+### Status block — A7 (v1.4.19)
+
+- 2026-05-09T13:22+02:00 — A7 complete. Five atomic commits
+  (`088832a` feedback tab strip, `dd8212e` api-tokens 4th-attempt
+  truncate+tooltip, `7a70db6` Einklappen removal, `6507646`
+  Zielwerte whitespace, `90a109d` Zielwerte i18n) on origin/main
+  via worktree `/Users/marc/Projects/HealthLog-a7`. Rebased once
+  onto `ef67da5` (A3 report) before push, no rebase conflicts. All
+  pre-commit hooks green; pnpm test = 1658/1658, pnpm typecheck
+  clean, pnpm lint baseline (0 errors / 12 pre-existing warnings).
+  Touched only A7 surfaces: `src/components/ui/tabs.tsx` (shared
+  primitive — feedback strip is one consumer), feedback section
+  un-touched directly, `src/components/admin/api-token-overview-section.tsx`,
+  `src/app/targets/page.tsx`, messages/{en,de}.json, i18n integrity
+  test allowlist. Did NOT touch `src/components/settings/*`,
+  `src/lib/insights/*`, `src/lib/ai/*`, `src/components/charts/*`,
+  `src/components/insights/*`. No new dependencies.
 
 ### A8 — Quality-of-life audit (write-only, fix-set deferred to inline B agent)
 
