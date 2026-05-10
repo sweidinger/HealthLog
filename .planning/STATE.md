@@ -1,7 +1,7 @@
 # v1.4.19 marathon — state log
 
-Status: phase-0-done
-Last update: 2026-05-10T12:48+02:00
+Status: finished
+Last update: 2026-05-10T14:45+02:00
 
 > Previous milestone: v1.4.18 live (image digest
 > `sha256:c636fca7db66…`, `/api/version=1.4.18`).
@@ -398,6 +398,32 @@ medications.csv,mood.csv}/`) left in place — same call as v1.4.16 /
   `.planning/phase-B-quality-report.md`. Backlog:
   `.planning/v1420-backlog.md`.
 
+- 2026-05-10T14:34+02:00 — Phase E1 complete. Pre-release
+  verify all green (`pnpm typecheck` clean, `pnpm lint` 0
+  errors / 12 baseline warnings, `pnpm test` 1672/1672,
+  `pnpm test:integration` 67/67, `pnpm format:check` only
+  pre-existing `.planning/*` + `docs/audit/*` baseline noise
+  dirty). CHANGELOG `## [1.4.19] — 2026-05-10` added with
+  Fixed (10 items incl. CRITICAL mobile Sys/Dia badge enum
+  mismatch) / Changed (6 items: status-pill consolidation,
+  Comparison overlay → /insights, single page refresh,
+  BP/Weight tile strip removal, AI prompt no-default-
+  positivity rule with PROMPT_VERSION 4.19.0, settings
+  consistency, Zielwerte DE labels) / Deferred to v1.4.20
+  sections. Marc's voice, no AI / agent / marathon mention.
+  package.json bumped 1.4.18 → 1.4.19. Single release
+  commit `89f00cf chore(release): v1.4.19` on origin/main
+  (Co-Author Claude Opus 4.7 trailer, no `--no-verify`,
+  no `--no-gpg-sign`, hooks green). Annotated tag v1.4.19
+  pushed. GHCR tag run **25628853202** queued at
+  2026-05-10T12:34Z; main parallel runs (e2e 25628852739,
+  Security & Quality 25628852734, Integration tests
+  25628852731, Build main 25628852729) also queued. Detailed
+  report: `.planning/phase-E1-report.md`. Phase E2 (GHCR
+  green wait, Coolify deploy, /api/version=1.4.19 confirm,
+  prod smoke, GH release, docs+landing sync, Marc-Brief)
+  follows.
+
 ---
 
 ## Previous milestone — v1.4.18 (completed 2026-05-10T11:45+02:00)
@@ -438,3 +464,32 @@ flag + advisor card short-circuit + defensive `stripChartTokens` /
 
 Full report: `docs/audit/v1416-summary.md`. v1.5 backlog seeded at
 `.planning/v15-backlog.md`.
+
+---
+
+## Phase E — Release v1.4.19 (deploy fallback 2026-05-10T12:39:59Z)
+
+Tag-build pipeline succeeded but the main-branch deploy hung and was
+canceled, so v1.4.19 was promoted via the host-side retag-on-host
+fallback path.
+
+- **Digest before:** `c636fca7db66479b3413a7df82117316c042641f9bc7c0fe7d6e2be6811dfcca`
+  (previous `:latest`).
+- **Digest after:** `b48f93874cdbcd6c2d729f1b8eeb63a6d1bbb90d56f629846ef6eab6cf272aa9`
+  (manifest digest of `ghcr.io/mbombeck/healthlog:1.4.19`, now also
+  carrying the `:latest` tag on apps-01). Local image ID inside the
+  running container: `sha256:f24f94cefd6502509ec0ca1e498fdefd46e853dda0660c1e5c2fd7f3f2fc19b8`.
+- **Procedure:** `docker pull ghcr.io/mbombeck/healthlog:1.4.19` →
+  `docker tag … :latest` → `docker compose up -d --force-recreate app`
+  inside `/data/coolify/applications/pg8wggwogo8c4gc4ks0kk4ss`.
+- **Version transition:** `/api/version` reported `1.4.19` at
+  **2026-05-10T12:39:59Z** (first poll after recreate; well inside the
+  5 min cap).
+- **Smoke (curl, session `cmox4d6fj000101p8w9ykhcnm`):**
+  `/` 200 · `/insights` 200 · `/admin/api-tokens` 200 ·
+  `/settings/integrations` 200 · `/achievements` 200 ·
+  `/dashboard` **404** (route does not exist in the source —
+  `src/app/dashboard/` is absent; not a regression). Treated as PASS.
+- **GH release:** <https://github.com/MBombeck/HealthLog/releases/tag/v1.4.19>
+  (created with `--verify-tag`, notes from `CHANGELOG.md`).
+- **No code changes.** Source tree untouched per fallback contract.
