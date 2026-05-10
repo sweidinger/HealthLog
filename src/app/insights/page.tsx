@@ -890,6 +890,33 @@ export default function InsightsPage() {
       }
     : undefined;
 
+  // v1.4.20 phase B4 — storyboard annotations for the 90-day BP chart.
+  // The advisor payload may carry up to 20 entries; we transform them
+  // into the {date, label, color} shape <HealthChart> consumes. The
+  // colour map mirrors the four canonical categories. Cached payloads
+  // from before PROMPT_VERSION 4.20.2 simply produce an empty array.
+  const STORYBOARD_COLOR_BY_CATEGORY: Record<string, string> = {
+    medication: "var(--dracula-pink)",
+    event: "var(--dracula-cyan)",
+    milestone: "var(--dracula-green)",
+    warning: "var(--dracula-orange)",
+  };
+  const rawStoryboard = (
+    advisor.payload?.insights as
+      | { storyboardAnnotations?: Array<{
+          date: string;
+          label: string;
+          category: string;
+        }> }
+      | undefined
+  )?.storyboardAnnotations;
+  const bpStoryboardAnnotations = (rawStoryboard ?? []).map((entry) => ({
+    date: entry.date,
+    label: entry.label,
+    color:
+      STORYBOARD_COLOR_BY_CATEGORY[entry.category] ?? "var(--dracula-purple)",
+  }));
+
   return (
     <div className="space-y-8">
       <HeroStrip
@@ -997,6 +1024,7 @@ export default function InsightsPage() {
           yAxisUnit="Hg"
           targetZones={bpTargetZones}
           compareBaseline={compareBaseline}
+          annotations={bpStoryboardAnnotations}
         />
 
         <div className="grid gap-4 xl:grid-cols-2">
