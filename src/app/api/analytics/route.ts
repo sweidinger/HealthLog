@@ -38,19 +38,45 @@ export const GET = apiHandler(async () => {
         .findMany({
           where: { userId: user.id, type },
           orderBy: { measuredAt: "asc" },
-          select: { value: true, measuredAt: true },
+          select: { value: true, measuredAt: true, sleepStage: true },
         })
-        .then((measurements) => ({
-          type,
-          summary: summarize(
-            measurements.map(
+        .then((measurements) => {
+          // v1.4.23 — Apple Health's sleep ingest stores one row per
+          // stage per night. Summarising the raw rows would treat each
+          // stage as its own datapoint and grossly understate "average
+          // sleep". Aggregate per Berlin day before summarising so the
+          // summary matches the user's intuition (one number per night
+          // = total minutes asleep).
+          let datapoints: DataPoint[];
+          if (type === "SLEEP_DURATION") {
+            const byDay = new Map<string, { total: number; date: Date }>();
+            for (const m of measurements) {
+              const key = berlinDayKey(m.measuredAt);
+              const slot = byDay.get(key) ?? {
+                total: 0,
+                date: m.measuredAt,
+              };
+              slot.total += m.value;
+              if (m.measuredAt > slot.date) slot.date = m.measuredAt;
+              byDay.set(key, slot);
+            }
+            datapoints = Array.from(byDay.values()).map(
+              (s): DataPoint => ({ date: s.date, value: s.total }),
+            );
+            datapoints.sort((a, b) => a.date.getTime() - b.date.getTime());
+          } else {
+            datapoints = measurements.map(
               (m): DataPoint => ({
                 date: m.measuredAt,
                 value: m.value,
               }),
-            ),
-          ),
-        })),
+            );
+          }
+          return {
+            type,
+            summary: summarize(datapoints),
+          };
+        }),
     ),
   );
 
@@ -58,6 +84,12 @@ export const GET = apiHandler(async () => {
   for (const { type, summary } of measurementsByType) {
     results[type] = summary;
   }
+
+  // v1.4.23 — sleep-stage breakdown for the trailing 30 days. Only
+  // included when the user has stage-tagged rows in window; null
+  // otherwise so the UI can render a plain total without the
+  // breakdown card painting empty.
+  const sleepStages = await computeSleepStageBreakdown(user.id);
 
   // BMI calculation
   let bmi: number | null = null;
@@ -171,8 +203,56 @@ export const GET = apiHandler(async () => {
     glucoseByContext,
     correlations,
     healthScore,
+    sleepStages,
   });
 });
+
+/**
+ * Per-stage sleep-minutes breakdown over the trailing 30 days.
+ *
+ * Returns `null` when the user has no stage-tagged sleep rows in
+ * window — the analytics consumer renders the existing
+ * `summaries.SLEEP_DURATION` totals without a stage card in that
+ * case. Returns the sum-per-stage AND the day count covered so the
+ * UI can render an "averaged across N nights" caption truthfully.
+ */
+async function computeSleepStageBreakdown(userId: string): Promise<{
+  windowDays: number;
+  nights: number;
+  totalMinutes: number;
+  stages: Record<string, number>;
+} | null> {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const since = new Date(Date.now() - 30 * DAY_MS);
+  const rows = await prisma.measurement.findMany({
+    where: {
+      userId,
+      type: "SLEEP_DURATION",
+      sleepStage: { not: null },
+      measuredAt: { gte: since },
+    },
+    select: { value: true, measuredAt: true, sleepStage: true },
+  });
+
+  if (rows.length === 0) return null;
+
+  const stages: Record<string, number> = {};
+  const dayKeys = new Set<string>();
+  let totalMinutes = 0;
+  for (const row of rows) {
+    if (!row.sleepStage) continue;
+    stages[row.sleepStage] = (stages[row.sleepStage] ?? 0) + row.value;
+    totalMinutes += row.value;
+    dayKeys.add(berlinDayKey(row.measuredAt));
+  }
+
+  return {
+    windowDays: 30,
+    nights: dayKeys.size,
+    totalMinutes,
+    stages,
+  };
+}
 
 /**
  * Build inputs for the three pre-defined hypotheses + run them.
