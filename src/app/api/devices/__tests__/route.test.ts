@@ -5,6 +5,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     device: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -52,6 +53,7 @@ function req(body: unknown): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.device.findUnique).mockResolvedValue(null);
+  vi.mocked(prisma.device.findFirst).mockResolvedValue(null);
   vi.mocked(prisma.device.create).mockResolvedValue({ id: "dev-1" } as never);
   vi.mocked(prisma.device.update).mockResolvedValue({ id: "dev-1" } as never);
 });
@@ -118,5 +120,79 @@ describe("POST /api/devices", () => {
     expect(res.status).toBe(201);
     expect(prisma.device.update).toHaveBeenCalledTimes(1);
     expect(prisma.device.create).not.toHaveBeenCalled();
+  });
+
+  it("returns 422 when only apnsToken is supplied without apnsEnvironment", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await POST(
+      req({
+        token: "abcd1234efgh5678",
+        bundleId: "io.healthlog.app",
+        apnsToken: "deadbeef".repeat(8),
+      }),
+    );
+    expect(res.status).toBe(422);
+  });
+
+  it("returns 422 when only apnsEnvironment is supplied without apnsToken", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await POST(
+      req({
+        token: "abcd1234efgh5678",
+        bundleId: "io.healthlog.app",
+        apnsEnvironment: "sandbox",
+      }),
+    );
+    expect(res.status).toBe(422);
+  });
+
+  it("returns 422 when apnsToken is not hex", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await POST(
+      req({
+        token: "abcd1234efgh5678",
+        bundleId: "io.healthlog.app",
+        apnsToken: "not-hex-z",
+        apnsEnvironment: "sandbox",
+      }),
+    );
+    expect(res.status).toBe(422);
+  });
+
+  it("creates a Device row with the apnsToken + apnsEnvironment pair", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await POST(
+      req({
+        token: "abcd1234efgh5678",
+        bundleId: "io.healthlog.app",
+        apnsToken: "deadbeef".repeat(8),
+        apnsEnvironment: "sandbox",
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(prisma.device.create).toHaveBeenCalledTimes(1);
+    const args = vi.mocked(prisma.device.create).mock.calls[0][0] as {
+      data: { apnsToken?: string; apnsEnvironment?: string };
+    };
+    expect(args.data.apnsToken).toBe("deadbeef".repeat(8));
+    expect(args.data.apnsEnvironment).toBe("sandbox");
+  });
+
+  it("rejects re-registration of an apnsToken owned by another user with 409", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.device.findFirst).mockResolvedValue({
+      id: "other-dev",
+    } as never);
+    const res = await POST(
+      req({
+        token: "abcd1234efgh5678",
+        bundleId: "io.healthlog.app",
+        apnsToken: "deadbeef".repeat(8),
+        apnsEnvironment: "sandbox",
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect(prisma.device.create).not.toHaveBeenCalled();
+    expect(prisma.device.update).not.toHaveBeenCalled();
   });
 });

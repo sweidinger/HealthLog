@@ -1,11 +1,25 @@
 /**
  * POST /api/devices
  *
- * APNs device registration. Native clients call this on login and on
- * APNs token rotation. We upsert by `token`; sending the same token on a
- * different account simply transfers ownership.
+ * Native-client device registration. The iOS app calls this on login,
+ * on APNs token rotation, and whenever a fresh `apnsToken` arrives from
+ * `application:didRegisterForRemoteNotificationsWithDeviceToken:`. We
+ * upsert by `token` (the legacy generic identifier).
  *
- * No APNs send-side logic lives here — that ships in Phase 8.
+ * Cross-user-hijack guard:
+ *   * A device `token` belongs to exactly one user. Re-registering the
+ *     same value under a different account returns 409. APNs tokens
+ *     aren't secrets, so trusting wire input would let anyone who
+ *     learns one redirect another user's pushes.
+ *   * The same guard applies to `apnsToken` — supplying an `apnsToken`
+ *     that's already registered to a different user returns 409 with
+ *     reason `apns_token_owned_by_other_user`.
+ *
+ * APNs registration:
+ *   * `apnsToken` and `apnsEnvironment` are paired — supplying one
+ *     without the other returns 422. The iOS client picks the gateway
+ *     (`sandbox` for Debug builds, `production` for Release / TestFlight)
+ *     because the server has no way to tell from the token alone.
  */
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
@@ -15,17 +29,38 @@ import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 
-const deviceSchema = z.object({
-  token: z
-    .string()
-    .min(8)
-    .max(512)
-    .regex(/^[A-Za-z0-9+/=._:-]+$/, "Invalid token format"),
-  bundleId: z.string().min(1).max(128),
-  locale: z.string().min(2).max(16).optional(),
-  appVersion: z.string().min(1).max(32).optional(),
-  model: z.string().min(1).max(64).optional(),
-});
+const deviceSchema = z
+  .object({
+    token: z
+      .string()
+      .min(8)
+      .max(512)
+      .regex(/^[A-Za-z0-9+/=._:-]+$/, "Invalid token format"),
+    bundleId: z.string().min(1).max(128),
+    locale: z.string().min(2).max(16).optional(),
+    appVersion: z.string().min(1).max(32).optional(),
+    model: z.string().min(1).max(64).optional(),
+    // APNs-specific pair — the iOS client populates these once it has
+    // an APNs token from the OS callback. Hex string per Apple's spec
+    // (64 chars on most devices; cap at 256 for forward compat).
+    apnsToken: z
+      .string()
+      .min(8)
+      .max(256)
+      .regex(/^[A-Fa-f0-9]+$/, "apnsToken must be hex")
+      .optional(),
+    apnsEnvironment: z.enum(["sandbox", "production"]).optional(),
+  })
+  .refine(
+    (v) =>
+      (v.apnsToken === undefined && v.apnsEnvironment === undefined) ||
+      (v.apnsToken !== undefined && v.apnsEnvironment !== undefined),
+    {
+      message:
+        "apnsToken and apnsEnvironment must be supplied together or both omitted",
+      path: ["apnsEnvironment"],
+    },
+  );
 
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
@@ -38,7 +73,39 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError(parsed.error.issues[0].message, 422);
   }
 
-  const { token, bundleId, locale, appVersion, model } = parsed.data;
+  const {
+    token,
+    bundleId,
+    locale,
+    appVersion,
+    model,
+    apnsToken,
+    apnsEnvironment,
+  } = parsed.data;
+
+  // APNs-token cross-user-hijack guard: APNs tokens aren't secrets, so
+  // accepting one already owned by another user would let any client
+  // who learns one redirect that user's pushes. Reject before any
+  // upsert so we never accidentally transfer ownership.
+  if (apnsToken) {
+    const existingApns = await prisma.device.findFirst({
+      where: { apnsToken, NOT: { userId: user.id } },
+      select: { id: true },
+    });
+    if (existingApns) {
+      await auditLog("device.register.denied", {
+        userId: user.id,
+        details: {
+          reason: "apns_token_owned_by_other_user",
+          deviceId: existingApns.id,
+        },
+      });
+      return apiError(
+        "APNs token already registered to another account",
+        409,
+      );
+    }
+  }
 
   const existing = await prisma.device.findUnique({ where: { token } });
   let id: string;
@@ -65,6 +132,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
         locale: locale ?? null,
         appVersion: appVersion ?? null,
         model: model ?? null,
+        apnsToken: apnsToken ?? null,
+        apnsEnvironment: apnsEnvironment ?? null,
         lastSeen: new Date(),
       },
       select: { id: true },
@@ -80,6 +149,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
         locale: locale ?? null,
         appVersion: appVersion ?? null,
         model: model ?? null,
+        apnsToken: apnsToken ?? null,
+        apnsEnvironment: apnsEnvironment ?? null,
       },
       select: { id: true },
     });
@@ -88,7 +159,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   await auditLog("devices.register", {
     userId: user.id,
-    details: { deviceId: id, bundleId, model: model ?? null },
+    details: {
+      deviceId: id,
+      bundleId,
+      model: model ?? null,
+      hasApnsToken: Boolean(apnsToken),
+      apnsEnvironment: apnsEnvironment ?? null,
+    },
   });
 
   annotate({

@@ -64,16 +64,32 @@ Last update: 2026-05-11T00:25+02:00
 
 ## Wave 3 — APNs scaffolding (F4)
 
-- [ ] Library install + lock-file (W1 decision)
-- [ ] `src/lib/notifications/senders/apns.ts` (send-push helper)
-- [ ] Env-var contract (`APNS_KEY_ID`, `APNS_TEAM_ID`,
-      `APNS_KEY_FILE`, `APNS_BUNDLE_ID`)
-- [ ] `Device` Prisma model extension: `apnsToken` field +
-      `apnsEnvironment` (sandbox/production)
-- [ ] Dispatcher wiring: APNs joins the existing notification
-      cascade alongside Telegram + ntfy + Web Push
-- [ ] Mock provider for tests
-- [ ] Integration test for batched APNs send
+- [x] Library install + lock-file (`@parse/node-apn@8.1.0`,
+      W1 stream-2 decision)
+- [x] `src/lib/notifications/senders/apns.ts` — `sendApnsPush()`
+      one-shot helper plus `sendViaApns(userId, payload)` dispatcher
+      entry mirroring the web-push contract
+- [x] Env-var contract: `APNS_KEY_ID`, `APNS_TEAM_ID`,
+      `APNS_BUNDLE_ID`, one of `APNS_KEY` / `APNS_KEY_FILE`,
+      optional `APNS_PRODUCTION` — documented in `.env.example`,
+      all-or-none guard with one-shot warning when partially set
+- [x] `Device` Prisma model extension via migration
+      `0037_apns_device_columns`: nullable `apnsToken` +
+      `apnsEnvironment`, paired CHECK constraint, single-column
+      index on `apns_token` for the dispatcher fan-out lookup
+- [x] Dispatcher wiring: `APNS` joins the cascade as channel-type
+      4; cascade order is now deterministic
+      (APNs → Telegram → ntfy → Web Push)
+- [x] Mock provider at `src/lib/notifications/senders/__mocks__/apns.ts`
+      with queued per-token responses + recorded calls
+- [x] Integration test
+      `tests/integration/apns-dispatch.test.ts` — round-trip,
+      hard-reject + cleanup, cascade fall-through (3 tests)
+- [x] `POST /api/devices` accepts paired `apnsToken` +
+      `apnsEnvironment`, enforces hex format, applies the
+      cross-user-hijack guard at the APNs-token layer
+      (409 `apns_token_owned_by_other_user`)
+- Detailed report: `.planning/phase-W3-v1423-report.md`
 
 ## Wave 4 — OpenAPI + Coach schema + native auth + Coolify
 
