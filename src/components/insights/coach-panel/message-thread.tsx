@@ -52,8 +52,24 @@ export function MessageThread({
   const wasPinnedRef = useRef(true);
 
   const messages: CoachMessageDTO[] = conversation?.messages ?? [];
+  // v1.4.20.1 — once the SSE stream emits `done`, the route's
+  // invalidate-then-refetch pulls the persisted assistant message into
+  // `conversation.messages`. The streaming bubble was still rendering
+  // because the hook keeps `streaming.content` populated to support
+  // the in-flight render path; the result was two assistant bubbles
+  // side by side until the next `send` reset the streaming state.
+  // Suppress the streaming bubble at render time as soon as the
+  // persisted twin lands — comparing on `messageId` keeps the
+  // transition seamless while never accidentally hiding an in-flight
+  // bubble (during streaming `messageId` is null).
+  const streamingPersisted =
+    streaming?.messageId != null &&
+    messages.some((m) => m.id === streaming.messageId);
   const streamingActive =
-    !!streaming?.inProgress || !!streaming?.content || !!streaming?.errorCode;
+    !streamingPersisted &&
+    (!!streaming?.inProgress ||
+      !!streaming?.content ||
+      !!streaming?.errorCode);
 
   // Track scroll position so we don't yank the viewport when the user
   // is browsing earlier turns.
