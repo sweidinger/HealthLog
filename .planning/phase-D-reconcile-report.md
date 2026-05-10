@@ -33,18 +33,18 @@ guard the wire shape. Existing 53 gamification tests stay green.
 
 ## HIGH triage
 
-| Finding | Source | Fix / Defer | Commit |
-|---|---|---|---|
-| H1 — chart-overlay-prefs R-M-W race | code-review | FIXED | `cf75579` |
-| H2 — `useChartOverlayPrefs(chartKey ?? "bp")` waste | code-review | FIXED via simplify F2 | `720e6c8` |
-| H3 — bug-buddy shared metric leak | code-review | AUTO-RESOLVED by C1 | `545f44c` |
-| H4 — mood-window doc/code mismatch | code-review | FIXED (doc clarified) | `c6e3ac6` |
-| H5 — consistentMonthCount unbounded | code-review | FIXED (capped at 1) | `c6e3ac6` |
-| HIGH-1 — same as C1 | security | AUTO-RESOLVED by C1 | `545f44c` |
-| HIGH-2 — i18n bundle leak | security | DEFERRED to v1.4.19 | bundle-strip needs build hook |
-| H1 design — mood `chartKey="mood"` default | design | FIXED | `fbf14fc` |
-| H2 design — cog 28x28 to 44x44 | design | FIXED | `194ec2f` |
-| H3 design — mood-chart header `flex-wrap` | design | FIXED | `fbf14fc` |
+| Finding                                             | Source      | Fix / Defer           | Commit                        |
+| --------------------------------------------------- | ----------- | --------------------- | ----------------------------- |
+| H1 — chart-overlay-prefs R-M-W race                 | code-review | FIXED                 | `cf75579`                     |
+| H2 — `useChartOverlayPrefs(chartKey ?? "bp")` waste | code-review | FIXED via simplify F2 | `720e6c8`                     |
+| H3 — bug-buddy shared metric leak                   | code-review | AUTO-RESOLVED by C1   | `545f44c`                     |
+| H4 — mood-window doc/code mismatch                  | code-review | FIXED (doc clarified) | `c6e3ac6`                     |
+| H5 — consistentMonthCount unbounded                 | code-review | FIXED (capped at 1)   | `c6e3ac6`                     |
+| HIGH-1 — same as C1                                 | security    | AUTO-RESOLVED by C1   | `545f44c`                     |
+| HIGH-2 — i18n bundle leak                           | security    | DEFERRED to v1.4.19   | bundle-strip needs build hook |
+| H1 design — mood `chartKey="mood"` default          | design      | FIXED                 | `fbf14fc`                     |
+| H2 design — cog 28x28 to 44x44                      | design      | FIXED                 | `194ec2f`                     |
+| H3 design — mood-chart header `flex-wrap`           | design      | FIXED                 | `fbf14fc`                     |
 
 8 of 10 HIGH fixed inline. 1 deferred (HIGH-2 security — i18n
 bundle architectural change, doesn't fit reconcile scope). 1
@@ -59,7 +59,7 @@ safe suggestions`:
   `chart-overlay-controls`; re-export the canonical pair from
   `dashboard-layout`. Test imports updated.
 - **F2** — `useChartOverlayPrefs(chartKey: ChartOverlayKey | null |
-  undefined)` short-circuits when no key is supplied.
+undefined)` short-circuits when no key is supplied.
   `health-chart` drops the three discard-the-result ternaries.
 - **F3** — `/api/analytics` no longer pair-and-counts BP twice; the
   windowed helper produces both the headline and the sub-values.

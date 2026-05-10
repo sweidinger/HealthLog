@@ -22,7 +22,7 @@ Compiled: 2026-05-10.
   an unlock fires, (2) reversible obfuscation (rot13/base64) decoded
   client-side only when `unlocked === true`. Approach 1 is the v1.5
   fix, approach 2 is the v1.4.19 stopgap. File: `src/lib/i18n/context.tsx:15-16`,
-  `messages/en.json` "achievements.badges.hidden*".
+  `messages/en.json` "achievements.badges.hidden\*".
 
 ## MED (deferred)
 
@@ -89,7 +89,7 @@ Compiled: 2026-05-10.
   Resolved in v1.4.18 reconcile (commit `720e6c8`).
 - **F3 senior-dev** — `src/lib/gamification/achievements.ts` (839
   LOC) is at the watchpoint for a `definitions/ + evaluators/ +
-  utilities/` split. Defer until a 5th responsibility (cross-user
+utilities/` split. Defer until a 5th responsibility (cross-user
   leaderboard, server-side rules engine) lands.
 - **F4 senior-dev** — `toBerlinDayKey()` reimplemented in
   `src/lib/analytics/bp-in-target.ts` AND
