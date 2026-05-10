@@ -90,6 +90,13 @@ interface HeroStripProps {
     href: string;
   };
   /**
+   * v1.4.20 phase D reconcile — href to the current week's report. When
+   * supplied, the action-row "Generate weekly report" button becomes a
+   * real link instead of the disabled placeholder. B4 shipped the
+   * route, so the button should not paint as disabled-primary anymore.
+   */
+  weeklyReportHref?: string;
+  /**
    * Now() override for tests so the greeting bucket is deterministic.
    * Defaults to `new Date()`. Production callers omit this.
    */
@@ -156,6 +163,7 @@ export function HeroStrip({
   onPickPrompt,
   onAskCoach,
   weeklyReportReady,
+  weeklyReportHref,
   now,
   healthScore,
 }: HeroStripProps) {
@@ -237,24 +245,38 @@ export function HeroStrip({
 
         <div className="flex flex-wrap items-center gap-2">
           {/*
-           * v1.4.20 phase B4 ships the weekly-report route. Disabled
-           * here so the affordance lives in the hero from B1 onwards
-           * without dead links — title= surfaces the "Coming soon"
-           * caption on hover/focus without dragging in a Radix
-           * tooltip provider for a single static label.
+           * v1.4.20 phase B4 shipped /insights/report/[week]; phase D
+           * reconcile enables this button as a real link to the
+           * current ISO week. Older parents that haven't adopted the
+           * weeklyReportHref prop still get the disabled affordance.
            */}
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            disabled
-            title={comingSoon}
-            data-slot="insights-hero-strip-action-weekly-report"
-            className="gap-1.5"
-          >
-            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{t("insights.heroActionWeeklyReport")}</span>
-          </Button>
+          {weeklyReportHref ? (
+            <Button
+              asChild
+              variant="default"
+              size="sm"
+              data-slot="insights-hero-strip-action-weekly-report"
+              className="gap-1.5"
+            >
+              <Link href={weeklyReportHref}>
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{t("insights.heroActionWeeklyReport")}</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              disabled
+              title={comingSoon}
+              data-slot="insights-hero-strip-action-weekly-report"
+              className="gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t("insights.heroActionWeeklyReport")}</span>
+            </Button>
+          )}
           {/* B2b wires this into the Coach drawer. The button is
               enabled whenever the parent supplies an `onAskCoach`
               handler; older parents that haven't adopted B2b yet

@@ -48,6 +48,7 @@ import { TrendsRow } from "@/components/insights/trends-row";
 import { CorrelationRow } from "@/components/insights/correlation-row";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import type { CorrelationResult } from "@/lib/insights/correlations";
+import { toWeekISO } from "@/lib/insights/week-iso";
 import { CompareToggle } from "@/components/comparison/compare-toggle";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
 // wrapper so the bundle only lands once a correlation card actually renders.
@@ -906,6 +907,10 @@ export default function InsightsPage() {
         href: `/insights/report/${weeklyReport.weekISO}`,
       }
     : undefined;
+  // v1.4.20 phase D reconcile — the action-row "Generate weekly report"
+  // button links into the current ISO week's report (B4 shipped the
+  // route, so the disabled-primary placeholder no longer makes sense).
+  const currentWeekHref = `/insights/report/${toWeekISO(new Date())}`;
 
   // v1.4.20 phase B4 — storyboard annotations for the 90-day BP chart.
   // The advisor payload may carry up to 20 entries; we transform them
@@ -955,6 +960,7 @@ export default function InsightsPage() {
           setCoachOpen(true);
         }}
         weeklyReportReady={weeklyReportReady}
+        weeklyReportHref={currentWeekHref}
         healthScore={analytics?.healthScore ?? undefined}
       />
 
