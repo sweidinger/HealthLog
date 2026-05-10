@@ -1,29 +1,60 @@
-# HealthLog v1.4.18 — roadmap
+# HealthLog v1.4.19 — roadmap
 
-Milestone: **v1.4.18** (kicked off 2026-05-10)
-Latest tag at start: v1.4.17 (live in prod, image digest
-`sha256:936e9cf2…`)
+Milestone: **v1.4.19** (kicked off 2026-05-10)
+Latest tag at start: v1.4.18 (live in prod, image digest
+`sha256:c636fca7db66…`)
 
-| Phase | Goal                                                                                                           | State   |
-| ----- | -------------------------------------------------------------------------------------------------------------- | ------- |
-| 0     | Bootstrap — STATE+ROADMAP for v1.4.18, git sanity, single chore commit                                         | done    |
-| A1    | BD-Zielbereich tile — 7T/30T sub-values render real numbers (currently "—" even with data)                     | pending |
-| A2    | `/admin/api-tokens` table scrollbar (3rd attempt) — Playwright live-verify against prod, fix actual overflow   | pending |
-| A3    | Chart visual revert + per-chart toggles — drop gradient/emoji/auto-mean, ship 3 opt-in overlay toggles         | pending |
-| B1    | Achievements expansion — research + 15-25 new, hidden Easter-eggs, lock filter, hidden cards                   | pending |
-| D     | Multi-agent QA + Product-Lead — code-reviewer, security, design (Apple-Health lens), senior, simplify, product | pending |
-| E     | Release v1.4.18 — bump, CHANGELOG, tag, GHCR, deploy, /api/version=1.4.18, smoke, docs+landing sync            | pending |
+| Phase | Goal                                                                                                                       | State   |
+| ----- | -------------------------------------------------------------------------------------------------------------------------- | ------- |
+| 0     | Bootstrap — STATE+ROADMAP for v1.4.19, git sanity, single chore commit                                                     | done    |
+| A1    | BD-Zielbereich constant 50% (4th attempt) — live-DB audit, root-cause calc bug, integration test                           | pending |
+| A2    | Charts mobile audit — axis-label overflow, X-axis density consistency across charts, universal tick helper                 | pending |
+| A3    | `/insights` polish — drop dashboard comparison toggle, reposition on insights, consolidate refresh, kill placeholder leaks | pending |
+| A4    | AI prompt — drop default "Datengrundlage stark" first sentence, only mention data quality when low                         | pending |
+| A5    | Settings/Integrations status-UI — single tag per integration, Mood Log divider, mobile-safe wrap                           | pending |
+| A6    | Settings mobile audit — equalize input heights, Sprache positioning, right-side button alignment, consistent spacing       | pending |
+| A7    | Admin polish — Feedback tab scrollbar, api-tokens 4th attempt (ellipsis+tooltip), Zielwerte whitespace + DE labels          | pending |
+| A8    | Quality-of-life audit — write-only findings list (descriptions, redundancies, missing labels, inconsistencies)             | pending |
+| B     | Apply A8 findings — fix CRITICAL/HIGH from quality-of-life audit                                                            | pending |
+| D     | Multi-agent QA + Product-Lead — code-reviewer, security, design, senior, simplify, product-lead (v1.4.20 strategic)         | pending |
+| E     | Release v1.4.19 — bump, CHANGELOG, tag, GHCR, deploy, /api/version=1.4.19, smoke, docs+landing sync                         | pending |
 
 Stop conditions: production red, large un-spec'd issue, context cutoff,
 or budget short of polish — write status doc, do not auto-rollback.
 
-Time-runs-short minimum to ship v1.4.18: Wave A (any subset) + Wave D
+Time-runs-short minimum to ship v1.4.19: Wave A (any subset) + Wave D
 
-- Phase E. Wave B (B1 achievements) is deferrable to v1.4.19 if context
-  budget tightens.
+- Phase E. Wave B (A8-driven inline fixes) is deferrable to v1.4.20 if
+  context budget tightens.
 
 Phase 0 spec for this marathon: orchestrator user message in this
 session (not stored to disk).
+
+Reserved next strategic milestones:
+
+- **v1.4.20** — Insights redesign with AI Coach (research-driven, after
+  v1.4.19; design handoff at
+  `~/Downloads/design_handoff_insights_redesign`).
+- **v1.5** — iOS app + Apple Health integration.
+
+---
+
+## Previous milestone — v1.4.18 (completed 2026-05-10T11:45+02:00)
+
+| Phase | Goal                                                                                                       | State |
+| ----- | ---------------------------------------------------------------------------------------------------------- | ----- |
+| 0     | Bootstrap — STATE+ROADMAP for v1.4.18                                                                      | done  |
+| A1    | BD-Zielbereich tile — 7T/30T sub-values render real numbers (currently "—" even with data)                 | done  |
+| A2    | `/admin/api-tokens` table scrollbar (3rd attempt) — Playwright live-verify against prod, fix actual offender | done  |
+| A3    | Chart visual revert + per-chart toggles — drop gradient/emoji/auto-mean, ship 3 opt-in overlay toggles      | done  |
+| B1    | Achievements expansion — research + 15-25 new, hidden Easter-eggs, lock filter, hidden cards                | done  |
+| D     | Multi-agent QA + Product-Lead — code-reviewer, security, design, senior, simplify, product                  | done  |
+| E     | Release v1.4.18 — bump, CHANGELOG, tag, GHCR, deploy, /api/version=1.4.18, smoke, docs+landing sync         | done  |
+
+Marathon completed 2026-05-10T11:45+02:00 — v1.4.18 LIVE in prod.
+Full report: `docs/audit/v1418-summary.md`. Backlog seeded to
+`.planning/v1419-backlog.md` (tactical) and `.planning/v15-backlog.md`
++ `.planning/phase-D-v1418-product-lead-review.md` (strategic).
 
 ---
 

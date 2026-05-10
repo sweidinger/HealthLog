@@ -1,296 +1,207 @@
-# v1.4.18 marathon — state log
+# v1.4.19 marathon — state log
 
-Status: finished
-Last update: 2026-05-10T11:45+02:00
+Status: phase-0-done
+Last update: 2026-05-10T12:48+02:00
 
-> Previous milestone: v1.4.17 hotfix shipped (`/insights` TypeError fix);
-> v1.4.16 full release at `docs/audit/v1416-summary.md`.
+> Previous milestone: v1.4.18 live (image digest
+> `sha256:c636fca7db66…`, `/api/version=1.4.18`).
+> Next strategic milestone: v1.4.20 = Insights redesign with AI Coach
+> (handoff at `~/Downloads/design_handoff_insights_redesign`).
+> v1.5 reserved for iOS app + Apple Health integration.
 
 ## Phase 0 — Bootstrap
 
-- [x] STATE+ROADMAP rewritten for v1.4.18
+- [x] STATE+ROADMAP rewritten for v1.4.19
 - [x] git status clean
 - Result: ok / commit `<sha>`
 - Detailed report: `.planning/phase-0-report.md`
 
-## Wave A — Quick fixes (parallel buckets)
+## Wave A — Bug fixes + polish (parallel buckets)
 
-### A1 — BD-Zielbereich tile 7T/30T sub-values
+### A1 — BD-Zielbereich constant 50% (4th attempt)
 
-- [x] Investigate why "7T: —" / "30T: —" render even when user has data
-- [x] Fix data source / aggregation for the sub-values
-- [x] E2E test against tile rendering with real measurement data
+- [ ] Live-DB audit of Marc's BP measurements (he granted access)
+- [ ] Identify why all three windows (7T, 30T, total) show exactly 50%
+      — likely calculation bug, NOT predicate
+- [ ] Root-cause fix + integration test that reproduces with Marc's
+      exact data fixture
 - Detailed report: `.planning/phase-A1-report.md`
-- Status: 2026-05-09T10:15+02:00 — done. Root cause was an
-  unfinished tile wire: `/api/analytics` only computed a single
-  30-day `bpInTargetPct`, and the dashboard tile passed
-  `avg7={null}, avg30={null}` so the sub-values rendered "—" no
-  matter how much data the user had. Added a windowed helper
-  `computeBpInTargetWindows()` (re-uses the v1.4.16 A2 ceiling
-  predicate, filters input by `measuredAt`), surfaced
-  `bpInTargetPct7d` / `bpInTargetPct30d` from the route, and wired
-  them through the tile. 6 new unit tests + 2 new testcontainer
-  integration tests, all green. Commit `23363ca` on origin/main.
 
-### A2 — `/admin/api-tokens` table scrollbar (3rd attempt, Playwright live-verified)
+### A2 — Charts mobile audit (axis-label overflow + X-axis density consistency)
 
-- [x] Inspect prod (https://healthlog.bombeck.io/admin/api-tokens) at
-      Pixel 5 viewport with Playwright headless using Marc's session
-      cookie `cmox4d6fj000101p8w9ykhcnm`
-- [x] Identify the exact element causing horizontal overflow (could be
-      page-level, not table-level)
-- [x] Fix the actual overflow source (not just table column-hide which
-      earlier attempts already did)
-- [x] Playwright e2e against PROD asserts no horizontal scroll at 393×851
+- [ ] Playwright headless against live prod at Pixel 5 + smaller
+      viewports
+- [ ] "Wochendurchschnitt" + "7T/30T/90T/Alle" tabs wrap-break:
+      shorten the label or hide on mobile
+- [ ] Medication chart shows every date on X; weight/BMI charts
+      sparser. Make consistent across all charts
+- [ ] Apply universal x-axis tick-density helper
 - Detailed report: `.planning/phase-A2-report.md`
-- Status: 2026-05-10T10:21+02:00 — done. Production probe at Pixel-5
-  with Marc's session pinned the painted scrollbar to the AdminShell
-  mobile section strip (13 entries, scrollWidth ~1700 vs clientWidth
-  ~360), NOT the api-tokens table. Every previous attempt fixed the
-  wrong component because the strip sits right above the api-tokens
-  card. Added `no-scrollbar` utility to globals.css and applied to
-  both AdminShell + SettingsShell mobile strips (same defect, same
-  pattern); swipe + keyboard-arrow scrolling preserved. Document-
-  level overflow already 0 in prod
-  (innerWidth=scrollWidth=393). Tests: 1559/1559, typecheck clean,
-  lint 0/12-baseline. New AdminShell unit suite + settings-shell
-  assertion + e2e regression guard. Commit `3e16074` on origin/main.
 
-### A3 — Chart visual revert + per-chart toggles
+### A3 — /insights polish + Comparison switch move
 
-- [x] Remove gradient-fill background (B1a `<ChartLinearGradient>` +
-      chart wrapper area-fill)
-- [x] Remove emoji/smiley glyphs from mood-chart data points (replace
-      with simple dots or numeric)
-- [x] Remove auto-overlay personal-baseline / mean line (only show when
-      actively requested)
-- [x] Add per-chart overlay-controls component: 3 toggles
-      (showTrendIndicator / showTrendArrow / showTargetRange) per chart
-- [x] Persist per-user per-chart overlay state (extended
-      dashboardLayout JSON with `chartOverlayPrefs`, no Prisma
-      migration; new PUT `/api/dashboard/chart-overlay-prefs`)
-- [x] Default state: all overlays OFF (clean line is the default)
-- [x] Keep the v1.4.16 wins that Marc didn't reject: smooth
-      interpolation, rich tooltip, animation-on-render
+- [ ] Remove Comparison-toggle from Dashboard (insights only)
+- [ ] Re-position Comparison-toggle on /insights (find the right spot
+      — research §4 said next to range tabs)
+- [ ] Consolidate refresh-buttons (page-level vs card-level — pick
+      ONE)
+- [ ] "Persönlicher AI Berater" title without content → fix or remove
+      (placeholder leaked through?)
+- [ ] Remove small BP/Weight tiles on /insights (duplicate of
+      dashboard, wastes space)
+- [ ] Fix raw "metric: blood_pressure_sweet" template leak at bottom
+      (debug code or unrendered placeholder)
 - Detailed report: `.planning/phase-A3-report.md`
-- Status: 2026-05-09T10:36+02:00 — done. Six atomic commits on
-  origin/main: gradient-fill revert + chart-gradient module deleted,
-  mood-chart emoji glyphs replaced with plain dots, personal-baseline
-  ReferenceLine gated behind the Trend toggle on health-chart and
-  mood-chart, new `chart-overlay-controls.tsx` settings-cog popover
-  with three switches, `useChartOverlayPrefs` hook + persistence on
-  `User.dashboardWidgetsJson.chartOverlayPrefs` (mirrors B8 pattern,
-  migration-free), Playwright + vitest coverage. Tests:
-  1569/1569 + integration 63/63, typecheck clean, lint 12/12 baseline
-  warnings. Worktree `../HealthLog-a3` on branch
-  `agent/a3-charts-revert`.
 
-## Wave B — Achievements expansion (with research)
+### A4 — AI prompt anpassen (no "Datengrundlage stark" as default first sentence)
 
-### B1 — Achievements expansion
+- [ ] Edit `src/lib/ai/prompts/insight-generator.ts`
+- [ ] Remove the auto-positive-first-sentence about data quality
+- [ ] Only mention data quality when low (helpful: "based on limited
+      data, treat with caution") not when fine
+- [ ] Update tests
+- Detailed report: `.planning/phase-A4-report.md`
 
-- [x] Research what achievements make sense for HealthLog's tracked
-      metrics (BP / weight / pulse / mood / medication / streaks /
-      consistency / first-time / milestone)
-- [x] Benchmark Apple Health badges, Withings, Oura — what works in
-      consumer health
-- [x] Author the new achievement set (15 public, target was 15-25)
-- [x] Hidden / Easter-egg achievements (6, target was 5-8)
-- [x] Discovery filter: locked public badges only render when the
-      user has data for the metric; already-unlocked + hidden always
-      render; summary recomputed from the visible set so headline
-      counters match the rendered list.
-- [x] Hidden achievements paint opaque "Hidden achievement" cards;
-      real strings never reach the DOM until unlock; toast on unlock
-      uses a longer Sparkles celebration with a localized "you
-      unlocked a hidden achievement!" headline.
-- [x] Result: roster 38 → 59 (+21 = 15 public + 6 hidden). Tests:
-      1598/1598 unit, 62/62 integration, typecheck clean, lint
-      unchanged. Commits `75c74f1...e75ea75` on origin/main.
-- Detailed report: `.planning/phase-B1-report.md`
+### A5 — Settings/Integrations status-UI consolidation (Withings + Mood Log)
 
-## Wave D — QA + Product-Lead review
+- [ ] Single tag top-right per integration: "verbunden · vor X min"
+- [ ] Remove redundant container with "verbunden / letzte
+      erfolgreiche / letzter Versuch" / bottom "letzter Sync" — pick
+      ONE place
+- [ ] Mood Log container missing visual divider → add (consistency
+      with Withings)
+- [ ] Mobile-safe: tag wraps gracefully on Pixel 5
+- Detailed report: `.planning/phase-A5-report.md`
 
-- [x] code-reviewer (1 CRITICAL, 5 HIGH, 7 MED/LOW)
-- [x] security review (0 CRITICAL, 2 HIGH, 3 MED/LOW)
-- [x] design / UX review (0 CRITICAL, 3 HIGH, 11 MED/LOW)
-- [x] senior-dev review (0 CRITICAL, 0 HIGH, 6 MED/LOW)
-- [x] simplify (7 apply-yes, 0 apply-no)
-- [x] Product Lead — strategic v1.5 update filed
-- [x] Reconcile applies CRITICAL/HIGH inline
-- Status: 2026-05-10T11:08+02:00 — done. C1 hidden-achievement
-  wire-leak fixed (`545f44c`); 8 of 10 HIGH fixed inline (1
-  deferred to v1.4.19 — security HIGH-2 i18n bundle strip needs
-  a build-time hook), all 7 simplify-yes applied (`720e6c8`).
-  Format sweep across the tree (`3048dd6`). Tests: 1605/1605
-  unit, 66/66 integration. Typecheck + lint + format-check
-  clean. Backlog seeded to `v1419-backlog.md`; strategic v1.5
-  items added to `v15-backlog.md`. Detailed report:
-  `.planning/phase-D-reconcile-report.md`. Commits on
-  origin/main: `545f44c`, `720e6c8`, `fbf14fc`, `194ec2f`,
-  `cf75579`, `c6e3ac6`, `3048dd6`.
+### A6 — Settings mobile audit + consistency
 
-## Phase E — Release v1.4.18
+- [ ] Playwright headless audit `/settings/account`,
+      `/settings/profile`, `/settings/integrations`,
+      `/settings/notifications`, `/settings/ai`,
+      `/settings/dashboard`, `/settings/export`
+- [ ] Equalize input heights (Username/Email/Geburtsdatum)
+- [ ] Sprache-Menü positioning consistent
+- [ ] Right-side action buttons (Passwort Reset, Tool Neustarten)
+      consistent vertical position
+- [ ] Spacing between elements consistent
+- Detailed report: `.planning/phase-A6-report.md`
 
-- [x] Pre-release verify
-- [x] Bump package.json + CHANGELOG
-- [x] Tag + push v1.4.18
-- [x] GHCR build green (both main + tag)
-- [x] Coolify deploy
-- [x] /api/version=1.4.18 confirmed
-- [x] Production smoke
-- [x] GH release
-- [x] Docs site + landing site sync
-- [x] `docs/audit/v1418-summary.md` (Marc-Brief)
-- Detailed reports: `.planning/phase-E1-report.md`, `phase-E2-report.md`, `phase-E3-report.md`
-- Status: 2026-05-10T11:14+02:00 — Phase E1 done. Verify clean
-  (typecheck 0, lint 0/12-baseline, format-check clean, unit
-  1605/1605, integration 66/66). Release commit `0243e20`
-  (package.json 1.4.17 → 1.4.18 + CHANGELOG entry, English,
-  sections Added / Changed / Fixed / Deferred). Tag `v1.4.18`
-  annotated, pushed alongside `c072ad8..0243e20  main -> main`.
-  GHCR tag-build run id `25624945158` in_progress; main builds
-  `25624944860` (security) + `25624944855` (integration) also
-  in_progress. ZERO unresolved CRITICAL; one HIGH (security
-  HIGH-2 i18n bundle leak) deferred to v1.4.19 per
-  `.planning/v1419-backlog.md`.
+### A7 — Admin polish (Feedback, api-tokens 4th attempt, Zielwerte, i18n)
+
+- [ ] Admin Feedback "offen/bestätigt/erledigt/archiviert" tabs has
+      spurious mini-scrollbar → remove
+- [ ] `/admin/api-tokens` scrollbar 4th attempt: truncate token-name
+      with `text-ellipsis` + tooltip on hover (not column-hide)
+- [ ] `/admin/api-tokens` "Einklappen" button removed (page only has
+      1 section)
+- [ ] Admin Zielwerte page: reduce whitespace between overview header
+      and values
+- [ ] Translate Zielwerte status labels: "Low / On Target / Stable /
+      Moderate" → DE
+- Detailed report: `.planning/phase-A7-report.md`
+
+### A8 — Quality-of-life audit (write-only, fix-set deferred to inline B agent)
+
+- [ ] Audit descriptions correctness across all pages
+- [ ] Find redundancies + missing labels
+- [ ] Find UI inconsistencies (text styling, spacing, button
+      alignment)
+- [ ] Output prioritized list for inline fixing
+- Detailed report: `.planning/phase-A8-quality-findings.md`
+
+## Wave B — Apply A8 findings (after A8 completes)
+
+- [ ] Fix CRITICAL/HIGH from quality-of-life audit
+- Detailed report: `.planning/phase-B-report.md`
+
+## Wave D — Multi-agent QA + Product-Lead review
+
+- [ ] code-reviewer
+- [ ] security review
+- [ ] design / UX review
+- [ ] senior-dev review
+- [ ] simplify
+- [ ] Product Lead — strategic for v1.4.20 (Insights redesign roadmap,
+      AI Coach feasibility)
+- [ ] Reconcile applies CRITICAL/HIGH inline
+- Detailed report: `.planning/phase-D-report.md` +
+  `product-lead-review.md`
+
+## Phase E — Release v1.4.19
+
+- [ ] Pre-release verify
+- [ ] Bump package.json + CHANGELOG
+- [ ] Tag + push v1.4.19
+- [ ] GHCR build green
+- [ ] Coolify deploy
+- [ ] /api/version=1.4.19 confirmed
+- [ ] Production smoke
+- [ ] GH release
+- [ ] Docs site + landing site sync
+- [ ] `docs/audit/v1419-summary.md` (Marc-Brief)
+- Detailed report: `.planning/phase-E-report.md`
+
+---
+
+## Status block — Phase 0 (v1.4.19)
+
+- 2026-05-10T12:48+02:00 — Phase 0 complete. STATE.md + ROADMAP.md
+  scaffolded for v1.4.19 marathon (Wave A: A1 BD-Zielbereich constant
+  50% 4th attempt, A2 charts mobile audit + universal X-tick-density
+  helper, A3 `/insights` polish + Comparison-toggle relocation, A4
+  AI-prompt rework, A5 Settings/Integrations status-UI consolidation,
+  A6 Settings mobile audit, A7 Admin polish, A8 quality-of-life
+  write-only audit; Wave B applies A8 findings; Wave D multi-agent QA
+  + Product-Lead briefed for v1.4.20 Insights redesign + AI Coach;
+  Phase E release). Previous v1.4.18 / v1.4.17 / v1.4.16 entries
+  archived above. Tracked tree clean on entry; four untracked stale
+  dotted-segment route directories
+  (`src/app/api/export/{full-backup.json,measurements.csv,
+medications.csv,mood.csv}/`) left in place — same call as v1.4.16 /
+  v1.4.18 Phase 0, they belong to previous milestones. Phase 0 commit
+  contains only `.planning/STATE.md`, `.planning/ROADMAP.md`,
+  `.planning/phase-0-report.md`. v1.4.20 reserved for Insights
+  redesign with AI Coach (handoff at
+  `~/Downloads/design_handoff_insights_redesign`); v1.5 reserved for
+  iOS app + Apple Health.
+
+---
+
+## Previous milestone — v1.4.18 (completed 2026-05-10T11:45+02:00)
+
+LIVE at https://healthlog.bombeck.io · `/api/version=1.4.18` · image
+digest `sha256:c636fca7db66…` (was v1.4.17: `sha256:936e9cf25b2d…`).
+Full Marc-Brief at `docs/audit/v1418-summary.md`. Backlog seeded to
+`.planning/v1419-backlog.md` (1 HIGH i18n bundle leak + MED/LOW) and
+`.planning/v15-backlog.md` / `.planning/phase-D-v1418-product-lead-review.md`
+(strategic).
+
+Phases run during v1.4.18 marathon:
+
+- Phase 0 — Bootstrap (STATE+ROADMAP for v1.4.18)
+- Wave A — A1 BD-Zielbereich tile sub-values, A2 admin-shell mobile
+  strip scrollbar, A3 chart visual revert + per-chart overlay
+  toggles
+- Wave B — B1 achievements expansion (38 → 59, +6 hidden, discovery
+  filter, opaque hidden cards)
+- Wave D — Multi-agent QA + reconcile (1 CRITICAL cleared, 8 of 10
+  HIGH fixed inline, 1 HIGH deferred to v1.4.19)
+- Phase E1-E3 — Release v1.4.18 (tag, GHCR both green, Coolify deploy
+  via force-pull, GH release, docs+landing sync, Marc-Brief)
 
 ---
 
 ## Previous milestone — v1.4.17 hotfix (live 2026-05-10T07:58+00:00)
 
-LIVE at https://healthlog.bombeck.io · `/api/version=1.4.17` · image
-digest `sha256:936e9cf2…` (was v1.4.16: `sha256:05f8a126d639…`).
-
-Triggered by Marc's `/insights` crash 6 hours after v1.4.16 went live.
-Cached pre-strict insight blob (v1.4.14 shape: `{changed, stable,
-drivers, nextSteps, confidence, limitations}`) fell through
-`safeParse(insightResultSchema)` because the route surfaces the raw
-blob when validation fails; rich `<InsightAdvisorCard>` then called
-`stripChartTokens(undefined)` and crashed.
-
-Fix:
-
-- `isLegacyInsightPayload()` now flags blobs missing both `summary`
-  AND `recommendations[]` (the v1.4.14 shape) so the API surfaces
-  `legacyPayload: true` correctly.
-- `<InsightAdvisorCard>` short-circuits to a self-contained
-  legacy-payload card with the regenerate CTA when `legacyPayload` is
-  set OR when the shape is unrenderable.
-- Defense-in-depth: `stripChartTokens()` and `parseChartTokens()`
-  treat null/undefined as empty string / empty array.
-
-Audit (`git grep -nE '\.replace\(' src/`): 82 hits, only the crash
-site is fragile. Audit doc: `.planning/v1417-replace-audit.md`.
-
-Verification: `pnpm typecheck` 0 errors, `pnpm lint` 0 errors / 12
-pre-existing warnings, `pnpm test` 1547/1547 (+7 defensive tests),
-`pnpm test:integration` 59/59.
-
-Commits on origin/main:
-
-- `79bfa27 fix(insights): handle legacy cached payload without rationale (regenerate CTA)`
-- `adab80a chore(release): v1.4.17`
-- `da7070e style(insights): prettier sweep on legacy-payload hotfix files`
-
-GH release: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.17.
-Detailed report: `.planning/phase-v1417-hotfix-report.md`.
+`/insights` TypeError on legacy cached payload — `isLegacyInsightPayload()`
+flag + advisor card short-circuit + defensive `stripChartTokens` /
+`parseChartTokens`. Three commits: `79bfa27` (fix), `adab80a`
+(release), `da7070e` (prettier). Detailed report:
+`.planning/phase-v1417-hotfix-report.md`.
 
 ---
 
 ## Previous milestone — v1.4.16 (completed 2026-05-10T04:05+02:00)
 
-LIVE at https://healthlog.bombeck.io · `/api/version=1.4.16` · image
-digest `sha256:05f8a126d639…` (was v1.4.15: `sha256:ace7d441f47b…`).
-
-Full Marc-Brief, commit table, deferred items, CI/prod state and
-Phase-D reconcile detail: `docs/audit/v1416-summary.md`. Backlog seeded
-to `.planning/v15-backlog.md` (11 deferred HIGH + tactical follow-ons +
-Product-Lead strategic v1.5 plan).
-
-Phases run during v1.4.16 marathon:
-
-- Phase 0 — Bootstrap (STATE+ROADMAP for v1.4.16)
-- Wave A — A1-A8 quick fixes (admin nav, BD-Zielbereich, api-tokens
-  responsive, 7-Tage-Trend rename, top-tile selector, medication chart
-  parity, AI rate-limit, umlaute fix, long-window split-half delta)
-- Wave B — B1a/b chart + insights polish, B2 AI provider UX, B3
-  host-load chart, B4 audit-log + app-log preview, B5a-e medical
-  references / fallback chain / explainability / confidence /
-  feedback, B6 settings naming audit, B7 export consolidation, B8
-  comparison overlay
-- Wave C — Catch-up (CI fix, 5 of 8 deferred HIGH from v1.4.15, 3 of 5
-  deferred MED from A5 mobile, docker-publish drop qemu-arm64)
-- Wave D — Multi-agent QA + reconcile (3 CRITICAL cleared, 9 HIGH
-  fixed inline, 11 HIGH deferred to v1.5 backlog)
-- Phase E1-E3 — Release (v1.4.16 tag, GHCR both green, Coolify deploy
-  with retag-on-host fallback, GH release, docs+landing sync,
-  Marc-Brief)
-
-Marathon recurring meta: per-agent git-worktree adoption succeeded;
-keep the rule.
-
----
-
-## Status block — Phase 0 (v1.4.18)
-
-- 2026-05-10T10:02+02:00 — Phase 0 complete. STATE.md + ROADMAP.md
-  scaffolded for v1.4.18 marathon (Wave A: A1-A3 quick fixes
-  including chart visual revert per Marc's gradient/smiley/auto-mean
-  feedback, Wave B: B1 achievements expansion with research, Wave D
-  multi-agent QA + Product-Lead, Phase E release). Previous v1.4.17
-  hotfix and v1.4.16 entries archived above. Working tree carries
-  4 untracked stale dotted-segment route directories
-  (`src/app/api/export/{full-backup.json,measurements.csv,
-medications.csv,mood.csv}/`) plus 3 untracked v1.4.16 phase
-  reports (`phase-E1-report.md`, `phase-E2-report.md`,
-  `phase-E3-report.md`) — same call as v1.4.16 Phase 0: leave them
-  in place, they belong to previous milestones. Tracked files clean.
-  Phase 0 commit contains only `.planning/STATE.md`,
-  `.planning/ROADMAP.md`, `.planning/phase-0-report.md`.
-
-## Status block — Phase E2 (v1.4.18)
-
-- 2026-05-10T11:30+02:00 — Phase E2 complete. v1.4.18 LIVE at
-  https://healthlog.bombeck.io. GHCR runs 25624945158 (v1.4.18 tag) and
-  25624944843 (main) both `success`; image digest flipped from
-  `sha256:936e9cf25b2d…` (v1.4.17) to `sha256:c636fca7db66…` (v1.4.18).
-  Coolify still on git-push trigger so force-pulled via
-  `docker compose pull && docker compose up -d app` on apps-01 (the
-  retag-on-host fallback was not needed — `:latest` had already
-  refreshed). `/api/version` flipped 1.4.17 → 1.4.18 within the first
-  5s poll cycle. Smoke 14/14 real routes 200 (the `/dashboard` 404 in
-  the brief is a known stale path; HealthLog's dashboard is at `/`).
-  GH release v1.4.18 created via sed-extracted notes (lines 3-74 of
-  CHANGELOG, 72 lines): https://github.com/MBombeck/HealthLog/releases/tag/v1.4.18.
-  Detailed report: `.planning/phase-E2-report.md`. No rollback action
-  taken (and per brief, would not have been on red).
-
-## Status block — Phase E3 (v1.4.18)
-
-- 2026-05-10T11:38+02:00 — Phase E3 complete. healthlog-docs:
-  `6688c81` (six existing pages refreshed — dashboard-customization,
-  gamification, comparison, admin-settings, scaling, updates) +
-  `e5a58bc` (new `features/achievements-hidden.mdx` page wired into
-  sidebar via `astro.config.mjs`). 45 Starlight pages built, 0
-  warnings. healthlog-landing: `ed638db` (`softwareVersion 1.4.16 →
-  1.4.18` in JSON-LD, featureList rewritten for clean-line aesthetic,
-  two capability badges updated). All three commits pushed to
-  origin/main on their respective repos. Detailed report:
-  `.planning/phase-E3-report.md`.
-
-## Status block — Final (v1.4.18)
-
-- 2026-05-10T11:45+02:00 — v1.4.18 marathon finished. Marc-Brief
-  filed at `docs/audit/v1418-summary.md` and committed to origin/main.
-  Top-of-file Status flipped to `finished`. v1.4.18 is LIVE at
-  https://healthlog.bombeck.io with `/api/version=1.4.18` and image
-  digest `sha256:c636fca7db66…`. Backlog seeded
-  (`.planning/v1419-backlog.md` for tactical, `.planning/v15-backlog.md`
-  + `.planning/phase-D-v1418-product-lead-review.md` for strategic).
-  ZERO unresolved CRITICAL; one HIGH (security HIGH-2 i18n bundle
-  leak) deferred to v1.4.19. Tests: 1605/1605 unit, 66/66 integration,
-  typecheck clean, lint 12-baseline. CHANGELOG.md current. GH release
-  page live. Docs site + landing site sync committed and pushed. Next
-  marathon: v1.4.19 cleanup pass (i18n bundle strip + MED backlog) or
-  jump straight to v1.5 strategic work per Product-Lead review.
+Full report: `docs/audit/v1416-summary.md`. v1.5 backlog seeded at
+`.planning/v15-backlog.md`.
