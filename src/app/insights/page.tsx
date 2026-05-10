@@ -1060,7 +1060,15 @@ export default function InsightsPage() {
           annotations={bpStoryboardAnnotations}
         />
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        {/* v1.4.22 A4 — row-fill rule: 2 cards → 50/50 (xl), 1 card →
+            100 % width. When the mood section is hidden the BP-medication
+            card collapses to full-width instead of leaving the right
+            half empty. */}
+        <div
+          className={
+            showMoodSection ? "grid gap-4 xl:grid-cols-2" : "grid gap-4"
+          }
+        >
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -1262,7 +1270,13 @@ export default function InsightsPage() {
           compareBaseline={compareBaseline}
         />
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        {/* v1.4.22 A4 — row-fill rule: 2 cards → 50/50 (xl), 1 card →
+            100 % width. Mirrors the BP-section grid normalisation. */}
+        <div
+          className={
+            showMoodSection ? "grid gap-4 xl:grid-cols-2" : "grid gap-4"
+          }
+        >
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -1483,7 +1497,15 @@ export default function InsightsPage() {
         </div>
 
         {data.medications.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+          /* v1.4.22 A4 — row-fill rule: a single medication card fills
+             100 % width instead of half the row. */
+          <div
+            className={
+              data.medications.length >= 2
+                ? "grid gap-4 sm:grid-cols-2"
+                : "grid gap-4"
+            }
+          >
             {data.medications.map((med) => {
               const medicationSummary = medicationSummaryById.get(med.id);
               return (
