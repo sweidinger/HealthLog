@@ -85,17 +85,17 @@ ships behind a feature flag and unlocks independently.
       action row + suggested-prompt strip; Daily Briefing card mounts
       full-width below the hero)
 - [x] New `src/components/insights/{hero-strip,daily-briefing,
-      suggested-prompts}.tsx`
+    suggested-prompts}.tsx`
 - [x] Extend `aiInsightResponseSchema` with `dailyBriefing`
       (`paragraph`, `keyFindings[]`)
 - [x] PROMPT_VERSION bump 4.19.0 → 4.20.0
 - [~] Apple Health gated tiles — descoped per `phase-D-v1419-product-
-      lead-review.md` decision. The 4-vitals tile row from the artboard
-      uses BP / Weight / Pulse / Mood (all data already in the app);
-      HRV / Sleep / Resting-HR tiles defer to v1.5 / iOS app. The B1
-      tile row itself (Vitals at-a-glance) is deferred to a later
-      B-phase since it duplicates the per-section status cards below
-      — see B1 report for the rationale.
+    lead-review.md` decision. The 4-vitals tile row from the artboard
+  uses BP / Weight / Pulse / Mood (all data already in the app);
+  HRV / Sleep / Resting-HR tiles defer to v1.5 / iOS app. The B1
+  tile row itself (Vitals at-a-glance) is deferred to a later
+  B-phase since it duplicates the per-section status cards below
+  — see B1 report for the rationale.
 - Detailed report: `.planning/phase-B1-v1420-report.md` (the older
   `phase-B1-report.md` is from the v1.4.18 achievements marathon)
 
@@ -108,7 +108,7 @@ commit.
 
 - [x] New `POST /api/insights/chat` SSE-streaming endpoint
 - [x] New `GET /api/insights/chat` (list) + `GET/DELETE
-      /api/insights/chat/[id]` (single + delete)
+    /api/insights/chat/[id]` (single + delete)
 - [x] New Prisma `CoachConversation` + `CoachMessage` + `CoachUsage`
       (encrypted content, GDPR cascade)
 - [x] Source-chip provenance attached to every assistant message
@@ -130,14 +130,14 @@ commit.
 - [x] New `src/lib/insights/correlations.ts` (Pearson + weekday-ANOVA;
       n >= 14 + p < 0.05 surfacing gate)
 - [x] New `src/components/insights/{correlation-card,correlation-row,
-      trends-row,trend-annotation}.tsx`
+    trends-row,trend-annotation}.tsx`
 - [x] Confidence interval via Fisher z-transform; conservative
       phrasing locked in by code-review convention
 - [x] PROMPT_VERSION 4.20.0 → 4.20.1; new `trendAnnotations` block
       on the AI response schema (nullable + optional for legacy
       payloads)
 - [x] `/api/analytics` now emits `correlations: {bpCompliance,
-      moodPulse, weightWeekday}` server-side
+    moodPulse, weightWeekday}` server-side
 - [x] `<CorrelationRow>` + `<TrendsRow>` mounted on `/insights`
       between Daily Briefing and the Advisor card
 - Detailed report: `.planning/phase-B3-report.md`
@@ -175,14 +175,14 @@ commit.
 
 Wave B closed the Insights redesign across 5 phases on `develop`:
 
-| Phase | Theme                                      | Commits   | Test count delta (unit / int) |
-| ----- | ------------------------------------------ | --------- | ----------------------------- |
-| B1    | Hero strip + Daily Briefing + Suggested    | 5         | 1672 → 1753 (+81) / 67 → 67   |
-| B2    | AI Coach drawer (B2a backend + B2b UI)     | 5 + 4     | 1753 → 1833 (+80) / 67 → 78   |
-| B3    | Correlation discovery + Trends row + AI    | 5         | 1833 → 1907 (+74) / 78 → 78   |
-| B4    | Weekly Report + Storyboard + Mobile passes | 5         | 1907 → 1975 (+68) / 78 → 78   |
-| B5    | Personal Health Score                      | 5         | 1975 → 2026 (+51) / 78 → 81   |
-|       | **Cumulative**                             | **29**    | **+354 / +14**                |
+| Phase | Theme                                      | Commits | Test count delta (unit / int) |
+| ----- | ------------------------------------------ | ------- | ----------------------------- |
+| B1    | Hero strip + Daily Briefing + Suggested    | 5       | 1672 → 1753 (+81) / 67 → 67   |
+| B2    | AI Coach drawer (B2a backend + B2b UI)     | 5 + 4   | 1753 → 1833 (+80) / 67 → 78   |
+| B3    | Correlation discovery + Trends row + AI    | 5       | 1833 → 1907 (+74) / 78 → 78   |
+| B4    | Weekly Report + Storyboard + Mobile passes | 5       | 1907 → 1975 (+68) / 78 → 78   |
+| B5    | Personal Health Score                      | 5       | 1975 → 2026 (+51) / 78 → 81   |
+|       | **Cumulative**                             | **29**  | **+354 / +14**                |
 
 Test count: 1672 → 2026 unit (+354), 67 → 81 integration (+14).
 Test files 217 → 237. typecheck clean every phase; lint
@@ -225,7 +225,7 @@ Test files 217 → 237. typecheck clean every phase; lint
       JSON-LD `softwareVersion` 1.4.20 + 3 new featureList entries)
 - [x] `docs/audit/v1420-summary.md` (release brief, `7f9ae21`)
 - [x] v1.5 plan refreshed — see `.planning/phase-D-v1420-product-
-      lead-review.md`
+    lead-review.md`
 
 ---
 
@@ -294,6 +294,45 @@ Test files 217 → 237. typecheck clean every phase; lint
   typecheck + lint clean; one observed integration-test flake on
   `coach-chat.test.ts` "round-trips" (not introduced by Phase-D —
   consistent re-runs pass). Phase E (release v1.4.20) unblocked.
+
+## Phase F — v1.4.20.1 hotfix
+
+Triggered by Marc's testing of the new Insights/Coach surface in
+production after v1.4.20 went live. Five issues captured in
+`feedback_v1420_post_deploy_bugs.md` — landed across six atomic
+commits on `develop`. No tag yet; maintainer decides whether to ship
+as v1.4.20.1 or bundle into v1.4.21.
+
+- [x] Daily Briefing regenerate produces a non-empty briefing
+      (`/api/insights/generate` now uses `getStrictInsightsSystemPrompt`
+      so GROUND RULE 8 reaches the model — `7921ffc`)
+- [x] Coach snapshot ships day-level readings with weekday labels
+      and a per-day medication-adherence row (`ed61b17`)
+- [x] Coach system prompt instructs the model to use the timeline
+      block for day-specific or weekday-specific questions
+      (`2143377`)
+- [x] Streaming bubble clears once the persisted twin lands —
+      message-thread render-time dedup keyed on `messageId`
+      (`f07e35b`)
+- [x] Drawer header settings cog moved to the left side so Radix
+      Sheet's close-X no longer overlaps it (`ddb2914`)
+- [x] Sources rail grows per-source checkboxes + window selector;
+      scope flows through `useSendCoachMessage` to the chat request
+      body and into `buildCoachSnapshot` (`08fd411`)
+- [x] Detailed report: `.planning/phase-v1421-hotfix-report.md`
+
+## Status block — F (v1.4.20.1 hotfix)
+
+- 2026-05-10 (post-deploy) — Hotfix complete. Six commits on
+  `develop` (`7921ffc` → `08fd411`). Test counts: 2026 → 2036 unit
+  (+10 net across snapshot + message-thread + sources-rail tests).
+  Integration tests unchanged at 81 — coach-chat.test.ts still 5/5.
+  typecheck + lint clean (13 baseline warnings unchanged). Token-
+  budget impact of the day-level snapshot: ~190 → ~3000 tokens per
+  full-scope turn; the new scope picker is the relief valve, single-
+  source narrowed turns land around 600-700 tokens. v1.4.21 should
+  watch usage and consider trimming `DAILY_TIMELINE_DAYS` from 14 to
+  10 if heavy users start hitting the 25k/day cap.
 
 ## Status block — B5 (v1.4.20)
 

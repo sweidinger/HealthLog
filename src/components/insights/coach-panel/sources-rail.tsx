@@ -82,7 +82,10 @@ export interface SourcesRailProps {
    * the controls still render but stay read-only — keeps the legend
    * surface stable for callers that don't yet wire scope through.
    */
-  onScopeChange?: (next: { sources: CoachScopeSource[]; window: CoachScopeWindow }) => void;
+  onScopeChange?: (next: {
+    sources: CoachScopeSource[];
+    window: CoachScopeWindow;
+  }) => void;
 }
 
 interface SourceRow {

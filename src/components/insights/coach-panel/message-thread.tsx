@@ -67,9 +67,7 @@ export function MessageThread({
     messages.some((m) => m.id === streaming.messageId);
   const streamingActive =
     !streamingPersisted &&
-    (!!streaming?.inProgress ||
-      !!streaming?.content ||
-      !!streaming?.errorCode);
+    (!!streaming?.inProgress || !!streaming?.content || !!streaming?.errorCode);
 
   // Track scroll position so we don't yank the viewport when the user
   // is browsing earlier turns.

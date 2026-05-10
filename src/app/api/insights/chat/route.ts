@@ -143,12 +143,7 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
       { status: 422 },
     );
   }
-  const {
-    conversationId,
-    message,
-    locale: bodyLocale,
-    scope,
-  } = parsed.data;
+  const { conversationId, message, locale: bodyLocale, scope } = parsed.data;
 
   await enforceBudget(userId);
 

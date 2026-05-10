@@ -258,10 +258,7 @@ export function CoachDrawer({
           }
           sourcesRail={
             sourcesRail ?? (
-              <SourcesRail
-                scope={scope}
-                onScopeChange={setScope}
-              />
+              <SourcesRail scope={scope} onScopeChange={setScope} />
             )
           }
           thread={

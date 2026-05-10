@@ -27,7 +27,11 @@ const featuresMock = extractFeatures as unknown as ReturnType<typeof vi.fn>;
 /**
  * Helper: produce a measurement row N days before "now" at 09:00 UTC.
  */
-function daysAgo(n: number, value: number, type: string): {
+function daysAgo(
+  n: number,
+  value: number,
+  type: string,
+): {
   type: string;
   value: number;
   measuredAt: Date;

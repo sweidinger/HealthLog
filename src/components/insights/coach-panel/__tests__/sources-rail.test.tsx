@@ -53,9 +53,8 @@ describe("<SourcesRail>", () => {
 
   it("renders a checkbox per row + a window selector trigger", () => {
     const html = render(<SourcesRail />);
-    const checkboxes = (
-      html.match(/data-slot="coach-sources-checkbox"/g) ?? []
-    ).length;
+    const checkboxes = (html.match(/data-slot="coach-sources-checkbox"/g) ?? [])
+      .length;
     expect(checkboxes).toBe(5);
     expect(html).toContain('data-slot="coach-sources-window-trigger"');
   });

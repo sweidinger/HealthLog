@@ -53,15 +53,7 @@ const DEFAULT_SOURCES: ReadonlyArray<CoachScopeSource> = [
   "compliance",
 ];
 
-const WEEKDAY_KEYS = [
-  "Sun",
-  "Mon",
-  "Tue",
-  "Wed",
-  "Thu",
-  "Fri",
-  "Sat",
-] as const;
+const WEEKDAY_KEYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 function windowToDays(window: CoachScopeWindow): number {
   switch (window) {
@@ -163,7 +155,9 @@ function bucketWeekly(
   return Array.from(grouped.entries())
     .map(([weekISO, values]) => ({
       weekISO,
-      mean: Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10,
+      mean:
+        Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) /
+        10,
       count: values.length,
     }))
     .sort((a, b) => a.weekISO.localeCompare(b.weekISO));
@@ -177,8 +171,7 @@ function buildDailyValueRows(
   const grouped = dailyMeans(recent);
   return Array.from(grouped.entries())
     .map(([date, info]) => {
-      const mean =
-        info.values.reduce((s, v) => s + v, 0) / info.values.length;
+      const mean = info.values.reduce((s, v) => s + v, 0) / info.values.length;
       return {
         date,
         weekday: utcWeekday(info.date),
@@ -206,10 +199,8 @@ function buildDailyBpRows(
   for (const [day, info] of sysByDay) {
     const dia = diaByDay.get(day);
     if (!dia) continue;
-    const sysMean =
-      info.values.reduce((s, v) => s + v, 0) / info.values.length;
-    const diaMean =
-      dia.values.reduce((s, v) => s + v, 0) / dia.values.length;
+    const sysMean = info.values.reduce((s, v) => s + v, 0) / info.values.length;
+    const diaMean = dia.values.reduce((s, v) => s + v, 0) / dia.values.length;
     out.push({
       date: day,
       weekday: utcWeekday(info.date),
@@ -310,10 +301,12 @@ export async function buildCoachSnapshot(
       : [];
 
   const byType = (t: string) =>
-    measurementRows.filter((r) => r.type === t).map((r) => ({
-      measuredAt: r.measuredAt,
-      value: r.value,
-    }));
+    measurementRows
+      .filter((r) => r.type === t)
+      .map((r) => ({
+        measuredAt: r.measuredAt,
+        value: r.value,
+      }));
 
   if (wantsBp && features.bloodPressure) {
     const sysRows = byType("BLOOD_PRESSURE_SYS");
@@ -405,9 +398,7 @@ export async function buildCoachSnapshot(
       // Per-day adherence rate within the recent window. Older days
       // collapse into a single weekly bucket.
       const recent = intakeRows.filter((r) => r.scheduledFor >= recentCutoff);
-      const olderRows = intakeRows.filter(
-        (r) => r.scheduledFor < recentCutoff,
-      );
+      const olderRows = intakeRows.filter((r) => r.scheduledFor < recentCutoff);
       const recentByDay = new Map<
         string,
         { date: Date; total: number; taken: number }
