@@ -1,7 +1,7 @@
 # v1.4.18 marathon — state log
 
-Status: phase-0-done
-Last update: 2026-05-10T10:02+02:00
+Status: finished
+Last update: 2026-05-10T11:45+02:00
 
 > Previous milestone: v1.4.17 hotfix shipped (`/insights` TypeError fix);
 > v1.4.16 full release at `docs/audit/v1416-summary.md`.
@@ -135,14 +135,14 @@ Last update: 2026-05-10T10:02+02:00
 - [x] Pre-release verify
 - [x] Bump package.json + CHANGELOG
 - [x] Tag + push v1.4.18
-- [ ] GHCR build green (both main + tag)
-- [ ] Coolify deploy
-- [ ] /api/version=1.4.18 confirmed
-- [ ] Production smoke
-- [ ] GH release
-- [ ] Docs site + landing site sync
-- [ ] `docs/audit/v1418-summary.md` (Marc-Brief)
-- Detailed report: `.planning/phase-E1-report.md` (E2/E3 to come)
+- [x] GHCR build green (both main + tag)
+- [x] Coolify deploy
+- [x] /api/version=1.4.18 confirmed
+- [x] Production smoke
+- [x] GH release
+- [x] Docs site + landing site sync
+- [x] `docs/audit/v1418-summary.md` (Marc-Brief)
+- Detailed reports: `.planning/phase-E1-report.md`, `phase-E2-report.md`, `phase-E3-report.md`
 - Status: 2026-05-10T11:14+02:00 — Phase E1 done. Verify clean
   (typecheck 0, lint 0/12-baseline, format-check clean, unit
   1605/1605, integration 66/66). Release commit `0243e20`
@@ -265,3 +265,32 @@ medications.csv,mood.csv}/`) plus 3 untracked v1.4.16 phase
   CHANGELOG, 72 lines): https://github.com/MBombeck/HealthLog/releases/tag/v1.4.18.
   Detailed report: `.planning/phase-E2-report.md`. No rollback action
   taken (and per brief, would not have been on red).
+
+## Status block — Phase E3 (v1.4.18)
+
+- 2026-05-10T11:38+02:00 — Phase E3 complete. healthlog-docs:
+  `6688c81` (six existing pages refreshed — dashboard-customization,
+  gamification, comparison, admin-settings, scaling, updates) +
+  `e5a58bc` (new `features/achievements-hidden.mdx` page wired into
+  sidebar via `astro.config.mjs`). 45 Starlight pages built, 0
+  warnings. healthlog-landing: `ed638db` (`softwareVersion 1.4.16 →
+  1.4.18` in JSON-LD, featureList rewritten for clean-line aesthetic,
+  two capability badges updated). All three commits pushed to
+  origin/main on their respective repos. Detailed report:
+  `.planning/phase-E3-report.md`.
+
+## Status block — Final (v1.4.18)
+
+- 2026-05-10T11:45+02:00 — v1.4.18 marathon finished. Marc-Brief
+  filed at `docs/audit/v1418-summary.md` and committed to origin/main.
+  Top-of-file Status flipped to `finished`. v1.4.18 is LIVE at
+  https://healthlog.bombeck.io with `/api/version=1.4.18` and image
+  digest `sha256:c636fca7db66…`. Backlog seeded
+  (`.planning/v1419-backlog.md` for tactical, `.planning/v15-backlog.md`
+  + `.planning/phase-D-v1418-product-lead-review.md` for strategic).
+  ZERO unresolved CRITICAL; one HIGH (security HIGH-2 i18n bundle
+  leak) deferred to v1.4.19. Tests: 1605/1605 unit, 66/66 integration,
+  typecheck clean, lint 12-baseline. CHANGELOG.md current. GH release
+  page live. Docs site + landing site sync committed and pushed. Next
+  marathon: v1.4.19 cleanup pass (i18n bundle strip + MED backlog) or
+  jump straight to v1.5 strategic work per Product-Lead review.
