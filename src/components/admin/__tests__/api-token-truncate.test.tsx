@@ -120,7 +120,9 @@ describe("ApiTokenOverviewSection — truncate + tooltip (4th attempt)", () => {
     // card on mobile. Badge primitive already has `overflow-hidden`,
     // we add an upper bound on width so it ellipsises instead of
     // pushing the parent.
-    expect(html).toMatch(/<span[^>]*max-w-(?:\[[^\]]+\]|full)[^>]*\btruncate\b/);
+    expect(html).toMatch(
+      /<span[^>]*max-w-(?:\[[^\]]+\]|full)[^>]*\btruncate\b/,
+    );
   });
 
   it("renders shadcn tooltip wrappers around truncated cells so the full value stays discoverable", () => {

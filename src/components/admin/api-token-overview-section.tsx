@@ -45,10 +45,7 @@ function TruncatedCell({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span
-            className={`block truncate ${className ?? ""}`}
-            title={value}
-          >
+          <span className={`block truncate ${className ?? ""}`} title={value}>
             {value}
           </span>
         </TooltipTrigger>
@@ -168,8 +165,7 @@ export function ApiTokenOverviewSection() {
                 <tbody className="divide-border divide-y">
                   {tokens.map((token, i) => {
                     const isExpired =
-                      token.expiresAt &&
-                      new Date(token.expiresAt) < new Date();
+                      token.expiresAt && new Date(token.expiresAt) < new Date();
                     return (
                       <tr
                         key={token.id}
@@ -285,9 +281,7 @@ export function ApiTokenOverviewSection() {
                           variant="secondary"
                           className="max-w-full truncate text-[10px]"
                           title={
-                            p === "*"
-                              ? t("admin.tokenPermissionAllTooltip")
-                              : p
+                            p === "*" ? t("admin.tokenPermissionAllTooltip") : p
                           }
                         >
                           {p === "*" ? t("admin.tokenPermissionAll") : p}

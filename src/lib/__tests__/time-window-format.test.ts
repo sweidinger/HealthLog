@@ -29,16 +29,12 @@ describe("formatTimeWindowRange", () => {
   test("English locale renders 'from ... to ...' instead of mixed-language 'bis Uhr'", () => {
     // Regression for v1.4.19 F-01: app rendered "Today, 19:00 bis 23:00 Uhr"
     // for English users because the formatter hard-coded German.
-    expect(formatTimeWindowRange("19:00", "23:00", "en")).toBe(
-      "19:00 – 23:00",
-    );
+    expect(formatTimeWindowRange("19:00", "23:00", "en")).toBe("19:00 – 23:00");
   });
 
   test("falls back to the German format when no locale is supplied", () => {
     // Backwards-compat: existing call sites that have not been migrated
     // continue to render the historic German string.
-    expect(formatTimeWindowRange("08:00", "12:00")).toBe(
-      "08:00 bis 12:00 Uhr",
-    );
+    expect(formatTimeWindowRange("08:00", "12:00")).toBe("08:00 bis 12:00 Uhr");
   });
 });

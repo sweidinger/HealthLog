@@ -150,9 +150,7 @@ test.describe("Settings mobile consistency (Pixel 5)", () => {
 
     const trigger = page.locator("#comparison-baseline");
     await expect(trigger).toBeVisible();
-    const h = await trigger.evaluate(
-      (el) => el.getBoundingClientRect().height,
-    );
+    const h = await trigger.evaluate((el) => el.getBoundingClientRect().height);
     expect(Math.round(h)).toBe(36);
   });
 

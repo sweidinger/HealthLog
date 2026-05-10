@@ -41,7 +41,10 @@ vi.mock("@tanstack/react-query", async () => {
         }
       }
       return {
-        data: { entries: [], meta: { total: 0, limit: 50, offset: 0, page: 1, perPage: 50 } },
+        data: {
+          entries: [],
+          meta: { total: 0, limit: 50, offset: 0, page: 1, perPage: 50 },
+        },
         isLoading: false,
         isError: false,
         refetch: vi.fn(),

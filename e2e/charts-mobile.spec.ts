@@ -213,7 +213,8 @@ test.describe("charts — mobile-viewport regression", () => {
           axis.querySelectorAll(".recharts-cartesian-axis-tick"),
         );
         const visibleTicks = ticks.filter(
-          (t) => (t.querySelector("text")?.textContent?.trim() ?? "").length > 0,
+          (t) =>
+            (t.querySelector("text")?.textContent?.trim() ?? "").length > 0,
         );
         return visibleTicks.length;
       });
