@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,14 +27,12 @@ const MoodChart = dynamic(
     })),
   { ssr: false },
 );
-import { TrendCard } from "@/components/charts/trend-card";
 import { ComplianceHeatmap } from "@/components/charts/compliance-heatmap";
 import {
   Activity,
   Heart,
   HeartPulse,
   Loader2,
-  Percent,
   Pill,
   Ruler,
   Scale,
@@ -79,7 +77,7 @@ import {
   getAgeFromDateOfBirth,
   getPersonalizedPulseTarget,
 } from "@/lib/analytics/pulse-targets";
-import type { DataSummary, TrendSlope } from "@/lib/analytics/trends";
+import type { DataSummary } from "@/lib/analytics/trends";
 import {
   resolveDashboardLayout,
   type DashboardLayout,
@@ -223,60 +221,12 @@ interface MedicationComplianceDailyResponse {
   dailyCompliance: Record<string, MedicationDailyData>;
 }
 
-interface RangeDisplayConfig {
-  range: TrafficRange | null;
-}
-
-function getRangeColorClass(
-  value: number | null | undefined,
-  config: RangeDisplayConfig,
-): string | undefined {
-  const range = config.range;
-  if (value == null || !range) return undefined;
-  const inGreen = value >= range.greenMin && value <= range.greenMax;
-  const inOrange =
-    !inGreen && value >= range.orangeMin && value <= range.orangeMax;
-
-  if (inGreen) return "text-green-400";
-  if (inOrange) return "text-orange-400";
-  return "text-red-400";
-}
-
-function getRangeHint(
-  unit: string,
-  config: RangeDisplayConfig,
-  t: (key: string) => string,
-  formatNumber: (value: number, fractionDigits?: number) => string,
-): React.ReactNode | undefined {
-  const range = config.range;
-  if (!range) return undefined;
-
-  const format = (value: number) => formatNumber(value, 1);
-
-  return (
-    <>
-      <p>
-        <span className="font-bold text-green-400">
-          {t("charts.colorGreen")}
-        </span>{" "}
-        {format(range.greenMin)}-{format(range.greenMax)} {unit}
-      </p>
-      <p>
-        <span className="font-bold text-orange-400">
-          {t("charts.colorOrange")}
-        </span>{" "}
-        {format(range.orangeMin)}-{format(range.greenMin)} {t("common.or")}{" "}
-        {format(range.greenMax)}-{format(range.orangeMax)} {unit}
-      </p>
-      <p>
-        <span className="font-bold text-red-400">{t("charts.colorRed")}</span>{" "}
-        {"< "}
-        {format(range.orangeMin)} {t("common.or")} {"> "}
-        {format(range.orangeMax)} {unit}
-      </p>
-    </>
-  );
-}
+/**
+ * v1.4.19 A3 — `getRangeColorClass` / `getRangeHint` /
+ * `RangeDisplayConfig` removed alongside the `<TrendCard>` tile-strip
+ * deletion. Those helpers were only used by the duplicate-of-dashboard
+ * tile grid; every other call site lives on the dashboard surface.
+ */
 
 /**
  * v1.4.16 phase B1b — pick the freshest ISO timestamp from a list so the
@@ -544,7 +494,6 @@ function getMedicationComplianceSectionStatus(input: {
 export default function InsightsPage() {
   const { isAuthenticated, user } = useAuth();
   const { t, locale } = useTranslations();
-  const fmt = useFormatters();
 
   const STRENGTH_LABELS: Record<string, string> = {
     stark: t("insights.strengthStrong"),
@@ -696,10 +645,10 @@ export default function InsightsPage() {
   const sys = analytics?.summaries?.BLOOD_PRESSURE_SYS;
   const dia = analytics?.summaries?.BLOOD_PRESSURE_DIA;
   const p = analytics?.summaries?.PULSE;
-  const bf = analytics?.summaries?.BODY_FAT;
-  const showBodyFatCard = (bf?.count ?? 0) > 0;
-  const moodSummary = data?.moodSummary;
-  const showMoodCard = (moodSummary?.count ?? 0) > 0;
+  // v1.4.19 A3 — `bf` / `showBodyFatCard` / `moodSummary` /
+  // `showMoodCard` were bookkeeping for the now-removed duplicate
+  // tile strip (Marc said those tiles duplicate the dashboard).
+  // Remaining mood references read `data?.moodSummary` inline below.
   const bmiDivisor = user?.heightCm ? (user.heightCm / 100) ** 2 : null;
   // bmiAvg30 and bmiSlope30 still used for overallStatus + bmiSectionStatus
   const bmiAvg30 = bmiDivisor && w?.avg30 != null ? w.avg30 / bmiDivisor : null;
@@ -948,100 +897,14 @@ export default function InsightsPage() {
 
       <InsightsSectionNav />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-        <TrendCard
-          label={t("dashboard.weight")}
-          latest={w?.latest ?? null}
-          unit="kg"
-          avg7={w?.avg7 ?? null}
-          avg30={w?.avg30 ?? null}
-          avg7ColorClass={getRangeColorClass(w?.avg7, { range: weightRange })}
-          avg30ColorClass={getRangeColorClass(w?.avg30, { range: weightRange })}
-          avg7Hint={getRangeHint("kg", { range: weightRange }, t, fmt.number)}
-          avg30Hint={getRangeHint("kg", { range: weightRange }, t, fmt.number)}
-          slope30={w?.slope30 ?? null}
-          icon={Activity}
-        />
-        <TrendCard
-          label={t("dashboard.bloodPressureSys")}
-          latest={sys?.latest ?? null}
-          unit="mmHg"
-          avg7={sys?.avg7 ?? null}
-          avg30={sys?.avg30 ?? null}
-          avg7ColorClass={getRangeColorClass(sys?.avg7, { range: bpSysRange })}
-          avg30ColorClass={getRangeColorClass(sys?.avg30, {
-            range: bpSysRange,
-          })}
-          avg7Hint={getRangeHint("mmHg", { range: bpSysRange }, t, fmt.number)}
-          avg30Hint={getRangeHint("mmHg", { range: bpSysRange }, t, fmt.number)}
-          slope30={sys?.slope30 ?? null}
-          icon={Heart}
-        />
-        <TrendCard
-          label={t("dashboard.bloodPressureDia")}
-          latest={dia?.latest ?? null}
-          unit="mmHg"
-          avg7={dia?.avg7 ?? null}
-          avg30={dia?.avg30 ?? null}
-          avg7ColorClass={getRangeColorClass(dia?.avg7, { range: bpDiaRange })}
-          avg30ColorClass={getRangeColorClass(dia?.avg30, {
-            range: bpDiaRange,
-          })}
-          avg7Hint={getRangeHint("mmHg", { range: bpDiaRange }, t, fmt.number)}
-          avg30Hint={getRangeHint("mmHg", { range: bpDiaRange }, t, fmt.number)}
-          slope30={dia?.slope30 ?? null}
-          icon={Heart}
-        />
-        <TrendCard
-          label={t("dashboard.pulse")}
-          latest={p?.latest ?? null}
-          unit="bpm"
-          avg7={p?.avg7 ?? null}
-          avg30={p?.avg30 ?? null}
-          avg7ColorClass={getRangeColorClass(p?.avg7, {
-            range: pulseDisplayRange,
-          })}
-          avg30ColorClass={getRangeColorClass(p?.avg30, {
-            range: pulseDisplayRange,
-          })}
-          avg7Hint={getRangeHint(
-            "bpm",
-            { range: pulseDisplayRange },
-            t,
-            fmt.number,
-          )}
-          avg30Hint={getRangeHint(
-            "bpm",
-            { range: pulseDisplayRange },
-            t,
-            fmt.number,
-          )}
-          slope30={p?.slope30 ?? null}
-          icon={TrendingUp}
-        />
-        {showBodyFatCard ? (
-          <TrendCard
-            label={t("dashboard.bodyFat")}
-            latest={bf?.latest ?? null}
-            unit="%"
-            avg7={bf?.avg7 ?? null}
-            avg30={bf?.avg30 ?? null}
-            slope30={bf?.slope30 ?? null}
-            icon={Percent}
-          />
-        ) : null}
-        {showMoodCard ? (
-          <TrendCard
-            label={t("dashboard.mood")}
-            latest={moodSummary?.latest ?? null}
-            unit="/ 5"
-            avg7={moodSummary?.avg7 ?? null}
-            avg30={moodSummary?.avg30 ?? null}
-            slope30={(moodSummary?.slope30 as TrendSlope | undefined) ?? null}
-            icon={Smile}
-          />
-        ) : null}
-      </div>
+      {/* v1.4.19 A3 — duplicate per-metric `<TrendCard>` strip removed.
+          Up to v1.4.18 the page led with a 5-column grid of weight /
+          BP-sys / BP-dia / pulse / body-fat / mood tiles — exact
+          duplicates of the dashboard tile-strip. They added zero
+          information beyond what's already on the dashboard. The
+          recommendations grid + per-section detail cards below are
+          the actual value on `/insights`; the tiles only consumed
+          scroll height. */}
 
       <section id="section-general" className="scroll-mt-28 space-y-2">
         <div className="flex items-center gap-2">
