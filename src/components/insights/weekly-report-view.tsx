@@ -162,7 +162,7 @@ export function WeeklyReportPresentation({
       >
         <span
           data-slot="weekly-report-eyebrow"
-          className="bg-dracula-purple/15 text-dracula-purple inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide"
+          className="bg-dracula-purple/15 text-dracula-purple inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium print:bg-transparent print:px-0 print:text-foreground"
         >
           <FileText className="h-3 w-3" aria-hidden="true" />
           {t("insights.report.eyebrow")}

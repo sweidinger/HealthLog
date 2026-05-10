@@ -34,11 +34,16 @@ const TITLE_MAX = 80;
 export function summariseTitle(input: string): string {
   const collapsed = input.replace(/\s+/g, " ").trim();
   if (collapsed.length === 0) return "New conversation";
-  if (collapsed.length <= TITLE_MAX) return collapsed;
-  // Cut at TITLE_MAX-1 chars and append a single-character ellipsis so
-  // the visible width matches TITLE_MAX. Cuts at the word boundary
-  // when one is within reach of the limit.
-  const sliced = collapsed.slice(0, TITLE_MAX - 1);
+  // Spread to a code-point array so the slice respects multi-code-unit
+  // characters (emoji like "🩺" land as a single grapheme rather than
+  // a half "?"). The visible-length metric is grapheme count, not
+  // UTF-16 code units.
+  const points = [...collapsed];
+  if (points.length <= TITLE_MAX) return collapsed;
+  // Cut at TITLE_MAX-1 code points and append a single-character
+  // ellipsis so the visible width matches TITLE_MAX. Cuts at the word
+  // boundary when one is within reach of the limit.
+  const sliced = points.slice(0, TITLE_MAX - 1).join("");
   const lastSpace = sliced.lastIndexOf(" ");
   const cut = lastSpace > TITLE_MAX - 20 ? sliced.slice(0, lastSpace) : sliced;
   return `${cut.trimEnd()}…`;

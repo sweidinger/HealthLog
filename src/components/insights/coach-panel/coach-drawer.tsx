@@ -186,7 +186,10 @@ export function CoachDrawer({
                   variant="ghost"
                   size="icon"
                   disabled
-                  aria-label={t("insights.coach.settings")}
+                  // Match the visible disabled state — sighted users
+                  // see a coming-soon tooltip; SR users hear the same
+                  // copy instead of a working "Coach settings" label.
+                  aria-label={t("insights.coach.settingsTooltip")}
                   data-slot="coach-drawer-settings"
                   className="size-8"
                 >

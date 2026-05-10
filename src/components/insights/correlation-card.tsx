@@ -131,7 +131,11 @@ export function CorrelationCard({ result }: CorrelationCardProps) {
             <Button
               type="button"
               size="sm"
-              variant="default"
+              // Outline variant so the disabled placeholder reads as
+              // "this is on the roadmap" rather than "the system is
+              // broken right now". Flip back to default when the
+              // 7-day experiment feature ships in v1.5.
+              variant="outline"
               disabled
               data-slot="correlation-card-cta"
               className="gap-1.5"

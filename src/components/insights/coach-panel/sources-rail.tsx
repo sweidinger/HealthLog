@@ -98,10 +98,13 @@ export function SourcesRail({ className }: SourcesRailProps) {
             <span className="text-foreground flex-1 text-xs font-medium">
               {t(row.metricKey)}
             </span>
-            {/* Fresh / stale indicator — v1.4.20 is a static dot.
-                v1.4.21 will reuse <IntegrationStatusPill>. */}
+            {/* Fresh / stale indicator — v1.4.20 is a static dot
+                with no real freshness state behind it (v1.4.21 plugs
+                in <IntegrationStatusPill>). aria-hidden so SR users
+                don't hear "Fresh" five times in a row for what is
+                actually a placeholder. */}
             <span
-              aria-label={t("insights.coach.sourcesFresh")}
+              aria-hidden="true"
               className="bg-dracula-green size-1.5 rounded-full"
             />
           </li>
