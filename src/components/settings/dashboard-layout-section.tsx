@@ -43,6 +43,10 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   bpInTarget: "dashboard.bpInTarget",
   oxygenSaturation: "measurements.typeOxygenSaturation",
   achievements: "achievements.title",
+  // v1.4.16 phase D reconcile (CRITICAL C2) — dashboard preview tile
+  // for the polished `<InsightsCardPreview>` (top severity-ordered AI
+  // recommendations + ring confidence meter + "View all" CTA).
+  insightsPreview: "dashboard.insightsPreview",
 };
 
 export function DashboardLayoutSection({ id }: { id: string }) {

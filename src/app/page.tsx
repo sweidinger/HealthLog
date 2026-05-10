@@ -46,6 +46,8 @@ import { GettingStartedChecklist } from "@/components/onboarding/getting-started
 import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
 import { CompareToggle } from "@/components/comparison/compare-toggle";
+import { InsightsCardPreview } from "@/components/insights/insights-card";
+import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 
 const HealthChart = dynamic(
   () =>
@@ -208,6 +210,17 @@ export default function DashboardPage() {
     enabled: isAuthenticated,
   });
 
+  // v1.4.16 phase D reconcile (CRITICAL C2) — pull the rich advisor
+  // payload so the dashboard can surface a compact preview of the top
+  // severity-ordered AI recommendations + ring confidence meter +
+  // "View all" CTA. Shares the cache with /insights via the
+  // queryKeys.insightsAdvisor() key so a regenerate on either surface
+  // refreshes the other without a second LLM round-trip. Returns null
+  // when the user has no provider configured (route 422 → null), so
+  // the preview self-hides without burning rate-limit tokens on
+  // unconfigured accounts.
+  const advisor = useInsightsAdvisorQuery(isAuthenticated);
+
   const w = data?.summaries?.WEIGHT;
   const sys = data?.summaries?.BLOOD_PRESSURE_SYS;
   const dia = data?.summaries?.BLOOD_PRESSURE_DIA;
@@ -297,6 +310,12 @@ export default function DashboardPage() {
   // the layout-toggle gate here. No data-floor check (the empty card is
   // intentional — Marc wants the user to discover the feature).
   const showAchievementsCard = isChartVisible("achievements");
+  // v1.4.16 phase D reconcile (CRITICAL C2) — gate the dashboard
+  // insights preview by the layout toggle. The component itself
+  // returns null when the advisor payload is missing or has no
+  // recommendations, so the gate is sufficient — no extra data-floor
+  // check needed.
+  const showInsightsPreview = isChartVisible("insightsPreview");
 
   // Glucose widget — visible iff layout enables it AND at least one reading exists.
   // Glucose has no separate chart slot today, so the tile flag is the
@@ -1093,6 +1112,19 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+            )}
+            {/* v1.4.16 phase D reconcile (CRITICAL C2) — dashboard
+                preview of the polished AI recommendations surface.
+                Pinned above the chart row (out-of-band from the sorted
+                charts[] array) so it stays at the top regardless of
+                widget reorder operations. Self-hides when the user has
+                no provider configured OR no recommendations to surface
+                (`<InsightsCardPreview>` returns null), so the preview
+                doesn't paint an empty card on first visit. */}
+            {showInsightsPreview && (
+              <InsightsCardPreview
+                insight={advisor.payload?.insights ?? null}
+              />
             )}
             {charts.map((entry) => (
               <div key={entry.id} className="space-y-2">

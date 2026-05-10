@@ -141,6 +141,15 @@ describe("DEFAULT_DASHBOARD_LAYOUT contract", () => {
     expect(ids).toContain("achievements");
   });
 
+  it("includes the insightsPreview widget (v1.4.16 phase D reconcile C2)", () => {
+    // CRITICAL C2: dashboard preview of the polished AI recommendations
+    // surface. Same Zod-enum-drift trap as A5 — if the widget id isn't
+    // listed here, the API PUT silently 422s and the layout toggle
+    // never persists. Pin the contract to catch a regression early.
+    const ids = DEFAULT_DASHBOARD_LAYOUT.widgets.map((w) => w.id);
+    expect(ids).toContain("insightsPreview");
+  });
+
   it("survives a round-trip through serialize → resolve unchanged", () => {
     // The API persists `serializeDashboardLayout(parsed.data)` and
     // reads back via `resolveDashboardLayout(row.dashboardWidgetsJson)`.
