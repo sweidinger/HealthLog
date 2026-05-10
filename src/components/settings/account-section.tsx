@@ -458,39 +458,57 @@ export function AccountSection() {
         )}
       </div>
 
-      {/* Password card */}
+      {/* Password card. v1.4.19 A6: action-button placement contract —
+          on mobile (`<sm`) the action button stacks below the title +
+          description and renders full-width; on desktop (`>=sm`) it
+          right-aligns next to the title. The previous
+          `flex items-center justify-between` pattern overflowed the
+          card edge on Pixel 5 once button copy got longer than ~24 ch
+          (the German "Passwort ändern" already pushes it; the tour
+          card's "Restart onboarding tour" actually broke through the
+          right border by ~48 px). */}
       <div className="bg-card border-border rounded-xl border p-6">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Shield className="text-primary h-5 w-5" />
-            <h2 className="text-lg font-semibold">
-              {t("settings.passwordReset")}
-            </h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Shield className="text-primary h-5 w-5" />
+              <h2 className="text-lg font-semibold">
+                {t("settings.passwordReset")}
+              </h2>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              {t("settings.changePasswordDescription")}
+            </p>
           </div>
           <Button
             type="button"
             variant="outline"
             onClick={() => setPasswordDialogOpen(true)}
+            className="w-full shrink-0 sm:w-auto"
           >
             {t("settings.changePassword")}
           </Button>
         </div>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {t("settings.changePasswordDescription")}
-        </p>
       </div>
 
       {/* Tour replay card. v1.4.15 Phase B5: a one-shot button that
           resets `users.onboarding_tour_completed` on the server AND
           dispatches a window event so a dashboard already in the
-          background reopens the spotlight tour immediately. */}
+          background reopens the spotlight tour immediately. v1.4.19
+          A6 — same stack-on-mobile / right-align-on-desktop contract
+          as the password card so both action surfaces look identical. */}
       <div className="bg-card border-border rounded-xl border p-6">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Compass className="text-primary h-5 w-5" />
-            <h2 className="text-lg font-semibold">
-              {t("onboarding.tour.restart")}
-            </h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Compass className="text-primary h-5 w-5" />
+              <h2 className="text-lg font-semibold">
+                {t("onboarding.tour.restart")}
+              </h2>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              {t("onboarding.tour.restartHint")}
+            </p>
           </div>
           <Button
             type="button"
@@ -498,6 +516,7 @@ export function AccountSection() {
             onClick={handleRestartTour}
             disabled={tourRestarting}
             data-testid="settings-restart-tour"
+            className="w-full shrink-0 sm:w-auto"
           >
             {tourRestarting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -507,9 +526,6 @@ export function AccountSection() {
             {t("onboarding.tour.restart")}
           </Button>
         </div>
-        <p className="text-muted-foreground mt-1 text-xs">
-          {t("onboarding.tour.restartHint")}
-        </p>
         {tourMsg && (
           <p
             role="alert"

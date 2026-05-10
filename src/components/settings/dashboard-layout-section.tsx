@@ -159,7 +159,11 @@ export function DashboardLayoutSection({ id }: { id: string }) {
       id={id}
       className="bg-card border-border scroll-mt-28 space-y-5 rounded-xl border p-6"
     >
-      <div className="flex items-center justify-between gap-3">
+      {/* v1.4.19 A6 — title / action row uses the same stack-on-mobile,
+          right-align-on-desktop contract as Account → Password +
+          Restart onboarding tour. Avoids the long German "Auf Standard
+          zurücksetzen" copy clipping the card edge at narrow widths. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="flex items-center gap-2">
           <LayoutDashboard className="text-primary h-5 w-5" />
           <h2 className="text-lg font-semibold">
@@ -171,6 +175,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           size="sm"
           onClick={() => resetMutation.mutate()}
           disabled={resetMutation.isPending}
+          className="self-end sm:self-auto"
         >
           <RotateCcw className="mr-2 h-3.5 w-3.5" />
           {t("dashboard.layoutReset")}
