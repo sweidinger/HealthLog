@@ -182,6 +182,11 @@ export function UserManagementSection() {
               ? t("admin.demoteToUser")
               : t("admin.promoteToAdmin")
         }
+        aria-label={
+          u.role === "ADMIN"
+            ? t("admin.demoteToUser")
+            : t("admin.promoteToAdmin")
+        }
       >
         <Shield className="mr-1 h-3 w-3" aria-hidden="true" />
         {u.role === "ADMIN" ? t("admin.toUser") : t("admin.toAdmin")}
