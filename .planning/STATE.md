@@ -734,3 +734,69 @@ B3, B4, C1, C5).
     dedicated `/insights/compare` page, iOS contract freeze + bulk
     endpoint, S3 backup push, Apple Health import.
   - Status: **finished**.
+
+## v1.4.17 hotfix
+
+- [x] live
+
+Status: **live** on production (`https://healthlog.bombeck.io`) at
+2026-05-10T07:58:12Z. Force-pull was required (`docker compose pull
+app && docker compose up -d app` on `apps-01`) — Coolify auto-deploy
+fired before the GHCR image was published. Image digest moved from
+`sha256:05f8a126...` (v1.4.16) to `sha256:936e9cf2...` (v1.4.17).
+`/api/version` returns `1.4.17`. `/insights` smoke (the route that
+crashed) returns **HTTP 200**. Broader smoke clean (`/`, `/insights`,
+`/admin`, `/admin/users`, `/settings/ai` all 200). GH release
+published at https://github.com/MBombeck/HealthLog/releases/tag/v1.4.17.
+
+Originally triggered by Marc's production /insights crash on
+2026-05-10T07:38:55Z (~6 hours after v1.4.16 went live).
+
+Symptom: `TypeError: Cannot read properties of undefined (reading
+'replace')` on `/insights` for users with cached insights from before
+v1.4.16. The cached blob (Marc's case: `{changed, stable, drivers,
+nextSteps, confidence, limitations}` — the v1.4.14 pre-strict shape)
+fell through `safeParse(insightResultSchema)` unchanged because the
+route surfaces the raw blob when validation fails. The rich
+`<InsightAdvisorCard>` then called `stripChartTokens(insight.summary)`
+on undefined and crashed.
+
+Root cause: `isLegacyInsightPayload()` only flagged blobs whose
+`recommendations[]` contained string-recs or recs missing rationale —
+it returned `false` for the v1.4.14 shape because that shape has no
+`recommendations` field at all. The B5c regenerate-CTA never fired,
+the rich card tried to render a non-renderable blob, `.replace()` on
+undefined crashed.
+
+Fix:
+- `isLegacyInsightPayload()` now flags blobs missing both `summary`
+  AND `recommendations[]` (the v1.4.14 shape) so the API surfaces
+  `legacyPayload: true` correctly.
+- `<InsightAdvisorCard>` short-circuits to a self-contained legacy-
+  payload card with the regenerate CTA when `legacyPayload` is set OR
+  when the shape is unrenderable (no `summary` string, no findings
+  array, no recommendations array).
+- Defense-in-depth: `stripChartTokens()` and `parseChartTokens()`
+  treat null/undefined as empty string / empty array.
+
+Audit: `git grep -nE '\.replace\(' src/` returned 82 hits. The crash
+site is the only fragile case; all 81 other hits are safe (i18n
+returns string, `String.toISOString().replace`, server-side string
+columns). Audit doc: `.planning/v1417-replace-audit.md`.
+
+Verification: `pnpm typecheck` 0 errors, `pnpm lint` 0 errors / 12
+pre-existing warnings, `pnpm test` 1547/1547 (was 1540 in v1.4.16,
++7 new defensive tests), `pnpm test:integration` 59/59.
+
+Commits on origin/main:
+- `79bfa27 fix(insights): handle legacy cached payload without rationale (regenerate CTA)`
+- `adab80a chore(release): v1.4.17`
+- `da7070e style(insights): prettier sweep on legacy-payload hotfix files`
+
+Tag: `v1.4.17` pushed.
+
+Why v1.4.17 instead of Marc's "1.4.16.1": semver requires three
+segments and pnpm/npm tooling rejects four-segment versions. v1.4.17
+is the closest semver-valid expression of "patch on top of v1.4.16".
+
+Detailed report: `.planning/phase-v1417-hotfix-report.md`.
