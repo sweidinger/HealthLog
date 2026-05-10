@@ -1077,38 +1077,41 @@ export function HealthChart({
                     }
                   />
                 ))}
-                {/* v1.4.16 B1a — personal-baseline reference line.
-                    90-day rolling median per type, painted as a faint
-                    dashed line labelled "Your normal" / "Dein Mittel".
-                    Only the *first* baseline gets an inline label so
-                    multi-type charts (e.g. systolic + diastolic) don't
-                    paint two overlapping labels. */}
-                {types.map((type, i) => {
-                  const baseline = personalBaselines.get(type);
-                  if (baseline == null) return null;
-                  return (
-                    <ReferenceLine
-                      key={`baseline-${type}`}
-                      y={baseline}
-                      stroke={colors[i % colors.length]}
-                      strokeDasharray="2 4"
-                      strokeOpacity={0.4}
-                      strokeWidth={1}
-                      ifOverflow="discard"
-                      label={
-                        i === 0
-                          ? {
-                              value: t("charts.personalBaseline"),
-                              position: "insideTopLeft",
-                              fill: "var(--muted-foreground)",
-                              fontSize: 10,
-                              opacity: 0.7,
-                            }
-                          : undefined
-                      }
-                    />
-                  );
-                })}
+                {/* v1.4.18 — personal-baseline reference line is now
+                    opt-in via the Trend toggle. Marc rejected the
+                    always-on dashed mean line; it now only paints when
+                    the user actively shows the trend overlay (matching
+                    his rule: "only when a trend is being displayed").
+                    90-day rolling median per type, faint dashed line,
+                    only the first type gets the inline label so
+                    multi-type charts don't paint duplicate labels. */}
+                {showTrend &&
+                  types.map((type, i) => {
+                    const baseline = personalBaselines.get(type);
+                    if (baseline == null) return null;
+                    return (
+                      <ReferenceLine
+                        key={`baseline-${type}`}
+                        y={baseline}
+                        stroke={colors[i % colors.length]}
+                        strokeDasharray="2 4"
+                        strokeOpacity={0.4}
+                        strokeWidth={1}
+                        ifOverflow="discard"
+                        label={
+                          i === 0
+                            ? {
+                                value: t("charts.personalBaseline"),
+                                position: "insideTopLeft",
+                                fill: "var(--muted-foreground)",
+                                fontSize: 10,
+                                opacity: 0.7,
+                              }
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
                 <Tooltip
                   filterNull={false}
                   cursor={{

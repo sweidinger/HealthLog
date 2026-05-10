@@ -636,7 +636,10 @@ export function MoodChart({
                       ifOverflow="discard"
                     />
                   ))}
-                {personalBaseline != null && (
+                {/* v1.4.18 — personal-baseline gated behind the
+                    Trend toggle (Marc: "only when a trend is being
+                    displayed"). Default OFF. */}
+                {showTrend && personalBaseline != null && (
                   <ReferenceLine
                     y={personalBaseline}
                     stroke={COLOR_MAIN}
