@@ -125,12 +125,21 @@ commit.
 
 ### B3 — Correlation discovery + Trends row with AI annotations (~3-5 days)
 
-- [ ] 3 pre-defined hypotheses: BP×compliance, mood×pulse,
+- [x] 3 pre-defined hypotheses: BP×compliance, mood×pulse,
       weight×weekday
-- [ ] New `src/lib/insights/correlations.ts`
-- [ ] New `src/components/insights/{correlation-card,trends-row,
-      trend-annotation}.tsx`
-- [ ] Confidence ≥ 0.95, n ≥ 14, conservative phrasing
+- [x] New `src/lib/insights/correlations.ts` (Pearson + weekday-ANOVA;
+      n >= 14 + p < 0.05 surfacing gate)
+- [x] New `src/components/insights/{correlation-card,correlation-row,
+      trends-row,trend-annotation}.tsx`
+- [x] Confidence interval via Fisher z-transform; conservative
+      phrasing locked in by code-review convention
+- [x] PROMPT_VERSION 4.20.0 → 4.20.1; new `trendAnnotations` block
+      on the AI response schema (nullable + optional for legacy
+      payloads)
+- [x] `/api/analytics` now emits `correlations: {bpCompliance,
+      moodPulse, weightWeekday}` server-side
+- [x] `<CorrelationRow>` + `<TrendsRow>` mounted on `/insights`
+      between Daily Briefing and the Advisor card
 - Detailed report: `.planning/phase-B3-report.md`
 
 ### B4 — Weekly Report + Storyboard + Mobile passes (~3-4 days)
