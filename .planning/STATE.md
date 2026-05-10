@@ -1,7 +1,7 @@
 # v1.4.23 marathon — state log
 
-Status: kickoff
-Last update: 2026-05-10T23:00+02:00
+Status: Wave 2 shipped (backend foundation)
+Last update: 2026-05-11T00:25+02:00
 
 > Previous milestone: v1.4.22 live (image digest
 > `sha256:865154614303…`, `/api/version=1.4.22`).
@@ -24,25 +24,43 @@ Last update: 2026-05-10T23:00+02:00
 
 ### F1 — `MeasurementType` enum extension
 
-- [ ] Add `HEART_RATE_VARIABILITY`, `SLEEP_DURATION_DETAILED`,
-      `RESTING_HEART_RATE`, `STEP_COUNT`, `ACTIVE_ENERGY_BURNED`,
-      `FLIGHTS_CLIMBED`, `WALKING_RUNNING_DISTANCE`, `VO2_MAX`
-- [ ] Prisma migration `0036_apple_health_measurement_types`
-- [ ] Unit conversions documented in
-      `src/lib/measurements/apple-health-mapping.ts`
+- [x] Added `HEART_RATE_VARIABILITY`, `RESTING_HEART_RATE`,
+      `ACTIVE_ENERGY_BURNED`, `FLIGHTS_CLIMBED`,
+      `WALKING_RUNNING_DISTANCE`, `VO2_MAX`, `BODY_TEMPERATURE`
+      (W1 recommended reusing `ACTIVITY_STEPS` + `SLEEP_DURATION`
+      verbatim; the iOS DTO already shipped `BODY_TEMPERATURE` so
+      that joined the additive set — net new = 7)
+- [x] Prisma migration `0036_apple_health_measurement_types`
+- [x] Sleep unit shifted from hours to minutes; new `SleepStage`
+      enum + nullable `Measurement.sleepStage` column (CHECK
+      constraint scopes it to SLEEP_DURATION rows)
+- [x] Composite unique index `(user_id, type, source, external_id)`
+      — Apple Health batch dedup key
+- [x] Unit conversions in
+      `src/lib/measurements/apple-health-mapping.ts` (16 unit tests)
 
 ### F2 — `MeasurementSource` enum expansion
 
-- [ ] `apple_health` joins existing `manual / withings / moodlog`
-- [ ] UI badges + ingest validators + analytics segmenters updated
+- [x] `APPLE_HEALTH` appended to the enum
+- [x] UI badge in measurement-list (Dracula-pink chip) + bilingual
+      `measurements.sourceAppleHealth` keys + admin restore-route
+      enum guard sync
 
 ### F3 — `POST /api/measurements/batch`
 
-- [ ] New route, idempotent via `Idempotency-Key`
-- [ ] Validates batch ≤ 500 entries
-- [ ] Dedupes via `(userId, type, source, externalId)` composite
-- [ ] Returns per-entry status + idempotency-replay-safe
-- [ ] Integration test (testcontainers Postgres)
+- [x] New route at `src/app/api/measurements/batch/route.ts`,
+      idempotent via `Idempotency-Key`
+- [x] Validates batch ≤ 500 entries (returns 422
+      `coach.batch.too_large`)
+- [x] Dedupes via `(userId, type, source, externalId)` composite
+- [x] Returns per-entry status (`inserted` / `duplicate` /
+      `skipped`) + idempotency-replay-safe
+- [x] Integration test (`tests/integration/measurements-batch.test.ts`,
+      6 cases including idempotency replay)
+- [x] Sleep-stage aggregation in `/api/analytics`:
+      per-Berlin-day summary + `sleepStages` block
+      (`tests/integration/analytics-sleep-stages.test.ts`)
+- Detailed report: `.planning/phase-W2-v1423-report.md`
 
 ## Wave 3 — APNs scaffolding (F4)
 
