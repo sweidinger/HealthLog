@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, Key, Loader2 } from "lucide-react";
+import { Key, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Tooltip,
@@ -62,11 +60,12 @@ function TruncatedCell({
 
 export function ApiTokenOverviewSection() {
   const { t } = useTranslations();
-  // v1.5 phase-4b moved this to a dedicated route (`/admin/api-tokens`),
-  // so the user has already opted into seeing tokens by visiting the
-  // page. Default to expanded; the toggle stays as an escape hatch.
-  const [expanded, setExpanded] = useState(true);
-
+  // v1.4.19 phase A7 — `/admin/api-tokens` is a dedicated single-
+  // section route. The previous pattern carried a "Collapse / Expand"
+  // toggle as an escape hatch from the v1.4 shared admin page where
+  // 13 sections lived together, but on a route that only renders this
+  // one card the toggle hides the entire surface. Marc reported it
+  // as "sinnlos" — gone.
   const { data: tokens, isLoading } = useQuery({
     queryKey: ["admin", "tokens"],
     queryFn: async () => {
@@ -74,32 +73,17 @@ export function ApiTokenOverviewSection() {
       if (!res.ok) throw new Error("Failed");
       return (await res.json()).data as ApiTokenInfo[];
     },
-    enabled: expanded,
   });
 
   return (
     <div className="bg-card border-border overflow-hidden rounded-xl border p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Key className="text-primary h-5 w-5" />
-          <div className="text-lg font-semibold">{t("admin.apiTokens")}</div>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setExpanded((prev) => !prev)}
-          aria-expanded={expanded}
-        >
-          {expanded ? t("settings.collapse") : t("settings.expand")}
-          <ChevronDown
-            className={`ml-1 h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`}
-          />
-        </Button>
+      <div className="flex items-center gap-2">
+        <Key className="text-primary h-5 w-5" />
+        <div className="text-lg font-semibold">{t("admin.apiTokens")}</div>
       </div>
 
-      {expanded && (
-        <div className="mt-4">
-          {isLoading ? (
+      <div className="mt-4">
+        {isLoading ? (
           <div className="flex justify-center py-4">
             <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
           </div>
@@ -291,8 +275,7 @@ export function ApiTokenOverviewSection() {
             </ul>
           </>
         )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
