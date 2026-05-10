@@ -63,7 +63,9 @@ export interface UseInsightsAdvisorResult {
  * Read-only consumer for the advisor payload. Use this on surfaces that
  * just want to render the cached insight (e.g. dashboard preview).
  */
-export function useInsightsAdvisorQuery(enabled: boolean): UseInsightsAdvisorResult {
+export function useInsightsAdvisorQuery(
+  enabled: boolean,
+): UseInsightsAdvisorResult {
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: queryKeys.insightsAdvisor(),
@@ -80,7 +82,9 @@ export function useInsightsAdvisorQuery(enabled: boolean): UseInsightsAdvisorRes
       if (next) {
         queryClient.setQueryData(queryKeys.insightsAdvisor(), next);
       } else {
-        queryClient.invalidateQueries({ queryKey: queryKeys.insightsAdvisor() });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.insightsAdvisor(),
+        });
       }
       // Per-status caches are evicted server-side on regenerate; refresh
       // their query subtree so the per-section text below the advisor card

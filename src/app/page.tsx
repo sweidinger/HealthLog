@@ -964,10 +964,7 @@ export default function DashboardPage() {
             order: widgetOrder("mood"),
             count: moodSummary?.count ?? 0,
             node: (
-              <MoodChart
-                key="mood-chart"
-                compareBaseline={compareBaseline}
-              />
+              <MoodChart key="mood-chart" compareBaseline={compareBaseline} />
             ),
           });
         }
