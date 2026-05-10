@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { apiHandler, requireAdmin } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
+import { redactSecrets } from "@/lib/logging/redact";
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
 
@@ -145,8 +146,19 @@ export const GET = apiHandler(async (request: NextRequest) => {
     prisma.auditLog.count({ where }),
   ]);
 
+  // v1.4.16 phase D reconcile (security H2) — `details` is a JSON string
+  // column written by `auditLog()` calls across the app. A user-controlled
+  // value can land in here (e.g. `auth.login.failed → details.identifier`)
+  // and a typo'd "Bearer hlk_..." in a username field would otherwise be
+  // shown verbatim in the admin viewer + CSV export. Run the redaction
+  // pass at egress so already-persisted rows are scrubbed too.
+  const redactedEntries = entries.map((entry) => ({
+    ...entry,
+    details: entry.details ? redactSecrets(entry.details) : entry.details,
+  }));
+
   return apiSuccess({
-    entries,
+    entries: redactedEntries,
     meta: {
       total,
       // Both shapes returned so old callers keep working.

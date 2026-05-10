@@ -65,6 +65,28 @@ export const GET = apiHandler(async (request: NextRequest) => {
 });
 
 /**
+ * Recursively walk a JSON-shaped value and run `redactSecrets()` on every
+ * string. Used by `redactEventForEgress` to scrub the open-shape `meta`
+ * and `action.details` blobs — those carry annotated key=value pairs from
+ * `annotate()` calls (e.g. provider-runner's `ai_chain_hop_<n>_reason`
+ * which captures the upstream error body capped at 240 chars). If an
+ * upstream provider ever echoes a Bearer token in its error body, the
+ * raw token would land in `meta` without this scrub.
+ */
+function redactDeep(value: unknown): unknown {
+  if (typeof value === "string") return redactSecrets(value);
+  if (Array.isArray(value)) return value.map((v) => redactDeep(v));
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = redactDeep(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
  * Apply `redactSecrets()` to every string-shaped field that could carry a
  * leaked credential. Keeps the structure intact so the UI can still render
  * the JSON tree.
@@ -91,6 +113,15 @@ function redactEventForEgress(event: WideEvent): WideEvent {
       ...c,
       error: c.error ? redactSecrets(c.error) : c.error,
     }));
+  }
+  if (out.meta) {
+    out.meta = redactDeep(out.meta) as Record<string, unknown>;
+  }
+  if (out.action?.details) {
+    out.action.details = redactDeep(out.action.details) as Record<
+      string,
+      unknown
+    >;
   }
   return out;
 }
