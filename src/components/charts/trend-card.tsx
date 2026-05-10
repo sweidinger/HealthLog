@@ -226,11 +226,11 @@ export function TrendCard({
             )}
             data-slot="tile-compare-delta"
             data-compare-baseline={compareBaseline}
-            aria-label={`${formatDelta(compareDelta)}${unit ? ` ${unit}` : ""} ${
+            aria-label={`${formatDelta(compareDelta)}${unit ? ` ${unit}` : ""} ${t(
               compareBaseline === "lastMonth"
-                ? "vs. last month"
-                : "vs. last year"
-            }`}
+                ? "comparison.captionLastMonth"
+                : "comparison.captionLastYear",
+            )}`}
           >
             {`Δ ${formatDelta(compareDelta)}${unit ? ` ${unit}` : ""} ${t(
               compareBaseline === "lastMonth"
