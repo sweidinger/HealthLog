@@ -211,16 +211,44 @@ Last update: 2026-05-10T12:48+02:00
 
 ## Wave D — Multi-agent QA + Product-Lead review
 
-- [ ] code-reviewer
-- [ ] security review
-- [ ] design / UX review
-- [ ] senior-dev review
-- [ ] simplify
-- [ ] Product Lead — strategic for v1.4.20 (Insights redesign roadmap,
-      AI Coach feasibility)
-- [ ] Reconcile applies CRITICAL/HIGH inline
-- Detailed report: `.planning/phase-D-report.md` +
-  `product-lead-review.md`
+- [x] code-reviewer (1 CRIT + 5 HIGH + 12 MED/LOW)
+- [x] security review (0 CRIT, 0 HIGH, 3 MED/LOW)
+- [x] design / UX review (0 CRIT, 2 HIGH, 8 MED/LOW)
+- [x] senior-dev review (0 CRIT, 3 HIGH, 13 MED/LOW)
+- [x] simplify (5 apply-yes, 2 apply-no)
+- [x] Product Lead — v1.4.20 redesign plan filed at
+      `phase-D-v1419-product-lead-review.md`
+- [x] Reconcile applied CRITICAL + 7/10 HIGH + all 5 simplify-yes; 3
+      HIGH deferred to `.planning/v1420-backlog.md` under "Phase D —
+      v1.4.19 reconcile carry-over". Strategic items pulled into
+      `.planning/v15-backlog.md`. 1672/1672 unit + 67/67 integration
+      green; typecheck clean; lint baseline (0 errors / 12
+      pre-existing warnings).
+- Detailed report: `.planning/phase-D-reconcile-report.md`
+
+### Status block — D (v1.4.19)
+
+- 2026-05-09T14:30+02:00 — Phase D reconcile complete. Six atomic
+  commits on origin/main: `ef74241` (CRITICAL C-01 mobile Sys/Dia
+  badge enum mismatch + TDD guard), `6b35cad` (5 simplify-yes:
+  useAuthActionLabels hook, IntegrationStatusPill chipClass dead
+  branches, DateInput/DateTimeInput wrappers ×14 callsites,
+  icon-wrapper cleanup ×3, narration-comment strip), `1258b24`
+  (HIGH H-01 token-name UTC→Berlin), `5a8ad3d` (HIGH H-02
+  useViewportWidth setState removal), `977f124` (HIGH H-04 tabs
+  ring clip), `1f0d9ad` (prettier on danger-zone-section).
+  Simplify F3 + F4 also resolved senior-dev H-1 + code-review
+  H-03 transitively. Three HIGH deferred to
+  `.planning/v1420-backlog.md`: D-CR-H-05 (insights `data?.`
+  narrowing — large refactor), D-DSGN-H-01 (api-tokens touch
+  tooltip — needs Popover swap), D-DSGN-H-02 (insights hero
+  density — folded into v1.4.20 redesign), D-SR-H-3 (Withings/
+  MoodLog card chrome dedup — v1.5 Apple Health prep). Strategic
+  items from product-lead-review pulled into
+  `.planning/v15-backlog.md`. No `--no-verify` / no
+  `--no-gpg-sign`. Final verification: pnpm typecheck clean,
+  pnpm lint 0 errors / 12 baseline warnings (no new), pnpm test
+  --run 1672/1672, pnpm test:integration 67/67.
 
 ## Phase E — Release v1.4.19
 

@@ -202,6 +202,135 @@ component edit.
   repeats page-level "Account" framing — drop the inner
   heading. `src/components/settings/account-section.tsx`. **S**.
 
+## Phase D — v1.4.19 reconcile carry-over
+
+### HIGH deferred
+
+- **D-CR-H-05** — `/insights/page.tsx` reads `data?.moodSummary`,
+  `data?.moodBpScatterData` etc. after the `if (!data) return` guard
+  at ~ line 820. TypeScript narrows `data` to non-null below that
+  point, so the optional chains are dead. Hoist the early return
+  above the `*SectionStatus` precomputes (lines 720–790 still need
+  `data?.`) so the rest of the body can drop the redundant
+  operators. Touches lots of references but is mechanical.
+  `src/app/insights/page.tsx:756,758,1036,1046,1064-1065,1235,1245,
+  1248-1252,1263-1273`. Owner: v1.4.20 Insights redesign.
+- **D-DSGN-H-01** — Truncate-with-tooltip on `/admin/api-tokens` is
+  not reachable on touch (Radix Tooltip is hover/focus only, native
+  `title=` is iOS-Safari-ignored). Drop `truncate` on the mobile
+  card list and let long values wrap to two lines, OR switch to a
+  Radix Popover. Desktop hover stays as-is.
+  `src/components/admin/api-token-overview-section.tsx:37-56,232`.
+- **D-DSGN-H-02** — Insights hero density on Pixel-5 (3+1 control
+  rows). Inline the `<CompareToggle>` next to the Regenerate button
+  on `>=sm` instead of stacking inside the title block. Folded into
+  the v1.4.20 Insights redesign hero rebuild.
+  `src/components/insights/insights-page-hero.tsx:101-163`.
+- **D-SR-H-3** — Withings + Mood Log card chrome duplicated
+  verbatim (header row → divider → body). v1.5 Apple Health card
+  will copy-paste a third time. Extract `<IntegrationCard>` shell
+  alongside the existing `IntegrationStatusPill`.
+  `src/components/settings/integrations-section.tsx:199-531,533-831`.
+
+### MED deferred (code-review M-01..M-07, senior-dev M-1..M-5,
+design M-01..M-04)
+
+- **D-CR-M-01** — `/insights` per-section status queries carry
+  `staleTime: 60_000` but the top-level `comprehensive` /
+  `analytics` queries have no `staleTime` override. Page can
+  reconcile out-of-sync after 30 s. Unify under one staleTime.
+  `src/app/insights/page.tsx:553-643`.
+- **D-CR-M-02** — `<HealthChart>` on `/insights` mounts without a
+  `chartKey` so the cog dropdown is invisible. Document the
+  dashboard-only intent in the chart-header comment, OR add chart
+  keys to the dashboard layout for `/insights` consumers.
+  `src/app/insights/page.tsx:948-1480`.
+- **D-CR-M-03** — `formatTokenName` regex requires trailing `Z`
+  (UTC). Broaden to `(?:Z|[+-]\d{2}:?\d{2})$` for offset-based ISO.
+  `src/components/admin/api-token-overview-section.tsx:66-67`.
+- **D-CR-M-04** — Tabs `overflow-y-hidden` comment cites the strip
+  height as the cause; the actual culprit is the `<Badge>` child
+  inside `TabsTrigger`. Update the comment so a future cleanup
+  pass keeps the context.
+  `src/components/ui/tabs.tsx:38-46`.
+- **D-CR-M-05** — `STATUS_CATEGORY_KEY` map duplicates every server
+  classification string. Add a vitest case that diffs the union of
+  the server's emitted strings against the map's keyset.
+  `src/app/targets/page.tsx:115-166`.
+- **D-CR-M-06** — `/api/analytics` fetches all paired BP rows for
+  the all-time aggregate. For a 5-year power user that's ~9 000
+  rows × 2; annotate `bpSysCount`, `bpDiaCount` on the existing
+  `analytics.get` Wide Event for slow-query attribution.
+  `src/app/api/analytics/route.ts:71-86`.
+- **D-CR-M-07** — `chooseTickInterval` returns 0 for small
+  datasets; Recharts' `preserveStartEnd` doesn't drop colliding
+  labels at 360–480 px. Pin behaviour with a 393 px e2e smoke.
+  `src/lib/charts/x-axis-density.ts:80-87`.
+- **D-SR-M-1** — Chart-card mobile-stack header pattern repeated 3×
+  across `health-chart`, `mood-chart`, `medication-compliance-chart`.
+  Extract `<ChartCardHeader>` taking title / bucket / range
+  controls / overlay-menu slots.
+- **D-SR-M-2** — `TIME_RANGES_KEYS` array duplicated verbatim in
+  health-chart + mood-chart. Move to `src/lib/charts/time-ranges.ts`
+  alongside `x-axis-density.ts`.
+- **D-SR-M-4** — F-02 auth filter expressed in two places
+  (URL param + dropdown filter). Single named constant
+  `AUTH_ACTION_PREFIX = "auth."` + `isAuthAction()` helper.
+  `src/components/admin/login-overview-section.tsx:96,256`.
+- **D-SR-M-5** — `<InsightAdvisorCard>` four-branch render ships
+  `{title && …}` four times. Extract a local
+  `<AdvisorCardHeader>` and have every branch mount it.
+  `src/components/insights/insight-advisor-card.tsx:344,377,485,552`.
+- **D-DSGN-M-01** — `/admin/api-tokens` still has the inner
+  `<div className="text-lg font-semibold">API Tokens</div>` next
+  to the SectionFrame `<h1>API Tokens</h1>`. F-08 sweep cleared
+  the same dup on `/admin/danger-zone` + `/admin/feedback` but
+  deferred this one. `src/app/admin/[section]/renderer.tsx:123-131,
+  180-192` + `src/components/admin/api-token-overview-section.tsx:101-106`.
+- **D-DSGN-M-02** — Profile DOB still wrapped in a
+  `grid sm:grid-cols-2` with one cell, leaving an empty right
+  column on `>=sm`. Replace with `sm:max-w-md`.
+  `src/components/settings/account-section.tsx:383-398`.
+- **D-DSGN-M-03** — Chart range tabs (`min-h-11`, 44 px) read
+  visually heavier than v1.4.19 Settings inputs (`h-9`, 36 px).
+  Either accept (44 px touch targets matter on draggable cards)
+  or shrink to `h-9` on `>=sm`. v1.4.20 chart redesign concern.
+- **D-DSGN-M-04** — Mood Log "Copy webhook secret" button uses
+  `t("common.copied").replace("!", "")` as resting label. Add
+  `common.copy` keys (en: "Copy", de: "Kopieren") for the
+  resting state, keep `common.copied` for the toast.
+  `src/components/settings/integrations-section.tsx:715-725`.
+
+### LOW deferred
+
+- **D-CR-L-01..L-05** — comment dup, IntegrationStatusPill
+  chipClass clarity, e2e threshold tied to desktop default,
+  formatTokenName regex doesn't permit ms-less ISO (currently
+  fine), targets test mock isolation.
+- **D-DSGN-L-01..L-04** — relative-time abbreviation
+  inconsistency (chips abbreviate, prose spells out), Galaxy
+  Fold orphan dot separator on hero, api-tokens lastUsedAt cell
+  may clip seconds at 1024 px (drop seconds in the formatter),
+  IntegrationStatusPill aria-label generic across states.
+- **D-SR-L-1..L-8** — `ai-section.tsx` (1730 lines), `health-
+  chart.tsx` (1360), `integrations-section.tsx` (831) split
+  candidates; Telegram badge concat could reuse the
+  IntegrationStatusPill with a `paused` variant; `getViewportWidth`
+  SSR fallback `1280` should reference a named constant.
+- **D-SEC-MED-1** — `<RecentAuditPreview>` row exposes
+  `entry.ipAddress` inline on `>=sm`. Admin-only, no
+  privilege-escalation path; mention in v1.4.19 release brief.
+  `src/components/admin/recent-audit-preview.tsx:144-148`.
+- **D-SEC-LOW-1** — A4 prompt's `n<7` caveat threshold differs
+  from server-side `n<3` confidence clamp. Tighten to match if
+  feedback shows `n=4` recommendations land too confidently.
+  `src/lib/ai/prompts/insight-generator.ts:86-95,219-229`.
+- **D-SEC-LOW-2** — IntegrationStatusPill inline error message
+  could in principle leak a Withings/MoodLog endpoint URL if a
+  future caller passes raw HTTP body into `recordSyncFailure`.
+  Whitelist before encryption when adding new sync helpers.
+  `src/lib/integrations/status.ts:367` callers.
+
 ## Notes for v1.4.20 picks
 
 - The MED block is dominated by copy nits — running prettier

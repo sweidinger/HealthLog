@@ -1,364 +1,480 @@
-# Phase D — Senior-Dev Architectural Review (v1.4.18)
+# v1.4.19 Phase D — Senior-Dev Review
 
-Lens: structure, file size, naming, separation of concerns, layering. NOT
-correctness or business logic — those are the code-reviewer's lane.
+**Lens:** architecture / file-size / naming / separation. NOT
+correctness/bugs (those go to code-reviewer).
 
-## Scope
+**Scope:** files touched by `git diff v1.4.18...HEAD`. Also calls out
+pre-existing structural issues that v1.4.19 layered onto without
+addressing.
 
-Reviewed against `git diff --name-only v1.4.17...agent/b1-achievements` (the
-worktree branch carrying the full v1.4.18 implementation: A1 + A2 already on
-`main`, A3 charts revert + B1 achievements expansion sitting on the agent
-branches awaiting reconcile). 59 files / +4961 -1612 LOC.
+**Verdict summary:** Zero ship-blockers. The new modules
+(`charts/x-axis-density.ts`, `use-viewport-width`, `IntegrationStatusPill`)
+are correctly layered. The largest finding is HIGH H-1 copy-paste
+(`lang={locale}` repeated 14× across 9 files) — should land in a
+follow-up before v1.5 because the same fix is bound to be needed
+for any future date input. Two MED findings concern duplicated
+`AUTH_ACTION_LABELS` maps and duplicated chart-header layout
+patterns. Pre-existing LOW debt (1730-line `ai-section.tsx`,
+1360-line `health-chart.tsx`, 831-line `integrations-section.tsx`)
+noted but is not v1.4.19's regression.
 
-Files inspected closest:
+---
 
-- `src/lib/analytics/bp-in-target.ts` (A1 windowed helper)
-- `src/app/api/analytics/route.ts` (A1 wiring)
-- `src/app/page.tsx` (A1 tile wiring)
-- `src/app/globals.css` + admin/settings shells (A2 no-scrollbar)
-- `src/components/charts/health-chart.tsx` / `mood-chart.tsx` /
-  `medication-compliance-chart.tsx` (A3 revert + overlay-controls)
-- `src/components/charts/chart-overlay-controls.tsx` + `use-chart-overlay-prefs.ts`
-- `src/lib/dashboard-layout.ts` (overlay prefs persistence)
-- `src/app/api/dashboard/chart-overlay-prefs/route.ts` (overlay PUT)
-- `src/lib/gamification/achievements.ts` (B1 definitions + evaluators)
-- `src/lib/gamification/expansion-metrics.ts` (B1 expansion engine)
-- `src/app/api/gamification/achievements/route.ts` (B1 route stitching)
-- `src/app/achievements/page.tsx` + `src/components/gamification/*`
-- All companion unit + integration + e2e tests
+## CRITICAL
 
-Lines-of-code deltas v1.4.17 → v1.4.18:
+(none)
 
-| File                                                    | v1.4.17 | v1.4.18 |    Δ |
-| ------------------------------------------------------- | ------: | ------: | ---: |
-| `src/components/charts/health-chart.tsx`                |    1431 |    1339 |  -92 |
-| `src/components/charts/mood-chart.tsx`                  |     958 |     850 | -108 |
-| `src/components/charts/medication-compliance-chart.tsx` |     466 |     444 |  -22 |
-| `src/lib/gamification/achievements.ts`                  |     431 |     839 | +408 |
-| `src/lib/gamification/expansion-metrics.ts`             |       ─ |     374 | +374 |
-| `src/app/api/gamification/achievements/route.ts`        |     776 |     876 | +100 |
-| `src/app/achievements/page.tsx`                         |     388 |     441 |  +53 |
-| `src/lib/dashboard-layout.ts`                           |     200 |     287 |  +87 |
-| `src/lib/analytics/bp-in-target.ts`                     |     178 |     230 |  +52 |
+---
 
-Charts shrunk after the revert (good — gradient primitive deletion +
-emoji-glyph removal more than offset the new overlay-control mounts).
-Gamification grew on the data side (definitions doubled from ~14 to
-38 badges) but the new code lives in two coherent files (`achievements.ts`
+## HIGH
 
-- `expansion-metrics.ts`) with a clear definition / evaluator split.
+### H-1 — `lang={locale}` copy-pasted across 9 files / 14 callsites
 
-## Findings
+- **Severity:** HIGH
+- **Files:**
+  - `src/app/onboarding/page.tsx:307`
+  - `src/components/settings/account-section.tsx:389`
+  - `src/components/settings/export-section.tsx:266,279`
+  - `src/components/medications/intake-history-list.tsx:548,562,694,708`
+  - `src/components/medications/medication-form.tsx` (one)
+  - `src/components/mood/mood-list.tsx:575`
+  - `src/components/mood/mood-form.tsx:138`
+  - `src/components/measurements/measurement-list.tsx:590`
+  - `src/components/measurements/measurement-form.tsx:364`
+  - `src/components/doctor-report/doctor-report-dialog.tsx:197,214`
+- **Issue:** F-04 (Wave B) shipped the same `lang={locale}` JSX-prop
+  patch into 14 callsites in 9 files. Every callsite now imports
+  `locale` from `useTranslations()` purely to feed the `lang` prop.
+  The pattern is mechanical and identical, and v1.4.20+ will keep
+  needing it for any new date input — guaranteed drift target. As
+  of HEAD, `grep -rn 'lang={locale}'` returns exactly 14 hits and
+  every `<Input type="date">` / `<Input type="datetime-local">`
+  callsite carries it (verified via `grep -c
+  'type="date(time-local)?"`). Future date inputs added without
+  the prop will silently regress.
+- **Recommendation:** Introduce a thin wrapper
+  `src/components/ui/date-input.tsx` (or `localized-date-input.tsx`)
+  that wraps `<Input>` + reads `useTranslations()` internally to
+  set `lang`. Replaces every `<Input type="date" lang={locale} … />`
+  with `<DateInput … />` and `<Input type="datetime-local"
+  lang={locale} … />` with `<DateTimeInput … />`. Eliminates the
+  14× duplication and the parent-component `locale` import noise.
+- **Ship-blocker?** No. The pattern works correctly today; the
+  refactor is hygiene. Recommend follow-up commit before v1.5
+  iOS work to keep the new APIs symmetric.
 
-### F1 — `ChartOverlayPrefs` type duplicated under two names
+### H-2 — `AUTH_ACTION_LABELS` map duplicated verbatim across two admin sections
 
-- **Severity:** MED
-- **File:** `src/components/charts/chart-overlay-controls.tsx` (line 49,
-  exports `ChartOverlayPrefsValue` + `DEFAULT_CHART_OVERLAY_PREFS`) vs
-  `src/lib/dashboard-layout.ts` (line 121, exports `ChartOverlayPrefs` +
-  `DEFAULT_CHART_OVERLAY_PREFS`)
-- **Issue:** Two parallel exports with **identical** shape (3 booleans
-  named `showTrendIndicator` / `showTrendArrow` / `showTargetRange`) live
-  in two files under two type names. Both also re-export a
-  `DEFAULT_CHART_OVERLAY_PREFS` constant — luckily with the same
-  defaults, but a future drift between them would compile (structural
-  typing) yet ship incoherent UI vs server defaults. The two typenames
-  are reachable from the same call graph (`use-chart-overlay-prefs.ts`
-  imports from `dashboard-layout`; `chart-overlay-controls.tsx`
-  declares its own), so a reviewer reading the chart's render path now
-  has to switch between `ChartOverlayPrefs` and
-  `ChartOverlayPrefsValue` mentally.
-- **Recommendation:** Drop the duplicate from
-  `chart-overlay-controls.tsx` and re-import `ChartOverlayPrefs` +
-  `DEFAULT_CHART_OVERLAY_PREFS` from `@/lib/dashboard-layout` (the
-  canonical home). 5-line change. The `ChartOverlayPrefsValue` name was
-  presumably introduced because the controls component pre-dated the
-  persistence layer; now that `dashboard-layout` is the source of
-  truth, the duplicate is dead weight.
-- **Ship-blocker:** No.
+- **Severity:** HIGH
+- **Files:**
+  - `src/components/admin/login-overview-section.tsx:70-82`
+  - `src/components/admin/recent-audit-preview.tsx:50-60`
+- **Issue:** Identical 11-key `Record<string, string>` mapping
+  `auth.*` audit-action codes to translated labels lives in two
+  components. v1.4.19 ADDED 3 new entries
+  (`auth.token.autoissue.native`, `auth.token.refresh`,
+  `auth.token.revoke`) and the new entries had to be inserted in
+  BOTH copies (commit `bc81fd7`). This is the textbook drift
+  trap: future audit actions added to one map but forgotten in
+  the other will render the raw enum string in one surface and a
+  label in the other. Also: both maps are constructed in the
+  component body via `t()`, so the literal object is rebuilt on
+  every render even though the values only change with locale
+  (see M-3).
+- **Recommendation:** Lift to a shared hook
+  `useAuthActionLabels()` in `src/components/admin/_shared.tsx`
+  (already the home for `AdminUser`, `AdminAuditEntry`, etc.) that
+  takes `t` from `useTranslations()` and returns a `useMemo`-cached
+  `Record<string, string>` keyed on `locale`. Both consumers
+  import and call it. New audit-action codes only need to be
+  added once.
+- **Ship-blocker?** No. Both copies are currently in sync.
 
-### F2 — `getAchievementCategory` deprecated but kept as a public export
+### H-3 — Withings/MoodLog card chrome duplicated; future Apple Health card will copy-paste again
+
+- **Severity:** HIGH
+- **File:** `src/components/settings/integrations-section.tsx`
+  (`WithingsCard` lines 199-531, `MoodLogCard` lines 533-831)
+- **Issue:** A5 successfully introduced `IntegrationStatusPill` for
+  the status chip, but the *card chrome* itself
+  (`<div className="bg-card border-border rounded-xl border p-6">`
+  → header row with icon + title + pill → `<p>` muted description
+  → `<hr data-testid="integration-card-divider"
+  className="border-border/60 mt-4">` → `<div className="mt-4
+  space-y-4">` body) is duplicated verbatim between WithingsCard
+  and MoodLogCard. The Phase A5 report explicitly mentions
+  *"Reusable for v1.4.20 Apple Health card on iOS"* — but the
+  reusable surface today is only the pill, not the card. Adding
+  Apple Health will paste the same chrome a third time.
+- **Recommendation:** Extract `<IntegrationCard>` co-located with
+  `IntegrationStatusPill`. Props:
+  - `icon: LucideIcon`
+  - `title: string` (or `titleSlot: ReactNode` for the link-
+    wrapped MoodLog title)
+  - `description: string`
+  - `pillState`, `pillLastSyncAt` (passed to inner pill)
+  - `errorMessage?: string`
+  - `children` (the unique card body — credentials form, sync
+    button, etc.)
+  Both existing cards become a thin shell + their unique body
+  forms. Apple Health card v1.5 ships as ~30 lines of unique
+  form, not ~200 lines of mostly chrome.
+- **Ship-blocker?** No. Defer to v1.4.20 or v1.5 (would touch
+  v1.4.19's tested surface, not worth the risk pre-release).
+
+---
+
+## MEDIUM
+
+### M-1 — Chart wrapper "mobile-stack header" pattern duplicated 3×
+
+- **Severity:** MEDIUM
+- **Files:**
+  - `src/components/charts/health-chart.tsx:867`
+  - `src/components/charts/mood-chart.tsx:514`
+  - `src/components/charts/medication-compliance-chart.tsx:269`
+- **Issue:** A2 introduced an identical mobile-first header
+  layout (`flex flex-col gap-2 sm:flex-row sm:items-center
+  sm:justify-between`) plus the matching chip-hide rules
+  (`hidden sm:inline-flex` on bucket chip + comparison chip) in
+  three chart components. The same 4× `<Button>` time-range tab
+  loop on `TIME_RANGES_KEYS` is duplicated between health-chart
+  and mood-chart (which already had a `TIME_RANGES_KEYS` clone —
+  see M-2). The fix shipped 3 separate JSX blocks that must be
+  kept in lockstep for header behaviour to stay consistent
+  across the dashboard's chart grid. A future "header should
+  also wrap on tablet portrait" tweak would have to be applied
+  three times.
+- **Recommendation:** Extract `<ChartCardHeader>` taking `title`,
+  `bucket`, `compareCaption`, `rangePoints`, `onRangeChange`,
+  `overlayMenu` slots. All three charts mount it. Side-effect:
+  any future cog-menu addition / time-range change happens once.
+- **Ship-blocker?** No. Lockstep is currently in sync (single
+  commit `77a3ad3`); just risky long-term.
+
+### M-2 — `TIME_RANGES_KEYS` array duplicated verbatim in two charts
+
+- **Severity:** MEDIUM
+- **Files:**
+  - `src/components/charts/health-chart.tsx:45-66`
+  - `src/components/charts/mood-chart.tsx:91-112`
+- **Issue:** Pre-existing duplication, NOT introduced by v1.4.19.
+  Calling out because A2 layered new tick-density wiring on top
+  of this duplication rather than dedupe-then-extend.
+  `MedicationComplianceChart` defines its own range source, and
+  `ComplianceLineChart` defines its own again — no shared
+  abstraction at all between the four chart wrappers' time-range
+  controls.
+- **Recommendation:** Move the 4-entry array to
+  `src/lib/charts/time-ranges.ts` (co-locate with the new
+  `x-axis-density.ts` under `src/lib/charts/`). Fold M-1 in by
+  having `<ChartCardHeader>` import the constant directly.
+- **Ship-blocker?** No. Pre-existing.
+
+### M-3 — `AUTH_ACTION_LABELS` is rebuilt every render
+
+- **Severity:** MEDIUM (perf hygiene)
+- **Files:** `src/components/admin/login-overview-section.tsx:70`,
+  `src/components/admin/recent-audit-preview.tsx:50`
+- **Issue:** Both maps are declared inside the component body
+  (not via `useMemo`), so React rebuilds an 11-key object on
+  every render. Not load-bearing for the small surfaces here but
+  the H-2 lift-out should pair with `useMemo([locale])` to make
+  the cleanup correct in one shot.
+- **Recommendation:** Resolved naturally by H-2 fix
+  (`useAuthActionLabels()` returning a memoised value).
+- **Ship-blocker?** No.
+
+### M-4 — F-02 "auth.* filter" rule expressed in two places
+
+- **Severity:** MEDIUM
+- **File:** `src/components/admin/login-overview-section.tsx:96
+  + 256`
+- **Issue:** F-02's "filter to `auth.*` actions" rule is
+  expressed in two places: (1)
+  `params.set("filter", "auth")` on the API query at line 96, and
+  (2) `actions.filter((a) => a.startsWith("auth."))` on the
+  dropdown options at line 256. Both must agree for the UI to
+  make sense. If the server-side `?filter=auth` semantics ever
+  drift from "names start with `auth.`" the UI dropdown will
+  silently diverge.
+- **Recommendation:** Single named constant
+  `const AUTH_ACTION_PREFIX = "auth.";` plus a helper
+  `isAuthAction(s) => s.startsWith(AUTH_ACTION_PREFIX)`. Use both
+  in the component AND when building the URL param. (Alternative:
+  derive the `?filter=` value from the prefix — `filter` query
+  string maps to "subset of audit actions whose name starts with
+  the supplied prefix".)
+- **Ship-blocker?** No.
+
+### M-5 — Insights advisor-card title-guard shipped 4× instead of consolidating
+
+- **Severity:** MEDIUM
+- **File:** `src/components/insights/insight-advisor-card.tsx`
+  (lines 344, 377, 485, 552)
+- **Issue:** A3 made the `title` prop optional and shipped the
+  same `{title && <p …>{title}</p>}` guard four times — once per
+  card-state branch (loading / error / empty / populated). The
+  existing four-branch render structure is the root cause; v1.4.19
+  added four more lines of guard rather than refactoring the
+  branches into a shared `<CardHeader title={title}>` wrapper.
+- **Recommendation:** Extract a local
+  `<AdvisorCardHeader title?: string>` that owns the
+  `<CardTitle>` + optional subtitle + Sparkles icon, and have
+  every branch mount it.
+- **Ship-blocker?** No. Pre-existing branch sprawl; A3 just made
+  it slightly worse.
+
+---
+
+## LOW
+
+### L-1 — `ai-section.tsx` is 1730 lines / 14 internal functions
+
+- **Severity:** LOW (pre-existing, not v1.4.19's regression)
+- **File:** `src/components/settings/ai-section.tsx` (1730 lines)
+- **Issue:** Single file holds `AiSection`, `AiInsightsCard`,
+  `ProviderStatusBadges`, `ActiveProviderSelect`,
+  `ProviderConfigCard`, `CodexProviderForm`, `OpenAIProviderForm`,
+  `AnthropicProviderForm`, `LocalProviderForm`,
+  `AdminOpenAIProviderForm`, `FallbackChainCard`,
+  `AddProviderControl`, `RuntimeActionsRow` plus three helper
+  functions. v1.4.19 only changed input heights here (`h-10` →
+  `h-9`, A6) — did NOT grow the file. But this file is at the
+  threshold where an editor jumps multiple thousand lines to find
+  a callsite.
+- **Recommendation:** Defer to v1.4.20 or v1.5. Split into
+  `ai-section/{index, active-provider-select,
+  provider-config-card, forms/{codex, openai, anthropic, local,
+  admin-openai}, fallback-chain-card, runtime-actions-row}.tsx`.
+  Mirrors how `src/components/admin/` is structured (one section
+  per file).
+- **Ship-blocker?** No.
+
+### L-2 — `integrations-section.tsx` is 831 lines (WithingsCard + MoodLogCard co-located)
+
+- **Severity:** LOW (pre-existing)
+- **File:** `src/components/settings/integrations-section.tsx`
+  (831 lines)
+- **Issue:** Top-level `IntegrationsSection` is fine, but
+  `WithingsCard` (~334 lines) and `MoodLogCard` (~298 lines) plus
+  the new helpers (`useIntegrationStatuses`, `pickStatus`,
+  `pillStateFor`, `IntegrationErrorMessage`) all live in one
+  file. Pairs naturally with H-3's recommendation: extract
+  `<IntegrationCard>` and split each integration's card into its
+  own file.
+- **Recommendation:** Same as H-3 — under
+  `src/components/settings/integrations/{index, withings-card,
+  mood-log-card, integration-card}.tsx`.
+- **Ship-blocker?** No.
+
+### L-3 — `health-chart.tsx` is 1360 lines
+
+- **Severity:** LOW (pre-existing, not v1.4.19's regression)
+- **File:** `src/components/charts/health-chart.tsx` (1360 lines)
+- **Issue:** Largest user-authored file outside generated Prisma
+  client and `insights/page.tsx`. v1.4.19 added two imports + ~12
+  lines for the tick-density wiring; the file's growth is owed
+  to earlier milestones.
+- **Recommendation:** Defer; not a v1.4.19 issue.
+- **Ship-blocker?** No.
+
+### L-4 — `formatTokenName` uses UTC accessors on a Berlin-timezone product
+
+- **Severity:** LOW (correctness-adjacent, not architectural)
+- **File:** `src/components/admin/api-token-overview-section.tsx:69-82`
+- **Issue:** Uses `getUTCDate()` / `getUTCMonth()` / `getUTCHours()`
+  to render the embedded ISO timestamp on auto-issued token
+  names (`web auto-login 2026-05-05T19:46:20.603Z` → `web
+  auto-login · 05.05.2026 19:46`). Marc's project default is
+  Europe/Berlin display, UTC storage. A token issued at 19:46
+  Berlin in winter renders as 18:46. Other admin surfaces use
+  `formatDate()` / `formatDateTime()` from `@/lib/format`, which
+  handle the timezone correctly. Naming-consistency lens: this
+  is a custom date formatter parallel to the canonical
+  `format.ts` helpers, with different output rules
+  (DD.MM.YYYY HH:MM hard-coded German order).
+- **Recommendation:** Pass the parsed `Date` through `formatDate()`
+  + `formatDateTime()` from `@/lib/format`, or extract a
+  `formatBerlinDateTimeShort()` shared helper. Hand the
+  correctness call to code-reviewer.
+- **Ship-blocker?** No.
+
+### L-5 — Telegram badge collapse uses bullet-point string concat instead of single i18n key OR pill
 
 - **Severity:** LOW
-- **File:** `src/lib/gamification/achievements.ts` (line ~136-141)
-- **Issue:**
-  ```ts
-  /**
-   * @deprecated kept only for legacy callers; new code should read
-   * `AchievementDefinition.category` directly. v1.4.18 made category a
-   * stored field on the definition so hidden Easter-eggs (which share
-   * metrics with no other badge) don't need a special case.
-   */
-  export function getAchievementCategory(...)
-  ```
-  The JSDoc says "legacy callers" but `git grep` shows zero call sites
-  outside the test suite — the new design stores `category` on the
-  definition row directly, so the function is purely vestigial. Keeping
-  a `@deprecated` symbol public invites new code to reach for it.
-- **Recommendation:** Either un-export it (rename to `categoryForMetric`
-  internal-only — already exists alongside it) and delete the
-  re-exported wrapper, or move it behind an `__internal__/` boundary.
-  This is a mild premature-abstraction red flag flagged in the brief
-  — the v1.4.18 refactor created the right thing (`category` stored on
-  the definition) but kept the old door open out of caution.
-- **Ship-blocker:** No.
+- **File:** `src/components/settings/telegram-card.tsx:121`
+- **Issue:** F-16 collapse pattern is
+  `{t("settings.configured")} · {t("common.disabled")}` — string
+  concatenation across two i18n keys joined with a literal `·`.
+  Works for EN+DE but is the kind of pattern the i18n integrity
+  test (`src/lib/__tests__/i18n-locale-integrity.test.ts`)
+  cannot guard. Also: this is the same use case
+  `IntegrationStatusPill` was built for in A5 (single chip with
+  state + supplementary text), but the Telegram card uses an
+  ad-hoc Badge instead.
+- **Recommendation:** Either add a single
+  `settings.telegramConfiguredButDisabled` i18n key (one
+  insertion in EN+DE), OR — preferred — reuse
+  `IntegrationStatusPill` with a new `state="paused"` variant.
+  Aligns Telegram's status presentation with Withings + MoodLog.
+- **Ship-blocker?** No.
 
-### F3 — `src/lib/gamification/achievements.ts` (839 LOC) approaching the "definitions/ + evaluators/ + utilities/" split threshold
+### L-6 — `getViewportWidth()` SSR fallback hardcodes 1280
 
-- **Severity:** LOW
-- **File:** `src/lib/gamification/achievements.ts`
-- **Issue:** The file currently houses (in order): types,
-  `categoryForMetric`, `ACHIEVEMENT_CATEGORY_ORDER`, the `metrics`
-  interface, the `AchievementProgress` type, `BERLIN` formatters, the
-  `STREAK_TARGETS` + `buildStreakAchievements` factory, the `define()`
-  helper, the **38 definition literals** (~530 LOC of the file),
-  `dayKeyToNumber` / `toBerlinDayKey` / `getUniqueBerlinDays` /
-  `calculateLongestStreak`, the `evaluateAchievementsWithCompletionDates`
-  evaluator, and the `applyDiscoveryFilter` + `isEarnable` filter.
-  That's 4 distinct responsibilities (types, definitions data, day-key
-  utilities, evaluator+filter logic) under one roof. At 839 LOC it's
-  still readable, but the brief asked specifically: "is
-  `src/lib/achievements/` still coherent or does it need sub-folders
-  (definitions/ evaluators/ ui/)?". Today it is one file under
-  `gamification/`, not a folder.
-- **Recommendation:** Defer the split to the first time we add a 5th
-  responsibility (e.g. a server-side rules engine, a cross-user leaderboard
-  aggregator, etc.). Right now the four halves are short enough that
-  inlining is faster to navigate than chasing imports across 4 files. If
-  a split is forced earlier, the natural cut points are:
-  - `gamification/achievements/definitions.ts` (the literal array +
-    `define()` factory)
-  - `gamification/achievements/evaluator.ts`
-    (`evaluateAchievementsWithCompletionDates`)
-  - `gamification/achievements/discovery.ts` (`applyDiscoveryFilter` +
-    `isEarnable` + `EarnabilityFlags`)
-  - `gamification/achievements/day-keys.ts` (`toBerlinDayKey`,
-    `calculateLongestStreak`, etc. — could even hoist to
-    `lib/dates/berlin-day-keys.ts` since `bp-in-target.ts` reimplements
-    `toBerlinDayKey` separately, see F4)
-- **Ship-blocker:** No.
+- **Severity:** LOW (defensiveness)
+- **File:** `src/lib/charts/x-axis-density.ts:96-99`
+- **Issue:** Returns `1280` as the SSR default. Reasonable choice
+  but unmotivated by a constant — anyone tweaking the desktop
+  threshold has to remember the SSR fallback exists. The bucket
+  thresholds at the top of the file (360/480/768/∞) live in a
+  table; the fallback should ideally read `1280` from the same
+  source of truth.
+- **Recommendation:** Optional — declare
+  `const SSR_DEFAULT_VIEWPORT_WIDTH = 1280;` in a comment-anchored
+  block referencing the bucket table.
+- **Ship-blocker?** No.
 
-### F4 — `toBerlinDayKey()` reimplemented in two places
+### L-7 — A1 windows naming verified coherent (no finding, just confirmation)
 
-- **Severity:** LOW
-- **Files:** `src/lib/analytics/bp-in-target.ts` (line 70) and
-  `src/lib/gamification/achievements.ts` (line ~680)
-- **Issue:** Both files independently roll an `Intl.DateTimeFormat` with
-  `timeZone: "Europe/Berlin"` formatter and a `toBerlinDayKey()` helper
-  that returns `YYYY-MM-DD`. The bp-in-target version uses the en-CA
-  locale shortcut (`format()` returns `YYYY-MM-DD` directly); the
-  achievements version uses `formatToParts()` and stitches the parts
-  manually. Functionally identical, but the duplication means a future
-  timezone bug (DST edge, year-rollover, etc.) has to be fixed in two
-  places. `expansion-metrics.ts` re-imports from `achievements.ts` so it
-  doesn't add a third copy — but the two existing ones are independent.
-- **Recommendation:** Promote one of them to a shared helper, e.g.
-  `src/lib/dates/berlin-day-key.ts` exporting `toBerlinDayKey()` +
-  `getUniqueBerlinDays()` + `calculateLongestStreak()`. Both achievements
-  and bp-in-target depend on it. Defer the move until a third caller
-  arrives — two copies aren't yet a smell, but `git grep "Europe/Berlin"`
-  inside `src/lib/` already finds 8+ matches across helpers, so the
-  pattern is recurring.
-- **Ship-blocker:** No.
+- **Severity:** N/A (verified clean)
+- **File:** `src/lib/analytics/bp-in-target.ts:215-249`
+- **Verdict:** The brief's question 6 — "windows.last30Days vs
+  windows.allTime pattern coherent" — is **YES, coherent**. All
+  three keys follow camelCase. All three return the same shape
+  (`{ pct: number; pairs: number } | null`). All three semantics
+  are documented in the function header. The analytics route
+  mapping (`bpInTargetPct ← allTime`, `bpInTargetPct7d ←
+  last7Days`, `bpInTargetPct30d ← last30Days`) is unambiguous
+  and tested.
 
-### F5 — Achievements route wears too many hats
+### L-8 — A7's "AdminShell tweak" was NOT generalized — local fix only
 
-- **Severity:** LOW
-- **File:** `src/app/api/gamification/achievements/route.ts` (876 LOC)
-- **Issue:** The route now mixes:
-  - 12 prisma queries with `Promise.all`
-  - 7 derived helpers (`getEventDaySeries`, `getHealthGreenDaySeries`,
-    `getOnTimePerfectDaySeries`, `getCompliance80DaySeries`,
-    `getIntakeIssueMetrics`, `findCountCompletionDate`,
-    `findStreakCompletionDate`) inlined as private functions
-  - The completion-date stitching logic (a 130-line `for...of
-ACHIEVEMENT_DEFINITIONS` switch over each metric)
-  - Discovery-filter-aware summary recomputation
-  - iOS-format vs default-format response shape branch
-    At 876 LOC this is the largest API route in the codebase. The
-    v1.4.18 expansion grew it by 100 lines, and the next time a metric
-    type lands the same `if (definition.metric === "X")` chain extends.
-- **Recommendation:** Extract the inlined helpers to
-  `src/lib/gamification/route-helpers.ts` so the route stays
-  responsible for "fetch + serialise" and the metric pipeline is
-  testable in isolation. The integration test file already calls out
-  it can't drive the full route end-to-end (pre-existing
-  `medication_schedules.days_of_week` migration drift) and falls back
-  to direct calls into `buildExpansionMetricValues` —
-  pulling those helpers into `route-helpers.ts` would let the
-  integration test exercise _all_ the route logic, not just the
-  expansion bits.
-- **Ship-blocker:** No (but the trajectory deserves a note for the
-  v1.4.19 backlog).
+- **Severity:** LOW (informational, no defect)
+- **File:** `src/components/admin/api-token-overview-section.tsx`
+- **Verdict:** The brief's question 4 — "AdminShell tweak (hide
+  collapse on single-section pages) generalized correctly?" — is
+  **moot**. There was no AdminShell tweak in v1.4.19. Commit
+  `7a70db6` removed the local `useState<expanded>` from
+  `ApiTokenOverviewSection` only. The AdminShell itself
+  (`src/components/admin/admin-shell.tsx`) is untouched at
+  v1.4.18 content. `LoginOverviewSection` still carries its own
+  `settings.collapse` / `settings.expand` toggle (the i18n keys
+  were left in place specifically because LoginOverview still
+  uses them). This is the correct call: `/admin/api-tokens`
+  renders exactly one card → no collapse needed;
+  `/admin/login-overview` is dense with filters + table →
+  collapse still earns its keep.
+- **Recommendation:** None.
+- **Ship-blocker?** No.
 
-### F6 — Hidden-discovery branch is dead-code defensive
+---
 
-- **Severity:** LOW
-- **File:** `src/lib/gamification/achievements.ts` (line ~828)
-- **Issue:**
-  ```ts
-  case "nightOwlCount":
-  case "earlyBirdCount":
-  case "leapDayCount":
-  case "doctorPdfCount":
-  case "localeFlipCount":
-    // Hidden achievements are filtered by category check above; this
-    // branch is only reached if a hidden definition's category got
-    // misconfigured. Stay defensive.
-    return true;
-  ```
-  This is exactly the "defensive code that can't fire" pattern the
-  brief calls out. The comment admits it: the `applyDiscoveryFilter`
-  short-circuit at line ~796 (`if (item.category === "hidden") return
-true`) already covers every hidden definition, because the `define()`
-  helper hard-codes `category: isHidden ? "hidden" : ...`. The only way
-  this branch fires is if the `define()` helper itself breaks — which
-  has zero test coverage on this path.
-- **Recommendation:** Either drop the case entries entirely (the
-  `switch` would then exhaust under `noImplicitReturn` thanks to the
-  exhaustive-check on `AchievementMetricKey`, which is what we want —
-  any new hidden metric SHOULD force a category review at compile
-  time) or drop the comment and leave the case but with `throw new
-Error("hidden metric reached non-hidden filter — broken define()")`
-  to make the dead branch loud-fail rather than silent-pass.
-- **Ship-blocker:** No.
+## TODO/FIXME inventory (v1.4.19 changed files)
 
-### F7 — Mobile-strip fix lives at module level, but applies to TWO shells
+`grep -nE "(TODO|FIXME|XXX|HACK)"` across files in
+`git diff --name-only v1.4.18...HEAD | grep -E "\.(ts|tsx)$"`
+returns:
 
-- **Severity:** INFO
-- **File:** `src/app/globals.css` (lines 217-223) +
-  `src/components/admin/admin-shell.tsx` (line 160) +
-  `src/components/settings/settings-shell.tsx` (line 143)
-- **Issue:** The `no-scrollbar` utility is correctly consolidated to
-  ONE place (globals.css) and consumed by both shells via the same
-  class name — that is the right architecture. The shells themselves
-  duplicate the surrounding `<nav className="no-scrollbar -mx-4 mb-4
-overflow-x-auto px-4 md:hidden">` markup verbatim though, with
-  similar `<ul className="flex min-w-max gap-2">` wrappers and similar
-  pill-button classes. Two near-identical components.
-- **Recommendation:** Defer. The shells legitimately differ on the
-  active-slug match path (`/admin/<slug>` regex returns `null` for
-  `/admin`; `/settings/<slug>` falls back to `"account"`) and the
-  desktop sidebar adds an "Overview" link in admin only. Sharing the
-  wrapper would require parameterising both behaviours. The 90 % code
-  overlap is the right amount of duplication for two surfaces that
-  read similar but mean different things — the alternative is a 5-prop
-  `<SectionShell>` that nobody else uses. Note for v1.5+ if a third
-  section shell shows up.
-- **Ship-blocker:** No.
+```
+src/lib/__tests__/i18n-locale-integrity.test.ts:313 — comment in test
+                                                       asserting NO TODOs
+src/lib/__tests__/i18n-locale-integrity.test.ts:320 — regex used by
+                                                       the assertion
+src/lib/__tests__/i18n-locale-integrity.test.ts:326 — failure message
+                                                       string
+```
 
-### F8 — `findClosestDia` is O(n·m); dataset stays small enough that it's fine
+**Net new TODO/FIXME/XXX/HACK in production code:** zero. The
+three matches above live inside a guard test that asserts
+production code stays clean.
 
-- **Severity:** INFO
-- **File:** `src/lib/analytics/bp-in-target.ts` (line 80)
-- **Issue:** For each sys reading we scan the full dia array
-  (`O(n·m)`). With Marc's actual fixture (10 paired readings over
-  30 days, 250 paired over 30 days for a Withings-paired user) this is
-  fine. At 10k readings (a multi-year backfill replayed in one shot)
-  the route would slow noticeably. The function isn't part of any
-  background job — only the analytics route — and the route already
-  caps at 30 days, so the worst case is hundreds of readings, not
-  tens of thousands.
-- **Recommendation:** No change. If a future "comprehensive" or
-  multi-year insight surface ever uses this helper, swap to a pre-sorted
-  dia array + binary search. Pin a benchmark test if/when that moves.
-- **Ship-blocker:** No.
+---
 
 ## Cross-cutting checks
 
-- **Logging via `annotate()`:** Verified. The new
-  `/api/dashboard/chart-overlay-prefs` route and the analytics route
-  both call `annotate({ action: { name: "..." } })` on the success
-  path. The achievements route already had its annotation in v1.4.17
-  and the v1.4.18 patch didn't drop it.
-- **Errors via `HttpError`:** The new overlay-prefs route uses
-  `apiError("...", 422)` for Zod validation failures (the canonical
-  pattern across the codebase) instead of throwing — same approach as
-  the rest of `/api/dashboard/*`. Consistent.
-- **Sensitive data via `crypto.ts`:** v1.4.18 introduces no new
-  encryption-relevant paths. Achievements + chart-overlay-prefs are
-  both plain-text user prefs persisted on `User.dashboardWidgetsJson`,
-  no PHI / token material at rest. Correct call.
-- **Test architecture:**
-  - `src/lib/gamification/__tests__/expansion-metrics.test.ts` (280
-    LOC) covers all 5 evaluator helpers with table-driven cases.
-  - `src/lib/gamification/__tests__/achievements.test.ts` (191 LOC)
-    covers the discovery filter (3 exception paths) + category
-    grouping.
-  - `tests/integration/achievements-expansion.test.ts` (180 LOC) uses
-    `getPrismaClient()` + `truncateAllTables()` — the testcontainer
-    setup mandated by `CLAUDE.md`. Same shape as the v1.4.17
-    integration suite.
-  - `tests/integration/chart-overlay-prefs.test.ts` (182 LOC) — same
-    testcontainer setup; covers the resolver coercion path for
-    malformed PUT bodies.
-  - `tests/integration/bp-in-target.test.ts` (+169 LOC for the new
-    windowed cases) — extends the existing testcontainer suite.
-  - `e2e/achievements.spec.ts` and `e2e/chart-overlay-controls.spec.ts`
-    extend the Playwright + axe-core suite per `CLAUDE.md`.
-    Test coverage is comprehensive and matches the testing convention.
+- **A2 charts module growth (Q1):** Logical layering, not
+  scattered. New `src/lib/charts/x-axis-density.ts` (100 lines)
+  is pure & deterministic — `resolveTargetTickCount`,
+  `chooseTickInterval`, `getViewportWidth` — plus a co-located
+  unit test. The reactive `useViewportWidth()` hook
+  (`src/hooks/use-viewport-width.ts`, 35 lines) is a thin SSR-safe
+  wrapper around the pure helper. The four chart wrappers
+  (`HealthChart`, `MoodChart`, `MedicationComplianceChart`,
+  `ComplianceLineChart`) all consume both with the same import
+  pattern. Scatter chart deliberately excluded (numeric x-axis
+  with explicit `ticks` array) — documented choice. **Verdict:
+  correct layering, ship as-is.**
 
-## TODO/FIXME inventory in v1.4.18-changed files
+- **A5 IntegrationStatusPill (Q2):** Right level of abstraction.
+  Component (135 lines) is single-purpose, locale-aware, mobile-
+  safe, and tested in isolation. Currently only consumed by
+  `WithingsCard` + `MoodLogCard` (two callsites) but the brief
+  itself plus the A5 report indicate Apple Health (v1.5) will
+  also consume it. **NOT premature** — the brief explicitly
+  builds for the third future caller. The premature abstraction
+  here would be the OPPOSITE direction: see H-3, where the
+  *card chrome around the pill* should also have been
+  extracted — but a tactically-narrow extraction (just the
+  pill) is justifiable for v1.4.19's scope.
 
-`grep -nE "(TODO|FIXME|HACK|XXX)"` across the 59 changed source files
-returns **zero** matches. No deferred-work markers landed in this
-release. Clean.
+- **A6 settings input height (Q3):** Single source of truth is
+  the value `36 px` (= Tailwind `h-9`), tracked via a
+  documentation comment ("the shared 36-px input contract used
+  everywhere else in Settings") rather than a CSS variable or
+  shared class string. The `NATIVE_SELECT_CLASS` constant
+  introduced in account-section centralises the *native select*
+  styling (12 visual tokens) — but only within that file. AI
+  section's three `<select>` elements were converted to
+  `h-9` inline. So: the **rule** is single-source (everything is
+  36 px), but the **rule's implementation** is repeated across
+  three files (account-section, ai-section,
+  dashboard-layout-section) as either inline `h-9` classes or a
+  local constant. For a 3-file change this is fine; for the
+  cleanup commit alongside H-1/H-2/H-3, consider promoting
+  `NATIVE_SELECT_CLASS` to `src/components/ui/native-select.tsx`
+  (a `<select>` wrapper that styles itself like `<Input>`). Not
+  a v1.4.19 ship-blocker.
 
-## Best-practice red flags
+- **A7 admin polish (Q4):** See L-8. AdminShell wasn't actually
+  touched. The "single-section page" decision was made locally
+  per-section, which IS the correct call (one section's collapse
+  semantics shouldn't dictate another's).
 
-- **Premature abstraction:** Mild — F2 (deprecated wrapper kept) + F6
-  (defensive switch case for an impossible branch). Nothing
-  load-bearing.
-- **Defensive code that can't fire:** F6 only.
-- **Comments paraphrasing code:** None found. Comments overwhelmingly
-  explain _why_ (regression history, Marc-feedback links, design
-  rationale) — exactly the codebase house style.
-- **Backward-compat shims:** The analytics route header comment calls
-  out the headline `bpInTargetPct` is "kept for backward compatibility
-  with cached client bundles" while the new windowed fields are
-  surfaced alongside it. That's a deliberate, documented additive
-  change — not a stale shim. Verified: `grep -rn bpInTargetPct\b src/`
-  shows the headline is read by the dashboard tile (latest), the
-  insight-card (BP status), and the analytics route itself. Removing it
-  before the cache-bust window would 500 a fresh-deploy / stale-cache
-  client. Correct call.
-- **API additive vs. shape break (A1):** The bp-in-target route
-  payload extension is purely additive (new optional `bpInTargetPct7d`
-  - `bpInTargetPct30d` fields, headline `bpInTargetPct` unchanged).
-    The dashboard `AnalyticsData` interface declares them
-    optional-undefined. Old clients on stale bundles who only read the
-    headline see the same value they used to. New clients fall through
-    to "—" when the field is undefined. **No partial-view hazard.**
+- **A8/Wave B 27 fixes (Q5):** Three real anti-patterns surfaced
+  — H-1 (`lang={locale}` ×14), H-2 (`AUTH_ACTION_LABELS` ×2),
+  L-5 (Telegram pill ad-hoc instead of reusing
+  IntegrationStatusPill). No defensive null-checks introduced
+  (verified: zero new `?? null` / `?.` patterns wrapping
+  values that are typed non-nullable). Translation key additions
+  (auth.token.* ×3) correctly land in both EN+DE per the project
+  i18n integrity rule.
 
-## Summary
+- **A1 BP-status windows (Q6):** Verified coherent. See L-7.
 
-CRITICAL: 0
-HIGH: 0
-MED: 1 (F1 type duplication)
-LOW: 5 (F2 deprecated export, F3 file-size watchpoint, F4 day-key
-duplication, F5 route extraction watchpoint, F6 dead defensive branch)
-INFO: 2 (F7 shell duplication watchpoint, F8 perf O(n·m) note)
+---
 
-v1.4.18 is architecturally clean. The achievements expansion adds
-significant data (38 definitions across 6 categories, 5 expansion
-metric helpers, hidden Easter-egg discovery filter) without breaking
-the existing module shape — the new `expansion-metrics.ts` is a clean
-counterpart to `achievements.ts`, both are pure functions over typed
-prisma rows, and both have unit + integration coverage.
+## Overall verdict
 
-The chart revert is clean — `chart-gradient.tsx` is _deleted_ (not
-deprecated-and-left-behind), the new `chart-overlay-controls.tsx` is
-controlled-component-only (parent owns state), persistence piggy-backs
-on the existing `dashboardWidgetsJson` blob (consistent with B8
-comparison-baseline + earlier widget patterns).
+- **Zero ship-blockers.** v1.4.19 introduced no anti-pattern
+  severe enough to block release.
+- **Zero CRITICAL.** Zero HIGH that are correctness-impacting; all
+  three HIGH findings are hygiene / drift-trap.
+- **Three HIGH** (H-1 lang= copy-paste, H-2 AUTH_ACTION_LABELS,
+  H-3 integration card chrome).
+- **Five MEDIUM** (M-1 chart-header dedup, M-2 time-ranges
+  constant, M-3 memoisation, M-4 filter rule single-source, M-5
+  advisor-card branch consolidation).
+- **Eight LOW** (three are pre-existing file-size watchpoints
+  that v1.4.19 didn't worsen; one is a perf-watch on
+  `findClosestDia`-style scans inside the dataset; the rest are
+  hygiene).
+- Two questions in the brief resolved cleanly:
+  - Q4 AdminShell tweak: there was no AdminShell tweak (L-8
+    verdict). The fix was correctly local to one section.
+  - Q6 BP-windows naming is coherent (L-7 verdict).
 
-A2's `no-scrollbar` utility is consolidated to ONE definition in
-`globals.css` and applied at both shell call-sites with identical
-markup. Single source of truth ✅.
-
-A1 extends the analytics route additively — old field
-(`bpInTargetPct`) preserved, new windowed fields
-(`bpInTargetPct7d`, `bpInTargetPct30d`) added. Zero partial-view
-hazard for stale clients.
-
-No CRITICAL findings. No ship-blockers.
+Recommend H-1, H-2, H-3 land as a focused "settings + admin
+abstraction sweep" follow-up commit either pre-tag (low risk —
+all three are mechanical extractions with vitest coverage
+already in place) or as the first batch in v1.4.20's bucket A.

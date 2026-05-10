@@ -335,6 +335,54 @@ render` block needs a one-line CLAUDE.md-rule comment.
 
 ---
 
+## v1.4.19 Product-Lead carry-over (strategic — for v1.5 frame)
+
+Filed against `.planning/phase-D-v1419-product-lead-review.md`. Most
+of the strategic content there is the v1.4.20 plan (Insights redesign
++ AI Coach) which already sits in the handoff at
+`~/Downloads/design_handoff_insights_redesign`. The items below are
+v1.5+ scope and frame how v1.4.20's surfaces should grow.
+
+- **Conversation persistence eviction** — once Coach storage ships,
+  auto-archive conversations after 90 days, hard-delete after 365.
+  Quoted ~500 KB/user/month at 20 turns × 50 conversations.
+- **Correlation FDR-control** — v1.4.20's scope is 3 hypotheses, no
+  multiple-comparison correction needed. v1.5's auto-discovery
+  surface needs Benjamini–Hochberg or similar before shipping.
+- **Apple Health absence in v1.4.20** — the redesign reserves three
+  micro-stat tiles. Two slots filled today (Withings pulse, mood);
+  the third reads "Apple Health: coming with iOS app" until v1.5.
+  Don't embarrass; label honestly.
+- **Streaming UI on slow networks** — Coach SSE needs explicit
+  Slow-3G testing before shipping; skeleton-shimmer / progressive
+  render are easy to get wrong at 30 KB/s.
+- **Prompt-injection refusal in Coach** — open-ended user input box;
+  reuse v1.4.15 C1 scope-hardened refusal patterns and add
+  Coach-specific prompt-test assertions. Every user message gets
+  `redactSecrets()` before landing in system context.
+- **`safeParse()` legacy-payload pattern** — Coach payload + Daily
+  Briefing payload + Health Score payload each meet a strict zod
+  schema and a cached blob. Each needs a legacy-payload-CTA path,
+  not a crash. Audit every new `safeParse()` call pre-tag (v1.4.17
+  hotfix lesson).
+- **Cross-user feedback aggregation prompt-tuning** — v1.4.16 B5e
+  set up storage; the loop is still open. v1.4.20 wires it (Coach
+  conversations + recommendation thumbs feed the same aggregator;
+  helpful-rate < 50 % per `(severity × confidence_band)` bucket
+  appends OMIT/REPHRASE rules to the next PROMPT_VERSION).
+- **Coolify image-digest auto-deploy** — deferred since v1.4.16; 5-
+  min Marc-side UI toggle. v1.4.20 is the right release to flip so
+  every AI Coach iteration cycle benefits from no-rebuild
+  docs/planning commits.
+- **Native ARM runner matrix for `docker-publish`** — v1.4.16
+  dropped arm64 due to qemu SIGILL; native `ubuntu-24.04-arm`
+  re-adds it. Pairs with v1.5 iOS app on Apple Silicon dev
+  machines.
+- **Worktree mandate for parallel agents** — process debt; the
+  shared-cwd race continues to bundle stray files into unrelated
+  commits (A4, A5, A6 in v1.4.19). v1.4.20 should require one
+  worktree per parallel agent.
+
 ## Process / meta
 
 - **Cross-agent commit-message drift** — reduced materially in

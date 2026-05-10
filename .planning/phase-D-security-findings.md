@@ -1,362 +1,253 @@
-# v1.4.18 phase-D security review
-
-Reviewer: SECURITY (5 reviewers in parallel)
-Range: `v1.4.17..HEAD` (HEAD = 3d58557, origin/main)
-Reviewed: 2026-05-09 / 2026-05-10
-Scope per request: B1 hidden achievements, A3 chart-overlay-prefs,
-A2 admin-shell `no-scrollbar`, A1 BD-tile sub-values, plus general
-hygiene (logging redaction, apiHandler, dangerouslySetInnerHTML).
-
----
-
-## Summary
-
-| Severity | Count |
-| -------: | ----: |
-| CRITICAL |     0 |
-|     HIGH |     2 |
-|   MEDIUM |     1 |
-|      LOW |     2 |
-
-Ship-blockers: **0**. The two HIGH findings are about
-hidden-achievement secrecy. The DOM is held: a casual user opening
-inspect-element sees the opaque "Hidden achievement" placeholder
-with no predicate text. The leak surfaces are (a) the JSON API
-response and (b) the client-side i18n bundle that already ships
-the strings — neither is a v1.4.18-specific regression in the
-sense that fixing them requires architectural moves; both are
-ship-OK as documented backlog items.
-
-A1 / A2 / A3 are all clean from a security standpoint:
-
-- A1's `computeBpInTargetWindows()` is pure; the `/api/analytics`
-  caller scopes every `findMany` with `userId: user.id`.
-- A2's `no-scrollbar` is a class-scoped CSS rule on
-  `<nav class="no-scrollbar">` only — _not_ a global `*` selector
-  — so data tables that genuinely overflow continue to paint their
-  scrollbars normally.
-- A3's `PUT /api/dashboard/chart-overlay-prefs` is `requireAuth`-
-  gated, scopes the read+write to `user.id`, and the Zod schema
-  rejects unknown chart keys / non-boolean toggle values.
-
----
-
-## CRITICAL
-
-(none)
-
----
-
-## HIGH
-
-### HIGH-1 — Hidden-achievement predicate leaks via /api/gamification/achievements JSON response
-
-**Severity**: HIGH (matches Marc's explicit "must NOT leak in network response" criterion)
-**File**: `/Users/marc/Projects/HealthLog/src/app/api/gamification/achievements/route.ts:838-854` and `:856-873`
-**Ship-blocker**: NO — DOM-level secrecy holds and the i18n bundle already exposes the same data, so the network leak is not a v1.4.18-only regression. Recommend fix in v1.4.19.
-
-**Issue**
-
-The web response payload `{ summary, achievements, metrics }` ships
-the FULL achievement object for every hidden Easter-egg even when
-the user has not unlocked it. For a locked
-`hidden-night-owl` the response body contains:
-
-```json
-{
-  "id": "hidden-night-owl",
-  "metric": "nightOwlCount",
-  "category": "hidden",
-  "titleKey": "achievements.badges.hiddenNightOwl.title",
-  "descriptionKey": "achievements.badges.hiddenNightOwl.description",
-  "icon": "Moon",
-  "format": "count",
-  "target": 1,
-  "current": 0,
-  "points": 25,
-  "unlocked": false,
-  "progressPercent": 0,
-  "completedAt": null,
-  "isHidden": true
-}
-```
-
-The `id`, `metric`, `titleKey`, `descriptionKey` and `icon` fields
-each individually disclose the trigger (night owl, between 02:00
-and 04:00, Moon icon). The `metrics` block at the bottom of the
-response (`route.ts:853`) compounds the leak by including
-`nightOwlCount`, `earlyBirdCount`, `leapDayCount`, `doctorPdfCount`,
-`localeFlipCount` as plain numeric counters — disclosing both the
-metric names AND the user's current progress toward them.
-
-The iOS branch (`route.ts:856-872`, `?format=ios`) is **strictly
-worse**: it server-side-resolves the i18n keys and ships plain text
-`title: "Night owl"` and `description: "Logged an entry between
-02:00 and 04:00 in the morning."` for locked hidden achievements.
-The iOS client gets the secret unconditionally.
-
-This contradicts Marc's stated requirement
-("the user must not be able to view-source or inspect-element to
-discover what the hidden conditions are") for any user who opens
-DevTools → Network and reads the response body.
-
-**Mitigation already in place (partial)**
-
-DOM rendering is gated correctly by
-`/Users/marc/Projects/HealthLog/src/app/achievements/page.tsx:146-174`
-(the `isHidden && !unlocked` branch renders the opaque placeholder
-without referencing real fields). The unit suite at
-`/Users/marc/Projects/HealthLog/src/app/achievements/__tests__/page.test.tsx:252-262`
-locks this in. Casual inspect-element does NOT break the secret —
-only the network tab and the JS bundle do.
-
-**Recommendation**
-
-In `route.ts` between `applyDiscoveryFilter` and the final
-`apiSuccess`, project hidden+locked rows down to a redacted shape
-before serialization:
-
-```ts
-const SAFE_HIDDEN_LOCKED = (a: AchievementProgress) => ({
-  id: "hidden-locked-placeholder", // not the real id
-  category: "hidden" as const,
-  isHidden: true,
-  unlocked: false,
-  // every other field absent OR a constant placeholder
-});
-
-const projected = visibleAchievements.map((a) =>
-  a.isHidden && !a.unlocked ? SAFE_HIDDEN_LOCKED(a) : a,
-);
-```
-
-Also strip the hidden-only metric counters from the `metrics`
-block when none of the hidden achievements they back are unlocked
-(or just drop the entire `metrics` object from the response — the
-client only consumes it for `metricPercent` formatting, which the
-hidden-counter metrics never use).
-
-For `?format=ios`, do the same projection BEFORE the
-`t.t(a.titleKey)` calls so the iOS shape never resolves the secret
-strings.
-
-Add a test that the network response for a fresh user with zero
-unlocks contains _zero_ occurrences of the substrings
-`nightOwl`, `earlyBird`, `leapDay`, `doctorPdf`, `localeFlip`,
-`Moon`, `Sun`, `FileText`, `Languages` (icon names), and zero
-occurrences of the i18n keys `hiddenNightOwl`, `hiddenEarlyBird`,
-etc.
-
----
-
-### HIGH-2 — i18n message bundle ships hidden-achievement strings to every client
-
-**Severity**: HIGH
-**File**: `/Users/marc/Projects/HealthLog/src/lib/i18n/context.tsx:15-16` (pre-existing client-side bundle import); content at `/Users/marc/Projects/HealthLog/messages/en.json:2195-2218` and `/Users/marc/Projects/HealthLog/messages/de.json` parallel.
-**Ship-blocker**: NO — pre-existing v1.4.x architectural decision; v1.4.18 is the first release where this matters because v1.4.18 added the hidden Easter-eggs.
-
-**Issue**
-
-`src/lib/i18n/context.tsx` is a `"use client"` module that imports
-`messages/en.json` and `messages/de.json` at module-eval time:
-
-```ts
-import deMessages from "../../../messages/de.json";
-import enMessages from "../../../messages/en.json";
-```
-
-That means the FULL i18n bundle (every key, every locale) ships
-inside the client JS bundle for every page in the app. The strings
-`"Logged an entry between 02:00 and 04:00 in the morning."`,
-`"Logged an entry on February 29."`,
-`"Switched the app language at least once."`, etc. live in the
-bundle that any logged-in user can `view-source` on the
-`_next/static/chunks/*.js` URL.
-
-Even if HIGH-1 is fixed and the API never speaks the hidden
-predicates, a user who searches the JS bundle for the string
-`achievements.badges.hidden` finds them all. So HIGH-1 is a partial
-mitigation; HIGH-2 is the real long-term fix.
-
-**Recommendation**
-
-Move hidden-achievement strings out of the client-side i18n bundle.
-Two viable approaches:
-
-1. **Server-side resolution for unlocks only.** Strip
-   `messages/*.json` keys matching `^achievements.badges.hidden` at
-   build time using a Next.js build hook; ship a separate
-   `messages-hidden.json` only fetched server-side by the
-   achievements API when an unlock is detected. The unlock toast
-   would do a one-shot fetch to retrieve the title/description.
-
-2. **Encode the hidden strings.** Less robust but cheaper:
-   replace the hidden-achievement strings with reversible
-   obfuscation (rot13, base64, etc.) in `messages/*.json`, decode
-   client-side ONLY when `unlocked === true`. A determined
-   attacker still beats this in 30 seconds, but it stops the
-   accidental view-source leak.
-
-Approach 1 is the right v1.5 fix. Approach 2 is a v1.4.19 stopgap.
-Either way, this is NOT a ship-blocker for v1.4.18 because the
-existing 5+ "achievements.badges.hidden\*" keys were never going to
-be a v1.4-class secret — Marc accepted "playful, off-the-wall, NOT
-health-coercive" semantics, and HIGH-2's mitigation cost is
-disproportionate to a casual Easter-egg game.
-
----
-
-## MEDIUM
-
-### MED-1 — Read-modify-write race in `/api/dashboard/chart-overlay-prefs` PUT
-
-**Severity**: MEDIUM (correctness > security; data integrity edge case under concurrent writes)
-**File**: `/Users/marc/Projects/HealthLog/src/app/api/dashboard/chart-overlay-prefs/route.ts:56-76`
-**Ship-blocker**: NO — single-tab single-user pattern is the realistic case; the v1.4.18 release ships at most 5 chart keys, so the worst-case data loss is 1-of-5 toggles.
-
-**Issue**
-
-The handler reads `dashboardWidgetsJson`, merges the new chart's
-prefs locally in the route handler, then writes the whole blob
-back. Two concurrent PUTs (e.g. user opens two tabs and toggles
-overlays in both) will race: the second `findUnique` may see the
-first PUT's write or may see the prior state, and the second
-`update` always clobbers the first PUT's `chartOverlayPrefs` key
-for any chartKey other than its own. The same race applies to a
-PUT on `/api/dashboard/widgets` overlapping with a PUT on
-`/api/dashboard/chart-overlay-prefs` — they both serialize the
-whole blob.
-
-Not a security issue — the user can only race against themselves;
-no cross-user write is possible because `requireAuth()` gates and
-the `where: { id: user.id }` clauses are correct. It is a data-
-integrity concern.
-
-**Recommendation**
-
-Wrap the read+write in a single Prisma transaction with
-`SERIALIZABLE` isolation, OR move the chart overlay prefs to a
-dedicated column (`User.chartOverlayPrefsJson`) so the two PUT
-routes don't share a write target. The latter also lets the JSON
-column receive a Postgres `||` jsonb-merge update that is
-naturally atomic.
-
-This is a v1.5 follow-up — defer.
-
----
-
-## LOW
-
-### LOW-1 — Add regression test pinning `!a.isHidden` filter on `nextAchievement` selection
-
-**Severity**: LOW
-**File**: `/Users/marc/Projects/HealthLog/src/app/api/gamification/achievements/route.ts:833-836` and `/Users/marc/Projects/HealthLog/src/app/achievements/page.tsx:351-389`
-**Ship-blocker**: NO — the route correctly filters `!a.isHidden`.
-
-**Note**
-
-Reviewed. The `nextAchievement` selection in route.ts is
-
-```ts
-visibleAchievements
-  .filter((a) => !a.unlocked && !a.isHidden)
-  .sort(...)
-```
-
-so hidden-locked achievements never become the "next goal" card on
-the achievements page — confirmed safe.
-
-The `fullResult.summary.nextAchievement` computed earlier in
-`/Users/marc/Projects/HealthLog/src/lib/gamification/achievements.ts:747-750`
-does NOT filter on `isHidden`, but that summary is discarded by
-the route (which recomputes its own summary at lines 833-851).
-No leak path today.
-
-Still, please add a regression test pinning the `!a.isHidden`
-filter in the route so a future refactor doesn't drop it. Suggested
-location: `/Users/marc/Projects/HealthLog/src/app/api/gamification/achievements/__tests__/`.
-
----
-
-### LOW-2 — `data-category="hidden"` on the section element advertises that hidden achievements exist
-
-**Severity**: LOW (cosmetic / informational)
-**File**: `/Users/marc/Projects/HealthLog/src/app/achievements/page.tsx:411-413`
-**Ship-blocker**: NO
-
-**Note**
-
-The page renders
-
-```html
-<section
-  data-category="hidden"
-  data-slot="achievements-category"
-  aria-labelledby="achievements-category-hidden"
-></section>
-```
-
-This is **intentional** per Marc's spec ("Hidden achievements
-appear in the Achievements tab as 'Hidden' cards (user knows they
-exist but not what they are)"). Calling it out only so the next
-reviewer doesn't flag it. The DOM markup correctly exposes the
-existence of the hidden category without exposing the predicates.
-
-The `aria-label="Hidden locked achievement"` (page.tsx:150) is
-the same — by design, accessibility-correct.
-
----
-
-## Cross-cutting hygiene checks (all clean)
-
-- **dangerouslySetInnerHTML / innerHTML / eval / new Function**: zero
-  new occurrences in the v1.4.17..HEAD diff.
-- **apiHandler wrapping**: every new route uses `apiHandler(async
-...)` per CLAUDE.md
-  (`/Users/marc/Projects/HealthLog/src/app/api/dashboard/chart-overlay-prefs/route.ts:41`).
-- **requireAuth gating**: every new route calls
-  `await requireAuth()` before touching `prisma`.
-- **userId scoping**: every new `prisma.*.findMany` /
-  `findUnique` / `update` filters by `userId: user.id` or
-  `id: user.id` — confirmed for the analytics route's BP-window
-  reads (`src/app/api/analytics/route.ts:67-83`), the achievements
-  reads (`src/app/api/gamification/achievements/route.ts:474-561`),
-  and the chart-overlay-prefs read+write
-  (`src/app/api/dashboard/chart-overlay-prefs/route.ts:56-71`).
-- **Zod validation on PUT bodies**: yes; `prefsSchema` rejects
-  unknown chart keys and non-boolean toggles via `z.enum` +
-  `z.boolean()`.
-- **redactSecrets coverage**: the new `annotate()` calls only
-  ship plain identifiers (`chart_key`, `flags_on`, `format`,
-  `visible_count`); no PII or token material reaches the log
-  pipeline. The existing `apiHandler` middleware redacts error
-  messages via `redactSecrets()` — confirmed in
-  `src/lib/logging/event-builder.ts:65,72`.
-- **No SQL injection vector**: all DB calls use Prisma with
-  parameterized queries.
-- **No new external HTTP calls**: the achievement evaluator is
-  pure and in-process; chart-overlay-prefs only touches the
-  database.
-- **Audit trail for new actions**: the new
-  `settings.locale.update` audit row in
-  `/Users/marc/Projects/HealthLog/src/lib/auth/profile-update.ts`
-  correctly suppresses the log when the locale value didn't
-  change (commit `75c74f1`), preventing audit-log noise that
-  would otherwise let a user grind the polyglot Easter-egg by
-  saving the same locale repeatedly.
-- **Cross-user write protection on `/api/dashboard/chart-overlay-prefs`
-  PUT**: Zod-rejected unknown shape; `where: { id: user.id }`
-  on the read AND the write; no userId field accepted from the
-  request body. Cannot be coerced into writing another user's
-  layout.
-
----
+# v1.4.19 phase-D — Security Review Findings
+
+Reviewer: phase-D security
+Date: 2026-05-09
+Scope: 49 commits between v1.4.18 and HEAD (Wave A1-A7 + Wave B 27 fixes).
+Method: Read CLAUDE.md, .planning/STATE.md, full diff via
+`git log --oneline v1.4.18...HEAD` + targeted `git diff` per file,
+plus reads of every changed source file in the focus list, plus
+cross-checks of:
+  - the prompt revision against the existing server-side n<3
+    confidence clamp (`src/lib/ai/confidence.ts`)
+  - the integration error decryption path (unchanged from v1.4.18)
+  - the admin tokens API selector (no `tokenHash`)
+  - new audit-log labels' semantics
+  - i18n placeholder interpolation (`{count}`, integer-only)
+
+(Previous v1.4.18 review at `phase-D-v1418-security-findings.md` was
+overwritten — the v1.4.18 release shipped, those findings already
+filed in `.planning/v1419-backlog.md` / `.planning/v15-backlog.md`.)
 
 ## Verdict
 
-Ship v1.4.18 as-is. File HIGH-1 + HIGH-2 + MED-1 + LOW-1 to the
-v1.4.19 / v1.5 backlog. The hidden Easter-egg discovery promise
-to Marc holds at the DOM layer (which is what most users will
-ever inspect); the network/bundle leak is a known consequence of
-the i18n architecture and not a fresh v1.4.18 regression severe
-enough to gate the release.
+**0 CRITICAL. 0 HIGH. 3 MED/LOW. No ship-blockers.**
+
+---
+
+## CRITICAL — none
+
+---
+
+## HIGH — none
+
+---
+
+## MED / LOW
+
+### MED-1 — Recent-audit-preview row exposes IP address inline (admin-only)
+
+- **Severity**: MED (existing data, new visible surface, admin-only)
+- **File**: `src/components/admin/recent-audit-preview.tsx:144-148`
+- **Issue**: Wave B / F-31 wraps each audit row in a `<Link>` to the
+  full login-overview viewer AND adds a new visible column showing
+  `entry.ipAddress` on `>=sm` viewports. The data was already part of
+  the `AdminAuditEntry` payload (`/api/admin/audit-log` already
+  returns `ipAddress` — see `src/components/admin/_shared.tsx:88`),
+  and the parent route is gated by `user.role !== "ADMIN"` server
+  guard in `src/app/admin/page.tsx:27`. So no privilege escalation,
+  no new data exposed to a new audience.
+  Attack scenario considered: a non-admin opening the dashboard
+  preview card and reading other users' IPs — does NOT apply, the
+  parent route refuses non-admins server-side via the same admin-page
+  guard the rest of the section uses. The IP was already visible on
+  `/admin/audit-log` and `/admin/login-overview`.
+- **Recommendation**: No code change required. Worth noting in the
+  release brief that admins now see IP addresses on the dashboard
+  preview, not just the deep audit-log view.
+- **Ship-blocker**: No.
+
+### LOW-1 — A4 prompt's n<7 caveat threshold differs from server-side n<3 clamp
+
+- **Severity**: LOW
+- **File**: `src/lib/ai/prompts/insight-generator.ts:86-95` (EN),
+  `:219-229` (DE)
+- **Issue**: GROUND RULE 7 tells the model to mention data quality
+  only when `n<7`, `recencyDays>14`, or coverage gap. The
+  server-side `computeConfidence` (`src/lib/ai/confidence.ts:73-75`,
+  untouched in v1.4.19) hard-caps confidence at `5*n` for `n<3`.
+  Different thresholds — orthogonal but worth noting.
+  - **Marc's specific concern (responding confidently on n=2)**:
+    MITIGATED. At n=2 the prompt requires a caveat (2<7) AND the
+    server-side `computeConfidence` clamps at `max(10, 5*2)=10/100`.
+    Both gates fire. The user-visible pill renders n=2 as
+    "low-confidence draft" regardless of model wording.
+  - The diff is **purely additive** (verified line-by-line):
+    GROUND RULE 7 is appended after rules 1-6. None of the existing
+    rules ("no claim without snapshot field" / "no recommendation
+    without metricSource" / "every metricSource cited" / etc.) are
+    removed or weakened.
+  - For n=3..6 the prompt allows the model to skip a caveat.
+    Server-side confidence at n=3..6 is in the 30-40 range from the
+    saturating curve before recency/signal bonuses, which the UI
+    pill still surfaces as a moderate-confidence value. So the
+    safeguard at this band is the confidence pill, not a forced
+    summary caveat. This is consistent with the design intent of
+    A4 (Marc explicitly didn't want the filler "Datengrundlage ist
+    sehr stark" sentence).
+  - PROMPT_VERSION bumped 4.16.1 → 4.19.0; cached pre-v1.4.19
+    payloads remain attributable via the row's `promptVersion`
+    column for analytics/feedback aggregation.
+- **Recommendation**: None now. If feedback shows the n<7 sentinel
+  is too generous (e.g. n=4 yielding uncaveat'd recommendations
+  users flag as overconfident), tighten the prompt's caveat trigger
+  to match the server's `n<3` clamp in v1.4.20.
+- **Ship-blocker**: No.
+
+### LOW-2 — Status pill shows decrypted last-error string from integration backend
+
+- **Severity**: LOW (existing v1.4.18 behaviour, surfaced by A5 refactor)
+- **File**: `src/components/settings/integrations-section.tsx:332-333,
+  354, 630-631, 663` (`<IntegrationErrorMessage>`)
+- **Issue**: A5 consolidated the status UI but kept the inline
+  actionable error message under the pill. `viewModel.lastError` is
+  decrypted by the API in `src/lib/integrations/status.ts:112,
+  376-383` from the `IntegrationStatus.lastError` ciphertext. The
+  message is bounded to 1024 chars at encrypt time
+  (`status.ts:367`) and originates from controlled callsites in
+  `src/lib/withings/sync.ts` + `src/lib/moodlog/sync.ts` — neither
+  diff touched in v1.4.19.
+  - The pill ITSELF leaks nothing — it shows a literal status
+    label ("Connected" / "Error — reconnect" / "Not connected"), an
+    aria-label ("Integration status"), and a relative-time suffix
+    derived from `lastSyncedAt`. No URL, no IP, no token.
+  - The error MESSAGE under the pill could in principle contain a
+    Withings or moodLog API URL if a future caller passes a fetch
+    error.message verbatim, but every callsite I read passes
+    structured OAuth-error codes (`invalid_grant`), bounded
+    fetch-error.message strings, or hand-constructed text — never
+    a token, never an Authorization header. Withings/moodLog OAuth
+    error responses do not contain refresh tokens.
+  - Pill viewer is the message owner only — `/api/integrations/
+    status` is `requireAuth`-gated and returns the calling user's
+    own row.
+- **Recommendation**: None for v1.4.19. If a future v1.5 sync
+  helper passes raw HTTP body into `recordSyncFailure`, that's the
+  place to whitelist the message before encryption.
+- **Ship-blocker**: No.
+
+---
+
+## Verified non-issues (focus-area answers)
+
+### Q1 — A4 prompt revision lowers data-quality refusal threshold?
+
+**No.** The change is purely additive (GROUND RULE 7). Existing
+rules 1-6 (no claim without snapshot field, no recommendation without
+metricSource, every metricSource cited in citations[], cite user
+baseline before population norms, rationale.dataWindow ===
+metricSource.timeRange, narrate comparison-mode block) are all
+preserved verbatim.
+
+The server-side `n<3` confidence clamp in
+`src/lib/ai/confidence.ts:73-75` (`Math.max(10, 5 * n)`) is
+**untouched**. For n=2 the recommendation caps at confidence
+10/100 regardless of what the model claims. Even a confident-sounding
+recommendation at n=2 renders as low-confidence in the UI pill.
+
+PROMPT_VERSION bumped 4.16.1 → 4.19.0; cached pre-A4 payloads
+remain attributable via the cache row's `promptVersion` column.
+
+See LOW-1 for the n<7 vs n<3 threshold note.
+
+### Q2 — A5 status pill leaks IP/endpoint/token info?
+
+**No.** The pill renders three strings only: a status label
+("Connected" / "Error — reconnect" / "Not connected"), an aria-label
+("Integration status"), and a relative-time suffix derived from
+`lastSyncedAt` (max specificity: "X d ago"). No URL, no IP, no
+token, no error text.
+
+The inline error message under the pill is unchanged from v1.4.18
+behaviour and bounded to 1024 chars from controlled callsites; see
+LOW-2 above.
+
+### Q3 — A6 input-height changes affect password-input masking?
+
+**No.** Verified empty `git diff` for
+`src/components/settings/password-input.tsx` and
+`src/components/ui/input.tsx`. A6's height-equalisation work is
+purely Tailwind class swaps on `<select>` / button trigger elements
+(`h-10 → h-9`, `h-8 → h-9`, `min-h-11` removal). It does not touch
+`<PasswordInput>`'s `type` attribute swap, the eye-toggle button,
+or any masking logic.
+
+### Q4 — A7 feedback scrollbar fix drops scroll-confinement that
+prevents action-overflow?
+
+**No.** `src/components/ui/tabs.tsx` adds `overflow-y-hidden` and a
+`group-data-[orientation=vertical]/tabs:overflow-y-visible` reset.
+Horizontal `overflow-x-auto` and `touch-pan-x` are preserved. So
+horizontal swipe / scroll on overflow strips still works; only the
+spurious vertical bar is hidden. Vertical tabs lists explicitly opt
+back into y-axis visibility. No action-overflow regression possible.
+
+### Q4b — A7 api-tokens truncate-with-tooltip exposes full token + secret?
+
+**No.** Verified by reading `src/app/api/admin/tokens/route.ts:11-29`:
+the Prisma `select` clause is `{id, name, permissions, lastUsedAt,
+expiresAt, createdAt, revoked, user: {id, username}}`. No
+`tokenHash`, no encrypted secret field, nothing of cryptographic
+value is ever loaded. The tooltip just re-renders
+`token.user.username`, `formatTokenName(token.name)`, and the
+permission string. Token plaintext (`hlk_<64hex>`) is NEVER stored
+in the DB — only HMAC-SHA-256 of the value. Even if the API leaked
+the hash, it's not a usable secret.
+
+### Q5 — A1 BD-Zielbereich percentages exposed via API/audit-log to
+another user?
+
+**No.** `/api/analytics` uses `requireAuth()` and scopes every
+query by `user.id` (lines 25, 73, 77, 89). The
+`bpInTargetPct{,7d,30d}` values are derived from THE CALLING
+USER's own measurements only. The audit-log entry from
+`annotate({ action: { name: "analytics.get" } })` (line 15)
+records ONLY the action name without payload — no percentages, no
+sample counts, no measurements ever land in the audit log.
+No cross-user pathway exists.
+
+### Q6 — Wave-B 27 fixes introduce dangerouslySetInnerHTML / new
+endpoint / new storage?
+
+**No.**
+- `git diff v1.4.18...HEAD | grep dangerouslySetInnerHTML` → empty.
+- `git diff --name-status v1.4.18...HEAD | grep "^A" | grep
+  "src/app/api"` → empty (zero new API routes).
+- Zero new Prisma models, zero new env vars consumed.
+- The Wave-B sweep is i18n-string + `t()`-substitution + minor JSX
+  restructuring (drop duplicate card titles, link audit rows, etc.).
+
+### Q7 — General hygiene: logging respects redactSecrets, new routes
+use apiHandler, new i18n keys can't pull arbitrary user input?
+
+- **Logging**: zero new `annotate()` / `getEvent()` calls in the
+  v1.4.19 diff (verified via
+  `git diff … | grep -E "^\+" | grep -E "annotate|getEvent"` →
+  empty). Existing `apiHandler` middleware continues to redact
+  error messages via `redactSecrets()` per CLAUDE.md.
+- **apiHandler**: zero new API routes added. Existing routes
+  unchanged in their wrapping.
+- **i18n placeholders**: only new placeholder is `{count}` in
+  `settings.integrationPill.{minutes,hours,days}Ago`, fed an integer
+  from `Math.floor(deltaMs / 60000)` in
+  `src/components/settings/integration-status-pill.tsx:57-66` — not
+  user-controllable. The `t()` implementation in
+  `src/lib/i18n/context.tsx:121-145` does a plain
+  `String.prototype.replace` and the result is rendered as text in
+  JSX (React auto-escapes). No HTML interpolation path.
+- **Chart-token strip regex** (`src/lib/insights/chart-tokens.ts:54`
+  widened to `[A-Za-z0-9_]+`): apostrophe / quote / `<` / `>`
+  characters all terminate the character class, so injection
+  attempts like `metric:WEIGHT' onclick='alert(1)'` cleave cleanly
+  on the apostrophe. Surviving prose is rendered as React text
+  (auto-escaped).
+
+---
+
+## Sign-off
+
+Phase-D security review: **CLEAR**. 0 CRITICAL, 0 HIGH, 0
+ship-blockers. 3 MED/LOW observations are informational; none
+require code changes for v1.4.19.
+
+Recommend: ship v1.4.19 once the other parallel reviewers also
+clear.
