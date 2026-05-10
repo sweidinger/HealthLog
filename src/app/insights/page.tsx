@@ -923,16 +923,25 @@ export default function InsightsPage() {
           medical-citation footnotes) into the live route. Before this
           fix the page rendered only the text-only `<InsightStatusCard>`
           per section, hiding all of B5c/d/e/B1b's polish from users.
-          The per-section status cards stay below as supplemental detail. */}
+          The per-section status cards stay below as supplemental detail.
+
+          v1.4.19 A3 — `onRegenerate` is no longer wired here. The page
+          hero already owns the single page-level refresh affordance;
+          the card-level icon button + empty-state "Analyse starten"
+          button were duplicates that surfaced the same handler three
+          ways (page hero button, card-header icon button,
+          empty-state CTA). The per-recommendation Regenerate (inside
+          `<RecommendationCard>`) is unrelated — it stays under the
+          v1.4.16 spec. The placeholder `aiOverviewTitle`
+          ("Persönlicher Berater") subtitle is also gone — the
+          CardTitle ("KI-Gesundheitsanalyse") is enough framing on its
+          own, and the orphan title above an empty body when the user
+          has no provider configured was the actual confusion source
+          Marc reported. */}
       <InsightAdvisorCard
-        title={t("insights.aiOverviewTitle")}
         insight={advisor.payload?.insights ?? null}
         loading={advisor.isLoading}
-        error={
-          advisor.regenerateError?.message ?? advisor.error?.message ?? null
-        }
-        onRegenerate={advisor.regenerate}
-        regenerating={advisor.isRegenerating}
+        error={advisor.error?.message ?? null}
         cachedAt={advisor.payload?.cachedAt ?? null}
         legacyPayload={advisor.payload?.legacyPayload ?? false}
       />

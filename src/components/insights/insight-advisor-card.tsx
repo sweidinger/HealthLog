@@ -32,7 +32,16 @@ import { RecommendationsGrid } from "./recommendations-grid";
 // ─── Types ────────────────────────────────────────────────
 
 interface InsightAdvisorCardProps {
-  title: string;
+  /**
+   * v1.4.19 A3 — optional subtitle below the CardTitle. The
+   * `/insights` page surface no longer passes a subtitle (the
+   * CardTitle alone is enough framing); the prop stays optional so
+   * existing test fixtures + the dashboard preview keep their
+   * supplementary line. When omitted the `<p>` element is dropped
+   * entirely so the empty card no longer renders an "orphan
+   * Persönlicher Berater" title above an empty body.
+   */
+  title?: string;
   icon?: React.ReactNode;
   insight: InsightResult | null;
   loading?: boolean;
@@ -332,7 +341,7 @@ export function InsightAdvisorCard({
               {t("insights.aiAnalysisTitle")}
             </CardTitle>
           </div>
-          <p className="text-muted-foreground text-sm">{title}</p>
+          {title && <p className="text-muted-foreground text-sm">{title}</p>}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-muted/60 h-4 w-3/4 animate-pulse rounded-md motion-reduce:animate-none" />
@@ -365,7 +374,7 @@ export function InsightAdvisorCard({
               </CardTitle>
             </div>
           </div>
-          <p className="text-muted-foreground text-sm">{title}</p>
+          {title && <p className="text-muted-foreground text-sm">{title}</p>}
         </CardHeader>
         <CardContent>
           {error && (
@@ -473,7 +482,7 @@ export function InsightAdvisorCard({
               </Button>
             )}
           </div>
-          <p className="text-muted-foreground text-sm">{title}</p>
+          {title && <p className="text-muted-foreground text-sm">{title}</p>}
         </CardHeader>
         <CardContent>
           <div
@@ -540,7 +549,7 @@ export function InsightAdvisorCard({
             )}
           </div>
         </div>
-        <p className="text-muted-foreground text-sm">{title}</p>
+        {title && <p className="text-muted-foreground text-sm">{title}</p>}
       </CardHeader>
 
       <CardContent className="space-y-5">
