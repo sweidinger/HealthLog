@@ -118,4 +118,90 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
     }));
     expect(stripDims.scrollWidth).toBeGreaterThan(stripDims.clientWidth);
   });
+
+  // v1.4.19 phase A7 (4th attempt) — even with the mobile-strip
+  // `no-scrollbar` fix from v1.4.18, Marc still reported a painted
+  // scrollbar. The card body itself must not contribute any
+  // horizontal-overflow culprit: every element inside the api-tokens
+  // section must satisfy `scrollWidth <= clientWidth + 1`. Pads with
+  // a long token name + long username + a long permission to exercise
+  // the worst case.
+  test("Pixel-5 viewport: nothing inside the api-tokens card overflows horizontally", async ({
+    page,
+  }) => {
+    await page.route("**/api/admin/tokens", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: [
+            {
+              id: "tok1",
+              name: "iOS auto-login 2026-05-05T19:42:11Z device-AABBCCDDEEFF-marathon",
+              permissions: [
+                "measurements:write:audit:legacy:extended",
+                "medications:read",
+                "*",
+              ],
+              lastUsedAt: "2026-05-08T12:00:00Z",
+              expiresAt: null,
+              createdAt: "2026-05-01T08:00:00Z",
+              revoked: false,
+              user: {
+                id: "u1",
+                username: "marc-the-very-long-username-that-overflows",
+              },
+            },
+          ],
+          error: null,
+        }),
+      }),
+    );
+
+    await page.goto("/admin/api-tokens", { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByTestId("admin-tokens-mobile-list")).toBeVisible({
+      timeout: 10_000,
+    });
+
+    // Walk every element inside the mobile card-list and assert no
+    // child has a wider scrollWidth than its container. This is the
+    // Pixel-5 worst-case Marc kept hitting.
+    const culprits = await page
+      .getByTestId("admin-tokens-mobile-list")
+      .evaluate((root) => {
+        const out: Array<{
+          tag: string;
+          klass: string;
+          scrollWidth: number;
+          clientWidth: number;
+        }> = [];
+        for (const el of root.querySelectorAll("*")) {
+          if (el.scrollWidth > el.clientWidth + 1) {
+            out.push({
+              tag: el.tagName,
+              klass:
+                typeof el.className === "string"
+                  ? el.className.slice(0, 80)
+                  : "",
+              scrollWidth: el.scrollWidth,
+              clientWidth: el.clientWidth,
+            });
+          }
+        }
+        return out;
+      });
+    expect(
+      culprits,
+      `overflow culprits: ${JSON.stringify(culprits, null, 2)}`,
+    ).toEqual([]);
+
+    // Document-level horizontal overflow — the page must not paint
+    // any horizontal scroll, period.
+    const dims = await page.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+    }));
+    expect(dims.scrollWidth).toBeLessThanOrEqual(dims.innerWidth + 1);
+  });
 });
