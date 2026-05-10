@@ -1,7 +1,7 @@
 # v1.4.23 marathon — state log
 
-Status: Wave 4 shipped (OpenAPI gate + Coach schema + native auth + Coolify)
-Last update: 2026-05-11T01:15+02:00
+Status: Wave 5 shipped (7 hygiene items + 8 atomic commits)
+Last update: 2026-05-11T02:00+02:00
 
 > Previous milestone: v1.4.22 live (image digest
 > `sha256:865154614303…`, `/api/version=1.4.22`).
@@ -148,13 +148,49 @@ Last update: 2026-05-11T01:15+02:00
 
 ## Wave 5 — Hygiene (H1-H7)
 
-- [ ] H1 sentinel parser malformed-enum hardening
-- [ ] H2 analytics-route unbounded `findMany` pagination
-- [ ] H3 `<CoachDrawer key={prefill}>` controlled-prop refactor
-- [ ] H4 per-user prompt-tuning surface (Coach settings cog return)
-- [ ] H5 schema drift on `medication_schedules.days_of_week`
-- [ ] H6 Pearson p-value normal-approx replacement
-- [ ] H7 Coach helpful/unhelpful first-week observation view
+- [x] H1 sentinel parser malformed-enum hardening
+      (`SentinelParseResult.malformedEntries[]` + per-line typed
+      reasons; chat route splits `coach.keyvalues.parse_partial` from
+      the full-block `coach.keyvalues.parse_failed`)
+- [x] H2 analytics-route unbounded `findMany` pagination
+      (cursor-paged 5 000-row chunks via `fetchBpSeriesChunked`,
+      `analytics.bp_in_target.row_count` wide-event meta for slow-
+      query attribution; integration test seeds 6 000 rows across a
+      chunk boundary)
+- [x] H3 `<CoachDrawer key={prefill}>` controlled-prop refactor
+      (`useResettableValue` hook + pure `nextResettableValue` helper;
+      `key={prefill}` removed from the parent mount)
+- [x] H4 per-user prompt-tuning surface (Coach settings cog return)
+      (`User.coachPrefsJson` migration `0038_coach_prefs`; new
+      `GET/PUT /api/auth/me/coach-prefs`; settings cog opens a
+      right-edge `<Sheet>`; system-prompt prepends a per-user
+      OVERRIDE; snapshot reads prefs BEFORE measurement queries so
+      `excludeMetrics` filters before the snapshot lands)
+- [x] H5 schema drift on `medication_schedules.days_of_week`
+      (decision: deploy — column is referenced by 9 source files
+      across 4 user-visible surfaces; migration
+      `0039_medication_schedule_days_of_week`, NULL = daily)
+- [x] H6 Pearson p-value normal-approx replacement
+      (raised `MIN_PAIRED_N` from 14 → 20 — conservative patch;
+      rigorous incomplete-beta queued as a v1.4.24 candidate)
+- [x] H7 Coach helpful/unhelpful first-week observation view
+      (polymorphic `RecommendationFeedback.target_type` migration
+      `0040_recommendation_feedback_target_type`; new POST
+      `/api/insights/chat/messages/:id/feedback`; aggregator slice
+      `buildCoachFeedbackBuckets` by (promptVersion, tone, verbosity);
+      admin section `/admin/coach-feedback` with the H7 i18n bundle
+      both EN + DE)
+
+W5 commits (8): 58ae9bc, fa07748, 9413d29, 3f60c81, 0eda1de, 1faee95,
+05c7f14, plus this STATE tick.
+
+Test deltas: 2191 → 2223 unit (+32). Integration suite added 3
+files: `coach-prefs`, `coach-feedback`, plus the 6000-row chunk
+boundary regression in the existing `bp-in-target` test.
+
+OpenAPI registry coverage: +3 routes (GET / PUT
+`/api/auth/me/coach-prefs`, POST
+`/api/insights/chat/messages/{id}/feedback`).
 
 ## Wave 6 — Multi-agent QA + Product-Lead review
 
