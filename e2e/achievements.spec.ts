@@ -11,6 +11,11 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  * `/api/gamification/achievements` so the assertion does not depend on
  * the seed user actually having any achievement data — the routing +
  * sidebar wiring is what matters here, not the data freshness.
+ *
+ * v1.4.18 — added a second describe-block exercising the four card
+ * states (unlocked / locked-earnable / hidden-locked / hidden-unlocked)
+ * and asserting that hidden cards never leak their real strings to the
+ * DOM.
  */
 test.describe("achievements page is reachable from the sidebar", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
@@ -82,5 +87,142 @@ test.describe("achievements page is reachable from the sidebar", () => {
     await expect(
       page.getByRole("heading", { name: "Achievements" }),
     ).toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe("achievements page renders all four card states", () => {
+  test.use({ storageState: STORAGE_STATE_PATH });
+
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/gamification/achievements", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            summary: {
+              unlockedCount: 2,
+              totalCount: 4,
+              earnedPoints: 43,
+              totalPoints: 200,
+              completionPercent: 50,
+              nextAchievement: null,
+            },
+            achievements: [
+              // Unlocked public
+              {
+                id: "intake-total-1",
+                metric: "totalTakenIntakes",
+                category: "medication",
+                titleKey: "achievements.badges.intakeTotal1.title",
+                descriptionKey:
+                  "achievements.badges.intakeTotal1.description",
+                icon: "Pill",
+                format: "count",
+                target: 1,
+                current: 5,
+                points: 8,
+                unlocked: true,
+                progressPercent: 100,
+                completedAt: "2026-04-15T12:00:00.000Z",
+                isHidden: false,
+              },
+              // Locked-earnable public (mood streak — user has mood data)
+              {
+                id: "mood-streak-7",
+                metric: "moodDayStreak",
+                category: "mood",
+                titleKey: "achievements.badges.moodStreak7.title",
+                descriptionKey:
+                  "achievements.badges.moodStreak7.description",
+                icon: "Smile",
+                format: "days",
+                target: 7,
+                current: 3,
+                points: 50,
+                unlocked: false,
+                progressPercent: 42,
+                completedAt: null,
+                isHidden: false,
+              },
+              // Hidden + locked → opaque placeholder
+              {
+                id: "hidden-night-owl",
+                metric: "nightOwlCount",
+                category: "hidden",
+                titleKey: "achievements.badges.hiddenNightOwl.title",
+                descriptionKey:
+                  "achievements.badges.hiddenNightOwl.description",
+                icon: "Moon",
+                format: "count",
+                target: 1,
+                current: 0,
+                points: 25,
+                unlocked: false,
+                progressPercent: 0,
+                completedAt: null,
+                isHidden: true,
+              },
+              // Hidden + unlocked → real strings revealed
+              {
+                id: "hidden-doctor-pdf",
+                metric: "doctorPdfCount",
+                category: "hidden",
+                titleKey: "achievements.badges.hiddenDoctorPdf.title",
+                descriptionKey:
+                  "achievements.badges.hiddenDoctorPdf.description",
+                icon: "FileText",
+                format: "count",
+                target: 1,
+                current: 1,
+                points: 35,
+                unlocked: true,
+                progressPercent: 100,
+                completedAt: "2026-04-30T10:00:00.000Z",
+                isHidden: true,
+              },
+            ],
+            metrics: {},
+          },
+          error: null,
+        }),
+      }),
+    );
+  });
+
+  test("renders unlocked, locked-earnable, hidden-locked and hidden-unlocked cards", async ({
+    page,
+  }) => {
+    await page.goto("/achievements", { waitUntil: "domcontentloaded" });
+
+    // Page heading present
+    await expect(
+      page.getByRole("heading", { name: "Achievements" }),
+    ).toBeVisible({ timeout: 5000 });
+
+    // Unlocked public — title visible
+    await expect(page.getByText("First intake")).toBeVisible();
+
+    // Locked-earnable public — title visible AND criterion hint
+    // visible (3 / 7 days for mood-streak-7).
+    await expect(page.getByText("Mood diarist 7d")).toBeVisible();
+
+    // Hidden-locked — opaque placeholder visible. The real title /
+    // description must NOT appear in the rendered HTML.
+    await expect(
+      page.getByText("Hidden achievement").first(),
+    ).toBeVisible();
+    const html = await page.content();
+    expect(html).not.toContain("Night owl");
+    expect(html).not.toContain("between 02:00");
+    expect(html).not.toContain("nightOwlCount");
+
+    // Hidden-unlocked — title revealed once earned
+    await expect(page.getByText("House call")).toBeVisible();
+
+    // The opaque hidden card carries the data-slot for E2E hooks
+    await expect(
+      page.locator('[data-slot="achievement-card-hidden"]'),
+    ).toBeVisible();
   });
 });
