@@ -282,4 +282,120 @@ describe("POST /api/insights/chat — integration", () => {
     );
     expect(res.status).toBe(422);
   });
+
+  it("strips the ---KEYVALUES--- block and surfaces keyValues in the persisted provenance", async () => {
+    // v1.4.22 — sentinel round-trip. The route should parse the
+    // model's evidence block out of the prose, persist it onto the
+    // assistant message's `metricSourceJson`, and emit it on the
+    // SSE `provenance` frame so the disclosure has data to render.
+    await seedUserWithSession();
+    runProviderMock.mockResolvedValue({
+      result: {
+        content: [
+          "The last week sits a touch higher than your usual run.",
+          "Anything different about this week — sleep, work, travel?",
+          "",
+          "---KEYVALUES---",
+          "avg7 systolic: 138 [mmHg] (last7days)",
+          "avg30 systolic: 134 [mmHg] (last30days)",
+          "---END---",
+        ].join("\n"),
+        tokensUsed: 256,
+        model: "mock",
+        providerType: "openai",
+      },
+      workingProvider: { providerType: "openai", instance: {} },
+      fallbackHops: [],
+    });
+    const { POST } = await import("@/app/api/insights/chat/route");
+
+    const res = await (POST as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          message: "How is my blood pressure trending this month?",
+        }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const text = await readStream(res);
+
+    // Streamed prose must NOT contain the raw sentinel markers.
+    const tokens: string[] = [];
+    for (const m of text.matchAll(/"type":"token","token":"([^"]*)"/g)) {
+      tokens.push(
+        m[1].replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\"),
+      );
+    }
+    const streamedProse = tokens.join("");
+    expect(streamedProse).toMatch(/sits a touch higher/);
+    expect(streamedProse).not.toMatch(/---KEYVALUES---/);
+    expect(streamedProse).not.toMatch(/---END---/);
+
+    // Provenance frame carries the parsed keyValues.
+    expect(text).toMatch(/"keyValues"/);
+    expect(text).toMatch(/avg7 systolic/);
+
+    // Persisted shape keeps the structured envelope.
+    const prisma = getPrismaClient();
+    const messages = await prisma.coachMessage.findMany({
+      orderBy: { createdAt: "asc" },
+    });
+    expect(messages.length).toBe(2);
+    const assistant = messages[1];
+    expect(assistant.metricSourceJson).toBeTruthy();
+    const persisted = JSON.parse(assistant.metricSourceJson ?? "{}") as {
+      keyValues?: Array<{ label: string; value: string; unit?: string }>;
+    };
+    expect(persisted.keyValues?.length).toBe(2);
+    expect(persisted.keyValues?.[0]).toMatchObject({
+      label: "avg7 systolic",
+      value: "138",
+      unit: "mmHg",
+      window: "last7days",
+    });
+  });
+
+  it("falls through gracefully when the provider returns prose-only (no sentinel)", async () => {
+    // Mirrors the mock-client.ts contract — older test doubles and
+    // refusal fallbacks emit plain prose without the v1.4.22 sentinel.
+    // The route should not flag the reply malformed; the persisted
+    // envelope keeps the existing windows/metrics/counts without a
+    // `keyValues` field.
+    await seedUserWithSession();
+    runProviderMock.mockResolvedValue({
+      result: {
+        content:
+          "Compliance has been steady this month — that consistency is doing a lot of quiet work for you. How does that match your own sense of the month?",
+        tokensUsed: 128,
+        model: "mock",
+        providerType: "openai",
+      },
+      workingProvider: { providerType: "openai", instance: {} },
+      fallbackHops: [],
+    });
+    const { POST } = await import("@/app/api/insights/chat/route");
+
+    const res = await (POST as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: "How am I doing this month?" }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const text = await readStream(res);
+    expect(text).toMatch(/"type":"done"/);
+
+    const prisma = getPrismaClient();
+    const messages = await prisma.coachMessage.findMany({
+      orderBy: { createdAt: "asc" },
+    });
+    const assistant = messages.find((m) => m.role === "assistant");
+    const persisted = JSON.parse(assistant?.metricSourceJson ?? "{}") as {
+      keyValues?: unknown;
+    };
+    expect(persisted.keyValues).toBeUndefined();
+  });
 });

@@ -89,11 +89,35 @@ export type CoachStreamEvent =
   | { type: "error"; code: string; message: string };
 
 /**
+ * v1.4.22 — Zod schema for one entry inside the Coach's evidence
+ * block. The model emits these as lines between the
+ * `---KEYVALUES---` / `---END---` sentinels at the end of the reply;
+ * the route parses them out of the prose, attaches them to the
+ * provenance envelope, and the UI renders them inside the collapsible
+ * "Worauf bezieht sich das?" disclosure.
+ *
+ * Every field is length-capped so a malformed or adversarial sentinel
+ * cannot blow up the persisted payload. The whole block is also
+ * hard-capped to 8 entries / 1 KB by the parser.
+ */
+export const coachKeyValueSchema = z.object({
+  label: z.string().min(1).max(80),
+  value: z.string().min(1).max(40),
+  unit: z.string().max(16).optional(),
+  window: z.string().max(40).optional(),
+});
+
+export type CoachKeyValue = z.infer<typeof coachKeyValueSchema>;
+
+/**
  * Provenance envelope attached to assistant messages.
  *
- * NOTE: labels only — never raw values. The frontend renders source
- * chips (e.g. "based on last30days BP, n=12") from these fields. Raw
- * numbers and PII stay inside `encryptedContent`.
+ * NOTE: labels only — never raw values from the snapshot itself. The
+ * `keyValues` field added in v1.4.22 carries the load-bearing numbers
+ * the model chose to surface; those values come from the model's reply
+ * (which is itself grounded in the SNAPSHOT) and stay in the
+ * persisted `metricSourceJson` alongside the windows + metrics +
+ * counts so the disclosure can re-render on conversation reload.
  */
 export interface CoachProvenance {
   /**
@@ -115,6 +139,13 @@ export interface CoachProvenance {
   counts?: Partial<
     Record<"bp" | "weight" | "pulse" | "mood" | "compliance", number>
   >;
+  /**
+   * v1.4.22 — load-bearing numbers the Coach drew on for this turn,
+   * surfaced in the collapsible evidence block under the assistant
+   * bubble. Optional; omit when the turn was qualitative or when the
+   * snapshot was empty. Hard cap 8 entries to keep the block scannable.
+   */
+  keyValues?: ReadonlyArray<CoachKeyValue>;
 }
 
 /**

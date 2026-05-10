@@ -60,6 +60,7 @@ import {
 import { detectRefusal } from "@/lib/ai/coach/refusal";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
+import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
 
 /**
  * Hard cap on total turns kept inside the per-call prompt window.
@@ -260,9 +261,33 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     throw err;
   }
 
-  const replyText = (result.content ?? "").trim();
-  if (!replyText) {
+  const rawReply = (result.content ?? "").trim();
+  if (!rawReply) {
     return streamProviderError({ code: "coach.provider.empty" });
+  }
+
+  // v1.4.22 — strip the optional `---KEYVALUES---` … `---END---`
+  // sentinel out of the prose. The stripped prose is what we stream
+  // to the client and persist; the parsed entries enrich the
+  // provenance envelope so the UI can render the collapsible
+  // "Worauf bezieht sich das?" disclosure.
+  const sentinel = parseKeyValuesSentinel(rawReply);
+  const replyText = sentinel.prose.trim() || rawReply;
+  const enrichedProvenance =
+    sentinel.keyValues.length > 0
+      ? { ...snapshot.provenance, keyValues: sentinel.keyValues }
+      : snapshot.provenance;
+  if (sentinel.malformed) {
+    // Graceful degrade: log so ops can spot a provider whose
+    // sentinel format has drifted, but pass the prose through
+    // unchanged.
+    annotate({
+      action: { name: "coach.keyvalues.parse_failed" },
+      meta: {
+        kept: sentinel.keyValues.length,
+        promptVersion: PROMPT_VERSION,
+      },
+    });
   }
 
   // Persist the assistant message BEFORE we begin streaming; if the
@@ -271,7 +296,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     conversationId: workingConversationId,
     role: "assistant",
     content: replyText,
-    metricSource: snapshot.provenance,
+    metricSource: enrichedProvenance,
     providerType: workingProviderType,
     promptVersion: PROMPT_VERSION,
   });
@@ -305,7 +330,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
         controller.enqueue(
           encodeFrame({
             type: "provenance",
-            metricSource: snapshot.provenance,
+            metricSource: enrichedProvenance,
           }),
         );
         controller.enqueue(
