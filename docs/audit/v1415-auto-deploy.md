@@ -136,14 +136,14 @@ populated.
 
 ## Failure modes considered
 
-| Failure                                       | What happens                                                                                        |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Failure                                       | What happens                                                                                             |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Coolify deploy URL down                       | GH Actions step continues (`continue-on-error: true`); image stays on GHCR, deploy falls back to manual. |
-| Coolify notification fires before image pull  | Coolify retries the pull internally; final status (success/failure) reaches our webhook regardless. |
-| Webhook secret leaked                         | Rotate `DEPLOY_WEBHOOK_SECRET`, redeploy. Audit-log entry on every received call shows source IP.   |
-| Webhook handler down at deploy time           | Coolify retries 3× per docs; final missed event is recoverable from Coolify's own deployment log.   |
-| Coolify API rejects token (permission scope)  | GH Actions step prints the response body; the next merge surfaces it as a workflow failure.         |
-| GHCR push succeeds but webhook step is broken | Image still gets to GHCR; manual deploy still works as a fallback.                                  |
+| Coolify notification fires before image pull  | Coolify retries the pull internally; final status (success/failure) reaches our webhook regardless.      |
+| Webhook secret leaked                         | Rotate `DEPLOY_WEBHOOK_SECRET`, redeploy. Audit-log entry on every received call shows source IP.        |
+| Webhook handler down at deploy time           | Coolify retries 3× per docs; final missed event is recoverable from Coolify's own deployment log.        |
+| Coolify API rejects token (permission scope)  | GH Actions step prints the response body; the next merge surfaces it as a workflow failure.              |
+| GHCR push succeeds but webhook step is broken | Image still gets to GHCR; manual deploy still works as a fallback.                                       |
 
 ## Watchtower — why not (revisited)
 

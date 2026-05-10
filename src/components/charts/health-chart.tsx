@@ -124,6 +124,20 @@ interface HealthChartProps {
    * its toggles default to OFF (clean line).
    */
   chartKey?: ChartOverlayKey;
+  /**
+   * v1.4.20 phase B4 — additive storyboard annotations.
+   *
+   * Each entry pins a vertical reference line + label to the data point
+   * whose Berlin-day key matches `date` (`YYYY-MM-DD`). The chart line
+   * + tooltip + tooltip-deltas remain untouched — Recharts' source-order
+   * layering paints `<ReferenceLine>` between the cartesian grid and
+   * the data lines so the annotation reads as orientation, not data.
+   *
+   * Annotations whose date falls outside the visible window silently
+   * drop (we already use `ifOverflow="discard"` on every reference line
+   * that needs the same behaviour).
+   */
+  annotations?: Array<{ date: string; label: string; color: string }>;
 }
 
 interface ChartDataPoint {
@@ -247,6 +261,58 @@ export function computePersonalBaseline(
   return sorted[mid];
 }
 
+/**
+ * v1.4.20 phase B4 — pure helper that maps storyboard annotations to
+ * visible chart pointIndex positions. Exported so the unit suite can
+ * pin behaviour without rendering Recharts. Returns the subset of
+ * annotations that fall on (or within 7 days of) a visible bucketed
+ * point, with a 24-char truncation precomputed for `<sm` rendering.
+ */
+export interface ResolvedAnnotation {
+  pointIndex: number;
+  label: string;
+  color: string;
+  truncatedLabel: string;
+}
+
+export function resolveAnnotationPositions(
+  annotations:
+    | Array<{ date: string; label: string; color: string }>
+    | undefined,
+  chartData: Array<{ timestamp: number }> | undefined,
+): ResolvedAnnotation[] {
+  if (!annotations || !chartData || chartData.length === 0) return [];
+  const out: ResolvedAnnotation[] = [];
+  for (const annotation of annotations) {
+    const targetMs = Date.parse(`${annotation.date}T12:00:00Z`);
+    if (!Number.isFinite(targetMs)) continue;
+    let bestIdx = -1;
+    let bestDelta = Number.POSITIVE_INFINITY;
+    for (const [i, point] of chartData.entries()) {
+      const delta = Math.abs(point.timestamp - targetMs);
+      if (delta < bestDelta) {
+        bestDelta = delta;
+        bestIdx = i;
+      }
+    }
+    // Drop annotations more than 7 days off any visible point — long
+    // bucket windows (monthly aggregation) would otherwise snap multi-
+    // month events to the closest visible bucket and stack labels.
+    if (bestIdx < 0 || bestDelta > 7 * 24 * 60 * 60 * 1000) continue;
+    const truncatedLabel =
+      annotation.label.length > 24
+        ? `${annotation.label.slice(0, 23)}…`
+        : annotation.label;
+    out.push({
+      pointIndex: bestIdx,
+      label: annotation.label,
+      color: annotation.color,
+      truncatedLabel,
+    });
+  }
+  return out;
+}
+
 function buildTrendSeriesByTime(data: Array<{ date: Date; value: number }>): {
   points: Array<{ date: Date; value: number }>;
   slopePerDay: number;
@@ -300,6 +366,7 @@ export function HealthChart({
   windowOverride,
   compareBaseline = "none",
   chartKey,
+  annotations,
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
@@ -832,6 +899,15 @@ export function HealthChart({
   if (!isLoading && !data?.length) return null;
 
   const maxPointIndex = Math.max(0, (chartData?.length ?? 1) - 1);
+
+  // v1.4.20 phase B4 — derive visible annotations via the pure helper
+  // (`resolveAnnotationPositions`). Drops anything outside the
+  // visible window so the chart line + tooltip stay untouched.
+  const annotationPositions = resolveAnnotationPositions(
+    annotations,
+    chartData,
+  );
+
   const showContextDetails = showMA || showTrend || showBands;
   const animationsEnabled = !prefersReducedMotion();
 
@@ -1088,6 +1164,33 @@ export function HealthChart({
                           }
                         : undefined
                     }
+                  />
+                ))}
+                {/* v1.4.20 phase B4 — storyboard annotations.
+                    Vertical reference lines pinned to a specific
+                    visible pointIndex; the label sits above with a
+                    short truncation on `<sm` (24 chars) and the full
+                    label on >=sm. Annotations off-window silently
+                    drop via `ifOverflow="discard"`. */}
+                {annotationPositions.map((annotation, i) => (
+                  <ReferenceLine
+                    key={`storyboard-${i}-${annotation.pointIndex}`}
+                    x={annotation.pointIndex}
+                    stroke={annotation.color}
+                    strokeDasharray="4 4"
+                    strokeWidth={1.25}
+                    strokeOpacity={0.7}
+                    ifOverflow="discard"
+                    label={{
+                      value:
+                        viewportWidth < 640
+                          ? annotation.truncatedLabel
+                          : annotation.label,
+                      position: "insideTopRight",
+                      fill: annotation.color,
+                      fontSize: 10,
+                      fontWeight: 500,
+                    }}
                   />
                 ))}
                 {/* v1.4.18 — personal-baseline reference line is now

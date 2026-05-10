@@ -7,6 +7,10 @@ import { useTranslations } from "@/lib/i18n/context";
 /**
  * v1.4.16 phase B1b — Apple-Health-style page hero for `/insights`.
  *
+ * @deprecated v1.4.20 phase B1 — superseded by `<HeroStrip>` in
+ * `./hero-strip.tsx`. Kept here for the dashboard preview's continued
+ * use; will be removed once that surface migrates.
+ *
  * Polished header band that frames the page below. Pure presentational —
  * the page passes timestamps + the regenerate handler in. Stays a thin
  * shell around the existing translation keys so a future redesign only

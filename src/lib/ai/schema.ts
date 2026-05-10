@@ -216,6 +216,227 @@ export const aiWarningSchema = z.object({
 export type AIWarning = z.infer<typeof aiWarningSchema>;
 
 /**
+ * v1.4.20 phase B1 — Daily Briefing block.
+ *
+ * The Insights redesign hero strip + full-width briefing card render a
+ * narrative paragraph synthesised from the day's data plus up to five
+ * "key findings" — one-liners that summarise a single trend with a
+ * tone (good / watch / info), an optional delta string ("↓ 4 mmHg"),
+ * and the metric + window the finding was drawn from.
+ *
+ * The block is `nullable().optional()` so cached payloads from
+ * v1.4.19 (which predate the field) still parse cleanly. Fresh
+ * generations after the v1.4.20 PROMPT_VERSION bump emit the block.
+ *
+ * Marc's "zero hallucinations" mandate stays: the prompt instructs the
+ * model to derive every finding from a number visible in the snapshot,
+ * and `keyFindings.length` is hard-capped at 5 so a runaway model
+ * cannot pad the surface with filler.
+ */
+export const dailyBriefingKeyFindingSchema = z.object({
+  /**
+   * Tone drives the left-bar colour on the finding row:
+   *   - "good"  — Dracula green (target hit, streak, etc.)
+   *   - "watch" — Dracula orange (deviation worth noting)
+   *   - "info"  — Dracula cyan (neutral observation)
+   * Severity stays separate from the recommendation severity ladder
+   * so the briefing surface can be lighter-weight than the advisor.
+   */
+  tone: z.enum(["good", "watch", "info"]),
+  /** Headline — the one-liner the user reads first. */
+  headline: z.string().min(1, "keyFinding.headline required"),
+  /** One-sentence detail expanding on the headline. */
+  detail: z.string().min(1, "keyFinding.detail required"),
+  /**
+   * Optional delta string — e.g. "↓ 4 mmHg" or "+6 bpm". Null when the
+   * finding does not naturally carry a single delta (e.g. compliance
+   * streak: the "delta" is the streak length itself, captured in the
+   * detail).
+   */
+  delta: z.string().nullable(),
+  /** Window the finding was derived from — same enum as elsewhere. */
+  sourceWindow: z.enum(["7d", "30d", "90d", "1y"]).default("30d"),
+  /** Metric the finding was drawn from. */
+  sourceMetric: z.enum(["bp", "weight", "pulse", "mood", "compliance"]),
+});
+
+export type DailyBriefingKeyFinding = z.infer<
+  typeof dailyBriefingKeyFindingSchema
+>;
+
+export const dailyBriefingSchema = z.object({
+  /**
+   * Narrative paragraph — ~80-200 words. Synthesised from the day's
+   * data, conservative phrasing, no medical advice claims. Empty
+   * strings are rejected so the briefing card never paints a void.
+   */
+  paragraph: z.string().min(1, "dailyBriefing.paragraph required"),
+  /**
+   * 0-5 key findings. Empty array is acceptable when the data is
+   * truly flat; the hero strip simply hides the row in that case.
+   */
+  keyFindings: z.array(dailyBriefingKeyFindingSchema).min(0).max(5),
+});
+
+export type DailyBriefing = z.infer<typeof dailyBriefingSchema>;
+
+/**
+ * v1.4.20 phase B3 — optional one-sentence Trend Annotations.
+ *
+ * The Trends row on `/insights` renders three small charts (BP / weight /
+ * mood). Each chart can carry a one-sentence AI-authored annotation
+ * directly below it ("Your systolic is trending down — a pattern worth
+ * watching"). Each string is hard-capped at 200 chars so a runaway model
+ * cannot flood the surface with paragraph-length annotations.
+ *
+ * Every field is `.optional()` and the wrapping object is
+ * `.nullable().optional()` so legacy cached payloads from PROMPT_VERSION
+ * 4.20.0 (which predate the field) round-trip without forcing a
+ * regenerate. Fresh generations after the 4.20.1 bump emit the block
+ * when the snapshot has trend signal.
+ */
+export const trendAnnotationsSchema = z.object({
+  bp: z
+    .string()
+    .min(1, "trendAnnotations.bp required when emitted")
+    .max(200, "trendAnnotations.bp must be <= 200 chars")
+    .optional(),
+  weight: z
+    .string()
+    .min(1, "trendAnnotations.weight required when emitted")
+    .max(200, "trendAnnotations.weight must be <= 200 chars")
+    .optional(),
+  mood: z
+    .string()
+    .min(1, "trendAnnotations.mood required when emitted")
+    .max(200, "trendAnnotations.mood must be <= 200 chars")
+    .optional(),
+});
+
+export type TrendAnnotations = z.infer<typeof trendAnnotationsSchema>;
+
+/**
+ * v1.4.20 phase B4 — Weekly Report block.
+ *
+ * The newsletter-style printable report at `/insights/report/[week]`
+ * renders six sections off this payload: Summary, What's going well,
+ * What's worth watching, Tips, Data-quality notes (optional), plus the
+ * `weekISO` label that pins the report to a specific ISO week.
+ *
+ * Hard caps are deliberate so a runaway model cannot pad the surface:
+ *   - summary: 10..800 chars (TL;DR paragraph)
+ *   - goingWell / worthWatching / tips: each item ≤ 280 chars, ≤ 5 items
+ *   - dataQualityNotes: ≤ 280 chars, optional
+ *
+ * The block is `nullable().optional()` so cached payloads from before
+ * PROMPT_VERSION 4.20.2 round-trip without forcing a regenerate. Fresh
+ * generations after the bump emit the block when the snapshot covers
+ * a full ISO week.
+ */
+export const weeklyReportSchema = z.object({
+  /**
+   * ISO week identifier, e.g. "2026-W19". Format: `YYYY-Www` where ww is
+   * the two-digit ISO week number. The route's `[week]` param pins to
+   * the same key so the report URL matches the AI payload.
+   */
+  weekISO: z
+    .string()
+    .regex(/^\d{4}-W\d{2}$/, "weeklyReport.weekISO must match YYYY-Www"),
+  /** TL;DR paragraph — 1-2 sentences synthesising the week's signal. */
+  summary: z
+    .string()
+    .min(10, "weeklyReport.summary must be at least 10 chars")
+    .max(800, "weeklyReport.summary must be <= 800 chars"),
+  /** "Wins" — what's going well. Up to 5 short bullets. */
+  goingWell: z
+    .array(
+      z
+        .string()
+        .min(1, "weeklyReport.goingWell entry required")
+        .max(280, "weeklyReport.goingWell entry must be <= 280 chars"),
+    )
+    .max(5, "weeklyReport.goingWell can hold at most 5 entries"),
+  /** "Watchlist" — what's worth watching. Up to 5 short bullets. */
+  worthWatching: z
+    .array(
+      z
+        .string()
+        .min(1, "weeklyReport.worthWatching entry required")
+        .max(280, "weeklyReport.worthWatching entry must be <= 280 chars"),
+    )
+    .max(5, "weeklyReport.worthWatching can hold at most 5 entries"),
+  /** Tips — small actionable nudges. Up to 5 short bullets. */
+  tips: z
+    .array(
+      z
+        .string()
+        .min(1, "weeklyReport.tips entry required")
+        .max(280, "weeklyReport.tips entry must be <= 280 chars"),
+    )
+    .max(5, "weeklyReport.tips can hold at most 5 entries"),
+  /**
+   * Data-quality notes — surfaced only when the snapshot has gaps that
+   * materially limit the analysis (n<7, recencyDays>14, etc.). Optional
+   * because most weeks don't need a caveat.
+   */
+  dataQualityNotes: z
+    .string()
+    .max(280, "weeklyReport.dataQualityNotes must be <= 280 chars")
+    .optional(),
+});
+
+export type WeeklyReport = z.infer<typeof weeklyReportSchema>;
+
+/**
+ * v1.4.20 phase B4 — Storyboard annotations.
+ *
+ * The 90-day BP timeline on `/insights` overlays factual events the user
+ * logged ("started medication X", "first sustained dip below 140") onto
+ * the chart as vertical reference lines + chapter cards beneath. Each
+ * annotation MUST cite a real event from the snapshot — the prose is
+ * neutral, never causal ("started medication X" not "improvement is due
+ * to X").
+ *
+ * Hard cap of 20 entries so a runaway model cannot blanket the chart
+ * with reference lines. The block itself is `.optional()` (no nullable
+ * wrap because zod treats an absent field as undefined for arrays
+ * uniformly).
+ */
+export const storyboardAnnotationSchema = z.object({
+  /** ISO date the annotation pins to (YYYY-MM-DD). */
+  date: z
+    .string()
+    .regex(
+      /^\d{4}-\d{2}-\d{2}$/,
+      "storyboardAnnotation.date must be YYYY-MM-DD",
+    ),
+  /** Short label rendered next to the reference line (≤ 80 chars). */
+  label: z
+    .string()
+    .min(1, "storyboardAnnotation.label required")
+    .max(80, "storyboardAnnotation.label must be <= 80 chars"),
+  /**
+   * Category drives the annotation colour:
+   *   - "medication" — Dracula pink (started/changed dose)
+   *   - "event"      — Dracula cyan (a notable user-logged event)
+   *   - "milestone"  — Dracula green (target hit, streak milestone)
+   *   - "warning"    — Dracula orange (a deviation worth flagging)
+   */
+  category: z.enum(["medication", "event", "milestone", "warning"]),
+  /** One-paragraph detail that the chapter card surfaces below the chart. */
+  detail: z
+    .string()
+    .min(1, "storyboardAnnotation.detail required")
+    .max(400, "storyboardAnnotation.detail must be <= 400 chars"),
+});
+
+export type StoryboardAnnotation = z.infer<typeof storyboardAnnotationSchema>;
+
+export const storyboardAnnotationsSchema = z
+  .array(storyboardAnnotationSchema)
+  .max(20, "storyboardAnnotations can hold at most 20 entries");
+
+/**
  * Canonical strict response schema. New strict fields are required;
  * legacy rich fields ride along through `.passthrough()` for back-
  * compat with cached payloads and the existing dashboard renderer.
@@ -230,6 +451,30 @@ export const aiInsightResponseSchema = z
     citations: z.array(aiCitationSchema),
     /** Guideline-flagged values (e.g. BP > 140/90). May be empty. */
     warnings: z.array(aiWarningSchema),
+    /**
+     * v1.4.20 phase B1 — optional Daily Briefing payload. Nullable +
+     * optional so legacy cached payloads (from before PROMPT_VERSION
+     * 4.20.0) round-trip without forcing a regenerate.
+     */
+    dailyBriefing: dailyBriefingSchema.nullable().optional(),
+    /**
+     * v1.4.20 phase B3 — optional Trend Annotations block. Each metric
+     * is independently optional; the wrapping object is nullable so
+     * legacy 4.20.0 caches round-trip.
+     */
+    trendAnnotations: trendAnnotationsSchema.nullable().optional(),
+    /**
+     * v1.4.20 phase B4 — optional Weekly Report block. Nullable +
+     * optional so legacy cached payloads from before PROMPT_VERSION
+     * 4.20.2 round-trip without forcing a regenerate.
+     */
+    weeklyReport: weeklyReportSchema.nullable().optional(),
+    /**
+     * v1.4.20 phase B4 — optional storyboard annotations. Each entry
+     * pins a vertical reference line + chapter card to a date on the
+     * 90-day BP timeline. Optional so legacy caches round-trip.
+     */
+    storyboardAnnotations: storyboardAnnotationsSchema.optional(),
   })
   .passthrough();
 

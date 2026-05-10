@@ -2,6 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InsightResult } from "@/lib/ai/types";
+import {
+  dailyBriefingSchema,
+  trendAnnotationsSchema,
+  type DailyBriefing as DailyBriefingPayload,
+  type TrendAnnotations,
+} from "@/lib/ai/schema";
 import { queryKeys } from "@/lib/query-keys";
 
 /**
@@ -26,6 +32,21 @@ export interface InsightAdvisorPayload {
   cached: boolean;
   cachedAt?: string | null;
   legacyPayload?: boolean;
+  /**
+   * v1.4.20 phase B1 — Daily Briefing block surfaced for the new hero
+   * strip + briefing card. Lives on the cached payload alongside the
+   * legacy `insights` shape (see `aiInsightResponseSchema` — the
+   * `.passthrough()` lets the field round-trip through any provider).
+   * Validated client-side via the schema's `safeParse` to keep a
+   * malformed payload from poisoning the briefing card.
+   */
+  dailyBriefing?: DailyBriefingPayload | null;
+  /**
+   * v1.4.20 phase B3 — optional trend annotations for the Trends row.
+   * Same lift-pattern as `dailyBriefing` — validated client-side and
+   * left null when the cached payload predates PROMPT_VERSION 4.20.1.
+   */
+  trendAnnotations?: TrendAnnotations | null;
 }
 
 async function fetchAdvisor(
@@ -46,7 +67,38 @@ async function fetchAdvisor(
     throw new Error(`HTTP ${res.status}`);
   }
   const json = await res.json();
-  return json.data as InsightAdvisorPayload;
+  const payload = json.data as InsightAdvisorPayload;
+  // The cached `insights` blob may carry a `dailyBriefing` from a fresh
+  // PROMPT_VERSION 4.20.x generation. Lift it onto the payload so
+  // consumers don't have to know the legacy shape.
+  const briefingCandidate = (payload?.insights as Record<string, unknown>)
+    ?.dailyBriefing;
+  if (briefingCandidate != null) {
+    const parsed = dailyBriefingSchema.safeParse(briefingCandidate);
+    if (parsed.success) {
+      payload.dailyBriefing = parsed.data;
+    } else {
+      // Malformed cached briefing — keep null so the UI shows the
+      // empty-state CTA instead of a half-rendered card.
+      payload.dailyBriefing = null;
+    }
+  } else {
+    payload.dailyBriefing = null;
+  }
+
+  // v1.4.20 phase B3 — same lift for `trendAnnotations`. Cached payloads
+  // from the 4.20.0 line predate the field, so null is the expected
+  // default. A malformed candidate also resolves to null so the UI
+  // surfaces the per-metric empty hint instead of a half-rendered card.
+  const annotationsCandidate = (payload?.insights as Record<string, unknown>)
+    ?.trendAnnotations;
+  if (annotationsCandidate != null) {
+    const parsed = trendAnnotationsSchema.safeParse(annotationsCandidate);
+    payload.trendAnnotations = parsed.success ? parsed.data : null;
+  } else {
+    payload.trendAnnotations = null;
+  }
+  return payload;
 }
 
 export interface UseInsightsAdvisorResult {

@@ -41,8 +41,14 @@ import {
 } from "lucide-react";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { InsightAdvisorCard } from "@/components/insights/insight-advisor-card";
-import { InsightsPageHero } from "@/components/insights/insights-page-hero";
+import { HeroStrip } from "@/components/insights/hero-strip";
+import { DailyBriefing } from "@/components/insights/daily-briefing";
+import { CoachDrawer } from "@/components/insights/coach-panel/coach-drawer";
+import { TrendsRow } from "@/components/insights/trends-row";
+import { CorrelationRow } from "@/components/insights/correlation-row";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
+import type { CorrelationResult } from "@/lib/insights/correlations";
+import { toWeekISO } from "@/lib/insights/week-iso";
 import { CompareToggle } from "@/components/comparison/compare-toggle";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
 // wrapper so the bundle only lands once a correlation card actually renders.
@@ -153,6 +159,34 @@ interface ComprehensiveData {
 
 interface AnalyticsData {
   summaries: Record<string, DataSummary>;
+  /**
+   * v1.4.20 phase B3 — three pre-defined correlation hypothesis runners
+   * computed server-side. Optional + nullable so the page handles the
+   * v1.4.19-style cached `analytics` payload without flashing an empty
+   * row before the next refetch.
+   */
+  correlations?: {
+    bpCompliance: CorrelationResult;
+    moodPulse: CorrelationResult;
+    weightWeekday: CorrelationResult;
+  } | null;
+  /**
+   * v1.4.20 phase B5 — composite Personal Health Score with sub-component
+   * breakdown + delta vs last week. Optional + nullable so older cached
+   * `analytics` payloads continue to render the rest of the page; the
+   * hero panel hides cleanly when the field is absent.
+   */
+  healthScore?: {
+    score: number;
+    band: "green" | "yellow" | "red";
+    components: {
+      bp: { value: number | null; weight: number };
+      weight: { value: number | null; weight: number };
+      mood: { value: number | null; weight: number };
+      compliance: { value: number | null; weight: number };
+    };
+    delta: number | null;
+  } | null;
 }
 
 interface GeneralStatusData {
@@ -484,9 +518,26 @@ function getMedicationComplianceSectionStatus(input: {
   };
 }
 
+// v1.4.20 phase D reconcile — module-scope so the map isn't recreated
+// on every render of `<InsightsPage>` (the page renders often on
+// TanStack-Query refetches; this map carries no closures over locals).
+const STORYBOARD_COLOR_BY_CATEGORY: Record<string, string> = {
+  medication: "var(--dracula-pink)",
+  event: "var(--dracula-cyan)",
+  milestone: "var(--dracula-green)",
+  warning: "var(--dracula-orange)",
+};
+
 export default function InsightsPage() {
   const { isAuthenticated, user } = useAuth();
   const { t, locale } = useTranslations();
+
+  // v1.4.20 phase B2b — Coach drawer state. The hero strip's
+  // "Ask the coach" button + suggested-prompt chips toggle the drawer
+  // here; the drawer ingests `coachPrefill` once on open and resets on
+  // close so the next open starts blank.
+  const [coachOpen, setCoachOpen] = useState<boolean>(false);
+  const [coachPrefill, setCoachPrefill] = useState<string | null>(null);
 
   const STRENGTH_LABELS: Record<string, string> = {
     stark: t("insights.strengthStrong"),
@@ -840,14 +891,111 @@ export default function InsightsPage() {
     medicationComplianceStatus?.updatedAt,
   ]);
 
+  // v1.4.20 phase B1 — derive the user's display name for the hero
+  // greeting. We use the username (HealthLog has no separate display-
+  // name field) and stop at the first whitespace so a "first.last"
+  // handle reads cleanly. Falls back to no-name greeting when the user
+  // has no username so the hero never paints "Good morning, undefined".
+  const heroGreetingName =
+    user?.username?.trim() && user.username.trim().length > 0
+      ? user.username.split(/\s+/)[0]
+      : null;
+  const briefingPayload = advisor.payload?.dailyBriefing ?? null;
+  const heroStripUpdatedAt = advisor.payload?.cachedAt ?? heroUpdatedAt;
+
+  // v1.4.20 phase B4 — surface a banner-card on the hero whenever the
+  // cached AI payload carries a weeklyReport block. The banner deep-
+  // links into `/insights/report/[week]` for Read / Share / Export PDF.
+  const weeklyReport = (
+    advisor.payload?.insights as
+      | {
+          weeklyReport?: { weekISO: string } | null;
+        }
+      | undefined
+  )?.weeklyReport;
+  const weeklyReportReady = weeklyReport
+    ? {
+        weekISO: weeklyReport.weekISO,
+        href: `/insights/report/${weeklyReport.weekISO}`,
+      }
+    : undefined;
+  // v1.4.20 phase D reconcile — the action-row "Generate weekly report"
+  // button links into the current ISO week's report (B4 shipped the
+  // route, so the disabled-primary placeholder no longer makes sense).
+  const currentWeekHref = `/insights/report/${toWeekISO(new Date())}`;
+
+  // v1.4.20 phase B4 — storyboard annotations for the 90-day BP chart.
+  // The advisor payload may carry up to 20 entries; we transform them
+  // into the {date, label, color} shape <HealthChart> consumes. The
+  // colour map mirrors the four canonical categories (hoisted to
+  // module scope above). Cached payloads from before PROMPT_VERSION
+  // 4.20.2 simply produce an empty array.
+  const rawStoryboard = (
+    advisor.payload?.insights as
+      | {
+          storyboardAnnotations?: Array<{
+            date: string;
+            label: string;
+            category: string;
+          }>;
+        }
+      | undefined
+  )?.storyboardAnnotations;
+  const bpStoryboardAnnotations = (rawStoryboard ?? []).map((entry) => ({
+    date: entry.date,
+    label: entry.label,
+    color:
+      STORYBOARD_COLOR_BY_CATEGORY[entry.category] ?? "var(--dracula-purple)",
+  }));
+
   return (
     <div className="space-y-8">
-      <InsightsPageHero
-        updatedAt={advisor.payload?.cachedAt ?? heroUpdatedAt}
+      <HeroStrip
+        briefing={briefingPayload}
+        updatedAt={heroStripUpdatedAt}
+        userName={heroGreetingName}
+        onRegenerate={advisor.regenerate}
+        regenerating={advisor.isRegenerating}
+        onAskCoach={(prefill?: string) => {
+          // The action-row button passes no prefill (drawer opens blank);
+          // the Health Score panel passes a score-aware question. Both
+          // share the same drawer state so the user only ever sees one
+          // drawer instance.
+          setCoachPrefill(prefill ?? null);
+          setCoachOpen(true);
+        }}
+        onPickPrompt={(prompt) => {
+          setCoachPrefill(prompt);
+          setCoachOpen(true);
+        }}
+        weeklyReportReady={weeklyReportReady}
+        weeklyReportHref={currentWeekHref}
+        healthScore={analytics?.healthScore ?? undefined}
+      />
+
+      <DailyBriefing
+        briefing={briefingPayload}
+        updatedAt={heroStripUpdatedAt}
+        loading={advisor.isLoading}
         onRegenerate={advisor.regenerate}
         regenerating={advisor.isRegenerating}
         metaSlot={<CompareToggle />}
       />
+
+      {/* v1.4.20 phase B3 — Correlation discovery row. Three pre-defined
+          hypotheses (BP × compliance, mood × pulse, weight × weekday) gated
+          on n >= 14 + p < 0.05; cards below the bar render a per-card
+          empty-state. The row-level disclaimer ("Patterns are observational,
+          not causal …") sits below the grid once. */}
+      {analytics?.correlations && (
+        <CorrelationRow results={analytics.correlations} />
+      )}
+
+      {/* v1.4.20 phase B3 — Trends row. Mini BP / Weight / Mood charts
+          with an inline AI-authored sentence below each. Annotations come
+          from `advisor.payload.trendAnnotations` (PROMPT_VERSION 4.20.1+);
+          legacy cached payloads simply paint the per-metric empty hint. */}
+      <TrendsRow annotations={advisor.payload?.trendAnnotations ?? null} />
 
       {/* v1.4.16 phase D reconcile (CRITICAL C1) — wire the polished
           `<InsightAdvisorCard>` (severity-ordered recommendations grid +
@@ -911,6 +1059,7 @@ export default function InsightsPage() {
           yAxisUnit="Hg"
           targetZones={bpTargetZones}
           compareBaseline={compareBaseline}
+          annotations={bpStoryboardAnnotations}
         />
 
         <div className="grid gap-4 xl:grid-cols-2">
@@ -1467,6 +1616,17 @@ export default function InsightsPage() {
           loading={isBmiStatusLoading}
         />
       </section>
+
+      {/* v1.4.20 phase B2b — AI Coach drawer. The drawer reads its
+          initial input value from `prefill`; we change the React `key`
+          on every prefill transition so the lazy `useState` initialiser
+          fires fresh and the composer surfaces the latest chip. */}
+      <CoachDrawer
+        key={coachPrefill ?? "blank"}
+        open={coachOpen}
+        onOpenChange={setCoachOpen}
+        prefill={coachPrefill}
+      />
     </div>
   );
 }

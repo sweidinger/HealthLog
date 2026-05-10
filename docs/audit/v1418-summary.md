@@ -54,10 +54,10 @@ v1.4.19 backlog: see `.planning/v1419-backlog.md`.
 
 ### Cleanup A — Quick fixes
 
-| Bucket | Headline commit | Subject |
-| ------ | --------------- | ------- |
-| A1     | `23363ca`       | fix(analytics): wire BD-Zielbereich tile 7T/30T sub-values via `computeBpInTargetWindows()` |
-| A2     | `3e16074`       | fix(admin): AdminShell mobile section strip — `.no-scrollbar` utility on both AdminShell + SettingsShell pillstrips |
+| Bucket | Headline commit                         | Subject                                                                                                                         |
+| ------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| A1     | `23363ca`                               | fix(analytics): wire BD-Zielbereich tile 7T/30T sub-values via `computeBpInTargetWindows()`                                     |
+| A2     | `3e16074`                               | fix(admin): AdminShell mobile section strip — `.no-scrollbar` utility on both AdminShell + SettingsShell pillstrips             |
 | A3     | (6 commits in `agent/a3-charts-revert`) | feat(charts): clean-line revert + per-chart overlay toggles (`useChartOverlayPrefs` + `PUT /api/dashboard/chart-overlay-prefs`) |
 
 A3's six atomic commits: gradient-fill module deleted, mood-chart
@@ -105,20 +105,20 @@ TypeError on cached pre-strict insight payloads. Three commits on
 
 ### Cleanup E — Release
 
-| Item                              | Result                                                                       |
-| --------------------------------- | ---------------------------------------------------------------------------- |
-| Pre-release verify                | `pnpm typecheck` clean; `pnpm test` 1605/1605; integration 66/66             |
-| Release commit                    | `0243e20 chore(release): v1.4.18`                                            |
-| Tag                               | `v1.4.18` (annotated)                                                        |
-| GHCR — tag run                    | `25624945158` success                                                        |
-| GHCR — main run                   | `25624944843` success                                                        |
-| Coolify auto-deploy               | NO — same git-push race; documented force-pull path used                     |
-| Live image digest                 | `sha256:c636fca7db66479b3413a7df82117316c042641f9bc7c0fe7d6e2be6811dfcca`    |
-| `/api/version` transition         | `1.4.17` → `1.4.18` within first 5-second poll cycle                         |
-| Smoke (15 routes, live session)   | 14/14 real routes 200; `/dashboard` 404 expected (root is dashboard)         |
-| GH release                        | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.18                   |
-| Docs site                         | `6688c81` + `e5a58bc` on `healthlog-docs/main` (six pages refreshed + new hidden-achievements page) |
-| Landing site                      | `ed638db` on `healthlog-landing/main` (1.4.16 → 1.4.18, clean-line phrasing) |
+| Item                            | Result                                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Pre-release verify              | `pnpm typecheck` clean; `pnpm test` 1605/1605; integration 66/66                                    |
+| Release commit                  | `0243e20 chore(release): v1.4.18`                                                                   |
+| Tag                             | `v1.4.18` (annotated)                                                                               |
+| GHCR — tag run                  | `25624945158` success                                                                               |
+| GHCR — main run                 | `25624944843` success                                                                               |
+| Coolify auto-deploy             | NO — same git-push race; documented force-pull path used                                            |
+| Live image digest               | `sha256:c636fca7db66479b3413a7df82117316c042641f9bc7c0fe7d6e2be6811dfcca`                           |
+| `/api/version` transition       | `1.4.17` → `1.4.18` within first 5-second poll cycle                                                |
+| Smoke (15 routes, live session) | 14/14 real routes 200; `/dashboard` 404 expected (root is dashboard)                                |
+| GH release                      | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.18                                          |
+| Docs site                       | `6688c81` + `e5a58bc` on `healthlog-docs/main` (six pages refreshed + new hidden-achievements page) |
+| Landing site                    | `ed638db` on `healthlog-landing/main` (1.4.16 → 1.4.18, clean-line phrasing)                        |
 
 ---
 
@@ -132,8 +132,8 @@ Full backlog: `.planning/v1419-backlog.md`. Highlights:
   `messages/de.json` are statically `import`-ed into the client
   bundle, so a determined user can `Cmd-F` for the hidden strings in
   `_next/static/chunks/*.js`. Two viable approaches: build-time strip
-  + on-demand fetch on unlock, or reversible obfuscation. Approach 1
-  is the v1.5 fix, approach 2 the v1.4.19 stopgap.
+  - on-demand fetch on unlock, or reversible obfuscation. Approach 1
+    is the v1.5 fix, approach 2 the v1.4.19 stopgap.
 - **MED items**: 12 entries spanning code-review, design, and
   senior-dev — see `.planning/v1419-backlog.md`. Notable:
   `chart-overlay-prefs` route still lacks `withIdempotency()`
@@ -227,7 +227,7 @@ Full backlog: `.planning/v1419-backlog.md`. Highlights:
     tag examples bumped 1.4.16 → 1.4.18, rollback example
     1.4.15 → 1.4.17.
 - **healthlog-landing** (Next.js) — `softwareVersion 1.4.16 →
-  1.4.18` in JSON-LD; featureList line rewritten as "Clean-line
+1.4.18` in JSON-LD; featureList line rewritten as "Clean-line
   health charts with smooth animation, rich tooltips, and explicit
   empty states — plus per-chart toggles for trend indicator, trend
   arrow, and target-range overlay"; capability badges updated

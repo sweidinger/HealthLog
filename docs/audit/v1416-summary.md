@@ -124,20 +124,20 @@ the maintainer's "leave it" call.
 
 ### Cleanup E — Release
 
-| Item                              | Result                                                                               |
-| --------------------------------- | ------------------------------------------------------------------------------------ |
-| Pre-release verify                | `pnpm typecheck` clean; `pnpm test` 1540/1540; integration 59/59                     |
-| Release commit                    | `d443c22 chore(release): v1.4.16`                                                    |
-| Tag                               | `v1.4.16` (annotated)                                                                |
-| GHCR — tag run                    | `25616783583` success, digest `2f1a0d6b381d…`                                        |
-| GHCR — main run                   | `25616782255` success, digest `4841bef396ad…`                                        |
-| Coolify auto-deploy               | NO — same race as v1.4.14/v1.4.15; retag-on-host fallback used                       |
-| Live image digest                 | `sha256:05f8a126d63962d9a4af4769de830d3fee022d634787e811b4339ee464420daa`            |
-| `/api/version` transition         | `1.4.15` → `1.4.16` at `2026-05-10T03:45:58+02:00`                                   |
-| Smoke (14 routes, live session)   | 13/14 200; `/dashboard` 404 expected (root is dashboard)                             |
-| GH release                        | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.16                           |
-| Docs site                         | `8addef4` + `2a5802b` on `healthlog-docs/main` (44 pages, three new deep-dive pages) |
-| Landing site                      | `3d17207` on `healthlog-landing/main` (1.4.15 → 1.4.16, AI cards updated)            |
+| Item                            | Result                                                                               |
+| ------------------------------- | ------------------------------------------------------------------------------------ |
+| Pre-release verify              | `pnpm typecheck` clean; `pnpm test` 1540/1540; integration 59/59                     |
+| Release commit                  | `d443c22 chore(release): v1.4.16`                                                    |
+| Tag                             | `v1.4.16` (annotated)                                                                |
+| GHCR — tag run                  | `25616783583` success, digest `2f1a0d6b381d…`                                        |
+| GHCR — main run                 | `25616782255` success, digest `4841bef396ad…`                                        |
+| Coolify auto-deploy             | NO — same race as v1.4.14/v1.4.15; retag-on-host fallback used                       |
+| Live image digest               | `sha256:05f8a126d63962d9a4af4769de830d3fee022d634787e811b4339ee464420daa`            |
+| `/api/version` transition       | `1.4.15` → `1.4.16` at `2026-05-10T03:45:58+02:00`                                   |
+| Smoke (14 routes, live session) | 13/14 200; `/dashboard` 404 expected (root is dashboard)                             |
+| GH release                      | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.16                           |
+| Docs site                       | `8addef4` + `2a5802b` on `healthlog-docs/main` (44 pages, three new deep-dive pages) |
+| Landing site                    | `3d17207` on `healthlog-landing/main` (1.4.15 → 1.4.16, AI cards updated)            |
 
 ---
 

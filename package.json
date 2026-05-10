@@ -1,6 +1,26 @@
 {
   "name": "healthlog",
-  "version": "1.4.19",
+  "version": "1.4.20",
+  "description": "Self-hosted personal-health-tracking PWA with Withings integration, AI insights, and doctor-report PDF export.",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://healthlog.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MBombeck/HealthLog.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MBombeck/HealthLog/issues"
+  },
+  "keywords": [
+    "health-tracking",
+    "self-hosted",
+    "pwa",
+    "blood-pressure",
+    "withings",
+    "next.js",
+    "prisma",
+    "passkey"
+  ],
   "private": true,
   "packageManager": "pnpm@10.31.0",
   "scripts": {
