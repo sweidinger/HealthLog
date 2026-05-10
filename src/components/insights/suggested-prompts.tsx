@@ -70,8 +70,8 @@ export function SuggestedPrompts({
           data-slot="insights-suggested-prompts-chip"
           className={cn(
             "border-dracula-purple/18 hover:border-dracula-purple/40 hover:text-foreground",
-            "text-muted-foreground inline-flex items-center gap-1.5",
-            "rounded-full border bg-transparent px-3 py-1.5 text-xs",
+            "text-muted-foreground inline-flex min-h-9 items-center gap-1.5",
+            "rounded-full border bg-transparent px-3.5 py-2 text-[13px]",
             "transition-colors focus-visible:outline-none focus-visible:ring-2",
             "focus-visible:ring-dracula-purple/50",
           )}
