@@ -131,8 +131,10 @@ function resolveGreetingKey(now: Date): string {
   const hour = now.getHours();
   if (hour >= 5 && hour < 12) return "insights.heroGreetingMorning";
   if (hour >= 12 && hour < 18) return "insights.heroGreetingAfternoon";
-  if (hour >= 18 && hour < 23) return "insights.heroGreetingEvening";
-  return "insights.heroGreetingNight";
+  // 18:00-22:59 maps to "Good evening"; 23:00-04:59 also maps to
+  // "Good evening" — reading "Good morning" pre-5am felt off, and
+  // German has the same fall-through. Drop the duplicate Night key.
+  return "insights.heroGreetingEvening";
 }
 
 export function HeroStrip({
