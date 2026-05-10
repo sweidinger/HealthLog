@@ -9,6 +9,8 @@ import {
   calculateLongestStreak,
   evaluateAchievementsWithCompletionDates,
   toBerlinDayKey,
+  type AchievementMetrics,
+  type AchievementProgress,
 } from "@/lib/gamification/achievements";
 import {
   buildExpansionMetricValues,
@@ -835,6 +837,24 @@ export const GET = apiHandler(async (request: NextRequest) => {
       .filter((a) => !a.unlocked && !a.isHidden)
       .sort((a, b) => b.progressPercent - a.progressPercent)[0] ?? null;
 
+  // v1.4.18 reconcile — redact hidden+locked entries before serialising
+  // so a curious user opening DevTools/Network can't read the trigger
+  // semantics from `metric`, `titleKey`, `descriptionKey`, `icon`,
+  // `target`, `current`, or `progressPercent`. The DOM render path
+  // already short-circuits on `isHidden && !unlocked`; this closes the
+  // wire-shape leak. Once an Easter-egg unlocks, the real fields ship
+  // (the unlock IS the moment to reveal the surprise).
+  const redactedAchievements = visibleAchievements.map((a) =>
+    redactIfHiddenLocked(a),
+  );
+  const redactedNextAchievement = nextAchievement
+    ? redactIfHiddenLocked(nextAchievement)
+    : null;
+  const redactedMetrics = redactHiddenMetrics(
+    fullResult.metrics,
+    visibleAchievements,
+  );
+
   const result = {
     summary: {
       unlockedCount: visibleUnlocked.length,
@@ -847,10 +867,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
           : Math.round(
               (visibleUnlocked.length / visibleAchievements.length) * 100,
             ),
-      nextAchievement,
+      nextAchievement: redactedNextAchievement,
     },
-    achievements: visibleAchievements,
-    metrics: fullResult.metrics,
+    achievements: redactedAchievements,
+    metrics: redactedMetrics,
   };
 
   if (isIosFormat) {
@@ -859,7 +879,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
       userLocale: user.locale,
     });
     const t = getServerTranslator(locale);
-    const ios: IosAchievement[] = result.achievements.map((a) => ({
+    // Same redaction principle: iOS clients receive opaque
+    // placeholders for hidden+locked entries. The native client
+    // mirrors the web-card opaque-placeholder UI when it sees the
+    // sentinel id `achievements.hiddenCard.title` come back.
+    const ios: IosAchievement[] = redactedAchievements.map((a) => ({
       id: a.id,
       key: a.id,
       title: t.t(a.titleKey),
@@ -874,3 +898,66 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   return apiSuccess(result);
 });
+
+/**
+ * Hidden Easter-eggs ship to the client *only* as opaque cards while
+ * locked. Returning the full `AchievementProgress` shape would let a
+ * snooper read the trigger semantics from `metric`, `titleKey`, etc.
+ * This helper projects locked+hidden entries down to the safe shape
+ * the UI's opaque-placeholder branch needs.
+ *
+ * Unlocked hidden achievements pass through unchanged — the unlock IS
+ * the reveal moment, so the toast and the unlocked card show the real
+ * strings.
+ */
+function redactIfHiddenLocked(
+  achievement: AchievementProgress,
+): AchievementProgress {
+  if (!achievement.isHidden || achievement.unlocked) return achievement;
+  return {
+    id: achievement.id,
+    metric: "totalTakenIntakes",
+    category: "hidden",
+    titleKey: "achievements.hiddenCard.title",
+    descriptionKey: "achievements.hiddenCard.description",
+    icon: "HelpCircle",
+    format: "count",
+    target: 0,
+    current: 0,
+    points: achievement.points,
+    unlocked: false,
+    progressPercent: 0,
+    completedAt: null,
+    isHidden: true,
+  };
+}
+
+/**
+ * Drop hidden-only metric counters from the response `metrics` block
+ * unless any hidden achievement they back is unlocked. The DOM never
+ * reads these counters today — the only consumer is the iOS client's
+ * progress bar — so removing the hidden ones from the wire is a pure
+ * spoiler shield with zero UI impact.
+ */
+function redactHiddenMetrics(
+  metrics: AchievementMetrics,
+  achievements: AchievementProgress[],
+): Partial<AchievementMetrics> {
+  const HIDDEN_METRIC_KEYS = [
+    "nightOwlCount",
+    "earlyBirdCount",
+    "leapDayCount",
+    "doctorPdfCount",
+    "localeFlipCount",
+  ] as const;
+  const safe: Partial<AchievementMetrics> = { ...metrics };
+  for (const key of HIDDEN_METRIC_KEYS) {
+    const backing = achievements.find(
+      (a) => a.isHidden && a.metric === key && a.unlocked,
+    );
+    if (!backing) {
+      delete safe[key];
+    }
+  }
+  return safe;
+}
