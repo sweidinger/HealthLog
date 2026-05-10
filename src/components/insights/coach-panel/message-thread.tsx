@@ -5,6 +5,7 @@ import { Bot, ChevronRight, Sparkles, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
+import { useAuth } from "@/hooks/use-auth";
 
 import { SourceChips } from "./source-chips";
 import type {
@@ -166,7 +167,16 @@ function ChatBubble({
   errorCode,
 }: ChatBubbleProps) {
   const { t } = useTranslations();
+  const { user } = useAuth();
   if (role === "user") {
+    // v1.4.22 B3 — pull the user's Gravatar so the user bubble's
+    // avatar matches the Coach avatar in size and visual weight.
+    // Falls back to the generic person glyph when the user hasn't
+    // configured an email (or the Gravatar lookup returned null).
+    const gravatarUrl = user?.gravatarUrl ?? null;
+    const initials = user?.username
+      ? user.username.slice(0, 2).toUpperCase()
+      : null;
     return (
       <div
         data-slot="coach-bubble-user"
@@ -181,12 +191,24 @@ function ChatBubble({
         >
           {content}
         </div>
-        <div
-          aria-hidden="true"
-          className="text-muted-foreground bg-muted/60 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full"
-        >
-          <User className="size-3.5" />
-        </div>
+        {gravatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={gravatarUrl}
+            alt=""
+            aria-hidden="true"
+            data-slot="coach-bubble-user-avatar"
+            className="border-border/50 mt-0.5 size-8 shrink-0 rounded-full border object-cover"
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            data-slot="coach-bubble-user-avatar"
+            className="text-muted-foreground bg-muted/60 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold"
+          >
+            {initials ?? <User className="size-3.5" />}
+          </div>
+        )}
       </div>
     );
   }

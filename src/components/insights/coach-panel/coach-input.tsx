@@ -30,8 +30,9 @@ import { useTranslations } from "@/lib/i18n/context";
  * with the iOS app in v1.5") because the natural shipper of voice is
  * the native client, not the PWA.
  *
- * The disclaimer below the input is a hard requirement — Coach
- * replies are not medical advice.
+ * v1.4.22 B4: the disclaimer ("Coach replies are generated …") moved
+ * out of the composer and into the sources rail footer, so the
+ * composer stays focused on the input affordance.
  */
 export interface CoachInputProps {
   value: string;
@@ -85,7 +86,7 @@ export function CoachInput({
     <form
       data-slot="coach-input"
       onSubmit={handleFormSubmit}
-      className="flex flex-col gap-2"
+      className="flex flex-col"
     >
       <div
         className={cn(
@@ -151,12 +152,6 @@ export function CoachInput({
           </Button>
         </div>
       </div>
-      <p
-        data-slot="coach-input-disclaimer"
-        className="text-muted-foreground text-[11px]"
-      >
-        {t("insights.coach.composerDisclaimer")}
-      </p>
     </form>
   );
 }

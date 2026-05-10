@@ -11,7 +11,9 @@ function render(node: React.ReactNode, locale: "en" | "de" = "en") {
 }
 
 describe("<CoachInput>", () => {
-  it("mounts the textarea, mic, send button, and disclaimer slots", () => {
+  it("mounts the textarea, mic, and send button slots", () => {
+    // v1.4.22 B4 — the disclaimer moved to the sources rail; the
+    // composer no longer renders its own paragraph below the input.
     const html = render(
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
     );
@@ -19,8 +21,8 @@ describe("<CoachInput>", () => {
     expect(html).toContain('data-slot="coach-input-textarea"');
     expect(html).toContain('data-slot="coach-input-mic"');
     expect(html).toContain('data-slot="coach-input-send"');
-    expect(html).toContain('data-slot="coach-input-disclaimer"');
-    expect(html).toContain("Coach replies are generated");
+    expect(html).not.toContain('data-slot="coach-input-disclaimer"');
+    expect(html).not.toContain("Coach replies are generated");
   });
 
   it("renders the localised placeholder + hint", () => {
@@ -31,13 +33,12 @@ describe("<CoachInput>", () => {
     expect(html).toContain("Press Enter to send");
   });
 
-  it("renders the German placeholder + disclaimer when locale is 'de'", () => {
+  it("renders the German placeholder under the 'de' locale", () => {
     const html = render(
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
       "de",
     );
     expect(html).toContain("Frag mich etwas zu deinen Daten");
-    expect(html).toContain("Klinische Entscheidungen gehören in die Hand");
   });
 
   it("disables the mic button with the v1.5 tooltip text", () => {

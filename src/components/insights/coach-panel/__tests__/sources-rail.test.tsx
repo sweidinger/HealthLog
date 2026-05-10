@@ -44,11 +44,10 @@ describe("<SourcesRail>", () => {
     expect(html).toContain("Einnahmetreue");
   });
 
-  it("renders the footer disclaimer", () => {
+  it("renders the medical disclaimer in the footer (relocated from the composer in v1.4.22)", () => {
     const html = render(<SourcesRail />);
-    expect(html).toContain(
-      "The Coach reads only the data you&#x27;ve connected.",
-    );
+    expect(html).toContain('data-slot="coach-sources-disclaimer"');
+    expect(html).toContain("Clinical decisions belong with your doctor");
   });
 
   it("renders a checkbox per row + a window selector trigger", () => {
