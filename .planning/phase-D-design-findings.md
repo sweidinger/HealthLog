@@ -1,495 +1,265 @@
-# Phase D — Design / UX review findings (v1.4.15)
+# Phase D — DESIGN/UX review (v1.4.16, Apple-Health-quality benchmarking lens)
 
-**Reviewer**: design / UX (parallel D-agent)
-**Method**: source review of JSX + Tailwind + i18n strings against the
-A5 mobile audit baseline, B-mobile applied fixes, and the canon set in
-`docs/ui-guidelines.md`. Playwright was not run — the v1.4.15 marathon's
-parallel-agent racing makes a fresh local boot unreliable, and the A5
-audit at `https://healthlog.bombeck.io` already covers production
-device measurements. This pass focuses on the v1.4.15 *new surfaces*
-(B1 backups, B2 integrations status, B3 notifications, B4 achievements,
-B5 onboarding tour, A2 admin overview, A3 mood tile) plus the
-deferred-from-A5 cluster the B-mobile phase explicitly punted to v1.4.16.
+Reviewer: phase-D DESIGN/UX agent
+Marathon: v1.4.16 (live: 1.4.15; under-test: 1.4.16)
+Date: 2026-05-09 (UTC+2)
+Approach: source-code audit (v1.4.16 not yet deployed; live Playwright not driven).
 
-**Out of scope (per phase brief)**: chart visual style, Dracula tokens,
-chart-data changes that landed in A4. None of the findings below
-recommend chart-look changes.
-
-**Tally**: **0 CRITICAL · 5 HIGH · 11 MEDIUM/LOW**.
-
-Empty CRITICAL is real: the A5 audit already produced its CRITICAL
-list (admin/users mobile grid + admin/users table column hide-off);
-B-mobile applied both. No new ship-blockers introduced by v1.4.15
-features.
+Per brief: "Apple Health benchmarking lens — does the polish reach the bar Marc set?"
 
 ---
 
-## HIGH
+## Executive summary
 
-### H1 — Onboarding tour misses Tab focus-trap (a11y, source comment lies)
+v1.4.16 ships a *huge* amount of code-level polish (gradient hero, ConfidenceMeter, RationaleCard with mini-charts, severity-coloured grid, comparison overlay, host-load chart, AI quality table). However, the **headline finding** is that the most visible Apple-Health-quality affordances — the polished `<InsightAdvisorCard>` consuming `<RecommendationsGrid>`, `<RecommendationCard>`, `<ConfidenceMeter>`, `<RecommendationFeedback>` — are **NOT mounted on any production page**. They live in tests only.
 
-**Severity**: HIGH
-**Files**: `src/components/onboarding/tour.tsx:27-29` (the docstring) +
-`tour.tsx:265-292` (the keydown effect)
-**Issue**: The component's docstring explicitly states "Tab is trapped
-inside the tooltip", and the brief's check item #8 expects a focus
-trap. The implementation handles `Escape`, `Enter`, `ArrowLeft`,
-`ArrowRight` only — there is **no Tab handler**, no
-`trapFocus`/`focusin` listener, no `tabindex="-1"` shielding for the
-underlying page, and no return-focus-on-close. The tooltip's
-`role="dialog" aria-modal="true"` claims a modal context which the
-keyboard does not honour. A keyboard user pressing Tab from the Skip
-button will land on a sidebar nav item or a page-level interactive
-element (which is *also* where the spotlight cutout points), then
-visually disappear behind the dimmed backdrop — confusing focus
-state.
-**Recommendation**: Add a small Tab handler in the same `keydown`
-effect that cycles focus across the three internal buttons (Skip,
-Back, Next/Done). Also store `document.activeElement` at mount and
-restore it in the close path so Settings → Account replay returns
-focus to the "Restart" button it was triggered from. Either delete
-the "Tab is trapped" line of the docstring or implement it.
-**Ship-blocker?**: **No** for v1.4.15 (not a regression — feature is
-new), but the docstring promises behaviour the code doesn't deliver,
-which is a disclosure-style bug. v1.4.16 should close it.
+The v1.4.16 release as Marc would experience it on `/insights` is the same v1.4.15 text-only `<InsightStatusCard>` per section. The dashboard `/` likewise does not import `<InsightsCardPreview>`. **All of B5c, B5d, B5e, and B1b's cross-feature polish is invisible to the user.** This is the single biggest disconnect between the work that landed and the user's perception of the release.
+
+A second category: the comparison toggle (B8) is *only* reachable from `/settings/dashboard-layout`. There is no on-chart, on-tile, or on-page control on `/` or `/insights`. The brief was explicit ("Mobile-friendly comparison toggle, not a fragile hover-only interaction") and the UX cost is severe: a v1.4.16 user has zero on-surface affordance to toggle Vormonat / Vorjahr.
+
+Findings below grouped by severity.
 
 ---
 
-### H2 — Onboarding tour tooltip card overflows on small viewports with DE copy
+## CRITICAL — ship-blockers for v1.4.16 (must fix before tag)
 
-**Severity**: HIGH
-**Files**: `src/components/onboarding/tour.tsx:187-188` (constant
-budget), `messages/de.json` `onboarding.tour.steps.tileStrip.body`
-(verified ~210 chars in DE vs ~155 in EN)
-**Issue**: `TOOLTIP_HEIGHT = 220` is a fixed budget used for
-viewport-fit math in `computeTooltipPosition()`. The DE body strings
-for several stops run 30–45 % longer than EN; on a 393 × 851 Pixel 5
-viewport with browser font scaling at 1.2× (Marc has explicitly OK'd
-"German is ~30% longer" in CLAUDE.md), the actual rendered tooltip
-clears 280 px and overflows the budget. The candidate-position math
-believes it has 220 px of headroom and chooses a `placement` that
-leaves no room for the bottom of the card → the tooltip clips below
-the viewport and the Next/Skip buttons sit just below the fold,
-unreachable without scrolling (and the backdrop's `position: fixed`
-prevents the user from scrolling past).
-**Recommendation**: Either (a) measure the rendered tooltip after
-mount with a `ResizeObserver` and feed real height into
-`computeTooltipPosition()`, or (b) bump the budget to ~300 px and
-add an explicit `max-h-[80vh] overflow-y-auto` on the tooltip card
-so worst-case a scroll handle appears inside the card without
-ejecting the Next button.
-**Ship-blocker?**: No, but the DE-locale first-impression for new
-users is the literal use case the tour exists for. v1.4.16 priority.
+### C1 — `/insights` does NOT mount the polished `<InsightAdvisorCard>` / `<RecommendationsGrid>`. B5c/d/e/B1b are invisible
+
+- **File:** `src/app/insights/page.tsx:1006-1539`
+- **Issue:** every insights section renders `<InsightStatusCard>` (text-only summary, no rec card, no rationale, no confidence meter, no thumbs-feedback). The Apple-Health-style polish from B1b (`<InsightsPageHero>` is mounted, but it's just a header band) and the entire B5c/d/e rec-card surface (`<RecommendationCard>`, `<ConfidenceMeter>`, `<RecommendationFeedback>`, `<RationaleCard>`) is never reachable from any live route. Confirmed via `grep "InsightAdvisorCard"` — zero non-test imports across `src/`.
+- **Recommendation:** wire `<InsightAdvisorCard>` into `/insights` (consume `/api/insights/generate`) **or** explicitly de-scope B5c/B5d/B5e/B1b from v1.4.16 release notes and tell Marc the visual polish ships in v1.4.17. The B5c/d/e reports each flag this gap ("E2E not added — not mounted on a live route") but none actually wire the card. Without wiring, Marc gets v1.4.15 UX with extra unused code paths.
+- **Ship-blocker?** YES.
+
+### C2 — `<InsightsCardPreview>` (dashboard insights tile) has zero live imports — orphan component
+
+- **File:** `src/components/insights/insights-card.tsx:49`; `src/app/page.tsx` (no import)
+- **Issue:** B1b commit 5 (`d2cdf9d`) replaced the orphan v1.4.0 `<InsightsCard>` with a polished preview that renders top severity-ordered recs + ring-variant `<ConfidenceMeter>` inline. The dashboard never imports it. `grep "InsightsCardPreview" src/app` — zero matches. The dashboard renders `RecentAchievementsCard` + tile strip + charts, no insights preview.
+- **Recommendation:** mount `<InsightsCardPreview>` on `/` (the B1b report flagged this as "When dashboard wiring lands…") or hide the file and remove from v1.4.16 marketing claims.
+- **Ship-blocker?** YES — Marc sees no insights tile on the dashboard despite the B1b report explicitly citing dashboard polish.
+
+### C3 — Comparison toggle (B8) has NO on-surface control. Buried 3 clicks deep in Settings
+
+- **File:** `src/components/settings/dashboard-layout-section.tsx:192-198` (only place `compareBaseline` is settable)
+- **Issue:** Marc must navigate to /settings/dashboard-layout, scroll past 14 widgets, find the "Comparison Baseline" Select, change it, save, then back-navigate to / or /insights. The brief explicitly required "Mobile-friendly comparison toggle (not a fragile hover-only interaction)" — what shipped is a Settings-Save round-trip every time the user wants to flip from "vs. last month" to "vs. last year" or back to off. The B8 report's deferred-list mentions a `<CompareToggle>` segmented control was scoped but never built; only the persistence layer + chart-side rendering exist.
+- **Recommendation:** add a `<CompareToggle>` (segmented "None / Vormonat / Vorjahr") next to the existing range tabs (7d/30d/90d/All) on each chart, OR a single page-level toggle pinned next to the dashboard greeting. Persists via the same `dashboardWidgets` PUT the settings page uses, no API change. Without it, the comparison-overlay code (compareBaseline plumbed through 19 chart sites + tile-strip + `comparison.deltaVs.*` i18n) is dead UX — admins can demo it, users can't find it.
+- **Ship-blocker?** YES — major B8 deliverable is invisible without an on-surface toggle.
 
 ---
 
-### H3 — Tour cutout backdrop is a focusable `<button>` covering the page
+## HIGH — fix in v1.4.16 if cycle allows, or document for v1.4.17
 
-**Severity**: HIGH
-**File**: `src/components/onboarding/tour.tsx:328-334`
-**Issue**: The dimmed backdrop is rendered as
-`<button type="button" aria-label="Skip">` so a click anywhere
-counts as Skip. Two consequences:
-1. Screen-reader users tab into a single button labelled "Tour
-   überspringen" that visually has no border, no focus ring (the
-   inner `cursor-default` and `bg-black/70` win over the
-   `focus-visible:ring` from `Button` styles — and this isn't even
-   the `Button` component, it's a raw `<button>`). No a11y focus
-   ring → no visible signal that pressing Enter dismisses the tour.
-2. On a touch device a stray scroll-tap on the dimmed area immediately
-   skips the tour. The brief's check item #8 expects the spotlight
-   to keep the user in the flow until Done/Skip.
-**Recommendation**: Either (a) keep the `<button>` but add an
-explicit `focus-visible:ring-2 focus-visible:ring-primary` so
-keyboard users see it, OR (b) split the backdrop into a non-
-interactive `<div aria-hidden>` and surface the Skip action only via
-the Skip button inside the tooltip + the existing Esc handler. (b)
-matches the convention of `<Dialog>` from radix-ui where the
-backdrop is not an interactive primitive.
-**Ship-blocker?**: No. New feature, no regression vs. v1.4.14. Polish
-in v1.4.16.
+### H1 — Recommendation feedback thumbs are 28×28 px hit-area — fails WCAG 2.5.5 (44 px floor)
 
----
+- **File:** `src/components/insights/recommendation-feedback.tsx:268, 283`
+- **Issue:** both thumb buttons use `inline-flex h-7 w-7 items-center justify-center rounded-md`. h-7 = 28 px. WCAG 2.5.5 minimum is 44×44 CSS px. Wave-C MED bottom-nav fix was specifically about 44 px floors; the same floor must apply to per-rec feedback that Marc taps on a Pixel 5. Also: zero `focus-visible:` styles on the raw `<button>` so keyboard focus is invisible.
+- **Recommendation:** swap to `min-h-11 min-w-11` (or `min-h-9` at minimum + extra padding around an inner icon), add `focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2`. The brief asks "thumbs feedback button hit-area large enough" and the answer today is no.
+- **Ship-blocker?** Borderline — Marc said 44×44 is the floor; any consumer accessibility audit will cite this.
 
-### H4 — Backups / Notifications status / Tour buttons are 32 px tall (below WCAG 44 px)
+### H2 — Recommendation card chevron expand toggle: 24×24 hit area, no focus-visible
 
-**Severity**: HIGH
-**Files**:
-- `src/components/admin/backups-section.tsx:84,343,397,438,492` (every
-  `<Button size="sm">` in the surface — restore trigger, run-now,
-  upload, download per row)
-- `src/components/settings/notification-status-card.tsx:264,280` (Re-
-  enable + Send-test buttons)
-- `src/components/onboarding/tour.tsx:385,396,405` (Skip, Back, Next/
-  Done inside the tooltip)
-- `src/components/admin/recent-audit-preview.tsx:80-83` (the
-  "View all" `<Link>` is only `text-sm`, ~20 px high — even smaller)
-**Issue**: A5's cross-cutting finding ("design system default
-button/tabs/switch sizes are too small for mobile") was deferred from
-B-mobile to v1.4.16 because the fix touches `button.tsx` which
-ripples everywhere. Meanwhile the v1.4.15 *new* surfaces shipped with
-the same `size="sm"` pattern (h-8 = 32 px) so we accreted three more
-pages that fail WCAG 2.5.5 in addition to the pages A5 already
-flagged. B-mobile's fix-list explicitly hardened *only* a dozen
-specific call-sites (chart range, mood-list icons, login CTAs); the
-B1/B3/B5 surfaces were authored after-the-fact without the same
-44-px discipline. Notable counter-example: dashboard quick-add at
-`src/app/page.tsx:411-413` carries an explicit `min-h-11` because
-that author saw the audit. Most B1/B3 surfaces don't.
-**Recommendation**: For v1.4.15 — **no source change**, accept the
-debt. For v1.4.16 — adopt the deferred design-system bump
-(`button.tsx` default `h-9` → `h-11`, `sm` `h-8` → `h-9` keeping the
-denser tier still-tappable at 36 px). One-line diff closes 30+ tap-
-target findings in a single change. Until then, every new B-feature
-keeps growing the deferred list.
-**Ship-blocker?**: No (continuation of a known v1.4.16 backlog
-item), but the trend is moving in the wrong direction — flag in the
-phase-D report so reconcile decides whether to fast-track the
-button.tsx change.
+- **File:** `src/components/insights/recommendation-card.tsx:368-385`
+- **Issue:** raw `<button type="button" className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors">` with a `<ChevronDown className="h-4 w-4">` inside. p-1 (= 4 px) + h-4 (= 16 px) gives ~24×24. Brief: "expand affordance discoverable; confidence meter readable; thumbs feedback button hit-area large enough." Current chevron fails the same 44 px bar as H1.
+- **Recommendation:** wrap in `<Button variant="ghost" size="icon" className="h-9 w-9">` or hand-bump to `min-h-11 min-w-11`. Add `focus-visible:` ring (raw `<button>` has none).
+- **Ship-blocker?** Same answer as H1. If H1 ships, H2 must too; feels broken if only one is fixed.
+
+### H3 — Trend-card aria-label hardcoded English (i18n leak)
+
+- **File:** `src/components/charts/trend-card.tsx:229-233`
+- **Issue:** the comparison delta `aria-label` interpolates `"vs. last month"` / `"vs. last year"` as **literal English strings** regardless of the user's locale. Marc switching to DE gets a screen-reader announcing English while the visible text is German ("Δ −2.3 kg vs. Vormonat"). All other labels in the file use `t(...)`. Undocumented bypass.
+- **Recommendation:** use the same `t(comparison.captionLastMonth/Year)` key the visible text consumes two lines below.
+- **Ship-blocker?** No, but trivial fix.
+
+### H4 — Medication-Compliance chart does NOT support `compareBaseline` overlay. Inconsistent with all other charts
+
+- **File:** `src/components/charts/medication-compliance-chart.tsx`
+- **Issue:** `grep "compareBaseline" medication-compliance-chart.tsx` — no prop. Every other chart family (BP/weight/pulse/mood) accepts `compareBaseline` and renders the dimmed prior-period line. The medication-compliance heatmap doesn't, so when the user toggles Vormonat the rest of the dashboard responds and only this card stays static. Not strictly a regression (B8 report flags compliance heatmap "doesn't shrink cleanly" and was deferred for the rec-card mini-mode), but the *toggle* still needs to be honoured visually somehow.
+- **Recommendation:** add a one-line caption "Vergleich nicht verfügbar für Compliance" / "Comparison N/A for compliance" so the user understands the asymmetry rather than thinking the toggle is broken.
+- **Ship-blocker?** No, but UX-incoherent without a fix.
+
+### H5 — `via-dracula-cyan/8` Tailwind class — opacity `/8` is technically valid but visually nearly identical to bg; gradient appears flat on mobile
+
+- **File:** `src/components/insights/insights-page-hero.tsx:81`
+- **Issue:** `from-dracula-purple/15 via-dracula-cyan/8` — the via-stop at 8% opacity over a Dracula `--background` (#282a36) is a ΔL of ~3% from the page bg. On a Pixel 5 LCD in daylight, this looks like a flat purple band with no gradient. Apple Health hero gradients use 25-40% opacity at the brightest stop.
+- **Recommendation:** bump to `from-dracula-purple/25 via-dracula-cyan/15` (commit 6 already raised opacity once; raise again or use inline CSS gradient where Tailwind's discrete steps clip the design).
+- **Ship-blocker?** No, but the "Apple-Health-quality benchmarking" bar is what Marc set; this gradient does not meet it.
+
+### H6 — Range-tabs (chart 7d/30d/90d/All) hit-area `min-h-9 px-2.5` = 36×~28 px. Below 44 px on Pixel 5
+
+- **File:** `src/components/charts/health-chart.tsx:882`
+- **Issue:** `className="min-h-9 px-2.5 text-xs"`. On the Pixel 5 viewport the user taps four narrow pills above each chart; missed-taps are routine. WCAG 2.5.5 again.
+- **Recommendation:** swap to `min-h-11 px-3` or use a Radix `<Tabs>` primitive with a `min-h-[44px]` modifier (same as bottom-nav).
+- **Ship-blocker?** No, but the brief calls out 44×44 explicitly.
+
+### H7 — Medication CSV "include intake history" uses raw `<input type="checkbox">` 16×16 px. Mobile fail + visual inconsistency
+
+- **File:** `src/components/settings/export-section.tsx:457-466`
+- **Issue:** every other settings toggle is a `<Switch>` from `@/components/ui/switch`. The intake-history toggle is a vanilla `<input type="checkbox" className="border-border h-4 w-4">`. 16×16 hit area, breaks design-system consistency, and on iOS Safari renders as the system blue checkbox (jarring against Dracula).
+- **Recommendation:** replace with `<Switch>` or shadcn `<Checkbox>`. Bump container to `<label className="flex min-h-11 …">`.
+- **Ship-blocker?** No, but Marc's eye will catch the system-blue box on his iPhone immediately.
+
+### H8 — DE fallback-chain row will overflow Pixel 5 (393 px) — 5 controls per row, all with German labels
+
+- **File:** `src/components/settings/ai-section.tsx:1374-1434`
+- **Issue:** each chain row is a `flex flex-wrap` with 5 controls (label hyperlink + Switch + ArrowUp + ArrowDown + X). EN labels are short (Move up / Move down / Remove from chain) but DE strings are longer ("Nach oben", "Nach unten", "Aus Kette entfernen") and the row uses `gap-2` so on 393 px it wraps to 2-3 lines per row. A 5-row chain becomes ~12 visual lines.
+- **Recommendation:** at `<sm` breakpoint, hide aria-only textual labels on arrow buttons (icon is universal) and collapse the X into a long-press or "more" overflow menu. Or shrink each row to provider name + switch + drag handle, with reorder via popover.
+- **Ship-blocker?** No, but renders unusably on Pixel 5 mobile in DE locale.
 
 ---
 
-### H5 — Withings + moodLog status display: long error message can break card layout
+## MED / LOW — polish, parity, post-v1.4.16 cleanup
 
-**Severity**: HIGH
-**File**: `src/components/settings/integrations-section.tsx:170-175`
-(the `lastError` line)
-**Issue**: The `IntegrationStatusBanner` renders `status.lastError`
-as a single inline `<span>` with no width constraint or
-word-breaking. Withings refresh-token errors typically arrive as a
-URL-encoded body (`{"status":401,"error":"unauthorized_client",
-"error_description":"... refresh_token=...long_token..."}`) — the
-`status.ts` writer already redacts the token, but the *description*
-strings can still hit 250+ chars on one line. Inside the
-`bg-muted/40 ... p-3` banner with no `break-words` or `max-w-full`,
-the card's `<div className="bg-card border-border rounded-xl border
-p-6">` parent will horizontal-scroll on narrow viewports — exactly
-the page A5 found horizontal-scroll on already.
-**Recommendation**: Add `break-words` to the
-`text-destructive flex items-start gap-1.5` row OR clamp via
-`line-clamp-3` with a "Show more" toggle. The B2 spec mentioned
-"last-error line" but didn't pin the layout treatment.
-**Ship-blocker?**: No (only triggers on the failure path which is
-already a degraded state for the user), but should land in v1.4.16
-before any user actually hits a Withings reauth burst.
+### M1 — App-log preview table uses `overflow-x-auto` with no mobile card fallback
 
----
+- **File:** `src/components/admin/app-log-preview-section.tsx:207-263`
+- **Issue:** B4 admin app-logs renders `<table>` inside `overflow-x-auto`. On Pixel 5 (393 px), 5 columns (level / timestamp / action / duration / trace_id) → user scrolls horizontally. A3 fix already swapped api-tokens to a card-list mobile fallback.
+- **Recommendation:** add card-list rendering at `<md`. Mirror `<UserManagementSection>` pattern.
 
-## MEDIUM / LOW
+### M2 — RecommendationFeedback success state replaces row with text-only "Thanks" — no path to revoke or change verdict
 
-### M1 — `/admin` overview audit-preview hides action label on `<sm` viewports
+- **File:** `src/components/insights/recommendation-feedback.tsx:212-225`
+- **Issue:** once submitted, the row collapses to one line of text + check icon. There's no UI path to revoke or change the verdict. Server-side dedup is by `(user, recId, recText)` so a new attempt would 409, but the client-side UX gives no hint that this is final.
+- **Recommendation:** keep the chosen thumb visible (highlighted / pressed-state) and add a quiet "Submitted — undo?" affordance. Even if not actually re-submittable, give the user the visual receipt of which thumb they chose. Apple Health's tendency: never collapse a state without an undo path.
 
-**Severity**: MEDIUM
-**File**: `src/components/admin/recent-audit-preview.tsx:136-140`
-**Issue**: The action label (`auth.login.passkey` → "Login with
-passkey") is gated behind `hidden ... sm:inline`. On a 393-px viewport
-the row collapses to: green-check + username + timestamp — visually
-indistinguishable from a generic "user did a thing" event. For an
-admin-overview pane whose value proposition is "what just happened",
-losing the verb is a regression vs. the previous status-card grid
-where the verb was always present.
-**Recommendation**: Either show a compact icon-only verb badge on
-mobile (`<Badge variant="outline" className="text-[10px]">passkey</Badge>`)
-OR drop the timestamp on `<sm` so the verb fits. Keep the username
-either way.
-**Ship-blocker?**: No.
+### M3 — `<RecommendationsGrid>` border colors at `/70` opacity — not contrast-verified against `--card`
 
----
+- **File:** `src/components/insights/recommendations-grid.tsx:64-69`
+- **Issue:** `border-l-dracula-red/70` etc. The B1b commit-6 added a contrast-regression test for the page hero but not for the grid borders. At 70% opacity over `--card` (which is `--dracula-bg` slightly tinted), red border ratio is ~3.8:1 (passes 3:1 UI floor); purple is closer to 2.6:1 (likely fails). Severity is information-bearing.
+- **Recommendation:** measure each token at `/70` against `--card`; bump under-3:1 ones to `/85`.
 
-### M2 — `<RestoreRowDialog>` buttons inside dialog footer don't differentiate severity
+### M4 — ConfidenceMeter aria-label says "Vertrauen 75 von 100" — no band semantic
 
-**Severity**: MEDIUM
-**File**: `src/components/admin/backups-section.tsx:124-141`
-**Issue**: The Restore confirmation footer reads `Cancel` (default
-AlertDialogCancel ghost) + `Restore [animated spinner]` (
-`bg-destructive`). The destructive treatment is correct, but with
-the typed-`RESTORE` gate above and the title's existing strong
-warning, the destructive-red button reads as "we already warned
-you" — except that the destructive class also applies the `disabled:
-opacity-50` from the base Button, and the destructive +50% opacity
-shade reads as a very dark gray on top of the dialog's already-dark
-background (Dracula bg ≈ `#282a36`). On a low-contrast display this
-button reads as "unclickable" even when it's enabled.
-**Recommendation**: Add `data-[disabled]:opacity-50
-data-[disabled]:cursor-not-allowed` instead of the default
-`disabled:opacity-50` so the disabled state visually flips harder
-(e.g., `bg-muted text-muted-foreground` when disabled). Or simpler:
-add `aria-disabled` + a destructive border ring while disabled so the
-button stays visually legible.
-**Ship-blocker?**: No.
+- **File:** `src/components/insights/confidence-meter.tsx:189-191`
+- **Issue:** screen-reader announces only the raw integer. Better signal: "high confidence (75/100)" / "medium" / "low" / "draft". Apple's accessibility lead would call out the missing band — the visual ring color is the primary signal but blind users only get the number.
+- **Recommendation:** include the band name in aria-label. New i18n key `confidenceAriaWithBand` taking `{value, band}` placeholders.
 
----
+### M5 — InsightsPageHero hides "Generated" timestamp when no insight has been generated, but the hero band stays full-height — looks empty on first visit
 
-### M3 — Backup upload area: hidden file input with no drop zone
+- **File:** `src/components/insights/insights-page-hero.tsx:106-120`
+- **Issue:** when `updatedAt` is null, the meta row collapses to a single "Based on your last 90 days" line. Hero remains visually heavy with no content density delta. First-time users see a giant gradient with two short text lines.
+- **Recommendation:** when `updatedAt === null`, surface a "Generate your first insight →" inline CTA in the meta row. The regenerate button is already passed in via `onRegenerate` but appears top-right; promoting to inline-with-meta CTA would close the empty-state hole.
 
-**Severity**: MEDIUM
-**File**: `src/components/admin/backups-section.tsx:371-410`
-**Issue**: The "Upload backup" affordance is a single button proxying
-a hidden `<input type="file">`. There is no drag-and-drop affordance
-even though the surface is a >300 px wide block already. For an
-admin-tier ops feature that handles 1–10 MB JSON files, drag+drop is
-the expected convention (matches GitHub's "drop a file here or click
-to browse"). The current pattern works but doesn't communicate "you
-can drop a file here".
-**Recommendation**: Wrap the surface in a `dragover` listener that
-adds `border-dashed ring-2 ring-primary/40` while a file is being
-dragged. Single-event-handler plumbing, no new dep.
-**Ship-blocker?**: No.
+### M6 — Inconsistent severity color tokens between `<HeroFinding>`, `<RecommendationCard>`, `<RecommendationsGrid>`
 
----
+- **Files:** `src/components/insights/insight-advisor-card.tsx:103-131` (HERO_STYLES) vs `src/components/insights/recommendation-card.tsx:49-56` (SEVERITY_BADGE_STYLES) vs `src/components/insights/recommendations-grid.tsx:64-69` (SEVERITY_BORDER_CLASSES).
+- **Issue:** three separate style maps for the same severity vocabulary. Hero uses `green/cyan/orange/red` (assessment); rec-card uses `cyan/purple/orange/red` (severity); grid uses `red/orange/purple/cyan` (also reversed mental model). The hero & rec-card maps disagree about what "info" means (cyan in both, but the hero's "neutral assessment" is also cyan).
+- **Recommendation:** centralise to `src/lib/severity-colors.ts`, expose helpers, have all three components consume them. v1.4.17 simplify-target.
 
-### M4 — Tour spotlight clip-path skips backdrop click-blocking on the highlighted target
+### M7 — Sticky `<InsightsSectionNav>` + iOS Safari back-swipe gesture interference
 
-**Severity**: MEDIUM
-**File**: `src/components/onboarding/tour.tsx:307-309` + `:328-334`
-**Issue**: The cutout polygon punches a hole through the dimmed
-backdrop, so the highlighted target (e.g., the "Add" button on the
-dashboard) is technically clickable underneath the tour. A user
-tapping inside the spotlight area opens the quick-add menu *and*
-skips the tour (the click bubbles to neither the backdrop button nor
-the tooltip; it lands on the underlying button). The brief's check
-#8 calls for "spotlight + tooltip positioning" — works visually, but
-the click-flow under the spotlight is undefined.
-**Recommendation**: Either (a) add a transparent
-`pointer-events: none` overlay above the cutout that blocks clicks on
-the target while the tour is active, OR (b) make the spotlight
-*intentional* — let the user actually click the highlighted target
-to advance the tour (interactive walkthroughs do this; would require
-wiring per-stop "advance on target click" callbacks).
-**Ship-blocker?**: No.
+- **File:** `src/app/insights/page.tsx:1695-1713`
+- **Issue:** `flex gap-2` inside `overflow-x-auto`. On iOS Safari the back-swipe gesture competes with horizontal pan inside the sticky nav.
+- **Recommendation:** add `overscroll-x-contain`.
 
----
+### M8 — Host-metrics chart tooltip uses `formatter(value, name)` matching against `t(...)` outputs — i18n-fragile
 
-### M5 — Achievements page summary cards: `min-h-34` is non-standard Tailwind
+- **File:** `src/components/admin/host-metrics-chart.tsx:278-298`
+- **Issue:** `if (name === t("admin.hostMetrics.load1"))` — relies on string equality between Recharts' `name` prop and the localised label. If user mid-session swaps locale, formatter falls through and tooltip shows raw numbers without unit.
+- **Recommendation:** key the formatter on a stable dataKey, not the localised name.
 
-**Severity**: LOW
-**File**: `src/app/achievements/page.tsx:261,280,294`
-**Issue**: `min-h-34` is not a default Tailwind utility (defaults stop
-at `min-h-32`/`8rem`). It works in this project because Tailwind v4
-arbitrary fractional values resolve. But the readability suffers
-("34" reads as some-pixel-thing — actually `8.5rem`). Also: `min-h-34
-flex flex-col justify-between` clipped on mobile when one of the
-cards has long DE achievement title text — the title gets pushed
-under the value.
-**Recommendation**: Switch to `min-h-[8.5rem]` for clarity, OR use the
-standard `min-h-36` (9 rem) and let the layout breathe a little
-more. Not visually disruptive at any locale.
-**Ship-blocker?**: No.
+### M9 — Mood chart emoji glyphs (😖 🙁 😐 🙂 😄) — non-localizable, render differently per OS
 
----
+- **File:** `src/components/charts/mood-chart.tsx` (B1a deliverable)
+- **Issue:** emoji rendering varies between Apple, Noto Color Emoji, Segoe UI Emoji. Marc's iPhone vs Pixel 5 vs desktop Mac = three different visual weights for the same chart.
+- **Recommendation:** v1.4.17 — replace emoji with custom SVGs (lucide has `Frown / Smile / Meh / Laugh / SmilePlus` that close the gap).
 
-### M6 — Achievements category badges don't visually distinguish completion state
+### M10 — `RecommendationCard` collapsed state has no visual hint that it's interactive
 
-**Severity**: MEDIUM
-**File**: `src/app/achievements/page.tsx:368-370`
-**Issue**: The category header surfaces a `{unlockedInCategory} /
-{items.length}` count next to the category name. When the user has
-unlocked everything in a category (`5 / 5`), the count is the only
-signal — same neutral `text-muted-foreground` treatment as `2 / 5`.
-A user scanning the page can't immediately spot a fully-completed
-category, which is a missed motivational moment for what is a
-gamification feature.
-**Recommendation**: When `unlockedInCategory === items.length`, swap
-the count for a small `<Badge>` with the dracula-green palette
-(matches the connected-state badge pattern used in
-`integrations-section.tsx`'s `border-dracula-green/30 bg-dracula-
-green/15 text-dracula-green`). Optionally also add a small
-🏆 / `Trophy` icon.
-**Ship-blocker?**: No.
+- **File:** `src/components/insights/recommendation-card.tsx:331-417`
+- **Issue:** the chevron is the only affordance; the card border is identical for collapsed and expanded recs. Apple Health uses a subtle "tap to expand" caption + 1-px depth shadow. Oura's Contributors use a small "i" subtitle "Tap to see why". HealthLog: nothing.
+- **Recommendation:** add `text-muted-foreground/60 text-[10px]` hint under rec text "Tap for details" / "Antippen für Details" on the collapsed state. Auto-disappears when expanded. Trivial; very high-leverage on first impression.
+
+### M11 — Loading skeleton uses staggered `animationDelay` unconditionally — reduced-motion users still see staggered placeholders
+
+- **File:** `src/components/insights/insight-advisor-card.tsx:340-348`
+- **Issue:** `style={{ animationDelay: \`${i * 100}ms\` }}` is unconditional. With `prefers-reduced-motion: reduce`, the underlying `animate-pulse` is killed but the placeholders still appear in staggered fashion when their (already-stopped) animation would have fired.
+- **Recommendation:** check `prefersReducedMotion()` in the JSX and skip the inline `animationDelay` when true.
+
+### M12 — Insights page first-load: bare `Loader2` spinner, no skeleton shell mirroring final layout
+
+- **File:** `src/app/insights/page.tsx:851-857`
+- **Issue:** when `isLoading`, the page renders a centered spinner — no structure on first paint. Apple Health renders cached data immediately + spinner overlay; HealthLog could render `<InsightsPageHero updatedAt={null} />` + tile-strip skeleton + section-nav skeleton during the 2-second slow-API window.
+- **Recommendation:** mount hero + skeleton tile strip during `isLoading` so the page has structure on first paint.
+
+### M13 — `app-logs` empty state doesn't distinguish "buffer empty" from "filter matched nothing"
+
+- **File:** `src/components/admin/app-log-preview-section.tsx:200-205`
+- **Issue:** the EmptyState renders the same `admin.section.app-logs.empty` copy whether the buffer is genuinely empty (fresh process) or filters narrowed to zero. No CTA to clear filter.
+- **Recommendation:** branch on `(traceId || actionFilter || level !== "__all__" || range !== "all")` to emit a "No matches — clear filters?" variant with reset button.
+
+### M14 — Settings → Export `<input type="date">` is browser-locale-driven, not app-locale-driven
+
+- **File:** `src/components/settings/export-section.tsx:248-284`
+- **Issue:** `<Input type="date">` renders MM/DD/YYYY on US-locale browser even when app locale is DE. iOS opens a wheel picker (44 px) which is OK but the calendar icon overlaps long DE month names.
+- **Recommendation:** v1.4.17 — wrap with `react-day-picker` (transitive shadcn dep) or shadcn Calendar+Popover for consistent locale rendering.
+
+### M15 — `<HostMetricsChart>` Legend on mobile — non-issue at current padding; flagged for completeness
+
+- **File:** `src/components/admin/host-metrics-chart.tsx:299-305`
+- **Issue:** none. Recharts default Legend stacks fine on 393 px viewport.
+
+### M16 — Onboarding tour after Wave A nav changes: anchors `nav-insights`, `nav-settings`, `nav-achievements` all still present
+
+- **File:** `src/components/layout/sidebar-nav.tsx:74, 86, 462, 515`
+- **Issue:** none — verified. A1's removal of admin sub-list expansion did not touch tour anchors.
+- **Recommendation:** none.
+
+### M17 — i18n parity for new B5d/B5e/B1b/B7 keys: spot-checked 17 keys; all present in EN+DE; no raw-key surfaces
+
+- **Files:** `messages/en.json`, `messages/de.json`
+- **Issue:** none.
+- **Recommendation:** none.
+
+### M18 — `<ConfidenceMeter>` ring variant `r=10` viewBox 28×28 — fits at every call site; non-issue
+
+- **File:** `src/components/insights/confidence-meter.tsx:144-178`
+- **Issue:** flagged for record.
+
+### M19 — Dashboard tile delta callout stays muted on `neutral` direction-sentiment metrics — visually loses the "value did move" signal
+
+- **File:** `src/components/charts/trend-card.tsx:162-172`
+- **Issue:** intentional per design (neutral metrics shouldn't be celebrated/scolded), but visually loses the signal that the metric DID change. Apple Health uses ↑/↓ arrows in muted color for neutral metrics; HealthLog has the arrow on the trend-icon but not on the delta callout.
+- **Recommendation:** add a small "↑" / "↓" glyph next to the muted delta on neutral metrics so the user reads "pulse moved up by 4 bpm" not "pulse showed −0".
+
+### M20 — Severity Badge text uppercase but uses raw EN vocabulary ("URGENT" / "IMPORTANT" / "SUGGESTION" / "INFO") — not localised
+
+- **File:** `src/components/insights/recommendation-card.tsx:354`
+- **Issue:** `<Badge>{norm.severity}</Badge>` renders the raw enum value. EN-only. DE users see English vocabulary in a German UI.
+- **Recommendation:** add `insights.recommendation.severity.{urgent,important,suggestion,info}` i18n keys. EN: same words. DE: "Dringend" / "Wichtig" / "Vorschlag" / "Info".
+
+### M21 — `<ScatterCorrelationChart>` (correlation cards on /insights) does NOT receive B1a polish
+
+- **File:** `src/components/charts/scatter-correlation-chart.tsx`
+- **Issue:** B1a polish was scoped to time-series charts (HealthChart, MoodChart, MedicationCompliance). Scatter correlations on /insights still use the v1.4.0 visual style — abrupt visual delta when scrolling from BP timeline (polished) to BP-vs-weight scatter (legacy).
+- **Recommendation:** v1.4.17 — extend ChartLinearGradient + RichChartTooltip to the scatter wrapper for visual coherence.
+
+### M22 — `MedicationComplianceChart` 80% threshold + 100% goal lines + personal-baseline label may stack on the same y-position
+
+- **File:** `src/components/charts/medication-compliance-chart.tsx`
+- **Issue:** flagged from skim (A6 added 80% + 100% lines, B1a added baseline). Can't confirm without live render. Worth verifying once v1.4.16 deploys.
 
 ---
 
-### M7 — RecentAchievementsCard empty state lacks a CTA
+## Tally
 
-**Severity**: MEDIUM
-**File**: `src/components/gamification/recent-achievements-card.tsx:127-130`
-**Issue**: When the user has 0 unlocked achievements, the card
-renders a single muted line: "Erfülle deine ersten Aufgaben…" with
-no CTA. The B4 brief explicitly said "When nothing is unlocked yet,
-the card paints a discovery CTA + link to /achievements". The
-top-right "View all" link satisfies the "link to /achievements" part,
-but for an empty card the value proposition is *more* discovery, not
-less — the empty state should surface what to do next (e.g., "Log
-your first measurement to unlock the streak badge"). Currently the
-empty user has to figure out the connection between the dashboard
-card and the achievements page on their own.
-**Recommendation**: Replace the bare `<p>` with the shared
-`<EmptyState size="compact" variant="plain">` primitive used on
-admin overview's audit-preview empty state, with a CTA pointing to
-`/achievements` (or hiding the entire card via the same widget-
-toggle that controls visibility). The variant `compact` exists
-specifically for in-card empty states.
-**Ship-blocker?**: No.
+- 3 CRITICAL (C1, C2, C3) — all three are "the polish shipped but isn't visible to the user". One coherent root cause: scope-completion-without-route-wiring.
+- 8 HIGH (H1–H8) — accessibility (44 px hit areas, focus-visible, severity-uppercase i18n) + chart consistency (compareBaseline gap on med-compliance) + DE-locale fallback-chain row overflow
+- 22 MED/LOW (M1–M22) — polish, second-pass parity, simplification opportunities for v1.4.17
+
+Recommendation to release reconcile: prioritise **C1, C2, C3** above all H/M items. Without C1/C2/C3, v1.4.16 is internally a giant code release but externally a v1.4.15 + comparison-overlay-via-Settings + admin polish + AI-quality-table release. The headline "Apple Health–quality recommendations with confidence + thumbs feedback" is true *in the codebase* but not on Marc's screen.
+
+If C1/C2/C3 cannot be wired in this cycle, the v1.4.16 release notes / Marc-Brief should be honest about it: phrase the polish as "groundwork for v1.4.17 user-facing rollout" rather than "the headline UX leap", and explicitly remove screenshots of the unmounted components from any marketing material.
 
 ---
 
-### M8 — Notification status cooldown chip and disabled-reason use plain `<dl>` no semantic hierarchy
+## What I could not verify (Playwright not used)
 
-**Severity**: LOW
-**File**: `src/components/settings/notification-status-card.tsx:202-256`
-**Issue**: Five different `<dt>/<dd>` pairs share the same
-`text-muted-foreground text-xs` treatment with no visual hierarchy.
-Last-success (informational) reads identically to disabled-reason
-(action-required) and last-failure (error). Screen readers traverse
-this fine because of the markup, but a sighted user scanning the
-list cannot triage at a glance — the most important field
-(disabled-reason) doesn't pop.
-**Recommendation**: Color the disabled-reason `<dd>` in
-`text-destructive` and the consecutive-failures count in
-`text-dracula-orange` so the status-bar reading order is: state-
-badge → bad-news (red/orange) → boring-info (muted). Keep the
-`<dt>/<dd>` markup.
-**Ship-blocker?**: No.
+The brief offered Playwright with Marc's session against `https://healthlog.bombeck.io` IF v1.4.16 was deployed. STATE.md shows v1.4.15 live, v1.4.16 phases complete but no E in tag-and-deploy. Source-code audit was the available approach. Specific live-render checks deferred:
 
----
+- Actual gradient appearance on Pixel 5 LCD vs spec (H5)
+- Tap-target measurements via DevTools mobile emulation (H1, H2, H6)
+- Reduced-motion user-agent override on the staggered loading skeleton (M11)
+- Sticky section-nav back-swipe interference on iOS Safari (M7)
+- DE-locale fallback-chain row overflow on Pixel 5 (H8)
+- MedicationComplianceChart label-stack live render (M22)
 
-### M9 — Withings status banner "live" timestamps don't use `useFormatters().relativeTime`
-
-**Severity**: MEDIUM
-**File**: `src/components/settings/integrations-section.tsx:158,165`
-**Issue**: The banner renders `formatDateTime(status.lastSuccessAt)`
-verbatim (e.g., "08.05.2026 21:35") which is correct but not as
-useful as a relative timestamp ("vor 3 Minuten" / "3 minutes ago").
-For a Settings page whose UX promise is "is this thing healthy?",
-relative time is the dominant convention. CLAUDE.md mentions a
-deferred `Intl.RelativeTimeFormat` helper from B4; until that
-helper exists, the absolute time is fine — but the same observation
-extends to NotificationStatusCard (M8 above).
-**Recommendation**: Once the v1.4.16 `useFormatters().relativeTime`
-helper lands (B4 spec'd it), sweep these two places. Until then keep
-absolute. Filing as MEDIUM because it's the difference between
-"works" and "feels alive".
-**Ship-blocker?**: No.
-
----
-
-### M10 — Onboarding tour live-region announcement reads punctuation literally
-
-**Severity**: LOW
-**File**: `src/components/onboarding/tour.tsx:337-344`
-**Issue**: The polite live-region renders
-`{counter}: {title}` — VoiceOver and NVDA speak the literal colon as
-"colon", interrupting the title. Screen-reader convention is to use a
-sentence-end period or just a space.
-**Recommendation**: Change the join to a space + comma:
-`{stepOf}, {title}` (DE: `Schritt 1 von 5, Deine Tageswerte`).
-Single-line diff. Matches Wai-ARIA's APG patterns.
-**Ship-blocker?**: No.
-
----
-
-### M11 — Sidebar admin sub-items: active highlight uses startsWith without exact match guard
-
-**Severity**: LOW
-**File**: `src/components/layout/sidebar-nav.tsx:514`
-**Issue**: `const isActive = pathname.startsWith(sectionPath)` —
-correct for the present routes, but if anyone ever adds `/admin/users-
-import` the existing `/admin/users` link will *also* highlight.
-A1's parent-level fix (`pathname === "/admin" || startsWith
-("/admin/")`) is the harder pattern; this child loop reverts to the
-softer one.
-**Recommendation**: Tighten to
-`pathname === sectionPath || pathname.startsWith(`${sectionPath}/`)`
-to match the parent guard's spirit. Defensive-only fix.
-**Ship-blocker?**: No.
-
----
-
-## Sidebar nav (A1) verification — pass
-
-- `/src/components/layout/sidebar-nav.tsx:243-247,488-535` — admin
-  sub-items render only when `onAdminPage` is truthy AND
-  `isAdmin`. The condition `pathname === "/admin" ||
-  pathname.startsWith("/admin/")` is correct (the audit's spec was
-  exactly this — A1's commit `73afae0`). The expanded list mirrors
-  `ADMIN_SECTIONS` from `admin-shell.tsx`. Active highlight on each
-  sub-item works; only the M11 above is a defensive nit.
-- Bug-report toggle hide is wired through `useAppSettings()` —
-  verified at `:404,473`. Skip-link no longer blocks logo click —
-  verified at `auth-shell.tsx:127` (out of scope here, was A1).
-
-## Backup actions (B1) verification — mostly pass
-
-- Restore: triple-confirm flow (open → typed `RESTORE` → confirm)
-  works as documented in B1 report; only finding is M2 above
-  (disabled-state opacity).
-- Download: per-row spinner state handled correctly via
-  `downloadingId`; uses server-supplied Content-Disposition filename
-  with deterministic fallback — clean.
-- Upload: file input proxy pattern is fine; M3 (no drag+drop) is the
-  only finding.
-- Audit log of every action: not visible in the UI but emitted
-  server-side — out of scope for design review.
-
-## Notification status (B3) verification — pass
-
-- Auto-disabled vs active states are visually distinct via the
-  `stateBadgeFor` helper. Re-enable button is conditionally rendered
-  only when `state === "auto_disabled"` (line 260) — gating correct.
-- Send-test is disabled when auto-disabled (line 282) — correct
-  affordance: "you can't test this until you re-enable it".
-- M8 above is the only nit.
-
-## Onboarding tour (B5) — needs polish
-
-Three findings above (H1 focus trap missing, H2 DE overflow, H3
-backdrop-as-button) plus M4 click-through and M10 SR punctuation. All
-are polish, none are ship-blockers, but B5 is the only v1.4.15 feature
-where multiple HIGH findings cluster on the same component. v1.4.16
-should batch them with the deferred `react-joyride`-or-not decision
-(or harden the in-house implementation).
-
-## Dracula theme integrity — pass
-
-No new components introduce hardcoded hex tokens. All color use goes
-through `text-dracula-*` / `bg-dracula-*` semantic tokens or the
-shadcn `--primary` / `--destructive` tokens. The system-status
-summary, recent-audit preview, integration banners, and notification
-cards all read clean.
-
-## Loading + empty + error states — strong
-
-C5 sweep landed every list/table with the three-state contract.
-Findings above only flag *quality* of empty states (M7 RecentAchievements
-CTA missing, M9 relative-time absence) — no missing states.
-
-## i18n length — one HIGH (H2 tour body overflow)
-
-Otherwise clean: status-card label keys all have <50-char DE
-counterparts; admin section names are short. One spot-check:
-`admin.section.users.forceLogout` ("Aus allen Sitzungen abmelden" DE
-30 chars vs "Force logout" EN 12 chars) fits inside the destructive
-`Button size="sm"` because the button auto-sizes width — verified.
-
-## A11y (visual)
-
-- Focus indicators: `Button` component carries
-  `focus-visible:ring-[3px]`/`ring-primary` — applies to every
-  call-site automatically. Exception is H3 (raw `<button>` backdrop
-  in the tour).
-- Color-not-only-signal: status badges always pair color with
-  iconography (CheckCircle2, AlertCircle, Clock) — pass.
-- Contrast ratios: `text-dracula-green text-xs` on
-  `bg-dracula-green/15` — measured at 9.2:1 in dark mode (well above
-  AA's 4.5). All status banners pass.
-
-## Summary
-
-| Severity   | Count | Where                          |
-| ---------- | ----- | ------------------------------ |
-| CRITICAL   | 0     | —                              |
-| HIGH       | 5     | tour focus-trap (H1), tour DE overflow (H2), tour backdrop-button (H3), 32-px buttons cluster (H4), Withings error overflow (H5) |
-| MEDIUM/LOW | 11    | M1–M11 above                   |
-
-**Recommendation for reconcile**: ship v1.4.15. The five HIGH issues
-are all in B5 (tour) or are inherited debt from B-mobile's deferred
-`button.tsx` design-system bump. Both are tracked for v1.4.16; H2 +
-H3 deserve fast-tracking because they hit the *first-impression*
-flow for new users in DE locale. None of the HIGH or MEDIUM/LOW
-findings are regressions vs. v1.4.14.
-
-**One-line note for the v1.4.16 marathon**: when the deferred
-`button.tsx` bump lands, sweep the new B1/B3/B5 surfaces alongside
-the chart-range buttons that B-mobile already touched. The drift is
-already visible in this audit and will keep widening if every parallel
-agent re-discovers the 44-px target independently.
+Once v1.4.16 deploys, a 30-minute Playwright pass against `cmox4d6fj000101p8w9ykhcnm` should validate or invalidate H5/H6/H8/M7/M11/M22.

@@ -1,283 +1,150 @@
-# v1.4.15 Phase D — Security Review Findings
+# v1.4.16 Phase-D — Security Review
 
-Reviewer: phase-D security agent
-Scope: v1.4.15 diff against v1.4.14 (`git log v1.4.14..HEAD`)
-Files reviewed: backup endpoints (download/upload/restore/run/list), deploy
-webhook, integrations (withings + moodlog) sync + status, notifications
-channel-state + status route + senders + dispatcher, AI codex client +
-slug-cache + system prompt, /admin overview + recent-audit-preview +
-status-overview, onboarding tour endpoint + UI, idempotency, crypto.
+Reviewer: SECURITY
+Scope: v1.4.15..HEAD diff (Wave-A + Wave-B, ~95 commits, ~14k LOC)
+Constraint: NO commits, NO source edits, findings-only.
 
-## Summary
+## Verdict
 
-- **0 CRITICAL** ship-blockers
-- **0 HIGH**
-- **8 MEDIUM/LOW**
+**0 CRITICAL** — no ship-blockers identified for v1.4.16.
+**2 HIGH** — defense-in-depth gaps that should land in v1.4.16 patch tier or v1.4.17.
+**5 MEDIUM**, **3 LOW**.
 
-The v1.4.15 surface is solidly hardened. Backup endpoints all pass
-through `requireAdmin()`, restore is idempotency-wrapped + triple-
-gated + audit-logged before/after, the deploy webhook uses
-`timingSafeEqual`, sync errors are encrypted at rest, and notification
-counter mutation is server-side only. No shipping blockers; the items
-below are defence-in-depth or future-proofing.
+The v1.4.16 attack surface is small and well-defended:
+- All new endpoints wrapped in `apiHandler()` (verified).
+- All admin endpoints call `requireAdmin()` (verified).
+- All user-scoped queries filter by `userId` from `requireAuth()` (verified).
+- Provider-chain runner respects user isolation; cache is per-userId.
+- AI keys remain encrypted with AES-256-GCM and never echoed plaintext.
+- Confidence override is server-side; the model's claim is discarded.
+- Recommendation feedback attribution is server-side; client cannot tamper.
+- GDPR cascade-delete covers `RecommendationFeedback` (migration 0034 + cascade-delete integration test verified).
+- JSON inspector renders via React `<pre>{JSON.stringify(...)}` — no `dangerouslySetInnerHTML`.
+- `User.id` is cuid (alphanumeric), so `Content-Disposition` filenames carrying it are safe from path-injection.
+- In-memory log buffer is bounded to 500 entries (FIFO); cannot grow unbounded under attack.
+- Provider chain credential resolution refuses to ship a stale `aiBaseUrl` to OpenAI / Anthropic providers (the v1.4.x SSRF fix from `provider.ts` is preserved by the new `resolveProviderForType` switch).
+
+---
+
+## HIGH
+
+### H1 — Wide-event `meta` field is not redacted before admin egress (B4)
+
+- **Severity**: HIGH
+- **File**: `src/app/api/admin/app-logs/route.ts:72-95` (`redactEventForEgress`); `src/lib/ai/provider-runner.ts:262-276` (`ai_chain_hop_*_reason` annotations)
+- **Issue**: `redactEventForEgress()` redacts `error.message`, `error.stack`, `warnings[]`, `http.user_agent`, and `external_calls[*].error`, but **does not** redact the `meta` field (`Record<string, unknown>`) or `action.details`. The provider-runner annotates `meta.ai_chain_hop_<n>_reason` with the upstream error message capped at 240 chars (`provider-runner.ts:218-219` — `reason: status !== null ? \`HTTP ${status}: ${message}\` : message`). If an upstream provider (OpenAI, Anthropic, Codex) ever echoes the request `Authorization` header or an `sk-…` / `Bearer …` token in its error body — Anthropic in particular has historically returned the request payload in 4xx errors when JSON malformed — that token lands in `meta` raw and is rendered through the JSON inspector without redaction. The Loki shipper (`transports.emitEvent → appendLogEvent`) writes the raw event into the buffer, so `redactEventForEgress` is the only chance to scrub before the admin UI.
+- **Attack scenario**: Attacker (or buggy upstream) provokes a 4xx that includes the bearer token in the response body → annotation captures it → admin (Marc) views `/admin/app-logs` → token visible in JSON inspector → token logged to admin-side telemetry / screenshot if the admin shares a screenshot. Since the in-memory ring is volatile, exposure window is bounded but real.
+- **Recommendation**: Run `redactSecrets()` over JSON-stringified `meta` and `action.details` in `redactEventForEgress()` (deep-walk strings, or `JSON.parse(redactSecrets(JSON.stringify(meta)))`). Lowest-risk patch: append `out.meta = JSON.parse(redactSecrets(JSON.stringify(out.meta)))` and same for `action.details` if present. Alternatively, harden at write-time by redacting in `WideEventBuilder.annotate()` — but that's a wider blast radius.
+- **Ship-blocker?**: No. Risk is upstream-dependent and the v1.4.16 admin surface is single-tenant (Marc). Should land in next patch (v1.4.17) before any multi-admin scenario.
+
+### H2 — `/api/admin/audit-log` returns raw `details` JSON to admins without redaction (B4)
+
+- **Severity**: HIGH
+- **File**: `src/app/api/admin/audit-log/route.ts:127-149` (no `redactSecrets`); `src/components/admin/login-overview-section.tsx:148` (renders `entry.details` raw into the CSV export and React tree)
+- **Issue**: The audit-log GET returns `details` (a JSON string column) verbatim to admins. Some legacy audit rows can contain identifiers in `details` (e.g. `auth.login.failed → details: { identifier: <user-supplied login> }` at `src/app/api/auth/login/route.ts:63`). User-supplied `identifier` values are bounded but not filtered for token-shaped strings. If a user pastes `Bearer hlk_...` into the username field of a failed login (typo or recon), the next admin viewing `/admin/login-overview` sees the raw string in the JSON cell and the CSV export. This was acceptable when audit-log was admin-only ad-hoc; B4 productionised the surface (filter, paginate, CSV export), so the egress path is now warm.
+- **Recommendation**: Wrap `entry.details` in `redactSecrets()` at the API layer (parse JSON → walk strings → re-serialise) before returning. Same redaction belongs in the CSV export path on the client. Cheaper alternative: have `auditLog()` (in `src/lib/auth/audit.ts:16`) call `redactSecrets()` on every string-shaped value of `details` at write-time so the row never persists a token.
+- **Ship-blocker?**: No. Same reasoning as H1 — single-tenant for v1.4.16. Should ship in v1.4.17.
 
 ---
 
 ## MEDIUM
 
-### M1 — Restore transaction is not bounded by an interactive-query timeout
+### M1 — `POST /api/insights/feedback` has no rate limit; aggregator pollution feasible
+
 - **Severity**: MEDIUM
-- **File:Line**: `src/app/api/admin/backups/[id]/restore/route.ts:253-377`
-- **Issue**: The restore wraps deletes + creates in a single
-  `prisma.$transaction(async (tx) => …)` with no `maxWait` / `timeout`
-  override. Prisma's default 5s tx timeout will trip the moment a user
-  has > ~10k intake events on a slow disk, leaving the user's data
-  partially deleted (delete completes inside the same tx, but if
-  `createMany` exceeds the timeout the rollback fires). The
-  `admin.backups.restore.failed` audit row records the exception, but
-  the operator only learns about the half-state from the next page-load
-  showing zero medications and zero intake events, then has to manually
-  re-run restore.
-- **Recommendation**: Pass `{ timeout: 30_000, maxWait: 5_000 }` (or a
-  config-driven knob) to `prisma.$transaction()`. Empirically a 5–15
-  MB backup completes in under a second; 30s is generous headroom.
-  Alternative: split the transaction into delete-tx + create-tx with
-  the audit log capturing the in-between state, but that's a bigger
-  rewrite; the timeout fix is the minimum viable hardening.
-- **Ship-blocker?** No
+- **File**: `src/app/api/insights/feedback/route.ts:30-103`
+- **Issue**: The feedback endpoint requires auth + idempotency + Zod validation, but has no `checkRateLimit()` call. The unique key `(userId, recommendationId, recommendationText)` prevents replay-attack-style spam, but a determined user can submit thousands of distinct feedback rows by varying `recommendationId` (≤200 chars) and `recommendationText` (≤2000 chars). Each row is server-attributed to that user's `providerType` + `promptVersion`, so the attack distorts that user's slice in the aggregator — but cross-user buckets are also distorted because the aggregator buckets on `(severity, metricSourceType, providerType, promptVersion)` not on `userId`. A single user spamming "thumbs-down + providerType=codex" can shift the admin AI quality view's helpful-rate for the entire codex+severity slice.
+- **Recommendation**: Add `checkRateLimit("insights-feedback:" + user.id, 60, 60 * 60 * 1000)` (60 / hour seems generous — a user rates one rec per minute at most). Also consider: per-user weighting in the aggregator so a single user cannot dominate a bucket.
+- **Ship-blocker?**: No. Marc is single-tenant, so adversarial feedback is N/A in production.
 
-### M2 — Restored backup's `data` blob is re-encryptable but the upload route does not enforce key version
+### M2 — `metricSourceType` is client-supplied free-form text (B5e)
+
 - **Severity**: MEDIUM
-- **File:Line**: `src/app/api/admin/backups/upload/route.ts:193`,
-  `src/lib/crypto.ts:199`
-- **Issue**: `encrypt(JSON.stringify(payload))` writes with the active
-  key id. Good. But: no audit-log annotation captures which key id was
-  used. After a future `ENCRYPTION_ACTIVE_KEY_ID` rotation, an admin
-  inspecting "why does this old MANUAL_UPLOAD blob fail to decrypt
-  today" has no audit trail telling them which key is needed. Same
-  story for the `WEEKLY_AUTO` writes from the worker.
-- **Recommendation**: In the audit-log `details` for
-  `admin.backups.upload`, include `extractKeyId(encrypted)` so the
-  forensic trail can correlate a key-rotation incident to specific
-  backup rows. (Pure observability — not a security boundary fix.)
-- **Ship-blocker?** No
+- **File**: `src/lib/validations/recommendation-feedback.ts:46` (Zod allows `z.string().min(1).max(80)`); `src/lib/jobs/feedback-aggregator.ts:70-92` (used as bucket key)
+- **Issue**: The Zod schema accepts any 1-80 char string for `metricSourceType`. There's no allow-list. A client can supply `metricSourceType: "../etc/passwd"` or `"<script>alert(1)</script>"` or any string. Two consequences:
+  1. **Bucket-keyspace pollution**: each unique value spawns a fresh bucket, so a malicious client can balloon `AppSettings.adminAiInsightsFeedbackSummary` JSON unboundedly (limited only by 30-day rolling window × 80-char keys).
+  2. **No XSS** (admin UI renders via React text node — verified `ai-quality-section.tsx:180`), but the value lands in the audit log `details` blob which then flows into B4's audit viewer.
+- **Recommendation**: Pin `metricSourceType` to the same allow-list the AI schema uses (`aiRecommendationSchema.metricSource.type` enum). Same closed enum is used everywhere else in the AI pipeline; only the feedback API accepts wildcard.
+- **Ship-blocker?**: No.
 
-### M3 — Slug cache is process-global; same Map shared across users on multi-tenant deploys
-- **Severity**: LOW (informational — caller asked to verify)
-- **File:Line**: `src/lib/ai/codex-slug-cache.ts:32-34`
-- **Issue**: The cache key is the literal string `"codex"` — a single
-  global slot. Verified per the spec; no per-user data lives in the
-  cache (just an upstream-public slug like `"gpt-5.3-codex"`). No leak
-  concern. However: in a multi-tenant deploy where users supply their
-  own ChatGPT account, a slug accepted on user-A's account is
-  optimistically tried on user-B's account. Worst case: one extra
-  failed request before the chain walks. Not a security issue, but
-  worth recording.
-- **Recommendation**: Document explicitly that the cache is global by
-  design, with a future hook (the comment at lines 31-33 already
-  hints) to scope by `accountId`. Add a Wide Event annotation when
-  cache is invalidated due to a slug rejection so a flapping account
-  is visible without user-attribution.
-- **Ship-blocker?** No
+### M3 — `audit-log` filter `target` substring on raw `details` field is broad
 
-### M4 — `/api/admin/audit-log` returns full `details` JSON to any admin
 - **Severity**: MEDIUM
-- **File:Line**: `src/app/api/admin/audit-log/route.ts:34-53`
-- **Issue**: The `details` column is selected unfiltered. Some action
-  rows now carry payloads written by the new v1.4.15 code:
-  `integrations.sync.failed` includes the raw `message` string from
-  upstream errors (lines 225-235 of `src/lib/integrations/status.ts`),
-  and `system.deploy.unknown` keeps the **entire raw Coolify payload**
-  (`raw: event.raw` at `src/app/api/internal/deploy-webhook/route.ts:199`).
-  In a single-tenant deploy this is fine because every admin already
-  has read-everything authority. In a future multi-tenant scenario,
-  admins of tenant-A could see deploy-status payloads that may carry
-  hostnames, deployment UUIDs, or upstream error text from tenant-B.
-  Today this is a non-issue (single admin, single tenant) but the
-  surface is wider than the new `<RecentAuditPreview>` shows.
-- **Recommendation**: Document the assumption ("admin.audit-log returns
-  cross-tenant details — must be tightened before any multi-tenant
-  release"). Flag for v1.5 when multi-tenant lands.
-- **Ship-blocker?** No
+- **File**: `src/app/api/admin/audit-log/route.ts:111-115` (`details: { contains: parsed.target }`)
+- **Issue**: The `target` query parameter does a Prisma `contains` substring match on the raw JSON-encoded `details` column. Prisma parameterizes the query (no SQL injection), but the substring match is **case-sensitive** on a JSON-encoded blob and very expensive on a large audit table (full table scan). An admin with `target=a` filter triggers a full-table scan + decoded substring on every row. With 10k+ audit rows + the new B4 paginated UI sweeping pages, the DB becomes the bottleneck. This is a DoS-via-admin not a security boundary breach.
+- **Recommendation**: Either (a) require `target` to be exact-match, (b) add a GIN/trigram index on `details` if substring is needed, or (c) bound `target` to ≥3 chars.
+- **Ship-blocker?**: No (admin-only).
 
-### M5 — Test-send rate limits diverge across notification surfaces
-- **Severity**: LOW
-- **File:Line**:
-  - `src/app/api/settings/telegram/test/route.ts:15` — 5/5min
-  - `src/app/api/settings/ntfy/test/route.ts:16` — 5/5min
-  - `src/app/api/admin/notifications/test/route.ts` — **no rate limit**
-- **Issue**: `POST /api/admin/notifications/test` sends a SYSTEM_ALERT
-  through every enabled channel for the admin. It's `requireAdmin()`-
-  gated but has no per-actor rate limit. A compromised admin session
-  could spam Telegram/ntfy/web-push as fast as the upstream allows,
-  burning quota and inviting upstream rate-limit penalties (Telegram's
-  bot endpoint rate-limits aggressively and a 429 here would also
-  affect legitimate medication-reminder traffic).
-- **Recommendation**: Add `checkRateLimit('admin-notifications-test:'
-  + admin.id, 5, 5 * 60_000)` mirroring the user-side handlers.
-- **Ship-blocker?** No
+### M4 — `User.aiProviderChain` JSON column allows tampering via direct DB edit but parser is defensive
 
-### M6 — Backup download `Content-Disposition` filename uses the unescaped userId
-- **Severity**: LOW
-- **File:Line**: `src/app/api/admin/backups/[id]/download/route.ts:92-114`
-- **Issue**: `filename="healthlog-backup-${backup.userId}-${isoDate}.json"`
-  is interpolated unescaped. UserIds are cuid/cuid2 (alphanumeric +
-  `_-`) so no quoting attack is realistic against the current ID
-  format, BUT the surface depends entirely on the ID generator never
-  emitting a `"` or newline. If a future schema change ever swaps
-  cuid2 for a UUID-with-format-error or a custom value, the unescaped
-  interpolation becomes a header-injection vector.
-- **Recommendation**: Use `RFC 5987` `filename*=UTF-8''<percent-encoded>`
-  or simply `filename="healthlog-backup-<isoDate>.json"` (no userId in
-  the filename — the contents already carry it).
-- **Ship-blocker?** No
+- **Severity**: MEDIUM (informational)
+- **File**: `src/lib/ai/provider-chain.ts:78-120` (`parseProviderChain`)
+- **Issue**: The chain is stored as JSON, parsed defensively at every read with the malformed-row falls-back-to-default contract. The parser correctly: (a) deduplicates, (b) rejects unknown provider types, (c) normalises priority. However, the parser does NOT enforce that priority numbers are unique — a chain like `[{p:1, openai}, {p:1, codex}]` collapses by sort-stability into `[openai, codex]`. The `PUT` endpoint normalises priority to insertion order (route.ts:106-110) so this is not exploitable via the wire, but a direct DB edit could bypass. Defense-in-depth: `parseProviderChain()` normalises priority itself rather than trusting the persisted value.
+- **Recommendation**: Mirror the route's normalisation in `parseProviderChain` (`return validSorted.map((e, idx) => ({ ...e, priority: idx + 1 }))`).
+- **Ship-blocker?**: No (no exposure since the only writer is the `PUT` endpoint we control).
 
-### M7 — Restore does NOT clear `IntegrationStatus`, `WithingsConnection`, encrypted credentials
-- **Severity**: MEDIUM
-- **File:Line**: `src/app/api/admin/backups/[id]/restore/route.ts:259-279`
-- **Issue**: The transaction deletes measurements, medications, intake
-  events, mood entries, notification channels, push subscriptions,
-  telegram-scheduled-deletions. But it does NOT clear: the user's
-  `WithingsConnection` (encrypted access/refresh tokens at rest),
-  `IntegrationStatus` rows, the user's `moodLogApiKeyEncrypted` /
-  `moodLogUrlEncrypted`, OR Telegram credentials on the User row.
-  Result: after a restore from a snapshot taken pre-Withings-connect,
-  the user's old Withings tokens still work — they're "leaking through"
-  the restore. For a single-user Marc instance this is irrelevant; for
-  a future multi-user instance where a user requests a "wipe-and-
-  restore-to-this-snapshot" workflow, the implicit assumption that
-  restore == clean state is violated.
-- **Recommendation**: Either (a) document explicitly in the restore
-  endpoint and admin UI that integrations + auth credentials persist
-  through restore (current behaviour, may be desired for "don't wipe
-  my Withings link"), or (b) extend the delete scope to mirror
-  `DELETE /api/admin/data` exactly. Pick one and document.
-- **Ship-blocker?** No
+### M5 — `GET /api/user/ai-provider` decrypts the API key in memory just to expose last-4
 
-### M8 — Deploy webhook 401 path leaks "secret configured" via warning side-channel (low impact)
-- **Severity**: LOW
-- **File:Line**: `src/app/api/internal/deploy-webhook/route.ts:84-96`
-- **Issue**: `hasValidSecret()` returns `false` when the env secret is
-  unset, with side-effect `addWarning("DEPLOY_WEBHOOK_SECRET not
-  configured")`. The HTTP response is 401 in both "secret unset" and
-  "secret wrong" cases — no user-observable leak. But the
-  Wide-Event/Loki annotation distinguishes them. If an attacker has
-  read access to logs (out-of-scope by definition), they can probe
-  whether the deploy webhook is configured. This is observable but
-  not exploitable — included only because the caller explicitly asked
-  about presence-of-secret leakage.
-- **Recommendation**: Acceptable. The warning is useful for ops triage
-  ("why isn't deploy paging me — did I forget to set the env?"). No
-  change needed; documented for completeness.
-- **Ship-blocker?** No
+- **Severity**: MEDIUM (informational; pre-existing — not v1.4.16, but relevant given B2 expanded UI surface)
+- **File**: `src/app/api/user/ai-provider/route.ts:34-41` (`decrypt(...).slice(-4)` for OpenAI + Anthropic)
+- **Issue**: Every GET decrypts the full encrypted apiKey to extract the last 4 chars. The plaintext key briefly lives in the V8 string heap (~ms). If the response is logged with `responseBody` capture (per the idempotency replay-cache), there's no key in the response, but the in-process buffer / Glitchtip path could pick up a partial. Also, repeated decryption widens the window for a side-channel timing attack against AES-GCM (negligible in practice, but defense-in-depth).
+- **Recommendation**: Store a 4-char preview alongside the encrypted key on write (`aiOpenaiKeyPreview` column, NOT encrypted). Decrypt only when actually building a provider. Same applies to Anthropic.
+- **Ship-blocker?**: No. Pre-existing.
 
 ---
 
-## Verified Safe (no findings)
+## LOW
 
-- **B1 backup endpoints** — every endpoint passes through `requireAdmin()`
-  (cookie-only). Restore: triple-confirm (`confirm: "RESTORE"`),
-  idempotency-wrapped via `withIdempotency`, transaction atomicity,
-  before+during+after audit logs (`admin.backups.restore.start` /
-  `.failed` / final `admin.backups.restore`). Upload: 10 MB cap on
-  both `Content-Length` AND `file.size`, `Content-Type` arrives as
-  multipart/form-data, schema validation rejects malformed AND
-  version-incompat (`isCompatibleSchemaVersion`), 3/min rate limit.
-  Restored backups encrypted with same AES-256-GCM via `crypto.ts`
-  (verified `encrypt(JSON.stringify(payload))` at upload route line
-  193).
+### L1 — Recommendation text stored alongside helpful/notHelpful verdict in DB (per-user)
 
-- **C2 deploy webhook HMAC verification** — uses
-  `crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received))`
-  with explicit length-equality precheck (lines 92-95). No raw
-  string-compare. Rate limit by IP at 60/min (line 151) so a brute-
-  force isn't economically viable. Validation ordering: rate-limit →
-  auth-check → JSON parse → audit-log + dispatch. Secret never logged
-  (`redactSecrets` would catch a `Bearer` accidentally written to an
-  error message; the `getClientIp` and audit annotations in this
-  route never include the secret value).
+- **Severity**: LOW
+- **File**: `src/app/api/insights/feedback/route.ts:64-75`; `prisma/migrations/0034_recommendation_feedback/migration.sql`
+- **Issue**: The audit details record `{recommendationId, severity, helpful, providerType, promptVersion}` — does NOT include `recommendationText` (good). However, `recommendationText` IS persisted to the `RecommendationFeedback` table itself (the dedup partner). An admin reading `recommendation_feedback` directly sees the user's full rec text alongside their helpful/notHelpful verdict. This is by design (Marc's research §3 single-user-default-on policy), but operators on a shared deployment should know.
+- **Recommendation**: Document the exposure in `docs/audit/v1416-summary.md` (privacy section) so future deployments understand the per-user-rec storage trade-off.
+- **Ship-blocker?**: No.
 
-- **B2 sync robustness** — Withings + moodLog tokens encrypted at
-  rest via `crypto.encrypt()`. Refresh-token race: each
-  `getValidToken()` call reads the connection row, compares
-  `tokenExpiresAt - 5min < Date.now()`, refreshes serially, and
-  writes back via `prisma.update`. The 5-minute buffer is the same
-  for parallel requests, so two concurrent requests COULD both
-  attempt a refresh — but the second request will get an
-  `invalid_grant` (Withings consumes the refresh token on first use)
-  and route via `recordSyncFailure` to `error_reauth`. Acceptable
-  because the failure is captured + audit-logged; the alternative
-  (DB advisory lock) is over-engineered for a once-per-30min job.
-  "Reauth required" state can't leak old tokens — token columns are
-  preserved encrypted, but `getValidToken` returns null on reauth so
-  no decrypt path runs. The `markReauthRequired` audit-log details
-  do NOT include any token material (verified at status.ts line
-  302).
+### L2 — Host-metrics endpoint returns ~1440 rows for `since=24h` with no streaming
 
-- **B3 notification reliability** — counter manipulation: all
-  consecutiveFailures mutations (`channel-state.ts:90, 102, 138`)
-  happen server-side from dispatcher outcomes; no user-facing API
-  accepts or modifies the count. Re-enable button: `POST
-  /api/notifications/status` is `requireAuth()`-gated AND the
-  `findFirst` query scopes by `userId: user.id` so one user can't
-  re-enable another user's channel (line 108-111). Test-send: rate-
-  limited on `/settings/{telegram,ntfy}/test` at 5/5min; admin test
-  endpoint missing rate limit (see M5).
+- **Severity**: LOW
+- **File**: `src/app/api/admin/host-metrics/route.ts:32-56`
+- **Issue**: `since=24h` returns ~1440 rows (one per minute) in one JSON response. The route loads all into memory with the BPS computation. At 7d retention an admin could enumerate the full table by dropping the `since` filter — but the route caps to 24h via the enum, so the maximum response is bounded. Not a real DoS.
+- **Recommendation**: None required.
+- **Ship-blocker?**: No.
 
-- **C1 AI hardening** — system prompt + user data: the user data
-  passed in `params.userPrompt` is the snapshot JSON the route layer
-  built from the user's OWN measurements, not free-form user input.
-  Prompt-injection from a user manipulating their own snapshot is a
-  hallucination concern (the strict prompt at
-  `prompts/insight-generator.ts:53-72` enforces "ground in numbers,
-  refuse out-of-scope") but not a cross-user data exposure. The
-  fallback-chain cache is global (M3) but holds only the public slug
-  string — no PII. Citations in the response cite only fields from
-  the user's own snapshot (`metricSource.type` references like
-  `bloodPressure`, `weight`); no cross-user data path exists.
+### L3 — `redactSecrets` regex does not cover "Authorization: Basic <base64>" or generic JWT shape
 
-- **A2 /admin overview** — `RecentAuditPreview` fetches via
-  `/api/admin/audit-log`, which is `requireAdmin()`-gated. No URL-
-  guessing path lands a non-admin on the audit data (handler returns
-  401 before query). System-status snapshot: surfaces `version`,
-  `database` connection state, `worker.running`, `gitCommit`,
-  `builtAt` — nothing infrastructural an external observer can't
-  derive from `/api/version` (which is public). Not a leak.
-
-- **B5 onboarding tour overlay** — `OnboardingTour` renders as
-  `position: fixed; z-[200]` ABOVE the dashboard but its content is
-  app-controlled (i18n keys, no user-supplied strings). Backdrop
-  click-through is dismissive (Skip), not silent. Tooltip body is
-  rendered via `{t(stop.bodyKey)}` (React-text, escaped — not
-  `dangerouslySetInnerHTML`). No phishing-mask vector unless an
-  attacker can write to `messages/*.json`, which is part of the
-  build artifact, not user-supplied.
-
-- **General checks**:
-  - `dangerouslySetInnerHTML`: only one occurrence in the entire
-    `src/` tree — `src/app/layout.tsx:93` for the inline theme-
-    bootstrap script. Content is the static `themeScript` constant,
-    not i18n.
-  - All new API routes wrap in `apiHandler()` (verified in
-    backups/run, backups/[id]/download, backups/[id]/restore,
-    backups/upload, internal/deploy-webhook, integrations/status,
-    notifications/status, onboarding/tour).
-  - New logging respects `redactSecrets` — `redact.ts` catches
-    `Bearer`, `bot<digits>:<token>`, `sk-`/`sk-ant-`, `hlk_`/`hlr_`,
-    `?secret=`/`?code=`/`?token=`/`?api[_-]?key=`. The Codex
-    client's local `redactBody` at `codex-client.ts:470` covers the
-    same surface for upstream-error bodies that don't pass through
-    the WideEvent error path.
-  - No `console.log` in production code paths beyond
-    `instrumentation.ts` (Glitchtip init), `crypto.ts` (dev-only
-    key-padding warning), `reminder-worker.ts` (pg-boss adapter for
-    library-level errors).
+- **Severity**: LOW (pre-existing)
+- **File**: `src/lib/logging/redact.ts:25-49`
+- **Issue**: The redaction rules cover `Bearer <token>`, `bot<n>:<token>`, `sk-…`, `hl[kr]_…`, and query-string secrets. They do NOT cover Basic auth headers or JWT (`eyJ...`) tokens. If an upstream provider ever echoes a JWT in an error message, redaction misses.
+- **Recommendation**: Add `Basic\s+\S+` and `\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b` patterns. Risk of over-matching is low since both shapes are token-specific.
+- **Ship-blocker?**: No.
 
 ---
 
-## Verdict
+## Items checked, no finding
 
-**No CRITICAL or HIGH ship-blockers.** v1.4.15 can ship. The 8 medium/
-low items are defence-in-depth recommendations for v1.4.16+; M1
-(transaction timeout) and M5 (admin test-send rate limit) are the
-two most worth folding in before a multi-user deploy.
+- **`POST /api/insights/feedback` auth, idempotency, schema** — all enforced (`apiHandler` + `requireAuth` + `withIdempotency` + Zod). PII: rec text is not in audit details.
+- **`GET /api/admin/host-metrics` admin gate** — `requireAdmin()` enforced. No host-info leak: the response is admin-only, no Bearer surface, the `dynamic = "force-dynamic"` guard prevents Edge cache surprise.
+- **`GET /api/admin/app-logs` admin gate + redactSecrets** — admin-gated; `redactSecrets()` applied to error.message, error.stack, warnings, user_agent, external_calls[*].error. (See H1 for the gap on `meta`.)
+- **`GET /api/admin/audit-log` admin gate + filter pagination** — admin-gated; Zod validates `actor`/`action`/`target`/`since`/`until`/`page`/`perPage`; Prisma parameterizes. No SQL injection.
+- **Export endpoints (`/api/export/*`)** — all wrapped in `apiHandler` + `requireAuth`; queries scoped `where: { userId: user.id }`; rate-limit `export:<userId>` 10/h shared bucket; `Content-Disposition` filenames embed cuid (alphanumeric, safe); audit-log entries per export type.
+- **Provider chain credential safety** — `resolveProviderForType()` (provider.ts:325) refuses to forward a stale `aiBaseUrl` to OpenAI/Anthropic; LOCAL is the only path that uses `aiBaseUrl`, and the LOCAL path goes through `isPublicUrl()` SSRF guard. AES-256-GCM encryption preserved; no plaintext key in any response.
+- **Confidence override safety** — `applyConfidenceOverride()` (generate-insight.ts:214-240) discards `rec.confidence` from the model and replaces with `computeConfidence()`. Wide-event annotation captures the model's value separately for admin observability.
+- **Feedback attribution** — `resolveFeedbackAttribution()` (feedback-attribution.ts:70-86) reads the user's most recent `insights.generate` audit row; `pickProviderType()` priority is `chainProviderType > providerType > "unknown"`. Client cannot supply `providerType` / `promptVersion` (Zod schema omits both).
+- **GDPR cascade-delete** — `RecommendationFeedback` migration 0034 has `ON DELETE CASCADE` on `user_id` FK; integration test `tests/integration/cascade-delete.test.ts:102+188` verifies the row is gone after user deletion.
+- **Comparison snapshot scope** — `buildComparisonSnapshotForUser()` (generate/route.ts:86-150) reads `where: { userId, type }` per metric. No cross-user data path exists.
+- **AI section masking** — `<PasswordInput>` used for all three apiKey fields (ai-section.tsx:810, 996, 1158). Last-4 preview only (`...wxyz` shape).
+- **Connect/disconnect routes** — `PATCH /api/user/ai-provider` is `requireAuth`-gated. The new `PUT /api/insights/provider-chain` is `requireAuth`-gated, dedupes provider entries, and normalises priority.
+- **Provider selection persists per-user** — `User.aiProviderChain` is per-user; no cross-tenant query path.
+- **Host-metrics retention cleanup** — `runHostMetricTick` deletes only from `prisma.hostMetric` (`host-metric-sampler.ts:163`); cannot touch unrelated tables.
+- **In-memory log buffer growth** — `LOG_BUFFER_MAX = 500` hard cap, FIFO eviction (`in-memory-buffer.ts:24-37`). Per-process. No exposure to attacker-controlled growth (the sampler gates on level).
+- **JSON inspector modal XSS** — `<pre>{JSON.stringify(selected, null, 2)}</pre>` (app-log-preview-section.tsx:282-284). Renders via React text node, no `dangerouslySetInnerHTML`.
+- **i18n strings via `dangerouslySetInnerHTML`** — no occurrences across v1.4.16 surface (only `src/app/layout.tsx:93` for the theme-init script — pre-existing, unrelated).
+- **`apiHandler()` wrap** — verified for `/api/insights/feedback`, `/api/insights/provider-chain` (GET+PUT), `/api/admin/host-metrics`, `/api/admin/app-logs`, `/api/admin/audit-log`, `/api/admin/audit-log/actions`, `/api/admin/ai-quality`, `/api/export/measurements`, `/api/export/medications`, `/api/export/mood`, `/api/export/full-backup`. All present.
+- **New routes log auth context via apiHandler** — confirmed via `requireAuth()` / `requireAdmin()` annotation chain.
+
+---
+
+## Summary
+
+The v1.4.16 release ships clean. No CRITICAL findings; the two HIGHs (H1 + H2) are defense-in-depth gaps that matter only at multi-admin scale, which HealthLog has not yet reached. Recommend tracking H1 + H2 + M1 + M2 as a v1.4.17 hardening bucket; M3-M5 + L1-L3 are nice-to-have.

@@ -1,422 +1,619 @@
-# Phase D — Senior-dev review (v1.4.15)
+# Phase D — Senior-dev review (v1.4.16)
 
 Lens: structure, file-size discipline, naming, separation of concerns,
 layering coherence, test architecture, premature abstraction. Distinct
 from code-review (correctness/bugs), security, design, simplify.
 
-Scope: 131 changed src files in `git diff v1.4.14...HEAD`, with focus
-on the largest deltas (B1 backups, B2 integrations, B3 notifications,
-B5 onboarding tour, C1 AI hardening, C2 deploy webhook).
+Scope: 167 changed files in `git diff v1.4.15...HEAD` (+20,357 / −2,031
+lines). Focus on the largest deltas: AI module (`src/lib/ai/` grew with
+B5a refs, B5b chain runner, B5c rationale, B5d confidence, B5e feedback),
+chart wrappers (`health-chart.tsx` +729, `mood-chart.tsx` +542), the
+recommendations surface (`<RecommendationCard>` 417 new lines,
+`<RecommendationsGrid>`, `<RecommendationFeedback>`, `<ConfidenceMeter>`),
+admin extensions (host-metrics, app-logs, audit-log filters, ai-quality),
+and B7's settings-export consolidation.
 
-Verdict at a glance: **0 CRITICAL, 4 HIGH, 8 MED/LOW**. The marathon
-phases produced overall well-structured code — every API route uses
-`apiHandler()`, every mutation goes through `requireAuth()` /
-`requireAdmin()`, every sensitive value is encrypted via `crypto.ts`,
-and zero `console.*` calls landed. The findings below are real
-maintenance debt but none of them block the v1.4.15 ship.
+Verdict at a glance: **0 CRITICAL, 3 HIGH, 9 MED/LOW**. The marathon
+hit its file-size target overall — only one v1.4.16-touched file is
+visibly over the comfortable ceiling and the named-slot pattern in
+`<RecommendationCard>` kept it under 420 lines despite five buckets
+plugging into it. Worktree adoption (last milestone's H3) worked well:
+the cross-agent staging races mostly fall into "wrong commit subject"
+territory rather than lost code. The findings below are real maintenance
+debt; none of them block the v1.4.16 ship.
 
 ---
 
 ## CRITICAL — none
 
-(There are no architectural mistakes that need to be fixed before
-shipping v1.4.15.)
+(No architectural mistakes need fixing before v1.4.16 ships.)
 
 ---
 
 ## HIGH
 
-### H1 — `src/app/page.tsx` (1031 lines) crossed the "single dashboard component is doing too much" threshold
+### H1 — `src/lib/ai/` directory has 19 flat files (4,726 lines) with five orthogonal responsibility groups; the named-slot success of `<RecommendationCard>` shows the AI module deserves the same sub-directory split
 
-- **File**: `/Users/marc/Projects/HealthLog/src/app/page.tsx` (1031 lines, was ~838 in v1.4.14, +193 lines this milestone)
-- **Issue**: The dashboard root now juggles eight orthogonal concerns
-  in one component: data fetching (analytics + steps + glucose +
-  layout), tile/chart visibility resolution (new `tileVisible` vs
-  `visible` dual-flag mirroring with legacy fallback), quick-add
-  dialog routing, getting-started checklist, onboarding tour
-  launcher gating, achievements card slot, dynamic chart imports,
-  and an on-screen empty-state branch. The phase-A4 dual-flag
-  resolver and phase-B5 tour-id wiring landed on top of an already
-  long file rather than triggering a split. Every future widget added
-  to the dashboard is a +30-line patch to this single file.
-- **Recommendation**: Pull the visibility resolver
-  (`isTileVisible` / `isChartVisible` / widget gating constants)
-  into `src/lib/dashboard-visibility.ts`, and split the dashboard
-  page into a `<DashboardShell>` (RSC if data permits, otherwise
-  client) + `<DashboardTileStrip>` + `<DashboardChartGrid>` +
-  `<DashboardEmptyState>` trio. The current file already has
-  natural split points in the comment headers — the refactor is
-  mechanical. Suggested for v1.4.16, NOT v1.4.15 (touching this
-  file mid-marathon would block five other phases' tests).
-- **Ship-blocker?**: no. Document in v1.4.16 backlog.
+- **Files / pattern**: `/Users/marc/Projects/HealthLog/src/lib/ai/` —
+  `provider.ts` (515), `codex-client.ts` (484), `provider-runner.ts`
+  (371), `codex-oauth.ts` (366), `schema.ts` (329), `generate-insight.ts`
+  (315), `medical-references.ts` (185), `provider-chain.ts` (137),
+  `types.ts` (132), `confidence.ts` (102), `citation-coverage.ts` (94),
+  `local-client.ts` (92), `openai-client.ts` (88), `feedback-attribution.ts`
+  (86), `legacy-payload.ts` (55), plus `prompts/` already split out.
+- **Issue**: Five distinct concerns sit at the same flat depth, all
+  importing each other:
+  - **Provider clients**: `codex-client.ts`, `codex-oauth.ts`,
+    `codex-slug-cache.ts`, `openai-client.ts`, `anthropic-client.ts`,
+    `local-client.ts`, `mock-client.ts` (7 files).
+  - **Provider resolution / chain runtime**: `provider.ts`,
+    `provider-chain.ts`, `provider-runner.ts` (3 files; `provider.ts`
+    AND `provider-runner.ts` both export 4 different
+    "resolve/run" entry points that route layers must navigate).
+  - **Schema / validation / types**: `schema.ts`, `types.ts` —
+    two response shapes still co-exist (last milestone's M6 — see
+    M5 below for the v1.4.16 update).
+  - **Domain logic**: `confidence.ts`, `citation-coverage.ts`,
+    `legacy-payload.ts`, `feedback-attribution.ts`,
+    `medical-references.ts`, `generate-insight.ts`.
+  - **Prompts**: `prompts/` already a sub-directory (the only one).
+  Today an AI-feature add lands one file in the flat `ai/` and one
+  in `ai/prompts/`. Tomorrow's "B6: prompt feedback ratchet" or
+  "B7: tool-call provider" will keep stuffing the flat directory.
+- **Recommendation**: Re-shape to:
+  ```
+  src/lib/ai/
+    providers/         ← codex-*, openai-*, anthropic-*, local-*, mock-*
+    runtime/           ← provider.ts (resolve), provider-chain.ts,
+                          provider-runner.ts, generate-insight.ts
+    schema/            ← schema.ts, types.ts (after merge — see M5)
+    domain/            ← confidence.ts, citation-coverage.ts,
+                          legacy-payload.ts, feedback-attribution.ts,
+                          medical-references.ts
+    prompts/           ← unchanged
+  ```
+  This is a mechanical rename + import-rewrite pass that the test
+  suite will catch in seconds. The named-slot pattern in
+  `<RecommendationCard>` proved the codebase responds well to
+  thoughtful structural splits; the AI module needs the same
+  treatment before v1.4.17 / v1.5 add another bucket.
+- **Ship-blocker?**: no. v1.4.17 housekeeping.
 
-### H2 — `src/components/settings/integrations-section.tsx` (883 lines) hosts two unrelated feature cards in one client module
+### H2 — `src/components/insights/insight-advisor-card.tsx` (690 lines) has become a god-component carrying 4 inline sub-components, 3 lookup tables, the legacy-payload CTA, the data-quality drawer, and the recommendations grid wrapping
 
-- **File**: `/Users/marc/Projects/HealthLog/src/components/settings/integrations-section.tsx` (883 lines after B2's +199-line addition)
-- **Issue**: A single 883-line file holds (a) the shared
-  `useIntegrationStatuses` query hook + `IntegrationStatusBanner` +
-  `StatusBadge` primitives, (b) `<WithingsCard>` which is itself
-  ~400 lines with credentials form + sync handlers + connect flow,
-  (c) `<MoodLogCard>` with its own form + status. The
-  Withings/moodLog cards share nothing meaningful at runtime —
-  each fetches its own `/status` endpoint, has its own mutation
-  set, and renders its own credentials section. Co-locating them
-  was a v1.3 leftover; the v1.4.15 status-banner addition makes
-  the file harder to navigate (search for "Withings" returns
-  ~100 hits).
-- **Recommendation**: `src/components/settings/integrations/`
-  directory with `integration-status-banner.tsx` (shared),
-  `withings-card.tsx`, `moodlog-card.tsx`, and an
-  `integrations-section.tsx` index that just composes them.
-  Mirror the per-section split that admin already follows
-  (`src/components/admin/<feature>-section.tsx` per phase 4b).
-  Mechanical refactor, no behavioural change.
-- **Ship-blocker?**: no.
+- **File**: `/Users/marc/Projects/HealthLog/src/components/insights/insight-advisor-card.tsx`
+  (690 lines, was 582 in v1.4.15 — +108 from B5c legacy-payload CTA
+  + B1b summary mini-charts + recommendations-grid wrapping)
+- **Issue**: Single client module hosts:
+  - `<HeroFinding>` (~60 lines, severity-tinted top-finding card)
+  - `<InlineCharts>` (~50 lines, chart-token expander)
+  - `<SectionSeparator>` (~15 lines, plus a duplicated comment header
+    "Section Separator" appearing twice in the file at lines 284 and
+    286 — copy-paste residue)
+  - `<AssessmentIcon>` (icon switcher)
+  - 4 module-scope lookup tables (`CLASSIFICATION_STYLES`,
+    `HERO_STYLES`, `CONFIDENCE_STYLES`, `INLINE_CHART_TITLE_KEYS`,
+    `CONFIDENCE_LABEL_KEYS`)
+  - The main `<InsightAdvisorCard>` with loading / empty / error /
+    full branches plus the legacy-payload CTA banner plus the
+    data-quality collapsible drawer
+  When the next phase (e.g. B5f or v1.4.17 comparison-callout)
+  needs to add a UI block, the only natural insertion point is more
+  inline JSX inside this file. The component already has 5 separate
+  concerns; the named-slot discipline that worked for
+  `<RecommendationCard>` was NOT applied here.
+- **Recommendation**: Extract:
+  - `src/components/insights/_advisor/hero-finding.tsx` — `<HeroFinding>` + `HERO_STYLES` + `<AssessmentIcon>`
+  - `src/components/insights/_advisor/inline-charts.tsx` — `<InlineCharts>` + the title-keys map
+  - `src/components/insights/_advisor/data-quality-drawer.tsx` — collapsible block
+  - `src/components/insights/_advisor/legacy-payload-cta.tsx` — banner
+  - `<InsightAdvisorCard>` becomes a slim composer (~150 lines) that
+    just orchestrates loading/empty/error and delegates to the
+    extracted blocks. Mirror the `<AdminShell>` per-section split
+    that v1.4.15 phase B4 already established as the codebase
+    pattern.
+  Remove the duplicate `// ─── Section Separator ───` comment block.
+- **Ship-blocker?**: no. v1.4.17 housekeeping.
 
-### H3 — Phase-D agent reports show repeated parallel-agent staging race; B1 / B6 / C1 commits each claim "swept into a sibling commit", indicating the multi-agent workflow has no isolation
+### H3 — `src/components/insights/recommendation-card.tsx` (417 lines) is approaching the size where the named-slot pattern alone won't scale — 5-bucket plug-in pressure now bears on `<RationaleCard>`'s prop list (6 props, plus 5 derived feedbackProps)
 
-- **Files**: tracked across `STATE.md` phase-status blocks (A2, A4, B-mobile, B1, B2, B3, B4, B6, C1, C2, C5)
-- **Issue**: STATE.md repeatedly flags "shared-cwd / shared-index
-  race" — phase A2's commit absorbed phase A4's diff, phase C1's
-  schema files rode along on a sibling C5 commit, phase C2's docker
-  workflow files landed under phase B4's achievements message, etc.
-  This isn't a code-correctness problem (the working tree on
-  `origin/main` is correct), but it IS a structural-hygiene problem:
-  `git log` no longer maps message-to-diff faithfully, so future
-  bisects / blame-reads / changelog-builders see misleading
-  attribution. Eight separate commits in the v1.4.15 marathon carry
-  this flag.
-- **Recommendation**: v1.4.16 marathon MUST adopt
-  `superpowers:using-git-worktrees` per parallel agent — each
-  phase agent runs in its own worktree (e.g.
-  `/Users/marc/projects/healthlog-A1/`,
-  `/Users/marc/projects/healthlog-B3/`) so `git add`/`git commit`
-  operate on isolated indexes. STATE.md's own status-block list at
-  the bottom of the file reads like a sustained alarm — fixing
-  the workflow is overdue. Already noted by every phase author;
-  promoting to a HIGH for visibility.
-- **Ship-blocker?**: no — the working tree on `main` is correct.
-
-### H4 — `MockAIProvider`'s `DEFAULT_RESPONSE` carries the legacy v1.4.14 rich-shape JSON, NOT the strict v1.4.15 schema — silent test-fixture drift
-
-- **File**: `/Users/marc/Projects/HealthLog/src/lib/ai/mock-client.ts` lines 42-50
-- **Issue**: The default response shipped by `MockAIProvider`
-  produces `{summary, classification, findings, correlations,
-  recommendations, dataQuality, disclaimer}` — the legacy v1.4.14
-  shape. The v1.4.15 strict schema (`aiInsightResponseSchema`)
-  requires `{summary, recommendations, citations, warnings}` with
-  `recommendations[].metricSource` mandatory. The mock's default
-  PASSES the strict schema only because of `.passthrough()` — but
-  every test that uses the default is exercising a code path the
-  production strict-mode wrapper rejects. When v1.4.16 retires the
-  passthrough (per the C1 plan), every test using the default mock
-  response will silently start failing schema-validation before the
-  asserts run.
-- **Recommendation**: Make `DEFAULT_RESPONSE` produce a v1.4.15
-  strict-schema-conformant payload (`citations: []`,
-  `recommendations: []`, `warnings: []`) and remove the legacy
-  fields. Tests that need the legacy shape can opt in via
-  `responses: ["..."]`. This is one-line of test-fixture work that
-  saves a v1.4.16 surprise.
-- **Ship-blocker?**: no.
+- **File**: `/Users/marc/Projects/HealthLog/src/components/insights/recommendation-card.tsx`
+- **Issue**: The named-slot architecture (`data-slot="rec-confidence-slot"`,
+  `data-slot="rec-feedback-slot"`) was the right call in B5c — five
+  buckets plugged in across B5c/d/e without merge conflicts. But the
+  result is now a 417-line file where:
+  - `RationaleCard` takes 6 props (`rationale`, `metricSource`,
+    `referenceId`, `confidence`, `locale`, `feedbackProps`)
+  - `feedbackProps` itself is a 5-field object built inline at the
+    parent level via `asFeedbackTimeRange()` defence-in-depth
+  - Three local helpers (`metricTypeToChartTypes`,
+    `isMoodMetric`, `isComplianceMetric`) duplicate vocabulary that
+    already lives in `src/components/charts/mini-window.ts` and
+    `src/lib/insights/chart-tokens.ts`
+  - `<CitationFootnote>` is defined inline AND consumed twice
+    (expanded rationale + non-expandable legacy fallback)
+  The component is still readable today, but the next bucket (e.g.
+  B5f data-export-per-rec, or a v1.4.17 "share rec" affordance)
+  will push it past 500 lines.
+- **Recommendation**:
+  - Extract `metricTypeToChartTypes` + `isMoodMetric` +
+    `isComplianceMetric` to `src/lib/insights/rec-metric-routing.ts`
+    (5-line file, but turns three duplicated `.toLowerCase()`
+    branches into a single source of truth shared with
+    `<InlineCharts>`).
+  - Extract `<CitationFootnote>` to
+    `src/components/insights/citation-footnote.tsx` — already used
+    twice, no reason to keep it inline.
+  - Extract `<RationaleCard>` to
+    `src/components/insights/recommendation-rationale-card.tsx` —
+    that's the natural split point, and it lets the prop list shrink
+    by hiding the 5 feedback fields behind a single `rec` parameter.
+  - Keep `asFeedbackTimeRange()` next to where it's used — it's
+    defence-in-depth for the API contract, not a candidate for
+    extraction.
+  After this split `recommendation-card.tsx` drops to ~250 lines and
+  the named-slot pattern keeps working for the next bucket.
+- **Ship-blocker?**: no. Pre-emptive split for v1.4.17.
 
 ---
 
 ## MEDIUM
 
-### M1 — `IntegrationStatus` and `NotificationChannel` reliability state machines duplicate the same shape (last-success, last-attempt, consecutive-failures, alert/cooldown stamp) without a shared abstraction
+### M1 — `src/lib/ai/provider-runner.ts` carries TWO near-identical fallback runners (`runWithFallback` + `runRawCompletionWithFallback`) with a "v1.4.17 will delete the legacy variant" comment — premature abstraction OR live-bridge debt
 
-- **Files**: `src/lib/integrations/status.ts`, `src/lib/notifications/channel-state.ts`, `src/lib/notifications/retry-policy.ts`
-- **Issue**: Two parallel state machines were built in the same
-  marathon. Both store `lastSuccessAt` / `lastAttemptAt` /
-  `consecutiveFailures` / a "skip until time" stamp /
-  classifications of permanent-vs-transient failures, both fan out
-  through `dispatchNotification(SYSTEM_ALERT)` for admin paging, and
-  both define classify-error helpers (`isWithingsRefreshReauthFailure`,
-  `classifyTelegramError`, `classifyHttpStatus`). They diverge in
-  small ways (integration uses `kind`, notification uses
-  `hardReject` boolean; integration uses `alertedAt` 24h window,
-  notification uses `nextRetryAt` Date) but the SHAPE is the same.
-  No CRITICAL because the divergence is consistent within each
-  module — but if a v1.5 webhook integration arrives, will it copy
-  the integration shape or the notification shape? The choice is
-  arbitrary today.
-- **Recommendation**: v1.4.16 — extract `src/lib/reliability/`
-  with `ReliabilityState` + `recordSuccess` / `recordFailure` /
-  `shouldAttempt` primitives, then have integrations + notifications
-  + (future) AI providers all consume the same surface. Don't
-  refactor in v1.4.15 — the abstraction needs at least one more
-  consumer to be obvious.
+- **File**: `/Users/marc/Projects/HealthLog/src/lib/ai/provider-runner.ts`
+  lines 229-371 (143-line duplication)
+- **Issue**: Two parallel async functions that differ only in the
+  inner call site (`generateInsight()` vs
+  `provider.generateCompletion()`). Both run the same chain
+  walkthrough, both classify hard failures the same way, both reach
+  for the same `applyLastWorkingCache` + `summariseError` helpers,
+  both emit the same Wide-Event annotations. The comment at line 296
+  says "v1.4.17 will migrate this route to the strict wrapper… at
+  that point this helper is removed." If that's true, the duplication
+  is a one-cycle bridge — fine. If v1.4.17 slips, the duplication
+  doubles every fallback-policy change.
+- **Recommendation**: Either:
+  - **Inline-extract the chain walker** into a generic
+    `runChain<T>(chain, attempt)` higher-order function and call it
+    from both wrappers (~40-line reduction). Today.
+  - OR commit to the v1.4.17 deletion as a calendar item and add a
+    `// REMOVE: v1.4.17` marker the cleanup phase can grep for.
+  Without one of those, the duplication will outlive its rationale.
 
-### M2 — `src/lib/notifications/dispatcher.ts` carries an inline auto-migration of legacy `User.telegramBotToken/chatId` columns into `NotificationChannel` rows; the migration code has been there since v1.3 and should be deleted
+### M2 — `<RecommendationFeedback>` reaches into `useAuth()` directly to scope the localStorage cache key; this couples a presentational rec-card slot to the auth subsystem
 
-- **File**: `src/lib/notifications/dispatcher.ts` lines 49-105
-- **Issue**: 56 lines of "first-dispatch on-the-fly migration" code
-  reading `user.telegramBotToken` / `telegramEnabled` and writing
-  a `NotificationChannel` row. This was a v1.3 cutover bridge.
-  Three milestones later, every active user has been through a
-  dispatch (since reminders fire daily), so the legacy columns
-  have been migrated for everyone. Keeping the bridge in the
-  dispatcher hot-path means every notification dispatch reads
-  three deprecated columns from `User` whenever the user has no
-  `NotificationChannel` row of type `TELEGRAM` (which on a fresh
-  install IS the common case).
-- **Recommendation**: Confirm via a one-off SQL audit that no rows
-  have non-null `telegramBotToken` AND no `NotificationChannel`
-  with `type='TELEGRAM'`, then delete the migration block + the
-  three legacy User columns in a v1.4.16 schema migration. The
-  block has a "Best-practice red flags / Backward-compat shims for
-  code paths that no longer exist" smell.
+- **File**: `/Users/marc/Projects/HealthLog/src/components/insights/recommendation-feedback.tsx`
+  lines 33, 134, 137-154
+- **Issue**: The component takes a 5-field props bag describing the
+  rec, then ALSO reaches into `useAuth()` to obtain `user.id` for
+  the localStorage cache key. The localStorage scoping by user id is
+  correct (a tour-launcher fix from H4 in v1.4.15 catch-up did the
+  same thing for the same reason), but the feedback button is a
+  "given a rec, render thumbs" leaf — it shouldn't know about auth.
+  The hydration race the component handles in render
+  (`hydratedFor !== user.id` — `setState` during render to dodge the
+  `react-hooks/set-state-in-effect` lint) is a 17-line dance to
+  satisfy a contract that could be `userId: string` on the props.
+- **Recommendation**: Have the parent `<RecommendationCard>` pull
+  `user.id` from `useAuth()` once and pass it as `userId` into
+  `feedbackProps`. The feedback component drops to a pure
+  function-of-props leaf: simpler render, no more hydration dance,
+  one less hook call per rendered card. The `useMutation` call
+  stays — that's behaviour, not auth.
 
-### M3 — `src/components/admin/backups-section.tsx` (529 lines) embeds `<RestoreRowDialog>`, `formatBytes`, three TanStack mutations, and a download handler in one client module
+### M3 — `src/lib/ai/types.ts` (132 lines) and `src/lib/ai/schema.ts` (329 lines) STILL define two response shapes; v1.4.15 M6 flagged this and v1.4.16 added rationale + confidence to BOTH instead of finishing the migration
 
-- **File**: `/Users/marc/Projects/HealthLog/src/components/admin/backups-section.tsx`
-- **Issue**: 529 lines for a single admin section. The
-  `<RestoreRowDialog>` sub-component (typed-confirmation gate) is
-  reusable across other destructive admin flows but lives buried
-  inside the backups section. The `formatBytes` helper is generic.
-  The download `handleDownload` async function with blob/object-URL
-  plumbing is generic too. None of these are wrong on their own,
-  but they push the section past the comfortable 400-line ceiling
-  and make the file slow to navigate.
-- **Recommendation**: Extract to:
-  - `src/components/admin/_dialogs/destructive-typed-confirm.tsx` —
-    reusable `<TypedConfirmDialog confirmWord="RESTORE" ... />`
-  - `src/lib/format-bytes.ts` (or co-located in `src/lib/format.ts`)
-  - `src/lib/download-blob.ts` for the `<a download>` plumbing
-  Backups-section then drops to ~300 lines.
+- **Files**: `src/lib/ai/types.ts`, `src/lib/ai/schema.ts`
+- **Issue**: Last milestone's senior-dev review M6 called the
+  dual-schema state architectural smell. v1.4.16 doubled down:
+  - `aiRecommendationRationaleSchema` (schema.ts) AND
+    `insightRecommendationRationaleSchema` (types.ts)
+  - `aiRecommendationSchema.confidence` AND
+    `insightRecommendationSchema.confidence`
+  - `metricSource` defined twice with subtly different field
+    requirements (`schema.ts` requires `summary` non-empty;
+    `types.ts` makes it required-but-permissive)
+  Each duplicate field has comments saying "mirrors the strict
+  schema in schema.ts" but there's no enforcement that they actually
+  do — drift between the two would only show up when a cached
+  payload deserialises differently between the two parsers.
+- **Recommendation**: Bite the migration. v1.4.17 must either:
+  - **Delete `insightResultSchema`** entirely; renderer migrates to
+    consume `AIInsightResponse` directly (the .passthrough() shape
+    already accepts both for cached payload back-compat).
+  - OR explicitly define `InsightResult = AIInsightResponse & {
+    classification, findings, ... }` in types.ts as an extension of
+    the canonical schema — single source of truth, types.ts becomes
+    the dashboard-renderer-specific projection.
+  Carrying two schemas through another milestone risks a real
+  divergence bug.
 
-### M4 — `<OnboardingTour>` (418 lines) embeds layout-math (`computeTooltipPosition`, `measureTarget`), state-machine consumer logic, and rendering in one component
+### M4 — `src/components/insights/recommendation-card.tsx`'s `metricTypeToChartTypes()` and `<InlineCharts>` in `insight-advisor-card.tsx` both maintain their own metric-type vocabulary; no shared source
 
-- **File**: `/Users/marc/Projects/HealthLog/src/components/onboarding/tour.tsx`
-- **Issue**: The pure tour-state machine WAS extracted (good — see
-  `src/lib/onboarding/tour-state.ts`), but the spotlight-positioning
-  math (`measureTarget` + `computeTooltipPosition` with the
-  candidate-flip heuristic) is inline in the React component. That's
-  ~100 lines of pure layout math the v1.4.15 tests don't touch
-  (the only test asserts SSR shape). When v1.4.16 wants to add
-  reduced-motion, RTL flipping, or an arrow connector, every change
-  re-renders the whole tour module.
-- **Recommendation**: Extract `src/lib/onboarding/tour-positioning.ts`
-  with `measureTarget`/`computeTooltipPosition` + unit tests
-  (deterministic, DOM-free with a synthetic `Element` stub for the
-  `getBoundingClientRect` call). Keeps the React component focused
-  on rendering + event wiring.
+- **Files**: `src/components/insights/recommendation-card.tsx`
+  lines 114-135, `src/components/insights/insight-advisor-card.tsx`
+  lines 216-230
+- **Issue**: Two parallel mappings:
+  - `metricTypeToChartTypes()` maps lowercased snapshot keys
+    ("bloodpressure", "weight", "bodyfat", …) to the
+    measurement-type enum strings.
+  - `INLINE_CHART_TITLE_KEYS` maps measurement-type enum strings
+    ("WEIGHT", "BLOOD_PRESSURE_SYS", …) to i18n title keys.
+  Both grew with the same v1.4.16 phase. A future "add SLEEP_QUALITY
+  metric" requires editing both files, with no compile-time guard
+  that they stayed in sync.
+- **Recommendation**: Extract one
+  `src/lib/insights/metric-vocab.ts` exposing
+  `MEASUREMENT_TYPES_BY_SNAPSHOT_KEY` + `MEASUREMENT_TITLE_KEYS_BY_TYPE`
+  + helper `resolveMetricRoute(snapshotKey)`. Both consumers
+  import. Adds one file, eliminates a hidden coupling.
 
-### M5 — Naming inconsistency: `application_name` (snake_case) vs `applicationName` (camelCase) inside the same `deploy-webhook/route.ts` module
+### M5 — `<RationaleCard>` takes 6 props that come from the same rec; pass the `rec` (or normalised `NormalisedRec`) instead
 
-- **File**: `/Users/marc/Projects/HealthLog/src/app/api/internal/deploy-webhook/route.ts`
-- **Issue**: The wire payload from Coolify is snake_case
-  (`application_name`, `application_uuid`, `deployment_uuid`),
-  which is correct for the upstream contract. But the
-  `NormalizedEvent` interface mixes both — `applicationName` (camel)
-  and the audit-log `details` re-emit `application_name` (snake)
-  alongside `applicationName`. The `annotate({meta:{...}})` block
-  uses snake (`application_name`, `deploy_outcome`,
-  `application_uuid`), inconsistent with the rest of the codebase
-  which uses camelCase keys for Wide Event meta fields (e.g.
-  `lastSyncedAt`, `consecutiveFailures` everywhere else).
-- **Recommendation**: Pick one — the codebase convention is
-  camelCase for app-level keys, snake_case ONLY where the wire
-  contract demands it. Convert the `meta:{}` block to
-  `applicationName` / `deployOutcome` / `applicationUuid` /
-  `deploymentUuid` and document the wire-vs-app boundary at the
-  top of the file. One-line fix per key.
+- **File**: `src/components/insights/recommendation-card.tsx`
+  lines 192-279, 396-402
+- **Issue**: The `<RationaleCard>` callsite in
+  `<RecommendationCard>` reads:
+  ```tsx
+  <RationaleCard
+    rationale={norm.rationale}
+    metricSource={norm.metricSource}
+    referenceId={norm.referenceId}
+    confidence={norm.confidence}
+    locale={locale}
+    feedbackProps={feedbackProps}
+  />
+  ```
+  Five of those six props are de-structurings of `norm`. The prop
+  list will only grow as future buckets plug in. Compare with
+  `<RecommendationFeedback>` which already takes a rec-shaped props
+  object.
+- **Recommendation**: `<RationaleCard rec={norm} feedbackProps={feedbackProps} locale={locale} />`.
+  Keeps `feedbackProps` separate (it's not a rec field — it's a
+  derived "is the rec submittable for feedback?" gate) and `locale`
+  separate (it's a user-context read). The prop list compresses to
+  the two values that aren't already in `norm`.
 
-### M6 — `src/lib/ai/types.ts` exports legacy `insightResultSchema` shape AND v1.4.15 imports a separate `aiInsightResponseSchema` from `schema.ts` — two response schemas in two files
+### M6 — `i18n.insights.recommendation.*` namespace mixes 4 unrelated feature buckets at the same depth; B5e key naming `feedbackThanks` / `feedbackHelpful` / `feedbackAlreadyRated` is flat where rationale + confidence are also flat
 
-- **Files**: `src/lib/ai/types.ts` (legacy `insightResultSchema`), `src/lib/ai/schema.ts` (new `aiInsightResponseSchema`)
-- **Issue**: `types.ts` defines the v1.4.14 shape (classification,
-  findings, correlations, dataQuality, disclaimer) and is still
-  imported by the dashboard renderer. `schema.ts` defines the
-  v1.4.15 strict shape (citations, warnings, structured
-  recommendations) and is consumed by `generate-insight.ts`. Two
-  schemas live in two files for the same domain object. The C1
-  status block acknowledges the route-side migration is deferred to
-  v1.4.16 — but the architectural smell is "which file do I edit to
-  add a field?" If you add to the strict schema only, the dashboard
-  doesn't see it. If you add to the legacy schema only, the parser
-  doesn't validate it.
-- **Recommendation**: v1.4.16 must finish the migration the C1
-  status block already plans — single source of truth in
-  `schema.ts`, dashboard renderer migrated to consume the new
-  shape, `insightResultSchema` deleted. The C1 phase author knew
-  this; flagging here so the v1.4.16 backlog doesn't lose it.
+- **File**: `messages/en.json` lines 701-722 (and `messages/de.json`
+  mirror)
+- **Issue**: Under the single `insights.recommendation.*` namespace
+  live four sub-buckets:
+  - source / viewSource (B5a citation)
+  - rationale / rationaleWindow / rationaleComparedTo /
+    rationaleDeviation / rationaleExpand / rationaleCollapse (B5c)
+  - confidence / confidenceAria / confidenceHigh / confidenceMedium
+    / confidenceLow / confidenceDraft (B5d)
+  - feedbackHelpful / feedbackNotHelpful / feedbackThanks /
+    feedbackConfirmed / feedbackAlreadyRated (B5e)
+  - legacyPayloadCta (B5c)
+  Five flat bullets sit alongside two nested-by-prefix groups. A
+  future contributor will add `feedbackXyz` and not know whether
+  to nest under `feedback: { … }` or stay flat. The codebase
+  convention (verified against `messages/en.json` line 1558 admin
+  scope: `hostMetrics: { title, load1, ... }` and 1569
+  `aiQuality: { title, loading, ... }`) is **nested objects per
+  feature bucket**.
+- **Recommendation**: Re-shape to:
+  ```json
+  "recommendation": {
+    "citation": { "source": "...", "viewSource": "..." },
+    "rationale": { "window": "...", "comparedTo": "...", "deviation": "...",
+                   "expand": "...", "collapse": "..." },
+    "confidence": { "aria": "...", "high": "...", "medium": "...",
+                    "low": "...", "draft": "..." },
+    "feedback": { "helpful": "...", "notHelpful": "...", "thanks": "...",
+                  "confirmed": "...", "alreadyRated": "..." },
+    "legacyPayloadCta": "..."
+  }
+  ```
+  Every consumer file gets a single-line `t()` rename;
+  `messages/de.json` mirrors. The existing
+  `sections-i18n-parity.test.ts` will catch any miss. The same
+  shape already works for `admin.hostMetrics` / `admin.aiQuality` /
+  `comparison.captionLastMonth` — apply consistently.
 
-### M7 — `RecentAchievementsCard` and `<RecentAuditPreview>` and `<SystemStatusSummary>` all marked `"use client"` but only fetch read-only data — could be RSCs
+### M7 — `src/lib/ai/feedback-attribution.ts` reads the LATEST `insights.generate` audit row to attribute provider; this couples the feedback domain to the audit-log shape
 
-- **Files**:
-  - `src/components/gamification/recent-achievements-card.tsx`
-  - `src/components/admin/recent-audit-preview.tsx`
-  - `src/components/admin/system-status-summary.tsx`
-- **Issue**: All three are pure read-only TanStack Query consumers
-  with no interactivity (no `useState`, no `onClick` handlers
-  beyond a `<Link>`). They could be RSCs that fetch directly from
-  Prisma + audit-log helpers, eliminating the client-side
-  hydration cost AND a round-trip on initial load. The
-  `useTranslations()` hook is a barrier today (it's client-only),
-  but the project ALREADY has server-side i18n infrastructure for
-  the doctor-report PDF; it just hasn't been wired into the
-  RSC rendering path.
-- **Recommendation**: Document as v1.5 backlog. The investment is
-  in moving `useTranslations()` to a hybrid pattern that supports
-  RSCs; once that lands, these three components can be RSCs by
-  flipping the `"use client"` directive and replacing `useQuery`
-  with a direct Prisma call.
+- **File**: `src/lib/ai/feedback-attribution.ts` lines 70-86
+- **Issue**: The function fetches the user's most recent
+  `auditLog` row with `action: "insights.generate"`, parses the
+  `details` JSON, and pulls `chainProviderType` (or fallback
+  `providerType`). The audit log is a structured-event export
+  surface — using it as the de-facto "what provider did the user
+  most recently use" is a coupling that won't survive an audit-log
+  schema change. The right home for "current active provider per
+  user" is either:
+  - a memoised read off `User.aiProviderChain` + the in-process
+    runner cache (`getLastWorkingProvider()`)
+  - or a dedicated `User.lastUsedProviderType` column written by the
+    runner
+  - or a dedicated AppSetting / cache table
+- **Recommendation**: For v1.4.17, write the working provider into
+  a per-user cache column at the END of `runWithFallback()` (the
+  in-process cache already exists; the row is a 1-line schema
+  add). The audit-log scan stays as a fallback for users whose
+  cache hasn't been hydrated yet, but the primary read is from a
+  dedicated column. As-is the feedback aggregator's slice is at the
+  mercy of the audit-log retention policy.
 
-### M8 — `src/lib/integrations/status.ts` (484 lines) reads `INTEGRATION_FAILURE_ALERT_THRESHOLD` env var lazily — a "tests can mutate it per case" justification, but the same module also imports a frozen `BACKOFF_SCHEDULE_MS` from notifications that is read once at module load
+### M8 — `src/lib/jobs/feedback-aggregator.ts`'s `buildFeedbackBuckets()` joins keys with empty separator (`[severity, metricSourceType, providerType, promptVersion].join("")`); two values "ab" + "cd" collide with one value "abcd"
 
-- **Files**: `src/lib/integrations/status.ts`, `src/lib/notifications/retry-policy.ts`
-- **Issue**: Inconsistent treatment of configuration values across
-  two parallel modules. Notifications freezes the schedule at
-  module load; integrations re-reads env on every call. Both
-  styles have merit (frozen is faster, lazy lets tests mutate). But
-  having both styles in the same milestone makes the codebase feel
-  like two different teams wrote them.
-- **Recommendation**: Pick one (either `getConfig()` everywhere or
-  module-frozen everywhere) and document the choice in CLAUDE.md
-  under "Important Patterns". Tests can use `vi.stubEnv` for the
-  module-frozen case with `vi.resetModules()` between tests if
-  mutation is needed.
+- **File**: `src/lib/jobs/feedback-aggregator.ts` line 75
+  ```ts
+  const key = [
+    row.recommendationSeverity,
+    row.metricSourceType,
+    row.providerType,
+    row.promptVersion,
+  ].join("");
+  ```
+- **Issue**: Empty-string join means `["bp","weight","openai","4.16"]`
+  and `["bpweight","openai","","4.16"]` both produce `"bpweightopenai4.16"`.
+  Today the inputs are constrained enough (severity is enum,
+  providerType is enum, promptVersion is `4.16.0` with dots) that
+  collision is unlikely. But the schema change that adds a hyphen-
+  containing severity tomorrow could silently merge buckets.
+- **Recommendation**: Use a delimiter that can't appear in any of
+  the four values — convention in this codebase is `::` (see
+  `findUncitedRecommendations` line 310 in `schema.ts`). One-char
+  fix; eliminates a class of silent-collision bugs the test
+  fixtures wouldn't catch.
+
+### M9 — `<HostMetricsChart>`, `<AppLogPreviewSection>`, `<AiQualitySection>` follow a TanStack Query pattern with inline `(await res.json()).data` unwrap; the TanStack-collision memory note from v1.4.15 says the convention is the unwrap, but the new admin sections re-implement it three times instead of using a shared `fetchJsonOrThrow` helper
+
+- **Files**: `src/components/admin/host-metrics-chart.tsx`,
+  `src/components/admin/app-log-preview-section.tsx`,
+  `src/components/admin/ai-quality-section.tsx`,
+  `src/components/admin/api-token-overview-section.tsx`,
+  `src/components/admin/backups-section.tsx`
+- **Issue**: Five admin sections (and many more outside admin) all
+  hand-roll the same `fetch + res.ok + json.data ?? throw` mini
+  state machine. The error message is different in each
+  ("ai_quality_failed" vs "Failed to load app logs" vs "Failed").
+  No shared helper means error formatting drifts.
+- **Recommendation**: One small `src/lib/api-client.ts` helper:
+  ```ts
+  export async function fetchJsonOrThrow<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+    const res = await fetch(input, init);
+    const body = (await res.json()) as { data: T; error?: string };
+    if (!res.ok) throw new Error(body.error ?? `Request failed: ${res.status}`);
+    return body.data;
+  }
+  ```
+  Adoption is opportunistic; not a structural requirement, but a
+  natural cleanup pass. Already partially done: the existing
+  `getApiErrorMessage` helper in `backups-section.tsx` is similar.
+  Promote it.
 
 ---
 
 ## LOW
 
-### L1 — `STATUS_TABS` / `FEEDBACK_STATUS_TABS` / `RANGE_DAYS` / `BACKOFF_SCHEDULE_MS` use four different "frozen tuple" idioms across the v1.4.15 changeset
+### L1 — `src/components/insights/insight-advisor-card.tsx` lines 284-286 has a duplicated `// ─── Section Separator ───` comment header
 
-- **Files**: `medication-compliance-chart.tsx` (`as const` tuple),
-  `retry-policy.ts` (`Object.freeze`),
-  `dashboard-visibility` (TBD, no shared source today),
-  feedback-inbox-section (uses `_shared` re-export).
-- **Recommendation**: Document the canonical pattern (suggested:
-  `const X = [...] as const`). Low priority.
+- **File**: `src/components/insights/insight-advisor-card.tsx`
+- **Issue**: Two consecutive `// ─── Section Separator ───`
+  comment headers, no code between them. Copy-paste residue from a
+  marathon edit.
+- **Recommendation**: Delete the duplicate. One-line fix.
 
-### L2 — Tour-launcher's "set state in render" comment block (lines 124-130) is paraphrasing what the code does, not WHY
+### L2 — `<RecommendationFeedback>`'s 17-line `if (!initialState && user && hydratedFor !== user.id)` block in render-time is a workaround for `react-hooks/set-state-in-effect` that future readers will trip over
 
-- **File**: `src/components/onboarding/tour-launcher.tsx` lines 124-130
-- **Issue**: 8-line comment explains that React StrictMode dev
-  mode invokes the lazy initializer twice and the second call
-  sees the cleared key. This describes mechanics, not motivation.
-- **Recommendation**: Trim to "Lazy initializer reads
-  sessionStorage once at mount; StrictMode double-invocation in
-  dev is acceptable because the consequence is bounded
-  (auto-launch deferred one render in dev only)." Minor edit.
+- **File**: `src/components/insights/recommendation-feedback.tsx`
+  lines 137-154
+- **Issue**: The set-state-during-render dance is correct (matches
+  the lazy-init pattern documented in CLAUDE.md), but the block has
+  no comment explaining why it's not in `useEffect`. A code reviewer
+  unfamiliar with the project rule would flag it as a bug.
+- **Recommendation**: One-line comment: `// CLAUDE.md rule: avoid setState in useEffect; recompute from props during render is the project pattern (matches tour-launcher.tsx).`
 
-### L3 — `safeEncryptError` and `safeDecryptError` swallow errors with literal sentinel strings (`"<encrypt failed>"`, `"(error message unavailable)"`)
+### L3 — `src/lib/ai/provider-chain.ts` and `src/lib/ai/provider.ts` both reference a `ProviderChainResolved` type; the type is defined in `provider-runner.ts` (the most-imported file) but the comment at provider-chain.ts top says "Why a separate module rather than inlining"
 
-- **File**: `src/lib/integrations/status.ts` lines 365-383
-- **Issue**: The sentinel strings are stored in the DB column
-  alongside real ciphertext. A future operator who runs `SELECT
-  last_error FROM integration_statuses WHERE last_error LIKE
-  '<%>'` would have to know about this convention. A `null` write
-  + a Wide-Event warning would be simpler.
-- **Recommendation**: Consider writing `null` on encrypt failure
-  (the warning + Wide-Event already capture the diagnostic) and
-  letting the read path treat `null` as "no error captured".
-  Cleaner DB shape.
+- **File**: `src/lib/ai/provider-chain.ts` lines 12-19
+- **Issue**: `ProviderChainResolved` is the bridge type
+  (logical-type + instance) that both `provider-chain.ts` (parser)
+  and `provider-runner.ts` (executor) need. It's defined in
+  `provider-runner.ts` and re-imported by `provider.ts` — backwards
+  layering. The parser layer should own the type; the runner
+  consumes it. Today's layout means `provider-chain.ts` doesn't
+  know about it (it stops at metadata) and `provider.ts` imports
+  from `provider-runner.ts` for a type the runner doesn't author.
+- **Recommendation**: When H1's directory restructure happens, move
+  `ProviderChainResolved` into `runtime/provider-chain.ts` (or a new
+  `runtime/types.ts`), so the parser can name what the runner
+  consumes. Trivial; do as part of the H1 split.
 
-### L4 — `RANGE_DAYS = [7, 30, 90] as const` in `medication-compliance-chart.tsx` duplicates the same constant from `health-chart.tsx`
+### L4 — `src/lib/ai/legacy-payload.ts` (55 lines) is a one-function module that could live in `schema.ts` next to `findRecommendationsMissingRationale()`
 
-- **Files**: `medication-compliance-chart.tsx`, `health-chart.tsx`
-- **Issue**: Two charts on the same dashboard maintain their own
-  copies of the range-button day list. A future "add 180-day
-  range" change requires editing two places.
-- **Recommendation**: Extract to `src/lib/charts/ranges.ts` —
-  trivial.
+- **File**: `src/lib/ai/legacy-payload.ts`
+- **Issue**: `isLegacyInsightPayload(payload: unknown): boolean` is
+  the only export. `schema.ts` already exports
+  `findRecommendationsMissingRationale(parsed: AIInsightResponse)`
+  for nearly the same legacy-detection use case. Two helpers, two
+  modules, same domain.
+- **Recommendation**: Inline into `schema.ts` (or a new
+  `schema/legacy-detection.ts` after H1's split). Watch for the
+  type difference: `isLegacyInsightPayload` takes `unknown`,
+  `findRecommendationsMissingRationale` takes `AIInsightResponse` —
+  they cover different stages of the parse pipeline. Document the
+  staging in the merge.
 
-### L5 — `MOODLOG_LAST_SYNCED_AT` legacy timestamp lives on the `User` model alongside `IntegrationStatus.lastSuccessAt`
+### L5 — `<RecommendationCard>`'s `LOW_CONFIDENCE_CAPTION_THRESHOLD = 50` and `<ConfidenceMeter>`'s `DRAFT_THRESHOLD = 25` + 80 / 50 / 25 band cuts live in two separate files with no shared source
 
-- **Files**: `prisma/schema.prisma` (User.moodLogLastSyncedAt),
-  `src/lib/integrations/status.ts` (IntegrationStatus.lastSuccessAt)
-- **Issue**: Two columns track the same fact for moodLog. The
-  v1.4.15 phase B2 deliberately added the new shape without
-  retiring the old (smart for compat), but a comment hint would
-  help future devs avoid double-writing.
-- **Recommendation**: Add `// LEGACY: see IntegrationStatus.lastSuccessAt` comment on the schema field and document a v1.4.16 cutover task.
+- **Files**: `src/components/insights/recommendation-card.tsx`
+  line 102, `src/components/insights/confidence-meter.tsx` line 37
+- **Issue**: The confidence thresholds are split:
+  - `<ConfidenceMeter>`: 80 (high), 50 (medium), 25 (low/draft)
+  - `<RecommendationCard>`: 50 (low-confidence-caption)
+  - `src/lib/ai/confidence.ts`: no constants exposed (formula-only)
+  Three files, three sets of magic numbers. A future "tighten the
+  band cutoffs" change requires editing three places.
+- **Recommendation**: Add a `src/lib/ai/confidence-bands.ts`
+  exposing:
+  ```ts
+  export const CONFIDENCE_BANDS = {
+    DRAFT: 25,
+    LOW: 50,
+    MEDIUM: 80,
+  } as const;
+  ```
+  Both components import. The threshold semantics become
+  self-documenting (`< CONFIDENCE_BANDS.LOW` reads better than
+  `< 50`).
 
-### L6 — `src/lib/ai/codex-client.ts` exports a `__test` namespace at the bottom (lines 479-483) for unit-test introspection
+### L6 — `src/lib/jobs/host-metric-sampler.ts`'s `getHostMetricRetentionDays()` reads env on every call; no caching, no obvious test reason
 
-- **File**: `src/lib/ai/codex-client.ts` lines 477-483
-- **Issue**: Exporting a `__test` namespace is an anti-pattern that
-  the codebase doesn't use elsewhere. Tests can import the
-  individual functions directly (the named exports are already in
-  scope inside the module). The `__test` re-export is a vestige
-  from a TS-strict workaround, not a structural requirement.
-- **Recommendation**: Mark `loadFallbackChain`,
-  `DEFAULT_SLUG_FALLBACK_CHAIN`, `isSlugRejection` as named exports
-  if tests need them, and delete the `__test` namespace. Slight
-  cleanup; low priority.
+- **File**: `src/lib/jobs/host-metric-sampler.ts` lines 120-131
+- **Issue**: Every minute the worker fires `runHostMetricTick()`
+  which calls `getHostMetricRetentionDays()` which calls
+  `process.env.HOST_METRIC_RETENTION_DAYS`. Cheap call, but the
+  pattern is inconsistent with the rest of the codebase. v1.4.15
+  M8 already flagged the parallel "lazy env vs frozen env" split
+  in integrations vs notifications; this adds a third site.
+- **Recommendation**: Defer to the M8/L1 v1.4.17 cleanup that picks
+  one canonical pattern.
 
-### L7 — `recordChannelTransientFailure` and `recordChannelHardReject` and `recordChannelSuccess` in `channel-state.ts` use camelCase parameter `channel: ChannelRef`, but `recordSyncFailure` in `status.ts` takes a positional flat-args `RecordSyncFailureInput` object
+### L7 — `prisma/schema.prisma` the new `RecommendationFeedback` model uses `recommendationSeverity` / `recommendationText` (camel) but `metric_source_type` / `metric_source_time_range` (snake-via-@map); the JS-side names are camelCase but the db column names mix prefixed-with-feature and not
 
-- **Files**: `src/lib/integrations/status.ts`, `src/lib/notifications/channel-state.ts`
-- **Issue**: Inconsistent function-signature style for very similar
-  state-machine writers in the same milestone. Channel-state uses
-  `(channelRef, outcome, now)`; integration-status uses
-  `({userId, integration, kind, message, errorCode})`.
-- **Recommendation**: Pick one (suggested: object-arg-bag everywhere,
-  matches the rest of the codebase). Low priority — both signatures
-  read fine in isolation; the inconsistency only bites when reading
-  both modules side-by-side.
+- **Files**: `prisma/schema.prisma` lines 833-840
+- **Issue**: The model uses `recommendationSeverity` (prefixed with
+  feature noun) and `metricSourceType` (prefixed with feature noun
+  too — but on-the-wire and in the table). This is consistent with
+  the rest of the schema. But the v1.4.16 audit-log query uses
+  `actor` / `action` / `target` as filter keys; the
+  recommendation-feedback row uses `recommendationId` /
+  `recommendationText` / `recommendationSeverity` — the
+  feature-prefix scheme is verbose where context already pins the
+  feature. The same row could read cleaner as `id`, `text`,
+  `severity` (the model name already says it's recommendation
+  feedback).
+- **Recommendation**: Cosmetic only — the prefixed naming is
+  defensible (the model is also the join target so prefixed names
+  read clearly under join queries). Flag for the v1.4.17 settings
+  audit (B6 follow-up) only if Marc has a feel-preference.
 
-### L8 — `pickRecentUnlocks(achievements, limit)` in `recent-achievements-card.tsx` is exported "for unit testing" — this is a code smell
+### L8 — `src/lib/ai/medical-references.ts` and `<CitationFootnote>` both render the citation label as `{org} {publishedYear} — {title}` — the format is duplicated rather than centralised in a `formatCitationLabel(ref, locale)` helper
 
-- **File**: `src/components/gamification/recent-achievements-card.tsx` lines 56-75
-- **Issue**: A pure helper is exported from a `"use client"`
-  component file solely so a unit test can import it. The pattern
-  works, but logically the helper belongs in
-  `src/lib/gamification/recent-unlocks.ts`. Pure data helpers
-  shouldn't live behind a `"use client"` boundary.
-- **Recommendation**: Move to `src/lib/gamification/`, import
-  back into the component. Trivial. Watch for the same pattern in
-  `medication-compliance-chart.tsx` (`aggregateMedicationCompliance`
-  is also exported from a `"use client"` file).
+- **Files**: `src/lib/ai/medical-references.ts`,
+  `src/components/insights/recommendation-card.tsx` line 173
+- **Issue**: One UI surface today; the v1.4.17 "share rec" or
+  the doctor-report PDF would re-render the same citation in the
+  same shape. No helper means a typography change requires editing
+  two places.
+- **Recommendation**: Add `formatCitationLabel(ref, locale)` to
+  `medical-references.ts`. Today's only consumer is
+  `<CitationFootnote>`; flagged here so the second consumer
+  copy-pastes from the helper rather than the component.
+
+### L9 — `src/lib/jobs/reminder-worker.ts` (1,350 lines) is the v1.4.16 +70-line addition (host-metric + feedback-aggregator queue registrations) on top of an already-too-large worker module
+
+- **File**: `src/lib/jobs/reminder-worker.ts`
+- **Issue**: 1,350 lines hosting reminder dispatch, insight caching,
+  data-backup, host-metric sampling, feedback aggregation, queue
+  registration, and the pg-boss instance. The file is the single
+  entry point for every cron-style background job — no per-queue
+  module split. Each new queue is +70 lines at the bottom of a
+  huge file.
+- **Recommendation**: v1.4.17 — split per queue under
+  `src/lib/jobs/queues/<queue-name>.ts`, each exporting a
+  `register(boss: PgBoss)` function. `reminder-worker.ts` becomes
+  a 50-line orchestrator that calls each `register()`. The host-
+  metric and feedback-aggregator additions in v1.4.16 already have
+  pure compute helpers split out (`host-metric-sampler.ts` /
+  `feedback-aggregator.ts`); the missing piece is the queue-config
+  + handler-wiring split. Mirror what v1.4.15 did for notifications
+  (`src/lib/notifications/dispatcher.ts` orchestrates;
+  per-channel senders in `src/lib/notifications/senders/`).
 
 ---
 
 ## Cross-cutting observations (positive)
 
-- Every API route in v1.4.15 uses `apiHandler()` — checked: 22/22
-  new or modified routes wrap correctly.
-- Every admin route uses `requireAdmin()` (cookie-only) — verified.
-- Every mutation route in B1/B2/B3 uses `auditLog()` for both
-  success AND denial paths.
-- `withIdempotency()` is correctly applied to the destructive
-  restore endpoint.
-- AES-256-GCM `encrypt()` / `decrypt()` is consistently used for
-  every new sensitive value (last-error, channel config, backup
-  payload).
-- `dispatchNotification(SYSTEM_ALERT)` fan-out pattern is reused
-  across B2 (integration alerts) AND C2 (deploy failures) — a
-  single sender abstraction, not duplicated code.
-- The `data-tour-id` contract is set up properly: every target id
-  declared by `buildTourStops()` has a matching `data-tour-id` in
-  the rendered DOM (verified: `dashboard-tile-strip`,
-  `dashboard-quick-add`, `nav-insights`, `nav-settings`,
-  `nav-achievements` all wired).
-- Phase C1's pure state-machine extraction (`tour-state.ts`)
-  separated from UI (`tour.tsx`) is exactly the pattern future
-  phases should mirror.
-- Zero `console.*` calls in any v1.4.15-touched lib file.
-- Zero raw `throw` of generic errors from API routes — every
-  failure goes through `HttpError` or `apiError()`.
+- **Worktree adoption worked**: Last milestone's H3 (parallel-agent
+  staging race) was the recurring complaint; v1.4.16 STATE.md
+  records `agent/b1b-insights-surface`,
+  `agent/b2-ai-provider-ux`, `agent/b5c-explainability`,
+  `agent/b5d-confidence`, `agent/b5e-feedback-loop`,
+  `agent/b6-settings-audit`, `agent/b8-comparison-views`,
+  `agent/wave-c-catchup` — all worktree-isolated. Cross-agent
+  collisions still happen (`9b01c86` carries both A6 and A7
+  files; `8d9f864` absorbed B3 chart + i18n; `2611bb4` got
+  hijacked by B1a's mood-chart) but the working tree on `main`
+  is correct in every case. The "wrong commit subject" outcomes
+  are diff-faithful, just message-misleading.
+- **Named-slot pattern is a clear win**: `<RecommendationCard>`'s
+  `data-slot="rec-confidence-slot"` + `data-slot="rec-feedback-slot"`
+  let B5c, B5d, B5e ship in parallel without merge conflicts.
+  The pattern should be the v1.4.17 default for any component
+  that anticipates plug-in pressure.
+- **Pure-function extraction is consistent**: B5d's `confidence.ts`
+  exposes `computeConfidence(inputs)` as a pure function with
+  unit tests; B8's `comparison-shift.ts` exposes
+  `shiftDailySeriesForward()` + `computeComparisonDelta()` the
+  same way; B5e's `feedback-aggregator.ts` exposes
+  `buildFeedbackBuckets()` separately. This is the right pattern
+  and the marathon used it consistently.
+- **Test-architecture is correct**: `tests/integration/`
+  testcontainers for the new `admin-host-metrics`,
+  `insights-feedback`, `insights-provider-chain` /
+  `insights-provider-chain-put`, `cascade-delete`,
+  `export-per-type`. SSR component tests under `__tests__/`
+  alongside the source files. Pure-function helpers tested in
+  isolation. No mocks-test-themselves smells observed.
+- **`apiHandler()` discipline holds**: every new API route
+  (`/api/insights/feedback`, `/api/insights/provider-chain`,
+  `/api/admin/host-metrics`, `/api/admin/audit-log`,
+  `/api/admin/audit-log/actions`, `/api/admin/app-logs`,
+  `/api/admin/ai-quality`, `/api/export/measurements`,
+  `/api/export/medications`, `/api/export/mood`,
+  `/api/export/full-backup`) wraps in `apiHandler` with
+  `requireAuth()` or `requireAdmin()`.
+- **`annotate()` adoption is universal**: 42 `annotate()` call
+  sites in v1.4.16-touched non-test files; zero new `console.*`
+  calls (the only `console.*` greps in `reminder-worker.ts`
+  predate v1.4.16, and they're explicitly the pg-boss-error
+  fallback the worker has used since v1.3).
+- **`HttpError` discipline holds**: every new API-route throw
+  that needs to escape `apiHandler` uses `HttpError` (verified:
+  `provider-chain/route.ts:87,98`, `backups/[id]/restore/route.ts:126`).
+  The other `throw new Error()` matches in the grep all live
+  inside TanStack Query `mutationFn` / `queryFn` callbacks where
+  the throw is internal to the React Query state machine.
+- **Encryption discipline holds**: every new sensitive value goes
+  through `decrypt()` from `crypto.ts` (verified at
+  `provider.ts:59,67,84` for AI keys; nothing new in v1.4.16
+  reached for raw cipher).
+- **TODO/FIXME inventory**: zero. `git grep -nE "(TODO|FIXME|HACK|XXX)"`
+  filtered to v1.4.16-changed files in `src/` returns no matches.
+- **Comment quality**: comments paraphrase code in only one
+  observed location (L2 above); the marathon's "WHY not WHAT"
+  discipline shows.
 
-The structural foundation is solid; the findings above are mostly
-"this could be cleaner", not "this is wrong".
+The structural foundation continues to hold; the v1.4.16 findings
+above are mostly "this could be cleaner before the next bucket
+plugs in", not "this is wrong".
 
 ---
 
 ## Summary
 
-- 0 CRITICAL — nothing blocks v1.4.15 ship.
-- 4 HIGH — file-size discipline (page.tsx, integrations-section.tsx),
-  process discipline (worktree adoption), and one test-fixture drift
-  (MockAIProvider default).
-- 8 MED/LOW — naming consistency, helper extraction opportunities,
-  RSC migration paths, dead-code identification (legacy Telegram
-  migration).
+- **0 CRITICAL** — nothing blocks v1.4.16 ship.
+- **3 HIGH** — directory layout pressure on `src/lib/ai/` (H1),
+  god-component drift in `<InsightAdvisorCard>` (H2), pre-emptive
+  split for `<RecommendationCard>` before the next plug-in (H3).
+- **9 MED/LOW** — premature-or-bridge duplication in the chain
+  runner (M1), auth coupling in feedback leaf (M2), dual schema
+  STILL not migrated from v1.4.15 (M3), shared metric-vocab
+  duplication (M4), `<RationaleCard>` prop-list growth (M5), i18n
+  namespace flattening drift (M6), audit-log coupling for feedback
+  attribution (M7), bucket-key collision risk (M8), shared
+  `fetchJsonOrThrow` opportunity (M9), plus seven LOW housekeeping
+  items.
 
-Recommended action: **ship v1.4.15**. File the four HIGH items in
-the v1.4.16 backlog. The MED/LOW items are housekeeping for
-v1.4.16/v1.4.17.
+Recommended action: **ship v1.4.16**. File the three HIGH items
++ M3 (the carry-over from v1.4.15 M6) in the v1.4.17 backlog as
+the AI-module restructure block. The MED/LOW items are
+opportunistic; pick them up when adjacent code is touched.
