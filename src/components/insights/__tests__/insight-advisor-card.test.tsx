@@ -267,6 +267,45 @@ describe("<InsightAdvisorCard> — polished loading / empty / error states (B1b)
     expect(html).toMatch(/data-slot="insight-retry-button"/);
   });
 
+  it("renders the legacy v1.4.14 payload without crashing (regenerate CTA)", () => {
+    // Reproduces Marc's production /insights crash on 2026-05-10:
+    //
+    //   TypeError: Cannot read properties of undefined (reading 'replace')
+    //     at stripChartTokens(insight.summary)
+    //
+    // The cached blob in the DB predates v1.4.16's strict insight schema
+    // (no `summary`, no `recommendations[]`, no `findings[]`, no
+    // `dataQuality`, no `disclaimer` — it carries the old `changed`,
+    // `stable`, `drivers`, `nextSteps`, `confidence`, `limitations`
+    // shape). The route's `safeParse(parsed)` fails and falls through
+    // to `insights = parsed`, so the legacy blob reaches the card with
+    // `summary === undefined`. The card must surface a regenerate CTA
+    // and skip rendering the prose, NOT crash.
+    const legacy = {
+      changed: "Long-term improvement on weight and BP.",
+      stable: "Pulse remains stable.",
+      drivers: "Weight reduction may have contributed.",
+      nextSteps: "Keep going.",
+      confidence: "hoch",
+      limitations: "Correlations don't imply causation.",
+    } as unknown as InsightResult;
+
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en">
+        <InsightAdvisorCard
+          title="Test card"
+          insight={legacy}
+          legacyPayload
+          onRegenerate={() => {}}
+        />
+      </I18nProvider>,
+    );
+
+    // No crash means the test got here. Surface the regenerate CTA so
+    // the user has a one-click escape from the legacy state.
+    expect(html).toContain('data-slot="insight-legacy-payload-cta"');
+  });
+
   it("error state without onRegenerate hides the retry button", () => {
     const html = renderToStaticMarkup(
       <I18nProvider initialLocale="en">

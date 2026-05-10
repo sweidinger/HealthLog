@@ -55,6 +55,29 @@ describe("stripChartTokens", () => {
   it("trims leading and trailing whitespace", () => {
     expect(stripChartTokens(" metric:WEIGHT ")).toBe("");
   });
+
+  // v1.4.17 hotfix — defensive: reading `insight.summary` on a legacy
+  // cached payload (no `summary` field) returns undefined. Crashing
+  // with `Cannot read properties of undefined (reading 'replace')` was
+  // the production /insights bug Marc hit on 2026-05-10. Treat
+  // null/undefined as the empty string instead.
+  it("returns empty string for undefined input", () => {
+    expect(stripChartTokens(undefined)).toBe("");
+  });
+
+  it("returns empty string for null input", () => {
+    expect(stripChartTokens(null)).toBe("");
+  });
+});
+
+describe("parseChartTokens — defensive (v1.4.17)", () => {
+  it("returns empty array for undefined input", () => {
+    expect(parseChartTokens(undefined)).toEqual([]);
+  });
+
+  it("returns empty array for null input", () => {
+    expect(parseChartTokens(null)).toEqual([]);
+  });
 });
 
 describe("tokenToMetric", () => {

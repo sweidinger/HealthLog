@@ -49,14 +49,32 @@ const TOKEN_REGEX = /metric:[A-Z_]+/g;
  * Find every well-formed chart token in `text` and return only those that
  * are in the allowlist. Hallucinated tokens (e.g. `metric:NUKE`) are
  * silently dropped.
+ *
+ * v1.4.17 hotfix: legacy cached payloads from before the strict insight
+ * schema landed can deliver `undefined` here when the consumer reads a
+ * field that didn't exist in the v1.4.14 shape (e.g. `insight.summary`
+ * on a `{changed, stable, drivers, ...}` blob). Rather than crashing
+ * the entire `/insights` page on a `text.match` of undefined, treat
+ * non-string input as empty — the legacy-payload CTA owns the user-
+ * facing recovery path.
  */
-export function parseChartTokens(text: string): ChartToken[] {
+export function parseChartTokens(text: string | null | undefined): ChartToken[] {
+  if (typeof text !== "string") return [];
   const matches: string[] = text.match(TOKEN_REGEX) ?? [];
   return matches.filter((m): m is ChartToken => ALLOWED_SET.has(m));
 }
 
-/** Strip the chart tokens out of the visible insight text. */
-export function stripChartTokens(text: string): string {
+/**
+ * Strip the chart tokens out of the visible insight text.
+ *
+ * v1.4.17 hotfix: same defensive contract as `parseChartTokens()` —
+ * non-string input returns the empty string instead of crashing the
+ * caller. The empty result keeps the surrounding JSX render path
+ * (`<p>{stripChartTokens(insight.summary)}</p>`) alive so the legacy-
+ * payload CTA above it gets a chance to surface to the user.
+ */
+export function stripChartTokens(text: string | null | undefined): string {
+  if (typeof text !== "string") return "";
   return text
     .replace(TOKEN_REGEX, "")
     .replace(/\s{2,}/g, " ")

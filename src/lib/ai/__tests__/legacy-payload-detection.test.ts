@@ -127,4 +127,26 @@ describe("isLegacyInsightPayload()", () => {
   it("returns false when recommendations is missing entirely (not legacy, just empty)", () => {
     expect(isLegacyInsightPayload({ summary: "x" })).toBe(false);
   });
+
+  it("returns true for the v1.4.14 pre-strict-schema shape (Marc's prod blob)", () => {
+    // The actual cached blob that crashed /insights for Marc on
+    // 2026-05-10. No `summary`, no `recommendations[]` — just the
+    // pre-v1.4.16 `{changed, stable, drivers, nextSteps, confidence,
+    // limitations}` shape. The route's `safeParse` failed and fell
+    // through to the raw blob, so the rich card got `summary ===
+    // undefined` and crashed inside `stripChartTokens(undefined)`.
+    const payload = {
+      changed: "Long-term improvement on weight and BP.",
+      stable: "Pulse remains stable.",
+      drivers: "Weight reduction may have contributed.",
+      nextSteps: "Keep going.",
+      confidence: "hoch",
+      limitations: "Correlations don't imply causation.",
+    };
+    expect(isLegacyInsightPayload(payload)).toBe(true);
+  });
+
+  it("returns true for an empty-summary v1.4.14-style blob (no fields)", () => {
+    expect(isLegacyInsightPayload({})).toBe(true);
+  });
 });

@@ -432,6 +432,80 @@ export function InsightAdvisorCard({
     );
   }
 
+  // ── Legacy-Payload State ──────────────────────────────
+  // v1.4.17 hotfix: when the cached blob predates the v1.4.16 strict
+  // schema (no `summary`, no `recommendations[]`, no `findings[]` —
+  // the v1.4.14 `{changed, stable, drivers, ...}` shape), the rich-card
+  // render path below would crash on `stripChartTokens(undefined)`.
+  // Surface the regenerate CTA in a self-contained card and skip the
+  // rich body entirely. The `legacyPayload` prop is the explicit
+  // signal from the API; we also defensively short-circuit when the
+  // shape doesn't carry the modern `summary` string at all.
+  const isUnrenderable =
+    typeof insight.summary !== "string" ||
+    !Array.isArray(insight.findings) ||
+    !Array.isArray(insight.recommendations);
+  if (legacyPayload || isUnrenderable) {
+    return (
+      <Card data-slot="insight-legacy-card">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {icon ?? <Sparkles className="text-dracula-purple h-5 w-5" />}
+              <CardTitle className="text-lg">
+                {t("insights.aiAnalysisTitle")}
+              </CardTitle>
+            </div>
+            {onRegenerate && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={onRegenerate}
+                disabled={regenerating}
+                title={t("insights.refreshAnalysis")}
+              >
+                {regenerating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            )}
+          </div>
+          <p className="text-muted-foreground text-sm">{title}</p>
+        </CardHeader>
+        <CardContent>
+          <div
+            className="border-dracula-yellow/30 bg-dracula-yellow/10 flex items-start gap-2 rounded-md border px-3 py-2 text-sm"
+            data-slot="insight-legacy-payload-cta"
+          >
+            <Info className="text-dracula-yellow mt-0.5 h-4 w-4 shrink-0" />
+            <div className="space-y-2">
+              <p>{t("insights.recommendation.legacyPayloadCta")}</p>
+              {onRegenerate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onRegenerate}
+                  disabled={regenerating}
+                  className="h-7 text-xs"
+                >
+                  {regenerating ? (
+                    <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-1.5 h-3 w-3" />
+                  )}
+                  {t("insights.startAnalysis")}
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // ── Full Insight Card ─────────────────────────────────
   return (
     <Card className="animate-insight-in">
