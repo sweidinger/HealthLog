@@ -49,31 +49,40 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     return apiError(parsed.error.issues[0].message, 422);
   }
 
-  // Read the existing layout, merge the new chart's prefs, and write
-  // it back. Resolver normalises legacy / missing fields, so layouts
-  // saved before v1.4.18 pick up the new field with default-empty
-  // prefs without a one-off migration.
-  const row = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { dashboardWidgetsJson: true },
-  });
+  // Read-modify-write inside a Serializable transaction so two
+  // concurrent toggles (e.g. user opens two tabs and flips overlays
+  // on different charts) can't drop one another's update by reading
+  // the same layout snapshot and clobbering each other on write.
+  // Resolver normalises legacy / missing fields, so layouts saved
+  // before v1.4.18 pick up the new field with default-empty prefs
+  // without a one-off migration.
+  await prisma.$transaction(
+    async (tx) => {
+      const row = await tx.user.findUnique({
+        where: { id: user.id },
+        select: { dashboardWidgetsJson: true },
+      });
 
-  const current = resolveDashboardLayout(row?.dashboardWidgetsJson);
-  const next: DashboardLayout = {
-    ...current,
-    chartOverlayPrefs: {
-      ...(current.chartOverlayPrefs ?? {}),
-      [parsed.data.chartKey]: parsed.data.prefs,
-    },
-  };
-  const normalized = serializeDashboardLayout(next);
+      const current = resolveDashboardLayout(row?.dashboardWidgetsJson);
+      const next: DashboardLayout = {
+        ...current,
+        chartOverlayPrefs: {
+          ...(current.chartOverlayPrefs ?? {}),
+          [parsed.data.chartKey]: parsed.data.prefs,
+        },
+      };
+      const normalized = serializeDashboardLayout(next);
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      dashboardWidgetsJson: normalized as unknown as Prisma.InputJsonValue,
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          dashboardWidgetsJson:
+            normalized as unknown as Prisma.InputJsonValue,
+        },
+      });
     },
-  });
+    { isolationLevel: "Serializable" },
+  );
 
   annotate({
     action: { name: "dashboard.chartOverlayPrefs.update" },
