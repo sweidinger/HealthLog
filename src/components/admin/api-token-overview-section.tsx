@@ -58,6 +58,32 @@ function TruncatedCell({
   );
 }
 
+/**
+ * F-18 (v1.4.19): the auto-login flow names tokens
+ * "web auto-login 2026-05-05T19:46:20.603Z" / "iOS auto-login …" by
+ * suffixing the issuing call's `Date.now().toISOString()`. That suffix
+ * makes the admin list look like debug output. Reformat to
+ * "iOS auto-login · 05.05.2026 19:46" while leaving any non-ISO suffix
+ * (manual names, device fingerprints, etc.) untouched.
+ */
+const TOKEN_NAME_ISO_RE =
+  /^(.+?)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)(.*)$/;
+
+function formatTokenName(name: string): string {
+  const match = TOKEN_NAME_ISO_RE.exec(name);
+  if (!match) return name;
+  const [, prefix, iso, rest] = match;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return name;
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mi = String(d.getUTCMinutes()).padStart(2, "0");
+  const formatted = `${prefix} · ${dd}.${mm}.${yyyy} ${hh}:${mi}`;
+  return rest && rest.trim() ? `${formatted} ${rest.trim()}` : formatted;
+}
+
 export function ApiTokenOverviewSection() {
   const { t } = useTranslations();
   // v1.4.19 phase A7 — `/admin/api-tokens` is a dedicated single-
@@ -153,7 +179,7 @@ export function ApiTokenOverviewSection() {
                           <TruncatedCell value={token.user.username} />
                         </td>
                         <td className="max-w-0 px-3 py-2">
-                          <TruncatedCell value={token.name} />
+                          <TruncatedCell value={formatTokenName(token.name)} />
                         </td>
                         <td className="max-w-0 px-3 py-2">
                           <div className="flex flex-wrap gap-1">
@@ -223,7 +249,7 @@ export function ApiTokenOverviewSection() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <TruncatedCell
-                            value={token.name}
+                            value={formatTokenName(token.name)}
                             className="min-w-0 flex-1 font-medium"
                           />
                           {token.revoked ? (
