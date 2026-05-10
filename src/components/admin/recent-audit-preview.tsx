@@ -56,6 +56,9 @@ export function RecentAuditPreview() {
     "auth.logout": t("admin.authLogout"),
     "auth.passkey.register": t("admin.authPasskeyRegister"),
     "auth.passkey.delete": t("admin.authPasskeyDelete"),
+    "auth.token.autoissue.native": t("admin.authTokenAutoissueNative"),
+    "auth.token.refresh": t("admin.authTokenRefresh"),
+    "auth.token.revoke": t("admin.authTokenRevoke"),
   };
 
   const entries = data?.entries ?? [];
@@ -116,31 +119,41 @@ export function RecentAuditPreview() {
           <ul className="divide-border divide-y">
             {entries.map((entry) => {
               const isFailed = entry.action === "auth.login.failed";
+              // F-31 (v1.4.19): each row links into the full
+              // /admin/login-overview viewer so admins can investigate
+              // failed logins without re-finding the row by hand.
               return (
-                <li
-                  key={entry.id}
-                  className="flex items-center gap-3 py-2 text-sm"
-                >
-                  <span className="shrink-0" aria-hidden="true">
-                    {isFailed ? (
-                      <XCircle className="text-destructive h-4 w-4" />
-                    ) : (
-                      <CheckCircle2 className="text-dracula-green h-4 w-4" />
+                <li key={entry.id}>
+                  <Link
+                    href="/admin/login-overview"
+                    className="hover:bg-muted/40 -mx-2 flex items-center gap-3 rounded px-2 py-2 text-sm transition-colors"
+                  >
+                    <span className="shrink-0" aria-hidden="true">
+                      {isFailed ? (
+                        <XCircle className="text-destructive h-4 w-4" />
+                      ) : (
+                        <CheckCircle2 className="text-dracula-green h-4 w-4" />
+                      )}
+                    </span>
+                    <span
+                      className={`min-w-0 flex-1 truncate font-medium ${isFailed ? "text-destructive" : ""}`}
+                    >
+                      {entry.user?.username ?? t("common.unknown")}
+                    </span>
+                    <span
+                      className={`hidden truncate sm:inline ${isFailed ? "text-destructive" : "text-muted-foreground"}`}
+                    >
+                      {AUTH_ACTION_LABELS[entry.action] ?? entry.action}
+                    </span>
+                    {entry.ipAddress && (
+                      <span className="text-muted-foreground hidden shrink-0 font-mono text-xs sm:inline">
+                        {entry.ipAddress}
+                      </span>
                     )}
-                  </span>
-                  <span
-                    className={`min-w-0 flex-1 truncate font-medium ${isFailed ? "text-destructive" : ""}`}
-                  >
-                    {entry.user?.username ?? t("common.unknown")}
-                  </span>
-                  <span
-                    className={`hidden truncate sm:inline ${isFailed ? "text-destructive" : "text-muted-foreground"}`}
-                  >
-                    {AUTH_ACTION_LABELS[entry.action] ?? entry.action}
-                  </span>
-                  <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
-                    {formatDateTime(entry.createdAt)}
-                  </span>
+                    <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
+                      {formatDateTime(entry.createdAt)}
+                    </span>
+                  </Link>
                 </li>
               );
             })}

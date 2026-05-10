@@ -76,6 +76,9 @@ export function LoginOverviewSection() {
     "auth.logout": t("admin.authLogout"),
     "auth.passkey.register": t("admin.authPasskeyRegister"),
     "auth.passkey.delete": t("admin.authPasskeyDelete"),
+    "auth.token.autoissue.native": t("admin.authTokenAutoissueNative"),
+    "auth.token.refresh": t("admin.authTokenRefresh"),
+    "auth.token.revoke": t("admin.authTokenRevoke"),
   };
 
   // Build the query string once so it's reused by the data-query key, the
