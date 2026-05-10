@@ -6,6 +6,7 @@ Started: 2026-05-09T~10:08+02:00
 Finished: 2026-05-09T~10:15+02:00
 
 ## Symptom
+
 Marc reported the dashboard "BD im Zielbereich" tile rendered the
 30-day headline correctly (**50,0 %**, the v1.4.16 A2 ceiling-semantics
 fix) but the row underneath the headline still showed **`7T: —`** and
@@ -13,6 +14,7 @@ fix) but the row underneath the headline still showed **`7T: —`** and
 windows.
 
 ## Root cause
+
 `/api/analytics` (`src/app/api/analytics/route.ts`) only computed and
 returned a single `bpInTargetPct` field — the share over the trailing
 30 days. The dashboard tile (`src/app/page.tsx`) explicitly passed
@@ -27,6 +29,7 @@ Confirmed against Marc's prod data on apps-01: user
 10 in last 30 days. Both windows have data; nothing should render "—".
 
 ## Fix
+
 Added `computeBpInTargetWindows()` next to the existing
 `computeBpInTargetPct()` helper in
 `src/lib/analytics/bp-in-target.ts`. Same predicate +
@@ -44,6 +47,7 @@ Headline (`bpInTargetPct`) preserved for cached client bundles +
 matches `last30Days` so a v1.4.17 PWA displays the same number.
 
 ## Tests (TDD)
+
 1. **Unit** (`src/lib/analytics/__tests__/bp-in-target.test.ts`) —
    6 new cases for `computeBpInTargetWindows`: empty input,
    mixed-window data, null-7d-with-real-30d, default-clock smoke,
@@ -54,15 +58,17 @@ matches `last30Days` so a v1.4.17 PWA displays the same number.
    (avoids the boundary flakiness of integer-day seeds) and assert
    both windows produce non-null hand-counted shares; second case
    verifies a user with only 14-day-old data sees `7T = null,
-   30T = real`.
+30T = real`.
 
 ## Verification
+
 - `pnpm test`: **1559 / 1559** green (was 1547; 8 new cases added)
 - `pnpm test:integration`: **61 / 61** green (was 59; 2 new cases)
 - `pnpm typecheck`: clean
 - `pnpm lint`: 12 baseline warnings, **0 new**
 
 ## Commit
+
 `23363ca` —
 `fix(dashboard): wire 7T and 30T sub-values on the BD-Zielbereich tile`
 

@@ -32,24 +32,24 @@ API changes.
 - `5510ed5` `docs(audit): v1.4.15 empty-states audit + i18n keys` —
   audit document at `docs/audit/v1415-empty-states.md`; 18 new EN+DE
   keys under `measurements/mood/medications/admin.section.users/
-  admin.section.backups/admin.{loginEmpty,tokensEmpty}/admin.feedback/
-  insights/dashboard`. Sibling-agent C1 AI files swept in by the
+admin.section.backups/admin.{loginEmpty,tokensEmpty}/admin.feedback/
+insights/dashboard`. Sibling-agent C1 AI files swept in by the
   shared-cwd race (per STATE.md pattern); files correct on `main`,
   message scope misleading.
 - `0c20119` `feat(admin): empty states for users, backups,
-  login-overview, api-tokens, feedback` — 6 admin sub-routes upgraded.
+login-overview, api-tokens, feedback` — 6 admin sub-routes upgraded.
   Adds `user-management-empty.test.tsx` + `backups-section-empty.test.tsx`
   guarding primitive mount, localized strings, and CTA-presence
   semantics.
 - `9a74f8e` `feat(lists): empty states for measurements, mood,
-  medications, achievements` — only carried the new
+medications, achievements` — only carried the new
   `measurement-list-empty.test.tsx` due to a sibling-cwd staging race;
   message-scope wider than diff.
 - `1d65f3b` `feat(lists): empty states for measurements, mood,
-  medications, achievements (impl)` — follow-up that lands the actual
+medications, achievements (impl)` — follow-up that lands the actual
   EmptyState wiring described in the previous commit's message.
 - `65faf1d` `feat(insights,dashboard): empty states for first-run
-  views` — `/insights` top-level + BMI height-not-set + dashboard
+views` — `/insights` top-level + BMI height-not-set + dashboard
   fully-empty paths.
 
 ## Tests
@@ -80,7 +80,7 @@ C2) reproduced twice during this phase:
 2. Commit `9a74f8e` was supposed to carry the four feature-list impl
    files plus the new test, but only the new test got staged — six
    modified files reverted from the index between `git add` and `git
-   commit`. The follow-up commit `1d65f3b` lands the impl with an
+commit`. The follow-up commit `1d65f3b` lands the impl with an
    explicit message tying the two together.
 
 Both patterns match STATE.md's documented "v1.4.16 should adopt

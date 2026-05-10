@@ -9,8 +9,9 @@ verification gate.
 Picked Option B (in-process sampler) over Option A (Coolify Sentinel
 scrape). Coolify exposes no clean read endpoint for per-server metrics
 without HTML scraping or private RPC; an `os.loadavg()` + `os.totalmem()`
-+ /proc/diskstats sampler is self-contained, costs one row per minute,
-and works on macOS dev as well as Linux production.
+
+- /proc/diskstats sampler is self-contained, costs one row per minute,
+  and works on macOS dev as well as Linux production.
 
 ## Deliverables
 
@@ -43,7 +44,7 @@ and works on macOS dev as well as Linux production.
 ## Tests
 
 - 8 unit tests for the sampler (env retention parsing, disk-stats null
-  + throw fallbacks, create + deleteMany call shape).
+  - throw fallbacks, create + deleteMany call shape).
 - 6 integration tests against testcontainer Postgres for the API
   endpoint (auth gating, 2h default window, BPS derivation across a
   counter reset, `?since=30m` preset, empty-DB happy path).
@@ -76,7 +77,7 @@ even simple `git add path/to/file && git commit` racy.
 - `tests/integration/admin-host-metrics.test.ts`
 - `src/components/admin/host-metrics-chart.tsx` + `__tests__/host-metrics-chart.test.tsx`
 - `src/components/admin/system-status-section.tsx` (wiring)
-- `messages/en.json`, `messages/de.json` (admin.hostMetrics.*)
+- `messages/en.json`, `messages/de.json` (admin.hostMetrics.\*)
 - `tests/integration/setup.ts` (truncate `host_metrics`)
 
 ## Did NOT touch (scope guards)

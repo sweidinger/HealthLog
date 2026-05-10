@@ -11,9 +11,9 @@ Status: complete on origin/main.
   `data-testid` so the e2e suite can target it without depending on the
   localised label.
 - New dynamic-route slug `/settings/export` wired through `SETTINGS_SECTION_SLUGS`
-  + `SECTION_COMPONENTS` + `SETTINGS_SECTIONS` (sidebar nav + mobile strip).
-  `<SectionPlaceholder>` learned the new icon so a future slug addition
-  cannot crash type-checking.
+  - `SECTION_COMPONENTS` + `SETTINGS_SECTIONS` (sidebar nav + mobile strip).
+    `<SectionPlaceholder>` learned the new icon so a future slug addition
+    cannot crash type-checking.
 - `<AdvancedSection>` simplified to the danger-zone card alone — every
   export path moved out into `<ExportSection>`. The "wipe all data"
   surface should never live next to a one-click export button.

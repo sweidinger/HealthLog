@@ -6,8 +6,8 @@ We surveyed five reference systems before sketching the new HealthLog
 achievement set:
 
 - **Apple Health (Activity rings, Workouts)** — month-of-perfect-days,
-  ring-on-fire weeks, doubled-goal challenges. Tone is *celebratory but
-  optional*; nothing shames you for missing a ring.
+  ring-on-fire weeks, doubled-goal challenges. Tone is _celebratory but
+  optional_; nothing shames you for missing a ring.
 - **Withings (Health+)** — milestone-based ("First weigh-in", "100
   weigh-ins"), trend-based ("Lost 1 kg", "Maintained ±2 kg for 30 d"),
   and seasonal challenges. Notable: never fires a coercive "you missed
@@ -25,7 +25,7 @@ achievement set:
 
 Keep the existing four (medication / vitals / security / engagement)
 and introduce two new buckets: **mood** and **hidden** (the Easter-egg
-group). Add two cross-cutting *axes* that aren't categories per se:
+group). Add two cross-cutting _axes_ that aren't categories per se:
 discovery (only earnable when the user has data for the metric) and
 celebration (a special toast when a hidden one fires).
 
@@ -48,7 +48,7 @@ the precondition predicate is satisfied. Predicate examples:
   `PULSE` measurement
 - medication badges → user has at least one active `Medication`
 
-Hidden Easter-eggs are *always shown as opaque "?" cards* but never
+Hidden Easter-eggs are _always shown as opaque "?" cards_ but never
 leak their conditions in the DOM, so a curious user knows the slot
 exists without learning the trigger.
 

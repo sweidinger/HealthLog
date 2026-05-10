@@ -3,10 +3,11 @@
 **Status**: done
 **Wall clock**: 2026-05-09T20:30 → 2026-05-09T20:55 Berlin (~25 min)
 **Commits on `origin/main`**:
-  - `41945b2` fix(test): de-flake e2e a11y suite by forcing dark colorScheme
-  - `249c42b` fix(ci): docker-publish reliability — separate cache scope per ref + 30min timeout
-  - `ffa4aac` feat(ci): post-publish verify workflow
-  - `4a5be22` docs(audit): v1.4.15 CI/e2e reliability report
+
+- `41945b2` fix(test): de-flake e2e a11y suite by forcing dark colorScheme
+- `249c42b` fix(ci): docker-publish reliability — separate cache scope per ref + 30min timeout
+- `ffa4aac` feat(ci): post-publish verify workflow
+- `4a5be22` docs(audit): v1.4.15 CI/e2e reliability report
 
 Linked deep-dive: [`docs/audit/v1415-ci-reliability.md`](../docs/audit/v1415-ci-reliability.md)
 
@@ -47,12 +48,12 @@ manifest exporter and one deadlocked indefinitely (no timeout).
 
 ## Fixes shipped
 
-| Commit    | Surface                            | Effect                                         |
-| --------- | ---------------------------------- | ---------------------------------------------- |
-| `41945b2` | `playwright.config.ts`             | e2e now scans the actual user-facing dark UI    |
-| `249c42b` | `.github/workflows/docker-publish.yml` | per-ref cache scope, 30-min timeout         |
+| Commit    | Surface                                     | Effect                                        |
+| --------- | ------------------------------------------- | --------------------------------------------- |
+| `41945b2` | `playwright.config.ts`                      | e2e now scans the actual user-facing dark UI  |
+| `249c42b` | `.github/workflows/docker-publish.yml`      | per-ref cache scope, 30-min timeout           |
 | `ffa4aac` | `.github/workflows/post-publish-verify.yml` | informational reachability gate after publish |
-| `4a5be22` | `docs/audit/v1415-ci-reliability.md` | full audit + recommendations               |
+| `4a5be22` | `docs/audit/v1415-ci-reliability.md`        | full audit + recommendations                  |
 
 The fix-set explicitly excludes scope I was told not to touch:
 `src/components/charts/**`, `admin/backups`, `withings/**`,
@@ -90,12 +91,12 @@ docker-publish + post-publish-verify fixes live in `.github/workflows`.
 
 ## Pass-rate impact
 
-| Stage                           | 30-day Pre-C3 | Expected Post-C3 |
-| ------------------------------- | ------------- | ---------------- |
-| Integration tests               | 100 % (47/47) | 100 %            |
+| Stage                           | 30-day Pre-C3 | Expected Post-C3          |
+| ------------------------------- | ------------- | ------------------------- |
+| Integration tests               | 100 % (47/47) | 100 %                     |
 | Security & Quality              | 93 % (43/46)  | unchanged (A4 fix needed) |
-| Docker publish (completed only) | 91 % (30/33)  | ≥ 95 %           |
-| e2e                             | 0 % (0/47)    | ≥ 90 %           |
+| Docker publish (completed only) | 91 % (30/33)  | ≥ 95 %                    |
+| e2e                             | 0 % (0/47)    | ≥ 90 %                    |
 
 The 0 → ≥90 % e2e jump is the headline result. Marc's "tests must
 really run through" gate is unblocked.
@@ -103,6 +104,7 @@ really run through" gate is unblocked.
 ## Race-condition observations (operational note)
 
 7 parallel agents pushing to `main` produced:
+
 - 26 of 60 docker-publish runs cancelled by `concurrency.cancel-in-progress`
   (by-design; no action needed)
 - Two of my own commits picked up B-agent staged files mid-`git add`

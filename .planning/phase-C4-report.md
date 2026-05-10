@@ -12,15 +12,15 @@ EN+DE translations as part of their own commits. By the time C4 ran
 sequentially after Batch 2, both locale files were already in perfect
 parity:
 
-| Check                              | Count |
-| ---------------------------------- | ----: |
-| Total keys (EN)                    |  1817 |
-| Total keys (DE)                    |  1817 |
-| Keys only in EN                    |     0 |
-| Keys only in DE                    |     0 |
-| Empty values                       |     0 |
-| TODO/FIXME placeholders            |     0 |
-| Used in `src/` but missing in EN   |     0 (after JSDoc/dynamic-prefix/test-fixture allow-list) |
+| Check                            |                                                  Count |
+| -------------------------------- | -----------------------------------------------------: |
+| Total keys (EN)                  |                                                   1817 |
+| Total keys (DE)                  |                                                   1817 |
+| Keys only in EN                  |                                                      0 |
+| Keys only in DE                  |                                                      0 |
+| Empty values                     |                                                      0 |
+| TODO/FIXME placeholders          |                                                      0 |
+| Used in `src/` but missing in EN | 0 (after JSDoc/dynamic-prefix/test-fixture allow-list) |
 
 All v1.4.15-introduced namespaces (`admin.section.backups.*`,
 `achievements.*`, `onboarding.tour.*`, `admin.overview.*`,

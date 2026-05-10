@@ -54,9 +54,10 @@ Pre-fix readings against `https://healthlog.bombeck.io/admin/api-tokens`:
 
 Post-fix the strip still reports `scrollWidth > clientWidth` (so swipe
 and keyboard-arrow scrolling stay), but with `scrollbar-width: none`
-+ `::-webkit-scrollbar { display: none }` the painted bar no longer
-draws. CSS-isolation probe (`/tmp/v1418-css-probe.html` +
-`v1418-css-probe.mjs`) verified the rule applies cleanly.
+
+- `::-webkit-scrollbar { display: none }` the painted bar no longer
+  draws. CSS-isolation probe (`/tmp/v1418-css-probe.html` +
+  `v1418-css-probe.mjs`) verified the rule applies cleanly.
 
 Screenshots: `/tmp/v1418-api-tokens-prod-393x851.png` (pre-fix prod),
 `/tmp/v1418-api-tokens-prod-1920x1080.png` (desktop sanity),
@@ -67,8 +68,13 @@ Screenshots: `/tmp/v1418-api-tokens-prod-393x851.png` (pre-fix prod),
 `src/app/globals.css` — added a small `.no-scrollbar` utility:
 
 ```css
-.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
-.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 ```
 
 `src/components/admin/admin-shell.tsx` and

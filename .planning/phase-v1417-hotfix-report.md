@@ -37,7 +37,7 @@ reached the polished `<InsightAdvisorCard>` (newly mounted on
 ```ts
 export function stripChartTokens(text: string): string {
   return text
-    .replace(TOKEN_REGEX, "")  // ← crash here when text === undefined
+    .replace(TOKEN_REGEX, "") // ← crash here when text === undefined
     .replace(/\s{2,}/g, " ")
     .trim();
 }
@@ -60,18 +60,18 @@ v1.4.14 shape.
 
 - **Safe (string-typed input or runtime-string)**: 81 hits. All
   `t(...).replace(...)` (i18n returns string), `.toISOString()
-  .replace(...)`, `.toLowerCase().replace(...)`, server-side string
+.replace(...)`, `.toLowerCase().replace(...)`, server-side string
   columns from Prisma (NOT NULL).
 - **Crash-on-undefined**: 1 — the production bug. No analogous
   fragile patterns elsewhere.
 
 Severity:
 
-| Class | Count |
-|---|---|
-| Production crash sites found | 1 |
-| Already-guarded patterns worth strengthening | 0 |
-| New crash-on-undefined risks elsewhere | 0 after this hotfix |
+| Class                                        | Count               |
+| -------------------------------------------- | ------------------- |
+| Production crash sites found                 | 1                   |
+| Already-guarded patterns worth strengthening | 0                   |
+| New crash-on-undefined risks elsewhere       | 0 after this hotfix |
 
 Detailed audit: `.planning/v1417-replace-audit.md`.
 
@@ -90,8 +90,8 @@ Detailed audit: `.planning/v1417-replace-audit.md`.
 
 3. **`src/components/insights/insight-advisor-card.tsx`** — added an
    `isUnrenderable` short-circuit (`typeof insight.summary !==
-   "string" || !Array.isArray(insight.findings) ||
-   !Array.isArray(insight.recommendations)`) before the rich-card
+"string" || !Array.isArray(insight.findings) ||
+!Array.isArray(insight.recommendations)`) before the rich-card
    render path. The legacy / malformed blob now hits a self-contained
    regenerate-CTA card instead of trying to render the v1.4.14 shape.
    Belt-and-suspenders alongside the `legacyPayload` flag.
@@ -114,11 +114,11 @@ properties of undefined (reading 'replace')` error). GREEN after.
 
 ## Commits
 
-| Commit | Message |
-|---|---|
+| Commit    | Message                                                                          |
+| --------- | -------------------------------------------------------------------------------- |
 | `79bfa27` | `fix(insights): handle legacy cached payload without rationale (regenerate CTA)` |
-| `adab80a` | `chore(release): v1.4.17` |
-| `da7070e` | `style(insights): prettier sweep on legacy-payload hotfix files` |
+| `adab80a` | `chore(release): v1.4.17`                                                        |
+| `da7070e` | `style(insights): prettier sweep on legacy-payload hotfix files`                 |
 
 Tag `v1.4.17` pushed.
 
@@ -159,4 +159,3 @@ step.
 - **GH release**: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.17
 
 Status: **live**.
-

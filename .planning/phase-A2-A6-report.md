@@ -8,17 +8,19 @@ Finished: 2026-05-09T23:35+02:00
 ## A2 — BD-Zielbereich root-cause analysis
 
 ### Symptom
+
 Marc reported the dashboard tile rendered **0 %** despite multiple BP
 readings clearly inside the well-controlled range. v1.4.15 phase-A4
 report claimed this was fixed (commit `a967895`); it was not.
 
 ### Investigation
+
 1. Read `src/lib/analytics/bp-in-target.ts` (the v1.4.15 fix). It
-   correctly fixed the *denominator* (paired-readings instead of
+   correctly fixed the _denominator_ (paired-readings instead of
    `sysData.length`) and added a same-Berlin-day fallback for imports
    rounded past the 5-minute pairing window.
 2. Read the v1.4.15 phase-A4 report — claim was specifically the
-   denominator fix. The "in target" *predicate itself* was untouched:
+   denominator fix. The "in target" _predicate itself_ was untouched:
    `sys >= sysLow && sys <= sysHigh && dia >= diaLow && dia <= diaHigh`.
 3. Pulled Marc's actual BP measurements from production (apps-01, container
    `db-pg8wggwogo8c4gc4ks0kk4ss-212006924671`, user
@@ -35,10 +37,11 @@ report claimed this was fixed (commit `a967895`); it was not.
    - 124/82 → dia 82 > 79 → OUT
    - 126/80 → dia 80 > 79 → OUT
    - 133/95 → both out → OUT
-   → **0 / 10 = 0 %**. Calculation is reproducing exactly what Marc
-   sees. **No bug in the v1.4.15 code; the bug is in the semantic.**
+     → **0 / 10 = 0 %**. Calculation is reproducing exactly what Marc
+     sees. **No bug in the v1.4.15 code; the bug is in the semantic.**
 
 ### Root cause
+
 The "in-target" predicate uses the **ESH 2023 narrow goal band** (the
 treatment goal for hypertensive patients on therapy: keep BP between
 sysLow and sysHigh, not below sysLow because sub-band can indicate
@@ -50,10 +53,11 @@ well-controlled"). The narrow band counts him out for being healthier
 than the goal.
 
 This is **hypothesis #2** from the brief (Wrong target range), with the
-twist that the issue is the *lower bound being too high*, not the
+twist that the issue is the _lower bound being too high_, not the
 upper bound being too low.
 
 ### Fix
+
 Centralised the predicate in a new exported `isBpReadingInTarget()`
 helper (`src/lib/analytics/bp-in-target.ts`) with one-sided ceiling
 semantics + clinical hypotension floors:
@@ -73,6 +77,7 @@ also closes a maintenance trap — pre-fix any future ESH update would
 need to land in 5 inline locations.
 
 ### Tests (TDD-style)
+
 - `src/lib/analytics/__tests__/bp-in-target.test.ts` — 6 new
   `isBpReadingInTarget()` cases + a regression test that **re-uses
   Marc's exact production fixture** (10 paired readings → 50 % under
@@ -84,18 +89,22 @@ need to land in 5 inline locations.
   / hypotension-floor edge cases.
 
 ### Cache invalidation
+
 Verified `measurementDependentKeys` already includes
 `queryKeys.analytics()` so adding a BP measurement invalidates the
 tile's TanStack Query cache (per file `src/lib/query-keys.ts`). The
 0 % bug was purely calculation, not staleness.
 
 ### Commit
+
 `577d8dd` — `fix(insights): BD-Zielbereich computes correctly for real measurement data`
 
 ## A6 — Medication-chart 7d-trend + target-range
 
 ### Changes
+
 `src/components/charts/medication-compliance-chart.tsx`:
+
 - New `computeMedicationTrend7d()` exported helper. Mean of recent-7
   daily rates − mean of prior-7, capped at 14-day window.
   Mean-difference rather than slope so a single outlier day doesn't
@@ -111,12 +120,14 @@ tile's TanStack Query cache (per file `src/lib/query-keys.ts`). The
   way HealthChart's targetZone band does for BP/weight tiles.
 
 ### Tests
+
 - `src/components/charts/__tests__/medication-compliance-chart.test.tsx`
   — 6 new `computeMedicationTrend7d()` cases (empty, up, down, stable,
   14-day cap, short window). Empty-state assertion that the trend
   chip is suppressed when no data exists.
 
 ### Commit
+
 `9b01c86` — `feat(charts): medication chart matches other charts (7d trend + indicator + target-range)`
 
 ## Constraint compliance
@@ -151,9 +162,11 @@ process review.
 ## Files touched (mine only)
 
 Created:
+
 - `tests/integration/bp-in-target.test.ts`
 
 Modified:
+
 - `src/lib/analytics/bp-in-target.ts` (centralised predicate, new export)
 - `src/lib/analytics/__tests__/bp-in-target.test.ts` (new tests)
 - `src/lib/insights/blood-pressure-status.ts` (use helper)
@@ -166,5 +179,6 @@ Modified:
 - `src/components/charts/__tests__/medication-compliance-chart.test.tsx`
 
 Commits on origin/main:
+
 - `577d8dd` — A2 fix
 - `9b01c86` — A6 feature (carries A7's diff inside, see race note)

@@ -22,7 +22,7 @@ Roster grew from **38 → 59** (+21 achievements):
 
 Hidden achievements render as opaque "Hidden achievement"
 placeholders in the locked state — the real title, description,
-metric and target are *never* written to the DOM, so a curious user
+metric and target are _never_ written to the DOM, so a curious user
 cannot inspect the page source to learn the trigger. Once unlocked,
 the strings reveal themselves on the same card; the unlock toast
 gets a longer (8 s) `<Sparkles>` celebration with the localized
@@ -37,28 +37,28 @@ so deleting data doesn't make completed achievements disappear.
 ## Commit walk
 
 1. `docs(achievements): v1.4.18 expansion research with 20+
-   proposed achievements` — research at
+proposed achievements` — research at
    `.planning/v1418-achievements-research.md`.
 2. `feat(achievements): definitions for v1.4.18 expanded set +
-   hidden Easter-eggs` — types, `ACHIEVEMENT_DEFINITIONS` list,
+hidden Easter-eggs` — types, `ACHIEVEMENT_DEFINITIONS` list,
    EN+DE strings, page mood/hidden category labels,
    `CATEGORY_LABEL_KEY` exhaustiveness.
 3. `feat(achievements): evaluators for new achievements (with
-   discovery rules)` — wires `buildExpansionMetricValues` +
+discovery rules)` — wires `buildExpansionMetricValues` +
    `applyDiscoveryFilter` into the route, fetches `MoodEntry`,
    recomputes summary from the visible set.
 4. `feat(achievements): page renders unlocked + locked + hidden
-   achievements with progress` — opaque hidden card, new lucide
+achievements with progress` — opaque hidden card, new lucide
    icons, page tests for the four card states + locale-localized
    hidden heading.
 5. `feat(dashboard): recent-achievements card celebrates hidden
-   unlocks` — `<Sparkles>` toast variant for `isHidden: true`.
+unlocks` — `<Sparkles>` toast variant for `isHidden: true`.
 6. `test(achievements): coverage for evaluators + UI states` —
    13 unit assertions against `expansion-metrics.ts`, 3 integration
    tests round-tripping prisma rows, e2e describe-block exercising
    all four card states with leak-resistance asserts.
 7. `feat(achievements): worker re-evaluates new + hidden
-   achievements on data change` — fixed two trigger bugs (the
+achievements on data change` — fixed two trigger bugs (the
    doctor-PDF action used a non-existent name; locale-flip now
    emits its own `settings.locale.update` audit row when the locale
    actually changes).
@@ -93,7 +93,7 @@ so deleting data doesn't make completed achievements disappear.
   consumes the same filtered list — apps will see exactly what the
   web sees, including hidden cards as opaque placeholders. iOS
   clients can render their own "?" affordance from `isHidden: true`
-  + `unlocked: false`.
+  - `unlocked: false`.
 
 ## Out of scope / followups
 

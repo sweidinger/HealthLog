@@ -22,14 +22,14 @@ land in v1.4.16+ — see `docs/audit/v1416-ai-roadmap.md`.
 
 ## Commits (in order)
 
-| Commit                                    | Subject                                                                        | Role                                                                                       |
-| ----------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `27310e4`                                 | refactor(ai): consolidate providers behind AIProvider interface                | MockAIProvider + 7 contract tests (every provider satisfies CompletionResult shape)        |
-| `5510ed5` (sibling-merged, scope is mine) | docs(audit): v1.4.15 empty-states audit + i18n keys                            | swept in my schema.ts + generate-insight.ts + generate-insight.test.ts (parallel-agent race) |
-| `d657f79`                                 | feat(ai): enforce citation-from-data on every recommendation                   | 11-test invariant suite — schema rejects missing/empty metricSource; cross-check enforced |
-| `4e85c38`                                 | feat(ai): scope-hardened system prompt with refusal pattern                    | Versioned prompt at `src/lib/ai/prompts/insight-generator.ts` (`PROMPT_VERSION = "4.15.0"`) + 18 tests |
-| `4bba951`                                 | feat(ai): fallback-chain slug discovery with 1h positive cache                 | `CodexClient` walks fallback chain + cache; spec §7b extended; 20 tests                    |
-| `fa11f10`                                 | docs(audit): v1.4.16 AI hardening roadmap                                      | Iteration plan Marc explicitly invited                                                     |
+| Commit                                    | Subject                                                         | Role                                                                                                   |
+| ----------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `27310e4`                                 | refactor(ai): consolidate providers behind AIProvider interface | MockAIProvider + 7 contract tests (every provider satisfies CompletionResult shape)                    |
+| `5510ed5` (sibling-merged, scope is mine) | docs(audit): v1.4.15 empty-states audit + i18n keys             | swept in my schema.ts + generate-insight.ts + generate-insight.test.ts (parallel-agent race)           |
+| `d657f79`                                 | feat(ai): enforce citation-from-data on every recommendation    | 11-test invariant suite — schema rejects missing/empty metricSource; cross-check enforced              |
+| `4e85c38`                                 | feat(ai): scope-hardened system prompt with refusal pattern     | Versioned prompt at `src/lib/ai/prompts/insight-generator.ts` (`PROMPT_VERSION = "4.15.0"`) + 18 tests |
+| `4bba951`                                 | feat(ai): fallback-chain slug discovery with 1h positive cache  | `CodexClient` walks fallback chain + cache; spec §7b extended; 20 tests                                |
+| `fa11f10`                                 | docs(audit): v1.4.16 AI hardening roadmap                       | Iteration plan Marc explicitly invited                                                                 |
 
 Cross-agent observation: same shared-cwd race documented across A2 /
 A4 / B-mobile / B1-B6 / C2 / C3 / C4 / B5 of the v1.4.15 marathon
@@ -89,11 +89,11 @@ version. Versioning policy documented in the prompt file's header.
 
 ```ts
 DEFAULT_SLUG_FALLBACK_CHAIN = [
-  "gpt-5.3-codex",  // verified 2026-05-09 on Plus/Pro
-  "gpt-5-codex",    // historical default — kept as second-chance retry
-  "gpt-5",          // bare slug — currently rejected on ChatGPT-auth
-  "gpt-4o",         // last-ditch capability fallback
-]
+  "gpt-5.3-codex", // verified 2026-05-09 on Plus/Pro
+  "gpt-5-codex", // historical default — kept as second-chance retry
+  "gpt-5", // bare slug — currently rejected on ChatGPT-auth
+  "gpt-4o", // last-ditch capability fallback
+];
 ```
 
 Override via `CODEX_MODEL_FALLBACK_CHAIN` (comma-separated). When
@@ -104,15 +104,15 @@ survive behind it. Stable de-duplication.
 
 Per `docs/codex-protocol-spec.md` §7b (extended in this phase):
 
-| Status                                          | Action                                |
-| ----------------------------------------------- | ------------------------------------- |
-| `400` + "not supported when using Codex with a ChatGPT account" | walk |
-| `400` + `model_not_found`                       | walk                                  |
-| `400` + `does not exist` AND mentions a model   | walk                                  |
-| `404`                                           | walk                                  |
-| `401` (first time)                              | refresh and retry SAME slug; DON'T walk |
-| `401` after refresh, `403`, `429`, `5xx`        | propagate (don't walk)                |
-| `200` + SSE `response.failed.error.code === "invalid_prompt"` | propagate (request shape is wrong) |
+| Status                                                          | Action                                  |
+| --------------------------------------------------------------- | --------------------------------------- |
+| `400` + "not supported when using Codex with a ChatGPT account" | walk                                    |
+| `400` + `model_not_found`                                       | walk                                    |
+| `400` + `does not exist` AND mentions a model                   | walk                                    |
+| `404`                                                           | walk                                    |
+| `401` (first time)                                              | refresh and retry SAME slug; DON'T walk |
+| `401` after refresh, `403`, `429`, `5xx`                        | propagate (don't walk)                  |
+| `200` + SSE `response.failed.error.code === "invalid_prompt"`   | propagate (request shape is wrong)      |
 
 Positive cache: process-local Map at `src/lib/ai/codex-slug-cache.ts`,
 single slot, 1 h TTL. Cache hit makes the working slug come first on
@@ -152,16 +152,16 @@ the wrapper passes it through cleanly.
 
 ## Tests added
 
-| File                                       | Tests | Focus                                                        |
-| ------------------------------------------ | ----- | ------------------------------------------------------------ |
-| `provider-contract.test.ts`                | 7     | Every provider returns CompletionResult shape                |
-| `mock-client.ts`                           | -     | Test infrastructure, no tests of its own (covered above)    |
-| `schema.ts` (no test file)                 | -     | Tested via the next two files                               |
-| `generate-insight.test.ts`                 | 11    | Schema parse, retry-once with correction, 422 on second-fail |
-| `citation-enforcement.test.ts`             | 11    | Schema-level + cross-check + wrapper end-to-end             |
-| `insight-generator-prompt.test.ts`         | 18    | Both locales, scope hardening, refusal payload, ESH/ESC etc. |
-| `codex-slug-cache.test.ts`                 | 7     | TTL boundaries, invalidation, replacement                    |
-| `codex-slug-fallback.test.ts`              | 13    | Walk triggers, no-walk on 5xx/429/401, all-failed, cache     |
+| File                               | Tests | Focus                                                        |
+| ---------------------------------- | ----- | ------------------------------------------------------------ |
+| `provider-contract.test.ts`        | 7     | Every provider returns CompletionResult shape                |
+| `mock-client.ts`                   | -     | Test infrastructure, no tests of its own (covered above)     |
+| `schema.ts` (no test file)         | -     | Tested via the next two files                                |
+| `generate-insight.test.ts`         | 11    | Schema parse, retry-once with correction, 422 on second-fail |
+| `citation-enforcement.test.ts`     | 11    | Schema-level + cross-check + wrapper end-to-end              |
+| `insight-generator-prompt.test.ts` | 18    | Both locales, scope hardening, refusal payload, ESH/ESC etc. |
+| `codex-slug-cache.test.ts`         | 7     | TTL boundaries, invalidation, replacement                    |
+| `codex-slug-fallback.test.ts`      | 13    | Walk triggers, no-walk on 5xx/429/401, all-failed, cache     |
 
 Total: +67 unit tests across 6 new files. 965 → 1048 unit pass
 (+83 net from baseline; some sibling-agent tests merged in too).

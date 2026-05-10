@@ -9,10 +9,10 @@ Tracked-files baseline: clean (untracked-only working tree on entry).
 - `.planning/STATE.md` rewritten for v1.4.18: `Status: phase-0-done`,
   Phase 0 marked complete, Wave A (A1 BD-Zielbereich tile sub-values,
   A2 `/admin/api-tokens` 3rd-attempt scrollbar, A3 chart visual revert
-  + per-chart toggles), Wave B (B1 achievements expansion with
-  research + hidden Easter-eggs + lock filter), Wave D multi-agent QA
-  + Product-Lead, Phase E release. v1.4.17 hotfix and v1.4.16 release
-  blocks archived inline above.
+  - per-chart toggles), Wave B (B1 achievements expansion with
+    research + hidden Easter-eggs + lock filter), Wave D multi-agent QA
+  - Product-Lead, Phase E release. v1.4.17 hotfix and v1.4.16 release
+    blocks archived inline above.
 - `.planning/ROADMAP.md` rewritten with the v1.4.18 one-liner table
   for Phase 0 / A1-A3 / B1 / D / E. v1.4.17 hotfix line + the full
   v1.4.16 / v1.4.15 / v1.4.14 archive tables retained beneath.
@@ -31,7 +31,7 @@ commits. Untracked items left in place (same call as v1.4.16 Phase 0):
   `phase-E3-report.md` — v1.4.16 release reports, belong to that
   milestone.
 - `src/app/api/export/{full-backup.json,measurements.csv,
-  medications.csv,mood.csv}/` — stale dotted-segment route directories;
+medications.csv,mood.csv}/` — stale dotted-segment route directories;
   the live plain-segment routes shipped in B7 of v1.4.16 (per
   `phase-E1-report.md`).
 

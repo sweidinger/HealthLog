@@ -1,152 +1,110 @@
-# Phase D — Reconcile report (v1.4.16)
+# Phase D — Reconcile report (v1.4.18)
 
-Reviewer: phase-D reconcile agent (sequential after the 6 parallel
-reviewers + Product-Lead).
-Inputs: `phase-D-{code-review,security,design,senior-dev,simplify,
-product-lead-review}-findings.md`.
-Constraint: charts data-presentation can change in v1.4.16; visual
-style stays Dracula. No new dependencies. Pre-commit hooks must run;
-no `--no-verify`, no `--no-gpg-sign`.
+Date: 2026-05-10
+Scope: act on the 6 reviewer briefs (code-review, security, design,
+senior-dev, simplify, Product-Lead). Apply the 1 CRITICAL,
+land HIGH where scope allows, run the simplify-yes batch, defer
+the rest. Verify all gates green before tag.
 
-Verdict: 1 of 3 CRITICAL fixed inline (C3 on-surface comparison
-toggle). 2 of 3 deferred to v1.4.17 with documented rationale.
-9 HIGH fixed, 12 deferred. 7 of 8 simplify-yes applied.
+## CRITICAL — status: FIXED
 
----
+**C1 — Hidden-achievement trigger leakage in API response.**
+The opaque-card UI was correct, but the JSON wire shape leaked
+`metric`, `titleKey`, `descriptionKey`, `icon`, `target`,
+`progressPercent`, plus the hidden-only metric counters. A user with
+DevTools open could read the trigger semantics for every locked
+Easter-egg. The iOS branch was strictly worse — server-side
+resolved the i18n keys to plain text.
 
-## CRITICAL — status per finding
+Commit `545f44c` — `fix(achievements): redact hidden-locked entries
+from API response`. Adds `redactIfHiddenLocked()` and
+`redactHiddenMetrics()` helpers in
+`src/app/api/gamification/achievements/route.ts`. Hidden+locked
+entries project to a sentinel shape (`achievements.hiddenCard.title`
+key, `HelpCircle` icon, `metric: "totalTakenIntakes"`, target/current
+0). Hidden-only metric counters (`nightOwlCount`, `earlyBirdCount`,
+`leapDayCount`, `doctorPdfCount`, `localeFlipCount`) are dropped from
+the `metrics` block unless the matching achievement is unlocked. The
+iOS branch reuses the same redacted view.
 
-### C1 — `/insights` does NOT mount the polished `<InsightAdvisorCard>` / grid / RecCard / ConfidenceMeter / Feedback. **DEFERRED**
+5 new tests in
+`src/app/api/gamification/achievements/__tests__/hidden-redaction.test.ts`
+guard the wire shape. Existing 53 gamification tests stay green.
 
-Wider-than-reasonable-scope-tonight. The `/insights` page consumes 7
-distinct per-status endpoints (`/api/insights/{general,blood-pressure,
-weight,pulse,bmi,mood,medication-compliance}-status`) returning text-
-only payloads. Mounting `<InsightAdvisorCard>` requires either
-rewriting all 7 status endpoints to return the
-rationale+confidence+citation rich shape, OR migrating the page to
-consume `/api/insights/generate`'s comprehensive payload directly.
-Same v1.4.17 migration the senior-dev review and code-review (H3)
-flagged.
+## HIGH triage
 
-**Workaround applied:** v1.4.16 release notes / Marc-Brief MUST phrase
-the polish components as "groundwork for v1.4.17 user-facing rollout"
-rather than headline UX. Screenshots of the unmounted advisor card
-surface do NOT belong in v1.4.16 marketing material. Logged to
-`v15-backlog.md` from-design section.
+| Finding | Source | Fix / Defer | Commit |
+|---|---|---|---|
+| H1 — chart-overlay-prefs R-M-W race | code-review | FIXED | `cf75579` |
+| H2 — `useChartOverlayPrefs(chartKey ?? "bp")` waste | code-review | FIXED via simplify F2 | `720e6c8` |
+| H3 — bug-buddy shared metric leak | code-review | AUTO-RESOLVED by C1 | `545f44c` |
+| H4 — mood-window doc/code mismatch | code-review | FIXED (doc clarified) | `c6e3ac6` |
+| H5 — consistentMonthCount unbounded | code-review | FIXED (capped at 1) | `c6e3ac6` |
+| HIGH-1 — same as C1 | security | AUTO-RESOLVED by C1 | `545f44c` |
+| HIGH-2 — i18n bundle leak | security | DEFERRED to v1.4.19 | bundle-strip needs build hook |
+| H1 design — mood `chartKey="mood"` default | design | FIXED | `fbf14fc` |
+| H2 design — cog 28x28 to 44x44 | design | FIXED | `194ec2f` |
+| H3 design — mood-chart header `flex-wrap` | design | FIXED | `fbf14fc` |
 
-### C2 — `<InsightsCardPreview>` (dashboard insights tile) has zero live imports. **DEFERRED**
+8 of 10 HIGH fixed inline. 1 deferred (HIGH-2 security — i18n
+bundle architectural change, doesn't fit reconcile scope). 1
+auto-resolved (HIGH-1 security = C1; H3 code = subsumed by C1).
 
-Same root cause as C1. Mounting on `/` requires a new GET endpoint
-exposing `User.insightsCachedText` + cache-aware staleness markers
-(the existing `/api/insights/generate` is POST mutation-only).
-Logged to `v15-backlog.md`.
+## Simplify-yes (7/7 applied)
 
-### C3 — Comparison toggle has NO on-surface control (buried 3 clicks deep). **FIXED**
+Combined commit `720e6c8` — `refactor(v1.4.18): apply simplify-review
+safe suggestions`:
 
-Commit `6e74d38` `fix(design): on-surface comparison toggle on
-dashboard + insights (C3)`. New `<CompareToggle>` segmented control
-(None / Vormonat / Vorjahr) mounted next to dashboard greeting and
-on `/insights` page hero. Persists via the same
-`/api/dashboard/widgets` PUT the Settings section uses, with
-optimistic update + cache invalidation. 44 px tap targets,
-focus-visible ring, role=group + aria-label, EN+DE i18n. 6 SSR
-tests pin segment count, persisted-active state, tap-target floor,
-EN+DE labels, and ARIA shape.
+- **F1** — Drop duplicate `ChartOverlayPrefsValue` type + DEFAULT in
+  `chart-overlay-controls`; re-export the canonical pair from
+  `dashboard-layout`. Test imports updated.
+- **F2** — `useChartOverlayPrefs(chartKey: ChartOverlayKey | null |
+  undefined)` short-circuits when no key is supplied.
+  `health-chart` drops the three discard-the-result ternaries.
+- **F3** — `/api/analytics` no longer pair-and-counts BP twice; the
+  windowed helper produces both the headline and the sub-values.
+- **F4** — Drop the redundant `moodEntries.map(...)` reshape.
+- **F5** — Merge the five hidden-metric defensive cases into the
+  no-precondition block of `isEarnable`.
+- **F6** — Delete the deprecated `getAchievementCategory` wrapper
+  (zero callers).
+- **F7** — Strip six "v1.4.18 gradient removed" what-comments.
 
----
-
-## HIGH — triage table
-
-| #   | Source      | Finding                                            | Action                                                     | Commit    |
-| --- | ----------- | -------------------------------------------------- | ---------------------------------------------------------- | --------- |
-| H1  | code-review | feedback-aggregator bucket-key collision           | **already-fixed** (reviewer mis-read; SOH `\x01` in code)  | n/a       |
-| H2  | code-review | FallbackChainCard discards `enabled` flag          | **fixed**                                                  | `5f7b9d8` |
-| H3  | code-review | Strict B5b/c/d AI features dark in production      | **deferred** → v1.4.17 (route migration)                   | n/a       |
-| H4  | code-review | findRecommendationsMissingRationale always-empty   | **deferred** → v1.4.17                                     | n/a       |
-| H5  | code-review | feedback endpoint had no rate-limit                | **fixed**                                                  | `6863ecb` |
-| H6  | code-review | feedback over-broad cache invalidation             | **fixed**                                                  | `6863ecb` |
-| H7  | code-review | comparison overlay shifts current data forward     | **deferred** (needs upstream-fetcher audit)                | n/a       |
-| H8  | code-review | seedKey race in ai-section                         | **deferred**                                               | n/a       |
-| H1  | security    | meta + action.details not redacted at admin egress | **fixed**                                                  | `fb12f09` |
-| H2  | security    | `/api/admin/audit-log` raw `details` returned      | **fixed**                                                  | `fb12f09` |
-| H1  | design      | rec-feedback thumbs 28×28 px                       | **fixed**                                                  | `c3451a4` |
-| H2  | design      | rec-card chevron 24×24 px                          | **fixed**                                                  | `c3451a4` |
-| H3  | design      | trend-card aria-label hardcoded English            | **fixed**                                                  | `2f057f4` |
-| H4  | design      | medication-compliance no compareBaseline overlay   | **fixed** (caption added)                                  | `5661439` |
-| H5  | design      | InsightsPageHero gradient too faint                | **deferred** → v1.4.17 visual sweep                        | n/a       |
-| H6  | design      | Chart range tabs 36×~28 px                         | **fixed**                                                  | `c3451a4` |
-| H7  | design      | Medication CSV raw `<input type="checkbox">`       | **fixed** (Switch + min-h-11)                              | `c3451a4` |
-| H8  | design      | DE fallback-chain row Pixel-5 overflow             | **deferred** (premise partly mistaken — buttons icon-only) | n/a       |
-| H1  | senior-dev  | `src/lib/ai/` 19 flat files architectural pressure | **deferred** → v1.4.17                                     | n/a       |
-| H2  | senior-dev  | `<InsightAdvisorCard>` 690-line god-component      | **deferred** → v1.4.17                                     | n/a       |
-| H3  | senior-dev  | `<RecommendationCard>` approaching size            | **deferred** → v1.4.17                                     | n/a       |
-
-**Tally: 9 HIGH fixed, 1 already-fixed (mis-read), 11 deferred to v15-backlog.md.**
-
----
-
-## Simplify-yes — applied
-
-7 of 8 apply-yes findings landed in commit `f3025a8`
-`refactor(v1.4.16): apply simplify-review safe suggestions`:
-
-- F2 — `confidenceContext` config-bag dropped from `generateInsight()`.
-  2 confidence-wrapper tests rewritten to test parsed-payload path.
-- F3 — `aiRecommendationRationaleSchema.referenceId` speculative
-  optional dropped.
-- F4 — `applyLastWorkingCache` doc-comment trimmed.
-- F5 — `<RecommendationFeedback>` re-uses canonical
-  `RecommendationFeedbackRequest` types.
-- F6 — `formatRelativeTime` doc-comment trimmed (stale polyfill claim).
-- F7 — `<RecommendationCard>` 26-line slot-architecture header → 4-line
-  WHY.
-- F9 — `pickProviderType` mis-anchored PROMPT_VERSION paragraph
-  removed.
-- F10 — `legacy-payload.ts` `UnknownRec` interface inlined.
-- F12 — `<ConfidenceMeter>` 20-line band-policy header → 3-line WHY.
-
-(F1 + F8 are apply-no — both flagged for Marc's call. Logged to
-v15-backlog.md "from-simplify" section.)
-
-**0 reverts.** All landed cleanly with full test suite green per-step.
-
----
+No reverts; all simplify changes shipped.
 
 ## Final verification
 
-Run after all reconcile commits land. See "Final verification" status
-block at the bottom of this document for actual numbers.
+```
+pnpm typecheck         0 errors
+pnpm lint              0 errors / 12 baseline warnings
+pnpm format:check      All matched files use Prettier code style!
+pnpm test --run        197 files / 1605 tests passing
+pnpm test:integration  18 files / 66 tests passing
+```
 
-Cleanup note: removed orphan `src/components/settings/thresholds-
-settings-section.tsx` (untracked leftover from B6's renaming refactor —
-was blocking typecheck against the new layout).
+Format sweep landed as a separate commit (`3048dd6`) — 72 files,
+pre-existing drift accumulated across v1.4.x. No behaviour change.
 
-Untracked dotted-segment route directories (`src/app/api/export/
-{measurements,medications,mood}.csv/`, `full-backup.json/`) are
-pre-existing v1.4.16 leftovers from B7's plain-segment pivot. Left in
-place — not in scope for reconcile, but flagged for v1.4.17 cleanup.
+## Pointers
 
----
+- **v1.4.19 backlog**: `.planning/v1419-backlog.md` — security
+  HIGH-2 + 5 MEDs (code) + 4 MEDs (design) + 5 LOWs.
+- **v1.5 backlog**: `.planning/v15-backlog.md` — updated with the
+  v1.4.18 Product-Lead review's C.12-C.16 (per-user UI prefs as a
+  platform pattern, achievement engine as next-best-action,
+  hidden pattern as feature-discovery, engagement loop, shell
+  layout audit).
+- **Product-Lead strategic plan**:
+  `.planning/phase-D-v1418-product-lead-review.md` — the v1.5
+  backbone. Lift section C candidates + section D follow-ons +
+  section E watchlist into the v1.5 milestone planning doc.
 
-## Pointer to v15-backlog.md
+## Commits this session
 
-Full deferred-item inventory at
-`.planning/v15-backlog.md`. Sections:
-
-- from-Product-Lead-strategic (C.1–C.11 + v1.6+ initiatives)
-- from-design (deferred CRITICALs C1+C2 + HIGH/MED + 22 MED/LOW)
-- from-code-review HIGH/MED
-- from-security HIGH/MED
-- from-senior-dev HIGH (architecture splits) / MED / LOW
-- from-simplify (the 2 apply-no items)
-- from-Wave-C deferred (Coolify image-digest, ARM matrix)
-
----
-
-## Product-Lead review's standing
-
-`.planning/phase-D-product-lead-review.md` IS the strategic v1.5
-plan. No compaction needed. The reconcile report's Pointer section
-defers to it as the source-of-truth for v1.5 milestone planning.
-Marc-three-weeks-from-now reads it as-is to remember "what state is
-the app in, and what does v1.5 actually need to look like".
+- `545f44c fix(achievements): redact hidden-locked entries from API response`
+- `720e6c8 refactor(v1.4.18): apply simplify-review safe suggestions`
+- `fbf14fc fix(mood-chart): make chartKey opt-in and don't leak overlay state across pages`
+- `194ec2f fix(chart-overlay-controls): bump cog to 44x44 tap target`
+- `cf75579 fix(dashboard): wrap chart-overlay-prefs PUT in Serializable transaction`
+- `c6e3ac6 fix(achievements): cap consistentMonthCount and clarify mood-improvement window`
+- `3048dd6 style(prettier): sweep formatting across the tree`

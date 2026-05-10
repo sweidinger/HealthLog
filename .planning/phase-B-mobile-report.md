@@ -19,14 +19,14 @@ shipped). Source of truth: `.planning/phase-A5-mobile-findings.md`.
 - **Finding ID**: A5 / CRITICAL #1 (Recharts `touch-action: auto`
   causing scroll-lockup).
 - **Files**: `src/components/charts/{health-chart, mood-chart,
-  medication-compliance-chart, compliance-line-chart,
-  scatter-correlation-chart}.tsx`,
+medication-compliance-chart, compliance-line-chart,
+scatter-correlation-chart}.tsx`,
   `src/components/charts/__tests__/touch-action-guard.test.ts` (new).
 - **Change**: Added `touch-pan-y` Tailwind utility to every chart's
   wrapping `<div>`. The two charts that previously rendered
   `<ResponsiveContainer>` without an explicit wrapper (`compliance-
-  line-chart`, `scatter-correlation-chart`) gain a `<div className=
-  "touch-pan-y">` parent.
+line-chart`, `scatter-correlation-chart`) gain a `<div className=
+"touch-pan-y">` parent.
 - **Evidence**: New textual guard test verified to fail on every
   chart before the fix, then turned green after. 5 / 5 chart files
   pass the contract; suite stays green at 863 tests total.
@@ -42,7 +42,7 @@ shipped). Source of truth: `.planning/phase-A5-mobile-findings.md`.
   so the filter pills stop colliding with the title's count badge.
   Card padding adapts `p-4 sm:p-6`. Desktop table gated behind
   `hidden md:block`. New mobile card-list (`<ul data-testid="admin-
-  users-mobile-list" className="md:hidden">`) renders each user as
+users-mobile-list" className="md:hidden">`) renders each user as
   a self-contained card with all four action buttons (toggle role,
   edit, reset password, force-logout) flex-wrapping below the
   username + role badge + meta line. Action buttons extracted into
@@ -68,7 +68,7 @@ shipped). Source of truth: `.planning/phase-A5-mobile-findings.md`.
   - A5 / HIGH `/mood` — list edit/delete sizing
   - A5 / MEDIUM `/medications` — history + edit icon buttons
 - **Files**: `src/components/charts/{health,mood,medication-
-  compliance,compliance-line,compliance}-chart{s}.tsx`,
+compliance,compliance-line,compliance}-chart{s}.tsx`,
   `src/components/medications/medication-card.tsx`,
   `src/components/mood/mood-list.tsx`.
 - **Change**: Chart range buttons `h-7 → min-h-9`; chart switches
@@ -103,27 +103,27 @@ shipped). Source of truth: `.planning/phase-A5-mobile-findings.md`.
 
 ## Deferred — picked up by future agent or v1.4.16
 
-| Audit ID | Reason | Recommended owner |
-|---|---|---|
-| A5/HIGH `/insights` tab strip overflow | Cross-cutting `tabs.tsx` primitive change touches `/settings/*` + `/admin/*` too. Best done as one consolidated pass. | v1.4.16 design-systems sweep |
-| A5/HIGH `/admin` tab strip overflow | Same reason — single fix for both Settings and Admin. | v1.4.16 design-systems sweep |
-| A5/HIGH `/measurements` BP grouping (sys + dia → "117/79 mmHg" row) | Logic change to `measurement-list.tsx`, larger scope than tap-target sweep. Doctor-export UX impact. | v1.4.16 measurements polish |
-| A5/HIGH `/measurements` hidden table DOM weight | Coupled to BP grouping fix. | v1.4.16 measurements polish |
-| A5/HIGH bottom-nav 7-items → 5+More | Requires nav-IA decision (which 2 to demote — Achievements + Targets per audit, but needs Marc sign-off). | v1.4.16 nav-IA review |
-| A5/MEDIUM `/admin` system-status loading-failed state | Touches `system-status-section.tsx`; B-agent-3 (notifications) and B1 (backups) are also touching admin sections. | v1.4.16 admin polish |
-| A5/MEDIUM tabs h-9 default | Same `tabs.tsx` primitive — group with HIGH tab-strip wrap. | v1.4.16 |
+| Audit ID                                                            | Reason                                                                                                                | Recommended owner            |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| A5/HIGH `/insights` tab strip overflow                              | Cross-cutting `tabs.tsx` primitive change touches `/settings/*` + `/admin/*` too. Best done as one consolidated pass. | v1.4.16 design-systems sweep |
+| A5/HIGH `/admin` tab strip overflow                                 | Same reason — single fix for both Settings and Admin.                                                                 | v1.4.16 design-systems sweep |
+| A5/HIGH `/measurements` BP grouping (sys + dia → "117/79 mmHg" row) | Logic change to `measurement-list.tsx`, larger scope than tap-target sweep. Doctor-export UX impact.                  | v1.4.16 measurements polish  |
+| A5/HIGH `/measurements` hidden table DOM weight                     | Coupled to BP grouping fix.                                                                                           | v1.4.16 measurements polish  |
+| A5/HIGH bottom-nav 7-items → 5+More                                 | Requires nav-IA decision (which 2 to demote — Achievements + Targets per audit, but needs Marc sign-off).             | v1.4.16 nav-IA review        |
+| A5/MEDIUM `/admin` system-status loading-failed state               | Touches `system-status-section.tsx`; B-agent-3 (notifications) and B1 (backups) are also touching admin sections.     | v1.4.16 admin polish         |
+| A5/MEDIUM tabs h-9 default                                          | Same `tabs.tsx` primitive — group with HIGH tab-strip wrap.                                                           | v1.4.16                      |
 
 ## Cross-agent observations
 
 - The shared-cwd race Marc documented in A2 / A4 reproduced again:
   twice during this phase a `git commit` consumed a sibling agent's
   staged files instead of mine. **Mitigation**: switched to `git
-  commit -- <pathspec>` for atomic stage-and-commit, which fixed it
+commit -- <pathspec>` for atomic stage-and-commit, which fixed it
   for fixes 3 / 4 / 5. Recommend the v1.4.16 marathon use the
   `superpowers:using-git-worktrees` skill to give each agent its
   own working tree.
 - One pre-existing typecheck error in `src/lib/__tests__/dashboard-
-  layout.test.ts` (DashboardWidgetId narrow type vs string) is
+layout.test.ts` (DashboardWidgetId narrow type vs string) is
   unrelated to my work — confirmed by stashing my changes and
   rerunning. Filed as v1.4.16 backlog.
 - Pre-existing Playwright config + a11y dark-color-scheme work

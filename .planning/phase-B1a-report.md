@@ -19,18 +19,18 @@ Five atomic commits on origin/main (one cross-agent race noted):
 
 1. **`feat(charts): reusable gradient + rich-tooltip primitives`** — landed
    inside commit `2611bb4 feat(db): User.aiProviderChain for ordered
-   fallback config` due to a parallel-staging race with the B5b worker
+fallback config` due to a parallel-staging race with the B5b worker
    (B5b ran `git add -A` between my `git add` and `git commit`). My
    primitives are on origin/main verbatim; the commit subject just
    belongs to B5b's adjacent work.
 2. **`74c2eb8 feat(charts): BP/weight/pulse polish (gradient, baseline,
-   rich tooltip)`** — single HealthChart wrapper covers all three vital
+rich tooltip)`** — single HealthChart wrapper covers all three vital
    families (BP, weight, pulse, body fat, sleep, steps).
 3. **`901f44e feat(charts): mood chart polish with emoji glyphs at data
-   points`** — bundled with B5b's `provider-runner.ts` files (same race
+points`** — bundled with B5b's `provider-runner.ts` files (same race
    pattern; my charts files content correct).
 4. **`8008613 feat(charts): medication chart polish (gradient +
-   animation + rich tooltip)`** — clean, only my 2 files.
+animation + rich tooltip)`** — clean, only my 2 files.
 
 Empty-state commit (brief item 7) was integrated into commits 2-4 since
 the same `<ChartEmptyState>` primitive lands per-chart with the polish.
@@ -79,7 +79,7 @@ a target band through whenever the user-pref ships.
 - ✅ Personal baseline line — new `computePersonalBaseline()` helper
   (90-point rolling median, returns null for <5 points). Painted as a
   faint dashed `<ReferenceLine>` labelled `"Your normal"` / `"Dein
-  Mittel"` (i18n keys `charts.personalBaseline`).
+Mittel"` (i18n keys `charts.personalBaseline`).
 - ✅ Empty / sparse-data state — new `<ChartEmptyState>` primitive
   consistently used by every wrapper when daily points < 3. Lucide
   `LineChart` glyph + i18n title+description (EN+DE).
@@ -103,12 +103,12 @@ a target band through whenever the user-pref ships.
 Three of the four commits absorbed parallel-agent staged work:
 
 1. Primitive files commit landed under B5b's `feat(db):
-   User.aiProviderChain` subject. My 6 files (`chart-gradient.tsx`,
+User.aiProviderChain` subject. My 6 files (`chart-gradient.tsx`,
    `chart-tooltip.tsx`, `chart-empty-state.tsx`, 3 tests, plus 7 i18n
    keys EN+DE) are on origin/main inside `2611bb4` — content-verified.
 2. Mood polish commit (`901f44e`) absorbed B5b's `provider-runner.ts`
-   + 2 test files + `insights/generate/route.ts` modifications + AI
-   provider chain insights routing. My mood-chart edits are intact.
+   - 2 test files + `insights/generate/route.ts` modifications + AI
+     provider chain insights routing. My mood-chart edits are intact.
 3. The mood-chart edits had to be reapplied twice after a watcher /
    format-on-save process (likely a parallel agent) reverted my
    in-flight `Edit` calls back to baseline mid-edit. Final form

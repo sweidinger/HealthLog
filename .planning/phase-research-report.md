@@ -7,7 +7,7 @@ Full document: `.planning/v1416-research-ai-recommendations.md`
 ## What ran
 
 1. STATE.md elevation — replaced the single `B5 — AI hallucination-
-   hardening v2` bucket with five first-class items (B5a medical-
+hardening v2` bucket with five first-class items (B5a medical-
    reference grounding, B5b multi-provider redundancy, B5c per-rec
    explainability, B5d confidence score, B5e user-feedback loop) and
    added a new `B8 — Extended comparison views (Vormonat / Vorjahr)`.
@@ -31,7 +31,7 @@ Full document: `.planning/v1416-research-ai-recommendations.md`
    score expands into per-component cards with band + value + trend.
    HealthLog's strict schema already carries `metricSource`; the
    incremental cost of adding `rationale: { dataWindow, comparedTo,
-   deviation }` is one zod block + one prompt-version bump. The UI
+deviation }` is one zod block + one prompt-version bump. The UI
    slot lives inside an already-planned `<RecommendationCard>` and
    the data source (bucketed daily/monthly history per metric) is
    already produced by `bucket-series.ts`.
@@ -67,7 +67,7 @@ cohesive slice that delivers user-visible explainability + confidence.
 
 1. `chore(planning): elevate B5c/d/e + B8 for v1.4.16` — STATE+ROADMAP.
 2. `docs(planning): v1.4.16 ecosystem research for explainability +
-   confidence + feedback + comparison views` — research doc + this
+confidence + feedback + comparison views` — research doc + this
    summary.
 
 Both pushed to origin/main.

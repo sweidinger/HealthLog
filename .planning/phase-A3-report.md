@@ -11,11 +11,13 @@ seeing them live, and replace them with a per-chart switch surface so
 each overlay can be opted into independently and persists per user.
 
 Hard NO list (memory `feedback_charts_visual_identity.md` v1.4.18):
+
 1. Gradient area fills under chart lines.
 2. Smiley/emoji glyphs on the mood chart's data points.
 3. Always-on personal-baseline / mean reference line.
 
 Hard YES list:
+
 - Per-chart switches for "7-Tage-Trend / Trend-Pfeil / Zielbereich".
 - Default state of every switch is OFF; clean line is the new default.
 

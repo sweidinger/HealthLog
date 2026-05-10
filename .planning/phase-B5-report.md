@@ -12,12 +12,12 @@ completion in the DB and offer a Settings → Account replay button.
 
 ## Acceptance criteria
 
-| # | Criterion                                                   | Status | Commit  |
-| - | ----------------------------------------------------------- | ------ | ------- |
-| 1 | DB migration `users.onboarding_tour_completed`              | done   | db5a49d |
-| 2 | Tour component with spotlight + keyboard a11y               | done   | e57fc0a |
-| 3 | Auto-launch on first dashboard load + persist on close      | done   | 8215e25 |
-| 4 | Settings → Account → Restart tour button                    | done   | fa1c6a6 |
+| #   | Criterion                                              | Status | Commit  |
+| --- | ------------------------------------------------------ | ------ | ------- |
+| 1   | DB migration `users.onboarding_tour_completed`         | done   | db5a49d |
+| 2   | Tour component with spotlight + keyboard a11y          | done   | e57fc0a |
+| 3   | Auto-launch on first dashboard load + persist on close | done   | 8215e25 |
+| 4   | Settings → Account → Restart tour button               | done   | fa1c6a6 |
 
 ## Architecture
 

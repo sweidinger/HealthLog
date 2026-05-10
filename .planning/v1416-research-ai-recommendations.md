@@ -52,8 +52,8 @@ deviations against a learned per-user baseline rather than a single
 fixed threshold. The Vitals app on watchOS 11 is even more direct:
 each metric is shown in-band vs. out-of-band relative to the user's
 "typical range," and tapping into a metric reveals which nights
-contributed the typical-range envelope (Apple Support, *View your
-health data*; Century, *Apple Watch Vitals app explained*). The
+contributed the typical-range envelope (Apple Support, _View your
+health data_; Century, _Apple Watch Vitals app explained_). The
 mental model that translates: "this finding is interesting because it
 deviates from **your** norm" is visible everywhere — there is no
 one-shot population claim without a personal baseline.
@@ -61,16 +61,16 @@ one-shot population claim without a personal baseline.
 **Withings Health Mate.** Health Insights surface ad-hoc nudges with
 a science-based interpretation. They link out to a long-form
 explainer page rather than expanding inline; user reviews repeatedly
-complain about *opacity* — the insight is a one-liner without a
+complain about _opacity_ — the insight is a one-liner without a
 visible data-window or threshold (justuseapp reviews, Withings
-Support, *What is Health Insights*). HealthLog should NOT copy the
+Support, _What is Health Insights_). HealthLog should NOT copy the
 out-link pattern; explanations belong inline.
 
 **Oura Ring.** This is the clearest reference point. Both Sleep and
 Readiness scores expand into **Contributors** — a per-score breakdown
 of (e.g.) Total Sleep, Efficiency, Restfulness, REM, Deep, Latency,
 Timing — each shown with its own band, current value, and personal
-trend (ouraring.com, *Sleep Contributors*, *Readiness Contributors*).
+trend (ouraring.com, _Sleep Contributors_, _Readiness Contributors_).
 Tapping a contributor reveals "what's pulling this lower." This is
 the explainability gold standard for consumer wellness UI.
 
@@ -87,15 +87,15 @@ the explainability gold standard for consumer wellness UI.
 
 ### 1B. Existing architecture fit
 
-| Concern        | Touched files / what changes                                                                                                                                                                                                                          |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema         | `src/lib/ai/schema.ts` — `aiRecommendationSchema` extended with required `rationale` object (`dataWindow`, `comparedTo`, `deviation`) and optional `referenceId` (filled by B5a).                                                                     |
-| Prompt         | `src/lib/ai/prompts/insight-generator.ts` — `PROMPT_VERSION` bumped to `4.16.0`; output-format block adds the rationale shape; ground rule "every rec MUST carry a rationale" added under §GROUND RULES.                                              |
-| Wrapper        | `src/lib/ai/generate-insight.ts` — corrective retry message lists the rationale fields when missing; `findUncitedRecommendations()` companion `findRecommendationsMissingRationale()` added.                                                          |
-| UI             | `src/components/insights/insight-advisor-card.tsx` — new `<RecommendationCard>` subcomponent with expand-arrow → `<RationaleCard>` (3-row data + `<HealthChart>` mini-chart for the window). `<InsightsCard>` likewise gets the same expand affordance. |
-| Charts         | `src/components/charts/health-chart.tsx` — accepts a `windowOverride` prop so the rationale's mini-chart can pin to e.g. last7days regardless of the parent's chosen range.                                                                            |
-| i18n           | New keys under `insights.recommendation.*`: `rationale`, `rationaleWindow`, `rationaleComparedTo`, `rationaleDeviation`, `rationaleExpand`, `rationaleCollapse`. Both `messages/en.json` + `messages/de.json`.                                          |
-| Auth + audit   | No new auth surface; the rec card consumes existing `requireAuth()`-gated insight payloads. No new audit row — explanations are read-only client-side derivations from the cached payload.                                                            |
+| Concern      | Touched files / what changes                                                                                                                                                                                                                            |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema       | `src/lib/ai/schema.ts` — `aiRecommendationSchema` extended with required `rationale` object (`dataWindow`, `comparedTo`, `deviation`) and optional `referenceId` (filled by B5a).                                                                       |
+| Prompt       | `src/lib/ai/prompts/insight-generator.ts` — `PROMPT_VERSION` bumped to `4.16.0`; output-format block adds the rationale shape; ground rule "every rec MUST carry a rationale" added under §GROUND RULES.                                                |
+| Wrapper      | `src/lib/ai/generate-insight.ts` — corrective retry message lists the rationale fields when missing; `findUncitedRecommendations()` companion `findRecommendationsMissingRationale()` added.                                                            |
+| UI           | `src/components/insights/insight-advisor-card.tsx` — new `<RecommendationCard>` subcomponent with expand-arrow → `<RationaleCard>` (3-row data + `<HealthChart>` mini-chart for the window). `<InsightsCard>` likewise gets the same expand affordance. |
+| Charts       | `src/components/charts/health-chart.tsx` — accepts a `windowOverride` prop so the rationale's mini-chart can pin to e.g. last7days regardless of the parent's chosen range.                                                                             |
+| i18n         | New keys under `insights.recommendation.*`: `rationale`, `rationaleWindow`, `rationaleComparedTo`, `rationaleDeviation`, `rationaleExpand`, `rationaleCollapse`. Both `messages/en.json` + `messages/de.json`.                                          |
+| Auth + audit | No new auth surface; the rec card consumes existing `requireAuth()`-gated insight payloads. No new audit row — explanations are read-only client-side derivations from the cached payload.                                                              |
 
 ### 1C. Proposed implementation plan (file-level)
 
@@ -188,7 +188,7 @@ Attention) plus a numeric value, plus a "what's contributing"
 breakdown. They don't expose calibrated probabilities; they expose
 **states + thresholds** that map directly onto a colour. This is a
 better reference than raw probabilities for non-clinicians
-(ouraring.com, *Sleep Score*, *Readiness Score*).
+(ouraring.com, _Sleep Score_, _Readiness Score_).
 
 **Top 3 patterns to borrow.**
 
@@ -206,15 +206,15 @@ better reference than raw probabilities for non-clinicians
 
 ### 2B. Existing architecture fit
 
-| Concern        | Touched files / what changes                                                                                                                                                                                                                          |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema         | `src/lib/ai/schema.ts` — `aiRecommendationSchema` gains required `confidence: z.number().int().min(0).max(100)` once B5c lands. Pre-B5c rollout: `.optional()` then flip to required in same milestone.                                              |
-| Confidence calc | `src/lib/ai/confidence.ts` (NEW) — pure function `computeConfidence({ n, recencyDays, deviationStdRatio })` returning 0-100. Ranged inputs from `metricSource.n`, the user's `bucketSeries()` payload's freshest bucket, and the deviation magnitude.    |
-| Prompt         | The model proposes a confidence; the wrapper **OVERRIDES** with the deterministic `computeConfidence()`. Two reasons: (1) calibrated probabilities are not a small-LLM strength; (2) deterministic reproducibility for the v1.4.17 feedback ratchet. |
-| Wrapper        | `src/lib/ai/generate-insight.ts` post-validation step injects `confidence` from `computeConfidence()` before returning to caller — model's value is discarded.                                                                                       |
-| UI             | `<RecommendationCard>` (from B5c) renders a `<ConfidenceMeter>`: 5-bar SVG that maps 0-20 / 20-40 / 40-60 / 60-80 / 80-100 to 1-5 lit bars. Below 25, lit-bar count is 1 + draft pill. Below 50 carries the "based on limited data" caption.          |
-| i18n           | `insights.recommendation.confidence`, `insights.recommendation.confidenceLow`, `insights.recommendation.confidenceDraft`. EN+DE.                                                                                                                      |
-| Auth + audit   | None. Confidence is derived; nothing to authenticate, nothing to audit.                                                                                                                                                                              |
+| Concern         | Touched files / what changes                                                                                                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema          | `src/lib/ai/schema.ts` — `aiRecommendationSchema` gains required `confidence: z.number().int().min(0).max(100)` once B5c lands. Pre-B5c rollout: `.optional()` then flip to required in same milestone.                                               |
+| Confidence calc | `src/lib/ai/confidence.ts` (NEW) — pure function `computeConfidence({ n, recencyDays, deviationStdRatio })` returning 0-100. Ranged inputs from `metricSource.n`, the user's `bucketSeries()` payload's freshest bucket, and the deviation magnitude. |
+| Prompt          | The model proposes a confidence; the wrapper **OVERRIDES** with the deterministic `computeConfidence()`. Two reasons: (1) calibrated probabilities are not a small-LLM strength; (2) deterministic reproducibility for the v1.4.17 feedback ratchet.  |
+| Wrapper         | `src/lib/ai/generate-insight.ts` post-validation step injects `confidence` from `computeConfidence()` before returning to caller — model's value is discarded.                                                                                        |
+| UI              | `<RecommendationCard>` (from B5c) renders a `<ConfidenceMeter>`: 5-bar SVG that maps 0-20 / 20-40 / 40-60 / 60-80 / 80-100 to 1-5 lit bars. Below 25, lit-bar count is 1 + draft pill. Below 50 carries the "based on limited data" caption.          |
+| i18n            | `insights.recommendation.confidence`, `insights.recommendation.confidenceLow`, `insights.recommendation.confidenceDraft`. EN+DE.                                                                                                                      |
+| Auth + audit    | None. Confidence is derived; nothing to authenticate, nothing to audit.                                                                                                                                                                               |
 
 ### 2C. Proposed implementation plan (file-level)
 
@@ -287,11 +287,11 @@ star reviews are the only loop, and they don't tie back to the rec.
 
 **Oura Ring.** Has a **Tags** feature where users mark daily
 behaviours (caffeine, alcohol, late meal, etc.) and Oura correlates
-those with sleep score deviations (Oura Help, *Sleep Score*). This
+those with sleep score deviations (Oura Help, _Sleep Score_). This
 isn't a thumbs-up on a rec — it's a much richer behavioural signal
 that funds Oura's correlations. HealthLog can't copy verbatim
 because the user base is too small for cross-user training, but the
-*pattern of asking the user to label cause-effect over time* is
+_pattern of asking the user to label cause-effect over time_ is
 worth borrowing in v1.5+ as an opt-in.
 
 **Top 3 patterns to borrow.**
@@ -310,15 +310,15 @@ worth borrowing in v1.5+ as an opt-in.
 
 ### 3B. Existing architecture fit
 
-| Concern        | Touched files / what changes                                                                                                                                                                                                                          |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema         | NEW Prisma model `RecommendationFeedback` (replaces the v1.4.17 roadmap's `InsightFeedback` proposal — same idea, narrower scope). Includes `userId`, `recommendationId`, `recommendationText`, `recommendationSeverity`, `helpful`, `providerType`, `promptVersion`, `createdAt`. |
-| API            | NEW `POST /api/insights/feedback` — accepts `{ recommendationId, recommendationText, helpful }`, fills `providerType` + `promptVersion` server-side from the cached payload. `requireAuth()`-gated. Idempotent via `Idempotency-Key`.                  |
-| UI             | `<RecommendationFeedback>` component — 2 small icon buttons under the rec, optimistic mutation via TanStack Query. Disabled when already submitted (read from local cache + a stable `(userId, recommendationId)` key).                                |
-| Aggregation    | NEW worker job `insightsFeedbackAggregator` (pg-boss) computes per-(severity × metricSource.type) helpful-rate weekly and writes to `AppSettings.adminAiInsightsFeedbackSummary` (small JSON blob). Source of truth for any future prompt-tuning step.  |
-| Prompt-tuning  | DEFERRED to v1.4.17 — no prompt mutation in v1.4.16. The B5e milestone delivers the loop infrastructure; the ratchet itself is a follow-on.                                                                                                          |
-| i18n           | `insights.recommendation.feedbackHelpful`, `insights.recommendation.feedbackNotHelpful`, `insights.recommendation.feedbackThanks`, `insights.recommendation.feedbackConfirmed`. EN+DE.                                                                |
-| Auth + audit   | `POST /api/insights/feedback` writes an audit row `insights.recommendation.feedback` with `{ helpful, severity, providerType, promptVersion }`. Per-user only; cross-user aggregate stays on the worker.                                            |
+| Concern       | Touched files / what changes                                                                                                                                                                                                                                                       |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema        | NEW Prisma model `RecommendationFeedback` (replaces the v1.4.17 roadmap's `InsightFeedback` proposal — same idea, narrower scope). Includes `userId`, `recommendationId`, `recommendationText`, `recommendationSeverity`, `helpful`, `providerType`, `promptVersion`, `createdAt`. |
+| API           | NEW `POST /api/insights/feedback` — accepts `{ recommendationId, recommendationText, helpful }`, fills `providerType` + `promptVersion` server-side from the cached payload. `requireAuth()`-gated. Idempotent via `Idempotency-Key`.                                              |
+| UI            | `<RecommendationFeedback>` component — 2 small icon buttons under the rec, optimistic mutation via TanStack Query. Disabled when already submitted (read from local cache + a stable `(userId, recommendationId)` key).                                                            |
+| Aggregation   | NEW worker job `insightsFeedbackAggregator` (pg-boss) computes per-(severity × metricSource.type) helpful-rate weekly and writes to `AppSettings.adminAiInsightsFeedbackSummary` (small JSON blob). Source of truth for any future prompt-tuning step.                             |
+| Prompt-tuning | DEFERRED to v1.4.17 — no prompt mutation in v1.4.16. The B5e milestone delivers the loop infrastructure; the ratchet itself is a follow-on.                                                                                                                                        |
+| i18n          | `insights.recommendation.feedbackHelpful`, `insights.recommendation.feedbackNotHelpful`, `insights.recommendation.feedbackThanks`, `insights.recommendation.feedbackConfirmed`. EN+DE.                                                                                             |
+| Auth + audit  | `POST /api/insights/feedback` writes an audit row `insights.recommendation.feedback` with `{ helpful, severity, providerType, promptVersion }`. Per-user only; cross-user aggregate stays on the worker.                                                                           |
 
 ### 3C. Proposed implementation plan (file-level)
 
@@ -410,7 +410,7 @@ pg-boss. Aggregates last-30-day feedback per
 window** (e.g. 14 weeks) to **a longer baseline** (12-15 months);
 when a delta crosses a threshold, a trend chip appears with a
 sentence like "averaged more steps over the past 14 weeks" (Apple
-Support, leancrew.com *Apple Health trends*). The narrative-text
+Support, leancrew.com _Apple Health trends_). The narrative-text
 layer is the value-add — the chart underneath is secondary.
 
 **Withings Health Mate.** Limited side-by-side comparison; mostly
@@ -436,16 +436,16 @@ dimmed historical line under a current line — exactly Marc's spec.
 
 ### 4B. Existing architecture fit
 
-| Concern        | Touched files / what changes                                                                                                                                                                                                                          |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema         | NEW `User.compareBaselinePref` String? (default null = "none"). Values: `"none" \| "lastMonth" \| "lastYear"`. Or stash inside `dashboardWidgetsJson` as `{ compareBaseline: "lastMonth" }` to avoid a schema migration — preferred since the field is ephemeral. |
-| Bucketing      | `src/lib/insights/bucket-series.ts` — already returns 3-year history (daily 360d + monthly 24×30d). The comparison overlay reads the existing payload — no API change.                                                                                  |
-| Charts         | `src/components/charts/health-chart.tsx` — accepts a `compareBaseline?: "lastMonth" \| "lastYear"` prop; renders a dimmed `<Line>` for the shifted series alongside the current `<Line>`. `mood-chart.tsx`, `medication-compliance-chart.tsx` mirror.    |
-| Tiles          | `src/components/dashboard/tile-strip.tsx` — adds a delta callout `Δ +5%` next to the current value when `compareBaseline !== "none"`.                                                                                                                  |
-| Insights       | `src/lib/ai/prompts/insight-generator.ts` — when comparison is active, the user-prompt's snapshot includes a `comparison: { baseline, deltaSummary }` field; the prompt's GROUND RULES gain "narrate the comparison if `comparison` is non-null."        |
-| UI control     | `src/components/charts/compare-toggle.tsx` (NEW) — segmented control "None / Vormonat / Vorjahr"; mounted next to the existing range tabs (7d/30d/90d/all). Persisted via `useSettings()` hook.                                                       |
-| i18n           | `charts.compareNone`, `charts.compareLastMonth`, `charts.compareLastYear`, `charts.deltaUp`, `charts.deltaDown`, `charts.deltaUnchanged`. EN+DE.                                                                                                       |
-| Auth + audit   | None — preference change is a localised setting; no audit row. Reading the comparison payload uses the existing `requireAuth()`-gated insight + measurements endpoints.                                                                              |
+| Concern      | Touched files / what changes                                                                                                                                                                                                                                      |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema       | NEW `User.compareBaselinePref` String? (default null = "none"). Values: `"none" \| "lastMonth" \| "lastYear"`. Or stash inside `dashboardWidgetsJson` as `{ compareBaseline: "lastMonth" }` to avoid a schema migration — preferred since the field is ephemeral. |
+| Bucketing    | `src/lib/insights/bucket-series.ts` — already returns 3-year history (daily 360d + monthly 24×30d). The comparison overlay reads the existing payload — no API change.                                                                                            |
+| Charts       | `src/components/charts/health-chart.tsx` — accepts a `compareBaseline?: "lastMonth" \| "lastYear"` prop; renders a dimmed `<Line>` for the shifted series alongside the current `<Line>`. `mood-chart.tsx`, `medication-compliance-chart.tsx` mirror.             |
+| Tiles        | `src/components/dashboard/tile-strip.tsx` — adds a delta callout `Δ +5%` next to the current value when `compareBaseline !== "none"`.                                                                                                                             |
+| Insights     | `src/lib/ai/prompts/insight-generator.ts` — when comparison is active, the user-prompt's snapshot includes a `comparison: { baseline, deltaSummary }` field; the prompt's GROUND RULES gain "narrate the comparison if `comparison` is non-null."                 |
+| UI control   | `src/components/charts/compare-toggle.tsx` (NEW) — segmented control "None / Vormonat / Vorjahr"; mounted next to the existing range tabs (7d/30d/90d/all). Persisted via `useSettings()` hook.                                                                   |
+| i18n         | `charts.compareNone`, `charts.compareLastMonth`, `charts.compareLastYear`, `charts.deltaUp`, `charts.deltaDown`, `charts.deltaUnchanged`. EN+DE.                                                                                                                  |
+| Auth + audit | None — preference change is a localised setting; no audit row. Reading the comparison payload uses the existing `requireAuth()`-gated insight + measurements endpoints.                                                                                           |
 
 ### 4C. Proposed implementation plan (file-level)
 
@@ -559,7 +559,7 @@ Cheap insurance.
 ### 5.3 Comparison-views + Insights — narrative drift
 
 **Risk.** When comparison is active and the AI summary mentions the
-baseline, the rationale on each rec might cite a *different* window
+baseline, the rationale on each rec might cite a _different_ window
 than the comparison the user is staring at. Cognitive whiplash.
 
 **Mitigation.** Two rules:
@@ -570,7 +570,7 @@ than the comparison the user is staring at. Cognitive whiplash.
    baseline when possible.
 2. The UI's `<RationaleCard>` renders a bracket "(matches active
    comparison)" badge when `rec.rationale.dataWindow ===
-   comparison.baseline`, and a softer "(different window)" badge
+comparison.baseline`, and a softer "(different window)" badge
    when they diverge — with a one-tap action to switch the global
    comparison to match.
 
@@ -601,14 +601,14 @@ freshest row per (user, rec-text) for trend analysis.
 
 Wave-B sequence within v1.4.16:
 
-| Order | Phase | Rationale                                                                                                                                      |
-| ----- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | B5a   | Medical-reference grounding ships the `references[]` bundle + `referenceId` schema field that B5c will reuse. Land first — don't double-ship.   |
-| 2     | B5b   | Multi-provider redundancy hardens the *substrate*. Future features attribute by provider; provider abstraction needs to be solid first.         |
-| 3     | B5c   | Per-rec explainability **defines the rec card layout**. All later UI work plugs into its named slots.                                          |
-| 4     | B5d   | Confidence score plugs into B5c's rec card. Schema migration deferred to JSON-blob path; only zod additions.                                   |
-| 5     | B5e   | Feedback loop adds the bottom-of-card thumbs. Touches Prisma (RecommendationFeedback). Provider attribution from B5b is now stable.            |
-| 6     | B8    | Comparison views are mostly chart-side; they intersect insights via the `comparison` snapshot block. Land last so the prompt is fully shaped.   |
+| Order | Phase | Rationale                                                                                                                                     |
+| ----- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | B5a   | Medical-reference grounding ships the `references[]` bundle + `referenceId` schema field that B5c will reuse. Land first — don't double-ship. |
+| 2     | B5b   | Multi-provider redundancy hardens the _substrate_. Future features attribute by provider; provider abstraction needs to be solid first.       |
+| 3     | B5c   | Per-rec explainability **defines the rec card layout**. All later UI work plugs into its named slots.                                         |
+| 4     | B5d   | Confidence score plugs into B5c's rec card. Schema migration deferred to JSON-blob path; only zod additions.                                  |
+| 5     | B5e   | Feedback loop adds the bottom-of-card thumbs. Touches Prisma (RecommendationFeedback). Provider attribution from B5b is now stable.           |
+| 6     | B8    | Comparison views are mostly chart-side; they intersect insights via the `comparison` snapshot block. Land last so the prompt is fully shaped. |
 
 Time-budget carve-out: **B5a + B5c + B5d** are the smallest cohesive
 slice that delivers user-visible explainability and confidence; if
@@ -628,7 +628,7 @@ implementation.
 
 2. **Feedback aggregation policy.** Marc's spec says "no cross-user
    training, opt-in for any aggregation." Question: is the
-   *single-user* aggregator (only Marc's own ratings shape Marc's own
+   _single-user_ aggregator (only Marc's own ratings shape Marc's own
    future prompt) acceptable as a default, with cross-user-aggregate
    gated behind an admin-only opt-in? Or must even the single-user
    loop be opt-in? **(default-on vs opt-in)**
@@ -650,27 +650,27 @@ implementation.
 
 ## 8. Sources
 
-- Apple Support — *View your data in Health on iPhone* —
+- Apple Support — _View your data in Health on iPhone_ —
   https://support.apple.com/guide/iphone/view-your-health-data-iphe3d379c32/ios
-- leancrew.com — *Apple Health trends* —
+- leancrew.com — _Apple Health trends_ —
   https://leancrew.com/all-this/2024/11/apple-health-trends/
 - Apple Watch Vitals app explained —
   https://www.centuryai.app/blog/apple-watch-vitals-app-explained
-- Withings Support — *What is Health Insights* —
+- Withings Support — _What is Health Insights_ —
   https://support.withings.com/hc/en-us/articles/360038534893-Health-Mate-Android-App-What-is-Health-Insights-
-- Withings Blog — *Get to know the Health Mate app* —
+- Withings Blog — _Get to know the Health Mate app_ —
   https://www-ext.withings.com/2021/02/04/why-is-health-mate-the-most-advanced-health-management-app/
-- justuseapp — *Withings Health Mate Reviews* —
+- justuseapp — _Withings Health Mate Reviews_ —
   https://justuseapp.com/en/app/542701020/withings-health-mate/reviews
-- Oura — *Sleep Score* —
+- Oura — _Sleep Score_ —
   https://support.ouraring.com/hc/en-us/articles/360025445574-Sleep-Score
-- Oura — *Sleep Contributors* —
+- Oura — _Sleep Contributors_ —
   https://support.ouraring.com/hc/en-us/articles/360057792293-Sleep-Contributors
-- Oura — *Readiness Score* —
+- Oura — _Readiness Score_ —
   https://support.ouraring.com/hc/en-us/articles/360025589793-Readiness-Score
-- Oura — *Readiness Contributors* —
+- Oura — _Readiness Contributors_ —
   https://support.ouraring.com/hc/en-us/articles/360057791533-Readiness-Contributors
-- Oura — *Readiness Score & Cycle Insights* —
+- Oura — _Readiness Score & Cycle Insights_ —
   https://ouraring.com/blog/readiness-score-cycle-consideration/
 
 ---

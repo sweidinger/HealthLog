@@ -28,9 +28,10 @@ forwards its regenerate button to the same handler. The 7 per-section
 surface is additive, not a replacement.
 
 E2E proof: `e2e/insights-advisor-card.spec.ts` mocks the analytics
-+ comprehensive + per-status + advisor endpoints and asserts the
-hero, the rec text, the ConfidenceMeter slot, and the summary prose
-all render on the live `/insights` route.
+
+- comprehensive + per-status + advisor endpoints and asserts the
+  hero, the rec text, the ConfidenceMeter slot, and the summary prose
+  all render on the live `/insights` route.
 
 ## C2 — Mount `<InsightsCardPreview>` on `/` — **DONE**
 

@@ -42,6 +42,32 @@ review.
 Marc's 6-week focus pick from the review: **C.1 + C.2 + C.4 + C.7 +
 C.10 + C.11a Apple Health**.
 
+**v1.4.18 Product-Lead update** (`phase-D-v1418-product-lead-review.md`):
+add `C.12 — Per-user UI preference persistence as a platform pattern`
+as a running side-quest (extracts the v1.4.18 A3
+`useChartOverlayPrefs` shape into a reusable primitive, applies to
+sidebar collapsed state, dashboard tile order, per-section default
+time-window, per-channel notification prefs). Sized S per surface,
+M for the extracted hook + route. Parallelisable with C.7. Drops
+nothing from the original 6-week pick.
+
+Three additional v1.5 candidates from the v1.4.18 review:
+
+- **C.13** Achievement engine as a "next-best-action" predicate
+  engine. The v1.4.18 evaluators are pure predicates over user data;
+  extend to "you're 1 day from `mood-streak-7`" dashboard nudges. M.
+- **C.14** Hidden-achievement pattern as "discover features"
+  tutorial. Reuses the opaque-card + unlock-on-trigger primitive for
+  product discovery (Connect a wearable, Set up automation, Export
+  for your doctor). M. Replaces the v1.4.15 onboarding tour.
+- **C.15** Engagement loop on top of the achievement surface
+  (streak repair tokens / monthly digest emails / friend-only
+  leaderboards). S/M/M. Privacy-first social.
+- **C.16** Admin/Settings shell layout audit. Run a focused pass
+  across all 13 admin sections + 10 settings sections at three
+  viewports (Pixel-5, iPad portrait, desktop) with Playwright +
+  scrollWidth diffing. Catalog every overflow. S–M.
+
 **Section D — v1.6+ follow-on initiatives:**
 
 1. Compliance-export admin tool (off B4 audit-log filter API)

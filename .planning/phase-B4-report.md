@@ -3,6 +3,7 @@
 Status: complete
 Date: 2026-05-10T00:11+02:00
 Commits on origin/main:
+
 - `8ac5602` (audit-log filtering, pagination, CSV export — bundled with
   the Wave-A verification-gate planning commit due to the marathon
   coordinator's stash race; my code, wrong commit subject)
@@ -43,7 +44,7 @@ diagnostics.
 
 `GET /api/admin/app-logs` reads the buffer with `traceId` / `level` /
 `action` / `since` / `until` / `limit` filters, runs every event
-through `redactSecrets()` on egress so a stray Bearer / hlk_ / sk-
+through `redactSecrets()` on egress so a stray Bearer / hlk\_ / sk-
 token in `error.message` never leaks to the admin UI; storage stays
 raw to keep the diagnostic value when shipped to Loki.
 

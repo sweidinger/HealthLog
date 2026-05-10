@@ -111,17 +111,24 @@ Last update: 2026-05-10T10:02+02:00
 
 ## Wave D — QA + Product-Lead review
 
-- [ ] code-reviewer
-- [ ] security review
-- [ ] design / UX review (Apple Health benchmarking lens; verify
-      chart-revert is clean, no leftover gradients)
-- [ ] senior-dev review
-- [ ] simplify
-- [ ] Product Lead — state of app, biggest items since v1.4.16, v1.5
-      roadmap update
-- [ ] Reconcile applies CRITICAL/HIGH inline
-- Detailed report: `.planning/phase-D-report.md` +
-  `.planning/product-lead-review.md`
+- [x] code-reviewer (1 CRITICAL, 5 HIGH, 7 MED/LOW)
+- [x] security review (0 CRITICAL, 2 HIGH, 3 MED/LOW)
+- [x] design / UX review (0 CRITICAL, 3 HIGH, 11 MED/LOW)
+- [x] senior-dev review (0 CRITICAL, 0 HIGH, 6 MED/LOW)
+- [x] simplify (7 apply-yes, 0 apply-no)
+- [x] Product Lead — strategic v1.5 update filed
+- [x] Reconcile applies CRITICAL/HIGH inline
+- Status: 2026-05-10T11:08+02:00 — done. C1 hidden-achievement
+  wire-leak fixed (`545f44c`); 8 of 10 HIGH fixed inline (1
+  deferred to v1.4.19 — security HIGH-2 i18n bundle strip needs
+  a build-time hook), all 7 simplify-yes applied (`720e6c8`).
+  Format sweep across the tree (`3048dd6`). Tests: 1605/1605
+  unit, 66/66 integration. Typecheck + lint + format-check
+  clean. Backlog seeded to `v1419-backlog.md`; strategic v1.5
+  items added to `v15-backlog.md`. Detailed report:
+  `.planning/phase-D-reconcile-report.md`. Commits on
+  origin/main: `545f44c`, `720e6c8`, `fbf14fc`, `194ec2f`,
+  `cf75579`, `c6e3ac6`, `3048dd6`.
 
 ## Phase E — Release v1.4.18
 
@@ -152,6 +159,7 @@ blob when validation fails; rich `<InsightAdvisorCard>` then called
 `stripChartTokens(undefined)` and crashed.
 
 Fix:
+
 - `isLegacyInsightPayload()` now flags blobs missing both `summary`
   AND `recommendations[]` (the v1.4.14 shape) so the API surfaces
   `legacyPayload: true` correctly.
@@ -169,6 +177,7 @@ pre-existing warnings, `pnpm test` 1547/1547 (+7 defensive tests),
 `pnpm test:integration` 59/59.
 
 Commits on origin/main:
+
 - `79bfa27 fix(insights): handle legacy cached payload without rationale (regenerate CTA)`
 - `adab80a chore(release): v1.4.17`
 - `da7070e style(insights): prettier sweep on legacy-payload hotfix files`
@@ -222,7 +231,7 @@ keep the rule.
   hotfix and v1.4.16 entries archived above. Working tree carries
   4 untracked stale dotted-segment route directories
   (`src/app/api/export/{full-backup.json,measurements.csv,
-  medications.csv,mood.csv}/`) plus 3 untracked v1.4.16 phase
+medications.csv,mood.csv}/`) plus 3 untracked v1.4.16 phase
   reports (`phase-E1-report.md`, `phase-E2-report.md`,
   `phase-E3-report.md`) — same call as v1.4.16 Phase 0: leave them
   in place, they belong to previous milestones. Tracked files clean.

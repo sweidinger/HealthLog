@@ -23,7 +23,7 @@ Tests:
 - `sidebar-nav.test.tsx` — every admin-route case asserts ONLY the
   single `/admin` link is present, never sub-route links.
 - New e2e `e2e/sidebar-admin-no-expand.spec.ts` (desktop-only project)
-  covers (a) /admin/* shows one link no sub-list, (b) clicking Admin
+  covers (a) /admin/\* shows one link no sub-list, (b) clicking Admin
   from /dashboard navigates without flashing sub-items, (c) opening
   the gravatar user-menu does not expand sidebar admin sub-items.
 

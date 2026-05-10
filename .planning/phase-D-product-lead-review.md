@@ -6,8 +6,8 @@ Status: pre-release of v1.4.16; v1.4.15 live since the night before.
 
 This is the strategic lens. The other reviewers (code, security, design,
 senior-dev, simplify) are landing CRITICAL/HIGH inline. I am writing
-this for the question Marc-three-weeks-from-now will ask: *what state is
-the app in, and what does v1.5 actually need to look like?*
+this for the question Marc-three-weeks-from-now will ask: _what state is
+the app in, and what does v1.5 actually need to look like?_
 
 ---
 
@@ -146,7 +146,7 @@ The 8 things that moved the needle:
 
 This is where the strategic decisions live. v1.4.x has been
 incremental hardening; v1.5 is the next minor and should ship the
-things that *change what the product is*.
+things that _change what the product is_.
 
 ### C.1 Coolify image-digest auto-deploy
 
@@ -204,9 +204,11 @@ view.
 **Dependencies.** B8 (shipped).
 
 ### C.5 AI: streaming responses + prompt-version A/B + per-user
+
 fine-tune-equivalent
 
 **What.** Three sub-items, sized for v1.5:
+
 - **Streaming.** SSE/`ReadableStream` from `/api/insights/generate`
   so the user sees the summary text appear progressively. Codex
   already streams via SSE on the wire — we currently buffer. Effort
@@ -219,11 +221,11 @@ fine-tune-equivalent
   prompt prefix derived from the user's accepted feedback (e.g.
   "this user dismisses sleep-related recs; emphasise BP and weight
   trends instead"). Effort M.
-**Why now.** B5e already collects the signal; B5b already
-attributes by provider; the loop is a half-circle without these.
-**Importance.** Differentiator (combined: this is what no
-consumer-grade health app does).
-**Dependencies.** C.3.
+  **Why now.** B5e already collects the signal; B5b already
+  attributes by provider; the loop is a half-circle without these.
+  **Importance.** Differentiator (combined: this is what no
+  consumer-grade health app does).
+  **Dependencies.** C.3.
 
 ### C.6 Charts library decision
 
@@ -232,21 +234,23 @@ quality bar (B8 shipped a `ComposedChart` with two `<Line>` paths and
 a custom dimmed-stroke prop, but the second-axis tooltip + per-segment
 opacity is already painful). Decide v1.5: stay on Recharts and keep
 patching, or swap to a library with first-class gradient + animation
-+ multi-series (Visx, Tremor, Apache ECharts via React-EChartsCore).
-**Why now.** Every future chart feature (yearly summary, Apple Health
-import overlay, longitudinal correlation lines) hits the same
-ceiling. Decide before adding the next 3 charts.
-**Effort.** L (full chart wrapper rewrite, ~12 chart files).
-**Importance.** Enabler. The decision either unlocks or constrains
-every visual roadmap item below.
-**Dependencies.** B1a/B1b primitives (`chart-gradient`, `chart-
+
+- multi-series (Visx, Tremor, Apache ECharts via React-EChartsCore).
+  **Why now.** Every future chart feature (yearly summary, Apple Health
+  import overlay, longitudinal correlation lines) hits the same
+  ceiling. Decide before adding the next 3 charts.
+  **Effort.** L (full chart wrapper rewrite, ~12 chart files).
+  **Importance.** Enabler. The decision either unlocks or constrains
+  every visual roadmap item below.
+  **Dependencies.** B1a/B1b primitives (`chart-gradient`, `chart-
 tooltip`, `chart-empty-state`, `health-chart`) define the contract a
-new library has to satisfy. The prop surface is small.
+  new library has to satisfy. The prop surface is small.
 
 ### C.7 iOS native client API contract freeze
 
 **What.** Lock the v1 contract for the separate
 `~/Projects/healthlog-iOS` repo. Specifically:
+
 - `POST /api/auth/login` + passkey-login-verify (existing).
 - Token rotation contract (existing — but document the 24h access /
   90d refresh defaults so iOS doesn't surprise-fail at 24h+ε).
@@ -259,11 +263,11 @@ new library has to satisfy. The prop surface is small.
   on reconnect. iOS will need it; today it would loop unary calls.
 - **Missing:** Versioned API path (`/api/v1/`) so v1.5 can break v2
   without breaking the shipped iOS app.
-**Why now.** Native client work has to happen against a stable
-contract. Today everything is unversioned.
-**Effort.** M (versioned router + bulk endpoint + contract doc).
-**Importance.** Enabler for the iOS investment.
-**Dependencies.** None blocking; clean to do.
+  **Why now.** Native client work has to happen against a stable
+  contract. Today everything is unversioned.
+  **Effort.** M (versioned router + bulk endpoint + contract doc).
+  **Importance.** Enabler for the iOS investment.
+  **Dependencies.** None blocking; clean to do.
 
 ### C.8 Security hardening sweep
 
@@ -276,12 +280,13 @@ contract. Today everything is unversioned.
   with v1.4.16 host-metric sampler at 1-row-per-minute we'll hit
   storage growth in months, not years. Add a configurable retention
   with a worker job that archives older rows to S3. Effort M.
-**Why now.** Audit-log + host-metric tables are growing 24×60 rows
-per day each. Compute the year-out size; act before it bites.
-**Importance.** Tech debt.
-**Dependencies.** None.
+  **Why now.** Audit-log + host-metric tables are growing 24×60 rows
+  per day each. Compute the year-out size; act before it bites.
+  **Importance.** Tech debt.
+  **Dependencies.** None.
 
 ### C.9 Performance — Recharts deferred bundle, SSR insights,
+
 read-replica
 
 - **Recharts deferred bundle:** v1.4.14 saved 108 KiB on `/insights`.
@@ -293,35 +298,36 @@ read-replica
 - **Prisma read-replica.** Adapter API supports it. The bottleneck
   isn't writes; it's the bucket-series read on `/insights` and
   dashboard. Effort M.
-**Why now.** v1.4.16 added the host-load chart to admin which makes
-real perf data visible; if I don't act on it, why did I add it.
-**Importance.** Tech debt + UX.
-**Dependencies.** C.6 charts decision (if Recharts goes, so does the
-deferred-bundle work).
+  **Why now.** v1.4.16 added the host-load chart to admin which makes
+  real perf data visible; if I don't act on it, why did I add it.
+  **Importance.** Tech debt + UX.
+  **Dependencies.** C.6 charts decision (if Recharts goes, so does the
+  deferred-bundle work).
 
 ### C.10 Cross-device backup encryption + S3 push
 
 **What.** `BACKUP_S3_*` env block is documented in CLAUDE.md (PutObject
-+ GetObject, retention via bucket lifecycle) but the actual S3-push
-worker is **not wired**. Wire it; encrypt with the same versioned
-encryption-keys mechanism (different DEK per backup, KEK rotation via
-the existing `rotate-encryption-key.ts` script). Add download-from-
-S3 + restore-from-S3 to `/admin/backups`.
-**Why now.** Today a host disk failure loses the last week of
-backups. Sunday-snapshot is local-only.
-**Effort.** M.
-**Importance.** Differentiator (true off-host backup, encrypted, with
-a published restore path) + GDPR-data-portability story.
-**Dependencies.** None.
+
+- GetObject, retention via bucket lifecycle) but the actual S3-push
+  worker is **not wired**. Wire it; encrypt with the same versioned
+  encryption-keys mechanism (different DEK per backup, KEK rotation via
+  the existing `rotate-encryption-key.ts` script). Add download-from-
+  S3 + restore-from-S3 to `/admin/backups`.
+  **Why now.** Today a host disk failure loses the last week of
+  backups. Sunday-snapshot is local-only.
+  **Effort.** M.
+  **Importance.** Differentiator (true off-host backup, encrypted, with
+  a published restore path) + GDPR-data-portability story.
+  **Dependencies.** None.
 
 ### C.11 Integrations — Apple Health, Garmin, Oura
 
-This is the *strategic* roadmap item.
+This is the _strategic_ roadmap item.
 
 - **Apple Health import.** The native iOS app is the natural pipe;
   parse XML export (`export.xml` from Health.app) and POST to
   `/api/measurements/bulk` (see C.7). Effort M (just XML parse + map
-  + bulk endpoint).
+  - bulk endpoint).
 - **Garmin Connect.** OAuth + sync service mirroring
   `src/lib/withings/`. Effort M.
 - **Oura.** OAuth + their API is JSON-clean; the metric mapping is
@@ -334,7 +340,7 @@ B5c was inspired by it — natural completion of the loop), then
 Garmin if there's still a v1.5 budget.
 
 **Importance.** Differentiator. HealthLog with Withings-only is a
-tracker; HealthLog ingesting Apple Health + Oura is *a hub*.
+tracker; HealthLog ingesting Apple Health + Oura is _a hub_.
 **Dependencies.** C.7 bulk endpoint + versioned API.
 
 ### Honest sizing
@@ -343,20 +349,20 @@ tracker; HealthLog ingesting Apple Health + Oura is *a hub*.
 - **1-month items:** C.3 prompt-tuning ratchet, C.5 streaming + A/B,
   C.7 iOS contract freeze + bulk endpoint, C.9 SSR insights, C.10 S3
   backup push, C.11a Apple Health import.
-- **Quarter-investment:** C.6 chart library swap (do this *first* if
+- **Quarter-investment:** C.6 chart library swap (do this _first_ if
   doing it at all — block other chart work behind the decision), C.5
   per-user prompt prefix (needs ~60 days of feedback collection
   first), C.11b Oura full integration.
 
 If Marc has 6 weeks of focus for v1.5: ship C.1 + C.2 + C.4 + C.7 +
 C.10 + C.11a Apple Health. That is a release that fundamentally
-changes what HealthLog is *to a user*.
+changes what HealthLog is _to a user_.
 
 ---
 
 ## D. Follow-on initiatives (v1.6+)
 
-Things v1.4.16 *unlocked* but aren't natural v1.5:
+Things v1.4.16 _unlocked_ but aren't natural v1.5:
 
 1. **Compliance-export admin tool** off the v1.4.16 B4 audit-log
    filter API. Same filter shape, output is a signed PDF + CSV bundle
@@ -394,7 +400,7 @@ Things v1.4.16 *unlocked* but aren't natural v1.5:
    rationale carries `dataWindow` + `comparedTo` + `deviation` per
    rec. Run the same `confidence.ts` math client-side on the most
    recent N points and surface "today's 7-day window is trending
-   toward an out-of-target reading" *without* an LLM call. Local,
+   toward an out-of-target reading" _without_ an LLM call. Local,
    private, instant.
 
 7. **Public-facing API for self-export.** v1.4.16's bearer-token +
@@ -414,7 +420,7 @@ Things v1.4.16 *unlocked* but aren't natural v1.5:
 2. **Recharts ceiling.** B8 already needed a custom dimmed-stroke
    prop. The next chart feature (multi-axis, stacked-area-with-band,
    small-multiples grid) will be the breaking point. Decide the
-   library question (C.6) *before* the next chart commit lands.
+   library question (C.6) _before_ the next chart commit lands.
 
 3. **In-memory app-log buffer is per-process.** v1.4.16 B4 ships a
    500-entry FIFO. With `HEALTHLOG_PROCESS_TYPE=worker` the worker's
@@ -467,5 +473,5 @@ HealthLog is no longer "Marc's weekend tracker with a clever passkey
 flow" — it's a personal-health-data hub with a citation-grounded AI
 that I would actually show a doctor, and v1.5 is the release where it
 either picks up the iOS app + Apple Health + off-host backup story
-and becomes a *product*, or stays a very polished tool that only one
+and becomes a _product_, or stays a very polished tool that only one
 person uses.

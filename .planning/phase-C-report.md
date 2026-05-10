@@ -24,7 +24,7 @@ commits rebased + pushed to `origin/main` directly.
   `API_TOKEN_HMAC_KEY` and `SESSION_SECRET` for symmetry + future-
   proofing.
 - **Evidence:** `gh run list --workflow=integration.yml --status=success
-  --limit 5` returned 5 successes after the fix landed.
+--limit 5` returned 5 successes after the fix landed.
 
 ### e2e (`e2e.yml`)
 
@@ -33,7 +33,7 @@ commits rebased + pushed to `origin/main` directly.
 - **Commits:**
   - `fbcd106 fix(ci): integration tests + e2e workflows green again`
   - `00848b7 fix(e2e): skip desktop-sidebar specs on mobile + stub
-    /api/dashboard/widgets`
+/api/dashboard/widgets`
 - **Root cause #1 (5 of 9 fails):** `e2e/setup/global-setup.ts`
   seeded the deterministic e2e user with
   `onboarding_tour_completed = false` (default). Every authenticated
@@ -59,7 +59,7 @@ commits rebased + pushed to `origin/main` directly.
 ### H1 — admin restore-failed scrubs raw Prisma error
 
 - **Commit:** `fdac9e2 fix(admin): scrub raw Prisma error from
-  restore-failed response`.
+restore-failed response`.
 - **Files:** `src/app/api/admin/backups/[id]/restore/route.ts:378-393`.
 - The catch block now returns a stable `"Restore failed"` 500
   instead of `"Restore transaction failed: <verbose-prisma-text>"`.
@@ -69,7 +69,7 @@ commits rebased + pushed to `origin/main` directly.
 ### H2 — moodEntrySchema.tags strict JSON-array validation
 
 - **Commit:** `7f1a4de fix(validation): moodEntry.tags must parse as
-  JSON string-array (v1.4.15 H2)`.
+JSON string-array (v1.4.15 H2)`.
 - **Files:** `src/lib/validations/backup.ts:72-99`,
   `src/lib/validations/__tests__/backup.test.ts` (new, 7 tests).
 - Refined `tags` to `null | "" | <JSON-string-array>`; everything
@@ -84,7 +84,7 @@ commits rebased + pushed to `origin/main` directly.
 ### H4 code-review — tour-launcher sessionStorage scoping
 
 - **Commit:** `2afe3c4 fix(onboarding): scope tour-launcher
-  sessionStorage keys by user id (v1.4.15 H4)`.
+sessionStorage keys by user id (v1.4.15 H4)`.
 - **Files:** `src/components/onboarding/tour-launcher.tsx:46-100`,
   `src/app/onboarding/page.tsx:127-150`,
   `src/components/onboarding/__tests__/tour-launcher-keys.test.ts`
@@ -98,7 +98,7 @@ commits rebased + pushed to `origin/main` directly.
 ### H4 design — 44 px tap targets on tour / backups / notifications
 
 - **Commit:** `b863e2c fix(ui): tap-targets reach 44px on tour,
-  notification, backups buttons (v1.4.15 H4)`.
+notification, backups buttons (v1.4.15 H4)`.
 - **Files:** `src/components/admin/backups-section.tsx:84,343,397,438,492`,
   `src/components/settings/notification-status-card.tsx:264,280`,
   `src/components/onboarding/tour.tsx:385,396,405`.
@@ -118,7 +118,7 @@ commits rebased + pushed to `origin/main` directly.
 ### Bonus: i18n parity for B5a citation footnote
 
 - **Commit:** `2a7ef72 fix(i18n): German translations for
-  insights.recommendation.{source,viewSource}`.
+insights.recommendation.{source,viewSource}`.
 - B5a added two English keys without German mirrors; pre-existing
   failure on the locale-integrity guard test went green.
 
@@ -127,7 +127,7 @@ commits rebased + pushed to `origin/main` directly.
 ### MED 1 — insights/admin tab strip overflow
 
 - **Commit:** `d7c2b2a fix(tabs): horizontal scroll on mobile
-  prevents overflow (insights + admin)`.
+prevents overflow (insights + admin)`.
 - `tabs.tsx` primitive: `overflow-x-auto` + `touch-pan-x` + `max-w-full`
   on `tabsListVariants`. Affects every page using `<TabsList>`.
   Vertical-tabs orientation kept its `overflow-x-visible` to avoid
@@ -143,7 +143,7 @@ commits rebased + pushed to `origin/main` directly.
 ### MED 4 — bottom-nav 5+More
 
 - **Commit:** `072eee6 fix(nav): bottom-nav 5+More overflow protects
-  44px tap targets`.
+44px tap targets`.
 - `src/components/layout/bottom-nav.tsx` rewritten with PRIMARY
   (Home, Measurements, Mood, Medications, Insights) + OVERFLOW
   (Targets, Achievements) inside a Radix `<Sheet>`. Active state
@@ -153,7 +153,7 @@ commits rebased + pushed to `origin/main` directly.
 ### MED 5 — system-status loading-failed Retry button
 
 - **Commit:** `65b4bf9 fix(admin): system-status load-failed pairs
-  alert with Retry button`.
+alert with Retry button`.
 - `system-status-section.tsx` adds an inline Retry button driven by
   React Query's `refetch()`. Two new i18n keys + drop the "refresh
   the page" tail from the existing message.
@@ -163,7 +163,7 @@ commits rebased + pushed to `origin/main` directly.
 - **Status:** DEFERRED to v1.5 — documented in
   `docs/audit/v1416-auto-deploy-fix.md`.
 - **Commit:** `4be6465 docs(deploy): v1.4.16 auto-deploy follow-up
-  audit + DEFER to v1.5`.
+audit + DEFER to v1.5`.
 - Coolify v4-beta MCP API does not expose `auto_deploy_enabled` on
   the application. Marc-side UI flip ("Configuration → Auto Deploy
   → OFF") is the realistic fix; doing it programmatically requires
@@ -175,15 +175,15 @@ commits rebased + pushed to `origin/main` directly.
 ## 5. docker-publish main-branch hang
 
 - **Commit:** `cc0f343 fix(ci): docker-publish reliable on main-branch
-  (drop qemu-arm64)`.
+(drop qemu-arm64)`.
 - **Root cause:** the qemu-arm64 path (`docker/setup-qemu-action`
-  + `tonistiigi/binfmt`) was SIGILL-crashing Next.js's static-page-
-  generation workers (`Next.js build worker exited with code: null
-  and signal: SIGILL` at 64-66/86 pages). V8's optimising tier emits
-  CPU instructions that qemu's user-mode emulation cannot reliably
-  translate under heavy load. Tag-builds appeared to "work" only
-  because they sometimes finished the static phase before the crash
-  window.
+  - `tonistiigi/binfmt`) was SIGILL-crashing Next.js's static-page-
+    generation workers (`Next.js build worker exited with code: null
+and signal: SIGILL` at 64-66/86 pages). V8's optimising tier emits
+    CPU instructions that qemu's user-mode emulation cannot reliably
+    translate under heavy load. Tag-builds appeared to "work" only
+    because they sometimes finished the static phase before the crash
+    window.
 - **Fix:** drop `linux/arm64` from the `platforms:` list. Marc's
   prod is x86_64 only; the arm64 image was a courtesy build for OSS
   users. v1.5 plan: re-add via a matrix on `ubuntu-24.04-arm`

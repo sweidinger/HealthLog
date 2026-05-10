@@ -12,7 +12,7 @@ TypeError: Cannot read properties of undefined (reading 'replace')
 
 - **Surface**: `<InsightAdvisorCard>` consuming a legacy v1.4.14 cached
   payload (`{changed, stable, drivers, nextSteps, confidence,
-  limitations}` shape — no `summary`, no `recommendations[]`, no
+limitations}` shape — no `summary`, no `recommendations[]`, no
   `findings[]`).
 - **Crash site**: `src/lib/insights/chart-tokens.ts:61`,
   `text.replace(TOKEN_REGEX, "")` with `text === undefined`.
@@ -33,6 +33,7 @@ TypeError: Cannot read properties of undefined (reading 'replace')
 `git grep -nE '\.replace\(' src/` returned 82 hits. Categories:
 
 ### Safe (string-typed input or runtime-string)
+
 - All `t(...).replace("{name}", value)` patterns (i18n always returns
   string).
 - `String.toISOString().replace(...)`, `String.toLowerCase().replace(...)`,
@@ -43,12 +44,14 @@ TypeError: Cannot read properties of undefined (reading 'replace')
   required string fields in Zod.
 
 ### Already-guarded
+
 - `health-chart.tsx:1014–1017` — chained `?.startsWith` short-circuits
   before the unguarded `.replace`.
 - `health-chart.tsx:1261, 1273` — operates on `t(...)` result (always
   string).
 
 ### Found + fixed inline (this hotfix)
+
 1. **`src/lib/insights/chart-tokens.ts`** — `stripChartTokens(text)` and
    `parseChartTokens(text)` accepted `string` only. Legacy payloads
    delivering `undefined` crashed `text.replace(...)` / `text.match(...)`.
@@ -57,8 +60,8 @@ TypeError: Cannot read properties of undefined (reading 'replace')
 
 2. **`src/components/insights/insight-advisor-card.tsx`** — added an
    "isUnrenderable" short-circuit (`typeof insight.summary !== "string"
-   || !Array.isArray(insight.findings) || !Array.isArray(insight
-   .recommendations)`) before the rich-card render path, so the legacy
+|| !Array.isArray(insight.findings) || !Array.isArray(insight
+.recommendations)`) before the rich-card render path, so the legacy
    blob hits a self-contained legacy-payload card with the regenerate
    CTA instead of trying to call `.replace()` on undefined fields.
    Belt-and-suspenders alongside the `legacyPayload` flag from the API.
@@ -70,13 +73,14 @@ TypeError: Cannot read properties of undefined (reading 'replace')
    card tried to render a non-renderable blob.
 
 ### Not fixed (out of scope, deferred)
+
 - None. All hits classified as safe or fixed.
 
 ## Verification
 
 - `pnpm test --run src/lib/insights/__tests__/chart-tokens.test.ts
-  src/lib/ai/__tests__/legacy-payload-detection.test.ts
-  src/components/insights/__tests__/insight-advisor-card.test.tsx` —
+src/lib/ai/__tests__/legacy-payload-detection.test.ts
+src/components/insights/__tests__/insight-advisor-card.test.tsx` —
   39/39 green.
 - The new test reproducing Marc's exact crash scenario (`<InsightAdvisorCard>`
   with the v1.4.14 `{changed, stable, ...}` blob) was RED before the
@@ -84,11 +88,11 @@ TypeError: Cannot read properties of undefined (reading 'replace')
 
 ## Severity
 
-| Class | Count |
-|---|---|
-| Crash-on-undefined call sites | 1 (the production bug) |
+| Class                                   | Count                  |
+| --------------------------------------- | ---------------------- |
+| Crash-on-undefined call sites           | 1 (the production bug) |
 | Already-guarded but worth strengthening | 0 (no pattern matches) |
-| Non-string runtime risk in UI consumers | 0 after this hotfix |
+| Non-string runtime risk in UI consumers | 0 after this hotfix    |
 
 The production crash was the only real instance. The audit confirms no
 analogous time-bombs in other UI consumers.

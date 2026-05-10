@@ -14,6 +14,7 @@ Four atomic TDD-first commits on origin/main (`43204cb..f9f99ea`):
 4. `f9f99ea feat(insights): AI narrates comparison when toggle is active`
 
 ### 1. Toggle + persistence
+
 The "Compare to" Select pulldown lives at the top of `Settings → Dashboard`
 (`src/components/settings/dashboard-layout-section.tsx`), driven by
 `COMPARISON_BASELINES = ["none", "lastMonth", "lastYear"]`. The
@@ -24,6 +25,7 @@ The PUT schema accepts the new optional field; pre-B8 clients keep
 PUTing without it. 4 new unit tests in `dashboard-layout.test.ts`.
 
 ### 2. Chart overlay
+
 HealthChart and MoodChart accept a `compareBaseline` prop. When set,
 a parallel daily series is computed via `shiftDailySeriesForward()`
 (new pure helper at `src/lib/charts/comparison-shift.ts`, 11 unit
@@ -39,6 +41,7 @@ adds a second row with the prior absolute value. 2 SSR tests in
 `health-chart-comparison.test.tsx`.
 
 ### 3. Tile delta callout
+
 DataSummary gains `avg30LastMonth` / `avg30LastYear` (30-day means
 over `[30, 60)` and `[365, 395)` day windows). Every metric the
 analytics API summarises gets these for free — no extra DB queries.
@@ -49,6 +52,7 @@ below the latest value, colour-coded via the existing
 no horizontal scroll. 6 SSR tests in `trend-card-comparison.test.tsx`.
 
 ### 4. AI narrative
+
 `buildUserPrompt()` accepts an optional `ComparisonSnapshot`. When
 supplied it appends a SYSTEM CONTEXT block listing each metric's
 current 30d avg, baseline 30d avg, absolute delta, and percentage
@@ -64,15 +68,15 @@ match exactly what the tiles render. 8 new unit tests in
 
 ## Acceptance-criteria coverage
 
-| # | Criterion | Status |
-| - | --------- | ------ |
-| 1 | Toggle + persistence | shipped (commit 1) |
-| 2 | Chart overlay rendering | shipped (commit 2) |
-| 3 | Tile delta callout | shipped (commit 3) |
-| 4 | Insights narrative integration | shipped — prompt block + ground rule (commit 4) |
-| 5 | Dedicated `/insights/compare` page | DEFERRED to v1.4.17 |
-| 6 | i18n EN+DE | shipped — 14 new key paths under `comparison.*` |
-| 7 | Tests | shipped — 27 new tests (4 layout + 11 shift helper + 2 chart SSR + 6 tile SSR + 8 prompt) |
+| #   | Criterion                          | Status                                                                                    |
+| --- | ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| 1   | Toggle + persistence               | shipped (commit 1)                                                                        |
+| 2   | Chart overlay rendering            | shipped (commit 2)                                                                        |
+| 3   | Tile delta callout                 | shipped (commit 3)                                                                        |
+| 4   | Insights narrative integration     | shipped — prompt block + ground rule (commit 4)                                           |
+| 5   | Dedicated `/insights/compare` page | DEFERRED to v1.4.17                                                                       |
+| 6   | i18n EN+DE                         | shipped — 14 new key paths under `comparison.*`                                           |
+| 7   | Tests                              | shipped — 27 new tests (4 layout + 11 shift helper + 2 chart SSR + 6 tile SSR + 8 prompt) |
 
 ## What's deferred to v1.4.17
 

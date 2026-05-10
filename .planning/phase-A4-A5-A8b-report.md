@@ -7,11 +7,11 @@ Finished: 2026-05-09T23:31+02:00
 
 ## Outcomes — 3 of 3
 
-| #   | Fix                                                              | Commit  |
-| --- | ---------------------------------------------------------------- | ------- |
-| A4  | "7-Tage-Trend" everywhere + slope30 fallback for sparse metrics  | 4df6dac |
-| A5  | Top-tile selector — API enum drift fixed; empty strip hidden     | 93e712d |
-| A8b | "All" filter chart trend — split-half mean-delta supplement      | af77e5e |
+| #   | Fix                                                             | Commit  |
+| --- | --------------------------------------------------------------- | ------- |
+| A4  | "7-Tage-Trend" everywhere + slope30 fallback for sparse metrics | 4df6dac |
+| A5  | Top-tile selector — API enum drift fixed; empty strip hidden    | 93e712d |
+| A8b | "All" filter chart trend — split-half mean-delta supplement     | af77e5e |
 
 ## Test deltas
 

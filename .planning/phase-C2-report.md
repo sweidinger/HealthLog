@@ -4,10 +4,10 @@
 **Wall clock:** 2026-05-09T21:10 → 2026-05-09T21:25 Berlin (~15 min)
 **Commits on `origin/main`:**
 
-| SHA       | Message (real diff scope)                                                                                                                |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| SHA       | Message (real diff scope)                                                                                                                                                                                                   |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `34c967c` | `feat(achievements): …` — sibling-agent commit message; **my** docker-publish.yml + .env.example + docs/audit/v1415-auto-deploy.md hunks rode along (5th run of the shared-cwd race documented in A2/A4/B1/B-mobile/B2/B3). |
-| `ad350fe` | `feat(deploy): admin notification + audit log on deploy success/failure` — clean, my files only (`git commit -o` pathspec). |
+| `ad350fe` | `feat(deploy): admin notification + audit log on deploy success/failure` — clean, my files only (`git commit -o` pathspec).                                                                                                 |
 
 Linked deep-dive: [`docs/audit/v1415-auto-deploy.md`](../docs/audit/v1415-auto-deploy.md).
 

@@ -41,12 +41,12 @@ agents.
 
 - **H1 senior** — `src/app/page.tsx` (1031 LOC) — split
   `<DashboardShell>` + `<DashboardTileStrip>` + `<DashboardChartGrid>`
-  + `<DashboardEmptyState>`; pull visibility resolver into
-  `src/lib/dashboard-visibility.ts`. Mechanical.
+  - `<DashboardEmptyState>`; pull visibility resolver into
+    `src/lib/dashboard-visibility.ts`. Mechanical.
 - **H2 senior** — `src/components/settings/integrations-section.tsx`
   (883 LOC) — split into
   `src/components/settings/integrations/{integration-status-banner,
-  withings-card, moodlog-card}.tsx` + composing index. Mirror admin
+withings-card, moodlog-card}.tsx` + composing index. Mirror admin
   per-section pattern.
 - **H3 senior** — Process — adopt
   `superpowers:using-git-worktrees` per parallel agent so commit
@@ -81,7 +81,7 @@ agents.
   `SYSTEM_ALERT_DEPLOY` / `SYSTEM_ALERT_INTEGRATION` event types so
   admins can opt out of one without losing security alerts.
 - **M7** — `src/components/doctor-report/doctor-report-dialog.tsx:64-75,
-  151-152` — anchor date range to Europe/Berlin explicitly OR document
+151-152` — anchor date range to Europe/Berlin explicitly OR document
   the off-by-one boundary risk.
 
 ### security
@@ -127,16 +127,16 @@ agents.
   — empty card needs CTA pointing to first-unlock action. Use
   `<EmptyState size="compact">`.
 - **M9 design** — `src/components/settings/integrations-section.tsx:158,165`
-  + `notification-status-card.tsx` — switch absolute timestamps to
-  relative ("vor 3 Min.") once `useFormatters().relativeTime` helper
-  exists. Helper itself is also a v1.4.16 task.
+  - `notification-status-card.tsx` — switch absolute timestamps to
+    relative ("vor 3 Min.") once `useFormatters().relativeTime` helper
+    exists. Helper itself is also a v1.4.16 task.
 
 ### senior-dev
 
 - **M1 senior** — Reliability state-machine duplication
   (`src/lib/integrations/status.ts` + `src/lib/notifications/channel-state.ts`
-  + `src/lib/notifications/retry-policy.ts`); extract
-  `src/lib/reliability/` once a third consumer exists.
+  - `src/lib/notifications/retry-policy.ts`); extract
+    `src/lib/reliability/` once a third consumer exists.
 - **M2 senior** — `src/lib/notifications/dispatcher.ts:49-105` —
   delete legacy `User.telegramBotToken/chatId` migration block + the
   three deprecated User columns in a v1.4.16 schema migration. Verify
@@ -167,7 +167,7 @@ agents.
 ### code-review
 
 - **L1** — `src/components/onboarding/tour.tsx:188` — `TOOLTIP_HEIGHT
-  = 220` fixed estimate; measure rendered card via ResizeObserver. (H2
+= 220` fixed estimate; measure rendered card via ResizeObserver. (H2
   fix above gave a `max-h-[80vh] overflow-y-auto` band-aid for v1.4.15.)
 - **L2** — `src/lib/ai/codex-client.ts:470-475` — comment-clarity nit
   on `redactBody()` regex (downgraded to nit).
@@ -229,7 +229,7 @@ agents.
   `prompts/insight-generator.ts` — schema-enforcement wrapper wired
   into tests only. Ship-it call: keep as v1.4.16 scaffolding OR revert.
 - **F2** — `src/lib/ai/codex-client.ts:101-138, 174-178, 192-198,
-  233-237, 242-246` — `getLastDiagnostics()` + `CodexAttemptDiagnostics`
+233-237, 242-246` — `getLastDiagnostics()` + `CodexAttemptDiagnostics`
   read only by tests. Either wire into `annotate()` or delete.
 - **F8** — `src/lib/doctor-report-{data,pdf,pdf-core}.ts` —
   `period.since` back-compat shim duplicates `period.start`. Drop

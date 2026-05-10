@@ -18,12 +18,12 @@ Two coupled fixes for the comprehensive-insight surface:
    down without redeploys, but a typo can never silently disable the
    limit. Documented in `.env.example`. Unit-test pin: 10 successes
    then a 429 with the message `Maximum 10 insight generations per
-   hour.`; same harness for the env override (3-limit smoke test) and
+hour.`; same harness for the env override (3-limit smoke test) and
    the fallback paths.
 
 2. **Per-status cache invalidation.** Marc reported "stale cached
    insights from hours ago" — root cause was that `/api/insights/
-   generate` only writes the `User.insightsCachedText` blob, while the
+generate` only writes the `User.insightsCachedText` blob, while the
    per-scope status routes (`general-status`, `blood-pressure-status`,
    `weight-status`, `pulse-status`, `bmi-status`, `mood-status`,
    `medication-compliance-status`) cache their text in `audit_logs`
@@ -64,7 +64,7 @@ tested:
 
 1. **Explicit UTF-8 decode.** `Response.json()` defers its charset
    decision to the upstream `Content-Type: application/json;
-   charset=…` header. An intermediate proxy that strips or rewrites
+charset=…` header. An intermediate proxy that strips or rewrites
    that parameter (Cloudflare-on-Cloudflare, a corporate proxy in
    transit, etc.) could leave the byte stream UTF-8 while the parser
    thinks it's latin-1, which is exactly the failure mode that drops

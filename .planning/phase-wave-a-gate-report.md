@@ -6,13 +6,13 @@ Wave B has since advanced to `8d9f864` mid-run).
 
 ## CI status (last completed run per workflow on `94c748d`)
 
-| Workflow                  | Conclusion | Notes                                                                    |
-| ------------------------- | ---------- | ------------------------------------------------------------------------ |
-| Security & Quality        | success    | typecheck + lint + unit tests all green                                  |
-| Integration tests         | failure    | pre-existing, started 2026-05-09T18:47:14Z (commit `d8c549e`); 50+ runs failing |
-| e2e                       | failure    | pre-existing, see `.github/workflows/e2e.yml`; 25 failures + 74 cancellations in last 100 |
-| Build & Publish Docker    | cancelled  | superseded by next push — normal during marathon push cadence            |
-| Post-publish verify       | skipped    | gated on Build success                                                   |
+| Workflow               | Conclusion | Notes                                                                                     |
+| ---------------------- | ---------- | ----------------------------------------------------------------------------------------- |
+| Security & Quality     | success    | typecheck + lint + unit tests all green                                                   |
+| Integration tests      | failure    | pre-existing, started 2026-05-09T18:47:14Z (commit `d8c549e`); 50+ runs failing           |
+| e2e                    | failure    | pre-existing, see `.github/workflows/e2e.yml`; 25 failures + 74 cancellations in last 100 |
+| Build & Publish Docker | cancelled  | superseded by next push — normal during marathon push cadence                             |
+| Post-publish verify    | skipped    | gated on Build success                                                                    |
 
 Both failing workflows predate Wave A — `0985c93` (v1.4.15 release) shows
 the identical 6-test integration failure shape and an e2e failure at the
