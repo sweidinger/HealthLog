@@ -1,48 +1,64 @@
-# HealthLog v1.4.22 — roadmap
+# HealthLog v1.4.23 — roadmap
 
-Milestone: **v1.4.22 — big polishing release before v1.5 iOS** (kicked off 2026-05-10, post-v1.4.21 patch)
-Latest tag at start: v1.4.21 (live in prod, image digest
-`sha256:4e818d44702c…`)
-
-Marc's directive: close ALL known bugs + apply ALL deferred items
-from `.planning/v1421-backlog.md` so the iOS app builds on a clean
-foundation. Marathon-style execution: research/probe first, then
-parallel polish waves, then multi-agent QA, then release.
-
-| Wave | Goal                                                                                                                                                  | State     |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| 1    | Research + probe — Playwright PROD probe (BD-Zielbereich 5th attempt, api-tokens 5th attempt, Metrik token leaks, Targets page brainstorm); health-coach prompt research | in flight |
-| 2    | Insights surface polish — A1 BD framing, A2 BD-Kachel parity, A3 comparison-toggle global, A4 grid normalisation, A5 Muster rename + tabs above hero, A6 token-leak fix | pending   |
-| 3    | Coach polish — B1 prompt rewrite, B2 collapsible provenance, B3 Gravatar parity, B4 disclaimer move, B5 settings cog wire-or-remove                   | pending   |
-| 4    | Other surfaces + backlog cleanup — C1 Zielwerte upgrade, C2 api-tokens 5th attempt, C3 Coolify auto-deploy, C4 AuthShell flicker, C5 node-26-alpine, D backlog wave | pending   |
-| G    | E2E fix wave (already on `develop`) — 7 stale-selector / layout regressions; release-merge brings them into main with v1.4.22                          | done      |
-| 5    | Multi-agent QA + Product-Lead review                                                                                                                  | pending   |
-| 6    | Release v1.4.22 — bump, CHANGELOG, release-merge, tag, GHCR, Coolify deploy (validated by C3), smoke, GH release, docs+landing sync, brief             | pending   |
+Milestone: **v1.4.23 — pre-iOS hygiene + sentinel hardening** (not
+yet kicked off)
+Latest tag at start: v1.4.22 (live in prod, image digest
+`sha256:865154614303…`)
 
 Carry-over candidates already captured in
-`.planning/v1421-backlog.md` (now serving as the v1.4.22 backlog
-shim — the file name is historical):
+`.planning/v1422-backlog.md`:
 
-- 22 MED + 16 LOW + 4 simplify-apply-maybe items from the v1.4.20
-  Phase-D pass (consolidate Pearson / linear-regression maths layer,
-  controlled `<CoachDrawer>` prefill prop, transactional
-  `recordSpend()`, refusal lexicon expansion, …).
+- Sentinel parser malformed-enum hardening (Sr-M5, ~30 LOC,
+  highest signal-to-effort ratio of the deferred MEDs).
+- Analytics-route unbounded `findMany` paging.
+- Targets-route 7-pass sparkline coalesce.
+- `<CoachDrawer key={prefill}>` controlled-prop refactor
+  (Sr-HIGH-4) — drop the React-key reset weaponisation before
+  the iOS Coach surface multiplies the pattern's footprint.
+- Per-user prompt-tuning surface (the v1.4.22 settings cog was
+  removed pending this).
 - Schema drift on `medication_schedules.days_of_week` — either
-  deploy the column or drop it from `schema.prisma`.
-- Split `src/app/insights/page.tsx` (now composes nine surfaces).
-- Wire Coolify image-digest auto-deploy hook on apps-01 so the
-  host-side retag fallback isn't needed.
-- Source-comment hygiene sweep (191 maintainer-name references in
-  `src/`); DE+EN bilingual CHANGELOG entry rewrite.
+  deploy the column or drop it from `schema.prisma`. Last call
+  before v1.5 P0.
+- OpenAPI spec drift CI guard — pull forward from v1.5 D.5 if
+  possible. Cheaper than discovering drift via an iOS build
+  break.
+- Pearson p-value normal-approx replacement (Code-MED-03) —
+  30-LOC incomplete-beta or raise df ≥ 20 surfacing gate. Fix
+  before v1.5/v1.6 auto-discovery ships.
+- Coach helpful/unhelpful first-week observation — does the new
+  warm persona land or does the disclosure-open rate stay below
+  ~30%? If low, tone pull-back before iOS multiplies the
+  audience.
 
 Reserved next strategic milestones:
 
 - **v1.5** — iOS app + Apple Health integration + per-metric APNs
   alerts. Strategic plan at
-  `.planning/phase-D-v1420-product-lead-review.md`.
+  `.planning/phase-W5-v1422-product-lead-review.md`.
 - **v1.6+** — Auto-correlation discovery (FDR-controlled), Coach
   full-page route at `/insights/coach`, conversation-driven goal
   setting.
+
+---
+
+## Previous milestone — v1.4.22 (completed 2026-05-10T22:43:50+02:00)
+
+| Wave | Goal                                                                                                                                                  | State |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| 1    | Research + probe — Playwright PROD probe (BD-Zielbereich 5th attempt, api-tokens 5th attempt, metric token leaks, Targets page brainstorm); health-coach prompt research | done  |
+| 2    | Insights surface polish — A1 BD framing, A2 BD-Kachel parity, A3 comparison-toggle global, A4 grid normalisation, A5 Muster rename + tabs above hero, A6 token-leak fix | done  |
+| 3    | Coach polish — B1 prompt rewrite (PROMPT_VERSION 4.20.2 → 4.22.0), B2 collapsible evidence, B3 Gravatar parity, B4 disclaimer move, B5 settings cog removal | done  |
+| 4    | Other surfaces + backlog cleanup — C1 Zielwerte sparkline + Δ-vs-last-month, C2 api-tokens 5th attempt, C3 Coolify auto-deploy runbook, C4 AuthShell flicker → proxy.ts, C5 node-26-alpine deferred, D backlog wave (12 items) | done  |
+| 5    | Multi-agent QA + Product-Lead — code, security, design, senior-dev, simplify, product-lead; 0 CRIT, 7 HIGH all applied inline, ~6 MED applied, rest deferred | done  |
+| 6    | Release v1.4.22 — bump, CHANGELOG, release-merge, tag, GHCR, host-side retag deploy (Coolify secrets still missing), /api/version=1.4.22, smoke, GH release, docs+landing sync, brief | done  |
+
+Milestone completed 2026-05-10T22:43:50+02:00 — v1.4.22 LIVE in prod.
+Release brief: `docs/audit/v1422-summary.md`.
+Image digest:
+`sha256:865154614303fdc362ee3941776f73ec0f60e1f16112ec272a75cbbe28e2cffb`.
+Backlog seeded to `.planning/v1422-backlog.md`. v1.5 strategic plan at
+`.planning/phase-W5-v1422-product-lead-review.md`.
 
 ---
 

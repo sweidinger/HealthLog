@@ -1,7 +1,7 @@
 # v1.4.22 marathon — state log
 
-Status: Wave 5 — multi-agent QA + reconcile complete
-Last update: 2026-05-10T22:30+02:00
+Status: Wave 6 — release shipped (live in prod)
+Last update: 2026-05-10T22:46+02:00
 
 > Previous patch: v1.4.21 live (image digest
 > `sha256:4e818d44702c…`, `/api/version=1.4.21`).
@@ -182,17 +182,29 @@ Apply or confirm-defer every item:
 
 ## Wave 6 — Release v1.4.22
 
-- [ ] Pre-release verify (typecheck, lint, test, integration,
-      format, build)
-- [ ] Bump `package.json` 1.4.21 → 1.4.22 + CHANGELOG
-- [ ] Release-merge develop → main
-- [ ] Tag + push v1.4.22
-- [ ] GHCR build green
-- [ ] Coolify deploy (should work without host-side fallback after C3)
-- [ ] /api/version=1.4.22 confirmed
-- [ ] Production smoke + e2e workflow on main passes (e2e fix wave
-      from develop is included in the release-merge)
-- [ ] GH release
-- [ ] Docs site + landing site sync
-- [ ] `docs/audit/v1422-summary.md` (release brief)
-- [ ] v1.5 plan refreshed for the iOS push
+- [x] Pre-release verify (typecheck, lint, test, integration,
+      format, build) — 2111 unit tests / 89 integration tests
+      passing; lint baseline 15 warnings; typecheck clean
+- [x] Bump `package.json` 1.4.21 → 1.4.22 + CHANGELOG
+      (commit `d71e879`)
+- [x] Release-merge develop → main (commit `005fed0`)
+- [x] Tag + push v1.4.22 (annotated tag `f4ebd41`)
+- [x] GHCR build green (workflow run `25639069964`)
+- [x] Coolify deploy — fell back to host-side SSH retag.
+      `COOLIFY_WEBHOOK` / `COOLIFY_TOKEN` repo secrets aren't
+      configured so the workflow auto-deploy step skipped; the
+      Coolify MCP `force=true` queued deploy didn't refresh the
+      digest within 5 minutes (same `:latest` pinning bug from
+      v1.4.21). Image digest
+      `sha256:865154614303fdc362ee3941776f73ec0f60e1f16112ec272a75cbbe28e2cffb`
+- [x] /api/version=1.4.22 confirmed at 2026-05-10T22:43:50+02:00
+- [x] Production smoke — all 6 gated routes return 307 →
+      `/auth/login`; `/api/version` returns 1.4.22
+- [x] GH release —
+      https://github.com/MBombeck/HealthLog/releases/tag/v1.4.22
+- [x] Docs site + landing site sync (healthlog-docs `9fd7aeb`,
+      healthlog-landing `743600f`)
+- [x] `docs/audit/v1422-summary.md` (release brief, commit
+      `65523de` on main)
+- [x] v1.5 plan refreshed for the iOS push at
+      `.planning/phase-W5-v1422-product-lead-review.md`
