@@ -308,4 +308,102 @@ describe("<HeroStrip>", () => {
     expect(html).toContain("Lesen");
     expect(html).toContain("Als PDF");
   });
+
+  // ── B5 — Health Score panel ────────────────────────────────────────
+  it("does NOT render the Health Score panel when healthScore is omitted", () => {
+    const html = render(<HeroStrip briefing={null} now={morningLocal} />);
+    expect(html).not.toContain('data-slot="health-score-card"');
+  });
+
+  it("renders the Health Score panel when the score is supplied", () => {
+    const html = render(
+      <HeroStrip
+        briefing={null}
+        now={morningLocal}
+        healthScore={{
+          score: 86,
+          band: "green",
+          components: {
+            bp: { value: 80, weight: 0.3 },
+            weight: { value: 70, weight: 0.2 },
+            mood: { value: 90, weight: 0.2 },
+            compliance: { value: 100, weight: 0.3 },
+          },
+          delta: 5,
+        }}
+      />,
+    );
+    expect(html).toMatch(/data-slot="health-score-card"/);
+    expect(html).toMatch(/data-band="green"/);
+    expect(html).toContain(">86<");
+  });
+
+  it("forwards onAskCoach into the Health Score panel only when both are supplied", () => {
+    const html = render(
+      <HeroStrip
+        briefing={null}
+        now={morningLocal}
+        healthScore={{
+          score: 86,
+          band: "green",
+          components: {
+            bp: { value: 80, weight: 0.3 },
+            weight: { value: 70, weight: 0.2 },
+            mood: { value: 90, weight: 0.2 },
+            compliance: { value: 100, weight: 0.3 },
+          },
+          delta: 5,
+        }}
+        onAskCoach={() => {}}
+      />,
+    );
+    // HSC panel renders its own Ask-the-Coach button with the score-
+    // aware label (the action-row button uses the shorter "Ask the
+    // coach" copy). The HSC button mirrors the panel's slot.
+    expect(html).toMatch(/data-slot="health-score-card-ask-coach"/);
+  });
+
+  it("hides the Health Score panel's Ask button when no onAskCoach is supplied", () => {
+    const html = render(
+      <HeroStrip
+        briefing={null}
+        now={morningLocal}
+        healthScore={{
+          score: 86,
+          band: "green",
+          components: {
+            bp: { value: 80, weight: 0.3 },
+            weight: { value: 70, weight: 0.2 },
+            mood: { value: 90, weight: 0.2 },
+            compliance: { value: 100, weight: 0.3 },
+          },
+          delta: 5,
+        }}
+      />,
+    );
+    expect(html).not.toContain('data-slot="health-score-card-ask-coach"');
+  });
+
+  it("uses the lg row layout when healthScore is supplied (smoke test on container class)", () => {
+    const html = render(
+      <HeroStrip
+        briefing={null}
+        now={morningLocal}
+        healthScore={{
+          score: 86,
+          band: "green",
+          components: {
+            bp: { value: 80, weight: 0.3 },
+            weight: { value: 70, weight: 0.2 },
+            mood: { value: 90, weight: 0.2 },
+            compliance: { value: 100, weight: 0.3 },
+          },
+          delta: null,
+        }}
+      />,
+    );
+    // The wrapper picks up the `lg:flex-row` modifier when the score
+    // is present so the panel sits beside the title block on desktop.
+    expect(html).toContain("lg:flex-row");
+  });
 });

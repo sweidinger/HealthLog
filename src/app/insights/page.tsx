@@ -942,8 +942,12 @@ export default function InsightsPage() {
         userName={heroGreetingName}
         onRegenerate={advisor.regenerate}
         regenerating={advisor.isRegenerating}
-        onAskCoach={() => {
-          setCoachPrefill(null);
+        onAskCoach={(prefill?: string) => {
+          // The action-row button passes no prefill (drawer opens blank);
+          // the Health Score panel passes a score-aware question. Both
+          // share the same drawer state so the user only ever sees one
+          // drawer instance.
+          setCoachPrefill(prefill ?? null);
           setCoachOpen(true);
         }}
         onPickPrompt={(prompt) => {
@@ -951,6 +955,7 @@ export default function InsightsPage() {
           setCoachOpen(true);
         }}
         weeklyReportReady={weeklyReportReady}
+        healthScore={analytics?.healthScore ?? undefined}
       />
 
       <DailyBriefing

@@ -14,6 +14,10 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { SuggestedPrompts } from "./suggested-prompts";
+import {
+  HealthScoreCard,
+  type HealthScoreCardProps,
+} from "./health-score-card";
 import type { DailyBriefing as DailyBriefingPayload } from "@/lib/ai/schema";
 
 /**
@@ -67,8 +71,14 @@ interface HeroStripProps {
    * the button is enabled and the coming-soon tooltip drops; clicking
    * opens the drawer (B2b). When omitted the button stays disabled —
    * see the v1.4.20 phase B1 dispatch where the drawer was deferred.
+   *
+   * v1.4.20 phase B5 — the same handler powers the Health Score
+   * panel's "Ask the Coach" button, with an optional `prefill` string
+   * that opens the drawer with a score-aware question. The action-row
+   * button calls it without an argument (drawer opens blank); the HSC
+   * panel calls it with "Why is my health score X out of 100?".
    */
-  onAskCoach?: () => void;
+  onAskCoach?: (prefill?: string) => void;
   /**
    * v1.4.20 phase B4 — when the cached AI payload carries a fresh
    * weeklyReport block, the parent passes this so the hero paints a
@@ -84,6 +94,20 @@ interface HeroStripProps {
    * Defaults to `new Date()`. Production callers omit this.
    */
   now?: Date;
+  /**
+   * v1.4.20 phase B5 — Personal Health Score panel data. When supplied
+   * the right side of the hero band paints the score card. The
+   * `onAskCoach` handler is intentionally re-used from the action-row
+   * "Ask the coach" button — same drawer state, different prefill
+   * string. When the parent omits the field the right side stays empty
+   * (current B1 behaviour).
+   */
+  healthScore?: {
+    score: HealthScoreCardProps["score"];
+    band: HealthScoreCardProps["band"];
+    components: HealthScoreCardProps["components"];
+    delta: HealthScoreCardProps["delta"];
+  } | null;
 }
 
 /**
@@ -133,6 +157,7 @@ export function HeroStrip({
   onAskCoach,
   weeklyReportReady,
   now,
+  healthScore,
 }: HeroStripProps) {
   const { t } = useTranslations();
   const greetingKey = resolveGreetingKey(now ?? new Date());
@@ -152,7 +177,21 @@ export function HeroStrip({
         "relative overflow-hidden rounded-xl px-4 py-5 sm:px-6 sm:py-6",
       )}
     >
-      <div className="flex flex-col gap-5">
+      {/*
+       * v1.4.20 phase B5 — split layout. On `lg+` the title block sits
+       * left, the Health Score panel sits right. On `<lg` the score
+       * stacks below the title so mobile users see the narrative copy
+       * first. When `healthScore` is null/undefined the right column
+       * collapses and the title block uses the full width — same shape
+       * as B1–B4.
+       */}
+      <div
+        className={cn(
+          "flex flex-col gap-5",
+          healthScore && "lg:flex-row lg:items-start lg:gap-6",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <Sparkles
@@ -225,7 +264,7 @@ export function HeroStrip({
             type="button"
             variant="outline"
             size="sm"
-            onClick={onAskCoach}
+            onClick={onAskCoach ? () => onAskCoach() : undefined}
             disabled={!onAskCoach}
             title={onAskCoach ? undefined : comingSoon}
             data-slot="insights-hero-strip-action-coach"
@@ -272,6 +311,21 @@ export function HeroStrip({
             onPick={onPickPrompt ?? (() => undefined)}
           />
         </div>
+        </div>
+
+        {healthScore && (
+          <HealthScoreCard
+            score={healthScore.score}
+            band={healthScore.band}
+            components={healthScore.components}
+            delta={healthScore.delta}
+            onAskCoach={
+              onAskCoach
+                ? (prefill: string) => onAskCoach(prefill)
+                : undefined
+            }
+          />
+        )}
       </div>
     </div>
   );
