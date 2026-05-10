@@ -66,11 +66,15 @@ export function DangerZoneSection() {
 
   return (
     <div className="bg-destructive/5 border-destructive/30 rounded-xl border p-6">
+      {/* v1.4.19 A8 / F-08: page header `admin.section.danger-zone.*`
+          already names the section, so the card-level title was a
+          duplicate of the page title. The destructive icon stays so
+          the card still flags itself as dangerous at a glance. */}
       <div className="flex items-center gap-2">
-        <AlertTriangle className="text-destructive h-5 w-5" />
-        <div className="text-destructive text-lg font-semibold">
-          {t("admin.dangerZone")}
-        </div>
+        <AlertTriangle
+          className="text-destructive h-5 w-5"
+          aria-hidden="true"
+        />
       </div>
       <div className="mt-4">
         <p className="text-sm font-medium">{t("admin.deleteAllData")}</p>

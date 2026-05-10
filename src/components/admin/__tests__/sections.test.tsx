@@ -92,13 +92,17 @@ describe("admin sections — SSR smoke", () => {
   it("<IntegrationsGroupSection> renders all four sub-sections", () => {
     const html = render(<IntegrationsGroupSection />);
     expect(html).toContain("Umami");
-    expect(html).toContain("Glitchtip");
+    expect(html).toContain("GlitchTip");
     expect(html).toContain("Web Push");
   });
 
   it("<FeedbackInboxSection> renders", () => {
     const html = render(<FeedbackInboxSection />);
-    expect(html).toContain("Feedback");
+    // F-08 dedupe: card no longer carries a duplicate "Feedback"
+    // header. Anchor on the empty-state copy + status tabs instead.
+    expect(html).toContain("All caught up");
+    expect(html).toContain("Open");
+    expect(html).toContain("Resolved");
   });
 
   it("<RemindersSection> renders", () => {
@@ -132,7 +136,10 @@ describe("admin sections — SSR smoke", () => {
 
   it("<DangerZoneSection> renders", () => {
     const html = render(<DangerZoneSection />);
-    expect(html).toContain("Danger Zone");
+    // F-08 dedupe: the card no longer carries a "Danger Zone" header
+    // (the page title already provides it). Assert on the action copy
+    // instead so the section is still anchored.
+    expect(html).toContain("Delete all data globally");
   });
 
   // v1.4.16 phase B5e — admin AI quality preview. The mocked useQuery
