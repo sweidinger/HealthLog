@@ -334,6 +334,34 @@ as v1.4.20.1 or bundle into v1.4.21.
   watch usage and consider trimming `DAILY_TIMELINE_DAYS` from 14 to
   10 if heavy users start hitting the 25k/day cap.
 
+## Status block — v1.4.21 release
+
+- 2026-05-10T17:46+00:00 — v1.4.21 LIVE in production. Tag `v1.4.21`
+  on `8e198e1 Release v1.4.21` (release-merge of develop into main),
+  GHCR build run `25635294152` succeeded, image digest
+  `sha256:4e818d44702c3581a14d6480a953fd20d16cbbaf21c41e0c778c07340d3c4b1c`.
+  Coolify auto-deploy webhook still missing (same fault as v1.4.19 +
+  v1.4.20) — host-side retag fallback used (`docker pull :1.4.21 →
+  docker tag :latest → docker compose up -d --force-recreate app`)
+  on apps-01. `/api/version` flipped to `1.4.21` between
+  19:45+02:00 and 19:46+02:00. Production smoke (no session): every
+  gated route 307 → `/auth/login`; `/api/version` 200; `/auth/login`
+  reachable. GH release: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.21.
+  Marc-Brief at `docs/audit/v1421-summary.md`. Docs site + landing
+  site sync skipped (patch is invisible at the docs page level —
+  the v1.4.20 entries already cover the Insights redesign +
+  Coach surface).
+
+## Phase G — e2e fix wave (in flight on develop)
+
+The post-v1.4.20 e2e workflow on `main` reported 7 failing specs.
+Five are stale selectors from the B1 hero rewrite (the new
+`<HeroStrip>` exposes a different `data-slot` value than the
+legacy `<InsightsPageHero>` the specs assert), the other two are
+Pixel-5 layout drift on `admin-api-tokens-mobile` and
+`charts-mobile`. A focused fix wave is in flight on `develop`;
+the next release (v1.4.22) will land them.
+
 ## Status block — B5 (v1.4.20)
 
 - 2026-05-10T17:45+02:00 — B5 complete. Personal Health Score
