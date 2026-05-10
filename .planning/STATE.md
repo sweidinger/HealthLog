@@ -101,9 +101,10 @@ ships behind a feature flag and unlocks independently.
 
 ### B2 — AI Coach panel + streaming chat + persistence (~5-7 days)
 
-Split into B2a (backend, complete) + B2b (drawer UI, deferred). The
-backend half landed under five atomic commits on `develop`; the
-frontend dispatches separately once the wire contract has settled.
+Split into B2a (backend, complete) + B2b (drawer UI, complete). Both
+halves landed on `develop` under nine atomic commits total — five
+for the backend wave, four for the drawer wave plus a state-tick
+commit.
 
 - [x] New `POST /api/insights/chat` SSE-streaming endpoint
 - [x] New `GET /api/insights/chat` (list) + `GET/DELETE
@@ -114,11 +115,13 @@ frontend dispatches separately once the wire contract has settled.
 - [x] Token-budget cap (25 000 tokens / user / UTC-day) + 20-turn
       conversation cap with summarised-history fold
 - [x] Prompt-injection + off-topic refusal pattern (EN+DE)
-- [ ] Drawer overlay over `/insights`; full-page route deferred to
-      v1.5 — UI deferred to B2b dispatch
-- [ ] New `src/components/insights/coach-panel/*` — B2b
+- [x] Drawer overlay over `/insights`; full-page `/insights/coach`
+      route deferred to v1.5 paired with the iOS app
+- [x] New `src/components/insights/coach-panel/*` — drawer shell,
+      message thread, source chips, composer, history rail,
+      sources rail, TanStack Query + SSE hooks
 - Detailed report: `.planning/phase-B2a-report.md` (backend);
-  `.planning/phase-B2-report.md` reserved for B2b drawer UI
+  `.planning/phase-B2b-report.md` (drawer UI)
 
 ### B3 — Correlation discovery + Trends row with AI annotations (~3-5 days)
 
@@ -199,3 +202,28 @@ frontend dispatches separately once the wire contract has settled.
   ownership boundary. Tests: 1753 → 1781 unit (+28),
   67 → 78 integration (+11). UI drawer (B2b) deferred to a separate
   dispatch.
+
+## Status block — B2b (v1.4.20)
+
+- 2026-05-10T16:30+02:00 — B2b complete. AI Coach drawer landed in
+  four atomic commits on `develop`: TanStack Query + SSE streaming
+  hooks (`useCoachConversations`, `useCoachConversation`,
+  `useDeleteCoachConversation`, `useSendCoachMessage`) with a
+  pure `parseSseChunk()` helper for unit-testable frame parsing;
+  drawer shell wrapped in `<Sheet side="right">` with three-column
+  layout on `lg+` (history rail · message thread · sources rail) and
+  full-screen single-column on mobile; `<MessageThread>` renders user
+  / assistant bubbles + an in-flight streaming bubble with
+  pinned-to-bottom auto-scroll; `<SourceChips>` renders provenance as
+  labels-only chips (metric · window · n-count, never raw values);
+  `<CoachInput>` composer with Enter / Cmd+Enter / Shift+Enter
+  semantics, disabled mic placeholder ("voice arrives in v1.5"), and
+  the "Coach replies are generated. Clinical decisions belong with
+  your doctor." disclaimer; `<HistoryRail>` with substring filter
+  and confirm-then-go delete; `<SourcesRail>` with the five Coach
+  metric contracts; `/insights` page mounts the drawer with the
+  hero strip's "Ask the coach" button + suggested-prompt chips
+  driving open + prefill. Tests: 1781 → 1833 unit (+52,
+  six new test files: `use-coach`, `source-chips`, `message-thread`,
+  `coach-input`, `sources-rail`, `history-rail`). Integration count
+  unchanged at 78. typecheck + lint clean (12 baseline warnings).
