@@ -11,6 +11,7 @@ import type {
 import { HealthChart } from "@/components/charts/health-chart";
 import { MoodChart } from "@/components/charts/mood-chart";
 import { getMedicalReferenceById } from "@/lib/ai/medical-references";
+import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import type { Locale } from "@/lib/i18n/config";
 import {
   RecommendationFeedback,
@@ -333,7 +334,9 @@ export function RecommendationCard({
                   {norm.severity}
                 </Badge>
               )}
-              <p className="text-sm leading-snug">{norm.text}</p>
+              <p className="text-sm leading-snug">
+                {stripChartTokens(norm.text)}
+              </p>
             </div>
           </div>
         </div>

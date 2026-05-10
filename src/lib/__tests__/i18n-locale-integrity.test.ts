@@ -327,4 +327,37 @@ describe("i18n locale file integrity", () => {
         todos.map((s) => `  ${s}`).join("\n"),
     ).toEqual([]);
   });
+
+  /**
+   * v1.4.22 A6 — DE locale must not leak English nouns for the
+   * Health-Score component contract.
+   *
+   * The four `componentBp` / `componentWeight` / `componentMood` /
+   * `componentCompliance` keys are rendered as the four sub-bar
+   * labels on the Health Score card. Up to v1.4.21 the DE locale
+   * shipped `componentMood: "Mood"` (an English noun voice-to-text
+   * rendered as "Mut" on a quick read). Pin the German values so a
+   * future copy-paste regression can't reintroduce the leak.
+   */
+  it("DE locale renders Health-Score component labels in German", () => {
+    const de = JSON.parse(readFileSync(DE_PATH, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    const flat: [string, string][] = [];
+    flattenValues(de, "", flat);
+    const byKey = new Map(flat);
+
+    const EXPECTED: Array<[string, string]> = [
+      ["insights.healthScore.componentBp", "Blutdruck"],
+      ["insights.healthScore.componentWeight", "Gewicht"],
+      ["insights.healthScore.componentMood", "Stimmung"],
+      ["insights.healthScore.componentCompliance", "Einnahmetreue"],
+    ];
+
+    for (const [key, expectedDe] of EXPECTED) {
+      const actual = byKey.get(key);
+      expect(actual, `DE label for ${key}`).toBe(expectedDe);
+    }
+  });
 });

@@ -774,10 +774,10 @@
       "progressAria": "Gesundheitsscore-Fortschritt",
       "deltaVsLastWeek": "{delta} im Vergleich zur Vorwoche",
       "deltaUnavailable": "Noch keine Historie — schau nächste Woche wieder vorbei.",
-      "componentBp": "BD",
+      "componentBp": "Blutdruck",
       "componentWeight": "Gewicht",
-      "componentMood": "Mood",
-      "componentCompliance": "Medis",
+      "componentMood": "Stimmung",
+      "componentCompliance": "Einnahmetreue",
       "disclaimer": "Orientierungshilfe — keine ärztliche Bewertung.",
       "askCoach": "Coach fragen",
       "coachPrompt": "Warum ist mein Gesundheitsscore {score} von 100?"
