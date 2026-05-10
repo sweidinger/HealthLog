@@ -1,0 +1,100 @@
+import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+
+/**
+ * `<AdminShell>` mirrors `<SettingsShell>`: a sticky desktop sidebar
+ * plus a horizontal section strip on mobile. With 13 sections the strip
+ * is always wider than a 393 CSS-px (Pixel-5) viewport, so v1.4.18
+ * phase A2 added the `no-scrollbar` class to the strip — Chromium /
+ * WebKit otherwise paint an always-on horizontal scrollbar at the top
+ * of every admin page, which Marc kept mis-attributing to the
+ * `/admin/api-tokens` table card right below it. Three previous fix
+ * attempts (v1.4.15 column-hide, v1.4.16 mobile-card-list, then this
+ * one) all targeted the table while the bar lived in the shell.
+ *
+ * This suite locks in the shell-level fix so a future refactor can't
+ * silently regress it.
+ */
+
+const mockPathnameRef = { value: "/admin/system-status" };
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPathnameRef.value,
+}));
+
+import { I18nProvider } from "@/lib/i18n/context";
+import {
+  ADMIN_SECTIONS,
+  AdminShell,
+} from "../admin-shell";
+
+function renderShell(props: {
+  active?: (typeof ADMIN_SECTIONS)[number]["slug"];
+  pathname?: string;
+}) {
+  mockPathnameRef.value = props.pathname ?? "/admin/system-status";
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale="en">
+      <AdminShell active={props.active}>
+        <div>section body</div>
+      </AdminShell>
+    </I18nProvider>,
+  );
+}
+
+describe("<AdminShell>", () => {
+  it("renders every section link in both the mobile strip and the desktop sidebar", () => {
+    const html = renderShell({ active: "system-status" });
+    for (const section of ADMIN_SECTIONS) {
+      const matches = html.match(
+        new RegExp(`href="/admin/${section.slug}"`, "g"),
+      );
+      // Two renders — mobile strip + desktop sidebar.
+      expect(matches?.length ?? 0).toBe(2);
+    }
+  });
+
+  it("mobile section strip uses `no-scrollbar` so the swipe area doesn't paint a horizontal scrollbar", () => {
+    // The 13-section strip is ~1700 CSS px wide. Without
+    // `no-scrollbar` (defined in `globals.css`) Chromium/WebKit paint
+    // an always-on horizontal scrollbar at the top of every admin
+    // page. Production probe at https://healthlog.bombeck.io/admin/
+    // api-tokens at Pixel-5 viewport pins this as the *only* element
+    // with `overflow-x:auto AND scrollWidth > clientWidth`, so the
+    // class is the load-bearing fix.
+    const html = renderShell({ active: "api-tokens" });
+    const nav = html.match(/<nav\b[^>]*md:hidden[^>]*>/);
+    expect(nav).not.toBeNull();
+    expect(nav![0]).toMatch(/\bno-scrollbar\b/);
+    // Scroll behaviour itself is preserved — the strip still uses
+    // `overflow-x-auto` so swipe / keyboard-arrow scrolling continues
+    // to work, only the painted bar is suppressed.
+    expect(nav![0]).toMatch(/\boverflow-x-auto\b/);
+  });
+
+  it('marks the active section with aria-current="page" in both layouts', () => {
+    const html = renderShell({ active: "api-tokens" });
+    const occurrences = html.match(/aria-current="page"/g);
+    // Two layouts (mobile strip + desktop sidebar) → two matches.
+    expect(occurrences?.length ?? 0).toBe(2);
+    // Active link is on the api-tokens href in both renders.
+    const activeLinkRegex =
+      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/admin\/api-tokens"|<a\b[^>]*\bhref="\/admin\/api-tokens"[^>]*\baria-current="page"/g;
+    expect(html.match(activeLinkRegex)?.length ?? 0).toBe(2);
+  });
+
+  it("derives the active slug from the current pathname when `active` is omitted", () => {
+    const html = renderShell({ pathname: "/admin/api-tokens" });
+    const activeLinkRegex =
+      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/admin\/api-tokens"|<a\b[^>]*\bhref="\/admin\/api-tokens"[^>]*\baria-current="page"/g;
+    expect(html.match(activeLinkRegex)?.length ?? 0).toBe(2);
+  });
+
+  it("does NOT mark any section active on `/admin` overview", () => {
+    const html = renderShell({ pathname: "/admin" });
+    // Overview-link only — no section gets aria-current.
+    const sectionActive = html.match(
+      /aria-current="page"[^>]*\bhref="\/admin\/[^"]+"/g,
+    );
+    expect(sectionActive?.length ?? 0).toBe(0);
+  });
+});

@@ -148,10 +148,16 @@ export function AdminShell({ active, children }: AdminShellProps) {
 
   return (
     <div className="mx-auto w-full max-w-screen-xl px-4 py-6 md:px-6 md:py-8">
-      {/* Mobile section strip — horizontal scroll, hidden on md+. */}
+      {/* Mobile section strip — horizontal scroll, hidden on md+.
+          `no-scrollbar` (defined in `globals.css`) suppresses the
+          painted scrollbar at the top of every admin page; the
+          horizontal swipe + keyboard arrow scrolling still work, the
+          bar just doesn't draw. Without this the 13-section strip
+          would render an always-on scrollbar that Marc kept
+          mis-attributing to the api-tokens table below it. */}
       <nav
         aria-label={t("admin.shell.sectionsNav")}
-        className="-mx-4 mb-4 overflow-x-auto px-4 md:hidden"
+        className="no-scrollbar -mx-4 mb-4 overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
           {ADMIN_SECTIONS.map((section) => {

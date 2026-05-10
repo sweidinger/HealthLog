@@ -166,4 +166,18 @@ describe("<SettingsShell>", () => {
     const html = renderShell({ active: "account", locale: "en" });
     expect(html).not.toContain("settings.sections.");
   });
+
+  it("mobile section strip uses `no-scrollbar` so the swipe area doesn't paint a horizontal scrollbar", () => {
+    // The 10-section strip is wider than 393 CSS px, so without
+    // `no-scrollbar` Chromium/WebKit paints an always-on horizontal
+    // scrollbar at the top of every settings page. The class is
+    // defined in `globals.css` and combines `scrollbar-width: none`
+    // (Firefox) with `::-webkit-scrollbar { display: none }` (everyone
+    // else) — scroll behaviour is preserved.
+    const html = renderShell({ active: "account" });
+    const nav = html.match(/<nav\b[^>]*md:hidden[^>]*>/);
+    expect(nav).not.toBeNull();
+    expect(nav![0]).toMatch(/\bno-scrollbar\b/);
+    expect(nav![0]).toMatch(/\boverflow-x-auto\b/);
+  });
 });

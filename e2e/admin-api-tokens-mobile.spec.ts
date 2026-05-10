@@ -74,4 +74,48 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
       `scrollWidth=${dims.scrollWidth}, innerWidth=${dims.innerWidth}`,
     ).toBeLessThanOrEqual(dims.innerWidth + 1);
   });
+
+  // v1.4.18 phase A2 — production probe at Pixel-5 viewport pinned the
+  // visible "scrollbar" Marc reported for the third time as the
+  // `<AdminShell>` mobile section strip, NOT the api-tokens table. The
+  // strip carries 13 admin sections so its scrollWidth (~1700 CSS px)
+  // permanently exceeds clientWidth (~360 CSS px). Adding the
+  // `no-scrollbar` utility class (`globals.css`) suppresses the
+  // painted bar while preserving swipe + keyboard-arrow scrolling.
+  // This regression guard fails if a future refactor drops the class.
+  test("Pixel-5 viewport: admin section strip suppresses its painted scrollbar", async ({
+    page,
+  }) => {
+    await page.route("**/api/admin/tokens", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: [], error: null }),
+      }),
+    );
+
+    await page.goto("/admin/api-tokens", { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
+
+    // Find the mobile strip (`<nav aria-label>` matches both English
+    // "Admin sections" and German "Admin-Bereiche").
+    const strip = page.locator("nav.no-scrollbar.overflow-x-auto").first();
+    await expect(strip).toBeAttached();
+
+    // The strip itself must declare `no-scrollbar` so the painted
+    // horizontal scrollbar — which production showed at Pixel-5 — is
+    // suppressed.
+    const cls = await strip.getAttribute("class");
+    expect(cls ?? "").toContain("no-scrollbar");
+    expect(cls ?? "").toContain("overflow-x-auto");
+
+    // And the strip must still carry useful overflow internally
+    // (clientWidth < scrollWidth), proving scroll behaviour isn't
+    // disabled — only the bar is invisible.
+    const stripDims = await strip.evaluate((el) => ({
+      scrollWidth: (el as HTMLElement).scrollWidth,
+      clientWidth: (el as HTMLElement).clientWidth,
+    }));
+    expect(stripDims.scrollWidth).toBeGreaterThan(stripDims.clientWidth);
+  });
 });

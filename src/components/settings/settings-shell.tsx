@@ -131,10 +131,16 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
 
   return (
     <div className="mx-auto w-full max-w-screen-xl px-4 py-6 md:px-6 md:py-8">
-      {/* Mobile section strip — horizontal scroll, hidden on md+. */}
+      {/* Mobile section strip — horizontal scroll, hidden on md+.
+          `no-scrollbar` (defined in `globals.css`) suppresses the
+          painted scrollbar; the horizontal swipe + keyboard arrow
+          scrolling still work. Without it the 10-section strip
+          renders an always-on scrollbar at the top of every settings
+          page, which makes the page feel like every section card has
+          an overflow problem. */}
       <nav
         aria-label={t("settings.shell.sectionsNav")}
-        className="-mx-4 mb-4 overflow-x-auto px-4 md:hidden"
+        className="no-scrollbar -mx-4 mb-4 overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
           {SETTINGS_SECTIONS.map((section) => {
