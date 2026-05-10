@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest a new feature, integration, or enhancement.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feature ideas welcome. HealthLog is a personal-health PWA — the bar for inclusion is high (privacy-first, offline-capable, self-hostable). Use this template to propose something concrete; for open-ended discussion, prefer a [Discussion](https://github.com/MBombeck/HealthLog/discussions) thread.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user problem does this feature solve? "I want to track X but..." is a great opening.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would the feature work from the user's perspective? Sketches / mocks welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds exist today, and why are they insufficient?
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      multiple: true
+      options:
+        - Web (PWA)
+        - iOS app (v1.5+)
+        - API
+        - Admin
+        - Notifications
+        - AI Insights
+        - Withings integration
+        - moodLog integration
+        - Self-hosting / Docker
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else the maintainer should know — links, related issues, prior art.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I confirmed this is not a duplicate of an existing feature request.
+          required: true
+        - label: I'm proposing a feature, not asking a usage question (those go to Discussions or the docs).
+          required: true

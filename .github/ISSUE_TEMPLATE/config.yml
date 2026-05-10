@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://docs.healthlog.dev
+    about: Setup, configuration, and feature documentation. Most usage questions are answered here.
+  - name: Security advisory
+    url: https://github.com/MBombeck/HealthLog/security/advisories/new
+    about: Report a security vulnerability privately. See SECURITY.md for the full policy.
+  - name: Discussions
+    url: https://github.com/MBombeck/HealthLog/discussions
+    about: Open-ended questions, ideas you want to brainstorm, and "is this the right approach?" threads.
