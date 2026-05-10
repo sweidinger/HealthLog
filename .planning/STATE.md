@@ -57,13 +57,13 @@ Combined sweep across HealthLog main repo + healthlog-docs + healthlog-landing
 
 ### F5 — Best-practice GitHub repo audit
 
-- [ ] 2 parallel agents survey repo structure
-- [ ] Compare to OSS best-practice (README, LICENSE, CONTRIBUTING,
-      CODE_OF_CONDUCT, SECURITY, .github/ISSUE_TEMPLATE,
-      PULL_REQUEST_TEMPLATE, badges)
-- [ ] Output prioritized list; apply CRITICAL + HIGH inline; defer
-      rest to v1.4.21
+- [x] CODE_OF_CONDUCT.md (Contributor Covenant 2.1, `e7b6b27`)
+- [x] Issue + PR templates (`.github/ISSUE_TEMPLATE/*.yml`, `PULL_REQUEST_TEMPLATE.md`, `072941b`)
+- [x] Dependabot expanded to github-actions + docker (`779e5a3`)
+- [x] package.json metadata: description, license, homepage, repository, bugs, keywords (`f7977d1`)
+- [x] LOW carry-over (README badges, FUNDING.yml, repo-root tidy) deferred to `.planning/v1421-backlog.md`
 - Detailed report: `.planning/phase-F5-report.md`
+- Note: initial sub-agent dispatch hit a content-filter block on the CoC text; refactored to inline execution (download CoC verbatim from contributor-covenant.org).
 
 ### F6 — Multi-agent QA on new docs
 
