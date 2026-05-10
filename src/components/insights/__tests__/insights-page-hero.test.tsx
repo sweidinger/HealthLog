@@ -80,7 +80,9 @@ describe("<InsightsPageHero>", () => {
     const html = render(
       <InsightsPageHero onRegenerate={() => {}} regenerating />,
     );
-    expect(html).toMatch(/data-slot="insights-page-hero-regenerate"[^>]*disabled/);
+    expect(html).toMatch(
+      /data-slot="insights-page-hero-regenerate"[^>]*disabled/,
+    );
   });
 
   it("German locale — heading + subtitle translate", () => {

@@ -132,12 +132,9 @@ export function AiQualitySection() {
       </div>
 
       <div className="overflow-x-auto">
-        <table
-          className="w-full text-sm"
-          data-slot="ai-quality-table"
-        >
+        <table className="w-full text-sm" data-slot="ai-quality-table">
           <thead>
-            <tr className="text-muted-foreground border-border border-b text-left text-xs uppercase tracking-wider">
+            <tr className="text-muted-foreground border-border border-b text-left text-xs tracking-wider uppercase">
               <th className="py-2 pr-3 font-medium">
                 {t("admin.aiQuality.colSeverity")}
               </th>
@@ -183,7 +180,9 @@ export function AiQualitySection() {
                     {bucket.promptVersion}
                   </td>
                   <td className="py-2 pr-3 tabular-nums">{bucket.helpful}</td>
-                  <td className="py-2 pr-3 tabular-nums">{bucket.notHelpful}</td>
+                  <td className="py-2 pr-3 tabular-nums">
+                    {bucket.notHelpful}
+                  </td>
                   <td
                     className={`py-2 font-semibold tabular-nums ${helpfulRateColour(
                       bucket.helpfulRate,

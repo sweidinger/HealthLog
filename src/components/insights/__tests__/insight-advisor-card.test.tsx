@@ -216,9 +216,7 @@ describe("<InsightAdvisorCard> — summary typography polish (B1b)", () => {
     // The summary's inline-chart wrapper must carry `data-mini="true"`
     // so the chart shrinks to sparkline form. Per-finding charts use
     // the default detail mode.
-    expect(html).toMatch(
-      /data-slot="insight-summary"[\s\S]*?data-mini="true"/,
-    );
+    expect(html).toMatch(/data-slot="insight-summary"[\s\S]*?data-mini="true"/);
   });
 });
 

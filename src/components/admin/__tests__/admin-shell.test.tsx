@@ -22,10 +22,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
-import {
-  ADMIN_SECTIONS,
-  AdminShell,
-} from "../admin-shell";
+import { ADMIN_SECTIONS, AdminShell } from "../admin-shell";
 
 function renderShell(props: {
   active?: (typeof ADMIN_SECTIONS)[number]["slug"];

@@ -150,8 +150,16 @@ describe("getEngagementMetrics", () => {
         { type: "WEIGHT", measuredAt: new Date("2026-04-01T08:00:00Z") },
       ],
       moodEntries: [
-        { date: "2026-04-02", score: 3, moodLoggedAt: new Date("2026-04-02T08:00:00Z") },
-        { date: "2026-04-03", score: 3, moodLoggedAt: new Date("2026-04-03T08:00:00Z") },
+        {
+          date: "2026-04-02",
+          score: 3,
+          moodLoggedAt: new Date("2026-04-02T08:00:00Z"),
+        },
+        {
+          date: "2026-04-03",
+          score: 3,
+          moodLoggedAt: new Date("2026-04-03T08:00:00Z"),
+        },
       ],
       intakeEvents: [
         {

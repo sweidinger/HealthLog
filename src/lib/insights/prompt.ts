@@ -120,7 +120,9 @@ export function buildUserPrompt(
   locale: Locale,
   comparison?: ComparisonSnapshot,
 ): string {
-  const comparisonBlock = comparison ? buildComparisonBlock(locale, comparison) : "";
+  const comparisonBlock = comparison
+    ? buildComparisonBlock(locale, comparison)
+    : "";
 
   if (locale === "en") {
     const modeLabel =
@@ -172,9 +174,7 @@ export function buildComparisonBlock(
         ? "den gleichen Zeitraum 30 Tage zuvor"
         : "den gleichen Zeitraum 365 Tage zuvor";
 
-  const renderRow = (
-    metric: ComparisonSnapshot["metrics"][number],
-  ): string => {
+  const renderRow = (metric: ComparisonSnapshot["metrics"][number]): string => {
     if (metric.delta === null || metric.baselineAvg === null) {
       return `- ${metric.type}: no prior-period data available`;
     }

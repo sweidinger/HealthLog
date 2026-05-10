@@ -60,9 +60,8 @@ vi.mock("@/hooks/use-chart-overlay-prefs", () => ({
 
 async function renderChart(): Promise<string> {
   // Re-import to pick up the freshly-set mock value.
-  const { MedicationComplianceChart } = await import(
-    "../medication-compliance-chart"
-  );
+  const { MedicationComplianceChart } =
+    await import("../medication-compliance-chart");
   return renderToStaticMarkup(
     <I18nProvider initialLocale="en">
       <MedicationComplianceChart />

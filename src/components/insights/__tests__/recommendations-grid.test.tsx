@@ -120,10 +120,7 @@ describe("sortRecommendationsBySeverity", () => {
 
 describe("<RecommendationsGrid>", () => {
   it("renders cards in a 2-col responsive grid", () => {
-    const recs = [
-      rec("a", "info", "alpha"),
-      rec("b", "urgent", "bravo"),
-    ];
+    const recs = [rec("a", "info", "alpha"), rec("b", "urgent", "bravo")];
     const html = render(<RecommendationsGrid recs={recs} />);
     expect(html).toMatch(/data-slot="rec-grid"/);
     expect(html).toMatch(/grid-cols-1/);
@@ -131,10 +128,7 @@ describe("<RecommendationsGrid>", () => {
   });
 
   it("renders cards in severity-ordered sequence (urgent first)", () => {
-    const recs = [
-      rec("a", "info", "alpha"),
-      rec("b", "urgent", "bravo"),
-    ];
+    const recs = [rec("a", "info", "alpha"), rec("b", "urgent", "bravo")];
     const html = render(<RecommendationsGrid recs={recs} />);
     // bravo (urgent) must appear before alpha (info) in the output.
     expect(html.indexOf("bravo")).toBeLessThan(html.indexOf("alpha"));

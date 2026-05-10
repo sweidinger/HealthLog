@@ -96,7 +96,9 @@ export function RecommendationsGrid({ recs }: RecommendationsGridProps) {
           SEVERITY_BORDER_FALLBACK;
         return (
           <div
-            key={typeof rec === "string" ? `${index}-${rec}` : (rec.id ?? index)}
+            key={
+              typeof rec === "string" ? `${index}-${rec}` : (rec.id ?? index)
+            }
             data-stagger-index={index}
             role="listitem"
             className={`animate-insight-in transition-all md:hover:-translate-y-0.5 md:hover:shadow-lg ${borderClass} rounded-lg border-l-2`}

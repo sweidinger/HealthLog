@@ -47,12 +47,14 @@ function litBarsFor(value: number): number {
   return lit;
 }
 
-const BAR_LIT_COLOUR_BY_BAND: Record<Exclude<ConfidenceBand, "draft">, string> =
-  {
-    high: "bg-dracula-green",
-    medium: "bg-dracula-yellow",
-    low: "bg-dracula-orange",
-  };
+const BAR_LIT_COLOUR_BY_BAND: Record<
+  Exclude<ConfidenceBand, "draft">,
+  string
+> = {
+  high: "bg-dracula-green",
+  medium: "bg-dracula-yellow",
+  low: "bg-dracula-orange",
+};
 
 const RING_STROKE_COLOUR_BY_BAND: Record<
   Exclude<ConfidenceBand, "draft">,

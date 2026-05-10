@@ -292,9 +292,7 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
     ];
 
     for (const r of seed) {
-      const at = new Date(
-        now.getTime() - r.daysAgo * 24 * 60 * 60 * 1000,
-      );
+      const at = new Date(now.getTime() - r.daysAgo * 24 * 60 * 60 * 1000);
       await prisma.measurement.create({
         data: {
           userId: user.id,
@@ -360,9 +358,7 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
     });
 
     const now = new Date();
-    const fourteenDaysAgo = new Date(
-      now.getTime() - 14 * 24 * 60 * 60 * 1000,
-    );
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
     await prisma.measurement.create({
       data: {

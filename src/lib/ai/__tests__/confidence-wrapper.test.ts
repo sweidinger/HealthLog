@@ -102,8 +102,7 @@ describe("generateInsight() — confidence override", () => {
         {
           ...validResponseWithModelConfidence.recommendations[0],
           metricSource: {
-            ...validResponseWithModelConfidence.recommendations[0]
-              .metricSource,
+            ...validResponseWithModelConfidence.recommendations[0].metricSource,
             n: 14,
           },
         },
@@ -127,8 +126,7 @@ describe("generateInsight() — confidence override", () => {
         {
           ...validResponseWithModelConfidence.recommendations[0],
           metricSource: {
-            ...validResponseWithModelConfidence.recommendations[0]
-              .metricSource,
+            ...validResponseWithModelConfidence.recommendations[0].metricSource,
             n: 1,
           },
         },
@@ -182,8 +180,7 @@ describe("generateInsight() — confidence override", () => {
           id: "rec-b",
           confidence: 1,
           metricSource: {
-            ...validResponseWithModelConfidence.recommendations[0]
-              .metricSource,
+            ...validResponseWithModelConfidence.recommendations[0].metricSource,
             n: 5,
           },
         },

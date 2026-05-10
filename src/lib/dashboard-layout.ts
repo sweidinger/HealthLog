@@ -130,7 +130,9 @@ export const DEFAULT_CHART_OVERLAY_PREFS: ChartOverlayPrefs = {
   showTargetRange: false,
 };
 
-export type ChartOverlayPrefsMap = Partial<Record<ChartOverlayKey, ChartOverlayPrefs>>;
+export type ChartOverlayPrefsMap = Partial<
+  Record<ChartOverlayKey, ChartOverlayPrefs>
+>;
 
 function isChartOverlayKey(value: string): value is ChartOverlayKey {
   return (CHART_OVERLAY_KEYS as readonly string[]).includes(value);

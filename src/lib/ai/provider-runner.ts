@@ -1,8 +1,4 @@
-import type {
-  AIProvider,
-  CompletionParams,
-  CompletionResult,
-} from "./types";
+import type { AIProvider, CompletionParams, CompletionResult } from "./types";
 import {
   generateInsight,
   type GenerateInsightOutcome,

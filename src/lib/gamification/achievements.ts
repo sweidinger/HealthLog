@@ -88,9 +88,7 @@ export interface EarnabilityFlags {
   hasPulse: boolean;
 }
 
-function categoryForMetric(
-  metric: AchievementMetricKey,
-): AchievementCategory {
+function categoryForMetric(metric: AchievementMetricKey): AchievementCategory {
   switch (metric) {
     case "totalTakenIntakes":
     case "overIntakeCount":

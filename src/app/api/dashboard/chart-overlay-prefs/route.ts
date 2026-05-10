@@ -76,8 +76,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
       await tx.user.update({
         where: { id: user.id },
         data: {
-          dashboardWidgetsJson:
-            normalized as unknown as Prisma.InputJsonValue,
+          dashboardWidgetsJson: normalized as unknown as Prisma.InputJsonValue,
         },
       });
     },

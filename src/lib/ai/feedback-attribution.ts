@@ -38,7 +38,8 @@ function parseAuditDetails(raw: string | null): AuditDetailsShape {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === "object") return parsed as AuditDetailsShape;
+    if (parsed && typeof parsed === "object")
+      return parsed as AuditDetailsShape;
   } catch {
     // Treat unparseable details as absent — the fallback applies.
   }

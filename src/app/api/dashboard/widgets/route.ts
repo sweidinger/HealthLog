@@ -98,8 +98,8 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   // visibility / order; chart prefs are PUT through their own route
   // (`/api/dashboard/chart-overlay-prefs`) and would otherwise be
   // wiped here on a subsequent layout save.
-  let mergedChartOverlayPrefs: ChartOverlayPrefsMap | undefined =
-    parsed.data.chartOverlayPrefs as ChartOverlayPrefsMap | undefined;
+  let mergedChartOverlayPrefs: ChartOverlayPrefsMap | undefined = parsed.data
+    .chartOverlayPrefs as ChartOverlayPrefsMap | undefined;
   if (mergedChartOverlayPrefs === undefined) {
     const existing = await prisma.user.findUnique({
       where: { id: user.id },

@@ -28,8 +28,18 @@ function lookup(bag: Bag, path: string[]): string | null {
 describe("settings sections — i18n parity (B6)", () => {
   for (const slug of SETTINGS_SECTION_SLUGS) {
     it(`every locale resolves settings.sections.${slug}.title`, () => {
-      const enValue = lookup(en as Bag, ["settings", "sections", slug, "title"]);
-      const deValue = lookup(de as Bag, ["settings", "sections", slug, "title"]);
+      const enValue = lookup(en as Bag, [
+        "settings",
+        "sections",
+        slug,
+        "title",
+      ]);
+      const deValue = lookup(de as Bag, [
+        "settings",
+        "sections",
+        slug,
+        "title",
+      ]);
       expect(enValue, `EN missing title for ${slug}`).toBeTypeOf("string");
       expect(enValue?.length ?? 0).toBeGreaterThan(0);
       expect(deValue, `DE missing title for ${slug}`).toBeTypeOf("string");
@@ -49,9 +59,13 @@ describe("settings sections — i18n parity (B6)", () => {
         slug,
         "description",
       ]);
-      expect(enValue, `EN missing description for ${slug}`).toBeTypeOf("string");
+      expect(enValue, `EN missing description for ${slug}`).toBeTypeOf(
+        "string",
+      );
       expect(enValue?.length ?? 0).toBeGreaterThan(0);
-      expect(deValue, `DE missing description for ${slug}`).toBeTypeOf("string");
+      expect(deValue, `DE missing description for ${slug}`).toBeTypeOf(
+        "string",
+      );
       expect(deValue?.length ?? 0).toBeGreaterThan(0);
     });
   }

@@ -74,9 +74,8 @@ beforeEach(async () => {
   headerJar.clear();
   // Wipe the in-process last-working cache so test order doesn't
   // leak the fallback decision from one case into the next.
-  const { clearLastWorkingProviderCache } = await import(
-    "@/lib/ai/provider-runner"
-  );
+  const { clearLastWorkingProviderCache } =
+    await import("@/lib/ai/provider-runner");
   clearLastWorkingProviderCache();
 });
 
@@ -187,8 +186,9 @@ describe("POST /api/insights/generate — chain fallback", () => {
   it("falls back from broken OpenAI primary to Anthropic secondary when the primary fails", async () => {
     await seedUserWithKey();
 
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
-      async (input: RequestInfo | URL) => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input: RequestInfo | URL) => {
         if (isOpenAICall(input)) {
           return new Response(
             JSON.stringify({ error: { code: "invalid_api_key" } }),
@@ -199,8 +199,7 @@ describe("POST /api/insights/generate — chain fallback", () => {
           return anthropicSuccess();
         }
         throw new Error(`unexpected URL: ${String(input)}`);
-      },
-    );
+      });
 
     const { POST } = await import("@/app/api/insights/generate/route");
     const res = await POST(jsonRequest() as never);
@@ -241,8 +240,9 @@ describe("POST /api/insights/generate — chain fallback", () => {
   it("caches the working provider so the next call skips the broken primary", async () => {
     await seedUserWithKey();
 
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
-      async (input: RequestInfo | URL) => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input: RequestInfo | URL) => {
         if (isOpenAICall(input)) {
           return new Response("nope", { status: 401 });
         }
@@ -250,8 +250,7 @@ describe("POST /api/insights/generate — chain fallback", () => {
           return anthropicSuccess();
         }
         throw new Error(`unexpected URL: ${String(input)}`);
-      },
-    );
+      });
 
     const { POST } = await import("@/app/api/insights/generate/route");
 

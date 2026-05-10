@@ -42,9 +42,7 @@ test.describe("sidebar Admin entry no-expansion", () => {
 
     // No sub-section anchors inside the sidebar — those belong to
     // `<AdminShell>`'s in-page nav, not the global sidebar.
-    const subLinks = sidebar.locator(
-      "a[href^='/admin/']:not([href='/admin'])",
-    );
+    const subLinks = sidebar.locator("a[href^='/admin/']:not([href='/admin'])");
     await expect(subLinks).toHaveCount(0);
   });
 

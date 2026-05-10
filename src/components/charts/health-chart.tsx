@@ -31,10 +31,7 @@ import {
   computeWindowTrend,
   SPLIT_HALF_THRESHOLD_DAYS,
 } from "@/lib/analytics/window-trend";
-import {
-  resolveMiniRangePoints,
-  type DataWindow,
-} from "./mini-window";
+import { resolveMiniRangePoints, type DataWindow } from "./mini-window";
 import { shiftDailySeriesForward } from "@/lib/charts/comparison-shift";
 import type {
   ChartOverlayKey,
@@ -1229,11 +1226,7 @@ export function HealthChart({
                     }
                     if (rows.length === 0) return null;
                     return (
-                      <RichChartTooltip
-                        active
-                        label={dateLabel}
-                        rows={rows}
-                      />
+                      <RichChartTooltip active label={dateLabel} rows={rows} />
                     );
                   }}
                 />

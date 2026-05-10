@@ -83,12 +83,7 @@ export const GET = apiHandler(async () => {
     // for the dashboard tile in a single pair-and-count pass. The
     // headline (`bpInTargetPct`) reuses the 30-day result so we don't
     // re-pair the same data twice. See lib/analytics/bp-in-target.ts.
-    const windows = computeBpInTargetWindows(
-      sysData,
-      diaData,
-      bpTargets,
-      now,
-    );
+    const windows = computeBpInTargetWindows(sysData, diaData, bpTargets, now);
     bpInTargetPct = windows.last30Days?.pct ?? null;
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;

@@ -97,9 +97,7 @@ describe("ApiTokenOverviewSection — responsive", () => {
     // forcing a scroll container — that was the v1.4.15 bug Marc
     // re-reported. Confirm there's no overflow-x-auto INSIDE the
     // mobile <ul>.
-    const mobileMatch = html.match(
-      /<ul[^>]*md:hidden[^>]*>([\s\S]*?)<\/ul>/,
-    );
+    const mobileMatch = html.match(/<ul[^>]*md:hidden[^>]*>([\s\S]*?)<\/ul>/);
     expect(mobileMatch).not.toBeNull();
     expect(mobileMatch![1]).not.toContain("overflow-x-auto");
   });
@@ -123,9 +121,7 @@ describe("ApiTokenOverviewSection — responsive", () => {
 
   it("mobile timestamp lines wrap (no nowrap on the meta paragraphs)", () => {
     const html = render();
-    const mobileMatch = html.match(
-      /<ul[^>]*md:hidden[^>]*>([\s\S]*?)<\/ul>/,
-    );
+    const mobileMatch = html.match(/<ul[^>]*md:hidden[^>]*>([\s\S]*?)<\/ul>/);
     expect(mobileMatch).not.toBeNull();
     // The Last-used + Created lines use <p class="text-[11px]…"> — no
     // whitespace-nowrap so a long German date+time can flow onto a

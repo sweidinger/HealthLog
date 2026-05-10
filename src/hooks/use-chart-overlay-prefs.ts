@@ -54,9 +54,7 @@ export function useChartOverlayPrefs(
 
   const prefs = useMemo<ChartOverlayPrefs>(() => {
     if (!chartKey) return DEFAULT_CHART_OVERLAY_PREFS;
-    return (
-      layout?.chartOverlayPrefs?.[chartKey] ?? DEFAULT_CHART_OVERLAY_PREFS
-    );
+    return layout?.chartOverlayPrefs?.[chartKey] ?? DEFAULT_CHART_OVERLAY_PREFS;
   }, [layout, chartKey]);
 
   const mutation = useMutation({

@@ -65,9 +65,7 @@ export const insightRecommendationSchema = z.union([
         n: z.number().optional(),
       })
       .optional(),
-    severity: z
-      .enum(["info", "suggestion", "important", "urgent"])
-      .optional(),
+    severity: z.enum(["info", "suggestion", "important", "urgent"]).optional(),
     id: z.string().optional(),
     /**
      * v1.4.16 phase B5d — deterministic confidence score (0-100).

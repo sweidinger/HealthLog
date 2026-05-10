@@ -61,9 +61,9 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
 
     // The mobile card-list must be visible and the desktop table must
     // be display:none at this viewport.
-    await expect(
-      page.getByTestId("admin-tokens-mobile-list"),
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("admin-tokens-mobile-list")).toBeVisible({
+      timeout: 10_000,
+    });
 
     const dims = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,

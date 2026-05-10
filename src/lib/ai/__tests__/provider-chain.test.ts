@@ -101,8 +101,7 @@ describe("PROVIDER_CHAIN_DEFAULT", () => {
   });
 
   it("includes admin OpenAI as final fallback so misconfigured users still see insights", () => {
-    const last =
-      PROVIDER_CHAIN_DEFAULT[PROVIDER_CHAIN_DEFAULT.length - 1];
+    const last = PROVIDER_CHAIN_DEFAULT[PROVIDER_CHAIN_DEFAULT.length - 1];
     expect(last.providerType).toBe("admin-openai");
   });
 

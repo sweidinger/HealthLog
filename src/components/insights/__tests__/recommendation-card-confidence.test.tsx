@@ -80,10 +80,7 @@ function render(node: React.ReactNode, locale: "en" | "de" = "en") {
 describe("<RecommendationCard> — confidence slot wiring", () => {
   it("renders ConfidenceMeter inside rec-confidence-slot when confidence is set", () => {
     const html = render(
-      <RecommendationCard
-        rec={{ ...recBase, confidence: 85 }}
-        index={0}
-      />,
+      <RecommendationCard rec={{ ...recBase, confidence: 85 }} index={0} />,
     );
     // Slot wraps the meter
     expect(html).toMatch(

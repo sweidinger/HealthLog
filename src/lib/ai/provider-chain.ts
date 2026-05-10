@@ -93,9 +93,7 @@ export function parseProviderChain(
     };
     const providerType = candidate.providerType;
     if (typeof providerType !== "string") continue;
-    if (
-      !PROVIDER_CHAIN_TYPES.includes(providerType as ProviderChainType)
-    ) {
+    if (!PROVIDER_CHAIN_TYPES.includes(providerType as ProviderChainType)) {
       continue;
     }
     if (seen.has(providerType as ProviderChainType)) continue;

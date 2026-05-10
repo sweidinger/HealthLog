@@ -230,7 +230,7 @@ describe("<RecommendationCard>", () => {
     const html = render(
       <RecommendationCard rec={recNoId} index={0} initiallyExpanded />,
     );
-    expect(html).not.toContain('data-feedback-thumb=');
+    expect(html).not.toContain("data-feedback-thumb=");
   });
 
   it("does NOT render feedback thumbs when the metricSource.timeRange is out of vocabulary", () => {
@@ -241,6 +241,6 @@ describe("<RecommendationCard>", () => {
     const html = render(
       <RecommendationCard rec={recBadWindow} index={0} initiallyExpanded />,
     );
-    expect(html).not.toContain('data-feedback-thumb=');
+    expect(html).not.toContain("data-feedback-thumb=");
   });
 });

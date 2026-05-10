@@ -113,9 +113,7 @@ describe("runWithFallback — happy path", () => {
     });
     const result = await runWithFallback({
       userId: "u1",
-      providers: [
-        { providerType: "codex", instance: codex },
-      ],
+      providers: [{ providerType: "codex", instance: codex }],
       params: { systemPrompt: "s", userPrompt: "u" },
     });
     expect(result.parsed.summary).toBe("ok");
@@ -131,9 +129,7 @@ describe("runWithFallback — happy path", () => {
     });
     const result = await runWithFallback({
       userId: "u1",
-      providers: [
-        { providerType: "openai", instance: openai },
-      ],
+      providers: [{ providerType: "openai", instance: openai }],
       params: { systemPrompt: "s", userPrompt: "u" },
     });
     expect(result.workingProvider.providerType).toBe("openai");
@@ -197,10 +193,7 @@ describe("runWithFallback — all-fail cascade", () => {
     const e = caught as AllProvidersFailedError;
     expect(e.httpStatus).toBe(503);
     expect(e.attempts).toHaveLength(2);
-    expect(e.attempts.map((a) => a.providerType)).toEqual([
-      "codex",
-      "openai",
-    ]);
+    expect(e.attempts.map((a) => a.providerType)).toEqual(["codex", "openai"]);
   });
 });
 
@@ -215,7 +208,10 @@ describe("runWithFallback — non-hard errors bubble unchanged", () => {
       // Both wrapper attempts return invalid JSON → wrapper raises
       // InsightSchemaError(422). The runner does not walk to provider
       // 2 because that error is not a "hard provider failure".
-      script: [{ ok: true, content: "not-json" }, { ok: true, content: "still-not-json" }],
+      script: [
+        { ok: true, content: "not-json" },
+        { ok: true, content: "still-not-json" },
+      ],
     });
     const openai = new ScriptedProvider({
       type: "admin-key",
@@ -348,7 +344,7 @@ describe("runRawCompletionWithFallback — legacy route shim", () => {
     });
     const openai = new ScriptedProvider({
       type: "admin-key",
-      script: [{ ok: true, content: "{ \"legacy\": true }" }],
+      script: [{ ok: true, content: '{ "legacy": true }' }],
     });
     const result = await runRawCompletionWithFallback({
       userId: "u-raw",

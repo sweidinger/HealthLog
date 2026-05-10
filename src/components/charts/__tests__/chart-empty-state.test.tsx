@@ -24,9 +24,7 @@ describe("<ChartEmptyState>", () => {
       />,
     );
     expect(html).toContain("Not enough mood data");
-    expect(html).toContain(
-      "Log at least 3 entries to unlock the trend line.",
-    );
+    expect(html).toContain("Log at least 3 entries to unlock the trend line.");
   });
 
   it("uses a custom height when supplied", () => {

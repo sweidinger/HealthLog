@@ -99,7 +99,9 @@ test.describe("Settings → AI provider dropdown UX (B2)", () => {
 
     // 2c. Switch to Anthropic → Anthropic form rendered.
     await select.selectOption("anthropic");
-    await expect(page.getByTestId("ai-provider-config-anthropic")).toBeVisible();
+    await expect(
+      page.getByTestId("ai-provider-config-anthropic"),
+    ).toBeVisible();
 
     // 2d. Switch to Local → Local form rendered.
     await select.selectOption("local");
@@ -108,9 +110,7 @@ test.describe("Settings → AI provider dropdown UX (B2)", () => {
     // 3. Fallback chain card surfaces with the four chain rows.
     await expect(page.getByTestId("ai-fallback-chain")).toBeVisible();
     for (const slug of ["codex", "openai", "anthropic", "local"]) {
-      await expect(
-        page.locator(`[data-chain-row="${slug}"]`),
-      ).toBeVisible();
+      await expect(page.locator(`[data-chain-row="${slug}"]`)).toBeVisible();
     }
   });
 });

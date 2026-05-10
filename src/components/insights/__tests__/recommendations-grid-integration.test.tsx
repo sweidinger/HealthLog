@@ -85,9 +85,7 @@ function rec(
   };
 }
 
-function buildInsight(
-  recommendations: InsightRecommendation[],
-): InsightResult {
+function buildInsight(recommendations: InsightRecommendation[]): InsightResult {
   return {
     insightType: "general",
     summary: "Test summary",
@@ -145,10 +143,7 @@ describe("InsightAdvisorCard + RecommendationsGrid full flow (B1b)", () => {
     ];
     const html = renderToStaticMarkup(
       <I18nProvider initialLocale="en">
-        <InsightAdvisorCard
-          title="draft"
-          insight={buildInsight(recs)}
-        />
+        <InsightAdvisorCard title="draft" insight={buildInsight(recs)} />
       </I18nProvider>,
     );
 

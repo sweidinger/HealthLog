@@ -36,9 +36,8 @@ vi.mock("@/hooks/use-auth", () => ({
 describe("<MedicationComplianceChart> v1.4.18 clean-line revert", () => {
   it("does NOT paint a gradient fill under the line", async () => {
     const { I18nProvider } = await import("@/lib/i18n/context");
-    const { MedicationComplianceChart } = await import(
-      "../medication-compliance-chart"
-    );
+    const { MedicationComplianceChart } =
+      await import("../medication-compliance-chart");
 
     const html = renderToStaticMarkup(
       <I18nProvider initialLocale="en">
@@ -46,7 +45,7 @@ describe("<MedicationComplianceChart> v1.4.18 clean-line revert", () => {
       </I18nProvider>,
     );
 
-    expect(html).not.toContain("data-slot=\"chart-linear-gradient\"");
+    expect(html).not.toContain('data-slot="chart-linear-gradient"');
     expect(html).not.toContain("chart-gradient-medication");
     expect(html).not.toContain("linearGradient");
   });

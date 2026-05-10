@@ -100,11 +100,7 @@ describe("buildFeedbackBuckets", () => {
       },
     ];
     const buckets = buildFeedbackBuckets(rows);
-    expect(buckets.map((b) => b.severity)).toEqual([
-      "info",
-      "info",
-      "urgent",
-    ]);
+    expect(buckets.map((b) => b.severity)).toEqual(["info", "info", "urgent"]);
     // Within "info" the metricSourceType is the secondary key.
     expect(buckets[0].metricSourceType).toBe("bloodPressure");
     expect(buckets[1].metricSourceType).toBe("mood");
@@ -131,17 +127,17 @@ describe("aggregateRecommendationFeedback", () => {
     await aggregateRecommendationFeedback(prisma, { now });
 
     expect(prisma.recommendationFeedback.findMany).toHaveBeenCalledTimes(1);
-    const call = (prisma.recommendationFeedback.findMany as ReturnType<typeof vi.fn>).mock
-      .calls[0][0];
+    const call = (
+      prisma.recommendationFeedback.findMany as ReturnType<typeof vi.fn>
+    ).mock.calls[0][0];
     const expectedSince = new Date(
       now.getTime() - DEFAULT_FEEDBACK_AGGREGATION_WINDOW_DAYS * 86_400_000,
     );
     expect(call.where.createdAt.gte).toEqual(expectedSince);
 
     expect(prisma.appSettings.upsert).toHaveBeenCalledTimes(1);
-    const upsertCall = (
-      prisma.appSettings.upsert as ReturnType<typeof vi.fn>
-    ).mock.calls[0][0];
+    const upsertCall = (prisma.appSettings.upsert as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0];
     expect(upsertCall.where).toEqual({ id: "singleton" });
     const summary = upsertCall.update.adminAiInsightsFeedbackSummary;
     expect(summary.windowDays).toBe(DEFAULT_FEEDBACK_AGGREGATION_WINDOW_DAYS);
@@ -156,18 +152,18 @@ describe("aggregateRecommendationFeedback", () => {
 
     await aggregateRecommendationFeedback(prisma, { now, windowDays: 7 });
 
-    const call = (prisma.recommendationFeedback.findMany as ReturnType<typeof vi.fn>).mock
-      .calls[0][0];
+    const call = (
+      prisma.recommendationFeedback.findMany as ReturnType<typeof vi.fn>
+    ).mock.calls[0][0];
     const expectedSince = new Date(now.getTime() - 7 * 86_400_000);
     expect(call.where.createdAt.gte).toEqual(expectedSince);
 
-    const upsertCall = (
-      prisma.appSettings.upsert as ReturnType<typeof vi.fn>
-    ).mock.calls[0][0];
+    const upsertCall = (prisma.appSettings.upsert as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0];
     expect(upsertCall.update.adminAiInsightsFeedbackSummary.windowDays).toBe(7);
     // Empty buckets when no rows.
-    expect(
-      upsertCall.update.adminAiInsightsFeedbackSummary.buckets,
-    ).toEqual([]);
+    expect(upsertCall.update.adminAiInsightsFeedbackSummary.buckets).toEqual(
+      [],
+    );
   });
 });

@@ -84,9 +84,7 @@ interface PutEnvelope {
 describe("PUT /api/insights/provider-chain — integration", () => {
   it("persists a reordered chain and the follow-up GET surfaces it", async () => {
     const { userId } = await seedUser();
-    const { PUT } = await import(
-      "@/app/api/insights/provider-chain/route"
-    );
+    const { PUT } = await import("@/app/api/insights/provider-chain/route");
 
     const res = await (PUT as (req: Request) => Promise<Response>)(
       new Request("http://localhost/api/insights/provider-chain", {
@@ -118,9 +116,7 @@ describe("PUT /api/insights/provider-chain — integration", () => {
 
   it("rejects an empty chain with 422 and leaves the column untouched", async () => {
     const { userId } = await seedUser();
-    const { PUT } = await import(
-      "@/app/api/insights/provider-chain/route"
-    );
+    const { PUT } = await import("@/app/api/insights/provider-chain/route");
 
     const res = await (PUT as (req: Request) => Promise<Response>)(
       new Request("http://localhost/api/insights/provider-chain", {

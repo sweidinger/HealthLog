@@ -76,12 +76,10 @@ async function seedUser(): Promise<{ userId: string }> {
 describe("PUT /api/dashboard/chart-overlay-prefs — integration", () => {
   it("persists per-chart prefs and the follow-up GET /api/dashboard/widgets surfaces them", async () => {
     const { userId } = await seedUser();
-    const { PUT } = await import(
-      "@/app/api/dashboard/chart-overlay-prefs/route"
-    );
-    const { GET: getWidgets } = await import(
-      "@/app/api/dashboard/widgets/route"
-    );
+    const { PUT } =
+      await import("@/app/api/dashboard/chart-overlay-prefs/route");
+    const { GET: getWidgets } =
+      await import("@/app/api/dashboard/widgets/route");
 
     const putRes = await (PUT as (req: Request) => Promise<Response>)(
       new Request("http://localhost/api/dashboard/chart-overlay-prefs", {
@@ -130,9 +128,9 @@ describe("PUT /api/dashboard/chart-overlay-prefs — integration", () => {
       }),
     );
 
-    const finalRes = await (
-      getWidgets as (req: Request) => Promise<Response>
-    )(new Request("http://localhost/api/dashboard/widgets"));
+    const finalRes = await (getWidgets as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/dashboard/widgets"),
+    );
     const finalBody = (await finalRes.json()) as {
       data: { chartOverlayPrefs?: Record<string, unknown> };
     };
@@ -159,9 +157,8 @@ describe("PUT /api/dashboard/chart-overlay-prefs — integration", () => {
 
   it("rejects an unknown chart key with 422", async () => {
     await seedUser();
-    const { PUT } = await import(
-      "@/app/api/dashboard/chart-overlay-prefs/route"
-    );
+    const { PUT } =
+      await import("@/app/api/dashboard/chart-overlay-prefs/route");
 
     const res = await (PUT as (req: Request) => Promise<Response>)(
       new Request("http://localhost/api/dashboard/chart-overlay-prefs", {

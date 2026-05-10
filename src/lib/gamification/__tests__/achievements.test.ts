@@ -169,7 +169,10 @@ describe("applyDiscoveryFilter", () => {
   });
 
   it("keeps engagement / security achievements unconditionally", () => {
-    const items = [progressFor("login-streak-7"), progressFor("passkey-created-1")];
+    const items = [
+      progressFor("login-streak-7"),
+      progressFor("passkey-created-1"),
+    ];
     const filtered = applyDiscoveryFilter(items, NONE_EARNABLE);
     expect(filtered).toHaveLength(2);
   });

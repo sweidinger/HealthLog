@@ -115,8 +115,7 @@ test.describe("achievements page renders all four card states", () => {
                 metric: "totalTakenIntakes",
                 category: "medication",
                 titleKey: "achievements.badges.intakeTotal1.title",
-                descriptionKey:
-                  "achievements.badges.intakeTotal1.description",
+                descriptionKey: "achievements.badges.intakeTotal1.description",
                 icon: "Pill",
                 format: "count",
                 target: 1,
@@ -133,8 +132,7 @@ test.describe("achievements page renders all four card states", () => {
                 metric: "moodDayStreak",
                 category: "mood",
                 titleKey: "achievements.badges.moodStreak7.title",
-                descriptionKey:
-                  "achievements.badges.moodStreak7.description",
+                descriptionKey: "achievements.badges.moodStreak7.description",
                 icon: "Smile",
                 format: "days",
                 target: 7,
@@ -209,9 +207,7 @@ test.describe("achievements page renders all four card states", () => {
 
     // Hidden-locked — opaque placeholder visible. The real title /
     // description must NOT appear in the rendered HTML.
-    await expect(
-      page.getByText("Hidden achievement").first(),
-    ).toBeVisible();
+    await expect(page.getByText("Hidden achievement").first()).toBeVisible();
     const html = await page.content();
     expect(html).not.toContain("Night owl");
     expect(html).not.toContain("between 02:00");

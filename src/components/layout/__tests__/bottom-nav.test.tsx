@@ -64,12 +64,10 @@ describe("<BottomNav> 5+More layout", () => {
     const html = render();
     // Attribute order isn't guaranteed by React's renderer, so match
     // both possible directions instead of pinning the order.
-    const hasLabelFirst = /aria-label="More"[^>]*data-testid="bottom-nav-more"/.test(
-      html,
-    );
-    const hasTestidFirst = /data-testid="bottom-nav-more"[^>]*aria-label="More"/.test(
-      html,
-    );
+    const hasLabelFirst =
+      /aria-label="More"[^>]*data-testid="bottom-nav-more"/.test(html);
+    const hasTestidFirst =
+      /data-testid="bottom-nav-more"[^>]*aria-label="More"/.test(html);
     expect(hasLabelFirst || hasTestidFirst).toBe(true);
   });
 });

@@ -46,10 +46,9 @@ describe("MEDICAL_REFERENCES bundle", () => {
       expect(ref.publishedYear, `year missing on ${ref.id}`).toBeGreaterThan(
         1990,
       );
-      expect(
-        Array.isArray(ref.scope),
-        `scope must be array on ${ref.id}`,
-      ).toBe(true);
+      expect(Array.isArray(ref.scope), `scope must be array on ${ref.id}`).toBe(
+        true,
+      );
       expect(
         ref.scope.length,
         `scope cannot be empty on ${ref.id}`,
@@ -67,7 +66,10 @@ describe("MEDICAL_REFERENCES bundle", () => {
 
   it("every URL parses as a well-formed https:// URL", () => {
     for (const ref of MEDICAL_REFERENCES) {
-      expect(() => new URL(ref.url), `URL malformed on ${ref.id}`).not.toThrow();
+      expect(
+        () => new URL(ref.url),
+        `URL malformed on ${ref.id}`,
+      ).not.toThrow();
       const parsed = new URL(ref.url);
       expect(parsed.protocol, `non-https URL on ${ref.id}`).toBe("https:");
       expect(parsed.hostname, `empty hostname on ${ref.id}`).toBeTruthy();

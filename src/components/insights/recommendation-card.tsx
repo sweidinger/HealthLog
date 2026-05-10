@@ -178,7 +178,9 @@ function RationaleCard({
   feedbackProps,
 }: {
   rationale: InsightRecommendationRationale;
-  metricSource: { type: string; timeRange: string; summary: string } | undefined;
+  metricSource:
+    | { type: string; timeRange: string; summary: string }
+    | undefined;
   referenceId: string | undefined;
   confidence: number | undefined;
   locale: Locale;
@@ -295,10 +297,7 @@ export function RecommendationCard({
   // empty so a thumbs-click can never produce a 422.
   const feedbackTimeRange = asFeedbackTimeRange(norm.metricSource?.timeRange);
   const feedbackProps =
-    norm.id &&
-    norm.severity &&
-    norm.metricSource?.type &&
-    feedbackTimeRange
+    norm.id && norm.severity && norm.metricSource?.type && feedbackTimeRange
       ? {
           recId: norm.id,
           recText: norm.text,

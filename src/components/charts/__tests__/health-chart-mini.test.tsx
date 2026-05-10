@@ -38,10 +38,7 @@ vi.mock("@/hooks/use-auth", () => ({
 
 import { I18nProvider } from "@/lib/i18n/context";
 import { HealthChart } from "../health-chart";
-import {
-  resolveMiniRangePoints,
-  type DataWindow,
-} from "../mini-window";
+import { resolveMiniRangePoints, type DataWindow } from "../mini-window";
 
 /**
  * v1.4.16 phase B5c — chart mini-mode + windowOverride.
@@ -85,9 +82,7 @@ describe("resolveMiniRangePoints()", () => {
 
 describe("<HealthChart mini>", () => {
   it("does not render the range tabs / mode-switch row in mini mode", () => {
-    const html = render(
-      <HealthChart types={["WEIGHT"]} title="Weight" mini />,
-    );
+    const html = render(<HealthChart types={["WEIGHT"]} title="Weight" mini />);
     // No "7d" / "30d" / "90d" range tabs.
     expect(html).not.toMatch(/data-slot="chart-range-tab"/);
     // No "7-day trend" toggle.

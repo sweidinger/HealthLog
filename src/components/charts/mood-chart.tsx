@@ -745,9 +745,9 @@ export function MoodChart({
                           delta = t("charts.deltaUnchanged");
                         } else {
                           const sign = diff > 0 ? "+" : "−";
-                          const formatted = `${sign}${(
-                            Math.abs(diff)
-                          ).toFixed(1)}`;
+                          const formatted = `${sign}${Math.abs(diff).toFixed(
+                            1,
+                          )}`;
                           delta = t("charts.deltaVsBaseline").replace(
                             "{delta}",
                             formatted,
@@ -776,11 +776,7 @@ export function MoodChart({
                     }
                     if (rows.length === 0) return null;
                     return (
-                      <RichChartTooltip
-                        active
-                        label={dateLabel}
-                        rows={rows}
-                      />
+                      <RichChartTooltip active label={dateLabel} rows={rows} />
                     );
                   }}
                 />

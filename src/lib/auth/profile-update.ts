@@ -93,12 +93,12 @@ export async function applyProfileUpdate(
   // touch other fields.
   const priorLocale =
     data.locale !== undefined
-      ? (
+      ? ((
           await prisma.user.findUnique({
             where: { id: userId },
             select: { locale: true },
           })
-        )?.locale ?? null
+        )?.locale ?? null)
       : null;
 
   const updatedUser = await prisma.user.update({

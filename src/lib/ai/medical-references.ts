@@ -28,13 +28,7 @@
  * model emits an id, the UI renders a labelled link.
  */
 
-export type MedicalReferenceOrg =
-  | "AHA"
-  | "ESH"
-  | "ESC"
-  | "WHO"
-  | "DGE"
-  | "ADA";
+export type MedicalReferenceOrg = "AHA" | "ESH" | "ESC" | "WHO" | "DGE" | "ADA";
 
 export type MedicalReferenceMetric =
   | "bp"
@@ -107,7 +101,8 @@ export const MEDICAL_REFERENCES: MedicalReference[] = [
   {
     id: "who-2021-hypertension",
     org: "WHO",
-    title: "WHO Guideline for the Pharmacological Treatment of Hypertension in Adults",
+    title:
+      "WHO Guideline for the Pharmacological Treatment of Hypertension in Adults",
     titleDe:
       "WHO-Leitlinie zur pharmakologischen Behandlung der Hypertonie bei Erwachsenen",
     url: "https://www.who.int/publications/i/item/9789240033986",
@@ -153,9 +148,8 @@ export const MEDICAL_REFERENCE_IDS: readonly string[] = MEDICAL_REFERENCES.map(
 );
 
 /** Stable list of all distinct issuing bodies. */
-export const MEDICAL_REFERENCE_ORGS: readonly MedicalReferenceOrg[] = Array.from(
-  new Set(MEDICAL_REFERENCES.map((r) => r.org)),
-);
+export const MEDICAL_REFERENCE_ORGS: readonly MedicalReferenceOrg[] =
+  Array.from(new Set(MEDICAL_REFERENCES.map((r) => r.org)));
 
 /**
  * Look up a reference by id. Returns `undefined` for unknown ids — the

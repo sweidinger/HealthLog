@@ -113,10 +113,7 @@ function writeLocalState(
 ): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(
-      localCacheKey(userId, recId, recText),
-      verdict,
-    );
+    window.localStorage.setItem(localCacheKey(userId, recId, recText), verdict);
   } catch {
     // Best-effort — server dedup is the source of truth.
   }
@@ -259,10 +256,7 @@ export function RecommendationFeedback({
   const disabled = submittingUp || submittingDown;
 
   return (
-    <div
-      className="flex items-center gap-1.5"
-      data-slot="rec-feedback-buttons"
-    >
+    <div className="flex items-center gap-1.5" data-slot="rec-feedback-buttons">
       <button
         type="button"
         data-feedback-thumb="up"

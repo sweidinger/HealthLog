@@ -61,7 +61,7 @@ describe("<MoodChart> v1.4.18 clean-line revert", () => {
       </I18nProvider>,
     );
 
-    expect(html).not.toContain("data-slot=\"chart-linear-gradient\"");
+    expect(html).not.toContain('data-slot="chart-linear-gradient"');
     expect(html).not.toContain("chart-gradient-mood");
     expect(html).not.toContain("linearGradient");
   });

@@ -64,9 +64,7 @@ describe("<ChartOverlayControls>", () => {
     const start: ChartOverlayPrefs = DEFAULT_CHART_OVERLAY_PREFS;
     // Render once — this binds the callback closure.
     renderToStaticMarkup(
-      withProvider(
-        <ChartOverlayControls prefs={start} onChange={onChange} />,
-      ),
+      withProvider(<ChartOverlayControls prefs={start} onChange={onChange} />),
     );
 
     // Simulate the merge the component performs: setKey("showTargetRange", true)

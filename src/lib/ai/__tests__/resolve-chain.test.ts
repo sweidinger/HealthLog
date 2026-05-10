@@ -69,21 +69,20 @@ describe("resolveProviderChain", () => {
   });
 
   it("respects user-defined chain priority order", async () => {
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({
-        aiProvider: null,
-        aiModel: null,
-        aiBaseUrl: null,
-        aiAnthropicKeyEncrypted: "enc-anth",
-        aiLocalKeyEncrypted: null,
-        aiOpenaiKeyEncrypted: "enc-openai",
-        // user puts openai first, anthropic second; admin disabled
-        aiProviderChain: [
-          { providerType: "openai", priority: 1, enabled: true },
-          { providerType: "anthropic", priority: 2, enabled: true },
-          { providerType: "admin-openai", priority: 3, enabled: false },
-        ],
-      } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      aiProvider: null,
+      aiModel: null,
+      aiBaseUrl: null,
+      aiAnthropicKeyEncrypted: "enc-anth",
+      aiLocalKeyEncrypted: null,
+      aiOpenaiKeyEncrypted: "enc-openai",
+      // user puts openai first, anthropic second; admin disabled
+      aiProviderChain: [
+        { providerType: "openai", priority: 1, enabled: true },
+        { providerType: "anthropic", priority: 2, enabled: true },
+        { providerType: "admin-openai", priority: 3, enabled: false },
+      ],
+    } as never);
     vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
       adminAiKeyEncrypted: "enc-admin",
       adminAiModel: "gpt-4o-mini",
@@ -96,19 +95,18 @@ describe("resolveProviderChain", () => {
   });
 
   it("filters out chain entries the user has not credentialed", async () => {
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({
-        aiProvider: null,
-        aiModel: null,
-        aiBaseUrl: null,
-        aiAnthropicKeyEncrypted: null, // no anthropic key
-        aiLocalKeyEncrypted: null,
-        aiOpenaiKeyEncrypted: "enc-openai",
-        aiProviderChain: [
-          { providerType: "anthropic", priority: 1, enabled: true },
-          { providerType: "openai", priority: 2, enabled: true },
-        ],
-      } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      aiProvider: null,
+      aiModel: null,
+      aiBaseUrl: null,
+      aiAnthropicKeyEncrypted: null, // no anthropic key
+      aiLocalKeyEncrypted: null,
+      aiOpenaiKeyEncrypted: "enc-openai",
+      aiProviderChain: [
+        { providerType: "anthropic", priority: 1, enabled: true },
+        { providerType: "openai", priority: 2, enabled: true },
+      ],
+    } as never);
     vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
       adminAiKeyEncrypted: null,
       adminAiModel: "gpt-4o-mini",
@@ -121,19 +119,18 @@ describe("resolveProviderChain", () => {
   });
 
   it("skips disabled entries even if the credential is present", async () => {
-    vi.mocked(prisma.user.findUnique)
-      .mockResolvedValueOnce({
-        aiProvider: null,
-        aiModel: null,
-        aiBaseUrl: null,
-        aiAnthropicKeyEncrypted: null,
-        aiLocalKeyEncrypted: null,
-        aiOpenaiKeyEncrypted: "enc-openai",
-        aiProviderChain: [
-          { providerType: "openai", priority: 1, enabled: false }, // disabled
-          { providerType: "admin-openai", priority: 2, enabled: true },
-        ],
-      } as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      aiProvider: null,
+      aiModel: null,
+      aiBaseUrl: null,
+      aiAnthropicKeyEncrypted: null,
+      aiLocalKeyEncrypted: null,
+      aiOpenaiKeyEncrypted: "enc-openai",
+      aiProviderChain: [
+        { providerType: "openai", priority: 1, enabled: false }, // disabled
+        { providerType: "admin-openai", priority: 2, enabled: true },
+      ],
+    } as never);
     vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
       adminAiKeyEncrypted: "enc-admin",
       adminAiModel: "gpt-4o-mini",

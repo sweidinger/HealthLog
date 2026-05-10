@@ -130,8 +130,7 @@ describe("end-to-end — generateInsight() confidence override flows into the ca
           // Model still claims 99 — wrapper still discards.
           confidence: 99,
           metricSource: {
-            ...strictPayloadWithModelConfidence.recommendations[0]
-              .metricSource,
+            ...strictPayloadWithModelConfidence.recommendations[0].metricSource,
             n: 1,
           },
         },
@@ -145,7 +144,9 @@ describe("end-to-end — generateInsight() confidence override flows into the ca
       userPrompt: "u",
     });
 
-    expect(outcome.parsed.recommendations[0].confidence).toBeLessThanOrEqual(15);
+    expect(outcome.parsed.recommendations[0].confidence).toBeLessThanOrEqual(
+      15,
+    );
 
     const insight: InsightResult = {
       insightType: "general",

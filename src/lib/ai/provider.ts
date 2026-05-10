@@ -11,10 +11,7 @@ import {
   decryptCodexCreds,
 } from "./codex-oauth";
 import { isPublicUrl } from "@/lib/validations/notifications";
-import {
-  parseProviderChain,
-  type ProviderChainType,
-} from "./provider-chain";
+import { parseProviderChain, type ProviderChainType } from "./provider-chain";
 import type { ProviderChainResolved } from "./provider-runner";
 
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes

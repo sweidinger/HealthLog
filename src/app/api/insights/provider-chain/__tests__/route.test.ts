@@ -15,7 +15,10 @@ vi.mock("@/lib/api-handler", () => ({
     session: { id: "s-1" },
   })),
   HttpError: class HttpError extends Error {
-    constructor(public status: number, message: string) {
+    constructor(
+      public status: number,
+      message: string,
+    ) {
       super(message);
     }
   },

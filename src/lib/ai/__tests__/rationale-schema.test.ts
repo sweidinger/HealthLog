@@ -70,9 +70,9 @@ const baseValid: AIInsightResponse = {
 
 describe("aiRecommendationRationaleSchema", () => {
   it("accepts a well-formed rationale", () => {
-    expect(aiRecommendationRationaleSchema.safeParse(baseRationale).success).toBe(
-      true,
-    );
+    expect(
+      aiRecommendationRationaleSchema.safeParse(baseRationale).success,
+    ).toBe(true);
   });
 
   it.each(["last7days", "last30days", "last90days", "allTime"] as const)(
@@ -185,10 +185,7 @@ describe("aiInsightResponseSchema — rationale integration", () => {
     void _r;
     const result = aiInsightResponseSchema.safeParse({
       ...baseValid,
-      recommendations: [
-        baseRec,
-        { ...recWithoutRationale, id: "rec-2" },
-      ],
+      recommendations: [baseRec, { ...recWithoutRationale, id: "rec-2" }],
     });
     expect(result.success).toBe(false);
   });

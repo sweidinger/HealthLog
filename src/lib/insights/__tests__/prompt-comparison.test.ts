@@ -38,14 +38,14 @@ const monthlySnapshot: ComparisonSnapshot = {
 
 describe("buildUserPrompt() — comparison block (B8)", () => {
   it("appends NO comparison block when comparison is undefined", () => {
-    const prompt = buildUserPrompt("{\"weight\":[]}", "agg", "en");
+    const prompt = buildUserPrompt('{"weight":[]}', "agg", "en");
     expect(prompt).not.toMatch(/COMPARISON MODE/i);
     expect(prompt).not.toMatch(/VERGLEICHSMODUS/i);
   });
 
   it("appends an English comparison block when comparison is supplied with locale=en", () => {
     const prompt = buildUserPrompt(
-      "{\"weight\":[]}",
+      '{"weight":[]}',
       "agg",
       "en",
       monthlySnapshot,
@@ -60,7 +60,7 @@ describe("buildUserPrompt() — comparison block (B8)", () => {
 
   it("appends a German comparison block when locale=de", () => {
     const prompt = buildUserPrompt(
-      "{\"gewicht\":[]}",
+      '{"gewicht":[]}',
       "agg",
       "de",
       monthlySnapshot,

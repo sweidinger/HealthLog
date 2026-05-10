@@ -76,19 +76,16 @@ test.describe("chart overlay controls", () => {
     page,
   }) => {
     let putRequestCount = 0;
-    await page.route(
-      "**/api/dashboard/chart-overlay-prefs",
-      async (route) => {
-        if (route.request().method() === "PUT") {
-          putRequestCount += 1;
-        }
-        return route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({ data: { saved: true }, error: null }),
-        });
-      },
-    );
+    await page.route("**/api/dashboard/chart-overlay-prefs", async (route) => {
+      if (route.request().method() === "PUT") {
+        putRequestCount += 1;
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: { saved: true }, error: null }),
+      });
+    });
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
 

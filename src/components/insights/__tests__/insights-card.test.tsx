@@ -64,9 +64,7 @@ function rec(
   };
 }
 
-function buildInsight(
-  recommendations: InsightRecommendation[],
-): InsightResult {
+function buildInsight(recommendations: InsightRecommendation[]): InsightResult {
   return {
     insightType: "general",
     summary: "Test summary",

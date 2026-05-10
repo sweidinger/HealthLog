@@ -60,7 +60,9 @@ export function shiftDailySeriesForward<T extends { timestamp: number }>(
  * average and the prior-period average so the difference is what the
  * user sees in the chart, not a single-day cherry-pick.
  */
-export function averageValue(values: Array<number | null | undefined>): number | null {
+export function averageValue(
+  values: Array<number | null | undefined>,
+): number | null {
   let sum = 0;
   let n = 0;
   for (const v of values) {

@@ -105,11 +105,7 @@ const DEFAULT_CHAIN: readonly ChainEntry[] = [
  * fine-tunes (e.g. `gpt-5`, which is admitted via the env override on
  * the Codex backend but not yet a documented OpenAI model id).
  */
-const OPENAI_MODEL_PRESETS = [
-  "gpt-4o",
-  "gpt-4o-mini",
-  "gpt-4-turbo",
-] as const;
+const OPENAI_MODEL_PRESETS = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"] as const;
 const ANTHROPIC_MODEL_PRESETS = [
   "claude-sonnet-4-6",
   "claude-opus-4-7",
@@ -268,10 +264,7 @@ function AiInsightsCard({ isAuthenticated }: { isAuthenticated: boolean }) {
         {t("settings.kiInsightsDescription")}
       </p>
 
-      <ActiveProviderSelect
-        value={selectedProvider}
-        onChange={pickProvider}
-      />
+      <ActiveProviderSelect value={selectedProvider} onChange={pickProvider} />
 
       <ProviderConfigCard
         provider={selectedProvider}
@@ -1096,10 +1089,7 @@ function LocalProviderForm({
     if (userProvider?.provider === "LOCAL") {
       setBaseUrl(userProvider.baseUrl ?? "");
       const saved = userProvider.model ?? "";
-      if (
-        saved &&
-        (LOCAL_MODEL_PRESETS as readonly string[]).includes(saved)
-      ) {
+      if (saved && (LOCAL_MODEL_PRESETS as readonly string[]).includes(saved)) {
         setModelChoice(saved);
         setCustomModel("");
       } else if (saved) {

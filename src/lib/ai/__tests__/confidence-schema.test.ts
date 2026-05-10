@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  aiInsightResponseSchema,
-  aiRecommendationSchema,
-} from "../schema";
+import { aiInsightResponseSchema, aiRecommendationSchema } from "../schema";
 
 /**
  * v1.4.16 phase B5d — `recommendation.confidence` schema field.
@@ -75,7 +72,8 @@ describe("aiRecommendationSchema — confidence", () => {
 
   it("rejects non-integer confidence", () => {
     expect(
-      aiRecommendationSchema.safeParse({ ...baseRec, confidence: 67.5 }).success,
+      aiRecommendationSchema.safeParse({ ...baseRec, confidence: 67.5 })
+        .success,
     ).toBe(false);
   });
 

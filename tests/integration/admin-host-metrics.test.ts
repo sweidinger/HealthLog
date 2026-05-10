@@ -88,9 +88,7 @@ async function seedNonAdminSession() {
 async function callRoute(query = "") {
   const { GET } = await import("@/app/api/admin/host-metrics/route");
   const url = `http://localhost/api/admin/host-metrics${query ? `?${query}` : ""}`;
-  return GET(
-    new Request(url) as unknown as Parameters<typeof GET>[0],
-  );
+  return GET(new Request(url) as unknown as Parameters<typeof GET>[0]);
 }
 
 describe("GET /api/admin/host-metrics", () => {

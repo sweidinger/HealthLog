@@ -78,10 +78,7 @@ export function ChartOverlayControls({
   const trendArrowId = useId();
   const targetRangeId = useId();
 
-  const setKey = (
-    key: keyof ChartOverlayPrefs,
-    value: boolean,
-  ): void => {
+  const setKey = (key: keyof ChartOverlayPrefs, value: boolean): void => {
     onChange({ ...prefs, [key]: value });
   };
 
@@ -163,4 +160,3 @@ export function ChartOverlayControls({
     </DropdownMenu>
   );
 }
-

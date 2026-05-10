@@ -473,94 +473,94 @@ export const GET = apiHandler(async (request: NextRequest) => {
     auditEvents,
     moodEntries,
   ] = await Promise.all([
-      prisma.measurement.findMany({
-        where: {
-          userId,
-          measuredAt: { gte: startDate, lte: now },
-          source: { not: "IMPORT" },
-          type: {
-            in: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA", "PULSE"],
+    prisma.measurement.findMany({
+      where: {
+        userId,
+        measuredAt: { gte: startDate, lte: now },
+        source: { not: "IMPORT" },
+        type: {
+          in: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA", "PULSE"],
+        },
+      },
+      select: {
+        type: true,
+        value: true,
+        measuredAt: true,
+      },
+    }),
+    prisma.medicationIntakeEvent.findMany({
+      where: {
+        userId,
+        source: { not: "IMPORT" },
+        scheduledFor: { gte: startDate, lte: now },
+      },
+      select: {
+        medicationId: true,
+        scheduledFor: true,
+        takenAt: true,
+        skipped: true,
+      },
+    }),
+    prisma.medication.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        schedules: {
+          select: {
+            windowStart: true,
+            windowEnd: true,
+            daysOfWeek: true,
           },
         },
-        select: {
-          type: true,
-          value: true,
-          measuredAt: true,
+      },
+    }),
+    prisma.passkey.findMany({
+      where: {
+        userId,
+        createdAt: { gte: startDate, lte: now },
+      },
+      select: {
+        createdAt: true,
+      },
+    }),
+    prisma.auditLog.findMany({
+      where: {
+        userId,
+        createdAt: { gte: startDate, lte: now },
+        action: {
+          in: [
+            "auth.login.passkey",
+            "auth.login.password",
+            "bugreport.submit",
+            // v1.4.18 — hidden Easter-egg triggers
+            "doctor-report.generate",
+            "doctor-report.pdf.generate",
+            "settings.locale.update",
+          ],
         },
-      }),
-      prisma.medicationIntakeEvent.findMany({
-        where: {
-          userId,
-          source: { not: "IMPORT" },
-          scheduledFor: { gte: startDate, lte: now },
-        },
-        select: {
-          medicationId: true,
-          scheduledFor: true,
-          takenAt: true,
-          skipped: true,
-        },
-      }),
-      prisma.medication.findMany({
-        where: { userId },
-        select: {
-          id: true,
-          schedules: {
-            select: {
-              windowStart: true,
-              windowEnd: true,
-              daysOfWeek: true,
-            },
-          },
-        },
-      }),
-      prisma.passkey.findMany({
-        where: {
-          userId,
-          createdAt: { gte: startDate, lte: now },
-        },
-        select: {
-          createdAt: true,
-        },
-      }),
-      prisma.auditLog.findMany({
-        where: {
-          userId,
-          createdAt: { gte: startDate, lte: now },
-          action: {
-            in: [
-              "auth.login.passkey",
-              "auth.login.password",
-              "bugreport.submit",
-              // v1.4.18 — hidden Easter-egg triggers
-              "doctor-report.generate",
-              "doctor-report.pdf.generate",
-              "settings.locale.update",
-            ],
-          },
-        },
-        select: {
-          action: true,
-          createdAt: true,
-        },
-      }),
-      // v1.4.18 — mood entries feed the new mood badges + the
-      // entry-streak/consistent-month engagement metrics. Synced from
-      // moodLog.app or entered directly; we intentionally include all
-      // sources because consistency-of-tracking is what the badge
-      // rewards.
-      prisma.moodEntry.findMany({
-        where: {
-          userId,
-          moodLoggedAt: { gte: startDate, lte: now },
-        },
-        select: {
-          date: true,
-          score: true,
-          moodLoggedAt: true,
-        },
-      }),
-    ]);
+      },
+      select: {
+        action: true,
+        createdAt: true,
+      },
+    }),
+    // v1.4.18 — mood entries feed the new mood badges + the
+    // entry-streak/consistent-month engagement metrics. Synced from
+    // moodLog.app or entered directly; we intentionally include all
+    // sources because consistency-of-tracking is what the badge
+    // rewards.
+    prisma.moodEntry.findMany({
+      where: {
+        userId,
+        moodLoggedAt: { gte: startDate, lte: now },
+      },
+      select: {
+        date: true,
+        score: true,
+        moodLoggedAt: true,
+      },
+    }),
+  ]);
 
   const schedulesByMedicationId = new Map(
     medications.map((med) => [med.id, med.schedules]),
@@ -820,10 +820,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // discovered set. Hidden achievements that are still locked are
   // counted toward `totalCount` so the user sees they exist.
   const visibleUnlocked = visibleAchievements.filter((a) => a.unlocked);
-  const visibleEarned = visibleUnlocked.reduce(
-    (acc, a) => acc + a.points,
-    0,
-  );
+  const visibleEarned = visibleUnlocked.reduce((acc, a) => acc + a.points, 0);
   const visibleTotalPoints = visibleAchievements.reduce(
     (acc, a) => acc + a.points,
     0,

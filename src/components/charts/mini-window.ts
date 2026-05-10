@@ -16,11 +16,7 @@
  * pin the contract without depending on Recharts internals.
  */
 
-export type DataWindow =
-  | "last7days"
-  | "last30days"
-  | "last90days"
-  | "allTime";
+export type DataWindow = "last7days" | "last30days" | "last90days" | "allTime";
 
 const POINTS_BY_WINDOW: Record<DataWindow, number> = {
   last7days: 7,
