@@ -132,9 +132,9 @@ Last update: 2026-05-10T10:02+02:00
 
 ## Phase E — Release v1.4.18
 
-- [ ] Pre-release verify
-- [ ] Bump package.json + CHANGELOG
-- [ ] Tag + push v1.4.18
+- [x] Pre-release verify
+- [x] Bump package.json + CHANGELOG
+- [x] Tag + push v1.4.18
 - [ ] GHCR build green (both main + tag)
 - [ ] Coolify deploy
 - [ ] /api/version=1.4.18 confirmed
@@ -142,7 +142,18 @@ Last update: 2026-05-10T10:02+02:00
 - [ ] GH release
 - [ ] Docs site + landing site sync
 - [ ] `docs/audit/v1418-summary.md` (Marc-Brief)
-- Detailed report: `.planning/phase-E-report.md`
+- Detailed report: `.planning/phase-E1-report.md` (E2/E3 to come)
+- Status: 2026-05-10T11:14+02:00 — Phase E1 done. Verify clean
+  (typecheck 0, lint 0/12-baseline, format-check clean, unit
+  1605/1605, integration 66/66). Release commit `0243e20`
+  (package.json 1.4.17 → 1.4.18 + CHANGELOG entry, English,
+  sections Added / Changed / Fixed / Deferred). Tag `v1.4.18`
+  annotated, pushed alongside `c072ad8..0243e20  main -> main`.
+  GHCR tag-build run id `25624945158` in_progress; main builds
+  `25624944860` (security) + `25624944855` (integration) also
+  in_progress. ZERO unresolved CRITICAL; one HIGH (security
+  HIGH-2 i18n bundle leak) deferred to v1.4.19 per
+  `.planning/v1419-backlog.md`.
 
 ---
 
@@ -237,3 +248,20 @@ medications.csv,mood.csv}/`) plus 3 untracked v1.4.16 phase
   in place, they belong to previous milestones. Tracked files clean.
   Phase 0 commit contains only `.planning/STATE.md`,
   `.planning/ROADMAP.md`, `.planning/phase-0-report.md`.
+
+## Status block — Phase E2 (v1.4.18)
+
+- 2026-05-10T11:30+02:00 — Phase E2 complete. v1.4.18 LIVE at
+  https://healthlog.bombeck.io. GHCR runs 25624945158 (v1.4.18 tag) and
+  25624944843 (main) both `success`; image digest flipped from
+  `sha256:936e9cf25b2d…` (v1.4.17) to `sha256:c636fca7db66…` (v1.4.18).
+  Coolify still on git-push trigger so force-pulled via
+  `docker compose pull && docker compose up -d app` on apps-01 (the
+  retag-on-host fallback was not needed — `:latest` had already
+  refreshed). `/api/version` flipped 1.4.17 → 1.4.18 within the first
+  5s poll cycle. Smoke 14/14 real routes 200 (the `/dashboard` 404 in
+  the brief is a known stale path; HealthLog's dashboard is at `/`).
+  GH release v1.4.18 created via sed-extracted notes (lines 3-74 of
+  CHANGELOG, 72 lines): https://github.com/MBombeck/HealthLog/releases/tag/v1.4.18.
+  Detailed report: `.planning/phase-E2-report.md`. No rollback action
+  taken (and per brief, would not have been on red).
