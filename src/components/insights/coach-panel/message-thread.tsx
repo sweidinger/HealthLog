@@ -145,6 +145,21 @@ export function MessageThread({
           />
         </div>
       )}
+      {/* v1.4.22 W5 reconcile (Design-H3) — medical-disclaimer
+          reach regression. v1.4.22 B4 moved the disclaimer to the
+          sources-rail footer, but the rail is xl-only; on mobile
+          and laptop viewports the disclaimer was only reachable
+          via the chevron tray. Pin a small persistent line at the
+          bottom of the message thread so every Coach session
+          carries the disclaimer regardless of viewport. The rail
+          footer stays for desktop users — the redundancy is
+          intentional for clinical-adjacent UI. */}
+      <p
+        data-slot="coach-thread-disclaimer"
+        className="text-muted-foreground mt-auto pt-2 text-[10px] leading-relaxed"
+      >
+        {t("insights.coach.composerDisclaimer")}
+      </p>
     </div>
   );
 }
