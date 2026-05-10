@@ -192,9 +192,7 @@ export class AllProvidersFailedError extends Error {
 
 /**
  * Reorder the input chain so the cached "last working" provider is
- * tried first. Returns a NEW array; original is not mutated. When the
- * cache is cold (or the cached provider is not in the input list), the
- * original order is preserved.
+ * tried first. Cold cache or unknown provider → original order.
  */
 function applyLastWorkingCache(
   userId: string,

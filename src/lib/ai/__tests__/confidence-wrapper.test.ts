@@ -1,7 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { generateInsight } from "../generate-insight";
 import { MockAIProvider } from "../mock-client";
-import type { ConfidenceInputs } from "../confidence";
 
 /**
  * v1.4.16 phase B5d — wrapper post-validation override.
@@ -91,25 +90,34 @@ describe("generateInsight() — confidence override", () => {
     expect(outcome.parsed.recommendations[0].confidence).toBe(66);
   });
 
-  it("uses the resolver-supplied ConfidenceInputs when provided", async () => {
+  it("derives n from metricSource.n on the parsed payload (no caller injection)", async () => {
+    // v1.4.16 phase D reconcile (simplify F2) — the wrapper used to
+    // accept an optional `confidenceContext` resolver, but no production
+    // caller ever passed one. Inputs are derived from the payload alone
+    // today; v1.4.17's feedback ratchet will re-introduce a resolver
+    // injection when a real second caller exists.
+    const fourteenN = {
+      ...validResponseWithModelConfidence,
+      recommendations: [
+        {
+          ...validResponseWithModelConfidence.recommendations[0],
+          metricSource: {
+            ...validResponseWithModelConfidence.recommendations[0]
+              .metricSource,
+            n: 14,
+          },
+        },
+      ],
+    };
     const provider = new MockAIProvider({
-      responses: JSON.stringify(validResponseWithModelConfidence),
+      responses: JSON.stringify(fourteenN),
     });
-    const resolver = vi.fn(
-      (): ConfidenceInputs => ({
-        n: 14,
-        recencyDays: 1,
-        deviationStdRatio: 2,
-      }),
-    );
-    const outcome = await generateInsight(
-      provider,
-      { systemPrompt: "s", userPrompt: "u" },
-      { confidenceContext: resolver },
-    );
-    expect(resolver).toHaveBeenCalledTimes(1);
-    // n=14 fresh strong signal → ~80
-    expect(outcome.parsed.recommendations[0].confidence).toBe(80);
+    const outcome = await generateInsight(provider, {
+      systemPrompt: "s",
+      userPrompt: "u",
+    });
+    // n=14, recencyDays=0, ratio=null → 10 + 10*log10(14) + 30 + 15 ≈ 66.46
+    expect(outcome.parsed.recommendations[0].confidence).toBe(66);
   });
 
   it("hard-caps confidence to <=15 when n<3 (small-data shield)", async () => {
@@ -160,17 +168,19 @@ describe("generateInsight() — confidence override", () => {
     expect(outcome.parsed.recommendations[0].confidence).toBe(10);
   });
 
-  it("calls the resolver per-recommendation with the rec passed in", async () => {
+  it("overrides confidence on every recommendation in payload order", async () => {
     const twoRecs = {
       ...validResponseWithModelConfidence,
       recommendations: [
         {
           ...validResponseWithModelConfidence.recommendations[0],
           id: "rec-a",
+          confidence: 99,
         },
         {
           ...validResponseWithModelConfidence.recommendations[0],
           id: "rec-b",
+          confidence: 1,
           metricSource: {
             ...validResponseWithModelConfidence.recommendations[0]
               .metricSource,
@@ -182,19 +192,14 @@ describe("generateInsight() — confidence override", () => {
     const provider = new MockAIProvider({
       responses: JSON.stringify(twoRecs),
     });
-    const seenIds: string[] = [];
-    const resolver = (rec: { id: string }) => {
-      seenIds.push(rec.id);
-      return { n: 14, recencyDays: 1, deviationStdRatio: 2 };
-    };
-    const outcome = await generateInsight(
-      provider,
-      { systemPrompt: "s", userPrompt: "u" },
-      { confidenceContext: resolver },
-    );
-    expect(seenIds).toEqual(["rec-a", "rec-b"]);
-    expect(outcome.parsed.recommendations.every((r) => r.confidence === 80)).toBe(
-      true,
-    );
+    const outcome = await generateInsight(provider, {
+      systemPrompt: "s",
+      userPrompt: "u",
+    });
+    // Model claimed (99, 1); both must be discarded and replaced with
+    // the deterministic value (n=12 → 66, n=5 → 62 from the saturating
+    // formula 10 + 10*log10(5) + 30 + 15 ≈ 61.99).
+    expect(outcome.parsed.recommendations[0].confidence).toBe(66);
+    expect(outcome.parsed.recommendations[1].confidence).toBe(62);
   });
 });

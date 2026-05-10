@@ -41,13 +41,8 @@ interface InsightsPageHeroProps {
 }
 
 /**
- * Format a relative time using the i18n translation keys. Avoids the
- * `Intl.RelativeTimeFormat` polyfill cost on the client AND keeps every
- * surface that renders relative times locked to the project's
- * established translation vocabulary.
- *
- * Buckets: <1min → just now; <60min → N min ago; <24h → N h ago;
- * else N days ago.
+ * Bucketed relative-time using i18n translation keys so every surface
+ * shares vocabulary. Buckets: <1m, <1h, <24h, else days.
  */
 function formatRelativeTime(
   iso: string,

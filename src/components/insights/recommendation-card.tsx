@@ -20,30 +20,10 @@ import {
 import { ConfidenceMeter } from "./confidence-meter";
 
 /**
- * v1.4.16 phase B5c — Oura-style RecommendationCard.
- *
- * Each recommendation lives in its own collapsible card. The
- * collapsed row shows: severity badge + rec text + named slot for
- * the future confidence-ring (B5d) + chevron toggle.
- *
- * Expanding reveals:
- *   - 3-row rationale card (Window / Compared to / Deviation)
- *   - mini-chart pinned to the rationale's data window via
- *     HealthChart's new `mini` + `windowOverride` props
- *   - citation footnote (B5a) when `referenceId` resolves
- *   - named slot for the future feedback-thumbs (B5e)
- *
- * Default state: collapsed. Chevron toggles `aria-expanded`. Plain-
- * string recs (legacy InsightResult shape) and recs without
- * `rationale` render as a non-expandable list item — there's nothing
- * to expand to. The legacy-payload CTA at the parent advisor card
- * level surfaces the regenerate prompt for those.
- *
- * Layout slots are deliberately named so B5d (confidence) and B5e
- * (feedback) can plug in without touching this file:
- *
- *   - data-slot="rec-confidence-slot"  → B5d ConfidenceRing
- *   - data-slot="rec-feedback-slot"    → B5e RecommendationFeedback
+ * Collapsible recommendation card with severity badge, confidence
+ * meter, and an expandable rationale block (window / compared-to /
+ * deviation) + mini-chart. Plain-string and rationale-less recs
+ * render as a non-expandable row.
  */
 
 const SEVERITY_BADGE_STYLES: Record<string, string> = {

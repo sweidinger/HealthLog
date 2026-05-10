@@ -46,12 +46,8 @@ function parseAuditDetails(raw: string | null): AuditDetailsShape {
 }
 
 /**
- * Pure helper exported for unit tests so we can pin the priority order
- * (chainProviderType > providerType > "unknown") without hitting the
- * DB. The current PROMPT_VERSION constant is always returned because
- * the generator itself doesn't yet stash a per-payload prompt version
- * (research §3.B notes this is a v1.4.17 ratchet item; reading the
- * constant snapshots whatever's deployed when the rating fires).
+ * Pick provider attribution from a parsed audit-row details blob.
+ * Priority: chainProviderType > providerType > "unknown".
  */
 export function pickProviderType(details: AuditDetailsShape): string {
   if (typeof details.chainProviderType === "string") {

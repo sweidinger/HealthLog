@@ -15,10 +15,6 @@
  * Both predate B5c rationale; both flag.
  */
 
-interface UnknownRec {
-  rationale?: unknown;
-}
-
 /**
  * Returns true when the payload is non-empty and at least one
  * recommendation lacks a rationale object (or is a plain string from
@@ -42,7 +38,7 @@ export function isLegacyInsightPayload(payload: unknown): boolean {
     if (typeof rec === "string") return true;
     // Structured rec: rationale must be a populated object.
     if (rec === null || typeof rec !== "object") return true;
-    const rationale = (rec as UnknownRec).rationale;
+    const rationale = (rec as { rationale?: unknown }).rationale;
     if (
       rationale === undefined ||
       rationale === null ||

@@ -116,13 +116,6 @@ export const aiRecommendationRationaleSchema = z.object({
    * specific ("+5 bpm above baseline over 7 of 7 days").
    */
   deviation: z.string().min(1, "rationale.deviation required"),
-  /**
-   * Optional pointer into the curated medical-reference bundle. The
-   * rec-level `referenceId` is the canonical citation source; this
-   * field stays optional so a future provider that wants to attach a
-   * reference at rationale-grain can do so without a schema bump.
-   */
-  referenceId: z.string().optional(),
 });
 
 export type AIRecommendationRationale = z.infer<

@@ -31,18 +31,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ThumbsUp, ThumbsDown, Loader2, Check } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
+import type { RecommendationFeedbackRequest } from "@/lib/validations/recommendation-feedback";
 
+// v1.4.16 phase D reconcile (simplify F5) — re-export the canonical
+// types from the validation schema instead of hand-maintaining the
+// same enum vocabulary. Drift between the two used to be a real risk
+// (a future "last180days" added to the schema would silently break
+// the component without a compile error).
 export type RecommendationFeedbackSeverity =
-  | "info"
-  | "suggestion"
-  | "important"
-  | "urgent";
+  RecommendationFeedbackRequest["recommendationSeverity"];
 
 export type RecommendationFeedbackTimeRange =
-  | "last7days"
-  | "last30days"
-  | "last90days"
-  | "allTime";
+  RecommendationFeedbackRequest["metricSourceTimeRange"];
 
 export interface RecommendationFeedbackProps {
   recId: string;

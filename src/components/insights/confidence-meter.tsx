@@ -1,25 +1,9 @@
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
- * v1.4.16 phase B5d — `<ConfidenceMeter>`.
- *
- * Renders a deterministic 0..100 confidence score (server-computed by
- * `computeConfidence()` and overridden in `generateInsight()`) as
- * either a 5-bar meter (default) or an SVG ring.
- *
- * Color bands match research §2.A "three-band visual" extended to 4
- * bands so the under-50 region splits into "low" + "draft":
- *
- *   - >=80: green ("high"), 5 bars / full ring
- *   - 50..79: yellow ("medium"), 3-4 bars
- *   - 25..49: orange ("low"), 2 bars / partial ring + caption
- *   - <25: "draft" pill REPLACES the meter — Apple's
- *     "quiet-when-unsure" affordance per research §2.A. The rec is
- *     drafted but the model isn't asserting it.
- *
- * aria-label always announces the numeric score so a screen reader
- * isn't blind to the visual band distinction. Mobile-friendly: the
- * bars variant fits in 56 px wide; the ring variant in 28×28.
+ * Renders a 0..100 confidence score as a 5-bar meter (default) or SVG
+ * ring. Sub-25 replaces the meter with a "draft" pill ("quiet-when-
+ * unsure"). aria-label always carries the numeric value.
  */
 
 export type ConfidenceBand = "high" | "medium" | "low" | "draft";
