@@ -126,16 +126,33 @@ export const GET = apiHandler(async () => {
     // all-time as a 3-line sub-row so power users still see the
     // long-arc number without it dominating. The helper still returns
     // every window — only the headline pick changed.
+    //
+    // v1.4.23 H2 — chunked aggregation replaces an unbounded findMany.
+    // The W2-of-v1.4.20 fix did the right thing semantically (all-time
+    // window for the headline) but read the entire BP table into one
+    // array per type. A 5-year power user holds ~9 000 rows × 2; the
+    // single-shot fetch produced a 50-100 ms Prisma round-trip plus a
+    // ~2 MB allocation per request. Page through in 5 000-row chunks
+    // so the working set stays bounded; accumulate into the same
+    // `BpReading[]` shape the existing helper expects. The
+    // `analytics.bp_in_target.row_count` wide-event meta lets ops
+    // attribute slow requests to specific outlier users.
     const [sysData, diaData] = await Promise.all([
-      prisma.measurement.findMany({
-        where: { userId: user.id, type: "BLOOD_PRESSURE_SYS" },
-        select: { measuredAt: true, value: true },
-      }),
-      prisma.measurement.findMany({
-        where: { userId: user.id, type: "BLOOD_PRESSURE_DIA" },
-        select: { measuredAt: true, value: true },
-      }),
+      fetchBpSeriesChunked(user.id, "BLOOD_PRESSURE_SYS"),
+      fetchBpSeriesChunked(user.id, "BLOOD_PRESSURE_DIA"),
     ]);
+
+    annotate({
+      meta: {
+        analytics: {
+          bp_in_target: {
+            row_count: sysData.length + diaData.length,
+            sys_rows: sysData.length,
+            dia_rows: diaData.length,
+          },
+        },
+      },
+    });
 
     const windows = computeBpInTargetWindows(sysData, diaData, bpTargets, now);
     bpInTargetPct = windows.last30Days?.pct ?? null;
@@ -412,6 +429,56 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
   });
 
   return { bpCompliance, moodPulse, weightWeekday };
+}
+
+/**
+ * v1.4.23 H2 — paged read of every BP measurement for a single user.
+ *
+ * The W2-of-v1.4.20 BD-Zielbereich fix relies on the full historical
+ * series (the helper needs every paired reading to compute the all-time
+ * + prior-month + prior-year windows). A single-shot `findMany` works
+ * for users with hundreds of rows but a 5-year tenant carries ~9 000
+ * sys rows + ~9 000 dia rows; the route allocated a ~2 MB working set
+ * per request. Page through `BP_CHUNK_SIZE` rows at a time so the live
+ * memory footprint stays bounded — the per-row payload is still small
+ * enough that the final `BpReading[]` survives, but we never have two
+ * full copies of the table in flight at once.
+ *
+ * The cursor is `(measuredAt, id)` to break ties when two rows share
+ * the same timestamp (manual entries imported in bulk); the result
+ * order matches the existing single-shot `orderBy: { measuredAt: "asc" }`
+ * the helper assumed.
+ */
+const BP_CHUNK_SIZE = 5000;
+
+async function fetchBpSeriesChunked(
+  userId: string,
+  type: "BLOOD_PRESSURE_SYS" | "BLOOD_PRESSURE_DIA",
+): Promise<Array<{ measuredAt: Date; value: number }>> {
+  const out: Array<{ measuredAt: Date; value: number }> = [];
+  let cursorId: string | undefined;
+  // Loop with a safety bound — at 5 000/page the bound only triggers
+  // for >5 000 pages = >25 M rows, far beyond the per-user plausibility
+  // range. Defence-in-depth against an infinite-loop bug on cursor
+  // staleness.
+  for (let page = 0; page < 1000; page++) {
+    const chunk = await prisma.measurement.findMany({
+      where: { userId, type },
+      orderBy: [{ measuredAt: "asc" }, { id: "asc" }],
+      select: { id: true, measuredAt: true, value: true },
+      take: BP_CHUNK_SIZE,
+      ...(cursorId
+        ? { cursor: { id: cursorId }, skip: 1 }
+        : {}),
+    });
+    if (chunk.length === 0) break;
+    for (const row of chunk) {
+      out.push({ measuredAt: row.measuredAt, value: row.value });
+    }
+    if (chunk.length < BP_CHUNK_SIZE) break;
+    cursorId = chunk[chunk.length - 1].id;
+  }
+  return out;
 }
 
 // v1.4.22 W5 reconcile (Code-MED-3) — `berlinDayKey()` lifted to
