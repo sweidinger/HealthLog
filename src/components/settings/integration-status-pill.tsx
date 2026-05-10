@@ -110,7 +110,13 @@ export function IntegrationStatusPill({
     <Badge
       data-testid="integration-status-pill"
       data-state={state}
-      variant={state === "connected" ? undefined : state === "error" ? "destructive" : "outline"}
+      variant={
+        state === "connected"
+          ? undefined
+          : state === "error"
+            ? "destructive"
+            : "outline"
+      }
       aria-label={t("settings.integrationPill.ariaLabel")}
       className={cn(
         "max-w-full whitespace-nowrap",

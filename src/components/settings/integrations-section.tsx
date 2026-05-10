@@ -339,10 +339,7 @@ function WithingsCard({
           <Link2 className="text-primary h-5 w-5" />
           <h2 className="text-lg font-semibold">{t("settings.withings")}</h2>
         </div>
-        <IntegrationStatusPill
-          state={pillState}
-          lastSyncAt={pillLastSyncAt}
-        />
+        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
       </div>
       <p className="text-muted-foreground mt-1 text-xs">
         {t("settings.withingsDescription")}
