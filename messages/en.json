@@ -769,6 +769,19 @@
       "shareCopied": "Report link copied to clipboard.",
       "shareFailed": "Couldn't share — link copy is unavailable in this browser."
     },
+    "healthScore": {
+      "label": "Health Score",
+      "progressAria": "Health Score progress",
+      "deltaVsLastWeek": "{delta} vs last week",
+      "deltaUnavailable": "No history yet — check back next week.",
+      "componentBp": "BP",
+      "componentWeight": "Weight",
+      "componentMood": "Mood",
+      "componentCompliance": "Meds",
+      "disclaimer": "Indicative — not a clinical assessment.",
+      "askCoach": "Ask the Coach",
+      "coachPrompt": "Why is my health score {score} out of 100?"
+    },
     "report": {
       "eyebrow": "Weekly report",
       "title": "Your week — {week}",

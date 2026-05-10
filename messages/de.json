@@ -769,6 +769,19 @@
       "shareCopied": "Berichts-Link in die Zwischenablage kopiert.",
       "shareFailed": "Teilen fehlgeschlagen — der Browser unterstützt das nicht."
     },
+    "healthScore": {
+      "label": "Gesundheitsscore",
+      "progressAria": "Gesundheitsscore-Fortschritt",
+      "deltaVsLastWeek": "{delta} im Vergleich zur Vorwoche",
+      "deltaUnavailable": "Noch keine Historie — schau nächste Woche wieder vorbei.",
+      "componentBp": "BD",
+      "componentWeight": "Gewicht",
+      "componentMood": "Mood",
+      "componentCompliance": "Medis",
+      "disclaimer": "Orientierungshilfe — keine ärztliche Bewertung.",
+      "askCoach": "Coach fragen",
+      "coachPrompt": "Warum ist mein Gesundheitsscore {score} von 100?"
+    },
     "report": {
       "eyebrow": "Wochenbericht",
       "title": "Deine Woche — {week}",
