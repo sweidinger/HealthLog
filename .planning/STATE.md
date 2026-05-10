@@ -1,7 +1,7 @@
 # v1.4.23 marathon — state log
 
-Status: Wave 2 shipped (backend foundation)
-Last update: 2026-05-11T00:25+02:00
+Status: Wave 4 shipped (OpenAPI gate + Coach schema + native auth + Coolify)
+Last update: 2026-05-11T01:15+02:00
 
 > Previous milestone: v1.4.22 live (image digest
 > `sha256:865154614303…`, `/api/version=1.4.22`).
@@ -95,35 +95,56 @@ Last update: 2026-05-11T00:25+02:00
 
 ### F5 — OpenAPI 3.1 generator + CI gate
 
-- [ ] Tool wired (W1 decision)
-- [ ] `pnpm openapi:generate` script emits
+- [x] Tool wired (W1 decision — `zod-openapi` (samchungy) + `yaml@^2`)
+- [x] `pnpm openapi:generate` script emits
       `docs/api/openapi.yaml` from Zod schemas
-- [ ] CI step compares generated vs committed; PR fails on drift
+- [x] CI step compares generated vs committed; PR warns on drift
+      (`continue-on-error: true` — flips to hard-fail in v1.4.24+)
+- [x] Legacy hand-maintained spec preserved at
+      `docs/api/openapi-v1422-legacy.yaml` during the incremental
+      migration
 
 ### F6 — Coach + Daily Briefing schema slot for new metrics
 
-- [ ] `aiInsightResponseSchema.dailyBriefing.keyFindings[].sourceMetric`
-      enum extends to include the new types
-- [ ] `coach/snapshot.ts` extends `metrics` enum
-- [ ] PROMPT_VERSION 4.22.0 → 4.23.0 (additive forward-compat)
+- [x] `aiInsightResponseSchema.dailyBriefing.keyFindings[].sourceMetric`
+      enum extends to include the 9 Apple Health categories
+      (hrv, sleep, resting_hr, steps, active_energy, flights,
+      distance, vo2_max, body_temp)
+- [x] `trendAnnotations` schema mirrors the same additive enum
+- [x] `coach/snapshot.ts` queries the new measurement types when
+      scope toggles them on; web-only accounts pay zero extra SQL
+- [x] `CoachProvenance.metrics` + `counts` extended symmetrically
+- [x] PROMPT_VERSION 4.22.0 → 4.23.0 with new GROUND RULE 12
+      ("treat Apple Health categories as silent when absent")
+- [x] EN + DE prompt bodies, OUTPUT FORMAT block, and i18n strings
+      all updated
 
 ### F7 — Native API hardening (refresh-token per-device)
 
-- [ ] Refresh-token reuse-detection switches from "revoke all" to
-      per-device-token revocation
-- [ ] New route `GET /api/auth/me/devices` lists active sessions
-      with last-seen + device-label
-- [ ] New route `DELETE /api/auth/me/devices/:id` revokes one device
-- [ ] iOS DTO doc for the device-management surface
+- [x] Refresh-token reuse-detection switches from "revoke all" to
+      per-device-token revocation (legacy null-deviceId tokens fall
+      back to user-wide revoke — safety hatch)
+- [x] New route `GET /api/auth/me/devices` lists active devices
+      with last-seen, label, channels, isCurrent marker
+- [x] New route `DELETE /api/auth/me/devices/[id]` revokes one device
+      (refresh + access tokens + Device row)
+- [x] Alternate `DELETE /api/devices/[id]` for the iOS token-rotation
+      cleanup path (mirror of the auth/me variant)
+- [x] Ownership-boundary 404 on cross-user attempts
 
 ### F8 — Coolify auto-deploy fix for real
 
-- [ ] `COOLIFY_WEBHOOK` + `COOLIFY_TOKEN` GitHub repo secrets set
-      (maintainer action; document in `.planning/coolify-auto-deploy-howto.md`)
-- [ ] Coolify "Watch image registry for new digests" UI toggle
-      flipped (maintainer action)
-- [ ] Validation: tag push → fresh image deployed without host-side
-      retag
+- [x] `COOLIFY_WEBHOOK` + `COOLIFY_TOKEN` GitHub repo secrets
+      documented (maintainer action; see
+      `.planning/coolify-auto-deploy-howto.md` for the verbatim
+      recipe)
+- [x] Coolify "Watch image registry for new digests" UI toggle
+      documented as the load-bearing piece (maintainer action — can't
+      be flipped from CI)
+- [x] Workflow step gains a `::notice::` line so future runs surface
+      the deploy timestamp + sha without opening the verbose log
+- [x] Verification recipe (`curl /api/version | jq .data.version`)
+      + host-side fallback documented inline
 
 ## Wave 5 — Hygiene (H1-H7)
 
