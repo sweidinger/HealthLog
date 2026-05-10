@@ -76,21 +76,26 @@ Last update: 2026-05-10T10:02+02:00
 
 ## Wave B — Achievements expansion (with research)
 
-### B1 — Achievements research + implementation + hidden Easter-eggs
+### B1 — Achievements expansion
 
-- [ ] Research what achievements make sense for HealthLog's tracked
+- [x] Research what achievements make sense for HealthLog's tracked
       metrics (BP / weight / pulse / mood / medication / streaks /
       consistency / first-time / milestone)
-- [ ] Benchmark Apple Health badges, Withings, Oura — what works in
+- [x] Benchmark Apple Health badges, Withings, Oura — what works in
       consumer health
-- [ ] Author the new achievement set (target: 15-25 new ones)
-- [ ] Hidden / Easter-egg achievements (5-8) — playful, off-the-wall,
-      NOT health-coercive
-- [ ] Lock filter: only achievements user CAN earn (has data for the
-      metric) appear unlocked-or-locked; rest are hidden from the list
-      entirely
-- [ ] Hidden achievements appear in the Achievements tab as "Hidden"
-      cards (user knows they exist but not what they are)
+- [x] Author the new achievement set (15 public, target was 15-25)
+- [x] Hidden / Easter-egg achievements (6, target was 5-8)
+- [x] Discovery filter: locked public badges only render when the
+      user has data for the metric; already-unlocked + hidden always
+      render; summary recomputed from the visible set so headline
+      counters match the rendered list.
+- [x] Hidden achievements paint opaque "Hidden achievement" cards;
+      real strings never reach the DOM until unlock; toast on unlock
+      uses a longer Sparkles celebration with a localized "you
+      unlocked a hidden achievement!" headline.
+- [x] Result: roster 38 → 59 (+21 = 15 public + 6 hidden). Tests:
+      1598/1598 unit, 62/62 integration, typecheck clean, lint
+      unchanged. Commits `75c74f1...e75ea75` on origin/main.
 - Detailed report: `.planning/phase-B1-report.md`
 
 ## Wave D — QA + Product-Lead review

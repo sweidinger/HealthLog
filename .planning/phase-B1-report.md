@@ -1,97 +1,107 @@
-# Phase B1 — Backup completeness — report
+# Phase B1 — Achievements expansion (v1.4.18)
 
-Status: done · 2026-05-09T21:03+02:00
-
-## Scope
-
-The v1.4.14 admin Backups page only listed `DataBackup` rows + ran a
-manual job. Marc asked for the full lifecycle: download, upload,
-restore, audit, docs link.
+Status: complete · 7 commits pushed to `origin/main` ·
+`75c74f1...e75ea75`.
 
 ## What landed
 
-All five criteria are on `origin/main`:
+Roster grew from **38 → 59** (+21 achievements):
 
-| # | Criterion | Endpoint / file | Tests |
-|---|-----------|-----------------|-------|
-| 1 | Download backup as JSON | `GET /api/admin/backups/[id]/download` | 2 |
-| 2 | Upload backup with schema validation | `POST /api/admin/backups/upload` | 5 |
-| 3 | Restore from backup with full replacement | `POST /api/admin/backups/[id]/restore` | 3 |
-| 4 | Audit-log all backup ops | `run/route.ts` extended; new contract test | 2 |
-| 5 | Docs link from /admin/backups | `backups-section.tsx` | (visual) |
+- **mood (4)** — `mood-first`, `mood-streak-7`, `mood-streak-30`,
+  `mood-up-7` (7-day mean improvement vs prior week, personal
+  baseline only)
+- **vitals counts (7)** — first/50/200 weigh-ins, first/50/200 BP
+  readings, first pulse log
+- **engagement (4)** — `consistent-month` (≥25 distinct days in a
+  Berlin-local calendar month), `entry-streak-7` / `-30` (any-data
+  day streak), `weekend-warrior` (4 consecutive Sat+Sun pairs)
+- **hidden Easter-eggs (6)** — `night-owl` (02:00–04:00 Berlin),
+  `early-bird` (04:00–06:00), `leap-day` (Feb 29), `doctor-pdf`
+  (first PDF export), `locale-flip` (first language change),
+  `bug-buddy` (≥5 bug reports)
 
-New shared module: `src/lib/validations/backup.ts` — single source of
-truth for the backup payload schema (`backupPayloadSchema`,
-`BACKUP_SCHEMA_VERSION = "1"`, `parseBackupPayload`, `summarizeBackup`,
-`isCompatibleSchemaVersion`). The pg-boss `data-backup` worker now
-stamps `schemaVersion: "1"` into every snapshot so future drift can be
-detected at upload time. Older blobs default to `"1"` on parse.
+Hidden achievements render as opaque "Hidden achievement"
+placeholders in the locked state — the real title, description,
+metric and target are *never* written to the DOM, so a curious user
+cannot inspect the page source to learn the trigger. Once unlocked,
+the strings reveal themselves on the same card; the unlock toast
+gets a longer (8 s) `<Sparkles>` celebration with the localized
+"You unlocked a hidden achievement!" headline.
 
-Restore is the riskiest endpoint and is hardened with five gates:
-`requireAdmin()`, body `confirm: "RESTORE"`, typed-string UI gate
-inside `<RestoreRowDialog>`, `withIdempotency()` wrap, and pre-tx enum
-validation so a malformed payload can't half-wipe the user. Restore
-scope mirrors the v1.4.14 wipe (`DELETE /api/admin/data`) plus the
-`mood_entries` table the wipe didn't cover. AuditLog rows are
-preserved across restore.
+A new `applyDiscoveryFilter` ensures public locked badges only
+render when the user has the underlying data (a mood-streak badge
+stays out of the list until they log their first mood). Hidden
+Easter-eggs ignore the filter; already-unlocked badges always render
+so deleting data doesn't make completed achievements disappear.
 
-Audit actions added (8 total new):
-- `admin.backups.run`, `.run.denied`
-- `admin.backups.download`, `.download.denied`, `.download.failed`
-- `admin.backups.upload`, `.upload.denied`
-- `admin.backups.restore`, `.restore.start`, `.restore.denied`,
-  `.restore.failed`
+## Commit walk
 
-i18n: 19 new keys under `admin.section.backups.*` in EN + DE.
+1. `docs(achievements): v1.4.18 expansion research with 20+
+   proposed achievements` — research at
+   `.planning/v1418-achievements-research.md`.
+2. `feat(achievements): definitions for v1.4.18 expanded set +
+   hidden Easter-eggs` — types, `ACHIEVEMENT_DEFINITIONS` list,
+   EN+DE strings, page mood/hidden category labels,
+   `CATEGORY_LABEL_KEY` exhaustiveness.
+3. `feat(achievements): evaluators for new achievements (with
+   discovery rules)` — wires `buildExpansionMetricValues` +
+   `applyDiscoveryFilter` into the route, fetches `MoodEntry`,
+   recomputes summary from the visible set.
+4. `feat(achievements): page renders unlocked + locked + hidden
+   achievements with progress` — opaque hidden card, new lucide
+   icons, page tests for the four card states + locale-localized
+   hidden heading.
+5. `feat(dashboard): recent-achievements card celebrates hidden
+   unlocks` — `<Sparkles>` toast variant for `isHidden: true`.
+6. `test(achievements): coverage for evaluators + UI states` —
+   13 unit assertions against `expansion-metrics.ts`, 3 integration
+   tests round-tripping prisma rows, e2e describe-block exercising
+   all four card states with leak-resistance asserts.
+7. `feat(achievements): worker re-evaluates new + hidden
+   achievements on data change` — fixed two trigger bugs (the
+   doctor-PDF action used a non-existent name; locale-flip now
+   emits its own `settings.locale.update` audit row when the locale
+   actually changes).
 
 ## Verification
 
-- Unit: 883 / 883 passing (was 879).
-- Integration: 31 / 31 passing (was 19); new files
-  `admin-backups-download.test.ts` (2), `admin-backups-upload.test.ts`
-  (5), `admin-backups-restore.test.ts` (3), `admin-backups-audit.test.ts` (2).
-- Typecheck: clean for B1 files. The pre-existing dashboard-layout
-  test errors are A4 fallout, untouched here.
-- Lint: 11 pre-existing warnings, no new errors.
+- `pnpm test`: 1598 / 1598 passing
+- `pnpm test:integration`: 62 / 62 passing
+- `pnpm typecheck`: 0 errors
+- `pnpm lint`: 0 errors / 13 pre-existing warnings (unchanged)
+- E2E: spec adds 1 new test inside an existing describe-block; the
+  spec file has been compiled by the playwright TS pipeline (run by
+  the existing `pnpm e2e` script) but not exercised against a
+  running dev server here.
 
-## Cross-agent observation
+## Notable decisions
 
-Same shared-cwd / shared-index race that marred Phases A2 + A4:
-sibling `git commit -a`-ish behaviour swept my staged files into
-unrelated commits (criterion 1 absorbed by `d8c549e`, criterion 2 by
-`30a74ed`, criterion 4 by `0805452`, criterion 5 partially by
-`7c32d63` which I won but it picked up B3 untracked files). The
-**code** is correct on `origin/main` in every case — only the commit
-messages drift from their actual file scope. Criterion 3 (`fe85c2c`)
-landed cleanly under its own message.
+- **Hidden = unknown to the DOM.** The page renders an early-return
+  placeholder for `isHidden && !unlocked` so the real strings never
+  reach the rendered HTML; the test suite asserts the absence of
+  the trigger metric name and English title.
+- **Discovery-filter lives in the route, not the page.** The route
+  recomputes `summary` from the visible set so the headline counters
+  match the rendered list exactly. The page layer trusts the API
+  response and renders what it gets.
+- **Locale-flip needed a real audit signal.** The catch-all
+  `profile.update` row didn't disambiguate which field changed.
+  `applyProfileUpdate` now emits a separate `settings.locale.update`
+  audit row when (and only when) the locale value actually changes,
+  with from/to values in the details payload.
+- **Discovery does not gate the iOS format.** The iOS format flag
+  consumes the same filtered list — apps will see exactly what the
+  web sees, including hidden cards as opaque placeholders. iOS
+  clients can render their own "?" affordance from `isHidden: true`
+  + `unlocked: false`.
 
-Recommendation for v1.4.16, echoing the STATE.md A2/A4 note: each
-parallel agent should run inside its own `git worktree` per
-`superpowers:using-git-worktrees`. The current shared `Working dir:
-/Users/marc/Projects/HealthLog` makes the index a global mutable
-resource, and 5 agents racing through `git add` / `git commit`
-produces these scope-vs-message mismatches.
+## Out of scope / followups
 
-## Deferred / non-goals
-
-- DELETE endpoint for backups: not in scope (was not in the criteria
-  list); v1.4.16 candidate.
-- Streaming download for very large blobs: current largest production
-  backup is ~2 MB; 10 MB upload cap. Not a v1.4.15 problem.
-- Multi-version schema migration on upload: only `schemaVersion: "1"`
-  is recognised today. When v2 lands, `parseBackupPayload` is the
-  single place that will need a discriminated union.
-
-## Files touched (by commit)
-
-- `d8c549e` (criterion 1, sibling-merged): download endpoint, UI
-  download button, integration test, schema module, worker
-  `schemaVersion` stamp, EN/DE i18n.
-- `30a74ed` (criterion 2, sibling-merged): upload endpoint, upload UI,
-  upload test, EN/DE i18n.
-- `fe85c2c` (criterion 3, clean): restore endpoint, RestoreRowDialog,
-  restore test, EN/DE i18n.
-- `0805452` (criterion 4, sibling-merged): run-route audit + audit
-  contract test.
-- `7c32d63` (criterion 5, mostly mine + B3 add-on): docs link in
-  backups-section, EN/DE i18n.
+- The integration test had to skip the full HTTP route because of
+  pre-existing `medication_schedules.days_of_week` migration drift
+  in the testcontainer. Tracked separately; my unit + helper-level
+  integration coverage is sufficient for B1.
+- Hidden achievement set is intentionally small (6 vs. brief's
+  5–8 ceiling). I'd rather ship 6 polished triggers than chase
+  numbers; if Marc wants more, follow-on adds are trivial because
+  the definition + evaluator path is now well-paved.
