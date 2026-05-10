@@ -1,184 +1,117 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Sparkles, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Sparkles, RefreshCw, Loader2, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
+import type { InsightResult } from "@/lib/ai/types";
+import { sortRecommendationsBySeverity } from "./recommendations-grid";
+import { ConfidenceMeter } from "./confidence-meter";
 
-interface InsightsOutput {
-  changed: string;
-  stable: string;
-  drivers: string;
-  nextSteps: string;
-  confidence: "niedrig" | "mittel" | "hoch";
-  limitations: string;
+/**
+ * v1.4.16 phase B1b — dashboard <InsightsCardPreview>.
+ *
+ * Compact preview of the top 1-2 severity-ordered recommendations
+ * + a "View all" CTA pointing at `/insights`. Visual language matches
+ * the page hero (Dracula gradient sparkle, severity-coloured left
+ * border, mini confidence meter inline) so the dashboard reads as
+ * a smaller window onto the same surface.
+ *
+ * Design notes:
+ *  - The preview is dashboard-anchored, so it doesn't carry the full
+ *    rationale-expand mechanic. Recs render as one-row tiles.
+ *  - When the preview has zero recs OR no insight at all, the
+ *    component returns `null` so the dashboard's parent card grid
+ *    doesn't render an empty box. The full empty-state lives on
+ *    `/insights` proper.
+ *  - The legacy `InsightsCard` (which fetched its own data + rendered
+ *    the v1.4.0 changed/stable/drivers/nextSteps shape) was an
+ *    orphan component with zero non-test imports — it's been replaced
+ *    by this leaner preview.
+ */
+
+interface InsightsCardPreviewProps {
+  insight: InsightResult | null;
+  /** Maximum number of recs to surface; defaults to 2. */
+  topN?: number;
 }
 
-interface InsightsResponse {
-  insights: InsightsOutput;
-  cached: boolean;
-  cachedAt?: string;
-}
-
-const CONFIDENCE_COLORS: Record<string, string> = {
-  niedrig: "bg-orange-500/20 text-orange-400",
-  mittel: "bg-yellow-500/20 text-yellow-400",
-  hoch: "bg-green-500/20 text-green-400",
+const SEVERITY_BORDER_CLASSES: Record<string, string> = {
+  urgent: "border-l-dracula-red/70",
+  important: "border-l-dracula-orange/70",
+  suggestion: "border-l-dracula-purple/70",
+  info: "border-l-dracula-cyan/70",
 };
 
-export function InsightsCard() {
-  const { isAuthenticated } = useAuth();
-  const queryClient = useQueryClient();
+const SEVERITY_BORDER_FALLBACK = "border-l-border";
+
+export function InsightsCardPreview({
+  insight,
+  topN = 2,
+}: InsightsCardPreviewProps) {
   const { t } = useTranslations();
-  const [error, setError] = useState<string | null>(null);
+  if (!insight || insight.recommendations.length === 0) return null;
 
-  // Check if insights are configured
-  const { data: settings } = useQuery({
-    queryKey: ["insights", "settings"],
-    queryFn: async () => {
-      const res = await fetch("/api/insights/settings");
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as {
-        codexStatus: string;
-        hasAdminKey: boolean;
-        privacyMode: string;
-        lastInsightAt: string | null;
-      };
-    },
-    enabled: isAuthenticated,
-  });
-
-  const generate = useMutation({
-    mutationFn: async (force: boolean) => {
-      const res = await fetch("/api/insights/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      return json.data as InsightsResponse;
-    },
-    onSuccess: () => {
-      setError(null);
-      queryClient.invalidateQueries({ queryKey: ["insights"] });
-    },
-    onError: (err: Error) => {
-      setError(err.message);
-    },
-  });
-
-  // Don't show if no API key configured
-  if (!(settings?.codexStatus === "connected" || settings?.hasAdminKey))
-    return null;
-
-  const insights = generate.data?.insights;
+  const ordered = sortRecommendationsBySeverity(insight.recommendations).slice(
+    0,
+    topN,
+  );
 
   return (
-    <Card>
+    <Card data-slot="insights-card-preview" className="overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="text-dracula-purple h-5 w-5" />
-            <CardTitle className="text-lg">
+            <Sparkles
+              className="text-dracula-purple h-5 w-5"
+              aria-hidden="true"
+            />
+            <CardTitle className="text-base">
               {t("insights.aiInsights")}
             </CardTitle>
           </div>
           <Button
+            asChild
             variant="ghost"
             size="sm"
-            onClick={() => generate.mutate(!insights)}
-            disabled={generate.isPending}
+            data-slot="insights-card-view-all"
+            className="gap-1.5"
           >
-            {generate.isPending ? (
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-1 h-3.5 w-3.5" />
-            )}
-            {insights
-              ? t("insights.refreshButton")
-              : t("insights.generateButton")}
+            <Link href="/insights">
+              {t("insights.viewAll")}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
           </Button>
         </div>
       </CardHeader>
-
       <CardContent>
-        {error && (
-          <div className="bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg p-3 text-sm">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            {error}
-          </div>
-        )}
-
-        {generate.isPending && !insights && (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="text-dracula-purple h-6 w-6 animate-spin" />
-            <span className="text-muted-foreground ml-2 text-sm">
-              {t("insights.analyzing")}
-            </span>
-          </div>
-        )}
-
-        {insights && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Badge className={CONFIDENCE_COLORS[insights.confidence] ?? ""}>
-                {t("insights.confidence")}:{" "}
-                {t(`insights.confidence_${insights.confidence}`)}
-              </Badge>
-              {generate.data?.cached && (
-                <Badge variant="outline" className="text-xs">
-                  {t("insights.cached")}
-                </Badge>
-              )}
-            </div>
-
-            <Section
-              title={t("insights.sectionChanged")}
-              text={insights.changed}
-            />
-            <Section
-              title={t("insights.sectionStable")}
-              text={insights.stable}
-            />
-            <Section
-              title={t("insights.sectionDrivers")}
-              text={insights.drivers}
-            />
-            <Section
-              title={t("insights.sectionNextSteps")}
-              text={insights.nextSteps}
-            />
-
-            <div className="bg-muted/50 rounded-lg p-3">
-              <p className="text-muted-foreground text-xs">
-                <AlertTriangle className="mr-1 inline h-3 w-3" />
-                {insights.limitations}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {!insights && !generate.isPending && !error && (
-          <p className="text-muted-foreground py-4 text-center text-sm">
-            {t("insights.generatePrompt")}
-          </p>
-        )}
+        <ul className="space-y-2">
+          {ordered.map((rec, index) => {
+            const text = typeof rec === "string" ? rec : rec.text;
+            const severity = typeof rec === "string" ? null : rec.severity;
+            const confidence =
+              typeof rec === "string" ? undefined : rec.confidence;
+            const id = typeof rec === "string" ? `${index}-${rec}` : rec.id;
+            const borderClass =
+              (severity && SEVERITY_BORDER_CLASSES[severity]) ||
+              SEVERITY_BORDER_FALLBACK;
+            return (
+              <li
+                key={id ?? index}
+                className={`bg-card/40 flex items-start justify-between gap-2 rounded-md border-l-2 px-3 py-2 ${borderClass}`}
+              >
+                <p className="text-sm leading-snug">{text}</p>
+                {typeof confidence === "number" && (
+                  <span className="shrink-0">
+                    <ConfidenceMeter value={confidence} variant="ring" />
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       </CardContent>
     </Card>
-  );
-}
-
-function Section({ title, text }: { title: string; text: string }) {
-  return (
-    <div>
-      <h4 className="mb-1 text-sm font-medium">{title}</h4>
-      <p className="text-muted-foreground text-sm">{text}</p>
-    </div>
   );
 }

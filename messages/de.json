@@ -705,6 +705,8 @@
     "heroPersonalBaseline": "Basierend auf deinen letzten 90 Tagen",
     "heroRegenerate": "Neu generieren",
     "heroRegenerating": "Wird generiert",
+    "viewAll": "Alle ansehen",
+    "previewEmpty": "Noch keine Empfehlungen.",
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgo": "vor {count} Minuten",
     "relativeHoursAgo": "vor {count} Stunden",
