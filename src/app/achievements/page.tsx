@@ -6,17 +6,26 @@ import {
   AlertTriangle,
   Bug,
   CalendarCheck,
+  CalendarDays,
+  FileText,
   Fingerprint,
   Flame,
+  HelpCircle,
   Heart,
   KeyRound,
+  Languages,
   Loader2,
   Lock,
   LogIn,
+  Moon,
   Pill,
+  Scale,
   ShieldCheck,
   SkipForward,
+  Smile,
+  Sparkles,
   Star,
+  Sun,
   Target,
   Trophy,
   type LucideIcon,
@@ -45,6 +54,8 @@ const iconMap: Record<string, LucideIcon> = {
   Activity,
   Flame,
   CalendarCheck,
+  CalendarDays,
+  FileText,
   Pill,
   ShieldCheck,
   Target,
@@ -52,9 +63,15 @@ const iconMap: Record<string, LucideIcon> = {
   Heart,
   KeyRound,
   Fingerprint,
+  Languages,
   LogIn,
   Bug,
   AlertTriangle,
+  Moon,
+  Scale,
+  Smile,
+  Sparkles,
+  Sun,
   SkipForward,
 };
 
@@ -121,6 +138,40 @@ interface AchievementCardProps {
 function AchievementCard({ achievement, t }: AchievementCardProps) {
   const Icon = iconMap[achievement.icon] ?? Star;
   const unlocked = achievement.unlocked;
+
+  // v1.4.18 — locked hidden achievements paint an opaque placeholder.
+  // Critically, the actual title / description / metric / target are
+  // never rendered to the DOM so the user can't peek into the source
+  // to learn the trigger. Once unlocked the real strings appear.
+  if (achievement.isHidden && !unlocked) {
+    return (
+      <div
+        data-slot="achievement-card-hidden"
+        aria-label={t("achievements.hiddenCard.ariaLabel")}
+        className="border-border bg-card/40 rounded-xl border p-3 opacity-70"
+      >
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <div className="bg-muted text-muted-foreground rounded-lg p-2">
+              <HelpCircle className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold">
+                {t("achievements.hiddenCard.title")}
+              </h3>
+              <p className="text-muted-foreground line-clamp-2 text-xs">
+                {t("achievements.hiddenCard.description")}
+              </p>
+            </div>
+          </div>
+          <Badge variant="secondary" className="shrink-0">
+            <Lock className="mr-1 h-3 w-3" aria-hidden="true" />
+            {t("achievements.locked")}
+          </Badge>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

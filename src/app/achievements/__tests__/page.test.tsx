@@ -91,6 +91,38 @@ const mockData = {
       completedAt: null,
       isHidden: false,
     },
+    {
+      id: "hidden-night-owl",
+      metric: "nightOwlCount",
+      category: "hidden",
+      titleKey: "achievements.badges.hiddenNightOwl.title",
+      descriptionKey: "achievements.badges.hiddenNightOwl.description",
+      icon: "Moon",
+      format: "count",
+      target: 1,
+      current: 0,
+      points: 25,
+      unlocked: false,
+      progressPercent: 0,
+      completedAt: null,
+      isHidden: true,
+    },
+    {
+      id: "hidden-doctor-pdf",
+      metric: "doctorPdfCount",
+      category: "hidden",
+      titleKey: "achievements.badges.hiddenDoctorPdf.title",
+      descriptionKey: "achievements.badges.hiddenDoctorPdf.description",
+      icon: "FileText",
+      format: "count",
+      target: 1,
+      current: 1,
+      points: 35,
+      unlocked: true,
+      progressPercent: 100,
+      completedAt: "2026-04-30T10:00:00.000Z",
+      isHidden: true,
+    },
   ] satisfies AchievementProgress[],
   metrics: {
     totalTakenIntakes: 1,
@@ -144,7 +176,11 @@ beforeEach(() => {
 describe("groupByCategory", () => {
   it("buckets achievements by category and orders unlocked first", () => {
     const grouped = groupByCategory(mockData.achievements);
-    expect(grouped.map((g) => g.category)).toEqual(["medication", "security"]);
+    expect(grouped.map((g) => g.category)).toEqual([
+      "medication",
+      "security",
+      "hidden",
+    ]);
 
     const medication = grouped.find((g) => g.category === "medication");
     expect(medication?.items.map((i) => i.id)).toEqual([
@@ -211,5 +247,37 @@ describe("<AchievementsPage>", () => {
     expect(html).toContain("Medikation");
     expect(html).toContain("Konto &amp; Sicherheit");
     expect(html).toContain("Gesperrt"); // German "Locked"
+  });
+
+  it("renders a locked hidden achievement as an opaque placeholder", () => {
+    const html = render();
+    // The opaque card renders the placeholder string
+    expect(html).toContain("Hidden achievement");
+    // Critically, the locked hidden achievement's title and description
+    // must NOT leak into the DOM (this is the whole point of "hidden").
+    expect(html).not.toContain("Night owl");
+    expect(html).not.toContain("Logged an entry between 02:00 and 04:00");
+    // And neither does its trigger metric.
+    expect(html).not.toContain("nightOwlCount");
+  });
+
+  it("renders an unlocked hidden achievement with its real title", () => {
+    const html = render();
+    // The unlocked hidden one ("hidden-doctor-pdf") should now reveal
+    // its strings — that's the reward for unlocking.
+    expect(html).toContain("House call");
+  });
+
+  it("flags hidden cards with the achievement-card-hidden data slot", () => {
+    const html = render();
+    expect(html).toContain('data-slot="achievement-card-hidden"');
+  });
+
+  it("hidden category appears under its own localized heading", () => {
+    const html = render();
+    // English label
+    expect(html).toContain(">Hidden<");
+    const htmlDe = render("de");
+    expect(htmlDe).toContain(">Versteckt<");
   });
 });
