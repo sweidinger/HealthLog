@@ -74,13 +74,13 @@ export function FeedbackInboxSection() {
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
+      {/* v1.4.19 A8 / F-08 + F-20: this is the only card on
+          `/admin/feedback`, so the page header already provides the
+          title + description — the card-level repetition was just
+          visual noise. The icon stays as a low-key card affordance. */}
       <div className="flex items-center gap-2">
-        <Inbox className="text-primary h-5 w-5" />
-        <div className="text-lg font-semibold">{t("admin.feedback.title")}</div>
+        <Inbox className="text-primary h-5 w-5" aria-hidden="true" />
       </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("admin.feedback.description")}
-      </p>
 
       <Tabs
         value={activeStatus}

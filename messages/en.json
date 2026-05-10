@@ -1057,7 +1057,7 @@
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Per-channel delivery — Telegram, ntfy, Web Push — plus the live channel-reliability board."
+        "description": "Per-channel delivery and the live reliability board for every configured channel."
       },
       "dashboard": {
         "title": "Dashboard",
@@ -1618,13 +1618,13 @@
     "defaultLanguageDescription": "Used for new users and as fallback.",
     "servicesGlobal": "Services (global)",
     "servicesGlobalDescription": "Disabled services are not available to any user.",
-    "telegramGlobal": "Allow Telegram notifications system-wide.",
-    "ntfyGlobal": "Allow ntfy notifications system-wide.",
-    "webPushGlobal": "Allow browser push notifications system-wide.",
+    "telegramGlobal": "Allow Telegram notifications.",
+    "ntfyGlobal": "Allow ntfy notifications.",
+    "webPushGlobal": "Allow browser push notifications.",
     "integrationWebPush": "Web Push",
     "integrationBugReport": "Bug Report",
-    "apiGlobal": "Allow API endpoints and API tokens system-wide.",
-    "moodLogGlobal": "Allow moodLog integration system-wide.",
+    "apiGlobal": "Allow API endpoints and API tokens.",
+    "moodLogGlobal": "Allow the moodLog integration.",
     "sectionGeneral": "General",
     "sectionIntegrations": "Integrations",
     "sectionMedication": "Medications",
@@ -1634,17 +1634,17 @@
     "glitchtipTitle": "GlitchTip",
     "glitchtipDescription": "Error tracking with GlitchTip",
     "webPushVapidTitle": "Web Push VAPID",
-    "monitoring": "Monitoring (Umami/Glitchtip)",
+    "monitoring": "Monitoring (Umami/GlitchTip)",
     "monitoringDescription": "Configuration for website analytics and error tracking.",
     "umamiEnabled": "Enable Umami tracking.",
     "umamiScriptUrl": "Umami script URL",
     "umamiScriptUrlPlaceholder": "https://analytics.example.com/script.js",
     "umamiWebsiteId": "Umami website ID",
     "umamiWebsiteIdPlaceholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    "glitchtipEnabled": "Enable Glitchtip error tracking.",
-    "glitchtipDsn": "Glitchtip DSN",
+    "glitchtipEnabled": "Enable GlitchTip error tracking.",
+    "glitchtipDsn": "GlitchTip DSN",
     "glitchtipDsnPlaceholder": "https://<public-key>@glitchtip.example.com/<project-id>",
-    "glitchtipEnvironment": "Glitchtip environment",
+    "glitchtipEnvironment": "GlitchTip environment",
     "glitchtipEnvironmentPlaceholder": "production",
     "webPushVapid": "Web Push (VAPID)",
     "webPushVapidDescription": "Configure VAPID keys and subject here so browser push works without environment variables.",
@@ -1657,7 +1657,7 @@
     "configured": "Configured",
     "notConfigured": "Not configured",
     "monitoringTestUmami": "Send Umami test",
-    "monitoringTestGlitchtip": "Send Glitchtip test",
+    "monitoringTestGlitchTip": "Send GlitchTip test",
     "monitoringTestSuccess": "Test event sent",
     "monitoringTestFailed": "Monitoring test failed",
     "monitoringSave": "Save monitoring",
@@ -1697,6 +1697,8 @@
     "tokenUser": "User",
     "tokenName": "Name",
     "tokenPermissions": "Permissions",
+    "tokenPermissionAll": "All",
+    "tokenPermissionAllTooltip": "Wildcard permission — this token can call every API route.",
     "tokenStatus": "Status",
     "tokenLastUsed": "Last used",
     "tokenCreated": "Created",
@@ -1768,7 +1770,7 @@
       "actions": "Actions",
       "details": "Details",
       "noEntries": "No feedback in this category.",
-      "emptyTitle": "Inbox zero",
+      "emptyTitle": "All caught up",
       "emptyDescription": "No user feedback in this status. Submitted bugs, questions, and feature requests will appear here.",
       "loading": "Loading feedback...",
       "anonymous": "anonymous",
@@ -1837,7 +1839,7 @@
       },
       "services": {
         "title": "Services",
-        "subtitle": "Enable or disable notification channels system-wide."
+        "subtitle": "Enable or disable notification channels and integrations system-wide."
       },
       "integrations": {
         "title": "Integrations",
@@ -1845,11 +1847,11 @@
       },
       "ai-quality": {
         "title": "AI Quality",
-        "subtitle": "Helpful-rate per (severity x provider) from user feedback over the last 30 days."
+        "subtitle": "Helpfulness scores grouped by severity and provider, from the last 30 days of user feedback."
       },
       "feedback": {
         "title": "Feedback",
-        "subtitle": "Triage user-submitted feedback and bug reports."
+        "subtitle": "Triage user feedback, bug reports, and feature requests."
       },
       "reminders": {
         "title": "Reminders",
@@ -1974,7 +1976,7 @@
   },
   "achievements": {
     "title": "Achievements",
-    "subtitle": "Unlock achievements from feature rollout onward through consistent health trends and medication habits.",
+    "subtitle": "Earn achievements by tracking your health and taking your meds on time.",
     "loginRequired": "Please sign in to view achievements.",
     "points": "Points",
     "unlocked": "Unlocked",

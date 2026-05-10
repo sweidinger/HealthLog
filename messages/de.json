@@ -1057,7 +1057,7 @@
       },
       "notifications": {
         "title": "Benachrichtigungen",
-        "description": "Zustellung pro Kanal — Telegram, ntfy, Web Push — und die Live-Übersicht der Kanalzuverlässigkeit."
+        "description": "Zustellung pro Kanal und die Live-Übersicht der Kanalzuverlässigkeit für jeden konfigurierten Kanal."
       },
       "dashboard": {
         "title": "Dashboard",
@@ -1618,13 +1618,13 @@
     "defaultLanguageDescription": "Wird für neue Benutzer und als Fallback verwendet.",
     "servicesGlobal": "Dienste (global)",
     "servicesGlobalDescription": "Deaktivierte Dienste stehen keinem Benutzer zur Verfügung.",
-    "telegramGlobal": "Telegram-Benachrichtigungen systemweit erlauben.",
-    "ntfyGlobal": "ntfy-Benachrichtigungen systemweit erlauben.",
-    "webPushGlobal": "Browser-Push-Benachrichtigungen systemweit erlauben.",
+    "telegramGlobal": "Telegram-Benachrichtigungen erlauben.",
+    "ntfyGlobal": "ntfy-Benachrichtigungen erlauben.",
+    "webPushGlobal": "Browser-Push-Benachrichtigungen erlauben.",
     "integrationWebPush": "Web Push",
     "integrationBugReport": "Bug-Reports",
-    "apiGlobal": "API-Endpunkte und API-Tokens systemweit erlauben.",
-    "moodLogGlobal": "moodLog-Integration systemweit erlauben.",
+    "apiGlobal": "API-Endpunkte und API-Tokens erlauben.",
+    "moodLogGlobal": "moodLog-Integration erlauben.",
     "sectionGeneral": "Allgemein",
     "sectionIntegrations": "Integrationen",
     "sectionMedication": "Medikamente",
@@ -1634,17 +1634,17 @@
     "glitchtipTitle": "GlitchTip",
     "glitchtipDescription": "Fehler-Tracking mit GlitchTip",
     "webPushVapidTitle": "Web Push VAPID",
-    "monitoring": "Monitoring (Umami/Glitchtip)",
+    "monitoring": "Monitoring (Umami/GlitchTip)",
     "monitoringDescription": "Konfiguration für Website-Analytics und Fehler-Tracking.",
     "umamiEnabled": "Umami-Tracking aktivieren.",
     "umamiScriptUrl": "Umami Script-URL",
     "umamiScriptUrlPlaceholder": "https://analytics.example.com/script.js",
     "umamiWebsiteId": "Umami Website-ID",
     "umamiWebsiteIdPlaceholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-    "glitchtipEnabled": "Glitchtip Fehler-Tracking aktivieren.",
-    "glitchtipDsn": "Glitchtip DSN",
+    "glitchtipEnabled": "GlitchTip Fehler-Tracking aktivieren.",
+    "glitchtipDsn": "GlitchTip DSN",
     "glitchtipDsnPlaceholder": "https://<public-key>@glitchtip.example.com/<project-id>",
-    "glitchtipEnvironment": "Glitchtip Environment",
+    "glitchtipEnvironment": "GlitchTip Environment",
     "glitchtipEnvironmentPlaceholder": "production",
     "webPushVapid": "Web Push (VAPID)",
     "webPushVapidDescription": "Konfiguriere VAPID-Schlüssel und Subject direkt hier, damit Browser-Push ohne ENV-Variablen funktioniert.",
@@ -1657,7 +1657,7 @@
     "configured": "Konfiguriert",
     "notConfigured": "Nicht konfiguriert",
     "monitoringTestUmami": "Umami-Test senden",
-    "monitoringTestGlitchtip": "Glitchtip-Test senden",
+    "monitoringTestGlitchTip": "GlitchTip-Test senden",
     "monitoringTestSuccess": "Testevent wurde gesendet",
     "monitoringTestFailed": "Monitoring-Test fehlgeschlagen",
     "monitoringSave": "Monitoring speichern",
@@ -1697,6 +1697,8 @@
     "tokenUser": "Benutzer",
     "tokenName": "Name",
     "tokenPermissions": "Berechtigungen",
+    "tokenPermissionAll": "Alle",
+    "tokenPermissionAllTooltip": "Wildcard-Berechtigung — dieses Token kann jede API-Route ansprechen.",
     "tokenStatus": "Status",
     "tokenLastUsed": "Zuletzt benutzt",
     "tokenCreated": "Erstellt",
@@ -1768,7 +1770,7 @@
       "actions": "Aktionen",
       "details": "Details",
       "noEntries": "Keine Feedback-Einträge in dieser Kategorie.",
-      "emptyTitle": "Inbox leer",
+      "emptyTitle": "Alles erledigt",
       "emptyDescription": "Kein Nutzer-Feedback in diesem Status. Bug-Reports, Fragen und Feature-Wünsche erscheinen hier.",
       "loading": "Lade Feedback...",
       "anonymous": "anonym",
@@ -1837,7 +1839,7 @@
       },
       "services": {
         "title": "Dienste",
-        "subtitle": "Benachrichtigungskanäle systemweit aktivieren oder deaktivieren."
+        "subtitle": "Benachrichtigungskanäle und Integrationen systemweit aktivieren oder deaktivieren."
       },
       "integrations": {
         "title": "Integrationen",
@@ -1845,11 +1847,11 @@
       },
       "ai-quality": {
         "title": "KI-Qualität",
-        "subtitle": "Hilfreich-Quote pro (Schweregrad x Provider) aus Nutzer-Feedback der letzten 30 Tage."
+        "subtitle": "Hilfreichkeit nach Schweregrad und Provider — Nutzer-Feedback der letzten 30 Tage."
       },
       "feedback": {
         "title": "Feedback",
-        "subtitle": "Feedback und Bug-Reports der Nutzer sichten."
+        "subtitle": "Feedback, Bug-Reports und Feature-Wünsche der Nutzer sichten."
       },
       "reminders": {
         "title": "Erinnerungen",
@@ -1974,7 +1976,7 @@
   },
   "achievements": {
     "title": "Erfolge",
-    "subtitle": "Sammle Erfolge ab Feature-Start durch konsequente Gesundheitstrends und Medikamentenroutinen.",
+    "subtitle": "Sammle Erfolge, indem du regelmäßig misst und deine Medikamente nimmst.",
     "loginRequired": "Bitte anmelden, um Erfolge zu sehen.",
     "points": "Punkte",
     "unlocked": "Freigeschaltet",

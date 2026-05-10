@@ -162,9 +162,13 @@ export function ApiTokenOverviewSection() {
                                 key={p}
                                 variant="secondary"
                                 className="max-w-full truncate text-xs"
-                                title={p}
+                                title={
+                                  p === "*"
+                                    ? t("admin.tokenPermissionAllTooltip")
+                                    : p
+                                }
                               >
-                                {p}
+                                {p === "*" ? t("admin.tokenPermissionAll") : p}
                               </Badge>
                             ))}
                           </div>
@@ -254,9 +258,13 @@ export function ApiTokenOverviewSection() {
                           key={p}
                           variant="secondary"
                           className="max-w-full truncate text-[10px]"
-                          title={p}
+                          title={
+                            p === "*"
+                              ? t("admin.tokenPermissionAllTooltip")
+                              : p
+                          }
                         >
-                          {p}
+                          {p === "*" ? t("admin.tokenPermissionAll") : p}
                         </Badge>
                       ))}
                     </div>

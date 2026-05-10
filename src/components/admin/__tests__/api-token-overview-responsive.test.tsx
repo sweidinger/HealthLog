@@ -109,7 +109,10 @@ describe("ApiTokenOverviewSection — responsive", () => {
     // last-used/created labels are all present.
     expect(html).toContain("marc"); // username
     expect(html).toContain("iOS app"); // token name
-    expect(html).toMatch(/\*/); // permission badge content
+    // F-19 (v1.4.19): the wildcard `*` permission renders as the
+    // human-readable "All" with a tooltip explaining the semantics,
+    // not the literal asterisk.
+    expect(html).toContain("All");
   });
 
   it("uses a smaller card padding on mobile (p-4 sm:p-6)", () => {
