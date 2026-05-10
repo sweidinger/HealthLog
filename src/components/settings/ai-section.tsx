@@ -579,7 +579,7 @@ function CodexProviderForm({
   const isConnected = status === "connected";
 
   return (
-    <div data-testid="ai-provider-config-codex" className="space-y-3">
+    <div data-testid="ai-provider-config-codex" className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium">
           {t("settings.ai.codex.modelSlugLabel")}
@@ -794,7 +794,7 @@ function OpenAIProviderForm({
   });
 
   return (
-    <div data-testid="ai-provider-config-openai" className="space-y-3">
+    <div data-testid="ai-provider-config-openai" className="space-y-4">
       <div>
         <Label htmlFor="ai-openai-key">
           {t("settings.ai.openai.apiKey")}
@@ -980,7 +980,7 @@ function AnthropicProviderForm({
   });
 
   return (
-    <div data-testid="ai-provider-config-anthropic" className="space-y-3">
+    <div data-testid="ai-provider-config-anthropic" className="space-y-4">
       <div>
         <Label htmlFor="ai-anthropic-key">
           {t("settings.ai.anthropicKeyLabel")}
@@ -1136,7 +1136,7 @@ function LocalProviderForm({
   });
 
   return (
-    <div data-testid="ai-provider-config-local" className="space-y-3">
+    <div data-testid="ai-provider-config-local" className="space-y-4">
       <div>
         <Label htmlFor="ai-local-base-url">
           {t("settings.ai.baseUrlLabel")}

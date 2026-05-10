@@ -198,6 +198,30 @@ medications.csv,mood.csv}/`) left in place — same call as v1.4.16 /
   shared-cwd race documented across earlier marathons; A3's edits
   are correct on `origin/main`.
 
+- 2026-05-10T13:05+02:00 — Wave A / A5 complete. Settings →
+  Integrations status UI consolidated. New
+  `<IntegrationStatusPill>` (`src/components/settings/integration-status-pill.tsx`)
+  is the single canonical surface — Dracula-tokenized chip top-right
+  of every integration card, "Connected · 12 min ago" pattern with
+  locale-aware relative-time bucketing (`just now` / `min` / `h` /
+  `d`), three states (`connected` / `error` / `disconnected`),
+  mobile-safe `whitespace-nowrap`. Withings + Mood Log cards
+  refactored: redundant v1.4.15 status banner ("connected / last
+  successful / last attempt" trio) is gone, Mood Log's bottom-of-
+  card "letzter Sync" line is gone, both cards now show a `<hr>`
+  visual divider between header and body for consistency (Marc
+  flagged the asymmetry). Actionable error text preserved as a
+  compact inline alert above the action row when a sync attempt
+  failed. New i18n keys under `settings.integrationPill.*` (EN +
+  DE). Three commits: `ba0d6b8` (pill component + i18n + 6 vitest
+  tests), `0dcc91a` (refactor + 5 section vitest tests), `47a8fc7`
+  (Pixel-5 e2e spec). Tests: 1646/1646 vitest pass; e2e spec added
+  but not run in this session. Reusable for v1.4.20 Apple Health
+  card on iOS. Detailed report: `.planning/phase-A5-report.md`.
+  Cross-agent race: commit `ba0d6b8` accidentally bundled A4's
+  `.planning/STATE.md` and `phase-A4-report.md` edits — same shared-
+  cwd race across earlier marathons, no information lost.
+
 ---
 
 ## Previous milestone — v1.4.18 (completed 2026-05-10T11:45+02:00)
