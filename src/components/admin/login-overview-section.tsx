@@ -84,6 +84,13 @@ export function LoginOverviewSection() {
     const params = new URLSearchParams();
     params.set("page", String(page));
     params.set("perPage", String(perPage));
+    // F-02 (v1.4.19): The page is the auth/admin "Login Overview" — restrict
+    // to `auth.*` actions so insights/admin/data events don't leak into the
+    // viewer (the previous behaviour rendered rows like
+    // `insights.weight-status.en` next to "Passkey login"). When the user
+    // picks a specific action below we trust their explicit choice and let
+    // it overwrite this default.
+    params.set("filter", "auth");
     if (actor.trim()) params.set("actor", actor.trim());
     if (actionFilter && actionFilter !== "__all__") {
       params.set("action", actionFilter);
@@ -242,11 +249,13 @@ export function LoginOverviewSection() {
                 <SelectItem value="__all__">
                   {t("admin.section.auditLog.filterActionAll")}
                 </SelectItem>
-                {(actionsData?.actions ?? []).map((a) => (
-                  <SelectItem key={a} value={a}>
-                    {AUTH_ACTION_LABELS[a] ?? a}
-                  </SelectItem>
-                ))}
+                {(actionsData?.actions ?? [])
+                  .filter((a) => a.startsWith("auth."))
+                  .map((a) => (
+                    <SelectItem key={a} value={a}>
+                      {AUTH_ACTION_LABELS[a] ?? a}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             <Input
