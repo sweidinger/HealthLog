@@ -2131,6 +2131,90 @@
       "pulseGreen360": {
         "title": "Puls im Grün · 360T",
         "description": "Halte deinen Ruhepuls 360 Tage in Folge im Normalbereich."
+      },
+      "moodFirst": {
+        "title": "Erste Stimmung",
+        "description": "Erfasse deinen ersten Stimmungseintrag."
+      },
+      "moodStreak7": {
+        "title": "Stimmungstagebuch 7T",
+        "description": "Trage an 7 aufeinanderfolgenden Tagen eine Stimmung ein."
+      },
+      "moodStreak30": {
+        "title": "Stimmungstagebuch 30T",
+        "description": "Trage an 30 aufeinanderfolgenden Tagen eine Stimmung ein."
+      },
+      "moodUp7": {
+        "title": "Hellere Woche",
+        "description": "Dein 7-Tage-Stimmungsmittel hat sich gegenüber der Vorwoche um mindestens 1,0 Punkt verbessert."
+      },
+      "weightFirst": {
+        "title": "Erstes Gewicht",
+        "description": "Erfasse deine erste Gewichtsmessung."
+      },
+      "weight50": {
+        "title": "Fünfzig Wiegungen",
+        "description": "Erfasse 50 Gewichtsmessungen."
+      },
+      "weight200": {
+        "title": "Zweihundert Wiegungen",
+        "description": "Erfasse 200 Gewichtsmessungen."
+      },
+      "bpFirst": {
+        "title": "Erster Blutdruck",
+        "description": "Erfasse deine erste Blutdruckmessung."
+      },
+      "bp50": {
+        "title": "Fünfzig Blutdruckmessungen",
+        "description": "Erfasse 50 Blutdruckmessungen."
+      },
+      "bp200": {
+        "title": "Zweihundert Blutdruckmessungen",
+        "description": "Erfasse 200 Blutdruckmessungen."
+      },
+      "pulseFirst": {
+        "title": "Erster Puls",
+        "description": "Erfasse deine erste Pulsmessung."
+      },
+      "consistentMonth": {
+        "title": "Konsequenter Monat",
+        "description": "Trage in einem Kalendermonat an mindestens 25 verschiedenen Tagen Daten ein."
+      },
+      "entryStreak7": {
+        "title": "Tracking-Serie 7T",
+        "description": "Trage an 7 aufeinanderfolgenden Tagen mindestens einen Eintrag ein."
+      },
+      "entryStreak30": {
+        "title": "Tracking-Serie 30T",
+        "description": "Trage an 30 aufeinanderfolgenden Tagen mindestens einen Eintrag ein."
+      },
+      "weekendWarrior": {
+        "title": "Wochenend-Tracker",
+        "description": "Trage an 4 aufeinanderfolgenden Samstag-Sonntag-Wochenenden Daten ein."
+      },
+      "hiddenNightOwl": {
+        "title": "Nachteule",
+        "description": "Du hast einen Eintrag zwischen 02:00 und 04:00 Uhr morgens erfasst."
+      },
+      "hiddenEarlyBird": {
+        "title": "Frühaufsteher",
+        "description": "Du hast einen Eintrag zwischen 04:00 und 06:00 Uhr morgens erfasst."
+      },
+      "hiddenLeapDay": {
+        "title": "Schalttag-Legende",
+        "description": "Du hast einen Eintrag am 29. Februar erfasst."
+      },
+      "hiddenDoctorPdf": {
+        "title": "Hausbesuch",
+        "description": "Du hast erstmals einen Arzt-Report als PDF exportiert."
+      },
+      "hiddenLocaleFlip": {
+        "title": "Polyglott",
+        "description": "Du hast die App-Sprache mindestens einmal gewechselt."
+      },
+      "hiddenBugBuddy": {
+        "title": "Bug-Kumpel",
+        "description": "Mindestens 5 Bugreports eingereicht — das Projekt liebt dich."
       }
     },
     "nextProgressLabel": "Fortschritt bis Freischaltung",
@@ -2141,8 +2225,19 @@
     "categories": {
       "medication": "Medikation",
       "vitals": "Vitalwerte",
+      "mood": "Stimmung",
       "security": "Konto & Sicherheit",
-      "engagement": "Engagement"
+      "engagement": "Engagement",
+      "hidden": "Versteckt"
+    },
+    "hiddenCard": {
+      "title": "Versteckter Erfolg",
+      "description": "Tracke fleißig weiter — vielleicht stolperst du darüber.",
+      "ariaLabel": "Versteckter, gesperrter Erfolg"
+    },
+    "hiddenUnlockToast": {
+      "title": "Du hast einen versteckten Erfolg freigeschaltet!",
+      "description": "Tippe, um die Überraschung zu sehen."
     },
     "dashboardCard": {
       "title": "Zuletzt freigeschaltet",

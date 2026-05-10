@@ -61,8 +61,10 @@ const iconMap: Record<string, LucideIcon> = {
 const CATEGORY_LABEL_KEY: Record<AchievementCategory, string> = {
   medication: "achievements.categories.medication",
   vitals: "achievements.categories.vitals",
+  mood: "achievements.categories.mood",
   security: "achievements.categories.security",
   engagement: "achievements.categories.engagement",
+  hidden: "achievements.categories.hidden",
 };
 
 function formatMetric(

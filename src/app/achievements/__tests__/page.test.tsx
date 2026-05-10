@@ -57,6 +57,7 @@ const mockData = {
       unlocked: true,
       progressPercent: 100,
       completedAt: "2026-04-15T12:00:00.000Z",
+      isHidden: false,
     },
     {
       id: "intake-total-10",
@@ -72,6 +73,7 @@ const mockData = {
       unlocked: false,
       progressPercent: 40,
       completedAt: null,
+      isHidden: false,
     },
     {
       id: "passkey-created-1",
@@ -87,6 +89,7 @@ const mockData = {
       unlocked: false,
       progressPercent: 0,
       completedAt: null,
+      isHidden: false,
     },
   ] satisfies AchievementProgress[],
   metrics: {
@@ -103,6 +106,20 @@ const mockData = {
     passwordLoginCount: 0,
     loginDayStreak: 0,
     bugReportCount: 0,
+    moodEntryCount: 0,
+    moodDayStreak: 0,
+    moodImprovementHit: 0,
+    weightMeasurementCount: 0,
+    bpMeasurementCount: 0,
+    pulseMeasurementCount: 0,
+    consistentMonthCount: 0,
+    entryDayStreak: 0,
+    weekendStreakCount: 0,
+    nightOwlCount: 0,
+    earlyBirdCount: 0,
+    leapDayCount: 0,
+    doctorPdfCount: 0,
+    localeFlipCount: 0,
   },
 };
 

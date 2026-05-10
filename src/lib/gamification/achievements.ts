@@ -15,7 +15,25 @@ export type AchievementMetricKey =
   | "passkeyLoginCount"
   | "passwordLoginCount"
   | "loginDayStreak"
-  | "bugReportCount";
+  | "bugReportCount"
+  // v1.4.18 expansion ─ mood
+  | "moodEntryCount"
+  | "moodDayStreak"
+  | "moodImprovementHit"
+  // v1.4.18 expansion ─ measurement counts
+  | "weightMeasurementCount"
+  | "bpMeasurementCount"
+  | "pulseMeasurementCount"
+  // v1.4.18 expansion ─ engagement / consistency
+  | "consistentMonthCount"
+  | "entryDayStreak"
+  | "weekendStreakCount"
+  // v1.4.18 expansion ─ hidden Easter-eggs
+  | "nightOwlCount"
+  | "earlyBirdCount"
+  | "leapDayCount"
+  | "doctorPdfCount"
+  | "localeFlipCount";
 
 /**
  * Achievement categories — used by the /achievements UI to visually group
@@ -23,12 +41,20 @@ export type AchievementMetricKey =
  * not branch on category, and the metric → category mapping is derived in
  * `getAchievementCategory` below so a metric is always in exactly one
  * group.
+ *
+ * v1.4.18 adds two new buckets:
+ *   - `mood` for the new mood-tracking achievements
+ *   - `hidden` for the Easter-egg group (cards always render as opaque
+ *     placeholders until the achievement unlocks; the trigger is never
+ *     leaked to the DOM)
  */
 export type AchievementCategory =
   | "medication"
   | "vitals"
+  | "mood"
   | "security"
-  | "engagement";
+  | "engagement"
+  | "hidden";
 
 export interface AchievementDefinition {
   id: string;
@@ -39,9 +65,31 @@ export interface AchievementDefinition {
   tTitle: string;
   tDescription: string;
   format: "count" | "days" | "percent";
+  /** v1.4.18 — true for hidden Easter-egg achievements. Locked cards
+   * for these never reveal their title/description; only the unlock
+   * surfaces the real strings. */
+  isHidden: boolean;
+  /** v1.4.18 — derived from the metric for visible categories, hard-
+   * coded `hidden` for the Easter-egg group. Lives on the definition
+   * so the discovery filter never has to recompute it. */
+  category: AchievementCategory;
 }
 
-export function getAchievementCategory(
+/**
+ * v1.4.18 — discovery flags. Predicate input for
+ * `applyDiscoveryFilter`. A flag is true iff the user has at least one
+ * data point for the underlying metric (a medication, a mood entry,
+ * etc.). Hidden achievements ignore the flags entirely.
+ */
+export interface EarnabilityFlags {
+  hasMedication: boolean;
+  hasMood: boolean;
+  hasWeight: boolean;
+  hasBp: boolean;
+  hasPulse: boolean;
+}
+
+function categoryForMetric(
   metric: AchievementMetricKey,
 ): AchievementCategory {
   switch (metric) {
@@ -54,27 +102,58 @@ export function getAchievementCategory(
     case "bmiGreenStreak":
     case "bpGreenStreak":
     case "pulseGreenStreak":
+    case "weightMeasurementCount":
+    case "bpMeasurementCount":
+    case "pulseMeasurementCount":
       return "vitals";
+    case "moodEntryCount":
+    case "moodDayStreak":
+    case "moodImprovementHit":
+      return "mood";
     case "passkeyCreatedCount":
     case "passkeyLoginCount":
     case "passwordLoginCount":
       return "security";
     case "loginDayStreak":
     case "bugReportCount":
+    case "consistentMonthCount":
+    case "entryDayStreak":
+    case "weekendStreakCount":
       return "engagement";
+    case "nightOwlCount":
+    case "earlyBirdCount":
+    case "leapDayCount":
+    case "doctorPdfCount":
+    case "localeFlipCount":
+      return "hidden";
   }
 }
 
 /**
- * Stable category render order on the /achievements page. Medication is
- * the densest category (16 / 38 today) so it goes first; engagement is
- * the smallest, last.
+ * @deprecated kept only for legacy callers; new code should read
+ * `AchievementDefinition.category` directly. v1.4.18 made category a
+ * stored field on the definition so hidden Easter-eggs (which share
+ * metrics with no other badge) don't need a special case.
+ */
+export function getAchievementCategory(
+  metric: AchievementMetricKey,
+): AchievementCategory {
+  return categoryForMetric(metric);
+}
+
+/**
+ * Stable category render order on the /achievements page. Mood slots
+ * between vitals and security so the most-used categories cluster at
+ * the top. Hidden goes last so opaque cards don't push real progress
+ * below the fold.
  */
 export const ACHIEVEMENT_CATEGORY_ORDER: readonly AchievementCategory[] = [
   "medication",
   "vitals",
+  "mood",
   "security",
   "engagement",
+  "hidden",
 ] as const;
 
 export interface AchievementMetrics {
@@ -91,6 +170,20 @@ export interface AchievementMetrics {
   passwordLoginCount: number;
   loginDayStreak: number;
   bugReportCount: number;
+  moodEntryCount: number;
+  moodDayStreak: number;
+  moodImprovementHit: number;
+  weightMeasurementCount: number;
+  bpMeasurementCount: number;
+  pulseMeasurementCount: number;
+  consistentMonthCount: number;
+  entryDayStreak: number;
+  weekendStreakCount: number;
+  nightOwlCount: number;
+  earlyBirdCount: number;
+  leapDayCount: number;
+  doctorPdfCount: number;
+  localeFlipCount: number;
 }
 
 export interface AchievementProgress {
@@ -107,6 +200,9 @@ export interface AchievementProgress {
   unlocked: boolean;
   progressPercent: number;
   completedAt: string | null;
+  /** v1.4.18 — mirrored from the definition so the UI can render an
+   * opaque placeholder when locked. */
+  isHidden: boolean;
 }
 
 export interface AchievementSummary {
@@ -135,20 +231,35 @@ function buildStreakAchievements(config: {
   descriptionPrefix: string;
   points: readonly [number, number, number, number, number];
 }): AchievementDefinition[] {
-  return STREAK_TARGETS.map((target, index) => ({
-    id: `${config.idPrefix}-${target}`,
-    metric: config.metric,
-    target,
-    points: config.points[index],
-    icon: config.icon,
-    tTitle: `achievements.badges.${config.titlePrefix}${target}.title`,
-    tDescription: `achievements.badges.${config.descriptionPrefix}${target}.description`,
-    format: "days",
-  }));
+  return STREAK_TARGETS.map((target, index) =>
+    define({
+      id: `${config.idPrefix}-${target}`,
+      metric: config.metric,
+      target,
+      points: config.points[index],
+      icon: config.icon,
+      tTitle: `achievements.badges.${config.titlePrefix}${target}.title`,
+      tDescription: `achievements.badges.${config.descriptionPrefix}${target}.description`,
+      format: "days",
+    }),
+  );
+}
+
+function define(
+  partial: Omit<AchievementDefinition, "isHidden" | "category"> & {
+    isHidden?: boolean;
+  },
+): AchievementDefinition {
+  const isHidden = partial.isHidden ?? false;
+  return {
+    ...partial,
+    isHidden,
+    category: isHidden ? "hidden" : categoryForMetric(partial.metric),
+  };
 }
 
 export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
-  {
+  define({
     id: "intake-total-1",
     metric: "totalTakenIntakes",
     target: 1,
@@ -157,8 +268,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.intakeTotal1.title",
     tDescription: "achievements.badges.intakeTotal1.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "intake-total-10",
     metric: "totalTakenIntakes",
     target: 10,
@@ -167,8 +278,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.intakeTotal10.title",
     tDescription: "achievements.badges.intakeTotal10.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "intake-total-50",
     metric: "totalTakenIntakes",
     target: 50,
@@ -177,8 +288,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.intakeTotal50.title",
     tDescription: "achievements.badges.intakeTotal50.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "intake-total-150",
     metric: "totalTakenIntakes",
     target: 150,
@@ -187,8 +298,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.intakeTotal150.title",
     tDescription: "achievements.badges.intakeTotal150.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "intake-total-300",
     metric: "totalTakenIntakes",
     target: 300,
@@ -197,8 +308,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.intakeTotal300.title",
     tDescription: "achievements.badges.intakeTotal300.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "over-intake-1",
     metric: "overIntakeCount",
     target: 1,
@@ -207,8 +318,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.overIntake1.title",
     tDescription: "achievements.badges.overIntake1.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "skipped-intake-1",
     metric: "skippedIntakeCount",
     target: 1,
@@ -217,8 +328,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.skippedIntake1.title",
     tDescription: "achievements.badges.skippedIntake1.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "passkey-created-1",
     metric: "passkeyCreatedCount",
     target: 1,
@@ -227,8 +338,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.passkeyCreated1.title",
     tDescription: "achievements.badges.passkeyCreated1.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "passkey-login-1",
     metric: "passkeyLoginCount",
     target: 1,
@@ -237,8 +348,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.passkeyLogin1.title",
     tDescription: "achievements.badges.passkeyLogin1.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "password-login-1",
     metric: "passwordLoginCount",
     target: 1,
@@ -247,8 +358,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.passwordLogin1.title",
     tDescription: "achievements.badges.passwordLogin1.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "bugreport-1",
     metric: "bugReportCount",
     target: 1,
@@ -257,8 +368,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.bugReport1.title",
     tDescription: "achievements.badges.bugReport1.description",
     format: "count",
-  },
-  {
+  }),
+  define({
     id: "login-streak-7",
     metric: "loginDayStreak",
     target: 7,
@@ -267,8 +378,8 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.loginStreak7.title",
     tDescription: "achievements.badges.loginStreak7.description",
     format: "days",
-  },
-  {
+  }),
+  define({
     id: "login-streak-30",
     metric: "loginDayStreak",
     target: 30,
@@ -277,7 +388,7 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     tTitle: "achievements.badges.loginStreak30.title",
     tDescription: "achievements.badges.loginStreak30.description",
     format: "days",
-  },
+  }),
   ...buildStreakAchievements({
     idPrefix: "on-time-perfect",
     metric: "onTimePerfectDayStreak",
@@ -317,6 +428,229 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     titlePrefix: "pulseGreen",
     descriptionPrefix: "pulseGreen",
     points: [14, 40, 105, 280, 620],
+  }),
+  // ─── v1.4.18 ─ mood (3) ─────────────────────────────────
+  define({
+    id: "mood-first",
+    metric: "moodEntryCount",
+    target: 1,
+    points: 8,
+    icon: "Smile",
+    tTitle: "achievements.badges.moodFirst.title",
+    tDescription: "achievements.badges.moodFirst.description",
+    format: "count",
+  }),
+  define({
+    id: "mood-streak-7",
+    metric: "moodDayStreak",
+    target: 7,
+    points: 50,
+    icon: "Smile",
+    tTitle: "achievements.badges.moodStreak7.title",
+    tDescription: "achievements.badges.moodStreak7.description",
+    format: "days",
+  }),
+  define({
+    id: "mood-streak-30",
+    metric: "moodDayStreak",
+    target: 30,
+    points: 200,
+    icon: "Smile",
+    tTitle: "achievements.badges.moodStreak30.title",
+    tDescription: "achievements.badges.moodStreak30.description",
+    format: "days",
+  }),
+  define({
+    id: "mood-up-7",
+    metric: "moodImprovementHit",
+    target: 1,
+    points: 90,
+    icon: "Sun",
+    tTitle: "achievements.badges.moodUp7.title",
+    tDescription: "achievements.badges.moodUp7.description",
+    format: "count",
+  }),
+  // ─── v1.4.18 ─ measurement counts (vitals, 7) ───────────
+  define({
+    id: "weight-first",
+    metric: "weightMeasurementCount",
+    target: 1,
+    points: 8,
+    icon: "Scale",
+    tTitle: "achievements.badges.weightFirst.title",
+    tDescription: "achievements.badges.weightFirst.description",
+    format: "count",
+  }),
+  define({
+    id: "weight-50",
+    metric: "weightMeasurementCount",
+    target: 50,
+    points: 90,
+    icon: "Scale",
+    tTitle: "achievements.badges.weight50.title",
+    tDescription: "achievements.badges.weight50.description",
+    format: "count",
+  }),
+  define({
+    id: "weight-200",
+    metric: "weightMeasurementCount",
+    target: 200,
+    points: 320,
+    icon: "Trophy",
+    tTitle: "achievements.badges.weight200.title",
+    tDescription: "achievements.badges.weight200.description",
+    format: "count",
+  }),
+  define({
+    id: "bp-first",
+    metric: "bpMeasurementCount",
+    target: 1,
+    points: 8,
+    icon: "Heart",
+    tTitle: "achievements.badges.bpFirst.title",
+    tDescription: "achievements.badges.bpFirst.description",
+    format: "count",
+  }),
+  define({
+    id: "bp-50",
+    metric: "bpMeasurementCount",
+    target: 50,
+    points: 90,
+    icon: "Heart",
+    tTitle: "achievements.badges.bp50.title",
+    tDescription: "achievements.badges.bp50.description",
+    format: "count",
+  }),
+  define({
+    id: "bp-200",
+    metric: "bpMeasurementCount",
+    target: 200,
+    points: 320,
+    icon: "Trophy",
+    tTitle: "achievements.badges.bp200.title",
+    tDescription: "achievements.badges.bp200.description",
+    format: "count",
+  }),
+  define({
+    id: "pulse-first",
+    metric: "pulseMeasurementCount",
+    target: 1,
+    points: 8,
+    icon: "Activity",
+    tTitle: "achievements.badges.pulseFirst.title",
+    tDescription: "achievements.badges.pulseFirst.description",
+    format: "count",
+  }),
+  // ─── v1.4.18 ─ engagement / consistency (4) ─────────────
+  define({
+    id: "consistent-month",
+    metric: "consistentMonthCount",
+    target: 1,
+    points: 140,
+    icon: "CalendarDays",
+    tTitle: "achievements.badges.consistentMonth.title",
+    tDescription: "achievements.badges.consistentMonth.description",
+    format: "count",
+  }),
+  define({
+    id: "entry-streak-7",
+    metric: "entryDayStreak",
+    target: 7,
+    points: 70,
+    icon: "Flame",
+    tTitle: "achievements.badges.entryStreak7.title",
+    tDescription: "achievements.badges.entryStreak7.description",
+    format: "days",
+  }),
+  define({
+    id: "entry-streak-30",
+    metric: "entryDayStreak",
+    target: 30,
+    points: 260,
+    icon: "Flame",
+    tTitle: "achievements.badges.entryStreak30.title",
+    tDescription: "achievements.badges.entryStreak30.description",
+    format: "days",
+  }),
+  define({
+    id: "weekend-warrior",
+    metric: "weekendStreakCount",
+    target: 4,
+    points: 40,
+    icon: "CalendarCheck",
+    tTitle: "achievements.badges.weekendWarrior.title",
+    tDescription: "achievements.badges.weekendWarrior.description",
+    format: "count",
+  }),
+  // ─── v1.4.18 ─ hidden Easter-eggs (6) ───────────────────
+  // Trigger conditions are not leaked to the user — locked card just
+  // shows the "Hidden" placeholder. Once unlocked, the title +
+  // description appear in the toast and on the card.
+  define({
+    id: "hidden-night-owl",
+    metric: "nightOwlCount",
+    target: 1,
+    points: 25,
+    icon: "Moon",
+    tTitle: "achievements.badges.hiddenNightOwl.title",
+    tDescription: "achievements.badges.hiddenNightOwl.description",
+    format: "count",
+    isHidden: true,
+  }),
+  define({
+    id: "hidden-early-bird",
+    metric: "earlyBirdCount",
+    target: 1,
+    points: 25,
+    icon: "Sun",
+    tTitle: "achievements.badges.hiddenEarlyBird.title",
+    tDescription: "achievements.badges.hiddenEarlyBird.description",
+    format: "count",
+    isHidden: true,
+  }),
+  define({
+    id: "hidden-leap-day",
+    metric: "leapDayCount",
+    target: 1,
+    points: 50,
+    icon: "Sparkles",
+    tTitle: "achievements.badges.hiddenLeapDay.title",
+    tDescription: "achievements.badges.hiddenLeapDay.description",
+    format: "count",
+    isHidden: true,
+  }),
+  define({
+    id: "hidden-doctor-pdf",
+    metric: "doctorPdfCount",
+    target: 1,
+    points: 35,
+    icon: "FileText",
+    tTitle: "achievements.badges.hiddenDoctorPdf.title",
+    tDescription: "achievements.badges.hiddenDoctorPdf.description",
+    format: "count",
+    isHidden: true,
+  }),
+  define({
+    id: "hidden-locale-flip",
+    metric: "localeFlipCount",
+    target: 1,
+    points: 15,
+    icon: "Languages",
+    tTitle: "achievements.badges.hiddenLocaleFlip.title",
+    tDescription: "achievements.badges.hiddenLocaleFlip.description",
+    format: "count",
+    isHidden: true,
+  }),
+  define({
+    id: "hidden-bug-buddy",
+    metric: "bugReportCount",
+    target: 5,
+    points: 60,
+    icon: "Bug",
+    tTitle: "achievements.badges.hiddenBugBuddy.title",
+    tDescription: "achievements.badges.hiddenBugBuddy.description",
+    format: "count",
+    isHidden: true,
   }),
 ];
 
@@ -385,7 +719,7 @@ export function evaluateAchievementsWithCompletionDates(
     return {
       id: definition.id,
       metric: definition.metric,
-      category: getAchievementCategory(definition.metric),
+      category: definition.category,
       titleKey: definition.tTitle,
       descriptionKey: definition.tDescription,
       icon: definition.icon,
@@ -397,6 +731,7 @@ export function evaluateAchievementsWithCompletionDates(
       progressPercent: calculateProgress(current, definition.target),
       completedAt:
         unlocked && completedAtDate ? completedAtDate.toISOString() : null,
+      isHidden: definition.isHidden,
     } satisfies AchievementProgress;
   });
 
@@ -428,4 +763,77 @@ export function evaluateAchievementsWithCompletionDates(
     achievements,
     metrics,
   };
+}
+
+/**
+ * v1.4.18 — discovery filter. Drops public (non-hidden) achievements
+ * the user can never earn yet because they have no underlying data
+ * (e.g. a mood badge for someone who has never logged a mood).
+ *
+ * Three exceptions to the "drop if not earnable" rule:
+ *   1. Already-unlocked achievements stay (regression guard — once
+ *      earned, the badge always renders, even if the user later
+ *      deletes all their data).
+ *   2. Hidden Easter-eggs always stay (the "?" placeholder is the
+ *      whole point).
+ *   3. Achievements without a metric-data precondition (security,
+ *      bugreport, login-streaks) stay because the precondition is
+ *      "the user has an account", which is implicit.
+ */
+export function applyDiscoveryFilter(
+  achievements: AchievementProgress[],
+  flags: EarnabilityFlags,
+): AchievementProgress[] {
+  return achievements.filter((item) => {
+    if (item.unlocked) return true;
+    if (item.category === "hidden") return true;
+    return isEarnable(item.metric, flags);
+  });
+}
+
+function isEarnable(
+  metric: AchievementMetricKey,
+  flags: EarnabilityFlags,
+): boolean {
+  switch (metric) {
+    case "totalTakenIntakes":
+    case "overIntakeCount":
+    case "skippedIntakeCount":
+    case "onTimePerfectDayStreak":
+    case "compliance80DayStreak":
+      return flags.hasMedication;
+    case "moodEntryCount":
+    case "moodDayStreak":
+    case "moodImprovementHit":
+      return flags.hasMood;
+    case "weightMeasurementCount":
+    case "bmiGreenStreak":
+      return flags.hasWeight;
+    case "bpMeasurementCount":
+    case "bpGreenStreak":
+      return flags.hasBp;
+    case "pulseMeasurementCount":
+    case "pulseGreenStreak":
+      return flags.hasPulse;
+    case "passkeyCreatedCount":
+    case "passkeyLoginCount":
+    case "passwordLoginCount":
+    case "loginDayStreak":
+    case "bugReportCount":
+    case "consistentMonthCount":
+    case "entryDayStreak":
+    case "weekendStreakCount":
+      // No metric-data precondition — the user has an account, so the
+      // achievement is always discoverable.
+      return true;
+    case "nightOwlCount":
+    case "earlyBirdCount":
+    case "leapDayCount":
+    case "doctorPdfCount":
+    case "localeFlipCount":
+      // Hidden achievements are filtered by category check above; this
+      // branch is only reached if a hidden definition's category got
+      // misconfigured. Stay defensive.
+      return true;
+  }
 }

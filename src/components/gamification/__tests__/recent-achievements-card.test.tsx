@@ -63,6 +63,7 @@ const baseAchievement: AchievementProgress = {
   unlocked: true,
   progressPercent: 100,
   completedAt: "2026-04-15T12:00:00.000Z",
+  isHidden: false,
 };
 
 describe("pickRecentUnlocks", () => {
