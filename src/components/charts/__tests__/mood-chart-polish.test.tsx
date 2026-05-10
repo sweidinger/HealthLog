@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 /**
  * v1.4.18 — MoodChart clean-line revert (gradient + emoji rolled back).
@@ -55,5 +57,21 @@ describe("<MoodChart> v1.4.18 clean-line revert", () => {
     expect(html).not.toContain("data-slot=\"chart-linear-gradient\"");
     expect(html).not.toContain("chart-gradient-mood");
     expect(html).not.toContain("linearGradient");
+  });
+
+  it("does NOT render emoji glyphs at data points (source check)", async () => {
+    // Marc explicitly rejected smileys, especially in the mood chart.
+    // Recharts does not paint <Line> dots during SSR (the dot callback
+    // only fires after first client render), so the emoji wouldn't
+    // surface in renderToStaticMarkup output anyway. Inspecting the
+    // module source guarantees the glyph map and the `<text>` glyph
+    // factory are gone — we don't want a regression where someone
+    // reintroduces them and SSR tests still pass.
+    const moduleUrl = new URL("../mood-chart.tsx", import.meta.url);
+    const src = readFileSync(fileURLToPath(moduleUrl), "utf8");
+
+    expect(src).not.toContain("moodEmoji");
+    expect(src).not.toContain("mood-emoji-glyph");
+    expect(src).not.toMatch(/[\u{1F600}-\u{1F64F}]/u);
   });
 });

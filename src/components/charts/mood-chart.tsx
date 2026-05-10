@@ -56,7 +56,7 @@ interface MoodChartProps {
   /**
    * v1.4.16 phase B5c — compact mode for embedding inside the
    * RecommendationCard. Hides the range tabs / toggle row and shrinks
-   * padding. Tooltip + emoji glyphs at data points stay intact.
+   * padding. Tooltip stays intact.
    */
   mini?: boolean;
   /**
@@ -457,16 +457,10 @@ export function MoodChart({
     5: t("charts.moodLabel5"),
   };
 
-  // v1.4.16 B1a — emoji glyph per integer mood score. Apple Health
-  // surfaces a smiley/frown alongside the value; mirroring that here
-  // makes the chart scannable without a legend.
-  const moodEmoji: Record<number, string> = {
-    1: "\u{1F616}", // 😖
-    2: "\u{1F641}", // 🙁
-    3: "\u{1F610}", // 😐
-    4: "\u{1F642}", // 🙂
-    5: "\u{1F604}", // 😄
-  };
+  // v1.4.18 — emoji glyph map removed. Marc explicitly rejected
+  // smileys in the mood chart; the line now uses plain Recharts dots
+  // and the y-axis already labels each integer (very low / low / okay
+  // / good / great) so the chart is fully scannable without a glyph.
 
   const formatMoodTick = (value: number): string => {
     return moodLabels[value] ?? String(value);
@@ -812,41 +806,8 @@ export function MoodChart({
                   name="score"
                   stroke={COLOR_MAIN}
                   strokeWidth={2}
-                  // v1.4.16 B1a — emoji glyph at every data point. The
-                  // dot prop accepts a function returning an SVG node,
-                  // so we render <text> with the emoji centred over the
-                  // (cx, cy) the line layout already computed.
-                  dot={(props) => {
-                    const { cx, cy, payload, key } = props as {
-                      cx?: number;
-                      cy?: number;
-                      payload?: ChartDataPoint;
-                      key?: string | number;
-                    };
-                    if (
-                      typeof cx !== "number" ||
-                      typeof cy !== "number" ||
-                      !payload
-                    ) {
-                      return <g key={key} />;
-                    }
-                    const rounded = Math.round(payload.score);
-                    const glyph = moodEmoji[rounded] ?? "•";
-                    return (
-                      <text
-                        key={key}
-                        x={cx}
-                        y={cy + 5}
-                        textAnchor="middle"
-                        fontSize={14}
-                        data-slot="mood-emoji-glyph"
-                        data-score={rounded}
-                      >
-                        {glyph}
-                      </text>
-                    );
-                  }}
-                  activeDot={{ r: 6 }}
+                  dot={{ r: 3, fill: COLOR_MAIN }}
+                  activeDot={{ r: 5 }}
                   connectNulls
                   isAnimationActive={animationsEnabled}
                   animationDuration={animationsEnabled ? 600 : 0}
