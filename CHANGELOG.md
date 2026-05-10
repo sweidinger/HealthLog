@@ -1,5 +1,109 @@
 # Changelog
 
+## [1.4.19] — 2026-05-10
+
+### Fixed
+
+- **BD-Zielbereich headline now shows independent values for 7T / 30T /
+  total.** The big number used to be identical to the 30T sub-value
+  because `/api/analytics` aliased `bpInTargetPct` to `last30Days?.pct`.
+  `computeBpInTargetWindows()` now returns a third `allTime` window and
+  the route routes the headline through it, so the three numbers can
+  legitimately differ (Marc's data: 50 % / 50 % / 10.8 %).
+- **Charts mobile header no longer breaks the layout on Pixel 5.** The
+  card header switches to a mobile-first stack below `sm` (title +
+  chips on row 1, range tabs + cog right-aligned on row 2 with
+  `flex-nowrap`) so the tabs always own a single row down to 280 px
+  (Galaxy Fold compact). Bucket-aggregation chips and comparison
+  captions hide on mobile to free horizontal budget.
+- **Charts x-axis tick density unified across every chart wrapper.**
+  New `src/lib/charts/x-axis-density.ts` helper + `useViewportWidth`
+  hook caps visible ticks at 4 (Fold) / 6 (Pixel 5 / iPhone 12) / 8
+  (small tablet) / 10 (desktop). Wired into HealthChart, MoodChart,
+  MedicationComplianceChart, and ComplianceLineChart, so the
+  medication chart no longer overloads with one tick per day.
+- **`/admin/api-tokens` table no longer triggers a horizontal
+  scrollbar at any viewport (4th attempt).** Truncate-with-tooltip
+  pattern on token-name, username, and permission badge, plus
+  `table-fixed` + colgroup widths on the desktop table. Mobile falls
+  back to the existing card list, now walked end-to-end by an e2e
+  regression.
+- **Spurious mini-scrollbar on `/admin/feedback` tab strip.** The
+  shared `tabsListVariants` primitive picked up `overflow-y-hidden`
+  so the strip no longer paints a 1 px slither below the tabs.
+- **`/insights` raw `metric: blood_pressure_sweet` template leak.**
+  `STRIP_TOKEN_REGEX` widened to `[A-Za-z0-9_]+` so lowercase template
+  remnants are scrubbed from AI prose; the uppercase render allowlist
+  (`PARSE_TOKEN_REGEX`) is unchanged.
+- **AdminShell hides the collapse button on single-section pages.**
+  No more dead "Einklappen" affordance when the route only exposes
+  one section.
+- **Mobile Sys/Dia badge enum mismatch on blood-pressure rows.**
+  CRITICAL from QA — the badge enum on mobile measurement rows
+  decoded the wrong key. Fixed before tag with a TDD guard.
+- **6 CRITICAL + 21 HIGH copy / consistency / a11y findings from the
+  quality-of-life audit.** Time-window range strings now respect the
+  active locale, login overview filters out non-auth events, the
+  date / datetime input pair forwards `lang` so the native picker
+  uses the user's locale, raw enum badges are humanised, audit-action
+  labels are localised and link back to the row, achievement titles
+  no longer insult the user, and a long tail of admin / settings copy
+  consistency.
+
+### Changed
+
+- **Settings → Integrations status displays consolidated.** Withings
+  and Mood Log cards now share a single canonical
+  `<IntegrationStatusPill>` chip top-right ("Connected · 12 min ago"
+  with locale-aware relative-time bucketing). The redundant v1.4.15
+  banner trio (`connected / last successful / last attempt`) and Mood
+  Log's bottom-of-card "letzter Sync" line are gone; both cards now
+  carry a divider between header and body for visual symmetry.
+  Actionable error text stays as a compact inline alert above the
+  action row.
+- **Comparison overlay control removed from the dashboard.** The
+  toggle now lives only on `/insights`, folded into the hero meta
+  band where there is room for it. The dashboard ditches the
+  always-visible knob.
+- **`/insights`: single page-level refresh button.** The hero owns
+  the only refresh affordance; redundant per-section refresh links
+  removed (the per-recommendation Regenerate button from v1.4.16
+  stays).
+- **`/insights`: small BP / Weight tile strip removed.** Duplicated
+  the dashboard tiles. `-157` lines on `src/app/insights/page.tsx`
+  plus dead helpers, plus the orphan "Persönlicher AI Berater"
+  subtitle.
+- **AI insight prompt no longer opens with a default-positivity
+  sentence about data quality.** GROUND RULE 7 (EN + DE) forbids
+  "Your data foundation is strong" / "Datengrundlage ist sehr stark"
+  openers; data-quality caveats only allowed when n < 7 in the
+  analyzed window, recencyDays > 14, or a coverage gap biases the
+  comparison. `PROMPT_VERSION` bumped 4.16.1 → 4.19.0 so feedback
+  aggregation can attribute responses to the new rule.
+- **Settings input heights, vertical spacing, and right-side action
+  buttons consistent across all sub-routes (mobile + desktop).**
+  Every form input is now 36 px (`h-9`); Account → Password,
+  Account → Restart onboarding tour, and Dashboard → Reset to
+  defaults stack the action below the title on `<sm` (full-width)
+  and right-align on `≥sm`, fixing the Pixel-5 right-edge overflow
+  on the tour button. Sprache select gets its own row at the bottom
+  of the Profile card; card-internal `space-y` standardised to
+  `space-y-4`.
+- **Zielwerte status labels translated to German** (Low / On Target
+  / Stable / Moderate). 11 `targets.label.<TYPE>` + 41
+  `targets.status.<key>` entries in EN + DE; page uses
+  `STATUS_CATEGORY_KEY` to normalise server strings.
+
+### Deferred to v1.4.20
+
+- 3 HIGH from QA — `/insights` `data?.` narrowing refactor,
+  `/admin/api-tokens` touch-tooltip (needs Popover swap), and
+  `/insights` hero density (folded into the v1.4.20 redesign).
+- 31 MED + 16 LOW from the quality-of-life audit. Short-list at
+  `.planning/v1420-backlog.md`.
+- `/insights` redesign with AI Coach — separate roadmap, design
+  handoff at `~/Downloads/design_handoff_insights_redesign`.
+
 ## [1.4.18] — 2026-05-10
 
 ### Added
