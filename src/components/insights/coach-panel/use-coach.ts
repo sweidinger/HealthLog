@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useMutation,
   useQuery,
@@ -243,6 +243,14 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
     useState<CoachStreamingMessage>(EMPTY_STREAMING);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Stash `opts` in a ref so callers can pass an inline-literal object
+  // (`useSendCoachMessage({ onDone: … })`) without re-memoising `send`
+  // on every render. The hook owns the latest-callback-wins contract.
+  const optsRef = useRef(opts);
+  useEffect(() => {
+    optsRef.current = opts;
+  }, [opts]);
+
   const reset = useCallback(() => {
     setStreaming(EMPTY_STREAMING);
   }, []);
@@ -290,7 +298,27 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         return;
       }
 
-      if (!response.ok || !response.body) {
+      if (!response.body) {
+        setStreaming({
+          content: "",
+          metricSource: null,
+          inProgress: false,
+          messageId: null,
+          errorCode: `coach.http.${response.status}`,
+        });
+        return;
+      }
+
+      // Even on `!response.ok`, the route may have emitted a structured
+      // `error` frame in an SSE body (e.g. 4xx/5xx + text/event-stream).
+      // Falling back to `coach.http.<status>` would discard the richer
+      // `errorCode`. Read the stream and let the parser route the frame
+      // through the same path as the success case.
+      const contentType = response.headers.get("Content-Type") ?? "";
+      const isEventStream = contentType
+        .toLowerCase()
+        .startsWith("text/event-stream");
+      if (!response.ok && !isEventStream) {
         setStreaming({
           content: "",
           metricSource: null,
@@ -375,10 +403,10 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           queryKey: QUERY_KEYS.one(resolvedConversationId),
         });
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.list() });
-        opts.onDone?.(resolvedConversationId);
+        optsRef.current.onDone?.(resolvedConversationId);
       }
     },
-    [opts, queryClient],
+    [queryClient],
   );
 
   const cancel = useCallback(() => {

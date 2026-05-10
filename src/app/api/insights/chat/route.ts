@@ -30,7 +30,6 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
 import { apiSuccess } from "@/lib/api-response";
-import { withIdempotency } from "@/lib/idempotency";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 
@@ -227,11 +226,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
       annotate({
         action: { name: "insights.coach.noProvider" },
       });
-      return streamProviderError({
-        conversationId: workingConversationId,
-        snapshot: snapshot.provenance,
-        code: "coach.provider.none",
-      });
+      return streamProviderError({ code: "coach.provider.none" });
     }
     chain.push({ providerType: "admin-openai", instance: legacy });
   }
@@ -260,22 +255,14 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
           firstStatus: err.attempts[0]?.httpStatus ?? null,
         },
       });
-      return streamProviderError({
-        conversationId: workingConversationId,
-        snapshot: snapshot.provenance,
-        code: "coach.provider.unavailable",
-      });
+      return streamProviderError({ code: "coach.provider.unavailable" });
     }
     throw err;
   }
 
   const replyText = (result.content ?? "").trim();
   if (!replyText) {
-    return streamProviderError({
-      conversationId: workingConversationId,
-      snapshot: snapshot.provenance,
-      code: "coach.provider.empty",
-    });
+    return streamProviderError({ code: "coach.provider.empty" });
   }
 
   // Persist the assistant message BEFORE we begin streaming; if the
@@ -403,11 +390,7 @@ async function streamRefusal(args: {
   return new Response(stream, { status: 200, headers: SSE_HEADERS });
 }
 
-function streamProviderError(args: {
-  conversationId: string;
-  snapshot: ReturnType<typeof Object.assign>;
-  code: string;
-}): Response {
+function streamProviderError(args: { code: string }): Response {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       try {
@@ -423,33 +406,22 @@ function streamProviderError(args: {
       }
     },
   });
-  return new Response(stream, { status: 503, headers: SSE_HEADERS });
+  // Status 200 so the streaming client reads the SSE body and parses
+  // the structured `error` frame (HTTP-status branches drop the
+  // structured code on the floor).
+  return new Response(stream, { status: 200, headers: SSE_HEADERS });
 }
 
-const handler = apiHandler(async (request: NextRequest) => {
-  // Idempotency wrap is applied only when the user is creating a new
-  // conversation (the spec). For follow-up turns inside an existing
-  // thread, retries SHOULD hit the route again — every turn is a real
-  // server-side action, not a duplicate-prone POST.
-  let cloneForCheck: NextRequest | undefined = undefined;
-  let conversationId: string | undefined = undefined;
-  try {
-    cloneForCheck = request.clone() as NextRequest;
-    const body = await cloneForCheck.json();
-    if (typeof body?.conversationId === "string") {
-      conversationId = body.conversationId;
-    }
-  } catch {
-    // fall through; validation will surface the issue inside the
-    // handler.
-  }
-  if (conversationId) {
-    return handleChatRequest(request);
-  }
-  return withIdempotency(handleChatRequest)(request);
-});
-
-export const POST = handler;
+// Idempotency is intentionally NOT applied to this SSE-streaming route.
+// `withIdempotency()` caches the response body via `cloned.text()` and
+// replays it through `NextResponse.json(JSON.parse(...))` — that path
+// turns an SSE wire format (`data: …\n\n` frames) into a `null` body
+// because the cached text isn't JSON. The PWA never sets
+// `Idempotency-Key` here so the bug is invisible today, but the iOS
+// client does. Dedup still holds: a duplicate first-turn POST creates
+// a second conversation row (cheap), and follow-up turns are gated by
+// the conversationId existence check + 20-turn cap.
+export const POST = apiHandler(handleChatRequest);
 
 /**
  * GET /api/insights/chat?cursor=<id>&limit=<n>
