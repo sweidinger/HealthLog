@@ -1,5 +1,132 @@
 # Changelog
 
+## [1.4.20] — 2026-05-10
+
+### Added
+
+- **Insights redesign — hero strip, Daily Briefing, Suggested Prompts.**
+  `/insights` opens with a new hero strip that pairs a time-of-day
+  greeting and primary action row with a strip of suggested-prompt
+  chips. Below the hero, a Daily Briefing card surfaces an AI-generated
+  paragraph plus three keyFindings drawn from the last 24-hour window.
+  Suggested-prompt chips drive the Coach drawer with prefill text.
+- **AI Coach drawer with streaming chat and encrypted persistence.**
+  A right-side drawer over `/insights` hosts a streaming Coach
+  conversation. `POST /api/insights/chat` is an SSE endpoint that
+  walks the existing AI provider chain and emits `token` →
+  `provenance` → `done` frames. Conversation history persists across
+  sessions; `GET /api/insights/chat`, `GET /api/insights/chat/[id]`,
+  and `DELETE /api/insights/chat/[id]` round-trip the history rail.
+  Source-chip provenance attaches to every assistant turn (metric,
+  window, n-count — labels only, never raw values). The drawer mounts
+  via the hero strip's "Ask the coach" button or any suggested-prompt
+  chip. Three-column layout on `lg+` (history rail · message thread ·
+  sources rail), full-screen single-column on mobile with chevron-
+  button trays for the rails.
+- **Correlation discovery — 3 hypothesis cards.** A new
+  `<CorrelationRow>` between Daily Briefing and the Advisor card
+  surfaces three pre-defined hypotheses (BP × medication compliance,
+  mood × pulse, weight × weekday) with Pearson r + Fisher-z
+  confidence interval. Surfacing gate: n ≥ 14 paired observations
+  and p < 0.05; below the gate the cards stay collapsed.
+- **Trends row with AI annotations.** A new `<TrendsRow>` mounts
+  alongside the correlation cards. Each annotation is a short
+  AI-generated callout tied to a specific date in the analyzed
+  window; the BP timeline gains storyboard markers at the same
+  positions via an additive `annotations[]` prop on `<HealthChart>`.
+- **Weekly Report at `/insights/report/[week]`.** A newsletter-style
+  printable surface with Summary / Going-well / Worth-watching /
+  Tips / Data-quality sections. `window.print()` export via
+  Tailwind `print:` variants; the hero strip surfaces fresh weekly
+  reports with Read · Share · Export PDF actions (Web Share API
+  with clipboard fallback).
+- **Personal Health Score (composite 0–100).** A deterministic
+  `<HealthScoreCard>` panel renders alongside the hero strip on
+  `lg+`. Score weights: 30% BP-target rate + 20% weight-trend
+  alignment + 20% mood stability + 30% medication compliance.
+  Three bands (green ≥75, yellow 50–74, red <50). "Ask the
+  Coach" CTA opens the drawer with a score-aware prefill.
+
+### Changed
+
+- **`PROMPT_VERSION` 4.19.0 → 4.20.2.** Three controlled bumps
+  across B1 → B3 → B4 carry GROUND RULES 8–11 covering the new
+  schema fields. `aiInsightResponseSchema` extended with optional
+  `dailyBriefing` / `trendAnnotations` / `weeklyReport` /
+  `storyboardAnnotations` / `healthScore` blocks; legacy v1.4.19
+  cached payloads still parse because every new field is nullable
+  + optional.
+- **Branch + release model.** `CONTRIBUTING.md` documents a
+  long-lived `develop` branch as the daily target and `main` as
+  release-only. End users follow `main` / latest tag; contributors
+  branch from and PR into `develop`. The mirror page at
+  `/contributing/branch-model/` on the docs site explains the
+  same flow for would-be contributors.
+- **Repository hygiene.** New `.github/CODE_OF_CONDUCT.md`
+  (Contributor Covenant 2.1), three issue templates, a pull-request
+  template, expanded Dependabot scopes (npm + github-actions +
+  docker), and complete `package.json` metadata (description,
+  license, homepage, repository, bugs, keywords).
+
+### Fixed
+
+- **Coach SSE idempotency replay no longer returns null.** The
+  idempotency wrapper double-read the body on replay; the streaming
+  route now caches the original SSE response correctly. Also
+  repairs the dead error-frame branch and stabilises
+  `useSendCoachMessage` opts.
+- **Streaming assistant text announces to screen readers.** The
+  message thread now has `aria-live="polite"` on the in-flight
+  bubble so token-by-token streams reach assistive tech.
+- **Coach drawer width capped on `lg+`.** Drawer no longer hits
+  1080 px on common laptops; sources rail moves to a tray below
+  `xl`.
+- **Hero glow z-isolation under sticky nav.** The hero radial
+  glow used to bleed through the sticky section nav on scroll.
+- **Suggested-prompt chip touch target ≥ 36 px.** Was 28 px,
+  below the project's interactive-control floor.
+- **"Generate weekly report" hero button enabled.** Previously
+  rendered disabled; now wired to the report route.
+- **`buildCoachSnapshot` bounded to 90 days.** The Coach context
+  helper used to walk every measurement on every turn; capped at
+  90 days to keep token cost predictable.
+- **`formatRelativeTime` consolidated.** Three near-identical
+  copies in the insights surfaces collapsed into one shared
+  helper.
+
+### Security
+
+- **Coach conversation persistence is encrypted at rest.** New
+  Prisma models `CoachConversation`, `CoachMessage`, and
+  `CoachUsage` (migration `0035_coach_conversations_v1420`) store
+  message bodies under AES-256-GCM via the existing `crypto.ts`.
+  Provenance lives in `metricSourceJson` as labels only (metric,
+  window, n-count) — never raw values. GDPR cascade-on-user-delete
+  wired through the FK chain.
+- **Prompt-injection refusal pattern.** The Coach SSE route runs
+  every incoming message through an EN+DE refusal scanner that
+  short-circuits prompt-injection attempts and obvious off-topic
+  asks before the provider call.
+- **Per-user daily token budget.** `CoachUsage` ledgers
+  (user, UTC-day) → tokens; the 25 000-token cap (≈13 turns for
+  a heavy user) prevents runaway spend on shared provider keys.
+
+### Deferred to v1.4.21
+
+- 22 MED + 16 LOW + 4 simplify-apply-maybe items from the multi-
+  reviewer Phase-D pass. Highlights at `.planning/v1421-backlog.md`
+  include: senior-dev call to consolidate the duplicated
+  Pearson / linear-regression maths layer; refactor the
+  `<CoachDrawer key={prefill}>` state-reset shortcut into a
+  controlled prefill prop; transactional `recordSpend()`; refusal
+  accounting + lexicon expansion.
+
+### Deferred to v1.5
+
+- iOS native app, Apple Health integration, and per-metric APNs
+  alerts. Strategic plan at
+  `.planning/phase-D-v1420-product-lead-review.md`.
+
 ## [1.4.19] — 2026-05-10
 
 ### Fixed
