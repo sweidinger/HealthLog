@@ -16,6 +16,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/ui/logo";
 import { MeasurementForm } from "@/components/measurements/measurement-form";
@@ -301,10 +302,8 @@ export default function OnboardingPage() {
 
           <div className="space-y-2">
             <Label htmlFor="ob-dob">{t("settings.dateOfBirth")}</Label>
-            <Input
+            <DateInput
               id="ob-dob"
-              type="date"
-              lang={locale}
               value={dateOfBirth}
               onChange={(e) => setDateOfBirth(e.target.value)}
               max={new Date().toISOString().slice(0, 10)}

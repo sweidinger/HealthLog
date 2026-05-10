@@ -23,7 +23,7 @@ import {
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { toCSV } from "@/lib/export";
-import { type AdminAuditEntry } from "./_shared";
+import { type AdminAuditEntry, useAuthActionLabels } from "./_shared";
 
 type DateRangePreset = "all" | "24h" | "7d" | "30d";
 type PerPageValue = 25 | 50 | 100;
@@ -67,19 +67,7 @@ export function LoginOverviewSection() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState<PerPageValue>(50);
 
-  const AUTH_ACTION_LABELS: Record<string, string> = {
-    "auth.register": t("admin.authRegister"),
-    "auth.login": t("admin.authLogin"),
-    "auth.login.passkey": t("admin.authLoginPasskey"),
-    "auth.login.password": t("admin.authLoginPassword"),
-    "auth.login.failed": t("admin.authLoginFailed"),
-    "auth.logout": t("admin.authLogout"),
-    "auth.passkey.register": t("admin.authPasskeyRegister"),
-    "auth.passkey.delete": t("admin.authPasskeyDelete"),
-    "auth.token.autoissue.native": t("admin.authTokenAutoissueNative"),
-    "auth.token.refresh": t("admin.authTokenRefresh"),
-    "auth.token.revoke": t("admin.authTokenRevoke"),
-  };
+  const AUTH_ACTION_LABELS = useAuthActionLabels();
 
   // Build the query string once so it's reused by the data-query key, the
   // export download, and the next-/prev- buttons.

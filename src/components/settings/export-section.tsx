@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -253,17 +253,15 @@ function DateRangeFields({
   setUntil,
   idPrefix,
 }: DateRangeFieldsProps) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
         <Label htmlFor={`${idPrefix}-since`} className="text-xs">
           {t("settings.sections.export.filters.since")}
         </Label>
-        <Input
+        <DateInput
           id={`${idPrefix}-since`}
-          type="date"
-          lang={locale}
           value={since}
           onChange={(e) => setSince(e.target.value)}
           max={until || undefined}
@@ -273,10 +271,8 @@ function DateRangeFields({
         <Label htmlFor={`${idPrefix}-until`} className="text-xs">
           {t("settings.sections.export.filters.until")}
         </Label>
-        <Input
+        <DateInput
           id={`${idPrefix}-until`}
-          type="date"
-          lang={locale}
           value={until}
           onChange={(e) => setUntil(e.target.value)}
           min={since || undefined}

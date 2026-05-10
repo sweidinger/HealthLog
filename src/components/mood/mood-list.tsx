@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -117,7 +118,7 @@ interface MoodListProps {
 }
 
 export function MoodList({ onAddFirst }: MoodListProps = {}) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
@@ -569,10 +570,8 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                 <Label htmlFor="edit-mood-logged-at">
                   {t("mood.timestamp")}
                 </Label>
-                <Input
+                <DateTimeInput
                   id="edit-mood-logged-at"
-                  type="datetime-local"
-                  lang={locale}
                   value={editMoodLoggedAt}
                   onChange={(e) => setEditMoodLoggedAt(e.target.value)}
                   required

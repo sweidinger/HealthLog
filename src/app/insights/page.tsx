@@ -222,13 +222,6 @@ interface MedicationComplianceDailyResponse {
 }
 
 /**
- * v1.4.19 A3 — `getRangeColorClass` / `getRangeHint` /
- * `RangeDisplayConfig` removed alongside the `<TrendCard>` tile-strip
- * deletion. Those helpers were only used by the duplicate-of-dashboard
- * tile grid; every other call site lives on the dashboard surface.
- */
-
-/**
  * v1.4.16 phase B1b — pick the freshest ISO timestamp from a list so the
  * page hero's "Generated …" caption surfaces a single representative
  * value across the per-section caches. Returns null when nothing's
@@ -645,10 +638,6 @@ export default function InsightsPage() {
   const sys = analytics?.summaries?.BLOOD_PRESSURE_SYS;
   const dia = analytics?.summaries?.BLOOD_PRESSURE_DIA;
   const p = analytics?.summaries?.PULSE;
-  // v1.4.19 A3 — `bf` / `showBodyFatCard` / `moodSummary` /
-  // `showMoodCard` were bookkeeping for the now-removed duplicate
-  // tile strip (Marc said those tiles duplicate the dashboard).
-  // Remaining mood references read `data?.moodSummary` inline below.
   const bmiDivisor = user?.heightCm ? (user.heightCm / 100) ** 2 : null;
   // bmiAvg30 and bmiSlope30 still used for overallStatus + bmiSectionStatus
   const bmiAvg30 = bmiDivisor && w?.avg30 != null ? w.avg30 / bmiDivisor : null;
@@ -853,12 +842,6 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-8">
-      {/* v1.4.19 A3 — comparison toggle is now mounted INSIDE the hero
-          meta band (alongside personal-baseline indicator + Generated
-          timestamp + Regenerate button). The previous standalone band
-          below the hero made the page read as three stacked cards
-          with separate header / control rows; folding the toggle into
-          the hero clusters every page-level control in one place. */}
       <InsightsPageHero
         updatedAt={advisor.payload?.cachedAt ?? heroUpdatedAt}
         onRegenerate={advisor.regenerate}
@@ -869,24 +852,8 @@ export default function InsightsPage() {
       {/* v1.4.16 phase D reconcile (CRITICAL C1) — wire the polished
           `<InsightAdvisorCard>` (severity-ordered recommendations grid +
           per-rec rationale expand + confidence meter + thumbs feedback +
-          medical-citation footnotes) into the live route. Before this
-          fix the page rendered only the text-only `<InsightStatusCard>`
-          per section, hiding all of B5c/d/e/B1b's polish from users.
-          The per-section status cards stay below as supplemental detail.
-
-          v1.4.19 A3 — `onRegenerate` is no longer wired here. The page
-          hero already owns the single page-level refresh affordance;
-          the card-level icon button + empty-state "Analyse starten"
-          button were duplicates that surfaced the same handler three
-          ways (page hero button, card-header icon button,
-          empty-state CTA). The per-recommendation Regenerate (inside
-          `<RecommendationCard>`) is unrelated — it stays under the
-          v1.4.16 spec. The placeholder `aiOverviewTitle`
-          ("Persönlicher Berater") subtitle is also gone — the
-          CardTitle ("KI-Gesundheitsanalyse") is enough framing on its
-          own, and the orphan title above an empty body when the user
-          has no provider configured was the actual confusion source
-          Marc reported. */}
+          medical-citation footnotes) into the live route. The
+          per-section status cards stay below as supplemental detail. */}
       <InsightAdvisorCard
         insight={advisor.payload?.insights ?? null}
         loading={advisor.isLoading}
@@ -896,15 +863,6 @@ export default function InsightsPage() {
       />
 
       <InsightsSectionNav />
-
-      {/* v1.4.19 A3 — duplicate per-metric `<TrendCard>` strip removed.
-          Up to v1.4.18 the page led with a 5-column grid of weight /
-          BP-sys / BP-dia / pulse / body-fat / mood tiles — exact
-          duplicates of the dashboard tile-strip. They added zero
-          information beyond what's already on the dashboard. The
-          recommendations grid + per-section detail cards below are
-          the actual value on `/insights`; the tiles only consumed
-          scroll height. */}
 
       <section id="section-general" className="scroll-mt-28 space-y-2">
         <div className="flex items-center gap-2">

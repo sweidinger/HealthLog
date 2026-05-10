@@ -35,6 +35,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/settings/password-input";
 import { useAuth } from "@/hooks/use-auth";
@@ -383,10 +384,8 @@ export function AccountSection() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="dob">{t("settings.dateOfBirth")}</Label>
-              <Input
+              <DateInput
                 id="dob"
-                type="date"
-                lang={locale}
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
                 max={new Date().toISOString().slice(0, 10)}

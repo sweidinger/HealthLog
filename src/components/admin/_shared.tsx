@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
@@ -255,6 +256,34 @@ export async function getApiErrorMessage(response: Response): Promise<string> {
     return fallback;
   }
   return fallback;
+}
+
+/**
+ * Shared `auth.*` audit-action label map. Two surfaces consume it
+ * today (`/admin/login-overview` and the dashboard recent-activity
+ * preview), and any future audit feed will need the same translation
+ * lookup. New auth actions are added here once instead of being
+ * copy-pasted into every consumer.
+ */
+export function useAuthActionLabels(): Record<string, string> {
+  const { t, locale } = useTranslations();
+  return useMemo(
+    () => ({
+      "auth.register": t("admin.authRegister"),
+      "auth.login": t("admin.authLogin"),
+      "auth.login.passkey": t("admin.authLoginPasskey"),
+      "auth.login.password": t("admin.authLoginPassword"),
+      "auth.login.failed": t("admin.authLoginFailed"),
+      "auth.logout": t("admin.authLogout"),
+      "auth.passkey.register": t("admin.authPasskeyRegister"),
+      "auth.passkey.delete": t("admin.authPasskeyDelete"),
+      "auth.token.autoissue.native": t("admin.authTokenAutoissueNative"),
+      "auth.token.refresh": t("admin.authTokenRefresh"),
+      "auth.token.revoke": t("admin.authTokenRevoke"),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [locale],
+  );
 }
 
 export function useSystemStatus() {

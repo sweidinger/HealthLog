@@ -491,17 +491,6 @@ export default function DashboardPage() {
         </DropdownMenu>
       </div>
 
-      {/* v1.4.19 A3 — comparison toggle removed from dashboard.
-          The tile strip is too tight for an extra control band, and
-          Marc rarely wants Vormonat / Vorjahr context at a glance —
-          when he does, it's on `/insights` where the chart sits next
-          to the toggle. The underlying `compareBaseline` value still
-          flows from `/api/dashboard/widgets` into every chart below
-          so nothing visual changes when the user has the comparison
-          on; only the on-surface affordance moves. Settings →
-          Dashboard remains the power-user backdoor for either
-          surface. */}
-
       {/* v1.4: Getting-started checklist for brand-new users.
        * Self-gates visibility on (onboardingCompletedAt == null
        * || measurementCount < 5) and disappears once dismissed

@@ -21,7 +21,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
-import { type AdminAuditEntry } from "./_shared";
+import { type AdminAuditEntry, useAuthActionLabels } from "./_shared";
 
 const PREVIEW_LIMIT = 10;
 
@@ -47,19 +47,7 @@ export function RecentAuditPreview() {
     staleTime: 30_000,
   });
 
-  const AUTH_ACTION_LABELS: Record<string, string> = {
-    "auth.register": t("admin.authRegister"),
-    "auth.login": t("admin.authLogin"),
-    "auth.login.passkey": t("admin.authLoginPasskey"),
-    "auth.login.password": t("admin.authLoginPassword"),
-    "auth.login.failed": t("admin.authLoginFailed"),
-    "auth.logout": t("admin.authLogout"),
-    "auth.passkey.register": t("admin.authPasskeyRegister"),
-    "auth.passkey.delete": t("admin.authPasskeyDelete"),
-    "auth.token.autoissue.native": t("admin.authTokenAutoissueNative"),
-    "auth.token.refresh": t("admin.authTokenRefresh"),
-    "auth.token.revoke": t("admin.authTokenRevoke"),
-  };
+  const AUTH_ACTION_LABELS = useAuthActionLabels();
 
   const entries = data?.entries ?? [];
 

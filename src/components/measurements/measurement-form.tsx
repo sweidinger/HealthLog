@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -117,7 +118,7 @@ export function MeasurementForm({
   onCancel,
   defaultType,
 }: MeasurementFormProps) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
 
   // Normalize legacy BP types to combined mode
@@ -358,10 +359,8 @@ export function MeasurementForm({
 
       <div className="space-y-2">
         <Label htmlFor="measuredAt">{t("measurements.timestamp")}</Label>
-        <Input
+        <DateTimeInput
           id="measuredAt"
-          type="datetime-local"
-          lang={locale}
           value={measuredAt}
           onChange={(e) => setMeasuredAt(e.target.value)}
           required

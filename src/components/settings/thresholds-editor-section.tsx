@@ -129,12 +129,10 @@ export function ThresholdsEditorSection({ id }: { id: string }) {
           Keep the icon + reset action so the card still has a visible
           control affordance. */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal
-            className="text-primary h-5 w-5"
-            aria-hidden="true"
-          />
-        </div>
+        <SlidersHorizontal
+          className="text-primary h-5 w-5"
+          aria-hidden="true"
+        />
         {data && Object.keys(data.overrides).length > 0 && (
           <Button
             variant="ghost"

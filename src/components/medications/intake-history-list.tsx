@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -95,7 +95,7 @@ export function IntakeHistoryList({
 }: IntakeHistoryListProps) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
 
   const sourceLabels: Record<string, string> = {
     WEB: t("medications.sourceWeb"),
@@ -542,10 +542,8 @@ export function IntakeHistoryList({
                 <Label htmlFor="edit-scheduledFor">
                   {t("medications.intakeScheduledFor")}
                 </Label>
-                <Input
+                <DateTimeInput
                   id="edit-scheduledFor"
-                  type="datetime-local"
-                  lang={locale}
                   value={editScheduledFor}
                   onChange={(e) => setEditScheduledFor(e.target.value)}
                   required
@@ -556,10 +554,8 @@ export function IntakeHistoryList({
                 <Label htmlFor="edit-takenAt">
                   {t("medications.intakeTakenAt")}
                 </Label>
-                <Input
+                <DateTimeInput
                   id="edit-takenAt"
-                  type="datetime-local"
-                  lang={locale}
                   value={editTakenAt}
                   onChange={(e) => setEditTakenAt(e.target.value)}
                   disabled={editSkipped}
@@ -688,10 +684,8 @@ export function IntakeHistoryList({
               <Label htmlFor="create-scheduledFor">
                 {t("medications.intakeScheduledFor")}
               </Label>
-              <Input
+              <DateTimeInput
                 id="create-scheduledFor"
-                type="datetime-local"
-                lang={locale}
                 value={createScheduledFor}
                 onChange={(e) => setCreateScheduledFor(e.target.value)}
                 required
@@ -702,10 +696,8 @@ export function IntakeHistoryList({
               <Label htmlFor="create-takenAt">
                 {t("medications.intakeTakenAt")}
               </Label>
-              <Input
+              <DateTimeInput
                 id="create-takenAt"
-                type="datetime-local"
-                lang={locale}
                 value={createTakenAt}
                 onChange={(e) => setCreateTakenAt(e.target.value)}
                 disabled={createSkipped}

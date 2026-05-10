@@ -78,9 +78,7 @@ export function FeedbackInboxSection() {
           `/admin/feedback`, so the page header already provides the
           title + description — the card-level repetition was just
           visual noise. The icon stays as a low-key card affordance. */}
-      <div className="flex items-center gap-2">
-        <Inbox className="text-primary h-5 w-5" aria-hidden="true" />
-      </div>
+      <Inbox className="text-primary h-5 w-5" aria-hidden="true" />
 
       <Tabs
         value={activeStatus}

@@ -70,12 +70,10 @@ export function DangerZoneSection() {
           already names the section, so the card-level title was a
           duplicate of the page title. The destructive icon stays so
           the card still flags itself as dangerous at a glance. */}
-      <div className="flex items-center gap-2">
-        <AlertTriangle
-          className="text-destructive h-5 w-5"
-          aria-hidden="true"
-        />
-      </div>
+      <AlertTriangle
+        className="text-destructive h-5 w-5"
+        aria-hidden="true"
+      />
       <div className="mt-4">
         <p className="text-sm font-medium">{t("admin.deleteAllData")}</p>
         <p className="text-muted-foreground text-xs">

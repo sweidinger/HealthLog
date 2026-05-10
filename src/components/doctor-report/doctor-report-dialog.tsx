@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -80,7 +81,7 @@ export function DoctorReportDialog({
   defaultPracticeName,
   onSubmit,
 }: DoctorReportDialogProps) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const [startDate, setStartDate] = useState<string>(defaultStartIso);
   const [endDate, setEndDate] = useState<string>(todayIso);
   const [practiceName, setPracticeName] = useState<string>("");
@@ -191,10 +192,8 @@ export function DoctorReportDialog({
               <Label htmlFor="dr-start">
                 {t("doctorReport.dialog.startLabel")}
               </Label>
-              <Input
+              <DateInput
                 id="dr-start"
-                type="date"
-                lang={locale}
                 value={startDate}
                 max={endDate || todayIso()}
                 onChange={(e) => {
@@ -208,10 +207,8 @@ export function DoctorReportDialog({
               <Label htmlFor="dr-end">
                 {t("doctorReport.dialog.endLabel")}
               </Label>
-              <Input
+              <DateInput
                 id="dr-end"
-                type="date"
-                lang={locale}
                 value={endDate}
                 min={startDate}
                 max={todayIso()}

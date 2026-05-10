@@ -74,26 +74,26 @@ export function IntegrationStatusPill({
 }: IntegrationStatusPillProps) {
   const { t } = useTranslations();
 
+  // chipClass only applies to the `connected` branch — `error` falls back
+  // to `variant="destructive"` and `disconnected` to `variant="outline"`.
+  const connectedChipClass =
+    "border-dracula-green/30 bg-dracula-green/15 text-dracula-green";
+
   let label: string;
   let icon: React.ReactNode;
-  let chipClass: string;
 
   switch (state) {
     case "connected":
       label = t("settings.integrationPill.connected");
       icon = <CheckCircle2 aria-hidden="true" className="h-3 w-3" />;
-      chipClass =
-        "border-dracula-green/30 bg-dracula-green/15 text-dracula-green";
       break;
     case "error":
       label = t("settings.integrationPill.errorReconnect");
       icon = <AlertTriangle aria-hidden="true" className="h-3 w-3" />;
-      chipClass = "";
       break;
     case "disconnected":
       label = t("settings.integrationPill.notConnected");
       icon = <CircleSlash aria-hidden="true" className="h-3 w-3" />;
-      chipClass = "";
       break;
   }
 
@@ -120,7 +120,7 @@ export function IntegrationStatusPill({
       aria-label={t("settings.integrationPill.ariaLabel")}
       className={cn(
         "max-w-full whitespace-nowrap",
-        state === "connected" && chipClass,
+        state === "connected" && connectedChipClass,
         className,
       )}
     >

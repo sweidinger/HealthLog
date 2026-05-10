@@ -62,6 +62,7 @@ import { useState } from "react";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
+import { DateTimeInput } from "@/components/ui/date-input";
 import {
   MEASUREMENT_TYPE_LABEL_KEYS as TYPE_LABEL_KEYS,
   MEASUREMENT_TYPE_ICONS as TYPE_ICONS,
@@ -120,7 +121,7 @@ function formatMeasurementSource(
 }
 
 export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
@@ -583,10 +584,8 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                 <Label htmlFor="edit-measuredAt">
                   {t("measurements.timestamp")}
                 </Label>
-                <Input
+                <DateTimeInput
                   id="edit-measuredAt"
-                  type="datetime-local"
-                  lang={locale}
                   value={editMeasuredAt}
                   onChange={(e) => setEditMeasuredAt(e.target.value)}
                   required

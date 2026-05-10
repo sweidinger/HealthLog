@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Loader2, MoreHorizontal, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -37,7 +38,7 @@ function getDefaultMoodLoggedAtValue() {
 }
 
 export function MoodForm({ onSuccess, onCancel }: MoodFormProps) {
-  const { t, locale } = useTranslations();
+  const { t } = useTranslations();
   const queryClient = useQueryClient();
 
   const [mood, setMood] = useState("");
@@ -132,10 +133,8 @@ export function MoodForm({ onSuccess, onCancel }: MoodFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="mood-logged-at">{t("mood.timestamp")}</Label>
-        <Input
+        <DateTimeInput
           id="mood-logged-at"
-          type="datetime-local"
-          lang={locale}
           value={moodLoggedAt}
           onChange={(e) => setMoodLoggedAt(e.target.value)}
           required
