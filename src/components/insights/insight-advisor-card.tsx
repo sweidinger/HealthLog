@@ -229,7 +229,19 @@ const INLINE_CHART_TITLE_KEYS: Record<string, string> = {
   COMPLIANCE: "insights.navMedication",
 };
 
-function InlineCharts({ tokens }: { tokens: ChartToken[] }) {
+function InlineCharts({
+  tokens,
+  mini = false,
+}: {
+  tokens: ChartToken[];
+  /**
+   * v1.4.16 phase B1b — render the embedded charts as compact
+   * sparklines (no range tabs, h-[140px]). The summary surface uses
+   * this so the prose stays the headline; the finding-card surface
+   * keeps the full chart so the user can interact with the data.
+   */
+  mini?: boolean;
+}) {
   const { t } = useTranslations();
   if (tokens.length === 0) return null;
 
@@ -255,11 +267,12 @@ function InlineCharts({ tokens }: { tokens: ChartToken[] }) {
             key={token}
             data-slot="insight-inline-chart"
             data-metric={metric}
+            data-mini={mini ? "true" : "false"}
           >
             {kind === "mood" ? (
-              <MoodChart />
+              <MoodChart mini={mini} />
             ) : (
-              <HealthChart types={[metric]} title={title} />
+              <HealthChart types={[metric]} title={title} mini={mini} />
             )}
           </div>
         );
@@ -431,12 +444,19 @@ export function InsightAdvisorCard({
 
         {/* Summary — prose first, then any allowlisted charts the model
          * inlined via `metric:<TYPE>` tokens. Tokens are dropped from the
-         * visible text so the literal substring never reaches the DOM. */}
-        <div className="space-y-3">
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            {stripChartTokens(insight.summary)}
-          </p>
-          <InlineCharts tokens={parseChartTokens(insight.summary)} />
+         * visible text so the literal substring never reaches the DOM.
+         *
+         * v1.4.16 phase B1b — typography polish: larger font (text-base),
+         * relaxed line-height, max-w-prose so the summary doesn't span
+         * full-bleed on a wide viewport. Wraps the inline-chart strip
+         * in the same constrained column so the rendered sparklines
+         * align with the prose. */}
+        <div
+          data-slot="insight-summary"
+          className="text-foreground/90 max-w-prose space-y-3 text-base leading-relaxed"
+        >
+          <p>{stripChartTokens(insight.summary)}</p>
+          <InlineCharts tokens={parseChartTokens(insight.summary)} mini />
         </div>
 
         {/* Findings — top finding gets a hero treatment, rest are a compact list */}

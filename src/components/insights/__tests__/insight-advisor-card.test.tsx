@@ -177,3 +177,47 @@ describe("<InsightAdvisorCard> — inline chart tokens", () => {
     expect(html).toContain("Weight stable");
   });
 });
+
+describe("<InsightAdvisorCard> — summary typography polish (B1b)", () => {
+  it("paints the summary slot with a constrained max-width for readability", () => {
+    const html = render(
+      buildInsight({
+        summary: "Your BP averaged 132/84 over the last 30 days.",
+      }),
+    );
+    expect(html).toMatch(/data-slot="insight-summary"/);
+    // The summary slot carries a Tailwind max-w-* class so prose
+    // doesn't stretch full-bleed on a wide viewport.
+    expect(html).toMatch(/max-w-(prose|2xl|3xl)/);
+  });
+
+  it("uses the polished prose typography (text-base, leading-relaxed)", () => {
+    const html = render(
+      buildInsight({
+        summary: "All metrics within target.",
+      }),
+    );
+    // A larger font + relaxed line-height for the page-anchored
+    // summary; the per-card content uses text-sm.
+    expect(html).toMatch(
+      /data-slot="insight-summary"[^>]*class="[^"]*text-base/,
+    );
+    expect(html).toMatch(
+      /data-slot="insight-summary"[^>]*class="[^"]*leading-relaxed/,
+    );
+  });
+
+  it("renders summary inline charts as mini sparklines (data-mini=true)", () => {
+    const html = render(
+      buildInsight({
+        summary: "BP averaging 132/84 metric:BLOOD_PRESSURE_SYS today",
+      }),
+    );
+    // The summary's inline-chart wrapper must carry `data-mini="true"`
+    // so the chart shrinks to sparkline form. Per-finding charts use
+    // the default detail mode.
+    expect(html).toMatch(
+      /data-slot="insight-summary"[\s\S]*?data-mini="true"/,
+    );
+  });
+});
