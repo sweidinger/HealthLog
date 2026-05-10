@@ -1,5 +1,202 @@
 # Changelog
 
+## [1.4.22] — 2026-05-10
+
+### Added
+
+- **Per-target sparkline + Δ-vs-last-month caption on the Targets /
+  Zielwerte page.** Each `<TargetCard>` grew a 30-day inline SVG
+  sparkline beneath the range bar plus a localised "Δ −2.3 kg vs.
+  last month" caption. The API ships `points30d` and
+  `deltaVsLastMonth` per target; both null when either window has
+  fewer than 3 readings so cold-start accounts don't paint a
+  misleading flat trace. BMI piggybacks on the weight series so its
+  sparkline shares the range bar's y-axis.
+- **Sticky section navigation above the Insights hero.** A pinned
+  strip (Allgemein / Blutdruck / Gewicht / Puls / Stimmung in DE;
+  General / Blood Pressure / Weight / Pulse / Mood in EN) lifts the
+  section tabs above the hero so they stay visible during scroll.
+  Active section tracks the highest-intersection observed entry;
+  `aria-current`, focus-visible ring, and `motion-reduce` gating
+  ship from day one.
+- **Comparison-overlay as a single global preference under Settings
+  → Dashboard.** The on-surface `<CompareToggle />` retired from
+  `/insights`; the canonical picker has lived in Settings →
+  Dashboard since v1.4.16 phase B8 and every chart already consumed
+  it. Two surfaces for the same concept violated the
+  no-split-Settings rule.
+- **Collapsible evidence disclosure under each Coach assistant
+  message.** Numbers move out of the prose into a
+  `---KEYVALUES---` … `---END---` sentinel block that the route
+  parses out server-side and renders as a "Worauf bezieht sich
+  das?" / "What I'm looking at" `<details>` disclosure under each
+  assistant turn. Closed by default, hidden when no key-values came
+  back. Hard caps on the sentinel (1 KB payload, 8 lines max,
+  per-line Zod) so a prompt-injection attempt can't grow the
+  persisted envelope.
+- **User avatar parity with the Coach avatar.** The Coach drawer's
+  user-side bubble used a smaller initials avatar than the Coach's
+  gradient one. The user avatar now reuses the existing
+  `gravatarUrl` field from `/api/auth/me` at the same dimensions
+  as the Coach avatar; initials fall back when no Gravatar is
+  configured.
+
+### Changed
+
+- **Coach prompt rewrite — warm, motivational-interviewing tone
+  with prose-first responses + evidence collapsible.** PROMPT_VERSION
+  ratchets 4.20.2 → 4.22.0 (first minor-digit bump in v1.4.x). The
+  Coach used to open every reply with a number — clinical,
+  database-cursor energy. The new persona is "warm, neugierig,
+  zurückhaltend": a partner sitting alongside the user, not pushing
+  data. Numbers move into the collapsible evidence block; the prose
+  reads like a real conversation. Persona + sentinel land together
+  because either alone is incomplete.
+- **BP-in-target headline re-anchored to the last-30-day window.**
+  Fourth attempt at this metric. v1.4.19 routed the headline to
+  `allTime` to fix the algorithmic 50/50/50 pin; v1.4.22 re-anchors
+  to `windows.last30Days?.pct` and surfaces all-time as a sub-row,
+  because v1.4.19's fix was emotionally wrong — the headline became
+  the slowest-moving aggregate possible, punishing a user who put
+  in real recent work. The tile also gets a synthesised trend arrow
+  (slope from 7d/30d delta), a 7-day-trend chip, and a
+  comparison-overlay caption.
+- **"Muster" renamed to "Zusammenhänge" (DE) / "Patterns" renamed
+  to "Relationships" (EN).** The picked-bucket-of-correlations row
+  read like an autopsy. The new label sits closer to what the row
+  actually shows. Picked "Zusammenhänge" over "Trends" because the
+  row directly above already uses Trends.
+- **Onboarding redirect for users with `null onboardingCompletedAt`
+  moves to server-side enforcement in `proxy.ts`.** The previous
+  post-hydration redirect inside `<AuthShell>` `useEffect` produced
+  a brief dashboard flash on incomplete onboarding. The proxy runs
+  in the Edge runtime so the auth routes mirror
+  `onboardingCompletedAt` into a non-httpOnly `hl_onboarding`
+  cookie; the proxy short-circuits before hydration. Tampering only
+  skips a UX hint and never bypasses a server check.
+- **`setOnboardingPendingCookie` folded into `createSession()`.**
+  Issuing a session without onboarding state used to require two
+  call sites to stay in sync; the helper now takes
+  `onboardingPending` as a required parameter so the contract is
+  type-impossible to break.
+
+### Fixed
+
+- **Raw `metric:<TYPE>` token leaks in recommendation prose.**
+  `<RecommendationCard>` text is now wrapped in
+  `stripChartTokens()`. The leak traced to a single missing call
+  on the recommendation path; chart tokens never belonged in user
+  copy.
+- **DE locale `componentMood`, `componentBp`, `componentCompliance`
+  rendered English nouns in the German bundle.** Four Health-Score
+  component labels normalised to `Stimmung`, `Blutdruck`,
+  `Einnahmetreue`, `Gewicht`. The i18n-integrity test pins the
+  contract.
+- **Admin / API tokens horizontal scrollbar at desktop + iPad-mini
+  viewports (5th attempt).** A live Playwright probe confirmed
+  `whitespace-nowrap` on the date `<td>`s was the residual
+  culprit. The two classes are gone; date + time wraps to two
+  lines on narrow viewports. The earlier four fixes had targeted
+  the wrong layout layer.
+- **Sentinel-only / malformed `---KEYVALUES---` block.** When the
+  model emits a sentinel-only or malformed envelope, the fallback
+  now produces a polite invitation ("I'd like to look at this with
+  you — could you share which window you want me to focus on?")
+  instead of surfacing the raw marker. A new integration test
+  covers the empty-prose-after-strip branch.
+- **BD-Zielbereich tile delta math period-aligned with the
+  comparison window.** The tile's compareDelta was subtracting
+  `bpInTargetPctAllTime` while the caption said "vs last month",
+  which produced numbers the caption couldn't justify. It now
+  subtracts `bpInTargetPctPriorMonth` / `bpInTargetPctPriorYear`
+  to match. Two new bp-in-target unit tests + two
+  insights-polish guards.
+- **Coach drawer settings cog removed.** The cog was a dead button
+  in v1.4.21; per-user prompt-tuning is deferred to v1.4.23. No
+  dead buttons in this release.
+- **Coach disclaimer pinned at the bottom of the message thread.**
+  Clinical-adjacent UI must not gate the disclaimer behind a
+  chevron tray; the disclaimer now stays visible at the bottom of
+  the message thread on every viewport, and the rail-footer
+  duplicate kept for desktop redundancy.
+- **`hl_onboarding` UX-hint cookie now `SameSite=Strict`.** A
+  cross-site request couldn't usefully exfiltrate the cookie
+  (no auth value, only an onboarding state flag) but `Lax` was
+  still over-permissive. Strict aligns with the cookie's
+  same-site-only consumer.
+- **`PUBLIC_PATHS` exact-match guard against future subroute
+  prefix bypasses.** `/onboarding` is now exact-match +
+  explicit-subroute, not a `startsWith` check. Two new proxy
+  guards pin the contract.
+- **`targets/route.ts` daily buckets keyed in Europe/Berlin.**
+  The targets sparkline was the last analytics surface still
+  bucketing in UTC, which produced a one-day-off trace for users
+  in CEST. `berlinDayKey()` lifted to a shared
+  `src/lib/analytics/berlin-day.ts` helper; four new DST + UTC-
+  midnight edge-case unit tests.
+- **Streaming bubble vs persisted-twin race window.** The
+  150ms grace window suppresses the persisted twin while the
+  in-flight streaming bubble is still rendering, so the thread
+  never paints two copies of the same reply for a frame.
+- **Sticky section navigation a11y polish.** `aria-current` on
+  the active section; focus-visible ring on keyboard navigation;
+  `motion-reduce` honoured for smooth-scroll; the glow-bleed
+  fixed via `bg-background/95 backdrop-blur`; the mobile cliff
+  tightened from `scroll-mt-28` to `scroll-mt-16` so the strip
+  no longer eats the heading at 280px viewports.
+- **BP tile mobile density at <sm.** All-time + delta now
+  collapse into one secondary line on small viewports; the
+  full layout returns at `>=sm`.
+
+### Refactor
+
+- **`createSseStream` shared helper extracted from the chat
+  route.** Preparation for v1.5 iOS streaming endpoints, which
+  will reuse the SSE primitives. Three unit tests pin sync,
+  async, and throw paths. Source: `src/lib/sse/create-stream.ts`.
+- **`<TokenStatusBadge>` extracted from desktop + mobile
+  api-token surfaces.** The badge logic was duplicated verbatim
+  in two layouts; one component, two consumers.
+- **Five simplify apply-yes items in one commit.** `canSubmit`
+  collapse, weekly-report `<Button>` dedup, and three smaller
+  cleanups identified in the W5 simplify pass.
+
+### Operational / hygiene
+
+- **Coolify image-digest auto-deploy.** Instructions for the
+  one-time UI-toggle ("Watch image registry for new digests")
+  live at `.planning/coolify-auto-deploy-howto.md`. Future
+  releases should drop the host-side retag fallback the moment
+  the toggle is on.
+- **191 maintainer-name references in `src/` source comments
+  swept** (FX carry-over from v1.4.20). Test fixtures kept as
+  opaque test data.
+- **DE+EN bilingual CHANGELOG entries (v1.4.14 + v1.4.15)
+  normalised to English-only.** Per the English-only voice
+  rule.
+- **`CLAUDE.md` filename retired (FX carry-over)** so the
+  filename is no longer AI-vendor-specific; `CONTRIBUTING.md`
+  reference updated. `AGENTS.md` stays for multi-agent
+  compatibility.
+
+### Deferred to v1.4.23
+
+See `.planning/v1422-backlog.md` for the full carry-over list.
+Highlights: sentinel parser malformed-enum hardening (Sr-M5);
+analytics-route unbounded `findMany` paging; targets-route
+7-pass sparkline coalesce; `CoachDrawer key={prefill}`
+controlled-prop refactor (Sr-HIGH-4); per-user prompt-tuning
+surface; medication_schedules.days_of_week schema-drift cleanup.
+
+### Deferred to v1.5 (iOS push)
+
+See `.planning/phase-W5-v1422-product-lead-review.md` for the
+full v1.5 plan. Headline: iOS native client + Apple Health
+ingest contract (HRV, Sleep, Resting HR, Steps, BodyFat,
+Glucose); per-metric APNs alerts; OpenAPI spec drift CI gate;
+Coach extension for the new measurement types
+(PROMPT_VERSION 4.22.0 → 5.0.0).
+
 ## [1.4.21] — 2026-05-10
 
 ### Fixed
