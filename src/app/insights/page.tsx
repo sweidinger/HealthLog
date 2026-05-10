@@ -904,19 +904,18 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-8">
+      {/* v1.4.19 A3 — comparison toggle is now mounted INSIDE the hero
+          meta band (alongside personal-baseline indicator + Generated
+          timestamp + Regenerate button). The previous standalone band
+          below the hero made the page read as three stacked cards
+          with separate header / control rows; folding the toggle into
+          the hero clusters every page-level control in one place. */}
       <InsightsPageHero
         updatedAt={advisor.payload?.cachedAt ?? heroUpdatedAt}
         onRegenerate={advisor.regenerate}
         regenerating={advisor.isRegenerating}
+        metaSlot={<CompareToggle />}
       />
-
-      {/* v1.4.16 phase D reconcile (CRITICAL C3) — on-surface comparison
-          toggle. Mirrors the dashboard placement so flipping Vormonat /
-          Vorjahr is one tap on the page that uses it, not 3 clicks
-          via Settings → Dashboard. */}
-      <div className="flex items-center justify-end">
-        <CompareToggle />
-      </div>
 
       {/* v1.4.16 phase D reconcile (CRITICAL C1) — wire the polished
           `<InsightAdvisorCard>` (severity-ordered recommendations grid +

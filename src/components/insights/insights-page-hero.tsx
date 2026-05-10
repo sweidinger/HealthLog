@@ -29,6 +29,9 @@ import { useTranslations } from "@/lib/i18n/context";
  *   - `data-slot="insights-page-hero-generated"`    — "Generated <time>"
  *   - `data-slot="insights-page-hero-baseline"`     — "Based on …"
  *   - `data-slot="insights-page-hero-regenerate"`   — regenerate button
+ *   - `data-slot="insights-page-hero-meta-slot"`    — v1.4.19 A3 page-
+ *                                                     level meta slot
+ *                                                     (comparison toggle)
  */
 
 interface InsightsPageHeroProps {
@@ -38,6 +41,16 @@ interface InsightsPageHeroProps {
   onRegenerate?: () => void;
   /** Disables the regenerate button + flips the icon to a spinner. */
   regenerating?: boolean;
+  /**
+   * v1.4.19 A3 — page-level metadata slot. The comparison-baseline
+   * toggle is mounted into the hero meta row (next to the personal-
+   * baseline indicator + the "Generated …" caption) instead of
+   * standing alone above the advisor card. Keeps every page-level
+   * control in one band so the surface stops feeling like three
+   * stacked cards with separate refresh / toggle / header
+   * affordances.
+   */
+  metaSlot?: React.ReactNode;
 }
 
 /**
@@ -64,6 +77,7 @@ export function InsightsPageHero({
   updatedAt,
   onRegenerate,
   regenerating = false,
+  metaSlot,
 }: InsightsPageHeroProps) {
   const { t } = useTranslations();
   const generatedLine = updatedAt
@@ -113,6 +127,14 @@ export function InsightsPageHero({
               </>
             )}
           </div>
+          {metaSlot && (
+            <div
+              data-slot="insights-page-hero-meta-slot"
+              className="flex flex-wrap items-center gap-2 pt-2"
+            >
+              {metaSlot}
+            </div>
+          )}
         </div>
         {onRegenerate && (
           <div className="flex shrink-0 items-start">
