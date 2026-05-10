@@ -39,11 +39,20 @@ export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
 
 const ALLOWED_SET = new Set<string>(ALLOWED_CHART_TOKENS);
 
-// Greedy `[A-Z_]+` match. Uppercase letters and underscores only — anything
-// else (apostrophes, spaces, lowercase, digits) terminates the token, so
-// trailing junk like `metric:WEIGHT' onclick='alert(1)'` cleaves cleanly
-// into the safe metric and an inert text remainder.
-const TOKEN_REGEX = /metric:[A-Z_]+/g;
+// v1.4.19 A3 — strip vs parse split. The strip-side character class
+// is permissive (`[A-Za-z0-9_]+`) so model-emitted lowercase or
+// snake_case tokens like `metric:blood_pressure_sweet_spot` (verbatim
+// Marc 2026-05-10) get cleaved out of prose instead of leaking to the
+// DOM. The parse-side class stays uppercase-only so unrenderable /
+// hallucinated tokens are dropped from the *render* path entirely;
+// only the *strip* is permissive.
+//
+// Trailing junk like `metric:WEIGHT' onclick='alert(1)'` still
+// cleaves cleanly: the apostrophe terminates either character class,
+// and the surviving uppercase token is the only one filtered through
+// the allowlist for rendering.
+const STRIP_TOKEN_REGEX = /metric:[A-Za-z0-9_]+/g;
+const PARSE_TOKEN_REGEX = /metric:[A-Z_]+/g;
 
 /**
  * Find every well-formed chart token in `text` and return only those that
@@ -62,7 +71,7 @@ export function parseChartTokens(
   text: string | null | undefined,
 ): ChartToken[] {
   if (typeof text !== "string") return [];
-  const matches: string[] = text.match(TOKEN_REGEX) ?? [];
+  const matches: string[] = text.match(PARSE_TOKEN_REGEX) ?? [];
   return matches.filter((m): m is ChartToken => ALLOWED_SET.has(m));
 }
 
@@ -78,7 +87,7 @@ export function parseChartTokens(
 export function stripChartTokens(text: string | null | undefined): string {
   if (typeof text !== "string") return "";
   return text
-    .replace(TOKEN_REGEX, "")
+    .replace(STRIP_TOKEN_REGEX, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
