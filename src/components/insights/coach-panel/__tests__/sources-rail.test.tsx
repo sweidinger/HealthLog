@@ -50,4 +50,26 @@ describe("<SourcesRail>", () => {
       "The Coach reads only the data you&#x27;ve connected.",
     );
   });
+
+  it("renders a checkbox per row + a window selector trigger", () => {
+    const html = render(<SourcesRail />);
+    const checkboxes = (
+      html.match(/data-slot="coach-sources-checkbox"/g) ?? []
+    ).length;
+    expect(checkboxes).toBe(5);
+    expect(html).toContain('data-slot="coach-sources-window-trigger"');
+  });
+
+  it("paints checkboxes as checked when scope.sources includes the row", () => {
+    const html = render(
+      <SourcesRail
+        scope={{ sources: ["bp", "weight"], window: "last7days" }}
+        onScopeChange={() => undefined}
+      />,
+    );
+    // The bp + weight rows should be marked active; others inactive.
+    expect(html).toMatch(/data-source="bp"[^>]*data-active="true"/);
+    expect(html).toMatch(/data-source="weight"[^>]*data-active="true"/);
+    expect(html).toMatch(/data-source="pulse"[^>]*data-active="false"/);
+  });
 });

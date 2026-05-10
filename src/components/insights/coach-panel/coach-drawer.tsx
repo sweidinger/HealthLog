@@ -24,8 +24,13 @@ import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachInput } from "./coach-input";
 import { HistoryRail } from "./history-rail";
 import { MessageThread } from "./message-thread";
-import { SourcesRail } from "./sources-rail";
+import { DEFAULT_COACH_SCOPE, SourcesRail } from "./sources-rail";
 import { useCoachConversation, useSendCoachMessage } from "./use-coach";
+import type {
+  CoachScope,
+  CoachScopeSource,
+  CoachScopeWindow,
+} from "@/lib/ai/coach/types";
 
 /**
  * v1.4.20 phase B2b — AI Coach drawer (right-side `<Sheet>` overlay).
@@ -89,6 +94,17 @@ export function CoachDrawer({
   // open/prefill transition. That sidesteps `setState`-in-`useEffect`
   // entirely (banned by `react-hooks/set-state-in-effect`).
   const [inputValue, setInputValue] = useState<string>(() => prefill ?? "");
+  // v1.4.20.1 — scope picker state (per-source checkboxes + window
+  // selector). Resets to the all-source last30days default each time
+  // the drawer mounts; no conversation-level persistence in this
+  // hotfix per the v1.4.20.1 plan.
+  const [scope, setScope] = useState<{
+    sources: CoachScopeSource[];
+    window: CoachScopeWindow;
+  }>(() => ({
+    sources: [...DEFAULT_COACH_SCOPE.sources],
+    window: DEFAULT_COACH_SCOPE.window,
+  }));
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
@@ -115,9 +131,23 @@ export function CoachDrawer({
     const trimmed = value.trim();
     if (!trimmed || send.isStreaming) return;
     setInputValue("");
+    // Pass the scope only when the user has narrowed it from the
+    // defaults — keeps the wire payload minimal and lets the route
+    // tell "no opinion" apart from "intentionally narrow".
+    const isDefault =
+      scope.window === DEFAULT_COACH_SCOPE.window &&
+      scope.sources.length === DEFAULT_COACH_SCOPE.sources.length &&
+      DEFAULT_COACH_SCOPE.sources.every((s) => scope.sources.includes(s));
+    const scopePayload: CoachScope | undefined = isDefault
+      ? undefined
+      : {
+          sources: scope.sources,
+          window: scope.window,
+        };
     await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
+      scope: scopePayload,
     });
   }
 
@@ -226,7 +256,14 @@ export function CoachDrawer({
               />
             )
           }
-          sourcesRail={sourcesRail ?? <SourcesRail />}
+          sourcesRail={
+            sourcesRail ?? (
+              <SourcesRail
+                scope={scope}
+                onScopeChange={setScope}
+              />
+            )
+          }
           thread={
             <MessageThread
               conversation={conversation ?? null}
@@ -291,7 +328,9 @@ export function CoachDrawer({
               </SheetTitle>
             </SheetHeader>
             <div className="h-full min-h-0 overflow-y-auto">
-              {sourcesRail ?? <SourcesRail />}
+              {sourcesRail ?? (
+                <SourcesRail scope={scope} onScopeChange={setScope} />
+              )}
             </div>
           </SheetContent>
         </Sheet>

@@ -8,6 +8,7 @@ import type {
   CoachConversationDTO,
   CoachConversationsPage,
   CoachProvenance,
+  CoachScope,
   CoachStreamEvent,
 } from "@/lib/ai/coach/types";
 
@@ -214,6 +215,12 @@ export interface SendCoachMessageParams {
   message: string;
   prefill?: string;
   locale?: "en" | "de";
+  /**
+   * v1.4.20.1 — optional snapshot scope (per-source toggles + window)
+   * driven by the sources-rail picker. When omitted the server falls
+   * back to all-source last30days, matching the legacy behaviour.
+   */
+  scope?: CoachScope;
 }
 
 export interface UseSendCoachMessageOptions {
@@ -283,6 +290,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
             message: params.message,
             prefill: params.prefill,
             locale: params.locale,
+            scope: params.scope,
           }),
           signal: controller.signal,
         });

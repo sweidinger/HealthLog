@@ -135,4 +135,24 @@ describe("buildCoachSnapshot", () => {
     ]);
     expect(parsed.scope.window).toBe("last30days");
   });
+
+  it("scope-only-mood pulls just mood data, no measurements query", async () => {
+    featuresMock.mockResolvedValue({
+      mood: { avg30: 4.2, coverage: { count: 12 } },
+    });
+    prismaMock.moodEntry.findMany.mockResolvedValue([
+      {
+        moodLoggedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        score: 4,
+      },
+    ]);
+
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ["mood"],
+    });
+    expect(prismaMock.measurement.findMany).not.toHaveBeenCalled();
+    expect(out.provenance.metrics).toContain("mood");
+    const parsed = JSON.parse(out.snapshotJson);
+    expect(parsed.mood.timeline.recent.length).toBe(1);
+  });
 });
