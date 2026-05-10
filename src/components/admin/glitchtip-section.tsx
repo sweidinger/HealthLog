@@ -92,8 +92,7 @@ export function GlitchtipSection() {
 
       <div className="mt-4 space-y-3">
         <SettingsToggle
-          label="GlitchTip"
-          description={t("admin.glitchtipEnabled")}
+          label={t("admin.glitchtipEnabled")}
           icon={AlertTriangle}
           checked={settings?.glitchtipEnabled ?? false}
           onCheckedChange={(checked) =>

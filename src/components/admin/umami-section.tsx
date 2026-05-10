@@ -95,8 +95,7 @@ export function UmamiSection() {
 
       <div className="mt-4 space-y-3">
         <SettingsToggle
-          label="Umami"
-          description={t("admin.umamiEnabled")}
+          label={t("admin.umamiEnabled")}
           icon={Activity}
           checked={settings?.umamiEnabled ?? false}
           onCheckedChange={(checked) =>

@@ -179,7 +179,7 @@ export function SettingsToggle({
   disabled,
 }: {
   label: string;
-  description: string;
+  description?: string;
   icon?: React.ComponentType<{ className?: string }>;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
@@ -191,7 +191,9 @@ export function SettingsToggle({
         {Icon && <Icon className="text-muted-foreground h-4 w-4" />}
         <div>
           <p className="text-sm font-medium">{label}</p>
-          <p className="text-muted-foreground text-xs">{description}</p>
+          {description && (
+            <p className="text-muted-foreground text-xs">{description}</p>
+          )}
         </div>
       </div>
       <Switch

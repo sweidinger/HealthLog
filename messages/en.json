@@ -2048,23 +2048,23 @@
       },
       "onTimePerfect1": {
         "title": "On-time 1d",
-        "description": "Take all medications on time for 1 consecutive days."
+        "description": "Take all medications on time for 1 day."
       },
       "compliance801": {
         "title": "80% adherence · 1d",
-        "description": "Reach at least 80% 30-day adherence for 1 consecutive days."
+        "description": "Reach at least 80% 30-day adherence for 1 day."
       },
       "bmiGreen1": {
         "title": "BMI green · 1d",
-        "description": "Keep your BMI in the normal range for 1 consecutive days."
+        "description": "Keep your BMI in the normal range for 1 day."
       },
       "bpGreen1": {
         "title": "BP green · 1d",
-        "description": "Keep your blood pressure in the normal range for 1 consecutive days."
+        "description": "Keep your blood pressure in the normal range for 1 day."
       },
       "pulseGreen1": {
         "title": "Pulse green · 1d",
-        "description": "Keep your resting pulse in the normal range for 1 consecutive days."
+        "description": "Keep your resting pulse in the normal range for 1 day."
       },
       "onTimePerfect7": {
         "title": "On-time 7d",
@@ -2171,7 +2171,7 @@
         "description": "Record 50 weight measurements."
       },
       "weight200": {
-        "title": "Two hundred weigh-ins",
+        "title": "200 weigh-ins",
         "description": "Record 200 weight measurements."
       },
       "bpFirst": {
@@ -2183,7 +2183,7 @@
         "description": "Record 50 blood-pressure measurements."
       },
       "bp200": {
-        "title": "Two hundred BP readings",
+        "title": "200 BP readings",
         "description": "Record 200 blood-pressure measurements."
       },
       "pulseFirst": {

@@ -2048,23 +2048,23 @@
       },
       "onTimePerfect1": {
         "title": "Zeitfenster 1T",
-        "description": "Nimm 1 Tage in Folge alle Medikamente im Zeitfenster ein."
+        "description": "Nimm an einem Tag alle Medikamente im Zeitfenster ein."
       },
       "compliance801": {
         "title": "Treue 80% · 1T",
-        "description": "Erreiche 1 Tage in Folge eine 30-Tage-Einnahmetreue von mindestens 80%."
+        "description": "Erreiche an einem Tag eine 30-Tage-Einnahmetreue von mindestens 80%."
       },
       "bmiGreen1": {
         "title": "BMI im Grün · 1T",
-        "description": "Halte deinen BMI 1 Tage in Folge im Normalbereich."
+        "description": "Halte deinen BMI an einem Tag im Normalbereich."
       },
       "bpGreen1": {
         "title": "Blutdruck im Grün · 1T",
-        "description": "Halte deinen Blutdruck 1 Tage in Folge im Normalbereich."
+        "description": "Halte deinen Blutdruck an einem Tag im Normalbereich."
       },
       "pulseGreen1": {
         "title": "Puls im Grün · 1T",
-        "description": "Halte deinen Ruhepuls 1 Tage in Folge im Normalbereich."
+        "description": "Halte deinen Ruhepuls an einem Tag im Normalbereich."
       },
       "onTimePerfect7": {
         "title": "Zeitfenster 7T",
@@ -2171,7 +2171,7 @@
         "description": "Erfasse 50 Gewichtsmessungen."
       },
       "weight200": {
-        "title": "Zweihundert Wiegungen",
+        "title": "200 Wiegungen",
         "description": "Erfasse 200 Gewichtsmessungen."
       },
       "bpFirst": {
@@ -2183,7 +2183,7 @@
         "description": "Erfasse 50 Blutdruckmessungen."
       },
       "bp200": {
-        "title": "Zweihundert Blutdruckmessungen",
+        "title": "200 Blutdruckmessungen",
         "description": "Erfasse 200 Blutdruckmessungen."
       },
       "pulseFirst": {
