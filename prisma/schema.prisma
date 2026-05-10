@@ -133,6 +133,8 @@ model User {
   idempotencyKeys      IdempotencyKey[]
   devices              Device[]
   integrationStatuses  IntegrationStatus[]
+  coachConversations   CoachConversation[]
+  coachUsage           CoachUsage[]
 
   @@map("users")
 }
@@ -848,4 +850,87 @@ model RecommendationFeedback {
   @@index([userId, createdAt])
   @@index([recommendationSeverity, helpful, createdAt])
   @@map("recommendation_feedback")
+}
+
+// ─── AI Coach (v1.4.20) ────────────────────────────────────
+//
+// Conversation thread between a user and the AI Coach. Messages are
+// stored encrypted at rest via AES-256-GCM (`src/lib/crypto.ts`) under
+// the active `ENCRYPTION_KEYS` entry — the Coach inherits the same
+// key-rotation tooling as the rest of the app. GDPR cascade through
+// User keeps the model deletion-clean.
+//
+// `title` is a short snippet of the first user message (≤80 chars,
+// non-encrypted) so the history rail can render without paying the
+// per-message decrypt cost. The snippet is plain text; do not put PII
+// the user explicitly opted out of into it. The summarisation helper
+// in `src/lib/ai/coach/persistence.ts` truncates with an ellipsis.
+model CoachConversation {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages CoachMessage[]
+
+  @@index([userId, updatedAt])
+  @@map("coach_conversations")
+}
+
+// One message in a Coach conversation. `role` is "user" or "assistant"
+// — same shape as the OpenAI/Anthropic chat-completion APIs.
+//
+// `encryptedContent` holds the AES-256-GCM ciphertext of the message
+// body. The encrypt/decrypt helpers stamp the active key id into the
+// ciphertext so rotation works without a backfill.
+//
+// `metricSourceJson` is the provenance envelope ("based on 14d HRV +
+// 6 BP readings") attached to assistant messages — labels only, NEVER
+// raw values. The frontend renders source-chip rows from this field.
+// It is intentionally NOT encrypted: the labels are window+metric
+// names ("last30days", "bloodPressure", "n=12") and carry no PII; the
+// stable shape lets future analytics queries slice without a key.
+//
+// `providerType` and `promptVersion` mirror the recommendation-
+// feedback attribution columns so the cross-feature aggregator can
+// slice helpful-rate per (provider × prompt) for Coach replies too.
+model CoachMessage {
+  id               String   @id @default(cuid())
+  conversationId   String   @map("conversation_id")
+  role             String   // "user" | "assistant"
+  encryptedContent Bytes    @map("encrypted_content")
+  metricSourceJson String?  @map("metric_source_json")
+  providerType     String?  @map("provider_type")
+  promptVersion    String?  @map("prompt_version")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  conversation CoachConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("coach_messages")
+}
+
+// Per-user, per-day token-spend ledger for the AI Coach. The dispatcher
+// reads `totalTokens` against `MAX_TOKENS_PER_USER_PER_DAY` before
+// hitting any provider, so a runaway client cannot drain the operator's
+// LLM budget. `dateKey` is the UTC `YYYY-MM-DD` bucket; the unique
+// constraint enforces one row per (user, day). `messageCount` is a
+// secondary signal used by the frontend to render a "≈ N replies left"
+// hint without exposing raw token figures.
+model CoachUsage {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  dateKey      String   @map("date_key")
+  totalTokens  Int      @default(0) @map("total_tokens")
+  messageCount Int      @default(0) @map("message_count")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dateKey])
+  @@index([userId, dateKey])
+  @@map("coach_usage")
 }
