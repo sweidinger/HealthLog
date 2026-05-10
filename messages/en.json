@@ -676,7 +676,8 @@
     "insightsCallout": {
       "lastMonth": "Tracking against last month",
       "lastYear": "Tracking against last year"
-    }
+    },
+    "notAvailableForCompliance": "Comparison N/A for compliance"
   },
   "insights": {
     "aiAnalysisTitle": "AI Health Analysis",

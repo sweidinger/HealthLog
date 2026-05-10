@@ -676,7 +676,8 @@
     "insightsCallout": {
       "lastMonth": "Vergleich zum Vormonat aktiv",
       "lastYear": "Vergleich zum Vorjahr aktiv"
-    }
+    },
+    "notAvailableForCompliance": "Vergleich für Compliance nicht verfügbar"
   },
   "insights": {
     "aiAnalysisTitle": "KI-Gesundheitsanalyse",

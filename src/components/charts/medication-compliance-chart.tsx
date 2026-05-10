@@ -152,10 +152,22 @@ export function computeMedicationTrend7d(
 interface MedicationComplianceChartProps {
   /** Override the visible label, primarily for tests. */
   title?: string;
+  /**
+   * v1.4.16 phase D reconcile (H4 design) — when the user toggles the
+   * dashboard comparison overlay, every other chart paints a dimmed
+   * prior-period line. Compliance is a percentage-of-doses metric whose
+   * "prior month" overlay would need a second window of intake events
+   * (deferred to v1.4.17). We accept the prop so the parent doesn't
+   * have to special-case this chart, and surface a small caption when
+   * comparison is on so the user understands the asymmetry rather than
+   * thinking the toggle is broken.
+   */
+  compareBaseline?: "none" | "lastMonth" | "lastYear";
 }
 
 export function MedicationComplianceChart({
   title,
+  compareBaseline = "none",
 }: MedicationComplianceChartProps) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -265,6 +277,22 @@ export function MedicationComplianceChart({
           ))}
         </div>
       </div>
+
+      {/* v1.4.16 phase D reconcile (H4 design) — explicit "comparison
+          N/A" caption when the global toggle is on. The compliance
+          heatmap doesn't render a prior-period overlay (deferred to
+          v1.4.17 when the underlying intake-event window comparison
+          ships). Without this caption the user toggles Vormonat and
+          this card just stays static, which reads as a bug. */}
+      {compareBaseline !== "none" && (
+        <p
+          className="text-muted-foreground -mt-2 mb-3 text-xs"
+          data-slot="medication-comparison-na"
+          data-compare-baseline={compareBaseline}
+        >
+          {t("comparison.notAvailableForCompliance")}
+        </p>
+      )}
 
       {/* v1.4.16 B1a — sibling SVG <defs> block for SSR-discoverable
           gradient. */}

@@ -994,7 +994,12 @@ export default function DashboardPage() {
           charts.push({
             id: "medications",
             order: widgetOrder("medications"),
-            node: <MedicationComplianceChart key="medications" />,
+            node: (
+              <MedicationComplianceChart
+                key="medications"
+                compareBaseline={compareBaseline}
+              />
+            ),
           });
         }
         if (showAchievementsCard) {
