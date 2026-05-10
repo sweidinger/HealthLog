@@ -20,7 +20,10 @@
  * Also covers the null-tolerance regression (NaN / out-of-floor) so
  * the tile never crashes silently to 0 % from edge-case input.
  */
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+process.env.ENCRYPTION_KEY ??=
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
 import {
   computeBpInTargetPct,
@@ -28,10 +31,42 @@ import {
 } from "@/lib/analytics/bp-in-target";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 
+import { cookieJar, headerJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
+
+vi.mock("next/headers", async () => {
+  const { cookieJar, headerJar } = await import("./mock-next-headers");
+  return {
+    headers: vi.fn(async () => ({
+      get: (name: string) => headerJar.get(name.toLowerCase()) ?? null,
+    })),
+    cookies: vi.fn(async () => ({
+      get: (name: string) => {
+        const value = cookieJar.get(name);
+        return value ? { name, value } : undefined;
+      },
+      set: (name: string, value: string) => {
+        cookieJar.set(name, value);
+      },
+      delete: (name: string) => {
+        cookieJar.delete(name);
+      },
+    })),
+  };
+});
+
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
 
 beforeEach(async () => {
   await truncateAllTables(getPrismaClient());
+  cookieJar.clear();
+  headerJar.clear();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("BP-in-target % — production data shape", () => {
@@ -489,5 +524,181 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
 
     expect(windows.last7Days).toBeNull();
     expect(windows.last30Days).toEqual({ pct: 100, pairs: 1 });
+  });
+});
+
+/**
+ * v1.4.22 A1 — re-anchor the headline to last-30 days.
+ *
+ * Up to v1.4.19 the headline was the all-time figure. That made the
+ * tile correct (no algorithmic 50/50/50 pin) but emotionally wrong:
+ * the headline was the slowest-moving aggregate possible, so a user
+ * who had genuinely improved their last-30-day discipline saw a
+ * stubbornly low number that took years of further compliance to
+ * budge. v1.4.22 routes the headline through `last30Days` and surfaces
+ * `7d` / `30d` / `Allzeit` as a 3-line sub-row instead.
+ *
+ * The integration assertion: with three legitimately divergent
+ * windows (recent 50 % vs all-time 13 %) the route's `bpInTargetPct`
+ * field equals `windows.last30Days.pct` (50 %), and a separate
+ * `bpInTargetPctAllTime` carries the long-arc number (13 %) so the
+ * tile can render the third sub-line.
+ */
+describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
+  async function seedSession(username: string) {
+    const prisma = getPrismaClient();
+    const user = await prisma.user.create({
+      data: {
+        username,
+        email: `${username}@example.test`,
+        role: "USER",
+        dateOfBirth: new Date("1985-07-09"),
+      },
+    });
+    const session = await prisma.session.create({
+      data: {
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    cookieJar.set("healthlog_session", session.id);
+    return user;
+  }
+
+  it("routes the headline through last-30-days and exposes all-time as a separate field", async () => {
+    const prisma = getPrismaClient();
+    const user = await seedSession("bp-headline-fixture");
+
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    // Seed exactly the v1.4.19-A1 production-shape regression: 7d and
+    // 30d both ~50 %, all-time ~13 %.
+    const seed: Array<{ daysAgo: number; sys: number; dia: number }> = [
+      // Last 7 days: 1 IN, 1 OUT.
+      { daysAgo: 1.5, sys: 117, dia: 79 },
+      { daysAgo: 5.5, sys: 145, dia: 95 },
+      // 7-30 days ago: 4 IN, 4 OUT.
+      { daysAgo: 8, sys: 122, dia: 75 },
+      { daysAgo: 10, sys: 145, dia: 95 },
+      { daysAgo: 12, sys: 125, dia: 78 },
+      { daysAgo: 14, sys: 145, dia: 90 },
+      { daysAgo: 18, sys: 120, dia: 70 },
+      { daysAgo: 22, sys: 150, dia: 95 },
+      { daysAgo: 25, sys: 128, dia: 79 },
+      { daysAgo: 28, sys: 160, dia: 100 },
+      // Older history: 30 readings, all OUT (drives all-time well below 50 %).
+      ...Array.from({ length: 30 }, (_, i) => ({
+        daysAgo: 60 + i * 3,
+        sys: 160,
+        dia: 100,
+      })),
+    ];
+    for (const r of seed) {
+      const at = new Date(now - r.daysAgo * DAY);
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_SYS",
+          value: r.sys,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_DIA",
+          value: r.dia,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+    }
+
+    const { GET } = await import("@/app/api/analytics/route");
+    const res = await (GET as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/analytics"),
+    );
+    expect(res.status).toBe(200);
+    const env = (await res.json()) as {
+      data: {
+        bpInTargetPct: number | null;
+        bpInTargetPct7d: number | null;
+        bpInTargetPct30d: number | null;
+        bpInTargetPctAllTime: number | null;
+      } | null;
+    };
+    expect(env.data).not.toBeNull();
+    const data = env.data!;
+
+    // The headline now equals the 30-day window — not the all-time aggregate.
+    // 30-day = 5/10 in target = 50 %.
+    expect(data.bpInTargetPct).toBe(50);
+    expect(data.bpInTargetPct30d).toBe(50);
+    expect(data.bpInTargetPct).toBe(data.bpInTargetPct30d);
+
+    // 7-day window: 2 paired readings, 1 in target = 50 %.
+    expect(data.bpInTargetPct7d).toBe(50);
+
+    // All-time = 5 / 40 in target = 13 % (rounded). Surfaced as a
+    // separate field so the tile can render it as a sub-row.
+    expect(data.bpInTargetPctAllTime).toBe(Math.round((5 / 40) * 100));
+
+    // Smoking gun: the headline must NOT equal the all-time number now
+    // that the route re-anchored to last-30. This is the v1.4.22 A1
+    // contract pin.
+    expect(data.bpInTargetPct).not.toBe(data.bpInTargetPctAllTime);
+  });
+
+  it("emits all three windows in the response envelope", async () => {
+    const prisma = getPrismaClient();
+    const user = await seedSession("bp-three-windows-route-fixture");
+
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    // Minimum seed that produces non-null for every window.
+    for (let i = 0; i < 3; i++) {
+      const at = new Date(now - (i + 0.5) * DAY);
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_SYS",
+          value: 122,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_DIA",
+          value: 75,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+    }
+
+    const { GET } = await import("@/app/api/analytics/route");
+    const res = await (GET as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/analytics"),
+    );
+    expect(res.status).toBe(200);
+    const env = (await res.json()) as {
+      data: {
+        bpInTargetPct: number | null;
+        bpInTargetPct7d: number | null;
+        bpInTargetPct30d: number | null;
+        bpInTargetPctAllTime: number | null;
+      };
+    };
+    const data = env.data;
+    // All three windows present + non-null.
+    expect(data.bpInTargetPct).not.toBeNull();
+    expect(data.bpInTargetPct7d).not.toBeNull();
+    expect(data.bpInTargetPct30d).not.toBeNull();
+    expect(data.bpInTargetPctAllTime).not.toBeNull();
   });
 });

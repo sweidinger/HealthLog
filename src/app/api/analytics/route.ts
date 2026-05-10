@@ -69,19 +69,20 @@ export const GET = apiHandler(async () => {
   let bpInTargetPct: number | null = null;
   let bpInTargetPct7d: number | null = null;
   let bpInTargetPct30d: number | null = null;
+  let bpInTargetPctAllTime: number | null = null;
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
     const now = new Date();
-    // v1.4.19 A1 — fetch ALL paired BP rows, not just the trailing 30
-    // days. Up to v1.4.18 we filtered to the last 30 days at the DB
-    // level and the headline (`bpInTargetPct`) was routed through
-    // `windows.last30Days?.pct` — making the headline a literal copy
-    // of the `30T` sub-value. On a busy account (e.g. 572 paired
-    // readings with recent 30d = 50 %, all-time ≈ 11 %) the tile
-    // pinned 50/50/50 and looked algorithmically broken. The windowed
-    // helper now also returns an independent `allTime` aggregate,
-    // which we surface as the headline so the three numbers can
-    // diverge naturally.
+    // v1.4.22 A1 — re-anchor the BD-Zielbereich tile headline to the
+    // last-30-day window. Up to v1.4.19 the headline pinned to the
+    // 30-day average (so 7d / 30d / total all read 50 %). v1.4.19 A1
+    // flipped the headline to all-time, which made the tile correct
+    // but emotionally wrong: the headline was the slowest-moving
+    // aggregate possible, punishing recent improvement. v1.4.22 A1
+    // re-routes the headline to last-30-days and surfaces 7d / 30d /
+    // all-time as a 3-line sub-row so power users still see the
+    // long-arc number without it dominating. The helper still returns
+    // every window — only the headline pick changed.
     const [sysData, diaData] = await Promise.all([
       prisma.measurement.findMany({
         where: { userId: user.id, type: "BLOOD_PRESSURE_SYS" },
@@ -94,9 +95,10 @@ export const GET = apiHandler(async () => {
     ]);
 
     const windows = computeBpInTargetWindows(sysData, diaData, bpTargets, now);
-    bpInTargetPct = windows.allTime?.pct ?? null;
+    bpInTargetPct = windows.last30Days?.pct ?? null;
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;
+    bpInTargetPctAllTime = windows.allTime?.pct ?? null;
   }
 
   // Per-context glucose summaries (canonical mg/dL).
@@ -150,6 +152,7 @@ export const GET = apiHandler(async () => {
     bpInTargetPct,
     bpInTargetPct7d,
     bpInTargetPct30d,
+    bpInTargetPctAllTime,
     glucoseByContext,
     correlations,
     healthScore,
