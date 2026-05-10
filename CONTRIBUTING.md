@@ -90,13 +90,39 @@ pnpm db:generate    # Regenerates Prisma client
 
 Always include the migration file in your PR.
 
+## Branch Model
+
+HealthLog uses a long-lived `develop` branch for daily work and reserves `main` for releases.
+
+```
+   feature/* ──┐
+               ├──► develop ──► (release-merge) ──► main ──► tag vX.Y.Z ──► GHCR build ──► Coolify deploy
+   fix/*    ──┘                                        │
+                                                       └──► hotfix/* ──► main + tag, then merge back to develop
+```
+
+Two simple rules:
+
+- **`develop` is the daily target.** Open feature, fix, test, and docs PRs against `develop`. Builds do not run on `develop` pushes — the branch is free of release ceremony.
+- **`main` is release-only.** It receives a single release-merge per version, gets tagged (`v1.4.20`, etc.), and that tag is what triggers the Docker image build, the GHCR push, and the Coolify deploy. Pushes to `main` outside a release are reserved for hotfixes that cannot wait for the next cycle.
+
+If a critical bug needs a hotfix:
+
+1. Branch from `main`: `git checkout -b hotfix/something main`
+2. Land the fix; tag a patch release on `main`
+3. Merge `main` back into `develop` so the next release inherits the fix
+
+End users: track the latest `v*` tag (or `:latest` on GHCR). The `main` branch always equals the latest release.
+
+Contributors: track `develop`. PRs target `develop`.
+
 ## Pull Requests
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
+2. Create a feature branch off `develop` (`git checkout -b feature/your-feature develop`)
 3. Make your changes
 4. Ensure all checks pass (`pnpm typecheck && pnpm lint && pnpm test && pnpm format:check && pnpm build`)
-5. Submit a PR with a clear description of the changes
+5. Submit a PR against `develop` with a clear description of the changes
 
 ## Security
 

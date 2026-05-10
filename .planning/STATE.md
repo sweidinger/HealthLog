@@ -30,9 +30,9 @@ B1 dispatches.
 
 ### F2 — Document branch + release model
 
-- [ ] Extend `CONTRIBUTING.md` with branch flow + ASCII/Mermaid diagram
-- [ ] Mirror page on healthlog-docs (developer / contributor docs)
-- [ ] Make user-vs-contributor distinction explicit
+- [x] Extend `CONTRIBUTING.md` with branch flow + ASCII diagram (this branch)
+- [x] Mirror page on healthlog-docs at `/contributing/branch-model/` (`5d96861` on healthlog-docs/main)
+- [x] User-vs-contributor distinction explicit in both surfaces
 - Detailed report: `.planning/phase-F2-report.md`
 
 ### FX — User-facing artifact cleanup (PII + jargon + German leaks)
