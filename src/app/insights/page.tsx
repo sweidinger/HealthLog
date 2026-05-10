@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { InsightsPageHero } from "@/components/insights/insights-page-hero";
+import { CompareToggle } from "@/components/comparison/compare-toggle";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
 // wrapper so the bundle only lands once a correlation card actually renders.
 // Every scatter card sits inside a `length >= 5` gate and below the fold,
@@ -893,6 +894,14 @@ export default function InsightsPage() {
   return (
     <div className="space-y-8">
       <InsightsPageHero updatedAt={heroUpdatedAt} />
+
+      {/* v1.4.16 phase D reconcile (CRITICAL C3) — on-surface comparison
+          toggle. Mirrors the dashboard placement so flipping Vormonat /
+          Vorjahr is one tap on the page that uses it, not 3 clicks
+          via Settings → Dashboard. */}
+      <div className="flex items-center justify-end">
+        <CompareToggle />
+      </div>
 
       <InsightsSectionNav />
 

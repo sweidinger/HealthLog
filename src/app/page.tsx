@@ -45,6 +45,7 @@ import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
 import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
+import { CompareToggle } from "@/components/comparison/compare-toggle";
 
 const HealthChart = dynamic(
   () =>
@@ -463,6 +464,12 @@ export default function DashboardPage() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* v1.4.16 phase D reconcile (CRITICAL C3) — on-surface comparison
+          toggle. The Settings-only Select shipped in B8 was buried 3
+          clicks deep; mounting the toggle here makes the Vormonat /
+          Vorjahr overlay flip a single tap on the page that uses it. */}
+      <CompareToggle />
 
       {/* v1.4: Getting-started checklist for brand-new users.
        * Self-gates visibility on (onboardingCompletedAt == null
