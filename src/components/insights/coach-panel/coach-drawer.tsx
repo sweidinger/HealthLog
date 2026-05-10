@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,53 @@ export interface CoachDrawerProps {
   composer?: React.ReactNode;
 }
 
+/**
+ * v1.4.23 H3 — local state seeded from a controlled prop, reset on
+ * prop change. Same render-phase pattern React's docs recommend in
+ * place of `useEffect(() => setState(prop), [prop])` (which the
+ * `react-hooks/set-state-in-effect` ESLint rule banned). The reset
+ * runs during render: React detects the queued setState, restarts
+ * the render with the new value, and commits a single coherent
+ * snapshot — no double paint, no flash of stale state.
+ *
+ * Exported so the drawer's prefill-reset behaviour can be unit-
+ * tested in isolation without standing up the whole Sheet portal.
+ */
+export function useResettableValue<T>(
+  controlledValue: T,
+): [T, Dispatch<SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(controlledValue);
+  // Mirror the last observed controlled value via a sibling useState
+  // pair (per React docs:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  // useRef is the wrong tool here — ESLint rejects ref read+write
+  // during render, and useState already gives us identity tracking
+  // with no extra cost.
+  const [lastSeen, setLastSeen] = useState<T>(controlledValue);
+  if (!Object.is(controlledValue, lastSeen)) {
+    setLastSeen(controlledValue);
+    setValue(controlledValue);
+  }
+  return [value, setValue];
+}
+
+/**
+ * v1.4.23 H3 — pure decision function behind `useResettableValue`.
+ * Given the previous controlled value the hook recorded and the
+ * incoming controlled value, returns either `{ reset: true, value }`
+ * (the next render must seed local state with `value`) or
+ * `{ reset: false }` (local state survives — the user's edits are
+ * preserved). Pure + dependency-free so it tests cleanly without a
+ * React renderer — pin the contract here and trust the hook
+ * implementation to wire the same comparison.
+ */
+export function nextResettableValue<T>(
+  previous: T,
+  incoming: T,
+): { reset: true; value: T } | { reset: false } {
+  return Object.is(previous, incoming) ? { reset: false } : { reset: true, value: incoming };
+}
+
 export function CoachDrawer({
   open,
   onOpenChange,
@@ -82,12 +130,18 @@ export function CoachDrawer({
   // data the Coach is using without losing the message thread context.
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
-  // The composer's input value is seeded from `prefill` whenever the
-  // parent toggles `open` — we mount the drawer with a key derived from
-  // (open, prefill) so the lazy initialiser fires fresh on each
-  // open/prefill transition. That sidesteps `setState`-in-`useEffect`
-  // entirely (banned by `react-hooks/set-state-in-effect`).
-  const [inputValue, setInputValue] = useState<string>(() => prefill ?? "");
+  // v1.4.23 H3 — `prefill` is now a fully-controlled prop. The
+  // v1.4.20 implementation used `key={prefill}` on the parent mount
+  // to force a fresh `useState()` initialiser run on every prefill
+  // transition (the "weaponise-React-keys" pattern senior-dev
+  // review flagged as Sr-HIGH-4). The replacement is a tiny
+  // `useResettableValue` hook below: tracks the last observed
+  // prefill in a ref and schedules a same-render state update when
+  // the prop changes — a textbook React render-phase update,
+  // ESLint-clean against `react-hooks/set-state-in-effect`. The
+  // user can still type freely; the drawer only resets the composer
+  // when the parent changes which suggested-prompt chip is active.
+  const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
   // v1.4.20.1 — scope picker state (per-source checkboxes + window
   // selector). Resets to the all-source last30days default each time
   // the drawer mounts; no conversation-level persistence in this

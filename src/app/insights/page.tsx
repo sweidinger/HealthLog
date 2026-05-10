@@ -1645,12 +1645,13 @@ export default function InsightsPage() {
         />
       </section>
 
-      {/* v1.4.20 phase B2b — AI Coach drawer. The drawer reads its
-          initial input value from `prefill`; we change the React `key`
-          on every prefill transition so the lazy `useState` initialiser
-          fires fresh and the composer surfaces the latest chip. */}
+      {/* v1.4.20 phase B2b — AI Coach drawer.
+          v1.4.23 H3 — `prefill` is a controlled prop now; the drawer
+          watches it via an in-render ref and resets the composer
+          when the parent changes which suggested-prompt chip is
+          active. The old `key={prefill}` weaponise-React-keys pattern
+          is gone (Sr-HIGH-4). */}
       <CoachDrawer
-        key={coachPrefill ?? "blank"}
         open={coachOpen}
         onOpenChange={setCoachOpen}
         prefill={coachPrefill}
