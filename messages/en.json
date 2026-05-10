@@ -1939,6 +1939,8 @@
         "emptyDescription": "Backups run automatically every Sunday at 03:00 — or trigger one now to create the first snapshot.",
         "colUser": "User",
         "colType": "Type",
+        "typeWeeklyAuto": "Weekly (auto)",
+        "typeManual": "Manual",
         "colSize": "Size",
         "colCreatedAt": "Last snapshot",
         "colActions": "Actions",

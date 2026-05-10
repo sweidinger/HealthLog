@@ -152,6 +152,20 @@ function formatBytes(bytes: number, fmt: ReturnType<typeof useFormatters>) {
   return `${fmt.number(bytes / 1024 / 1024, 2)} MB`;
 }
 
+/**
+ * Render the `DataBackup.type` enum (`WEEKLY_AUTO` / `MANUAL`) as a
+ * human label. Unknown values fall through to the raw enum so a future
+ * type added in the schema is still legible at a glance.
+ */
+function formatBackupType(
+  type: string,
+  t: ReturnType<typeof useTranslations>["t"],
+) {
+  if (type === "WEEKLY_AUTO") return t("admin.section.backups.typeWeeklyAuto");
+  if (type === "MANUAL") return t("admin.section.backups.typeManual");
+  return type;
+}
+
 export function BackupsSection() {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -481,7 +495,7 @@ export function BackupsSection() {
                   <td className="px-3 py-2 font-medium">{row.username}</td>
                   <td className="px-3 py-2">
                     <Badge variant="secondary" className="text-xs">
-                      {row.type}
+                      {formatBackupType(row.type, t)}
                     </Badge>
                   </td>
                   <td className="px-3 py-2 text-right font-mono text-xs tabular-nums">

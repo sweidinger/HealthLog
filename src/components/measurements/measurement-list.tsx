@@ -104,6 +104,21 @@ function toDateTimeLocalValue(isoString: string): string {
   return local.toISOString().slice(0, 16);
 }
 
+/**
+ * Render the `MeasurementSource` enum (`MANUAL` / `WITHINGS` / `IMPORT`)
+ * using the existing `measurements.source*` translation keys instead of
+ * leaking the SCREAMING_SNAKE enum into the table cell.
+ */
+function formatMeasurementSource(
+  source: string,
+  t: ReturnType<typeof useTranslations>["t"],
+) {
+  if (source === "WITHINGS") return t("measurements.sourceWithings");
+  if (source === "IMPORT") return t("measurements.sourceImport");
+  if (source === "MANUAL") return t("measurements.sourceManual");
+  return source;
+}
+
 export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
@@ -416,7 +431,7 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                       <TableCell>
                         {m.source !== "MANUAL" && (
                           <Badge variant="outline" className="text-xs">
-                            {m.source}
+                            {formatMeasurementSource(m.source, t)}
                           </Badge>
                         )}
                       </TableCell>

@@ -1939,6 +1939,8 @@
         "emptyDescription": "Backups laufen automatisch jeden Sonntag um 03:00 Uhr — oder erstelle jetzt einen ersten Snapshot.",
         "colUser": "Nutzer",
         "colType": "Typ",
+        "typeWeeklyAuto": "Wöchentlich (auto)",
+        "typeManual": "Manuell",
         "colSize": "Größe",
         "colCreatedAt": "Letzter Snapshot",
         "colActions": "Aktionen",
