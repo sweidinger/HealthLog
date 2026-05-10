@@ -95,7 +95,7 @@ export function IntakeHistoryList({
 }: IntakeHistoryListProps) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
 
   const sourceLabels: Record<string, string> = {
     WEB: t("medications.sourceWeb"),
@@ -545,6 +545,7 @@ export function IntakeHistoryList({
                 <Input
                   id="edit-scheduledFor"
                   type="datetime-local"
+                  lang={locale}
                   value={editScheduledFor}
                   onChange={(e) => setEditScheduledFor(e.target.value)}
                   required
@@ -558,6 +559,7 @@ export function IntakeHistoryList({
                 <Input
                   id="edit-takenAt"
                   type="datetime-local"
+                  lang={locale}
                   value={editTakenAt}
                   onChange={(e) => setEditTakenAt(e.target.value)}
                   disabled={editSkipped}
@@ -689,6 +691,7 @@ export function IntakeHistoryList({
               <Input
                 id="create-scheduledFor"
                 type="datetime-local"
+                lang={locale}
                 value={createScheduledFor}
                 onChange={(e) => setCreateScheduledFor(e.target.value)}
                 required
@@ -702,6 +705,7 @@ export function IntakeHistoryList({
               <Input
                 id="create-takenAt"
                 type="datetime-local"
+                lang={locale}
                 value={createTakenAt}
                 onChange={(e) => setCreateTakenAt(e.target.value)}
                 disabled={createSkipped}

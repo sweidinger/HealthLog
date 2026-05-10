@@ -304,6 +304,7 @@ export default function OnboardingPage() {
             <Input
               id="ob-dob"
               type="date"
+              lang={locale}
               value={dateOfBirth}
               onChange={(e) => setDateOfBirth(e.target.value)}
               max={new Date().toISOString().slice(0, 10)}

@@ -386,6 +386,7 @@ export function AccountSection() {
               <Input
                 id="dob"
                 type="date"
+                lang={locale}
                 value={dateOfBirth}
                 onChange={(e) => setDateOfBirth(e.target.value)}
                 max={new Date().toISOString().slice(0, 10)}

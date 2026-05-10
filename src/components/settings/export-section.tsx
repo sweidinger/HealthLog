@@ -253,7 +253,7 @@ function DateRangeFields({
   setUntil,
   idPrefix,
 }: DateRangeFieldsProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
@@ -263,6 +263,7 @@ function DateRangeFields({
         <Input
           id={`${idPrefix}-since`}
           type="date"
+          lang={locale}
           value={since}
           onChange={(e) => setSince(e.target.value)}
           max={until || undefined}
@@ -275,6 +276,7 @@ function DateRangeFields({
         <Input
           id={`${idPrefix}-until`}
           type="date"
+          lang={locale}
           value={until}
           onChange={(e) => setUntil(e.target.value)}
           min={since || undefined}

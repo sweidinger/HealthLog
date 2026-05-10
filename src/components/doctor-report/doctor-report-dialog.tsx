@@ -80,7 +80,7 @@ export function DoctorReportDialog({
   defaultPracticeName,
   onSubmit,
 }: DoctorReportDialogProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const [startDate, setStartDate] = useState<string>(defaultStartIso);
   const [endDate, setEndDate] = useState<string>(todayIso);
   const [practiceName, setPracticeName] = useState<string>("");
@@ -194,6 +194,7 @@ export function DoctorReportDialog({
               <Input
                 id="dr-start"
                 type="date"
+                lang={locale}
                 value={startDate}
                 max={endDate || todayIso()}
                 onChange={(e) => {
@@ -210,6 +211,7 @@ export function DoctorReportDialog({
               <Input
                 id="dr-end"
                 type="date"
+                lang={locale}
                 value={endDate}
                 min={startDate}
                 max={todayIso()}

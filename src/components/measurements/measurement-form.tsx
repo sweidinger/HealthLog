@@ -117,7 +117,7 @@ export function MeasurementForm({
   onCancel,
   defaultType,
 }: MeasurementFormProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const queryClient = useQueryClient();
 
   // Normalize legacy BP types to combined mode
@@ -361,6 +361,7 @@ export function MeasurementForm({
         <Input
           id="measuredAt"
           type="datetime-local"
+          lang={locale}
           value={measuredAt}
           onChange={(e) => setMeasuredAt(e.target.value)}
           required

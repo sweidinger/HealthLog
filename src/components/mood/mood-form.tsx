@@ -37,7 +37,7 @@ function getDefaultMoodLoggedAtValue() {
 }
 
 export function MoodForm({ onSuccess, onCancel }: MoodFormProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const queryClient = useQueryClient();
 
   const [mood, setMood] = useState("");
@@ -135,6 +135,7 @@ export function MoodForm({ onSuccess, onCancel }: MoodFormProps) {
         <Input
           id="mood-logged-at"
           type="datetime-local"
+          lang={locale}
           value={moodLoggedAt}
           onChange={(e) => setMoodLoggedAt(e.target.value)}
           required

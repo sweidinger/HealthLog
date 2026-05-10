@@ -117,7 +117,7 @@ interface MoodListProps {
 }
 
 export function MoodList({ onAddFirst }: MoodListProps = {}) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
@@ -572,6 +572,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                 <Input
                   id="edit-mood-logged-at"
                   type="datetime-local"
+                  lang={locale}
                   value={editMoodLoggedAt}
                   onChange={(e) => setEditMoodLoggedAt(e.target.value)}
                   required

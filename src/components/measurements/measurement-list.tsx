@@ -105,7 +105,7 @@ function toDateTimeLocalValue(isoString: string): string {
 }
 
 export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
@@ -562,6 +562,7 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                 <Input
                   id="edit-measuredAt"
                   type="datetime-local"
+                  lang={locale}
                   value={editMeasuredAt}
                   onChange={(e) => setEditMeasuredAt(e.target.value)}
                   required
