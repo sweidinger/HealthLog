@@ -43,6 +43,7 @@ import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { InsightAdvisorCard } from "@/components/insights/insight-advisor-card";
 import { HeroStrip } from "@/components/insights/hero-strip";
 import { DailyBriefing } from "@/components/insights/daily-briefing";
+import { CoachDrawer } from "@/components/insights/coach-panel/coach-drawer";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { CompareToggle } from "@/components/comparison/compare-toggle";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
@@ -489,6 +490,13 @@ export default function InsightsPage() {
   const { isAuthenticated, user } = useAuth();
   const { t, locale } = useTranslations();
 
+  // v1.4.20 phase B2b — Coach drawer state. The hero strip's
+  // "Ask the coach" button + suggested-prompt chips toggle the drawer
+  // here; the drawer ingests `coachPrefill` once on open and resets on
+  // close so the next open starts blank.
+  const [coachOpen, setCoachOpen] = useState<boolean>(false);
+  const [coachPrefill, setCoachPrefill] = useState<string | null>(null);
+
   const STRENGTH_LABELS: Record<string, string> = {
     stark: t("insights.strengthStrong"),
     moderat: t("insights.strengthModerate"),
@@ -861,6 +869,14 @@ export default function InsightsPage() {
         userName={heroGreetingName}
         onRegenerate={advisor.regenerate}
         regenerating={advisor.isRegenerating}
+        onAskCoach={() => {
+          setCoachPrefill(null);
+          setCoachOpen(true);
+        }}
+        onPickPrompt={(prompt) => {
+          setCoachPrefill(prompt);
+          setCoachOpen(true);
+        }}
       />
 
       <DailyBriefing
@@ -1490,6 +1506,17 @@ export default function InsightsPage() {
           loading={isBmiStatusLoading}
         />
       </section>
+
+      {/* v1.4.20 phase B2b — AI Coach drawer. The drawer reads its
+          initial input value from `prefill`; we change the React `key`
+          on every prefill transition so the lazy `useState` initialiser
+          fires fresh and the composer surfaces the latest chip. */}
+      <CoachDrawer
+        key={coachPrefill ?? "blank"}
+        open={coachOpen}
+        onOpenChange={setCoachOpen}
+        prefill={coachPrefill}
+      />
     </div>
   );
 }

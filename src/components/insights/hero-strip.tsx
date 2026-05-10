@@ -53,10 +53,18 @@ interface HeroStripProps {
   /** Disables the regenerate button + flips its icon to a spinner. */
   regenerating?: boolean;
   /**
-   * Click handler for the suggested prompts. The Coach drawer (B2)
-   * will own the routing; for B1 the parent passes a no-op.
+   * Click handler for the suggested prompts. The Coach drawer (B2b)
+   * routes a chip click into the drawer's input; the parent owns the
+   * drawer state. When omitted the chip click is a no-op.
    */
   onPickPrompt?: (prompt: string) => void;
+  /**
+   * Click handler for the "Ask the coach" action button. When supplied,
+   * the button is enabled and the coming-soon tooltip drops; clicking
+   * opens the drawer (B2b). When omitted the button stays disabled —
+   * see the v1.4.20 phase B1 dispatch where the drawer was deferred.
+   */
+  onAskCoach?: () => void;
   /**
    * Now() override for tests so the greeting bucket is deterministic.
    * Defaults to `new Date()`. Production callers omit this.
@@ -108,6 +116,7 @@ export function HeroStrip({
   onRegenerate,
   regenerating = false,
   onPickPrompt,
+  onAskCoach,
   now,
 }: HeroStripProps) {
   const { t } = useTranslations();
@@ -185,13 +194,18 @@ export function HeroStrip({
             <FileText className="h-3.5 w-3.5" aria-hidden="true" />
             <span>{t("insights.heroActionWeeklyReport")}</span>
           </Button>
-          {/* B2 wires this into the Coach drawer. */}
+          {/* B2b wires this into the Coach drawer. The button is
+              enabled whenever the parent supplies an `onAskCoach`
+              handler; older parents that haven't adopted B2b yet
+              still get the disabled "Coming soon" affordance so the
+              hero doesn't break. */}
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled
-            title={comingSoon}
+            onClick={onAskCoach}
+            disabled={!onAskCoach}
+            title={onAskCoach ? undefined : comingSoon}
             data-slot="insights-hero-strip-action-coach"
             className="gap-1.5"
           >
@@ -227,9 +241,10 @@ export function HeroStrip({
           className="border-border/50 border-t pt-4"
         >
           {/*
-           * TODO(B2): wire onPickPrompt into the Coach drawer so a
-           * chip click pre-fills the input + opens the drawer. For
-           * B1 the parent passes a no-op.
+           * v1.4.20 phase B2b — chip clicks open the Coach drawer
+           * with the localised prompt pre-filled in the composer.
+           * The parent owns drawer state so the chip strip stays
+           * presentational.
            */}
           <SuggestedPrompts
             onPick={onPickPrompt ?? (() => undefined)}

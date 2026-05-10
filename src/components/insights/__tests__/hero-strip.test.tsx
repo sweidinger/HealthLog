@@ -124,11 +124,30 @@ describe("<HeroStrip>", () => {
     );
   });
 
-  it("renders the ask-the-coach action button as disabled with a 'Coming soon' title", () => {
+  it("renders the ask-the-coach action button as disabled with a 'Coming soon' title when no handler is supplied", () => {
     const html = render(<HeroStrip briefing={null} now={morningLocal} />);
-    expect(html).toMatch(
-      /data-slot="insights-hero-strip-action-coach"[^>]*disabled[^>]*title="Coming soon"/,
+    const coachTag = html.match(
+      /<button[^>]*data-slot="insights-hero-strip-action-coach"[^>]*>/,
     );
+    expect(coachTag).not.toBeNull();
+    expect(coachTag?.[0]).toMatch(/\sdisabled(=""|\s|>)/);
+    expect(coachTag?.[0]).toContain('title="Coming soon"');
+  });
+
+  it("enables the ask-the-coach button when onAskCoach is supplied (B2b)", () => {
+    const html = render(
+      <HeroStrip
+        briefing={null}
+        now={morningLocal}
+        onAskCoach={() => {}}
+      />,
+    );
+    const coachTag = html.match(
+      /<button[^>]*data-slot="insights-hero-strip-action-coach"[^>]*>/,
+    );
+    expect(coachTag).not.toBeNull();
+    expect(coachTag?.[0]).not.toMatch(/\sdisabled(=""|\s|>)/);
+    expect(coachTag?.[0]).not.toContain('title="Coming soon"');
   });
 
   it("renders the regenerate button when onRegenerate is supplied", () => {

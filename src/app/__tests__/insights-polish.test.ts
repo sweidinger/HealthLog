@@ -64,6 +64,30 @@ describe("v1.4.19 A3 — dashboard polish", () => {
   });
 });
 
+describe("v1.4.20 B2b — /insights wires the Coach drawer", () => {
+  it("imports <CoachDrawer> and mounts it at the bottom of the page", () => {
+    const src = load(INSIGHTS_PATH);
+    expect(src).toContain(
+      'from "@/components/insights/coach-panel/coach-drawer"',
+    );
+    expect(src).toMatch(/<CoachDrawer\b[\s\S]*?\/>/);
+  });
+
+  it("hero strip's onAskCoach handler opens the drawer with no prefill", () => {
+    const src = load(INSIGHTS_PATH);
+    // The hero supplies onAskCoach which sets coachPrefill to null and
+    // flips coachOpen.
+    expect(src).toMatch(/<HeroStrip[\s\S]*?onAskCoach=\{/);
+    expect(src).toMatch(/<HeroStrip[\s\S]*?onPickPrompt=\{/);
+  });
+
+  it("page owns coachOpen + coachPrefill state", () => {
+    const src = load(INSIGHTS_PATH);
+    expect(src).toContain("setCoachOpen");
+    expect(src).toContain("setCoachPrefill");
+  });
+});
+
 describe("v1.4.19 A3 — /insights polish", () => {
   it("does NOT mount the legacy advisor-card regenerate handler", () => {
     const src = load(INSIGHTS_PATH);
