@@ -65,13 +65,31 @@ describe("v1.4.19 A3 — dashboard polish", () => {
 });
 
 describe("v1.4.19 A3 — /insights polish", () => {
-  it("renders exactly ONE on-surface refresh affordance at the page level", () => {
+  it("does NOT mount the legacy advisor-card regenerate handler", () => {
+    const src = load(INSIGHTS_PATH);
+    // The advisor card no longer carries its own onRegenerate handler
+    // that duplicated the hero one. v1.4.20 phase B1 added a second
+    // wiring (the <DailyBriefing> empty-state CTA), which only renders
+    // while the briefing payload is null — its purpose is "generate
+    // today's briefing" rather than "refresh", and it disappears the
+    // moment a briefing exists. The original v1.4.19 ratchet was the
+    // advisor-card duplication; that one stays banned.
+    //
+    // We extract the InsightAdvisorCard JSX block (everything up to
+    // the closing `/>`) and assert no `onRegenerate` prop appears
+    // inside it.
+    const advisorBlock = src.match(/<InsightAdvisorCard\b[^>]*\/>/);
+    expect(advisorBlock).not.toBeNull();
+    expect(advisorBlock?.[0]).not.toContain("onRegenerate");
+  });
+
+  it("hero strip is the always-visible page-level refresh affordance", () => {
     const src = load(INSIGHTS_PATH);
     // The hero owns the page-level regenerate button (mounted via
-    // `onRegenerate={advisor.regenerate}`). The advisor card no
-    // longer carries its own duplicate handler.
-    const regenerateProps = src.match(/onRegenerate=\{advisor\.regenerate\}/g);
-    expect(regenerateProps?.length ?? 0).toBe(1);
+    // `onRegenerate={advisor.regenerate}` on `<HeroStrip>`).
+    expect(src).toMatch(
+      /<HeroStrip[\s\S]*?onRegenerate=\{advisor\.regenerate\}/,
+    );
   });
 
   it("does NOT render the duplicate <TrendCard> tile strip on /insights", () => {

@@ -41,7 +41,8 @@ import {
 } from "lucide-react";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { InsightAdvisorCard } from "@/components/insights/insight-advisor-card";
-import { InsightsPageHero } from "@/components/insights/insights-page-hero";
+import { HeroStrip } from "@/components/insights/hero-strip";
+import { DailyBriefing } from "@/components/insights/daily-briefing";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { CompareToggle } from "@/components/comparison/compare-toggle";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
@@ -840,10 +841,32 @@ export default function InsightsPage() {
     medicationComplianceStatus?.updatedAt,
   ]);
 
+  // v1.4.20 phase B1 — derive the user's display name for the hero
+  // greeting. We use the username (HealthLog has no separate display-
+  // name field) and stop at the first whitespace so a "first.last"
+  // handle reads cleanly. Falls back to no-name greeting when the user
+  // has no username so the hero never paints "Good morning, undefined".
+  const heroGreetingName =
+    user?.username?.trim() && user.username.trim().length > 0
+      ? user.username.split(/\s+/)[0]
+      : null;
+  const briefingPayload = advisor.payload?.dailyBriefing ?? null;
+  const heroStripUpdatedAt = advisor.payload?.cachedAt ?? heroUpdatedAt;
+
   return (
     <div className="space-y-8">
-      <InsightsPageHero
-        updatedAt={advisor.payload?.cachedAt ?? heroUpdatedAt}
+      <HeroStrip
+        briefing={briefingPayload}
+        updatedAt={heroStripUpdatedAt}
+        userName={heroGreetingName}
+        onRegenerate={advisor.regenerate}
+        regenerating={advisor.isRegenerating}
+      />
+
+      <DailyBriefing
+        briefing={briefingPayload}
+        updatedAt={heroStripUpdatedAt}
+        loading={advisor.isLoading}
         onRegenerate={advisor.regenerate}
         regenerating={advisor.isRegenerating}
         metaSlot={<CompareToggle />}

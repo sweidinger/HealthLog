@@ -2,6 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InsightResult } from "@/lib/ai/types";
+import {
+  dailyBriefingSchema,
+  type DailyBriefing as DailyBriefingPayload,
+} from "@/lib/ai/schema";
 import { queryKeys } from "@/lib/query-keys";
 
 /**
@@ -26,6 +30,15 @@ export interface InsightAdvisorPayload {
   cached: boolean;
   cachedAt?: string | null;
   legacyPayload?: boolean;
+  /**
+   * v1.4.20 phase B1 — Daily Briefing block surfaced for the new hero
+   * strip + briefing card. Lives on the cached payload alongside the
+   * legacy `insights` shape (see `aiInsightResponseSchema` — the
+   * `.passthrough()` lets the field round-trip through any provider).
+   * Validated client-side via the schema's `safeParse` to keep a
+   * malformed payload from poisoning the briefing card.
+   */
+  dailyBriefing?: DailyBriefingPayload | null;
 }
 
 async function fetchAdvisor(
@@ -46,7 +59,25 @@ async function fetchAdvisor(
     throw new Error(`HTTP ${res.status}`);
   }
   const json = await res.json();
-  return json.data as InsightAdvisorPayload;
+  const payload = json.data as InsightAdvisorPayload;
+  // The cached `insights` blob may carry a `dailyBriefing` from a fresh
+  // PROMPT_VERSION 4.20.x generation. Lift it onto the payload so
+  // consumers don't have to know the legacy shape.
+  const briefingCandidate = (payload?.insights as Record<string, unknown>)
+    ?.dailyBriefing;
+  if (briefingCandidate != null) {
+    const parsed = dailyBriefingSchema.safeParse(briefingCandidate);
+    if (parsed.success) {
+      payload.dailyBriefing = parsed.data;
+    } else {
+      // Malformed cached briefing — keep null so the UI shows the
+      // empty-state CTA instead of a half-rendered card.
+      payload.dailyBriefing = null;
+    }
+  } else {
+    payload.dailyBriefing = null;
+  }
+  return payload;
 }
 
 export interface UseInsightsAdvisorResult {
