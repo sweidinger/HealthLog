@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { registerSchema } from "@/lib/validations/auth";
 import { hashPassword, checkPasswordStrength } from "@/lib/auth/password";
-import { createSession } from "@/lib/auth/session";
+import { createSession, setOnboardingPendingCookie } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
 import {
   apiSuccess,
@@ -97,6 +97,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // Create session immediately
   const ua = request.headers.get("user-agent");
   await createSession(user.id, ip, ua);
+  // v1.4.22 C4 — fresh users are always onboarding-pending. The cookie
+  // lets the proxy redirect on first navigation instead of waiting for
+  // `<AuthShell>` to hydrate and trigger a useEffect bounce.
+  await setOnboardingPendingCookie(true);
 
   await auditLog("auth.register", {
     userId: user.id,

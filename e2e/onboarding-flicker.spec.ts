@@ -139,10 +139,15 @@ test.describe("dashboard onboarding card flicker guard", () => {
     // card mounts collapsed: header + progress meter visible, full row
     // list hidden until the user clicks the chevron.
     //
-    // We intentionally pin `onboardingCompletedAt` to a non-null value:
-    // `<AuthShell>` redirects users with a null timestamp straight to
-    // `/onboarding`, so the dashboard never paints. The checklist still
-    // renders here because `summaries: {}` keeps `measurementCount = 0`.
+    // v1.4.22 C4 — the onboarding redirect now lives in `proxy.ts`,
+    // not in `<AuthShell>`. The proxy reads the `hl_onboarding` cookie
+    // (which the auth routes mirror from the DB). Our storageState
+    // belongs to a fully-onboarded user (no `hl_onboarding` cookie),
+    // so the proxy passes the dashboard through even when the mocked
+    // `/api/auth/me` reports `onboardingCompletedAt: null`. That's the
+    // exact case this test wants to cover — the checklist mounts
+    // because `measurementCount < 5` AND `onboardingCompletedAt` is
+    // null, but the page itself still paints.
     await page.route("**/api/auth/me", (route) =>
       route.fulfill({
         status: 200,
@@ -157,7 +162,7 @@ test.describe("dashboard onboarding card flicker guard", () => {
             dateOfBirth: null,
             gender: null,
             timezone: "Europe/Berlin",
-            onboardingCompletedAt: "2025-01-01T00:00:00.000Z",
+            onboardingCompletedAt: null,
             // Suppress the spotlight tour overlay during this spec so
             // the onboarding-card visibility probe is not occluded by
             // the tour's z-200 dialog. The tour itself is exercised by

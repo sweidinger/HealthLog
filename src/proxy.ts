@@ -137,6 +137,21 @@ export function proxy(request: NextRequest) {
     if (!hasSession) {
       return NextResponse.redirect(new URL("/auth/login", request.url));
     }
+
+    // v1.4.22 C4 — server-side onboarding redirect. Previously the
+    // `<AuthShell>` ran this in a post-hydration `useEffect`, so a user
+    // with `onboardingCompletedAt === null` briefly saw the dashboard
+    // flash before the redirect fired. The auth flows (login, passkey,
+    // register, /api/auth/me) keep an `hl_onboarding` cookie in sync
+    // with the DB state; the proxy reads it without a DB roundtrip so
+    // the redirect lands on the first server response. The /onboarding
+    // page itself is in PUBLIC_PATHS above, so this branch only runs
+    // for the surfaces that need to redirect away.
+    const onboardingPending =
+      request.cookies.get("hl_onboarding")?.value === "pending";
+    if (onboardingPending && !pathname.startsWith("/onboarding")) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
   }
 
   // Generate or propagate x-request-id for request correlation

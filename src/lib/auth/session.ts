@@ -7,6 +7,37 @@ import { getEvent } from "@/lib/logging/context";
 const SESSION_COOKIE = "healthlog_session";
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
+/**
+ * v1.4.22 C4 — flag cookie mirroring the user's `onboardingCompletedAt`
+ * status. Set to `"pending"` while the field is null and cleared once
+ * onboarding completes. The proxy reads this cookie to short-circuit
+ * the post-hydration redirect that previously caused a dashboard flash
+ * before the client-side `<AuthShell>` effect could fire.
+ *
+ * NOT httpOnly: the cookie is a UX hint, not a security signal — the
+ * real gate stays the server-side onboarding-complete check in
+ * `/api/onboarding/complete`. A user editing the cookie locally just
+ * skips the dashboard flash; they still can't bypass any data check.
+ */
+const ONBOARDING_COOKIE = "hl_onboarding";
+
+export async function setOnboardingPendingCookie(
+  pending: boolean,
+): Promise<void> {
+  const cookieStore = await cookies();
+  if (pending) {
+    cookieStore.set(ONBOARDING_COOKIE, "pending", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_MAX_AGE_MS / 1000,
+      path: "/",
+    });
+  } else {
+    cookieStore.delete(ONBOARDING_COOKIE);
+  }
+}
+
 export async function createSession(
   userId: string,
   ipAddress?: string | null,
@@ -63,6 +94,7 @@ export async function getSession(): Promise<{
       await prisma.session.delete({ where: { id: sessionId } });
     }
     cookieStore.delete(SESSION_COOKIE);
+    cookieStore.delete(ONBOARDING_COOKIE);
     return null;
   }
 
@@ -99,6 +131,7 @@ export async function destroySession(): Promise<void> {
     await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
   }
   cookieStore.delete(SESSION_COOKIE);
+  cookieStore.delete(ONBOARDING_COOKIE);
 }
 
 export async function destroyAllSessions(userId: string): Promise<void> {

@@ -15,6 +15,7 @@ vi.mock("@/lib/auth/passkey", () => ({
 
 vi.mock("@/lib/auth/session", () => ({
   createSession: vi.fn().mockResolvedValue("session-id"),
+  setOnboardingPendingCookie: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/auth/audit", () => ({

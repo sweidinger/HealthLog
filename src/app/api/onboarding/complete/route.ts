@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
+import { setOnboardingPendingCookie } from "@/lib/auth/session";
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
 
@@ -55,6 +56,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
     where: { id: user.id },
     data,
   });
+
+  // v1.4.22 C4 — clear the proxy-readable onboarding cookie so the
+  // next navigation drops the /onboarding redirect immediately.
+  await setOnboardingPendingCookie(false);
 
   return apiSuccess({ completed: true });
 });

@@ -1,5 +1,5 @@
 import { verifyAuthentication } from "@/lib/auth/passkey";
-import { createSession } from "@/lib/auth/session";
+import { createSession, setOnboardingPendingCookie } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
 import {
   apiSuccess,
@@ -67,6 +67,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const ua = request.headers.get("user-agent");
   await createSession(user.id, ip, ua);
+  // v1.4.22 C4 — mirror onboarding status into the proxy-readable cookie
+  // so the redirect short-circuits before the page hydrates.
+  await setOnboardingPendingCookie(user.onboardingCompletedAt == null);
 
   await auditLog("auth.login.passkey", {
     userId: user.id,
