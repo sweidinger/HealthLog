@@ -1,5 +1,174 @@
 # Changelog
 
+## [1.4.16] — 2026-05-09
+
+### Added
+
+- **Per-recommendation explainability.** Every insight recommendation now
+  carries a rationale: which time window was analysed, what was compared,
+  and the deviation that triggered the recommendation. The card expands
+  inline to reveal the rationale plus a mini-chart of the data window.
+- **Confidence score per recommendation.** Each recommendation gets a
+  deterministic 0–100 confidence score (server-computed from sample size,
+  recency, and signal strength) shown as a colour-banded ring + bar meter.
+  Below-threshold recommendations are tagged "low confidence — based on
+  limited data" rather than hidden.
+- **"Was this helpful?" feedback.** Thumbs-up / thumbs-down on every
+  recommendation, persisted per user with provider attribution. Daily
+  aggregator writes per-(severity × provider) helpful-rate to admin
+  settings; the aggregate is visible under `/admin/ai-quality`.
+- **Medical-reference grounding.** Recommendations cite curated AHA / ESH
+  / ESC / WHO / DGE guidelines via a validated `referenceId`; the
+  citation links open the source guideline in a new tab.
+- **Multi-provider AI fallback chain.** The insight wrapper tries each
+  configured provider in turn on hard failures (401 / 403 / 429 / 5xx /
+  transport). Schema 422 still bubbles. Last-working provider is cached
+  per user for an hour. Order, enable / disable, and provider list are
+  configurable under Settings → AI.
+- **Apple-Health-style chart polish.** Blood pressure, weight, pulse,
+  body fat, sleep, steps, mood, and medication-compliance charts gain
+  gradient fills, smooth interpolation, a 90-day-median personal-baseline
+  reference line, in-target zone shading, rich tooltips with delta
+  vs. baseline, and 600 ms ease-out animation that respects
+  `prefers-reduced-motion`. Sparse data (<3 points) renders an explicit
+  empty state instead of a degenerate line.
+- **Comparison overlay (vs. last month / vs. last year).** A new toggle
+  at the top of every chart, tile, and the insights surface overlays the
+  prior period as a dimmed line beneath the current one and adds a delta
+  callout (Δ ±N). The AI summary narrates the comparison ("your average
+  BP improved by 4 mmHg vs. last month") when the toggle is active.
+- **Settings → Export.** Consolidated `/settings/export` page with one
+  card per export type: doctor-report PDF (configurable date range +
+  practice name), measurements CSV, medications CSV (optional intake
+  history), mood CSV, full JSON backup. Each download writes a
+  `user.export.<kind>` audit-log entry and shares a 10/h rate-limit
+  bucket. Doctor-report entry-point relocated under this route.
+- **Achievements page.** New `/achievements` page with locked + unlocked
+  breakdown grouped by category (medication / vitals / security /
+  engagement). Recent unlocks card on the dashboard, toggleable from
+  layout settings.
+- **Onboarding tour for new users.** First-run spotlight walk-through
+  highlighting tile-strip, quick-add menu, insights, integrations, and
+  achievements. Skippable, keyboard-navigable, replayable from
+  Settings → Account.
+- **Admin host-load chart.** New chart over the system-status section
+  shows host CPU, memory, and disk-IO over the last 2 hours, sampled
+  every minute, retained for 7 days.
+- **Admin app-log preview.** Tail of the last 1 hour of structured
+  wide-events from the per-process ring buffer, filterable by trace_id /
+  level / action / time-window with a JSON inspector modal.
+- **Admin AI quality preview.** New `/admin/ai-quality` route surfaces
+  helpful-rate per (severity × provider), tinted by band so degrading
+  providers stand out at a glance.
+
+### Changed
+
+- **Insights surface uses the new RecommendationCard everywhere.** The
+  `/insights` page and the dashboard insights tile both render the
+  polished card — rationale expand, confidence meter, citation footnote,
+  feedback thumbs — backed by a shared TanStack Query cache.
+- **Trend label normalised to "7-day trend".** Every chart, tile, and
+  subtitle uses the long form. A signed numeric delta indicator (±N.N)
+  with metric-aware colouring appears next to the value on every chart,
+  including mood and medication-compliance.
+- **`/admin` overview redesigned.** The section grid is gone; the
+  overview now shows a system-status snapshot with host-load chart and
+  an audit-log preview. Sidebar carries the section list.
+- **Sidebar admin sub-items only expand on `/admin/*`.** Clicking the
+  Admin link or opening the Gravatar dropdown no longer auto-expands
+  the sub-list when you are not on an admin route.
+- **Settings → AI is a single dropdown.** The provider selector at the
+  top drives the configuration form below; no more top/bottom split. All
+  five providers (Codex / OpenAI / Anthropic / Local / Admin OpenAI) are
+  reachable from the same UI.
+- **Top dashboard tiles selectable per metric.** The widget-id enum bug
+  from v1.4.15 that silently 422'd every layout PUT is fixed; the
+  per-metric tile toggle in layout settings now actually persists.
+- **AI rate-limit raised to 10/hour.** Default bumped from 2/h to 10/h;
+  configurable via `INSIGHTS_RATE_LIMIT_PER_HOUR`. Generating a new
+  insight evicts every previously cached per-status insight for that
+  user, so the dashboard never shows a stale cached payload.
+
+### Fixed
+
+- **BD-Zielbereich percentage now counts in-range readings correctly.**
+  The v1.4.15 fix corrected the denominator but kept the ESH narrow-band
+  predicate (`sysLow ≤ sys ≤ sysHigh AND diaLow ≤ dia ≤ diaHigh`), so
+  normotensive readings (e.g. 117/79) below `sysLow=120` counted as out
+  of range. Predicate switched to one-sided ceiling semantics with a
+  hypotension floor (`90 ≤ sys ≤ sysHigh AND 50 ≤ dia ≤ diaHigh`),
+  centralised in `isBpReadingInTarget()` shared by six call sites.
+- **Trend on "all" filter shows a meaningful split-half delta.** Long
+  windows where the per-week rate fell below the 1-decimal display
+  precision now also surface a split-half mean delta (second-half mean
+  minus first-half mean) for windows ≥ 90 days.
+- **Login overview no longer strips umlauts.** The geo helper decodes
+  via `arrayBuffer()` + `TextDecoder('utf-8')` instead of
+  `Response.json()`, so an upstream proxy stripping the
+  `Content-Type: charset` parameter cannot poison the umlaut path.
+  Nürnberg, München, Düsseldorf, Köln, Würzburg, Bückeburg, Weißenfels
+  all roundtrip correctly.
+- **`/admin/api-tokens` table no horizontal overflow on mobile.** The
+  desktop `<table>` falls back to a card list at `<md` viewports, with
+  long names + permission badges wrapping cleanly inside the card.
+- **Skip-link no longer blocks logo click.** The "Skip to content"
+  shortcut still leads the tab order but no longer blocks pointer events
+  on the logo.
+- **Bug-Report nav entry follows the admin feature toggle.** When the
+  admin disables bug reporting the entry vanishes from sidebar,
+  bottom-nav, topbar, and the error-detail "Report bug" button.
+- **Feedback link follows the admin feature toggle.** When feedback
+  collection is disabled, the UI entry point disappears too.
+- **Cached AI insights replaced when the user regenerates.** Generating
+  a new insight invalidates the per-status `audit_logs` entries plus the
+  TanStack Query cache, so the dashboard always shows the freshest
+  payload.
+
+### Performance
+
+- **Comparison overlays computed via reusable bucket-series helper.** No
+  extra round-trip per chart — the dashboard fetcher and AI snapshot
+  both read from the same `avg30LastMonth` / `avg30LastYear` fields.
+- **`/api/insights/feedback` persists with optimistic UI updates.**
+  Thumbs-up / thumbs-down apply instantly; the localStorage refresh-
+  defence keeps the verdict on rerender even before the mutation
+  resolves.
+
+### Security
+
+- **AI provider apiKeys encrypted at rest.** Provider chain entries that
+  carry a key store it AES-256-GCM via the existing `src/lib/crypto.ts`
+  helper.
+- **`/api/insights/feedback` gated by `requireAuth` + idempotency-key.**
+  The dedicated rate-limit bucket prevents thumbs-spam.
+- **Per-provider attribution server-filled.** Clients cannot tamper with
+  which provider gets credit for a recommendation; the attribution is
+  resolved server-side from the latest `insights.generate` audit row.
+- **Admin egress redacts secrets.** Audit-log `details` and app-log
+  `meta` fields run through `redactSecrets()` before leaving the admin
+  API surface.
+
+### Internal
+
+- **`docker-publish` workflow no longer hangs on main-branch builds.**
+  Root cause was a qemu-arm64 SIGILL during multi-arch emulation; arm64
+  dropped from the platforms list. Native arm64 runner matrix scheduled
+  for v1.5.
+- **CI integration tests + e2e workflows green again.** Both had been
+  pre-existing red since `d8c549e` (encryption-key YAML scalar parsed
+  as integer 0 + spotlight tour overlay intercepting clicks). Both fixed
+  this milestone.
+
+### Deferred to v1.5
+
+- Coolify image-digest auto-deploy trigger (currently fires on every
+  git-push; Marc-side UI flip is the realistic fix).
+- Native arm64 runner matrix for full multi-arch docker publish.
+- Cross-user feedback aggregation prompt-tuning ratchet (depends on
+  v1.4.16 feedback collection accumulating data).
+- Dedicated `/insights/compare` page (i18n keys
+  `comparison.insightsCallout.{lastMonth,lastYear}` reserved).
+
 ## [1.4.15] — 2026-05-09
 
 ### Added
