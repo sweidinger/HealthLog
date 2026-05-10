@@ -1,65 +1,90 @@
-# Coolify image-digest auto-deploy — minimal maintainer action
+# Coolify image-digest auto-deploy — maintainer runbook
 
-Status: maintainer-task — the toggle lives in Coolify's UI; neither the
-Coolify MCP nor the GitHub workflow can flip it.
+Status: maintainer-task — the toggle lives in Coolify's UI; neither
+the Coolify MCP nor the GitHub workflow can flip it.
 
 ## The problem
 
-Releases v1.4.19, v1.4.20, and v1.4.21 all required a host-side `docker
-tag <sha> :latest` + `docker compose up -d --no-deps` fallback after
-GHCR pushed the new image. Coolify pulled `:latest` from its local
-cache without re-checking the GHCR registry digest, so the freshly
-published image never reached production until the maintainer SSH'd
-into the host and forced the retag.
+Releases v1.4.19, v1.4.20, and v1.4.21 all required a host-side
+`docker tag <sha> :latest` + `docker compose up -d --no-deps` fallback
+after GHCR pushed the new image. Coolify pulled `:latest` from its
+local cache without re-checking the GHCR registry digest, so the
+freshly published image never reached production until the maintainer
+SSH'd into the host and forced the retag.
 
 Longer history: `docs/audit/v1416-auto-deploy-fix.md` documents the
 v1.4.15 partial fix (workflow-side webhook trigger) and why it
-half-solved the problem.
+half-solved the problem. v1.4.22 commit `b281c06` added the explicit
+`?force=true` query parameter to the webhook call so Coolify skips
+its image-cache on every workflow-triggered deploy.
 
-## The minimal change
+## Repo secrets (GitHub Settings → Secrets → Actions)
 
-In the Coolify UI for the HealthLog application:
+Set these once. Both required.
 
-1. Open **Configuration → Source** (or equivalent tab depending on the
-   Coolify version — the option may also live under "General" or
-   "Deploy").
-2. Enable the **"Watch image registry for new digests"** /
-   **"Image-digest auto-deploy"** checkbox. Coolify v4 names it
-   slightly differently across point-releases; the one that triggers a
-   pull when the registry digest changes (not when a git push lands)
-   is the one we want.
-3. Save. The next time GHCR pushes a new `:latest` digest, Coolify
-   will pull and recreate the container without a host-side retag.
+1. **`COOLIFY_WEBHOOK`**
+   - Value: `https://apps-01.bombeck.io/api/v1/deploy?uuid=pg8wggwogo8c4gc4ks0kk4ss&force=false`
+   - Find: Coolify UI → Application → **Webhooks** tab → "Deploy" URL.
+     The workflow appends `&force=true` if your stored URL doesn't
+     already carry a `force=` parameter, so either value is fine.
 
-## Why not solve it in the workflow
+2. **`COOLIFY_TOKEN`**
+   - Value: a Bearer token from Coolify UI → **Keys & Tokens** →
+     "Create new token" → grant read + deploy scope.
+   - Treat as a long-lived secret; rotate alongside any host
+     credential rotation.
 
-Two non-options were ruled out:
+If either secret is missing the GitHub Actions step short-circuits
+with a `::warning::` line in the workflow log — image is still
+published to GHCR, but no Coolify call is made.
 
-- **Push the explicit version tag in `docker-compose.yml`** — would
-  require a workflow edit on every release to bump `image:` to the new
-  tag. Worse than the current state (a manual host-side step) because
-  the release author has to remember the second commit.
-- **Pre-deployment `docker pull` hook in the Coolify app config** —
-  duplicates what the registry-digest auto-deploy already does, but
-  worse: the pull runs on every deploy trigger (including doc-only
-  pushes) instead of only when the digest changed.
+## Coolify UI toggle (one-time)
 
-The workflow file (`.github/workflows/docker-publish.yml`) already
-pings Coolify's webhook with `?force=true` after the GHCR push, so the
-trigger half of the contract is in place — the missing half is the
-registry-digest check, which is a Coolify-side feature.
+Open Coolify UI → Application → **Configuration** tab →
+**"Watch image registry for new digests"** → **ON**.
+
+This is the load-bearing piece. Without the toggle, `:latest` pulls
+return the locally-cached digest even when the workflow webhook fires
+with `force=true` — Coolify's own pull short-circuits before any
+registry round-trip. Flip it once, save, never touch again.
+
+The toggle's exact wording shifts between Coolify v4 point-releases;
+look for "image registry", "digest auto-deploy", or
+"auto-update" in the same tab.
 
 ## Verification
 
-Push a new release tag. The expected sequence is:
+Push a tag `vX.Y.Z` to main → wait for the GHCR build to finish →
+wait ~30s →
+`curl -s https://healthlog.bombeck.io/api/version | jq .data.version`
+should return `X.Y.Z` automatically. If it doesn't:
 
-1. `docker-publish.yml` builds, signs, pushes to GHCR.
-2. Coolify webhook fires; Coolify pulls the new digest because
-   "Watch image registry" is enabled.
-3. `https://healthlog.bombeck.io/api/version` returns the new version
-   string within ~60s of the GHCR push — without SSH.
+1. Coolify UI → Application → **Deployments** tab → check the most
+   recent deploy says "Pulled fresh image" not "Image already up to
+   date". The latter means the registry-digest toggle isn't on.
+2. If "already up to date" is the message, re-flip the toggle.
+3. Last resort — host-side retag fallback:
+   ```
+   ssh apps-01
+   docker pull ghcr.io/mbombeck/healthlog:vX.Y.Z
+   docker tag ghcr.io/mbombeck/healthlog:vX.Y.Z ghcr.io/mbombeck/healthlog:latest
+   cd /path/to/coolify/app && docker compose up -d --no-deps
+   ```
+   (see v1.4.21+ release summaries for the canonical command).
 
-If step 3 still requires a host-side retag, the checkbox is in the
-wrong place in the UI for that Coolify version — open the audit doc
-above and the v1.5 deferral note for the alternative
-(GHCR-tag-promoted-by-workflow path).
+## Why not solve it in the workflow
+
+Two non-options were ruled out earlier:
+
+- **Push the explicit version tag in `docker-compose.yml`** — would
+  require a workflow edit on every release. Worse than the current
+  state (a one-time UI toggle).
+- **Pre-deployment `docker pull` hook in the Coolify app config** —
+  duplicates the registry-digest auto-deploy feature but worse: the
+  pull runs on every deploy trigger (including doc-only pushes)
+  instead of only when the digest changed.
+
+The workflow file (`.github/workflows/docker-publish.yml`) already
+pings Coolify's webhook with `?force=true` after the GHCR push, so
+the trigger half of the contract is in place — the missing half is
+the registry-digest check, which is a Coolify-side feature.
