@@ -222,12 +222,25 @@ export function ApiTokenOverviewSection() {
                             </Badge>
                           )}
                         </td>
-                        <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                        {/* v1.4.22 C2 (5th attempt) — drop
+                            `whitespace-nowrap` on the date cells. The
+                            v1.4.19 A7 probe confirmed `formatDateTime`
+                            renders "05.05.2026, 21:46" (~110px) which
+                            exceeds the 12% `<col>` allotment (~84px on
+                            a 700px content area); `whitespace-nowrap`
+                            wins over `table-fixed`'s width contract,
+                            so the table's intrinsic width exceeds 100%
+                            and the wrapper's `overflow-x-auto` paints
+                            the scrollbar the maintainer kept reporting
+                            for the 5th time. Letting the date+time
+                            wrap to two lines on narrow viewports costs
+                            one row of height but eliminates the bar. */}
+                        <td className="text-muted-foreground px-3 py-2 text-right text-xs">
                           {token.lastUsedAt
                             ? formatDateTime(token.lastUsedAt)
                             : t("admin.tokenNeverUsed")}
                         </td>
-                        <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                        <td className="text-muted-foreground px-3 py-2 text-right text-xs">
                           {formatDate(token.createdAt)}
                         </td>
                       </tr>
