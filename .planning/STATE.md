@@ -1,6 +1,6 @@
 # v1.4.22 marathon — state log
 
-Status: Wave 2 — Insights surface polish complete
+Status: Wave 3 — Coach polish complete
 Last update: 2026-05-10T21:00+02:00
 
 > Previous patch: v1.4.21 live (image digest
@@ -82,36 +82,38 @@ rewrite needs research first.
 
 ### B1 — Prompt rewrite
 
-- [ ] Adopt W1b research output: natural prose-first, motivational,
+- [x] Adopt W1b research output: natural prose-first, motivational,
       conservative, evidence-grounded
-- [ ] PROMPT_VERSION 4.22.0; EN + DE
-- [ ] Coach-specific test suite covering tone + evidence-collapsible
+- [x] PROMPT_VERSION 4.22.0; EN + DE
+- [x] Coach-specific test suite covering tone + evidence-collapsible
       pattern
+- Detailed report: `.planning/phase-W3-report.md`
 
 ### B2 — Collapsible provenance + values
 
-- [ ] Move inline raw values out of prose into a
+- [x] Move inline raw values out of prose into a
       "Worauf bezieht sich das?" expandable below each assistant
-      message
-- [ ] Source chips stay visible; values reveal on click
+      message; `---KEYVALUES---` … `---END---` sentinel stripped
+      server-side, parsed into `provenance.keyValues`
+- [x] Source chips stay visible; values reveal on click
 
 ### B3 — User avatar = Gravatar (parity)
 
-- [ ] Same dimensions as Coach avatar
-- [ ] Reuses existing `gravatarUrl` from `/api/auth/me`
+- [x] Same dimensions as Coach avatar
+- [x] Reuses existing `gravatarUrl` from `/api/auth/me`; initials
+      fallback when no Gravatar configured
 
 ### B4 — Disclaimer move
 
-- [ ] "Coach replies are generated. Clinical decisions belong with
-      your doctor." moves from below input → right rail
-- [ ] Right rail "Coach reads only your connected data" repurposed
-      so the source picker stands alone
+- [x] "Coach replies are generated. Clinical decisions belong with
+      your doctor." moves from below input → sources rail footer
+- [x] "Coach reads only your connected data" caption replaced by the
+      disclaimer so the source picker stands alone
 
 ### B5 — Settings cog wire-or-remove
 
-- [ ] Decide: wire to per-user prompt-tuning toggles (Coach tone,
-      verbosity), OR remove the icon
-- [ ] No dead buttons in v1.4.22
+- [x] Removed for v1.4.22; per-user prompt-tuning surface deferred
+      to v1.4.23 (no dead buttons in this release)
 
 ## Wave 4 — Other surfaces + backlog cleanup
 
