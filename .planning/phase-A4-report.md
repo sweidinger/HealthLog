@@ -1,71 +1,82 @@
-# Phase A4 — Dashboard analytics fixes
+# Phase A4 — AI prompt: no default-positivity opener (v1.4.19)
 
-Marathon: v1.4.15
-Agent: A4 (parallel with A1, A2, A3, A5)
-Started: 2026-05-09T20:14+02:00
-Finished: 2026-05-09T20:38+02:00
+Completed 2026-05-10 ~12:59 CEST.
 
-## Outcomes — 5 of 5
+## Marc's mandate
 
-| #   | Fix                                                               | Commit / Note                                                                                                                                              |
-| --- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | BD-Zielbereich 0% bug                                             | a967895 (bundled by sibling agent's commit; my Fix 1 work is in `src/lib/analytics/bp-in-target.ts` + 7 unit tests)                                        |
-| 2   | Medikamente graph wired to layout toggle                          | 73afae0 (commit message landed on a sibling agent's sidebar diff; the actual Fix 2 files — `medication-compliance-chart.tsx` + 7 tests — are in `bffdccb`) |
-| 3   | Stimmung-chart auto-aggregates to weekly/monthly                  | 47ac14b — clean                                                                                                                                            |
-| 4   | "7-Tage-Schnitt" → "7-Tage-Trend" with delta indicator per metric | 4e2386e — clean                                                                                                                                            |
-| 5   | Top tiles independently selectable in layout settings             | 8ccdfac — clean                                                                                                                                            |
+> "I read AI insights and notice the SAME phrase opens almost every
+> response: 'Datengrundlage ist sehr stark / Your data foundation is
+> strong'. The user doesn't even know what data is shared, so this
+> opener is awkward. Mention data quality only when actually
+> problematic."
 
-## Test deltas
+## What landed
 
-- Baseline (start of phase): 758 tests passing, 99 files
-- End of phase: 812 tests passing, 108 files
-- Net: +54 unit / SSR-smoke tests across 9 new files
+One commit on `origin/main`:
 
-## Race-condition notes (for the v1.4.15 retrospective)
+| Commit    | Subject                                                                                |
+| --------- | -------------------------------------------------------------------------------------- |
+| `b5e9a95` | `fix(ai): no default-positivity opener about data quality (mention only when limited)` |
 
-A1, A2, A3 ran in parallel and all wrote to the index. Two interleaving issues:
+### Prompt change — `src/lib/ai/prompts/insight-generator.ts`
 
-- Fix 1: my staged files (bp-in-target + test + analytics route edit) got bundled into A2's `feat(admin)` commit. Not amended (per protocol).
-- Fix 2: my carefully-staged files for the medication chart got committed by A2's agent into their `fix(admin)` push, and my next `git commit` then picked up an unrelated A1 sidebar diff. Result: the commit message for Fix 2 ended up on a 3-line sidebar-nav change (`73afae0`); the Fix-2 code itself shipped under `bffdccb` ("fix(admin): make api-tokens table responsive on mobile"). Both messages are misleading but the working tree is correct.
-- Fixes 3-5: I waited until after each `git pull --rebase --autostash` cycle, staged with explicit paths, and the commits landed cleanly.
+Added GROUND RULE 7 to both EN and DE prompts. The rule:
 
-## Visual / UX changes
+- Forbids opening with a compliment about data quantity / quality.
+- Defines the only conditions under which to mention data quality:
+  `n<7` readings in the analyzed window, `recencyDays>14` since the
+  last entry, or a coverage gap that biases the comparison.
+- When data is fine: dive straight into the analysis.
+- Lists banned-opener phrases verbatim in both locales so the model
+  cannot paraphrase the same sentiment ("Your data foundation is
+  strong", "Datengrundlage ist sehr stark", "You have a solid
+  baseline", "Großartiger Datensatz", "Du hast eine solide
+  Baseline", "Great dataset").
 
-- Tile strip: every metric tile now shows a signed 7-day delta beside the avg-7 number, coloured per metric sentiment (`up-good` green, `up-bad` orange, `neutral` muted). The label flips from "7T" / "7d" to "7T-Trend" / "7d trend" when the delta is supplied.
-- Mood chart header: gains the same `bg-muted/40` 10 px uppercase chip the BP/weight charts already paint when bucketing is in effect (Weekly avg / Monatsdurchschnitt).
-- Medication chart: brand-new line chart (Dracula purple) with a 80 %-target reference line, replaces the static placeholder.
-- BD-Zielbereich tile: no visual change — same %, but the % is now correct.
-- Settings → Dashboard: each widget row grows a second switch column. Header reads "Tile / Chart" (EN) or "Kachel / Chart" (DE).
+### Version bump
 
-## Files touched (excluding sibling-agent collisions)
+`PROMPT_VERSION` 4.16.1 → 4.19.0. Feedback aggregation
+(`feedback-attribution.ts` reads the constant) can now distinguish
+responses generated under the new rule from older payloads.
 
-- `src/lib/analytics/bp-in-target.ts` (new)
-- `src/lib/analytics/__tests__/bp-in-target.test.ts` (new)
-- `src/lib/analytics/trend-delta.ts` (new)
-- `src/lib/analytics/__tests__/trend-delta.test.ts` (new)
-- `src/components/charts/medication-compliance-chart.tsx` (new)
-- `src/components/charts/__tests__/medication-compliance-chart.test.tsx` (new)
-- `src/components/charts/__tests__/mood-chart-aggregation.test.tsx` (new)
-- `src/components/charts/__tests__/trend-card-7d-trend.test.tsx` (new)
-- `src/components/settings/__tests__/dashboard-layout-section.test.tsx` (new)
-- `src/lib/__tests__/dashboard-layout.test.ts` (new)
-- `src/components/charts/mood-chart.tsx` (modified — bucket aggregation + chip)
-- `src/components/charts/trend-card.tsx` (modified — `trend7Delta` prop + colour)
-- `src/components/settings/dashboard-layout-section.tsx` (modified — split switch row)
-- `src/lib/dashboard-layout.ts` (modified — `tileVisible` field + resolver/serialise)
-- `src/app/api/analytics/route.ts` (modified — wire `computeBpInTargetPct`)
-- `src/app/api/dashboard/widgets/route.ts` (modified — Zod schema accepts `tileVisible`)
-- `src/app/page.tsx` (modified — split `isTileVisible` / `isChartVisible`, wire `trend7Delta`, render real medication chart)
-- `messages/en.json` + `messages/de.json` (added `trend7dShort`, `layoutTileColumn`, `layoutChartColumn`)
+### Tests
 
-## Constraint compliance
+New file `src/lib/ai/__tests__/no-default-positivity-opener.test.ts`
+pins the rule, the trigger thresholds, the banned phrases, and the
+dive-straight-in instruction in both locales (9 tests, all green).
+Existing PROMPT_VERSION assertions in
+`medical-reference-prompt.test.ts` relaxed from `/4\.16\.\d+/` to
+`/4\.\d+\.\d+/` so future minor bumps don't sweep up these checks.
 
-- `pnpm test`: 812 / 812 green at every commit.
-- `pnpm typecheck`: 0 errors (12 pre-existing `_param`/`_request` warnings).
-- `pnpm lint`: 0 errors, same 12 warnings as baseline.
-- No `--no-verify` or `--no-gpg-sign`. Pre-commit hooks ran on every commit.
-- A1/A2/A3/A5 ownership boundaries respected: did not touch `src/components/layout/*`, `src/proxy.ts`, `src/app/admin/**`, `src/components/admin/**`, or the `quick-add` / `mood-tile` / `onboarding-card` components substantially. Mood-tile mobile-fix race noted; A3's layout work is preserved (`mood-list.tsx` modifications are not in any of my commits).
+## Verification
 
-## Deferred to v1.4.16
+- `npx vitest run src/lib/ai/__tests__/insight-generator-prompt.test.ts
+src/lib/ai/__tests__/medical-reference-prompt.test.ts
+src/lib/ai/__tests__/no-default-positivity-opener.test.ts` —
+  38/38 pass (was 28; +9 new + 1 reused after relaxation).
+- `pnpm lint` — 0 errors / 12 pre-existing warnings.
+- `pnpm typecheck` — only pre-existing error from A5/A6's untracked
+  `integration-status-pill.test.tsx`. My code is clean.
+- Full `pnpm test` — 6 pre-existing failures in A1's `bp-in-target`,
+  A3's `insights-polish`, and A5/A6's `i18n-locale-integrity` /
+  `integrationPill` keys. None mine.
 
-None for A4. All five items in scope shipped.
+## Smoke-test plan (deferred to post-deploy)
+
+Once v1.4.19 ships, generate a fresh insight against Marc's data and
+confirm the first sentence of `summary` does NOT mention
+"Datengrundlage" / "data foundation" unless `n<7`, `recencyDays>14`,
+or a coverage gap is present. Cached payloads from older
+PROMPT_VERSION will still carry the old opener — `promptVersion` on
+the cached row distinguishes them.
+
+## Cross-agent race
+
+`src/app/page.tsx` (A3 territory) was auto-bundled by the
+pre-commit hook at the moment of `git commit` — same shared-cwd
+race documented across C1, B5a, B5b, B6 of prior marathons. My
+intended scope is the three files in `src/lib/ai/`. Verified
+post-commit on `origin/main`: the AI prompt + tests are correct;
+`page.tsx` carries A3's edits, which are A3's to defend. v1.4.20
+worktree adoption (deferred from v1.4.15 → v1.4.16 → v1.4.18) is
+still overdue.

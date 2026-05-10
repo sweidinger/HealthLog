@@ -165,6 +165,28 @@ medications.csv,mood.csv}/`) left in place — same call as v1.4.16 /
   `~/Downloads/design_handoff_insights_redesign`); v1.5 reserved for
   iOS app + Apple Health.
 
+- 2026-05-10T12:59+02:00 — Wave A / A4 complete. Removed the
+  default-positivity opener about data quality from the AI insights
+  system prompt. Added GROUND RULE 7 in both EN + DE locales of
+  `src/lib/ai/prompts/insight-generator.ts` forbidding "Your data
+  foundation is strong" / "Datengrundlage ist sehr stark" style
+  openers; data-quality caveats now allowed only when n<7 in the
+  analyzed window, recencyDays>14, or a coverage gap biases the
+  comparison. PROMPT_VERSION bumped 4.16.1 → 4.19.0 so feedback
+  aggregation can attribute responses to the new rule. New test file
+  `src/lib/ai/__tests__/no-default-positivity-opener.test.ts` (9
+  tests, all green) pins the rule + thresholds + banned phrases in
+  both locales. Existing PROMPT_VERSION assertions in
+  `medical-reference-prompt.test.ts` relaxed from `/4\.16\.\d+/` to
+  `/4\.\d+\.\d+/`. Single commit `b5e9a95` on `origin/main`. Smoke
+  verification deferred to post-deploy (cached payloads carry the
+  old PROMPT_VERSION; the row's `promptVersion` distinguishes
+  pre/post 4.19.0). Detailed report:
+  `.planning/phase-A4-report.md`. Cross-agent race: pre-commit hook
+  bundled A3's `src/app/page.tsx` edits into my commit — same
+  shared-cwd race documented across earlier marathons; A3's edits
+  are correct on `origin/main`.
+
 ---
 
 ## Previous milestone — v1.4.18 (completed 2026-05-10T11:45+02:00)
