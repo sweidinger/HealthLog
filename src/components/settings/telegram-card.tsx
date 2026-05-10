@@ -112,14 +112,19 @@ export function TelegramCard({
           <h2 className="text-lg font-semibold">{t("settings.telegram")}</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {settings?.hasBotToken && settings?.chatId && (
+          {/* F-16 (v1.4.19): show one unified status pill instead of
+              the previous "Configured" + "Enabled" pair, which had no
+              visual hierarchy and made it unclear how the two states
+              differed. The new pill collapses both bits of info:
+              green when active, neutral when configured-but-paused. */}
+          {settings?.hasBotToken && settings?.chatId && settings?.enabled && (
             <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-              {t("settings.configured")}
+              {t("common.active")}
             </Badge>
           )}
-          {settings?.enabled && (
+          {settings?.hasBotToken && settings?.chatId && !settings?.enabled && (
             <Badge variant="outline" className="text-xs">
-              {t("common.enabled")}
+              {t("settings.configured")} · {t("common.disabled")}
             </Badge>
           )}
         </div>

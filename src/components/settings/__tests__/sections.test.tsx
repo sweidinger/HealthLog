@@ -202,7 +202,9 @@ describe("settings sections — SSR smoke", () => {
     //   - the editor mount-point is present
     //   - no raw i18n key leaks
     const html = render(<ThresholdsSection />);
-    expect(html).toContain("Personal targets");
+    // F-07 (v1.4.19): page title aligned with the URL slug — was
+    // "Personal targets", now "Personal thresholds".
+    expect(html).toContain("Personal thresholds");
     expect(html).toContain('data-testid="thresholds-editor"');
     expect(html).not.toContain("settings.sections.thresholds.");
   });
