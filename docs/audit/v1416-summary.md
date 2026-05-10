@@ -58,51 +58,51 @@ How It Works, Comparison Views, Provider Configuration.
 
 ### Wave A — Quick fixes
 
-| Bucket | Commit  | Subject                                                                                                |
-| ------ | ------- | ------------------------------------------------------------------------------------------------------ |
-| A1     | `77fe256` | fix(nav): admin sub-items don't expand from gravatar dropdown or admin-link click                    |
-| A2     | `577d8dd` | fix(insights): BD-Zielbereich computes correctly for real measurement data                           |
-| A3     | `277a5aa` | fix(admin): api-tokens table no horizontal overflow on Pixel-5 viewport                              |
-| A4     | `4df6dac` | feat(charts): "7-Tage-Trend" rename + slope30 fallback for sparse metrics                            |
-| A5     | `93e712d` | fix(dashboard): top-tile selector persists (widget-id enum drift fixed)                              |
-| A6     | `9b01c86` | feat(charts): medication chart matches other charts (7d trend + indicator + target-range)            |
+| Bucket | Commit             | Subject                                                                                    |
+| ------ | ------------------ | ------------------------------------------------------------------------------------------ |
+| A1     | `77fe256`          | fix(nav): admin sub-items don't expand from gravatar dropdown or admin-link click          |
+| A2     | `577d8dd`          | fix(insights): BD-Zielbereich computes correctly for real measurement data                 |
+| A3     | `277a5aa`          | fix(admin): api-tokens table no horizontal overflow on Pixel-5 viewport                    |
+| A4     | `4df6dac`          | feat(charts): "7-Tage-Trend" rename + slope30 fallback for sparse metrics                  |
+| A5     | `93e712d`          | fix(dashboard): top-tile selector persists (widget-id enum drift fixed)                    |
+| A6     | `9b01c86`          | feat(charts): medication chart matches other charts (7d trend + indicator + target-range)  |
 | A7     | (within `9b01c86`) | feat(insights): rate-limit 10/h + cache-evict on regenerate (cross-agent race captured A7) |
-| A8a    | `2da0703` | fix(geo): preserve umlauts in city names (login-overview no longer renders "Nrnberg")                |
-| A8b    | `af77e5e` | feat(charts): split-half mean delta on long-window trend                                             |
+| A8a    | `2da0703`          | fix(geo): preserve umlauts in city names (login-overview no longer renders "Nrnberg")      |
+| A8b    | `af77e5e`          | feat(charts): split-half mean delta on long-window trend                                   |
 
 ### Wave B — Quality-leap features
 
-| Bucket | Headline commits                                                                                    | What it does                                         |
-| ------ | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| B1a    | `74c2eb8`, `901f44e`, `8008613`, `2611bb4`                                                          | BP / weight / pulse / mood / medication chart polish |
-| B1b    | `4d7d074`, `9e8be4b`, `b76351e`, `0c287f1`, `d2cdf9d`, `5063ad7`, `3b0d21e`                          | `/insights` hero + recs grid + dashboard preview     |
-| B2     | (worktree `agent/b2-ai-provider-ux` ff)                                                             | Single-pulldown Settings → AI + chain editor         |
-| B3     | `5d1ece1`, `f1bd801`, `2877710`, (chart inside `8d9f864`)                                            | Admin host-load chart (in-process sampler, 7d)       |
-| B4     | (audit-log inside `8ac5602`), `4cc3d8d`, `6520ae4`                                                  | Admin audit-log filter + CSV + app-log preview       |
-| B5a    | `27f3933`, `466b8b5`, `7fbfca6`, `53aade9`, `a66c128`                                               | Curated medical-reference bundle + citation footnote |
-| B5b    | `2611bb4` (column), runner inside `901f44e`, `613d661`, `d2bda42`                                    | Multi-provider fallback chain + last-working cache   |
-| B5c    | `8a438a0`, `c39a527`, `13f1ae5`, `c8b30c1`, `7f54c0c`, `680f84c`, `10a67ff`, `fed2e7e`               | Per-rec rationale (window / comparedTo / deviation)  |
-| B5d    | `0cb0373`, `af21d4d`, `7ec1030`, `63cfd8e`, `d343ab5`, `173c3e1`                                   | Deterministic confidence meter (server-overrides)    |
-| B5e    | `badc893`, `8255e3e`, `ca84fb7`, `47ca1e4`, `71ffe30`, `8879282`                                    | RecommendationFeedback + daily aggregator + admin    |
-| B6     | `01a05e4`, `a432cb2`, `ed0cfda`, `d914f76`                                                          | Settings naming audit + i18n parity guard            |
-| B7     | `621109c`, `a512650`, `94c748d`, (routes inside `226cac4`), `d5c8912`, `830b2b0`, `e628f33`         | Settings → Export consolidation                      |
-| B8     | `775df8c`, `2cf7b74`, `e4a408e`, `f9f99ea`                                                          | Comparison overlay on charts + tiles + AI narration  |
+| Bucket | Headline commits                                                                            | What it does                                         |
+| ------ | ------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| B1a    | `74c2eb8`, `901f44e`, `8008613`, `2611bb4`                                                  | BP / weight / pulse / mood / medication chart polish |
+| B1b    | `4d7d074`, `9e8be4b`, `b76351e`, `0c287f1`, `d2cdf9d`, `5063ad7`, `3b0d21e`                 | `/insights` hero + recs grid + dashboard preview     |
+| B2     | (worktree `agent/b2-ai-provider-ux` ff)                                                     | Single-pulldown Settings → AI + chain editor         |
+| B3     | `5d1ece1`, `f1bd801`, `2877710`, (chart inside `8d9f864`)                                   | Admin host-load chart (in-process sampler, 7d)       |
+| B4     | (audit-log inside `8ac5602`), `4cc3d8d`, `6520ae4`                                          | Admin audit-log filter + CSV + app-log preview       |
+| B5a    | `27f3933`, `466b8b5`, `7fbfca6`, `53aade9`, `a66c128`                                       | Curated medical-reference bundle + citation footnote |
+| B5b    | `2611bb4` (column), runner inside `901f44e`, `613d661`, `d2bda42`                           | Multi-provider fallback chain + last-working cache   |
+| B5c    | `8a438a0`, `c39a527`, `13f1ae5`, `c8b30c1`, `7f54c0c`, `680f84c`, `10a67ff`, `fed2e7e`      | Per-rec rationale (window / comparedTo / deviation)  |
+| B5d    | `0cb0373`, `af21d4d`, `7ec1030`, `63cfd8e`, `d343ab5`, `173c3e1`                            | Deterministic confidence meter (server-overrides)    |
+| B5e    | `badc893`, `8255e3e`, `ca84fb7`, `47ca1e4`, `71ffe30`, `8879282`                            | RecommendationFeedback + daily aggregator + admin    |
+| B6     | `01a05e4`, `a432cb2`, `ed0cfda`, `d914f76`                                                  | Settings naming audit + i18n parity guard            |
+| B7     | `621109c`, `a512650`, `94c748d`, (routes inside `226cac4`), `d5c8912`, `830b2b0`, `e628f33` | Settings → Export consolidation                      |
+| B8     | `775df8c`, `2cf7b74`, `e4a408e`, `f9f99ea`                                                  | Comparison overlay on charts + tiles + AI narration  |
 
 ### Wave C — Catch-up (deferred from v1.4.15)
 
-| Item                                  | Commit    | Notes                                                            |
-| ------------------------------------- | --------- | ---------------------------------------------------------------- |
-| CI fix (encryption-key + tour-overlay) | `fbcd106` | Both pre-existing red since `d8c549e`; both green from here on   |
-| H1 admin restore-failed scrub         | `fdac9e2` | code-review HIGH                                                 |
-| H2 moodEntry.tags JSON-array refine   | `7f1a4de` | code-review HIGH                                                 |
-| H4 tour-launcher per-user sessionKey  | `2afe3c4` | code-review HIGH                                                 |
-| H4 design 44 px tap targets sweep     | `b863e2c` | tour / backups / notifications                                   |
-| i18n parity Quelle / Leitlinie        | `2a7ef72` | B5a follow-on                                                    |
-| MED tabs horizontal scroll            | `d7c2b2a` |                                                                  |
-| MED bottom-nav 5+More                 | `072eee6` | overflow sheet                                                   |
-| MED system-status retry button        | `65b4bf9` |                                                                  |
-| Auto-deploy v1.5 doc                  | `4be6465` | Coolify auto-deploy stays on git-push for v1.4.16; deferred      |
-| docker-publish drop qemu-arm64        | `cc0f343` | qemu-SIGILL root cause; native-runner matrix in v1.5             |
+| Item                                   | Commit    | Notes                                                          |
+| -------------------------------------- | --------- | -------------------------------------------------------------- |
+| CI fix (encryption-key + tour-overlay) | `fbcd106` | Both pre-existing red since `d8c549e`; both green from here on |
+| H1 admin restore-failed scrub          | `fdac9e2` | code-review HIGH                                               |
+| H2 moodEntry.tags JSON-array refine    | `7f1a4de` | code-review HIGH                                               |
+| H4 tour-launcher per-user sessionKey   | `2afe3c4` | code-review HIGH                                               |
+| H4 design 44 px tap targets sweep      | `b863e2c` | tour / backups / notifications                                 |
+| i18n parity Quelle / Leitlinie         | `2a7ef72` | B5a follow-on                                                  |
+| MED tabs horizontal scroll             | `d7c2b2a` |                                                                |
+| MED bottom-nav 5+More                  | `072eee6` | overflow sheet                                                 |
+| MED system-status retry button         | `65b4bf9` |                                                                |
+| Auto-deploy v1.5 doc                   | `4be6465` | Coolify auto-deploy stays on git-push for v1.4.16; deferred    |
+| docker-publish drop qemu-arm64         | `cc0f343` | qemu-SIGILL root cause; native-runner matrix in v1.5           |
 
 5 of 8 deferred HIGH from v1.4.15 Wave-D landed; 3 of 5 deferred MED
 from A5 mobile landed; Coolify image-digest auto-deploy deferred per
@@ -124,20 +124,20 @@ Marc's "leave it" call.
 
 ### Wave E — Release
 
-| Item                                        | Result                                                |
-| ------------------------------------------- | ----------------------------------------------------- |
-| Pre-release verify                          | `pnpm typecheck` clean; `pnpm test` 1540/1540; integration 59/59 |
-| Release commit                              | `d443c22 chore(release): v1.4.16`                     |
-| Tag                                         | `v1.4.16` (annotated)                                 |
-| GHCR — tag run                              | `25616783583` success, digest `2f1a0d6b381d…`         |
-| GHCR — main run                             | `25616782255` success, digest `4841bef396ad…`         |
-| Coolify auto-deploy                         | NO — same race as v1.4.14/v1.4.15; retag-on-host fallback used |
-| Live image digest                           | `sha256:05f8a126d63962d9a4af4769de830d3fee022d634787e811b4339ee464420daa` |
-| `/api/version` transition                   | `1.4.15` → `1.4.16` at `2026-05-10T03:45:58+02:00`    |
-| Smoke (14 routes, Marc's session)            | 13/14 200; `/dashboard` 404 expected (root is dashboard) |
-| GH release                                  | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.16 |
-| Docs site                                   | `8addef4` + `2a5802b` on `healthlog-docs/main` (44 pages, three new deep-dive pages) |
-| Landing site                                | `3d17207` on `healthlog-landing/main` (1.4.15 → 1.4.16, AI cards updated) |
+| Item                              | Result                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| Pre-release verify                | `pnpm typecheck` clean; `pnpm test` 1540/1540; integration 59/59                     |
+| Release commit                    | `d443c22 chore(release): v1.4.16`                                                    |
+| Tag                               | `v1.4.16` (annotated)                                                                |
+| GHCR — tag run                    | `25616783583` success, digest `2f1a0d6b381d…`                                        |
+| GHCR — main run                   | `25616782255` success, digest `4841bef396ad…`                                        |
+| Coolify auto-deploy               | NO — same race as v1.4.14/v1.4.15; retag-on-host fallback used                       |
+| Live image digest                 | `sha256:05f8a126d63962d9a4af4769de830d3fee022d634787e811b4339ee464420daa`            |
+| `/api/version` transition         | `1.4.15` → `1.4.16` at `2026-05-10T03:45:58+02:00`                                   |
+| Smoke (14 routes, Marc's session) | 13/14 200; `/dashboard` 404 expected (root is dashboard)                             |
+| GH release                        | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.16                           |
+| Docs site                         | `8addef4` + `2a5802b` on `healthlog-docs/main` (44 pages, three new deep-dive pages) |
+| Landing site                      | `3d17207` on `healthlog-landing/main` (1.4.15 → 1.4.16, AI cards updated)            |
 
 ---
 
@@ -212,7 +212,7 @@ Full backlog: `.planning/v15-backlog.md`. Highlights:
   first time since v1.4.13). Coolify auto-deploy fired on the
   `chore(release)` commit before GHCR finished and pulled the host's
   stale local `:latest` cache; retag-on-host fallback (`docker pull
-  :1.4.16 && docker tag :1.4.16 :latest && docker compose up -d app`)
+:1.4.16 && docker tag :1.4.16 :latest && docker compose up -d app`)
   flipped `/api/version` 1 s after the up command returned.
 - **Coolify auto-deploy**: still fires on every git-push (deferred
   per Marc's call); v1.5 plan in `docs/audit/v1416-auto-deploy-fix.md`.
@@ -236,7 +236,7 @@ Full backlog: `.planning/v15-backlog.md`. Highlights:
   - `/settings/ai-providers/` — setup paths for all five providers,
     fallback-chain editor, test-connection, credential storage table.
 - **healthlog-landing** (Next.js) — `softwareVersion 1.4.15 →
-  1.4.16` in JSON-LD; AI-insights hero card rewritten as "AI insights
+1.4.16` in JSON-LD; AI-insights hero card rewritten as "AI insights
   that show their work" leading with explainability + confidence +
   citations; capability badges row picks up two new badges.
 

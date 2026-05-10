@@ -62,51 +62,51 @@ Multi-Provider-AI-Abstraktion + `MockAIProvider`.
 
 ### Quick fixes (Phase A1–A5 + B-mobile)
 
-| SHA       | Summary                                                                            |
-| --------- | ---------------------------------------------------------------------------------- |
-| `85aa15b` | fix(nav): hide bug-report entry in nav when admin disables the toggle              |
-| `786b395` | fix(a11y): skip-link no longer blocks logo click outside focus                     |
-| `bde167d` | fix(feedback): hide user-facing feedback link when admin disables the feature     |
-| `c63e4de` | fix(feedback): gate ErrorDetails report-bug button on bugReportEnabled            |
+| SHA       | Summary                                                                             |
+| --------- | ----------------------------------------------------------------------------------- |
+| `85aa15b` | fix(nav): hide bug-report entry in nav when admin disables the toggle               |
+| `786b395` | fix(a11y): skip-link no longer blocks logo click outside focus                      |
+| `bde167d` | fix(feedback): hide user-facing feedback link when admin disables the feature       |
+| `c63e4de` | fix(feedback): gate ErrorDetails report-bug button on bugReportEnabled              |
 | `a967895` | feat(admin): replace overview section-grid with audit-log preview + system snapshot |
-| `dddc18c` | fix(admin): make api-tokens table responsive on mobile                            |
-| `3e45a7b` | fix(dashboard): disambiguate quick-add submenu labels                              |
-| `2c227fb` | fix(dashboard): mood tile mobile shows number once + label                        |
-| `bb4dc12` | fix(dashboard): no onboarding flicker on load; collapsed by default               |
-| `bffdccb` | feat(dashboard): medication compliance graph wired to layout toggle               |
-| `47ac14b` | feat(insights): mood chart auto-aggregates to weekly/monthly                       |
-| `4e2386e` | feat(dashboard): 7-day-average → 7-day-trend with delta indicator per metric       |
-| `8ccdfac` | feat(dashboard): top tiles selectable in layout settings                           |
-| `316c3b0` | fix(charts): chart wrappers allow vertical scroll passthrough on mobile            |
-| `41945b2` | fix(admin): /admin/users mobile layout — card-list at < md                        |
-| `8370b2d` | fix(mobile): chart controls + medication buttons + mood list icons to 44px         |
-| `00f8cd5` | fix(settings): passkey list responsive — card view at < md                        |
-| `c0b14f4` | fix(auth): bump login buttons to 44px tap-target on mobile                         |
+| `dddc18c` | fix(admin): make api-tokens table responsive on mobile                              |
+| `3e45a7b` | fix(dashboard): disambiguate quick-add submenu labels                               |
+| `2c227fb` | fix(dashboard): mood tile mobile shows number once + label                          |
+| `bb4dc12` | fix(dashboard): no onboarding flicker on load; collapsed by default                 |
+| `bffdccb` | feat(dashboard): medication compliance graph wired to layout toggle                 |
+| `47ac14b` | feat(insights): mood chart auto-aggregates to weekly/monthly                        |
+| `4e2386e` | feat(dashboard): 7-day-average → 7-day-trend with delta indicator per metric        |
+| `8ccdfac` | feat(dashboard): top tiles selectable in layout settings                            |
+| `316c3b0` | fix(charts): chart wrappers allow vertical scroll passthrough on mobile             |
+| `41945b2` | fix(admin): /admin/users mobile layout — card-list at < md                          |
+| `8370b2d` | fix(mobile): chart controls + medication buttons + mood list icons to 44px          |
+| `00f8cd5` | fix(settings): passkey list responsive — card view at < md                          |
+| `c0b14f4` | fix(auth): bump login buttons to 44px tap-target on mobile                          |
 
 ### Features (Phase B1–B6)
 
-| SHA       | Summary                                                                            |
-| --------- | ---------------------------------------------------------------------------------- |
-| `fe85c2c` | feat(admin): restore from backup with full data replacement + triple-confirm        |
-| `d8c549e` | feat(admin): backup download as JSON                                                |
-| `30a74ed` | feat(admin): backup upload                                                          |
-| `0805452` | fix(admin): backup audit log entries                                                |
-| `7c32d63` | feat(admin): link from backups view to docs.healthlog.dev/admin/backups            |
-| `4db72a8` | feat(integrations): connection-state + sync-error UI in Settings → Integrations    |
-| `b290a77` | fix(integrations): refresh-token failure marks integration as needing re-auth      |
-| `604dff0` | feat(integrations): admin Telegram alert on persistent sync failure (≥3)           |
-| `2fbf56d` | feat(audit): sync failures logged with structured meta                             |
-| `87a40fd` | fix(notifications): auto-disable channels on persistent hard rejects (410, etc.)   |
-| `a3c0130` | feat(settings): notification channel status UI with re-enable + test               |
-| `34c967c` | feat(achievements): dedicated /achievements page with locked/unlocked list         |
-| `a242047` | feat(dashboard): recent achievements card with toggle in layout settings           |
-| `81f5019` | feat(dashboard): RecentAchievementsCard component + tests                          |
-| `db5a49d` | feat(db): User.onboardingTourCompleted flag                                        |
-| `e57fc0a` | feat(onboarding): tour component with spotlight + keyboard navigation              |
-| `8215e25` | feat(onboarding): auto-launch tour for new users on first dashboard load           |
-| `fa1c6a6` | feat(settings): allow user to replay the onboarding tour                           |
-| `d692119` | feat(doctor-report): configurable date range with default last-90-days             |
-| `28467b2` | feat(doctor-report): practice name on cover page (persisted as user preference)    |
+| SHA       | Summary                                                                          |
+| --------- | -------------------------------------------------------------------------------- |
+| `fe85c2c` | feat(admin): restore from backup with full data replacement + triple-confirm     |
+| `d8c549e` | feat(admin): backup download as JSON                                             |
+| `30a74ed` | feat(admin): backup upload                                                       |
+| `0805452` | fix(admin): backup audit log entries                                             |
+| `7c32d63` | feat(admin): link from backups view to docs.healthlog.dev/admin/backups          |
+| `4db72a8` | feat(integrations): connection-state + sync-error UI in Settings → Integrations  |
+| `b290a77` | fix(integrations): refresh-token failure marks integration as needing re-auth    |
+| `604dff0` | feat(integrations): admin Telegram alert on persistent sync failure (≥3)         |
+| `2fbf56d` | feat(audit): sync failures logged with structured meta                           |
+| `87a40fd` | fix(notifications): auto-disable channels on persistent hard rejects (410, etc.) |
+| `a3c0130` | feat(settings): notification channel status UI with re-enable + test             |
+| `34c967c` | feat(achievements): dedicated /achievements page with locked/unlocked list       |
+| `a242047` | feat(dashboard): recent achievements card with toggle in layout settings         |
+| `81f5019` | feat(dashboard): RecentAchievementsCard component + tests                        |
+| `db5a49d` | feat(db): User.onboardingTourCompleted flag                                      |
+| `e57fc0a` | feat(onboarding): tour component with spotlight + keyboard navigation            |
+| `8215e25` | feat(onboarding): auto-launch tour for new users on first dashboard load         |
+| `fa1c6a6` | feat(settings): allow user to replay the onboarding tour                         |
+| `d692119` | feat(doctor-report): configurable date range with default last-90-days           |
+| `28467b2` | feat(doctor-report): practice name on cover page (persisted as user preference)  |
 
 ### Hardening (Phase C1–C5)
 
@@ -131,19 +131,19 @@ Multi-Provider-AI-Abstraktion + `MockAIProvider`.
 
 ### QA + Reconcile (Phase D)
 
-| SHA       | Summary                                                                  |
-| --------- | ------------------------------------------------------------------------ |
-| `cd3b890` | refactor(v1.4.15): apply simplify-review safe suggestions                |
-| `6465412` | fix(a11y): trap focus + restore + ring on onboarding tour                |
-| `66d2e07` | fix(a11y): break long Withings error strings inside status banner        |
+| SHA       | Summary                                                                    |
+| --------- | -------------------------------------------------------------------------- |
+| `cd3b890` | refactor(v1.4.15): apply simplify-review safe suggestions                  |
+| `6465412` | fix(a11y): trap focus + restore + ring on onboarding tour                  |
+| `66d2e07` | fix(a11y): break long Withings error strings inside status banner          |
 | `79bb167` | fix(ai): MockAIProvider DEFAULT_RESPONSE conforms to v1.4.15 strict schema |
-| `d947563` | style(v1.4.15): prettier sweep on phase-D reconcile touched files        |
+| `d947563` | style(v1.4.15): prettier sweep on phase-D reconcile touched files          |
 
 ### Release (Phase E1–E3)
 
-| SHA       | Summary                                  |
-| --------- | ---------------------------------------- |
-| `4dcaa08` | chore(release): v1.4.15                  |
+| SHA       | Summary                 |
+| --------- | ----------------------- |
+| `4dcaa08` | chore(release): v1.4.15 |
 
 ---
 
@@ -206,7 +206,7 @@ fährt.
 
 ### Sonstige Process-Items
 
-- Strict-Schema-Migration für AI-Insights-Route + UI (M6 senior); 
+- Strict-Schema-Migration für AI-Insights-Route + UI (M6 senior);
   `.passthrough()` retiren.
 - `dashboard-layout.test.ts` Typecheck-Regression aufräumen (in E1
   bereits gefixt — bleibt aber als „pre-existing" in mehreren STATE-

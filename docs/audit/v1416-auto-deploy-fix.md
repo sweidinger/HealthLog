@@ -30,12 +30,12 @@ We need: deploy fires only when the image digest actually changes.
 Coolify v4.0.0-beta.470 (current production) exposes these
 deploy-trigger toggles on a `dockercompose` application:
 
-| Setting          | Effect                                                            | API access          |
-| ---------------- | ----------------------------------------------------------------- | ------------------- |
-| Auto Deploy      | GitHub-App webhook listens to push events                         | UI only (no MCP / REST endpoint exposes it on v4-beta) |
-| Watch Paths      | Glob list — push-event paths must match for auto-deploy to fire   | UI only             |
-| Deploy Webhook   | Bearer-protected `GET /api/v1/deploy?uuid=…` — programmatic trigger | MCP-callable      |
-| Notification Webhook | Outgoing POST when deploy completes (success / failure)       | UI only             |
+| Setting              | Effect                                                              | API access                                             |
+| -------------------- | ------------------------------------------------------------------- | ------------------------------------------------------ |
+| Auto Deploy          | GitHub-App webhook listens to push events                           | UI only (no MCP / REST endpoint exposes it on v4-beta) |
+| Watch Paths          | Glob list — push-event paths must match for auto-deploy to fire     | UI only                                                |
+| Deploy Webhook       | Bearer-protected `GET /api/v1/deploy?uuid=…` — programmatic trigger | MCP-callable                                           |
+| Notification Webhook | Outgoing POST when deploy completes (success / failure)             | UI only                                                |
 
 The MCP `application.update` action exposed by `coolify-apps01`
 intentionally restricts mutations to the safe subset
@@ -47,8 +47,7 @@ guardrails the MCP wraps around the install — too far outside agent
 scope.
 
 The Coolify community has an open feature request to expose
-`auto_deploy_enabled` over REST; the v4-stable line (expected July
-2026) is the realistic landing window.
+`auto_deploy_enabled` over REST; the v4-stable line (expected July 2026) is the realistic landing window.
 
 ## Watchtower — re-examined
 
