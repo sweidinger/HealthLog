@@ -316,6 +316,127 @@ export const trendAnnotationsSchema = z.object({
 export type TrendAnnotations = z.infer<typeof trendAnnotationsSchema>;
 
 /**
+ * v1.4.20 phase B4 — Weekly Report block.
+ *
+ * The newsletter-style printable report at `/insights/report/[week]`
+ * renders six sections off this payload: Summary, What's going well,
+ * What's worth watching, Tips, Data-quality notes (optional), plus the
+ * `weekISO` label that pins the report to a specific ISO week.
+ *
+ * Hard caps are deliberate so a runaway model cannot pad the surface:
+ *   - summary: 10..800 chars (TL;DR paragraph)
+ *   - goingWell / worthWatching / tips: each item ≤ 280 chars, ≤ 5 items
+ *   - dataQualityNotes: ≤ 280 chars, optional
+ *
+ * The block is `nullable().optional()` so cached payloads from before
+ * PROMPT_VERSION 4.20.2 round-trip without forcing a regenerate. Fresh
+ * generations after the bump emit the block when the snapshot covers
+ * a full ISO week.
+ */
+export const weeklyReportSchema = z.object({
+  /**
+   * ISO week identifier, e.g. "2026-W19". Format: `YYYY-Www` where ww is
+   * the two-digit ISO week number. The route's `[week]` param pins to
+   * the same key so the report URL matches the AI payload.
+   */
+  weekISO: z
+    .string()
+    .regex(/^\d{4}-W\d{2}$/, "weeklyReport.weekISO must match YYYY-Www"),
+  /** TL;DR paragraph — 1-2 sentences synthesising the week's signal. */
+  summary: z
+    .string()
+    .min(10, "weeklyReport.summary must be at least 10 chars")
+    .max(800, "weeklyReport.summary must be <= 800 chars"),
+  /** "Wins" — what's going well. Up to 5 short bullets. */
+  goingWell: z
+    .array(
+      z
+        .string()
+        .min(1, "weeklyReport.goingWell entry required")
+        .max(280, "weeklyReport.goingWell entry must be <= 280 chars"),
+    )
+    .max(5, "weeklyReport.goingWell can hold at most 5 entries"),
+  /** "Watchlist" — what's worth watching. Up to 5 short bullets. */
+  worthWatching: z
+    .array(
+      z
+        .string()
+        .min(1, "weeklyReport.worthWatching entry required")
+        .max(280, "weeklyReport.worthWatching entry must be <= 280 chars"),
+    )
+    .max(5, "weeklyReport.worthWatching can hold at most 5 entries"),
+  /** Tips — small actionable nudges. Up to 5 short bullets. */
+  tips: z
+    .array(
+      z
+        .string()
+        .min(1, "weeklyReport.tips entry required")
+        .max(280, "weeklyReport.tips entry must be <= 280 chars"),
+    )
+    .max(5, "weeklyReport.tips can hold at most 5 entries"),
+  /**
+   * Data-quality notes — surfaced only when the snapshot has gaps that
+   * materially limit the analysis (n<7, recencyDays>14, etc.). Optional
+   * because most weeks don't need a caveat.
+   */
+  dataQualityNotes: z
+    .string()
+    .max(280, "weeklyReport.dataQualityNotes must be <= 280 chars")
+    .optional(),
+});
+
+export type WeeklyReport = z.infer<typeof weeklyReportSchema>;
+
+/**
+ * v1.4.20 phase B4 — Storyboard annotations.
+ *
+ * The 90-day BP timeline on `/insights` overlays factual events the user
+ * logged ("started medication X", "first sustained dip below 140") onto
+ * the chart as vertical reference lines + chapter cards beneath. Each
+ * annotation MUST cite a real event from the snapshot — the prose is
+ * neutral, never causal ("started medication X" not "improvement is due
+ * to X").
+ *
+ * Hard cap of 20 entries so a runaway model cannot blanket the chart
+ * with reference lines. The block itself is `.optional()` (no nullable
+ * wrap because zod treats an absent field as undefined for arrays
+ * uniformly).
+ */
+export const storyboardAnnotationSchema = z.object({
+  /** ISO date the annotation pins to (YYYY-MM-DD). */
+  date: z
+    .string()
+    .regex(
+      /^\d{4}-\d{2}-\d{2}$/,
+      "storyboardAnnotation.date must be YYYY-MM-DD",
+    ),
+  /** Short label rendered next to the reference line (≤ 80 chars). */
+  label: z
+    .string()
+    .min(1, "storyboardAnnotation.label required")
+    .max(80, "storyboardAnnotation.label must be <= 80 chars"),
+  /**
+   * Category drives the annotation colour:
+   *   - "medication" — Dracula pink (started/changed dose)
+   *   - "event"      — Dracula cyan (a notable user-logged event)
+   *   - "milestone"  — Dracula green (target hit, streak milestone)
+   *   - "warning"    — Dracula orange (a deviation worth flagging)
+   */
+  category: z.enum(["medication", "event", "milestone", "warning"]),
+  /** One-paragraph detail that the chapter card surfaces below the chart. */
+  detail: z
+    .string()
+    .min(1, "storyboardAnnotation.detail required")
+    .max(400, "storyboardAnnotation.detail must be <= 400 chars"),
+});
+
+export type StoryboardAnnotation = z.infer<typeof storyboardAnnotationSchema>;
+
+export const storyboardAnnotationsSchema = z
+  .array(storyboardAnnotationSchema)
+  .max(20, "storyboardAnnotations can hold at most 20 entries");
+
+/**
  * Canonical strict response schema. New strict fields are required;
  * legacy rich fields ride along through `.passthrough()` for back-
  * compat with cached payloads and the existing dashboard renderer.
@@ -342,6 +463,18 @@ export const aiInsightResponseSchema = z
      * legacy 4.20.0 caches round-trip.
      */
     trendAnnotations: trendAnnotationsSchema.nullable().optional(),
+    /**
+     * v1.4.20 phase B4 — optional Weekly Report block. Nullable +
+     * optional so legacy cached payloads from before PROMPT_VERSION
+     * 4.20.2 round-trip without forcing a regenerate.
+     */
+    weeklyReport: weeklyReportSchema.nullable().optional(),
+    /**
+     * v1.4.20 phase B4 — optional storyboard annotations. Each entry
+     * pins a vertical reference line + chapter card to a date on the
+     * 90-day BP timeline. Optional so legacy caches round-trip.
+     */
+    storyboardAnnotations: storyboardAnnotationsSchema.optional(),
   })
   .passthrough();
 
