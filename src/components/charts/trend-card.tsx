@@ -192,7 +192,7 @@ export function TrendCard({
   };
 
   // The label flips from "7d" / "7T" (mean) to "7d trend" / "7T-Trend"
-  // when the call site supplies a delta. Marc's v1.4.15 feedback —
+  // when the call site supplies a delta. the maintainer's v1.4.15 feedback —
   // "7-Tage-Schnitt" sounds like an average, but the value next to it
   // is now a TREND. Distinct keys keep the label change in i18n.
   const avg7LabelKey =

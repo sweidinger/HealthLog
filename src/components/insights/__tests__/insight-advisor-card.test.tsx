@@ -266,7 +266,7 @@ describe("<InsightAdvisorCard> — polished loading / empty / error states (B1b)
   });
 
   it("renders the legacy v1.4.14 payload without crashing (regenerate CTA)", () => {
-    // Reproduces Marc's production /insights crash on 2026-05-10:
+    // Reproduces the maintainer's production /insights crash on 2026-05-10:
     //
     //   TypeError: Cannot read properties of undefined (reading 'replace')
     //     at stripChartTokens(insight.summary)

@@ -247,7 +247,7 @@ describe("<RecommendationCard>", () => {
   /**
    * v1.4.22 A6 — strip chart-tokens from the always-visible
    * recommendation text. W1a §3 traced the production "metric:WEIGHT"
-   * leak Marc saw at the bottom of the advisor card to this exact
+   * leak the maintainer saw at the bottom of the advisor card to this exact
    * render path: every other AI-prose surface ran through
    * `stripChartTokens()`, the recommendation text didn't. Pin the
    * strip so a future copy-paste regression can't reintroduce the

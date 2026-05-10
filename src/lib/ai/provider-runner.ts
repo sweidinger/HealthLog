@@ -12,7 +12,7 @@ import { annotate } from "@/lib/logging/context";
  *
  * The chain runner wraps `generateInsight()` with a hard-failure
  * walkthrough across an ordered list of providers. The motivation is
- * Marc's "ein Provider-Ausfall darf die Insights nicht zerschiessen"
+ * the maintainer's "ein Provider-Ausfall darf die Insights nicht zerschiessen"
  * mandate: a 401 from Codex (OAuth expired), a 503 from OpenAI
  * (upstream brown-out), or a network reset MUST cascade to the next
  * configured provider rather than 422-ing the whole request.

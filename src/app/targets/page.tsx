@@ -117,7 +117,7 @@ const GLUCOSE_TYPES = new Set([
  * pulse-targets.ts + targets/route.ts inline maps); v1.4.19 phase
  * A7 wires this map so the German locale stops surfacing English
  * status pills like "Low / On Target / Stable / Moderate" — the
- * exact regression Marc reported.
+ * exact regression the maintainer reported.
  */
 const STATUS_CATEGORY_KEY: Record<string, string> = {
   // BMI
@@ -735,7 +735,7 @@ export default function TargetsPage() {
     });
 
   return (
-    // v1.4.19 phase A7 — Marc reported "relativ viel Platz" wasted
+    // v1.4.19 phase A7 — the maintainer reported "relativ viel Platz" wasted
     // between the overview header and the first values on `/targets`.
     // Tighten the rhythm from `space-y-8` (32 px) to `space-y-6`
     // (24 px) — that matches the admin / settings pages.

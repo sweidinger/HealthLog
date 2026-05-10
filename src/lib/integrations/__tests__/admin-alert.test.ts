@@ -3,7 +3,7 @@
  *
  * The state-machine threshold tests live in `status.test.ts` (when
  * does the alert fire?). This file proves WHAT the alert looks like
- * — the message body Marc sees on Telegram when an integration
+ * — the message body the maintainer sees on Telegram when an integration
  * starts crashing for one of his users.
  *
  * The formatter is a pure function so we can test deterministically

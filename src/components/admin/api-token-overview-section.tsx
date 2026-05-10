@@ -20,7 +20,7 @@ import { type ApiTokenInfo } from "./_shared";
  *
  * v1.4.19 phase A7 (4th attempt) — earlier fixes (column-hide,
  * mobile card-list, mobile-strip `no-scrollbar`) cleared every
- * scrollbar Marc reported except a residual painted bar he kept
+ * scrollbar the maintainer reported except a residual painted bar he kept
  * seeing at the bottom-right. Production probe confirmed no
  * remaining horizontal-overflow culprits, but the cards still
  * carried `break-all` next to `truncate` (dead code; `white-space:
@@ -104,7 +104,7 @@ export function ApiTokenOverviewSection() {
   // section route. The previous pattern carried a "Collapse / Expand"
   // toggle as an escape hatch from the v1.4 shared admin page where
   // 13 sections lived together, but on a route that only renders this
-  // one card the toggle hides the entire surface. Marc reported it
+  // one card the toggle hides the entire surface. the maintainer reported it
   // as "sinnlos" — gone.
   const { data: tokens, isLoading } = useQuery({
     queryKey: ["admin", "tokens"],

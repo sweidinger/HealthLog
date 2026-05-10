@@ -4,13 +4,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 /**
  * v1.4.19 A7 — `/admin/api-tokens` 4th-attempt scrollbar fix.
  *
- * Marc reported a "minimaler Scrollbar" still painting at the
+ * the maintainer reported a "minimaler Scrollbar" still painting at the
  * bottom-right of the api-tokens page, even after the v1.4.18 phase
  * A2 mobile-strip `no-scrollbar` fix. The remaining culprits are
  * inside the section card itself: long token names, long usernames,
  * and long permission strings can each push their parent past the
  * viewport. Cumulatively this leaves the page in an "almost-fits"
- * state where the visible scrollbar Marc sees is the page-level main
+ * state where the visible scrollbar the maintainer sees is the page-level main
  * scroll picking up a fraction of pixels of horizontal scroll spill
  * from the children.
  *

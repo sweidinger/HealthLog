@@ -258,7 +258,7 @@ function ChannelRow({
 
       {/* v1.4.15 H4 design: action buttons hit the WCAG 2.5.5 44 px
           floor on mobile via `min-h-11`. Settings is the most-touched
-          mobile surface; `size="sm"` here clips to ~32 px which Marc
+          mobile surface; `size="sm"` here clips to ~32 px which the maintainer
           flagged as too small on the iPad/iPhone PWA shell. */}
       <div className="flex flex-wrap gap-2">
         {channel.state === "auto_disabled" && (

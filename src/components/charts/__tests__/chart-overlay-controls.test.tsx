@@ -11,7 +11,7 @@ import {
 /**
  * v1.4.18 — per-chart overlay-controls popover.
  *
- * Marc rejected the always-on overlays from B1a (gradient, baseline,
+ * the maintainer rejected the always-on overlays from B1a (gradient, baseline,
  * target-zone shading) and asked for a per-chart switch surface so a
  * user can toggle "7-Tage-Trend / Trend-Pfeil / Zielbereich" on or off
  * for each chart independently. The popover is anchored top-right of

@@ -3,6 +3,52 @@
 Carry-over from v1.4.20 marathon foundation phases. Pick from this list
 when v1.4.21 starts.
 
+## Closed in v1.4.22
+
+The Wave-4 cleanup pass closed the following items. See
+`.planning/phase-W4-report.md` for full SHAs + reasoning.
+
+- **C1** Zielwerte sparkline + Δ-vs-last-month — landed in commit 1
+- **C2** api-tokens 5th-attempt scrollbar fix — landed in commit 2
+- **C3** Coolify `?force=true` + howto for the UI checkbox — landed in
+  commit 3
+- **C4** AuthShell post-hydration redirect → moved to proxy.ts — landed
+  in commit 4
+- **C5** node-26-alpine — PR #162 closed (no Dockerfile bump; Next.js
+  16 still pins node 22 LTS and node:26-alpine ships without corepack)
+- **F-32** triple help blocks on /settings/dashboard — landed in
+  commit 5
+- **F-33** mood subtitle ampersand → "und" / "and" — landed in commit 5
+- **F-34** measurements subtitle ampersand → "und" / "and" — landed in
+  commit 5
+- **F-35** Send-test button label inconsistency — unified on the
+  shorter "Send test" / "Test senden" — landed in commit 5
+- **F-44** `LOKI_ENDPOINT` env-var leakage in user-facing copy — landed
+  in commit 5
+- **F-45** admin/users column header "Users" → "Name" (new
+  `admin.userName` key) — landed in commit 5
+- **F-47** /notifications event-column header collision with the page
+  title — new `notifications.eventColumn` key — landed in commit 5
+- **F-50** DE error-toast tone — "Bitte erneut versuchen" → "Bitte
+  versuche es erneut" across six keys — landed in commit 5
+- **F-58** admin/reminders icon swap (Clock → Bell to match the
+  admin-shell nav) — landed in commit 5
+- **F-62** DE dashboard `greetingSalutation` ("Hi" → "Hallo, {name}")
+  — landed in commit 5
+- **D-CR-M-03** formatTokenName regex broadened to non-Z ISO offsets
+  — landed in commit 5
+- **D-DSGN-M-04** moodLog "Copy" button uses `common.copy` instead of
+  stripping `!` off `common.copied` — landed in commit 5
+- **FX 1** 191 `Marc` source-comment references swept (test fixtures
+  kept) — landed in commit 6
+- **FX 2** DE+EN bilingual CHANGELOG entries (v1.4.14 + v1.4.15)
+  normalised to English-only — landed in commit 6
+- **FX 3** `CLAUDE.md` renamed to `CONTRIBUTING-AI.md`; `AGENTS.md`
+  retained for multi-agent compatibility — landed in commit 6
+
+The remaining MED + LOW items below either deferred to v1.4.23 (most
+of the heavy reviewer findings) or stay open as a hygiene PR.
+
 ## Phase D — v1.4.20 reconcile carry-over
 
 Items raised by the six-reviewer Phase-D pass that were either too

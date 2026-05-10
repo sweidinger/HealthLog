@@ -266,7 +266,7 @@ export function AboutSection() {
           that proxies through `/api/version/check-updates`. The v1.4.2
           version called `api.github.com` directly from the browser, which
           the production CSP blocked silently — that's why "nothing
-          happened" when Marc clicked the button. */}
+          happened" when the user clicked the button. */}
       {version && (
         <div className="bg-card border-border rounded-xl border p-6">
           <div className="mb-4 flex items-center gap-2">

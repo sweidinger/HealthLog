@@ -85,7 +85,7 @@ describe("<SidebarNav> bug-report toggle", () => {
 });
 
 describe("<SidebarNav> admin entry mirrors Settings (no sub-item expansion)", () => {
-  // v1.4.16 A1: Marc reported the global sidebar expanding admin
+  // v1.4.16 A1: the maintainer reported the global sidebar expanding admin
   // sub-items on `/admin/*` was unwanted UX — the in-shell `<AdminShell>`
   // already provides per-section nav inside the page. The Admin entry
   // must behave EXACTLY like the Settings entry: a single link with no
@@ -112,7 +112,7 @@ describe("<SidebarNav> admin entry mirrors Settings (no sub-item expansion)", ()
     const html = render({ role: "ADMIN", pathname: "/admin/system-status" });
     expect(html).toContain('href="/admin"');
     // Sub-section links must NOT appear in the global sidebar — they
-    // belong to `<AdminShell>`'s in-page nav. Marc reported the
+    // belong to `<AdminShell>`'s in-page nav. the maintainer reported the
     // expansion as broken UX in v1.4.16; this guard keeps it gone.
     for (const section of ADMIN_SECTIONS) {
       expect(html).not.toContain(`href="/admin/${section.slug}"`);

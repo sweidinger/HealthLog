@@ -24,7 +24,7 @@
  * - Non-object / null / undefined input → false (nothing to migrate).
  * - **v1.4.14 pre-strict shape** (`{changed, stable, drivers, ...}` —
  *   no `summary`, no `recommendations[]`, no `findings[]`): true. This
- *   is the production crash Marc hit on 2026-05-10 — the route's
+ *   is the production crash the maintainer hit on 2026-05-10 — the route's
  *   `safeParse` failed against `insightResultSchema`, fell through to
  *   the raw blob, and the rich card called `.replace()` on
  *   `undefined`. Detect by absence of *both* `summary` (string) and

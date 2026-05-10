@@ -95,7 +95,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     // rewritten by Cloudflare. 5xx from origin causes Cloudflare to swap
     // the body for its own HTML error page — `await res.json()` in the
     // browser then crashes with `Unexpected token '<', "<!DOCTYPE "`,
-    // which is exactly how Marc encountered this when typing a bad
+    // which is exactly how the maintainer encountered this when typing a bad
     // OpenAI key. 4xx codes pass through untouched.
     const status = err.httpStatus ?? 0;
     let outboundStatus: number;

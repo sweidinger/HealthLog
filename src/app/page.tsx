@@ -321,7 +321,7 @@ export default function DashboardPage() {
   // v1.4.15 phase-B4 — recent unlocks dashboard surface. The card itself
   // self-handles the empty state (CTA → /achievements), so we only need
   // the layout-toggle gate here. No data-floor check (the empty card is
-  // intentional — Marc wants the user to discover the feature).
+  // intentional — the maintainer wants the user to discover the feature).
   const showAchievementsCard = isChartVisible("achievements");
   // v1.4.16 phase D reconcile (CRITICAL C2) — gate the dashboard
   // insights preview by the layout toggle. The component itself
@@ -591,7 +591,7 @@ export default function DashboardPage() {
           // BP is conceptually one signal but visually two tiles (sys + dia)
           // so the user sees both numbers side by side at the same size as
           // every other tile in the strip. v1.4.3 first attempted a
-          // combined tile with `secondary` values — Marc preferred two
+          // combined tile with `secondary` values — the maintainer preferred two
           // distinct tiles with consistent symmetric widths.
           trendCards.push({
             id: "bp-sys",
@@ -1083,7 +1083,7 @@ export default function DashboardPage() {
           // v1.4.15 phase-B4 — slotted at the user's chosen position via
           // the layout `order`. Default order from
           // `DEFAULT_DASHBOARD_LAYOUT` puts it last (below the chart row)
-          // which matches Marc's brief "below the chart row".
+          // which matches the maintainer's brief "below the chart row".
           charts.push({
             id: "achievements",
             order: widgetOrder("achievements"),
@@ -1125,7 +1125,7 @@ export default function DashboardPage() {
         return (
           <>
             {/* v1.4: dashboard tiles are *always* a single row.
-             * Marc-explicit (memory feedback_dashboard_one_row.md): a 2-row
+             * maintainer-explicit (per feedback_dashboard_one_row.md): a 2-row
              * tile strip breaks the visual hierarchy and reads like an
              * Excel grid. Total width caps at the parent container —
              * exactly the chart-width below. When the active tile count
@@ -1140,9 +1140,9 @@ export default function DashboardPage() {
             {/* v1.4.16 Fix A5: hide the strip entirely when the user
                 turned off every tile. Until v1.4.15 the wrapper rendered
                 an empty grid even with zero tiles — visually a thin gap
-                Marc described as "awkward". Charts below still render so
+                the maintainer described as "awkward". Charts below still render so
                 the page is not empty; the tile-strip just goes away.
-                The constraint Marc named — "immer die gesamte Spalte
+                The constraint the maintainer named — "immer die gesamte Spalte
                 breit und immer der gleichen Höhe" — is preserved by the
                 CSS-grid `auto-fit + minmax + auto-rows-fr` track that
                 continues to give every visible tile equal width / equal
@@ -1156,7 +1156,7 @@ export default function DashboardPage() {
                 // x-coordinates as the charts below because both inherit the
                 // same parent container. When the row no longer fits a 9rem
                 // floor, the grid wraps to a new row instead of horizontal-
-                // scrolling — Marc tested both and prefers the v1.3-era
+                // scrolling — the maintainer tested both and prefers the v1.3-era
                 // wrap behaviour over the one-row scroll for the symmetry
                 // it preserves.
                 className="grid auto-rows-fr [grid-template-columns:repeat(auto-fit,minmax(9rem,1fr))] gap-3 pb-2"

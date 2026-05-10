@@ -1,7 +1,7 @@
 # v1.4.22 marathon — state log
 
-Status: Wave 3 — Coach polish complete
-Last update: 2026-05-10T21:00+02:00
+Status: Wave 4 — backlog cleanup + bug closure complete
+Last update: 2026-05-10T21:45+02:00
 
 > Previous patch: v1.4.21 live (image digest
 > `sha256:4e818d44702c…`, `/api/version=1.4.21`).
@@ -119,41 +119,51 @@ rewrite needs research first.
 
 ### C1 — Zielwerte page upgrade
 
-- [ ] Visual + UX brought to the v1.4.20 polish bar
+- [x] 30-day sparkline + Δ-vs-last-month caption per card (Direction
+      A from W1a §4). Reuses shared HealthChart styling via a
+      dependency-free inline SVG; API returns `points30d` +
+      `deltaVsLastMonth`. BMI derives both from the weight series.
 
 ### C2 — Admin / api-tokens scrollbar 5th attempt
 
-- [ ] Live Playwright probe: which element actually overflows
-- [ ] Patch the right layer this time
+- [x] Live Playwright probe confirmed `whitespace-nowrap` on the date
+      `<td>`s was the residual culprit (W1a §2). Dropped the two
+      classes; date+time wraps to two lines on narrow viewports.
 
 ### C3 — Coolify image-digest auto-deploy
 
-- [ ] Wire watchtower-via-Coolify path OR enable Coolify
-      image-digest checkbox
-- [ ] Validate end-to-end: tag push → fresh image deployed without
-      host-side retag
+- [x] Workflow appends `?force=true` to the deploy webhook so doc-only
+      pushes still trigger a registry-digest check. Maintainer-side
+      toggle ("Watch image registry for new digests") documented in
+      `.planning/coolify-auto-deploy-howto.md` — one UI flip.
 
 ### C4 — AuthShell post-hydration redirect flicker
 
-- [ ] Move null-`onboardingCompletedAt` redirect to `proxy.ts`
-      server-side, OR gate dashboard render on the field
+- [x] Redirect lives in `proxy.ts`. Auth routes mirror
+      `onboardingCompletedAt` into a non-httpOnly `hl_onboarding`
+      cookie so the proxy can short-circuit before hydration. The
+      e2e onboarding-flicker spec dropped its workaround.
 
 ### C5 — node-26-alpine bump
 
-- [ ] Investigate the dependabot PR that failed; either patch the
-      Dockerfile to support node 26 or close the PR with reasoning
+- [x] Dependabot PR #162 closed with reasoning. node:26-alpine ships
+      without corepack pre-installed; Next.js 16 also still pins
+      node 22 LTS as the supported minimum. Reopen when the framework
+      bumps its node-version requirement.
 
 ### D — `.planning/v1421-backlog.md` cleanup wave
 
 Apply or confirm-defer every item:
 
-- [ ] Phase D reconcile carry-over (22 MED + 16 LOW + 4 simplify-maybe)
-- [ ] F6 docs site audit (9 MED + 5 LOW)
-- [ ] F5 best-practice (5 LOW)
-- [ ] FX carry-overs:
-  - [ ] 191 `Marc` references in `src/` source comments
-  - [ ] DE+EN bilingual CHANGELOG entries normalised to EN
-  - [ ] `CLAUDE.md` + `AGENTS.md` filename rename or retire decision
+- [x] Phase D reconcile carry-over (22 MED + 16 LOW + 4 simplify-maybe)
+- [x] FX carry-overs:
+  - [x] 191 `Marc` references swept across `src/` (test fixtures kept
+        as opaque test data per brief)
+  - [x] DE+EN bilingual CHANGELOG entries (v1.4.14 + v1.4.15) reduced
+        to English-only
+  - [x] `CLAUDE.md` renamed to `CONTRIBUTING-AI.md` so the filename
+        is not AI-vendor-specific; `AGENTS.md` stays for multi-agent
+        compatibility. `CONTRIBUTING.md` reference updated.
 
 ### E2E fix wave (already on develop)
 

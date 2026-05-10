@@ -114,7 +114,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   /**
    * v1.4.15 Fix 5 — independent toggle for the *strip tile* (the upper
    * row of trend cards). Until v1.4.14 a single switch controlled both
-   * the tile AND the chart for the same metric, which Marc found too
+   * the tile AND the chart for the same metric, which the maintainer found too
    * coarse: he wanted a chart visible without the tile (for metrics he
    * tracks without wanting the at-a-glance number) or vice versa.
    */
@@ -250,8 +250,8 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           {/* v1.4.15 Fix 5 — table-style header naming the two
               switches. The "tile" column controls the strip tile in
               the upper row; the "chart" column controls the line
-              chart in the lower row. Marc wanted independent control
-              of the two surfaces (memory feedback_dashboard_top_tiles
+              chart in the lower row. the maintainer wanted independent control
+              of the two surfaces (per feedback_dashboard_top_tiles
               _selectable.md). */}
           <div className="text-muted-foreground flex items-center gap-3 px-3 pb-1 text-[10px] font-medium tracking-wide uppercase">
             <span className="w-5" aria-hidden="true" />

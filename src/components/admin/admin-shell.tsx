@@ -153,7 +153,7 @@ export function AdminShell({ active, children }: AdminShellProps) {
           painted scrollbar at the top of every admin page; the
           horizontal swipe + keyboard arrow scrolling still work, the
           bar just doesn't draw. Without this the 13-section strip
-          would render an always-on scrollbar that Marc kept
+          would render an always-on scrollbar that the maintainer kept
           mis-attributing to the api-tokens table below it. */}
       <nav
         aria-label={t("admin.shell.sectionsNav")}

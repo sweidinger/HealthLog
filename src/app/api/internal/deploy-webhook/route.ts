@@ -22,7 +22,7 @@ import { prisma } from "@/lib/db";
  * comes back asynchronously when the container is healthy / fails to
  * start. Without this surface we lose visibility once the deploy is
  * fired — exactly the gap that produced v1.4.6..v1.4.14's manual
- * verification recipe (Marc had to SSH and check digests).
+ * verification recipe (the maintainer had to SSH and check digests).
  *
  * Payload shape: Coolify sends a free-form JSON object whose exact
  * fields drift between beta releases. We treat it as `Record<string,
@@ -104,7 +104,7 @@ function hasValidSecret(request: NextRequest): boolean {
  * `src/lib/integrations/status.ts` — fan out a SYSTEM_ALERT through the
  * existing dispatcher to every user whose role is ADMIN. The dispatcher
  * silently no-ops when no Telegram channel is configured, so this is
- * safe even on a first-deploy where Marc hasn't wired the bot yet.
+ * safe even on a first-deploy where the maintainer hasn't wired the bot yet.
  */
 async function notifyAdminsOfFailure(event: NormalizedEvent): Promise<void> {
   const admins = await prisma.user.findMany({

@@ -9,7 +9,7 @@ import { I18nProvider } from "@/lib/i18n/context";
  * v1.4.15 Fix 4 — "7-Tage-Schnitt" → "7-Tage-Trend".
  *
  * The avg7 line on every dashboard tile used to read "7d: 80.5" /
- * "7T: 80,5" — visually an *average*. Marc wanted it to convey
+ * "7T: 80,5" — visually an *average*. the maintainer wanted it to convey
  * *direction* over the past week instead, so the label flips to
  * "7d trend" / "7T-Trend" and a signed delta indicator paints next
  * to the value with metric-aware colour:

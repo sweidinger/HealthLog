@@ -18,7 +18,7 @@
  *    `sys >= sysLow && sys <= sysHigh && dia >= diaLow && dia <= diaHigh`.
  *    With ESH 2023 narrow targets (Sys 120-129, Dia 70-79 for under-65)
  *    this collapses to 0 % for healthy normotensive users whose
- *    readings sit BELOW the goal band — Marc's actual data has many
+ *    readings sit BELOW the goal band — the live tenant's actual data has many
  *    readings like 117/79 (textbook normotensive, well-controlled) that
  *    were marked OUT of target because sys < 120. Users intuitively
  *    consider those readings *in target* — and so does clinical
@@ -194,7 +194,7 @@ export function computeBpInTargetPct(
  *  - v1.4.18 A1 wired `avg7` + `avg30` from `computeBpInTargetWindows`,
  *    BUT the analytics route also routed the **headline**
  *    (`bpInTargetPct`) through `windows.last30Days?.pct` — i.e. the
- *    headline was a literal copy of `bpInTargetPct30d`. For Marc's prod
+ *    headline was a literal copy of `bpInTargetPct30d`. For the live tenant's prod
  *    data (572 paired readings since 2022, recent 30 days = 50 %, all-time
  *    ≈ 11 %) the tile rendered `50 %` headline, `7T: 50, 30T: 50` and
  *    looked algorithmically pinned to 50/50/50. That was hypothesis-1

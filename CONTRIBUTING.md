@@ -78,7 +78,7 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm format:check && pnpm build
 - **shadcn/ui** components (new-york style) for UI primitives.
 - **Dracula theme** -- dark mode is the default; a `light`/`system` toggle is exposed in the topbar. Chart and accent colors use the `--dracula-*` CSS tokens so both themes stay coherent.
 
-See `CLAUDE.md` for detailed architecture and patterns.
+See `CONTRIBUTING-AI.md` for detailed architecture and patterns.
 
 ## Database Changes
 

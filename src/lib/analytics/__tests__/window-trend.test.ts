@@ -4,7 +4,7 @@ import { computeWindowTrend, SPLIT_HALF_THRESHOLD_DAYS } from "../window-trend";
 /**
  * v1.4.16 Fix A8b — chart trend overlay on the "All" filter.
  *
- * Marc's report: clicking the All range button on a multi-year metric
+ * Maintainer report: clicking the All range button on a multi-year metric
  * displays "+0.0 kg/Woche" because the per-week delta rounds to zero
  * once the window is years wide. The split-half delta keeps the trend
  * legible by reporting the change between the first-half mean and the
@@ -63,7 +63,7 @@ describe("computeWindowTrend()", () => {
     // per-week rate is small (~0.07 kg/week) which rounds to 0.1 in
     // the 1-decimal formatter — and the test in the chart wrapper is
     // about whether ANY signal survives. The split-half delta ≈ +5 kg
-    // is the kind of number Marc actually wants to see.
+    // is the kind of number the maintainer actually wants to see.
     const months = 36;
     const rawValues = Array.from({ length: months }, (_, i) => 80 + 0.3 * i);
     const trendValues = rawValues; // perfectly linear, trend === raw

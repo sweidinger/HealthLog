@@ -1,7 +1,7 @@
 /**
  * Scope-hardened system prompt for AI insights — Phase C1 (v1.4.15).
  *
- * Marc, verbatim 2026-05-09:
+ * the maintainer, verbatim 2026-05-09:
  *   "Es darf null Halluzinationen haben und es muss sich halt irgendwie
  *    stützen auf medizinische Dinge."
  *   ("Zero hallucinations. Must ground on medical facts.")

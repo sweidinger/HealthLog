@@ -223,7 +223,7 @@ describe("POST /api/insights/generate — provider error mapping", () => {
 });
 
 // v1.4.16 A7.1: rate limit raised from 2 → 10/h, env-configurable.
-// Marc reported the previous 2/h was too aggressive when iterating on
+// the maintainer reported the previous 2/h was too aggressive when iterating on
 // settings. The 10/h ceiling is the new default; the env override lets
 // operators on a tight LLM budget dial it back without a rebuild.
 describe("POST /api/insights/generate — rate limit (v1.4.16 A7.1)", () => {

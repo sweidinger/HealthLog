@@ -136,7 +136,7 @@ function pillStateFor(
  * sync attempt failed. The pill conveys "something is wrong"; this
  * line tells the user *what* is wrong so they can act on it. Keeping
  * it deliberately small (one icon + one line) so it doesn't recreate
- * the v1.4.18 redundant banner Marc removed.
+ * the v1.4.18 redundant banner the maintainer removed.
  */
 function IntegrationErrorMessage({ message }: { message: string }) {
   return (
@@ -653,7 +653,7 @@ function MoodLogCard({
       </p>
 
       {/* v1.4.19 A5 — visual divider matches Withings for consistency
-          (Marc explicitly called the asymmetry out). */}
+          (the maintainer explicitly called the asymmetry out). */}
       <hr
         data-testid="integration-card-divider"
         className="border-border/60 mt-4"
@@ -736,7 +736,7 @@ function MoodLogCard({
             {/* v1.4.19 A5 — The "letzter Sync" line that used to
                 live here is gone. The pill in the card header
                 already carries that information; repeating it
-                inside the body is the redundancy Marc flagged. The
+                inside the body is the redundancy the maintainer flagged. The
                 entry-count is the only number we still surface
                 because it's an integration-specific datapoint the
                 pill cannot convey. */}

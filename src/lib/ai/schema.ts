@@ -4,7 +4,7 @@ import { MEDICAL_REFERENCE_IDS } from "./medical-references";
 /**
  * Strict response schema for v1.4.15 AI hardening (Phase C1).
  *
- * Marc, verbatim 2026-05-09: "Es darf null Halluzinationen haben und es
+ * the maintainer, verbatim 2026-05-09: "Es darf null Halluzinationen haben und es
  * muss sich halt irgendwie stützen auf medizinische Dinge."  ("It must
  * have zero hallucinations and must ground on medical facts.")
  *
@@ -95,7 +95,7 @@ const MEDICAL_REFERENCE_ID_SET: ReadonlySet<string> = new Set(
  *     the rec — e.g. "+5 bpm above baseline over 7 of 7 days".
  *
  * Empty `comparedTo` or `deviation` is rejected so the model cannot
- * emit a placeholder rationale card. Marc's mandate from B5a stays:
+ * emit a placeholder rationale card. the maintainer's mandate from B5a stays:
  * zero hallucinations, every rec must trace back to user data.
  */
 export const aiRecommendationRationaleSchema = z.object({
@@ -134,7 +134,7 @@ export const aiRecommendationSchema = z
     text: z.string().min(1, "recommendation.text required"),
     /**
      * Mandatory citation — the data point that justified the
-     * recommendation. Closes the "ungrounded boilerplate" risk Marc
+     * recommendation. Closes the "ungrounded boilerplate" risk the maintainer
      * called out: every recommendation must trace back to user data.
      */
     metricSource: metricSourceSchema,
@@ -228,7 +228,7 @@ export type AIWarning = z.infer<typeof aiWarningSchema>;
  * v1.4.19 (which predate the field) still parse cleanly. Fresh
  * generations after the v1.4.20 PROMPT_VERSION bump emit the block.
  *
- * Marc's "zero hallucinations" mandate stays: the prompt instructs the
+ * the maintainer's "zero hallucinations" mandate stays: the prompt instructs the
  * model to derive every finding from a number visible in the snapshot,
  * and `keyFindings.length` is hard-capped at 5 so a runaway model
  * cannot pad the surface with filler.

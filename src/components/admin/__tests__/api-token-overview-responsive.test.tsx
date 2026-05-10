@@ -94,7 +94,7 @@ describe("ApiTokenOverviewSection — responsive", () => {
   it("mobile card-list has no overflow-x-auto wrapper", () => {
     const html = render();
     // Mobile cards must let content wrap within the card rather than
-    // forcing a scroll container — that was the v1.4.15 bug Marc
+    // forcing a scroll container — that was the v1.4.15 bug the maintainer
     // re-reported. Confirm there's no overflow-x-auto INSIDE the
     // mobile <ul>.
     const mobileMatch = html.match(/<ul[^>]*md:hidden[^>]*>([\s\S]*?)<\/ul>/);

@@ -2,7 +2,7 @@
  * v1.4.19 phase A5 — IntegrationStatusPill
  *
  * The single tag rendered top-right of every integration card. The
- * pill is the ONLY place a connection status surfaces — Marc was
+ * pill is the ONLY place a connection status surfaces — the maintainer was
  * staring at three- to four-fold redundancy across Withings + Mood Log
  * cards in v1.4.18 and called it out. This component is reusable so
  * v1.4.20 can drop the same pill on the Apple Health card.

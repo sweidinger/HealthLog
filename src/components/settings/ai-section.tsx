@@ -168,7 +168,7 @@ export function AiSection() {
 /**
  * The single dropdown-driven configuration card. Replaces the
  * v1.4.15-vintage two-card layout (Codex connect at the top, personal
- * provider form at the bottom) per Marc's
+ * provider form at the bottom) per the maintainer's
  * `feedback_settings_no_split.md`: one provider Select, one matching
  * form below, one fallback-chain card at the bottom.
  *
@@ -389,7 +389,7 @@ function ActiveProviderSelect({
 
 /**
  * Switch-rendered provider configuration. The component is the
- * "form below adapts dynamically" half of Marc's pulldown contract:
+ * "form below adapts dynamically" half of the maintainer's pulldown contract:
  * pick Codex → see Codex form; pick OpenAI → see API-key + model
  * dropdown + base-URL override. The card frame is the same in every
  * branch so transitions feel like updating a single concept rather

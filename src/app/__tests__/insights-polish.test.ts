@@ -8,7 +8,7 @@ import { join } from "node:path";
  *
  *   1. The dashboard page does NOT mount `<CompareToggle />`. The
  *      comparison-baseline switch belongs on `/insights` only — the
- *      dashboard tile-strip is too tight for it (Marc 2026-05-10).
+ *      dashboard tile-strip is too tight for it (maintainer probe 2026-05-10).
  *      The underlying `compareBaseline` value is still consumed by
  *      every dashboard chart; only the on-surface affordance is gone.
  *   2. The `/insights` page renders exactly ONE page-level refresh
@@ -22,7 +22,7 @@ import { join } from "node:path";
  *   4. The `/insights` page does NOT pass the `aiOverviewTitle`
  *      ("Persönlicher Berater") subtitle into `<InsightAdvisorCard>`.
  *      The CardTitle ("KI-Gesundheitsanalyse") is sufficient framing;
- *      the second subtitle was an empty-section placeholder Marc
+ *      the second subtitle was an empty-section placeholder the maintainer
  *      called "Titel da aber NICHTS PASSIERT".
  *   5. The `stripChartTokens()` matcher catches lowercase + mixed-
  *      case AI-emitted tokens (`metric:blood_pressure_sweet_spot`),
@@ -150,7 +150,7 @@ describe("v1.4.19 A3 — /insights polish", () => {
 });
 
 describe("v1.4.19 A3 — chart-token leak hardening", () => {
-  // The visible "metric: blood_pressure_sweet" leak Marc saw at the
+  // The visible "metric: blood_pressure_sweet" leak the maintainer saw at the
   // bottom of /insights was a model-emitted lowercase chart token
   // that the v1.4.16 strip regex (`/metric:[A-Z_]+/g`) didn't catch
   // because the character class only matches uppercase. The widened

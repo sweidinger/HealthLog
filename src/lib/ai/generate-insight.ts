@@ -14,7 +14,7 @@ import { annotate } from "@/lib/logging/context";
 /**
  * Schema-enforced wrapper around `AIProvider.generateCompletion()`.
  *
- * Phase C1 (v1.4.15): Marc's mandate ("zero hallucinations, must
+ * Phase C1 (v1.4.15): the maintainer's mandate ("zero hallucinations, must
  * ground on user data") means a free-form LLM response is no longer
  * acceptable. This wrapper:
  *
