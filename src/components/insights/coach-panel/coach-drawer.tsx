@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 
+import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachInput } from "./coach-input";
 import { HistoryRail } from "./history-rail";
 import { MessageThread } from "./message-thread";
@@ -74,6 +75,12 @@ export function CoachDrawer({
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(null);
+  // v1.4.20 phase B4 — mobile rail trays. The history + sources rails
+  // are hidden on `<lg` from B2b; the chevron buttons below toggle them
+  // as side-sheets so the user can browse conversations + see what
+  // data the Coach is using without losing the message thread context.
+  const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
+  const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
   // The composer's input value is seeded from `prefill` whenever the
   // parent toggles `open` — we mount the drawer with a key derived from
   // (open, prefill) so the lazy initialiser fires fresh on each
@@ -185,61 +192,86 @@ export function CoachDrawer({
           </TooltipProvider>
         </SheetHeader>
 
-        {/* Body — three columns on lg+, single column on smaller. */}
-        <div
-          data-slot="coach-drawer-body"
-          className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[260px_1fr_280px]"
-        >
-          {/* History rail — desktop only. Mobile collapses; v1.4.21 will
-              ship a tray for it. */}
-          <aside
-            data-slot="coach-drawer-history"
-            className="border-border/70 hidden h-full min-h-0 border-r lg:flex lg:flex-col"
-          >
-            {historyRail ?? (
+        {/* Body — three columns on lg+, single column on smaller.
+            The body slot is a separate component so the SSR test
+            harness can pin the mobile rail-tray triggers without
+            rendering the Sheet portal. */}
+        <CoachDrawerBody
+          historyRail={
+            historyRail ?? (
               <HistoryRail
                 activeId={currentConversationId}
                 onSelect={(id) => setCurrentConversationId(id)}
               />
-            )}
-          </aside>
-
-          {/* Centre — message thread. */}
-          <main
-            data-slot="coach-drawer-thread"
-            className="flex h-full min-h-0 flex-col"
-          >
-            <div className="min-h-0 flex-1">
-              <MessageThread
-                conversation={conversation ?? null}
-                streaming={send.streaming}
+            )
+          }
+          sourcesRail={sourcesRail ?? <SourcesRail />}
+          thread={
+            <MessageThread
+              conversation={conversation ?? null}
+              streaming={send.streaming}
+            />
+          }
+          composer={
+            composer ?? (
+              <CoachInput
+                value={inputValue}
+                onChange={setInputValue}
+                onSubmit={() => handleSubmit(inputValue)}
+                disabled={send.isStreaming}
+                isStreaming={send.isStreaming}
               />
-            </div>
-            {/* Composer pinned to the bottom. */}
-            <div
-              data-slot="coach-drawer-composer"
-              className="border-border/70 border-t p-3 sm:p-4"
-            >
-              {composer ?? (
-                <CoachInput
-                  value={inputValue}
-                  onChange={setInputValue}
-                  onSubmit={() => handleSubmit(inputValue)}
-                  disabled={send.isStreaming}
-                  isStreaming={send.isStreaming}
+            )
+          }
+          onOpenHistoryTray={() => setHistoryTrayOpen(true)}
+          onOpenSourcesTray={() => setSourcesTrayOpen(true)}
+        />
+
+        {/* v1.4.20 phase B4 — mobile-only rail trays. Each renders a
+            slide-in panel from the matching edge and surfaces the same
+            HistoryRail / SourcesRail instance the desktop layout uses,
+            so a `>=lg` viewport never shows them but a `<lg` viewport
+            can summon either rail without leaving the message thread. */}
+        <Sheet open={historyTrayOpen} onOpenChange={setHistoryTrayOpen}>
+          <SheetContent
+            side="left"
+            data-slot="coach-drawer-history-tray"
+            className="w-[88vw] max-w-[320px] p-0 lg:hidden"
+          >
+            <SheetHeader className="border-border/70 border-b p-3">
+              <SheetTitle className="text-sm">
+                {t("insights.coach.historyTitle")}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="h-full min-h-0 overflow-y-auto">
+              {historyRail ?? (
+                <HistoryRail
+                  activeId={currentConversationId}
+                  onSelect={(id) => {
+                    setCurrentConversationId(id);
+                    setHistoryTrayOpen(false);
+                  }}
                 />
               )}
             </div>
-          </main>
-
-          {/* Sources rail — desktop only. */}
-          <aside
-            data-slot="coach-drawer-sources"
-            className="border-border/70 hidden h-full min-h-0 border-l lg:flex lg:flex-col"
+          </SheetContent>
+        </Sheet>
+        <Sheet open={sourcesTrayOpen} onOpenChange={setSourcesTrayOpen}>
+          <SheetContent
+            side="right"
+            data-slot="coach-drawer-sources-tray"
+            className="w-[88vw] max-w-[320px] p-0 lg:hidden"
           >
-            {sourcesRail ?? <SourcesRail />}
-          </aside>
-        </div>
+            <SheetHeader className="border-border/70 border-b p-3">
+              <SheetTitle className="text-sm">
+                {t("insights.coach.sourcesTitle")}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="h-full min-h-0 overflow-y-auto">
+              {sourcesRail ?? <SourcesRail />}
+            </div>
+          </SheetContent>
+        </Sheet>
       </SheetContent>
     </Sheet>
   );
