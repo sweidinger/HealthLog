@@ -55,9 +55,43 @@ export interface DashboardWidgetConfig {
   order: number;
 }
 
+/**
+ * v1.4.16 phase B8 — comparison baseline persisted alongside widgets.
+ *
+ * Research §7 Q3 settled on piggy-backing the comparison preference
+ * onto the existing `User.dashboardWidgetsJson` blob rather than
+ * carving a dedicated Prisma column — the field is ephemeral (a UI
+ * affordance, not an analytical attribute) and a JSON pivot here
+ * keeps the v1.4.16 release migration-free.
+ *
+ * Values:
+ *   - "none"      — comparison is off (default; pre-B8 behaviour).
+ *   - "lastMonth" — overlay the matching window from 30 days earlier.
+ *   - "lastYear"  — overlay the matching window from 365 days earlier.
+ *
+ * The resolver defaults to "none" when the field is missing so legacy
+ * users see no behavioural change until they explicitly flip the
+ * toggle in Settings → Dashboard. Unknown values are clamped back to
+ * "none" so a stale client cannot poison the dashboard with a value
+ * the renderer doesn't know how to draw.
+ */
+export const COMPARISON_BASELINES = ["none", "lastMonth", "lastYear"] as const;
+export type ComparisonBaseline = (typeof COMPARISON_BASELINES)[number];
+
+export function isComparisonBaseline(
+  value: unknown,
+): value is ComparisonBaseline {
+  return (
+    typeof value === "string" &&
+    (COMPARISON_BASELINES as readonly string[]).includes(value)
+  );
+}
+
 export interface DashboardLayout {
   version: number;
   widgets: DashboardWidgetConfig[];
+  /** v1.4.16 phase B8 — see `COMPARISON_BASELINES` doc. */
+  comparisonBaseline?: ComparisonBaseline;
 }
 
 export const DASHBOARD_LAYOUT_VERSION = 1;
@@ -129,6 +163,12 @@ export function resolveDashboardLayout(raw: unknown): DashboardLayout {
   return {
     version: DASHBOARD_LAYOUT_VERSION,
     widgets: [...normalized, ...appended].sort((a, b) => a.order - b.order),
+    // v1.4.16 phase B8 — clamp unknown / missing comparison values to
+    // "none" so the dashboard renders the pre-B8 behaviour for legacy
+    // layouts and refuses to act on a value it doesn't recognise.
+    comparisonBaseline: isComparisonBaseline(candidate.comparisonBaseline)
+      ? candidate.comparisonBaseline
+      : "none",
   };
 }
 
@@ -149,5 +189,9 @@ export function serializeDashboardLayout(
           typeof w.tileVisible === "boolean" ? w.tileVisible : w.visible,
         order: i, // normalize to 0-based dense order
       })),
+    // v1.4.16 phase B8 — persist the comparison baseline explicitly.
+    comparisonBaseline: isComparisonBaseline(layout.comparisonBaseline)
+      ? layout.comparisonBaseline
+      : "none",
   };
 }

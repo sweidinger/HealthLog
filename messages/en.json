@@ -648,6 +648,36 @@
     "targetWeight": "Target",
     "deltaVsTarget": "{delta} vs. target"
   },
+  "comparison": {
+    "toggleLabel": "Compare to",
+    "toggleHint": "Adds a dimmed prior-period overlay to every chart and a delta callout to every tile.",
+    "baseline": {
+      "none": "None",
+      "lastMonth": "Last month",
+      "lastYear": "Last year"
+    },
+    "captionLastMonth": "vs. last month",
+    "captionLastYear": "vs. last year",
+    "delta": {
+      "improved": "{delta} improved",
+      "worsened": "{delta} worsened",
+      "stable": "unchanged"
+    },
+    "deltaVs": {
+      "lastMonth": "{delta} vs. last month",
+      "lastYear": "{delta} vs. last year"
+    },
+    "tooltipPrior": "Prior period",
+    "tooltipDelta": "Δ {delta}",
+    "unavailable": {
+      "lastMonth": "Comparison unavailable — no data from last month yet",
+      "lastYear": "Comparison unavailable — no data from last year yet"
+    },
+    "insightsCallout": {
+      "lastMonth": "Tracking against last month",
+      "lastYear": "Tracking against last year"
+    }
+  },
   "insights": {
     "aiAnalysisTitle": "AI Health Analysis",
     "noAnalysisYet": "No analysis yet.",

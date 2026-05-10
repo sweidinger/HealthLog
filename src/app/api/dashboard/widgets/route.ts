@@ -14,6 +14,7 @@ import {
   serializeDashboardLayout,
   DEFAULT_DASHBOARD_LAYOUT,
   DASHBOARD_WIDGET_IDS,
+  COMPARISON_BASELINES,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
 import { Prisma } from "@/generated/prisma/client";
@@ -48,6 +49,10 @@ const layoutSchema = z.object({
     )
     .min(1)
     .max(20),
+  // v1.4.16 phase B8 — comparison baseline (Vormonat / Vorjahr) rides
+  // on the layout blob per research §7 Q3 (no Prisma migration). Optional
+  // so v1.4.15 clients that don't know the field can still PUT.
+  comparisonBaseline: z.enum(COMPARISON_BASELINES).optional(),
 });
 
 export const GET = apiHandler(async () => {

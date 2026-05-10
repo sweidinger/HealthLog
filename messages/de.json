@@ -648,6 +648,36 @@
     "targetWeight": "Ziel",
     "deltaVsTarget": "{delta} vs. Ziel"
   },
+  "comparison": {
+    "toggleLabel": "Vergleichen mit",
+    "toggleHint": "Blendet eine gedimmte Vorperioden-Linie in jedem Chart ein und zeigt ein Delta-Callout auf jeder Kachel.",
+    "baseline": {
+      "none": "Aus",
+      "lastMonth": "Vormonat",
+      "lastYear": "Vorjahr"
+    },
+    "captionLastMonth": "vs. Vormonat",
+    "captionLastYear": "vs. Vorjahr",
+    "delta": {
+      "improved": "{delta} besser",
+      "worsened": "{delta} schlechter",
+      "stable": "unverändert"
+    },
+    "deltaVs": {
+      "lastMonth": "{delta} vs. Vormonat",
+      "lastYear": "{delta} vs. Vorjahr"
+    },
+    "tooltipPrior": "Vorperiode",
+    "tooltipDelta": "Δ {delta}",
+    "unavailable": {
+      "lastMonth": "Vergleich nicht verfügbar — noch keine Daten aus dem Vormonat",
+      "lastYear": "Vergleich nicht verfügbar — noch keine Daten aus dem Vorjahr"
+    },
+    "insightsCallout": {
+      "lastMonth": "Vergleich zum Vormonat aktiv",
+      "lastYear": "Vergleich zum Vorjahr aktiv"
+    }
+  },
   "insights": {
     "aiAnalysisTitle": "KI-Gesundheitsanalyse",
     "emptyTitle": "Noch nicht genug Daten",

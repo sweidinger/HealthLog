@@ -154,3 +154,54 @@ describe("DEFAULT_DASHBOARD_LAYOUT contract", () => {
     );
   });
 });
+
+/**
+ * v1.4.16 phase B8 — comparison baseline persistence.
+ *
+ * The comparison toggle (Vormonat / Vorjahr) piggy-backs on the
+ * existing `User.dashboardWidgetsJson` blob per research §7 Q3
+ * (no Prisma migration). The resolver must default to "none"
+ * for legacy layouts where the field is absent, and must round-trip
+ * the value through serialize → resolve so the UI's optimistic
+ * toggle persists across reloads.
+ */
+describe("resolveDashboardLayout() — comparisonBaseline (B8)", () => {
+  it("defaults to 'none' for legacy layouts (no field saved)", () => {
+    const legacy = {
+      version: 1,
+      widgets: [{ id: "weight", visible: true, order: 0 }],
+    };
+    const resolved = resolveDashboardLayout(legacy);
+    expect(resolved.comparisonBaseline).toBe("none");
+  });
+
+  it("respects an explicit comparisonBaseline value when present", () => {
+    const saved = {
+      version: 1,
+      widgets: [{ id: "weight", visible: true, order: 0 }],
+      comparisonBaseline: "lastMonth" as const,
+    };
+    const resolved = resolveDashboardLayout(saved);
+    expect(resolved.comparisonBaseline).toBe("lastMonth");
+  });
+
+  it("clamps unknown comparisonBaseline values back to 'none'", () => {
+    const saved = {
+      version: 1,
+      widgets: [{ id: "weight", visible: true, order: 0 }],
+      comparisonBaseline: "lastDecade",
+    };
+    const resolved = resolveDashboardLayout(saved);
+    expect(resolved.comparisonBaseline).toBe("none");
+  });
+
+  it("preserves comparisonBaseline through serialize → resolve round-trip", () => {
+    const layout: DashboardLayout = {
+      ...DEFAULT_DASHBOARD_LAYOUT,
+      comparisonBaseline: "lastYear",
+    };
+    const serialized = serializeDashboardLayout(layout);
+    const resolved = resolveDashboardLayout(serialized);
+    expect(resolved.comparisonBaseline).toBe("lastYear");
+  });
+});

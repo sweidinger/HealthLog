@@ -16,8 +16,17 @@ import { useTranslations } from "@/lib/i18n/context";
 import {
   type DashboardLayout,
   type DashboardWidgetId,
+  type ComparisonBaseline,
+  COMPARISON_BASELINES,
   DEFAULT_DASHBOARD_LAYOUT,
 } from "@/lib/dashboard-layout";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   weight: "dashboard.weight",
@@ -115,6 +124,16 @@ export function DashboardLayoutSection({ id }: { id: string }) {
     });
   }
 
+  /**
+   * v1.4.16 phase B8 — comparison baseline picker. The toggle persists
+   * via the same `/api/dashboard/widgets` PUT the existing layout
+   * controls already use; saving rides through the same `Save` button.
+   */
+  function setComparisonBaseline(value: ComparisonBaseline) {
+    if (!layout) return;
+    setDraft({ ...layout, comparisonBaseline: value });
+  }
+
   function move(widgetId: DashboardWidgetId, delta: -1 | 1) {
     if (!layout) return;
     const sorted = [...layout.widgets].sort((a, b) => a.order - b.order);
@@ -156,6 +175,50 @@ export function DashboardLayoutSection({ id }: { id: string }) {
       <p className="text-muted-foreground text-sm">
         {t("dashboard.customizeSubtitle")}
       </p>
+
+      {/* v1.4.16 phase B8 — comparison baseline picker. Lives at the top
+          of the section because it changes how every chart + tile below
+          renders, not just one. Mobile-friendly: full-width Select with
+          a 44px tap target on touch viewports per the Wave-C polish. */}
+      {layout && (
+        <div className="space-y-2">
+          <label
+            htmlFor="comparison-baseline"
+            className="text-foreground text-sm font-medium"
+          >
+            {t("comparison.toggleLabel")}
+          </label>
+          <Select
+            value={layout.comparisonBaseline ?? "none"}
+            onValueChange={(value) =>
+              setComparisonBaseline(value as ComparisonBaseline)
+            }
+            disabled={saveMutation.isPending}
+          >
+            <SelectTrigger
+              id="comparison-baseline"
+              className="min-h-11 w-full sm:w-72"
+              data-slot="comparison-baseline-trigger"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {COMPARISON_BASELINES.map((value) => (
+                <SelectItem
+                  key={value}
+                  value={value}
+                  data-slot={`comparison-baseline-option-${value}`}
+                >
+                  {t(`comparison.baseline.${value}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-muted-foreground text-xs">
+            {t("comparison.toggleHint")}
+          </p>
+        </div>
+      )}
 
       {isLoading || !layout ? (
         <div className="text-muted-foreground flex items-center gap-2 text-sm">
