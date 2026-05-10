@@ -44,7 +44,10 @@ import { InsightAdvisorCard } from "@/components/insights/insight-advisor-card";
 import { HeroStrip } from "@/components/insights/hero-strip";
 import { DailyBriefing } from "@/components/insights/daily-briefing";
 import { CoachDrawer } from "@/components/insights/coach-panel/coach-drawer";
+import { TrendsRow } from "@/components/insights/trends-row";
+import { CorrelationRow } from "@/components/insights/correlation-row";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
+import type { CorrelationResult } from "@/lib/insights/correlations";
 import { CompareToggle } from "@/components/comparison/compare-toggle";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
 // wrapper so the bundle only lands once a correlation card actually renders.
@@ -155,6 +158,17 @@ interface ComprehensiveData {
 
 interface AnalyticsData {
   summaries: Record<string, DataSummary>;
+  /**
+   * v1.4.20 phase B3 — three pre-defined correlation hypothesis runners
+   * computed server-side. Optional + nullable so the page handles the
+   * v1.4.19-style cached `analytics` payload without flashing an empty
+   * row before the next refetch.
+   */
+  correlations?: {
+    bpCompliance: CorrelationResult;
+    moodPulse: CorrelationResult;
+    weightWeekday: CorrelationResult;
+  } | null;
 }
 
 interface GeneralStatusData {
@@ -886,6 +900,23 @@ export default function InsightsPage() {
         onRegenerate={advisor.regenerate}
         regenerating={advisor.isRegenerating}
         metaSlot={<CompareToggle />}
+      />
+
+      {/* v1.4.20 phase B3 — Correlation discovery row. Three pre-defined
+          hypotheses (BP × compliance, mood × pulse, weight × weekday) gated
+          on n >= 14 + p < 0.05; cards below the bar render a per-card
+          empty-state. The row-level disclaimer ("Patterns are observational,
+          not causal …") sits below the grid once. */}
+      {analytics?.correlations && (
+        <CorrelationRow results={analytics.correlations} />
+      )}
+
+      {/* v1.4.20 phase B3 — Trends row. Mini BP / Weight / Mood charts
+          with an inline AI-authored sentence below each. Annotations come
+          from `advisor.payload.trendAnnotations` (PROMPT_VERSION 4.20.1+);
+          legacy cached payloads simply paint the per-metric empty hint. */}
+      <TrendsRow
+        annotations={advisor.payload?.trendAnnotations ?? null}
       />
 
       {/* v1.4.16 phase D reconcile (CRITICAL C1) — wire the polished
