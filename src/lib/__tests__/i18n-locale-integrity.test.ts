@@ -236,6 +236,17 @@ describe("i18n locale file integrity", () => {
     "classifications.bp.Normal",
     "classifications.pulse.Normal",
     "classifications.bodyFat.Fitness",
+    // v1.4.19 phase A7 — "BMI" is the same acronym in EN and DE,
+    // and the medical / fitness "Optimal", "Fitness", "Normal"
+    // categories are technical terms that German clinics also use
+    // verbatim. The actual translations live in `targets.status.*`
+    // and `targets.label.*`; the entries here just acknowledge the
+    // legitimate same-token cases.
+    "targets.bmi",
+    "targets.label.BMI",
+    "targets.status.normal",
+    "targets.status.optimal",
+    "targets.status.fitness",
   ]);
 
   it.each([

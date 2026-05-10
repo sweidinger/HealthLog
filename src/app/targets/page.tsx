@@ -103,6 +103,104 @@ const GLUCOSE_TYPES = new Set([
   "BLOOD_GLUCOSE_BEDTIME",
 ]);
 
+/**
+ * Map server-emitted classification.category strings to the i18n
+ * key under `targets.status.*`. The server is the source of truth
+ * for the category set (lib/analytics/classifications.ts +
+ * pulse-targets.ts + targets/route.ts inline maps); v1.4.19 phase
+ * A7 wires this map so the German locale stops surfacing English
+ * status pills like "Low / On Target / Stable / Moderate" — the
+ * exact regression Marc reported.
+ */
+const STATUS_CATEGORY_KEY: Record<string, string> = {
+  // BMI
+  Underweight: "underweight",
+  Normal: "normal",
+  Overweight: "overweight",
+  "Obesity Grade I": "obesityGrade1",
+  "Obesity Grade II": "obesityGrade2",
+  "Obesity Grade III": "obesityGrade3",
+  // BP
+  Optimal: "optimal",
+  "High-normal": "highNormal",
+  "Hypertension Grade 1": "hypertensionGrade1",
+  "Hypertension Grade 2": "hypertensionGrade2",
+  "Hypertension Grade 3": "hypertensionGrade3",
+  // Pulse
+  Bradycardia: "bradycardia",
+  Elevated: "elevated",
+  Tachycardia: "tachycardia",
+  // Pulse target / sleep target
+  "Significantly low": "significantlyLow",
+  "Slightly low": "slightlyLow",
+  "On target": "onTarget",
+  "Slightly elevated": "slightlyElevated",
+  "Significantly elevated": "significantlyElevated",
+  // Sleep
+  "Far too short": "farTooShort",
+  "Too short": "tooShort",
+  "Slightly long": "slightlyLong",
+  "Far too long": "farTooLong",
+  // Body fat
+  "Below essential": "belowEssential",
+  Essential: "essential",
+  Athletic: "athletic",
+  Fitness: "fitness",
+  Acceptable: "acceptable",
+  Obese: "obese",
+  // Steps
+  "Very low": "veryLow",
+  "Low active": "lowActive",
+  "Moderately active": "moderatelyActive",
+  Active: "active",
+  "Very active": "veryActive",
+  // Generic / shared (BP-on-target, mood, medication compliance, glucose)
+  Good: "good",
+  Moderate: "moderate",
+  Low: "low",
+  High: "high",
+  "Very good": "veryGood",
+  "Very stable": "veryStable",
+  Stable: "stable",
+  Fluctuating: "fluctuating",
+};
+
+/** Resolve a server-emitted classification.category to its translated label. */
+function translateStatus(
+  category: string,
+  t: (key: string, vars?: Record<string, string>) => string,
+): string {
+  const key = STATUS_CATEGORY_KEY[category];
+  if (!key) return category; // unmapped — fall back to verbatim string
+  return t(`targets.status.${key}`);
+}
+
+/** Resolve a target's display label.
+ *
+ * Glucose contexts are special-cased: the server emits an i18n key
+ * (e.g. `targets.glucoseFasting`) as its `label`, and the page's
+ * top-level `visibleTargets` mapping resolves that to a localised
+ * string before the card mounts. So when this helper runs, glucose
+ * targets already carry the localised label and the i18n lookup
+ * below misses (no `targets.label.BLOOD_GLUCOSE_FASTING` key) — the
+ * fallback returns the verbatim resolved label, which is correct.
+ *
+ * Every other target type carries a stable English label from the
+ * server. Look it up under `targets.label.<TYPE>` here so the card
+ * title respects the user's locale.
+ */
+function translateTargetLabel(
+  target: TargetData,
+  t: (key: string, vars?: Record<string, string>) => string,
+): string {
+  const i18nKey = `targets.label.${target.type}`;
+  const localised = t(i18nKey);
+  if (localised && localised !== i18nKey) {
+    return localised;
+  }
+  return target.label;
+}
+
 function getTargetSourceLink(target: TargetData): string | null {
   if (target.type === "WEIGHT" || target.type === "BMI") {
     return "https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight";
@@ -324,6 +422,8 @@ function TargetCard({
   const medicationBreakdown = target.details?.medications ?? [];
   const sourceLink = getTargetSourceLink(target);
 
+  const localisedLabel = translateTargetLabel(target, t);
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -331,7 +431,7 @@ function TargetCard({
           <div className="flex items-center gap-2">
             <Icon className={`h-4 w-4 ${iconColor}`} />
             <CardTitle className="text-sm font-medium">
-              {target.label}
+              {localisedLabel}
             </CardTitle>
           </div>
           <TrendIcon trend={target.trend} />
@@ -442,7 +542,7 @@ function TargetCard({
                       color: target.classification.color,
                     }}
                   >
-                    {target.classification.category}
+                    {translateStatus(target.classification.category, t)}
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
