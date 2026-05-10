@@ -182,8 +182,11 @@ export function DashboardLayoutSection({ id }: { id: string }) {
 
       {/* v1.4.16 phase B8 — comparison baseline picker. Lives at the top
           of the section because it changes how every chart + tile below
-          renders, not just one. Mobile-friendly: full-width Select with
-          a 44px tap target on touch viewports per the Wave-C polish. */}
+          renders, not just one. v1.4.19 A6: height standardised to the
+          shared 36-px input contract used by every other Settings input
+          / select; the previous `min-h-11` (44 px) made this trigger
+          look like an outlier next to the 36-px Username/Email/Date-of-
+          birth fields one card up. */}
       {layout && (
         <div className="space-y-2">
           <label
@@ -201,7 +204,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           >
             <SelectTrigger
               id="comparison-baseline"
-              className="min-h-11 w-full sm:w-72"
+              className="w-full sm:w-72"
               data-slot="comparison-baseline-trigger"
             >
               <SelectValue />

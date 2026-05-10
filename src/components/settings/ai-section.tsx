@@ -343,8 +343,10 @@ function ProviderStatusBadges({
 /**
  * The single Pulldown that drives every form below it. Uses a native
  * `<select>` so the SSR-only settings test renders deterministically
- * without a portal-based Radix tree. Mobile: full-width, generous
- * height (`h-10`) so finger taps land cleanly on the chevron.
+ * without a portal-based Radix tree. Mobile: full-width, height matched
+ * to the shared 36-px input contract used everywhere else in Settings
+ * (`<Input>` is `h-9`); tap target stays comfortable thanks to the
+ * full-width chevron region.
  */
 function ActiveProviderSelect({
   value,
@@ -373,7 +375,7 @@ function ActiveProviderSelect({
           const next = e.target.value;
           if (isProviderType(next)) onChange(next);
         }}
-        className="bg-background border-input mt-1 h-10 w-full rounded-md border px-3 text-sm sm:max-w-md"
+        className="bg-background border-input mt-1 h-9 w-full rounded-md border px-3 text-sm sm:max-w-md"
       >
         {PROVIDER_TYPES.map((p) => (
           <option key={p} value={p}>
@@ -1509,7 +1511,7 @@ function AddProviderControl({
         aria-label={t("settings.ai.providerChain.addProvider")}
         value={picked}
         onChange={(e) => setPicked(e.target.value)}
-        className="bg-background border-input h-8 rounded-md border px-2 text-sm"
+        className="bg-background border-input h-9 rounded-md border px-2 text-sm"
       >
         {addable.map((p) => (
           <option key={p} value={p}>
