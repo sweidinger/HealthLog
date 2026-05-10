@@ -189,10 +189,25 @@ Last update: 2026-05-10T12:48+02:00
 - [ ] Output prioritized list for inline fixing
 - Detailed report: `.planning/phase-A8-quality-findings.md`
 
-## Wave B — Apply A8 findings (after A8 completes)
+## Wave B — Apply A8 findings ✅
 
-- [ ] Fix CRITICAL/HIGH from quality-of-life audit
-- Detailed report: `.planning/phase-B-report.md`
+- [x] 6 / 6 CRITICAL fixed: F-01 (time-window locale), F-02
+      (login-overview filter), F-03 (insulting badges), F-04
+      (date-input lang), F-05 (sidebar copy), F-06 (legacy CTA
+      verb)
+- [x] 21 / 25 HIGH fixed: F-07, F-08 (partial), F-09, F-10,
+      F-11, F-13, F-15, F-16, F-17, F-18, F-19, F-20, F-21,
+      F-22, F-24, F-25, F-27, F-28, F-29, F-30, F-31. F-12,
+      F-14, F-23, F-26 deferred (3 not-an-issue / overlap with
+      Wave A, 1 owned by v1.4.20 Insights redesign).
+- [x] 31 MED + 16 LOW deferred to `.planning/v1420-backlog.md`
+- [x] `pnpm typecheck` clean, `pnpm lint` 12 baseline warnings
+      / 0 new, `pnpm test --run` 1669/1669, `pnpm test:integration`
+      67/67. Format-check shows pre-existing `.planning/*` +
+      `docs/audit/*` warnings only.
+- 16 atomic commits on origin/main, no `--no-verify` / no
+  `--no-gpg-sign`, pre-commit hooks green on every push.
+- Detailed report: `.planning/phase-B-quality-report.md`
 
 ## Wave D — Multi-agent QA + Product-Lead review
 
@@ -321,6 +336,39 @@ medications.csv,mood.csv}/`) left in place — same call as v1.4.16 /
   `src/components/settings/{account,ai,dashboard-layout}-section.tsx`,
   `e2e/settings-mobile-consistency.spec.ts`,
   `.planning/phase-A6-{settings-audit,report}.md`.
+
+- 2026-05-10T13:59+02:00 — Wave B / A8 application complete.
+  Applied 6 / 6 CRITICAL findings (F-01 through F-06) and 21
+  / 25 HIGH findings (4 deferred: F-12 already a11y-clean,
+  F-14 shipped via A5, F-23 already i18n'd in DE, F-26 owned
+  by v1.4.20 Insights redesign). 31 MED + 16 LOW carried over
+  to `.planning/v1420-backlog.md` for the strategic v1.4.20
+  pick-list. Sixteen atomic commits on origin/main: `180f46c`
+  (F-01 time-window locale), `dc75fe8` (F-02 login-overview
+  auth filter), `7a6bc81` (F-03 insulting achievement titles),
+  `ff6e184` (F-04 date-input lang attribute), `4feacad` (F-05
+  admin sidebar copy), `d263125` (F-06 legacy CTA verb),
+  `1ae9b9d` (F-09 + F-10 raw enum badges), `42b0f11` (F-11
+  role-change button label + aria-label), `1f4d6a2` (F-07
+  threshold naming), `3f6e670` (F-15 + F-19 + F-20 + F-21 +
+  F-22 + F-25 + F-27 + F-29 + F-30 i18n copy sweep), `70ebe32`
+  (F-08 partial — danger-zone + feedback dedupe), `98cd13c`
+  (F-24 + F-28 + F-52 achievements + admin/integrations
+  toggles), `876e074` (F-13 mobile sys/dia + F-16 telegram
+  badge collapse), `bc81fd7` (F-17 audit action labels + F-31
+  recent-activity row links), `713b494` (F-18 token name
+  ISO-suffix renderer), `ae2f671` (prettier on touched
+  files). Pre-commit hooks green on every push, no
+  `--no-verify` / no `--no-gpg-sign`. Final verification:
+  `pnpm typecheck` clean, `pnpm lint` 0 errors / 12 baseline
+  warnings, `pnpm test --run` 1669 / 1669 (up +11 from new
+  TDD cases: time-window-format 6, achievements-no-insults
+  4, login-overview-auth-filter 1), `pnpm test:integration`
+  67 / 67. Format-check shows 8 pre-existing
+  `.planning/*` + `docs/audit/*` files dirty (baseline noise
+  on `origin/main`, untouched). Detailed report:
+  `.planning/phase-B-quality-report.md`. Backlog:
+  `.planning/v1420-backlog.md`.
 
 ---
 
