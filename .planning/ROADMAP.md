@@ -1,11 +1,16 @@
-# HealthLog v1.4.21 — roadmap
+# HealthLog v1.4.22 — roadmap
 
-Milestone: **v1.4.21** (kicked off TBD)
-Latest tag at start: v1.4.20 (live in prod, image digest
-`sha256:b112a31947b9…`)
+Milestone: **v1.4.22** (kicked off 2026-05-10, post-v1.4.21 patch)
+Latest tag at start: v1.4.21 (live in prod, image digest
+`sha256:4e818d44702c…`)
 
-Scope to be set by the maintainer at kickoff. Carry-over candidates
-already captured in `.planning/v1421-backlog.md` include:
+| Phase | Goal                                                                                                                                                  | State       |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| G     | E2E fix wave — 7 stale-selector / layout regressions surfaced post-v1.4.20 (HeroStrip slot, onboarding-card, chart-overlay, api-tokens-mobile, charts-mobile) | in flight   |
+
+Carry-over candidates already captured in
+`.planning/v1421-backlog.md` (now serving as the v1.4.22 backlog
+shim — the file name is historical):
 
 - 22 MED + 16 LOW + 4 simplify-apply-maybe items from the v1.4.20
   Phase-D pass (consolidate Pearson / linear-regression maths layer,
@@ -27,6 +32,20 @@ Reserved next strategic milestones:
 - **v1.6+** — Auto-correlation discovery (FDR-controlled), Coach
   full-page route at `/insights/coach`, conversation-driven goal
   setting.
+
+---
+
+## Previous patch — v1.4.21 (completed 2026-05-10T17:46+00:00)
+
+| Phase | Goal                                                                                                                                                  | State |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| F     | Same-day patch on top of v1.4.20 — Daily Briefing regenerate fix, Coach day-level snapshot, duplicate streaming bubble, drawer header, scope picker UI | done  |
+| E     | Release v1.4.21 — develop → main release-merge, bump, CHANGELOG, tag, GHCR, host-side retag fallback, /api/version=1.4.21, smoke, GH release, brief    | done  |
+
+Patch completed 2026-05-10T17:46+00:00 — v1.4.21 LIVE in prod.
+Release brief: `docs/audit/v1421-summary.md`.
+Image digest:
+`sha256:4e818d44702c3581a14d6480a953fd20d16cbbaf21c41e0c778c07340d3c4b1c`.
 
 ---
 
