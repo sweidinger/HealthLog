@@ -18,13 +18,24 @@ Last update: 2026-05-10T12:48+02:00
 
 ## Wave A — Bug fixes + polish (parallel buckets)
 
-### A1 — BD-Zielbereich constant 50% (4th attempt)
+### A1 — BD-Zielbereich constant 50% (4th attempt) ✅
 
-- [ ] Live-DB audit of Marc's BP measurements (he granted access)
-- [ ] Identify why all three windows (7T, 30T, total) show exactly 50%
-      — likely calculation bug, NOT predicate
-- [ ] Root-cause fix + integration test that reproduces with Marc's
-      exact data fixture
+- [x] Live-DB audit of Marc's BP measurements (apps-01,
+      `db-pg8wggwogo8c4gc4ks0kk4ss-105148113251`): 572 paired
+      readings since 2022, last-30d = 50 %, last-7d = 50 %, all-time
+      ≈ 10.8 %. Confirmed the headline 50 % cannot be the all-time
+      value; it must be a copy of `30T`.
+- [x] Root cause: `analytics/route.ts` set
+      `bpInTargetPct = windows.last30Days?.pct` — literal copy of the
+      `30T` sub-value. `computeBpInTargetWindows` returned only 7d+30d
+      so the headline could never legitimately differ.
+- [x] Fix: helper returns a third `allTime` window; route fetches all
+      paired BP rows and routes the headline through `allTime`.
+- [x] TDD: 3 failing unit cases + 1 integration case red→green.
+- [x] `pnpm test`: 1640 / 1645 (5 pre-existing A3 failures unchanged).
+- [x] `pnpm test:integration`: 67 / 67.
+- [x] `pnpm typecheck`: clean. `pnpm lint`: 12 baseline 0 new.
+- [x] Commit `a856272` pushed to origin/main first attempt.
 - Detailed report: `.planning/phase-A1-report.md`
 
 ### A2 — Charts mobile audit (axis-label overflow + X-axis density consistency)
@@ -152,18 +163,18 @@ Last update: 2026-05-10T12:48+02:00
   AI-prompt rework, A5 Settings/Integrations status-UI consolidation,
   A6 Settings mobile audit, A7 Admin polish, A8 quality-of-life
   write-only audit; Wave B applies A8 findings; Wave D multi-agent QA
-  + Product-Lead briefed for v1.4.20 Insights redesign + AI Coach;
-  Phase E release). Previous v1.4.18 / v1.4.17 / v1.4.16 entries
-  archived above. Tracked tree clean on entry; four untracked stale
-  dotted-segment route directories
-  (`src/app/api/export/{full-backup.json,measurements.csv,
+  - Product-Lead briefed for v1.4.20 Insights redesign + AI Coach;
+    Phase E release). Previous v1.4.18 / v1.4.17 / v1.4.16 entries
+    archived above. Tracked tree clean on entry; four untracked stale
+    dotted-segment route directories
+    (`src/app/api/export/{full-backup.json,measurements.csv,
 medications.csv,mood.csv}/`) left in place — same call as v1.4.16 /
-  v1.4.18 Phase 0, they belong to previous milestones. Phase 0 commit
-  contains only `.planning/STATE.md`, `.planning/ROADMAP.md`,
-  `.planning/phase-0-report.md`. v1.4.20 reserved for Insights
-  redesign with AI Coach (handoff at
-  `~/Downloads/design_handoff_insights_redesign`); v1.5 reserved for
-  iOS app + Apple Health.
+    v1.4.18 Phase 0, they belong to previous milestones. Phase 0 commit
+    contains only `.planning/STATE.md`, `.planning/ROADMAP.md`,
+    `.planning/phase-0-report.md`. v1.4.20 reserved for Insights
+    redesign with AI Coach (handoff at
+    `~/Downloads/design_handoff_insights_redesign`); v1.5 reserved for
+    iOS app + Apple Health.
 
 - 2026-05-10T12:59+02:00 — Wave A / A4 complete. Removed the
   default-positivity opener about data quality from the AI insights
