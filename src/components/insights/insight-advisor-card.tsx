@@ -317,14 +317,36 @@ export function InsightAdvisorCard({
     : CLASSIFICATION_STYLES.gut;
 
   // ── Loading State ─────────────────────────────────────
+  // v1.4.16 phase B1b — skeleton mirrors the final card layout (header
+  // pulse + 3 placeholder rec rows) so the page doesn't visually jump
+  // when content lands. Animation keys off Tailwind `animate-pulse`,
+  // which `prefers-reduced-motion: reduce` already silences via the
+  // `motion-reduce:animate-none` utility on the same elements.
   if (loading && !insight) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="text-dracula-purple h-6 w-6 animate-spin" />
-          <span className="text-muted-foreground ml-2 text-sm">
-            {t("insights.generating")}
-          </span>
+      <Card data-slot="insight-skeleton">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            {icon ?? <Sparkles className="text-dracula-purple h-5 w-5" />}
+            <CardTitle className="text-lg">
+              {t("insights.aiAnalysisTitle")}
+            </CardTitle>
+          </div>
+          <p className="text-muted-foreground text-sm">{title}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-muted/50 motion-reduce:animate-none h-4 w-3/4 animate-pulse rounded-md" />
+          <div className="bg-muted/40 motion-reduce:animate-none h-3 w-2/3 animate-pulse rounded-md" />
+          <div className="grid gap-3 lg:grid-cols-2">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                data-slot="insight-skeleton-card"
+                className="bg-muted/30 motion-reduce:animate-none h-20 animate-pulse rounded-lg"
+                style={{ animationDelay: `${i * 100}ms` }}
+              />
+            ))}
+          </div>
         </CardContent>
       </Card>
     );
@@ -347,14 +369,45 @@ export function InsightAdvisorCard({
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg p-3 text-sm">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              {error}
+            <div
+              data-slot="insight-error-state"
+              className="border-destructive/30 bg-destructive/10 text-destructive flex flex-col items-start gap-3 rounded-lg border p-4 text-sm"
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+              {onRegenerate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onRegenerate}
+                  disabled={regenerating}
+                  data-slot="insight-retry-button"
+                  className="self-start gap-1.5"
+                >
+                  {regenerating ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  {t("insights.refreshAnalysis")}
+                </Button>
+              )}
             </div>
           )}
           {!error && (
-            <div className="flex flex-col items-center gap-3 py-6">
-              <p className="text-muted-foreground text-sm">
+            <div
+              data-slot="insight-empty-state"
+              className="flex flex-col items-center gap-3 py-6 text-center"
+            >
+              <div className="bg-dracula-purple/10 flex h-12 w-12 items-center justify-center rounded-full">
+                <Sparkles
+                  className="text-dracula-purple h-6 w-6"
+                  aria-hidden="true"
+                />
+              </div>
+              <p className="text-muted-foreground max-w-prose text-sm">
                 {t("insights.noAnalysisYet")}
               </p>
               {onRegenerate && (

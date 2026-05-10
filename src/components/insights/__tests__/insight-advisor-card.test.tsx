@@ -221,3 +221,63 @@ describe("<InsightAdvisorCard> — summary typography polish (B1b)", () => {
     );
   });
 });
+
+describe("<InsightAdvisorCard> — polished loading / empty / error states (B1b)", () => {
+  it("loading state shows a skeleton that mirrors the final layout", () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en">
+        <InsightAdvisorCard title="Loading test" insight={null} loading />
+      </I18nProvider>,
+    );
+    // A discoverable skeleton slot replaces the spinner-only loading state.
+    expect(html).toMatch(/data-slot="insight-skeleton"/);
+    // 3 placeholder rec rows match the final card grid (so the page
+    // doesn't visually jump when content lands).
+    expect(html).toMatch(/data-slot="insight-skeleton-card"/);
+  });
+
+  it("empty state shows a friendly illustration + CTA", () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en">
+        <InsightAdvisorCard
+          title="Empty test"
+          insight={null}
+          onRegenerate={() => {}}
+        />
+      </I18nProvider>,
+    );
+    expect(html).toMatch(/data-slot="insight-empty-state"/);
+    // The Start-Analysis button stays — that's the CTA.
+    expect(html).toContain("Start analysis");
+  });
+
+  it("error state surfaces a retry button when onRegenerate is provided", () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en">
+        <InsightAdvisorCard
+          title="Error test"
+          insight={null}
+          error="Something went wrong"
+          onRegenerate={() => {}}
+        />
+      </I18nProvider>,
+    );
+    expect(html).toMatch(/data-slot="insight-error-state"/);
+    expect(html).toContain("Something went wrong");
+    expect(html).toMatch(/data-slot="insight-retry-button"/);
+  });
+
+  it("error state without onRegenerate hides the retry button", () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en">
+        <InsightAdvisorCard
+          title="Error test"
+          insight={null}
+          error="No retry available"
+        />
+      </I18nProvider>,
+    );
+    expect(html).toContain("No retry available");
+    expect(html).not.toContain('data-slot="insight-retry-button"');
+  });
+});
