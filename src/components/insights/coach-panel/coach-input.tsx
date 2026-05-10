@@ -56,31 +56,25 @@ export function CoachInput({
 }: CoachInputProps) {
   const { t } = useTranslations();
 
+  const canSubmit = !disabled && value.trim().length > 0;
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key !== "Enter") return;
-      // Shift+Enter inserts a newline.
-      if (event.shiftKey) return;
-      // Plain Enter and ⌘/Ctrl+Enter both submit.
+      // Shift+Enter inserts a newline; plain Enter and ⌘/Ctrl+Enter submit.
+      if (event.key !== "Enter" || event.shiftKey) return;
       event.preventDefault();
-      if (!disabled && value.trim().length > 0) {
-        onSubmit();
-      }
+      if (canSubmit) onSubmit();
     },
-    [disabled, onSubmit, value],
+    [canSubmit, onSubmit],
   );
 
   const handleFormSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      if (!disabled && value.trim().length > 0) {
-        onSubmit();
-      }
+      if (canSubmit) onSubmit();
     },
-    [disabled, onSubmit, value],
+    [canSubmit, onSubmit],
   );
-
-  const canSubmit = !disabled && value.trim().length > 0;
 
   return (
     <form

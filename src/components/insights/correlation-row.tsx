@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import type { CorrelationResult } from "@/lib/insights/correlations";
 import { CorrelationCard } from "./correlation-card";
@@ -57,11 +58,10 @@ export function CorrelationRow({ results }: CorrelationRowProps) {
         </p>
       </div>
       <div
-        className={
-          okResults.length === 1
-            ? "grid grid-cols-1 gap-4"
-            : "grid grid-cols-1 gap-4 md:grid-cols-2"
-        }
+        className={cn(
+          "grid grid-cols-1 gap-4",
+          okResults.length > 1 && "md:grid-cols-2",
+        )}
       >
         {okResults.map((result) => (
           <CorrelationCard key={result.kind} result={result} />

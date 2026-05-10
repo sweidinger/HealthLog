@@ -56,6 +56,46 @@ function TruncatedCell({
 }
 
 /**
+ * v1.4.22 W5 reconcile (S-03) — the revoked / isExpired / active
+ * 3-way ternary is identical between the desktop table and the
+ * mobile card list; the only difference is `text-xs` vs `text-[10px]`.
+ * Centralise so the two surfaces stay in lock-step.
+ */
+function TokenStatusBadge({
+  token,
+  size,
+}: {
+  token: ApiTokenInfo;
+  size: "sm" | "xs";
+}) {
+  const { t } = useTranslations();
+  const expired =
+    token.expiresAt != null && new Date(token.expiresAt) < new Date();
+  const sizeClass = size === "xs" ? "text-[10px]" : "text-xs";
+  if (token.revoked) {
+    return (
+      <Badge variant="destructive" className={`shrink-0 ${sizeClass}`}>
+        {t("settings.tokenRevoked")}
+      </Badge>
+    );
+  }
+  if (expired) {
+    return (
+      <Badge variant="destructive" className={`shrink-0 ${sizeClass}`}>
+        {t("settings.tokenExpired")}
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      className={`bg-dracula-green/15 text-dracula-green shrink-0 ${sizeClass}`}
+    >
+      {t("common.active")}
+    </Badge>
+  );
+}
+
+/**
  * F-18 (v1.4.19): the auto-login flow names tokens
  * "web auto-login 2026-05-05T19:46:20.603Z" / "iOS auto-login …" by
  * suffixing the issuing call's `Date.now().toISOString()`. That suffix
@@ -181,8 +221,6 @@ export function ApiTokenOverviewSection() {
                 </thead>
                 <tbody className="divide-border divide-y">
                   {tokens.map((token, i) => {
-                    const isExpired =
-                      token.expiresAt && new Date(token.expiresAt) < new Date();
                     return (
                       <tr
                         key={token.id}
@@ -213,19 +251,7 @@ export function ApiTokenOverviewSection() {
                           </div>
                         </td>
                         <td className="px-3 py-2 text-right">
-                          {token.revoked ? (
-                            <Badge variant="destructive" className="text-xs">
-                              {t("settings.tokenRevoked")}
-                            </Badge>
-                          ) : isExpired ? (
-                            <Badge variant="destructive" className="text-xs">
-                              {t("settings.tokenExpired")}
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-dracula-green/15 text-dracula-green text-xs">
-                              {t("common.active")}
-                            </Badge>
-                          )}
+                          <TokenStatusBadge token={token} size="sm" />
                         </td>
                         {/* v1.4.22 C2 (5th attempt) — drop
                             `whitespace-nowrap` on the date cells. The
@@ -264,8 +290,6 @@ export function ApiTokenOverviewSection() {
               data-testid="admin-tokens-mobile-list"
             >
               {tokens.map((token) => {
-                const isExpired =
-                  token.expiresAt && new Date(token.expiresAt) < new Date();
                 return (
                   <li
                     key={token.id}
@@ -278,25 +302,7 @@ export function ApiTokenOverviewSection() {
                             value={formatTokenName(token.name)}
                             className="min-w-0 flex-1 font-medium"
                           />
-                          {token.revoked ? (
-                            <Badge
-                              variant="destructive"
-                              className="shrink-0 text-[10px]"
-                            >
-                              {t("settings.tokenRevoked")}
-                            </Badge>
-                          ) : isExpired ? (
-                            <Badge
-                              variant="destructive"
-                              className="shrink-0 text-[10px]"
-                            >
-                              {t("settings.tokenExpired")}
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-dracula-green/15 text-dracula-green shrink-0 text-[10px]">
-                              {t("common.active")}
-                            </Badge>
-                          )}
+                          <TokenStatusBadge token={token} size="xs" />
                         </div>
                         <TruncatedCell
                           value={token.user.username}

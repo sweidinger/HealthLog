@@ -26,17 +26,20 @@ import {
  * the row's visual rhythm.
  */
 
+// v1.4.22 W5 reconcile (S-04) — both `dynamic()` calls used the same
+// pulse-skeleton placeholder. Hoist so the loading affordance stays
+// in lock-step (cleared against `feedback_charts_visual_identity.md`
+// — placeholder only, no chart visual change).
+const ChartSkeleton = () => (
+  <div className="bg-muted/40 h-[220px] w-full animate-pulse rounded-md motion-reduce:animate-none" />
+);
+
 const HealthChart = dynamic(
   () =>
     import("@/components/charts/health-chart").then((mod) => ({
       default: mod.HealthChart,
     })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="bg-muted/40 h-[220px] w-full animate-pulse rounded-md motion-reduce:animate-none" />
-    ),
-  },
+  { ssr: false, loading: ChartSkeleton },
 );
 
 const MoodChart = dynamic(
@@ -44,12 +47,7 @@ const MoodChart = dynamic(
     import("@/components/charts/mood-chart").then((mod) => ({
       default: mod.MoodChart,
     })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="bg-muted/40 h-[220px] w-full animate-pulse rounded-md motion-reduce:animate-none" />
-    ),
-  },
+  { ssr: false, loading: ChartSkeleton },
 );
 
 interface TrendsRowProps {
