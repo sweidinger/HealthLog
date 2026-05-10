@@ -25,11 +25,21 @@ export interface CoachSnapshotResult {
  * `includeRaw=false` because the Coach replies are conversational and
  * the user is asking the model — they should never depend on raw
  * measurement timestamps that the privacy mode controls.
+ *
+ * Bounded to the last 90 days. Coach narrates the same windows the
+ * Daily Briefing renders (last7 / last30 / last90); fetching every
+ * historical measurement on each turn was unbounded I/O for power
+ * users with multi-year Withings imports. The 90-day floor is the
+ * widest window any Coach metric currently consumes.
  */
+const COACH_SNAPSHOT_WINDOW_DAYS = 90;
+
 export async function buildCoachSnapshot(
   userId: string,
 ): Promise<CoachSnapshotResult> {
-  const features = await extractFeatures(userId, false);
+  const features = await extractFeatures(userId, false, {
+    sinceDays: COACH_SNAPSHOT_WINDOW_DAYS,
+  });
 
   // Trim down to the metrics the Coach narrates. extractFeatures
   // returns more (sleep, steps, etc.) — the Coach surface keeps the

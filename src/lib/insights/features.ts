@@ -256,6 +256,7 @@ function computeHistoricalComparison(
 export async function extractFeatures(
   userId: string,
   includeRaw: boolean,
+  options: { sinceDays?: number } = {},
 ): Promise<AggregatedFeatures | RawFeatures> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -268,9 +269,21 @@ export async function extractFeatures(
 
   const now = Date.now();
 
-  // Fetch ALL measurements (not just 30 days) for full temporal context
+  // Fetch measurements. Default = ALL (full temporal context for the
+  // dashboard / insights generator). Callers that only consume the
+  // ≤90-day windows (Coach snapshot per turn) pass `sinceDays: 90` so
+  // the per-turn I/O stays bounded — `findMany({ where: { userId } })`
+  // is unbounded by user-history size and gets paid once per Coach turn
+  // for power users with multi-year Withings imports.
+  const sinceDays = options.sinceDays;
+  const sinceCutoff =
+    typeof sinceDays === "number" && sinceDays > 0
+      ? new Date(now - sinceDays * 24 * 60 * 60 * 1000)
+      : null;
   const measurements = await prisma.measurement.findMany({
-    where: { userId },
+    where: sinceCutoff
+      ? { userId, measuredAt: { gte: sinceCutoff } }
+      : { userId },
     orderBy: { measuredAt: "asc" },
   });
 
