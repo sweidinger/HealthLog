@@ -97,6 +97,12 @@ interface AnalyticsData {
    */
   bpInTargetPct7d?: number | null;
   bpInTargetPct30d?: number | null;
+  /**
+   * v1.4.22 A1 — long-arc all-time aggregate. After the headline
+   * re-anchor to last-30-days the all-time number lives as a sub-value
+   * on the BD-Zielbereich tile (alongside `7d` and `30d`).
+   */
+  bpInTargetPctAllTime?: number | null;
   glucoseByContext?: Record<string, DataSummaryType>;
 }
 
@@ -794,6 +800,45 @@ export default function DashboardPage() {
           });
         }
         if (showBpInTargetTile) {
+          /* v1.4.22 A2 — feature parity with every other tile.
+             Synthesise a slope from the difference between the 7-day
+             and 30-day in-target shares: when the recent week is
+             above the recent month, the metric is improving (up-good
+             ⇒ green arrow); when below, it's slipping. The
+             trend7Delta is the same number as the arrow's underlying
+             signal, surfaced as "(+5)" next to `7d:` so the tile
+             matches the (weight / BP / pulse) call-site contract.
+             Comparison overlay routes through the same global
+             `compareBaseline` / `tileCompareDelta` pipeline as every
+             other tile; we only have a single % series for the BP
+             tile (no DataSummary) so the prior-period delta uses
+             `bpInTargetPctAllTime` as the long-arc baseline — when
+             comparison is off the field stays null. */
+          const bp7 = data?.bpInTargetPct7d ?? null;
+          const bp30 = data?.bpInTargetPct30d ?? null;
+          const bpAll = data?.bpInTargetPctAllTime ?? null;
+          const bpTrendDelta =
+            bp7 !== null && bp30 !== null ? bp7 - bp30 : null;
+          const bpSlope30: import("@/lib/analytics/trends").TrendSlope | null =
+            bpTrendDelta === null
+              ? null
+              : {
+                  slope: bpTrendDelta / 30,
+                  direction:
+                    bpTrendDelta > 0.5
+                      ? "up"
+                      : bpTrendDelta < -0.5
+                        ? "down"
+                        : "stable",
+                  // Synthetic slope (last-7d minus last-30d) carries no
+                  // R² — pin to 1 so existing TrendSlope consumers don't
+                  // mis-interpret a `0` as "very low confidence".
+                  confidence: 1,
+                };
+          const bpCompareDelta =
+            compareBaseline === "none" || bp30 === null || bpAll === null
+              ? null
+              : Math.round((bp30 - bpAll) * 10) / 10;
           trendCards.push({
             id: "bpInTarget",
             order: widgetOrder("bpInTarget"),
@@ -807,11 +852,15 @@ export default function DashboardPage() {
                    windowed analytics fields. Up to v1.4.17 these were
                    hard-coded to null and rendered "—" even when the
                    user had paired BP readings in both windows. */
-                avg7={data?.bpInTargetPct7d ?? null}
-                avg30={data?.bpInTargetPct30d ?? null}
-                slope30={null}
+                avg7={bp7}
+                avg30={bp30}
+                avgAllTime={bpAll}
+                slope30={bpSlope30}
+                trend7Delta={bpTrendDelta}
                 icon={Target}
                 directionSentiment="up-good"
+                compareBaseline={compareBaseline}
+                compareDelta={bpCompareDelta}
               />
             ),
           });

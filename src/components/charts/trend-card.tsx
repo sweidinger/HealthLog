@@ -87,6 +87,17 @@ interface TrendCardProps {
    */
   compareBaseline?: ComparisonBaseline;
   compareDelta?: number | null;
+  /**
+   * v1.4.22 A2 — optional third sub-value rendered alongside `7d` and
+   * `30d`. Used by the BD-Zielbereich tile so the all-time aggregate
+   * stays visible after v1.4.22 A1 re-anchored the headline to the
+   * 30-day window. Pass the i18n key for the label (defaults to
+   * `charts.avgAllTimeShort`); other tiles leave both fields undefined
+   * so the third sub-row never renders.
+   */
+  avgAllTime?: number | null;
+  avgAllTimeLabelKey?: string;
+  avgAllTimeColorClass?: string;
 }
 
 export function TrendCard({
@@ -106,6 +117,9 @@ export function TrendCard({
   trend7Delta = null,
   compareBaseline = "none",
   compareDelta = null,
+  avgAllTime,
+  avgAllTimeLabelKey = "charts.avgAllTimeShort",
+  avgAllTimeColorClass,
 }: TrendCardProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -293,6 +307,23 @@ export function TrendCard({
               </span>
             )}
           </span>
+          {/* v1.4.22 A2 — optional third sub-value (e.g. all-time aggregate
+              for BD-Zielbereich after v1.4.22 A1 re-anchored the headline
+              to last-30 days). Other tiles leave `avgAllTime` undefined so
+              the third sub-row never renders. */}
+          {avgAllTime !== undefined && (
+            <span data-slot="trend-card-all-time">
+              {t(avgAllTimeLabelKey)}:{" "}
+              <span
+                className={cn(
+                  "font-medium tabular-nums",
+                  avgAllTimeColorClass,
+                )}
+              >
+                {avgAllTime !== null ? formatValue(avgAllTime) : "—"}
+              </span>
+            </span>
+          )}
         </div>
       </TooltipProvider>
     </div>
