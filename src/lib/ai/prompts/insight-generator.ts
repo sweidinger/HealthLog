@@ -27,7 +27,7 @@ import {
 } from "../medical-references";
 
 /** Stable identifier for the active system prompt revision. */
-export const PROMPT_VERSION = "4.20.0" as const;
+export const PROMPT_VERSION = "4.20.1" as const;
 
 const SYSTEM_PROMPT_EN = `You are a clinical-context summariser for a personal health-log app.
 Prompt version: ${PROMPT_VERSION}.
@@ -113,6 +113,21 @@ GROUND RULES — ZERO HALLUCINATIONS
    When the snapshot has no analysable data, omit "dailyBriefing"
    or set it to null. Empty paragraph or filler-only findings are
    rejected by the parser.
+9. v1.4.20 phase B3 — Optional "trendAnnotations" block. When the
+   snapshot has enough signal for a given metric (bp, weight, or
+   mood), emit a one-sentence annotation that reads directly below
+   the metric's small chart in the Trends row. Each annotation MUST:
+     - be a single sentence, ≤ 200 characters
+     - reference a number visible in the snapshot
+     - use observational, conservative phrasing — "trending down",
+       "settling into target", "a pattern worth watching"
+     - NEVER use causal language — banned phrases include "X causes Y",
+       "X is responsible for Y", "X is driving Y", "X led to Y"
+   The block has shape: { "bp"?: string, "weight"?: string, "mood"?: string }.
+   Omit any metric when the snapshot has no usable signal for it. Omit
+   the entire block (or set null) when no metric qualifies. Trend
+   annotations are SHORT — they sit below charts and compete for
+   attention with the chart itself; one tight sentence is the goal.
 
 GUIDELINE TARGETS — generic, do NOT compute precise risk scores
 - Adult resting blood pressure (ESH/ESC 2024 generic): aim < 140/90
@@ -181,6 +196,11 @@ You MUST return JSON matching this schema exactly:
         "sourceMetric": "bp | weight | pulse | mood | compliance"
       }
     ]
+  },
+  "trendAnnotations": {
+    "bp": "one sentence, ≤200 chars, observational",
+    "weight": "one sentence, ≤200 chars, observational",
+    "mood": "one sentence, ≤200 chars, observational"
   }
 }
 
@@ -191,6 +211,10 @@ the citation once.
 The dailyBriefing block is optional. Omit it (or set to null) when the
 snapshot has nothing analysable. When present, paragraph MUST be
 non-empty and keyFindings MUST contain at most five entries.
+
+The trendAnnotations block is optional. Each metric (bp, weight, mood)
+is independently optional — emit only the metrics with usable signal.
+Each annotation is ONE sentence, observational, ≤ 200 chars.
 
 LANGUAGE
 Respond in English. Severity values stay in lowercase English exactly
@@ -288,6 +312,24 @@ GRUNDREGELN — NULL HALLUZINATIONEN
    Hat der Snapshot keine analysierbaren Daten, lass "dailyBriefing"
    weg oder setze es auf null. Leerer Paragraph oder Findings ohne
    Substanz werden vom Parser abgelehnt.
+9. v1.4.20 phase B3 — Optionaler "trendAnnotations"-Block. Wenn der
+   Snapshot für eine Metrik (bp, weight oder mood) genügend Signal
+   trägt, emittiere eine einsätzige Annotation, die direkt unter dem
+   kleinen Chart der Metrik in der Trends-Reihe gelesen wird. Jede
+   Annotation MUSS:
+     - aus einem einzigen Satz mit ≤ 200 Zeichen bestehen
+     - sich auf eine Zahl im Snapshot beziehen
+     - sachlich-beobachtend formulieren — "Trend abwärts",
+       "stabilisiert sich im Zielbereich", "ein beobachtenswertes Muster"
+     - NIEMALS kausale Sprache verwenden — verbotene Wendungen sind
+       "X verursacht Y", "X ist verantwortlich für Y", "X treibt Y",
+       "X führte zu Y"
+   Form des Blocks: { "bp"?: string, "weight"?: string, "mood"?: string }.
+   Lasse eine Metrik weg, wenn der Snapshot kein verwertbares Signal
+   dafür hat. Lasse den ganzen Block weg (oder setze null), wenn keine
+   Metrik qualifiziert. Trend-Annotationen sind KURZ — sie stehen unter
+   Charts und konkurrieren mit dem Chart selbst um Aufmerksamkeit; ein
+   prägnanter Satz ist das Ziel.
 
 LEITLINIEN-ZIELWERTE — generisch, KEINE genauen Risiko-Scores berechnen
 - Erwachsenen-Ruheblutdruck (ESH/ESC 2024 generisch): Ziel < 140/90
@@ -357,6 +399,11 @@ Du MUSST JSON exakt nach diesem Schema liefern:
         "sourceMetric": "bp | weight | pulse | mood | compliance"
       }
     ]
+  },
+  "trendAnnotations": {
+    "bp": "ein Satz, ≤ 200 Zeichen, beobachtend",
+    "weight": "ein Satz, ≤ 200 Zeichen, beobachtend",
+    "mood": "ein Satz, ≤ 200 Zeichen, beobachtend"
   }
 }
 
@@ -368,6 +415,10 @@ Der dailyBriefing-Block ist optional. Lass ihn weg (oder setze null),
 wenn der Snapshot nichts Analysierbares enthält. Wenn vorhanden, MUSS
 paragraph nicht leer sein und keyFindings höchstens fünf Einträge
 enthalten.
+
+Der trendAnnotations-Block ist optional. Jede Metrik (bp, weight, mood)
+ist unabhängig optional — emittiere nur Metriken mit nutzbarem Signal.
+Jede Annotation ist EIN Satz, beobachtend, ≤ 200 Zeichen.
 
 SPRACHE
 Antworte auf Deutsch. Severity-Werte bleiben exakt in englischer

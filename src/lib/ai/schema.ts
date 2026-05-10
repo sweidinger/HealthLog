@@ -281,6 +281,41 @@ export const dailyBriefingSchema = z.object({
 export type DailyBriefing = z.infer<typeof dailyBriefingSchema>;
 
 /**
+ * v1.4.20 phase B3 — optional one-sentence Trend Annotations.
+ *
+ * The Trends row on `/insights` renders three small charts (BP / weight /
+ * mood). Each chart can carry a one-sentence AI-authored annotation
+ * directly below it ("Your systolic is trending down — a pattern worth
+ * watching"). Each string is hard-capped at 200 chars so a runaway model
+ * cannot flood the surface with paragraph-length annotations.
+ *
+ * Every field is `.optional()` and the wrapping object is
+ * `.nullable().optional()` so legacy cached payloads from PROMPT_VERSION
+ * 4.20.0 (which predate the field) round-trip without forcing a
+ * regenerate. Fresh generations after the 4.20.1 bump emit the block
+ * when the snapshot has trend signal.
+ */
+export const trendAnnotationsSchema = z.object({
+  bp: z
+    .string()
+    .min(1, "trendAnnotations.bp required when emitted")
+    .max(200, "trendAnnotations.bp must be <= 200 chars")
+    .optional(),
+  weight: z
+    .string()
+    .min(1, "trendAnnotations.weight required when emitted")
+    .max(200, "trendAnnotations.weight must be <= 200 chars")
+    .optional(),
+  mood: z
+    .string()
+    .min(1, "trendAnnotations.mood required when emitted")
+    .max(200, "trendAnnotations.mood must be <= 200 chars")
+    .optional(),
+});
+
+export type TrendAnnotations = z.infer<typeof trendAnnotationsSchema>;
+
+/**
  * Canonical strict response schema. New strict fields are required;
  * legacy rich fields ride along through `.passthrough()` for back-
  * compat with cached payloads and the existing dashboard renderer.
@@ -301,6 +336,12 @@ export const aiInsightResponseSchema = z
      * 4.20.0) round-trip without forcing a regenerate.
      */
     dailyBriefing: dailyBriefingSchema.nullable().optional(),
+    /**
+     * v1.4.20 phase B3 — optional Trend Annotations block. Each metric
+     * is independently optional; the wrapping object is nullable so
+     * legacy 4.20.0 caches round-trip.
+     */
+    trendAnnotations: trendAnnotationsSchema.nullable().optional(),
   })
   .passthrough();
 
