@@ -61,6 +61,7 @@ import { detectRefusal } from "@/lib/ai/coach/refusal";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
 import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
+import { createSseStream } from "@/lib/sse/create-stream";
 
 /**
  * Hard cap on total turns kept inside the per-call prompt window.
@@ -340,29 +341,23 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   });
 
   // ── Stream the body to the client ────────────────────────────
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      try {
-        for (const tok of tokeniseForStreaming(replyText)) {
-          controller.enqueue(encodeFrame({ type: "token", token: tok }));
-        }
-        controller.enqueue(
-          encodeFrame({
-            type: "provenance",
-            metricSource: enrichedProvenance,
-          }),
-        );
-        controller.enqueue(
-          encodeFrame({
-            type: "done",
-            conversationId: workingConversationId,
-            messageId: assistantMessage.id,
-          }),
-        );
-      } finally {
-        controller.close();
-      }
-    },
+  const stream = createSseStream((controller) => {
+    for (const tok of tokeniseForStreaming(replyText)) {
+      controller.enqueue(encodeFrame({ type: "token", token: tok }));
+    }
+    controller.enqueue(
+      encodeFrame({
+        type: "provenance",
+        metricSource: enrichedProvenance,
+      }),
+    );
+    controller.enqueue(
+      encodeFrame({
+        type: "done",
+        conversationId: workingConversationId,
+        messageId: assistantMessage.id,
+      }),
+    );
   });
 
   return new Response(stream, { status: 200, headers: SSE_HEADERS });
@@ -412,43 +407,31 @@ async function streamRefusal(args: {
     promptVersion: PROMPT_VERSION,
   });
 
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      try {
-        controller.enqueue(
-          encodeFrame({ type: "token", token: args.refusalText }),
-        );
-        controller.enqueue(
-          encodeFrame({
-            type: "done",
-            conversationId,
-            messageId: refusalMessage.id,
-          }),
-        );
-      } finally {
-        controller.close();
-      }
-    },
+  const stream = createSseStream((controller) => {
+    controller.enqueue(
+      encodeFrame({ type: "token", token: args.refusalText }),
+    );
+    controller.enqueue(
+      encodeFrame({
+        type: "done",
+        conversationId,
+        messageId: refusalMessage.id,
+      }),
+    );
   });
 
   return new Response(stream, { status: 200, headers: SSE_HEADERS });
 }
 
 function streamProviderError(args: { code: string }): Response {
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      try {
-        controller.enqueue(
-          encodeFrame({
-            type: "error",
-            code: args.code,
-            message: args.code,
-          }),
-        );
-      } finally {
-        controller.close();
-      }
-    },
+  const stream = createSseStream((controller) => {
+    controller.enqueue(
+      encodeFrame({
+        type: "error",
+        code: args.code,
+        message: args.code,
+      }),
+    );
   });
   // Status 200 so the streaming client reads the SSE body and parses
   // the structured `error` frame (HTTP-status branches drop the
