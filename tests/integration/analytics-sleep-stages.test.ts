@@ -124,9 +124,12 @@ describe("GET /api/analytics — sleep-stage aggregation", () => {
     }
 
     const { GET } = await import("@/app/api/analytics/route");
-    const response = await GET(
-      new Request("http://localhost/api/analytics") as never,
-      { params: Promise.resolve({}) } as never,
+    // The wrapped handler reads `request.url` for logging metadata;
+    // the inner handler ignores its arguments. Cast through `unknown`
+    // because `apiHandler`'s narrowed type signature is the inner
+    // handler's `()`, not the wrapper's `(NextRequest)`.
+    const response = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/analytics"),
     );
     expect(response.status).toBe(200);
     const envelope = (await response.json()) as AnalyticsEnvelope;
@@ -166,9 +169,12 @@ describe("GET /api/analytics — sleep-stage aggregation", () => {
     });
 
     const { GET } = await import("@/app/api/analytics/route");
-    const response = await GET(
-      new Request("http://localhost/api/analytics") as never,
-      { params: Promise.resolve({}) } as never,
+    // The wrapped handler reads `request.url` for logging metadata;
+    // the inner handler ignores its arguments. Cast through `unknown`
+    // because `apiHandler`'s narrowed type signature is the inner
+    // handler's `()`, not the wrapper's `(NextRequest)`.
+    const response = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/analytics"),
     );
     expect(response.status).toBe(200);
     const envelope = (await response.json()) as AnalyticsEnvelope;
