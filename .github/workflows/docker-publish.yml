@@ -132,10 +132,24 @@ jobs:
             echo "::warning::COOLIFY_WEBHOOK or COOLIFY_TOKEN secret missing — skipping auto-deploy. Configure in repo Settings → Secrets to enable."
             exit 0
           fi
+          # v1.4.22 C3 — force=true tells Coolify to skip its image-cache
+          # and re-pull the registry digest. If the maintainer's secret
+          # URL already carries a `?force=` query, leave it alone;
+          # otherwise append `?force=true` (or `&force=true` if other
+          # query params are present) so doc-only deploys still trigger
+          # a registry-digest check.
+          deploy_url="$COOLIFY_WEBHOOK"
+          if ! echo "$deploy_url" | grep -q "force="; then
+            if echo "$deploy_url" | grep -q "?"; then
+              deploy_url="${deploy_url}&force=true"
+            else
+              deploy_url="${deploy_url}?force=true"
+            fi
+          fi
           echo "Triggering Coolify deploy for ref ${{ github.ref_name }} (sha ${GITHUB_SHA::7})"
           response=$(curl --silent --show-error --max-time 30 \
             --write-out "\n__HTTP_STATUS__:%{http_code}" \
-            --request GET "$COOLIFY_WEBHOOK" \
+            --request GET "$deploy_url" \
             --header "Authorization: Bearer $COOLIFY_TOKEN")
           status="${response##*__HTTP_STATUS__:}"
           body="${response%__HTTP_STATUS__:*}"
