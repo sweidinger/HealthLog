@@ -871,6 +871,7 @@
       "sourcesFresh": "Aktuell",
       "sourcesStale": "Veraltet",
       "sourcesFooter": "Der Coach liest nur Daten, die du verbunden hast.",
+      "evidenceLabel": "Worauf bezieht sich das?",
       "metric": {
         "bp": "Blutdruck",
         "weight": "Gewicht",

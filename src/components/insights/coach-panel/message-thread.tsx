@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Bot, Sparkles, User } from "lucide-react";
+import { Bot, ChevronRight, Sparkles, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
@@ -202,6 +202,8 @@ function ChatBubble({
         ? t("insights.coach.errorProvider")
         : null;
 
+  const keyValues = metricSource?.keyValues ?? [];
+
   return (
     <div
       data-slot="coach-bubble-assistant"
@@ -232,6 +234,55 @@ function ChatBubble({
           <p className="text-dracula-orange/90 text-xs">{safeError}</p>
         )}
         {metricSource && <SourceChips provenance={metricSource} />}
+        {keyValues.length > 0 && (
+          <details
+            data-slot="coach-evidence"
+            className={cn(
+              "border-border/50 bg-muted/30 group rounded-md border",
+              "px-2.5 py-1.5 text-xs",
+            )}
+          >
+            <summary
+              data-slot="coach-evidence-summary"
+              className={cn(
+                "text-muted-foreground hover:text-foreground flex cursor-pointer",
+                "items-center gap-1.5 leading-relaxed",
+                "[&::-webkit-details-marker]:hidden marker:hidden",
+                "focus-visible:ring-ring/50 rounded outline-none focus-visible:ring-2",
+              )}
+            >
+              <ChevronRight
+                aria-hidden="true"
+                className="size-3 transition-transform group-open:rotate-90"
+              />
+              <span>{t("insights.coach.evidenceLabel")}</span>
+            </summary>
+            <ul
+              data-slot="coach-evidence-list"
+              className="text-foreground mt-2 flex flex-col gap-1"
+            >
+              {keyValues.map((kv, idx) => (
+                <li
+                  key={`${kv.label}-${idx}`}
+                  data-slot="coach-evidence-row"
+                  className="leading-relaxed"
+                >
+                  <span className="text-muted-foreground">{kv.label}:</span>{" "}
+                  <strong className="font-semibold">
+                    {kv.value}
+                    {kv.unit ? ` ${kv.unit}` : ""}
+                  </strong>
+                  {kv.window && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      ({kv.window})
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
     </div>
   );
