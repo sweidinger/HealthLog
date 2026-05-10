@@ -62,8 +62,9 @@ describe("<CompareToggle>", () => {
     const html = render(<CompareToggle />);
     // Every segment carries the min-h-11 utility — the WCAG-compliance
     // floor we promise mobile users.
-    const segmentCount = (html.match(/data-slot="compare-toggle-option-/g) ?? [])
-      .length;
+    const segmentCount = (
+      html.match(/data-slot="compare-toggle-option-/g) ?? []
+    ).length;
     const minH11Count = (html.match(/min-h-11/g) ?? []).length;
     expect(segmentCount).toBe(3);
     expect(minH11Count).toBeGreaterThanOrEqual(3);

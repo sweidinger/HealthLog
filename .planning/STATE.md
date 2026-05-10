@@ -470,14 +470,42 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ## Wave D — Multi-agent QA + Product-Lead
 
-- [ ] code-reviewer
-- [ ] security review
-- [ ] design / UX review (Apple Health benchmarking lens)
-- [ ] senior-dev review
-- [ ] simplify
-- [ ] Product Lead — state of app, biggest items, v1.5 roadmap, follow-on initiatives
-- [ ] Reconcile applies CRITICAL/HIGH inline
-- Detailed report: `.planning/phase-D-report.md` + `product-lead-review.md`
+- [x] code-reviewer (0 CRITICAL, 8 HIGH, 9 MED, 10 LOW)
+- [x] security review (0 CRITICAL, 2 HIGH, 5 MED, 3 LOW)
+- [x] design / UX review (Apple Health benchmarking lens) — 3 CRITICAL,
+      8 HIGH, 22 MED/LOW
+- [x] senior-dev review (0 CRITICAL, 3 HIGH, 9 MED/LOW)
+- [x] simplify (8 apply-yes / 2 apply-no)
+- [x] Product Lead — state of app, biggest items, v1.5 roadmap,
+      follow-on initiatives
+- [x] Reconcile applies CRITICAL/HIGH inline
+- Detailed report: `.planning/phase-D-reconcile-report.md` +
+  `phase-D-product-lead-review.md`
+
+### Status block — Wave D reconcile
+
+- 2026-05-10T03:20+02:00 — Wave D complete on origin/main.
+  - **CRITICAL**: 1 of 3 fixed inline (C3 on-surface comparison
+    toggle, commit `6e74d38`); 2 deferred to v1.4.17 with documented
+    rationale (C1 + C2 — both require new API surfaces, root cause
+    "scope-completion-without-route-wiring").
+  - **HIGH**: 9 fixed inline (`5f7b9d8`, `6863ecb`, `fb12f09`,
+    `c3451a4`, `2f057f4`, `5661439`); 1 already-fixed (code-review
+    H1 — reviewer mis-read source); 11 deferred to v15-backlog.md.
+  - **Simplify**: 7 of 8 apply-yes landed (commit `f3025a8`); F1 +
+    F8 are apply-no flagged for Marc.
+  - **Product-Lead review** stands as-is; IS the strategic v1.5 plan.
+  - **Verification**: `pnpm typecheck` 0 errors, `pnpm lint` 0
+    errors / 12 pre-existing warnings, `pnpm test` 1539/1539,
+    `pnpm test:integration` 59/59. format:check is not in CI; my
+    new files prettier-formatted.
+  - **Backlog seed**: `.planning/v15-backlog.md` is the v1.5
+    milestone planning input.
+  - **Reconcile commits**: `c0c1284` planning refresh, `6e74d38`
+    C3, `c3451a4` H1+H2+H6+H7 a11y, `2f057f4` H3 i18n leak,
+    `fb12f09` security H1+H2, `5661439` H4 design, `f3025a8`
+    simplify, `6863ecb` H5+H6 code-review, `5f7b9d8` H2
+    code-review.
 
 ## Phase E — Release v1.4.16
 
