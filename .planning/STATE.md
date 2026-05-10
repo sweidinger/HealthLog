@@ -1,7 +1,7 @@
 # v1.4.16 marathon — state log
 
-Status: phase-0-done
-Last update: 2026-05-09T23:12:52+02:00
+Status: finished
+Last update: 2026-05-10T04:05+02:00
 
 > Previous milestone: `docs/audit/v1415-summary.md` (live: `/api/version=1.4.15`,
 > image digest `sha256:ace7d441f47b…`).
@@ -523,17 +523,72 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ## Phase E — Release v1.4.16
 
-- [ ] Pre-release verify
-- [ ] Bump package.json + CHANGELOG
-- [ ] Tag + push v1.4.16
-- [ ] GHCR build (verify both main + tag green; C3 v1.4.16 fix may finally help main)
-- [ ] Coolify deploy
-- [ ] /api/version=1.4.16 confirmed
-- [ ] Production smoke
-- [ ] GH release
+- [x] Pre-release verify
+- [x] Bump package.json + CHANGELOG
+- [x] Tag + push v1.4.16
+- [x] GHCR build (verify both main + tag green; C3 v1.4.16 fix DID help main)
+- [x] Coolify deploy (retag-on-host fallback; auto-deploy still races GHCR)
+- [x] /api/version=1.4.16 confirmed (transition at 2026-05-10T03:45:58+02:00)
+- [x] Production smoke (13/14 200; `/dashboard` 404 expected — root is dashboard)
+- [x] GH release — https://github.com/MBombeck/HealthLog/releases/tag/v1.4.16
 - [ ] Docs site + landing site sync
 - [ ] `docs/audit/v1416-summary.md` (Marc-Brief)
-- Detailed report: `.planning/phase-E-report.md`
+- Detailed reports: `.planning/phase-E1-report.md`, `.planning/phase-E2-report.md`
+
+### Status block — Phase E2 (deploy + verify)
+
+- 2026-05-10T03:48+02:00 — Phase E2 complete; v1.4.16 LIVE at
+  https://healthlog.bombeck.io.
+  - **GHCR**: BOTH runs `success` — Wave-C C3 fix (drop arm64 from
+    main-branch publish) was effective. Run `25616783583` (tag) +
+    `25616782255` (main) both green.
+  - **Image digest**: `ace7d441f47b…` (v1.4.15) → `05f8a126d639…`
+    (v1.4.16). Visibly changed.
+  - **/api/version transition**: `1.4.15` → `1.4.16` at
+    `2026-05-10T03:45:58+02:00` (1 s after host-side retag returned;
+    well under 5 min cap).
+  - **Coolify auto-deploy**: NO — same race as v1.4.14/v1.4.15.
+    Coolify fired on chore(release) commit at `01:40:17Z` BEFORE
+    GHCR finished, so pulled stale local `:latest`. Ran
+    retag-on-host fallback (`docker pull :1.4.16 && docker tag
+    :1.4.16 :latest && docker compose up -d app`).
+  - **Smoke (14 routes, Marc's session)**: 13/14 200; `/dashboard`
+    404 expected (root `/` is the dashboard, no `/dashboard` route
+    exists — same response shape on v1.4.15, NOT a regression).
+  - **GH release**: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.16
+    (created via `gh release create v1.4.16`, notes from
+    `sed -n '3,171p' CHANGELOG.md`; awk recipe in the phase-E2 brief
+    had a precedence issue and only captured the version header — sed
+    range-extract used instead).
+  - **Outstanding for v1.5**: Coolify auto-deploy race (Marc-side UI
+    flip per `docs/audit/v1416-auto-deploy-fix.md`); arm64 reinstatement
+    via native `ubuntu-24.04-arm` matrix (currently amd64-only post-C3).
+  - Detailed report: `.planning/phase-E2-report.md`.
+
+### Status block — Phase E1 (verify + tag)
+
+- 2026-05-10T03:40+02:00 — Phase E1 complete on origin/main.
+  - Verification: `pnpm typecheck` 0 errors, `pnpm lint` 0 errors / 12
+    pre-existing warnings, `pnpm test` 1540/1540 (192 files, 4.29s),
+    `pnpm test:integration` 59/59 (16 files, 8.35s). `pnpm format:check`
+    skipped per project convention (not in CI; `pnpm format` corrupts
+    `.planning/` markdown list-markers — already observed in Phase 0).
+    `pnpm build` + `pnpm e2e` deferred to CI Docker (Node 22).
+  - Release commit: `d443c22 chore(release): v1.4.16` (package.json
+    1.4.15→1.4.16 + CHANGELOG entry, English-only per Marc's "alles
+    Englisch" note).
+  - Tag pushed: `v1.4.16` (annotated, message `HealthLog v1.4.16`).
+  - Push: `5e89382..d443c22 main -> main` + `[new tag] v1.4.16` to
+    `github.com:MBombeck/HealthLog.git`.
+  - GHCR run: id `25616783583` (Build & Publish Docker Image on
+    `v1.4.16`) — in_progress at write time. Sibling runs on `main`:
+    GHCR `25616782255`, Security & Quality `25616782285`, Integration
+    tests `25616782236`, e2e `25616782233`.
+  - 4 stale dotted-segment export route directories remain untracked
+    (`src/app/api/export/{full-backup.json,measurements.csv,medications.csv,mood.csv}/`)
+    — the live plain-segment routes shipped in B7. Left out of the
+    release commit.
+  - Detailed report: `.planning/phase-E1-report.md`.
 
 ---
 
@@ -637,3 +692,45 @@ B3, B4, C1, C5).
   regression. `pnpm format:check` flags 34 .planning/docs/test files
   but is not in any CI workflow. Detailed report:
   `.planning/phase-wave-a-gate-report.md`.
+
+## Status block — Phase E3 (docs + landing sync)
+
+- 2026-05-10T03:55+02:00 — Phase E3 complete. healthlog-docs +
+  healthlog-landing both pushed to origin/main.
+  - **healthlog-docs** (Starlight): 9 pages refreshed
+    (`8addef4`) + 3 new deep-dive pages (`2a5802b`):
+    `/insights/how-it-works/`, `/dashboard/comparison/`,
+    `/settings/ai-providers/`. Astro build green: 44 pages built.
+  - **healthlog-landing** (Next.js): `softwareVersion` 1.4.15 →
+    1.4.16 + AI hero card rewrite + 5 new feature-list entries +
+    2 capability badges (`3d17207`). `pnpm build` green.
+  - No "Claude / AI / agent / marathon / phase" leak in either
+    repo. Co-Author trailer present on all three commits.
+  - Detailed report: `.planning/phase-E3-report.md`.
+
+## Status block — v1.4.16 marathon FINISHED
+
+- 2026-05-10T04:05+02:00 — v1.4.16 marathon closed.
+  - **Live**: `/api/version=1.4.16` on https://healthlog.bombeck.io
+    since 03:45:58+02:00.
+  - **Image digest**:
+    `sha256:05f8a126d63962d9a4af4769de830d3fee022d634787e811b4339ee464420daa`
+    (was v1.4.15: `sha256:ace7d441f47b…`).
+  - **GH release**: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.16
+  - **Smoke**: 13/14 200 (`/dashboard` 404 expected — root `/` is
+    the dashboard, not a regression).
+  - **Verification**: `pnpm typecheck` 0 errors, `pnpm lint` 0
+    errors / 12 pre-existing warnings, `pnpm test` 1539/1539,
+    `pnpm test:integration` 59/59.
+  - **Marc-Brief**: `docs/audit/v1416-summary.md` written; commit
+    `docs(audit): v1.4.16 release summary` pushed to origin/main.
+  - **v1.5 backlog seeded**: `.planning/v15-backlog.md` (the
+    tactical follow-ons) + `.planning/phase-D-product-lead-review.md`
+    (the strategic v1.5 backbone — Marc's recommended 6-week focus:
+    C.1 + C.2 + C.4 + C.7 + C.10 + C.11a Apple Health).
+  - **Outstanding for v1.5**: Coolify image-digest auto-deploy
+    (Marc-side UI flip), native arm64 runner matrix for
+    docker-publish, prompt-tuning ratchet on B5e feedback storage,
+    dedicated `/insights/compare` page, iOS contract freeze + bulk
+    endpoint, S3 backup push, Apple Health import.
+  - Status: **finished**.
