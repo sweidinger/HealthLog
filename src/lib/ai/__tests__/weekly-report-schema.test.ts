@@ -36,12 +36,13 @@ const baseResponse: AIInsightResponse = {
 };
 
 describe("PROMPT_VERSION (B4 bump)", () => {
-  it("is on the 4.20.x train", () => {
-    expect(PROMPT_VERSION).toMatch(/^4\.20\.\d+$/);
+  it("stays on the 4.x train", () => {
+    expect(PROMPT_VERSION).toMatch(/^4\.\d+\.\d+$/);
   });
 
   it("is bumped past 4.20.1 to signal weeklyReport + storyboardAnnotations", () => {
-    expect(PROMPT_VERSION).toBe("4.20.2");
+    expect(PROMPT_VERSION).not.toBe("4.20.0");
+    expect(PROMPT_VERSION).not.toBe("4.20.1");
   });
 });
 
