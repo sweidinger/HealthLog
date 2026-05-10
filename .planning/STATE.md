@@ -1,7 +1,7 @@
 # v1.4.22 marathon — state log
 
-Status: kickoff
-Last update: 2026-05-10T20:15+02:00
+Status: Wave 2 — Insights surface polish complete
+Last update: 2026-05-10T21:00+02:00
 
 > Previous patch: v1.4.21 live (image digest
 > `sha256:4e818d44702c…`, `/api/version=1.4.21`).
@@ -38,43 +38,45 @@ rewrite needs research first.
 
 ### A1 — BD-Zielbereich 5th attempt
 
-- [ ] Decide framing: re-anchor headline to last-30d with all-time
-      footnote, OR add explicit window label ("All-time: 11%
-      in target")
-- [ ] Implement; integration test
-- Detailed report: `.planning/phase-A1-report.md`
+- [x] Headline re-anchored to `windows.last30Days?.pct`; all-time
+      surfaced as `bpInTargetPctAllTime` for the new sub-row
+- [x] Integration test pins the route contract
+- Detailed report: `.planning/phase-W2-report.md`
 
 ### A2 — BD-Kachel feature parity
 
-- [ ] Trend arrow + per-tile features the other tiles ship
+- [x] Trend arrow + 7-day-trend chip + comparison overlay parity
+      (synthesised slope from 7d/30d delta); `<TrendCard>` extended
+      with optional `avgAllTime` sub-value
 
 ### A3 — Comparison-Toggle → global Settings
 
-- [ ] Move toggle from `/insights` AND `/dashboard` to
-      `/settings/dashboard` as a single global preference
-- [ ] Persist in `User.dashboardWidgetsJson.compareOverlay`
-- [ ] Comparison overlay activates everywhere when enabled, off
-      everywhere when disabled
+- [x] On-surface `<CompareToggle />` removed from `/insights`;
+      Settings → Dashboard already carries the canonical picker
+- [x] `User.dashboardWidgetsJson.comparisonBaseline` field already
+      exists (v1.4.16 phase B8) — every chart still consumes it
 
 ### A4 — Insights layout grid normalisation
 
-- [ ] Row-fill rule: 1 card → 100% width, 2 cards → 50/50
-- [ ] Trends row equal heights via `min-h-…`
-- [ ] Hide empty-state cards entirely (insufficient-data tiles
-      vanish, not render placeholder)
+- [x] Row-fill rule: BP / weight / medications grids collapse to
+      full-width when only one card has data
+- [x] Trends row equal heights via `min-h-[300px]`
+- [x] `<CorrelationRow>` drops insufficient-data tiles; zero ok
+      cards hides the row entirely
 
 ### A5 — Section heading + tab rename
 
-- [ ] "Muster" → "Trends" or "Zusammenhänge" (DE-locale check)
-- [ ] "KI Gesundheitsanalyse" trim or restructure
-- [ ] Tabs (Allgemein / Blutdruck / Gewicht / Puls / Stimmung) lift
-      above the Hero strip; in-place tab switch
+- [x] "Muster" → "Zusammenhänge" (DE) / "Patterns" → "Relationships"
+      (EN). Picked Zusammenhänge over Trends because the row above
+      already uses Trends.
+- [x] `<InsightsSectionNav>` lifted above the hero strip (sticky
+      scroll-anchored; tabs visible first)
 
 ### A6 — Raw `Metrik <Type>` token leak fix
 
-- [ ] Find token-emit point in AI response or template
-- [ ] Either substitute via existing PARSE_TOKEN_REGEX or strip via
-      STRIP_TOKEN_REGEX (widen to lowercase `Metrik` if needed)
+- [x] `<RecommendationCard>` text wrapped in `stripChartTokens()`
+- [x] DE `componentMood`/`componentBp`/`componentCompliance` renamed
+      to German nouns; i18n-integrity test pins the contract
 
 ## Wave 3 — Coach polish
 
