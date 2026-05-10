@@ -243,3 +243,62 @@
     animation: none;
   }
 }
+
+/* ── v1.4.20 phase B1 — Insights redesign hero strip ─────────────── */
+
+/*
+ * `.hero-gradient` — purple → pink linear gradient at low opacity, for
+ * the new <HeroStrip> band on /insights. Sits above `var(--card)` so
+ * the band reads as a richer surface than the card it overlays.
+ *
+ * Matches the design handoff (`prototype/artboard-fullpage.jsx →
+ * BriefingHero` background) — purple/pink at ~12% opacity over the
+ * card colour, with a subtle border-tint to anchor it on the dark bg.
+ */
+.hero-gradient {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--dracula-purple) 18%, var(--card)) 0%,
+    color-mix(in srgb, var(--dracula-pink) 12%, var(--card)) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--dracula-purple) 24%, transparent);
+}
+
+/*
+ * `.glow-purple` — soft purple aura behind the hero card, painted via
+ * `box-shadow` so it stays GPU-cheap and respects the existing card
+ * border radius without an extra wrapper element.
+ */
+.glow-purple {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--dracula-purple) 16%, transparent),
+    0 18px 48px -28px color-mix(in srgb, var(--dracula-purple) 50%, transparent);
+}
+
+/*
+ * `pulseDot` keyframes — the "live, refreshed N min ago" green dot in
+ * the hero meta row. Used as `.pulse-dot { animation: pulseDot ... }`.
+ * Reduced-motion users get a static dot via the prefers-reduced-motion
+ * guard below.
+ */
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+}
+
+.pulse-dot {
+  animation: pulseDot 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot {
+    animation: none;
+  }
+}
