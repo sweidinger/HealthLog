@@ -15,7 +15,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 
+import { CoachInput } from "./coach-input";
+import { HistoryRail } from "./history-rail";
 import { MessageThread } from "./message-thread";
+import { SourcesRail } from "./sources-rail";
 import {
   useCoachConversation,
   useSendCoachMessage,
@@ -193,7 +196,12 @@ export function CoachDrawer({
             data-slot="coach-drawer-history"
             className="border-border/70 hidden h-full min-h-0 border-r lg:flex lg:flex-col"
           >
-            {historyRail ?? <div className="p-3" />}
+            {historyRail ?? (
+              <HistoryRail
+                activeId={currentConversationId}
+                onSelect={(id) => setCurrentConversationId(id)}
+              />
+            )}
           </aside>
 
           {/* Centre — message thread. */}
@@ -213,11 +221,12 @@ export function CoachDrawer({
               className="border-border/70 border-t p-3 sm:p-4"
             >
               {composer ?? (
-                <FallbackComposer
+                <CoachInput
                   value={inputValue}
                   onChange={setInputValue}
                   onSubmit={() => handleSubmit(inputValue)}
                   disabled={send.isStreaming}
+                  isStreaming={send.isStreaming}
                 />
               )}
             </div>
@@ -228,7 +237,7 @@ export function CoachDrawer({
             data-slot="coach-drawer-sources"
             className="border-border/70 hidden h-full min-h-0 border-l lg:flex lg:flex-col"
           >
-            {sourcesRail ?? <div className="p-3" />}
+            {sourcesRail ?? <SourcesRail />}
           </aside>
         </div>
       </SheetContent>
@@ -236,46 +245,3 @@ export function CoachDrawer({
   );
 }
 
-/**
- * Minimal composer used until commit 3 wires the full `<CoachInput>`.
- * Kept here so the drawer is functional in isolation (storybook /
- * narrow-scope tests) without depending on the richer composer.
- */
-function FallbackComposer({
-  value,
-  onChange,
-  onSubmit,
-  disabled,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-  onSubmit: () => void;
-  disabled?: boolean;
-}) {
-  const { t } = useTranslations();
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit();
-      }}
-      className="flex gap-2"
-    >
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={t("insights.coach.composerPlaceholder")}
-        disabled={disabled}
-        className={cn(
-          "border-border/60 bg-muted/40 text-foreground flex-1 rounded-md border",
-          "px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2",
-          "focus-visible:ring-dracula-purple/50 disabled:opacity-60",
-        )}
-      />
-      <Button type="submit" disabled={disabled || !value.trim()} size="sm">
-        {t("insights.coach.send")}
-      </Button>
-    </form>
-  );
-}
