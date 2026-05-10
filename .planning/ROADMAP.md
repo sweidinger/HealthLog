@@ -1,41 +1,64 @@
-# HealthLog v1.4.19 — roadmap
+# HealthLog v1.4.20 — roadmap
 
-Milestone: **v1.4.19** (kicked off 2026-05-10)
-Latest tag at start: v1.4.18 (live in prod, image digest
-`sha256:c636fca7db66…`)
+Milestone: **v1.4.20** (kicked off 2026-05-10)
+Latest tag at start: v1.4.19 (live in prod, image digest
+`sha256:b48f93874cdb…`)
 
-| Phase | Goal                                                                                                                       | State   |
-| ----- | -------------------------------------------------------------------------------------------------------------------------- | ------- |
-| 0     | Bootstrap — STATE+ROADMAP for v1.4.19, git sanity, single chore commit                                                     | done    |
-| A1    | BD-Zielbereich constant 50% (4th attempt) — live-DB audit, root-cause calc bug, integration test                           | pending |
-| A2    | Charts mobile audit — axis-label overflow, X-axis density consistency across charts, universal tick helper                 | pending |
-| A3    | `/insights` polish — drop dashboard comparison toggle, reposition on insights, consolidate refresh, kill placeholder leaks | pending |
-| A4    | AI prompt — drop default "Datengrundlage stark" first sentence, only mention data quality when low                         | pending |
-| A5    | Settings/Integrations status-UI — single tag per integration, Mood Log divider, mobile-safe wrap                           | pending |
-| A6    | Settings mobile audit — equalize input heights, Sprache positioning, right-side button alignment, consistent spacing       | pending |
-| A7    | Admin polish — Feedback tab scrollbar, api-tokens 4th attempt (ellipsis+tooltip), Zielwerte whitespace + DE labels          | pending |
-| A8    | Quality-of-life audit — write-only findings list (descriptions, redundancies, missing labels, inconsistencies)             | pending |
-| B     | Apply A8 findings — fix CRITICAL/HIGH from quality-of-life audit                                                            | pending |
-| D     | Multi-agent QA + Product-Lead — code-reviewer, security, design, senior, simplify, product-lead (v1.4.20 strategic)         | pending |
-| E     | Release v1.4.19 — bump, CHANGELOG, tag, GHCR, deploy, /api/version=1.4.19, smoke, docs+landing sync                         | pending |
+| Phase | Goal                                                                                                                                                 | State   |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| F0    | Bootstrap — commit dangling v1.4.19 reports, scaffold STATE+ROADMAP for v1.4.20                                                                      | done    |
+| FX    | User-facing artifact cleanup — PII (no real names, no health figures), internal jargon, German leaks; CHANGELOG + docs/audit + GH releases + sites   | pending |
+| F1    | Branch model — long-lived `develop` from `main` HEAD; GHCR builds on `main` + `v*` only; hotfixes from `main` merge back to both                      | pending |
+| F2    | Document branch + release model — extend CONTRIBUTING.md, mirror page on docs site                                                                   | pending |
+| F5    | Best-practice GitHub repo audit — README, LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, .github templates, badges; CRIT/HIGH inline               | pending |
+| F6    | Multi-agent QA on new docs — verify they describe actual deployed state                                                                              | pending |
+| B1    | Hero strip + Daily Briefing + Suggested-prompts — replace `<InsightsPageHero>`, 3 micro-stat tiles, AI Coach entry, Daily Briefing card               | pending |
+| B2    | AI Coach drawer + streaming chat + persistence — SSE endpoint, CoachConversation+CoachMessage models, source-chip provenance, prompt-injection refusals | pending |
+| B3    | Correlation discovery + Trends row — 3 hypotheses (BP×compliance, mood×pulse, weight×weekday), AI annotations under trend mini-charts                | pending |
+| B4    | Weekly Report + Storyboard + Mobile passes — `/insights/report/[week]`, 90-day BP storyboard, mobile equivalents of B1+B2                            | pending |
+| B5    | Personal Health Score — composite 0-100 (BP-target / weight-trend / mood-stability / compliance), 3 bands, "Ask the Coach" CTA                       | pending |
+| D     | Multi-agent QA + Product-Lead review — code-reviewer, security, design, senior, simplify, product-lead (v1.5 strategic)                              | pending |
+| E     | Release v1.4.20 — develop → main release-merge, bump, CHANGELOG, tag, GHCR, deploy, /api/version=1.4.20, smoke, docs+landing sync                    | pending |
 
 Stop conditions: production red, large un-spec'd issue, context cutoff,
 or budget short of polish — write status doc, do not auto-rollback.
 
-Time-runs-short minimum to ship v1.4.19: Wave A (any subset) + Wave D
+Time-runs-short minimum to ship v1.4.20: F0–F2 + FX + B1 + Wave D + Phase E.
+B2 (the AI Coach drawer) is the biggest piece; if context tightens, ship
+B1+B3+B5 and defer B2+B4 to v1.4.21.
 
-- Phase E. Wave B (A8-driven inline fixes) is deferrable to v1.4.20 if
-  context budget tightens.
-
-Phase 0 spec for this marathon: orchestrator user message in this
-session (not stored to disk).
+Phase F0 spec for this marathon: `/Users/marc/Projects/HealthLog/.planning/v1420-marathon-handoff.md`.
 
 Reserved next strategic milestones:
 
-- **v1.4.20** — Insights redesign with AI Coach (research-driven, after
-  v1.4.19; design handoff at
-  `~/Downloads/design_handoff_insights_redesign`).
-- **v1.5** — iOS app + Apple Health integration.
+- **v1.5** — iOS app + Apple Health integration (handoff at
+  `~/Projects/healthlog-iOS`).
+- **v1.6+** — Auto-correlation discovery (FDR-controlled), Coach
+  full-page route, conversation-driven goal setting.
+
+---
+
+## Previous milestone — v1.4.19 (completed 2026-05-10T12:39:59Z)
+
+| Phase | Goal                                                                                                                                                 | State |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| 0     | Bootstrap — STATE+ROADMAP for v1.4.19                                                                                                                | done  |
+| A1    | BD-Zielbereich constant 50% (4th attempt) — live-DB root-cause + integration test                                                                    | done  |
+| A2    | Charts mobile audit — universal X-tick density helper, mobile-first stacked headers across HealthChart / MoodChart / MedicationComplianceChart        | done  |
+| A3    | `/insights` polish — Comparison-toggle relocated, single page-level refresh, BP/Weight tile strip removed, raw-token leak guarded                    | done  |
+| A4    | AI prompt — GROUND RULE 7 forbids default-positivity opener, PROMPT_VERSION 4.16.1 → 4.19.0                                                          | done  |
+| A5    | Settings/Integrations status-UI — `<IntegrationStatusPill>` consolidates Withings + Mood Log, divider parity, locale-aware relative-time             | done  |
+| A6    | Settings mobile audit — input heights equalised at 36 px, action buttons standardised, Sprache select hoisted to its own row                         | done  |
+| A7    | Admin polish — feedback tab strip scrollbar, api-tokens 4th-attempt truncate+tooltip, Einklappen toggle removed, Zielwerte i18n                       | done  |
+| A8    | Quality-of-life audit — 78 findings prioritised CRITICAL / HIGH / MED / LOW                                                                          | done  |
+| B     | Apply A8 — 6/6 CRITICAL + 21/25 HIGH inline; 31 MED + 16 LOW carried to v1.4.20 backlog                                                              | done  |
+| D     | Multi-agent QA (5 reviewers) + Product-Lead → v1.5 redesign plan filed                                                                               | done  |
+| E1-E3 | Release v1.4.19 — tag, GHCR build green, host-side retag deploy via fallback (Coolify deploy hung, retried via SSH), GH release, docs+landing sync   | done  |
+
+Milestone completed 2026-05-10T12:39:59Z — v1.4.19 LIVE in prod.
+Release brief: `docs/audit/v1419-summary.md`. Backlog seeded to
+`.planning/v1420-backlog.md` (carry-over) and v1.5 strategic items in
+`.planning/v15-backlog.md` + `.planning/phase-D-v1419-product-lead-review.md`.
 
 ---
 

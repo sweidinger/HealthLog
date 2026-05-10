@@ -1,92 +1,41 @@
-# Phase E3 — Docs + Landing sync (v1.4.18)
+# Phase E3 — docs + landing sync (v1.4.19)
 
-Status: complete · 2 commits on healthlog-docs, 1 commit on
-healthlog-landing, both pushed to origin/main.
+Status: ok / 2026-05-09. One commit per repo on origin/main.
 
-## healthlog-docs
+## healthlog-docs (commit `6e8840e`)
 
-Two commits on `origin/main`:
+Single commit `chore(release): document v1.4.19 highlights`. Six
+files touched, all pre-existing pages — no new pages in v1.4.19:
 
-- `6688c81 chore(release): document v1.4.18 highlights` — six
-  existing pages refreshed.
-- `e5a58bc feat(achievements): hidden achievements page` — new
-  long-form page plus its sidebar entry in `astro.config.mjs`.
+- `self-hosting/updates.mdx` + `self-hosting/scaling.mdx` — three
+  docker image tags bumped 1.4.18 -> 1.4.19 (single-container,
+  app-web, app-worker).
+- `configuration/admin-settings.mdx` — api-tokens row in the admin
+  console table notes the v1.4.19 desktop-table no-scrollbar fix
+  (truncate-with-tooltip + `table-fixed` colgroup widths).
+- `features/integrations.mdx` — "Connection Status" retitled
+  "v1.4.15+, consolidated in v1.4.19", explains the new single
+  status pill + Withings / Mood Log divider parity; redundant
+  banner trio + bottom-of-card "letzter Sync" line gone.
+- `features/dashboard-customization.mdx` — BD-Zielbereich tile gets
+  a sentence on the v1.4.19 fix (`allTime` window via
+  `computeBpInTargetWindows()`); new "Mobile chart layout (refined
+  in v1.4.19)" subsection covers the mobile-first header stack +
+  `useViewportWidth` hook + tick-density helper (4/6/8/10 caps).
+- `features/ai-insights.mdx` — new "Prompt Tone (v1.4.19)" section
+  on GROUND RULE 7 + PROMPT_VERSION 4.19.0.
 
-Pages touched in commit `6688c81`:
+No standalone "current version" surface or roadmap section in the
+docs site, so no v1.4.20 teaser added.
 
-1. `features/dashboard-customization.mdx` — rewrote the
-   "Apple-Health-style chart polish" block. Gradient fills are gone,
-   the mood chart shows plain dots instead of emoji glyphs (the emoji
-   still appears in the tooltip), and a new "Per-chart overlay toggles
-   (v1.4.18+)" subsection documents the cog menu with the three
-   switches (trend / trend arrow / target range), defaults-off
-   behaviour, and per-chart-per-user persistence on
-   `User.dashboardWidgetsJson.chartOverlayPrefs`.
-2. `features/gamification.mdx` — bumped roster from 38 → 59,
-   re-cut the category list (medication / vitals / mood / engagement
-   / security / bug / hidden), called out the v1.4.18 discovery filter
-   that hides locked badges for metrics with no data, and pointed at
-   the new hidden-achievements page.
-3. `dashboard/comparison.mdx` — dropped the "gradient fill" phrasing
-   from the prior-period-line description so the page is consistent
-   with the new clean-line aesthetic.
-4. `configuration/admin-settings.mdx` — annotated the API tokens
-   section row with "(mobile layout fixed in v1.4.18)".
-5. `self-hosting/scaling.mdx` — bumped the
-   `ghcr.io/mbombeck/healthlog:` example tags from `1.4.16` to
-   `1.4.18`.
-6. `self-hosting/updates.mdx` — same image tag bump for the pinning
-   example, and the rollback example refreshed `1.4.15` → `1.4.17`
-   so it points at the immediately-previous release.
+## healthlog-landing (commit `dd5892f`)
 
-New page in commit `e5a58bc`:
+Single one-line commit bumping `softwareVersion` in JSON-LD from
+`1.4.18` to `1.4.19`. Feature copy untouched per brief — v1.4.20
+will overhaul the page itself.
 
-- `features/achievements-hidden.mdx` — acknowledges the hidden
-  Easter-egg achievements without spoiling the triggers, lists the
-  six categories the Achievements page groups by (streaks /
-  milestones / consistency / improvement / discovery / hidden),
-  explains the DOM-level redaction model (the page never reads the
-  real strings for `hiddenLocked: true`), and notes the v1.4.19
-  follow-up for the `messages/{en,de}.json` bundle leak. Wired into
-  the Features section of the sidebar via `astro.config.mjs`.
+## Constraints honoured
 
-The v1.4.16 "AI Insights — How It Works" page (`insights/how-it-works.mdx`)
-was reviewed for chart-gradient or smiley-glyph mentions; it has none,
-so no edit was needed there.
-
-Verification: `npm run build` — 45 pages built, 0 warnings, the new
-`/features/achievements-hidden/index.html` renders, pagefind search
-index covers it.
-
-## healthlog-landing
-
-One commit `ed638db chore(release): v1.4.18 version label + cleaner
-chart phrasing` on `origin/main`.
-
-- `softwareVersion` in the JSON-LD `SoftwareApplication` block
-  (`src/app/layout.tsx`) bumped from `1.4.16` to `1.4.18`.
-- The featureList line "Apple-Health-quality charts with gradient
-  fills, smooth animation, personal 90-day baseline, rich tooltips,
-  and explicit empty states" rewritten to reflect the v1.4.18
-  aesthetic — "Clean-line health charts with smooth animation, rich
-  tooltips, and explicit empty states — plus per-chart toggles for
-  trend indicator, trend arrow, and target-range overlay".
-- Two capability badges in `src/app/page.tsx` updated:
-  "Apple-Health-quality charts" → "Clean-line charts with per-chart
-  overlays"; "30+ Achievements" →
-  "59 Achievements (plus a few hidden ones)".
-
-Verification: `pnpm build` — Next.js static export green, single
-`/` page prerendered as expected.
-
-## Push status
-
-- `healthlog-docs`: `2a5802b..e5a58bc  main -> main`
-- `healthlog-landing`: `3d17207..ed638db  main -> main`
-
-No `--no-verify` / `--no-gpg-sign` flags used; neither repo has
-pre-commit hooks configured today, so nothing was bypassed.
-Co-Author trailer (`Claude Opus 4.7 (1M context)`) present on all
-three commits. The HealthLog main repo, the iOS app, and the
-`-audit-fixes` worktrees were not touched, per the brief's
-constraints.
+English, Marc's voice, no AI / agent / marathon / phase mention. No
+`--no-verify`, no `--no-gpg-sign`. Co-Author trailer present on
+both commits. Main HealthLog repo untouched.

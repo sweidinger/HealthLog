@@ -1,495 +1,165 @@
-# v1.4.19 marathon — state log
+# v1.4.20 marathon — state log
 
-Status: finished
-Last update: 2026-05-10T14:45+02:00
+Status: in flight
+Last update: 2026-05-10T15:00+02:00
 
-> Previous milestone: v1.4.18 live (image digest
-> `sha256:c636fca7db66…`, `/api/version=1.4.18`).
-> Next strategic milestone: v1.4.20 = Insights redesign with AI Coach
+> Previous milestone: v1.4.19 live (image digest
+> `sha256:b48f93874cdb…`, `/api/version=1.4.19`).
+> v1.4.20 = Insights redesign with AI Coach
 > (handoff at `~/Downloads/design_handoff_insights_redesign`).
 > v1.5 reserved for iOS app + Apple Health integration.
 
-## Phase 0 — Bootstrap
+## Foundation — pre-flight before any feature work
 
-- [x] STATE+ROADMAP rewritten for v1.4.19
-- [x] git status clean
-- Result: ok / commit `<sha>`
-- Detailed report: `.planning/phase-0-report.md`
+Per `.planning/v1420-marathon-handoff.md`, F1–F6 must complete before
+B1 dispatches.
 
-## Wave A — Bug fixes + polish (parallel buckets)
+### F0 — Commit dangling v1.4.19 reports + bootstrap v1.4.20 scaffold
 
-### A1 — BD-Zielbereich constant 50% (4th attempt) ✅
+- [x] Commit phase-E1-report.md + phase-E3-report.md v1.4.19 updates
+- [x] STATE.md replaced with v1.4.20 scaffold; v1.4.19 archived to ROADMAP.md
+- [x] ROADMAP.md updated with v1.4.20 milestone + previous-milestone archive
 
-- [x] Live-DB audit of Marc's BP measurements (apps-01,
-      `db-pg8wggwogo8c4gc4ks0kk4ss-105148113251`): 572 paired
-      readings since 2022, last-30d = 50 %, last-7d = 50 %, all-time
-      ≈ 10.8 %. Confirmed the headline 50 % cannot be the all-time
-      value; it must be a copy of `30T`.
-- [x] Root cause: `analytics/route.ts` set
-      `bpInTargetPct = windows.last30Days?.pct` — literal copy of the
-      `30T` sub-value. `computeBpInTargetWindows` returned only 7d+30d
-      so the headline could never legitimately differ.
-- [x] Fix: helper returns a third `allTime` window; route fetches all
-      paired BP rows and routes the headline through `allTime`.
-- [x] TDD: 3 failing unit cases + 1 integration case red→green.
-- [x] `pnpm test`: 1640 / 1645 (5 pre-existing A3 failures unchanged).
-- [x] `pnpm test:integration`: 67 / 67.
-- [x] `pnpm typecheck`: clean. `pnpm lint`: 12 baseline 0 new.
-- [x] Commit `a856272` pushed to origin/main first attempt.
-- Detailed report: `.planning/phase-A1-report.md`
+### F1 — Branch model: long-lived `develop`
 
-### A2 — Charts mobile audit (axis-label overflow + X-axis density consistency) ✅
+- [ ] Create `develop` from current `main` HEAD
+- [ ] Push `develop` to origin
+- [ ] Verify GHCR workflow only fires on `main` push + `v*` tag
+- [ ] Set `develop` as default work-target for all v1.4.20 commits
+- Detailed report: `.planning/phase-F1-report.md`
 
-- [x] Playwright headless against live PROD at Pixel 5, iPhone 12,
-      iPhone SE, Galaxy Fold compact (280 px) — probe at
-      `.planning/v1419-a2-prod-probe.mjs`, screenshots + JSON in
-      `/tmp/v1419-a2-prod/`. Findings doc:
-      `.planning/phase-A2-mobile-findings.md`.
-- [x] Pre-fix readings: Blood Pressure / Pulse / Mood / Medications
-      cards all wrapped tabs to a 2nd row on iPhone 12 (header 92 →
-      188 px); fold-compact pushed Medications to 3 rows + horizontal
-      overflow.
-- [x] Header layout fix — mobile-first stack (`flex-col` below sm,
-      `flex-row` ≥ sm). Title + chips on row 1, range tabs + cog
-      right-aligned on row 2 with `flex-nowrap` + `px-2 sm:px-3` so
-      tabs always own a single row at 280 px. Bucket-aggregation chip
-      and comparison captions hide on mobile (`hidden sm:inline-flex`).
-      Applied to HealthChart, MoodChart, MedicationComplianceChart.
-- [x] Universal x-axis tick-density helper at
-      `src/lib/charts/x-axis-density.ts` + reactive viewport hook at
-      `src/hooks/use-viewport-width.ts`. Caps visible ticks at 4
-      (Fold) / 6 (Pixel-5 / iPhone-12) / 8 (small tablet) / 10
-      (desktop). Wired into HealthChart, MoodChart,
-      MedicationComplianceChart, ComplianceLineChart. Scatter
-      correlation chart deliberately left alone (numeric x-axis with
-      explicit `ticks` array).
-- [x] e2e regression at `e2e/charts-mobile.spec.ts` — runs only on
-      `chromium-mobile`; asserts 1 row of tabs per card + ≤ 7 visible
-      ticks per axis. Helper unit tests at
-      `src/lib/charts/__tests__/x-axis-density.test.ts` (13 cases).
-- [x] `pnpm test`: 1637 / 1637 green. `pnpm lint`: 0 errors / 17
-      warnings (12 baseline + 5 from concurrent A3 work, none from A2).
-      `pnpm typecheck`: A2 surface clean (one A3-owned error in
-      `src/app/insights/page.tsx` unrelated to A2).
-- [x] Two commits on origin/main: `77a3ad3` (fix), `a739085` (test).
-      Note: parallel-agent race condition during the second commit
-      caused a polluted intermediate commit `0cf23f3` to slip through
-      with the wrong file content but the right message; the same
-      content (mine) was re-committed cleanly as `a739085` immediately
-      after. `0cf23f3` was already pushed by another agent before the
-      cleanup rebase could land, so it remains in history with a
-      stale `phase-A5-report.md` payload — non-destructive but ugly.
-      No `--no-verify` / `--no-gpg-sign` used.
-- Detailed report: `.planning/phase-A2-report.md`
+### F2 — Document branch + release model
 
-### A3 — /insights polish + Comparison switch move ✅
+- [ ] Extend `CONTRIBUTING.md` with branch flow + ASCII/Mermaid diagram
+- [ ] Mirror page on healthlog-docs (developer / contributor docs)
+- [ ] Make user-vs-contributor distinction explicit
+- Detailed report: `.planning/phase-F2-report.md`
 
-- [x] Remove Comparison-toggle from Dashboard (effectively landed via
-      A4's `b5e9a95` sweep — concurrent edits raced the working tree;
-      the dashboard import + JSX use are both gone in `origin/main`).
-- [x] Re-position Comparison-toggle on /insights — folded into the
-      hero meta band via new `metaSlot` prop on `<InsightsPageHero>`.
-      Commit `60a91af`.
-- [x] Consolidate refresh-buttons — `onRegenerate` no longer wired
-      from page → advisor card. The hero owns the single page-level
-      affordance; the per-recommendation Regenerate button (per
-      v1.4.16 spec) stays. Commit `98a3d10`.
-- [x] "Persönlicher AI Berater" placeholder subtitle removed —
-      `aiOverviewTitle` no longer passed to `<InsightAdvisorCard>`,
-      title prop made optional. Same commit `98a3d10`.
-- [x] Small BP/Weight tile strip removed (`-157` lines on
-      `src/app/insights/page.tsx` plus dead helpers). Commit
-      `335f288`.
-- [x] Raw "metric: blood_pressure_sweet" leak fixed — `STRIP_TOKEN_REGEX`
-      widened to `[A-Za-z0-9_]+`; `PARSE_TOKEN_REGEX` stays uppercase
-      (render allowlist unchanged). Commit `fa91a73`.
-- [x] Tests: 9-case `src/app/__tests__/insights-polish.test.ts` pinning
-      every guard. Commits `5360d3c` (msg) + `f2b21a4` (file). 1646 /
-      1646 green; lint + typecheck clean on touched files.
-- Detailed report: `.planning/phase-A3-report.md`
+### F3 — Repo-cleanup audit (jargon sweep)
 
-### A4 — AI prompt anpassen (no "Datengrundlage stark" as default first sentence)
+- [ ] Multi-agent sweep: `CHANGELOG.md`, `docs/audit/`, `docs/`,
+      `README.md`, healthlog-docs, healthlog-landing
+- [ ] Replace internal jargon (Phase X / Wave Y / marathon /
+      sub-agent / autonomous orchestrator / Claude name) with neutral
+      language
+- [ ] Keep Co-Author trailer on commits (git-meta only)
+- [ ] No git history rewrite — only edit current file state
+- Detailed report: `.planning/phase-F3-report.md`
 
-- [ ] Edit `src/lib/ai/prompts/insight-generator.ts`
-- [ ] Remove the auto-positive-first-sentence about data quality
-- [ ] Only mention data quality when low (helpful: "based on limited
-      data, treat with caution") not when fine
-- [ ] Update tests
-- Detailed report: `.planning/phase-A4-report.md`
+### F4 — Release-notes language audit (German leaks)
 
-### A5 — Settings/Integrations status-UI consolidation (Withings + Mood Log)
+- [ ] Audit `CHANGELOG.md` v1.4.14–v1.4.19 + GitHub releases + future
+      docs/audit/v*-summary.md
+- [ ] Translate German leaks to English
+- Detailed report: `.planning/phase-F4-report.md`
 
-- [ ] Single tag top-right per integration: "verbunden · vor X min"
-- [ ] Remove redundant container with "verbunden / letzte
-      erfolgreiche / letzter Versuch" / bottom "letzter Sync" — pick
-      ONE place
-- [ ] Mood Log container missing visual divider → add (consistency
-      with Withings)
-- [ ] Mobile-safe: tag wraps gracefully on Pixel 5
-- Detailed report: `.planning/phase-A5-report.md`
+### F5 — Best-practice GitHub repo audit
 
-### A6 — Settings mobile audit + consistency
+- [ ] 2 parallel agents survey repo structure
+- [ ] Compare to OSS best-practice (README, LICENSE, CONTRIBUTING,
+      CODE_OF_CONDUCT, SECURITY, .github/ISSUE_TEMPLATE,
+      PULL_REQUEST_TEMPLATE, badges)
+- [ ] Output prioritized list; apply CRITICAL + HIGH inline; defer
+      rest to v1.4.21
+- Detailed report: `.planning/phase-F5-report.md`
 
-- [ ] Playwright headless audit `/settings/account`,
-      `/settings/profile`, `/settings/integrations`,
-      `/settings/notifications`, `/settings/ai`,
-      `/settings/dashboard`, `/settings/export`
-- [ ] Equalize input heights (Username/Email/Geburtsdatum)
-- [ ] Sprache-Menü positioning consistent
-- [ ] Right-side action buttons (Passwort Reset, Tool Neustarten)
-      consistent vertical position
-- [ ] Spacing between elements consistent
-- Detailed report: `.planning/phase-A6-report.md`
+### F6 — Multi-agent QA on new docs
 
-### A7 — Admin polish (Feedback, api-tokens 4th attempt, Zielwerte, i18n)
+- [ ] After F2 lands: separate agents read dev-vs-prod docs
+- [ ] Verify they describe actual deployed state — no incorrect claims
+- [ ] Flag and fix anything inaccurate before tag
+- Detailed report: `.planning/phase-F6-report.md`
 
-- [x] Admin Feedback "offen/bestätigt/erledigt/archiviert" tabs
-      mini-scrollbar removed (tabsListVariants now carries
-      `overflow-y-hidden`; commit `088832a`)
-- [x] `/admin/api-tokens` scrollbar 4th attempt: truncate-with-
-      tooltip pattern on token-name, username, permission badge;
-      `table-fixed` + colgroup widths on desktop table; e2e
-      regression walks every element inside the mobile card-list
-      (commit `dd8212e`)
-- [x] `/admin/api-tokens` "Einklappen" button removed (commit
-      `7a70db6`)
-- [x] Admin Zielwerte page: `space-y-8` → `space-y-6` on outer
-      wrapper (commit `6507646`)
-- [x] Translate Zielwerte status labels: 11 `targets.label.<TYPE>`
-      entries + 41 `targets.status.<key>` entries in EN + DE; page
-      uses `STATUS_CATEGORY_KEY` map to normalise server strings
-      (commit `90a109d`)
-- Result: ok / 5 commits on origin/main, 1658 tests green
-- Detailed report: `.planning/phase-A7-report.md`
+## Wave B — Insights redesign with AI Coach (sequential)
 
-### Status block — A7 (v1.4.19)
+Per `.planning/phase-D-v1419-product-lead-review.md`. Each phase
+ships behind a feature flag and unlocks independently.
 
-- 2026-05-09T13:22+02:00 — A7 complete. Five atomic commits
-  (`088832a` feedback tab strip, `dd8212e` api-tokens 4th-attempt
-  truncate+tooltip, `7a70db6` Einklappen removal, `6507646`
-  Zielwerte whitespace, `90a109d` Zielwerte i18n) on origin/main
-  via worktree `/Users/marc/Projects/HealthLog-a7`. Rebased once
-  onto `ef67da5` (A3 report) before push, no rebase conflicts. All
-  pre-commit hooks green; pnpm test = 1658/1658, pnpm typecheck
-  clean, pnpm lint baseline (0 errors / 12 pre-existing warnings).
-  Touched only A7 surfaces: `src/components/ui/tabs.tsx` (shared
-  primitive — feedback strip is one consumer), feedback section
-  un-touched directly, `src/components/admin/api-token-overview-section.tsx`,
-  `src/app/targets/page.tsx`, messages/{en,de}.json, i18n integrity
-  test allowlist. Did NOT touch `src/components/settings/*`,
-  `src/lib/insights/*`, `src/lib/ai/*`, `src/components/charts/*`,
-  `src/components/insights/*`. No new dependencies.
+### B1 — Hero strip + Daily Briefing + Suggested-prompts (~3-5 days)
 
-### A8 — Quality-of-life audit (write-only, fix-set deferred to inline B agent)
+- [ ] Replace `<InsightsPageHero>` with new hero strip (greeting,
+      3 micro-stat tiles, AI Coach entry block, Daily Briefing card)
+- [ ] New `src/components/insights/{hero-strip,daily-briefing,
+      suggested-prompts}.tsx`
+- [ ] Extend `aiInsightResponseSchema` with `dailyBriefing`
+      (`paragraph`, `keyFindings[]`)
+- [ ] PROMPT_VERSION bump 4.19.0 → 4.20.0
+- [ ] Apple Health gated tiles render "Connect Apple Health (iOS app)"
+      placeholder until v1.5 ships
+- Detailed report: `.planning/phase-B1-report.md`
 
-- [ ] Audit descriptions correctness across all pages
-- [ ] Find redundancies + missing labels
-- [ ] Find UI inconsistencies (text styling, spacing, button
-      alignment)
-- [ ] Output prioritized list for inline fixing
-- Detailed report: `.planning/phase-A8-quality-findings.md`
+### B2 — AI Coach panel + streaming chat + persistence (~5-7 days)
 
-## Wave B — Apply A8 findings ✅
+- [ ] Drawer overlay over `/insights`; full-page route deferred to v1.5
+- [ ] New `POST /api/insights/chat` SSE-streaming endpoint
+- [ ] New `src/components/insights/coach-panel/*`
+- [ ] New Prisma `CoachConversation` + `CoachMessage` (encrypted
+      content, GDPR cascade)
+- [ ] Source-chip rows on every assistant message (provenance)
+- [ ] Token-budget cap + 20-turn conversation cap
+- [ ] Prompt-injection refusal pattern (extend v1.4.15 C1)
+- Detailed report: `.planning/phase-B2-report.md`
 
-- [x] 6 / 6 CRITICAL fixed: F-01 (time-window locale), F-02
-      (login-overview filter), F-03 (insulting badges), F-04
-      (date-input lang), F-05 (sidebar copy), F-06 (legacy CTA
-      verb)
-- [x] 21 / 25 HIGH fixed: F-07, F-08 (partial), F-09, F-10,
-      F-11, F-13, F-15, F-16, F-17, F-18, F-19, F-20, F-21,
-      F-22, F-24, F-25, F-27, F-28, F-29, F-30, F-31. F-12,
-      F-14, F-23, F-26 deferred (3 not-an-issue / overlap with
-      Wave A, 1 owned by v1.4.20 Insights redesign).
-- [x] 31 MED + 16 LOW deferred to `.planning/v1420-backlog.md`
-- [x] `pnpm typecheck` clean, `pnpm lint` 12 baseline warnings
-      / 0 new, `pnpm test --run` 1669/1669, `pnpm test:integration`
-      67/67. Format-check shows pre-existing `.planning/*` +
-      `docs/audit/*` warnings only.
-- 16 atomic commits on origin/main, no `--no-verify` / no
-  `--no-gpg-sign`, pre-commit hooks green on every push.
-- Detailed report: `.planning/phase-B-quality-report.md`
+### B3 — Correlation discovery + Trends row with AI annotations (~3-5 days)
+
+- [ ] 3 pre-defined hypotheses: BP×compliance, mood×pulse,
+      weight×weekday
+- [ ] New `src/lib/insights/correlations.ts`
+- [ ] New `src/components/insights/{correlation-card,trends-row,
+      trend-annotation}.tsx`
+- [ ] Confidence ≥ 0.95, n ≥ 14, conservative phrasing
+- Detailed report: `.planning/phase-B3-report.md`
+
+### B4 — Weekly Report + Storyboard + Mobile passes (~3-4 days)
+
+- [ ] New `/insights/report/[week]` route + `window.print()` export
+- [ ] Storyboard 90-day BP timeline with annotations[]
+- [ ] Mobile passes: B1 + B2 mobile equivalents (drawer →
+      full-screen sheet)
+- Detailed report: `.planning/phase-B4-report.md`
+
+### B5 — Personal AI Coach Health Score (~2-3 days)
+
+- [ ] Composite Health Score (0-100): 30% BP-target + 20%
+      weight-trend + 20% mood-stability + 30% compliance
+- [ ] Three bands (≥75 green, 50–74 yellow, <50 red)
+- [ ] "Ask the Coach" CTA opens B2 drawer with prefilled prompt
+- Detailed report: `.planning/phase-B5-report.md`
 
 ## Wave D — Multi-agent QA + Product-Lead review
 
-- [x] code-reviewer (1 CRIT + 5 HIGH + 12 MED/LOW)
-- [x] security review (0 CRIT, 0 HIGH, 3 MED/LOW)
-- [x] design / UX review (0 CRIT, 2 HIGH, 8 MED/LOW)
-- [x] senior-dev review (0 CRIT, 3 HIGH, 13 MED/LOW)
-- [x] simplify (5 apply-yes, 2 apply-no)
-- [x] Product Lead — v1.4.20 redesign plan filed at
-      `phase-D-v1419-product-lead-review.md`
-- [x] Reconcile applied CRITICAL + 7/10 HIGH + all 5 simplify-yes; 3
-      HIGH deferred to `.planning/v1420-backlog.md` under "Phase D —
-      v1.4.19 reconcile carry-over". Strategic items pulled into
-      `.planning/v15-backlog.md`. 1672/1672 unit + 67/67 integration
-      green; typecheck clean; lint baseline (0 errors / 12
-      pre-existing warnings).
-- Detailed report: `.planning/phase-D-reconcile-report.md`
+- [ ] code-reviewer
+- [ ] security review
+- [ ] design / UX review
+- [ ] senior-dev review
+- [ ] simplify
+- [ ] Product Lead — v1.5 redesign plan
+- [ ] Reconcile applied CRITICAL + HIGH; defer MED/LOW to v1.4.21
+- Detailed report: `.planning/phase-D-v1420-reconcile-report.md`
 
-### Status block — D (v1.4.19)
+## Phase E — Release v1.4.20
 
-- 2026-05-09T14:30+02:00 — Phase D reconcile complete. Six atomic
-  commits on origin/main: `ef74241` (CRITICAL C-01 mobile Sys/Dia
-  badge enum mismatch + TDD guard), `6b35cad` (5 simplify-yes:
-  useAuthActionLabels hook, IntegrationStatusPill chipClass dead
-  branches, DateInput/DateTimeInput wrappers ×14 callsites,
-  icon-wrapper cleanup ×3, narration-comment strip), `1258b24`
-  (HIGH H-01 token-name UTC→Berlin), `5a8ad3d` (HIGH H-02
-  useViewportWidth setState removal), `977f124` (HIGH H-04 tabs
-  ring clip), `1f0d9ad` (prettier on danger-zone-section).
-  Simplify F3 + F4 also resolved senior-dev H-1 + code-review
-  H-03 transitively. Three HIGH deferred to
-  `.planning/v1420-backlog.md`: D-CR-H-05 (insights `data?.`
-  narrowing — large refactor), D-DSGN-H-01 (api-tokens touch
-  tooltip — needs Popover swap), D-DSGN-H-02 (insights hero
-  density — folded into v1.4.20 redesign), D-SR-H-3 (Withings/
-  MoodLog card chrome dedup — v1.5 Apple Health prep). Strategic
-  items from product-lead-review pulled into
-  `.planning/v15-backlog.md`. No `--no-verify` / no
-  `--no-gpg-sign`. Final verification: pnpm typecheck clean,
-  pnpm lint 0 errors / 12 baseline warnings (no new), pnpm test
-  --run 1672/1672, pnpm test:integration 67/67.
-
-## Phase E — Release v1.4.19
-
-- [ ] Pre-release verify
+- [ ] Pre-release verify (typecheck, lint, test, integration,
+      format, build)
 - [ ] Bump package.json + CHANGELOG
-- [ ] Tag + push v1.4.19
+- [ ] Merge develop → main (release-merge only)
+- [ ] Tag + push v1.4.20
 - [ ] GHCR build green
 - [ ] Coolify deploy
-- [ ] /api/version=1.4.19 confirmed
+- [ ] /api/version=1.4.20 confirmed
 - [ ] Production smoke
 - [ ] GH release
 - [ ] Docs site + landing site sync
-- [ ] `docs/audit/v1419-summary.md` (Marc-Brief)
-- Detailed report: `.planning/phase-E-report.md`
+- [ ] `docs/audit/v1420-summary.md` (release brief)
+- [ ] Update v1.5 plan based on what v1.4.20 learned
 
 ---
 
-## Status block — Phase 0 (v1.4.19)
+## Status block — F0 (v1.4.20)
 
-- 2026-05-10T12:48+02:00 — Phase 0 complete. STATE.md + ROADMAP.md
-  scaffolded for v1.4.19 marathon (Wave A: A1 BD-Zielbereich constant
-  50% 4th attempt, A2 charts mobile audit + universal X-tick-density
-  helper, A3 `/insights` polish + Comparison-toggle relocation, A4
-  AI-prompt rework, A5 Settings/Integrations status-UI consolidation,
-  A6 Settings mobile audit, A7 Admin polish, A8 quality-of-life
-  write-only audit; Wave B applies A8 findings; Wave D multi-agent QA
-  - Product-Lead briefed for v1.4.20 Insights redesign + AI Coach;
-    Phase E release). Previous v1.4.18 / v1.4.17 / v1.4.16 entries
-    archived above. Tracked tree clean on entry; four untracked stale
-    dotted-segment route directories
-    (`src/app/api/export/{full-backup.json,measurements.csv,
-medications.csv,mood.csv}/`) left in place — same call as v1.4.16 /
-    v1.4.18 Phase 0, they belong to previous milestones. Phase 0 commit
-    contains only `.planning/STATE.md`, `.planning/ROADMAP.md`,
-    `.planning/phase-0-report.md`. v1.4.20 reserved for Insights
-    redesign with AI Coach (handoff at
-    `~/Downloads/design_handoff_insights_redesign`); v1.5 reserved for
-    iOS app + Apple Health.
-
-- 2026-05-10T12:59+02:00 — Wave A / A4 complete. Removed the
-  default-positivity opener about data quality from the AI insights
-  system prompt. Added GROUND RULE 7 in both EN + DE locales of
-  `src/lib/ai/prompts/insight-generator.ts` forbidding "Your data
-  foundation is strong" / "Datengrundlage ist sehr stark" style
-  openers; data-quality caveats now allowed only when n<7 in the
-  analyzed window, recencyDays>14, or a coverage gap biases the
-  comparison. PROMPT_VERSION bumped 4.16.1 → 4.19.0 so feedback
-  aggregation can attribute responses to the new rule. New test file
-  `src/lib/ai/__tests__/no-default-positivity-opener.test.ts` (9
-  tests, all green) pins the rule + thresholds + banned phrases in
-  both locales. Existing PROMPT_VERSION assertions in
-  `medical-reference-prompt.test.ts` relaxed from `/4\.16\.\d+/` to
-  `/4\.\d+\.\d+/`. Single commit `b5e9a95` on `origin/main`. Smoke
-  verification deferred to post-deploy (cached payloads carry the
-  old PROMPT_VERSION; the row's `promptVersion` distinguishes
-  pre/post 4.19.0). Detailed report:
-  `.planning/phase-A4-report.md`. Cross-agent race: pre-commit hook
-  bundled A3's `src/app/page.tsx` edits into my commit — same
-  shared-cwd race documented across earlier marathons; A3's edits
-  are correct on `origin/main`.
-
-- 2026-05-10T13:05+02:00 — Wave A / A5 complete. Settings →
-  Integrations status UI consolidated. New
-  `<IntegrationStatusPill>` (`src/components/settings/integration-status-pill.tsx`)
-  is the single canonical surface — Dracula-tokenized chip top-right
-  of every integration card, "Connected · 12 min ago" pattern with
-  locale-aware relative-time bucketing (`just now` / `min` / `h` /
-  `d`), three states (`connected` / `error` / `disconnected`),
-  mobile-safe `whitespace-nowrap`. Withings + Mood Log cards
-  refactored: redundant v1.4.15 status banner ("connected / last
-  successful / last attempt" trio) is gone, Mood Log's bottom-of-
-  card "letzter Sync" line is gone, both cards now show a `<hr>`
-  visual divider between header and body for consistency (Marc
-  flagged the asymmetry). Actionable error text preserved as a
-  compact inline alert above the action row when a sync attempt
-  failed. New i18n keys under `settings.integrationPill.*` (EN +
-  DE). Three commits: `ba0d6b8` (pill component + i18n + 6 vitest
-  tests), `0dcc91a` (refactor + 5 section vitest tests), `47a8fc7`
-  (Pixel-5 e2e spec). Tests: 1646/1646 vitest pass; e2e spec added
-  but not run in this session. Reusable for v1.4.20 Apple Health
-  card on iOS. Detailed report: `.planning/phase-A5-report.md`.
-  Cross-agent race: commit `ba0d6b8` accidentally bundled A4's
-  `.planning/STATE.md` and `phase-A4-report.md` edits — same shared-
-  cwd race across earlier marathons, no information lost.
-
-- 2026-05-10T13:11+02:00 — Wave A / A6 complete. Settings mobile
-  consistency audited at Pixel-5 (393×851) against production with
-  Marc's session cookie; findings + raw geometry tables in
-  `.planning/phase-A6-settings-audit.md`. Five commits landed:
-  `957f8e9` equalises every form input height to 36 px (AI active-
-  provider select `h-10` -> `h-9`, AI add-provider select `h-8` ->
-  `h-9`, Dashboard "Compare to" trigger drops `min-h-11` so default
-  `h-9` applies); `9fda634` standardises action-button placement —
-  Account → Password, Account → Restart onboarding tour, and
-  Dashboard → Reset to defaults all stack the action below the title
-  on `<sm` (full-width) and right-align on `>=sm`, fixing the
-  Pixel-5 right-edge overflow Marc reported on the tour button (~48
-  px past the card border); `1075784` lifts the Sprache select out
-  of the dob/language pair into its own row at the bottom of the
-  Profile card, plus the duplicated native-select class string is
-  pulled into a shared `NATIVE_SELECT_CLASS` constant; `737b533`
-  uniformises card-internal `space-y` to `space-y-4` (Dashboard
-  layout `space-y-5` -> `space-y-4`, AI provider config forms
-  `space-y-3` -> `space-y-4`); `78f1f3f` adds
-  `e2e/settings-mobile-consistency.spec.ts` — Pixel-5-only Playwright
-  spec that locks in the five invariants (input heights, button-no-
-  overflow, language-not-paired-with-dob, Compare-to-36 px, AI
-  selects-36 px). All 1637 vitest tests + zero source typecheck
-  errors + zero lint errors after the marathon. Cross-agent race:
-  commit `737b533` bundled A5's `.planning/STATE.md` update; STATE
-  content correct, no semantic harm. Detailed report:
-  `.planning/phase-A6-report.md`. Files touched (only mine):
-  `src/components/settings/{account,ai,dashboard-layout}-section.tsx`,
-  `e2e/settings-mobile-consistency.spec.ts`,
-  `.planning/phase-A6-{settings-audit,report}.md`.
-
-- 2026-05-10T13:59+02:00 — Wave B / A8 application complete.
-  Applied 6 / 6 CRITICAL findings (F-01 through F-06) and 21
-  / 25 HIGH findings (4 deferred: F-12 already a11y-clean,
-  F-14 shipped via A5, F-23 already i18n'd in DE, F-26 owned
-  by v1.4.20 Insights redesign). 31 MED + 16 LOW carried over
-  to `.planning/v1420-backlog.md` for the strategic v1.4.20
-  pick-list. Sixteen atomic commits on origin/main: `180f46c`
-  (F-01 time-window locale), `dc75fe8` (F-02 login-overview
-  auth filter), `7a6bc81` (F-03 insulting achievement titles),
-  `ff6e184` (F-04 date-input lang attribute), `4feacad` (F-05
-  admin sidebar copy), `d263125` (F-06 legacy CTA verb),
-  `1ae9b9d` (F-09 + F-10 raw enum badges), `42b0f11` (F-11
-  role-change button label + aria-label), `1f4d6a2` (F-07
-  threshold naming), `3f6e670` (F-15 + F-19 + F-20 + F-21 +
-  F-22 + F-25 + F-27 + F-29 + F-30 i18n copy sweep), `70ebe32`
-  (F-08 partial — danger-zone + feedback dedupe), `98cd13c`
-  (F-24 + F-28 + F-52 achievements + admin/integrations
-  toggles), `876e074` (F-13 mobile sys/dia + F-16 telegram
-  badge collapse), `bc81fd7` (F-17 audit action labels + F-31
-  recent-activity row links), `713b494` (F-18 token name
-  ISO-suffix renderer), `ae2f671` (prettier on touched
-  files). Pre-commit hooks green on every push, no
-  `--no-verify` / no `--no-gpg-sign`. Final verification:
-  `pnpm typecheck` clean, `pnpm lint` 0 errors / 12 baseline
-  warnings, `pnpm test --run` 1669 / 1669 (up +11 from new
-  TDD cases: time-window-format 6, achievements-no-insults
-  4, login-overview-auth-filter 1), `pnpm test:integration`
-  67 / 67. Format-check shows 8 pre-existing
-  `.planning/*` + `docs/audit/*` files dirty (baseline noise
-  on `origin/main`, untouched). Detailed report:
-  `.planning/phase-B-quality-report.md`. Backlog:
-  `.planning/v1420-backlog.md`.
-
-- 2026-05-10T14:34+02:00 — Phase E1 complete. Pre-release
-  verify all green (`pnpm typecheck` clean, `pnpm lint` 0
-  errors / 12 baseline warnings, `pnpm test` 1672/1672,
-  `pnpm test:integration` 67/67, `pnpm format:check` only
-  pre-existing `.planning/*` + `docs/audit/*` baseline noise
-  dirty). CHANGELOG `## [1.4.19] — 2026-05-10` added with
-  Fixed (10 items incl. CRITICAL mobile Sys/Dia badge enum
-  mismatch) / Changed (6 items: status-pill consolidation,
-  Comparison overlay → /insights, single page refresh,
-  BP/Weight tile strip removal, AI prompt no-default-
-  positivity rule with PROMPT_VERSION 4.19.0, settings
-  consistency, Zielwerte DE labels) / Deferred to v1.4.20
-  sections. Marc's voice, no AI / agent / marathon mention.
-  package.json bumped 1.4.18 → 1.4.19. Single release
-  commit `89f00cf chore(release): v1.4.19` on origin/main
-  (Co-Author Claude Opus 4.7 trailer, no `--no-verify`,
-  no `--no-gpg-sign`, hooks green). Annotated tag v1.4.19
-  pushed. GHCR tag run **25628853202** queued at
-  2026-05-10T12:34Z; main parallel runs (e2e 25628852739,
-  Security & Quality 25628852734, Integration tests
-  25628852731, Build main 25628852729) also queued. Detailed
-  report: `.planning/phase-E1-report.md`. Phase E2 (GHCR
-  green wait, Coolify deploy, /api/version=1.4.19 confirm,
-  prod smoke, GH release, docs+landing sync, Marc-Brief)
-  follows.
-
----
-
-## Previous milestone — v1.4.18 (completed 2026-05-10T11:45+02:00)
-
-LIVE at https://healthlog.bombeck.io · `/api/version=1.4.18` · image
-digest `sha256:c636fca7db66…` (was v1.4.17: `sha256:936e9cf25b2d…`).
-Full Marc-Brief at `docs/audit/v1418-summary.md`. Backlog seeded to
-`.planning/v1419-backlog.md` (1 HIGH i18n bundle leak + MED/LOW) and
-`.planning/v15-backlog.md` / `.planning/phase-D-v1418-product-lead-review.md`
-(strategic).
-
-Phases run during v1.4.18 marathon:
-
-- Phase 0 — Bootstrap (STATE+ROADMAP for v1.4.18)
-- Wave A — A1 BD-Zielbereich tile sub-values, A2 admin-shell mobile
-  strip scrollbar, A3 chart visual revert + per-chart overlay
-  toggles
-- Wave B — B1 achievements expansion (38 → 59, +6 hidden, discovery
-  filter, opaque hidden cards)
-- Wave D — Multi-agent QA + reconcile (1 CRITICAL cleared, 8 of 10
-  HIGH fixed inline, 1 HIGH deferred to v1.4.19)
-- Phase E1-E3 — Release v1.4.18 (tag, GHCR both green, Coolify deploy
-  via force-pull, GH release, docs+landing sync, Marc-Brief)
-
----
-
-## Previous milestone — v1.4.17 hotfix (live 2026-05-10T07:58+00:00)
-
-`/insights` TypeError on legacy cached payload — `isLegacyInsightPayload()`
-flag + advisor card short-circuit + defensive `stripChartTokens` /
-`parseChartTokens`. Three commits: `79bfa27` (fix), `adab80a`
-(release), `da7070e` (prettier). Detailed report:
-`.planning/phase-v1417-hotfix-report.md`.
-
----
-
-## Previous milestone — v1.4.16 (completed 2026-05-10T04:05+02:00)
-
-Full report: `docs/audit/v1416-summary.md`. v1.5 backlog seeded at
-`.planning/v15-backlog.md`.
-
----
-
-## Phase E — Release v1.4.19 (deploy fallback 2026-05-10T12:39:59Z)
-
-Tag-build pipeline succeeded but the main-branch deploy hung and was
-canceled, so v1.4.19 was promoted via the host-side retag-on-host
-fallback path.
-
-- **Digest before:** `c636fca7db66479b3413a7df82117316c042641f9bc7c0fe7d6e2be6811dfcca`
-  (previous `:latest`).
-- **Digest after:** `b48f93874cdbcd6c2d729f1b8eeb63a6d1bbb90d56f629846ef6eab6cf272aa9`
-  (manifest digest of `ghcr.io/mbombeck/healthlog:1.4.19`, now also
-  carrying the `:latest` tag on apps-01). Local image ID inside the
-  running container: `sha256:f24f94cefd6502509ec0ca1e498fdefd46e853dda0660c1e5c2fd7f3f2fc19b8`.
-- **Procedure:** `docker pull ghcr.io/mbombeck/healthlog:1.4.19` →
-  `docker tag … :latest` → `docker compose up -d --force-recreate app`
-  inside `/data/coolify/applications/pg8wggwogo8c4gc4ks0kk4ss`.
-- **Version transition:** `/api/version` reported `1.4.19` at
-  **2026-05-10T12:39:59Z** (first poll after recreate; well inside the
-  5 min cap).
-- **Smoke (curl, session `cmox4d6fj000101p8w9ykhcnm`):**
-  `/` 200 · `/insights` 200 · `/admin/api-tokens` 200 ·
-  `/settings/integrations` 200 · `/achievements` 200 ·
-  `/dashboard` **404** (route does not exist in the source —
-  `src/app/dashboard/` is absent; not a regression). Treated as PASS.
-- **GH release:** <https://github.com/MBombeck/HealthLog/releases/tag/v1.4.19>
-  (created with `--verify-tag`, notes from `CHANGELOG.md`).
-- **No code changes.** Source tree untouched per fallback contract.
+- 2026-05-10T15:00+02:00 — F0 complete. Dangling v1.4.19 release
+  reports (`phase-E1-report.md` + `phase-E3-report.md`) committed,
+  STATE.md replaced with v1.4.20 scaffold (F1–F6 foundation +
+  B1–B5 Insights redesign + Wave D + Phase E), ROADMAP.md updated
+  to track v1.4.20 with v1.4.19 archived. Branch model unchanged
+  for this commit (still `main`); F1 will introduce `develop`.
