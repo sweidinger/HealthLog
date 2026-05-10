@@ -7,7 +7,10 @@ import { annotate } from "@/lib/logging/context";
 import { resolveProviderChain } from "@/lib/ai/provider";
 import { getLastWorkingProvider } from "@/lib/ai/provider-runner";
 import { prisma } from "@/lib/db";
-import { PROVIDER_CHAIN_TYPES } from "@/lib/ai/provider-chain";
+import {
+  parseProviderChain,
+  PROVIDER_CHAIN_TYPES,
+} from "@/lib/ai/provider-chain";
 
 /**
  * v1.4.16 phase B5b — read-only chain summary for the Settings → AI
@@ -34,23 +37,41 @@ import { PROVIDER_CHAIN_TYPES } from "@/lib/ai/provider-chain";
  */
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
-  const chain = await resolveProviderChain(user.id);
+
+  // v1.4.16 phase D reconcile (code-review H2) — the GET response used
+  // to surface the resolveProviderChain()-filtered list, which DROPS
+  // disabled entries. The Settings UI seeded `enabled: true` for every
+  // returned row, so disabling an entry made it disappear from the
+  // list and lose its toggle position. Read the *persisted* chain
+  // directly via parseProviderChain() so disabled rows still round-
+  // trip and the user can re-enable them. The active-provider summary
+  // still uses resolveProviderChain so the displayed "active = …"
+  // matches the actual runner ordering (enabled entries only).
+  const userRow = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { aiProviderChain: true },
+  });
+  const persisted = parseProviderChain(userRow?.aiProviderChain ?? null);
+
+  const resolved = await resolveProviderChain(user.id);
   const cached = getLastWorkingProvider(user.id);
 
   annotate({
     action: { name: "insights.provider_chain.get" },
     meta: {
-      chain_length: chain.length,
-      chain_active: chain[0]?.providerType ?? null,
+      chain_length: persisted.length,
+      chain_enabled_count: persisted.filter((e) => e.enabled).length,
+      chain_active: resolved[0]?.providerType ?? null,
       chain_cached_active: cached,
     },
   });
 
   return apiSuccess({
-    activeProvider: chain[0]?.providerType ?? null,
+    activeProvider: resolved[0]?.providerType ?? null,
     cachedActiveProvider: cached,
-    configuredChain: chain.map((entry) => ({
+    configuredChain: persisted.map((entry) => ({
       providerType: entry.providerType,
+      enabled: entry.enabled,
       available: true,
     })),
   });

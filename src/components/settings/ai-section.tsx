@@ -83,7 +83,11 @@ interface ChainEntry {
 interface ProviderChainData {
   activeProvider: ProviderType | null;
   cachedActiveProvider: ProviderType | null;
-  configuredChain: { providerType: ProviderType; available: boolean }[];
+  configuredChain: {
+    providerType: ProviderType;
+    enabled: boolean;
+    available: boolean;
+  }[];
 }
 
 const DEFAULT_CHAIN: readonly ChainEntry[] = [
@@ -1257,7 +1261,11 @@ function FallbackChainCard({
   selected,
   onSelect,
 }: {
-  chain: { providerType: ProviderType; available: boolean }[];
+  chain: {
+    providerType: ProviderType;
+    enabled: boolean;
+    available: boolean;
+  }[];
   selected: ProviderType;
   onSelect: (next: ProviderType) => void;
 }) {
@@ -1267,17 +1275,22 @@ function FallbackChainCard({
   // Local working copy. Server-confirmed values arrive via `chain`
   // prop; we keep our own state so the user can shuffle multiple rows
   // before clicking "Save chain order".
-  const seededKey = chain.map((c) => c.providerType).join(",");
+  // v1.4.16 phase D reconcile (code-review H2) — `enabled` from the
+  // wire is now the canonical state. The GET endpoint surfaces the
+  // raw persisted chain so a disabled entry survives the round-trip.
+  const seededKey = chain
+    .map((c) => `${c.providerType}:${c.enabled ? 1 : 0}`)
+    .join(",");
   const [seeded, setSeeded] = useState<string | null>(null);
   const [entries, setEntries] = useState<ChainEntry[]>(() =>
-    chain.map((c) => ({ providerType: c.providerType, enabled: true })),
+    chain.map((c) => ({ providerType: c.providerType, enabled: c.enabled })),
   );
   if (seededKey !== seeded) {
     setSeeded(seededKey);
     setEntries(
       chain.map((c) => ({
         providerType: c.providerType,
-        enabled: true,
+        enabled: c.enabled,
       })),
     );
   }

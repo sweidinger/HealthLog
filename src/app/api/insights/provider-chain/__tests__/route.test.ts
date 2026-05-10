@@ -14,6 +14,11 @@ vi.mock("@/lib/api-handler", () => ({
     user: { id: "u-1" },
     session: { id: "s-1" },
   })),
+  HttpError: class HttpError extends Error {
+    constructor(public status: number, message: string) {
+      super(message);
+    }
+  },
 }));
 
 vi.mock("@/lib/ai/provider", () => ({
@@ -28,25 +33,47 @@ vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
 
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    user: {
+      findUnique: vi.fn(async () => ({ aiProviderChain: null })),
+    },
+  },
+}));
+
 import { GET } from "../route";
 import { resolveProviderChain } from "@/lib/ai/provider";
 import { getLastWorkingProvider } from "@/lib/ai/provider-runner";
+import { prisma } from "@/lib/db";
 
 interface Envelope {
   data?: {
     activeProvider: string | null;
     cachedActiveProvider: string | null;
-    configuredChain: { providerType: string; available: boolean }[];
+    configuredChain: {
+      providerType: string;
+      enabled: boolean;
+      available: boolean;
+    }[];
   };
   error?: string;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({
+    aiProviderChain: null,
+  } as never);
 });
 
 describe("GET /api/insights/provider-chain", () => {
-  it("returns the resolved chain in priority order", async () => {
+  it("returns the persisted chain (with enabled flags) and the active resolver winner", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      aiProviderChain: [
+        { providerType: "codex", priority: 1, enabled: true },
+        { providerType: "admin-openai", priority: 2, enabled: true },
+      ],
+    } as never);
     vi.mocked(resolveProviderChain).mockResolvedValue([
       {
         providerType: "codex",
@@ -64,12 +91,50 @@ describe("GET /api/insights/provider-chain", () => {
     const body = (await res.json()) as Envelope;
     expect(body.data?.activeProvider).toBe("codex");
     expect(body.data?.configuredChain).toEqual([
-      { providerType: "codex", available: true },
-      { providerType: "admin-openai", available: true },
+      { providerType: "codex", enabled: true, available: true },
+      { providerType: "admin-openai", enabled: true, available: true },
     ]);
   });
 
+  it("surfaces disabled entries on the wire so the user can re-enable them", async () => {
+    // v1.4.16 phase D reconcile (code-review H2) — the GET response
+    // used to filter through resolveProviderChain which DROPS disabled
+    // entries; the UI then lost them on next refetch. The persisted
+    // chain is the source of truth on the wire.
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      aiProviderChain: [
+        { providerType: "codex", priority: 1, enabled: true },
+        { providerType: "openai", priority: 2, enabled: false },
+        { providerType: "admin-openai", priority: 3, enabled: true },
+      ],
+    } as never);
+    vi.mocked(resolveProviderChain).mockResolvedValue([
+      { providerType: "codex", instance: { type: "codex" } as never },
+      {
+        providerType: "admin-openai",
+        instance: { type: "admin-key" } as never,
+      },
+    ]);
+    vi.mocked(getLastWorkingProvider).mockReturnValue(null);
+
+    const res = await (GET as () => Promise<Response>)();
+    const body = (await res.json()) as Envelope;
+    expect(body.data?.configuredChain).toEqual([
+      { providerType: "codex", enabled: true, available: true },
+      { providerType: "openai", enabled: false, available: true },
+      { providerType: "admin-openai", enabled: true, available: true },
+    ]);
+    // Active still reflects the resolver winner (enabled-only).
+    expect(body.data?.activeProvider).toBe("codex");
+  });
+
   it("surfaces the cached last-working provider when available", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      aiProviderChain: [
+        { providerType: "codex", priority: 1, enabled: true },
+        { providerType: "openai", priority: 2, enabled: true },
+      ],
+    } as never);
     vi.mocked(resolveProviderChain).mockResolvedValue([
       { providerType: "codex", instance: { type: "codex" } as never },
       {
@@ -88,13 +153,23 @@ describe("GET /api/insights/provider-chain", () => {
     expect(body.data?.activeProvider).toBe("codex");
   });
 
-  it("returns an empty chain + null active when nothing is configured", async () => {
+  it("falls back to the default chain when nothing is configured", async () => {
+    // parseProviderChain(null) returns PROVIDER_CHAIN_DEFAULT — every
+    // user therefore renders a populated list, not an empty one. The
+    // active line still reflects the resolver, which can be empty if
+    // no credentials are configured.
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      aiProviderChain: null,
+    } as never);
     vi.mocked(resolveProviderChain).mockResolvedValue([]);
     vi.mocked(getLastWorkingProvider).mockReturnValue(null);
 
     const res = await (GET as () => Promise<Response>)();
     const body = (await res.json()) as Envelope;
     expect(body.data?.activeProvider).toBeNull();
-    expect(body.data?.configuredChain).toEqual([]);
+    expect(body.data?.configuredChain.length).toBeGreaterThan(0);
+    expect(body.data?.configuredChain.every((e) => e.enabled === true)).toBe(
+      true,
+    );
   });
 });
