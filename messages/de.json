@@ -2011,11 +2011,11 @@
         "description": "Dokumentiere 300 eingenommene Medikamente."
       },
       "overIntake1": {
-        "title": "Idiot",
+        "title": "Doppelt genommen",
         "description": "Nimm mindestens einmal mehr ein als vorgesehen."
       },
       "skippedIntake1": {
-        "title": "Lazy Boy",
+        "title": "Pause eingelegt",
         "description": "Überspringe mindestens eine geplante Einnahme."
       },
       "passkeyCreated1": {

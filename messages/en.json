@@ -2011,11 +2011,11 @@
         "description": "Record 300 taken medication events."
       },
       "overIntake1": {
-        "title": "Idiot",
+        "title": "Double take",
         "description": "Take medication at least once more than planned."
       },
       "skippedIntake1": {
-        "title": "Lazy Boy",
+        "title": "Stepped back",
         "description": "Skip at least one planned intake."
       },
       "passkeyCreated1": {
