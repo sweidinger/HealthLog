@@ -148,10 +148,18 @@ export function CoachDrawer({
           "flex h-[100dvh] flex-col gap-0",
         )}
       >
-        {/* Header (full width). Title + new-chat button + settings. */}
+        {/* Header (full width). Title + new-chat button. Settings cog
+            sits next to the avatar on the LEFT — the previous layout
+            painted it next to the new-chat button on the right, where
+            Radix Sheet's default close-X (absolute top-4 right-4)
+            overlapped the cog and made it visually un-clickable. The
+            new layout keeps the cog inside the visible header column
+            and reserves the right edge for the close-X alone.
+            v1.4.20.1: pr-12 ensures the new-chat button never slides
+            under the close-X on narrower viewports either. */}
         <SheetHeader
           data-slot="coach-drawer-header"
-          className="border-border/70 flex-row items-center gap-3 border-b p-3 sm:p-4"
+          className="border-border/70 flex-row items-center gap-3 border-b p-3 pr-12 sm:p-4 sm:pr-14"
         >
           <div
             aria-hidden="true"
@@ -159,6 +167,29 @@ export function CoachDrawer({
           >
             <Sparkles className="text-background size-4" />
           </div>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled
+                  // Match the visible disabled state — sighted users
+                  // see a coming-soon tooltip; SR users hear the same
+                  // copy instead of a working "Coach settings" label.
+                  aria-label={t("insights.coach.settingsTooltip")}
+                  data-slot="coach-drawer-settings"
+                  className="size-8 shrink-0"
+                >
+                  <Settings2 className="size-4" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t("insights.coach.settingsTooltip")}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <div className="min-w-0 flex-1">
             <SheetTitle className="truncate text-sm font-semibold">
               {drawerTitle}
@@ -173,36 +204,13 @@ export function CoachDrawer({
             size="sm"
             onClick={handleNewChat}
             data-slot="coach-drawer-new-chat"
-            className="gap-1.5"
+            className="shrink-0 gap-1.5"
           >
             <Plus className="size-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">
               {t("insights.coach.newChat")}
             </span>
           </Button>
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled
-                  // Match the visible disabled state — sighted users
-                  // see a coming-soon tooltip; SR users hear the same
-                  // copy instead of a working "Coach settings" label.
-                  aria-label={t("insights.coach.settingsTooltip")}
-                  data-slot="coach-drawer-settings"
-                  className="size-8"
-                >
-                  <Settings2 className="size-4" aria-hidden="true" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t("insights.coach.settingsTooltip")}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </SheetHeader>
 
         {/* Body — three columns on lg+, single column on smaller.
