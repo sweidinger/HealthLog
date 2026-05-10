@@ -193,7 +193,7 @@ function isLastIntakeInCurrentWindow(
 
 export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
   const queryClient = useQueryClient();
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fmt = useFormatters();
   const [intakeLoading, setIntakeLoading] = useState<string | null>(null);
 
@@ -438,6 +438,7 @@ export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
               {formatTimeWindowRange(
                 currentWindowStatus.schedule!.windowStart,
                 currentWindowStatus.schedule!.windowEnd,
+                locale,
               )}
             </span>
           </p>
@@ -490,7 +491,7 @@ export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
                   {t("medications.nextIntake")}
                 </span>{" "}
                 {dayLabel && `${dayLabel}, `}
-                {formatTimeWindowRange(s.windowStart, s.windowEnd)}
+                {formatTimeWindowRange(s.windowStart, s.windowEnd, locale)}
                 {s.label && (
                   <span className="hidden sm:inline"> ({s.label})</span>
                 )}

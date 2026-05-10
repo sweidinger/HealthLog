@@ -131,16 +131,17 @@ function formatNextWindowSummary(
   schedule: Schedule,
   t: TranslateFn,
   formatShortDate: (date: Date) => string,
+  locale: "de" | "en",
 ): string {
   const isSimpleDaily =
     schedule.daysOfWeek.length === 0 && schedule.intervalWeeks === 1;
   if (isSimpleDaily) {
-    return `${t("medications.nextSchedulePrefix")} ${t("medications.nextScheduleDaily")}, ${formatTimeWindowRange(schedule.windowStart, schedule.windowEnd)}`;
+    return `${t("medications.nextSchedulePrefix")} ${t("medications.nextScheduleDaily")}, ${formatTimeWindowRange(schedule.windowStart, schedule.windowEnd, locale)}`;
   }
 
   const nextDate = getNextRecurrenceDate(schedule);
   const nextText = nextDate
-    ? `${formatShortDate(nextDate)}, ${formatTimeWindowRange(schedule.windowStart, schedule.windowEnd)}`
+    ? `${formatShortDate(nextDate)}, ${formatTimeWindowRange(schedule.windowStart, schedule.windowEnd, locale)}`
     : "—";
   return `${t("medications.nextSchedulePrefix")} ${nextText}`;
 }
@@ -234,7 +235,7 @@ export function MedicationForm({
   initial,
 }: MedicationFormProps) {
   const queryClient = useQueryClient();
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fmt = useFormatters();
 
   const doseUnits = [
@@ -565,7 +566,7 @@ export function MedicationForm({
                     `${t("medications.formSchedule")} ${i + 1}`}
                 </span>{" "}
                 <span className="text-foreground/70 font-normal">
-                  ({formatNextWindowSummary(s, t, fmt.dateShort)})
+                  ({formatNextWindowSummary(s, t, fmt.dateShort, locale)})
                 </span>
               </p>
               <DropdownMenu>
