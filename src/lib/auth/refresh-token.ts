@@ -116,13 +116,20 @@ export async function rotateRefreshToken(input: {
 
   if (row.usedAt) {
     // Reuse-detection: a previously-consumed refresh token shouldn't be
-    // presented again. Treat as compromise. Defence-in-depth justifies the
-    // user-wide blast radius: an attacker who stole the token could rotate
-    // without an X-Device-Id header (or with a different one); device-scoped
-    // revocation would leave the attacker's family alive on a "no-device" or
-    // different-device branch. The legitimate user logging back in is the
-    // small price; an undetected stolen-token replay is the bigger problem.
-    const where = { userId: row.userId, revokedAt: null };
+    // presented again. v1.4.23 scopes the blast radius to the originating
+    // device so the legitimate two-device case keeps working — an iPhone
+    // dropping into airplane mode shouldn't sign the user out of their
+    // iPad. Tokens issued before v1.4.23 (deviceId === null) still
+    // revoke-user-wide because we can't isolate them safely.
+    //
+    // Defence-in-depth note: the iOS client always sends X-Device-Id on
+    // refresh, so the legitimate path always carries a deviceId. A
+    // missing deviceId on a replay is itself a suspicious signal, hence
+    // the fall-through to the wider revoke.
+    const where: { userId: string; revokedAt: null; deviceId?: string } =
+      row.deviceId !== null && row.deviceId !== undefined
+        ? { userId: row.userId, revokedAt: null, deviceId: row.deviceId }
+        : { userId: row.userId, revokedAt: null };
     const compromised = await prisma.refreshToken.findMany({ where });
     await prisma.refreshToken.updateMany({
       where,
