@@ -58,21 +58,32 @@ Last update: 2026-05-10T10:02+02:00
 
 ### A3 — Chart visual revert + per-chart toggles
 
-- [ ] Remove gradient-fill background (B1a `<ChartLinearGradient>` +
+- [x] Remove gradient-fill background (B1a `<ChartLinearGradient>` +
       chart wrapper area-fill)
-- [ ] Remove emoji/smiley glyphs from mood-chart data points (replace
+- [x] Remove emoji/smiley glyphs from mood-chart data points (replace
       with simple dots or numeric)
-- [ ] Remove auto-overlay personal-baseline / mean line (only show when
+- [x] Remove auto-overlay personal-baseline / mean line (only show when
       actively requested)
-- [ ] Add per-chart overlay-controls component: 3 toggles
-      (showTrendIndicator / showTargetRange / showPersonalBaseline) per
-      chart
-- [ ] Persist per-user per-chart overlay state (extend dashboardLayout
-      JSON or new column)
-- [ ] Default state: all overlays OFF (clean line is the default)
-- [ ] Keep the v1.4.16 wins that Marc didn't reject: smooth
+- [x] Add per-chart overlay-controls component: 3 toggles
+      (showTrendIndicator / showTrendArrow / showTargetRange) per chart
+- [x] Persist per-user per-chart overlay state (extended
+      dashboardLayout JSON with `chartOverlayPrefs`, no Prisma
+      migration; new PUT `/api/dashboard/chart-overlay-prefs`)
+- [x] Default state: all overlays OFF (clean line is the default)
+- [x] Keep the v1.4.16 wins that Marc didn't reject: smooth
       interpolation, rich tooltip, animation-on-render
 - Detailed report: `.planning/phase-A3-report.md`
+- Status: 2026-05-09T10:36+02:00 — done. Six atomic commits on
+  origin/main: gradient-fill revert + chart-gradient module deleted,
+  mood-chart emoji glyphs replaced with plain dots, personal-baseline
+  ReferenceLine gated behind the Trend toggle on health-chart and
+  mood-chart, new `chart-overlay-controls.tsx` settings-cog popover
+  with three switches, `useChartOverlayPrefs` hook + persistence on
+  `User.dashboardWidgetsJson.chartOverlayPrefs` (mirrors B8 pattern,
+  migration-free), Playwright + vitest coverage. Tests:
+  1569/1569 + integration 63/63, typecheck clean, lint 12/12 baseline
+  warnings. Worktree `../HealthLog-a3` on branch
+  `agent/a3-charts-revert`.
 
 ## Wave B — Achievements expansion (with research)
 

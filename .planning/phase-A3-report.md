@@ -1,73 +1,96 @@
-# Phase A3 — Quick-add labels + Stimmung-Card mobile + onboarding flicker
+# Phase A3 — Chart visual revert + per-chart toggles
 
-Status: done · Commits: 3 (3e45a7b, 2c227fb, bb4dc12) · 2026-05-09
+Status: complete
+Date: 2026-05-09T10:36:00+02:00
+Branch: agent/a3-charts-revert (merged to origin/main)
 
-## Fix 1 — Quick-Add submenu disambiguation (3e45a7b)
+## Scope
 
-The dashboard "Add" dropdown rendered two items whose visible text both
-read as bare nouns ("Messung" / "Stimmungseintrag" in DE; "Measurement" /
-"Mood entry" in EN). With the trigger ALSO labelled "Add" / "Hinzufügen"
-and the leading icon `aria-hidden`, screen-reader users heard the same
-verb 3× with no signal which row did what. Updated both translations to
-self-contained verb phrases: DE "Messung erfassen" / "Stimmung erfassen",
-EN "Log measurement" / "Log mood". Added
-`src/app/__tests__/quick-add-labels.test.ts` to lock the contract:
-both labels must be non-empty, distinct from each other, and distinct
-from `common.add` (the trigger).
+Roll back three pieces of v1.4.16 phase B1a that Marc rejected after
+seeing them live, and replace them with a per-chart switch surface so
+each overlay can be opted into independently and persists per user.
 
-## Fix 2 — Mood-list mobile redundancy (2c227fb)
+Hard NO list (memory `feedback_charts_visual_identity.md` v1.4.18):
+1. Gradient area fills under chart lines.
+2. Smiley/emoji glyphs on the mood chart's data points.
+3. Always-on personal-baseline / mean reference line.
 
-`src/components/mood/mood-list.tsx` mobile branch (`md:hidden`) rendered
-each entry's score TWICE: large bold digit in the left badge, then again
-in the title line as `"{score} ({label})"`. Desktop's table only ever
-showed it once. Collapsed the title line to just the localized label
-(e.g. "Schlecht"); row now reads "[2] Schlecht / 12.05.2026 18:30 / tags".
-Added `data-testid="mood-row"` + `data-testid="mood-row-score"` hooks
-and a Pixel-5 Playwright spec at `e2e/mood-card-mobile.spec.ts` that
-asserts each row contains its score digit exactly once via word-boundary
-regex and that the badge still paints the digit.
+Hard YES list:
+- Per-chart switches for "7-Tage-Trend / Trend-Pfeil / Zielbereich".
+- Default state of every switch is OFF; clean line is the new default.
 
-## Fix 3 — Onboarding flicker + collapsed-by-default (bb4dc12)
+## Commits on origin/main
 
-Two bugs in one card. Flicker: the component rendered against
-default-true `shouldShowChecklist({ measurementCount, ... })` while
-analytics was in flight (`measurementCount = 0` until tanstack-query
-wrote `data`). For a complete-onboarding user with 30 measurements the
-card flashed ~500 ms before `stillInSetup` flipped to false. Fix: refuse
-to render until `analyticsQuery.data !== undefined` — tanstack-query
-writes `data` exactly once per fetch, race-free.
+1. `revert(charts): remove gradient background fills (clean lines only)`
+   — strips the `<defs><linearGradient>` blocks and `<Area fill=...>`
+   primitives from every chart wrapper; deletes the unused
+   `chart-gradient.tsx` module + its test.
+2. `revert(charts): mood chart shows simple dots instead of emoji at data points`
+   — drops the emoji glyph map and the SVG `<text>` dot factory. The
+   mood line paints plain Recharts dots, the y-axis already labels
+   each integer (very low / low / okay / good / great), so the chart
+   stays scannable without a glyph.
+3. `revert(charts): remove auto-overlay personal baseline (now opt-in via Trend toggle)`
+   — gates the 90-day-rolling-median ReferenceLine behind the Trend
+   toggle on both HealthChart and MoodChart, matching Marc's rule that
+   the mean only paints when a trend is actively being shown.
+4. `feat(charts): per-chart overlay-controls component with 3 toggles`
+   — new `chart-overlay-controls.tsx`: settings-cog dropdown anchored
+   in each chart card with three independent switches. Full EN+DE
+   i18n under `chart.overlay.controls.*`.
+5. `feat(charts): persist per-chart overlay prefs (default off; clean line)`
+   — extends `User.dashboardWidgetsJson` with `chartOverlayPrefs` per
+   the v1.4.16 phase B8 pattern (no Prisma migration), adds
+   `PUT /api/dashboard/chart-overlay-prefs` for partial updates,
+   protects the existing PUT `/api/dashboard/widgets` from wiping prefs
+   on widget-only saves, threads a `useChartOverlayPrefs` hook through
+   HealthChart / MoodChart / MedicationComplianceChart, and plumbs
+   `chartKey="bp|weight|pulse|mood|medications"` through the
+   dashboard page so each instantiation binds to its own persisted
+   slot.
+6. `test(charts): coverage for revert + overlay-controls + persistence`
+   — adds a Playwright e2e spec (open the popover, toggle target-range,
+   verify the PUT round-trip fires) and a vitest SSR test pinning the
+   medication chart's trend-chip gate.
 
-Auto-open: introduced `expanded` state (default `false`, persisted to
-`localStorage[healthlog-getting-started-expanded]`). Header is now a
-chevron toggle (`aria-expanded`/`aria-controls`); the progress meter
-stays visible in both states. Card mounts collapsed for new users.
+## Architectural deviations from the brief
 
-E2E spec at `e2e/onboarding-flicker.spec.ts` covers both: a 50ms-sample
-loop during a deliberately-slowed analytics fetch proves the card never
-paints for a complete-onboarding user, and a second test mounts an
-incomplete user and asserts `aria-expanded=false` + that
-`#getting-started-body` is NOT in the DOM until clicked.
+The brief lists five chart wrapper files (`blood-pressure-chart.tsx`,
+`weight-chart.tsx`, ...). The actual codebase consolidates BP / weight
+/ pulse / body-fat / sleep / steps into a single `HealthChart` wrapper
+parametrised by the `types` array. Same deviation B1a's report
+documented; one wrapper edit covers all those families.
 
-## Verification
+The brief proposes a dedicated `User.chartOverlayPrefs` column. We
+extended `User.dashboardWidgetsJson` instead, mirroring the v1.4.16
+phase B8 comparison-baseline pattern. Migration-free, identical shape
+on the wire.
 
-- `pnpm test`: 779 tests / 103 files / all green
-- `pnpm typecheck`: clean (0 errors)
-- `pnpm lint`: 12 pre-existing warnings, 0 errors
-- 3 atomic commits pushed to `origin/main` after rebase-with-autostash;
-  no force-pushes, no `--no-verify`, signed via gpg
+## Test deltas
 
-## Overlap with other agents
+- 5 new vitest tests: overlay-defaults (2), overlay-controls (4),
+  medication overlay-toggles (2), dashboard-layout chartOverlayPrefs (4).
+- 1 new integration test: `chart-overlay-prefs.test.ts` (2 cases —
+  persist + reject unknown chart key).
+- 1 new Playwright spec: `chart-overlay-controls.spec.ts`.
+- 4 existing chart tests had their `vi.mock("@tanstack/react-query")`
+  blocks extended to expose `useQueryClient` + `useMutation` so the
+  charts that now depend on the persistence hook still SSR cleanly.
 
-A4 added `MedicationComplianceChart` to `src/app/page.tsx` between fix 1
-and fix 3 — no collision, my edits to that file were isolated to the
-quick-add-menu region. A2 staged `.planning/phase-A1-report.md` +
-`.planning/STATE.md` into my staging area mid-commit; I unstaged them
-before committing fix 3 so each agent owns their own report file.
+Final state: `pnpm test` 1569/1569, `pnpm test:integration` 63/63,
+`pnpm typecheck` clean, `pnpm lint` 0 errors / 12 pre-existing
+warnings.
 
-## Out of scope (for later phases)
+## Hand-off
 
-The mood-list mobile fix targets `/mood` (the page where Marc sees the
-Stimmung-Card). If "Stimmung-Card mobile redundancy" was intended to
-mean the dashboard's mood `TrendCard` instead, that tile already shows
-a single number ("2") + unit ("/ 5") with no label text — no changes
-needed there.
+The new EN+DE i18n keys live under `chart.overlay.controls.*` —
+visible to design / Wave D as part of the audit surface.
+`CHART_OVERLAY_KEYS` in `src/lib/dashboard-layout.ts` is the
+single-source-of-truth for which charts have a persisted overlay
+slot; new charts get a slot by adding a key there and threading
+`chartKey={...}` through their dashboard mount.
+
+The work was carried out in worktree `../HealthLog-a3` on branch
+`agent/a3-charts-revert`; six atomic commits were pushed to origin/main
+via rebase-and-fast-forward, with `pnpm test && pnpm test:integration
+&& pnpm typecheck && pnpm lint` clean before each push.
