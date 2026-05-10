@@ -1,7 +1,7 @@
 # v1.4.22 marathon — state log
 
-Status: Wave 4 — backlog cleanup + bug closure complete
-Last update: 2026-05-10T21:45+02:00
+Status: Wave 5 — multi-agent QA + reconcile complete
+Last update: 2026-05-10T22:30+02:00
 
 > Previous patch: v1.4.21 live (image digest
 > `sha256:4e818d44702c…`, `/api/version=1.4.21`).
@@ -172,13 +172,13 @@ Apply or confirm-defer every item:
 
 ## Wave 5 — Multi-agent QA + Product-Lead review
 
-- [ ] code-reviewer
-- [ ] security review
-- [ ] design / UX review
-- [ ] senior-dev review
-- [ ] simplify
-- [ ] Product Lead — v1.5 plan refresh based on v1.4.22 state
-- [ ] Reconcile applied CRITICAL + HIGH; defer MED/LOW with reasoning
+- [x] code-reviewer (`.planning/phase-W5-v1422-code-review.md` — 0 CRIT, 2 HIGH, 4 MED, 5 LOW)
+- [x] security review (`.planning/phase-W5-v1422-security-review.md` — 0 CRIT, 0 HIGH, 2 MED, 4 LOW)
+- [x] design / UX review (`.planning/phase-W5-v1422-design-review.md` — 0 CRIT, 3 HIGH, 7 MED, 5 LOW)
+- [x] senior-dev review (`.planning/phase-W5-v1422-senior-dev-review.md` — 0 CRIT, 2 HIGH, 5 MED, 4 LOW)
+- [x] simplify (`.planning/phase-W5-v1422-simplify-review.md` — 5 apply-yes, 4 apply-maybe, 6 apply-no)
+- [x] Product Lead — v1.5 plan refresh based on v1.4.22 state (`.planning/phase-W5-v1422-product-lead-review.md`)
+- [x] Reconcile applied CRITICAL + HIGH; defer MED/LOW with reasoning (10 commits; report at `.planning/phase-W5-v1422-reconcile-report.md`; backlog at `.planning/v1422-backlog.md`)
 
 ## Wave 6 — Release v1.4.22
 
