@@ -649,6 +649,19 @@
     "targetWeight": "Ziel",
     "deltaVsTarget": "{delta} vs. Ziel"
   },
+  "chart": {
+    "overlay": {
+      "controls": {
+        "title": "Chart-Overlays",
+        "trendIndicator": "7-Tage-Trend",
+        "trendArrow": "Trend-Pfeil",
+        "targetRange": "Zielbereich",
+        "tooltip": {
+          "openSettings": "Chart-Overlay-Einstellungen"
+        }
+      }
+    }
+  },
   "comparison": {
     "toggleLabel": "Vergleichen mit",
     "toggleHint": "Blendet eine gedimmte Vorperioden-Linie in jedem Chart ein und zeigt ein Delta-Callout auf jeder Kachel.",

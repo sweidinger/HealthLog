@@ -649,6 +649,19 @@
     "targetWeight": "Target",
     "deltaVsTarget": "{delta} vs. target"
   },
+  "chart": {
+    "overlay": {
+      "controls": {
+        "title": "Chart overlays",
+        "trendIndicator": "7-day trend",
+        "trendArrow": "Trend arrow",
+        "targetRange": "Target range",
+        "tooltip": {
+          "openSettings": "Chart overlay settings"
+        }
+      }
+    }
+  },
   "comparison": {
     "toggleLabel": "Compare to",
     "toggleHint": "Adds a dimmed prior-period overlay to every chart and a delta callout to every tile.",

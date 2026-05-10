@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
