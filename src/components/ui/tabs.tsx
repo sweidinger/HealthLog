@@ -34,8 +34,18 @@ function Tabs({
 // `whitespace-nowrap` so labels never word-wrap mid-tab. Desktop
 // looks identical because the inline-flex shrink-wraps inside the
 // wider container.
+//
+// v1.4.19 A7 — `overflow-y-hidden` clamps the y-axis. Browsers couple
+// the two overflow axes once one is `auto`: setting only
+// `overflow-x: auto` silently flips `overflow-y` to `auto` as well.
+// Combined with the fixed `h-9` strip and badge children that ride
+// ~1 px taller than the strip on some glyph stacks, a tiny painted
+// vertical scrollbar appeared on the right edge of short strips
+// (e.g. the admin feedback `Open / Acknowledged / Resolved /
+// Archived` tabs Marc reported in v1.4.19). Locking the y-axis hides
+// that bar without affecting horizontal swipe behaviour.
 const tabsListVariants = cva(
-  "rounded-lg p-[3px] group-data-[orientation=horizontal]/tabs:h-9 data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit max-w-full items-center justify-center overflow-x-auto touch-pan-x scrollbar-thin group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col group-data-[orientation=vertical]/tabs:overflow-x-visible",
+  "rounded-lg p-[3px] group-data-[orientation=horizontal]/tabs:h-9 data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit max-w-full items-center justify-center overflow-x-auto overflow-y-hidden touch-pan-x scrollbar-thin group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col group-data-[orientation=vertical]/tabs:overflow-x-visible group-data-[orientation=vertical]/tabs:overflow-y-visible",
   {
     variants: {
       variant: {
