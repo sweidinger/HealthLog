@@ -949,6 +949,15 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-8">
+      {/* v1.4.22 A5 — section tabs lift above the hero strip so the
+          user sees the metric-tab nav before scrolling. The nav itself
+          remains a sticky scroll-anchored strip — clicking a tab
+          scrolls to the matching section, scrolling highlights the
+          active tab. Hero + Daily Briefing always render below the
+          nav; the metric tabs control which sub-sections are visible
+          in the user's viewport. */}
+      <InsightsSectionNav />
+
       <HeroStrip
         briefing={briefingPayload}
         updatedAt={heroStripUpdatedAt}
@@ -983,8 +992,8 @@ export default function InsightsPage() {
       {/* v1.4.20 phase B3 — Correlation discovery row. Three pre-defined
           hypotheses (BP × compliance, mood × pulse, weight × weekday) gated
           on n >= 14 + p < 0.05; cards below the bar render a per-card
-          empty-state. The row-level disclaimer ("Patterns are observational,
-          not causal …") sits below the grid once. */}
+          empty-state. The row-level disclaimer ("Relationships are
+          observational, not causal …") sits below the grid once. */}
       {analytics?.correlations && (
         <CorrelationRow results={analytics.correlations} />
       )}
@@ -1007,8 +1016,6 @@ export default function InsightsPage() {
         cachedAt={advisor.payload?.cachedAt ?? null}
         legacyPayload={advisor.payload?.legacyPayload ?? false}
       />
-
-      <InsightsSectionNav />
 
       <section id="section-general" className="scroll-mt-28 space-y-2">
         <div className="flex items-center gap-2">

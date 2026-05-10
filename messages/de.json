@@ -826,12 +826,12 @@
       "confidenceLow": "Geringe Konfidenz"
     },
     "correlationRow": {
-      "title": "Muster",
+      "title": "Zusammenhänge",
       "subtitle": "Vorab definierte Hypothesen, gegated auf n ≥ 14 und p < 0,05",
-      "disclaimer": "Muster sind beobachtend, nicht kausal — sprich mit deinem Arzt, wenn der Blutdruck hoch ist.",
+      "disclaimer": "Zusammenhänge sind beobachtend, nicht kausal — sprich mit deinem Arzt, wenn der Blutdruck hoch ist.",
       "experimentCta": "7-Tage-Experiment starten",
       "experimentTooltip": "Bald verfügbar",
-      "emptyTitle": "Mehr Daten nötig, um dieses Muster zu zeigen",
+      "emptyTitle": "Mehr Daten nötig, um diesen Zusammenhang zu zeigen",
       "sourceChip": "basierend auf {n} gepaarten Messungen · {window}",
       "sourceWindowLast30": "letzte 30 Tage",
       "confidenceHigh": "Hohe Konfidenz",

@@ -88,7 +88,7 @@ describe("<CorrelationCard>", () => {
 
   it("renders the empty-state when status=insufficient", () => {
     const html = render(<CorrelationCard result={insufficient} />);
-    expect(html).toContain("Need more data to see this pattern");
+    expect(html).toContain("Need more data to see this relationship");
     expect(html).not.toContain("Try a 7-day experiment");
   });
 

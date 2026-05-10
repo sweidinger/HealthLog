@@ -826,12 +826,12 @@
       "confidenceLow": "Low confidence"
     },
     "correlationRow": {
-      "title": "Patterns",
+      "title": "Relationships",
       "subtitle": "Pre-defined hypotheses, gated on n ≥ 14 and p < 0.05",
-      "disclaimer": "Patterns are observational, not causal — talk to your doctor if BP runs high.",
+      "disclaimer": "Relationships are observational, not causal — talk to your doctor if BP runs high.",
       "experimentCta": "Try a 7-day experiment",
       "experimentTooltip": "Coming soon",
-      "emptyTitle": "Need more data to see this pattern",
+      "emptyTitle": "Need more data to see this relationship",
       "sourceChip": "based on {n} paired readings · {window}",
       "sourceWindowLast30": "last 30 days",
       "confidenceHigh": "High confidence",

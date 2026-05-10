@@ -100,7 +100,7 @@ describe("<CorrelationRow>", () => {
     );
     const matches = html.match(/data-slot="correlation-row-disclaimer"/g) ?? [];
     expect(matches.length).toBe(1);
-    expect(html).toContain("Patterns are observational, not causal");
+    expect(html).toContain("Relationships are observational, not causal");
   });
 
   it("applies the 2-up grid on >= md when 2+ ok cards render", () => {
