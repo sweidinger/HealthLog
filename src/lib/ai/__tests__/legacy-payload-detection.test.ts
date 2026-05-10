@@ -128,8 +128,8 @@ describe("isLegacyInsightPayload()", () => {
     expect(isLegacyInsightPayload({ summary: "x" })).toBe(false);
   });
 
-  it("returns true for the v1.4.14 pre-strict-schema shape (Marc's prod blob)", () => {
-    // The actual cached blob that crashed /insights for Marc on
+  it("returns true for the v1.4.14 pre-strict-schema shape (the maintainer's prod blob)", () => {
+    // The actual cached blob that crashed /insights for the live tenant on
     // 2026-05-10. No `summary`, no `recommendations[]` — just the
     // pre-v1.4.16 `{changed, stable, drivers, nextSteps, confidence,
     // limitations}` shape. The route's `safeParse` failed and fell

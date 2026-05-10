@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +50,6 @@ import { CorrelationRow } from "@/components/insights/correlation-row";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import type { CorrelationResult } from "@/lib/insights/correlations";
 import { toWeekISO } from "@/lib/insights/week-iso";
-import { CompareToggle } from "@/components/comparison/compare-toggle";
 // Recharts is ~108 KiB Brotli — defer-load it via a self-contained scatter
 // wrapper so the bundle only lands once a correlation card actually renders.
 // Every scatter card sits inside a `length >= 5` gate and below the fold,
@@ -562,7 +562,7 @@ export default function InsightsPage() {
   // preference so a toggle flip in Settings → Dashboard updates both
   // surfaces atomically.
   const { data: layoutData } = useQuery({
-    queryKey: ["user", "dashboardWidgets"],
+    queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
       const res = await fetch("/api/dashboard/widgets");
       if (!res.ok) throw new Error("Failed");
@@ -950,6 +950,15 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-8">
+      {/* v1.4.22 A5 — section tabs lift above the hero strip so the
+          user sees the metric-tab nav before scrolling. The nav itself
+          remains a sticky scroll-anchored strip — clicking a tab
+          scrolls to the matching section, scrolling highlights the
+          active tab. Hero + Daily Briefing always render below the
+          nav; the metric tabs control which sub-sections are visible
+          in the user's viewport. */}
+      <InsightsSectionNav />
+
       <HeroStrip
         briefing={briefingPayload}
         updatedAt={heroStripUpdatedAt}
@@ -979,14 +988,13 @@ export default function InsightsPage() {
         loading={advisor.isLoading}
         onRegenerate={advisor.regenerate}
         regenerating={advisor.isRegenerating}
-        metaSlot={<CompareToggle />}
       />
 
       {/* v1.4.20 phase B3 — Correlation discovery row. Three pre-defined
           hypotheses (BP × compliance, mood × pulse, weight × weekday) gated
           on n >= 14 + p < 0.05; cards below the bar render a per-card
-          empty-state. The row-level disclaimer ("Patterns are observational,
-          not causal …") sits below the grid once. */}
+          empty-state. The row-level disclaimer ("Relationships are
+          observational, not causal …") sits below the grid once. */}
       {analytics?.correlations && (
         <CorrelationRow results={analytics.correlations} />
       )}
@@ -1010,9 +1018,7 @@ export default function InsightsPage() {
         legacyPayload={advisor.payload?.legacyPayload ?? false}
       />
 
-      <InsightsSectionNav />
-
-      <section id="section-general" className="scroll-mt-28 space-y-2">
+      <section id="section-general" className="scroll-mt-16 space-y-2">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">
             {t("insights.generalStatusTitle")}
@@ -1036,7 +1042,7 @@ export default function InsightsPage() {
       </section>
 
       {/* Section 3: Blood pressure */}
-      <section id="section-bp" className="scroll-mt-28 space-y-4">
+      <section id="section-bp" className="scroll-mt-16 space-y-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">
             {t("insights.bloodPressureSectionTitle")}
@@ -1062,7 +1068,15 @@ export default function InsightsPage() {
           annotations={bpStoryboardAnnotations}
         />
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        {/* v1.4.22 A4 — row-fill rule: 2 cards → 50/50 (xl), 1 card →
+            100 % width. When the mood section is hidden the BP-medication
+            card collapses to full-width instead of leaving the right
+            half empty. */}
+        <div
+          className={
+            showMoodSection ? "grid gap-4 xl:grid-cols-2" : "grid gap-4"
+          }
+        >
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -1242,7 +1256,7 @@ export default function InsightsPage() {
       </section>
 
       {/* Section 4: Weight */}
-      <section id="section-weight" className="scroll-mt-28 space-y-4">
+      <section id="section-weight" className="scroll-mt-16 space-y-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">
             {t("insights.weightSectionTitle")}
@@ -1264,7 +1278,13 @@ export default function InsightsPage() {
           compareBaseline={compareBaseline}
         />
 
-        <div className="grid gap-4 xl:grid-cols-2">
+        {/* v1.4.22 A4 — row-fill rule: 2 cards → 50/50 (xl), 1 card →
+            100 % width. Mirrors the BP-section grid normalisation. */}
+        <div
+          className={
+            showMoodSection ? "grid gap-4 xl:grid-cols-2" : "grid gap-4"
+          }
+        >
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
@@ -1406,7 +1426,7 @@ export default function InsightsPage() {
       </section>
 
       {/* Section 5: Pulse */}
-      <section id="section-pulse" className="scroll-mt-28 space-y-4">
+      <section id="section-pulse" className="scroll-mt-16 space-y-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">
             {t("insights.pulseSectionTitle")}
@@ -1441,7 +1461,7 @@ export default function InsightsPage() {
 
       {/* Section: Mood */}
       {showMoodSection && (
-        <section id="section-mood" className="scroll-mt-28 space-y-4">
+        <section id="section-mood" className="scroll-mt-16 space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">
               {t("insights.moodSectionTitle")}
@@ -1469,7 +1489,7 @@ export default function InsightsPage() {
       )}
 
       {/* Section 6: Medication Compliance */}
-      <section id="section-meds" className="scroll-mt-28 space-y-4">
+      <section id="section-meds" className="scroll-mt-16 space-y-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">
             {t("insights.medicationCompliance")}
@@ -1485,7 +1505,15 @@ export default function InsightsPage() {
         </div>
 
         {data.medications.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+          /* v1.4.22 A4 — row-fill rule: a single medication card fills
+             100 % width instead of half the row. */
+          <div
+            className={
+              data.medications.length >= 2
+                ? "grid gap-4 sm:grid-cols-2"
+                : "grid gap-4"
+            }
+          >
             {data.medications.map((med) => {
               const medicationSummary = medicationSummaryById.get(med.id);
               return (
@@ -1562,7 +1590,7 @@ export default function InsightsPage() {
       </section>
 
       {/* Section 7: BMI */}
-      <section id="section-bmi" className="scroll-mt-28 space-y-4">
+      <section id="section-bmi" className="scroll-mt-16 space-y-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">
             {t("insights.bmiSectionTitle")}
@@ -1702,10 +1730,19 @@ function InsightsSectionNav() {
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
+        // v1.4.22 W5 reconcile (Code-MED-4) — pick the entry with the
+        // highest intersectionRatio in the band rather than the
+        // observer-supplied last entry. Three sections briefly
+        // visible during a fast scroll otherwise made the active
+        // pill jump to whichever one came last in the batch.
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        const top = visible[0];
+        if (top) {
+          setActiveId((current) =>
+            current === top.target.id ? current : top.target.id,
+          );
         }
       },
       { rootMargin: "-30% 0px -60% 0px" },
@@ -1721,26 +1758,56 @@ function InsightsSectionNav() {
 
   function scrollTo(id: string) {
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+    if (!el) return;
+    // v1.4.22 W5 reconcile (Design-H1) — gate smooth scrolling behind
+    // `prefers-reduced-motion`; honour the user's OS-level pref.
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
   }
 
   return (
-    <nav className="bg-background/80 sticky top-0 z-30 -mx-4 overflow-x-auto border-b px-4 py-2 backdrop-blur-sm md:-mx-6 md:px-6">
+    // v1.4.22 W5 reconcile (Design-H1, Design-H3) — accessibility +
+    // sticky-strip polish. Notable changes:
+    //   - aria-label so screen-reader landmark traversal hears the
+    //     rail's purpose ("Skip to section" / "Zu Abschnitt springen").
+    //   - bg-background/95 instead of /80 to kill the hero-glow bleed
+    //     during scroll.
+    //   - Drop the `-mx-4 / md:-mx-6` negative margin; the parent
+    //     container handles horizontal padding so 280px (Galaxy Fold)
+    //     doesn't get a ghost scrollbar.
+    //   - Hide the inner overflow's scrollbar so the sticky strip
+    //     reads as a single bar.
+    <nav
+      aria-label={t("insights.navAriaLabel")}
+      className={cn(
+        "bg-background/95 sticky top-0 z-30 overflow-x-auto border-b py-2 backdrop-blur",
+        "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+      )}
+    >
       <div className="flex gap-2">
-        {SECTION_IDS.map((id) => (
-          <button
-            key={id}
-            onClick={() => scrollTo(id)}
-            className={cn(
-              "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-              activeId === id
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t(SECTION_LABEL_KEYS[id])}
-          </button>
-        ))}
+        {SECTION_IDS.map((id) => {
+          const isActive = activeId === id;
+          return (
+            <button
+              key={id}
+              onClick={() => scrollTo(id)}
+              aria-current={isActive ? "location" : undefined}
+              className={cn(
+                "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                isActive
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t(SECTION_LABEL_KEYS[id])}
+            </button>
+          );
+        })}
       </div>
     </nav>
   );

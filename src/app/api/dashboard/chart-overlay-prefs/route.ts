@@ -2,7 +2,7 @@
  * PUT /api/dashboard/chart-overlay-prefs — v1.4.18
  *
  * Persist a single chart's overlay-prefs (3 toggles) onto the existing
- * `User.dashboardWidgetsJson` blob. Marc rejected v1.4.16's always-on
+ * `User.dashboardWidgetsJson` blob. the maintainer rejected v1.4.16's always-on
  * chart overlays (gradient fill, personal-baseline reference line,
  * target-zone shading); the new pattern is per-chart switches that the
  * user opts into independently and that persist per user.

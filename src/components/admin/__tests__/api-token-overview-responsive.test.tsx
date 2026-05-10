@@ -94,7 +94,7 @@ describe("ApiTokenOverviewSection — responsive", () => {
   it("mobile card-list has no overflow-x-auto wrapper", () => {
     const html = render();
     // Mobile cards must let content wrap within the card rather than
-    // forcing a scroll container — that was the v1.4.15 bug Marc
+    // forcing a scroll container — that was the v1.4.15 bug the maintainer
     // re-reported. Confirm there's no overflow-x-auto INSIDE the
     // mobile <ul>.
     const mobileMatch = html.match(/<ul[^>]*md:hidden[^>]*>([\s\S]*?)<\/ul>/);
@@ -120,6 +120,32 @@ describe("ApiTokenOverviewSection — responsive", () => {
     // The card root carries the responsive padding to leave more room
     // for content within a 393 CSS-px viewport.
     expect(html).toMatch(/class="[^"]*\bp-4\b[^"]*sm:p-6/);
+  });
+
+  it("desktop date cells drop whitespace-nowrap (v1.4.22 C2 5th-attempt fix)", () => {
+    const html = render();
+    // The "Last used" + "Created" `<td>`s no longer carry
+    // `whitespace-nowrap`. The v1.4.19 production probe confirmed that
+    // class was the actual culprit behind the residual horizontal
+    // scrollbar at 768-1280px: a formatted date+time string
+    // ("05.05.2026, 21:46") overflowed its 12% colgroup allotment
+    // (~84px on a 700px content area) and won over `table-fixed`'s
+    // width contract, so the table's intrinsic width exceeded 100%
+    // and the wrapping `overflow-x-auto` painted a scrollbar. Letting
+    // the cell wrap to two lines costs one row of height but kills
+    // the bar.
+    const tableMatch = html.match(/<table[\s\S]*?<\/table>/);
+    expect(tableMatch).not.toBeNull();
+    const tableMarkup = tableMatch![0];
+    // Pick every <td> inside the desktop table that renders one of the
+    // two date columns (text-right + text-xs is unique to those cells)
+    // and assert none carries whitespace-nowrap.
+    const dateCellMatches =
+      tableMarkup.match(/<td[^>]*\btext-right\b[^>]*\btext-xs\b[^>]*>/g) ?? [];
+    expect(dateCellMatches.length).toBeGreaterThanOrEqual(2);
+    for (const cell of dateCellMatches) {
+      expect(cell).not.toContain("whitespace-nowrap");
+    }
   });
 
   it("mobile timestamp lines wrap (no nowrap on the meta paragraphs)", () => {

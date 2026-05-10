@@ -75,10 +75,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
     data: { passwordHash: newHash },
   });
 
-  // Invalidate all existing sessions and create a fresh one
+  // Invalidate all existing sessions and create a fresh one.
+  // v1.4.22 W5 reconcile (Sr-H1) — `createSession` re-anchors the
+  // `hl_onboarding` cookie itself.
   await destroyAllSessions(user.id);
   await createSession(
     user.id,
+    user.onboardingCompletedAt == null,
     getClientIp(request),
     request.headers.get("user-agent"),
   );

@@ -419,7 +419,7 @@ export function OnboardingTour({
 
         {/* v1.4.15 H4 design: tour footer buttons reach the WCAG 2.5.5
             44 px tap-target floor on mobile. The `size="sm"` default
-            of `h-8` clipped to ~32 px which Marc reported as too small
+            of `h-8` clipped to ~32 px which the maintainer reported as too small
             on the iPad / iPhone PWA shell. Bumping to `min-h-11` (44 px)
             keeps the desktop visual close enough — the buttons grow
             ~4 px taller — while making mobile usable. */}

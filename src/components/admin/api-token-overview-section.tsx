@@ -20,7 +20,7 @@ import { type ApiTokenInfo } from "./_shared";
  *
  * v1.4.19 phase A7 (4th attempt) — earlier fixes (column-hide,
  * mobile card-list, mobile-strip `no-scrollbar`) cleared every
- * scrollbar Marc reported except a residual painted bar he kept
+ * scrollbar the maintainer reported except a residual painted bar he kept
  * seeing at the bottom-right. Production probe confirmed no
  * remaining horizontal-overflow culprits, but the cards still
  * carried `break-all` next to `truncate` (dead code; `white-space:
@@ -56,6 +56,46 @@ function TruncatedCell({
 }
 
 /**
+ * v1.4.22 W5 reconcile (S-03) — the revoked / isExpired / active
+ * 3-way ternary is identical between the desktop table and the
+ * mobile card list; the only difference is `text-xs` vs `text-[10px]`.
+ * Centralise so the two surfaces stay in lock-step.
+ */
+function TokenStatusBadge({
+  token,
+  size,
+}: {
+  token: ApiTokenInfo;
+  size: "sm" | "xs";
+}) {
+  const { t } = useTranslations();
+  const expired =
+    token.expiresAt != null && new Date(token.expiresAt) < new Date();
+  const sizeClass = size === "xs" ? "text-[10px]" : "text-xs";
+  if (token.revoked) {
+    return (
+      <Badge variant="destructive" className={`shrink-0 ${sizeClass}`}>
+        {t("settings.tokenRevoked")}
+      </Badge>
+    );
+  }
+  if (expired) {
+    return (
+      <Badge variant="destructive" className={`shrink-0 ${sizeClass}`}>
+        {t("settings.tokenExpired")}
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      className={`bg-dracula-green/15 text-dracula-green shrink-0 ${sizeClass}`}
+    >
+      {t("common.active")}
+    </Badge>
+  );
+}
+
+/**
  * F-18 (v1.4.19): the auto-login flow names tokens
  * "web auto-login 2026-05-05T19:46:20.603Z" / "iOS auto-login …" by
  * suffixing the issuing call's `Date.now().toISOString()`. That suffix
@@ -63,8 +103,13 @@ function TruncatedCell({
  * "iOS auto-login · 05.05.2026 19:46" while leaving any non-ISO suffix
  * (manual names, device fingerprints, etc.) untouched.
  */
+// v1.4.22 D / D-CR-M-03 — broaden the ISO match to include non-Z
+// offsets (e.g. `+02:00`, `-05:30`). The previous regex only matched
+// UTC (`Z`), so a token name carrying a local-tz timestamp slipped
+// through unformatted and rendered the raw `2026-05-05T19:46:20.603+02:00`
+// suffix instead of the locale-aware `05.05.2026 21:46` chunk.
 const TOKEN_NAME_ISO_RE =
-  /^(.+?)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)(.*)$/;
+  /^(.+?)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2}))(.*)$/;
 
 // Locale-fixed dd.MM.yyyy HH:mm in the Europe/Berlin display zone — the
 // rest of the app shows timestamps in Berlin time (`format-locale.ts`),
@@ -99,7 +144,7 @@ export function ApiTokenOverviewSection() {
   // section route. The previous pattern carried a "Collapse / Expand"
   // toggle as an escape hatch from the v1.4 shared admin page where
   // 13 sections lived together, but on a route that only renders this
-  // one card the toggle hides the entire surface. Marc reported it
+  // one card the toggle hides the entire surface. the maintainer reported it
   // as "sinnlos" — gone.
   const { data: tokens, isLoading } = useQuery({
     queryKey: ["admin", "tokens"],
@@ -176,8 +221,6 @@ export function ApiTokenOverviewSection() {
                 </thead>
                 <tbody className="divide-border divide-y">
                   {tokens.map((token, i) => {
-                    const isExpired =
-                      token.expiresAt && new Date(token.expiresAt) < new Date();
                     return (
                       <tr
                         key={token.id}
@@ -208,26 +251,27 @@ export function ApiTokenOverviewSection() {
                           </div>
                         </td>
                         <td className="px-3 py-2 text-right">
-                          {token.revoked ? (
-                            <Badge variant="destructive" className="text-xs">
-                              {t("settings.tokenRevoked")}
-                            </Badge>
-                          ) : isExpired ? (
-                            <Badge variant="destructive" className="text-xs">
-                              {t("settings.tokenExpired")}
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-dracula-green/15 text-dracula-green text-xs">
-                              {t("common.active")}
-                            </Badge>
-                          )}
+                          <TokenStatusBadge token={token} size="sm" />
                         </td>
-                        <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                        {/* v1.4.22 C2 (5th attempt) — drop
+                            `whitespace-nowrap` on the date cells. The
+                            v1.4.19 A7 probe confirmed `formatDateTime`
+                            renders "05.05.2026, 21:46" (~110px) which
+                            exceeds the 12% `<col>` allotment (~84px on
+                            a 700px content area); `whitespace-nowrap`
+                            wins over `table-fixed`'s width contract,
+                            so the table's intrinsic width exceeds 100%
+                            and the wrapper's `overflow-x-auto` paints
+                            the scrollbar the maintainer kept reporting
+                            for the 5th time. Letting the date+time
+                            wrap to two lines on narrow viewports costs
+                            one row of height but eliminates the bar. */}
+                        <td className="text-muted-foreground px-3 py-2 text-right text-xs">
                           {token.lastUsedAt
                             ? formatDateTime(token.lastUsedAt)
                             : t("admin.tokenNeverUsed")}
                         </td>
-                        <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                        <td className="text-muted-foreground px-3 py-2 text-right text-xs">
                           {formatDate(token.createdAt)}
                         </td>
                       </tr>
@@ -246,8 +290,6 @@ export function ApiTokenOverviewSection() {
               data-testid="admin-tokens-mobile-list"
             >
               {tokens.map((token) => {
-                const isExpired =
-                  token.expiresAt && new Date(token.expiresAt) < new Date();
                 return (
                   <li
                     key={token.id}
@@ -260,25 +302,7 @@ export function ApiTokenOverviewSection() {
                             value={formatTokenName(token.name)}
                             className="min-w-0 flex-1 font-medium"
                           />
-                          {token.revoked ? (
-                            <Badge
-                              variant="destructive"
-                              className="shrink-0 text-[10px]"
-                            >
-                              {t("settings.tokenRevoked")}
-                            </Badge>
-                          ) : isExpired ? (
-                            <Badge
-                              variant="destructive"
-                              className="shrink-0 text-[10px]"
-                            >
-                              {t("settings.tokenExpired")}
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-dracula-green/15 text-dracula-green shrink-0 text-[10px]">
-                              {t("common.active")}
-                            </Badge>
-                          )}
+                          <TokenStatusBadge token={token} size="xs" />
                         </div>
                         <TruncatedCell
                           value={token.user.username}

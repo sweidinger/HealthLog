@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
  * v1.4 shared-admin page where 13 sections lived on one route; in
  * v1.5 every section has its own dedicated route, so collapsing the
  * only card on `/admin/api-tokens` hides the entire surface and
- * confused Marc more than it helped.
+ * confused the maintainer more than it helped.
  */
 
 vi.mock("next/navigation", () => ({

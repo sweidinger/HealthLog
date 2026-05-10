@@ -19,7 +19,7 @@ import { type ChartOverlayPrefs } from "@/lib/dashboard-layout";
 /**
  * v1.4.18 — per-chart overlay-controls popover.
  *
- * Marc rolled back B1a's always-on chart overlays (gradient fills,
+ * the maintainer rolled back B1a's always-on chart overlays (gradient fills,
  * personal-baseline reference line, target-zone shading) and asked for
  * a per-chart switch surface instead. Each dashboard chart card mounts
  * one of these in its top-right corner (a settings-cog dropdown) so the
@@ -30,7 +30,7 @@ import { type ChartOverlayPrefs } from "@/lib/dashboard-layout";
  *   - showTrendIndicator — the "7-day trend" overlay (moving average +
  *     numeric Δ chip in the header)
  *   - showTrendArrow      — the trend regression line + arrow direction
- *     hint + personal-baseline reference line. Marc's rule: the mean
+ *     hint + personal-baseline reference line. the maintainer's rule: the mean
  *     line only paints when a trend is being displayed, so we fold
  *     the baseline into this toggle.
  *   - showTargetRange     — the target-zone shading + reference lines

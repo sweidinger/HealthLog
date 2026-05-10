@@ -198,8 +198,24 @@ test.describe("charts — mobile-viewport regression", () => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle");
 
-    // Wait for at least one Recharts SVG to mount.
-    await page.locator(".recharts-xAxis").first().waitFor({ timeout: 10_000 });
+    // Wait for at least one chart card to mount, then scroll it into
+    // view so Recharts' ResponsiveContainer measures its parent and
+    // paints the SVG. On Pixel 5 the dashboard ships several stacked
+    // tiles above the first chart card; the bottom-positioned axis
+    // sits below the initial fold and reports as `hidden` to a raw
+    // `.recharts-xAxis` visibility probe before scroll.
+    const firstChartCard = page
+      .locator("div.bg-card")
+      .filter({ has: page.locator("[data-slot=chart-range-tab]") })
+      .first();
+    await firstChartCard.waitFor({ state: "visible", timeout: 10_000 });
+    await firstChartCard.scrollIntoViewIfNeeded();
+    // After scroll, give the chart a beat to lay out under the new
+    // measured size before counting ticks.
+    await page
+      .locator(".recharts-xAxis .recharts-cartesian-axis-tick text")
+      .first()
+      .waitFor({ state: "visible", timeout: 10_000 });
 
     // Recharts lays its visible tick labels under
     // `.recharts-xAxis .recharts-cartesian-axis-tick`. Count the ones

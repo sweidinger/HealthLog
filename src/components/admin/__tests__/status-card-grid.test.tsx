@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 /**
  * v1.4.15 phase A2: the `/admin` overview no longer renders the
- * `StatusCardGrid` (the section-card grid Marc described as redundant
+ * `StatusCardGrid` (the section-card grid the maintainer described as redundant
  * with the sidebar nav). The status-card component itself was removed
  * from the codebase. This test guards the *new* overview composition:
  * a welcome card, the system snapshot, and the recent-audit preview.

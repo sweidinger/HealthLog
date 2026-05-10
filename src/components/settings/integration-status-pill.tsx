@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 /**
  * v1.4.19 phase A5 — single status pill rendered top-right of every
  * integration card (Withings, Mood Log, Apple Health…). It replaces
- * the three- to four-fold redundant status surface Marc spotted in
+ * the three- to four-fold redundant status surface the maintainer spotted in
  * v1.4.18:
  *
  *   - top-right "Connected" badge
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
  *   - bottom-of-card "letzter Sync" line
  *
  * Now there is exactly ONE place a sync status can appear on a card
- * and it follows the pattern Marc liked from the Withings header: a
+ * and it follows the pattern the maintainer liked from the Withings header: a
  * Dracula-tokenized chip with the relative time inline.
  *
  * The component is locale-aware (EN + DE) and mobile-safe: on a

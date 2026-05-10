@@ -7,7 +7,7 @@ import { join } from "node:path";
  * chart in a `<ResponsiveContainer>` whose default
  * `touch-action: auto` makes the browser wait for the chart's JS
  * touchmove handler before starting page scroll. On slow devices that
- * causes Marc's "Scrolling-Hänger im Dashboard auf Charts".
+ * causes the maintainer's "Scrolling-Hänger im Dashboard auf Charts".
  *
  * Fix: every chart's wrapper `<div>` (the one that contains the
  * `<ResponsiveContainer>`) must carry the Tailwind `touch-pan-y`

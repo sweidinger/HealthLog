@@ -133,10 +133,21 @@ test.describe("dashboard onboarding card flicker guard", () => {
   test("incomplete-onboarding user sees the card collapsed by default", async ({
     page,
   }) => {
-    // Onboarding is incomplete AND profile fields are missing → the
-    // `shouldShowChecklist` gate is true. With the fix, the card mounts
-    // collapsed: header + progress meter visible, full row list hidden
-    // until the user clicks the chevron.
+    // Profile fields are missing AND `measurementCount < 5` so the
+    // `shouldShowChecklist` gate is true (its `stillInSetup` branch is
+    // satisfied by the measurement-count condition). With the fix, the
+    // card mounts collapsed: header + progress meter visible, full row
+    // list hidden until the user clicks the chevron.
+    //
+    // v1.4.22 C4 — the onboarding redirect now lives in `proxy.ts`,
+    // not in `<AuthShell>`. The proxy reads the `hl_onboarding` cookie
+    // (which the auth routes mirror from the DB). Our storageState
+    // belongs to a fully-onboarded user (no `hl_onboarding` cookie),
+    // so the proxy passes the dashboard through even when the mocked
+    // `/api/auth/me` reports `onboardingCompletedAt: null`. That's the
+    // exact case this test wants to cover — the checklist mounts
+    // because `measurementCount < 5` AND `onboardingCompletedAt` is
+    // null, but the page itself still paints.
     await page.route("**/api/auth/me", (route) =>
       route.fulfill({
         status: 200,

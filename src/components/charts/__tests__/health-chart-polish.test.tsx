@@ -123,7 +123,7 @@ describe("computePersonalBaseline()", () => {
 
 describe("<HealthChart> v1.4.18 clean-line revert", () => {
   it("does NOT paint a gradient fill under the line (clean line only)", async () => {
-    // v1.4.18 reverts B1a's gradient-area treatment. Marc explicitly
+    // v1.4.18 reverts B1a's gradient-area treatment. the maintainer explicitly
     // rejected the soft-color fill below the line: the line itself is
     // the chart, no painted background under it. We assert the SSR
     // output ships no `<linearGradient>` defs and no `chart-gradient`

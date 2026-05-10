@@ -94,9 +94,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   });
 
-  // Create session immediately
+  // Create session immediately. v1.4.22 W5 reconcile (Sr-H1) —
+  // `createSession` anchors the `hl_onboarding` cookie itself; fresh
+  // users are always pending so the proxy redirects on first
+  // navigation instead of waiting for hydration.
   const ua = request.headers.get("user-agent");
-  await createSession(user.id, ip, ua);
+  await createSession(user.id, true, ip, ua);
 
   await auditLog("auth.register", {
     userId: user.id,

@@ -204,7 +204,7 @@
  * bar. Used by the mobile section strips in `<AdminShell>` and
  * `<SettingsShell>` so 13 admin / 10 settings entries can swipe
  * horizontally without painting an always-on scrollbar at the top of
- * every admin/settings page (a recurring Marc complaint — most
+ * every admin/settings page (a recurring maintainer complaint — most
  * recently mistaken for a `/admin/api-tokens` table scrollbar in
  * v1.4.16/17 because the strip sits right above the api-tokens card).
  *

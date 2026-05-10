@@ -1,384 +1,198 @@
-# v1.4.20 marathon — state log
+# v1.4.22 marathon — state log
 
-Status: in flight
-Last update: 2026-05-10T15:00+02:00
+Status: Wave 5 — multi-agent QA + reconcile complete
+Last update: 2026-05-10T22:30+02:00
 
-> Previous milestone: v1.4.19 live (image digest
-> `sha256:b48f93874cdb…`, `/api/version=1.4.19`).
-> v1.4.20 = Insights redesign with AI Coach
-> (handoff at `~/Downloads/design_handoff_insights_redesign`).
-> v1.5 reserved for iOS app + Apple Health integration.
+> Previous patch: v1.4.21 live (image digest
+> `sha256:4e818d44702c…`, `/api/version=1.4.21`).
+> v1.4.22 = big polishing release before v1.5 iOS. Closes ALL known
+> bugs + applies ALL deferred items from `.planning/v1421-backlog.md`
+> so the iOS app builds on a clean foundation.
 
-## Foundation — pre-flight before any feature work
+## Wave 1 — Research + probe (parallel)
 
-Per `.planning/v1420-marathon-handoff.md`, F1–F6 must complete before
-B1 dispatches.
+Per `feedback_research_before_complex_features.md`, deep-fix work on
+4-attempt bugs (BD-Zielbereich, api-tokens scrollbar) + Coach prompt
+rewrite needs research first.
 
-### F0 — Commit dangling v1.4.19 reports + bootstrap v1.4.20 scaffold
+### W1a — Playwright PROD probe + token-leak hunt
 
-- [x] Commit phase-E1-report.md + phase-E3-report.md v1.4.19 updates
-- [x] STATE.md replaced with v1.4.20 scaffold; v1.4.19 archived to ROADMAP.md
-- [x] ROADMAP.md updated with v1.4.20 milestone + previous-milestone archive
+- [ ] BD-Zielbereich tile rendering against PROD with maintainer
+      session (4-attempt bug pattern: probe before patching)
+- [ ] Admin / api-tokens scrollbar at multiple viewports (5th attempt)
+- [ ] Raw `Metrik <Type>` token leaks in Recommendations / Findings
+- [ ] Targets / Zielwerte page screenshot for upgrade brainstorm
+- [ ] Inventory `.planning/v1421-backlog.md` items by complexity
+- Detailed report: `.planning/phase-W1a-report.md`
 
-### F1 — Branch model: long-lived `develop`
+### W1b — Health-coach prompt research
 
-- [x] Create `develop` from cleaned `main` HEAD (`a1cf9bc`)
-- [x] Push `develop` to origin (tracking set up)
-- [x] GHCR workflow verified — only `branches: [main]` + `tags: ['v*']` push paths build/publish; PRs to `main` build but do not push; develop is build-free
-- [x] All v1.4.20 commits target `develop`; release-merge to `main` only at Phase E
-- Detailed report: `.planning/phase-F1-report.md`
+- [ ] Benchmark health-coach / motivational-interviewing prompt
+      patterns (Apple Health Coaching, Oura, Whoop, …)
+- [ ] Define "natural prose first, evidence collapsible" structure
+      with concrete EN + DE drafts
+- [ ] PROMPT_VERSION 4.20.2 → 4.22.0 (significant Coach tone shift)
+- Detailed report: `.planning/phase-W1b-coach-prompt-research.md`
 
-### F2 — Document branch + release model
+## Wave 2 — Insights surface polish
 
-- [x] Extend `CONTRIBUTING.md` with branch flow + ASCII diagram (this branch)
-- [x] Mirror page on healthlog-docs at `/contributing/branch-model/` (`5d96861` on healthlog-docs/main)
-- [x] User-vs-contributor distinction explicit in both surfaces
-- Detailed report: `.planning/phase-F2-report.md`
+### A1 — BD-Zielbereich 5th attempt
 
-### FX — User-facing artifact cleanup (PII + jargon + German leaks)
+- [x] Headline re-anchored to `windows.last30Days?.pct`; all-time
+      surfaced as `bpInTargetPctAllTime` for the new sub-row
+- [x] Integration test pins the route contract
+- Detailed report: `.planning/phase-W2-report.md`
 
-Combined sweep across HealthLog main repo + healthlog-docs + healthlog-landing
-(F3 + F4 + new PII rule consolidated into one wave).
+### A2 — BD-Kachel feature parity
 
-- [x] HealthLog main repo: 20 files scrubbed, `a1cf9bc` on origin/main
-      (CHANGELOG.md, docs/audit/v146 / v1414 / v1415 / v1416 / v1418 /
-      v1419, docs/codex-protocol-spec.md, docs/migration/, docs/ops/)
-- [x] healthlog-docs: 7 files scrubbed, `782862b` on origin/main
-      (api/ examples replaced "marc" → "alice", DE leaks fixed)
-- [x] healthlog-landing: 1 file scrubbed, `9b31083` on origin/main
-      (JSON-LD author block depersonalised)
-- [x] GH releases v1.4.14–v1.4.19: republished bodies from cleaned
-      CHANGELOG sections during Phase E pipeline
-- [ ] Source-comment sweep (`src/` has 191 `Marc` references in
-      maintainer comments) — defer to v1.4.21 backlog as low-priority
-- [ ] DE+EN bilingual CHANGELOG entries (v1.4.15 era) — defer; larger
-      rewrite, captured in v1.4.21 backlog
-- Detailed report: `.planning/phase-FX-report.md`
+- [x] Trend arrow + 7-day-trend chip + comparison overlay parity
+      (synthesised slope from 7d/30d delta); `<TrendCard>` extended
+      with optional `avgAllTime` sub-value
 
-### F5 — Best-practice GitHub repo audit
+### A3 — Comparison-Toggle → global Settings
 
-- [x] CODE_OF_CONDUCT.md (Contributor Covenant 2.1, `e7b6b27`)
-- [x] Issue + PR templates (`.github/ISSUE_TEMPLATE/*.yml`, `PULL_REQUEST_TEMPLATE.md`, `072941b`)
-- [x] Dependabot expanded to github-actions + docker (`779e5a3`)
-- [x] package.json metadata: description, license, homepage, repository, bugs, keywords (`f7977d1`)
-- [x] LOW carry-over (README badges, FUNDING.yml, repo-root tidy) deferred to `.planning/v1421-backlog.md`
-- Detailed report: `.planning/phase-F5-report.md`
-- Note: initial sub-agent dispatch hit a content-filter block on the CoC text; refactored to inline execution (download CoC verbatim from contributor-covenant.org).
+- [x] On-surface `<CompareToggle />` removed from `/insights`;
+      Settings → Dashboard already carries the canonical picker
+- [x] `User.dashboardWidgetsJson.comparisonBaseline` field already
+      exists (v1.4.16 phase B8) — every chart still consumes it
 
-### F6 — Multi-agent QA on new docs
+### A4 — Insights layout grid normalisation
 
-- [x] 38 docs site pages cross-checked against the live app (v1.4.19), CHANGELOG, `.env.example`, Dockerfile, docker-compose, docker-publish workflow
-- [x] CRITICAL fixed inline: `19eb8de` (S3 env-var names + arm64 build claim removed) on healthlog-docs/main
-- [x] HIGH fixed inline: `3d3ea21` (achievement count 38 → 59, `/admin/<section>` paths, AI rate-limit 2/h → 10/h, default-locale flip, comparison-overlay scope) on healthlog-docs/main
-- [x] 9 MED + 5 LOW deferred to `.planning/v1421-backlog.md` "Docs site audit" section
-- [x] Two flagged-but-uncertain items captured for maintainer review
-- Detailed report: `.planning/phase-F6-report.md`
+- [x] Row-fill rule: BP / weight / medications grids collapse to
+      full-width when only one card has data
+- [x] Trends row equal heights via `min-h-[300px]`
+- [x] `<CorrelationRow>` drops insufficient-data tiles; zero ok
+      cards hides the row entirely
 
-## Wave B — Insights redesign with AI Coach (sequential)
+### A5 — Section heading + tab rename
 
-Per `.planning/phase-D-v1419-product-lead-review.md`. Each phase
-ships behind a feature flag and unlocks independently.
+- [x] "Muster" → "Zusammenhänge" (DE) / "Patterns" → "Relationships"
+      (EN). Picked Zusammenhänge over Trends because the row above
+      already uses Trends.
+- [x] `<InsightsSectionNav>` lifted above the hero strip (sticky
+      scroll-anchored; tabs visible first)
 
-### B1 — Hero strip + Daily Briefing + Suggested-prompts (~3-5 days)
+### A6 — Raw `Metrik <Type>` token leak fix
 
-- [x] Replace `<InsightsPageHero>` with new hero strip (greeting,
-      action row + suggested-prompt strip; Daily Briefing card mounts
-      full-width below the hero)
-- [x] New `src/components/insights/{hero-strip,daily-briefing,
-    suggested-prompts}.tsx`
-- [x] Extend `aiInsightResponseSchema` with `dailyBriefing`
-      (`paragraph`, `keyFindings[]`)
-- [x] PROMPT_VERSION bump 4.19.0 → 4.20.0
-- [~] Apple Health gated tiles — descoped per `phase-D-v1419-product-
-    lead-review.md` decision. The 4-vitals tile row from the artboard
-  uses BP / Weight / Pulse / Mood (all data already in the app);
-  HRV / Sleep / Resting-HR tiles defer to v1.5 / iOS app. The B1
-  tile row itself (Vitals at-a-glance) is deferred to a later
-  B-phase since it duplicates the per-section status cards below
-  — see B1 report for the rationale.
-- Detailed report: `.planning/phase-B1-v1420-report.md` (the older
-  `phase-B1-report.md` is from the v1.4.18 achievements marathon)
+- [x] `<RecommendationCard>` text wrapped in `stripChartTokens()`
+- [x] DE `componentMood`/`componentBp`/`componentCompliance` renamed
+      to German nouns; i18n-integrity test pins the contract
 
-### B2 — AI Coach panel + streaming chat + persistence (~5-7 days)
+## Wave 3 — Coach polish
 
-Split into B2a (backend, complete) + B2b (drawer UI, complete). Both
-halves landed on `develop` under nine atomic commits total — five
-for the backend wave, four for the drawer wave plus a state-tick
-commit.
+### B1 — Prompt rewrite
 
-- [x] New `POST /api/insights/chat` SSE-streaming endpoint
-- [x] New `GET /api/insights/chat` (list) + `GET/DELETE
-    /api/insights/chat/[id]` (single + delete)
-- [x] New Prisma `CoachConversation` + `CoachMessage` + `CoachUsage`
-      (encrypted content, GDPR cascade)
-- [x] Source-chip provenance attached to every assistant message
-- [x] Token-budget cap (25 000 tokens / user / UTC-day) + 20-turn
-      conversation cap with summarised-history fold
-- [x] Prompt-injection + off-topic refusal pattern (EN+DE)
-- [x] Drawer overlay over `/insights`; full-page `/insights/coach`
-      route deferred to v1.5 paired with the iOS app
-- [x] New `src/components/insights/coach-panel/*` — drawer shell,
-      message thread, source chips, composer, history rail,
-      sources rail, TanStack Query + SSE hooks
-- Detailed report: `.planning/phase-B2a-report.md` (backend);
-  `.planning/phase-B2b-report.md` (drawer UI)
+- [x] Adopt W1b research output: natural prose-first, motivational,
+      conservative, evidence-grounded
+- [x] PROMPT_VERSION 4.22.0; EN + DE
+- [x] Coach-specific test suite covering tone + evidence-collapsible
+      pattern
+- Detailed report: `.planning/phase-W3-report.md`
 
-### B3 — Correlation discovery + Trends row with AI annotations (~3-5 days)
+### B2 — Collapsible provenance + values
 
-- [x] 3 pre-defined hypotheses: BP×compliance, mood×pulse,
-      weight×weekday
-- [x] New `src/lib/insights/correlations.ts` (Pearson + weekday-ANOVA;
-      n >= 14 + p < 0.05 surfacing gate)
-- [x] New `src/components/insights/{correlation-card,correlation-row,
-    trends-row,trend-annotation}.tsx`
-- [x] Confidence interval via Fisher z-transform; conservative
-      phrasing locked in by code-review convention
-- [x] PROMPT_VERSION 4.20.0 → 4.20.1; new `trendAnnotations` block
-      on the AI response schema (nullable + optional for legacy
-      payloads)
-- [x] `/api/analytics` now emits `correlations: {bpCompliance,
-    moodPulse, weightWeekday}` server-side
-- [x] `<CorrelationRow>` + `<TrendsRow>` mounted on `/insights`
-      between Daily Briefing and the Advisor card
-- Detailed report: `.planning/phase-B3-report.md`
+- [x] Move inline raw values out of prose into a
+      "Worauf bezieht sich das?" expandable below each assistant
+      message; `---KEYVALUES---` … `---END---` sentinel stripped
+      server-side, parsed into `provenance.keyValues`
+- [x] Source chips stay visible; values reveal on click
 
-### B4 — Weekly Report + Storyboard + Mobile passes (~3-4 days)
+### B3 — User avatar = Gravatar (parity)
 
-- [x] PROMPT_VERSION 4.20.1 → 4.20.2; aiInsightResponseSchema gains
-      `weeklyReport` + `storyboardAnnotations`; GROUND RULES 10/11
-      across EN + DE prompts
-- [x] New `/insights/report/[week]` route — newsletter-style
-      printable surface with Summary / Going-well / Worth-watching /
-      Tips / Data-quality sections; `window.print()` export via
-      Tailwind `print:` variants
-- [x] Hero strip banner-card surfaces the fresh weeklyReport with
-      Read · Share · Export PDF actions; Share uses Web Share API +
-      clipboard fallback; Export deep-links to `?print=1`
-- [x] `<HealthChart>` gains an additive `annotations[]` prop;
-      `resolveAnnotationPositions()` pure helper maps date→pointIndex
-      with a 7-day snap window and 24-char small-viewport truncation
-- [x] Coach drawer rail trays — chevron-button triggers on `<lg`
-      open side-sheets that host the same HistoryRail / SourcesRail
-      the desktop layout uses; refactored body into
-      `<CoachDrawerBody>` for SSR-test surface
-- Detailed report: `.planning/phase-B4-report.md`
+- [x] Same dimensions as Coach avatar
+- [x] Reuses existing `gravatarUrl` from `/api/auth/me`; initials
+      fallback when no Gravatar configured
 
-### B5 — Personal AI Coach Health Score (~2-3 days)
+### B4 — Disclaimer move
 
-- [x] Composite Health Score (0-100): 30% BP-target + 20%
-      weight-trend + 20% mood-stability + 30% compliance
-- [x] Three bands (≥75 green, 50–74 yellow, <50 red)
-- [x] "Ask the Coach" CTA opens B2 drawer with prefilled prompt
-- Detailed report: `.planning/phase-B5-report.md`
+- [x] "Coach replies are generated. Clinical decisions belong with
+      your doctor." moves from below input → sources rail footer
+- [x] "Coach reads only your connected data" caption replaced by the
+      disclaimer so the source picker stands alone
 
-## Wave B summary (B1–B5)
+### B5 — Settings cog wire-or-remove
 
-Wave B closed the Insights redesign across 5 phases on `develop`:
+- [x] Removed for v1.4.22; per-user prompt-tuning surface deferred
+      to v1.4.23 (no dead buttons in this release)
 
-| Phase | Theme                                      | Commits | Test count delta (unit / int) |
-| ----- | ------------------------------------------ | ------- | ----------------------------- |
-| B1    | Hero strip + Daily Briefing + Suggested    | 5       | 1672 → 1753 (+81) / 67 → 67   |
-| B2    | AI Coach drawer (B2a backend + B2b UI)     | 5 + 4   | 1753 → 1833 (+80) / 67 → 78   |
-| B3    | Correlation discovery + Trends row + AI    | 5       | 1833 → 1907 (+74) / 78 → 78   |
-| B4    | Weekly Report + Storyboard + Mobile passes | 5       | 1907 → 1975 (+68) / 78 → 78   |
-| B5    | Personal Health Score                      | 5       | 1975 → 2026 (+51) / 78 → 81   |
-|       | **Cumulative**                             | **29**  | **+354 / +14**                |
+## Wave 4 — Other surfaces + backlog cleanup
 
-Test count: 1672 → 2026 unit (+354), 67 → 81 integration (+14).
-Test files 217 → 237. typecheck clean every phase; lint
-13 baseline warnings unchanged.
+### C1 — Zielwerte page upgrade
 
-## Wave D — Multi-agent QA + Product-Lead review
+- [x] 30-day sparkline + Δ-vs-last-month caption per card (Direction
+      A from W1a §4). Reuses shared HealthChart styling via a
+      dependency-free inline SVG; API returns `points30d` +
+      `deltaVsLastMonth`. BMI derives both from the weight series.
 
-- [x] code-reviewer (`.planning/phase-D-v1420-code-review.md`)
-- [x] security review (`.planning/phase-D-v1420-security-review.md`)
-- [x] design / UX review (`.planning/phase-D-v1420-design-review.md`)
-- [x] senior-dev review (`.planning/phase-D-v1420-senior-dev-review.md`)
-- [x] simplify (`.planning/phase-D-v1420-simplify-review.md`)
-- [x] Product Lead — v1.5 redesign plan (`.planning/phase-D-v1420-product-lead-review.md`)
-- [x] Reconcile applied CRITICAL + HIGH (13 of 13) + 6 MED inline; 22 MED + 16 LOW + 4 simplify-apply-maybe deferred to `.planning/v1421-backlog.md` "Phase D reconcile carry-over" section
-- Detailed report: `.planning/phase-D-v1420-reconcile-report.md`
+### C2 — Admin / api-tokens scrollbar 5th attempt
 
-## Phase E — Release v1.4.20
+- [x] Live Playwright probe confirmed `whitespace-nowrap` on the date
+      `<td>`s was the residual culprit (W1a §2). Dropped the two
+      classes; date+time wraps to two lines on narrow viewports.
 
-- [x] Pre-release verify (typecheck, lint, test, integration,
-      format, build) — 2026 unit + 81 integration green
-- [x] Bump package.json + CHANGELOG (`aac8b5e chore(release): v1.4.20`)
-- [x] Sync Dependabot dep bumps from main → develop (`dd2ef57`)
-- [x] Release-merge develop → main (`666f6ee Release v1.4.20`)
-- [x] Tag + push v1.4.20 (annotated, `666f6ee`)
-- [x] GHCR build green (run `25633807964`, 4m02s,
-      digest `sha256:b112a31947…`)
-- [x] Coolify deploy — auto-deploy webhook still missing on
-      apps-01; host-side retag fallback used (same fault mode as
-      v1.4.19)
-- [x] /api/version=1.4.20 confirmed (flipped 2026-05-10T16:49:25Z)
-- [x] Production smoke — all gated routes redirect 307 →
-      `/auth/login` as expected for an unauthenticated request;
-      `/api/version` and `/auth/login` 200
-- [x] GH release published (https://github.com/MBombeck/HealthLog/releases/tag/v1.4.20)
-- [x] GH releases v1.4.14 → v1.4.19 republished from cleaned
-      CHANGELOG sections (FX carry-over)
-- [x] Docs site sync (`0b83430` on healthlog-docs/main —
-      version pins + ai-insights v1.4.20 callout)
-- [x] Landing site sync (`43ce4c7` on healthlog-landing/main —
-      JSON-LD `softwareVersion` 1.4.20 + 3 new featureList entries)
-- [x] `docs/audit/v1420-summary.md` (release brief, `7f9ae21`)
-- [x] v1.5 plan refreshed — see `.planning/phase-D-v1420-product-
-    lead-review.md`
+### C3 — Coolify image-digest auto-deploy
 
----
+- [x] Workflow appends `?force=true` to the deploy webhook so doc-only
+      pushes still trigger a registry-digest check. Maintainer-side
+      toggle ("Watch image registry for new digests") documented in
+      `.planning/coolify-auto-deploy-howto.md` — one UI flip.
 
-## Status block — F0 (v1.4.20)
+### C4 — AuthShell post-hydration redirect flicker
 
-- 2026-05-10T15:00+02:00 — F0 complete. Dangling v1.4.19 release
-  reports (`phase-E1-report.md` + `phase-E3-report.md`) committed,
-  STATE.md replaced with v1.4.20 scaffold (F1–F6 foundation +
-  B1–B5 Insights redesign + Wave D + Phase E), ROADMAP.md updated
-  to track v1.4.20 with v1.4.19 archived. Branch model unchanged
-  for this commit (still `main`); F1 will introduce `develop`.
+- [x] Redirect lives in `proxy.ts`. Auth routes mirror
+      `onboardingCompletedAt` into a non-httpOnly `hl_onboarding`
+      cookie so the proxy can short-circuit before hydration. The
+      e2e onboarding-flicker spec dropped its workaround.
 
-## Status block — B2a (v1.4.20)
+### C5 — node-26-alpine bump
 
-- 2026-05-10T16:15+02:00 — B2a complete. AI Coach backend landed in
-  five atomic commits on `develop`: Prisma migration
-  `0035_coach_conversations_v1420` adds `CoachConversation`,
-  `CoachMessage`, and `CoachUsage` tables (cascade-on-user-delete);
-  Coach helpers (types, persistence with AES-256-GCM message bodies,
-  per-day 25 000-token budget ledger, EN+DE prompt-injection +
-  off-topic refusal); SSE streaming endpoint at POST
-  `/api/insights/chat` (idempotent on conversation creation only,
-  20-turn history fold, refusal short-circuit, provenance frame, done
-  frame); list / fetch-single / delete endpoints with 404-not-403
-  ownership boundary. Tests: 1753 → 1781 unit (+28),
-  67 → 78 integration (+11). UI drawer (B2b) deferred to a separate
-  dispatch.
+- [x] Dependabot PR #162 closed with reasoning. node:26-alpine ships
+      without corepack pre-installed; Next.js 16 also still pins
+      node 22 LTS as the supported minimum. Reopen when the framework
+      bumps its node-version requirement.
 
-## Status block — B2b (v1.4.20)
+### D — `.planning/v1421-backlog.md` cleanup wave
 
-- 2026-05-10T16:30+02:00 — B2b complete. AI Coach drawer landed in
-  four atomic commits on `develop`: TanStack Query + SSE streaming
-  hooks (`useCoachConversations`, `useCoachConversation`,
-  `useDeleteCoachConversation`, `useSendCoachMessage`) with a
-  pure `parseSseChunk()` helper for unit-testable frame parsing;
-  drawer shell wrapped in `<Sheet side="right">` with three-column
-  layout on `lg+` (history rail · message thread · sources rail) and
-  full-screen single-column on mobile; `<MessageThread>` renders user
-  / assistant bubbles + an in-flight streaming bubble with
-  pinned-to-bottom auto-scroll; `<SourceChips>` renders provenance as
-  labels-only chips (metric · window · n-count, never raw values);
-  `<CoachInput>` composer with Enter / Cmd+Enter / Shift+Enter
-  semantics, disabled mic placeholder ("voice arrives in v1.5"), and
-  the "Coach replies are generated. Clinical decisions belong with
-  your doctor." disclaimer; `<HistoryRail>` with substring filter
-  and confirm-then-go delete; `<SourcesRail>` with the five Coach
-  metric contracts; `/insights` page mounts the drawer with the
-  hero strip's "Ask the coach" button + suggested-prompt chips
-  driving open + prefill. Tests: 1781 → 1833 unit (+52,
-  six new test files: `use-coach`, `source-chips`, `message-thread`,
-  `coach-input`, `sources-rail`, `history-rail`). Integration count
-  unchanged at 78. typecheck + lint clean (12 baseline warnings).
+Apply or confirm-defer every item:
 
-## Status block — Wave D reconcile (v1.4.20)
+- [x] Phase D reconcile carry-over (22 MED + 16 LOW + 4 simplify-maybe)
+- [x] FX carry-overs:
+  - [x] 191 `Marc` references swept across `src/` (test fixtures kept
+        as opaque test data per brief)
+  - [x] DE+EN bilingual CHANGELOG entries (v1.4.14 + v1.4.15) reduced
+        to English-only
+  - [x] `CLAUDE.md` renamed to `CONTRIBUTING-AI.md` so the filename
+        is not AI-vendor-specific; `AGENTS.md` stays for multi-agent
+        compatibility. `CONTRIBUTING.md` reference updated.
 
-- 2026-05-10T18:15+02:00 — Wave D reconcile complete. Six reviewers
-  filed 0 CRIT · 12 HIGH · 28 MED · 22 LOW + 5 simplify-apply-yes +
-  4 simplify-apply-maybe + 3 simplify-apply-no across the code,
-  security, design, senior-dev, simplify, and product-lead lenses.
-  All 12 HIGH items + the design pushback on the disabled weekly-
-  report button + 6 MED items + every simplify-apply-yes item landed
-  inline across 11 atomic commits on `develop` (`e632e26` →
-  `31fbf98`). 22 MED + 16 LOW + 4 simplify-apply-maybe deferred to
-  `.planning/v1421-backlog.md` under "Phase D — v1.4.20 reconcile
-  carry-over". Test counts unchanged (2026 unit / 81 integration);
-  typecheck + lint clean; one observed integration-test flake on
-  `coach-chat.test.ts` "round-trips" (not introduced by Phase-D —
-  consistent re-runs pass). Phase E (release v1.4.20) unblocked.
+### E2E fix wave (already on develop)
 
-## Phase F — v1.4.20.1 hotfix
+- [x] 5 commits on develop from the v1.4.21 follow-up; release-merge
+      brings them into main when v1.4.22 ships
 
-Triggered by Marc's testing of the new Insights/Coach surface in
-production after v1.4.20 went live. Five issues captured in
-`feedback_v1420_post_deploy_bugs.md` — landed across six atomic
-commits on `develop`. No tag yet; maintainer decides whether to ship
-as v1.4.20.1 or bundle into v1.4.21.
+## Wave 5 — Multi-agent QA + Product-Lead review
 
-- [x] Daily Briefing regenerate produces a non-empty briefing
-      (`/api/insights/generate` now uses `getStrictInsightsSystemPrompt`
-      so GROUND RULE 8 reaches the model — `7921ffc`)
-- [x] Coach snapshot ships day-level readings with weekday labels
-      and a per-day medication-adherence row (`ed61b17`)
-- [x] Coach system prompt instructs the model to use the timeline
-      block for day-specific or weekday-specific questions
-      (`2143377`)
-- [x] Streaming bubble clears once the persisted twin lands —
-      message-thread render-time dedup keyed on `messageId`
-      (`f07e35b`)
-- [x] Drawer header settings cog moved to the left side so Radix
-      Sheet's close-X no longer overlaps it (`ddb2914`)
-- [x] Sources rail grows per-source checkboxes + window selector;
-      scope flows through `useSendCoachMessage` to the chat request
-      body and into `buildCoachSnapshot` (`08fd411`)
-- [x] Detailed report: `.planning/phase-v1421-hotfix-report.md`
+- [x] code-reviewer (`.planning/phase-W5-v1422-code-review.md` — 0 CRIT, 2 HIGH, 4 MED, 5 LOW)
+- [x] security review (`.planning/phase-W5-v1422-security-review.md` — 0 CRIT, 0 HIGH, 2 MED, 4 LOW)
+- [x] design / UX review (`.planning/phase-W5-v1422-design-review.md` — 0 CRIT, 3 HIGH, 7 MED, 5 LOW)
+- [x] senior-dev review (`.planning/phase-W5-v1422-senior-dev-review.md` — 0 CRIT, 2 HIGH, 5 MED, 4 LOW)
+- [x] simplify (`.planning/phase-W5-v1422-simplify-review.md` — 5 apply-yes, 4 apply-maybe, 6 apply-no)
+- [x] Product Lead — v1.5 plan refresh based on v1.4.22 state (`.planning/phase-W5-v1422-product-lead-review.md`)
+- [x] Reconcile applied CRITICAL + HIGH; defer MED/LOW with reasoning (10 commits; report at `.planning/phase-W5-v1422-reconcile-report.md`; backlog at `.planning/v1422-backlog.md`)
 
-## Status block — F (v1.4.20.1 hotfix)
+## Wave 6 — Release v1.4.22
 
-- 2026-05-10 (post-deploy) — Hotfix complete. Six commits on
-  `develop` (`7921ffc` → `08fd411`). Test counts: 2026 → 2036 unit
-  (+10 net across snapshot + message-thread + sources-rail tests).
-  Integration tests unchanged at 81 — coach-chat.test.ts still 5/5.
-  typecheck + lint clean (13 baseline warnings unchanged). Token-
-  budget impact of the day-level snapshot: ~190 → ~3000 tokens per
-  full-scope turn; the new scope picker is the relief valve, single-
-  source narrowed turns land around 600-700 tokens. v1.4.21 should
-  watch usage and consider trimming `DAILY_TIMELINE_DAYS` from 14 to
-  10 if heavy users start hitting the 25k/day cap.
-
-## Status block — v1.4.21 release
-
-- 2026-05-10T17:46+00:00 — v1.4.21 LIVE in production. Tag `v1.4.21`
-  on `8e198e1 Release v1.4.21` (release-merge of develop into main),
-  GHCR build run `25635294152` succeeded, image digest
-  `sha256:4e818d44702c3581a14d6480a953fd20d16cbbaf21c41e0c778c07340d3c4b1c`.
-  Coolify auto-deploy webhook still missing (same fault as v1.4.19 +
-  v1.4.20) — host-side retag fallback used (`docker pull :1.4.21 →
-  docker tag :latest → docker compose up -d --force-recreate app`)
-  on apps-01. `/api/version` flipped to `1.4.21` between
-  19:45+02:00 and 19:46+02:00. Production smoke (no session): every
-  gated route 307 → `/auth/login`; `/api/version` 200; `/auth/login`
-  reachable. GH release: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.21.
-  Marc-Brief at `docs/audit/v1421-summary.md`. Docs site + landing
-  site sync skipped (patch is invisible at the docs page level —
-  the v1.4.20 entries already cover the Insights redesign +
-  Coach surface).
-
-## Phase G — e2e fix wave (in flight on develop)
-
-The post-v1.4.20 e2e workflow on `main` reported 7 failing specs.
-Five are stale selectors from the B1 hero rewrite (the new
-`<HeroStrip>` exposes a different `data-slot` value than the
-legacy `<InsightsPageHero>` the specs assert), the other two are
-Pixel-5 layout drift on `admin-api-tokens-mobile` and
-`charts-mobile`. A focused fix wave is in flight on `develop`;
-the next release (v1.4.22) will land them.
-
-## Status block — B5 (v1.4.20)
-
-- 2026-05-10T17:45+02:00 — B5 complete. Personal Health Score
-  landed in five atomic commits on `develop`: pure formula library
-  (`src/lib/analytics/health-score.ts`) with linear-regression
-  slope, coefficient-of-variation, weight-trend alignment, mood
-  stability, and compliance-rate helpers; the four-component
-  composite scales remaining weights when sub-components are null
-  (29 unit tests pin every shape); `/api/analytics` emits
-  `healthScore: { score, band, components, delta } | null` with
-  the wide-event annotation carrying score + band + delta;
-  `<HealthScoreCard>` (220 px desktop, full-width mobile) with
-  band-tinted progress bar, four sub-bars, "vs last week" delta
-  line, score-aware "Ask the Coach" prefill ("Why is my health
-  score X out of 100?"); `<HeroStrip>` flips to `lg:flex-row` and
-  mounts the panel beside the title block when the analytics
-  payload includes a score. Tests: 1975 → 2026 unit (+51), 78 → 81
-  integration (+3). typecheck + lint clean. Canonical sample (the
-  integration's strong-positive seed): score 95, band green,
-  components 90/100/89/100. Wave-B closed; Wave D dispatch next.
+- [ ] Pre-release verify (typecheck, lint, test, integration,
+      format, build)
+- [ ] Bump `package.json` 1.4.21 → 1.4.22 + CHANGELOG
+- [ ] Release-merge develop → main
+- [ ] Tag + push v1.4.22
+- [ ] GHCR build green
+- [ ] Coolify deploy (should work without host-side fallback after C3)
+- [ ] /api/version=1.4.22 confirmed
+- [ ] Production smoke + e2e workflow on main passes (e2e fix wave
+      from develop is included in the release-merge)
+- [ ] GH release
+- [ ] Docs site + landing site sync
+- [ ] `docs/audit/v1422-summary.md` (release brief)
+- [ ] v1.5 plan refreshed for the iOS push

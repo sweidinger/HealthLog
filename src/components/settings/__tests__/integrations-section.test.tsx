@@ -1,7 +1,7 @@
 /**
  * v1.4.19 Phase A5 — Settings → Integrations status consolidation.
  *
- * Marc's verbatim concern (paraphrased):
+ * the maintainer's verbatim concern (paraphrased):
  *   - Withings card had 3 status displays — top-right "connected"
  *     badge, mid-card "connected / last successful / last attempt"
  *     trio container, and the badge inside that container.
@@ -22,7 +22,7 @@
  *   4. Mood Log disconnected: pill says "Not connected", no other
  *      status display surfaces.
  *   5. Mood Log card has the visual divider that Withings always had
- *      — consistency Marc explicitly called out.
+ *      — consistency the maintainer explicitly called out.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -219,7 +219,7 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     expect(html).not.toContain("Last attempt");
   });
 
-  it("Withings reauth state surfaces 'Error — reconnect' on the pill (Marc's wording)", () => {
+  it("Withings reauth state surfaces 'Error — reconnect' on the pill (the maintainer's wording)", () => {
     setIntegrationStatus({
       threshold: 3,
       integrations: [

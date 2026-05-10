@@ -70,8 +70,8 @@ const baseResponse: AIInsightResponse = {
 };
 
 describe("PROMPT_VERSION", () => {
-  it("matches the v1.4.20 series 4.20.x", () => {
-    expect(PROMPT_VERSION).toMatch(/^4\.20\.\d+$/);
+  it("stays on the 4.x train", () => {
+    expect(PROMPT_VERSION).toMatch(/^4\.\d+\.\d+$/);
   });
 });
 

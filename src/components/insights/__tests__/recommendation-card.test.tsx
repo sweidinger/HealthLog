@@ -243,4 +243,36 @@ describe("<RecommendationCard>", () => {
     );
     expect(html).not.toContain("data-feedback-thumb=");
   });
+
+  /**
+   * v1.4.22 A6 — strip chart-tokens from the always-visible
+   * recommendation text. W1a §3 traced the production "metric:WEIGHT"
+   * leak the maintainer saw at the bottom of the advisor card to this exact
+   * render path: every other AI-prose surface ran through
+   * `stripChartTokens()`, the recommendation text didn't. Pin the
+   * strip so a future copy-paste regression can't reintroduce the
+   * leak.
+   */
+  it("strips literal chart tokens (metric:WEIGHT et al) from the rec text", () => {
+    const recWithToken = {
+      ...recBase,
+      text: "Increase fluids. metric:WEIGHT",
+    };
+    const html = render(<RecommendationCard rec={recWithToken} index={0} />);
+    expect(html).not.toContain("metric:WEIGHT");
+    expect(html).toContain("Increase fluids.");
+  });
+
+  it("strips lowercase / mixed-case model output from the rec text", () => {
+    const recWithLowercaseToken = {
+      ...recBase,
+      text: "Watch the trend. metric:blood_pressure_sys today",
+    };
+    const html = render(
+      <RecommendationCard rec={recWithLowercaseToken} index={0} />,
+    );
+    expect(html).not.toContain("metric:blood_pressure_sys");
+    expect(html).toContain("Watch the trend.");
+    expect(html).toContain("today");
+  });
 });

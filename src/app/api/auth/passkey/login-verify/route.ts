@@ -65,8 +65,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("User not found", 404);
   }
 
+  // v1.4.22 W5 reconcile (Sr-H1) — `createSession` anchors the
+  // `hl_onboarding` cookie itself; pass the user's onboarding state
+  // through so the proxy short-circuits the redirect before
+  // hydration.
   const ua = request.headers.get("user-agent");
-  await createSession(user.id, ip, ua);
+  await createSession(user.id, user.onboardingCompletedAt == null, ip, ua);
 
   await auditLog("auth.login.passkey", {
     userId: user.id,

@@ -53,7 +53,7 @@ export interface DashboardWidgetConfig {
    * `visible` so existing saved layouts keep their previous behaviour
    * (one toggle controls both surfaces). When set explicitly the user
    * can show the chart but hide the tile, or show the tile but hide
-   * the chart, which is what Marc asked for in the v1.4.15 follow-up
+   * the chart, which is what the maintainer asked for in the v1.4.15 follow-up
    * (memory `feedback_dashboard_top_tiles_selectable.md`).
    */
   tileVisible?: boolean;
@@ -95,7 +95,7 @@ export function isComparisonBaseline(
 /**
  * v1.4.18 — per-chart overlay-prefs.
  *
- * Marc rolled back B1a's always-on chart overlays (gradient fill,
+ * the maintainer rolled back B1a's always-on chart overlays (gradient fill,
  * personal-baseline reference line, target-zone shading) and asked for
  * a per-chart switch surface so each chart can be tuned independently.
  * The three toggles (7-day trend / Trend arrow / Target range) live in
@@ -193,7 +193,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     // v1.4.15 phase-B4 — recent-unlocks card (dashboard surface for the
     // gamification feature). Visible by default — the card is small,
     // self-gates on having any achievements (otherwise it shows a brief
-    // "no achievements yet" + link), and Marc-asked-for-it explicitly.
+    // "no achievements yet" + link), and maintainer-asked-for-it explicitly.
     // `tileVisible` is forced false because there is no tile surface
     // for this widget; only the chart-row card.
     { id: "achievements", visible: true, tileVisible: false, order: 13 },

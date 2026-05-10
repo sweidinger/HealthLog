@@ -60,6 +60,8 @@ import {
 import { detectRefusal } from "@/lib/ai/coach/refusal";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
+import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
+import { createSseStream } from "@/lib/sse/create-stream";
 
 /**
  * Hard cap on total turns kept inside the per-call prompt window.
@@ -260,9 +262,52 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     throw err;
   }
 
-  const replyText = (result.content ?? "").trim();
-  if (!replyText) {
+  const rawReply = (result.content ?? "").trim();
+  if (!rawReply) {
     return streamProviderError({ code: "coach.provider.empty" });
+  }
+
+  // v1.4.22 — strip the optional `---KEYVALUES---` … `---END---`
+  // sentinel out of the prose. The stripped prose is what we stream
+  // to the client and persist; the parsed entries enrich the
+  // provenance envelope so the UI can render the collapsible
+  // "Worauf bezieht sich das?" disclosure.
+  const sentinel = parseKeyValuesSentinel(rawReply);
+  const proseAfterStrip = sentinel.prose.trim();
+  // v1.4.22 W5 reconcile (Code-H1) — when the model emits a
+  // sentinel-only / malformed reply, `sentinel.prose` is empty after
+  // stripping. The previous fallback `sentinel.prose.trim() || rawReply`
+  // surfaced raw `---KEYVALUES---` markers to the user. The empty-prose
+  // condition signals an unusable provider response: short-circuit to
+  // the structured `coach.provider.empty` error frame instead of
+  // streaming the raw sentinel body.
+  if (!proseAfterStrip) {
+    annotate({
+      action: { name: "coach.keyvalues.parse_failed" },
+      meta: {
+        kept: sentinel.keyValues.length,
+        reason: "empty_prose_after_strip",
+        promptVersion: PROMPT_VERSION,
+      },
+    });
+    return streamProviderError({ code: "coach.provider.empty" });
+  }
+  const replyText = proseAfterStrip;
+  const enrichedProvenance =
+    sentinel.keyValues.length > 0
+      ? { ...snapshot.provenance, keyValues: sentinel.keyValues }
+      : snapshot.provenance;
+  if (sentinel.malformed) {
+    // Graceful degrade: log so ops can spot a provider whose
+    // sentinel format has drifted, but pass the prose through
+    // unchanged.
+    annotate({
+      action: { name: "coach.keyvalues.parse_failed" },
+      meta: {
+        kept: sentinel.keyValues.length,
+        promptVersion: PROMPT_VERSION,
+      },
+    });
   }
 
   // Persist the assistant message BEFORE we begin streaming; if the
@@ -271,7 +316,7 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     conversationId: workingConversationId,
     role: "assistant",
     content: replyText,
-    metricSource: snapshot.provenance,
+    metricSource: enrichedProvenance,
     providerType: workingProviderType,
     promptVersion: PROMPT_VERSION,
   });
@@ -296,29 +341,23 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   });
 
   // ── Stream the body to the client ────────────────────────────
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      try {
-        for (const tok of tokeniseForStreaming(replyText)) {
-          controller.enqueue(encodeFrame({ type: "token", token: tok }));
-        }
-        controller.enqueue(
-          encodeFrame({
-            type: "provenance",
-            metricSource: snapshot.provenance,
-          }),
-        );
-        controller.enqueue(
-          encodeFrame({
-            type: "done",
-            conversationId: workingConversationId,
-            messageId: assistantMessage.id,
-          }),
-        );
-      } finally {
-        controller.close();
-      }
-    },
+  const stream = createSseStream((controller) => {
+    for (const tok of tokeniseForStreaming(replyText)) {
+      controller.enqueue(encodeFrame({ type: "token", token: tok }));
+    }
+    controller.enqueue(
+      encodeFrame({
+        type: "provenance",
+        metricSource: enrichedProvenance,
+      }),
+    );
+    controller.enqueue(
+      encodeFrame({
+        type: "done",
+        conversationId: workingConversationId,
+        messageId: assistantMessage.id,
+      }),
+    );
   });
 
   return new Response(stream, { status: 200, headers: SSE_HEADERS });
@@ -368,43 +407,29 @@ async function streamRefusal(args: {
     promptVersion: PROMPT_VERSION,
   });
 
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      try {
-        controller.enqueue(
-          encodeFrame({ type: "token", token: args.refusalText }),
-        );
-        controller.enqueue(
-          encodeFrame({
-            type: "done",
-            conversationId,
-            messageId: refusalMessage.id,
-          }),
-        );
-      } finally {
-        controller.close();
-      }
-    },
+  const stream = createSseStream((controller) => {
+    controller.enqueue(encodeFrame({ type: "token", token: args.refusalText }));
+    controller.enqueue(
+      encodeFrame({
+        type: "done",
+        conversationId,
+        messageId: refusalMessage.id,
+      }),
+    );
   });
 
   return new Response(stream, { status: 200, headers: SSE_HEADERS });
 }
 
 function streamProviderError(args: { code: string }): Response {
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      try {
-        controller.enqueue(
-          encodeFrame({
-            type: "error",
-            code: args.code,
-            message: args.code,
-          }),
-        );
-      } finally {
-        controller.close();
-      }
-    },
+  const stream = createSseStream((controller) => {
+    controller.enqueue(
+      encodeFrame({
+        type: "error",
+        code: args.code,
+        message: args.code,
+      }),
+    );
   });
   // Status 200 so the streaming client reads the SSE body and parses
   // the structured `error` frame (HTTP-status branches drop the

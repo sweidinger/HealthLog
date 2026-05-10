@@ -21,7 +21,7 @@ describe("isBpReadingInTarget()", () => {
    * v1.4.16 A2 regression: 117/79 is textbook normotensive
    * (well-controlled, below the goal ceiling, above hypotension). The
    * v1.4.15 implementation rejected this because sys < sysLow (120),
-   * which collapsed Marc's BD-Zielbereich tile to 0 %. The fix uses a
+   * which collapsed the live tenant's BD-Zielbereich tile to 0 %. The fix uses a
    * one-sided ceiling check with a clinical floor.
    */
   it("counts a normotensive reading below the goal band as in-target", () => {
@@ -167,9 +167,9 @@ describe("computeBpInTargetPct", () => {
   });
 
   /**
-   * v1.4.16 A2 regression — Marc's actual production data.
+   * v1.4.16 A2 regression — the live tenant's actual production data.
    *
-   * Marc reported BD-Zielbereich = 0 % despite multiple BP readings
+   * the maintainer reported BD-Zielbereich = 0 % despite multiple BP readings
    * that "are clearly in target". A query against production showed
    * his last 30 days of paired readings include 117/79, 122/76, 108/76,
    * 106/73, 127/86, 115/78, 108/75, 124/82, 126/80, 133/95.
@@ -186,9 +186,9 @@ describe("computeBpInTargetPct", () => {
    * Result: 5/10 = 50 %.
    *
    * Compare with the v1.4.15 narrow-band result (0/10 = 0 %) — that's
-   * the regression Marc reported.
+   * the regression the maintainer reported.
    */
-  it("regression: Marc's production data produces non-zero % under the ceiling semantics", () => {
+  it("regression: the maintainer's production data produces non-zero % under the ceiling semantics", () => {
     const sys = [
       reading("2026-05-08T07:38:22Z", 117),
       reading("2026-05-03T21:22:02Z", 122),
@@ -237,12 +237,12 @@ describe("computeBpInTargetPct", () => {
 
 describe("computeBpInTargetWindows — all-time headline (v1.4.19 A1)", () => {
   /**
-   * v1.4.19 A1 regression — Marc reported the BD-Zielbereich tile shows
+   * v1.4.19 A1 regression — the maintainer reported the BD-Zielbereich tile shows
    * **EXACTLY 50 % on 7T, 30T, AND the headline ("total")** for his
    * production data. Hand-counted hypothesis-1 from the brief (the
    * three-way coincidence cannot be data — it's a calculation pin):
    *
-   *   - Marc has 572 paired BP readings going back to 2022-01.
+   *   - The live tenant has 572 paired BP readings going back to 2022-01.
    *   - Last 7 days: 1 / 2 in target = 50 %.
    *   - Last 30 days: 5 / 10 in target = 50 %.
    *   - All time:   62 / 572 in target ≈ 11 %.
@@ -301,8 +301,8 @@ describe("computeBpInTargetWindows — all-time headline (v1.4.19 A1)", () => {
     expect(result.allTime).toBeNull();
   });
 
-  it("regression: Marc's 30-day fixture mirrors Marc's prod headline bug", () => {
-    // Reuse Marc's production fixture (10 pairs, 5 in target = 50 %).
+  it("regression: the live tenant's 30-day fixture mirrors the live tenant's prod headline bug", () => {
+    // Reuse the maintainer's production fixture (10 pairs, 5 in target = 50 %).
     // When the input is JUST those 10 pairs, allTime equals 30d == 50 %
     // (this is the legitimate coincidence — it only hides the bug when
     // the user has no older history). The bug surfaces the moment older
@@ -343,7 +343,7 @@ describe("computeBpInTargetWindows — all-time headline (v1.4.19 A1)", () => {
 
 describe("computeBpInTargetWindows", () => {
   /**
-   * v1.4.18 A1 regression — Marc reported the BD-Zielbereich tile shows
+   * v1.4.18 A1 regression — the maintainer reported the BD-Zielbereich tile shows
    * the 30-day headline (50 %) but `7T: —` and `30T: —` placeholders
    * even though the user has paired BP readings in both windows. Root
    * cause: the analytics route only returned `bpInTargetPct` once over
@@ -351,7 +351,7 @@ describe("computeBpInTargetWindows", () => {
    * renders the "—" fallback. The fix is a windowed helper that returns
    * both 7-day and 30-day shares so the tile can show all three.
    *
-   * Pinning Marc's actual production fixture (10 paired readings over
+   * Pinning the live tenant's actual production fixture (10 paired readings over
    * the last 30 days, 2 of them within the last 7 days) so a future
    * reviewer can re-derive the expected counts by hand.
    */
@@ -432,11 +432,11 @@ describe("computeBpInTargetWindows", () => {
   });
 
   /**
-   * Marc's real fixture: 10 paired readings over the last 30 days (5 in
+   * the live tenant's real fixture: 10 paired readings over the last 30 days (5 in
    * target, 5 out → 50 %), of which 2 are inside the last 7 days
    * (1 in target, 1 out → 50 %).
    */
-  it("regression: Marc's production fixture renders 7d=50% and 30d=50%", () => {
+  it("regression: the maintainer's production fixture renders 7d=50% and 30d=50%", () => {
     const fixtureNow = new Date("2026-05-09T12:00:00Z");
     const sys = [
       reading("2026-05-08T07:38:22Z", 117), // 7d IN
@@ -474,5 +474,65 @@ describe("computeBpInTargetWindows", () => {
     expect(result.last7Days).toEqual({ pct: 75, pairs: 4 });
     // All 10 paired readings inside the last 30 days; 5 in target → 50 %.
     expect(result.last30Days).toEqual({ pct: 50, pairs: 10 });
+  });
+});
+
+describe("computeBpInTargetWindows — period-aligned prior windows (Code-H2)", () => {
+  /**
+   * v1.4.22 W5 reconcile (Code-H2) — the BD-Zielbereich tile's
+   * comparison-overlay caption used to compute `last30Days - allTime`
+   * regardless of the user's `comparisonBaseline` selection. The math
+   * therefore claimed "vs. last month" while subtracting an all-time
+   * average — dishonest by every other tile's standard. The fix is a
+   * pair of period-aligned prior windows shifted back by 30 / 365
+   * days so the tile's `compareDelta` matches its caption.
+   */
+  const NOW = new Date("2026-05-09T12:00:00Z");
+
+  it("returns priorMonth shifted back by 30 days (now-60d…now-30d)", () => {
+    // 30-day window: only one IN paired reading.
+    // Prior-month window (now-60d…now-30d): two paired readings, one IN one OUT.
+    const sys = [
+      reading("2026-05-01T08:00:00Z", 117), // last30 IN
+      reading("2026-04-08T08:00:00Z", 122), // priorMonth IN (32d ago)
+      reading("2026-03-22T08:00:00Z", 145), // priorMonth OUT (48d ago)
+      reading("2026-02-08T08:00:00Z", 128), // older than 60d — neither window
+    ];
+    const dia = [
+      reading("2026-05-01T08:00:00Z", 75),
+      reading("2026-04-08T08:00:00Z", 75),
+      reading("2026-03-22T08:00:00Z", 92),
+      reading("2026-02-08T08:00:00Z", 80),
+    ];
+
+    const result = computeBpInTargetWindows(sys, dia, TARGETS_UNDER_65, NOW);
+    expect(result.last30Days).toEqual({ pct: 100, pairs: 1 });
+    expect(result.priorMonth).toEqual({ pct: 50, pairs: 2 });
+  });
+
+  it("returns priorYear shifted back by 365 days (now-395d…now-365d)", () => {
+    // Pin one paired reading inside the now-395d…now-365d window and one
+    // outside it.
+    const sys = [
+      reading("2025-05-08T08:00:00Z", 117), // 366d ago — INSIDE priorYear, IN
+      reading("2025-04-30T08:00:00Z", 145), // 374d ago — INSIDE priorYear, OUT
+      reading("2025-04-01T08:00:00Z", 117), // 403d ago — OUTSIDE priorYear (too old)
+    ];
+    const dia = [
+      reading("2025-05-08T08:00:00Z", 75),
+      reading("2025-04-30T08:00:00Z", 92),
+      reading("2025-04-01T08:00:00Z", 75),
+    ];
+
+    const result = computeBpInTargetWindows(sys, dia, TARGETS_UNDER_65, NOW);
+    expect(result.priorYear).toEqual({ pct: 50, pairs: 2 });
+  });
+
+  it("returns null for prior windows when no readings fall in them", () => {
+    const sys = [reading("2026-05-01T08:00:00Z", 117)]; // only last-30d
+    const dia = [reading("2026-05-01T08:00:00Z", 75)];
+    const result = computeBpInTargetWindows(sys, dia, TARGETS_UNDER_65, NOW);
+    expect(result.priorMonth).toBeNull();
+    expect(result.priorYear).toBeNull();
   });
 });

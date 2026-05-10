@@ -1,7 +1,7 @@
 /**
  * v1.4.16 phase B2 — AI provider settings UX (dropdown-driven).
  *
- * The new section replaces the v1.4.15-vintage top/bottom split (Marc's
+ * The new section replaces the v1.4.15-vintage top/bottom split (the maintainer's
  * `feedback_settings_no_split.md`): a single Select picks the active
  * provider; the form below is switch-rendered for that provider; the
  * fallback chain at the bottom reorders / toggles entries with arrow

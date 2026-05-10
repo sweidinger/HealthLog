@@ -10,7 +10,7 @@ import { MockAIProvider } from "../mock-client";
  * recommendation and overwrites `rec.confidence` with the value
  * `computeConfidence()` produces.
  *
- * Default-on per research §7 question 1 (Marc-acked). The override
+ * Default-on per research §7 question 1 (maintainer-acked). The override
  * happens whether or not the caller supplies a bucket-series-aware
  * resolver — when the resolver is missing we fall back to inputs
  * derivable from the parsed payload alone (`metricSource.n`,

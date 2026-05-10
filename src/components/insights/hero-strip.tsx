@@ -238,33 +238,41 @@ export function HeroStrip({
              * current ISO week. Older parents that haven't adopted the
              * weeklyReportHref prop still get the disabled affordance.
              */}
-            {weeklyReportHref ? (
-              <Button
-                asChild
-                variant="default"
-                size="sm"
-                data-slot="insights-hero-strip-action-weekly-report"
-                className="gap-1.5"
-              >
-                <Link href={weeklyReportHref}>
+            {(() => {
+              // v1.4.22 W5 reconcile (S-02) — collapse the
+              // enabled/disabled twin Buttons (variant, size, slot,
+              // class, icon, label all identical) into a single
+              // shared structure with the Link wrapping conditionally.
+              const weeklyLabel = (
+                <>
                   <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>{t("insights.heroActionWeeklyReport")}</span>
-                </Link>
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                disabled
-                title={comingSoon}
-                data-slot="insights-hero-strip-action-weekly-report"
-                className="gap-1.5"
-              >
-                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{t("insights.heroActionWeeklyReport")}</span>
-              </Button>
-            )}
+                </>
+              );
+              return weeklyReportHref ? (
+                <Button
+                  asChild
+                  variant="default"
+                  size="sm"
+                  data-slot="insights-hero-strip-action-weekly-report"
+                  className="gap-1.5"
+                >
+                  <Link href={weeklyReportHref}>{weeklyLabel}</Link>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  disabled
+                  title={comingSoon}
+                  data-slot="insights-hero-strip-action-weekly-report"
+                  className="gap-1.5"
+                >
+                  {weeklyLabel}
+                </Button>
+              );
+            })()}
             {/* B2b wires this into the Coach drawer. The button is
               enabled whenever the parent supplies an `onAskCoach`
               handler; older parents that haven't adopted B2b yet

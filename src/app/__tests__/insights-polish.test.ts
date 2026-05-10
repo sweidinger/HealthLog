@@ -8,7 +8,7 @@ import { join } from "node:path";
  *
  *   1. The dashboard page does NOT mount `<CompareToggle />`. The
  *      comparison-baseline switch belongs on `/insights` only — the
- *      dashboard tile-strip is too tight for it (Marc 2026-05-10).
+ *      dashboard tile-strip is too tight for it (maintainer probe 2026-05-10).
  *      The underlying `compareBaseline` value is still consumed by
  *      every dashboard chart; only the on-surface affordance is gone.
  *   2. The `/insights` page renders exactly ONE page-level refresh
@@ -22,7 +22,7 @@ import { join } from "node:path";
  *   4. The `/insights` page does NOT pass the `aiOverviewTitle`
  *      ("Persönlicher Berater") subtitle into `<InsightAdvisorCard>`.
  *      The CardTitle ("KI-Gesundheitsanalyse") is sufficient framing;
- *      the second subtitle was an empty-section placeholder Marc
+ *      the second subtitle was an empty-section placeholder the maintainer
  *      called "Titel da aber NICHTS PASSIERT".
  *   5. The `stripChartTokens()` matcher catches lowercase + mixed-
  *      case AI-emitted tokens (`metric:blood_pressure_sweet_spot`),
@@ -150,7 +150,7 @@ describe("v1.4.19 A3 — /insights polish", () => {
 });
 
 describe("v1.4.19 A3 — chart-token leak hardening", () => {
-  // The visible "metric: blood_pressure_sweet" leak Marc saw at the
+  // The visible "metric: blood_pressure_sweet" leak the maintainer saw at the
   // bottom of /insights was a model-emitted lowercase chart token
   // that the v1.4.16 strip regex (`/metric:[A-Z_]+/g`) didn't catch
   // because the character class only matches uppercase. The widened
@@ -178,5 +178,67 @@ describe("v1.4.19 A3 — chart-token leak hardening", () => {
     expect(parseChartTokens("metric:blood_pressure_sweet")).toEqual([]);
     expect(parseChartTokens("metric:BloodPressureSys")).toEqual([]);
     expect(parseChartTokens("metric:WEIGHT")).toEqual(["metric:WEIGHT"]);
+  });
+});
+
+describe("v1.4.22 W5 reconcile (Code-H2) — BD-Zielbereich tile compareDelta uses period-aligned baseline", () => {
+  /**
+   * Up to v1.4.22 W4 the BD tile computed `bp30 - bpAll`
+   * (last-30-days minus all-time) regardless of which window the user
+   * picked under Settings → Dashboard. The caption still rendered "vs.
+   * last month" / "vs. last year" via `comparison.captionLastMonth` /
+   * `comparison.captionLastYear`, so the user read a sentence whose
+   * numerator was actually a 30d-vs-all-time delta. Every other tile
+   * routes through `tileCompareDelta()` with `summary.avg30LastMonth`
+   * / `summary.avg30LastYear` for honest period-aligned math.
+   *
+   * This test pins that the dashboard now subtracts the prior-period
+   * window (priorMonth / priorYear) instead of all-time.
+   */
+  it("subtracts bpInTargetPctPriorMonth when comparisonBaseline=lastMonth", () => {
+    const src = load(DASHBOARD_PATH);
+    // The fix introduces `bpComparePrior` keyed by `compareBaseline`.
+    expect(src).toContain("bpInTargetPctPriorMonth");
+    expect(src).toContain("bpInTargetPctPriorYear");
+    // The all-time shortcut from v1.4.22 A2 must not subtract `bpAll`
+    // for the comparison delta any more.
+    expect(src).not.toMatch(/bp30\s*-\s*bpAll/);
+  });
+
+  it("ships priorMonth + priorYear pcts in the analytics envelope", () => {
+    const ROUTE_SRC = readFileSync(
+      join(ROOT, "src/app/api/analytics/route.ts"),
+      "utf8",
+    );
+    expect(ROUTE_SRC).toContain("bpInTargetPctPriorMonth");
+    expect(ROUTE_SRC).toContain("bpInTargetPctPriorYear");
+  });
+});
+
+describe("v1.4.22 A3 — comparison toggle is global Settings only", () => {
+  /**
+   * The comparison-overlay toggle is a global preference. Up to v1.4.21
+   * the toggle existed both in `/settings/dashboard` (canonical) and
+   * `/insights` (via `<DailyBriefing metaSlot={<CompareToggle />} />`).
+   * Per `feedback_settings_no_split.md` the toggle now lives in
+   * Settings only — the on-surface affordance is gone from `/insights`.
+   * Every chart still consumes the resolved `comparisonBaseline` value
+   * the same way it did before, so flipping the Settings toggle still
+   * propagates to the page on next refetch.
+   */
+  it("/insights does NOT mount <CompareToggle /> anywhere", () => {
+    const src = load(INSIGHTS_PATH);
+    expect(src).not.toMatch(/<CompareToggle\b/);
+    expect(src).not.toMatch(
+      /from\s+["']@\/components\/comparison\/compare-toggle["']/,
+    );
+  });
+
+  it("/insights still consumes the resolved comparisonBaseline (only the UI is gone)", () => {
+    // Drift guard — the page must still hand `compareBaseline` to every
+    // chart so the global Settings toggle keeps driving the overlay.
+    const src = load(INSIGHTS_PATH);
+    expect(src).toContain("comparisonBaseline");
+    expect(src).toContain("compareBaseline");
   });
 });

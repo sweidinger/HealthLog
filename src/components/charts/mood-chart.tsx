@@ -475,7 +475,7 @@ export function MoodChart({
     5: t("charts.moodLabel5"),
   };
 
-  // v1.4.18 — emoji glyph map removed. Marc explicitly rejected
+  // v1.4.18 — emoji glyph map removed. the maintainer explicitly rejected
   // smileys in the mood chart; the line now uses plain Recharts dots
   // and the y-axis already labels each integer (very low / low / okay
   // / good / great) so the chart is fully scannable without a glyph.
@@ -632,7 +632,7 @@ export function MoodChart({
                     />
                   ))}
                 {/* v1.4.18 — personal-baseline gated behind the
-                    Trend toggle (Marc: "only when a trend is being
+                    Trend toggle (maintainer: "only when a trend is being
                     displayed"). Default OFF. */}
                 {showTrend && personalBaseline != null && (
                   <ReferenceLine

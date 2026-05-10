@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 import {
   type DashboardLayout,
   type DashboardWidgetId,
@@ -54,7 +55,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   const queryClient = useQueryClient();
 
   const { data: remote, isLoading } = useQuery({
-    queryKey: ["user", "dashboardWidgets"],
+    queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
       const res = await fetch("/api/dashboard/widgets");
       if (!res.ok) throw new Error("failed");
@@ -81,7 +82,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
       return (await res.json()).data as DashboardLayout;
     },
     onSuccess: (saved) => {
-      queryClient.setQueryData(["user", "dashboardWidgets"], saved);
+      queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
       setDraft(null);
       toast.success(t("dashboard.layoutSaveSuccess"));
     },
@@ -95,7 +96,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
       return (await res.json()).data as DashboardLayout;
     },
     onSuccess: (saved) => {
-      queryClient.setQueryData(["user", "dashboardWidgets"], saved);
+      queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
       setDraft(null);
       toast.success(t("dashboard.layoutResetSuccess"));
     },
@@ -114,7 +115,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   /**
    * v1.4.15 Fix 5 — independent toggle for the *strip tile* (the upper
    * row of trend cards). Until v1.4.14 a single switch controlled both
-   * the tile AND the chart for the same metric, which Marc found too
+   * the tile AND the chart for the same metric, which the maintainer found too
    * coarse: he wanted a chart visible without the tile (for metrics he
    * tracks without wanting the at-a-glance number) or vice versa.
    */
@@ -181,9 +182,17 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           {t("dashboard.layoutReset")}
         </Button>
       </div>
-      <p className="text-muted-foreground text-sm">
-        {t("dashboard.customizeSubtitle")}
-      </p>
+      {/*
+        v1.4.22 D / F-32 — the surrounding `<DashboardSection>` page
+        already renders a `settings.sections.dashboard.description`
+        paragraph beneath the H1. The previous in-card help line
+        repeated the same idea ("Choose which cards appear …
+        Defaults work out of the box.") right next to the comparison
+        picker, giving the page three muted-foreground help blocks
+        stacked on top of each other. Removing this duplicate keeps
+        the comparison picker as the only thing between the header
+        and the widget table.
+      */}
 
       {/* v1.4.16 phase B8 — comparison baseline picker. Lives at the top
           of the section because it changes how every chart + tile below
@@ -242,8 +251,8 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           {/* v1.4.15 Fix 5 — table-style header naming the two
               switches. The "tile" column controls the strip tile in
               the upper row; the "chart" column controls the line
-              chart in the lower row. Marc wanted independent control
-              of the two surfaces (memory feedback_dashboard_top_tiles
+              chart in the lower row. the maintainer wanted independent control
+              of the two surfaces (per feedback_dashboard_top_tiles
               _selectable.md). */}
           <div className="text-muted-foreground flex items-center gap-3 px-3 pb-1 text-[10px] font-medium tracking-wide uppercase">
             <span className="w-5" aria-hidden="true" />

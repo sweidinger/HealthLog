@@ -176,10 +176,12 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   }
   const state = await ctx.storageState();
   // Strip any cookies we don't recognise so storageState only carries
-  // what the auth shell needs. (Mostly defensive — the proxy currently
-  // only sets `healthlog_session` and `healthlog_locale`.)
+  // what the auth shell needs. v1.4.22 C4 added `hl_onboarding` — the
+  // login route sets it to "pending" for new users and DELETES it for
+  // already-onboarded ones, so for our pre-seeded completed e2e user
+  // the cookie is absent and the proxy passes the dashboard through.
   state.cookies = state.cookies.filter((c) =>
-    ["healthlog_session", "healthlog_locale"].includes(c.name),
+    ["healthlog_session", "healthlog_locale", "hl_onboarding"].includes(c.name),
   );
   await writeFile(STORAGE_STATE_PATH, JSON.stringify(state, null, 2));
   await ctx.dispose();

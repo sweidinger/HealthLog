@@ -104,7 +104,7 @@ describe("lookupIpLocation IP-geolocation HTTPS guard", () => {
   });
 });
 
-// v1.4.16 A8a: Marc spotted "Nrnberg" rendered in /admin/login-overview
+// v1.4.16 A8a: the maintainer spotted "Nrnberg" rendered in /admin/login-overview
 // for an audit row that should have read "Nürnberg, DE". The geo source
 // (ipwho.is) returns valid UTF-8, but `Response.json()` defers its
 // charset decoding to whatever the server's `Content-Type` header

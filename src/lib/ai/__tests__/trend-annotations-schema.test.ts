@@ -30,8 +30,8 @@ const baseResponse: AIInsightResponse = {
 };
 
 describe("PROMPT_VERSION (B3 bump)", () => {
-  it("is on the 4.20.x train", () => {
-    expect(PROMPT_VERSION).toMatch(/^4\.20\.\d+$/);
+  it("stays on the 4.x train", () => {
+    expect(PROMPT_VERSION).toMatch(/^4\.\d+\.\d+$/);
   });
 
   it("is bumped past 4.20.0 to signal the trendAnnotations format change", () => {

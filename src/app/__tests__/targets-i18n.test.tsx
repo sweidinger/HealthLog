@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 /**
- * v1.4.19 phase A7 — Marc reported the `/targets` (Zielwerte) page
+ * v1.4.19 phase A7 — the maintainer reported the `/targets` (Zielwerte) page
  * still surfaces English status labels even when the rest of the UI
  * renders in German: "Low / On Target / Stable / Moderate" stayed in
  * the source language. The card titles ("Weight", "Blood pressure",
@@ -131,7 +131,7 @@ describe("/targets page — i18n status labels and titles", () => {
 
   it("translates every status badge category to German", () => {
     const html = render("de");
-    // Marc explicitly named these in his bug report.
+    // the maintainer explicitly named these in his bug report.
     expect(html).not.toMatch(/>Low</);
     expect(html).not.toMatch(/>On target</);
     expect(html).not.toMatch(/>Stable</);

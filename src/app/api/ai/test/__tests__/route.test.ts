@@ -97,7 +97,7 @@ describe("POST /api/ai/test — provider error leak guard", () => {
     // v1.4.5: credential failures map to 422 (not 502) so Cloudflare
     // doesn't replace our JSON body with its HTML error page — that
     // rewrite was the root cause of the "Unexpected token '<'…" client
-    // crash Marc hit when typing a bad OpenAI key.
+    // crash the maintainer hit when typing a bad OpenAI key.
     expect(response.status).toBe(422);
     expect(body.error ?? "").not.toMatch(/sk-/);
     expect(body.error ?? "").not.toMatch(/api\.openai\.com/);
@@ -139,7 +139,7 @@ describe("POST /api/ai/test — provider error leak guard", () => {
 });
 
 // v1.4 fix: the dropdown in /settings was not honoured — the test always
-// ran against the SAVED provider (Marc reported "wirft was Komisches raus").
+// ran against the SAVED provider (the maintainer reported "wirft was Komisches raus").
 // The route now accepts a JSON override body and forwards the user's
 // unsaved selection to resolveProviderForTest().
 describe("POST /api/ai/test — dropdown-aware override", () => {

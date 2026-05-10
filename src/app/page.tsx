@@ -97,6 +97,21 @@ interface AnalyticsData {
    */
   bpInTargetPct7d?: number | null;
   bpInTargetPct30d?: number | null;
+  /**
+   * v1.4.22 A1 — long-arc all-time aggregate. After the headline
+   * re-anchor to last-30-days the all-time number lives as a sub-value
+   * on the BD-Zielbereich tile (alongside `7d` and `30d`).
+   */
+  bpInTargetPctAllTime?: number | null;
+  /**
+   * v1.4.22 W5 reconcile (Code-H2) — period-aligned prior-window
+   * pcts. The BD-Zielbereich tile's comparison-overlay caption picks
+   * `priorMonth` for `comparisonBaseline === "lastMonth"` and
+   * `priorYear` for `lastYear` so the rendered "Δ X% vs. last month"
+   * stays honest. Null when the prior window has no paired readings.
+   */
+  bpInTargetPctPriorMonth?: number | null;
+  bpInTargetPctPriorYear?: number | null;
   glucoseByContext?: Record<string, DataSummaryType>;
 }
 
@@ -193,7 +208,7 @@ export default function DashboardPage() {
   });
 
   const { data: layoutData } = useQuery({
-    queryKey: ["user", "dashboardWidgets"],
+    queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
       const res = await fetch("/api/dashboard/widgets");
       if (!res.ok) throw new Error("Failed");
@@ -315,7 +330,7 @@ export default function DashboardPage() {
   // v1.4.15 phase-B4 — recent unlocks dashboard surface. The card itself
   // self-handles the empty state (CTA → /achievements), so we only need
   // the layout-toggle gate here. No data-floor check (the empty card is
-  // intentional — Marc wants the user to discover the feature).
+  // intentional — the maintainer wants the user to discover the feature).
   const showAchievementsCard = isChartVisible("achievements");
   // v1.4.16 phase D reconcile (CRITICAL C2) — gate the dashboard
   // insights preview by the layout toggle. The component itself
@@ -585,7 +600,7 @@ export default function DashboardPage() {
           // BP is conceptually one signal but visually two tiles (sys + dia)
           // so the user sees both numbers side by side at the same size as
           // every other tile in the strip. v1.4.3 first attempted a
-          // combined tile with `secondary` values — Marc preferred two
+          // combined tile with `secondary` values — the maintainer preferred two
           // distinct tiles with consistent symmetric widths.
           trendCards.push({
             id: "bp-sys",
@@ -794,6 +809,63 @@ export default function DashboardPage() {
           });
         }
         if (showBpInTargetTile) {
+          /* v1.4.22 A2 — feature parity with every other tile.
+             Synthesise a slope from the difference between the 7-day
+             and 30-day in-target shares: when the recent week is
+             above the recent month, the metric is improving (up-good
+             ⇒ green arrow); when below, it's slipping. The
+             trend7Delta is the same number as the arrow's underlying
+             signal, surfaced as "(+5)" next to `7d:` so the tile
+             matches the (weight / BP / pulse) call-site contract.
+             Comparison overlay routes through the same global
+             `compareBaseline` / `tileCompareDelta` pipeline as every
+             other tile; we only have a single % series for the BP
+             tile (no DataSummary) so the prior-period delta uses
+             `bpInTargetPctAllTime` as the long-arc baseline — when
+             comparison is off the field stays null. */
+          const bp7 = data?.bpInTargetPct7d ?? null;
+          const bp30 = data?.bpInTargetPct30d ?? null;
+          const bpAll = data?.bpInTargetPctAllTime ?? null;
+          const bpPriorMonth = data?.bpInTargetPctPriorMonth ?? null;
+          const bpPriorYear = data?.bpInTargetPctPriorYear ?? null;
+          const bpTrendDelta =
+            bp7 !== null && bp30 !== null ? bp7 - bp30 : null;
+          const bpSlope30: import("@/lib/analytics/trends").TrendSlope | null =
+            bpTrendDelta === null
+              ? null
+              : {
+                  slope: bpTrendDelta / 30,
+                  direction:
+                    bpTrendDelta > 0.5
+                      ? "up"
+                      : bpTrendDelta < -0.5
+                        ? "down"
+                        : "stable",
+                  // Synthetic slope (last-7d minus last-30d) carries no
+                  // R² — pin to 1 so existing TrendSlope consumers don't
+                  // mis-interpret a `0` as "very low confidence".
+                  confidence: 1,
+                };
+          // v1.4.22 W5 reconcile (Code-H2) — match the comparison
+          // window the user picked. `lastMonth` baseline ⇒ compare
+          // last30 against the now-60d…now-30d window (priorMonth);
+          // `lastYear` baseline ⇒ compare against the matching window
+          // shifted back 365 days. The previous shortcut subtracted
+          // `bpAll` regardless of baseline, which produced a number
+          // whose magnitude was honest but whose label ("vs. last
+          // month") lied to the user.
+          const bpComparePrior =
+            compareBaseline === "lastMonth"
+              ? bpPriorMonth
+              : compareBaseline === "lastYear"
+                ? bpPriorYear
+                : null;
+          const bpCompareDelta =
+            compareBaseline === "none" ||
+            bp30 === null ||
+            bpComparePrior === null
+              ? null
+              : Math.round((bp30 - bpComparePrior) * 10) / 10;
           trendCards.push({
             id: "bpInTarget",
             order: widgetOrder("bpInTarget"),
@@ -807,11 +879,15 @@ export default function DashboardPage() {
                    windowed analytics fields. Up to v1.4.17 these were
                    hard-coded to null and rendered "—" even when the
                    user had paired BP readings in both windows. */
-                avg7={data?.bpInTargetPct7d ?? null}
-                avg30={data?.bpInTargetPct30d ?? null}
-                slope30={null}
+                avg7={bp7}
+                avg30={bp30}
+                avgAllTime={bpAll}
+                slope30={bpSlope30}
+                trend7Delta={bpTrendDelta}
                 icon={Target}
                 directionSentiment="up-good"
+                compareBaseline={compareBaseline}
+                compareDelta={bpCompareDelta}
               />
             ),
           });
@@ -1034,7 +1110,7 @@ export default function DashboardPage() {
           // v1.4.15 phase-B4 — slotted at the user's chosen position via
           // the layout `order`. Default order from
           // `DEFAULT_DASHBOARD_LAYOUT` puts it last (below the chart row)
-          // which matches Marc's brief "below the chart row".
+          // which matches the maintainer's brief "below the chart row".
           charts.push({
             id: "achievements",
             order: widgetOrder("achievements"),
@@ -1076,7 +1152,7 @@ export default function DashboardPage() {
         return (
           <>
             {/* v1.4: dashboard tiles are *always* a single row.
-             * Marc-explicit (memory feedback_dashboard_one_row.md): a 2-row
+             * maintainer-explicit (per feedback_dashboard_one_row.md): a 2-row
              * tile strip breaks the visual hierarchy and reads like an
              * Excel grid. Total width caps at the parent container —
              * exactly the chart-width below. When the active tile count
@@ -1091,9 +1167,9 @@ export default function DashboardPage() {
             {/* v1.4.16 Fix A5: hide the strip entirely when the user
                 turned off every tile. Until v1.4.15 the wrapper rendered
                 an empty grid even with zero tiles — visually a thin gap
-                Marc described as "awkward". Charts below still render so
+                the maintainer described as "awkward". Charts below still render so
                 the page is not empty; the tile-strip just goes away.
-                The constraint Marc named — "immer die gesamte Spalte
+                The constraint the maintainer named — "immer die gesamte Spalte
                 breit und immer der gleichen Höhe" — is preserved by the
                 CSS-grid `auto-fit + minmax + auto-rows-fr` track that
                 continues to give every visible tile equal width / equal
@@ -1107,7 +1183,7 @@ export default function DashboardPage() {
                 // x-coordinates as the charts below because both inherit the
                 // same parent container. When the row no longer fits a 9rem
                 // floor, the grid wraps to a new row instead of horizontal-
-                // scrolling — Marc tested both and prefers the v1.3-era
+                // scrolling — the maintainer tested both and prefers the v1.3-era
                 // wrap behaviour over the one-row scroll for the symmetry
                 // it preserves.
                 className="grid auto-rows-fr [grid-template-columns:repeat(auto-fit,minmax(9rem,1fr))] gap-3 pb-2"

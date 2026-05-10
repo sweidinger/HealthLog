@@ -1,7 +1,39 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider } from "@/lib/i18n/context";
+
+// The user bubble pulls `useAuth().user.gravatarUrl` to mirror the
+// Coach avatar (v1.4.22 B3). SSR rendering through `renderToStaticMarkup`
+// has no TanStack-Query provider, so we mock the hook the same way
+// `recommendation-feedback.test.tsx` does — returning a tester user
+// with no Gravatar so we exercise the initials fallback path by
+// default, and override per-test where needed.
+const useAuthMock = vi.fn<
+  () => {
+    user: {
+      id: string;
+      username: string;
+      role: string;
+      gravatarUrl: string | null;
+    };
+    isAuthenticated: boolean;
+    isLoading: boolean;
+  }
+>(() => ({
+  user: {
+    id: "test-user",
+    username: "tester",
+    role: "USER",
+    gravatarUrl: null,
+  },
+  isAuthenticated: true,
+  isLoading: false,
+}));
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => useAuthMock(),
+}));
+
 import { MessageThread } from "../message-thread";
 import type { CoachConversationDetailDTO } from "@/lib/ai/coach/types";
 
@@ -215,5 +247,140 @@ describe("<MessageThread>", () => {
     expect(html).toContain(
       "Frag mich etwas zu deinen Trends, Medikamenten oder Messwerten",
     );
+  });
+
+  it("renders the evidence-block disclosure when keyValues is non-empty (EN)", () => {
+    // v1.4.22 — the Coach surfaces load-bearing numbers in a
+    // collapsible "What I'm looking at" disclosure under the assistant
+    // bubble. Verify the structure renders correctly and the entries
+    // show label / value / unit / window.
+    const withKeyValues: CoachConversationDetailDTO = {
+      ...baseConversation,
+      messages: [
+        baseConversation.messages[0],
+        {
+          ...baseConversation.messages[1],
+          metricSource: {
+            windows: ["last30days"],
+            metrics: ["bp"],
+            keyValues: [
+              {
+                label: "avg7 systolic",
+                value: "138",
+                unit: "mmHg",
+                window: "last7days",
+              },
+              {
+                label: "avg30 systolic",
+                value: "134",
+                unit: "mmHg",
+                window: "last30days",
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const html = render(<MessageThread conversation={withKeyValues} />);
+    expect(html).toContain('data-slot="coach-evidence"');
+    expect(html).toContain("What I&#x27;m looking at");
+    expect(html).toContain('data-slot="coach-evidence-list"');
+    const rows = (html.match(/data-slot="coach-evidence-row"/g) ?? []).length;
+    expect(rows).toBe(2);
+    expect(html).toContain("avg7 systolic");
+    expect(html).toContain("138 mmHg");
+    expect(html).toContain("(last7days)");
+    expect(html).toContain("avg30 systolic");
+    expect(html).toContain("134 mmHg");
+    // Disclosure is collapsed by default (no `open` attribute).
+    expect(html).not.toMatch(/<details[^>]*\bopen\b/);
+  });
+
+  it("renders the evidence-block label in German under 'de' locale", () => {
+    const withKeyValues: CoachConversationDetailDTO = {
+      ...baseConversation,
+      messages: [
+        baseConversation.messages[0],
+        {
+          ...baseConversation.messages[1],
+          metricSource: {
+            windows: ["last30days"],
+            metrics: ["bp"],
+            keyValues: [
+              {
+                label: "avg30 systolisch",
+                value: "138",
+                unit: "mmHg",
+                window: "last30days",
+              },
+            ],
+          },
+        },
+      ],
+    };
+    const html = render(<MessageThread conversation={withKeyValues} />, "de");
+    expect(html).toContain("Worauf bezieht sich das?");
+  });
+
+  it("renders entries without unit or window cleanly", () => {
+    const withKeyValues: CoachConversationDetailDTO = {
+      ...baseConversation,
+      messages: [
+        baseConversation.messages[0],
+        {
+          ...baseConversation.messages[1],
+          metricSource: {
+            windows: [],
+            metrics: ["compliance"],
+            keyValues: [{ label: "30-day adherence", value: "96" }],
+          },
+        },
+      ],
+    };
+    const html = render(<MessageThread conversation={withKeyValues} />);
+    expect(html).toContain("30-day adherence");
+    // No stray empty unit/window markup.
+    expect(html).not.toMatch(
+      /30-day adherence:\s*<\/span>\s*<strong[^>]*>\s*</,
+    );
+  });
+
+  it("hides the disclosure entirely when keyValues is empty or absent", () => {
+    // baseConversation.messages[1].metricSource has no `keyValues`
+    // field — the source chips still render but the disclosure does
+    // not appear at all.
+    const html = render(<MessageThread conversation={baseConversation} />);
+    expect(html).not.toContain('data-slot="coach-evidence"');
+    expect(html).not.toContain("What I&#x27;m looking at");
+  });
+
+  it("renders the user bubble with a Gravatar when one is set (B3 parity)", () => {
+    // v1.4.22 B3 — the user-bubble avatar uses the same dimensions
+    // as the Coach avatar and pulls the Gravatar URL from useAuth.
+    useAuthMock.mockReturnValueOnce({
+      user: {
+        id: "u-1",
+        username: "marc",
+        role: "USER",
+        gravatarUrl: "https://www.gravatar.com/avatar/abc123?s=64&d=mp",
+      },
+      isAuthenticated: true,
+      isLoading: false,
+    });
+    const html = render(<MessageThread conversation={baseConversation} />);
+    expect(html).toContain('data-slot="coach-bubble-user-avatar"');
+    expect(html).toMatch(
+      /<img[^>]+src="https:\/\/www\.gravatar\.com\/avatar\/abc123/,
+    );
+    expect(html).toMatch(
+      /data-slot="coach-bubble-user-avatar"[^>]*class="[^"]*size-8/,
+    );
+  });
+
+  it("falls back to initials when no Gravatar URL is present", () => {
+    // Default mock returns gravatarUrl: null → initials path.
+    const html = render(<MessageThread conversation={baseConversation} />);
+    expect(html).toContain('data-slot="coach-bubble-user-avatar"');
+    expect(html).toMatch(/data-slot="coach-bubble-user-avatar"[^>]*>TE</);
   });
 });

@@ -76,7 +76,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   const ua = request.headers.get("user-agent");
-  await createSession(user.id, ip, ua);
+  // v1.4.22 W5 reconcile (Sr-H1) — `createSession` now anchors the
+  // `hl_onboarding` cookie itself; pass the user's onboarding state
+  // through so the proxy can short-circuit the redirect before the
+  // page hydrates.
+  await createSession(user.id, user.onboardingCompletedAt == null, ip, ua);
 
   await auditLog("auth.login.password", {
     userId: user.id,

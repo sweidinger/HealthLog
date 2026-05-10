@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 /**
  * v1.4.18 — MoodChart clean-line revert (gradient + emoji rolled back).
  *
- * Marc rejected B1a's coloured area fill below the chart line and the
+ * the maintainer rejected B1a's coloured area fill below the chart line and the
  * smiley/emoji glyphs at every data point. The line stroke + Dracula
  * tokens stay; the chart now paints a clean monotone line with simple
  * Recharts dots.
@@ -67,7 +67,7 @@ describe("<MoodChart> v1.4.18 clean-line revert", () => {
   });
 
   it("does NOT render emoji glyphs at data points (source check)", async () => {
-    // Marc explicitly rejected smileys, especially in the mood chart.
+    // the maintainer explicitly rejected smileys, especially in the mood chart.
     // Recharts does not paint <Line> dots during SSR (the dot callback
     // only fires after first client render), so the emoji wouldn't
     // surface in renderToStaticMarkup output anyway. Inspecting the

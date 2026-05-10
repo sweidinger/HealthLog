@@ -842,7 +842,7 @@ export function HealthChart({
 
         // v1.4.16 Fix A8b: when the visible window is long (e.g. "All"
         // on a multi-year account), the per-week delta becomes vanishingly
-        // small and rounds to ±0.0 in the formatter — Marc's complaint
+        // small and rounds to ±0.0 in the formatter — the maintainer's complaint
         // "Wenn ich alle anklicke, dann wird einfach Null Veränderung
         // angezeigt" was exactly this: a slope of ~0.5 kg/year prints
         // as "+0.0 kg/week" and the user reads it as "no change". For
@@ -1194,7 +1194,7 @@ export function HealthChart({
                   />
                 ))}
                 {/* v1.4.18 — personal-baseline reference line is now
-                    opt-in via the Trend toggle. Marc rejected the
+                    opt-in via the Trend toggle. the maintainer rejected the
                     always-on dashed mean line; it now only paints when
                     the user actively shows the trend overlay (matching
                     his rule: "only when a trend is being displayed").

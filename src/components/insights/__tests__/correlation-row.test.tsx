@@ -5,13 +5,17 @@ import type { CorrelationResult } from "@/lib/insights/correlations";
 
 /**
  * v1.4.20 phase B3 — `<CorrelationRow>` layout + disclaimer.
+ * v1.4.22 A4 update — empty-state cards are dropped instead of rendered.
  *
  * Acceptance:
- *   1. Renders the three hypothesis cards.
- *   2. Mounts the correlation-disclaimer footer once at the row level.
- *   3. 2-up grid on >= md, single column on < md.
- *   4. Below-threshold cards delegate their empty-state to
- *      `<CorrelationCard>` (smoke-checked via the per-card slot).
+ *   1. Renders only the hypothesis cards whose `status === "ok"`.
+ *   2. Mounts the correlation-disclaimer footer once at the row level
+ *      when at least one card renders; the row hides itself entirely
+ *      when zero cards render (no header, no disclaimer).
+ *   3. 2-up grid on >= md when 2+ cards, full-width single column when
+ *      exactly 1 card renders.
+ *   4. Below-threshold cards are filtered at the row level so the
+ *      layout collapses cleanly.
  */
 
 vi.mock("next/dynamic", () => ({
@@ -67,7 +71,7 @@ const okWeightWeekday: CorrelationResult = {
 };
 
 describe("<CorrelationRow>", () => {
-  it("renders all three hypothesis cards", () => {
+  it("renders only the ok-status hypothesis cards (insufficient ones are dropped)", () => {
     const html = render(
       <CorrelationRow
         results={{
@@ -78,9 +82,9 @@ describe("<CorrelationRow>", () => {
       />,
     );
     const matches = html.match(/data-slot="correlation-card"/g) ?? [];
-    expect(matches.length).toBe(3);
+    expect(matches.length).toBe(2);
     expect(html).toMatch(/data-kind="bp-compliance"/);
-    expect(html).toMatch(/data-kind="mood-pulse"/);
+    expect(html).not.toMatch(/data-kind="mood-pulse"/);
     expect(html).toMatch(/data-kind="weight-weekday"/);
   });
 
@@ -96,10 +100,10 @@ describe("<CorrelationRow>", () => {
     );
     const matches = html.match(/data-slot="correlation-row-disclaimer"/g) ?? [];
     expect(matches.length).toBe(1);
-    expect(html).toContain("Patterns are observational, not causal");
+    expect(html).toContain("Relationships are observational, not causal");
   });
 
-  it("applies the 2-up grid on >= md and single column on < md", () => {
+  it("applies the 2-up grid on >= md when 2+ ok cards render", () => {
     const html = render(
       <CorrelationRow
         results={{
@@ -113,6 +117,36 @@ describe("<CorrelationRow>", () => {
     expect(html).toMatch(/md:grid-cols-2/);
   });
 
+  it("collapses to a full-width single column when exactly 1 ok card renders", () => {
+    const html = render(
+      <CorrelationRow
+        results={{
+          bpCompliance: okBpCompliance,
+          moodPulse: insufficientMoodPulse,
+          weightWeekday: insufficientMoodPulse,
+        }}
+      />,
+    );
+    expect(html).toMatch(/grid-cols-1/);
+    // The 2-up rule must NOT activate when only one card has data —
+    // a single card should span 100 % width on its own row instead of
+    // half-width with empty space next to it.
+    expect(html).not.toMatch(/md:grid-cols-2/);
+  });
+
+  it("hides the row entirely (no header, no disclaimer) when zero cards have data", () => {
+    const html = render(
+      <CorrelationRow
+        results={{
+          bpCompliance: insufficientMoodPulse,
+          moodPulse: insufficientMoodPulse,
+          weightWeekday: insufficientMoodPulse,
+        }}
+      />,
+    );
+    expect(html).toBe("");
+  });
+
   it("renders German copy when locale=de", () => {
     const html = render(
       <CorrelationRow
@@ -124,21 +158,6 @@ describe("<CorrelationRow>", () => {
       />,
       "de",
     );
-    expect(html).toContain("Muster");
     expect(html).toContain("nicht kausal");
-  });
-
-  it("delegates empty-state to per-card empty-state when below threshold", () => {
-    const html = render(
-      <CorrelationRow
-        results={{
-          bpCompliance: insufficientMoodPulse,
-          moodPulse: insufficientMoodPulse,
-          weightWeekday: insufficientMoodPulse,
-        }}
-      />,
-    );
-    const matches = html.match(/Need more data to see this pattern/g) ?? [];
-    expect(matches.length).toBe(3);
   });
 });

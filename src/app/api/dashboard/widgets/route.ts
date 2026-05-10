@@ -27,7 +27,7 @@ import type { NextRequest } from "next/server";
 // Dashboard UI (`src/components/settings/dashboard-layout-section.tsx`
 // iterates the full layout from `DEFAULT_DASHBOARD_LAYOUT`). Missing
 // one here makes the PUT 422 silently — the toast surfaces "Layout
-// konnte nicht gespeichert werden" — and Marc's tile-toggle looks
+// konnte nicht gespeichert werden" — and the user's tile-toggle looks
 // like it does nothing because the save round-trip never completes.
 // v1.4.16 A5 root-cause: `achievements` was absent from this enum so
 // every save attempted with the achievements widget present (i.e.

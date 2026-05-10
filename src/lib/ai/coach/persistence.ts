@@ -94,7 +94,46 @@ function provenanceFromJson(raw: string | null): CoachProvenance | null {
       parsed.counts && typeof parsed.counts === "object"
         ? (parsed.counts as CoachProvenance["counts"])
         : undefined;
-    return { windows, metrics, counts };
+    // v1.4.22 — keyValues are persisted alongside the existing
+    // windows/metrics/counts envelope so the evidence-block disclosure
+    // re-renders on conversation reload. Defensive shape check to
+    // tolerate legacy rows (no keyValues field) without throwing.
+    let keyValues: CoachProvenance["keyValues"];
+    if (Array.isArray(parsed.keyValues)) {
+      const cleaned: Array<{
+        label: string;
+        value: string;
+        unit?: string;
+        window?: string;
+      }> = [];
+      for (const raw of parsed.keyValues) {
+        if (!raw || typeof raw !== "object") continue;
+        const candidate = raw as {
+          label?: unknown;
+          value?: unknown;
+          unit?: unknown;
+          window?: unknown;
+        };
+        if (
+          typeof candidate.label !== "string" ||
+          typeof candidate.value !== "string"
+        ) {
+          continue;
+        }
+        const entry: {
+          label: string;
+          value: string;
+          unit?: string;
+          window?: string;
+        } = { label: candidate.label, value: candidate.value };
+        if (typeof candidate.unit === "string") entry.unit = candidate.unit;
+        if (typeof candidate.window === "string")
+          entry.window = candidate.window;
+        cleaned.push(entry);
+      }
+      if (cleaned.length > 0) keyValues = cleaned;
+    }
+    return { windows, metrics, counts, ...(keyValues ? { keyValues } : {}) };
   } catch {
     return null;
   }

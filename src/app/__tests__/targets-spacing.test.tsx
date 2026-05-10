@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 /**
  * v1.4.19 phase A7 — `/targets` (Zielwerte) had `space-y-8` between
  * the page header (h1 + intro) and the first card grid. At Pixel-5
- * Marc reported "relativ viel Platz" wasted between the overview
+ * the maintainer reported "relativ viel Platz" wasted between the overview
  * and the first values. Tighten the rhythm to `space-y-6` (24px)
  * which matches the rest of the admin / settings pages.
  */

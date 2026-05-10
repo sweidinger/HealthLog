@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
  * is always wider than a 393 CSS-px (Pixel-5) viewport, so v1.4.18
  * phase A2 added the `no-scrollbar` class to the strip — Chromium /
  * WebKit otherwise paint an always-on horizontal scrollbar at the top
- * of every admin page, which Marc kept mis-attributing to the
+ * of every admin page, which the maintainer kept mis-attributing to the
  * `/admin/api-tokens` table card right below it. Three previous fix
  * attempts (v1.4.15 column-hide, v1.4.16 mobile-card-list, then this
  * one) all targeted the table while the bar lived in the shell.

@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import type { CorrelationResult } from "@/lib/insights/correlations";
 import { CorrelationCard } from "./correlation-card";
@@ -7,14 +8,18 @@ import { CorrelationCard } from "./correlation-card";
 /**
  * v1.4.20 phase B3 — Correlation row.
  *
- * Renders the three pre-defined hypothesis cards in a 2-up grid on
- * `>=md` and a single column on `<md`. A single correlation-disclaimer
- * footer sits below the row — the disclaimer applies to every card so
- * we don't repeat it per-card.
+ * Renders the pre-defined hypothesis cards in a 2-up grid on `>=md` and
+ * a single column on `<md`. A single correlation-disclaimer footer sits
+ * below the row — the disclaimer applies to every card so we don't
+ * repeat it per-card.
  *
- * The `<CorrelationCard>` itself owns the empty-state for below-
- * threshold results, so this row never has to filter — it always
- * mounts all three cards regardless of `status`.
+ * v1.4.22 A4 — empty-state cards are dropped instead of rendered. Any
+ * hypothesis whose `status !== "ok"` is filtered out so the layout
+ * collapses cleanly: 2 ok cards → 50/50, 1 ok card → 100 %, 0 ok cards
+ * → the row hides itself entirely (no header, no disclaimer). Up to
+ * v1.4.21 the `<CorrelationCard>` painted an EmptyState for below-
+ * threshold results, which left half-rows of greyed-out placeholders
+ * on a sparse account.
  */
 
 interface CorrelationRowProps {
@@ -27,6 +32,16 @@ interface CorrelationRowProps {
 
 export function CorrelationRow({ results }: CorrelationRowProps) {
   const { t } = useTranslations();
+
+  // Drop insufficient-data tiles up-front. The grid below picks 1-col vs
+  // 2-col automatically so 1 ok card spans 100 % width on its own row.
+  const okResults = [
+    results.bpCompliance,
+    results.moodPulse,
+    results.weightWeekday,
+  ].filter((r) => r.status === "ok");
+
+  if (okResults.length === 0) return null;
 
   return (
     <section
@@ -42,10 +57,15 @@ export function CorrelationRow({ results }: CorrelationRowProps) {
           {t("insights.correlationRow.subtitle")}
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <CorrelationCard result={results.bpCompliance} />
-        <CorrelationCard result={results.moodPulse} />
-        <CorrelationCard result={results.weightWeekday} />
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4",
+          okResults.length > 1 && "md:grid-cols-2",
+        )}
+      >
+        {okResults.map((result) => (
+          <CorrelationCard key={result.kind} result={result} />
+        ))}
       </div>
       <p
         data-slot="correlation-row-disclaimer"

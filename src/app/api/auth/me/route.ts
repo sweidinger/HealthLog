@@ -2,11 +2,19 @@ import { apiSuccess } from "@/lib/api-response";
 import { getGravatarUrl } from "@/lib/gravatar";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { setOnboardingPendingCookie } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
+
+  // v1.4.22 W5 reconcile (Sr-H1) — fall-back resync for legacy
+  // sessions that predate the cookie. New sessions anchor the cookie
+  // inside `createSession` itself, so this is no longer the primary
+  // write path; it just makes sure pre-v1.4.22 sessions get their
+  // cookie set on the first /me roundtrip after the upgrade.
+  await setOnboardingPendingCookie(user.onboardingCompletedAt == null);
 
   annotate({ action: { name: "auth.me" } });
 

@@ -1,7 +1,7 @@
 /**
  * Scope-hardened system prompt for AI insights — Phase C1 (v1.4.15).
  *
- * Marc, verbatim 2026-05-09:
+ * the maintainer, verbatim 2026-05-09:
  *   "Es darf null Halluzinationen haben und es muss sich halt irgendwie
  *    stützen auf medizinische Dinge."
  *   ("Zero hallucinations. Must ground on medical facts.")
@@ -27,7 +27,7 @@ import {
 } from "../medical-references";
 
 /** Stable identifier for the active system prompt revision. */
-export const PROMPT_VERSION = "4.20.2" as const;
+export const PROMPT_VERSION = "4.22.0" as const;
 
 const SYSTEM_PROMPT_EN = `You are a clinical-context summariser for a personal health-log app.
 Prompt version: ${PROMPT_VERSION}.

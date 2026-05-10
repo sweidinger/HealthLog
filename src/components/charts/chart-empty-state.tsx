@@ -6,7 +6,7 @@ import { LineChart as LineChartIcon } from "lucide-react";
 /**
  * Sparse-data empty-state for chart wrappers (B1a v1.4.16).
  *
- * Per Marc's research §1A — "personal-baseline framing first" — when a
+ * Per the maintainer's research §1A — "personal-baseline framing first" — when a
  * user has only 1-2 data points there's nothing useful to plot, so we
  * paint a friendly hint instead of a near-empty canvas. The hint reuses
  * the `lucide-react/LineChart` glyph the rest of the app uses for chart

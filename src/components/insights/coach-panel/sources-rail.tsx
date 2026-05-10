@@ -275,13 +275,21 @@ export function SourcesRail({
           );
         })}
       </ul>
-      <div className="border-border/50 mt-auto flex items-start gap-2 border-t pt-3">
+      {/* v1.4.22 B4: the rail's footer now carries the medical
+          disclaimer (relocated from below the composer). The
+          source-picker section above stands on its own as the rail's
+          primary content — users see the disclaimer once, in a calm
+          place, instead of every time they look at the input. */}
+      <div
+        data-slot="coach-sources-disclaimer"
+        className="border-border/50 mt-auto flex items-start gap-2 border-t pt-3"
+      >
         <Activity
           aria-hidden="true"
           className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
         />
         <p className="text-muted-foreground text-[11px] leading-relaxed">
-          {t("insights.coach.sourcesFooter")}
+          {t("insights.coach.composerDisclaimer")}
         </p>
       </div>
     </div>

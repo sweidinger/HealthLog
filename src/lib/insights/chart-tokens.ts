@@ -42,7 +42,7 @@ const ALLOWED_SET = new Set<string>(ALLOWED_CHART_TOKENS);
 // v1.4.19 A3 — strip vs parse split. The strip-side character class
 // is permissive (`[A-Za-z0-9_]+`) so model-emitted lowercase or
 // snake_case tokens like `metric:blood_pressure_sweet_spot` (verbatim
-// Marc 2026-05-10) get cleaved out of prose instead of leaking to the
+// maintainer probe 2026-05-10) get cleaved out of prose instead of leaking to the
 // DOM. The parse-side class stays uppercase-only so unrenderable /
 // hallucinated tokens are dropped from the *render* path entirely;
 // only the *strip* is permissive.

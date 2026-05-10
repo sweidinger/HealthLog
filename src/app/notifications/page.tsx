@@ -191,7 +191,7 @@ export default function NotificationsPage() {
           <thead>
             <tr className="border-border border-b">
               <th className="text-muted-foreground px-4 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                {t("notifications.title")}
+                {t("notifications.eventColumn")}
               </th>
               {activeChannels.map((ch) => (
                 <th

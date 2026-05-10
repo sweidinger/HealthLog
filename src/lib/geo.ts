@@ -15,7 +15,7 @@
  * `Accept-Language: de, en;q=0.5` hint is sent so providers return
  * native city names ("Nürnberg") rather than ASCII folds
  * ("Nuremberg"). The previous path lost umlauts in production for at
- * least one Marc-Brief login row that rendered as "Nrnberg" in
+ * least one maintainer-flagged login row that rendered as "Nrnberg" in
  * /admin/login-overview — see `docs/audit/v1416-summary.md` once cut.
  */
 

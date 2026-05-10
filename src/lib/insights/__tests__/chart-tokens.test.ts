@@ -59,7 +59,7 @@ describe("stripChartTokens", () => {
   // v1.4.17 hotfix — defensive: reading `insight.summary` on a legacy
   // cached payload (no `summary` field) returns undefined. Crashing
   // with `Cannot read properties of undefined (reading 'replace')` was
-  // the production /insights bug Marc hit on 2026-05-10. Treat
+  // the production /insights bug the maintainer hit on 2026-05-10. Treat
   // null/undefined as the empty string instead.
   it("returns empty string for undefined input", () => {
     expect(stripChartTokens(undefined)).toBe("");

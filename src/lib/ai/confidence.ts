@@ -2,7 +2,7 @@
  * v1.4.16 phase B5d — deterministic confidence-score computation per
  * recommendation.
  *
- * Marc's mandate: the model's self-reported confidence is unreliable
+ * the maintainer's mandate: the model's self-reported confidence is unreliable
  * (calibrated probabilities are not a small-LLM strength), so the
  * wrapper OVERRIDES with a server-computed value derived from three
  * inputs that the cited data window actually exposes:

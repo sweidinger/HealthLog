@@ -103,17 +103,28 @@ test.describe("chart overlay controls", () => {
       .first();
     await expect(trigger).toBeVisible({ timeout: 10_000 });
 
+    // Scroll the trigger into view before opening the dropdown so the
+    // Radix Popper places its portalled content inside the viewport.
+    // On the seeded test user the dashboard renders multiple stacked
+    // chart cards, and the first cog can sit near the bottom edge of
+    // the desktop 1280×720 viewport — opening the popover then drops
+    // the toggle below the fold and Playwright refuses to click an
+    // off-viewport element after auto-scrolling.
+    await trigger.scrollIntoViewIfNeeded();
     await trigger.click();
 
     // The popover content paints three switches.
-    await expect(
-      page.locator('[data-slot="chart-overlay-toggle-target-range"]'),
-    ).toBeVisible({ timeout: 5_000 });
+    const targetRangeToggle = page.locator(
+      '[data-slot="chart-overlay-toggle-target-range"]',
+    );
+    await expect(targetRangeToggle).toBeVisible({ timeout: 5_000 });
 
     // Toggle target-range on. Radix Switch is a button[role=switch].
-    await page
-      .locator('[data-slot="chart-overlay-toggle-target-range"]')
-      .click();
+    // Force the click — `scrollIntoViewIfNeeded()` on the portalled
+    // dropdown content is a no-op (the Radix portal sits at the body
+    // root, outside the page scroll container) so we bypass Playwright's
+    // viewport check directly.
+    await targetRangeToggle.click({ force: true });
 
     // The PUT fires once for the toggle change.
     await expect.poll(() => putRequestCount).toBeGreaterThan(0);

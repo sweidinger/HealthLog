@@ -11,7 +11,7 @@ import {
  *
  * Until v1.4.14 the layout schema had a single `visible` flag per
  * widget that controlled BOTH the upper-row strip tile AND the lower-
- * row chart for the same metric. Marc wanted them as independent
+ * row chart for the same metric. the maintainer wanted them as independent
  * toggles so a user could keep the chart on for tracking but hide
  * the tile (or vice versa). v1.4.15 introduces an optional
  * `tileVisible` field; the resolver mirrors it from `visible` for
@@ -120,7 +120,7 @@ describe("serializeDashboardLayout() — tileVisible persistence", () => {
 /**
  * v1.4.16 Fix A5 — top-tile selector real-fix.
  *
- * Marc reported the toggles in Settings → Dashboard didn't filter
+ * the maintainer reported the toggles in Settings → Dashboard didn't filter
  * the dashboard tile-strip. Root cause: the `widgetIdEnum` Zod schema
  * in `src/app/api/dashboard/widgets/route.ts` was missing
  * `achievements` even though the default layout has it. Every PUT
@@ -132,7 +132,7 @@ describe("serializeDashboardLayout() — tileVisible persistence", () => {
  * `DEFAULT_DASHBOARD_LAYOUT.widgets`, every consumer (settings UI,
  * dashboard renderer, API schema) must support it. This test pins
  * the contract by enumerating every widget the default layout
- * advertises, so a future addition gets caught here before Marc
+ * advertises, so a future addition gets caught here before the maintainer
  * finds it broken in production.
  */
 describe("DEFAULT_DASHBOARD_LAYOUT contract", () => {
@@ -154,7 +154,7 @@ describe("DEFAULT_DASHBOARD_LAYOUT contract", () => {
     // The API persists `serializeDashboardLayout(parsed.data)` and
     // reads back via `resolveDashboardLayout(row.dashboardWidgetsJson)`.
     // A bug in either step (missing widget, wrong order normalization)
-    // would surface here. Marc's regression: the API schema rejected
+    // would surface here. the maintainer's regression: the API schema rejected
     // the layout *before* this round-trip even started.
     const serialized = serializeDashboardLayout(DEFAULT_DASHBOARD_LAYOUT);
     const resolved = resolveDashboardLayout(serialized);
@@ -218,7 +218,7 @@ describe("resolveDashboardLayout() — comparisonBaseline (B8)", () => {
 /**
  * v1.4.18 — per-chart overlay-prefs persistence.
  *
- * Marc reverted v1.4.16's always-on chart overlays (gradient, baseline,
+ * the maintainer reverted v1.4.16's always-on chart overlays (gradient, baseline,
  * target-zone shading) and asked for per-chart switches that persist
  * per user. The prefs piggy-back on `User.dashboardWidgetsJson` so we
  * stay migration-free, mirroring the B8 comparisonBaseline pattern.

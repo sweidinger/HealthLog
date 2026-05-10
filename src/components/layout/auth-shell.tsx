@@ -41,26 +41,12 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
     }
   }, [isLoading, isAuthenticated, isAdminPage, user?.role, router]);
 
-  // Redirect to onboarding if not completed
-  useEffect(() => {
-    if (
-      !isLoading &&
-      isAuthenticated &&
-      !isOnboardingPage &&
-      !isPublicPage &&
-      user &&
-      !user.onboardingCompletedAt
-    ) {
-      router.replace("/onboarding");
-    }
-  }, [
-    isLoading,
-    isAuthenticated,
-    isOnboardingPage,
-    isPublicPage,
-    user,
-    router,
-  ]);
+  // v1.4.22 C4 — onboarding redirect moved to proxy.ts so it lands on
+  // the first server response instead of post-hydration. The proxy
+  // reads the `hl_onboarding` cookie (mirrored from the DB by the auth
+  // routes) and 307s to /onboarding before this shell ever paints. The
+  // previous `useEffect`-based redirect caused a brief dashboard flash
+  // for users with `onboardingCompletedAt === null`.
 
   // Loading state
   if (isLoading) {

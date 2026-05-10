@@ -42,7 +42,7 @@ function Tabs({
 // ~1 px taller than the strip on some glyph stacks, a tiny painted
 // vertical scrollbar appeared on the right edge of short strips
 // (e.g. the admin feedback `Open / Acknowledged / Resolved /
-// Archived` tabs Marc reported in v1.4.19). Locking the y-axis hides
+// Archived` tabs the maintainer reported in v1.4.19). Locking the y-axis hides
 // that bar without affecting horizontal swipe behaviour.
 // Padding sits at `p-1` (4 px) so the 3 px focus-visible ring
 // (`focus-visible:ring-[3px]`) on triggers stays inside the

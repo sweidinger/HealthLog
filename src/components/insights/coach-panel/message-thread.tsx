@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Bot, Sparkles, User } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bot, ChevronRight, Sparkles, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
+import { useAuth } from "@/hooks/use-auth";
 
 import { SourceChips } from "./source-chips";
 import type {
@@ -62,7 +63,33 @@ export function MessageThread({
   // persisted twin lands — comparing on `messageId` keeps the
   // transition seamless while never accidentally hiding an in-flight
   // bubble (during streaming `messageId` is null).
+  // v1.4.22 W5 reconcile (Code-MED-3) — streaming/persisted-twin
+  // race. On slow connections SSE `done` fires before the
+  // invalidate-refetch resolves; the persisted twin lands while the
+  // streaming bubble is still painted, producing a 200-500ms
+  // duplicate render. Hide the persisted twin (matched on
+  // streaming.messageId) for a 150ms grace window after it first
+  // appears so the streaming bubble stays alone until the streaming
+  // state cleans up naturally on the next `send`.
+  const [graceWindow, setGraceWindow] = useState(false);
+  const lastPersistedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const persistedId = streaming?.messageId ?? null;
+    if (
+      persistedId &&
+      persistedId !== lastPersistedIdRef.current &&
+      messages.some((m) => m.id === persistedId)
+    ) {
+      lastPersistedIdRef.current = persistedId;
+      setGraceWindow(true);
+      const handle = setTimeout(() => setGraceWindow(false), 150);
+      return () => clearTimeout(handle);
+    }
+  }, [streaming?.messageId, messages]);
+  const suppressedTwinId = graceWindow ? streaming?.messageId : null;
+
   const streamingPersisted =
+    !graceWindow &&
     streaming?.messageId != null &&
     messages.some((m) => m.id === streaming.messageId);
   const streamingActive =
@@ -119,15 +146,21 @@ export function MessageThread({
         "scroll-smooth",
       )}
     >
-      {messages.map((m) => (
-        <ChatBubble
-          key={m.id}
-          role={m.role}
-          content={m.content}
-          metricSource={m.metricSource}
-          providerType={m.providerType}
-        />
-      ))}
+      {messages.map((m) => {
+        // v1.4.22 W5 reconcile (Code-MED-3) — suppress the persisted
+        // twin during the 150ms grace window so the streaming bubble
+        // stays alone on slow connections.
+        if (m.id === suppressedTwinId) return null;
+        return (
+          <ChatBubble
+            key={m.id}
+            role={m.role}
+            content={m.content}
+            metricSource={m.metricSource}
+            providerType={m.providerType}
+          />
+        );
+      })}
       {streamingActive && streaming && (
         // role=log + aria-live=polite so screen-reader users hear the
         // assistant prose announce as tokens land. aria-relevant=text
@@ -144,6 +177,21 @@ export function MessageThread({
           />
         </div>
       )}
+      {/* v1.4.22 W5 reconcile (Design-H3) — medical-disclaimer
+          reach regression. v1.4.22 B4 moved the disclaimer to the
+          sources-rail footer, but the rail is xl-only; on mobile
+          and laptop viewports the disclaimer was only reachable
+          via the chevron tray. Pin a small persistent line at the
+          bottom of the message thread so every Coach session
+          carries the disclaimer regardless of viewport. The rail
+          footer stays for desktop users — the redundancy is
+          intentional for clinical-adjacent UI. */}
+      <p
+        data-slot="coach-thread-disclaimer"
+        className="text-muted-foreground mt-auto pt-2 text-[10px] leading-relaxed"
+      >
+        {t("insights.coach.composerDisclaimer")}
+      </p>
     </div>
   );
 }
@@ -166,7 +214,16 @@ function ChatBubble({
   errorCode,
 }: ChatBubbleProps) {
   const { t } = useTranslations();
+  const { user } = useAuth();
   if (role === "user") {
+    // v1.4.22 B3 — pull the user's Gravatar so the user bubble's
+    // avatar matches the Coach avatar in size and visual weight.
+    // Falls back to the generic person glyph when the user hasn't
+    // configured an email (or the Gravatar lookup returned null).
+    const gravatarUrl = user?.gravatarUrl ?? null;
+    const initials = user?.username
+      ? user.username.slice(0, 2).toUpperCase()
+      : null;
     return (
       <div
         data-slot="coach-bubble-user"
@@ -181,12 +238,24 @@ function ChatBubble({
         >
           {content}
         </div>
-        <div
-          aria-hidden="true"
-          className="text-muted-foreground bg-muted/60 mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full"
-        >
-          <User className="size-3.5" />
-        </div>
+        {gravatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={gravatarUrl}
+            alt=""
+            aria-hidden="true"
+            data-slot="coach-bubble-user-avatar"
+            className="border-border/50 mt-0.5 size-8 shrink-0 rounded-full border object-cover"
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            data-slot="coach-bubble-user-avatar"
+            className="text-muted-foreground bg-muted/60 mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold"
+          >
+            {initials ?? <User className="size-3.5" />}
+          </div>
+        )}
       </div>
     );
   }
@@ -201,6 +270,8 @@ function ChatBubble({
       : errorCode
         ? t("insights.coach.errorProvider")
         : null;
+
+  const keyValues = metricSource?.keyValues ?? [];
 
   return (
     <div
@@ -232,6 +303,55 @@ function ChatBubble({
           <p className="text-dracula-orange/90 text-xs">{safeError}</p>
         )}
         {metricSource && <SourceChips provenance={metricSource} />}
+        {keyValues.length > 0 && (
+          <details
+            data-slot="coach-evidence"
+            className={cn(
+              "border-border/50 bg-muted/30 group rounded-md border",
+              "px-2.5 py-1.5 text-xs",
+            )}
+          >
+            <summary
+              data-slot="coach-evidence-summary"
+              className={cn(
+                "text-muted-foreground hover:text-foreground flex cursor-pointer",
+                "items-center gap-1.5 leading-relaxed",
+                "marker:hidden [&::-webkit-details-marker]:hidden",
+                "focus-visible:ring-ring/50 rounded outline-none focus-visible:ring-2",
+              )}
+            >
+              <ChevronRight
+                aria-hidden="true"
+                className="size-3 transition-transform group-open:rotate-90"
+              />
+              <span>{t("insights.coach.evidenceLabel")}</span>
+            </summary>
+            <ul
+              data-slot="coach-evidence-list"
+              className="text-foreground mt-2 flex flex-col gap-1"
+            >
+              {keyValues.map((kv, idx) => (
+                <li
+                  key={`${kv.label}-${idx}`}
+                  data-slot="coach-evidence-row"
+                  className="leading-relaxed"
+                >
+                  <span className="text-muted-foreground">{kv.label}:</span>{" "}
+                  <strong className="font-semibold">
+                    {kv.value}
+                    {kv.unit ? ` ${kv.unit}` : ""}
+                  </strong>
+                  {kv.window && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      ({kv.window})
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
     </div>
   );
