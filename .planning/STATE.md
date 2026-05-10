@@ -101,15 +101,24 @@ ships behind a feature flag and unlocks independently.
 
 ### B2 — AI Coach panel + streaming chat + persistence (~5-7 days)
 
-- [ ] Drawer overlay over `/insights`; full-page route deferred to v1.5
-- [ ] New `POST /api/insights/chat` SSE-streaming endpoint
-- [ ] New `src/components/insights/coach-panel/*`
-- [ ] New Prisma `CoachConversation` + `CoachMessage` (encrypted
-      content, GDPR cascade)
-- [ ] Source-chip rows on every assistant message (provenance)
-- [ ] Token-budget cap + 20-turn conversation cap
-- [ ] Prompt-injection refusal pattern (extend v1.4.15 C1)
-- Detailed report: `.planning/phase-B2-report.md`
+Split into B2a (backend, complete) + B2b (drawer UI, deferred). The
+backend half landed under five atomic commits on `develop`; the
+frontend dispatches separately once the wire contract has settled.
+
+- [x] New `POST /api/insights/chat` SSE-streaming endpoint
+- [x] New `GET /api/insights/chat` (list) + `GET/DELETE
+      /api/insights/chat/[id]` (single + delete)
+- [x] New Prisma `CoachConversation` + `CoachMessage` + `CoachUsage`
+      (encrypted content, GDPR cascade)
+- [x] Source-chip provenance attached to every assistant message
+- [x] Token-budget cap (25 000 tokens / user / UTC-day) + 20-turn
+      conversation cap with summarised-history fold
+- [x] Prompt-injection + off-topic refusal pattern (EN+DE)
+- [ ] Drawer overlay over `/insights`; full-page route deferred to
+      v1.5 — UI deferred to B2b dispatch
+- [ ] New `src/components/insights/coach-panel/*` — B2b
+- Detailed report: `.planning/phase-B2a-report.md` (backend);
+  `.planning/phase-B2-report.md` reserved for B2b drawer UI
 
 ### B3 — Correlation discovery + Trends row with AI annotations (~3-5 days)
 
@@ -174,3 +183,19 @@ ships behind a feature flag and unlocks independently.
   B1–B5 Insights redesign + Wave D + Phase E), ROADMAP.md updated
   to track v1.4.20 with v1.4.19 archived. Branch model unchanged
   for this commit (still `main`); F1 will introduce `develop`.
+
+## Status block — B2a (v1.4.20)
+
+- 2026-05-10T16:15+02:00 — B2a complete. AI Coach backend landed in
+  five atomic commits on `develop`: Prisma migration
+  `0035_coach_conversations_v1420` adds `CoachConversation`,
+  `CoachMessage`, and `CoachUsage` tables (cascade-on-user-delete);
+  Coach helpers (types, persistence with AES-256-GCM message bodies,
+  per-day 25 000-token budget ledger, EN+DE prompt-injection +
+  off-topic refusal); SSE streaming endpoint at POST
+  `/api/insights/chat` (idempotent on conversation creation only,
+  20-turn history fold, refusal short-circuit, provenance frame, done
+  frame); list / fetch-single / delete endpoints with 404-not-403
+  ownership boundary. Tests: 1753 → 1781 unit (+28),
+  67 → 78 integration (+11). UI drawer (B2b) deferred to a separate
+  dispatch.
