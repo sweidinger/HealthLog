@@ -30,11 +30,45 @@ export type CoachMessageRole = z.infer<typeof coachMessageRoleSchema>;
  * - `locale` lets the route render the refusal copy in the user's
  *   language without having to re-resolve it from cookies.
  */
+/**
+ * v1.4.20.1 — optional scope picker shipped with the per-source toggles
+ * + window selector on the Coach drawer's sources rail. The body lets
+ * the user narrow which metrics the snapshot ships and which window the
+ * timeline covers. Server defaults fill in any missing field so older
+ * native clients keep working — the field is fully back-compat.
+ */
+export const coachScopeWindowSchema = z.enum([
+  "last7days",
+  "last30days",
+  "last90days",
+  "allTime",
+]);
+
+export const coachScopeSourceSchema = z.enum([
+  "bp",
+  "weight",
+  "pulse",
+  "mood",
+  "compliance",
+]);
+
+export const coachScopeSchema = z.object({
+  /** Which sources the snapshot may include. Empty array → no metrics. */
+  sources: z.array(coachScopeSourceSchema).max(5).optional(),
+  /** Window the day-level timeline covers. Defaults to last30days. */
+  window: coachScopeWindowSchema.optional(),
+});
+
+export type CoachScope = z.infer<typeof coachScopeSchema>;
+export type CoachScopeSource = z.infer<typeof coachScopeSourceSchema>;
+export type CoachScopeWindow = z.infer<typeof coachScopeWindowSchema>;
+
 export const coachChatRequestSchema = z.object({
   conversationId: z.string().min(1).max(64).optional(),
   message: z.string().min(1).max(4000),
   prefill: z.string().max(2000).optional(),
   locale: z.enum(["en", "de"]).optional(),
+  scope: coachScopeSchema.optional(),
 });
 
 export type CoachChatRequest = z.infer<typeof coachChatRequestSchema>;
