@@ -66,18 +66,30 @@ function TruncatedCell({
 const TOKEN_NAME_ISO_RE =
   /^(.+?)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)(.*)$/;
 
+// Locale-fixed dd.MM.yyyy HH:mm in the Europe/Berlin display zone — the
+// rest of the app shows timestamps in Berlin time (`format-locale.ts`),
+// so a token issued at 19:46 UTC must read as 21:46 in summer / 20:46
+// in winter, not the raw UTC clock.
+const TOKEN_NAME_DATE_FORMATTER = new Intl.DateTimeFormat("de-DE", {
+  timeZone: "Europe/Berlin",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
 function formatTokenName(name: string): string {
   const match = TOKEN_NAME_ISO_RE.exec(name);
   if (!match) return name;
   const [, prefix, iso, rest] = match;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return name;
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const yyyy = d.getUTCFullYear();
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mi = String(d.getUTCMinutes()).padStart(2, "0");
-  const formatted = `${prefix} · ${dd}.${mm}.${yyyy} ${hh}:${mi}`;
+  // Intl emits "05.05.2026, 21:46" — strip the comma so the suffix
+  // reads as a single date+time chunk.
+  const stamp = TOKEN_NAME_DATE_FORMATTER.format(d).replace(",", "");
+  const formatted = `${prefix} · ${stamp}`;
   return rest && rest.trim() ? `${formatted} ${rest.trim()}` : formatted;
 }
 
