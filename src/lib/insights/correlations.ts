@@ -16,10 +16,21 @@
  * data-grounded hypotheses are enough to ship the surface.
  *
  * Quality bar (non-negotiable):
- *   - n >= 14 paired data points
+ *   - n >= 20 paired data points  (v1.4.23 H6 — raised from 14)
  *   - p <  0.05
  * Anything below the bar returns `{ kind: "insufficient", n, reason }` so
  * the card can render an EmptyState and never imply false confidence.
+ *
+ * Pearson p-value gate rationale (v1.4.23 H6, Code-MED-03):
+ *   The two-sided p-value derives from the Fisher's-Z normal
+ *   approximation. At low df (n < 20, df < 18) the normal approx is
+ *   generous in the wrong direction — at df=12 a true p ≈ 0.04 gets
+ *   reported as p ≈ 0.025, sneaking past the surfacing gate. v1.4.23
+ *   raises `MIN_PAIRED_N` from 14 to 20 so the borderline-significance
+ *   band is excluded entirely. A rigorous incomplete-beta fix is
+ *   queued as a v1.4.24 candidate; raising the gate is the safer
+ *   patch here because the false-positive cost compounds when v1.5/v1.6
+ *   auto-discovery ships.
  *
  * Conservative phrasing — interpretations always read as "a pattern worth
  * watching" or similar, never "X causes Y". Causation language is banned
@@ -74,8 +85,18 @@ export interface CorrelationInsufficient {
 
 export type CorrelationResult = CorrelationOk | CorrelationInsufficient;
 
-/** Hard floor for paired sample count. */
-export const MIN_PAIRED_N = 14;
+/**
+ * Hard floor for paired sample count.
+ *
+ * v1.4.23 H6 — raised from 14 to 20 so borderline-df Pearson cards
+ * stop surfacing. The Fisher's-Z normal approximation overstates
+ * significance at df < 18; raising the gate is the simpler patch here
+ * (a rigorous incomplete-beta replacement is queued as a v1.4.24
+ * candidate). Acceptable trade-off: less false-positive noise; the
+ * v1.4.16 B5e feedback aggregator can reverse the call if usage data
+ * later shows users miss the borderline cards.
+ */
+export const MIN_PAIRED_N = 20;
 /** Two-sided p-value threshold for a card to surface. */
 export const MAX_P_VALUE = 0.05;
 
@@ -143,9 +164,10 @@ export function pearson(input: {
   const clamped = Math.max(-1, Math.min(1, r));
 
   // Two-sided p-value via t-distribution. t = r * sqrt(n-2) / sqrt(1-r^2).
-  // For n >= 14 the normal approximation is accurate enough for a
-  // surfacing decision; we use it directly to avoid pulling in an
-  // incomplete-beta implementation.
+  // For n >= 20 (v1.4.23 H6 raise) the normal approximation is
+  // conservative enough for a surfacing decision; we use it directly
+  // to avoid pulling in an incomplete-beta implementation. The
+  // rigorous incomplete-beta swap is a v1.4.24 candidate.
   const tStat =
     Math.abs(clamped) >= 1
       ? Number.POSITIVE_INFINITY
@@ -196,7 +218,9 @@ function twoSidedPFromT(absT: number, df: number): number {
   if (df <= 0) return 1;
   // For very small df the normal approx overstates significance; clamp
   // to a conservative "not significant" so a tiny n never sneaks past
-  // the p < 0.05 gate. n >= 14 (df >= 12) is the gate we target.
+  // the p < 0.05 gate. v1.4.23 H6 raised the surfacing gate to
+  // n >= 20 (df >= 18); the conservative correction below stays as
+  // defence-in-depth in case a caller passes a tighter `minPairs`.
   if (df < 12) {
     // Crude correction — multiply absT down so p inflates. Keeps the
     // test-suite synthetic data realistic without overfitting.

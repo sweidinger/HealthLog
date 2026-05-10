@@ -183,9 +183,10 @@ export const GET = apiHandler(async () => {
 
   // v1.4.20 phase B3 — three pre-defined correlation hypotheses.
   // All three run on the trailing 30 days so a sparse account doesn't
-  // burn the n >= 14 gate on a stale window. Each runner gates on
-  // n >= 14 + p < 0.05; below the bar the result.status === "insufficient"
-  // and the UI paints an EmptyState.
+  // burn the n >= 20 gate on a stale window (v1.4.23 H6 raised the
+  // floor from 14 → 20). Each runner gates on n >= 20 + p < 0.05;
+  // below the bar the result.status === "insufficient" and the UI
+  // paints an EmptyState.
   const correlations = await computeCorrelationHypotheses(user.id);
 
   // v1.4.20 phase B5 — Personal Health Score. Server-deterministic

@@ -13,8 +13,9 @@ import {
  * v1.4.20 phase B3 — correlation discovery.
  *
  * Three pre-defined hypotheses are surfaced as `<CorrelationCard>` rows.
- * Quality bar is non-negotiable: n >= 14, p < 0.05. Anything below
- * returns `status: "insufficient"` so the card paints an EmptyState.
+ * Quality bar is non-negotiable: n >= 20 (v1.4.23 H6 raise), p < 0.05.
+ * Anything below returns `status: "insufficient"` so the card paints
+ * an EmptyState.
  */
 
 function makeDate(daysAgo: number): Date {
@@ -69,13 +70,15 @@ describe("pearson", () => {
 
   it("returns r near 0 for noise, with p above the surface threshold", () => {
     // Deterministic noise (no Math.random) so the test is reproducible.
+    // v1.4.23 H6 — fixture extended from 15 to 20 entries to clear the
+    // raised MIN_PAIRED_N gate (was 14, now 20).
     const xs = [
       0.1, 0.5, 0.9, 0.2, 0.7, 0.4, 0.6, 0.3, 0.8, 0.05, 0.95, 0.15, 0.85, 0.55,
-      0.25,
+      0.25, 0.35, 0.65, 0.75, 0.45, 0.05,
     ];
     const ys = [
       0.5, 0.1, 0.7, 0.3, 0.2, 0.9, 0.4, 0.6, 0.05, 0.95, 0.85, 0.55, 0.25,
-      0.45, 0.65,
+      0.45, 0.65, 0.15, 0.75, 0.35, 0.05, 0.95,
     ];
     const result = pearson({ xs, ys });
     expect(result.status).toBe("ok");
@@ -86,12 +89,30 @@ describe("pearson", () => {
       expect(result.pValue).toBeGreaterThan(MAX_P_VALUE);
     }
   });
+
+  /**
+   * v1.4.23 H6 — pin the surfacing-gate raise. n=15 is the borderline
+   * case the v1.4.22 product-lead memo flagged: under the old n>=14
+   * gate the normal-approx p-value would surface a card; under the
+   * new n>=20 gate the call short-circuits to `insufficient` so a
+   * future reviewer can't lower the floor without breaking this pin.
+   */
+  it("returns insufficient (too_few_pairs) at n=15 (H6 surfacing-gate raise)", () => {
+    const xs = Array.from({ length: 15 }, (_, i) => i);
+    const ys = xs.map((x) => 2 * x + 5);
+    const result = pearson({ xs, ys });
+    expect(result.status).toBe("insufficient");
+    if (result.status === "insufficient") {
+      expect(result.reason).toBe("too_few_pairs");
+      expect(result.n).toBe(15);
+    }
+  });
 });
 
 // ── weekdayAnova() ──────────────────────────────────────────────────
 
 describe("weekdayAnova", () => {
-  it("flags too_few_pairs when total n < 14", () => {
+  it("flags too_few_pairs when total n is below the surfacing gate", () => {
     const result = weekdayAnova([
       { weekday: 0, value: 80 },
       { weekday: 1, value: 81 },
@@ -147,10 +168,10 @@ describe("correlateBpCompliance", () => {
     }));
   }
 
-  it("returns insufficient (too_few_pairs) at n=13", () => {
+  it("returns insufficient (too_few_pairs) at n=15 (H6 surfacing-gate raise)", () => {
     const daily = buildPairs(
       Array.from(
-        { length: 13 },
+        { length: 15 },
         (_, i) => [50 + i * 4, 150 - i * 2] as [number, number],
       ),
     );
@@ -158,7 +179,7 @@ describe("correlateBpCompliance", () => {
     expect(result.status).toBe("insufficient");
     if (result.status === "insufficient") {
       expect(result.reason).toBe("too_few_pairs");
-      expect(result.n).toBe(13);
+      expect(result.n).toBe(15);
     }
   });
 
