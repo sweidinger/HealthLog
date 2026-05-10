@@ -242,10 +242,7 @@ export function TrendCard({
           full layout returns at `>=sm`. */}
       {compareBaseline !== "none" && compareDelta != null && (
         <div
-          className={cn(
-            "mt-1",
-            avgAllTime !== undefined && "hidden sm:block",
-          )}
+          className={cn("mt-1", avgAllTime !== undefined && "hidden sm:block")}
         >
           <span
             className={cn(
@@ -331,16 +328,10 @@ export function TrendCard({
               combined secondary row below so the tile keeps the same
               vertical density as every other trend card. */}
           {avgAllTime !== undefined && (
-            <span
-              data-slot="trend-card-all-time"
-              className="hidden sm:inline"
-            >
+            <span data-slot="trend-card-all-time" className="hidden sm:inline">
               {t(avgAllTimeLabelKey)}:{" "}
               <span
-                className={cn(
-                  "font-medium tabular-nums",
-                  avgAllTimeColorClass,
-                )}
+                className={cn("font-medium tabular-nums", avgAllTimeColorClass)}
               >
                 {avgAllTime !== null ? formatValue(avgAllTime) : "—"}
               </span>
@@ -360,10 +351,7 @@ export function TrendCard({
             <span>
               {t(avgAllTimeLabelKey)}:{" "}
               <span
-                className={cn(
-                  "font-medium tabular-nums",
-                  avgAllTimeColorClass,
-                )}
+                className={cn("font-medium tabular-nums", avgAllTimeColorClass)}
               >
                 {avgAllTime !== null ? formatValue(avgAllTime) : "—"}
               </span>

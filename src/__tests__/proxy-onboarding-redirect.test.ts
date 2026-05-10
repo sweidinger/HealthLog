@@ -70,9 +70,7 @@ describe("proxy.ts onboarding redirect (v1.4.22 C4)", () => {
   });
 
   it("does NOT redirect from /auth/login", () => {
-    const res = proxy(
-      makeRequest("/auth/login", { hl_onboarding: "pending" }),
-    );
+    const res = proxy(makeRequest("/auth/login", { hl_onboarding: "pending" }));
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();
   });

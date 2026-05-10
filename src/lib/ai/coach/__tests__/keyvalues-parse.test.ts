@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  parseKeyValueLine,
-  parseKeyValuesSentinel,
-} from "../keyvalues";
+import { parseKeyValueLine, parseKeyValuesSentinel } from "../keyvalues";
 
 /**
  * v1.4.22 Wave 3 B1+B2 — Coach evidence-block sentinel parser.
  */
 describe("parseKeyValueLine", () => {
   it("parses a full line with unit + window", () => {
-    expect(parseKeyValueLine("avg30 systolic: 138 [mmHg] (last30days)")).toEqual({
+    expect(
+      parseKeyValueLine("avg30 systolic: 138 [mmHg] (last30days)"),
+    ).toEqual({
       label: "avg30 systolic",
       value: "138",
       unit: "mmHg",

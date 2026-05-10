@@ -141,9 +141,7 @@ describe("ApiTokenOverviewSection — responsive", () => {
     // two date columns (text-right + text-xs is unique to those cells)
     // and assert none carries whitespace-nowrap.
     const dateCellMatches =
-      tableMarkup.match(
-        /<td[^>]*\btext-right\b[^>]*\btext-xs\b[^>]*>/g,
-      ) ?? [];
+      tableMarkup.match(/<td[^>]*\btext-right\b[^>]*\btext-xs\b[^>]*>/g) ?? [];
     expect(dateCellMatches.length).toBeGreaterThanOrEqual(2);
     for (const cell of dateCellMatches) {
       expect(cell).not.toContain("whitespace-nowrap");

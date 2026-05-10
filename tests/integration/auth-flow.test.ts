@@ -133,9 +133,8 @@ describe("session lifecycle (real Postgres)", () => {
   });
 
   it("destroySession clears the hl_onboarding cookie alongside the session cookie", async () => {
-    const { createSession, destroySession } = await import(
-      "@/lib/auth/session"
-    );
+    const { createSession, destroySession } =
+      await import("@/lib/auth/session");
     const user = await getPrismaClient().user.create({
       data: { username: "dest", email: "dest@example.test" },
     });

@@ -39,7 +39,9 @@ describe("getCoachSystemPrompt — EN", () => {
     expect(prompt).toMatch(/GROUND RULES/);
     expect(prompt).toMatch(/1\. Prose-first\./);
     expect(prompt).toMatch(/2\. Values belong in the evidence block\./);
-    expect(prompt).toMatch(/3\. Missing data is an invitation, not a refusal\./);
+    expect(prompt).toMatch(
+      /3\. Missing data is an invitation, not a refusal\./,
+    );
     expect(prompt).toMatch(/4\. Conservative phrasing\./);
     expect(prompt).toMatch(/5\. Motivational-interviewing micro-moves\./);
     expect(prompt).toMatch(/6\. Redirect off-topic input gracefully\./);
@@ -104,7 +106,9 @@ describe("getCoachSystemPrompt — DE", () => {
     expect(prompt).toMatch(/2\. Werte gehören in den Evidenz-Block\./);
     expect(prompt).toMatch(/3\. Fehlende Daten sind eine Einladung/);
     expect(prompt).toMatch(/4\. Zurückhaltende Sprache\./);
-    expect(prompt).toMatch(/5\. Mikro-Moves aus dem Motivational Interviewing\./);
+    expect(prompt).toMatch(
+      /5\. Mikro-Moves aus dem Motivational Interviewing\./,
+    );
     expect(prompt).toMatch(/6\. Off-topic-Eingaben elegant umlenken\./);
     expect(prompt).toMatch(/7\. Verankere jede Zahl im SNAPSHOT\./);
   });

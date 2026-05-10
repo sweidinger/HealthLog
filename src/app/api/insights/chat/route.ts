@@ -408,9 +408,7 @@ async function streamRefusal(args: {
   });
 
   const stream = createSseStream((controller) => {
-    controller.enqueue(
-      encodeFrame({ type: "token", token: args.refusalText }),
-    );
+    controller.enqueue(encodeFrame({ type: "token", token: args.refusalText }));
     controller.enqueue(
       encodeFrame({
         type: "done",

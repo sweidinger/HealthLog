@@ -316,7 +316,7 @@ function ChatBubble({
               className={cn(
                 "text-muted-foreground hover:text-foreground flex cursor-pointer",
                 "items-center gap-1.5 leading-relaxed",
-                "[&::-webkit-details-marker]:hidden marker:hidden",
+                "marker:hidden [&::-webkit-details-marker]:hidden",
                 "focus-visible:ring-ring/50 rounded outline-none focus-visible:ring-2",
               )}
             >

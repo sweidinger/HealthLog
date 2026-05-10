@@ -21,7 +21,12 @@ const useAuthMock = vi.fn<
     isLoading: boolean;
   }
 >(() => ({
-  user: { id: "test-user", username: "tester", role: "USER", gravatarUrl: null },
+  user: {
+    id: "test-user",
+    username: "tester",
+    role: "USER",
+    gravatarUrl: null,
+  },
   isAuthenticated: true,
   isLoading: false,
 }));
@@ -335,7 +340,9 @@ describe("<MessageThread>", () => {
     const html = render(<MessageThread conversation={withKeyValues} />);
     expect(html).toContain("30-day adherence");
     // No stray empty unit/window markup.
-    expect(html).not.toMatch(/30-day adherence:\s*<\/span>\s*<strong[^>]*>\s*</);
+    expect(html).not.toMatch(
+      /30-day adherence:\s*<\/span>\s*<strong[^>]*>\s*</,
+    );
   });
 
   it("hides the disclosure entirely when keyValues is empty or absent", () => {
@@ -365,7 +372,9 @@ describe("<MessageThread>", () => {
     expect(html).toMatch(
       /<img[^>]+src="https:\/\/www\.gravatar\.com\/avatar\/abc123/,
     );
-    expect(html).toMatch(/data-slot="coach-bubble-user-avatar"[^>]*class="[^"]*size-8/);
+    expect(html).toMatch(
+      /data-slot="coach-bubble-user-avatar"[^>]*class="[^"]*size-8/,
+    );
   });
 
   it("falls back to initials when no Gravatar URL is present", () => {
