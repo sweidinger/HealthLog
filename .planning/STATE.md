@@ -144,10 +144,23 @@ commit.
 
 ### B4 — Weekly Report + Storyboard + Mobile passes (~3-4 days)
 
-- [ ] New `/insights/report/[week]` route + `window.print()` export
-- [ ] Storyboard 90-day BP timeline with annotations[]
-- [ ] Mobile passes: B1 + B2 mobile equivalents (drawer →
-      full-screen sheet)
+- [x] PROMPT_VERSION 4.20.1 → 4.20.2; aiInsightResponseSchema gains
+      `weeklyReport` + `storyboardAnnotations`; GROUND RULES 10/11
+      across EN + DE prompts
+- [x] New `/insights/report/[week]` route — newsletter-style
+      printable surface with Summary / Going-well / Worth-watching /
+      Tips / Data-quality sections; `window.print()` export via
+      Tailwind `print:` variants
+- [x] Hero strip banner-card surfaces the fresh weeklyReport with
+      Read · Share · Export PDF actions; Share uses Web Share API +
+      clipboard fallback; Export deep-links to `?print=1`
+- [x] `<HealthChart>` gains an additive `annotations[]` prop;
+      `resolveAnnotationPositions()` pure helper maps date→pointIndex
+      with a 7-day snap window and 24-char small-viewport truncation
+- [x] Coach drawer rail trays — chevron-button triggers on `<lg`
+      open side-sheets that host the same HistoryRail / SourcesRail
+      the desktop layout uses; refactored body into
+      `<CoachDrawerBody>` for SSR-test surface
 - Detailed report: `.planning/phase-B4-report.md`
 
 ### B5 — Personal AI Coach Health Score (~2-3 days)
