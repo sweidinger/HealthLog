@@ -262,7 +262,7 @@
   },
   "measurements": {
     "title": "Measurements",
-    "subtitle": "Weight, blood pressure, pulse & more",
+    "subtitle": "Weight, blood pressure, pulse and more",
     "addMeasurement": "Add",
     "editMeasurement": "Edit measurement",
     "type": "Type",
@@ -327,7 +327,7 @@
   },
   "mood": {
     "title": "Mood",
-    "subtitle": "Mood tracker & entries",
+    "subtitle": "Mood tracker and entries",
     "addEntry": "Add",
     "editEntry": "Edit entry",
     "moodLevel": "Mood",
@@ -1810,6 +1810,7 @@
     "bugReportNotConfigured": "Bug report is not fully configured yet.",
     "bugReportSave": "Save bug report settings",
     "userManagement": "User Management",
+    "userName": "Name",
     "userEmail": "Email",
     "userRole": "Role",
     "userPasskeys": "Passkeys",
@@ -1885,7 +1886,7 @@
     "reminderMissedMinutesDescription": "Minutes after window end until the intake is considered missed.",
     "reminderThresholdsSave": "Save thresholds",
     "notificationTest": "Test Notifications",
-    "notificationTestSend": "Send test notification",
+    "notificationTestSend": "Send test",
     "notificationTestSuccess": "Test notification sent",
     "notificationTestFailed": "Failed to send test notification",
     "reminderCheckRun": "Run reminder check",
@@ -2045,7 +2046,7 @@
       "app-logs": {
         "title": "App Logs",
         "subtitle": "Tail the most recent structured wide-events emitted by this process.",
-        "processNote": "Showing app-process logs only — worker-process logs go to Loki when LOKI_ENDPOINT is configured. Buffer is volatile and capped at 500 entries.",
+        "processNote": "Showing app-process logs only — worker-process logs go to Loki when that integration is configured. Buffer is volatile and capped at 500 entries.",
         "filterTraceId": "Trace ID",
         "filterAction": "Action contains…",
         "filterLevel": "Level",
@@ -2433,6 +2434,7 @@
   },
   "notifications": {
     "title": "Notifications",
+    "eventColumn": "Event",
     "subtitle": "Choose which notifications you want to receive through which channel.",
     "noChannels": "Configure a notification channel in Settings first.",
     "goToSettings": "Go to Settings",

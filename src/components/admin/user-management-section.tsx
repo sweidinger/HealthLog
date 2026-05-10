@@ -311,7 +311,7 @@ export function UserManagementSection() {
                 <thead>
                   <tr className="text-muted-foreground border-b text-xs">
                     <th className="px-3 py-2 text-left font-medium">
-                      {t("admin.users")}
+                      {t("admin.userName")}
                     </th>
                     <th className="px-3 py-2 text-left font-medium">
                       {t("admin.userEmail")}

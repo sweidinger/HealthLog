@@ -721,7 +721,10 @@ function MoodLogCard({
                       setMsgType("success");
                     }}
                   >
-                    {t("common.copied").replace("!", "")}
+                    {/* v1.4.22 D / D-DSGN-M-04 — use the proper
+                        common.copy key instead of stripping the
+                        exclamation off common.copied. */}
+                    {t("common.copy")}
                   </Button>
                 </div>
                 <p className="text-muted-foreground mt-1 text-xs">

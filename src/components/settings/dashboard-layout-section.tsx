@@ -181,9 +181,17 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           {t("dashboard.layoutReset")}
         </Button>
       </div>
-      <p className="text-muted-foreground text-sm">
-        {t("dashboard.customizeSubtitle")}
-      </p>
+      {/*
+        v1.4.22 D / F-32 — the surrounding `<DashboardSection>` page
+        already renders a `settings.sections.dashboard.description`
+        paragraph beneath the H1. The previous in-card help line
+        repeated the same idea ("Choose which cards appear …
+        Defaults work out of the box.") right next to the comparison
+        picker, giving the page three muted-foreground help blocks
+        stacked on top of each other. Removing this duplicate keeps
+        the comparison picker as the only thing between the header
+        and the widget table.
+      */}
 
       {/* v1.4.16 phase B8 — comparison baseline picker. Lives at the top
           of the section because it changes how every chart + tile below

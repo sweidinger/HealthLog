@@ -63,8 +63,13 @@ function TruncatedCell({
  * "iOS auto-login · 05.05.2026 19:46" while leaving any non-ISO suffix
  * (manual names, device fingerprints, etc.) untouched.
  */
+// v1.4.22 D / D-CR-M-03 — broaden the ISO match to include non-Z
+// offsets (e.g. `+02:00`, `-05:30`). The previous regex only matched
+// UTC (`Z`), so a token name carrying a local-tz timestamp slipped
+// through unformatted and rendered the raw `2026-05-05T19:46:20.603+02:00`
+// suffix instead of the locale-aware `05.05.2026 21:46` chunk.
 const TOKEN_NAME_ISO_RE =
-  /^(.+?)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)(.*)$/;
+  /^(.+?)\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2}))(.*)$/;
 
 // Locale-fixed dd.MM.yyyy HH:mm in the Europe/Berlin display zone — the
 // rest of the app shows timestamps in Berlin time (`format-locale.ts`),
