@@ -178,23 +178,37 @@ export function computeBpInTargetPct(
 }
 
 /**
- * v1.4.18 A1 — windowed in-target shares for the dashboard tile.
+ * v1.4.18 A1 → v1.4.19 A1 — windowed in-target shares for the dashboard
+ * tile.
  *
  * The "BD im Zielbereich" tile renders three numbers:
- *  - Headline: the 30-day in-target % (the existing `computeBpInTargetPct`).
+ *  - Headline: the **all-time** in-target % across every paired reading.
  *  - `7T:`    the in-target % over the trailing 7 days.
  *  - `30T:`   the in-target % over the trailing 30 days.
  *
- * Up to v1.4.17 only the 30-day headline was computed; the API returned
- * a single `bpInTargetPct` and the tile rendered `avg7={null}` /
- * `avg30={null}`, so the sub-values collapsed to "—" even when the user
- * had paired readings in both windows. The fix surfaces both windows
- * from a single helper that filters the input series by `measuredAt`
- * relative to `now`. Caller can pass the unfiltered last-30-day data
- * and get both windows back without a second DB round-trip.
+ * History of the bug:
  *
- * `null` for either window means "no paired readings in that window";
- * the caller should render the "—" placeholder instead of `0`.
+ *  - Up to v1.4.17 only the 30-day figure was computed; the tile showed
+ *    `avg7={null}, avg30={null}` so `7T: —, 30T: —` rendered the dash
+ *    fallback even when paired readings existed.
+ *  - v1.4.18 A1 wired `avg7` + `avg30` from `computeBpInTargetWindows`,
+ *    BUT the analytics route also routed the **headline**
+ *    (`bpInTargetPct`) through `windows.last30Days?.pct` — i.e. the
+ *    headline was a literal copy of `bpInTargetPct30d`. For Marc's prod
+ *    data (572 paired readings since 2022, recent 30 days = 50 %, all-time
+ *    ≈ 11 %) the tile rendered `50 %` headline, `7T: 50, 30T: 50` and
+ *    looked algorithmically pinned to 50/50/50. That was hypothesis-1
+ *    from the v1.4.19 A1 brief: "the 7T/30T branches reuse the all-time
+ *    percentage" — actually the *other* direction (the all-time headline
+ *    reused the 30-day value).
+ *  - v1.4.19 A1 surfaces a third `allTime` window so the headline gets
+ *    the genuinely-different aggregate. Callers must use `allTime` for
+ *    the headline now; the test suite pins this contract.
+ *
+ * `null` for any window means "no paired readings in that window"; the
+ * caller renders the "—" placeholder instead of `0`. Caller must pass
+ * UNFILTERED series for `allTime` to produce the correct value — the
+ * helper does the windowing internally.
  */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -206,6 +220,7 @@ export function computeBpInTargetWindows(
 ): {
   last7Days: { pct: number; pairs: number } | null;
   last30Days: { pct: number; pairs: number } | null;
+  allTime: { pct: number; pairs: number } | null;
 } {
   const sevenDaysAgoMs = now.getTime() - 7 * DAY_MS;
   const thirtyDaysAgoMs = now.getTime() - 30 * DAY_MS;
@@ -226,5 +241,9 @@ export function computeBpInTargetWindows(
   return {
     last7Days: computeBpInTargetPct(sysLast7, diaLast7, targets),
     last30Days: computeBpInTargetPct(sysLast30, diaLast30, targets),
+    // v1.4.19 A1 — independent aggregate over EVERY paired reading. The
+    // analytics route now routes the dashboard tile's headline through
+    // this so it stops mirroring `last30Days`.
+    allTime: computeBpInTargetPct(sysSeries, diaSeries, targets),
   };
 }

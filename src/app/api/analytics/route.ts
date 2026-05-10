@@ -59,32 +59,28 @@ export const GET = apiHandler(async () => {
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    // v1.4.19 A1 — fetch ALL paired BP rows, not just the trailing 30
+    // days. Up to v1.4.18 we filtered to the last 30 days at the DB
+    // level and the headline (`bpInTargetPct`) was routed through
+    // `windows.last30Days?.pct` — making the headline a literal copy
+    // of the `30T` sub-value. For Marc's data (572 paired readings,
+    // recent 30d = 50 %, all-time ≈ 11 %) the tile pinned 50/50/50
+    // and looked algorithmically broken. The windowed helper now also
+    // returns an independent `allTime` aggregate, which we surface as
+    // the headline so the three numbers can diverge naturally.
     const [sysData, diaData] = await Promise.all([
       prisma.measurement.findMany({
-        where: {
-          userId: user.id,
-          type: "BLOOD_PRESSURE_SYS",
-          measuredAt: { gte: thirtyDaysAgo },
-        },
+        where: { userId: user.id, type: "BLOOD_PRESSURE_SYS" },
         select: { measuredAt: true, value: true },
       }),
       prisma.measurement.findMany({
-        where: {
-          userId: user.id,
-          type: "BLOOD_PRESSURE_DIA",
-          measuredAt: { gte: thirtyDaysAgo },
-        },
+        where: { userId: user.id, type: "BLOOD_PRESSURE_DIA" },
         select: { measuredAt: true, value: true },
       }),
     ]);
 
-    // v1.4.18 A1 — windowed helper computes the 7d / 30d sub-values
-    // for the dashboard tile in a single pair-and-count pass. The
-    // headline (`bpInTargetPct`) reuses the 30-day result so we don't
-    // re-pair the same data twice. See lib/analytics/bp-in-target.ts.
     const windows = computeBpInTargetWindows(sysData, diaData, bpTargets, now);
-    bpInTargetPct = windows.last30Days?.pct ?? null;
+    bpInTargetPct = windows.allTime?.pct ?? null;
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;
   }

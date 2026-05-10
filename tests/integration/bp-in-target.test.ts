@@ -342,6 +342,103 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
   });
 
   /**
+   * v1.4.19 A1 regression — Marc reported the tile shows EXACTLY 50 %
+   * on 7T, 30T, AND the headline ("total"). With his real production
+   * shape (572 paired readings since 2022, recent 30d ≈ 50 %, all-time
+   * ≈ 11 %) the headline cannot legitimately be 50 %. Root cause: the
+   * analytics route routed `bpInTargetPct = windows.last30Days?.pct`,
+   * making the headline a literal copy of `30T`. The fix returns a
+   * third `allTime` window that the route now uses for the headline.
+   *
+   * Seeds 2 paired readings within the last 7 days (1 IN, 1 OUT = 50 %),
+   * 8 additional within the last 30 days (4 IN, 4 OUT = 50 %), and 30
+   * older readings (all OUT) so the all-time figure diverges sharply
+   * from both windows. Pinned for regression so a future refactor can't
+   * silently re-collapse the three numbers.
+   */
+  it("returns three independent windows: 7d, 30d, and allTime each computed from a different denominator", async () => {
+    const prisma = getPrismaClient();
+    const user = await prisma.user.create({
+      data: {
+        username: "bp-three-windows-fixture",
+        email: "bp-three-windows@example.test",
+        dateOfBirth: new Date("1985-07-09"),
+      },
+    });
+
+    const now = new Date();
+    const seed: Array<{ daysAgo: number; sys: number; dia: number }> = [
+      // Last 7 days: 1 IN, 1 OUT.
+      { daysAgo: 1.5, sys: 117, dia: 79 }, // IN
+      { daysAgo: 5.5, sys: 145, dia: 95 }, // OUT
+      // 7-30 days ago: 4 IN, 4 OUT (alternating).
+      { daysAgo: 8, sys: 122, dia: 75 }, // IN
+      { daysAgo: 10, sys: 145, dia: 95 }, // OUT
+      { daysAgo: 12, sys: 125, dia: 78 }, // IN
+      { daysAgo: 14, sys: 145, dia: 90 }, // OUT
+      { daysAgo: 18, sys: 120, dia: 70 }, // IN
+      { daysAgo: 22, sys: 150, dia: 95 }, // OUT
+      { daysAgo: 25, sys: 128, dia: 79 }, // IN
+      { daysAgo: 28, sys: 160, dia: 100 }, // OUT
+      // Older history: 30 readings, all OUT (drives all-time well below 50 %).
+      ...Array.from({ length: 30 }, (_, i) => ({
+        daysAgo: 60 + i * 3,
+        sys: 160,
+        dia: 100,
+      })),
+    ];
+    for (const r of seed) {
+      const at = new Date(now.getTime() - r.daysAgo * 24 * 60 * 60 * 1000);
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_SYS",
+          value: r.sys,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_DIA",
+          value: r.dia,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+    }
+
+    const sysData = await prisma.measurement.findMany({
+      where: { userId: user.id, type: "BLOOD_PRESSURE_SYS" },
+      select: { measuredAt: true, value: true },
+    });
+    const diaData = await prisma.measurement.findMany({
+      where: { userId: user.id, type: "BLOOD_PRESSURE_DIA" },
+      select: { measuredAt: true, value: true },
+    });
+    const targets = getBpTargets(user.dateOfBirth);
+    expect(targets).not.toBeNull();
+    const windows = computeBpInTargetWindows(sysData, diaData, targets!, now);
+
+    // 7-day window: 2 paired readings, 1 in target.
+    expect(windows.last7Days).toEqual({ pct: 50, pairs: 2 });
+    // 30-day window: 10 paired readings, 5 in target.
+    expect(windows.last30Days).toEqual({ pct: 50, pairs: 10 });
+    // All-time: 40 paired readings, 5 in target = 13 % (rounded).
+    expect(windows.allTime).not.toBeNull();
+    expect(windows.allTime!.pairs).toBe(40);
+    expect(windows.allTime!.pct).toBe(Math.round((5 / 40) * 100));
+
+    // The smoking gun: even when 7d AND 30d are 50 %, all-time is NOT
+    // 50 % once older history is present. Marc's prod tile pinned to
+    // 50/50/50 because the route routed the headline through `last30Days`
+    // — the algorithmic pin the brief warned about.
+    expect(windows.allTime!.pct).not.toBe(windows.last30Days!.pct);
+    expect(windows.allTime!.pct).not.toBe(windows.last7Days!.pct);
+  });
+
+  /**
    * Regression: a user with all readings older than 7 days but inside
    * 30 days must show a 30-day percentage AND a null 7-day window
    * (the tile renders "—" for 7T but a real number for 30T). Pre-fix

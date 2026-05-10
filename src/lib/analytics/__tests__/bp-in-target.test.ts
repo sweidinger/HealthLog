@@ -235,6 +235,112 @@ describe("computeBpInTargetPct", () => {
   });
 });
 
+describe("computeBpInTargetWindows — all-time headline (v1.4.19 A1)", () => {
+  /**
+   * v1.4.19 A1 regression — Marc reported the BD-Zielbereich tile shows
+   * **EXACTLY 50 % on 7T, 30T, AND the headline ("total")** for his
+   * production data. Hand-counted hypothesis-1 from the brief (the
+   * three-way coincidence cannot be data — it's a calculation pin):
+   *
+   *   - Marc has 572 paired BP readings going back to 2022-01.
+   *   - Last 7 days: 1 / 2 in target = 50 %.
+   *   - Last 30 days: 5 / 10 in target = 50 %.
+   *   - All time:   62 / 572 in target ≈ 11 %.
+   *
+   * The two "50 %"s in the recent windows are real, but the headline
+   * cannot be 50 %; it should be ~11 %. Root cause: the analytics route
+   * sets `bpInTargetPct = windows.last30Days?.pct` (literal copy of
+   * `bpInTargetPct30d`), and `computeBpInTargetWindows` never returns an
+   * all-time figure at all. This test pins the new contract: the helper
+   * surfaces a third `allTime` window that aggregates EVERY paired
+   * reading in the input regardless of recency.
+   */
+  const NOW_19 = new Date("2026-05-10T11:00:00Z");
+
+  it("returns an allTime window distinct from the 30-day window", () => {
+    // 30 days of mixed data (30d ≈ 50 %) plus 20 older readings that
+    // are mostly OUT of target (drives all-time well below 50 %).
+    const recentSys: Array<ReturnType<typeof reading>> = [];
+    const recentDia: Array<ReturnType<typeof reading>> = [];
+    for (let i = 0; i < 10; i++) {
+      const at = new Date(
+        NOW_19.getTime() - (i + 0.5) * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const inTarget = i % 2 === 0; // 5 IN, 5 OUT in last 30d
+      recentSys.push(reading(at, inTarget ? 122 : 145));
+      recentDia.push(reading(at, inTarget ? 75 : 95));
+    }
+    // 20 older readings, all OUT of target (sys above ceiling).
+    const olderSys: Array<ReturnType<typeof reading>> = [];
+    const olderDia: Array<ReturnType<typeof reading>> = [];
+    for (let i = 0; i < 20; i++) {
+      const at = new Date(
+        NOW_19.getTime() - (60 + i) * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      olderSys.push(reading(at, 160));
+      olderDia.push(reading(at, 100));
+    }
+    const sys = [...recentSys, ...olderSys];
+    const dia = [...recentDia, ...olderDia];
+
+    const result = computeBpInTargetWindows(sys, dia, TARGETS_UNDER_65, NOW_19);
+
+    // 30d = 5 / 10 in target = 50 %.
+    expect(result.last30Days).toEqual({ pct: 50, pairs: 10 });
+    // All-time = 5 / 30 in target = 17 % (rounded).
+    expect(result.allTime).not.toBeNull();
+    expect(result.allTime!.pairs).toBe(30);
+    expect(result.allTime!.pct).toBe(Math.round((5 / 30) * 100));
+    // The smoking gun: all-time MUST NOT equal 30-day when older data is
+    // statistically different. This is the v1.4.19 A1 regression.
+    expect(result.allTime!.pct).not.toBe(result.last30Days!.pct);
+  });
+
+  it("returns null allTime when both series are empty", () => {
+    const result = computeBpInTargetWindows([], [], TARGETS_UNDER_65, NOW_19);
+    expect(result.allTime).toBeNull();
+  });
+
+  it("regression: Marc's 30-day fixture mirrors Marc's prod headline bug", () => {
+    // Reuse Marc's production fixture (10 pairs, 5 in target = 50 %).
+    // When the input is JUST those 10 pairs, allTime equals 30d == 50 %
+    // (this is the legitimate coincidence — it only hides the bug when
+    // the user has no older history). The bug surfaces the moment older
+    // data is added; covered by the previous test.
+    const sys = [
+      reading("2026-05-08T07:38:22Z", 117),
+      reading("2026-05-03T21:22:02Z", 122),
+      reading("2026-05-03T05:51:45Z", 108),
+      reading("2026-05-03T05:50:55Z", 106),
+      reading("2026-04-20T05:57:42Z", 127),
+      reading("2026-04-18T06:59:29Z", 115),
+      reading("2026-04-16T05:24:51Z", 108),
+      reading("2026-04-15T05:34:35Z", 124),
+      reading("2026-04-15T05:33:44Z", 126),
+      reading("2026-04-15T20:52:26Z", 133),
+    ];
+    const dia = [
+      reading("2026-05-08T07:38:22Z", 79),
+      reading("2026-05-03T21:22:02Z", 86),
+      reading("2026-05-03T05:51:45Z", 76),
+      reading("2026-05-03T05:50:55Z", 73),
+      reading("2026-04-20T05:57:42Z", 86),
+      reading("2026-04-18T06:59:29Z", 78),
+      reading("2026-04-16T05:24:51Z", 75),
+      reading("2026-04-15T05:34:35Z", 82),
+      reading("2026-04-15T05:33:44Z", 80),
+      reading("2026-04-15T20:52:26Z", 95),
+    ];
+    const result = computeBpInTargetWindows(
+      sys,
+      dia,
+      TARGETS_UNDER_65,
+      new Date("2026-05-10T11:00:00Z"),
+    );
+    expect(result.allTime).toEqual({ pct: 50, pairs: 10 });
+  });
+});
+
 describe("computeBpInTargetWindows", () => {
   /**
    * v1.4.18 A1 regression — Marc reported the BD-Zielbereich tile shows
