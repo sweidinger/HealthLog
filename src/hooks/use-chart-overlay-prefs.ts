@@ -26,7 +26,9 @@ import {
  * round-trip resolves. On error the cache is rolled back to its
  * previous value.
  */
-export function useChartOverlayPrefs(chartKey: ChartOverlayKey): {
+export function useChartOverlayPrefs(
+  chartKey: ChartOverlayKey | null | undefined,
+): {
   prefs: ChartOverlayPrefs;
   setPrefs: (next: ChartOverlayPrefs) => void;
   isSaving: boolean;
@@ -44,9 +46,14 @@ export function useChartOverlayPrefs(chartKey: ChartOverlayKey): {
     // Keep the cache warm — the dashboard page mounts a query against
     // the same key on first paint, so this hook just piggy-backs.
     staleTime: 60_000,
+    // Skip the fetch entirely when the caller doesn't pass a chartKey
+    // (mini-mode / ad-hoc chart usage). Saves a wasted GET on pages like
+    // /insights that mount charts without per-chart persistence.
+    enabled: Boolean(chartKey),
   });
 
   const prefs = useMemo<ChartOverlayPrefs>(() => {
+    if (!chartKey) return DEFAULT_CHART_OVERLAY_PREFS;
     return (
       layout?.chartOverlayPrefs?.[chartKey] ?? DEFAULT_CHART_OVERLAY_PREFS
     );
@@ -54,6 +61,9 @@ export function useChartOverlayPrefs(chartKey: ChartOverlayKey): {
 
   const mutation = useMutation({
     mutationFn: async (next: ChartOverlayPrefs): Promise<void> => {
+      // No-op when no chartKey — the setter is wired up but the hook
+      // is in "ad-hoc render" mode where overlays don't persist.
+      if (!chartKey) return;
       const res = await fetch("/api/dashboard/chart-overlay-prefs", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -64,6 +74,7 @@ export function useChartOverlayPrefs(chartKey: ChartOverlayKey): {
       }
     },
     onMutate: async (next) => {
+      if (!chartKey) return { previous: undefined };
       await queryClient.cancelQueries({ queryKey: ["dashboard-layout"] });
       const previous = queryClient.getQueryData<DashboardLayout>([
         "dashboard-layout",

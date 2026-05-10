@@ -5,7 +5,7 @@ import { I18nProvider } from "@/lib/i18n/context";
 import {
   ChartOverlayControls,
   DEFAULT_CHART_OVERLAY_PREFS,
-  type ChartOverlayPrefsValue,
+  type ChartOverlayPrefs,
 } from "../chart-overlay-controls";
 
 /**
@@ -61,7 +61,7 @@ describe("<ChartOverlayControls>", () => {
     // mirrors what the radix-ui Switch will pass at runtime without
     // needing a DOM event-loop.
     const onChange = vi.fn();
-    const start: ChartOverlayPrefsValue = DEFAULT_CHART_OVERLAY_PREFS;
+    const start: ChartOverlayPrefs = DEFAULT_CHART_OVERLAY_PREFS;
     // Render once — this binds the callback closure.
     renderToStaticMarkup(
       withProvider(
@@ -71,7 +71,7 @@ describe("<ChartOverlayControls>", () => {
 
     // Simulate the merge the component performs: setKey("showTargetRange", true)
     // would call onChange({ ...start, showTargetRange: true }).
-    const next: ChartOverlayPrefsValue = {
+    const next: ChartOverlayPrefs = {
       ...start,
       showTargetRange: true,
     };

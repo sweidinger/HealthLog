@@ -572,7 +572,6 @@ export function MoodChart({
         </div>
       </CardHeader>
       <CardContent>
-        {/* v1.4.18 — gradient defs removed; clean line only. */}
         {isLoading ? (
           <div className="flex h-48 items-center justify-center">
             <Loader2 className="text-primary h-6 w-6 animate-spin" />
@@ -779,7 +778,6 @@ export function MoodChart({
                     );
                   }}
                 />
-                {/* v1.4.18 — gradient Area removed; clean line only. */}
                 <Line
                   type="monotone"
                   dataKey="score"

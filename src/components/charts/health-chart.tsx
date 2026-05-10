@@ -316,12 +316,12 @@ export function HealthChart({
   // v1.4.18 — three overlay toggles (showTrendIndicator / showTrendArrow
   // / showTargetRange) are persisted per chart via the new
   // `useChartOverlayPrefs` hook. When the chart isn't bound to a
-  // persistent key (mini mode / ad-hoc render) the prefs fall through
-  // to the clean-line default (every flag false).
-  const overlayPrefs = useChartOverlayPrefs(chartKey ?? "bp");
-  const showMA = chartKey ? overlayPrefs.prefs.showTrendIndicator : false;
-  const showTrend = chartKey ? overlayPrefs.prefs.showTrendArrow : false;
-  const showBands = chartKey ? overlayPrefs.prefs.showTargetRange : false;
+  // persistent key (mini mode / ad-hoc render) the hook short-circuits
+  // to the clean-line default and skips its dashboard-layout fetch.
+  const overlayPrefs = useChartOverlayPrefs(chartKey);
+  const showMA = overlayPrefs.prefs.showTrendIndicator;
+  const showTrend = overlayPrefs.prefs.showTrendArrow;
+  const showBands = overlayPrefs.prefs.showTargetRange;
 
   const bmiDivisor =
     valueMode === "bmi" && user?.heightCm ? (user.heightCm / 100) ** 2 : null;
@@ -968,9 +968,6 @@ export function HealthChart({
             </div>
           ) : null}
 
-          {/* v1.4.18 — gradient fill removed per Marc's feedback.
-              The clean line is the chart; no painted background under
-              it. */}
           <div className="relative z-10 h-full touch-pan-y">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
@@ -1249,8 +1246,6 @@ export function HealthChart({
                     }}
                   />
                 )}
-                {/* v1.4.18 — gradient Area removed; only the clean
-                    line below paints the metric. */}
                 {types.map((type, i) => (
                   <Line
                     key={type}

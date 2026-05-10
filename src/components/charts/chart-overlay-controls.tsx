@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
+import { type ChartOverlayPrefs } from "@/lib/dashboard-layout";
 
 /**
  * v1.4.18 — per-chart overlay-controls popover.
@@ -46,18 +47,20 @@ import { useTranslations } from "@/lib/i18n/context";
  * pure UI.
  */
 
-export interface ChartOverlayPrefsValue {
-  /** "7-day trend" line + numeric delta chip in chart header. */
-  showTrendIndicator: boolean;
-  /** Linear-regression trend line + arrow direction + personal baseline. */
-  showTrendArrow: boolean;
-  /** Target-zone shading (BP / BMI / medication thresholds). */
-  showTargetRange: boolean;
-}
+/**
+ * Re-export the canonical type+default from `@/lib/dashboard-layout`
+ * so chart-side callers can keep importing them from this module.
+ * Single source of truth lives in dashboard-layout (the persistence
+ * layer); this module is just the UI.
+ */
+export {
+  DEFAULT_CHART_OVERLAY_PREFS,
+  type ChartOverlayPrefs,
+} from "@/lib/dashboard-layout";
 
 export interface ChartOverlayControlsProps {
-  prefs: ChartOverlayPrefsValue;
-  onChange: (next: ChartOverlayPrefsValue) => void;
+  prefs: ChartOverlayPrefs;
+  onChange: (next: ChartOverlayPrefs) => void;
   /**
    * Optional CSS class for the trigger button — letting the chart
    * wrapper align the cog with its title row.
@@ -76,7 +79,7 @@ export function ChartOverlayControls({
   const targetRangeId = useId();
 
   const setKey = (
-    key: keyof ChartOverlayPrefsValue,
+    key: keyof ChartOverlayPrefs,
     value: boolean,
   ): void => {
     onChange({ ...prefs, [key]: value });
@@ -161,8 +164,3 @@ export function ChartOverlayControls({
   );
 }
 
-export const DEFAULT_CHART_OVERLAY_PREFS: ChartOverlayPrefsValue = {
-  showTrendIndicator: false,
-  showTrendArrow: false,
-  showTargetRange: false,
-};

@@ -39,8 +39,7 @@ export type AchievementMetricKey =
  * Achievement categories — used by the /achievements UI to visually group
  * the badges. Pure presentation: the computation logic in this file does
  * not branch on category, and the metric → category mapping is derived in
- * `getAchievementCategory` below so a metric is always in exactly one
- * group.
+ * `categoryForMetric` below so a metric is always in exactly one group.
  *
  * v1.4.18 adds two new buckets:
  *   - `mood` for the new mood-tracking achievements
@@ -127,18 +126,6 @@ function categoryForMetric(
     case "localeFlipCount":
       return "hidden";
   }
-}
-
-/**
- * @deprecated kept only for legacy callers; new code should read
- * `AchievementDefinition.category` directly. v1.4.18 made category a
- * stored field on the definition so hidden Easter-eggs (which share
- * metrics with no other badge) don't need a special case.
- */
-export function getAchievementCategory(
-  metric: AchievementMetricKey,
-): AchievementCategory {
-  return categoryForMetric(metric);
 }
 
 /**
@@ -823,17 +810,15 @@ function isEarnable(
     case "consistentMonthCount":
     case "entryDayStreak":
     case "weekendStreakCount":
-      // No metric-data precondition — the user has an account, so the
-      // achievement is always discoverable.
-      return true;
     case "nightOwlCount":
     case "earlyBirdCount":
     case "leapDayCount":
     case "doctorPdfCount":
     case "localeFlipCount":
-      // Hidden achievements are filtered by category check above; this
-      // branch is only reached if a hidden definition's category got
-      // misconfigured. Stay defensive.
+      // No metric-data precondition — the user has an account, so the
+      // achievement is always discoverable. The five hidden-metric keys
+      // are filtered earlier in `applyDiscoveryFilter` by category, but
+      // we cover them here for exhaustiveness.
       return true;
   }
 }

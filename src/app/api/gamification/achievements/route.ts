@@ -604,11 +604,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const expansionValues = buildExpansionMetricValues({
     measurements,
-    moodEntries: moodEntries.map((m) => ({
-      date: m.date,
-      score: m.score,
-      moodLoggedAt: m.moodLoggedAt,
-    })),
+    moodEntries,
     intakeEvents,
     auditEvents,
   });
