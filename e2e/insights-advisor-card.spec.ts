@@ -215,11 +215,15 @@ test.describe("insights advisor card on /insights (C1)", () => {
   }) => {
     await page.goto("/insights", { waitUntil: "domcontentloaded" });
 
-    // Hero + advisor card both render. The hero is from B1b; the
-    // advisor card is the C1 deliverable.
-    await expect(page.locator('[data-slot="insights-page-hero"]')).toBeVisible({
-      timeout: 10_000,
-    });
+    // Hero + advisor card both render. v1.4.20 B1 replaced the legacy
+    // `<InsightsPageHero>` (data-slot="insights-page-hero") with the
+    // condensed `<HeroStrip>` (data-slot="insights-hero-strip"); the
+    // advisor card is the C1 deliverable below it.
+    await expect(page.locator('[data-slot="insights-hero-strip"]')).toBeVisible(
+      {
+        timeout: 10_000,
+      },
+    );
 
     // The recommendation card surface from B5c — `data-slot` markers
     // are pinned in tests, look for the rec text the mock provided.
