@@ -22,9 +22,6 @@ export function useViewportWidth(): number {
     const handler = () => setWidth(getViewportWidth());
     window.addEventListener("resize", handler);
     window.addEventListener("orientationchange", handler);
-    // Sync once after mount in case the SSR default differs from the
-    // first browser-side measurement.
-    handler();
     return () => {
       window.removeEventListener("resize", handler);
       window.removeEventListener("orientationchange", handler);
