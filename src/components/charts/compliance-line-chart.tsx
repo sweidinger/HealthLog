@@ -73,7 +73,7 @@ export function ComplianceLineChart({
               key={r.label}
               variant={activeRangePoints === r.points ? "default" : "ghost"}
               size="sm"
-              className="min-h-9 px-2.5 text-xs"
+              className="min-h-11 px-3 text-xs"
               onClick={() => setActiveRangePoints(r.points)}
               title={r.title}
             >

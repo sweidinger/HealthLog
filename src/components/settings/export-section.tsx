@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   DoctorReportDialog,
   type DoctorReportSubmitPayload,
@@ -453,13 +454,15 @@ function MedicationsCsvCard() {
         setSince={setSince}
         setUntil={setUntil}
       />
-      <label className="flex cursor-pointer items-center gap-2 text-xs">
-        <input
+      <label
+        htmlFor="export-medications-include-intake"
+        className="flex min-h-11 cursor-pointer items-center gap-3 text-xs"
+      >
+        <Switch
+          id="export-medications-include-intake"
           data-testid="export-medications-include-intake"
-          type="checkbox"
           checked={includeIntake}
-          onChange={(e) => setIncludeIntake(e.target.checked)}
-          className="border-border h-4 w-4 cursor-pointer rounded border"
+          onCheckedChange={setIncludeIntake}
         />
         <span className="text-muted-foreground">
           {t("settings.sections.export.cards.medicationsCsv.includeIntake")}

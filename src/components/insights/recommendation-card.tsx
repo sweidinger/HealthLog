@@ -369,7 +369,7 @@ export function RecommendationCard({
               type="button"
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
-              className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               title={
                 expanded
                   ? t("insights.recommendation.rationaleCollapse")

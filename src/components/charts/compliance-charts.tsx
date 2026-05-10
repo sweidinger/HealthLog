@@ -103,7 +103,7 @@ export function ComplianceCharts({ medications }: ComplianceChartsProps) {
                   type="button"
                   variant={rangePoints === 30 ? "default" : "ghost"}
                   size="sm"
-                  className="min-h-9 px-2.5 text-xs"
+                  className="min-h-11 px-3 text-xs"
                   onClick={() => setRangePoints(30)}
                   title={t("charts.points30Title")}
                 >
@@ -113,7 +113,7 @@ export function ComplianceCharts({ medications }: ComplianceChartsProps) {
                   type="button"
                   variant={rangePoints === 90 ? "default" : "ghost"}
                   size="sm"
-                  className="min-h-9 px-2.5 text-xs"
+                  className="min-h-11 px-3 text-xs"
                   onClick={() => setRangePoints(90)}
                   title={t("charts.points90Title")}
                 >
@@ -123,7 +123,7 @@ export function ComplianceCharts({ medications }: ComplianceChartsProps) {
                   type="button"
                   variant={rangePoints === 0 ? "default" : "ghost"}
                   size="sm"
-                  className="min-h-9 px-2.5 text-xs"
+                  className="min-h-11 px-3 text-xs"
                   onClick={() => setRangePoints(0)}
                   title={t("charts.pointsAllTitle")}
                 >
