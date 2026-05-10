@@ -55,6 +55,8 @@ import { ChartEmptyState } from "./chart-empty-state";
 import { ChartOverlayControls } from "./chart-overlay-controls";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
+import { useViewportWidth } from "@/hooks/use-viewport-width";
+import { chooseTickInterval } from "@/lib/charts/x-axis-density";
 
 interface DailyCompliancePoint {
   /** Berlin calendar day, "YYYY-MM-DD". */
@@ -181,6 +183,13 @@ export function MedicationComplianceChart({
   const showTrendChip = overlayPrefs.prefs.showTrendIndicator;
   const showTargetRange = overlayPrefs.prefs.showTargetRange;
 
+  // v1.4.19 A2 — universal tick-density helper. Pre-fix the medication
+  // chart drew ONE tick per day, so a 30-day Pixel-5 window painted 30
+  // overlapping labels into a 393 px gutter. The helper caps visible
+  // ticks at 6 on Pixel 5 / 4 on Fold, matching the visual breathing
+  // room of the weight / BMI charts.
+  const viewportWidth = useViewportWidth();
+
   const { data, isLoading } = useQuery({
     queryKey: ["medication-compliance-chart", days],
     queryFn: async (): Promise<DailyCompliancePoint[]> => {
@@ -246,8 +255,19 @@ export function MedicationComplianceChart({
       className="bg-card border-border rounded-xl border p-4 md:p-6"
       data-slot="medication-compliance-chart"
     >
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      {/* v1.4.19 A2 — header layout split into title row + controls
+          row on small screens. Pre-fix the trend chip + 4 range tabs +
+          cog dropdown all sat on a single justify-between row, which
+          caused the tabs to wrap mid-row on Pixel 5 (header doubled in
+          height) and overflow horizontally on Galaxy Fold compact.
+
+          Mobile (default): two stacked rows. Title + chip on row 1,
+          range tabs + cog right-aligned on row 2. Tabs never overflow
+          because the row owns the full card width.
+
+          ≥sm: original side-by-side layout. */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           <Pill className="text-muted-foreground h-4 w-4" />
           <h3 className="text-sm font-semibold">{displayTitle}</h3>
           {/* v1.4.18 — 7-day trend chip is now opt-in via the
@@ -270,13 +290,16 @@ export function MedicationComplianceChart({
             </span>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-1">
+        <div
+          className="flex flex-nowrap items-center justify-end gap-1 self-end sm:self-auto"
+          data-slot="chart-header-controls"
+        >
           {RANGE_DAYS.map((r) => (
             <Button
               key={r}
               variant={days === r ? "default" : "ghost"}
               size="sm"
-              className="min-h-11 px-3 text-xs"
+              className="min-h-11 px-2 text-xs sm:px-3"
               onClick={() => setDays(r)}
             >
               {r}T
@@ -339,7 +362,7 @@ export function MedicationComplianceChart({
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={false}
-                interval="preserveStartEnd"
+                interval={chooseTickInterval(chartData.length, viewportWidth)}
               />
               <YAxis
                 domain={[0, 100]}

@@ -13,6 +13,8 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { formatDateShort } from "@/lib/format";
+import { useViewportWidth } from "@/hooks/use-viewport-width";
+import { chooseTickInterval } from "@/lib/charts/x-axis-density";
 
 interface DailyData {
   expected: number;
@@ -47,6 +49,7 @@ export function ComplianceLineChart({
   );
   const activeRangePoints = rangePoints ?? internalRangePoints;
   const setActiveRangePoints = onRangePointsChange ?? setInternalRangePoints;
+  const viewportWidth = useViewportWidth();
 
   const chartData = useMemo(() => {
     const points = Object.entries(dailyCompliance)
@@ -101,6 +104,7 @@ export function ComplianceLineChart({
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
                 tickLine={false}
                 axisLine={false}
+                interval={chooseTickInterval(chartData.length, viewportWidth)}
               />
               <YAxis
                 domain={[0, 100]}

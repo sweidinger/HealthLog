@@ -39,6 +39,8 @@ import type {
 } from "@/lib/dashboard-layout";
 import { ChartOverlayControls } from "./chart-overlay-controls";
 import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
+import { useViewportWidth } from "@/hooks/use-viewport-width";
+import { chooseTickInterval } from "@/lib/charts/x-axis-density";
 
 const TIME_RANGES_KEYS = [
   {
@@ -319,6 +321,12 @@ export function HealthChart({
   const showMA = overlayPrefs.prefs.showTrendIndicator;
   const showTrend = overlayPrefs.prefs.showTrendArrow;
   const showBands = overlayPrefs.prefs.showTargetRange;
+
+  // v1.4.19 A2 — viewport-aware tick density. Recharts' default is one
+  // tick per data point; the helper caps that at 4-10 visible labels
+  // depending on viewport width so the X-axis reads consistently across
+  // every chart card.
+  const viewportWidth = useViewportWidth();
 
   const bmiDivisor =
     valueMode === "bmi" && user?.heightCm ? (user.heightCm / 100) ** 2 : null;
@@ -839,11 +847,28 @@ export function HealthChart({
   return (
     <div className={containerClass} data-slot={mini ? "chart-mini" : undefined}>
       {!mini && (
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        /* v1.4.19 A2 — mobile-first header layout.
+
+           Pre-fix: title + bucket chip + comparison chip + 4 range tabs +
+           cog all sat on a single justify-between flex row. On Pixel 5
+           the chips ate enough horizontal space that the range tabs
+           wrapped to a second row INSIDE that flex (header height
+           jumped from 44 px → 92 px); on Galaxy Fold compact (280 px)
+           the tabs split into 3-4 rows.
+
+           Mobile (default): two stacked rows. Title + non-essential
+           chips on row 1; range tabs + cog right-aligned on row 2.
+           Bucket-aggregation + comparison chips hide entirely below
+           `sm:` because they're decorative and the chart's range tabs
+           already communicate the visible window. The cog dropdown
+           stays accessible to surface those overlays explicitly.
+
+           ≥sm: original side-by-side layout, all chips visible. */
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold">{title}</h3>
             {activeBucket !== "day" && (
-              <span className="bg-muted/40 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+              <span className="bg-muted/40 text-muted-foreground hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex">
                 {t(
                   activeBucket === "week"
                     ? "charts.bucketWeekly"
@@ -855,10 +880,12 @@ export function HealthChart({
                 bucket-aggregation chip so the user reads "what window
                 am I looking at" + "what comparison is overlaid" in one
                 glance. The "Comparison unavailable" fallback uses
-                neutral muted styling so it doesn't read as an error. */}
+                neutral muted styling so it doesn't read as an error.
+
+                v1.4.19 A2 — hidden on mobile to free up the title row. */}
             {compareBaseline !== "none" && hasComparisonData && (
               <span
-                className="text-dracula-purple bg-dracula-purple/10 rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+                className="text-dracula-purple bg-dracula-purple/10 hidden rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex"
                 data-slot="chart-compare-caption"
               >
                 {t(
@@ -870,7 +897,7 @@ export function HealthChart({
             )}
             {compareBaseline !== "none" && !hasComparisonData && (
               <span
-                className="text-muted-foreground bg-muted/40 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide"
+                className="text-muted-foreground bg-muted/40 hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide sm:inline-flex"
                 data-slot="chart-compare-unavailable"
               >
                 {t(
@@ -881,13 +908,16 @@ export function HealthChart({
               </span>
             )}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-1">
+          <div
+            className="flex flex-nowrap items-center justify-end gap-1 self-end sm:self-auto"
+            data-slot="chart-header-controls"
+          >
             {TIME_RANGES_KEYS.map((r) => (
               <Button
                 key={r.labelKey}
                 variant={rangePoints === r.points ? "default" : "ghost"}
                 size="sm"
-                className="min-h-11 px-3 text-xs"
+                className="min-h-11 px-2 text-xs sm:px-3"
                 onClick={() => setRangePoints(r.points)}
                 title={t(r.titleKey)}
                 data-slot="chart-range-tab"
@@ -992,7 +1022,10 @@ export function HealthChart({
                       true,
                     )
                   }
-                  interval="preserveStartEnd"
+                  interval={chooseTickInterval(
+                    chartData?.length ?? 0,
+                    viewportWidth,
+                  )}
                   padding={{ left: 10, right: 10 }}
                   tickMargin={10}
                 />

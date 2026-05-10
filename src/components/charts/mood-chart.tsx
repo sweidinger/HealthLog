@@ -35,6 +35,8 @@ import type {
 } from "@/lib/dashboard-layout";
 import { ChartOverlayControls } from "./chart-overlay-controls";
 import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
+import { useViewportWidth } from "@/hooks/use-viewport-width";
+import { chooseTickInterval } from "@/lib/charts/x-axis-density";
 
 // --- Types ---
 
@@ -288,6 +290,9 @@ export function MoodChart({
   const showTrend = !mini && overlayPrefs.prefs.showTrendArrow;
   const showBands = !mini && overlayPrefs.prefs.showTargetRange;
 
+  // v1.4.19 A2 — viewport-aware tick density helper.
+  const viewportWidth = useViewportWidth();
+
   const displayTitle = title ?? t("charts.mood");
 
   const { data, isLoading } = useQuery({
@@ -502,8 +507,12 @@ export function MoodChart({
   return (
     <Card data-slot={mini ? "chart-mini" : undefined}>
       <CardHeader className={mini ? "pb-1" : "pb-2"}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        {/* v1.4.19 A2 — mobile-first header: stack title row above
+            controls row on small viewports so the bucket / comparison
+            chips never push the range tabs into a 2nd line. ≥sm goes
+            back to side-by-side. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
             <CardTitle
               className={
                 mini
@@ -514,7 +523,7 @@ export function MoodChart({
               {displayTitle}
             </CardTitle>
             {activeBucket !== "day" && !mini && (
-              <span className="bg-muted/40 text-muted-foreground rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+              <span className="bg-muted/40 text-muted-foreground hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex">
                 {t(
                   activeBucket === "week"
                     ? "charts.bucketWeekly"
@@ -522,10 +531,11 @@ export function MoodChart({
                 )}
               </span>
             )}
-            {/* v1.4.16 phase B8 — comparison caption (mood). */}
+            {/* v1.4.16 phase B8 — comparison caption (mood).
+                v1.4.19 A2 — hidden on mobile to free up the title row. */}
             {!mini && compareBaseline !== "none" && hasComparisonData && (
               <span
-                className="text-dracula-purple bg-dracula-purple/10 rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+                className="text-dracula-purple bg-dracula-purple/10 hidden rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex"
                 data-slot="chart-compare-caption"
               >
                 {t(
@@ -537,7 +547,7 @@ export function MoodChart({
             )}
             {!mini && compareBaseline !== "none" && !hasComparisonData && (
               <span
-                className="text-muted-foreground bg-muted/40 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide"
+                className="text-muted-foreground bg-muted/40 hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide sm:inline-flex"
                 data-slot="chart-compare-unavailable"
               >
                 {t(
@@ -549,13 +559,16 @@ export function MoodChart({
             )}
           </div>
           {!mini && (
-            <div className="flex flex-wrap items-center justify-end gap-1">
+            <div
+              className="flex flex-nowrap items-center justify-end gap-1 self-end sm:self-auto"
+              data-slot="chart-header-controls"
+            >
               {TIME_RANGES_KEYS.map((r) => (
                 <Button
                   key={r.labelKey}
                   variant={rangePoints === r.points ? "default" : "ghost"}
                   size="sm"
-                  className="min-h-11 px-3 text-xs"
+                  className="min-h-11 px-2 text-xs sm:px-3"
                   onClick={() => setRangePoints(r.points)}
                   title={t(r.titleKey)}
                   data-slot="chart-range-tab"
@@ -654,7 +667,10 @@ export function MoodChart({
                       true,
                     )
                   }
-                  interval="preserveStartEnd"
+                  interval={chooseTickInterval(
+                    chartData?.length ?? 0,
+                    viewportWidth,
+                  )}
                   padding={{ left: 10, right: 10 }}
                   tickMargin={10}
                 />
