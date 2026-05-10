@@ -230,9 +230,23 @@ export function TrendCard({
           line below the latest value so the tile stays scannable on
           mobile viewports (no horizontal-scroll, no overlap with the
           existing 7d/30d row). Suppressed when comparison is off OR
-          we don't have enough data to compute a delta. */}
+          we don't have enough data to compute a delta.
+
+          v1.4.22 W5 reconcile (Design-H2) — on `<sm` viewports the
+          BP-in-target tile (the only consumer of `avgAllTime`) packs
+          three sub-rows + this callout into the height budget of
+          every other tile. Hide the standalone callout at `<sm` for
+          BP-in-target tiles; the secondary row below combines
+          all-time + comparison-delta into a single line that stays
+          scannable on Galaxy Fold (280 px) and Pixel 5 (375 px). The
+          full layout returns at `>=sm`. */}
       {compareBaseline !== "none" && compareDelta != null && (
-        <div className="mt-1">
+        <div
+          className={cn(
+            "mt-1",
+            avgAllTime !== undefined && "hidden sm:block",
+          )}
+        >
           <span
             className={cn(
               "text-xs font-medium tabular-nums",
@@ -310,9 +324,17 @@ export function TrendCard({
           {/* v1.4.22 A2 — optional third sub-value (e.g. all-time aggregate
               for BD-Zielbereich after v1.4.22 A1 re-anchored the headline
               to last-30 days). Other tiles leave `avgAllTime` undefined so
-              the third sub-row never renders. */}
+              the third sub-row never renders.
+
+              v1.4.22 W5 reconcile (Design-H2) — full label only at
+              `>=sm`; on `<sm` the all-time number moves to the
+              combined secondary row below so the tile keeps the same
+              vertical density as every other trend card. */}
           {avgAllTime !== undefined && (
-            <span data-slot="trend-card-all-time">
+            <span
+              data-slot="trend-card-all-time"
+              className="hidden sm:inline"
+            >
               {t(avgAllTimeLabelKey)}:{" "}
               <span
                 className={cn(
@@ -325,6 +347,48 @@ export function TrendCard({
             </span>
           )}
         </div>
+        {/* v1.4.22 W5 reconcile (Design-H2) — combined secondary row
+            for `<sm` viewports. Renders the all-time aggregate AND
+            (when comparison is on) the comparison delta on a single
+            line: "All-time 11% · vs −0.4 last month". Disappears at
+            `>=sm` because the full layout above takes over. */}
+        {avgAllTime !== undefined && (
+          <div
+            data-slot="trend-card-secondary-mobile"
+            className="text-muted-foreground mt-1 text-xs sm:hidden"
+          >
+            <span>
+              {t(avgAllTimeLabelKey)}:{" "}
+              <span
+                className={cn(
+                  "font-medium tabular-nums",
+                  avgAllTimeColorClass,
+                )}
+              >
+                {avgAllTime !== null ? formatValue(avgAllTime) : "—"}
+              </span>
+            </span>
+            {compareBaseline !== "none" && compareDelta != null && (
+              <>
+                <span aria-hidden="true"> · </span>
+                <span
+                  className={cn(
+                    "font-medium tabular-nums",
+                    comparisonDeltaColor,
+                  )}
+                  data-slot="tile-compare-delta-mobile"
+                  data-compare-baseline={compareBaseline}
+                >
+                  {`Δ ${formatDelta(compareDelta)}${unit ? ` ${unit}` : ""} ${t(
+                    compareBaseline === "lastMonth"
+                      ? "comparison.captionLastMonth"
+                      : "comparison.captionLastYear",
+                  )}`}
+                </span>
+              </>
+            )}
+          </div>
+        )}
       </TooltipProvider>
     </div>
   );
