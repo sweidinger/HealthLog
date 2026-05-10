@@ -51,6 +51,16 @@ interface PasskeyInfo {
   createdAt: string;
 }
 
+/**
+ * Shared class string for native `<select>` elements inside the Account
+ * card. Mirrors the visual contract of `<Input>` and shadcn
+ * `<SelectTrigger>` (`h-9`, identical border/focus tokens) so gender,
+ * language, and any future native dropdown render at the same height
+ * and width as every other input in the form.
+ */
+const NATIVE_SELECT_CLASS =
+  "border-input bg-background text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none";
+
 export function AccountSection() {
   const { t, locale, setLocale } = useTranslations();
   const { user, isLoading, isAuthenticated, refetch } = useAuth();
@@ -338,7 +348,7 @@ export function AccountSection() {
                 id="gender"
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
-                className="border-input bg-background text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                className={NATIVE_SELECT_CLASS}
               >
                 <option value="">{t("settings.genderNone")}</option>
                 <option value="MALE">{t("settings.genderMale")}</option>
@@ -363,6 +373,13 @@ export function AccountSection() {
             </div>
           </div>
 
+          {/* Date of birth pairs with the height/gender block above —
+              all three are "biological profile" data the app uses for
+              BMI + BP target calculations. Language is handled as its
+              own row below: it's a UI preference (cookie-backed),
+              not a profile attribute, so v1.4.19 A6 lifted it out of
+              the dob/language pair where users mistook it for a
+              per-account locale setting. */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="dob">{t("settings.dateOfBirth")}</Label>
@@ -377,24 +394,25 @@ export function AccountSection() {
                 {t("settings.dateOfBirthHint")}
               </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="language-select">{t("settings.language")}</Label>
-              <select
-                id="language-select"
-                value={locale}
-                onChange={(e) => setLocale(e.target.value as Locale)}
-                className="border-input bg-background text-foreground ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              >
-                {locales.map((loc) => (
-                  <option key={loc} value={loc}>
-                    {localeLabels[loc as Locale]}
-                  </option>
-                ))}
-              </select>
-              <p className="text-muted-foreground text-xs">
-                {t("settings.languageDescription")}
-              </p>
-            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="language-select">{t("settings.language")}</Label>
+            <select
+              id="language-select"
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+              className={`${NATIVE_SELECT_CLASS} sm:max-w-xs`}
+            >
+              {locales.map((loc) => (
+                <option key={loc} value={loc}>
+                  {localeLabels[loc as Locale]}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted-foreground text-xs">
+              {t("settings.languageDescription")}
+            </p>
           </div>
 
           {saveMsg && (
