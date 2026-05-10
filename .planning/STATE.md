@@ -393,11 +393,33 @@ Last update: 2026-05-09T23:12:52+02:00
 
 ### B8 — Extended Comparison Views (Vormonat / Vorjahr)
 
-- [ ] Each chart + tile + insight gets toggleable comparison overlay: "vs. last month" / "vs. last year"
-- [ ] Visual treatment: dimmed historical line beneath current; delta callout (Δ +5%, etc.)
-- [ ] Insights surface narrates the comparison ("Your average BP improved by 4 mmHg vs. last month")
-- [ ] Mobile-friendly comparison toggle (not a fragile hover-only interaction)
+- [x] Each chart + tile + insight gets toggleable comparison overlay: "vs. last month" / "vs. last year"
+- [x] Visual treatment: dimmed historical line beneath current; delta callout (Δ +5%, etc.)
+- [x] Insights surface narrates the comparison ("Your average BP improved by 4 mmHg vs. last month")
+- [x] Mobile-friendly comparison toggle (not a fragile hover-only interaction)
 - Detailed report: `.planning/phase-B8-report.md`
+- Status block — 2026-05-10T02:38+02:00: B8 complete on origin/main. 4 atomic
+  TDD-first commits + 27 new tests (4 layout + 11 shift helper + 2 chart SSR
+  + 6 tile SSR + 8 prompt). Worktree-isolated under `agent/b8-comparison-views`
+  shipped clean (no rebase race; origin sat at `43204cb` for the run).
+  - Commits on origin/main:
+    - `775df8c feat(comparison): comparison toggle persists baseline preference`
+    - `2cf7b74 feat(charts): comparison overlay shows prior-period as dimmed line with delta tooltip`
+    - `e4a408e feat(dashboard): tiles show comparison delta callout when toggle is active`
+    - `f9f99ea feat(insights): AI narrates comparison when toggle is active`
+  - Architectural decisions: JSON-pivot persistence path (no Prisma migration
+    per research §7 Q3); forward-shift overlay so prior-period points sit
+    directly under their current-period siblings on the visible x-axis;
+    DataSummary gains `avg30LastMonth` + `avg30LastYear` fields so dashboard
+    tile + AI snapshot read the same delta. PROMPT_VERSION 4.16.0 → 4.16.1.
+  - Deferred to v1.4.17 (planning notes in report): dedicated
+    `/insights/compare` route (research-recommended bonus), schema flip to
+    add `aiInsightResponseSchema.comparison` field + `<InsightsComparisonCallout>`
+    UI component above the recommendations grid. Reserved i18n keys
+    `comparison.insightsCallout.{lastMonth,lastYear}` so the future component
+    drops in clean.
+  - Verification: `pnpm test` 1532/1532, `pnpm test:integration` 59/59,
+    `pnpm typecheck` 0 errors, `pnpm lint` 12 pre-existing warnings.
 
 ## Wave C — Catch-up (deferred from v1.4.15)
 
