@@ -776,6 +776,39 @@
       "emptyAction": "Briefing erstellen",
       "loadingLabel": "Briefing wird zusammengestellt"
     },
+    "trendsRow": {
+      "title": "Trends",
+      "subtitle": "Die letzten 30 Tage auf einen Blick"
+    },
+    "trendAnnotation": {
+      "emptyBp": "Mehr Daten nötig, um diesen Trend zu kommentieren.",
+      "emptyWeight": "Mehr Daten nötig, um diesen Trend zu kommentieren.",
+      "emptyMood": "Mehr Daten nötig, um diesen Trend zu kommentieren.",
+      "confidenceHigh": "Hohe Konfidenz",
+      "confidenceModerate": "Mittlere Konfidenz",
+      "confidenceLow": "Geringe Konfidenz"
+    },
+    "correlationRow": {
+      "title": "Muster",
+      "subtitle": "Vorab definierte Hypothesen, gegated auf n ≥ 14 und p < 0,05",
+      "disclaimer": "Muster sind beobachtend, nicht kausal — sprich mit deinem Arzt, wenn der Blutdruck hoch ist.",
+      "experimentCta": "7-Tage-Experiment starten",
+      "experimentTooltip": "Bald verfügbar",
+      "emptyTitle": "Mehr Daten nötig, um dieses Muster zu zeigen",
+      "sourceChip": "basierend auf {n} gepaarten Messungen · {window}",
+      "sourceWindowLast30": "letzte 30 Tage",
+      "confidenceHigh": "Hohe Konfidenz",
+      "confidenceModerate": "Mittlere Konfidenz",
+      "confidenceLow": "Geringe Konfidenz",
+      "card": {
+        "bpComplianceTitle": "BD × Medikamenten-Compliance",
+        "bpComplianceSubtitle": "Täglicher Systolischer gegen Compliance-%",
+        "moodPulseTitle": "Stimmung × Ruhepuls",
+        "moodPulseSubtitle": "Stimmung und Ruhepuls am selben Tag",
+        "weightWeekdayTitle": "Gewicht × Wochentag",
+        "weightWeekdaySubtitle": "Gewicht nach Wochentag gruppiert"
+      }
+    },
     "coach": {
       "refusalOutOfScope": "Ich kann nur bei den Gesundheitsdaten in deinem Log helfen — Messwerte, Medikamente, Stimmung, Trends. Fragen außerhalb dieses Themas beantworte ich nicht.",
       "refusalInjection": "In deiner Nachricht stehen Anweisungen, die meine Vorgaben überschreiben sollen. Ich bin der HealthLog-Coach und fasse ausschließlich deine eigenen Gesundheitsdaten zusammen — formuliere deine Frage bitte in diesem Rahmen neu.",

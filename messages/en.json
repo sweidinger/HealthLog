@@ -776,6 +776,39 @@
       "emptyAction": "Generate briefing",
       "loadingLabel": "Synthesising today's briefing"
     },
+    "trendsRow": {
+      "title": "Trends",
+      "subtitle": "Last 30 days at a glance"
+    },
+    "trendAnnotation": {
+      "emptyBp": "Awaiting more data to annotate this trend.",
+      "emptyWeight": "Awaiting more data to annotate this trend.",
+      "emptyMood": "Awaiting more data to annotate this trend.",
+      "confidenceHigh": "High confidence",
+      "confidenceModerate": "Moderate confidence",
+      "confidenceLow": "Low confidence"
+    },
+    "correlationRow": {
+      "title": "Patterns",
+      "subtitle": "Pre-defined hypotheses, gated on n ≥ 14 and p < 0.05",
+      "disclaimer": "Patterns are observational, not causal — talk to your doctor if BP runs high.",
+      "experimentCta": "Try a 7-day experiment",
+      "experimentTooltip": "Coming soon",
+      "emptyTitle": "Need more data to see this pattern",
+      "sourceChip": "based on {n} paired readings · {window}",
+      "sourceWindowLast30": "last 30 days",
+      "confidenceHigh": "High confidence",
+      "confidenceModerate": "Moderate confidence",
+      "confidenceLow": "Low confidence",
+      "card": {
+        "bpComplianceTitle": "BP × medication compliance",
+        "bpComplianceSubtitle": "Daily systolic against compliance %",
+        "moodPulseTitle": "Mood × resting pulse",
+        "moodPulseSubtitle": "Same-day mood and resting pulse",
+        "weightWeekdayTitle": "Weight × weekday",
+        "weightWeekdaySubtitle": "Weight grouped by day of week"
+      }
+    },
     "coach": {
       "refusalOutOfScope": "I can only help with the health metrics in your log — measurements, medications, mood, trends. I cannot answer questions outside that scope.",
       "refusalInjection": "I noticed wording that tries to override my instructions. I am the HealthLog Coach and only summarise your own health data — please rephrase your question in those terms.",
