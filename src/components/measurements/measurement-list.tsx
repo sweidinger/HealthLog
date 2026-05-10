@@ -475,14 +475,13 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                         </div>
                       )}
                       <div className="min-w-0">
-                        {(m.type === "BP_SYS" || m.type === "BP_DIA") && (
+                        {(m.type === "BLOOD_PRESSURE_SYS" ||
+                          m.type === "BLOOD_PRESSURE_DIA") && (
                           <Badge
                             variant="outline"
                             className="mr-1.5 h-5 px-1 text-[10px]"
                           >
-                            {m.type === "BP_SYS"
-                              ? t("measurements.typeBpSys")
-                              : t("measurements.typeBpDia")}
+                            {t(TYPE_LABEL_KEYS[m.type])}
                           </Badge>
                         )}
                         <span className="font-semibold tabular-nums">
