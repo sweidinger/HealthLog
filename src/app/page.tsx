@@ -881,6 +881,7 @@ export default function DashboardPage() {
             node: (
               <HealthChart
                 key="weight-chart"
+                chartKey="weight"
                 types={["WEIGHT"]}
                 title={t("dashboard.weight")}
                 colors={["#bd93f9"]}
@@ -923,6 +924,7 @@ export default function DashboardPage() {
             node: (
               <HealthChart
                 key="bp-chart"
+                chartKey="bp"
                 types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
                 title={t("dashboard.bloodPressure")}
                 colors={["#ff79c6", "#8be9fd"]}
@@ -942,6 +944,7 @@ export default function DashboardPage() {
             node: (
               <HealthChart
                 key="pulse-chart"
+                chartKey="pulse"
                 types={["PULSE"]}
                 title={t("dashboard.pulse")}
                 colors={["#50fa7b"]}

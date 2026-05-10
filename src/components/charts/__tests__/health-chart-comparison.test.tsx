@@ -41,6 +41,14 @@ vi.mock("@tanstack/react-query", () => ({
     }),
     isLoading: false,
   }),
+  // v1.4.18 — stubs for the overlay-prefs hook.
+  useQueryClient: () => ({
+    cancelQueries: () => Promise.resolve(),
+    getQueryData: () => undefined,
+    setQueryData: () => undefined,
+    invalidateQueries: () => Promise.resolve(),
+  }),
+  useMutation: () => ({ mutate: () => undefined, isPending: false }),
 }));
 
 vi.mock("@/hooks/use-auth", () => ({

@@ -92,11 +92,77 @@ export function isComparisonBaseline(
   );
 }
 
+/**
+ * v1.4.18 — per-chart overlay-prefs.
+ *
+ * Marc rolled back B1a's always-on chart overlays (gradient fill,
+ * personal-baseline reference line, target-zone shading) and asked for
+ * a per-chart switch surface so each chart can be tuned independently.
+ * The three toggles (7-day trend / Trend arrow / Target range) live in
+ * a popover on each chart card; their state persists per user via this
+ * map keyed by chart id.
+ *
+ * Defaults: every flag is `false`. Clean line is the new default;
+ * overlays are user-opt-in. Missing chart keys behave the same way
+ * (the chart wrapper fills in the default).
+ *
+ * The map piggy-backs on `User.dashboardWidgetsJson` instead of
+ * carving a new column — same pragmatism as the B8 comparison baseline.
+ */
+export const CHART_OVERLAY_KEYS = [
+  "bp",
+  "weight",
+  "pulse",
+  "mood",
+  "medications",
+] as const;
+export type ChartOverlayKey = (typeof CHART_OVERLAY_KEYS)[number];
+
+export interface ChartOverlayPrefs {
+  showTrendIndicator: boolean;
+  showTrendArrow: boolean;
+  showTargetRange: boolean;
+}
+
+export const DEFAULT_CHART_OVERLAY_PREFS: ChartOverlayPrefs = {
+  showTrendIndicator: false,
+  showTrendArrow: false,
+  showTargetRange: false,
+};
+
+export type ChartOverlayPrefsMap = Partial<Record<ChartOverlayKey, ChartOverlayPrefs>>;
+
+function isChartOverlayKey(value: string): value is ChartOverlayKey {
+  return (CHART_OVERLAY_KEYS as readonly string[]).includes(value);
+}
+
+function coerceChartOverlayPrefs(value: unknown): ChartOverlayPrefs {
+  if (!value || typeof value !== "object") return DEFAULT_CHART_OVERLAY_PREFS;
+  const candidate = value as Partial<Record<keyof ChartOverlayPrefs, unknown>>;
+  return {
+    showTrendIndicator: candidate.showTrendIndicator === true,
+    showTrendArrow: candidate.showTrendArrow === true,
+    showTargetRange: candidate.showTargetRange === true,
+  };
+}
+
+function coerceChartOverlayPrefsMap(value: unknown): ChartOverlayPrefsMap {
+  if (!value || typeof value !== "object") return {};
+  const out: ChartOverlayPrefsMap = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!isChartOverlayKey(key)) continue;
+    out[key] = coerceChartOverlayPrefs(raw);
+  }
+  return out;
+}
+
 export interface DashboardLayout {
   version: number;
   widgets: DashboardWidgetConfig[];
   /** v1.4.16 phase B8 — see `COMPARISON_BASELINES` doc. */
   comparisonBaseline?: ComparisonBaseline;
+  /** v1.4.18 — per-chart overlay-prefs (3 toggles per chart card). */
+  chartOverlayPrefs?: ChartOverlayPrefsMap;
 }
 
 export const DASHBOARD_LAYOUT_VERSION = 1;
@@ -185,6 +251,11 @@ export function resolveDashboardLayout(raw: unknown): DashboardLayout {
     comparisonBaseline: isComparisonBaseline(candidate.comparisonBaseline)
       ? candidate.comparisonBaseline
       : "none",
+    // v1.4.18 — per-chart overlay prefs. Drop unknown chart keys and
+    // coerce non-boolean toggle values back to false so a stale
+    // client cannot poison the dashboard with values the renderer
+    // doesn't know how to draw.
+    chartOverlayPrefs: coerceChartOverlayPrefsMap(candidate.chartOverlayPrefs),
   };
 }
 
@@ -209,5 +280,8 @@ export function serializeDashboardLayout(
     comparisonBaseline: isComparisonBaseline(layout.comparisonBaseline)
       ? layout.comparisonBaseline
       : "none",
+    // v1.4.18 — persist per-chart overlay prefs verbatim through the
+    // same coercion the resolver runs so the wire shape is stable.
+    chartOverlayPrefs: coerceChartOverlayPrefsMap(layout.chartOverlayPrefs),
   };
 }

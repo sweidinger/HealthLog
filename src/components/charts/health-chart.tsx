@@ -15,13 +15,11 @@ import {
   ReferenceArea,
 } from "recharts";
 import { Loader2 } from "lucide-react";
-import { useState, useMemo, useId } from "react";
+import { useState, useMemo } from "react";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { formatDateShort } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
@@ -38,7 +36,12 @@ import {
   type DataWindow,
 } from "./mini-window";
 import { shiftDailySeriesForward } from "@/lib/charts/comparison-shift";
-import type { ComparisonBaseline } from "@/lib/dashboard-layout";
+import type {
+  ChartOverlayKey,
+  ComparisonBaseline,
+} from "@/lib/dashboard-layout";
+import { ChartOverlayControls } from "./chart-overlay-controls";
+import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
 
 const TIME_RANGES_KEYS = [
   {
@@ -114,6 +117,14 @@ interface HealthChartProps {
    * regression for users who keep the toggle off.
    */
   compareBaseline?: ComparisonBaseline;
+  /**
+   * v1.4.18 — per-chart overlay-prefs key. When supplied, the chart
+   * mounts an overlay-controls dropdown in the header and reads its
+   * three toggle states from the persisted user prefs. When omitted
+   * (mini mode, ad-hoc usage) the chart renders without controls and
+   * its toggles default to OFF (clean line).
+   */
+  chartKey?: ChartOverlayKey;
 }
 
 interface ChartDataPoint {
@@ -289,6 +300,7 @@ export function HealthChart({
   mini = false,
   windowOverride,
   compareBaseline = "none",
+  chartKey,
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
@@ -300,12 +312,16 @@ export function HealthChart({
     ? resolveMiniRangePoints(windowOverride)
     : 30;
   const [rangePoints, setRangePoints] = useState(initialRangePoints);
-  const [showMA, setShowMA] = useState(false);
-  const [showTrend, setShowTrend] = useState(false);
-  const [showBands, setShowBands] = useState(false);
-  const maToggleId = useId();
-  const trendToggleId = useId();
-  const bandsToggleId = useId();
+
+  // v1.4.18 — three overlay toggles (showTrendIndicator / showTrendArrow
+  // / showTargetRange) are persisted per chart via the new
+  // `useChartOverlayPrefs` hook. When the chart isn't bound to a
+  // persistent key (mini mode / ad-hoc render) the prefs fall through
+  // to the clean-line default (every flag false).
+  const overlayPrefs = useChartOverlayPrefs(chartKey ?? "bp");
+  const showMA = chartKey ? overlayPrefs.prefs.showTrendIndicator : false;
+  const showTrend = chartKey ? overlayPrefs.prefs.showTrendArrow : false;
+  const showBands = chartKey ? overlayPrefs.prefs.showTargetRange : false;
 
   const bmiDivisor =
     valueMode === "bmi" && user?.heightCm ? (user.heightCm / 100) ** 2 : null;
@@ -868,7 +884,7 @@ export function HealthChart({
               </span>
             )}
           </div>
-          <div className="flex flex-wrap justify-end gap-1">
+          <div className="flex flex-wrap items-center justify-end gap-1">
             {TIME_RANGES_KEYS.map((r) => (
               <Button
                 key={r.labelKey}
@@ -882,6 +898,16 @@ export function HealthChart({
                 {t(r.labelKey)}
               </Button>
             ))}
+            {/* v1.4.18 — overlay-controls dropdown anchored next to
+                the range tabs. Only painted when the chart is bound
+                to a persistent chartKey; ad-hoc usages keep the
+                clean-line default. */}
+            {chartKey ? (
+              <ChartOverlayControls
+                prefs={overlayPrefs.prefs}
+                onChange={overlayPrefs.setPrefs}
+              />
+            ) : null}
           </div>
         </div>
       )}
@@ -889,46 +915,6 @@ export function HealthChart({
       {mini && (
         <div className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wider uppercase">
           {title}
-        </div>
-      )}
-
-      {!mini && (
-        <div className="text-muted-foreground mb-3 flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-1.5">
-            <Switch
-              id={maToggleId}
-              checked={showMA}
-              onCheckedChange={setShowMA}
-            />
-            <Label htmlFor={maToggleId} className="cursor-pointer text-xs">
-              {t("charts.movingAverage7d")}
-            </Label>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Switch
-              id={trendToggleId}
-              checked={showTrend}
-              onCheckedChange={setShowTrend}
-            />
-            <Label htmlFor={trendToggleId} className="cursor-pointer text-xs">
-              {t("charts.trend")}
-            </Label>
-          </div>
-          {valueBands?.length || targetZones?.length ? (
-            <div className="flex items-center gap-1.5">
-              <Switch
-                id={bandsToggleId}
-                checked={showBands}
-                onCheckedChange={setShowBands}
-              />
-              <Label
-                htmlFor={bandsToggleId}
-                className="cursor-pointer text-xs"
-              >
-                {t("charts.targetRanges")}
-              </Label>
-            </div>
-          ) : null}
         </div>
       )}
 

@@ -52,6 +52,15 @@ vi.mock("@tanstack/react-query", () => ({
     }),
     isLoading: false,
   }),
+  // Hook-side stubs so the v1.4.18 overlay-prefs hook
+  // (`useChartOverlayPrefs`) doesn't blow up under SSR / test render.
+  useQueryClient: () => ({
+    cancelQueries: () => Promise.resolve(),
+    getQueryData: () => undefined,
+    setQueryData: () => undefined,
+    invalidateQueries: () => Promise.resolve(),
+  }),
+  useMutation: () => ({ mutate: () => undefined, isPending: false }),
 }));
 
 vi.mock("@/hooks/use-auth", () => ({

@@ -214,3 +214,98 @@ describe("resolveDashboardLayout() — comparisonBaseline (B8)", () => {
     expect(resolved.comparisonBaseline).toBe("lastYear");
   });
 });
+
+/**
+ * v1.4.18 — per-chart overlay-prefs persistence.
+ *
+ * Marc reverted v1.4.16's always-on chart overlays (gradient, baseline,
+ * target-zone shading) and asked for per-chart switches that persist
+ * per user. The prefs piggy-back on `User.dashboardWidgetsJson` so we
+ * stay migration-free, mirroring the B8 comparisonBaseline pattern.
+ *
+ * Default for every chart, every flag: false (clean line is the new
+ * default; overlays are user-opt-in).
+ */
+describe("resolveDashboardLayout() — chartOverlayPrefs (v1.4.18)", () => {
+  it("defaults to an empty per-chart prefs map for legacy layouts", () => {
+    const legacy = {
+      version: 1,
+      widgets: [{ id: "weight", visible: true, order: 0 }],
+    };
+    const resolved = resolveDashboardLayout(legacy);
+    expect(resolved.chartOverlayPrefs).toEqual({});
+  });
+
+  it("preserves saved per-chart prefs through serialize → resolve", () => {
+    const layout: DashboardLayout = {
+      ...DEFAULT_DASHBOARD_LAYOUT,
+      chartOverlayPrefs: {
+        bp: {
+          showTrendIndicator: true,
+          showTrendArrow: false,
+          showTargetRange: true,
+        },
+        weight: {
+          showTrendIndicator: false,
+          showTrendArrow: true,
+          showTargetRange: false,
+        },
+      },
+    };
+    const serialized = serializeDashboardLayout(layout);
+    const resolved = resolveDashboardLayout(serialized);
+    expect(resolved.chartOverlayPrefs).toEqual({
+      bp: {
+        showTrendIndicator: true,
+        showTrendArrow: false,
+        showTargetRange: true,
+      },
+      weight: {
+        showTrendIndicator: false,
+        showTrendArrow: true,
+        showTargetRange: false,
+      },
+    });
+  });
+
+  it("clamps non-boolean toggle values back to false", () => {
+    const saved = {
+      version: 1,
+      widgets: [{ id: "bp", visible: true, order: 0 }],
+      chartOverlayPrefs: {
+        bp: {
+          showTrendIndicator: "yes",
+          showTrendArrow: 1,
+          showTargetRange: null,
+        },
+      },
+    };
+    const resolved = resolveDashboardLayout(saved);
+    expect(resolved.chartOverlayPrefs?.bp).toEqual({
+      showTrendIndicator: false,
+      showTrendArrow: false,
+      showTargetRange: false,
+    });
+  });
+
+  it("ignores unknown chart keys instead of leaking them through", () => {
+    const saved = {
+      version: 1,
+      widgets: [{ id: "bp", visible: true, order: 0 }],
+      chartOverlayPrefs: {
+        bp: {
+          showTrendIndicator: true,
+          showTrendArrow: false,
+          showTargetRange: false,
+        },
+        not_a_real_chart: {
+          showTrendIndicator: true,
+          showTrendArrow: true,
+          showTargetRange: true,
+        },
+      },
+    };
+    const resolved = resolveDashboardLayout(saved);
+    expect(Object.keys(resolved.chartOverlayPrefs ?? {})).toEqual(["bp"]);
+  });
+});

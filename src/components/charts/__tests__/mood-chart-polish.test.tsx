@@ -33,6 +33,13 @@ vi.mock("@tanstack/react-query", () => ({
     data: { entries: sampleMoodData, summary: null },
     isLoading: false,
   }),
+  useQueryClient: () => ({
+    cancelQueries: () => Promise.resolve(),
+    getQueryData: () => undefined,
+    setQueryData: () => undefined,
+    invalidateQueries: () => Promise.resolve(),
+  }),
+  useMutation: () => ({ mutate: () => undefined, isPending: false }),
 }));
 
 vi.mock("@/hooks/use-auth", () => ({

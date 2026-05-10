@@ -52,7 +52,9 @@ import { formatDateShort } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartOverlayControls } from "./chart-overlay-controls";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
+import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
 
 interface DailyCompliancePoint {
   /** Berlin calendar day, "YYYY-MM-DD". */
@@ -172,6 +174,13 @@ export function MedicationComplianceChart({
   const fmt = useFormatters();
   const [days, setDays] = useState<RangeDays>(30);
 
+  // v1.4.18 — three overlay toggles persisted per chart. The 7-day
+  // trend chip and the goal/threshold reference lines used to render
+  // unconditionally; both now key off the persisted prefs.
+  const overlayPrefs = useChartOverlayPrefs("medications");
+  const showTrendChip = overlayPrefs.prefs.showTrendIndicator;
+  const showTargetRange = overlayPrefs.prefs.showTargetRange;
+
   const { data, isLoading } = useQuery({
     queryKey: ["medication-compliance-chart", days],
     queryFn: async (): Promise<DailyCompliancePoint[]> => {
@@ -241,10 +250,10 @@ export function MedicationComplianceChart({
         <div className="flex items-center gap-2">
           <Pill className="text-muted-foreground h-4 w-4" />
           <h3 className="text-sm font-semibold">{displayTitle}</h3>
-          {/* v1.4.16 A6 — 7-day trend chip (mirror of the BP/weight
-              chart's bucket-chip). Painted only when the trend is
-              computable (>= 2 daily points). */}
-          {trend && TrendIcon ? (
+          {/* v1.4.18 — 7-day trend chip is now opt-in via the
+              "7-day trend" overlay toggle. Default OFF; the user
+              activates it from the chart settings popover. */}
+          {showTrendChip && trend && TrendIcon ? (
             <span
               className={cn(
                 "bg-muted/40 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase",
@@ -261,7 +270,7 @@ export function MedicationComplianceChart({
             </span>
           ) : null}
         </div>
-        <div className="flex flex-wrap justify-end gap-1">
+        <div className="flex flex-wrap items-center justify-end gap-1">
           {RANGE_DAYS.map((r) => (
             <Button
               key={r}
@@ -273,6 +282,12 @@ export function MedicationComplianceChart({
               {r}T
             </Button>
           ))}
+          {/* v1.4.18 — overlay-controls dropdown next to the range
+              tabs. */}
+          <ChartOverlayControls
+            prefs={overlayPrefs.prefs}
+            onChange={overlayPrefs.setPrefs}
+          />
         </div>
       </div>
 
@@ -384,24 +399,29 @@ export function MedicationComplianceChart({
                   );
                 }}
               />
-              {/* v1.4.16 A6 — minimum-acceptable threshold (yellow,
-                  paler dash) and 100 % goal line (green, solid-ish).
-                  Two lines together visualise "target range" the way
-                  HealthChart's targetZone band does for BP/weight. */}
-              <ReferenceLine
-                y={80}
-                stroke={COLOR_THRESHOLD}
-                strokeDasharray="3 5"
-                strokeOpacity={0.6}
-                data-slot="medication-threshold-line"
-              />
-              <ReferenceLine
-                y={100}
-                stroke={COLOR_GOAL}
-                strokeDasharray="5 5"
-                strokeOpacity={0.85}
-                data-slot="medication-goal-line"
-              />
+              {/* v1.4.18 — minimum-acceptable threshold + goal line
+                  are now opt-in via the "Target range" overlay
+                  toggle. Default OFF; chart renders as a clean line
+                  until the user activates the overlay from the
+                  settings popover. */}
+              {showTargetRange ? (
+                <>
+                  <ReferenceLine
+                    y={80}
+                    stroke={COLOR_THRESHOLD}
+                    strokeDasharray="3 5"
+                    strokeOpacity={0.6}
+                    data-slot="medication-threshold-line"
+                  />
+                  <ReferenceLine
+                    y={100}
+                    stroke={COLOR_GOAL}
+                    strokeDasharray="5 5"
+                    strokeOpacity={0.85}
+                    data-slot="medication-goal-line"
+                  />
+                </>
+              ) : null}
               {/* v1.4.18 — gradient Area removed; clean line only. */}
               <Line
                 type="monotone"

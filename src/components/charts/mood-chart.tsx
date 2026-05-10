@@ -14,10 +14,8 @@ import {
   ReferenceLine,
 } from "recharts";
 import { Loader2 } from "lucide-react";
-import { useState, useMemo, useId } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { formatDateShort } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
@@ -31,7 +29,12 @@ import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { shiftDailySeriesForward } from "@/lib/charts/comparison-shift";
-import type { ComparisonBaseline } from "@/lib/dashboard-layout";
+import type {
+  ChartOverlayKey,
+  ComparisonBaseline,
+} from "@/lib/dashboard-layout";
+import { ChartOverlayControls } from "./chart-overlay-controls";
+import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
 
 // --- Types ---
 
@@ -71,6 +74,12 @@ interface MoodChartProps {
    * a single metric so only one comparison line is drawn.
    */
   compareBaseline?: ComparisonBaseline;
+  /**
+   * v1.4.18 — per-chart overlay-prefs key. When supplied, the chart
+   * mounts the overlay-controls dropdown and reads its three toggle
+   * states from the persisted user prefs. Default: "mood".
+   */
+  chartKey?: ChartOverlayKey;
 }
 
 // --- Constants ---
@@ -261,6 +270,7 @@ export function MoodChart({
   mini = false,
   windowOverride,
   compareBaseline = "none",
+  chartKey = "mood",
 }: MoodChartProps) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -268,12 +278,13 @@ export function MoodChart({
     ? MINI_RANGE_POINTS[windowOverride]
     : 30;
   const [rangePoints, setRangePoints] = useState(initialRangePoints);
-  const [showMA, setShowMA] = useState(false);
-  const [showTrend, setShowTrend] = useState(false);
-  const [showBands, setShowBands] = useState(false);
-  const maToggleId = useId();
-  const trendToggleId = useId();
-  const bandsToggleId = useId();
+
+  // v1.4.18 — three overlay toggles persisted per chart. Mini-mode
+  // renders without controls and stays at the clean-line default.
+  const overlayPrefs = useChartOverlayPrefs(chartKey);
+  const showMA = !mini && overlayPrefs.prefs.showTrendIndicator;
+  const showTrend = !mini && overlayPrefs.prefs.showTrendArrow;
+  const showBands = !mini && overlayPrefs.prefs.showTargetRange;
 
   const displayTitle = title ?? t("charts.mood");
 
@@ -536,7 +547,7 @@ export function MoodChart({
             )}
           </div>
           {!mini && (
-            <div className="flex gap-1">
+            <div className="flex items-center gap-1">
               {TIME_RANGES_KEYS.map((r) => (
                 <Button
                   key={r.labelKey}
@@ -550,49 +561,15 @@ export function MoodChart({
                   {t(r.labelKey)}
                 </Button>
               ))}
+              {/* v1.4.18 — overlay-controls dropdown next to the
+                  range tabs. */}
+              <ChartOverlayControls
+                prefs={overlayPrefs.prefs}
+                onChange={overlayPrefs.setPrefs}
+              />
             </div>
           )}
         </div>
-        {!mini && (
-          <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1.5">
-              <Switch
-                id={maToggleId}
-                checked={showMA}
-                onCheckedChange={setShowMA}
-              />
-              <Label htmlFor={maToggleId} className="cursor-pointer text-xs">
-                {t("charts.moodMA")}
-              </Label>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Switch
-                id={trendToggleId}
-                checked={showTrend}
-                onCheckedChange={setShowTrend}
-              />
-              <Label
-                htmlFor={trendToggleId}
-                className="cursor-pointer text-xs"
-              >
-                {t("charts.trend")}
-              </Label>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Switch
-                id={bandsToggleId}
-                checked={showBands}
-                onCheckedChange={setShowBands}
-              />
-              <Label
-                htmlFor={bandsToggleId}
-                className="cursor-pointer text-xs"
-              >
-                {t("charts.targetRanges")}
-              </Label>
-            </div>
-          </div>
-        )}
       </CardHeader>
       <CardContent>
         {/* v1.4.18 — gradient defs removed; clean line only. */}

@@ -4,9 +4,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 /**
  * v1.4.18 — Medication compliance chart clean-line revert.
  *
- * Rolls back B1a's gradient fill. The animation, target / threshold
- * lines, rich tooltip, and 7-day trend chip stay (those weren't
- * rejected).
+ * Rolls back B1a's gradient fill. The animation, rich tooltip, and
+ * 7-day trend chip stay (those weren't rejected); the threshold /
+ * goal reference lines are now opt-in via the Target-Range overlay
+ * toggle.
  */
 
 const sampleData = vi.hoisted(() =>
@@ -19,6 +20,13 @@ const sampleData = vi.hoisted(() =>
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: sampleData, isLoading: false }),
+  useQueryClient: () => ({
+    cancelQueries: () => Promise.resolve(),
+    getQueryData: () => undefined,
+    setQueryData: () => undefined,
+    invalidateQueries: () => Promise.resolve(),
+  }),
+  useMutation: () => ({ mutate: () => undefined, isPending: false }),
 }));
 
 vi.mock("@/hooks/use-auth", () => ({

@@ -15,6 +15,8 @@ import {
   DEFAULT_DASHBOARD_LAYOUT,
   DASHBOARD_WIDGET_IDS,
   COMPARISON_BASELINES,
+  CHART_OVERLAY_KEYS,
+  type ChartOverlayPrefsMap,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
 import { Prisma } from "@/generated/prisma/client";
@@ -53,6 +55,19 @@ const layoutSchema = z.object({
   // on the layout blob per research §7 Q3 (no Prisma migration). Optional
   // so v1.4.15 clients that don't know the field can still PUT.
   comparisonBaseline: z.enum(COMPARISON_BASELINES).optional(),
+  // v1.4.18 — per-chart overlay prefs (3 toggles per chart card).
+  // Optional so older clients that don't know the field can still PUT;
+  // the resolver coerces malformed values away from the layout blob.
+  chartOverlayPrefs: z
+    .record(
+      z.enum(CHART_OVERLAY_KEYS),
+      z.object({
+        showTrendIndicator: z.boolean(),
+        showTrendArrow: z.boolean(),
+        showTargetRange: z.boolean(),
+      }),
+    )
+    .optional(),
 });
 
 export const GET = apiHandler(async () => {
@@ -78,7 +93,26 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     return apiError(parsed.error.issues[0].message, 422);
   }
 
-  const normalized = serializeDashboardLayout(parsed.data as DashboardLayout);
+  // v1.4.18 — preserve any per-chart overlay prefs that the client
+  // didn't send. The dashboard-layout PUT typically saves widget
+  // visibility / order; chart prefs are PUT through their own route
+  // (`/api/dashboard/chart-overlay-prefs`) and would otherwise be
+  // wiped here on a subsequent layout save.
+  let mergedChartOverlayPrefs: ChartOverlayPrefsMap | undefined =
+    parsed.data.chartOverlayPrefs as ChartOverlayPrefsMap | undefined;
+  if (mergedChartOverlayPrefs === undefined) {
+    const existing = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { dashboardWidgetsJson: true },
+    });
+    mergedChartOverlayPrefs =
+      resolveDashboardLayout(existing?.dashboardWidgetsJson)
+        .chartOverlayPrefs ?? {};
+  }
+  const normalized = serializeDashboardLayout({
+    ...parsed.data,
+    chartOverlayPrefs: mergedChartOverlayPrefs,
+  } as DashboardLayout);
 
   await prisma.user.update({
     where: { id: user.id },

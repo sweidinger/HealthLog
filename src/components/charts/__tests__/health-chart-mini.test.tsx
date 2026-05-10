@@ -23,7 +23,13 @@ const sampleData = vi.hoisted(() => {
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: sampleData, isLoading: false }),
-  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useQueryClient: () => ({
+    cancelQueries: () => Promise.resolve(),
+    getQueryData: () => undefined,
+    setQueryData: () => undefined,
+    invalidateQueries: vi.fn(),
+  }),
+  useMutation: () => ({ mutate: () => undefined, isPending: false }),
 }));
 
 vi.mock("@/hooks/use-auth", () => ({
@@ -90,9 +96,18 @@ describe("<HealthChart mini>", () => {
 
   it("renders the range tabs when NOT in mini mode (regression guard)", () => {
     const html = render(<HealthChart types={["WEIGHT"]} title="Weight" />);
-    // Default render still shows the toggle row.
-    expect(html).toMatch(/7-day trend/i);
+    // Default render still shows the range tabs. The v1.4.18 overlay
+    // toggles moved into a popover dropdown that's only visible when
+    // chartKey is wired; without one the chart skips controls and
+    // stays at the clean-line default.
     expect(html).toMatch(/data-slot="chart-range-tab"/);
+  });
+
+  it("renders the overlay-controls trigger when chartKey is supplied", () => {
+    const html = render(
+      <HealthChart types={["WEIGHT"]} title="Weight" chartKey="weight" />,
+    );
+    expect(html).toContain("chart-overlay-controls-trigger");
   });
 
   it("accepts windowOverride and applies the matching range-points", () => {
