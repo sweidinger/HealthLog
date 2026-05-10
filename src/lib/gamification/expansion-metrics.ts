@@ -89,10 +89,14 @@ export function countMeasurementsByType(
 /**
  * Mood metrics. The longest day-streak is computed off the unique
  * Berlin-local `date` strings already stored on `MoodEntry`. The
- * "improvement hit" is a one-shot boolean: did *any* 7-day window
- * have a mean score at least 1.0 higher than the preceding 7-day
- * window? We intentionally use the user's own baseline (no global
- * comparison) so the badge is non-coercive.
+ * "improvement hit" is a one-shot boolean: did *any* contiguous run
+ * of 7 logged days have a mean score at least 1.0 higher than the
+ * preceding 7 logged days? The window slides over distinct logged
+ * days, not calendar days — so a user who logs daily picks up the
+ * achievement on a true 7d-vs-7d comparison; a user with sparse
+ * logging compares the 7 most-recent logs against the 7 before that
+ * regardless of calendar gap. We intentionally use the user's own
+ * baseline (no global comparison) so the badge is non-coercive.
  */
 export function getMoodMetrics(entries: MoodEntryRecord[]): {
   moodEntryCount: number;
@@ -174,8 +178,11 @@ export function getEngagementMetrics(input: {
   ).sort();
   const entryDayStreak = calculateLongestStreak(uniqueDays);
 
-  // consistent-month: count Berlin-local calendar months that have ≥25
-  // distinct active days.
+  // consistent-month: did any Berlin-local calendar month have ≥25
+  // distinct active days? Effectively boolean — the only achievement
+  // this metric backs unlocks at target 1, so once a user hits one
+  // consistent month the count stops growing. Caps the wire-payload
+  // and avoids unbounded recomputation cost on long-tenured users.
   const monthBuckets = new Map<string, Set<string>>();
   for (const day of uniqueDays) {
     const month = day.slice(0, 7); // YYYY-MM
@@ -185,7 +192,10 @@ export function getEngagementMetrics(input: {
   }
   let consistentMonthCount = 0;
   for (const days of monthBuckets.values()) {
-    if (days.size >= 25) consistentMonthCount += 1;
+    if (days.size >= 25) {
+      consistentMonthCount = 1;
+      break;
+    }
   }
 
   // weekend-warrior: count of consecutive (Saturday + Sunday) pairs
