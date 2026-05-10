@@ -1,6 +1,6 @@
 # HealthLog v1.4.18 — Release Summary
 
-## Marc-Brief
+## Release brief
 
 Live: v1.4.18 on `https://healthlog.bombeck.io` — image digest
 `sha256:c636fca7db66…` (was v1.4.17: `936e9cf25b2d…`), `/api/version`
@@ -52,7 +52,7 @@ v1.4.19 backlog: see `.planning/v1419-backlog.md`.
 
 ## What landed (per area, with commit SHA references)
 
-### Wave A — Quick fixes
+### Cleanup A — Quick fixes
 
 | Bucket | Headline commit | Subject |
 | ------ | --------------- | ------- |
@@ -68,7 +68,7 @@ gated behind Trend toggle on health-chart and mood-chart, new
 `User.dashboardWidgetsJson.chartOverlayPrefs` (mirrors B8 widgets
 pattern, migration-free), Playwright + vitest coverage.
 
-### Wave B — Achievements expansion
+### Cleanup B — Achievements expansion
 
 - **B1** (commits `75c74f1...e75ea75`): roster 38 → 59 (+15 public,
   +6 hidden). Six categories — streaks, milestones, consistency,
@@ -79,7 +79,7 @@ pattern, migration-free), Playwright + vitest coverage.
   unlock; toast on unlock uses an 8-second Sparkles celebration with
   a localized "you unlocked a hidden achievement!" headline.
 
-### Wave D — Multi-agent QA + Reconcile
+### Cleanup D — Multi-pass QA + Reconcile
 
 - **CRITICAL** (1 of 1 cleared): C1 hidden-achievement wire-leak
   redaction in API response (`545f44c`). The locked-and-hidden API
@@ -103,7 +103,7 @@ TypeError on cached pre-strict insight payloads. Three commits on
 `.planning/phase-v1417-hotfix-report.md` and the v1.4.17 entry in
 `.planning/STATE.md`.
 
-### Wave E — Release
+### Cleanup E — Release
 
 | Item                              | Result                                                                       |
 | --------------------------------- | ---------------------------------------------------------------------------- |
@@ -115,7 +115,7 @@ TypeError on cached pre-strict insight payloads. Three commits on
 | Coolify auto-deploy               | NO — same git-push race; documented force-pull path used                     |
 | Live image digest                 | `sha256:c636fca7db66479b3413a7df82117316c042641f9bc7c0fe7d6e2be6811dfcca`    |
 | `/api/version` transition         | `1.4.17` → `1.4.18` within first 5-second poll cycle                         |
-| Smoke (15 routes, Marc's session) | 14/14 real routes 200; `/dashboard` 404 expected (root is dashboard)         |
+| Smoke (15 routes, live session)   | 14/14 real routes 200; `/dashboard` 404 expected (root is dashboard)         |
 | GH release                        | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.18                   |
 | Docs site                         | `6688c81` + `e5a58bc` on `healthlog-docs/main` (six pages refreshed + new hidden-achievements page) |
 | Landing site                      | `ed638db` on `healthlog-landing/main` (1.4.16 → 1.4.18, clean-line phrasing) |
@@ -158,7 +158,7 @@ Full backlog: `.planning/v1419-backlog.md`. Highlights:
 - `pnpm typecheck` — 0 errors.
 - `pnpm lint` — 0 errors / 12 pre-existing baseline warnings.
 - `pnpm test` — **1605 unit tests** green (was 1539 at v1.4.16,
-  1547 at v1.4.17; +66 net across A/B/D waves).
+  1547 at v1.4.17; +66 net across A/B/D cleanups).
 - `pnpm test:integration` — **66 / 66** green (was 59 at v1.4.16).
 - `pnpm format:check` — clean (sweep at `3048dd6`).
 - `pnpm build` + `pnpm e2e` — deferred to CI Docker (Node 22) per
@@ -173,7 +173,7 @@ Full backlog: `.planning/v1419-backlog.md`. Highlights:
 - **Image digest**:
   `sha256:c636fca7db66479b3413a7df82117316c042641f9bc7c0fe7d6e2be6811dfcca`
   (was v1.4.17: `sha256:936e9cf25b2d8e75d70a7912a42c8b0647e374ece036eb451676d0be9cd120ce`)
-- **Smoke** (15 routes, Marc's session): 200 across `/`, `/insights`,
+- **Smoke** (15 routes, live session): 200 across `/`, `/insights`,
   `/auth/login`, `/settings/integrations`, `/settings/notifications`,
   `/settings/ai`, `/settings/export`, `/admin`, `/admin/users`,
   `/admin/api-tokens`, `/admin/backups`, `/admin/system-status`,
@@ -182,7 +182,7 @@ Full backlog: `.planning/v1419-backlog.md`. Highlights:
   the App Router tree. Same shape on v1.4.16 / v1.4.17; not a
   regression.
 - **Deploy method**: GHCR-tag-build `:1.4.18` succeeded (both tag and
-  main runs green for the second consecutive release post Wave-C
+  main runs green for the second consecutive release post Cleanup-C
   v1.4.16 qemu-arm64 fix). Coolify auto-deploy fired on the
   `chore(release)` commit before GHCR finished; force-pull path used
   on `apps-01`:
@@ -198,8 +198,9 @@ Full backlog: `.planning/v1419-backlog.md`. Highlights:
   cycle of the wait loop.
 
 - **Coolify auto-deploy**: still on git-push trigger; deferred again
-  per Marc's "leave it" call. Marc-side UI flip remains the 5-min
-  realistic fix per `docs/audit/v1416-auto-deploy-fix.md`.
+  per the maintainer's "leave it" call. The manual Coolify UI toggle
+  remains the 5-min realistic fix per
+  `docs/audit/v1416-auto-deploy-fix.md`.
 - **GitHub release**: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.18
 - **Tag naming** (unchanged since v1.4.14): GHCR-OCI tag is `:1.4.18`
   (no `v` prefix); git tag is `v1.4.18`.
@@ -243,7 +244,7 @@ The Product-Lead review at
 v1.5 roadmap. Key items:
 
 1. **Coolify image-digest auto-deploy** (C.1) — still on git-push
-   trigger, 5-min Marc-side UI toggle.
+   trigger, 5-min manual Coolify UI toggle.
 2. **Native ARM runner matrix** (C.2) — re-add `linux/arm64` via
    `ubuntu-24.04-arm` runner.
 3. **Cross-user feedback aggregation prompt-tuning** (C.3) — append
@@ -268,7 +269,7 @@ v1.5 roadmap. Key items:
    (C.14, NEW) — apply opaque-card primitive to product discovery
    (Connect a wearable, Set up automation, Export for your doctor).
 
-Marc's recommended 6-week focus pick from v1.4.16 still stands
+The recommended 6-week focus pick from v1.4.16 still stands
 (C.1 + C.2 + C.4 + C.7 + C.10 + C.11a Apple Health), with C.12
 added as a parallelisable side-quest.
 

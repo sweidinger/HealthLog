@@ -1,6 +1,6 @@
 # v1.4.14 Performance Audit — Production
 
-**Status**: phase-4 of the v1.4.14 marathon
+**Status**: stage-4 of the v1.4.14 release cycle
 **Measured against**: `https://healthlog.bombeck.io` (`/api/version` → `1.4.13`)
 **Measured at**: `2026-05-09T14:14:48Z` → `2026-05-09T14:15:27Z`
 **Tool**: standalone Playwright + Chromium 1217 driver, `PerformanceObserver`
@@ -18,7 +18,7 @@ Two viewports per page: **desktop** (`1920×1080`, default Chromium UA) and
 
 For each `(page × viewport)` cell:
 
-1. Open a fresh BrowserContext with Marc's session cookie
+1. Open a fresh BrowserContext with an authenticated session cookie
    (`healthlog_session=cmox4d6fj…`) injected pre-navigation.
 2. Inject a `PerformanceObserver` via `addInitScript` BEFORE navigation so LCP
    and longtask events from the very first paint are captured.
@@ -132,9 +132,9 @@ Two surprises:
 
 - `notifications/preferences` and `withings/status` are fired by the
   `GettingStartedChecklist` even when the user is well past onboarding
-  (Marc has `onboardingCompletedAt = 2026-02-20` and 1000+ measurements).
-  The checklist short-circuits with `null` after fetching, so the network
-  is wasted.
+  (the live tenant has `onboardingCompletedAt` set since early 2026 and
+  1000+ measurements). The checklist short-circuits with `null` after
+  fetching, so the network is wasted.
 - `gamification/achievements` is hot-polled every 2 minutes by
   `AchievementUnlockNotifier`. Acceptable cadence; not on the win list.
 
@@ -193,14 +193,14 @@ Two surprises:
   `providers.tsx` — no global tuning needed.
 - Image lazy-load: only the `<AvatarImage>` in `sidebar-nav.tsx` and one
   `<img>` in `admin/feedback-inbox-section.tsx` exist. The avatar is
-  in-viewport; the feedback `<img>` is admin (Phase 4b territory). Skip.
+  in-viewport; the feedback `<img>` is admin (Stage 4b territory). Skip.
 
 ## Verification
 
 Local `pnpm build` cannot complete on this machine due to a Node-25
 upstream regression (`Cannot read private member #state from an object
 whose class did not declare it` in turbopack's prerender path; this is
-the same bug noted in `CLAUDE.md`'s pnpm-build entry). Wins #1 and #2
+the same bug noted in the repo doc's pnpm-build entry). Wins #1 and #2
 therefore can't be re-measured against prod until v1.4.14 ships and
 Coolify force-pulls the new bundle. Both wins are nevertheless verified
 by static code review:

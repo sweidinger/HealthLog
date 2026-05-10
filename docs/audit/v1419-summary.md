@@ -1,6 +1,6 @@
 # HealthLog v1.4.19 — Release Summary
 
-## Marc-Brief
+## Release brief
 
 Live: v1.4.19 (image digest `sha256:b48f93874cdb…`, `/api/version=1.4.19`)
 
@@ -34,9 +34,9 @@ v1.5 reserved for iOS app + Apple Health.
 
 ---
 
-## What landed (commit highlights per Wave)
+## What landed (commit highlights per cleanup)
 
-### Wave A — bugs + polish
+### Cleanup A — bugs + polish
 
 | Bucket | Headline commit | Subject |
 | ------ | --------------- | ------- |
@@ -48,7 +48,7 @@ v1.5 reserved for iOS app + Apple Health.
 | A6 | `957f8e9` / `9fda634` / `1075784` / `737b533` / `78f1f3f` | fix(settings): mobile consistency sweep — input heights, action button placement, language select row |
 | A7 | `088832a` / `dd8212e` / `7a70db6` / `6507646` / `90a109d` | fix(admin): feedback tab strip, api-tokens scrollbar 4th attempt, Einklappen removal, Zielwerte spacing + DE labels |
 
-### Wave B — A8 quality findings applied
+### Cleanup B — A8 quality findings applied
 
 16 atomic commits — 6/6 CRITICAL + 21/25 HIGH — covering time-window
 locale, login-overview auth filter, achievement title humanisation,
@@ -56,9 +56,9 @@ date-input `lang`, sidebar copy, raw enum badges, audit-action labels,
 mobile Sys/Dia badge enum, telegram badge collapse, token name ISO
 suffix, recent-activity row links.
 
-### Wave D — multi-agent QA + reconcile
+### Cleanup D — multi-pass QA + reconcile
 
-Six atomic commits cleared the post-Wave-B CRITICAL (mobile Sys/Dia
+Six atomic commits cleared the post-Cleanup-B CRITICAL (mobile Sys/Dia
 badge enum mismatch, `ef74241`), 5 simplify-yes consolidations
 (`6b35cad`), and four HIGH fixes (`1258b24`, `5a8ad3d`, `977f124`,
 `1f0d9ad`).
@@ -89,7 +89,7 @@ Full backlog: `.planning/v1420-backlog.md`.
 - `pnpm typecheck` — 0 errors.
 - `pnpm lint` — 0 errors / 12 pre-existing baseline warnings (no new).
 - `pnpm test` — **1672 / 1672** unit tests green (was 1605 at v1.4.18;
-  +67 net across A1, A2, A3, A4, A5, A6, A7, B, and Phase D reconcile
+  +67 net across A1, A2, A3, A4, A5, A6, A7, B, and Cleanup D reconcile
   TDD additions).
 - `pnpm test:integration` — **67 / 67** green (was 66 at v1.4.18; +1
   for A1's BD-Zielbereich `allTime` window guard).
@@ -113,7 +113,7 @@ Full backlog: `.planning/v1420-backlog.md`.
 | Tag | `v1.4.19` (annotated) |
 | GHCR — tag run | `25628853202` success |
 | Coolify auto-deploy | NO — main-branch deploy hung and was canceled; host-side retag-on-host fallback used |
-| Smoke (curl, Marc's session) | `/` 200 · `/insights` 200 · `/admin/api-tokens` 200 · `/settings/integrations` 200 · `/achievements` 200 · `/dashboard` 404 (expected — root is dashboard, no `/dashboard` route in App Router) |
+| Smoke (curl, live session) | `/` 200 · `/insights` 200 · `/admin/api-tokens` 200 · `/settings/integrations` 200 · `/achievements` 200 · `/dashboard` 404 (expected — root is dashboard, no `/dashboard` route in App Router) |
 | GH release | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.19 |
 | Docs site | `6e8840e` on `healthlog-docs/main` (six pages refreshed) |
 | Landing site | `dd5892f` on `healthlog-landing/main` (`softwareVersion` JSON-LD bumped) |

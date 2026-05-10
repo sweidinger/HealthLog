@@ -1,8 +1,8 @@
 # v1.4.16+ AI hardening roadmap
 
-Authored: 2026-05-09 during the v1.4.15 Phase C1 marathon.
+Authored: 2026-05-09 during the v1.4.15 Stage C1 cycle.
 
-Marc, verbatim 2026-05-09:
+Maintainer brief, verbatim 2026-05-09:
 
 > "Es darf null Halluzinationen haben und es muss sich halt irgendwie
 > stützen auf medizinische Dinge. Ich möchte da eine gewisse Dynamik
@@ -11,12 +11,12 @@ Marc, verbatim 2026-05-09:
 > ("Zero hallucinations. Must ground on medical facts. I want some
 > dynamism.")
 
-v1.4.15 Phase C1 ships **infrastructure** — the schema, the wrapper,
+v1.4.15 Stage C1 ships **infrastructure** — the schema, the wrapper,
 the citation enforcement, the scope-hardened prompt, the slug-drift
 defence. The medical-grounding work, the multi-provider redundancy,
 the explainability layer and the feedback loop land in v1.4.16+.
 
-This document is the iteration roadmap Marc explicitly invited.
+This document is the iteration roadmap the maintainer asked for.
 
 ## What landed in v1.4.15 (recap)
 
@@ -82,8 +82,8 @@ p. 17 — "..."` next to the recommendation.
    `referenceId` not in the bundle. The model cannot fabricate a
    citation pointing at a guideline that doesn't exist.
 
-5. **Locale support.** German excerpts shipped first — Marc's primary
-   locale. English fallback on missing.
+5. **Locale support.** German excerpts shipped first — the live
+   tenant's primary locale. English fallback on missing.
 
 Test pivot: a fixture user with elevated BP must surface ESH/ESC
 excerpt #4 via the model's recommendation; a low-data user must NOT
@@ -207,5 +207,5 @@ instance never has to walk on its first request.
 
 ---
 
-Owner: Marc + future-Phase-C agent. Cross-link from
+Owner: maintainer + future Stage-C work. Cross-link from
 `.planning/phase-C1-report.md` and the v1.4.15 release notes.

@@ -9,7 +9,7 @@
   because `/api/analytics` aliased `bpInTargetPct` to `last30Days?.pct`.
   `computeBpInTargetWindows()` now returns a third `allTime` window and
   the route routes the headline through it, so the three numbers can
-  legitimately differ (Marc's data: 50 % / 50 % / 10.8 %).
+  legitimately differ across the three windows.
 - **Charts mobile header no longer breaks the layout on Pixel 5.** The
   card header switches to a mobile-first stack below `sm` (title +
   chips on row 1, range tabs + cog right-aligned on row 2 with
@@ -86,10 +86,10 @@
   Account → Restart onboarding tour, and Dashboard → Reset to
   defaults stack the action below the title on `<sm` (full-width)
   and right-align on `≥sm`, fixing the Pixel-5 right-edge overflow
-  on the tour button. Sprache select gets its own row at the bottom
+  on the tour button. Language select gets its own row at the bottom
   of the Profile card; card-internal `space-y` standardised to
   `space-y-4`.
-- **Zielwerte status labels translated to German** (Low / On Target
+- **Target-range status labels translated to German** (Low / On Target
   / Stable / Moderate). 11 `targets.label.<TYPE>` + 41
   `targets.status.<key>` entries in EN + DE; page uses
   `STATUS_CATEGORY_KEY` to normalise server strings.
@@ -348,7 +348,7 @@
 ### Deferred to v1.5
 
 - Coolify image-digest auto-deploy trigger (currently fires on every
-  git-push; Marc-side UI flip is the realistic fix).
+  git-push; the manual Coolify UI toggle is the realistic fix).
 - Native arm64 runner matrix for full multi-arch docker publish.
 - Cross-user feedback aggregation prompt-tuning ratchet (depends on
   v1.4.16 feedback collection accumulating data).
@@ -1171,8 +1171,8 @@ token '<', "<!DOCTYPE "`. 401/403 from the provider now map to 422,
 
 - **Blood pressure is now two distinct tiles again** (sys + dia next
   to each other) — the v1.4.3 attempt at a combined tile read as a
-  single double-wide entry, which Marc preferred to keep as two
-  separate tiles for visual rhythm with the other metrics.
+  single double-wide entry; reverting to two separate tiles preserves
+  visual rhythm with the other metrics.
 - **All tiles share an equal width.** The previous strip used
   `shrink-0 grow basis-[10rem]`, which gave each tile a 160 px floor
   and let wider content (like the BP tile) push past it. Switched

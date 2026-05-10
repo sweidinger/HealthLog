@@ -637,7 +637,7 @@ The `codex-rs/tui/src/model_migration.rs` references to `gpt-5-codex` etc. are _
 
 ### 7b. Slug-drift defence — fallback chain (HealthLog v1.4.15+)
 
-The ChatGPT-Codex allow-list is rotated by OpenAI without prior notice (`gpt-5-codex` → `gpt-5.3-codex` happened over 48 h in May 2026 and bricked HealthLog twice while the v1.4.7..v1.4.13 saga unrolled). The cause: a single hard-coded slug in `CODEX_MODEL` flips invalid the moment the upstream rotates it. Marc, verbatim 2026-05-09: "Die Integration des Slug Drift Risiko darf halt immer überhaupt nicht sein."
+The ChatGPT-Codex allow-list is rotated by OpenAI without prior notice (`gpt-5-codex` → `gpt-5.3-codex` happened over 48 h in May 2026 and bricked HealthLog twice while the v1.4.7..v1.4.13 saga unrolled). The cause: a single hard-coded slug in `CODEX_MODEL` flips invalid the moment the upstream rotates it. Operator brief, verbatim 2026-05-09: "Die Integration des Slug Drift Risiko darf halt immer überhaupt nicht sein."
 
 To eliminate that risk class, HealthLog's `CodexClient` walks an ordered chain on every fresh request series.
 

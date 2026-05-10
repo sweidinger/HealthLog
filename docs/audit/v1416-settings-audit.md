@@ -1,19 +1,19 @@
-# v1.4.16 Phase B6 — Settings naming-audit
+# v1.4.16 Stage B6 — Settings naming-audit
 
 Status: audit landed 2026-05-10
-Author: Marc + agent
+Author: Maintainer
 
-> Marc's specific direction (kickoff 2026-05-09 late evening):
+> Brief direction (kickoff 2026-05-09 late evening):
 > "Mir wäre einfach auch noch mal wichtig dass du über alle Einstellungen
 > alle Namings gehst und einmal guckst, dass alles stringent ist, dass
 > alles sinnig ist, dass alles logisch aufgebaut ist."
 >
-> Plus the new memory `feedback_settings_no_split.md` — no top/bottom
+> Plus the `feedback_settings_no_split.md` rule — no top/bottom
 > split anti-pattern (B2 will fix the explicit AI-section instance).
 
 This audit is the single pass over **every** `/settings/<slug>` route + its
 section component + its i18n keys. It documents what is wrong today and what
-the v1.4.16 phase-B6 refactor commits do about it. AI section (`/settings/ai`)
+the v1.4.16 stage-B6 refactor commits do about it. AI section (`/settings/ai`)
 and Export section (`/settings/export`) are intentionally **out of scope**:
 B2 owns AI provider UX, B7 just shipped Export.
 
@@ -114,7 +114,7 @@ different keys.
   already rolled out).
 - Leave the existing flat keys as **deprecation aliases** for now. Add a
   comment in JSON documenting that they are legacy. Don't churn every
-  call-site in this audit phase — that's a separate hygiene PR.
+  call-site in this audit stage — that's a separate hygiene PR.
 
 ### 2.3 Anti-pattern: section title vs sidebar label vs document `<title>`
 
@@ -140,7 +140,7 @@ Insights" via `settings.sections.ai.title` (which happens to equal
 
 ### 2.4 Top/bottom split anti-pattern
 
-Per Marc's `feedback_settings_no_split.md`, there must be no instance where
+Per the project's `feedback_settings_no_split.md` rule, there must be no instance where
 a single concept is selected at the top of a section and configured at the
 bottom. Audit:
 
@@ -151,7 +151,7 @@ bottom. Audit:
 | Notifications | **Borderline**             | `<NotificationStatusCard>` lists per-channel status at the top; the per-channel config cards (`<TelegramCard>`, `<NtfyCard>`, `<WebPushCard>`) follow below. The status card has `Re-enable` + `Send test` actions per channel that arguably duplicate functionality in the config cards. **Not a top/bottom-split-of-one-concept** — the status card is a read-only summary, the config cards are mutators. Keeping it. |
 | Dashboard     | No                         | One layout card.                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Thresholds    | No                         | One editor card with per-metric rows.                                                                                                                                                                                                                                                                                                                                                                                    |
-| AI            | **YES (out of scope, B2)** | Provider dropdown at the top selects between OpenAI/Anthropic/Local; key/credential inputs for each provider live further down. This is the case Marc named explicitly.                                                                                                                                                                                                                                                  |
+| AI            | **YES (out of scope, B2)** | Provider dropdown at the top selects between OpenAI/Anthropic/Local; key/credential inputs for each provider live further down. This is the case the maintainer flagged explicitly.                                                                                                                                                                                                                                       |
 | API           | No                         | Endpoints reference card + tokens card.                                                                                                                                                                                                                                                                                                                                                                                  |
 | Export        | No                         | 5 cards, each self-contained.                                                                                                                                                                                                                                                                                                                                                                                            |
 | Advanced      | No                         | Single danger-zone card (post-B7 cleanup).                                                                                                                                                                                                                                                                                                                                                                               |
@@ -229,8 +229,8 @@ Spot-checked:
 
 ## 3. Logical grouping review
 
-Marc asked: "are settings grouped sensibly?". Current order in the
-sidebar:
+User feedback noted: "are settings grouped sensibly?". Current order
+in the sidebar:
 
 1. Account — personal identity + sign-in
 2. Integrations — third-party data sources
@@ -280,7 +280,7 @@ Commit 2 — `refactor(settings): consistent naming + i18n key namespace`
 
 Commit 3 — `refactor(settings): remove duplicate toggles, route to canonical owner`
 
-- Document the settings-vs-admin scope rule in `CLAUDE.md`.
+- Document the settings-vs-admin scope rule in the repo's project doc.
 - No actual duplicate found that needs removing today; commit body
   documents the audit conclusion ("no duplicate user-facing toggles
   identified; settings keep per-user toggles, admin keeps system-wide

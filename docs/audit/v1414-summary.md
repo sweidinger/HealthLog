@@ -1,6 +1,6 @@
 # HealthLog v1.4.14 — Release Summary
 
-## Marc-Brief (DE, ≤ 200 Wörter)
+## Release brief (DE, ≤ 200 Wörter)
 
 ✅ **v1.4.14 ist live** auf `https://healthlog.bombeck.io` — Image-Digest
 `sha256:0ced46004a54…` (vorher v1.4.12: `791c2cd2…`), `/api/version`
@@ -58,13 +58,13 @@ Reset einplanen.
 | `e5fae9b` | chore(release): v1.4.14                                         |
 | `f0d53fb` | chore(release): rebrand artifacts as v1.4.14 (patch, not minor) |
 
-### Codex-OAuth verification (Phase 1)
+### Codex-OAuth verification (Stage 1)
 
 | SHA       | Summary                                                                  |
 | --------- | ------------------------------------------------------------------------ |
 | `5df74f7` | fix(ai): default Codex model to `gpt-5.3-codex` for ChatGPT-account auth |
 
-### v1.4.6 deferred bugfix backlog (Phase 2)
+### v1.4.6 deferred bugfix backlog (Stage 2)
 
 | SHA       | Summary                                                                                      |
 | --------- | -------------------------------------------------------------------------------------------- |
@@ -73,7 +73,7 @@ Reset einplanen.
 | `5403821` | fix(insights): map AI provider errors to 422/503 instead of 500 (T2.3)                       |
 | `d6696cf` | fix(logging): redactSecrets regex requires non-alphanumeric prefix (T2.5)                    |
 
-### Admin Panel refactor (Phase 4b — folds T2.6 + T2.7)
+### Admin Panel refactor (Stage 4b — folds T2.6 + T2.7)
 
 | SHA       | Summary                                                                             |
 | --------- | ----------------------------------------------------------------------------------- |
@@ -87,7 +87,7 @@ Reset einplanen.
 | `7a47532` | feat(admin): redirect legacy section-anchor paths to dynamic routes                 |
 | `1a7e3d6` | test(admin): tighten status-card-grid + add per-section render smoke                |
 
-### UX polish (Phase 5)
+### UX polish (Stage 5)
 
 | SHA       | Summary                                                                  |
 | --------- | ------------------------------------------------------------------------ |
@@ -98,7 +98,7 @@ Reset einplanen.
 | `e3a6899` | fix(ui): disambiguate dashboard quick-add menu items                     |
 | `65cfb27` | fix(a11y): label `/admin` overview quick-jump as a navigation landmark   |
 
-### Multi-agent QA reconcile (Phase 6)
+### Multi-pass QA reconcile (Stage 6)
 
 | SHA       | Summary                                                                            |
 | --------- | ---------------------------------------------------------------------------------- |
@@ -110,7 +110,7 @@ Reset einplanen.
 | `499cfad` | fix(a11y): bump `/admin/users` + `/admin/login-overview` tap targets to WCAG 2.5.5 |
 | `ef96e87` | fix(admin): default api-tokens + login-overview routes to expanded                 |
 
-### End-to-end test coverage (Phase 3)
+### End-to-end test coverage (Stage 3)
 
 | SHA       | Summary                                                               |
 | --------- | --------------------------------------------------------------------- |
@@ -121,7 +121,7 @@ Reset einplanen.
 | `ca3c599` | test(e2e): extend axe-core to authenticated surfaces; fix login regex |
 | `7af1f59` | fix(a11y): close violations the new e2e axe-core sweep surfaced       |
 
-### Performance (Phase 4)
+### Performance (Stage 4)
 
 | SHA       | Summary                                                                 |
 | --------- | ----------------------------------------------------------------------- |
@@ -136,20 +136,20 @@ Reset einplanen.
 | --------- | ----------------------------------------------------------------- |
 | `3cacdf2` | fix(tests): share next/headers cookieJar across integration suite |
 | `c847b80` | chore(format): trend-card test file prettier sweep                |
-| `badd380` | style(admin): apply prettier to phase-6 reconcile changes         |
-| `6b88e56` | chore(format): prettier sweep over phase-2 touched files          |
+| `badd380` | style(admin): apply prettier to stage-6 reconcile changes         |
+| `6b88e56` | chore(format): prettier sweep over stage-2 touched files          |
 
 ---
 
 ## Was deferred wurde + Warum
 
-### v1.4.14-Marathon "Apply autonomously? no" simplify findings (8)
+### v1.4.14 release-cycle "Apply automatically? no" simplify findings (8)
 
 Aus `phase-6-simplify-findings.md`:
 
-- **F5** Defensive `notFound()` hinter `dynamicParams = false` — Marc
-  soll zwischen (a) Kommentar trimmen vs. (b) Guard droppen + casten
-  entscheiden.
+- **F5** Defensive `notFound()` hinter `dynamicParams = false` —
+  Entscheidung pending zwischen (a) Kommentar trimmen vs. (b) Guard
+  droppen + casten.
 - **F9** `<SectionFrame>` in `renderer.tsx` switch — die Repetition ist
   echt, aber das Tabellen-Refactor wäre schlechter (asymmetrische
   `currentUserId`-Prop). Recommend: keep as-is.
@@ -185,7 +185,7 @@ Aus `phase-6-reconcile-report.md`:
 - **H2 code-review — Admin-Page server-side `requireAdmin()`**. Heute
   ist die Rolle nur client-seitig geprüft; das Shell flackert kurz.
   Braucht eine server-rendered `requireAdmin()`-HOC, präzisiert für
-  Marcs Auth-Stack.
+  den HealthLog-Auth-Stack.
 - **H-1 security — "Wipe all data"-Scope-Drift**. v1.4.14 hat
   Notification-Channels, Push-Subs und Telegram-Scheduled-Deletions
   ergänzt. Was weiter überlebt: `MoodEntry`, `RefreshToken`,
@@ -249,9 +249,9 @@ account.`).
   alternative Slugs ohne Rebuild testen — als Sicherheitsnetz für
   andere Plan-Tarife oder zukünftige OpenAI-Slug-Wechsel sinnvoll.
 - **Live-Probe verifiziert**: `/api/ai/test` und
-  `/api/insights/generate` laufen beide gegen Marcs ChatGPT-Plus-Abo
-  durch. `/tmp/v15-codex-working.png` zeigt das grüne "ChatGPT
-  connected"-Badge in `/settings/ai`.
+  `/api/insights/generate` laufen beide gegen das ChatGPT-Plus-Abo
+  des Live-Tenants durch. `/tmp/v15-codex-working.png` zeigt das
+  grüne "ChatGPT connected"-Badge in `/settings/ai`.
 
 ---
 

@@ -143,7 +143,7 @@ semantic tokens for mood and feedback indicators`.
 
 The local environment ran Node 25 which currently surfaces the
 `Cannot read private member #state` Reflect.get bug in
-`src/lib/api-handler.ts` (documented in `CLAUDE.md` and the v1.4.6
+`src/lib/api-handler.ts` (documented in the repo notes and the v1.4.6
 summary). That blocks both `pnpm build` and `pnpm dev`, so the
 Playwright e2e suite couldn't drive the journey from this machine.
 The reactivated `/admin` axe-core spec (`e2e/a11y.spec.ts`) and the

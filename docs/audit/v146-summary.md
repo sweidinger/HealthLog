@@ -1,6 +1,6 @@
-# HealthLog v1.4.6 — Marathon Summary
+# HealthLog v1.4.6 — Release Summary
 
-## Marc-Brief (DE, ≤ 200 Wörter)
+## Release brief (DE, ≤ 200 Wörter)
 
 ✅ **v1.4.6 ist live** auf `https://healthlog.bombeck.io` — Container neu,
 Image-Digest `sha256:dcfa70be96a9…` (vorher v1.4.5: `0fc06b0b69d9…`).
@@ -86,7 +86,7 @@ Seiten zu Native-API, Skalierung, Dashboard-Customization.
 | `02b9955` | repo-wide prettier sweep before tag                           |
 | `ecca54d` | `.planning` bootstrap                                         |
 
-### Multi-agent QA follow-ups
+### Multi-pass QA follow-ups
 
 | Commit    | Summary                                                                                                                    |
 | --------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -100,7 +100,7 @@ Seiten zu Native-API, Skalierung, Dashboard-Customization.
 
 ## What was deferred (v1.5 backlog)
 
-From the multi-agent QA pass:
+From the multi-pass QA review:
 
 1. **Notification-channel scope of "Wipe all data"** — `NotificationChannel`,
    `PushSubscription`, `TelegramScheduledDeletion`, and `Feedback` rows
@@ -146,7 +146,7 @@ From the multi-agent QA pass:
   AsyncLocalStorage / Reflect.get bug. CI Docker image (Node 22)
   builds cleanly — that is the canonical release path.
 - `e2e` workflow — fixed and pushed; the run on the v1.4.6 SHA was
-  still pending at deploy time. Per the marathon spec, e2e green is
+  still pending at deploy time. Per the release spec, e2e green is
   not a hard gate.
 
 ## Production state
@@ -175,7 +175,7 @@ reproduce and report upstream.
 
 ## Docs / landing
 
-Both repos pushed. See agent report for commit list. Highlights:
+Both repos pushed. See release report for commit list. Highlights:
 
 - `healthlog-docs`: 8 commits bringing site from v1.2 → v1.4.6.
   New pages: `api/native-clients.mdx`, `self-hosting/scaling.mdx`,
@@ -183,8 +183,8 @@ Both repos pushed. See agent report for commit list. Highlights:
   for v1.3-v1.4 features.
 - `healthlog-landing`: single commit `ebb03f9` bumping
   `softwareVersion` 1.3.3 → 1.4.6 and expanding the JSON-LD
-  `featureList`. Screenshots untouched (Marc's call to refresh in
-  daylight).
+  `featureList`. Screenshots untouched (deferred to a daylight
+  refresh).
 
 ## GitHub releases
 
@@ -192,17 +192,17 @@ Backfilled `v1.4.2`, `v1.4.3`, `v1.4.4`, `v1.4.5`, **`v1.4.6`** at
 https://github.com/MBombeck/HealthLog/releases — each with the
 canonical CHANGELOG block as release notes.
 
-## QA agent reports — full text
+## QA review reports — full text
 
 Stored in commit messages of `6757518` (the QA-pass follow-up
-commit). Three agents ran in parallel against the v1.4.6 diff:
+commit). Three review passes ran in parallel against the v1.4.6 diff:
 
-- **superpowers:code-reviewer** — no CRITICAL, 3 HIGH (DST math,
+- **Code-review pass** — no CRITICAL, 3 HIGH (DST math,
   idempotency `sk-` substring, monthly bucket label semantics).
   All triaged: `sk-` regex fixed; rest deferred.
-- **Plan agent (security)** — no CRITICAL/HIGH. M1 (notification-
+- **Security review pass** — no CRITICAL/HIGH. M1 (notification-
   channel data-wipe scope) deferred. T4/T7/T8/P11/P12 cleared.
-- **Plan agent (design)** — no CRITICAL, 2 HIGH (orange tokens in
+- **Design review pass** — no CRITICAL, 2 HIGH (orange tokens in
   ai-section.tsx, status-card cta copy honesty). Both fixed.
 
 ---

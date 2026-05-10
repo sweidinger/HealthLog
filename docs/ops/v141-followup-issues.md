@@ -14,7 +14,7 @@ The `withIdempotency()` wrapper currently does
 `findCached → handler → persistCached`. Two requests with the same
 `Idempotency-Key` arriving in parallel both miss the SELECT, both
 execute the handler (duplicate measurements / intake events), and
-one INSERT loses on the unique constraint silently. The CLAUDE.md
+one INSERT loses on the unique constraint silently. The repo-doc
 contract ("retries with the same Idempotency-Key … replay the
 original response — no second side-effect") is therefore violated
 whenever a flaky mobile client double-sends.

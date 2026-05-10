@@ -1,11 +1,11 @@
 # HealthLog v1.4.6 — Findings & Spec
 
 Status: 2026-05-09 — handoff from the v1.4.5 deploy session. All findings
-were produced by **four parallel audit agents** (dashboard visual, KI section,
-admin panel, KI insights data window) against the v1.4.5 codebase
+were produced by **four parallel audit passes** (dashboard visual, AI section,
+admin panel, AI insights data window) against the v1.4.5 codebase
 (`e8f4820`). A Playwright probe also visually verified the dashboard tile
 strip at five viewports. **Verify each finding by reading the cited
-file:line BEFORE editing — agents occasionally reference stale state.**
+file:line BEFORE editing — automated audits occasionally reference stale state.**
 
 The single working-tree change carried over from the v1.4.5 session:
 `src/components/charts/trend-card.tsx:85` — added `w-full` so the tile
@@ -24,14 +24,12 @@ flex-child of a `<div className="flex">` wrapper, it took content width
 instead of stretching to the grid cell. Visible on mobile-narrow (375px):
 tile widths varied 122-166px in the same row. With `w-full` added, the
 Playwright harness confirms the tiles fill their grid cells uniformly at
-all viewports. Marc's primary complaint was "die Kacheln füllen den Platz
+all viewports. The user-reported complaint was "die Kacheln füllen den Platz
 nicht aus" — this is exactly that.
 
 **Verify after change:** Run the deep diagnose probe at multiple
-viewports (`/tmp/v145-tile-deep-diagnose.js` from prior session if still
-on disk; otherwise re-create — set `HL_SID` to a valid session and run
-via `node /Users/marc/.claude/skills/playwright-skill/run.js
-$probe`).
+viewports (recreate from prior session if needed — set `HL_SID` to a
+valid session and run via the Playwright skill harness).
 
 ### T2 — `--muted-foreground` equals `--foreground` (no hierarchy)
 
@@ -132,7 +130,7 @@ The `bugReportEnabled === false` check lives on the legacy
 reports off" in admin **does not actually hide or block** the form —
 users still submit successfully into the local feedback inbox.
 
-The CLAUDE.md / commit message claim ("the report button gracefully
+The repo-doc / commit message claim ("the report button gracefully
 disappears") is false.
 
 **Fix:** Pick one approach:
@@ -186,8 +184,9 @@ Affected files (one constant + one bucket-builder per file):
 
 **Goal:** the LLM should see ~3 years of history with newer data at
 higher resolution. Not raw rows — daily means for the recent window,
-monthly means for the older window. Marc explicitly asked for
-"mindestens 360 Tage" daily, plus "Monatswerte" for "2 oder 3 Jahre".
+monthly means for the older window. The product target is at least
+360 days of daily-resolution data, plus monthly aggregates extending
+out to two or three years.
 
 **Concrete shape of the prompt payload (per metric):**
 
@@ -216,14 +215,10 @@ no raw measurement rows leak into the prompt (the audit window is
 
 ## NEW FEATURE — Chart bucketing for ranges > 1 year
 
-Marc's request:
-
-> "Überlege dir bei den Charts ob wir Sachen halt nicht ab einer
-> gewissen Sache dann stacken in den Monaten. Wenn wir jetzt bei
-> All drücken zum Beispiel, dass man dann halt ab einer Zeit von
-> über einem Jahr dann halt danach tagesmonats- oder monats- oder
-> wochendurchschnitte summiert und nicht dann 30.000 Punkte
-> anzeigt"
+User-requested behaviour: when the chart range exceeds one year (e.g.
+the "All" filter), don't render every individual point. Instead
+aggregate to weekly or monthly averages so a 2-3 year range stays
+readable rather than rendering 30 000 points.
 
 **Spec:**
 
@@ -251,11 +246,10 @@ with `n=0` rather than count them as `0`.
 varying length. Visual regression: render the chart at a 2-year range
 and verify the chart shows ~24 monthly points, not 730 daily.
 
-**Research:** the autonomous executor MUST research best practice
-for time-series bucket aggregation in healthcare/Recharts dashboards
-before implementing. Use Context7 or websearch for "recharts
-aggregation buckets" and similar — there's a standard pattern for
-this. Don't reinvent.
+**Research:** before implementing, look up best practice for
+time-series bucket aggregation in healthcare/Recharts dashboards
+("recharts aggregation buckets" and similar) — there's a standard
+pattern for this. Don't reinvent.
 
 ---
 
@@ -290,7 +284,7 @@ this. Don't reinvent.
 
 - **One-row scroll vs. wrap** — the dashboard audit recommended
   rolling back v1.4.5's wrap behaviour to v1.4.4's horizontal-scroll-
-  always. Marc already chose wrap deliberately in v1.4.5
+  always. The wrap behaviour was a deliberate v1.4.5 choice
   (CHANGELOG entry, commit `e8f4820`). **Do not roll back.**
 - **`/admin/users`, `/admin/audit-log` sub-routes** — feature, not
   bug. Anchor-link fix in T6 is enough for v1.4.6.
@@ -303,20 +297,20 @@ this. Don't reinvent.
 
 ## Verification gates (before tagging v1.4.6)
 
-After all fixes, the autonomous executor MUST:
+After all fixes:
 
 1. **Test suite green:** `pnpm test`, `pnpm typecheck`, `pnpm lint`,
    `pnpm format:check`. Stop if any fails — never `--no-verify`.
 2. **Integration tests green** (testcontainers): `pnpm test:integration`
 3. **Build succeeds:** `pnpm build` (no Turbopack-specific failures)
-4. **Multi-agent QA review** — dispatch in parallel and reconcile
-   findings into a follow-up commit if any HIGH/CRITICAL surfaces:
-   - **superpowers:code-reviewer** — review the v1.4.6 diff vs. main
-   - **Plan agent** as senior-design-reviewer — visual review of
-     dashboard, settings, admin at desktop + mobile viewports
-   - **Plan agent** as senior-security-reviewer — review T4, T5, T7,
-     T8, P11, P12 specifically for residual risk
-   - **simplify skill** — run on the v1.4.6 changed files to look for
+4. **Multi-pass QA review** — run in parallel and reconcile findings
+   into a follow-up commit if any HIGH/CRITICAL surfaces:
+   - **Code review pass** — review the v1.4.6 diff vs. main
+   - **Senior-design review pass** — visual review of dashboard,
+     settings, admin at desktop + mobile viewports
+   - **Senior-security review pass** — review T4, T5, T7, T8, P11,
+     P12 specifically for residual risk
+   - **Simplify pass** — run on the v1.4.6 changed files to look for
      accidental complexity
 5. **Mobile QA** via Playwright — at least three viewports
    (375×667, 390×844, 412×915). Probe must verify:
@@ -326,8 +320,8 @@ After all fixes, the autonomous executor MUST:
    - Touch targets ≥ 44×44 px
    - Charts render and are readable
 6. **Hallucination check** — for every finding fixed, `git diff` must
-   show a real change at the cited file:line. Audit-agent claims must
-   be verified; if a finding's file:line doesn't match what's
+   show a real change at the cited file:line. Automated review claims
+   must be verified; if a finding's file:line doesn't match what's
    actually there, log it in the SUMMARY and skip rather than guess.
 7. **Visual regression** — Playwright screenshots of dashboard at
    1280×900 and 390×844, before+after, saved to
@@ -340,44 +334,43 @@ After all fixes, the autonomous executor MUST:
 1. Bump `package.json` to `1.4.6`
 2. Update `CHANGELOG.md` with a `[1.4.6] — 2026-05-09` (or `2026-05-10`
    depending on completion time) block. Tone: user-facing German +
-   English, **no Claude mention, no "Audit-Agent"**, no internal
-   phase names. Group by section: "Fixed — Dashboard",
+   English, no internal review-process language, no internal
+   stage names. Group by section: "Fixed — Dashboard",
    "Fixed — KI", "Fixed — Admin", "Improved — KI Insights",
    "Improved — Polish".
-3. Atomic commits per phase, each Co-Authored-By Claude Opus 4.7.
+3. Atomic commits per stage.
 4. Tag `v1.4.6`, push tag.
 5. Wait for GHCR build (typically 10-13 min).
-6. Coolify deploy: `mcp__coolify-apps01__deploy` with
+6. Coolify deploy: trigger via the configured deploy hook with
    `tag_or_uuid: pg8wggwogo8c4gc4ks0kk4ss`, `force: true`.
 7. Verify production:
    - Poll `/api/version` until 1.4.6
    - `docker inspect` running container — image digest must
      differ from current.
-   - Marc's session: `cmox4d6fj000101p8w9ykhcnm` (still valid as of
-     2026-05-09; if expired, re-pull from prod DB —
-     `SELECT id FROM sessions WHERE user_id='cmlupy4tn000001rpzx1pxvz7'
-AND expires_at > now() ORDER BY created_at DESC LIMIT 1;`)
+   - Authenticated session: pull a current session id from prod DB
+     when needed (`SELECT id FROM sessions WHERE user_id='…'
+     AND expires_at > now() ORDER BY created_at DESC LIMIT 1;`).
    - Hit `/api/ai/test` with fake key → still returns 422
    - Hit `/api/insights/generate` with `forceRefresh=false` and a
      fresh user → does not consume rate-limit token (P13 verify).
 8. Mobile QA Playwright probe against production.
-9. Brief Marc — German, ≤ 200 words. Hard-reload reminder.
+9. Release brief — German, ≤ 200 words. Hard-reload reminder.
    Group by what changed perceptually ("Tile-Strip füllt jetzt aus",
    "KI bekommt jetzt 3 Jahre Historie", "Charts aggregieren bei
    Langzeit-Range", "Admin-Buttons springen jetzt zum richtigen
-   Anker", "Bug-Report-Toggle wirkt jetzt"). No "Claude", no
-   internal phase names.
+   Anker", "Bug-Report-Toggle wirkt jetzt"). No internal
+   stage names.
 
 ---
 
-## Repo housekeeping (also in scope for the v1.4.6 marathon)
+## Repo housekeeping (also in scope for the v1.4.6 release)
 
 ### CI
 
 - `e2e` workflow has been **failing on every commit** since at least
   `cbded7c3`. Investigate (`gh run view <id> --log-failed`), root-
   cause, fix the spec or the underlying app bug. Don't `.skip()` it
-  — Marc explicitly asked for green CI.
+  — green CI is a hard requirement.
 
 ### GitHub Releases
 
@@ -393,7 +386,7 @@ the v1.4.0/v1.4.1 deploy thrash. Don't delete `v1.x.x` tagged
 versions (some users may pin). Only delete explicitly _untagged_
 manifests if any exist.
 
-### Docs site (`/Users/marc/Projects/healthlog-docs`)
+### Docs site (`docs.healthlog.dev` repo)
 
 Astro site at `https://docs.healthlog.dev`. Latest content covers
 **up to v1.2**. Bring it up to v1.4.6:
@@ -404,10 +397,10 @@ Astro site at `https://docs.healthlog.dev`. Latest content covers
   and translate into how-to docs where appropriate
 - Add the v1.4.6 release entry
 
-Read the docs repo's CLAUDE.md/CONTRIBUTING (if present) FIRST to
+Read the docs repo's contributor guide (if present) FIRST to
 understand conventions. Commit + push.
 
-### Landing site (`/Users/marc/Projects/healthlog-landing`)
+### Landing site (`healthlog-landing` repo)
 
 Next.js site. Latest showcase mentions v1.2. Minimal updates only —
 don't redesign:
@@ -421,19 +414,19 @@ Commit + push.
 
 ---
 
-## Marc's hard rules (verbatim)
+## Hard rules (verbatim)
 
-1. Niemals `--no-verify` bei git commit.
-2. Niemals `--no-gpg-sign` außer explizit angefragt.
-3. **Niemals force-push to main.**
-4. Changelogs/Release-Notes nur user-facing — kein "Claude", keine
-   internen Phasennamen, keine Audit-Sprache.
-5. Authorization gilt nur für den spezifischen Auftrag — wenn etwas
-   Größeres aufkommt, lieber fragen als entscheiden.
+1. Never `--no-verify` on git commit.
+2. Never `--no-gpg-sign` unless explicitly requested.
+3. **Never force-push to main.**
+4. Changelogs/release notes stay user-facing — no internal stage
+   names, no audit-process language.
+5. Authorization is scoped to the specific task — when something
+   larger surfaces, ask before deciding.
 
-For this overnight session, Marc has explicitly authorized
-**autonomous execution of Tier 1 + Tier 2 + the new chart bucketing
-feature**, and the multi-agent QA + simplify pass. Anything that
-crops up which is **not** in this document and is **larger than a
-typo-level change** must be deferred to v1.5 with a note in the
-SUMMARY rather than implemented.
+The maintainer authorized
+**execution of Tier 1 + Tier 2 + the new chart bucketing feature**,
+and the multi-pass QA + simplify review for this session. Anything
+that surfaces outside this document and is larger than a typo-level
+change must be deferred to v1.5 with a note in the SUMMARY rather
+than implemented.

@@ -1,9 +1,9 @@
 # v1.4.16 — Auto-deploy follow-up (image-digest only)
 
-**Phase:** Wave-C / item 4
-**Last updated:** 2026-05-09 (v1.4.16 marathon)
-**Status:** designed, not shipped — DEFERRED to v1.5 (Marc-side manual step
-required; MCP API does not expose the toggle)
+**Stage:** Cleanup-C / item 4
+**Last updated:** 2026-05-09 (v1.4.16 release cycle)
+**Status:** designed, not shipped — DEFERRED to v1.5 (manual maintainer
+step required; MCP API does not expose the toggle)
 
 ## Background — what v1.4.15 left half-finished
 
@@ -20,8 +20,9 @@ GitHub App auto-deploy fires on EVERY push to `main` — including
 commits that change zero image bytes. The compose pulls
 `ghcr.io/mbombeck/healthlog:latest`, finds the same digest, but still
 recreates the containers (Coolify always restarts the stack on a deploy
-event). During the v1.4.15 marathon Marc reported visible container
-churn — multi-second downtime windows on every doc-only push.
+event). During the v1.4.15 release cycle, user-observed container
+churn was reported — multi-second downtime windows on every doc-only
+push.
 
 We need: deploy fires only when the image digest actually changes.
 
@@ -43,8 +44,8 @@ intentionally restricts mutations to the safe subset
 `environment_*`, `instant_deploy`, build-pack family). It does NOT
 expose `auto_deploy_enabled` or `watch_paths`. Calling the bare REST
 API would require a Coolify UI-issued token AND would bypass the
-guardrails the MCP wraps around the install — too far outside agent
-scope.
+guardrails the MCP wraps around the install — too far outside the
+automated tooling's scope.
 
 The Coolify community has an open feature request to expose
 `auto_deploy_enabled` over REST; the v4-stable line (expected July 2026) is the realistic landing window.
@@ -68,7 +69,7 @@ is material TCB expansion"). Re-examined here:
 
 **v1.5 plan** (concrete, two-step):
 
-### Step 1 — Marc-side manual toggle (5 min, before v1.5 cut)
+### Step 1 — Maintainer-side manual toggle (5 min, before v1.5 cut)
 
 Open Coolify UI →
 `Applications > m-bombeck/-health-log:main-pg8wggwogo8c4gc4ks0kk4ss > Configuration`:
@@ -93,12 +94,12 @@ Until then the manual UI step is the contract.
 
 ### Why NOT Watchtower for v1.4.16
 
-Marc's instruction was explicit: "Don't half-ship". Watchtower would
-ship code (a new container in the prod compose, new credentials to
-manage) for a problem the manual Coolify toggle solves with zero new
-moving parts. The right call is the toggle.
+The maintainer's instruction was explicit: "Don't half-ship".
+Watchtower would ship code (a new container in the prod compose, new
+credentials to manage) for a problem the manual Coolify toggle solves
+with zero new moving parts. The right call is the toggle.
 
-## Test plan after Marc flips the toggle
+## Test plan after the toggle flip
 
 1. Push a doc-only commit to `main` (e.g. amend `CHANGELOG.md`
    wording).
@@ -116,6 +117,6 @@ moving parts. The right call is the toggle.
 
 - v1.4.16: NO source change shipped for this item. The audit document
   is the deliverable.
-- Marc-side action: flip the Coolify toggle whenever convenient. Does
-  not block v1.4.16 release.
+- Maintainer-side action: flip the Coolify toggle whenever convenient.
+  Does not block v1.4.16 release.
 - v1.5 backlog: track the MCP-API automation as a concrete follow-up.

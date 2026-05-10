@@ -1,6 +1,6 @@
 # HealthLog v1.4.16 — Release Summary
 
-## Marc-Brief
+## Release brief
 
 ✅ Live: v1.4.16 on `https://healthlog.bombeck.io` — image digest
 `sha256:05f8a126d639…` (was v1.4.15: `ace7d441f47b…`), `/api/version`
@@ -56,7 +56,7 @@ How It Works, Comparison Views, Provider Configuration.
 
 ## What landed (per area, with commit SHAs)
 
-### Wave A — Quick fixes
+### Cleanup A — Quick fixes
 
 | Bucket | Commit             | Subject                                                                                    |
 | ------ | ------------------ | ------------------------------------------------------------------------------------------ |
@@ -70,7 +70,7 @@ How It Works, Comparison Views, Provider Configuration.
 | A8a    | `2da0703`          | fix(geo): preserve umlauts in city names (login-overview no longer renders "Nrnberg")      |
 | A8b    | `af77e5e`          | feat(charts): split-half mean delta on long-window trend                                   |
 
-### Wave B — Quality-leap features
+### Cleanup B — Quality-leap features
 
 | Bucket | Headline commits                                                                            | What it does                                         |
 | ------ | ------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -88,7 +88,7 @@ How It Works, Comparison Views, Provider Configuration.
 | B7     | `621109c`, `a512650`, `94c748d`, (routes inside `226cac4`), `d5c8912`, `830b2b0`, `e628f33` | Settings → Export consolidation                      |
 | B8     | `775df8c`, `2cf7b74`, `e4a408e`, `f9f99ea`                                                  | Comparison overlay on charts + tiles + AI narration  |
 
-### Wave C — Catch-up (deferred from v1.4.15)
+### Cleanup C — Catch-up (deferred from v1.4.15)
 
 | Item                                   | Commit    | Notes                                                          |
 | -------------------------------------- | --------- | -------------------------------------------------------------- |
@@ -104,11 +104,11 @@ How It Works, Comparison Views, Provider Configuration.
 | Auto-deploy v1.5 doc                   | `4be6465` | Coolify auto-deploy stays on git-push for v1.4.16; deferred    |
 | docker-publish drop qemu-arm64         | `cc0f343` | qemu-SIGILL root cause; native-runner matrix in v1.5           |
 
-5 of 8 deferred HIGH from v1.4.15 Wave-D landed; 3 of 5 deferred MED
+5 of 8 deferred HIGH from v1.4.15 Cleanup-D landed; 3 of 5 deferred MED
 from A5 mobile landed; Coolify image-digest auto-deploy deferred per
-Marc's "leave it" call.
+the maintainer's "leave it" call.
 
-### Wave D — Multi-agent QA + Reconcile
+### Cleanup D — Multi-pass QA + Reconcile
 
 - **CRITICAL** (3 of 3 cleared): C1 wired (`aae968a` —
   `<InsightAdvisorCard>` mounts on `/insights`), C2 wired
@@ -117,12 +117,12 @@ Marc's "leave it" call.
 - **HIGH** (9 fixed inline): `5f7b9d8`, `6863ecb`, `fb12f09`,
   `c3451a4`, `2f057f4`, `5661439`. 11 HIGH deferred to v1.5 backlog.
 - **Simplify** (7 of 8 apply-yes landed): `f3025a8`. F1 + F8 are
-  apply-no flagged for Marc.
+  apply-no, flagged for the maintainer.
 - **Product-Lead review** stands as-is and IS the strategic v1.5 plan
   (`.planning/phase-D-product-lead-review.md`).
 - Style cleanup: `c63cddc`.
 
-### Wave E — Release
+### Cleanup E — Release
 
 | Item                              | Result                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------ |
@@ -134,7 +134,7 @@ Marc's "leave it" call.
 | Coolify auto-deploy               | NO — same race as v1.4.14/v1.4.15; retag-on-host fallback used                       |
 | Live image digest                 | `sha256:05f8a126d63962d9a4af4769de830d3fee022d634787e811b4339ee464420daa`            |
 | `/api/version` transition         | `1.4.15` → `1.4.16` at `2026-05-10T03:45:58+02:00`                                   |
-| Smoke (14 routes, Marc's session) | 13/14 200; `/dashboard` 404 expected (root is dashboard)                             |
+| Smoke (14 routes, live session)   | 13/14 200; `/dashboard` 404 expected (root is dashboard)                             |
 | GH release                        | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.16                           |
 | Docs site                         | `8addef4` + `2a5802b` on `healthlog-docs/main` (44 pages, three new deep-dive pages) |
 | Landing site                      | `3d17207` on `healthlog-landing/main` (1.4.15 → 1.4.16, AI cards updated)            |
@@ -155,15 +155,15 @@ Full backlog: `.planning/v15-backlog.md`. Highlights:
   split), code-review H5 + H6 cumulative duplication. Sized in the
   product-lead review.
 - **2 simplify-no items**: F1 `runWithFallback` test-only (delete and
-  migrate or wire to strict variant — Marc's call), F8
+  migrate or wire to strict variant — maintainer's call), F8
   `RecommendationCard.normalise()` indirection (mechanical rewrite
   spans 8+ JSX sites).
 - **Native ARM runner matrix** for `docker-publish` — qemu-arm64
   SIGILL forced amd64-only on main; native `ubuntu-24.04-arm` matrix
   is the v1.5 plan.
 - **Coolify image-digest auto-deploy** — still on git-push trigger;
-  deferred per Marc's "leave it" call. Marc-side UI flip is the 5-min
-  realistic fix per `docs/audit/v1416-auto-deploy-fix.md`.
+  deferred per the maintainer's "leave it" call. The manual Coolify UI
+  toggle is the 5-min realistic fix per `docs/audit/v1416-auto-deploy-fix.md`.
 - **Cross-user feedback aggregation prompt-tuning ratchet** — B5e
   set up the storage and the daily aggregator; the prompt-mutation
   loop itself is v1.4.17 / v1.5 work.
@@ -183,8 +183,8 @@ Full backlog: `.planning/v15-backlog.md`. Highlights:
 
 - `pnpm typecheck` — 0 errors.
 - `pnpm lint` — 0 errors / 12 pre-existing warnings.
-- `pnpm test` — **1539 unit tests** green (started v1.4.16 marathon
-  at ~1048; +491 net across A/B/C/D/E waves).
+- `pnpm test` — **1539 unit tests** green (started v1.4.16 release
+  cycle at ~1048; +491 net across A/B/C/D/E cleanups).
 - `pnpm test:integration` — **59 / 59** green (was 31 at v1.4.15).
 - `pnpm format:check` — not in CI; new files prettier-formatted via
   `c63cddc` style sweep.
@@ -200,14 +200,14 @@ Full backlog: `.planning/v15-backlog.md`. Highlights:
 - **Image digest**:
   `sha256:05f8a126d63962d9a4af4769de830d3fee022d634787e811b4339ee464420daa`
   (was v1.4.15: `sha256:ace7d441f47bd8c69fd0c5e2417b7f6c53bc387aa10c9aa541ad5e6321e9581d`)
-- **Smoke** (14 routes, Marc's session): 200 across `/`, `/insights`,
+- **Smoke** (14 routes, live session): 200 across `/`, `/insights`,
   `/auth/login`, `/settings/integrations`, `/settings/notifications`,
   `/settings/ai`, `/settings/export`, `/admin`, `/admin/users`,
   `/admin/backups`, `/admin/system-status`, `/admin/app-logs`,
   `/achievements`. `/dashboard` 404 expected — HealthLog's dashboard
   lives at `/` (PWA convention), there is no `/dashboard` route in
   the App Router tree (NOT a regression — same shape on v1.4.15).
-- **Deploy method**: GHCR-tag-build `:1.4.16` succeeded (Wave-C C3
+- **Deploy method**: GHCR-tag-build `:1.4.16` succeeded (Cleanup-C C3
   fix dropped arm64 on main and made BOTH GHCR runs green for the
   first time since v1.4.13). Coolify auto-deploy fired on the
   `chore(release)` commit before GHCR finished and pulled the host's
@@ -215,7 +215,7 @@ Full backlog: `.planning/v15-backlog.md`. Highlights:
 :1.4.16 && docker tag :1.4.16 :latest && docker compose up -d app`)
   flipped `/api/version` 1 s after the up command returned.
 - **Coolify auto-deploy**: still fires on every git-push (deferred
-  per Marc's call); v1.5 plan in `docs/audit/v1416-auto-deploy-fix.md`.
+  per the maintainer's call); v1.5 plan in `docs/audit/v1416-auto-deploy-fix.md`.
 - **GitHub release**: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.16
 - **Tag naming** (unchanged since v1.4.14): GHCR-OCI tag is `:1.4.16`
   (no `v` prefix); git tag is `v1.4.16`.
@@ -249,7 +249,7 @@ contains the full v1.5 roadmap and is the strategic plan for v1.5.
 Top items to look at:
 
 1. **Coolify image-digest trigger** (C.1) — replaces git-push churn.
-   5-min Marc-side UI toggle.
+   5-min manual Coolify UI toggle.
 2. **Native ARM runner matrix** (C.2) — re-add `linux/arm64` to
    GHCR matrix via native `ubuntu-24.04-arm` runner.
 3. **Cross-user feedback ratchet → prompt-tuning** (C.3) — append
@@ -269,7 +269,7 @@ Top items to look at:
    performance, §C.10 S3 backup push, §C.11 Garmin / Oura
    integrations.)
 
-Marc's recommended 6-week focus pick from the review: **C.1 + C.2 +
+Recommended 6-week focus pick from the review: **C.1 + C.2 +
 C.4 + C.7 + C.10 + C.11a Apple Health**.
 
 ---

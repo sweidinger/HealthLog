@@ -1,9 +1,9 @@
 # v1.4.15 CI/e2e reliability audit
 
-Phase C3 of the v1.4.15 marathon. Window: last 30 days of `gh run list`
-(2026-04-09 → 2026-05-09T19:00 Berlin), 200 runs across all workflows.
-Marc-prompt: "Tests müssen wirklich durchlaufen" — pass-rate matters
-more than coverage breadth.
+Stage C3 of the v1.4.15 release cycle. Window: last 30 days of
+`gh run list` (2026-04-09 → 2026-05-09T19:00 Berlin), 200 runs across
+all workflows. Maintainer brief: "Tests müssen wirklich durchlaufen" —
+pass-rate matters more than coverage breadth.
 
 ## TL;DR
 
@@ -19,8 +19,8 @@ more than coverage breadth.
 - **Integration: 47 / 47 (100 %).** Healthy.
 - **Security & Quality: 43 / 46 (93 %).** Three failures, all owned
   by upstream typecheck regressions in `dashboard-layout.test.ts`
-  introduced by phase A4's tile-visibility refactor — outside C3
-  scope; deferred to phase D / A4 follow-up.
+  introduced by stage A4's tile-visibility refactor — outside C3
+  scope; deferred to stage D / A4 follow-up.
 
 ## Per-workflow pass-rate
 
@@ -52,8 +52,9 @@ finding:
 
 Source: `<SystemStatusSummary>` and `<RecentAuditPreview>` in the
 admin overview redesign. **Root cause is not the components** —
-HealthLog ships dark mode as default (CLAUDE.md: "Dark mode is
-default", `globals.css:142` sets `color-scheme: dark` on `:root`).
+HealthLog ships dark mode as default (per repo conventions: "Dark
+mode is default", `globals.css:142` sets `color-scheme: dark` on
+`:root`).
 The inline theme bootstrapper at `src/app/layout.tsx:73` resolves
 the active theme via `prefers-color-scheme: dark`. Playwright's
 stock context defaults to `colorScheme: "light"`, so axe-core
@@ -97,24 +98,24 @@ in 17 minutes. Both runs wrote to the same gha cache scope
 
 ### 4. Typecheck regression — `dashboard-layout.test.ts` — 3 / 46 S&Q failures
 
-Phase A4's tile-visibility refactor (`8ccdfac`) tightened
+Stage A4's tile-visibility refactor (`8ccdfac`) tightened
 `DashboardWidgetId` to a string-literal union but the existing
 `dashboard-layout.test.ts` still passes plain `string` for the
 `id` field. Errors at lines 91, 104, 116. Out of C3 scope —
-flagged for the A4 owner / phase-D senior-dev review to fix.
+flagged for the A4 owner / stage-D senior-dev review to fix.
 
 ### 5. docker-publish "cancelled" — 26 / 60 runs (45 %)
 
 These are NOT failures — `concurrency.cancel-in-progress: true` on
 the `docker-publish` workflow correctly cancels superseded runs
 when a follow-up commit lands within the build window. The high
-count reflects the v1.4.15 marathon's rapid-fire commit cadence
-(7 parallel agents pushing across A1–A5 buckets), not infra
+count reflects the v1.4.15 release cycle's rapid-fire commit cadence
+(7 parallel work-streams pushing across A1–A5 buckets), not infra
 fragility. No action needed beyond what's already in the workflow.
 
 ## Recommendations
 
-### Tonight (in this C3 marathon)
+### Tonight (in this C3 stage)
 
 - [x] **e2e dark colorScheme**: `41945b2`. Unblocks the 0 % gate.
 - [x] **docker-publish per-ref cache + timeout**: `249c42b`. Bounds
@@ -128,7 +129,7 @@ fragility. No action needed beyond what's already in the workflow.
 ### Defer to v1.4.16 (out of C3 scope, owned elsewhere)
 
 - **`dashboard-layout.test.ts` typecheck regression**: A4 owner or
-  phase-D senior-dev sweep. 3 errors, ≤10 lines to fix (`as` cast or
+  stage-D senior-dev sweep. 3 errors, ≤10 lines to fix (`as` cast or
   fixture-data update).
 - **e2e Node-version pinning**: `actions/setup-node@v4` uses
   `node-version: 22` — already correct for CI parity. No change.
@@ -136,15 +137,15 @@ fragility. No action needed beyond what's already in the workflow.
   deprecation come Sept 2026 — schedule action-version refresh
   (cache@v4, checkout@v4, upload-artifact@v4) into v1.5 backlog.
 - **e2e flake reduction at the test-level**: with the colorScheme
-  fix in place, the natural next phase is to track real flakes
+  fix in place, the natural next stage is to track real flakes
   (timing-based timeouts in `dashboard.spec.ts`,
-  `insights-generate.spec.ts`). Marathon B-mobile may surface
-  these as it adds mobile assertions; capture in C3.5 if needed.
+  `insights-generate.spec.ts`). Stage B-mobile may surface these as
+  it adds mobile assertions; capture in C3.5 if needed.
 - **`Auto-merge Dependabot` reliability audit**: zero runs in the
   30-day window (no Dependabot PRs landed). Re-audit when
   Dependabot churn resumes.
 - **Trivy container scan**: currently `continue-on-error: true` —
-  flagged for the security-review pass in phase D.
+  flagged for the security-review pass in stage D.
 
 ## What "tests must really run through" means after this C3
 
@@ -160,23 +161,22 @@ The 0 → ≥90 % e2e jump is the headline — every push since v1.4.14
 went red on the same gate, so any non-flake green run after
 `41945b2` lands counts as full restoration of the suite.
 
-## Open questions for the next marathon
+## Open questions for the next release cycle
 
 - **Should `Security & Quality` continue running ESLint with
-  `continue-on-error: true`?** Phase A1's nav refactor cleaned the
+  `continue-on-error: true`?** Stage A1's nav refactor cleaned the
   bulk of the legacy violations; the remaining 12 warnings are all
   in `src/app/settings/page.tsx`, slated for the v1.5
   settings-split refactor. Flip to blocking once that refactor
   lands.
 - **Does the `Container Security` Trivy step need to gate
-  releases?** Currently `continue-on-error: true`. Marc's
+  releases?** Currently `continue-on-error: true`. Project
   preference (per AGENTS.md): keep informational in v1.4.x, flip
   to blocking in v1.5 with documented allowlist for false
   positives.
 
 ## Appendix: full run list snapshot
 
-Full JSON: `/Users/marc/.claude/projects/-Users-marc-Projects-HealthLog/1dca1daa-5f91-4814-bf3f-d829d0b38c41/tool-results/bp5i4k047.txt`
-(200 runs, 30-day window). Aggregations re-derivable via
+200 runs across the 30-day window. Aggregations re-derivable via
 `jq 'group_by(.workflowName) | map({...})'` per the snippets in
 `.planning/phase-C3-report.md`.

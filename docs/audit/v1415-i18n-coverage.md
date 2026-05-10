@@ -1,12 +1,12 @@
 # v1.4.15 — i18n coverage audit
 
 **Date**: 2026-05-09
-**Phase**: C4
+**Stage**: C4
 **Scope**: every `t("…")` / `useTranslations()` call in `src/`
 vs. `messages/en.json` and `messages/de.json`. Goal: ensure every
-v1.4.15-introduced key (Wave A1–A4, B-mobile, B1–B6, C2, C3) has a
+v1.4.15-introduced key (cleanup A1–A4, B-mobile, B1–B6, C2, C3) has a
 non-empty, non-placeholder translation in BOTH locales and follows the
-namespace conventions baked in by the Phase 4b admin reorg.
+namespace conventions baked in by the Stage 4b admin reorg.
 
 ## Method
 
@@ -86,7 +86,7 @@ fine.
 
 ### Naming consistency
 
-CLAUDE.md note: Phase 4b moved admin keys under
+Repo doc note: Stage 4b moved admin keys under
 `admin.section.<slug>.*`. Verified all v1.4.15-introduced admin
 sections follow that pattern:
 
@@ -99,7 +99,7 @@ admin.section.{system-status,general,services,integrations,
 Pre-Phase-4b legacy keys remain at the flat `admin.*` namespace (e.g.
 `admin.bugReportRepo`, `admin.userManagement`) — those are out of
 scope for this audit (renaming would touch many components for zero
-behavioural gain). New B-agent code did NOT introduce inconsistent
+behavioural gain). New stage-B code did NOT introduce inconsistent
 flat keys; e.g. B5 used `onboarding.tour.*` (not `tour.*`); B4 used
 `achievements.*` (not flat `badges.*`); B1 used `admin.section.backups.*`
 (not flat `backups.*`); B2/B3 added `settings.{integrationStatus,notificationStatus}.*`
@@ -107,12 +107,12 @@ under the existing `settings` umbrella.
 
 ## Outcome
 
-**Zero gaps closed**. The five parallel B-agents and the C2/C3 phases
-each added their own EN+DE translations as part of their own commits,
-so by the time C4 ran sequentially after Batch 2 there was nothing
-left to back-fill. The audit instead converted to a quality-assurance
-sweep: tightening `i18n-locale-integrity.test.ts` to lock in the
-non-empty + non-placeholder invariants going forward.
+**Zero gaps closed**. The five parallel stage-B work-streams and the
+C2/C3 stages each added their own EN+DE translations as part of their
+own commits, so by the time C4 ran sequentially after Batch 2 there was
+nothing left to back-fill. The audit instead converted to a
+quality-assurance sweep: tightening `i18n-locale-integrity.test.ts` to
+lock in the non-empty + non-placeholder invariants going forward.
 
 ## Test guard
 
@@ -124,5 +124,5 @@ non-empty + non-placeholder invariants going forward.
 - non-fatal warning (logged via `console.warn` in CI) for values
   containing `\bTODO\b` / `\bFIXME\b` / `\bXXX\b`
 
-These guards prevent regression: any future agent that ships a
+These guards prevent regression: any future change that ships a
 `"key": ""` or `"bugReport": "bugReport"` value will see CI go red.

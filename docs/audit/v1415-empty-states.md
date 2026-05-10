@@ -1,7 +1,7 @@
 # v1.4.15 — Empty-states audit
 
 Date: 2026-05-09
-Owner: Phase C5 agent (parallel with C1 + C4).
+Owner: Stage C5 work-stream (parallel with C1 + C4).
 Primitive: `src/components/ui/empty-state.tsx` (already shipped earlier
 in v1.4.15; sweep below tracks adoption).
 
@@ -14,7 +14,7 @@ not a single grey sentence floating in a card.
 
 | Route / surface               | Component                             | State before                                                                                                                                                          | What was wrong                                                                                                                                     | What changed                                                                                                                                                                                                                               |
 | ----------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/admin/users`                | `UserManagementSection`               | Loading-only — when `users` resolved to `[]` the table simply rendered an empty `<tbody>` with the header still visible.                                              | Empty case never specified; on a fresh deployment with one admin self-row it never reproduced for Marc, but the `admin/user` filter did regularly. | New `<EmptyState>` mounts inside the card when `filteredUsers.length === 0`, with `Users` icon, filter-aware copy, and a "Reset filter" CTA when a filter is active.                                                                       |
+| `/admin/users`                | `UserManagementSection`               | Loading-only — when `users` resolved to `[]` the table simply rendered an empty `<tbody>` with the header still visible.                                              | Empty case never specified; on a fresh deployment with one admin self-row it never reproduced for the live tenant, but the `admin/user` filter did regularly. | New `<EmptyState>` mounts inside the card when `filteredUsers.length === 0`, with `Users` icon, filter-aware copy, and a "Reset filter" CTA when a filter is active.                                                                       |
 | `/admin/backups`              | `BackupsSection`                      | Plain `<p>No backups recorded yet.</p>`.                                                                                                                              | No icon, no CTA, no signal that the "Run backup now" button at the top is what to click.                                                           | Replaced with `<EmptyState>` (`Database` icon) that includes a primary "Backup now" button — duplicates the header CTA but inside the empty card so the new admin doesn't need to look up.                                                 |
 | `/admin/login-overview`       | `LoginOverviewSection`                | Plain `<p>No entries found.</p>` (filter-dependent).                                                                                                                  | When "Failed only" is selected on a healthy installation the user sees nothing — looked like a bug.                                                | `<EmptyState>` with `ScrollText` icon, filter-aware description, and a "Show all events" CTA when the failed-only filter is active.                                                                                                        |
 | `/admin/api-tokens`           | `ApiTokenOverviewSection`             | Plain `<p>No API tokens found.</p>`.                                                                                                                                  | Doesn't tell admins that tokens are issued at login from native clients — they wonder if they need to create them somewhere.                       | `<EmptyState>` with `Key` icon and a description pointing to native sign-in / Settings → Account API tokens.                                                                                                                               |
@@ -91,7 +91,7 @@ size="compact">` per panel; not duplicating in this audit.
 
 ## Reference
 
-Phase C5 work order: `.planning/STATE.md` § Phase C5.
+Stage C5 work order: `.planning/STATE.md` § Stage C5.
 Primitive intro PR: see git log for `feat(ui): generic EmptyState
-primitive` (already on `main` before this phase started — section 1 of
+primitive` (already on `main` before this stage started — section 1 of
 the C5 brief satisfied without a new commit).

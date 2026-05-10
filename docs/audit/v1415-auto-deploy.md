@@ -1,7 +1,7 @@
 # v1.4.15 — Auto-deployment audit & design
 
-**Phase:** C2
-**Last updated:** 2026-05-09 (v1.4.15 marathon)
+**Stage:** C2
+**Last updated:** 2026-05-09 (v1.4.15 release cycle)
 **Status:** designed + shipped — see commits in `.planning/phase-C2-report.md`.
 
 ## Background
@@ -23,8 +23,8 @@ to production has been:
 
 4. Verify `/api/version` returned the new version + image digest changed.
 
-Marc's request for v1.4.15 — **eliminate step 2 and 3**. When GHCR has a new
-image, the production container should redeploy by itself.
+The maintainer's request for v1.4.15 — **eliminate step 2 and 3**. When GHCR
+has a new image, the production container should redeploy by itself.
 
 ## Investigation — what Coolify supports
 
@@ -106,11 +106,11 @@ proves unreliable):** Watchtower with a per-image label
 
 3. **Document everything** in this file + `phase-C2-report.md`.
 
-## Marc-side configuration after merge
+## Maintainer-side configuration after merge
 
-Since the agent does not have access to Marc's GitHub repo settings or
-Coolify's UI directly, three manual steps remain after the auto-deploy code
-ships:
+Since the automated tooling does not have access to the GitHub repo
+settings or Coolify's UI directly, three manual steps remain after the
+auto-deploy code ships:
 
 1. **Generate a Coolify API token** in Coolify UI → `Keys & Tokens` →
    "Create New Token" with permission `*` (or `read:sensitive` plus deploy).
@@ -130,18 +130,19 @@ ships:
    `openssl rand -hex 32`.
 
 These four manual steps are tracked in `.planning/phase-C2-report.md`'s
-"Marc-side follow-up" section. The code is fully complete and tested without
-them; auto-deploy simply doesn't fire until the secrets are populated.
+"Maintainer-side follow-up" section. The code is fully complete and tested
+without them; auto-deploy simply doesn't fire until the secrets are
+populated.
 
 ## Failure modes considered
 
 | Failure                                       | What happens                                                                                        |
 | --------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Coolify deploy URL down                       | GH Actions step continues (`continue-on-error: true`); image stays on GHCR, Marc deploys manually.  |
+| Coolify deploy URL down                       | GH Actions step continues (`continue-on-error: true`); image stays on GHCR, deploy falls back to manual. |
 | Coolify notification fires before image pull  | Coolify retries the pull internally; final status (success/failure) reaches our webhook regardless. |
 | Webhook secret leaked                         | Rotate `DEPLOY_WEBHOOK_SECRET`, redeploy. Audit-log entry on every received call shows source IP.   |
 | Webhook handler down at deploy time           | Coolify retries 3× per docs; final missed event is recoverable from Coolify's own deployment log.   |
-| Coolify API rejects token (permission scope)  | GH Actions step prints the response body; agent's next merge surfaces it as a workflow failure.     |
+| Coolify API rejects token (permission scope)  | GH Actions step prints the response body; the next merge surfaces it as a workflow failure.         |
 | GHCR push succeeds but webhook step is broken | Image still gets to GHCR; manual deploy still works as a fallback.                                  |
 
 ## Watchtower — why not (revisited)

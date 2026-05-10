@@ -1,6 +1,6 @@
 # HealthLog v1.4.15 — Release Summary
 
-## Marc-Brief (DE, ≤ 220 Wörter)
+## Release brief (DE, ≤ 220 Wörter)
 
 ✅ **v1.4.15 ist live** auf `https://healthlog.bombeck.io` — Image-Digest
 `sha256:ace7d441f47b…` (vorher v1.4.14: `0ced46004a54…`),
@@ -58,9 +58,9 @@ Multi-Provider-AI-Abstraktion + `MockAIProvider`.
 
 ## Was gelandet ist
 
-78 Commits seit `v1.4.14` (`30d3ad0..4dcaa08`). Phase-für-Phase.
+78 Commits seit `v1.4.14` (`30d3ad0..4dcaa08`). Stage-für-Stage.
 
-### Quick fixes (Phase A1–A5 + B-mobile)
+### Quick fixes (Stage A1–A5 + B-mobile)
 
 | SHA       | Summary                                                                             |
 | --------- | ----------------------------------------------------------------------------------- |
@@ -83,7 +83,7 @@ Multi-Provider-AI-Abstraktion + `MockAIProvider`.
 | `00f8cd5` | fix(settings): passkey list responsive — card view at < md                          |
 | `c0b14f4` | fix(auth): bump login buttons to 44px tap-target on mobile                          |
 
-### Features (Phase B1–B6)
+### Features (Stage B1–B6)
 
 | SHA       | Summary                                                                          |
 | --------- | -------------------------------------------------------------------------------- |
@@ -108,7 +108,7 @@ Multi-Provider-AI-Abstraktion + `MockAIProvider`.
 | `d692119` | feat(doctor-report): configurable date range with default last-90-days           |
 | `28467b2` | feat(doctor-report): practice name on cover page (persisted as user preference)  |
 
-### Hardening (Phase C1–C5)
+### Hardening (Stage C1–C5)
 
 | SHA       | Summary                                                                            |
 | --------- | ---------------------------------------------------------------------------------- |
@@ -129,7 +129,7 @@ Multi-Provider-AI-Abstraktion + `MockAIProvider`.
 | `1d65f3b` | feat(lists): empty states for measurements, mood, medications, achievements (impl) |
 | `65faf1d` | feat(insights,dashboard): empty states for first-run views                         |
 
-### QA + Reconcile (Phase D)
+### QA + Reconcile (Stage D)
 
 | SHA       | Summary                                                                    |
 | --------- | -------------------------------------------------------------------------- |
@@ -137,9 +137,9 @@ Multi-Provider-AI-Abstraktion + `MockAIProvider`.
 | `6465412` | fix(a11y): trap focus + restore + ring on onboarding tour                  |
 | `66d2e07` | fix(a11y): break long Withings error strings inside status banner          |
 | `79bb167` | fix(ai): MockAIProvider DEFAULT_RESPONSE conforms to v1.4.15 strict schema |
-| `d947563` | style(v1.4.15): prettier sweep on phase-D reconcile touched files          |
+| `d947563` | style(v1.4.15): prettier sweep on stage-D reconcile touched files          |
 
-### Release (Phase E1–E3)
+### Release (Stage E1–E3)
 
 | SHA       | Summary                 |
 | --------- | ----------------------- |
@@ -168,8 +168,9 @@ Volle Liste: `.planning/v1416-backlog.md`. Highlights:
   (`<DashboardShell>` + `<DashboardTileStrip>` + `<DashboardChartGrid>`).
 - **senior-dev H2** — `integrations-section.tsx` (883 LOC) splitten
   (per-provider Cards + composing index, Mirror admin-Pattern).
-- **senior-dev H3** — Process: pro Parallel-Agent ein Worktree, weil
-  acht v1.4.15-Commits Diff-Drift gegen ihre Subjects zeigten.
+- **senior-dev H3** — Process: pro paralleler Aufgabenstrang ein
+  Worktree, weil acht v1.4.15-Commits Diff-Drift gegen ihre Subjects
+  zeigten.
 
 ### 5 MEDIUM mobile-items aus A5
 
@@ -199,7 +200,7 @@ comparedTo, deviation}` + UI „Warum?"-Tooltip.
 
 ### Auto-Deploy Image-Digest-Trigger → v1.4.16
 
-Coolify deployt aktuell auf jeden Git-Push (Marc ließ stehen für jetzt);
+Coolify deployt aktuell auf jeden Git-Push (vorerst belassen);
 v1.4.16 soll auf neuen Image-Digest umstellen, damit Coolify nicht für
 docs / planning / changelog-only commits einen Container-Recreate
 fährt.
@@ -211,7 +212,7 @@ fährt.
 - `dashboard-layout.test.ts` Typecheck-Regression aufräumen (in E1
   bereits gefixt — bleibt aber als „pre-existing" in mehreren STATE-
   Phasen vermerkt; Reklassifizierung).
-- Worktree-Adoption für den v1.4.16-Marathon.
+- Worktree-Adoption für den v1.4.16-Release-Cycle.
 
 ### Simplify-no (4)
 
@@ -227,18 +228,18 @@ duplizierter `requireAdmin`-Branch, `F12` historische Anker-Kommentare
   `dashboard-layout.test.ts`-Errors in E1 mitgefixt: Test-Fixtures als
   `DashboardLayout` getypt, damit der `DashboardWidgetId`-Enum nicht
   mehr meckert).
-- `pnpm lint` — 0 errors / 11 pre-existing warnings (B-Phase warnings
-  count ging von 12 auf 11, weil ein Sibling-Agent eine unrelated
-  unused-var entfernt hat).
+- `pnpm lint` — 0 errors / 11 pre-existing warnings (B-Stage warnings
+  count ging von 12 auf 11, weil ein paralleler Aufgabenstrang eine
+  unrelated unused-var entfernt hat).
 - `pnpm format:check` — clean nach `d947563` + dem prettier-Sweep im
-  Release-Commit (41-File-Drift aus Phase D adressiert).
-- `pnpm test` — **~1048 unit tests** green (von 754 zu Beginn der
-  v1.4.15-Marathon).
+  Release-Commit (41-File-Drift aus Stage D adressiert).
+- `pnpm test` — **~1048 unit tests** green (von 754 zu Beginn des
+  v1.4.15-Release-Cycle).
 - `pnpm test:integration` — **31 / 31** green (waren 19 vor B1).
 - `pnpm build` — fails lokal auf Node 25 (`Reflect.get` private-member
   Bug, gleicher Issue wie v1.4.14); CI Docker (Node 22) ist canonical
   und grün.
-- `pnpm e2e` — Phase C3 hat das Dark-Mode-axe-Blocking gefixt
+- `pnpm e2e` — Stage C3 hat das Dark-Mode-axe-Blocking gefixt
   (`colorScheme: "dark"` in `playwright.config.ts`); e2e-Pass-Rate ging
   von 0 % auf erwartete ≥ 90 %.
 
@@ -259,10 +260,9 @@ duplizierter `requireAdmin`-Branch, `F12` historische Anker-Kommentare
 - **Deploy-Methode**: GHCR-Tag-Build `:1.4.15` erfolgreich; Main-Branch-
   Run hing wieder (gleicher Bug wie v1.4.14, von C3 nicht vollständig
   adressiert), retag-on-host als Workaround. v1.4.16-Backlog-Eintrag.
-- **Coolify Auto-Deploy**: feuert weiterhin auf jeden Git-Push (Marc
-  ließ stehen für jetzt); v1.4.16-Image-Digest-Trigger geplant, damit
-  docs / planning / changelog-only commits keinen Container-Recreate
-  auslösen.
+- **Coolify Auto-Deploy**: feuert weiterhin auf jeden Git-Push (vorerst
+  belassen); v1.4.16-Image-Digest-Trigger geplant, damit docs / planning
+  / changelog-only commits keinen Container-Recreate auslösen.
 - **GitHub-Release**: https://github.com/MBombeck/HealthLog/releases/tag/v1.4.15
 - **Tag-Naming** (unverändert seit v1.4.14): GHCR-OCI-Tag ist
   `:1.4.15` (kein `v`-Prefix); git-Tag ist `v1.4.15`.
@@ -271,7 +271,7 @@ duplizierter `requireAdmin`-Branch, `F12` historische Anker-Kommentare
 
 ## Docs / Landing
 
-- **healthlog-docs** (Starlight) — Phase E3 hat den vollen Sync
+- **healthlog-docs** (Starlight) — Stage E3 hat den vollen Sync
   ausgerollt (`6b938df` + `db66da0`). Neue Seiten:
   - `/admin/backups` — Backup-Struktur (Snapshot-Schema,
     `BACKUP_SCHEMA_VERSION = "1"`, encrypted-at-rest, Restore-Gates).
@@ -306,9 +306,9 @@ findings, correlations, dataQuality, …}`) retiren. Wird zusammen
    Guard auf „nur wenn keine Row existiert" oder `enabled` nicht mehr
    anfassen.
 5. **Worktree-Adoption** — `superpowers:using-git-worktrees` pro
-   parallelen Agent; acht v1.4.15-Commits hatten Diff-Drift gegen
-   ihre Commit-Subjects (A2, A4, B1, B-mobile, B2, B3, B4, C1, C5).
-   Process-Win, kein Code-Change.
+   parallelem Aufgabenstrang; acht v1.4.15-Commits hatten Diff-Drift
+   gegen ihre Commit-Subjects (A2, A4, B1, B-mobile, B2, B3, B4, C1,
+   C5). Process-Win, kein Code-Change.
 
 ---
 
