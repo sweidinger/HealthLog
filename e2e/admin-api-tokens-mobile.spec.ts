@@ -167,9 +167,31 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
     // Walk every element inside the mobile card-list and assert no
     // child has a wider scrollWidth than its container. This is the
     // Pixel-5 worst-case Marc kept hitting.
+    //
+    // Elements clamped via `truncate` (Tailwind's `overflow:hidden +
+    // text-overflow:ellipsis + white-space:nowrap` shorthand) are by
+    // design `scrollWidth > clientWidth` whenever the underlying text
+    // is longer than the parent column — that IS the truncation, not
+    // an overflow leak. Skip those so the assertion only fires on real
+    // layout culprits (a span without a width clamp pushing its parent
+    // wider). The page-level `dims.scrollWidth <= dims.innerWidth + 1`
+    // assertion below remains the authoritative no-scrollbar guard.
     const culprits = await page
       .getByTestId("admin-tokens-mobile-list")
       .evaluate((root) => {
+        const isTruncated = (el: Element): boolean => {
+          const cs = window.getComputedStyle(el);
+          if (cs.textOverflow === "ellipsis" && cs.overflowX !== "visible") {
+            return true;
+          }
+          // Tailwind's `truncate` shorthand and any explicit overflow
+          // clamp also legitimately keep the visible content inside
+          // clientWidth even though scrollWidth measures full content.
+          if (cs.overflowX === "hidden" || cs.overflowX === "clip") {
+            return true;
+          }
+          return false;
+        };
         const out: Array<{
           tag: string;
           klass: string;
@@ -177,7 +199,7 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
           clientWidth: number;
         }> = [];
         for (const el of root.querySelectorAll("*")) {
-          if (el.scrollWidth > el.clientWidth + 1) {
+          if (el.scrollWidth > el.clientWidth + 1 && !isTruncated(el)) {
             out.push({
               tag: el.tagName,
               klass:
