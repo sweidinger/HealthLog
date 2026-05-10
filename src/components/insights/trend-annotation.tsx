@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { CONFIDENCE_BADGE_CLASS } from "./confidence-badge";
 
 /**
  * v1.4.20 phase B3 — single-sentence AI annotation rendered directly
@@ -29,15 +30,6 @@ interface TrendAnnotationProps {
   /** Optional discrete confidence band. */
   confidence?: TrendAnnotationConfidenceBand;
 }
-
-const CONFIDENCE_BADGE_CLASSNAME: Record<
-  TrendAnnotationConfidenceBand,
-  string
-> = {
-  high: "border-dracula-green/40 bg-dracula-green/10 text-dracula-green",
-  moderate: "border-dracula-orange/40 bg-dracula-orange/10 text-dracula-orange",
-  low: "border-dracula-comment/40 bg-dracula-comment/10 text-muted-foreground",
-};
 
 const CONFIDENCE_LABEL_KEY: Record<TrendAnnotationConfidenceBand, string> = {
   high: "insights.trendAnnotation.confidenceHigh",
@@ -86,7 +78,7 @@ export function TrendAnnotation({
           <Badge
             data-slot="trend-annotation-confidence"
             variant="outline"
-            className={cn("text-[10px]", CONFIDENCE_BADGE_CLASSNAME[confidence])}
+            className={cn("text-[10px]", CONFIDENCE_BADGE_CLASS[confidence])}
           >
             {t(CONFIDENCE_LABEL_KEY[confidence])}
           </Badge>

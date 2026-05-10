@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useTranslations } from "@/lib/i18n/context";
+import { formatRelativeTime } from "@/lib/i18n/relative-time";
 import { cn } from "@/lib/utils";
 import type {
   DailyBriefing as DailyBriefingPayload,
@@ -251,23 +252,3 @@ export function DailyBriefing({
   );
 }
 
-/**
- * Bucketed relative-time using i18n translation keys so every surface
- * shares vocabulary. Buckets: <1m, <1h, <24h, else days. Mirrors the
- * helper in `<InsightsPageHero>` so the two cards format the same way.
- */
-function formatRelativeTime(
-  iso: string,
-  t: (key: string, params?: Record<string, string | number>) => string,
-): string {
-  const target = new Date(iso).getTime();
-  if (Number.isNaN(target)) return "";
-  const diffMs = Date.now() - target;
-  if (diffMs < 60_000) return t("insights.relativeJustNow");
-  const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 60) return t("insights.relativeMinutesAgo", { count: minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t("insights.relativeHoursAgo", { count: hours });
-  const days = Math.floor(hours / 24);
-  return t("insights.relativeDaysAgo", { count: days });
-}

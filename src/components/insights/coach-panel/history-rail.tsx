@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
+import { formatRelativeTime } from "@/lib/i18n/relative-time";
 
 import {
   useCoachConversations,
@@ -35,22 +36,6 @@ export interface HistoryRailProps {
    * default layout (currently the drawer wraps it in an `<aside>`).
    */
   className?: string;
-}
-
-function formatRelativeTime(
-  iso: string,
-  t: (key: string, params?: Record<string, string | number>) => string,
-): string {
-  const target = new Date(iso).getTime();
-  if (Number.isNaN(target)) return "";
-  const diffMs = Date.now() - target;
-  if (diffMs < 60_000) return t("insights.relativeJustNow");
-  const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 60) return t("insights.relativeMinutesAgo", { count: minutes });
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return t("insights.relativeHoursAgo", { count: hours });
-  const days = Math.floor(hours / 24);
-  return t("insights.relativeDaysAgo", { count: days });
 }
 
 export function HistoryRail({

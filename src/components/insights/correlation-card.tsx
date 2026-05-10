@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import type { CorrelationResult } from "@/lib/insights/correlations";
+import { CONFIDENCE_BADGE_CLASS } from "./confidence-badge";
 
 /**
  * v1.4.20 phase B3 — single Correlation card.
@@ -58,14 +59,6 @@ const SUBTITLE_KEY: Record<CorrelationResult["kind"], string> = {
   "weight-weekday": "insights.correlationRow.card.weightWeekdaySubtitle",
 };
 
-const CONFIDENCE_BADGE_CLASSNAME: Record<"low" | "moderate" | "high", string> =
-  {
-    high: "border-dracula-green/40 bg-dracula-green/10 text-dracula-green",
-    moderate:
-      "border-dracula-orange/40 bg-dracula-orange/10 text-dracula-orange",
-    low: "border-dracula-comment/40 bg-dracula-comment/10 text-muted-foreground",
-  };
-
 const CONFIDENCE_LABEL_KEY: Record<"low" | "moderate" | "high", string> = {
   high: "insights.correlationRow.confidenceHigh",
   moderate: "insights.correlationRow.confidenceModerate",
@@ -102,7 +95,7 @@ export function CorrelationCard({ result }: CorrelationCardProps) {
               variant="outline"
               className={cn(
                 "shrink-0 text-[10px]",
-                CONFIDENCE_BADGE_CLASSNAME[result.confidenceBand.label],
+                CONFIDENCE_BADGE_CLASS[result.confidenceBand.label],
               )}
             >
               {t(CONFIDENCE_LABEL_KEY[result.confidenceBand.label])}

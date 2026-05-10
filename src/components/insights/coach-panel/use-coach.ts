@@ -82,7 +82,11 @@ export function useCoachConversations(enabled = true) {
  */
 export function useCoachConversation(id: string | null) {
   return useQuery({
-    queryKey: id ? QUERY_KEYS.one(id) : ["coachConversation", "null"],
+    // The query is gated on `enabled: id !== null`, so the queryFn
+    // never fires when `id` is null. Key directly on `id` (TanStack
+    // Query accepts `null` in the array) — the previous "null"
+    // placeholder branch was structurally equivalent dead code.
+    queryKey: ["coachConversation", id] as const,
     queryFn: async (): Promise<CoachConversationDetailDTO> => {
       if (!id) throw new Error("missing id");
       const res = await fetch(`/api/insights/chat/${id}`, {
