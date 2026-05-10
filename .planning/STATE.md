@@ -165,11 +165,28 @@ commit.
 
 ### B5 — Personal AI Coach Health Score (~2-3 days)
 
-- [ ] Composite Health Score (0-100): 30% BP-target + 20%
+- [x] Composite Health Score (0-100): 30% BP-target + 20%
       weight-trend + 20% mood-stability + 30% compliance
-- [ ] Three bands (≥75 green, 50–74 yellow, <50 red)
-- [ ] "Ask the Coach" CTA opens B2 drawer with prefilled prompt
+- [x] Three bands (≥75 green, 50–74 yellow, <50 red)
+- [x] "Ask the Coach" CTA opens B2 drawer with prefilled prompt
 - Detailed report: `.planning/phase-B5-report.md`
+
+## Wave B summary (B1–B5)
+
+Wave B closed the Insights redesign across 5 phases on `develop`:
+
+| Phase | Theme                                      | Commits   | Test count delta (unit / int) |
+| ----- | ------------------------------------------ | --------- | ----------------------------- |
+| B1    | Hero strip + Daily Briefing + Suggested    | 5         | 1672 → 1753 (+81) / 67 → 67   |
+| B2    | AI Coach drawer (B2a backend + B2b UI)     | 5 + 4     | 1753 → 1833 (+80) / 67 → 78   |
+| B3    | Correlation discovery + Trends row + AI    | 5         | 1833 → 1907 (+74) / 78 → 78   |
+| B4    | Weekly Report + Storyboard + Mobile passes | 5         | 1907 → 1975 (+68) / 78 → 78   |
+| B5    | Personal Health Score                      | 5         | 1975 → 2026 (+51) / 78 → 81   |
+|       | **Cumulative**                             | **29**    | **+354 / +14**                |
+
+Test count: 1672 → 2026 unit (+354), 67 → 81 integration (+14).
+Test files 217 → 237. typecheck clean every phase; lint
+13 baseline warnings unchanged.
 
 ## Wave D — Multi-agent QA + Product-Lead review
 
@@ -249,3 +266,24 @@ commit.
   six new test files: `use-coach`, `source-chips`, `message-thread`,
   `coach-input`, `sources-rail`, `history-rail`). Integration count
   unchanged at 78. typecheck + lint clean (12 baseline warnings).
+
+## Status block — B5 (v1.4.20)
+
+- 2026-05-10T17:45+02:00 — B5 complete. Personal Health Score
+  landed in five atomic commits on `develop`: pure formula library
+  (`src/lib/analytics/health-score.ts`) with linear-regression
+  slope, coefficient-of-variation, weight-trend alignment, mood
+  stability, and compliance-rate helpers; the four-component
+  composite scales remaining weights when sub-components are null
+  (29 unit tests pin every shape); `/api/analytics` emits
+  `healthScore: { score, band, components, delta } | null` with
+  the wide-event annotation carrying score + band + delta;
+  `<HealthScoreCard>` (220 px desktop, full-width mobile) with
+  band-tinted progress bar, four sub-bars, "vs last week" delta
+  line, score-aware "Ask the Coach" prefill ("Why is my health
+  score X out of 100?"); `<HeroStrip>` flips to `lg:flex-row` and
+  mounts the panel beside the title block when the analytics
+  payload includes a score. Tests: 1975 → 2026 unit (+51), 78 → 81
+  integration (+3). typecheck + lint clean. Canonical sample (the
+  integration's strong-positive seed): score 95, band green,
+  components 90/100/89/100. Wave-B closed; Wave D dispatch next.
