@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import type { ComparisonBaseline } from "@/lib/dashboard-layout";
 
 interface SecondaryMetric {
   /** Sub-value latest reading (e.g. diastolic when latest is systolic). */
@@ -74,6 +75,18 @@ interface TrendCardProps {
    * call sites that haven't been migrated yet.
    */
   trend7Delta?: number | null;
+  /**
+   * v1.4.16 phase B8 — comparison delta callout. When the dashboard's
+   * comparison toggle is active and we can compute a baseline value,
+   * the tile renders a "Δ −2.3 kg vs. last month" caption on a second
+   * line below the latest value. Color follows the same metric-aware
+   * sentiment rules as the headline arrow + 7d delta.
+   *
+   * `compareBaseline === "none"` or `compareDelta === null` keeps the
+   * tile rendering exactly as before (regression guard).
+   */
+  compareBaseline?: ComparisonBaseline;
+  compareDelta?: number | null;
 }
 
 export function TrendCard({
@@ -91,6 +104,8 @@ export function TrendCard({
   directionSentiment = "neutral",
   secondary,
   trend7Delta = null,
+  compareBaseline = "none",
+  compareDelta = null,
 }: TrendCardProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -139,6 +154,23 @@ export function TrendCard({
     return isGood ? "text-dracula-green" : "text-dracula-orange";
   })();
 
+  /**
+   * v1.4.16 phase B8 — color the comparison delta with the same
+   * metric-aware sentiment rules used everywhere else on the tile.
+   * Tiny deltas read as stable and stay muted.
+   */
+  const comparisonDeltaColor = ((): string => {
+    if (compareDelta == null || Math.abs(compareDelta) < 0.05) {
+      return "text-muted-foreground";
+    }
+    if (directionSentiment === "neutral") return "text-muted-foreground";
+    const isUp = compareDelta > 0;
+    const isGood =
+      (directionSentiment === "up-good" && isUp) ||
+      (directionSentiment === "up-bad" && !isUp);
+    return isGood ? "text-dracula-green" : "text-dracula-orange";
+  })();
+
   const formatDelta = (value: number): string => {
     if (Math.abs(value) < 0.05) return `±0`;
     const sign = value > 0 ? "+" : "−";
@@ -180,6 +212,34 @@ export function TrendCard({
         </span>
         {slope30 && <TrendIcon className={`h-4 w-4 ${trendColor}`} />}
       </div>
+      {/* v1.4.16 phase B8 — comparison delta callout. Sits on its own
+          line below the latest value so the tile stays scannable on
+          mobile viewports (no horizontal-scroll, no overlap with the
+          existing 7d/30d row). Suppressed when comparison is off OR
+          we don't have enough data to compute a delta. */}
+      {compareBaseline !== "none" && compareDelta != null && (
+        <div className="mt-1">
+          <span
+            className={cn(
+              "text-xs font-medium tabular-nums",
+              comparisonDeltaColor,
+            )}
+            data-slot="tile-compare-delta"
+            data-compare-baseline={compareBaseline}
+            aria-label={`${formatDelta(compareDelta)}${unit ? ` ${unit}` : ""} ${
+              compareBaseline === "lastMonth"
+                ? "vs. last month"
+                : "vs. last year"
+            }`}
+          >
+            {`Δ ${formatDelta(compareDelta)}${unit ? ` ${unit}` : ""} ${t(
+              compareBaseline === "lastMonth"
+                ? "comparison.captionLastMonth"
+                : "comparison.captionLastYear",
+            )}`}
+          </span>
+        </div>
+      )}
       <TooltipProvider>
         <div className="text-muted-foreground mt-auto flex gap-3 pt-1 text-xs">
           <span>

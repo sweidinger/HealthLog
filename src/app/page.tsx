@@ -224,6 +224,25 @@ export default function DashboardPage() {
    * receives the same value. "none" = comparison off (pre-B8 default).
    */
   const compareBaseline = layout.comparisonBaseline ?? "none";
+
+  /**
+   * v1.4.16 phase B8 — derive the tile-delta value (current 30d avg
+   * minus prior-period 30d avg) for any DataSummary. Returns null
+   * when comparison is off OR either side is missing data so the
+   * tile can suppress the callout cleanly.
+   */
+  const tileCompareDelta = (
+    summary: DataSummary | null | undefined,
+  ): number | null => {
+    if (!summary || compareBaseline === "none") return null;
+    const current = summary.avg30 ?? null;
+    const prior =
+      compareBaseline === "lastMonth"
+        ? (summary.avg30LastMonth ?? null)
+        : (summary.avg30LastYear ?? null);
+    if (current === null || prior === null) return null;
+    return Math.round((current - prior) * 100) / 100;
+  };
   /** Whether the widget's *chart* (lower row) shows. */
   const isChartVisible = (id: string) =>
     layout.widgets.find((widget) => widget.id === id)?.visible ?? false;
@@ -529,6 +548,8 @@ export default function DashboardPage() {
                 trend7Delta={summaryToTrend7Delta(w)}
                 icon={Activity}
                 directionSentiment="up-bad"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(w)}
               />
             ),
           });
@@ -572,6 +593,8 @@ export default function DashboardPage() {
                 trend7Delta={summaryToTrend7Delta(sys)}
                 icon={Heart}
                 directionSentiment="up-bad"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(sys)}
               />
             ),
           });
@@ -610,6 +633,8 @@ export default function DashboardPage() {
                 trend7Delta={summaryToTrend7Delta(dia)}
                 icon={Heart}
                 directionSentiment="up-bad"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(dia)}
               />
             ),
           });
@@ -647,6 +672,8 @@ export default function DashboardPage() {
                 slope30={p?.slope30 ?? null}
                 trend7Delta={summaryToTrend7Delta(p)}
                 icon={TrendingUp}
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(p)}
               />
             ),
           });
@@ -667,6 +694,8 @@ export default function DashboardPage() {
                 trend7Delta={summaryToTrend7Delta(bf)}
                 icon={Percent}
                 directionSentiment="up-bad"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(bf)}
               />
             ),
           });
@@ -687,6 +716,8 @@ export default function DashboardPage() {
                 trend7Delta={summaryToTrend7Delta(moodSummary)}
                 icon={Smile}
                 directionSentiment="up-good"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(moodSummary)}
               />
             ),
           });
@@ -707,6 +738,8 @@ export default function DashboardPage() {
                 trend7Delta={summaryToTrend7Delta(sleepSummary)}
                 icon={Moon}
                 directionSentiment="up-good"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(sleepSummary)}
               />
             ),
           });
@@ -727,6 +760,8 @@ export default function DashboardPage() {
                 trend7Delta={summaryToTrend7Delta(stepsSummary)}
                 icon={Footprints}
                 directionSentiment="up-good"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(stepsSummary)}
               />
             ),
           });

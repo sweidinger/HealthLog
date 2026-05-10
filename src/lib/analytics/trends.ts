@@ -204,6 +204,19 @@ export interface DataSummary {
   slope30: TrendSlope | null;
   slope90: TrendSlope | null;
   anomalyCount: number;
+  /**
+   * v1.4.16 phase B8 — average value over the 30-day window starting
+   * 30 days before today, i.e. the "last month" prior period the
+   * dashboard tile delta callout compares against. Null when the
+   * window has no data.
+   */
+  avg30LastMonth?: number | null;
+  /**
+   * v1.4.16 phase B8 — average value over the 30-day window starting
+   * 365 days before today (one calendar year ago). Null when the
+   * window has no data.
+   */
+  avg30LastYear?: number | null;
 }
 
 export function summarize(data: DataPoint[]): DataSummary {
@@ -223,6 +236,8 @@ export function summarize(data: DataPoint[]): DataSummary {
       slope30: null,
       slope90: null,
       anomalyCount: 0,
+      avg30LastMonth: null,
+      avg30LastYear: null,
     };
   }
 
@@ -231,12 +246,29 @@ export function summarize(data: DataPoint[]): DataSummary {
   const mean = values.reduce((s, v) => s + v, 0) / values.length;
 
   const now = Date.now();
-  const last7 = sorted.filter(
-    (p) => now - p.date.getTime() < 7 * 24 * 60 * 60 * 1000,
-  );
-  const last30 = sorted.filter(
-    (p) => now - p.date.getTime() < 30 * 24 * 60 * 60 * 1000,
-  );
+  const DAY = 24 * 60 * 60 * 1000;
+  const last7 = sorted.filter((p) => now - p.date.getTime() < 7 * DAY);
+  const last30 = sorted.filter((p) => now - p.date.getTime() < 30 * DAY);
+
+  // v1.4.16 phase B8 — prior-period 30-day means powering the tile
+  // delta callout. The lastMonth window is days [30, 60) ago; the
+  // lastYear window is days [365, 395) ago. Both align to the 30-day
+  // shift the chart overlay uses so the tile delta and the chart
+  // overlay narrate the same comparison.
+  const meanOfWindow = (
+    minDaysAgo: number,
+    maxDaysAgo: number,
+  ): number | null => {
+    const slice = sorted.filter((p) => {
+      const ageMs = now - p.date.getTime();
+      return ageMs >= minDaysAgo * DAY && ageMs < maxDaysAgo * DAY;
+    });
+    if (slice.length === 0) return null;
+    const sum = slice.reduce((s, p) => s + p.value, 0);
+    return Math.round((sum / slice.length) * 100) / 100;
+  };
+  const avg30LastMonth = meanOfWindow(30, 60);
+  const avg30LastYear = meanOfWindow(365, 395);
 
   return {
     count: data.length,
@@ -260,5 +292,7 @@ export function summarize(data: DataPoint[]): DataSummary {
     slope30: trendSlope(data, 30),
     slope90: trendSlope(data, 90),
     anomalyCount: detectAnomalies(data).length,
+    avg30LastMonth,
+    avg30LastYear,
   };
 }
