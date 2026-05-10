@@ -124,6 +124,10 @@ Contributors: track `develop`. PRs target `develop`.
 4. Ensure all checks pass (`pnpm typecheck && pnpm lint && pnpm test && pnpm format:check && pnpm build`)
 5. Submit a PR against `develop` with a clear description of the changes
 
+## Code of Conduct
+
+This project follows the [Contributor Covenant 2.1](CODE_OF_CONDUCT.md). By participating, you agree to uphold its standards. Reports of unacceptable behavior go to `conduct@bombeck.io`.
+
 ## Security
 
 If you find a security vulnerability, **do not open a public issue**. See [SECURITY.md](SECURITY.md) for responsible disclosure instructions.
