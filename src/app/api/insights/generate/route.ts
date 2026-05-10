@@ -5,7 +5,14 @@ import { extractFeatures } from "@/lib/insights/features";
 import {
   getInsightsSystemPrompt,
   buildUserPrompt,
+  type ComparisonSnapshot,
 } from "@/lib/insights/prompt";
+import { summarize, type DataPoint } from "@/lib/analytics/trends";
+import {
+  resolveDashboardLayout,
+  type ComparisonBaseline,
+} from "@/lib/dashboard-layout";
+import type { MeasurementType } from "@/generated/prisma/client";
 import { insightResultSchema, type InsightResult } from "@/lib/ai/types";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
 import {
@@ -63,6 +70,102 @@ async function evictPerStatusInsightCache(userId: string): Promise<void> {
       AND: [{ action: { contains: "-status." } }],
     },
   });
+}
+
+/**
+ * v1.4.16 phase B8 — fetch the user's persisted comparison toggle and
+ * build a `ComparisonSnapshot` for the prompt builder. Returns null
+ * when comparison is off (most users), so the prompt builder skips
+ * the context block entirely.
+ *
+ * Snapshot construction reuses the analytics `summarize()` helper
+ * (which now emits `avg30LastMonth` + `avg30LastYear`) so the numbers
+ * the LLM sees match the numbers the dashboard tile renders — no
+ * second source of truth for the comparison delta.
+ */
+async function buildComparisonSnapshotForUser(
+  userId: string,
+): Promise<ComparisonSnapshot | null> {
+  // The features payload doesn't carry prior-period values — pulling
+  // a fresh `summarize()` per metric below keeps the snapshot
+  // self-contained without retrofitting features.ts.
+  const row = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { dashboardWidgetsJson: true },
+  });
+  const layout = resolveDashboardLayout(row?.dashboardWidgetsJson);
+  const baseline: ComparisonBaseline = layout.comparisonBaseline ?? "none";
+  if (baseline === "none") return null;
+
+  // Pull every measurement type once and run summarize() so the
+  // prior-period averages line up with what the dashboard analytics
+  // computes. Only include rows where the LLM can sensibly narrate
+  // a prior comparison (i.e. the metric exists in our snapshot type
+  // mapping below).
+  const typeToSnapshotKey: Record<string, string> = {
+    WEIGHT: "weight",
+    BLOOD_PRESSURE_SYS: "bloodPressureSys",
+    BLOOD_PRESSURE_DIA: "bloodPressureDia",
+    PULSE: "pulse",
+    BODY_FAT: "bodyFat",
+    SLEEP_DURATION: "sleep",
+    ACTIVITY_STEPS: "steps",
+  };
+  const typeUnits: Record<string, string> = {
+    WEIGHT: "kg",
+    BLOOD_PRESSURE_SYS: "mmHg",
+    BLOOD_PRESSURE_DIA: "mmHg",
+    PULSE: "bpm",
+    BODY_FAT: "%",
+    SLEEP_DURATION: "h",
+    ACTIVITY_STEPS: "",
+  };
+  const types = Object.keys(typeToSnapshotKey) as MeasurementType[];
+  const rows = await Promise.all(
+    types.map(async (type) => {
+      const measurements = await prisma.measurement.findMany({
+        where: { userId, type },
+        orderBy: { measuredAt: "asc" },
+        select: { measuredAt: true, value: true },
+      });
+      const summary = summarize(
+        measurements.map(
+          (m): DataPoint => ({ date: m.measuredAt, value: m.value }),
+        ),
+      );
+      const baselineAvg =
+        baseline === "lastMonth"
+          ? (summary.avg30LastMonth ?? null)
+          : (summary.avg30LastYear ?? null);
+      const currentAvg = summary.avg30 ?? null;
+      const delta =
+        currentAvg !== null && baselineAvg !== null
+          ? Math.round((currentAvg - baselineAvg) * 100) / 100
+          : null;
+      const deltaPercent =
+        delta !== null && baselineAvg !== null && baselineAvg !== 0
+          ? Math.round((delta / Math.abs(baselineAvg)) * 100 * 10) / 10
+          : null;
+      return {
+        type: typeToSnapshotKey[type] ?? type,
+        currentAvg,
+        baselineAvg,
+        delta,
+        deltaPercent,
+        unit: typeUnits[type] ?? "",
+      };
+    }),
+  );
+
+  // Drop fully-empty rows (current AND baseline missing) so the prompt
+  // doesn't pad with noise. Keep partial rows (one side null) — the
+  // block renderer flags them with "no prior-period data available"
+  // which is useful context for the model.
+  const metrics = rows.filter(
+    (row) => row.currentAvg !== null || row.baselineAvg !== null,
+  );
+
+  return { baseline, metrics };
 }
 
 export const POST = apiHandler(async (request: NextRequest) => {
@@ -155,10 +258,19 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const includeRaw = dbUser?.insightsPrivacyMode === "raw";
   const features = await extractFeatures(userId, includeRaw);
   const featuresJson = JSON.stringify(features, null, 2);
+
+  // v1.4.16 phase B8 — pick up the user's persisted comparison toggle
+  // and, when active, build a compact prior-period snapshot from the
+  // `features` summaries that already include `avg30LastMonth` /
+  // `avg30LastYear` (added in the analytics summarize() helper). The
+  // narrative is default-on whenever the toggle is on per research §7
+  // Q4 — the pulldown is the single affordance.
+  const comparisonSnapshot = await buildComparisonSnapshotForUser(userId);
   const userPrompt = buildUserPrompt(
     featuresJson,
     dbUser?.insightsPrivacyMode ?? "aggregated",
     locale,
+    comparisonSnapshot ?? undefined,
   );
 
   let result;

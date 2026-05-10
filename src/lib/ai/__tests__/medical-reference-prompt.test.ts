@@ -24,8 +24,12 @@ import {
  */
 
 describe("PROMPT_VERSION", () => {
-  it("is 4.16.0 for the v1.4.16 medical-reference grounding update", () => {
-    expect(PROMPT_VERSION).toBe("4.16.0");
+  it("is at least 4.16.0 for the v1.4.16 medical-reference grounding update", () => {
+    // v1.4.16 phase B5a anchored at 4.16.0; phase B8 bumped the
+    // patch component to 4.16.1 when the comparison-mode narrative
+    // ground rule landed. Use a string-prefix check so the test
+    // doesn't bind to a specific patch.
+    expect(PROMPT_VERSION.startsWith("4.16.")).toBe(true);
   });
 });
 
@@ -105,7 +109,8 @@ describe("buildSystemPromptWithReferences()", () => {
   it("contains the bumped PROMPT_VERSION", () => {
     const prompt = buildSystemPromptWithReferences("en", ["bp"]);
     expect(prompt).toContain(PROMPT_VERSION);
-    expect(prompt).toContain("4.16.0");
+    // v1.4.16: phase B5a was 4.16.0; phase B8 bumped to 4.16.1.
+    expect(prompt).toMatch(/4\.16\.\d+/);
   });
 });
 
@@ -115,8 +120,8 @@ describe("plain getStrictInsightsSystemPrompt() backward compatibility", () => {
     expect(en).not.toContain("SOURCES");
   });
 
-  it("contains the bumped PROMPT_VERSION 4.16.0", () => {
+  it("contains the bumped PROMPT_VERSION", () => {
     const en = getStrictInsightsSystemPrompt("en");
-    expect(en).toContain("4.16.0");
+    expect(en).toMatch(/4\.16\.\d+/);
   });
 });

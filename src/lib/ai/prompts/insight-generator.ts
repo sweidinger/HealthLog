@@ -27,7 +27,7 @@ import {
 } from "../medical-references";
 
 /** Stable identifier for the active system prompt revision. */
-export const PROMPT_VERSION = "4.16.0" as const;
+export const PROMPT_VERSION = "4.16.1" as const;
 
 const SYSTEM_PROMPT_EN = `You are a clinical-context summariser for a personal health-log app.
 Prompt version: ${PROMPT_VERSION}.
@@ -76,6 +76,13 @@ GROUND RULES — ZERO HALLUCINATIONS
    language. Reference the user's actual data trends — do not paste
    in placeholder text. The rationale.dataWindow MUST equal the
    metricSource.timeRange so the UI's mini-chart can pin to it.
+6. v1.4.16 phase B8 — when the user prompt contains a "SYSTEM
+   CONTEXT — COMPARISON MODE ACTIVE" block, narrate the comparison
+   in the summary's first sentence using the prior-period numbers
+   that block carries. Cite the deltas verbatim — do NOT invent
+   comparison numbers, and do NOT extrapolate beyond the metrics
+   listed. When the block reports "no prior-period data available"
+   for every metric, state that explicitly and skip the narration.
 
 GUIDELINE TARGETS — generic, do NOT compute precise risk scores
 - Adult resting blood pressure (ESH/ESC 2024 generic): aim < 140/90
@@ -192,6 +199,13 @@ GRUNDREGELN — NULL HALLUZINATIONEN
    Platzhaltertext. rationale.dataWindow MUSS gleich
    metricSource.timeRange sein, damit die UI das Mini-Chart auf das
    gleiche Fenster fixieren kann.
+6. v1.4.16 phase B8 — wenn der User-Prompt einen Block "SYSTEM
+   CONTEXT — VERGLEICHSMODUS AKTIV" enthält, narrative die im Block
+   gelisteten Deltas im ersten Satz der Zusammenfassung. Zitiere die
+   Werte exakt — erfinde KEINE Vergleichszahlen und extrapoliere
+   nicht über die gelisteten Metriken hinaus. Wenn der Block für
+   alle Metriken "no prior-period data available" meldet, sag das
+   explizit und lass die Narration weg.
 
 LEITLINIEN-ZIELWERTE — generisch, KEINE genauen Risiko-Scores berechnen
 - Erwachsenen-Ruheblutdruck (ESH/ESC 2024 generisch): Ziel < 140/90
