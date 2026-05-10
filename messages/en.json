@@ -901,6 +901,7 @@
     "navMood": "Mood",
     "navMedication": "Medication",
     "navBmi": "BMI",
+    "navAriaLabel": "Skip to section",
     "measurementsOverDays": "{count} measurements over {days} days",
     "healthStatus": "Health Status",
     "noWeightData": "No weight data or height not set.",
