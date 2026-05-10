@@ -192,12 +192,20 @@ enum MeasurementType {
   BLOOD_PRESSURE_DIA
   PULSE
   BODY_FAT
-  SLEEP_DURATION
+  SLEEP_DURATION // v1.4.23: unit semantics shifted from hours to minutes so HealthKit category samples (per-stage rows) survive without precision loss.
   ACTIVITY_STEPS
   BLOOD_GLUCOSE // Canonical storage: mg/dL. Display unit (mg/dL or mmol/L) is user preference.
   TOTAL_BODY_WATER // Canonical storage: kilograms (kg of water). Matches Withings' hydration measure (type 77) and Health Connect's TotalBodyWaterRecord. Display can compute % from same-day weight if desired.
   BONE_MASS // Canonical storage: kilograms (kg). Matches Withings' bone mass measure (type 88).
   OXYGEN_SATURATION // Canonical storage: percent (0..100). Withings ScanWatch reports type 54. Health Connect's OxygenSaturationRecord uses Percentage (already 0..100). HealthKit uses HKQuantityTypeIdentifierOxygenSaturation as a fraction (0..1) — iOS DTO must multiply by 100 before submitting.
+  // ── v1.4.23 Apple Health additions ──
+  HEART_RATE_VARIABILITY // ms — HealthKit `heartRateVariabilitySDNN` (typically one sample per night).
+  RESTING_HEART_RATE // bpm — HealthKit `restingHeartRate` (one sample per day; distinct from spot PULSE).
+  ACTIVE_ENERGY_BURNED // kcal — HealthKit `activeEnergyBurned`, cumulative; daily-rollup pattern.
+  FLIGHTS_CLIMBED // count — HealthKit `flightsClimbed`, cumulative.
+  WALKING_RUNNING_DISTANCE // metres — HealthKit `distanceWalkingRunning`; SI metres in DB, UI converts per locale.
+  VO2_MAX // mL/(kg·min) — HealthKit `vo2Max`; one sample every few days at most.
+  BODY_TEMPERATURE // celsius — HealthKit `bodyTemperature`; iOS DTO already encodes this enum value.
 
   @@map("measurement_type")
 }
@@ -217,8 +225,24 @@ enum MeasurementSource {
   MANUAL
   WITHINGS
   IMPORT
+  APPLE_HEALTH // v1.4.23 — HealthKit batch ingest. iOS DTO mirrors this exact spelling (not "HEALTHKIT").
 
   @@map("measurement_source")
+}
+
+/// Per-stage sleep label for HealthKit `HKCategoryValueSleepAnalysis`
+/// samples. Non-NULL only when `Measurement.type = SLEEP_DURATION`,
+/// mirroring the `GlucoseContext` pattern. A single night produces one
+/// row per stage (analytics sums them for `total_minutes`).
+enum SleepStage {
+  IN_BED
+  AWAKE
+  ASLEEP // legacy iOS 15- `asleepUnspecified` — pre-iOS-16 sleep tracking with no stage breakdown.
+  REM
+  CORE
+  DEEP
+
+  @@map("sleep_stage")
 }
 
 model Measurement {
@@ -226,19 +250,37 @@ model Measurement {
   userId     String            @map("user_id")
   type       MeasurementType
   value      Float
-  unit       String            // kg, mmHg, bpm, %, hours, steps, mg/dL
+  unit       String            // kg, mmHg, bpm, %, minutes (sleep), steps, mg/dL, kcal, m, ms, mL/(kg·min), celsius
   source     MeasurementSource @default(MANUAL)
   measuredAt DateTime          @map("measured_at")
   notes      String?           // encrypted at app level if sensitive
-  externalId String?           @map("external_id") // Withings grpid for dedup
+  // External-system dedup key. Withings used `grpid` (numeric); v1.4.23
+  // adds Apple Health which uses `HKSample.uuid` (string). NULL for
+  // manual entries — Postgres treats NULLs as distinct in unique
+  // indexes, so two manual rows with the same (user, type, source) are
+  // still allowed.
+  externalId String?           @map("external_id")
+  // v1.4.23 — opaque marker for the source's schema version (HealthKit
+  // sample's `metadata.HKWasUserEntered`, Withings model code, …).
+  // Stored as a string so the ingest path can replay it back unchanged.
+  externalSourceVersion String? @map("external_source_version")
   // Only set for BLOOD_GLUCOSE measurements. NULL for all others.
   glucoseContext GlucoseContext? @map("glucose_context")
+  // v1.4.23 — per-stage sleep label. NULL for non-sleep rows; non-NULL
+  // only for `type = SLEEP_DURATION`. Mirrors the glucoseContext
+  // pattern. A single night produces ~5 rows (one per stage).
+  sleepStage SleepStage? @map("sleep_stage")
   createdAt  DateTime          @default(now()) @map("created_at")
   updatedAt  DateTime          @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Original measuredAt-based dedup — kept for legacy Withings ingest
+  // and the manual UI's "no duplicate at the same wall-clock" guard.
   @@unique([userId, type, measuredAt, source])
+  // v1.4.23 — Apple Health batch dedup key. NULL externalId is distinct
+  // (Postgres semantics) so manual entries don't collide here.
+  @@unique([userId, type, source, externalId])
   @@index([userId, type, measuredAt])
   @@index([externalId])
   @@map("measurements")

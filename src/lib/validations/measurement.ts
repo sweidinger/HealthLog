@@ -12,6 +12,14 @@ export const measurementTypeEnum = z.enum([
   "TOTAL_BODY_WATER",
   "BONE_MASS",
   "OXYGEN_SATURATION",
+  // ── v1.4.23 Apple Health additions ──
+  "HEART_RATE_VARIABILITY",
+  "RESTING_HEART_RATE",
+  "ACTIVE_ENERGY_BURNED",
+  "FLIGHTS_CLIMBED",
+  "WALKING_RUNNING_DISTANCE",
+  "VO2_MAX",
+  "BODY_TEMPERATURE",
 ]);
 
 export const glucoseContextEnum = z.enum([
@@ -21,7 +29,21 @@ export const glucoseContextEnum = z.enum([
   "BEDTIME",
 ]);
 
-export const measurementSourceEnum = z.enum(["MANUAL", "WITHINGS", "IMPORT"]);
+export const sleepStageEnum = z.enum([
+  "IN_BED",
+  "AWAKE",
+  "ASLEEP",
+  "REM",
+  "CORE",
+  "DEEP",
+]);
+
+export const measurementSourceEnum = z.enum([
+  "MANUAL",
+  "WITHINGS",
+  "IMPORT",
+  "APPLE_HEALTH",
+]);
 
 const unitMap: Record<string, string> = {
   WEIGHT: "kg",
@@ -29,12 +51,23 @@ const unitMap: Record<string, string> = {
   BLOOD_PRESSURE_DIA: "mmHg",
   PULSE: "bpm",
   BODY_FAT: "%",
-  SLEEP_DURATION: "hours",
+  // v1.4.23 — sleep duration shifted from hours to minutes so HealthKit
+  // category-sample stages can be stored without precision loss. Older
+  // surfaces that need hours convert at read time (`minutes / 60`).
+  SLEEP_DURATION: "minutes",
   ACTIVITY_STEPS: "steps",
   BLOOD_GLUCOSE: "mg/dL",
   TOTAL_BODY_WATER: "kg",
   BONE_MASS: "kg",
   OXYGEN_SATURATION: "%",
+  // ── v1.4.23 Apple Health canonical units ──
+  HEART_RATE_VARIABILITY: "ms",
+  RESTING_HEART_RATE: "bpm",
+  ACTIVE_ENERGY_BURNED: "kcal",
+  FLIGHTS_CLIMBED: "flights",
+  WALKING_RUNNING_DISTANCE: "m",
+  VO2_MAX: "mL/(kg·min)",
+  BODY_TEMPERATURE: "celsius",
 };
 
 export function getUnitForType(type: string): string {
@@ -48,7 +81,10 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   BLOOD_PRESSURE_DIA: { min: 20, max: 200 },
   PULSE: { min: 20, max: 300 },
   BODY_FAT: { min: 1, max: 80 },
-  SLEEP_DURATION: { min: 0, max: 24 },
+  // Minutes (v1.4.23 unit change). Per-stage rows can run from a few
+  // seconds (a brief awakening) to 600+ minutes (a long IN_BED block),
+  // so the upper bound covers a 24-hour day.
+  SLEEP_DURATION: { min: 0, max: 1440 },
   ACTIVITY_STEPS: { min: 0, max: 200000 },
   BLOOD_GLUCOSE: { min: 20, max: 800 }, // mg/dL — covers severe hypo to severe hyperglycemia
   TOTAL_BODY_WATER: { min: 5, max: 100 }, // kg of water — adults typically 30–55 kg
@@ -58,6 +94,26 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // critically-low reading still gets logged for the doctor to see; below 50%
   // is incompatible with sustained life and almost certainly a sensor glitch.
   OXYGEN_SATURATION: { min: 50, max: 100 },
+  // ── v1.4.23 Apple Health ranges ──
+  // HRV SDNN ms — Apple's own "high HRV" threshold sits ~80 ms; lows can
+  // reach 5–10 ms in stressed/sick samples. 200 ms is a generous upper
+  // bound for unusually relaxed athletic windows.
+  HEART_RATE_VARIABILITY: { min: 1, max: 200 },
+  // Resting HR bpm — endurance athletes can reach the high 30s; severe
+  // tachycardia caps below 220.
+  RESTING_HEART_RATE: { min: 25, max: 220 },
+  // Active energy kcal/sample — a daily-rollup sample tops out around
+  // 6–8000 kcal even for ultra-endurance days.
+  ACTIVE_ENERGY_BURNED: { min: 0, max: 10000 },
+  // Flights — vertical-feet/3 ≈ flights; cap generous.
+  FLIGHTS_CLIMBED: { min: 0, max: 1000 },
+  // Walking/running distance per sample (metres). 200 km covers an
+  // ultra-marathon or a multi-stage day.
+  WALKING_RUNNING_DISTANCE: { min: 0, max: 200000 },
+  // VO2 max mL/(kg·min) — elite endurance hovers ~85; sedentary floor ~10.
+  VO2_MAX: { min: 5, max: 100 },
+  // Body temperature °C — survivable lows ~28; severe hyperthermia ~45.
+  BODY_TEMPERATURE: { min: 28, max: 45 },
 };
 
 export function validateMeasurementRange(

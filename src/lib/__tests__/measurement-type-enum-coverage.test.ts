@@ -26,10 +26,18 @@ const EXPECTED_TYPES = [
   "TOTAL_BODY_WATER",
   "BONE_MASS",
   "OXYGEN_SATURATION",
+  // ── v1.4.23 Apple Health additions ──
+  "HEART_RATE_VARIABILITY",
+  "RESTING_HEART_RATE",
+  "ACTIVE_ENERGY_BURNED",
+  "FLIGHTS_CLIMBED",
+  "WALKING_RUNNING_DISTANCE",
+  "VO2_MAX",
+  "BODY_TEMPERATURE",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 11 canonical measurement types", () => {
+  it("exposes the 18 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -39,12 +47,24 @@ describe("measurementTypeEnum coverage", () => {
   //  - BLOOD_GLUCOSE renders through the per-context `glucoseStats` section
   //  - SLEEP_DURATION + ACTIVITY_STEPS are intentionally omitted from the
   //    clinical PDF (lifestyle, not a vital sign — see source comment).
+  //  - v1.4.23 Apple Health metrics (HRV, resting HR, active energy,
+  //    flights, distance, VO2 max, body temperature) are excluded from
+  //    the v1.4.23 release of the doctor PDF — they ship into the
+  //    clinical surface alongside the iOS app's first paying-customer
+  //    sync in v1.5 once layout + reference ranges are agreed.
   // Updates to this set MUST be paired with a comment in
   // doctor-report-pdf-core.ts so the rationale stays discoverable.
   const PDF_VITAL_EXCLUSIONS = new Set([
     "BLOOD_GLUCOSE",
     "SLEEP_DURATION",
     "ACTIVITY_STEPS",
+    "HEART_RATE_VARIABILITY",
+    "RESTING_HEART_RATE",
+    "ACTIVE_ENERGY_BURNED",
+    "FLIGHTS_CLIMBED",
+    "WALKING_RUNNING_DISTANCE",
+    "VO2_MAX",
+    "BODY_TEMPERATURE",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

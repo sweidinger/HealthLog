@@ -24,6 +24,11 @@ import {
   Footprints,
   Bone,
   Wind,
+  HeartPulse,
+  Flame,
+  TrendingUp,
+  Thermometer,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,6 +44,14 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   TOTAL_BODY_WATER: "measurements.typeTotalBodyWater",
   BONE_MASS: "measurements.typeBoneMass",
   OXYGEN_SATURATION: "measurements.typeOxygenSaturation",
+  // ── v1.4.23 Apple Health additions ──
+  HEART_RATE_VARIABILITY: "measurements.typeHeartRateVariability",
+  RESTING_HEART_RATE: "measurements.typeRestingHeartRate",
+  ACTIVE_ENERGY_BURNED: "measurements.typeActiveEnergyBurned",
+  FLIGHTS_CLIMBED: "measurements.typeFlightsClimbed",
+  WALKING_RUNNING_DISTANCE: "measurements.typeWalkingRunningDistance",
+  VO2_MAX: "measurements.typeVo2Max",
+  BODY_TEMPERATURE: "measurements.typeBodyTemperature",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -53,6 +66,14 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   TOTAL_BODY_WATER: Droplet,
   BONE_MASS: Bone,
   OXYGEN_SATURATION: Wind,
+  // ── v1.4.23 Apple Health additions ──
+  HEART_RATE_VARIABILITY: HeartPulse,
+  RESTING_HEART_RATE: Heart,
+  ACTIVE_ENERGY_BURNED: Flame,
+  FLIGHTS_CLIMBED: TrendingUp,
+  WALKING_RUNNING_DISTANCE: Footprints,
+  VO2_MAX: Gauge,
+  BODY_TEMPERATURE: Thermometer,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -67,4 +88,12 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   TOTAL_BODY_WATER: "bg-chart-2/20 text-chart-2",
   BONE_MASS: "bg-chart-4/20 text-chart-4",
   OXYGEN_SATURATION: "bg-chart-5/20 text-chart-5",
+  // ── v1.4.23 Apple Health additions ──
+  HEART_RATE_VARIABILITY: "bg-chart-5/20 text-chart-5",
+  RESTING_HEART_RATE: "bg-chart-3/20 text-chart-3",
+  ACTIVE_ENERGY_BURNED: "bg-chart-4/20 text-chart-4",
+  FLIGHTS_CLIMBED: "bg-chart-2/20 text-chart-2",
+  WALKING_RUNNING_DISTANCE: "bg-chart-2/20 text-chart-2",
+  VO2_MAX: "bg-chart-1/20 text-chart-1",
+  BODY_TEMPERATURE: "bg-chart-4/20 text-chart-4",
 };

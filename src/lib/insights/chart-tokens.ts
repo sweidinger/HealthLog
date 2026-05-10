@@ -33,6 +33,16 @@ export const ALLOWED_CHART_TOKENS = [
   "metric:BONE_MASS",
   "metric:OXYGEN_SATURATION",
   "metric:MOOD",
+  // v1.4.23 — Apple Health additions. The tokens are accepted by the
+  // allowlist so the LLM can reference them; the corresponding chart
+  // components ship in v1.5 alongside the iOS app surface.
+  "metric:HEART_RATE_VARIABILITY",
+  "metric:RESTING_HEART_RATE",
+  "metric:ACTIVE_ENERGY_BURNED",
+  "metric:FLIGHTS_CLIMBED",
+  "metric:WALKING_RUNNING_DISTANCE",
+  "metric:VO2_MAX",
+  "metric:BODY_TEMPERATURE",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
