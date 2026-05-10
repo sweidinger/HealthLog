@@ -182,7 +182,12 @@ export function HeroStrip({
       data-slot="insights-hero-strip"
       className={cn(
         "hero-gradient glow-purple animate-insight-in",
-        "relative overflow-hidden rounded-xl px-4 py-5 sm:px-6 sm:py-6",
+        // `isolate` creates a new stacking context so the purple glow
+        // box-shadow stays z-trapped inside the hero band — without
+        // it the shadow bled through the sticky section nav below
+        // (the nav uses bg-background/80 + backdrop-blur, which the
+        // shadow leaked through).
+        "relative isolate overflow-hidden rounded-xl px-4 py-5 sm:px-6 sm:py-6",
       )}
     >
       {/*
