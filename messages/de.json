@@ -302,6 +302,7 @@
     "sourceManual": "Manuell",
     "sourceWithings": "Withings",
     "sourceImport": "Import",
+    "sourceAppleHealth": "Apple Health",
     "systolicLabel": "Systolisch (mmHg)",
     "diastolicLabel": "Diastolisch (mmHg)",
     "pulseLabel": "Puls (bpm)",
