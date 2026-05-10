@@ -1,12 +1,23 @@
 # HealthLog v1.4.22 — roadmap
 
-Milestone: **v1.4.22** (kicked off 2026-05-10, post-v1.4.21 patch)
+Milestone: **v1.4.22 — big polishing release before v1.5 iOS** (kicked off 2026-05-10, post-v1.4.21 patch)
 Latest tag at start: v1.4.21 (live in prod, image digest
 `sha256:4e818d44702c…`)
 
-| Phase | Goal                                                                                                                                                  | State       |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| G     | E2E fix wave — 7 stale-selector / layout regressions surfaced post-v1.4.20 (HeroStrip slot, onboarding-card, chart-overlay, api-tokens-mobile, charts-mobile) | in flight   |
+Marc's directive: close ALL known bugs + apply ALL deferred items
+from `.planning/v1421-backlog.md` so the iOS app builds on a clean
+foundation. Marathon-style execution: research/probe first, then
+parallel polish waves, then multi-agent QA, then release.
+
+| Wave | Goal                                                                                                                                                  | State     |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 1    | Research + probe — Playwright PROD probe (BD-Zielbereich 5th attempt, api-tokens 5th attempt, Metrik token leaks, Targets page brainstorm); health-coach prompt research | in flight |
+| 2    | Insights surface polish — A1 BD framing, A2 BD-Kachel parity, A3 comparison-toggle global, A4 grid normalisation, A5 Muster rename + tabs above hero, A6 token-leak fix | pending   |
+| 3    | Coach polish — B1 prompt rewrite, B2 collapsible provenance, B3 Gravatar parity, B4 disclaimer move, B5 settings cog wire-or-remove                   | pending   |
+| 4    | Other surfaces + backlog cleanup — C1 Zielwerte upgrade, C2 api-tokens 5th attempt, C3 Coolify auto-deploy, C4 AuthShell flicker, C5 node-26-alpine, D backlog wave | pending   |
+| G    | E2E fix wave (already on `develop`) — 7 stale-selector / layout regressions; release-merge brings them into main with v1.4.22                          | done      |
+| 5    | Multi-agent QA + Product-Lead review                                                                                                                  | pending   |
+| 6    | Release v1.4.22 — bump, CHANGELOG, release-merge, tag, GHCR, Coolify deploy (validated by C3), smoke, GH release, docs+landing sync, brief             | pending   |
 
 Carry-over candidates already captured in
 `.planning/v1421-backlog.md` (now serving as the v1.4.22 backlog
