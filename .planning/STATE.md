@@ -82,19 +82,30 @@ Last update: 2026-05-10T12:48+02:00
       No `--no-verify` / `--no-gpg-sign` used.
 - Detailed report: `.planning/phase-A2-report.md`
 
-### A3 — /insights polish + Comparison switch move
+### A3 — /insights polish + Comparison switch move ✅
 
-- [ ] Remove Comparison-toggle from Dashboard (insights only)
-- [ ] Re-position Comparison-toggle on /insights (find the right spot
-      — research §4 said next to range tabs)
-- [ ] Consolidate refresh-buttons (page-level vs card-level — pick
-      ONE)
-- [ ] "Persönlicher AI Berater" title without content → fix or remove
-      (placeholder leaked through?)
-- [ ] Remove small BP/Weight tiles on /insights (duplicate of
-      dashboard, wastes space)
-- [ ] Fix raw "metric: blood_pressure_sweet" template leak at bottom
-      (debug code or unrendered placeholder)
+- [x] Remove Comparison-toggle from Dashboard (effectively landed via
+      A4's `b5e9a95` sweep — concurrent edits raced the working tree;
+      the dashboard import + JSX use are both gone in `origin/main`).
+- [x] Re-position Comparison-toggle on /insights — folded into the
+      hero meta band via new `metaSlot` prop on `<InsightsPageHero>`.
+      Commit `60a91af`.
+- [x] Consolidate refresh-buttons — `onRegenerate` no longer wired
+      from page → advisor card. The hero owns the single page-level
+      affordance; the per-recommendation Regenerate button (per
+      v1.4.16 spec) stays. Commit `98a3d10`.
+- [x] "Persönlicher AI Berater" placeholder subtitle removed —
+      `aiOverviewTitle` no longer passed to `<InsightAdvisorCard>`,
+      title prop made optional. Same commit `98a3d10`.
+- [x] Small BP/Weight tile strip removed (`-157` lines on
+      `src/app/insights/page.tsx` plus dead helpers). Commit
+      `335f288`.
+- [x] Raw "metric: blood_pressure_sweet" leak fixed — `STRIP_TOKEN_REGEX`
+      widened to `[A-Za-z0-9_]+`; `PARSE_TOKEN_REGEX` stays uppercase
+      (render allowlist unchanged). Commit `fa91a73`.
+- [x] Tests: 9-case `src/app/__tests__/insights-polish.test.ts` pinning
+      every guard. Commits `5360d3c` (msg) + `f2b21a4` (file). 1646 /
+      1646 green; lint + typecheck clean on touched files.
 - Detailed report: `.planning/phase-A3-report.md`
 
 ### A4 — AI prompt anpassen (no "Datengrundlage stark" as default first sentence)
