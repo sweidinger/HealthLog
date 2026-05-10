@@ -169,6 +169,23 @@ interface AnalyticsData {
     moodPulse: CorrelationResult;
     weightWeekday: CorrelationResult;
   } | null;
+  /**
+   * v1.4.20 phase B5 — composite Personal Health Score with sub-component
+   * breakdown + delta vs last week. Optional + nullable so older cached
+   * `analytics` payloads continue to render the rest of the page; the
+   * hero panel hides cleanly when the field is absent.
+   */
+  healthScore?: {
+    score: number;
+    band: "green" | "yellow" | "red";
+    components: {
+      bp: { value: number | null; weight: number };
+      weight: { value: number | null; weight: number };
+      mood: { value: number | null; weight: number };
+      compliance: { value: number | null; weight: number };
+    };
+    delta: number | null;
+  } | null;
 }
 
 interface GeneralStatusData {

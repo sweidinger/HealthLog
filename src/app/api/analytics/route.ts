@@ -5,6 +5,13 @@ import { apiSuccess } from "@/lib/api-response";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { computeBpInTargetWindows } from "@/lib/analytics/bp-in-target";
+import { calculateCompliance } from "@/lib/analytics/compliance";
+import {
+  computeHealthScore,
+  defaultWeightTargetFromHeight,
+  type HealthScoreInput,
+  type HealthScoreResult,
+} from "@/lib/analytics/health-score";
 import {
   correlateBpCompliance,
   correlateMoodPulse,
@@ -116,6 +123,26 @@ export const GET = apiHandler(async () => {
   // and the UI paints an EmptyState.
   const correlations = await computeCorrelationHypotheses(user.id);
 
+  // v1.4.20 phase B5 — Personal Health Score. Server-deterministic
+  // composite of BP-in-target % + weight-trend alignment + mood
+  // stability + medication compliance. The "vs last week" delta
+  // re-runs the same compute against a 7-day-shifted snapshot.
+  const healthScore = await computeUserHealthScore(user.id, {
+    bpInTargetPct,
+    heightCm: user.heightCm ?? null,
+  });
+  if (healthScore) {
+    annotate({
+      meta: {
+        healthScore: {
+          score: healthScore.score,
+          band: healthScore.band,
+          delta: healthScore.delta,
+        },
+      },
+    });
+  }
+
   return apiSuccess({
     summaries: results,
     bmi,
@@ -124,6 +151,7 @@ export const GET = apiHandler(async () => {
     bpInTargetPct30d,
     glucoseByContext,
     correlations,
+    healthScore,
   });
 });
 
@@ -321,4 +349,175 @@ function berlinIsoWeekday(d: Date): number {
   const parts = BERLIN_DATE_PARTS.formatToParts(d);
   const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
   return ISO_WEEKDAY[weekday] ?? 1;
+}
+
+/**
+ * Build the Health Score input from the user's last-30-day weight,
+ * mood, and medication-compliance data, plus the already-computed
+ * `bpInTargetPct` headline. Re-runs the same compute against a
+ * 7-day-shifted window to populate the "vs last week" delta.
+ *
+ * Returns null when the score wouldn't carry any signal (every
+ * component nullable + no medications). The route surfaces the
+ * `null` to the UI so the hero panel hides cleanly.
+ */
+async function computeUserHealthScore(
+  userId: string,
+  input: { bpInTargetPct: number | null; heightCm: number | null },
+): Promise<HealthScoreResult | null> {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const now = new Date();
+  const since30d = new Date(now.getTime() - 30 * DAY_MS);
+  // Prior week's snapshot — shift everything 7 days into the past so
+  // both windows close at the same wall-clock-of-day boundary.
+  const prevSince30d = new Date(now.getTime() - 37 * DAY_MS);
+  const prevUntil = new Date(now.getTime() - 7 * DAY_MS);
+
+  const [weightRows, moodRows, medications] = await Promise.all([
+    prisma.measurement.findMany({
+      where: {
+        userId,
+        type: "WEIGHT",
+        measuredAt: { gte: prevSince30d, lte: now },
+      },
+      select: { value: true, measuredAt: true },
+      orderBy: { measuredAt: "asc" },
+    }),
+    prisma.moodEntry.findMany({
+      where: {
+        userId,
+        moodLoggedAt: { gte: prevSince30d, lte: now },
+      },
+      select: { score: true, moodLoggedAt: true },
+      orderBy: { moodLoggedAt: "asc" },
+    }),
+    prisma.medication.findMany({
+      where: { userId, active: true },
+      select: {
+        id: true,
+        createdAt: true,
+        schedules: {
+          select: {
+            windowStart: true,
+            windowEnd: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  // Compliance30 per active medication, then again for the prior-week
+  // snapshot. The compliance helper anchors on `Date.now()` internally;
+  // for the previous-week snapshot we reuse the same helper but pass a
+  // shifted "createdAt" floor so the window mathematically reflects the
+  // [-37d, -7d] period — equivalent to running the helper a week ago.
+  let medicationCompliance30: number[] = [];
+  let medicationCompliance30Previous: number[] = [];
+  if (medications.length > 0) {
+    const medIds = medications.map((m) => m.id);
+    const intakeEvents = await prisma.medicationIntakeEvent.findMany({
+      where: {
+        userId,
+        medicationId: { in: medIds },
+        scheduledFor: { gte: prevSince30d, lte: now },
+      },
+      select: {
+        medicationId: true,
+        scheduledFor: true,
+        takenAt: true,
+        skipped: true,
+      },
+    });
+    const eventsByMed = new Map<string, typeof intakeEvents>();
+    for (const ev of intakeEvents) {
+      const list = eventsByMed.get(ev.medicationId);
+      if (list) list.push(ev);
+      else eventsByMed.set(ev.medicationId, [ev]);
+    }
+    medicationCompliance30 = medications.map((med) => {
+      const events = eventsByMed.get(med.id) ?? [];
+      return calculateCompliance(events, med.schedules, 30, med.createdAt).rate;
+    });
+    medicationCompliance30Previous = medications.map((med) => {
+      const events = (eventsByMed.get(med.id) ?? []).filter(
+        (e) => e.scheduledFor <= prevUntil,
+      );
+      // Compute compliance against the prior-week-aligned window by
+      // remapping the helper's "now": shift each event's scheduledFor
+      // and takenAt forward by 7 days so the helper's internal `now`
+      // anchor still captures the same logical 30 days.
+      const shifted = events.map((e) => ({
+        scheduledFor: new Date(e.scheduledFor.getTime() + 7 * DAY_MS),
+        takenAt: e.takenAt
+          ? new Date(e.takenAt.getTime() + 7 * DAY_MS)
+          : null,
+        skipped: e.skipped,
+      }));
+      return calculateCompliance(shifted, med.schedules, 30, med.createdAt)
+        .rate;
+    });
+  }
+
+  const fallbackTarget = defaultWeightTargetFromHeight(input.heightCm);
+
+  const weightSeriesLast30d = weightRows
+    .filter((r) => r.measuredAt >= since30d)
+    .map((r) => ({ date: r.measuredAt.toISOString(), kg: r.value }));
+  const weightSeriesPrev30d = weightRows
+    .filter((r) => r.measuredAt >= prevSince30d && r.measuredAt <= prevUntil)
+    .map((r) => ({ date: r.measuredAt.toISOString(), kg: r.value }));
+
+  const moodSeriesLast30d = moodRows
+    .filter((r) => r.moodLoggedAt >= since30d)
+    .map((r) => ({
+      date: r.moodLoggedAt.toISOString(),
+      score: r.score,
+    }));
+  const moodSeriesPrev30d = moodRows
+    .filter(
+      (r) => r.moodLoggedAt >= prevSince30d && r.moodLoggedAt <= prevUntil,
+    )
+    .map((r) => ({
+      date: r.moodLoggedAt.toISOString(),
+      score: r.score,
+    }));
+
+  // Skip any input shape where literally nothing is computable — the
+  // hero panel hides instead of painting a misleading "0".
+  if (
+    input.bpInTargetPct === null &&
+    weightSeriesLast30d.length === 0 &&
+    moodSeriesLast30d.length === 0 &&
+    medicationCompliance30.length === 0
+  ) {
+    // Tag-only annotation so admin observability can see the empty path.
+    annotate({
+      meta: {
+        healthScore: { score: null, reason: "no_components_available" },
+      },
+    });
+    return null;
+  }
+
+  const current: HealthScoreInput = {
+    bpInTargetRate: input.bpInTargetPct,
+    weightSeriesLast30d,
+    weightTargetKg: fallbackTarget,
+    moodEntriesLast30d: moodSeriesLast30d,
+    medicationCompliance30,
+  };
+  // The all-time `bpInTargetPct` is a slow-moving aggregate and would
+  // need a full historical re-pair to "rewind" by a week. We pass the
+  // same value to the previous snapshot so the delta primarily
+  // reflects week-over-week changes in the weight / mood / compliance
+  // pillars — the components that actually move on a weekly cadence.
+  const previous: HealthScoreInput = {
+    bpInTargetRate: input.bpInTargetPct,
+    weightSeriesLast30d: weightSeriesPrev30d,
+    weightTargetKg: fallbackTarget,
+    moodEntriesLast30d: moodSeriesPrev30d,
+    medicationCompliance30: medicationCompliance30Previous,
+  };
+
+  return computeHealthScore(current, previous);
 }
