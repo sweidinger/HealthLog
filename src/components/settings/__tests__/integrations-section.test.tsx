@@ -1,18 +1,28 @@
 /**
- * v1.4.15 Phase B2 — Settings → Integrations status surface tests.
+ * v1.4.19 Phase A5 — Settings → Integrations status consolidation.
  *
- * The four states this file locks in (one assertion each):
- *   1. connected           → no banner, "Connected" badge only
- *   2. error_transient     → banner with "{count}/{threshold}"
- *                            counter, last-error message visible
- *   3. error_reauth        → "Reconnect required" badge surfaces
- *   4. disconnected        → "Disconnected" badge surfaces (used
- *                            after the user clicks "Disconnect")
+ * Marc's verbatim concern (paraphrased):
+ *   - Withings card had 3 status displays — top-right "connected"
+ *     badge, mid-card "connected / last successful / last attempt"
+ *     trio container, and the badge inside that container.
+ *   - Mood Log card had 4 — same as Withings PLUS a "letzter Sync"
+ *     line at the very bottom.
  *
- * We test by rendering only the IntegrationsSection with a TanStack
- * Query mock that returns the desired status. The other queries
- * (withings status, moodlog status, global services) are stubbed to
- * stable defaults — the test isn't about those surfaces.
+ * After A5: each card has EXACTLY ONE status display (the pill, top
+ * right). Error context (the failure message itself, when actionable)
+ * is allowed to surface below the pill since it carries information
+ * the pill can't fit. Timestamp repetition is gone.
+ *
+ * The tests pin:
+ *   1. Healthy Withings + Mood Log: ONE pill per card, no banner.
+ *   2. Withings transient error: ONE pill per card + error message,
+ *      NO redundant "{n}/{threshold} consecutive failures" badge,
+ *      NO "Last successful sync / Last attempt" trio.
+ *   3. Withings reauth: pill carries the "Error — reconnect" label.
+ *   4. Mood Log disconnected: pill says "Not connected", no other
+ *      status display surfaces.
+ *   5. Mood Log card has the visual divider that Withings always had
+ *      — consistency Marc explicitly called out.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -31,13 +41,23 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
-// Per-test mock — we'll rewrite the integration-status payload between
-// cases via `setIntegrationStatus()`. Withings + moodlog status return
-// stable defaults so the cards render their connect-CTA branch (the
-// banner is what we actually assert on).
 let integrationStatusPayload: unknown = null;
+let withingsStatusPayload: unknown = { connected: false, configured: false };
+let moodLogStatusPayload: unknown = {
+  configured: false,
+  enabled: false,
+  lastSyncedAt: null,
+  entryCount: 0,
+  webhookSecret: null,
+};
 function setIntegrationStatus(payload: unknown) {
   integrationStatusPayload = payload;
+}
+function setWithingsStatus(payload: unknown) {
+  withingsStatusPayload = payload;
+}
+function setMoodLogStatus(payload: unknown) {
+  moodLogStatusPayload = payload;
 }
 
 vi.mock("@tanstack/react-query", () => ({
@@ -59,20 +79,11 @@ vi.mock("@tanstack/react-query", () => ({
       };
     }
     if (key === "withings/status") {
-      return {
-        data: { connected: false, configured: false },
-        isLoading: false,
-      };
+      return { data: withingsStatusPayload, isLoading: false };
     }
     if (key === "moodlog-status") {
       return {
-        data: {
-          configured: false,
-          enabled: false,
-          lastSyncedAt: null,
-          entryCount: 0,
-          webhookSecret: null,
-        },
+        data: moodLogStatusPayload,
         isLoading: false,
         refetch: vi.fn(),
       };
@@ -94,12 +105,31 @@ function render() {
   );
 }
 
-describe("IntegrationsSection — status surface", () => {
+/** Count occurrences of a substring in the rendered HTML. */
+function count(html: string, needle: string): number {
+  let n = 0;
+  let i = 0;
+  while ((i = html.indexOf(needle, i)) !== -1) {
+    n++;
+    i += needle.length;
+  }
+  return n;
+}
+
+describe("IntegrationsSection — single-status-display contract (A5)", () => {
   beforeEach(() => {
     integrationStatusPayload = null;
+    withingsStatusPayload = { connected: false, configured: false };
+    moodLogStatusPayload = {
+      configured: false,
+      enabled: false,
+      lastSyncedAt: null,
+      entryCount: 0,
+      webhookSecret: null,
+    };
   });
 
-  it("renders no error banner when both integrations are healthy", () => {
+  it("renders exactly ONE status pill per card when both integrations are healthy", () => {
     setIntegrationStatus({
       threshold: 3,
       integrations: [
@@ -114,19 +144,40 @@ describe("IntegrationsSection — status surface", () => {
         {
           integration: "moodlog",
           state: "connected",
-          lastSuccessAt: null,
-          lastAttemptAt: null,
+          lastSuccessAt: "2026-05-09T17:00:00.000Z",
+          lastAttemptAt: "2026-05-09T17:00:00.000Z",
           lastError: null,
           consecutiveFailures: 0,
         },
       ],
     });
+    setWithingsStatus({
+      connected: true,
+      configured: true,
+      lastSyncedAt: "2026-05-09T18:00:00.000Z",
+    });
+    setMoodLogStatus({
+      configured: true,
+      enabled: true,
+      lastSyncedAt: "2026-05-09T17:00:00.000Z",
+      entryCount: 42,
+      webhookSecret: "secret123",
+    });
+
     const html = render();
-    expect(html).not.toContain("Reconnect required");
-    expect(html).not.toContain("integration-status-error");
+    // Exactly one pill per card → 2 pills total.
+    expect(count(html, 'data-testid="integration-status-pill"')).toBe(2);
+    // The redundant banner from v1.4.15 is gone.
+    expect(html).not.toContain('data-testid="integration-status-banner"');
+    // Card-body "letzter Sync" repetition is gone — no
+    // "Last sync:" label outside the pill.
+    expect(html).not.toContain("Last sync:");
+    // No "Last successful sync" / "Last attempt" trio.
+    expect(html).not.toContain("Last successful sync");
+    expect(html).not.toContain("Last attempt");
   });
 
-  it("surfaces an error banner with last-error and {n}/{threshold} when transient failure", () => {
+  it("Withings transient error keeps the pill + error text but drops the {n}/{threshold} duplicate badge", () => {
     setIntegrationStatus({
       threshold: 3,
       integrations: [
@@ -148,13 +199,27 @@ describe("IntegrationsSection — status surface", () => {
         },
       ],
     });
+    setWithingsStatus({
+      connected: true,
+      configured: true,
+      lastSyncedAt: "2026-05-09T08:00:00.000Z",
+    });
+
     const html = render();
-    expect(html).toContain("2/3 consecutive failures");
+    // Pill carries the "Error — reconnect" copy via the pill's
+    // `data-state="error"` marker.
+    expect(html).toContain('data-state="error"');
+    // Actionable error message still surfaces (we kept it because
+    // the pill can't fit "Withings refresh error: 503 - upstream").
     expect(html).toContain("Withings refresh error: 503 - upstream");
-    expect(html).toContain("integration-status-banner");
+    // …but the consecutive-failure badge that doubled the pill's
+    // signal is gone.
+    expect(html).not.toContain("2/3 consecutive failures");
+    expect(html).not.toContain("Last successful sync");
+    expect(html).not.toContain("Last attempt");
   });
 
-  it("surfaces 'Reconnect required' when a refresh-token grant has revoked", () => {
+  it("Withings reauth state surfaces 'Error — reconnect' on the pill (Marc's wording)", () => {
     setIntegrationStatus({
       threshold: 3,
       integrations: [
@@ -176,11 +241,21 @@ describe("IntegrationsSection — status surface", () => {
         },
       ],
     });
+    setWithingsStatus({
+      connected: true,
+      configured: true,
+      lastSyncedAt: "2026-05-08T12:00:00.000Z",
+      tokenExpired: true,
+    });
+
     const html = render();
-    expect(html).toContain("Reconnect required");
+    expect(html).toContain('data-state="error"');
+    // Old "Reconnect required" banner is gone — the pill is now
+    // the canonical surface.
+    expect(html).not.toContain('data-testid="integration-status-banner"');
   });
 
-  it("renders the disconnected tombstone state without error styling", () => {
+  it("Mood Log disconnected state shows 'Not connected' on the pill, no extra status surfaces", () => {
     setIntegrationStatus({
       threshold: 3,
       integrations: [
@@ -202,8 +277,52 @@ describe("IntegrationsSection — status surface", () => {
         },
       ],
     });
+
     const html = render();
-    expect(html).toContain("Disconnected");
-    expect(html).not.toContain("Reconnect required");
+    expect(html).toContain("Not connected");
+    expect(html).not.toContain('data-testid="integration-status-banner"');
+    // Mood Log card no longer has a trailing "letzter Sync" line.
+    expect(html).not.toContain("Last sync:");
+  });
+
+  it("Mood Log card carries the visual divider Withings has (consistency)", () => {
+    setIntegrationStatus({
+      threshold: 3,
+      integrations: [
+        {
+          integration: "withings",
+          state: "connected",
+          lastSuccessAt: "2026-05-09T18:00:00.000Z",
+          lastAttemptAt: "2026-05-09T18:00:00.000Z",
+          lastError: null,
+          consecutiveFailures: 0,
+        },
+        {
+          integration: "moodlog",
+          state: "connected",
+          lastSuccessAt: "2026-05-09T17:00:00.000Z",
+          lastAttemptAt: "2026-05-09T17:00:00.000Z",
+          lastError: null,
+          consecutiveFailures: 0,
+        },
+      ],
+    });
+    setWithingsStatus({
+      connected: true,
+      configured: true,
+      lastSyncedAt: "2026-05-09T18:00:00.000Z",
+    });
+    setMoodLogStatus({
+      configured: true,
+      enabled: true,
+      lastSyncedAt: "2026-05-09T17:00:00.000Z",
+      entryCount: 42,
+      webhookSecret: "secret123",
+    });
+
+    const html = render();
+    // Both cards include the section divider data-testid so the
+    // header → body separation is visually consistent.
+    expect(count(html, 'data-testid="integration-card-divider"')).toBe(2);
   });
 });

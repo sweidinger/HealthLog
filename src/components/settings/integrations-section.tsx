@@ -24,14 +24,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/settings/password-input";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
+import { IntegrationStatusPill } from "@/components/settings/integration-status-pill";
+import type { IntegrationPillState } from "@/components/settings/integration-status-pill";
 import { useAuth } from "@/hooks/use-auth";
-import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
 
@@ -52,8 +52,9 @@ interface GlobalServiceAvailability {
 }
 
 // v1.4.15 Phase B2: shared status payload for both integration cards.
-// Mirrors the `IntegrationViewModel` shape returned by
-// `GET /api/integrations/status` (single roundtrip, two integrations).
+// v1.4.19 Phase A5: the redundant in-card status banner is gone — the
+// IntegrationStatusPill now owns state + last-sync presentation, and
+// the actionable error message is shown inline above the action row.
 type IntegrationKey = "withings" | "moodlog";
 type IntegrationState =
   | "connected"
@@ -97,9 +98,6 @@ function useIntegrationStatuses(enabled: boolean) {
       return (await res.json()).data as IntegrationStatusEnvelope;
     },
     enabled,
-    // The status endpoint is light (one DB read per integration) and
-    // the user typically lands here right after a sync — refetching
-    // on focus avoids a stale "last sync 5 min ago" reading.
     refetchOnWindowFocus: true,
   });
 }
@@ -112,104 +110,44 @@ function pickStatus(
 }
 
 /**
- * Connection-state badge + "X consecutive failures" + last-error
- * surface. Renders nothing when the integration has no history yet
- * AND is connected — there's nothing useful to show in that case.
+ * Collapse the API's four-state machine into the three states the
+ * pill UI cares about: `error_transient` and `error_reauth` both
+ * surface as the same "Error — reconnect" pill, the actionable
+ * difference (whether the user must reconnect vs wait for the next
+ * retry) is conveyed via the inline error text underneath.
  */
-function IntegrationStatusBanner({
-  status,
-  threshold,
-}: {
-  status: IntegrationStatusViewModel | undefined;
-  threshold: number | undefined;
-}) {
-  const { t } = useTranslations();
-  if (!status) return null;
-
-  const showBanner =
-    status.state !== "connected" ||
-    status.consecutiveFailures > 0 ||
-    !!status.lastError ||
-    !!status.lastAttemptAt;
-  if (!showBanner) return null;
-
-  return (
-    <div
-      data-testid="integration-status-banner"
-      className="bg-muted/40 border-border space-y-2 rounded-md border p-3 text-xs"
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge state={status.state} />
-        {status.state !== "connected" && (
-          <Badge variant="outline" className="text-xs">
-            {t("settings.integrationStatus.consecutiveFailures", {
-              count: status.consecutiveFailures,
-              threshold: threshold ?? 3,
-            })}
-          </Badge>
-        )}
-      </div>
-      <dl className="text-muted-foreground grid gap-1 sm:grid-cols-2">
-        {status.lastSuccessAt && (
-          <div>
-            <dt className="font-medium">
-              {t("settings.integrationStatus.lastSuccess")}
-            </dt>
-            <dd>{formatDateTime(status.lastSuccessAt)}</dd>
-          </div>
-        )}
-        {status.lastAttemptAt && (
-          <div>
-            <dt className="font-medium">
-              {t("settings.integrationStatus.lastAttempt")}
-            </dt>
-            <dd>{formatDateTime(status.lastAttemptAt)}</dd>
-          </div>
-        )}
-      </dl>
-      {status.lastError && (
-        <div className="text-destructive flex items-start gap-1.5">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span
-            className="min-w-0 break-words"
-            data-testid="integration-status-error"
-          >
-            {status.lastError}
-          </span>
-        </div>
-      )}
-    </div>
-  );
+function pillStateFor(
+  status: IntegrationStatusViewModel | undefined,
+): IntegrationPillState {
+  if (!status) return "disconnected";
+  switch (status.state) {
+    case "connected":
+      return "connected";
+    case "error_transient":
+    case "error_reauth":
+      return "error";
+    case "disconnected":
+      return "disconnected";
+  }
 }
 
-function StatusBadge({ state }: { state: IntegrationState }) {
-  const { t } = useTranslations();
-  switch (state) {
-    case "connected":
-      return (
-        <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green text-xs">
-          {t("settings.integrationStatus.stateConnected")}
-        </Badge>
-      );
-    case "error_reauth":
-      return (
-        <Badge variant="destructive" className="text-xs">
-          {t("settings.integrationStatus.stateReauthRequired")}
-        </Badge>
-      );
-    case "error_transient":
-      return (
-        <Badge variant="destructive" className="text-xs">
-          {t("settings.integrationStatus.stateError")}
-        </Badge>
-      );
-    case "disconnected":
-      return (
-        <Badge variant="outline" className="text-xs">
-          {t("settings.integrationStatus.stateDisconnected")}
-        </Badge>
-      );
-  }
+/**
+ * Inline actionable error message that surfaces under the pill when a
+ * sync attempt failed. The pill conveys "something is wrong"; this
+ * line tells the user *what* is wrong so they can act on it. Keeping
+ * it deliberately small (one icon + one line) so it doesn't recreate
+ * the v1.4.18 redundant banner Marc removed.
+ */
+function IntegrationErrorMessage({ message }: { message: string }) {
+  return (
+    <p
+      data-testid="integration-error-message"
+      className="text-destructive flex items-start gap-1.5 text-xs"
+    >
+      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <span className="min-w-0 break-words">{message}</span>
+    </p>
+  );
 }
 
 export function IntegrationsSection() {
@@ -229,6 +167,8 @@ export function IntegrationsSection() {
   const { data: integrationStatus } = useIntegrationStatuses(isAuthenticated);
 
   const moodLogEnabled = globalServices?.moodLogGlobal ?? true;
+  const withingsViewModel = pickStatus(integrationStatus, "withings");
+  const moodLogViewModel = pickStatus(integrationStatus, "moodlog");
 
   return (
     <section
@@ -249,33 +189,19 @@ export function IntegrationsSection() {
 
       <WithingsCard
         isAuthenticated={isAuthenticated}
-        statusBanner={
-          <IntegrationStatusBanner
-            status={pickStatus(integrationStatus, "withings")}
-            threshold={integrationStatus?.threshold}
-          />
-        }
+        viewModel={withingsViewModel}
       />
-      {moodLogEnabled && (
-        <MoodLogCard
-          statusBanner={
-            <IntegrationStatusBanner
-              status={pickStatus(integrationStatus, "moodlog")}
-              threshold={integrationStatus?.threshold}
-            />
-          }
-        />
-      )}
+      {moodLogEnabled && <MoodLogCard viewModel={moodLogViewModel} />}
     </section>
   );
 }
 
 function WithingsCard({
   isAuthenticated,
-  statusBanner,
+  viewModel,
 }: {
   isAuthenticated: boolean;
-  statusBanner: React.ReactNode;
+  viewModel: IntegrationStatusViewModel | undefined;
 }) {
   const { t } = useTranslations();
   const [syncing, setSyncing] = useState(false);
@@ -392,6 +318,20 @@ function WithingsCard({
     setCredsSaving(false);
   }
 
+  // The pill state derives from the cross-integration status
+  // envelope, but the per-card `lastSyncedAt` is sourced from the
+  // Withings-specific endpoint so it stays accurate immediately
+  // after a manual "Sync now" (which only invalidates the per-card
+  // query). When neither endpoint has answered yet we fall back to
+  // "disconnected" so the card never renders a status-less header.
+  const pillState: IntegrationPillState = status?.connected
+    ? pillStateFor(viewModel)
+    : "disconnected";
+  const pillLastSyncAt =
+    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+  const errorMessage =
+    pillState === "error" && viewModel?.lastError ? viewModel.lastError : null;
+
   return (
     <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -399,36 +339,22 @@ function WithingsCard({
           <Link2 className="text-primary h-5 w-5" />
           <h2 className="text-lg font-semibold">{t("settings.withings")}</h2>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {status?.configured && !status?.connected && (
-            <Badge variant="outline" className="text-xs">
-              {t("settings.configured")}
-            </Badge>
-          )}
-          {status?.connected && (
-            <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-              {t("settings.withingsConnected")}
-            </Badge>
-          )}
-          {status?.lastSyncedAt && (
-            <Badge variant="outline" className="text-xs">
-              {t("settings.withingsLastSync")}:{" "}
-              {formatDateTime(status.lastSyncedAt)}
-            </Badge>
-          )}
-          {status?.tokenExpired && (
-            <Badge variant="destructive" className="text-xs">
-              {t("settings.withingsTokenExpired")}
-            </Badge>
-          )}
-        </div>
+        <IntegrationStatusPill
+          state={pillState}
+          lastSyncAt={pillLastSyncAt}
+        />
       </div>
       <p className="text-muted-foreground mt-1 text-xs">
         {t("settings.withingsDescription")}
       </p>
 
+      <hr
+        data-testid="integration-card-divider"
+        className="border-border/60 mt-4"
+      />
+
       <div className="mt-4 space-y-4">
-        {statusBanner}
+        {errorMessage && <IntegrationErrorMessage message={errorMessage} />}
         <div className="space-y-3">
           <h3 className="text-sm font-medium">
             {t("settings.withingsCredentials")}
@@ -607,7 +533,11 @@ function WithingsCard({
   );
 }
 
-function MoodLogCard({ statusBanner }: { statusBanner: React.ReactNode }) {
+function MoodLogCard({
+  viewModel,
+}: {
+  viewModel: IntegrationStatusViewModel | undefined;
+}) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const [url, setUrl] = useState("");
@@ -691,8 +621,20 @@ function MoodLogCard({ statusBanner }: { statusBanner: React.ReactNode }) {
     }
   }
 
+  // Mirror Withings logic: the pill state comes from the cross-
+  // integration envelope; per-card `lastSyncedAt` from the Mood Log
+  // endpoint so a manual sync paints fresh "X min ago" without
+  // waiting for the envelope to refetch.
+  const pillState: IntegrationPillState = status?.configured
+    ? pillStateFor(viewModel)
+    : "disconnected";
+  const pillLastSyncAt =
+    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+  const errorMessage =
+    pillState === "error" && viewModel?.lastError ? viewModel.lastError : null;
+
   return (
-    <div className="bg-card border-border space-y-4 rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <Smile className="text-primary h-5 w-5" />
@@ -707,182 +649,186 @@ function MoodLogCard({ statusBanner }: { statusBanner: React.ReactNode }) {
             </a>
           </h2>
         </div>
-        {status?.configured && (
-          <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-            {status.enabled
-              ? t("settings.withingsConnected")
-              : t("settings.configured")}
-          </Badge>
-        )}
+        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
       </div>
-      <p className="text-muted-foreground text-xs">
+      <p className="text-muted-foreground mt-1 text-xs">
         {t("settings.moodLogDescription")}
       </p>
 
-      {statusBanner}
+      {/* v1.4.19 A5 — visual divider matches Withings for consistency
+          (Marc explicitly called the asymmetry out). */}
+      <hr
+        data-testid="integration-card-divider"
+        className="border-border/60 mt-4"
+      />
 
-      <form onSubmit={handleSave} className="space-y-3">
-        <div>
-          <Label>{t("settings.moodLogUrl")}</Label>
-          <Input
-            type="url"
-            placeholder={t("settings.moodLogUrlPlaceholder")}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label>{t("settings.moodLogApiKey")}</Label>
-          <PasswordInput
-            placeholder={
-              status?.configured
-                ? t("settings.withingsCredentialsSavedPlaceholder")
-                : t("settings.moodLogApiKeyPlaceholder")
-            }
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-wrap items-start gap-2">
-          <Button
-            type="submit"
-            disabled={saving || (!url.trim() && !apiKey.trim())}
-            size="sm"
-          >
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
-            {t("common.save")}
-          </Button>
-          <TestConnectionButton
-            endpoint="/api/integrations/moodlog/test"
-            disabled={!status?.configured}
-          />
-        </div>
-      </form>
+      <div className="mt-4 space-y-4">
+        {errorMessage && <IntegrationErrorMessage message={errorMessage} />}
 
-      {status?.configured && (
-        <div className="space-y-3 border-t pt-3">
-          {status.webhookSecret && (
-            <div>
-              <Label>{t("settings.moodLogWebhookSecret")}</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={status.webhookSecret}
-                  readOnly
-                  className="font-mono text-xs"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(status.webhookSecret!);
-                    setMsg(t("common.copied"));
-                    setMsgType("success");
-                  }}
-                >
-                  {t("common.copied").replace("!", "")}
-                </Button>
-              </div>
-              <p className="text-muted-foreground mt-1 text-xs">
-                {t("settings.moodLogWebhookSecretHelp")}
-              </p>
-            </div>
-          )}
-
-          <div className="flex flex-wrap gap-4 text-sm">
-            {status.lastSyncedAt && (
-              <span>
-                {t("settings.moodLogLastSync")}:{" "}
-                {formatDateTime(status.lastSyncedAt)}
-              </span>
-            )}
-            <span>
-              {t("settings.moodLogEntries")}: {status.entryCount}
-            </span>
+        <form onSubmit={handleSave} className="space-y-3">
+          <div>
+            <Label>{t("settings.moodLogUrl")}</Label>
+            <Input
+              type="url"
+              placeholder={t("settings.moodLogUrlPlaceholder")}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
           </div>
-
-          <div className="flex gap-2">
+          <div>
+            <Label>{t("settings.moodLogApiKey")}</Label>
+            <PasswordInput
+              placeholder={
+                status?.configured
+                  ? t("settings.withingsCredentialsSavedPlaceholder")
+                  : t("settings.moodLogApiKeyPlaceholder")
+              }
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap items-start gap-2">
             <Button
-              variant="outline"
+              type="submit"
+              disabled={saving || (!url.trim() && !apiKey.trim())}
               size="sm"
-              disabled={syncing}
-              onClick={() => handleSync(false)}
             >
-              {syncing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {t("settings.moodLogSync")}
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" />
+              {t("common.save")}
             </Button>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={syncing}>
-                  <Download className="mr-2 h-4 w-4" />
-                  {t("settings.moodLogFullSync")}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {t("settings.moodLogFullSyncTitle")}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t("settings.moodLogFullSyncDescription")}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleSync(true)}>
-                    {t("settings.moodLogFullSync")}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                {/* v1.4.3: aligned with the Withings disconnect button —
-                    outline + text-destructive instead of solid destructive
-                    so the trigger reads as a reversible action; the actual
-                    "yes, disconnect" confirmation inside the dialog keeps
-                    its solid-red treatment. */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive"
-                >
-                  <Unlink className="mr-2 h-4 w-4" />
-                  {t("settings.moodLogDisconnect")}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {t("settings.moodLogDisconnectTitle")}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t("settings.moodLogDisconnectDescription")}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDisconnect}>
-                    {t("settings.moodLogDisconnect")}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <TestConnectionButton
+              endpoint="/api/integrations/moodlog/test"
+              disabled={!status?.configured}
+            />
           </div>
-        </div>
-      )}
+        </form>
 
-      {msg && (
-        <p
-          role="alert"
-          className={`text-sm ${msgType === "error" ? "text-destructive" : "text-dracula-green"}`}
-        >
-          {msg}
-        </p>
-      )}
+        {status?.configured && (
+          <div className="space-y-3 border-t pt-3">
+            {status.webhookSecret && (
+              <div>
+                <Label>{t("settings.moodLogWebhookSecret")}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={status.webhookSecret}
+                    readOnly
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(status.webhookSecret!);
+                      setMsg(t("common.copied"));
+                      setMsgType("success");
+                    }}
+                  >
+                    {t("common.copied").replace("!", "")}
+                  </Button>
+                </div>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {t("settings.moodLogWebhookSecretHelp")}
+                </p>
+              </div>
+            )}
+
+            {/* v1.4.19 A5 — The "letzter Sync" line that used to
+                live here is gone. The pill in the card header
+                already carries that information; repeating it
+                inside the body is the redundancy Marc flagged. The
+                entry-count is the only number we still surface
+                because it's an integration-specific datapoint the
+                pill cannot convey. */}
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span>
+                {t("settings.moodLogEntries")}: {status.entryCount}
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={syncing}
+                onClick={() => handleSync(false)}
+              >
+                {syncing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {t("settings.moodLogSync")}
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={syncing}>
+                    <Download className="mr-2 h-4 w-4" />
+                    {t("settings.moodLogFullSync")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("settings.moodLogFullSyncTitle")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("settings.moodLogFullSyncDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleSync(true)}>
+                      {t("settings.moodLogFullSync")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  {/* v1.4.3: aligned with the Withings disconnect button —
+                      outline + text-destructive instead of solid destructive
+                      so the trigger reads as a reversible action; the actual
+                      "yes, disconnect" confirmation inside the dialog keeps
+                      its solid-red treatment. */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive"
+                  >
+                    <Unlink className="mr-2 h-4 w-4" />
+                    {t("settings.moodLogDisconnect")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("settings.moodLogDisconnectTitle")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("settings.moodLogDisconnectDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDisconnect}>
+                      {t("settings.moodLogDisconnect")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+        )}
+
+        {msg && (
+          <p
+            role="alert"
+            className={`text-sm ${msgType === "error" ? "text-destructive" : "text-dracula-green"}`}
+          >
+            {msg}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
