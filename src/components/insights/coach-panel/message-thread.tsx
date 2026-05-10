@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bot, ChevronRight, Sparkles, User } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -63,7 +63,33 @@ export function MessageThread({
   // persisted twin lands — comparing on `messageId` keeps the
   // transition seamless while never accidentally hiding an in-flight
   // bubble (during streaming `messageId` is null).
+  // v1.4.22 W5 reconcile (Code-MED-3) — streaming/persisted-twin
+  // race. On slow connections SSE `done` fires before the
+  // invalidate-refetch resolves; the persisted twin lands while the
+  // streaming bubble is still painted, producing a 200-500ms
+  // duplicate render. Hide the persisted twin (matched on
+  // streaming.messageId) for a 150ms grace window after it first
+  // appears so the streaming bubble stays alone until the streaming
+  // state cleans up naturally on the next `send`.
+  const [graceWindow, setGraceWindow] = useState(false);
+  const lastPersistedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const persistedId = streaming?.messageId ?? null;
+    if (
+      persistedId &&
+      persistedId !== lastPersistedIdRef.current &&
+      messages.some((m) => m.id === persistedId)
+    ) {
+      lastPersistedIdRef.current = persistedId;
+      setGraceWindow(true);
+      const handle = setTimeout(() => setGraceWindow(false), 150);
+      return () => clearTimeout(handle);
+    }
+  }, [streaming?.messageId, messages]);
+  const suppressedTwinId = graceWindow ? streaming?.messageId : null;
+
   const streamingPersisted =
+    !graceWindow &&
     streaming?.messageId != null &&
     messages.some((m) => m.id === streaming.messageId);
   const streamingActive =
@@ -120,15 +146,21 @@ export function MessageThread({
         "scroll-smooth",
       )}
     >
-      {messages.map((m) => (
-        <ChatBubble
-          key={m.id}
-          role={m.role}
-          content={m.content}
-          metricSource={m.metricSource}
-          providerType={m.providerType}
-        />
-      ))}
+      {messages.map((m) => {
+        // v1.4.22 W5 reconcile (Code-MED-3) — suppress the persisted
+        // twin during the 150ms grace window so the streaming bubble
+        // stays alone on slow connections.
+        if (m.id === suppressedTwinId) return null;
+        return (
+          <ChatBubble
+            key={m.id}
+            role={m.role}
+            content={m.content}
+            metricSource={m.metricSource}
+            providerType={m.providerType}
+          />
+        );
+      })}
       {streamingActive && streaming && (
         // role=log + aria-live=polite so screen-reader users hear the
         // assistant prose announce as tokens land. aria-relevant=text

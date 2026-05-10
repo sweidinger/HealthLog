@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -561,7 +562,7 @@ export default function InsightsPage() {
   // preference so a toggle flip in Settings → Dashboard updates both
   // surfaces atomically.
   const { data: layoutData } = useQuery({
-    queryKey: ["user", "dashboardWidgets"],
+    queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
       const res = await fetch("/api/dashboard/widgets");
       if (!res.ok) throw new Error("Failed");

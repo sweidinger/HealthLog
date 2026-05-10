@@ -5,6 +5,7 @@ import { apiSuccess } from "@/lib/api-response";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { computeBpInTargetWindows } from "@/lib/analytics/bp-in-target";
+import { berlinDayKey } from "@/lib/analytics/berlin-day";
 import { calculateCompliance } from "@/lib/analytics/compliance";
 import {
   computeHealthScore,
@@ -333,6 +334,11 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
   return { bpCompliance, moodPulse, weightWeekday };
 }
 
+// v1.4.22 W5 reconcile (Code-MED-3) — `berlinDayKey()` lifted to
+// `src/lib/analytics/berlin-day.ts` so the targets route's sparkline
+// bucketing shares the same Europe/Berlin contract. The
+// `weekday: "short"` formatter still lives here because it's only
+// used by `berlinIsoWeekday()` below.
 const BERLIN_DATE_PARTS = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Berlin",
   year: "numeric",
@@ -340,14 +346,6 @@ const BERLIN_DATE_PARTS = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
   weekday: "short",
 });
-
-function berlinDayKey(d: Date): string {
-  const parts = BERLIN_DATE_PARTS.formatToParts(d);
-  const y = parts.find((p) => p.type === "year")?.value ?? "1970";
-  const m = parts.find((p) => p.type === "month")?.value ?? "01";
-  const day = parts.find((p) => p.type === "day")?.value ?? "01";
-  return `${y}-${m}-${day}`;
-}
 
 function dateFromBerlinKey(key: string): Date {
   // Anchor to UTC midnight — the date is a sortable bucket label rather

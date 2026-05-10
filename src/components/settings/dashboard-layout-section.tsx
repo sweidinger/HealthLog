@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 import {
   type DashboardLayout,
   type DashboardWidgetId,
@@ -54,7 +55,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   const queryClient = useQueryClient();
 
   const { data: remote, isLoading } = useQuery({
-    queryKey: ["user", "dashboardWidgets"],
+    queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
       const res = await fetch("/api/dashboard/widgets");
       if (!res.ok) throw new Error("failed");
@@ -81,7 +82,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
       return (await res.json()).data as DashboardLayout;
     },
     onSuccess: (saved) => {
-      queryClient.setQueryData(["user", "dashboardWidgets"], saved);
+      queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
       setDraft(null);
       toast.success(t("dashboard.layoutSaveSuccess"));
     },
@@ -95,7 +96,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
       return (await res.json()).data as DashboardLayout;
     },
     onSuccess: (saved) => {
-      queryClient.setQueryData(["user", "dashboardWidgets"], saved);
+      queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
       setDraft(null);
       toast.success(t("dashboard.layoutResetSuccess"));
     },

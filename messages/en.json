@@ -853,8 +853,6 @@
       "errorProvider": "The Coach could not reach an AI provider just now. Please try again in a moment.",
       "tagline": "Personal health coach, grounded in your data.",
       "newChat": "New chat",
-      "settings": "Coach settings",
-      "settingsTooltip": "Coach settings arrive in v1.4.21.",
       "send": "Send",
       "thinking": "Thinking…",
       "composerPlaceholder": "Ask anything about your data…",

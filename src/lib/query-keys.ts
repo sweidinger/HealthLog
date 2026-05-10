@@ -74,6 +74,15 @@ export const queryKeys = {
   adminAuditLog: (filter: unknown) => ["admin", "audit-log", filter] as const,
 
   bugreportStatus: () => ["bugreport", "status"] as const,
+
+  /**
+   * v1.4.22 W5 reconcile (Code-LOW-5) — `["user", "dashboardWidgets"]`
+   * was duplicated as a literal at three call sites (dashboard,
+   * insights, settings/dashboard-layout). One typo turns into a
+   * silent cache miss + extra fetch; the centralised key defends
+   * against the same query-key-collision class as `analytics()`.
+   */
+  dashboardWidgets: () => ["user", "dashboardWidgets"] as const,
 };
 
 /**

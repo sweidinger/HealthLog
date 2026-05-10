@@ -14,6 +14,7 @@ import {
 import { calculateCompliance } from "@/lib/analytics/compliance";
 import { pairByTimestamp } from "@/lib/analytics/correlations";
 import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
+import { berlinDayKey } from "@/lib/analytics/berlin-day";
 import {
   classifyPulseByTarget,
   getPersonalizedPulseTarget,
@@ -202,9 +203,14 @@ export const GET = apiHandler(async () => {
       .sort((a, b) => a.measuredAt.getTime() - b.measuredAt.getTime());
     if (data.length < 3) return null;
 
+    // v1.4.22 W5 reconcile (Code-MED-3) — bucket by Berlin calendar
+    // day, not UTC. A 23:30-Berlin reading on Tuesday otherwise
+    // lands in Wednesday's UTC bucket and the sparkline drifts a
+    // day on cross-DST boundaries. Aligns with `berlinDayKey()`
+    // already used by the dashboard analytics route.
     const byDay = new Map<string, { sum: number; count: number }>();
     for (const m of data) {
-      const day = m.measuredAt.toISOString().slice(0, 10);
+      const day = berlinDayKey(m.measuredAt);
       const bucket = byDay.get(day) ?? { sum: 0, count: 0 };
       bucket.sum += m.value;
       bucket.count += 1;

@@ -101,4 +101,33 @@ describe("proxy.ts onboarding redirect (v1.4.22 C4)", () => {
     expect([307, 308]).toContain(res.status);
     expect(res.headers.get("location")).toMatch(/\/auth\/login$/);
   });
+
+  /**
+   * v1.4.22 W5 reconcile (Sec-MED-2) — exact-match `/onboarding`
+   * plus subroutes. A hypothetical `/onboarding-export` route must
+   * NOT inherit the public-pass-through that the literal
+   * `/onboarding` carries.
+   */
+  it("does NOT treat /onboarding-export as the onboarding surface (exact-match guard)", () => {
+    const res = proxy(makeRequest("/onboarding-export"));
+    // Unauthenticated request to a non-public route: redirects to
+    // /auth/login. If the loose `startsWith("/onboarding")` matcher
+    // were still in place it would short-circuit through public-path
+    // handling and 200 instead.
+    expect([307, 308]).toContain(res.status);
+    expect(res.headers.get("location")).toMatch(/\/auth\/login$/);
+  });
+
+  it("still treats subroutes /onboarding/<x> as the onboarding surface", () => {
+    const res = proxy(
+      makeRequest("/onboarding/step-2", {
+        healthlog_session: "sess-1",
+        hl_onboarding: "pending",
+      }),
+    );
+    // /onboarding/step-2 is part of the onboarding surface so the
+    // pending redirect short-circuits.
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+  });
 });

@@ -25,11 +25,24 @@ const PUBLIC_PATHS = [
   "/api/integrations/moodlog/webhook",
   "/api/auth/codex/callback",
   "/api/ingest/",
-  "/onboarding",
+  // `/onboarding` itself + its subroutes are matched exactly via
+  // `isPublicPath()` so we don't admit `/onboarding-export` etc.
   "/robots.txt",
 ];
 
+/**
+ * v1.4.22 W5 reconcile (Sec-MED-2) — `/onboarding` matches exact
+ * page + subroutes (`/onboarding`, `/onboarding/*`) only, NOT the
+ * loose `pathname.startsWith("/onboarding")` family that would admit
+ * `/onboarding-export`, `/onboarding.json`, etc. Every other entry
+ * is either a literal terminal path (`/api/version`, `/robots.txt`)
+ * or already trailing-slashed (`/auth/`, `/api/auth/`); the lone
+ * exception was the unsegmented `/onboarding` literal.
+ */
 function isPublicPath(pathname: string): boolean {
+  if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
+    return true;
+  }
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 }
 
@@ -149,7 +162,12 @@ export function proxy(request: NextRequest) {
     // for the surfaces that need to redirect away.
     const onboardingPending =
       request.cookies.get("hl_onboarding")?.value === "pending";
-    if (onboardingPending && !pathname.startsWith("/onboarding")) {
+    // v1.4.22 W5 reconcile (Sec-MED-2) — exact match the redirect
+    // short-circuit so a hypothetical `/onboarding-export` route can
+    // never inherit the silent-pass-through.
+    const isOnboardingSurface =
+      pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+    if (onboardingPending && !isOnboardingSurface) {
       return NextResponse.redirect(new URL("/onboarding", request.url));
     }
   }

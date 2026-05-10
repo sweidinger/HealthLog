@@ -853,8 +853,6 @@
       "errorProvider": "Der Coach konnte gerade keinen KI-Anbieter erreichen. Bitte versuche es in einem Moment erneut.",
       "tagline": "Persönlicher Gesundheitscoach, auf deine Daten gestützt.",
       "newChat": "Neuer Chat",
-      "settings": "Coach-Einstellungen",
-      "settingsTooltip": "Coach-Einstellungen kommen mit v1.4.21.",
       "send": "Senden",
       "thinking": "Denke nach…",
       "composerPlaceholder": "Frag mich etwas zu deinen Daten…",

@@ -208,7 +208,7 @@ export default function DashboardPage() {
   });
 
   const { data: layoutData } = useQuery({
-    queryKey: ["user", "dashboardWidgets"],
+    queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
       const res = await fetch("/api/dashboard/widgets");
       if (!res.ok) throw new Error("Failed");
