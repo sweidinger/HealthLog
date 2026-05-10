@@ -103,6 +103,15 @@ interface AnalyticsData {
    * on the BD-Zielbereich tile (alongside `7d` and `30d`).
    */
   bpInTargetPctAllTime?: number | null;
+  /**
+   * v1.4.22 W5 reconcile (Code-H2) — period-aligned prior-window
+   * pcts. The BD-Zielbereich tile's comparison-overlay caption picks
+   * `priorMonth` for `comparisonBaseline === "lastMonth"` and
+   * `priorYear` for `lastYear` so the rendered "Δ X% vs. last month"
+   * stays honest. Null when the prior window has no paired readings.
+   */
+  bpInTargetPctPriorMonth?: number | null;
+  bpInTargetPctPriorYear?: number | null;
   glucoseByContext?: Record<string, DataSummaryType>;
 }
 
@@ -817,6 +826,8 @@ export default function DashboardPage() {
           const bp7 = data?.bpInTargetPct7d ?? null;
           const bp30 = data?.bpInTargetPct30d ?? null;
           const bpAll = data?.bpInTargetPctAllTime ?? null;
+          const bpPriorMonth = data?.bpInTargetPctPriorMonth ?? null;
+          const bpPriorYear = data?.bpInTargetPctPriorYear ?? null;
           const bpTrendDelta =
             bp7 !== null && bp30 !== null ? bp7 - bp30 : null;
           const bpSlope30: import("@/lib/analytics/trends").TrendSlope | null =
@@ -835,10 +846,26 @@ export default function DashboardPage() {
                   // mis-interpret a `0` as "very low confidence".
                   confidence: 1,
                 };
+          // v1.4.22 W5 reconcile (Code-H2) — match the comparison
+          // window the user picked. `lastMonth` baseline ⇒ compare
+          // last30 against the now-60d…now-30d window (priorMonth);
+          // `lastYear` baseline ⇒ compare against the matching window
+          // shifted back 365 days. The previous shortcut subtracted
+          // `bpAll` regardless of baseline, which produced a number
+          // whose magnitude was honest but whose label ("vs. last
+          // month") lied to the user.
+          const bpComparePrior =
+            compareBaseline === "lastMonth"
+              ? bpPriorMonth
+              : compareBaseline === "lastYear"
+                ? bpPriorYear
+                : null;
           const bpCompareDelta =
-            compareBaseline === "none" || bp30 === null || bpAll === null
+            compareBaseline === "none" ||
+            bp30 === null ||
+            bpComparePrior === null
               ? null
-              : Math.round((bp30 - bpAll) * 10) / 10;
+              : Math.round((bp30 - bpComparePrior) * 10) / 10;
           trendCards.push({
             id: "bpInTarget",
             order: widgetOrder("bpInTarget"),

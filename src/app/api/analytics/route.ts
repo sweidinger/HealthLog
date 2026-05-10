@@ -70,6 +70,16 @@ export const GET = apiHandler(async () => {
   let bpInTargetPct7d: number | null = null;
   let bpInTargetPct30d: number | null = null;
   let bpInTargetPctAllTime: number | null = null;
+  /**
+   * v1.4.22 W5 reconcile (Code-H2) — period-aligned prior-window
+   * pcts so the BD-Zielbereich tile's comparison-overlay caption
+   * stops mismatching its math with its label. The tile's
+   * `compareDelta` is `last30Days - priorMonth` (or `… - priorYear`)
+   * matching the user's `comparisonBaseline` selection, never
+   * `last30Days - allTime` (the v1.4.22 A2 shortcut).
+   */
+  let bpInTargetPctPriorMonth: number | null = null;
+  let bpInTargetPctPriorYear: number | null = null;
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
     const now = new Date();
@@ -99,6 +109,8 @@ export const GET = apiHandler(async () => {
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
+    bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
+    bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
   }
 
   // Per-context glucose summaries (canonical mg/dL).
@@ -153,6 +165,8 @@ export const GET = apiHandler(async () => {
     bpInTargetPct7d,
     bpInTargetPct30d,
     bpInTargetPctAllTime,
+    bpInTargetPctPriorMonth,
+    bpInTargetPctPriorYear,
     glucoseByContext,
     correlations,
     healthScore,

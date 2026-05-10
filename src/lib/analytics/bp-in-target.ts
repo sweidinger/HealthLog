@@ -221,9 +221,25 @@ export function computeBpInTargetWindows(
   last7Days: { pct: number; pairs: number } | null;
   last30Days: { pct: number; pairs: number } | null;
   allTime: { pct: number; pairs: number } | null;
+  /**
+   * v1.4.22 W5 reconcile (Code-H2) — period-aligned 30-day window
+   * shifted back by one month (now-60d … now-30d). Used by the
+   * BD-Zielbereich tile's comparison-overlay caption when the user's
+   * `comparisonBaseline === "lastMonth"` so the rendered "Δ X% vs.
+   * last month" is honest. Null when the prior window has no pairs.
+   */
+  priorMonth: { pct: number; pairs: number } | null;
+  /**
+   * v1.4.22 W5 reconcile (Code-H2) — same shape, shifted back one
+   * year (now-395d … now-365d) for `comparisonBaseline === "lastYear"`.
+   */
+  priorYear: { pct: number; pairs: number } | null;
 } {
   const sevenDaysAgoMs = now.getTime() - 7 * DAY_MS;
   const thirtyDaysAgoMs = now.getTime() - 30 * DAY_MS;
+  const sixtyDaysAgoMs = now.getTime() - 60 * DAY_MS;
+  const oneYearMinus30DaysAgoMs = now.getTime() - 365 * DAY_MS;
+  const oneYearAgoMs = now.getTime() - 395 * DAY_MS;
 
   const sysLast7 = sysSeries.filter(
     (r) => r.measuredAt.getTime() >= sevenDaysAgoMs,
@@ -238,6 +254,31 @@ export function computeBpInTargetWindows(
     (r) => r.measuredAt.getTime() >= thirtyDaysAgoMs,
   );
 
+  // Period-aligned prior windows. Same 30-day arc, shifted by 30 / 365
+  // days respectively. Bounds are inclusive on the lower end and
+  // exclusive on the upper to avoid double-counting the boundary
+  // reading in both windows.
+  const sysPriorMonth = sysSeries.filter(
+    (r) =>
+      r.measuredAt.getTime() >= sixtyDaysAgoMs &&
+      r.measuredAt.getTime() < thirtyDaysAgoMs,
+  );
+  const diaPriorMonth = diaSeries.filter(
+    (r) =>
+      r.measuredAt.getTime() >= sixtyDaysAgoMs &&
+      r.measuredAt.getTime() < thirtyDaysAgoMs,
+  );
+  const sysPriorYear = sysSeries.filter(
+    (r) =>
+      r.measuredAt.getTime() >= oneYearAgoMs &&
+      r.measuredAt.getTime() < oneYearMinus30DaysAgoMs,
+  );
+  const diaPriorYear = diaSeries.filter(
+    (r) =>
+      r.measuredAt.getTime() >= oneYearAgoMs &&
+      r.measuredAt.getTime() < oneYearMinus30DaysAgoMs,
+  );
+
   return {
     last7Days: computeBpInTargetPct(sysLast7, diaLast7, targets),
     last30Days: computeBpInTargetPct(sysLast30, diaLast30, targets),
@@ -245,5 +286,7 @@ export function computeBpInTargetWindows(
     // analytics route now routes the dashboard tile's headline through
     // this so it stops mirroring `last30Days`.
     allTime: computeBpInTargetPct(sysSeries, diaSeries, targets),
+    priorMonth: computeBpInTargetPct(sysPriorMonth, diaPriorMonth, targets),
+    priorYear: computeBpInTargetPct(sysPriorYear, diaPriorYear, targets),
   };
 }

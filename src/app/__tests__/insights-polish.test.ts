@@ -181,6 +181,40 @@ describe("v1.4.19 A3 — chart-token leak hardening", () => {
   });
 });
 
+describe("v1.4.22 W5 reconcile (Code-H2) — BD-Zielbereich tile compareDelta uses period-aligned baseline", () => {
+  /**
+   * Up to v1.4.22 W4 the BD tile computed `bp30 - bpAll`
+   * (last-30-days minus all-time) regardless of which window the user
+   * picked under Settings → Dashboard. The caption still rendered "vs.
+   * last month" / "vs. last year" via `comparison.captionLastMonth` /
+   * `comparison.captionLastYear`, so the user read a sentence whose
+   * numerator was actually a 30d-vs-all-time delta. Every other tile
+   * routes through `tileCompareDelta()` with `summary.avg30LastMonth`
+   * / `summary.avg30LastYear` for honest period-aligned math.
+   *
+   * This test pins that the dashboard now subtracts the prior-period
+   * window (priorMonth / priorYear) instead of all-time.
+   */
+  it("subtracts bpInTargetPctPriorMonth when comparisonBaseline=lastMonth", () => {
+    const src = load(DASHBOARD_PATH);
+    // The fix introduces `bpComparePrior` keyed by `compareBaseline`.
+    expect(src).toContain("bpInTargetPctPriorMonth");
+    expect(src).toContain("bpInTargetPctPriorYear");
+    // The all-time shortcut from v1.4.22 A2 must not subtract `bpAll`
+    // for the comparison delta any more.
+    expect(src).not.toMatch(/bp30\s*-\s*bpAll/);
+  });
+
+  it("ships priorMonth + priorYear pcts in the analytics envelope", () => {
+    const ROUTE_SRC = readFileSync(
+      join(ROOT, "src/app/api/analytics/route.ts"),
+      "utf8",
+    );
+    expect(ROUTE_SRC).toContain("bpInTargetPctPriorMonth");
+    expect(ROUTE_SRC).toContain("bpInTargetPctPriorYear");
+  });
+});
+
 describe("v1.4.22 A3 — comparison toggle is global Settings only", () => {
   /**
    * The comparison-overlay toggle is a global preference. Up to v1.4.21

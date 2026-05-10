@@ -476,3 +476,63 @@ describe("computeBpInTargetWindows", () => {
     expect(result.last30Days).toEqual({ pct: 50, pairs: 10 });
   });
 });
+
+describe("computeBpInTargetWindows — period-aligned prior windows (Code-H2)", () => {
+  /**
+   * v1.4.22 W5 reconcile (Code-H2) — the BD-Zielbereich tile's
+   * comparison-overlay caption used to compute `last30Days - allTime`
+   * regardless of the user's `comparisonBaseline` selection. The math
+   * therefore claimed "vs. last month" while subtracting an all-time
+   * average — dishonest by every other tile's standard. The fix is a
+   * pair of period-aligned prior windows shifted back by 30 / 365
+   * days so the tile's `compareDelta` matches its caption.
+   */
+  const NOW = new Date("2026-05-09T12:00:00Z");
+
+  it("returns priorMonth shifted back by 30 days (now-60d…now-30d)", () => {
+    // 30-day window: only one IN paired reading.
+    // Prior-month window (now-60d…now-30d): two paired readings, one IN one OUT.
+    const sys = [
+      reading("2026-05-01T08:00:00Z", 117), // last30 IN
+      reading("2026-04-08T08:00:00Z", 122), // priorMonth IN (32d ago)
+      reading("2026-03-22T08:00:00Z", 145), // priorMonth OUT (48d ago)
+      reading("2026-02-08T08:00:00Z", 128), // older than 60d — neither window
+    ];
+    const dia = [
+      reading("2026-05-01T08:00:00Z", 75),
+      reading("2026-04-08T08:00:00Z", 75),
+      reading("2026-03-22T08:00:00Z", 92),
+      reading("2026-02-08T08:00:00Z", 80),
+    ];
+
+    const result = computeBpInTargetWindows(sys, dia, TARGETS_UNDER_65, NOW);
+    expect(result.last30Days).toEqual({ pct: 100, pairs: 1 });
+    expect(result.priorMonth).toEqual({ pct: 50, pairs: 2 });
+  });
+
+  it("returns priorYear shifted back by 365 days (now-395d…now-365d)", () => {
+    // Pin one paired reading inside the now-395d…now-365d window and one
+    // outside it.
+    const sys = [
+      reading("2025-05-08T08:00:00Z", 117), // 366d ago — INSIDE priorYear, IN
+      reading("2025-04-30T08:00:00Z", 145), // 374d ago — INSIDE priorYear, OUT
+      reading("2025-04-01T08:00:00Z", 117), // 403d ago — OUTSIDE priorYear (too old)
+    ];
+    const dia = [
+      reading("2025-05-08T08:00:00Z", 75),
+      reading("2025-04-30T08:00:00Z", 92),
+      reading("2025-04-01T08:00:00Z", 75),
+    ];
+
+    const result = computeBpInTargetWindows(sys, dia, TARGETS_UNDER_65, NOW);
+    expect(result.priorYear).toEqual({ pct: 50, pairs: 2 });
+  });
+
+  it("returns null for prior windows when no readings fall in them", () => {
+    const sys = [reading("2026-05-01T08:00:00Z", 117)]; // only last-30d
+    const dia = [reading("2026-05-01T08:00:00Z", 75)];
+    const result = computeBpInTargetWindows(sys, dia, TARGETS_UNDER_65, NOW);
+    expect(result.priorMonth).toBeNull();
+    expect(result.priorYear).toBeNull();
+  });
+});
