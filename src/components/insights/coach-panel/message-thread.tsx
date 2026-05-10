@@ -115,14 +115,20 @@ export function MessageThread({
         />
       ))}
       {streamingActive && streaming && (
-        <ChatBubble
-          role="assistant"
-          content={streaming.content}
-          metricSource={streaming.metricSource}
-          providerType={streaming.inProgress ? "streaming" : null}
-          inProgress={streaming.inProgress}
-          errorCode={streaming.errorCode}
-        />
+        // role=log + aria-live=polite so screen-reader users hear the
+        // assistant prose announce as tokens land. aria-relevant=text
+        // limits announcements to the streamed content; additions
+        // covers the bubble-mount edge case.
+        <div role="log" aria-live="polite" aria-relevant="additions text">
+          <ChatBubble
+            role="assistant"
+            content={streaming.content}
+            metricSource={streaming.metricSource}
+            providerType={streaming.inProgress ? "streaming" : null}
+            inProgress={streaming.inProgress}
+            errorCode={streaming.errorCode}
+          />
+        </div>
       )}
     </div>
   );
