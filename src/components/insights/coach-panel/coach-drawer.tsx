@@ -134,7 +134,15 @@ export function CoachDrawer({
         showCloseButton
         data-slot="coach-drawer"
         className={cn(
-          "w-full p-0 sm:max-w-[720px] lg:max-w-[1080px]",
+          // Drawer keeps the dashboard context behind it. On laptops
+          // (1280-1366px viewports) the previous lg:max-w-[1080px] cap
+          // left only ~200-286px of underlying /insights visible — a
+          // takeover, not a sheet. Drop the lg cap to min(960px,75vw)
+          // so /insights always retains a readable column; restore
+          // the wider three-column layout at xl+ (≥1280px sources rail
+          // is hidden below xl by the body's lg:hidden chevron rules).
+          "w-full p-0 sm:max-w-[720px]",
+          "lg:!max-w-[min(960px,75vw)] xl:!max-w-[1080px]",
           "flex h-[100dvh] flex-col gap-0",
         )}
       >
@@ -260,7 +268,9 @@ export function CoachDrawer({
           <SheetContent
             side="right"
             data-slot="coach-drawer-sources-tray"
-            className="w-[88vw] max-w-[320px] p-0 lg:hidden"
+            // Sources rail is xl+ inline; on lg it's only available
+            // via this tray to match the narrowed drawer cap.
+            className="w-[88vw] max-w-[320px] p-0 xl:hidden"
           >
             <SheetHeader className="border-border/70 border-b p-3">
               <SheetTitle className="text-sm">

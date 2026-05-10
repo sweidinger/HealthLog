@@ -9,10 +9,13 @@ import { CoachDrawerBody } from "../coach-drawer-body";
  *
  * The drawer hides the history + sources rails on `<lg`. B4 adds two
  * chevron-button triggers along the edges of the message thread that
- * open side-sheets surfacing the same rails. The triggers live on
- * `<CoachDrawerBody>` so the SSR test can pin their `lg:hidden` class
- * + slot markers without rendering the outer Radix `<Sheet>` portal
- * (which is client-only).
+ * open side-sheets surfacing the same rails.
+ *
+ * Phase D reconcile narrowed the lg drawer cap (was 1080px → now
+ * min(960px,75vw)) so the inline sources rail no longer fits below
+ * xl. The history rail surfaces inline on lg; the sources rail
+ * surfaces inline on xl. Mobile chevron triggers cover the missing
+ * rails: history hidden on lg+, sources hidden on xl+.
  */
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
@@ -37,7 +40,7 @@ describe("<CoachDrawerBody> — mobile rail trays", () => {
     expect(html).toMatch(/data-slot="coach-drawer-sources-tray-trigger"/);
   });
 
-  it("hides both triggers on >=lg via the lg:hidden class", () => {
+  it("hides the history trigger on >=lg and the sources trigger on >=xl", () => {
     const html = render(<CoachDrawerBody {...baseProps} />);
     const historyTrigger = html.match(
       /<button[^>]*data-slot="coach-drawer-history-tray-trigger"[^>]*>/,
@@ -49,16 +52,16 @@ describe("<CoachDrawerBody> — mobile rail trays", () => {
       /<button[^>]*data-slot="coach-drawer-sources-tray-trigger"[^>]*>/,
     );
     expect(sourcesTrigger).not.toBeNull();
-    expect(sourcesTrigger?.[0]).toContain("lg:hidden");
+    expect(sourcesTrigger?.[0]).toContain("xl:hidden");
   });
 
-  it("renders the desktop history + sources rails (visible on >=lg)", () => {
+  it("renders the desktop history rail (lg+) and sources rail (xl+)", () => {
     const html = render(<CoachDrawerBody {...baseProps} />);
     expect(html).toMatch(
       /<aside[^>]*data-slot="coach-drawer-history"[^>]*lg:flex/,
     );
     expect(html).toMatch(
-      /<aside[^>]*data-slot="coach-drawer-sources"[^>]*lg:flex/,
+      /<aside[^>]*data-slot="coach-drawer-sources"[^>]*xl:flex/,
     );
   });
 

@@ -41,7 +41,11 @@ export function CoachDrawerBody({
   return (
     <div
       data-slot="coach-drawer-body"
-      className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[260px_1fr_280px]"
+      // v1.4.20 phase D reconcile — narrower drawer cap at lg means the
+      // sources rail no longer fits inline below xl. lg gets the
+      // history rail + thread (sources surface via the chevron tray);
+      // xl+ restores the full three-column layout.
+      className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[260px_1fr] xl:grid-cols-[260px_1fr_280px]"
     >
       {/* History rail — desktop only. Mobile users summon it via the
           tray trigger inside the thread column. */}
@@ -71,6 +75,8 @@ export function CoachDrawerBody({
           <ChevronRight className="size-3" aria-hidden="true" />
           {t("insights.coach.historyTitle")}
         </Button>
+        {/* Sources tray trigger stays visible up to xl since the
+            inline sources rail is xl+ only. */}
         <Button
           type="button"
           variant="ghost"
@@ -78,7 +84,7 @@ export function CoachDrawerBody({
           onClick={onOpenSourcesTray}
           data-slot="coach-drawer-sources-tray-trigger"
           aria-label={t("insights.coach.sourcesTitle")}
-          className="bg-background/80 border-border/60 absolute right-2 top-2 z-10 h-7 gap-1 border px-2 text-[11px] backdrop-blur lg:hidden"
+          className="bg-background/80 border-border/60 absolute right-2 top-2 z-10 h-7 gap-1 border px-2 text-[11px] backdrop-blur xl:hidden"
         >
           {t("insights.coach.sourcesTitle")}
           <ChevronLeft className="size-3" aria-hidden="true" />
@@ -94,10 +100,12 @@ export function CoachDrawerBody({
         </div>
       </main>
 
-      {/* Sources rail — desktop only. */}
+      {/* Sources rail — xl+ only. lg viewports surface it via the
+          mobile chevron tray to keep the underlying /insights column
+          readable behind the narrowed drawer cap. */}
       <aside
         data-slot="coach-drawer-sources"
-        className="border-border/70 hidden h-full min-h-0 border-l lg:flex lg:flex-col"
+        className="border-border/70 hidden h-full min-h-0 border-l xl:flex xl:flex-col"
       >
         {sourcesRail}
       </aside>
