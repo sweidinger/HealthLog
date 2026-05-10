@@ -92,7 +92,7 @@ export function ChartOverlayControls({
           type="button"
           variant="ghost"
           size="sm"
-          className={`text-muted-foreground hover:text-foreground h-7 w-7 px-0 ${triggerClassName ?? ""}`.trim()}
+          className={`text-muted-foreground hover:text-foreground min-h-11 min-w-11 px-0 ${triggerClassName ?? ""}`.trim()}
           aria-label={t("chart.overlay.controls.tooltip.openSettings")}
           data-slot="chart-overlay-controls-trigger"
         >
