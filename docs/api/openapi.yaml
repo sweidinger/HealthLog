@@ -1,3 +1,541 @@
+components:
+  schemas:
+    AccessRefreshBundle:
+      additionalProperties: false
+      description: Native-client token bundle returned by login + refresh. Web cookie-only callers see only `user`.
+      properties:
+        refreshToken:
+          description: Refresh token (`hlr_<64hex>`); only present for native-policy callers.
+          type: string
+        refreshTokenExpiresAt:
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          type: string
+        token:
+          description: Access token (`hlk_<64hex>`).
+          type: string
+        tokenExpiresAt:
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          type: string
+        user:
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+            username:
+              type: string
+          required:
+            - id
+            - username
+          type: object
+      required:
+        - token
+        - tokenExpiresAt
+      type: object
+    AppleHealthBatchEntry:
+      properties:
+        endDate:
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          type: string
+        externalId:
+          description: HKSample.uuid string — the dedup key.
+          maxLength: 120
+          minLength: 1
+          type: string
+        externalSourceVersion:
+          maxLength: 120
+          minLength: 1
+          type: string
+        hkIdentifier:
+          description: HealthKit identifier (e.g. `HKQuantityTypeIdentifierBodyMass`).
+          maxLength: 120
+          minLength: 1
+          type: string
+        sleepStage:
+          description: HKCategoryValueSleepAnalysis codepoint; only for sleep samples.
+          maximum: 20
+          minimum: 0
+          type: integer
+        startDate:
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          type: string
+        unit:
+          maxLength: 60
+          minLength: 1
+          type: string
+        value:
+          type: number
+      required:
+        - hkIdentifier
+        - value
+        - unit
+        - startDate
+        - endDate
+        - externalId
+      type: object
+    AppleHealthBatchEntryResult:
+      additionalProperties: false
+      properties:
+        index:
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        reason:
+          type: string
+        status:
+          enum:
+            - inserted
+            - duplicate
+            - skipped
+          type: string
+      required:
+        - index
+        - status
+      type: object
+    AppleHealthBatchRequest:
+      description: Apple Health batch ingest. ≤500 entries per call; idempotent via `Idempotency-Key`.
+      properties:
+        entries:
+          items:
+            $ref: "#/components/schemas/AppleHealthBatchEntry"
+          maxItems: 500
+          minItems: 1
+          type: array
+      required:
+        - entries
+      type: object
+    AppleHealthBatchResponse:
+      additionalProperties: false
+      properties:
+        duplicate:
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        entries:
+          items:
+            $ref: "#/components/schemas/AppleHealthBatchEntryResult"
+          type: array
+        inserted:
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        skipped:
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+      required:
+        - inserted
+        - duplicate
+        - skipped
+        - entries
+      type: object
+    BatchMeasurementsResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AppleHealthBatchResponse"
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
+    CreateMeasurementResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementResource"
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
+    DeviceRegisterRequest:
+      description: Native device registration. Re-registering an APNs token belonging to another user returns 409
+        (cross-user-hijack guard).
+      properties:
+        apnsEnvironment:
+          description: Gateway the iOS client received `apnsToken` from. Server never auto-detects.
+          enum:
+            - sandbox
+            - production
+          type: string
+        apnsToken:
+          description: Hex-encoded APNs device token. Must be paired with `apnsEnvironment`.
+          maxLength: 256
+          minLength: 8
+          pattern: ^[A-Fa-f0-9]+$
+          type: string
+        appVersion:
+          maxLength: 32
+          minLength: 1
+          type: string
+        bundleId:
+          maxLength: 128
+          minLength: 1
+          type: string
+        locale:
+          maxLength: 16
+          minLength: 2
+          type: string
+        model:
+          maxLength: 64
+          minLength: 1
+          type: string
+        token:
+          description: Generic device identifier (legacy; APNs token below).
+          maxLength: 512
+          minLength: 8
+          pattern: ^[A-Za-z0-9+/=._:-]+$
+          type: string
+      required:
+        - token
+        - bundleId
+      type: object
+    DeviceRegisterResponse:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+          required:
+            - id
+          type: object
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
+    ErrorEnvelope:
+      additionalProperties: false
+      description: "Standard error response: data is null, error is human prose."
+      properties:
+        data:
+          type: "null"
+        error:
+          type: string
+        meta:
+          additionalProperties: false
+          properties:
+            errorCode:
+              type: string
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
+    InsightsComprehensiveResponse:
+      additionalProperties: false
+      description: AI-generated insights bundle. Strict-schema validated server-side; Coach-routed when the insight surface
+        needs day-level grounding.
+      properties:
+        citations:
+          items:
+            additionalProperties: {}
+            propertyNames:
+              type: string
+            type: object
+          type: array
+        dailyBriefing:
+          anyOf:
+            - additionalProperties: {}
+              propertyNames:
+                type: string
+              type: object
+            - type: "null"
+        metricSource:
+          additionalProperties: {}
+          propertyNames:
+            type: string
+          type: object
+        recommendations:
+          items:
+            additionalProperties: {}
+            propertyNames:
+              type: string
+            type: object
+          type: array
+        storyboardAnnotations:
+          items:
+            additionalProperties: {}
+            propertyNames:
+              type: string
+            type: object
+          type: array
+        summary:
+          type: string
+        trendAnnotations:
+          anyOf:
+            - additionalProperties: {}
+              propertyNames:
+                type: string
+              type: object
+            - type: "null"
+        warnings:
+          items:
+            additionalProperties: {}
+            propertyNames:
+              type: string
+            type: object
+          type: array
+        weeklyReport:
+          anyOf:
+            - additionalProperties: {}
+              propertyNames:
+                type: string
+              type: object
+            - type: "null"
+      required:
+        - summary
+        - recommendations
+        - citations
+        - warnings
+      type: object
+    InsightsComprehensiveResponseEnvelope:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsComprehensiveResponse"
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
+    ListMeasurementsResponse:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            measurements:
+              items:
+                $ref: "#/components/schemas/MeasurementResource"
+              type: array
+            total:
+              maximum: 9007199254740991
+              minimum: 0
+              type: integer
+          required:
+            - measurements
+            - total
+          type: object
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
+    LoginResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AccessRefreshBundle"
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
+    MeasurementResource:
+      additionalProperties: false
+      description: Server-shaped measurement row returned by GET endpoints.
+      properties:
+        id:
+          type: string
+        measuredAt:
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          type: string
+        notes:
+          anyOf:
+            - type: string
+            - type: "null"
+        source:
+          enum:
+            - MANUAL
+            - WITHINGS
+            - IMPORT
+            - APPLE_HEALTH
+          type: string
+        type:
+          enum:
+            - WEIGHT
+            - BLOOD_PRESSURE_SYS
+            - BLOOD_PRESSURE_DIA
+            - PULSE
+            - BODY_FAT
+            - SLEEP_DURATION
+            - ACTIVITY_STEPS
+            - BLOOD_GLUCOSE
+            - TOTAL_BODY_WATER
+            - BONE_MASS
+            - OXYGEN_SATURATION
+            - HEART_RATE_VARIABILITY
+            - RESTING_HEART_RATE
+            - ACTIVE_ENERGY_BURNED
+            - FLIGHTS_CLIMBED
+            - WALKING_RUNNING_DISTANCE
+            - VO2_MAX
+            - BODY_TEMPERATURE
+          type: string
+        unit:
+          type: string
+        value:
+          type: number
+      required:
+        - id
+        - type
+        - value
+        - unit
+        - measuredAt
+        - source
+      type: object
+    PasskeyLoginVerifyRequest:
+      description: Passkey assertion verification. Same native-client token issuance as the password path.
+      properties:
+        challengeId:
+          description: Server-issued WebAuthn challenge id.
+          minLength: 1
+          type: string
+        credential:
+          description: SimpleWebAuthn-style assertion response payload.
+          properties:
+            authenticatorAttachment:
+              enum:
+                - platform
+                - cross-platform
+              type: string
+            clientExtensionResults:
+              additionalProperties: {}
+              propertyNames:
+                type: string
+              type: object
+            id:
+              type: string
+            rawId:
+              type: string
+            response:
+              additionalProperties: {}
+              propertyNames:
+                type: string
+              type: object
+            type:
+              const: public-key
+              type: string
+          required:
+            - id
+            - rawId
+            - type
+            - response
+          type: object
+      required:
+        - challengeId
+        - credential
+      type: object
+    PasskeyLoginVerifyResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AccessRefreshBundle"
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
+    RefreshResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AccessRefreshBundle"
+        error:
+          type: "null"
+        meta:
+          additionalProperties: false
+          properties:
+            requestId:
+              type: string
+          type: object
+      required:
+        - data
+        - error
+      type: object
+    RefreshTokenRequest:
+      description: Exchange a one-time-use refresh token for a fresh access + refresh pair.
+      properties:
+        refreshToken:
+          description: Caller-presented refresh token (`hlr_<64hex>`).
+          minLength: 1
+          type: string
+        revoke:
+          description: When true, revoke the supplied token instead of rotating.
+          type: boolean
+      required:
+        - refreshToken
+      type: object
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: hlk_<64hex>
+      description: Native-client API token. Use the `token` field returned by /api/auth/login on a native client.
+      scheme: bearer
+      type: http
+    cookieAuth:
+      description: Browser session cookie — set by /api/auth/login.
+      in: cookie
+      name: healthlog_session
+      type: apiKey
 info:
   contact:
     name: HealthLog
@@ -9,7 +547,324 @@ info:
   title: HealthLog API
   version: 1.4.23
 openapi: 3.1.0
-paths: {}
+paths:
+  /api/auth/login:
+    post:
+      description: "Browser callers receive a session cookie. Native callers (X-Client-Type: native or HealthLog-iOS UA
+        prefix) additionally receive a paired access + refresh token."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  minLength: 1
+                  type: string
+                password:
+                  minLength: 1
+                  type: string
+              required:
+                - email
+                - password
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+          description: Login succeeded.
+        "401": &a1
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Authentication required or invalid credentials.
+        "422": &a2
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Request validation failed.
+        "429": &a3
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Rate limit exceeded.
+      summary: Email-or-username login (password)
+      tags:
+        - Auth
+  /api/auth/passkey/login-verify:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyLoginVerifyRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyLoginVerifyResponse"
+          description: Assertion verified — session + optional bearer issued.
+        "401": *a1
+        "422": *a2
+        "429": *a3
+      summary: Passkey assertion verification
+      tags:
+        - Auth
+  /api/auth/refresh:
+    post:
+      description: Reuse of a consumed refresh token revokes every refresh token still active for the originating device
+        (per-device blast radius from v1.4.23). Legacy tokens issued before v1.4.23 with a null deviceId fall back to
+        revoke-all-for-user.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResponse"
+          description: Rotation succeeded — new pair issued.
+        "401": *a1
+        "422": *a2
+        "429": *a3
+      summary: Rotate refresh token (one-time use)
+      tags:
+        - Auth
+  /api/devices:
+    post:
+      description: Idempotent upsert by `token`. APNs token + environment are paired — supplying one without the other returns
+        422. Cross-user re-registration of either identifier returns 409.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceRegisterRequest"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceRegisterResponse"
+          description: Device registered or refreshed.
+        "401": *a1
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+          description: Device or APNs token already registered to another user.
+        "422": *a2
+        "429": *a3
+      summary: Register native device + APNs token
+      tags:
+        - Devices
+  /api/insights/comprehensive:
+    get:
+      description: Full Insights surface — daily briefing, recommendations with rationale, optional weekly report + storyboard
+        annotations. Strict-schema validated server-side.
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsComprehensiveResponseEnvelope"
+          description: Insights bundle.
+        "401": *a1
+        "422": *a2
+        "429": *a3
+      summary: Comprehensive AI insights bundle
+      tags:
+        - Insights
+  /api/measurements:
+    get:
+      description: Filter by type + date range. Response is paged via offset/limit; default limit 100, hard cap 500.
+      parameters:
+        - in: query
+          name: type
+          schema:
+            enum:
+              - WEIGHT
+              - BLOOD_PRESSURE_SYS
+              - BLOOD_PRESSURE_DIA
+              - PULSE
+              - BODY_FAT
+              - SLEEP_DURATION
+              - ACTIVITY_STEPS
+              - BLOOD_GLUCOSE
+              - TOTAL_BODY_WATER
+              - BONE_MASS
+              - OXYGEN_SATURATION
+              - HEART_RATE_VARIABILITY
+              - RESTING_HEART_RATE
+              - ACTIVE_ENERGY_BURNED
+              - FLIGHTS_CLIMBED
+              - WALKING_RUNNING_DISTANCE
+              - VO2_MAX
+              - BODY_TEMPERATURE
+            type: string
+        - in: query
+          name: from
+          schema:
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            type: string
+        - in: query
+          name: to
+          schema:
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            type: string
+        - in: query
+          name: limit
+          schema:
+            default: 100
+            maximum: 500
+            minimum: 1
+            type: integer
+        - in: query
+          name: offset
+          schema:
+            default: 0
+            maximum: 9007199254740991
+            minimum: 0
+            type: integer
+        - in: query
+          name: sortBy
+          schema:
+            default: measuredAt
+            enum:
+              - type
+              - value
+              - measuredAt
+              - source
+            type: string
+        - in: query
+          name: sortDir
+          schema:
+            default: desc
+            enum:
+              - asc
+              - desc
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListMeasurementsResponse"
+          description: Measurement page.
+        "401": *a1
+        "422": *a2
+        "429": *a3
+      summary: List measurements
+      tags:
+        - Measurements
+    post:
+      description: Single ingest. Use `/api/measurements/batch` for Apple Health upload streams.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                glucoseContext:
+                  enum:
+                    - FASTING
+                    - POSTPRANDIAL
+                    - RANDOM
+                    - BEDTIME
+                  type: string
+                measuredAt:
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                  type: string
+                notes:
+                  maxLength: 25
+                  type: string
+                source:
+                  default: MANUAL
+                  enum:
+                    - MANUAL
+                    - WITHINGS
+                    - IMPORT
+                    - APPLE_HEALTH
+                  type: string
+                type:
+                  enum:
+                    - WEIGHT
+                    - BLOOD_PRESSURE_SYS
+                    - BLOOD_PRESSURE_DIA
+                    - PULSE
+                    - BODY_FAT
+                    - SLEEP_DURATION
+                    - ACTIVITY_STEPS
+                    - BLOOD_GLUCOSE
+                    - TOTAL_BODY_WATER
+                    - BONE_MASS
+                    - OXYGEN_SATURATION
+                    - HEART_RATE_VARIABILITY
+                    - RESTING_HEART_RATE
+                    - ACTIVE_ENERGY_BURNED
+                    - FLIGHTS_CLIMBED
+                    - WALKING_RUNNING_DISTANCE
+                    - VO2_MAX
+                    - BODY_TEMPERATURE
+                  type: string
+                value:
+                  type: number
+              required:
+                - type
+                - value
+                - measuredAt
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMeasurementResponse"
+          description: Created.
+        "401": *a1
+        "422": *a2
+        "429": *a3
+      summary: Create one measurement
+      tags:
+        - Measurements
+  /api/measurements/batch:
+    post:
+      description: Up to 500 HealthKit entries per call. Idempotent via the `Idempotency-Key` header (replay window 24h).
+        Per-entry status lets the iOS client advance its sync cursor accurately.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppleHealthBatchRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchMeasurementsResponse"
+          description: Batch processed.
+        "401": *a1
+        "422": *a2
+        "429": *a3
+      summary: Apple Health batch ingest
+      tags:
+        - Measurements
 servers:
   - description: Production
     url: https://healthlog.bombeck.io
