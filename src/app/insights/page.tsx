@@ -77,6 +77,10 @@ import {
   getPersonalizedPulseTarget,
 } from "@/lib/analytics/pulse-targets";
 import type { DataSummary, TrendSlope } from "@/lib/analytics/trends";
+import {
+  resolveDashboardLayout,
+  type DashboardLayout,
+} from "@/lib/dashboard-layout";
 
 interface ComprehensiveData {
   summaries: Record<
@@ -557,6 +561,23 @@ export default function InsightsPage() {
     enabled: isAuthenticated,
   });
 
+  // v1.4.16 phase B8 — share comparison baseline between dashboard
+  // and insights surfaces. The two pages read from the same persisted
+  // preference so a toggle flip in Settings → Dashboard updates both
+  // surfaces atomically.
+  const { data: layoutData } = useQuery({
+    queryKey: ["user", "dashboardWidgets"],
+    queryFn: async () => {
+      const res = await fetch("/api/dashboard/widgets");
+      if (!res.ok) throw new Error("Failed");
+      const json = await res.json();
+      return json.data as DashboardLayout;
+    },
+    enabled: isAuthenticated,
+  });
+  const compareBaseline =
+    resolveDashboardLayout(layoutData).comparisonBaseline ?? "none";
+
   const { data: analytics } = useQuery({
     queryKey: ["analytics"],
     queryFn: async () => {
@@ -1016,6 +1037,7 @@ export default function InsightsPage() {
           unit="mmHg"
           yAxisUnit="Hg"
           targetZones={bpTargetZones}
+          compareBaseline={compareBaseline}
         />
 
         <div className="grid gap-4 xl:grid-cols-2">
@@ -1217,6 +1239,7 @@ export default function InsightsPage() {
           colors={["#bd93f9"]}
           unit="kg"
           valueBands={weightBands}
+          compareBaseline={compareBaseline}
         />
 
         <div className="grid gap-4 xl:grid-cols-2">
@@ -1380,6 +1403,7 @@ export default function InsightsPage() {
           colors={["#50fa7b"]}
           unit="bpm"
           valueBands={pulseBands}
+          compareBaseline={compareBaseline}
         />
 
         <InsightStatusCard
@@ -1408,7 +1432,7 @@ export default function InsightsPage() {
             </Badge>
           </div>
 
-          <MoodChart />
+          <MoodChart compareBaseline={compareBaseline} />
 
           <InsightStatusCard
             title={t("insights.assessmentTitle")}
@@ -1537,6 +1561,7 @@ export default function InsightsPage() {
             unit="kg/m²"
             valueMode="bmi"
             valueBands={bmiBands}
+            compareBaseline={compareBaseline}
           />
         ) : (
           // v1.4.15 phase-C5: explicit empty state when the user

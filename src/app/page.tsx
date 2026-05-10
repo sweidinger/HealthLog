@@ -218,6 +218,12 @@ export default function DashboardPage() {
 
   // Resolve full dashboard layout — controls visibility + order of every widget
   const layout = resolveDashboardLayout(layoutData);
+  /**
+   * v1.4.16 phase B8 — comparison baseline (Vormonat / Vorjahr) read
+   * from the resolved layout so every chart + tile on the dashboard
+   * receives the same value. "none" = comparison off (pre-B8 default).
+   */
+  const compareBaseline = layout.comparisonBaseline ?? "none";
   /** Whether the widget's *chart* (lower row) shows. */
   const isChartVisible = (id: string) =>
     layout.widgets.find((widget) => widget.id === id)?.visible ?? false;
@@ -807,6 +813,7 @@ export default function DashboardPage() {
                 colors={["#bd93f9"]}
                 unit="kg"
                 valueBands={weightBands}
+                compareBaseline={compareBaseline}
               />
             ),
           });
@@ -829,6 +836,7 @@ export default function DashboardPage() {
                     { min: 24.9, max: 29.9, color: "#ffb86c", opacity: 0.18 },
                     { min: 29.9, max: 120, color: "#ff5555", opacity: 0.16 },
                   ]}
+                  compareBaseline={compareBaseline}
                 />
               ),
             });
@@ -848,6 +856,7 @@ export default function DashboardPage() {
                 unit="mmHg"
                 yAxisUnit="Hg"
                 targetZones={bpTargetZones}
+                compareBaseline={compareBaseline}
               />
             ),
           });
@@ -865,6 +874,7 @@ export default function DashboardPage() {
                 colors={["#50fa7b"]}
                 unit="bpm"
                 valueBands={pulseBands}
+                compareBaseline={compareBaseline}
               />
             ),
           });
@@ -882,6 +892,7 @@ export default function DashboardPage() {
                 colors={["#ffb86c"]}
                 unit="%"
                 valueBands={bodyFatBands}
+                compareBaseline={compareBaseline}
               />
             ),
           });
@@ -891,7 +902,12 @@ export default function DashboardPage() {
             id: "mood-chart",
             order: widgetOrder("mood"),
             count: moodSummary?.count ?? 0,
-            node: <MoodChart key="mood-chart" />,
+            node: (
+              <MoodChart
+                key="mood-chart"
+                compareBaseline={compareBaseline}
+              />
+            ),
           });
         }
         if (showSleepChart) {
@@ -906,6 +922,7 @@ export default function DashboardPage() {
                 title={t("dashboard.sleep") ?? "Sleep"}
                 colors={["#8be9fd"]}
                 unit="h"
+                compareBaseline={compareBaseline}
               />
             ),
           });
@@ -921,6 +938,7 @@ export default function DashboardPage() {
                 types={["ACTIVITY_STEPS"]}
                 title={t("dashboard.steps") ?? "Steps"}
                 colors={["#50fa7b"]}
+                compareBaseline={compareBaseline}
               />
             ),
           });

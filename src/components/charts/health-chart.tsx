@@ -42,6 +42,8 @@ import {
   resolveMiniRangePoints,
   type DataWindow,
 } from "./mini-window";
+import { shiftDailySeriesForward } from "@/lib/charts/comparison-shift";
+import type { ComparisonBaseline } from "@/lib/dashboard-layout";
 
 const TIME_RANGES_KEYS = [
   {
@@ -105,6 +107,18 @@ interface HealthChartProps {
    * mini-chart so it always renders the window the rec is based on.
    */
   windowOverride?: DataWindow;
+  /**
+   * v1.4.16 phase B8 — when set to "lastMonth" / "lastYear", paint a
+   * dimmed prior-period overlay beneath the current series. The chart
+   * already fetches the full measurement history; the overlay is
+   * computed by `shiftDailySeriesForward` so the prior-period day at
+   * 30 / 365 days back lands directly under its current-period sibling
+   * on the visible x-axis.
+   *
+   * "none" or undefined renders the chart exactly as before — no
+   * regression for users who keep the toggle off.
+   */
+  compareBaseline?: ComparisonBaseline;
 }
 
 interface ChartDataPoint {
@@ -279,6 +293,7 @@ export function HealthChart({
   targetZones,
   mini = false,
   windowOverride,
+  compareBaseline = "none",
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
@@ -491,6 +506,81 @@ export function HealthChart({
     return enriched;
   }, [data, rangePoints, showMA, showTrend, types]);
 
+  // v1.4.16 phase B8 — comparison overlay.
+  //
+  // When the toggle is active, derive a prior-period series from the
+  // ALREADY-FETCHED daily aggregates (`data`), shift the timestamps
+  // forward by 30 / 365 days, and stamp the values into the visible
+  // `chartData` under `${type}_compare` keys. The Recharts <Line>
+  // children below render those keys as dimmed dashed lines beneath
+  // the current series, and the tooltip picks them up so the user can
+  // read both numbers + the delta in one place.
+  //
+  // The merge is point-equal-day: a prior-period point only paints
+  // when its shifted timestamp lands on a visible day. Sparse prior
+  // periods are silently dropped (the chart's empty caption surfaces
+  // "Comparison unavailable — no data from last month yet" via the
+  // hasComparisonData flag below).
+  const chartDataWithCompare = useMemo(() => {
+    if (!chartData || compareBaseline === "none") return chartData;
+    if (!data?.length) return chartData;
+
+    const shifted = shiftDailySeriesForward(
+      data.map((row) => ({
+        timestamp: row.timestamp,
+        values: Object.fromEntries(
+          types.map((type) => [type, row[type] as number | undefined]),
+        ),
+      })),
+      compareBaseline,
+    );
+
+    // Index shifted rows by the same day-key the chart already uses.
+    const shiftedByDay = new Map<string, Record<string, number>>();
+    for (const row of shifted) {
+      const dayKey = formatDateShort(new Date(row.timestamp));
+      const slot = shiftedByDay.get(dayKey) ?? {};
+      for (const [type, value] of Object.entries(row.values)) {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          slot[type] = value;
+        }
+      }
+      shiftedByDay.set(dayKey, slot);
+    }
+
+    return chartData.map((point) => {
+      const compareValues = shiftedByDay.get(point.date);
+      if (!compareValues) return point;
+      const merged: ChartDataPoint = { ...point };
+      for (const type of types) {
+        const v = compareValues[type];
+        if (typeof v === "number" && Number.isFinite(v)) {
+          merged[`${type}_compare`] = v;
+        }
+      }
+      return merged;
+    });
+  }, [chartData, compareBaseline, data, types]);
+
+  /**
+   * v1.4.16 phase B8 — true when at least one visible day has a prior-
+   * period value to overlay. Drives the "Comparison unavailable" caption
+   * fallback in the chart header. Empty input → false → caption shows;
+   * a partial overlay (some days have prior data, some don't) is treated
+   * as "available" so we don't surprise the user with a missing caption
+   * when they can clearly see SOME dimmed history.
+   */
+  const hasComparisonData = useMemo(() => {
+    if (compareBaseline === "none" || !chartDataWithCompare) return false;
+    return chartDataWithCompare.some((point) =>
+      types.some(
+        (type) =>
+          typeof point[`${type}_compare`] === "number" &&
+          Number.isFinite(point[`${type}_compare`] as number),
+      ),
+    );
+  }, [chartDataWithCompare, compareBaseline, types]);
+
   const activeBucket: ChartBucketType = useMemo(() => {
     if (!data?.length) return "day";
     const sliced = rangePoints > 0 ? data.slice(-rangePoints) : data;
@@ -503,13 +593,19 @@ export function HealthChart({
   }, [data, rangePoints]);
 
   const yDomain = useMemo<[number, number] | undefined>(() => {
-    if (!chartData?.length) return undefined;
+    if (!chartDataWithCompare?.length) return undefined;
 
     const keys = [...types];
     if (showMA) keys.push(...types.map((type) => `${type}_ma`));
     if (showTrend) keys.push(...types.map((type) => `${type}_trend`));
+    // v1.4.16 phase B8 — extend the y-domain to fit the prior-period
+    // overlay. Without this the dimmed line can clip outside the
+    // visible range when last-month / last-year had a different scale.
+    if (compareBaseline !== "none") {
+      keys.push(...types.map((type) => `${type}_compare`));
+    }
 
-    const values = chartData
+    const values = chartDataWithCompare
       .flatMap((point) => keys.map((key) => point[key]))
       .filter((value): value is number => typeof value === "number")
       .filter((value) => Number.isFinite(value));
@@ -528,7 +624,7 @@ export function HealthChart({
     const paddingBottom = Math.max(span * 0.08, 0.5);
     const paddingTop = Math.max(span * 0.16, 1);
     return [min - paddingBottom, max + paddingTop];
-  }, [chartData, showMA, showTrend, types]);
+  }, [chartDataWithCompare, compareBaseline, showMA, showTrend, types]);
 
   const visibleBands = useMemo(() => {
     if (!showBands || !valueBands?.length || !yDomain) return [];
@@ -747,6 +843,35 @@ export function HealthChart({
                 )}
               </span>
             )}
+            {/* v1.4.16 phase B8 — comparison caption. Inline with the
+                bucket-aggregation chip so the user reads "what window
+                am I looking at" + "what comparison is overlaid" in one
+                glance. The "Comparison unavailable" fallback uses
+                neutral muted styling so it doesn't read as an error. */}
+            {compareBaseline !== "none" && hasComparisonData && (
+              <span
+                className="text-dracula-purple bg-dracula-purple/10 rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+                data-slot="chart-compare-caption"
+              >
+                {t(
+                  compareBaseline === "lastMonth"
+                    ? "comparison.captionLastMonth"
+                    : "comparison.captionLastYear",
+                )}
+              </span>
+            )}
+            {compareBaseline !== "none" && !hasComparisonData && (
+              <span
+                className="text-muted-foreground bg-muted/40 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide"
+                data-slot="chart-compare-unavailable"
+              >
+                {t(
+                  compareBaseline === "lastMonth"
+                    ? "comparison.unavailable.lastMonth"
+                    : "comparison.unavailable.lastYear",
+                )}
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap justify-end gap-1">
             {TIME_RANGES_KEYS.map((r) => (
@@ -899,7 +1024,7 @@ export function HealthChart({
           <div className="relative z-10 h-full touch-pan-y">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
-                data={chartData}
+                data={chartDataWithCompare ?? chartData}
                 margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
               >
                 {/* Inline gradient defs as Recharts children — same id
@@ -1080,18 +1205,62 @@ export function HealthChart({
                       ? formatDateShort(new Date(ts), true)
                       : "";
                     const rows: RichTooltipRow[] = [];
+                    // Build a quick lookup of compare values for this
+                    // hover-day so the current-period row can attach
+                    // a "vs. last month / year" delta inline. Same-day
+                    // current ↔ compare values come from the SAME
+                    // payload object.
+                    const hoverPoint = payload[0]?.payload as
+                      | ChartDataPoint
+                      | undefined;
                     for (const item of payload) {
                       if (typeof item.value !== "number") continue;
                       const dataKey = String(item.dataKey ?? "");
-                      // Skip auxiliary lines (`*_ma`, `*_trend`) so the
-                      // tooltip stays focused on the primary metric
-                      // rows; the user already sees these as dashed
-                      // overlays in the chart.
-                      if (dataKey.endsWith("_ma") || dataKey.endsWith("_trend"))
+                      // Skip auxiliary lines (`*_ma`, `*_trend`,
+                      // `*_compare`) — the comparison value is rendered
+                      // inline as the delta on the current-period row,
+                      // and ma / trend already appear as dashed overlays
+                      // on the chart itself.
+                      if (
+                        dataKey.endsWith("_ma") ||
+                        dataKey.endsWith("_trend") ||
+                        dataKey.endsWith("_compare")
+                      )
                         continue;
                       const baseline = personalBaselines.get(dataKey);
                       let delta: string | undefined;
-                      if (baseline != null) {
+                      // v1.4.16 phase B8 — prefer the comparison delta
+                      // ("Δ −7 vs. last month") over the personal
+                      // baseline delta when comparison is active and we
+                      // have a prior value for this day. Otherwise fall
+                      // back to the existing baseline-delta path.
+                      const compareValue =
+                        compareBaseline !== "none" && hoverPoint
+                          ? (hoverPoint[`${dataKey}_compare`] as
+                              | number
+                              | undefined)
+                          : undefined;
+                      if (
+                        compareBaseline !== "none" &&
+                        typeof compareValue === "number" &&
+                        Number.isFinite(compareValue)
+                      ) {
+                        const diff = item.value - compareValue;
+                        if (Math.abs(diff) < 0.05) {
+                          delta = t("charts.deltaUnchanged");
+                        } else {
+                          const sign = diff > 0 ? "+" : "−";
+                          const formatted = `${sign}${fmt.number(
+                            Math.abs(diff),
+                            1,
+                          )}${unit ? ` ${unit}` : ""}`;
+                          delta = t(
+                            compareBaseline === "lastMonth"
+                              ? "comparison.deltaVs.lastMonth"
+                              : "comparison.deltaVs.lastYear",
+                          ).replace("{delta}", formatted);
+                        }
+                      } else if (baseline != null) {
                         const diff = item.value - baseline;
                         if (Math.abs(diff) < 0.05) {
                           delta = t("charts.deltaUnchanged");
@@ -1115,6 +1284,25 @@ export function HealthChart({
                         color: item.color ?? "var(--dracula-purple)",
                         delta,
                       });
+                      // v1.4.16 phase B8 — also surface the prior-period
+                      // value as its own row so the user reads both
+                      // numbers (current AND last-month / last-year)
+                      // alongside the delta.
+                      if (
+                        compareBaseline !== "none" &&
+                        typeof compareValue === "number" &&
+                        Number.isFinite(compareValue)
+                      ) {
+                        rows.push({
+                          name: `${item.name ?? dataKey} · ${t(
+                            "comparison.tooltipPrior",
+                          )}`,
+                          value: `${formatTooltipValue(compareValue)}${
+                            unit ? ` ${unit}` : ""
+                          }`,
+                          color: item.color ?? "var(--dracula-purple)",
+                        });
+                      }
                     }
                     if (rows.length === 0) return null;
                     return (
@@ -1198,6 +1386,39 @@ export function HealthChart({
                       strokeDasharray="8 4"
                       dot={false}
                       connectNulls
+                    />
+                  ))}
+                {/* v1.4.16 phase B8 — comparison overlay.
+                    A dimmed dashed line per type for the prior period
+                    (lastMonth / lastYear), painted BENEATH the current
+                    series via Recharts' source-order layering. Same
+                    base colour as the current line but with reduced
+                    stroke opacity (45%) and a thinner stroke (1.25)
+                    so the user reads the current line first and the
+                    overlay as orientation. */}
+                {compareBaseline !== "none" &&
+                  hasComparisonData &&
+                  types.map((type, i) => (
+                    <Line
+                      key={`${type}_compare`}
+                      type="monotone"
+                      dataKey={`${type}_compare`}
+                      name={`${getTypeLabel(type, valueMode, t)} (${t(
+                        compareBaseline === "lastMonth"
+                          ? "comparison.captionLastMonth"
+                          : "comparison.captionLastYear",
+                      )})`}
+                      stroke={colors[i % colors.length]}
+                      strokeWidth={1.25}
+                      strokeDasharray="4 3"
+                      strokeOpacity={0.45}
+                      dot={false}
+                      connectNulls
+                      isAnimationActive={animationsEnabled}
+                      animationDuration={animationsEnabled ? 600 : 0}
+                      animationEasing="ease-out"
+                      legendType="none"
+                      data-slot={`chart-compare-line-${type}`}
                     />
                   ))}
               </ComposedChart>

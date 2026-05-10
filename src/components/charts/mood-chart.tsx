@@ -32,6 +32,8 @@ import { ChartLinearGradient, chartGradientFill } from "./chart-gradient";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
+import { shiftDailySeriesForward } from "@/lib/charts/comparison-shift";
+import type { ComparisonBaseline } from "@/lib/dashboard-layout";
 
 // --- Types ---
 
@@ -47,6 +49,8 @@ interface ChartDataPoint {
   score: number;
   ma?: number;
   trend?: number;
+  /** v1.4.16 phase B8 — prior-period overlay value. */
+  scoreCompare?: number;
 }
 
 interface MoodChartProps {
@@ -62,6 +66,13 @@ interface MoodChartProps {
    * window regardless of any parent UI state.
    */
   windowOverride?: "last7days" | "last30days" | "last90days" | "allTime";
+  /**
+   * v1.4.16 phase B8 — when set to "lastMonth" / "lastYear", overlay a
+   * dimmed prior-period mood line beneath the current series. Same
+   * shift mechanic the BP/weight/pulse chart uses; the mood score is
+   * a single metric so only one comparison line is drawn.
+   */
+  compareBaseline?: ComparisonBaseline;
 }
 
 // --- Constants ---
@@ -247,7 +258,12 @@ const MINI_RANGE_POINTS: Record<
   allTime: 0,
 };
 
-export function MoodChart({ title, mini = false, windowOverride }: MoodChartProps) {
+export function MoodChart({
+  title,
+  mini = false,
+  windowOverride,
+  compareBaseline = "none",
+}: MoodChartProps) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
   const initialRangePoints = windowOverride
@@ -369,6 +385,53 @@ export function MoodChart({ title, mini = false, windowOverride }: MoodChartProp
     return enriched;
   }, [data, rangePoints, showMA, showTrend]);
 
+  /**
+   * v1.4.16 phase B8 — comparison overlay merged into chartData.
+   *
+   * Same mechanic as HealthChart: shift the full mood-entries history
+   * forward by 30 / 365 days, key by the existing `date` formatter, and
+   * stamp the prior-period score onto each visible point as
+   * `scoreCompare`. The Recharts <Line dataKey="scoreCompare" />
+   * below renders the dimmed dashed overlay.
+   */
+  const chartDataWithCompare = useMemo<ChartDataPoint[] | undefined>(() => {
+    if (!chartData || compareBaseline === "none") return chartData;
+    if (!data?.entries?.length) return chartData;
+
+    const shifted = shiftDailySeriesForward(
+      data.entries.map((entry) => ({
+        timestamp: dayKeyToTimestamp(entry.date),
+        score: entry.score,
+      })),
+      compareBaseline,
+    );
+
+    const shiftedByDay = new Map<string, number>();
+    for (const row of shifted) {
+      const dayKey = formatDateShort(new Date(row.timestamp));
+      if (typeof row.score === "number" && Number.isFinite(row.score)) {
+        shiftedByDay.set(dayKey, row.score);
+      }
+    }
+
+    return chartData.map((point) => {
+      const compareValue = shiftedByDay.get(point.date);
+      if (typeof compareValue === "number" && Number.isFinite(compareValue)) {
+        return { ...point, scoreCompare: compareValue };
+      }
+      return point;
+    });
+  }, [chartData, compareBaseline, data]);
+
+  const hasComparisonData = useMemo(() => {
+    if (compareBaseline === "none" || !chartDataWithCompare) return false;
+    return chartDataWithCompare.some((point) =>
+      typeof point.scoreCompare === "number"
+        ? Number.isFinite(point.scoreCompare)
+        : false,
+    );
+  }, [chartDataWithCompare, compareBaseline]);
+
   // Mirror the activeBucket calculation from health-chart so the chip
   // in the header reflects the *same* aggregation chartData used.
   // Computed independently of chartData so an empty/loading dataset
@@ -451,6 +514,31 @@ export function MoodChart({ title, mini = false, windowOverride }: MoodChartProp
                   activeBucket === "week"
                     ? "charts.bucketWeekly"
                     : "charts.bucketMonthly",
+                )}
+              </span>
+            )}
+            {/* v1.4.16 phase B8 — comparison caption (mood). */}
+            {!mini && compareBaseline !== "none" && hasComparisonData && (
+              <span
+                className="text-dracula-purple bg-dracula-purple/10 rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+                data-slot="chart-compare-caption"
+              >
+                {t(
+                  compareBaseline === "lastMonth"
+                    ? "comparison.captionLastMonth"
+                    : "comparison.captionLastYear",
+                )}
+              </span>
+            )}
+            {!mini && compareBaseline !== "none" && !hasComparisonData && (
+              <span
+                className="text-muted-foreground bg-muted/40 rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide"
+                data-slot="chart-compare-unavailable"
+              >
+                {t(
+                  compareBaseline === "lastMonth"
+                    ? "comparison.unavailable.lastMonth"
+                    : "comparison.unavailable.lastYear",
                 )}
               </span>
             )}
@@ -550,7 +638,7 @@ export function MoodChart({ title, mini = false, windowOverride }: MoodChartProp
           <div className={`${mini ? "h-[140px]" : "h-[280px]"} touch-pan-y`}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
-                data={chartData}
+                data={chartDataWithCompare ?? chartData}
                 margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
               >
                 <defs>
@@ -669,13 +757,46 @@ export function MoodChart({ title, mini = false, windowOverride }: MoodChartProp
                       ? formatDateShort(new Date(ts), true)
                       : "";
                     const rows: RichTooltipRow[] = [];
+                    const hoverPoint = payload[0]?.payload as
+                      | ChartDataPoint
+                      | undefined;
                     for (const item of payload) {
                       if (typeof item.value !== "number") continue;
                       const dataKey = String(item.dataKey ?? "");
-                      // Skip auxiliary lines (`ma`, `trend`).
-                      if (dataKey === "ma" || dataKey === "trend") continue;
+                      // Skip auxiliary lines (`ma`, `trend`,
+                      // `scoreCompare`). Comparison value rendered as
+                      // delta on the primary row + own row below.
+                      if (
+                        dataKey === "ma" ||
+                        dataKey === "trend" ||
+                        dataKey === "scoreCompare"
+                      )
+                        continue;
                       let delta: string | undefined;
-                      if (personalBaseline != null) {
+                      const compareValue =
+                        compareBaseline !== "none" && hoverPoint
+                          ? hoverPoint.scoreCompare
+                          : undefined;
+                      if (
+                        compareBaseline !== "none" &&
+                        typeof compareValue === "number" &&
+                        Number.isFinite(compareValue)
+                      ) {
+                        const diff = item.value - compareValue;
+                        if (Math.abs(diff) < 0.05) {
+                          delta = t("charts.deltaUnchanged");
+                        } else {
+                          const sign = diff > 0 ? "+" : "−";
+                          const formatted = `${sign}${Math.abs(diff).toFixed(
+                            1,
+                          )}`;
+                          delta = t(
+                            compareBaseline === "lastMonth"
+                              ? "comparison.deltaVs.lastMonth"
+                              : "comparison.deltaVs.lastYear",
+                          ).replace("{delta}", formatted);
+                        }
+                      } else if (personalBaseline != null) {
                         const diff = item.value - personalBaseline;
                         if (Math.abs(diff) < 0.05) {
                           delta = t("charts.deltaUnchanged");
@@ -696,6 +817,19 @@ export function MoodChart({ title, mini = false, windowOverride }: MoodChartProp
                         color: item.color ?? COLOR_MAIN,
                         delta,
                       });
+                      if (
+                        compareBaseline !== "none" &&
+                        typeof compareValue === "number" &&
+                        Number.isFinite(compareValue)
+                      ) {
+                        rows.push({
+                          name: `${t("charts.moodScore")} · ${t(
+                            "comparison.tooltipPrior",
+                          )}`,
+                          value: formatTooltipValue(compareValue),
+                          color: item.color ?? COLOR_MAIN,
+                        });
+                      }
                     }
                     if (rows.length === 0) return null;
                     return (
@@ -789,6 +923,29 @@ export function MoodChart({ title, mini = false, windowOverride }: MoodChartProp
                     strokeDasharray="8 4"
                     dot={false}
                     connectNulls
+                  />
+                )}
+                {/* v1.4.16 phase B8 — comparison overlay (mood). Same
+                    dimmed dashed treatment the BP/weight/pulse chart
+                    uses; mood is a single metric so we only render
+                    one overlay line. Suppressed when there's no prior
+                    data via hasComparisonData. */}
+                {compareBaseline !== "none" && hasComparisonData && (
+                  <Line
+                    type="monotone"
+                    dataKey="scoreCompare"
+                    name="scoreCompare"
+                    stroke={COLOR_MAIN}
+                    strokeWidth={1.25}
+                    strokeDasharray="4 3"
+                    strokeOpacity={0.45}
+                    dot={false}
+                    connectNulls
+                    isAnimationActive={animationsEnabled}
+                    animationDuration={animationsEnabled ? 600 : 0}
+                    animationEasing="ease-out"
+                    legendType="none"
+                    data-slot="chart-compare-line-mood"
                   />
                 )}
               </ComposedChart>
