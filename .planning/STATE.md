@@ -67,9 +67,11 @@ Combined sweep across HealthLog main repo + healthlog-docs + healthlog-landing
 
 ### F6 — Multi-agent QA on new docs
 
-- [ ] After F2 lands: separate agents read dev-vs-prod docs
-- [ ] Verify they describe actual deployed state — no incorrect claims
-- [ ] Flag and fix anything inaccurate before tag
+- [x] 38 docs site pages cross-checked against the live app (v1.4.19), CHANGELOG, `.env.example`, Dockerfile, docker-compose, docker-publish workflow
+- [x] CRITICAL fixed inline: `19eb8de` (S3 env-var names + arm64 build claim removed) on healthlog-docs/main
+- [x] HIGH fixed inline: `3d3ea21` (achievement count 38 → 59, `/admin/<section>` paths, AI rate-limit 2/h → 10/h, default-locale flip, comparison-overlay scope) on healthlog-docs/main
+- [x] 9 MED + 5 LOW deferred to `.planning/v1421-backlog.md` "Docs site audit" section
+- [x] Two flagged-but-uncertain items captured for maintainer review
 - Detailed report: `.planning/phase-F6-report.md`
 
 ## Wave B — Insights redesign with AI Coach (sequential)
