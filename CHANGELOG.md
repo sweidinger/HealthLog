@@ -1,5 +1,68 @@
 # Changelog
 
+## [1.4.21] — 2026-05-10
+
+### Fixed
+
+- **Daily Briefing regenerate produced an empty card.** The
+  `/api/insights/generate` route was still calling the legacy
+  `getInsightsSystemPrompt`, which returns the v1.4.5 schema and
+  never asks the model for a `dailyBriefing` block. Re-runs from the
+  hero strip therefore stored a payload with no briefing and the
+  card painted its empty state forever. The route now uses
+  `getStrictInsightsSystemPrompt(locale)` so the v1.4.20 ground
+  rules apply to manual regeneration too. Cached legacy blobs still
+  parse — every new schema field is optional with `passthrough()`.
+- **Duplicate streaming bubble after the assistant reply landed.**
+  After SSE `done` the streaming hook keeps `streaming.content`
+  populated to support the in-flight render path, then fires a
+  TanStack invalidate that pulls the persisted assistant message
+  into `conversation.messages`. The thread therefore rendered the
+  reply twice until the next `send` reset cleared it. The render
+  path now suppresses the in-flight bubble as soon as the persisted
+  twin lands, keyed on `streaming.messageId`.
+- **Settings cog overlapped by the drawer's close-X.** Radix Sheet
+  paints its default close-X at `top-4 right-4`, which visually
+  swallowed the cog in the right-edge button cluster. The cog moves
+  to the left header zone (next to the gradient avatar) and a
+  `pr-12 / sm:pr-14` padding rule keeps the New-chat button out of
+  the close-X area on narrower viewports.
+- **Suggested-prompt chips below the 36px touch target.** Chips
+  rendered at 28px which fell short of the WCAG-AA target-size
+  guideline. Padding bumped to land on a 36px hit area.
+
+### Changed
+
+- **Coach context now carries day-level readings instead of
+  aggregates only.** `buildCoachSnapshot` folds in a
+  `timeline.recent` block (one row per UTC day for the last 14 days,
+  each tagged with weekday) and a `timeline.weekly` block (ISO-week
+  buckets covering the rest of the analysis window). Systolic and
+  diastolic pair into a single BP row per day; half-measured days
+  drop so the model never fabricates a complement. Per-day
+  medication-adherence rows draw from `MedicationIntakeEvent`. The
+  EN and DE Coach system prompts gain a DAY-LEVEL READINGS section
+  instructing the model to answer day-specific or weekday-specific
+  questions out of `timeline.recent` with date + weekday citations,
+  acknowledge missing days plainly, and fall back to
+  `timeline.weekly` for older windows. Token cost per Coach turn
+  rises from ≈190 tokens (aggregates only) to ≈3000 tokens for a
+  full-scope snapshot. The new scope picker is the relief valve.
+
+### Added
+
+- **Per-source + per-window scope picker on the Coach sources rail.**
+  The sources rail grew real per-source checkboxes (BP / Weight /
+  Pulse / Mood / Compliance — 36px touch target, 60% opacity when
+  excluded) and a window selector (last 7 days / 30 days / 90 days /
+  all-time). The drawer owns the scope state and forwards picked
+  scope through `useSendCoachMessage` to the chat request body.
+  Toggles reset to the all-source last-30-days default each drawer
+  open. The scope payload only ships when the user has narrowed
+  away from the default — server can tell "no opinion" from
+  "intentionally narrow". A single-source last-7-days narrowed turn
+  lands around ≈600–700 tokens.
+
 ## [1.4.20] — 2026-05-10
 
 ### Added

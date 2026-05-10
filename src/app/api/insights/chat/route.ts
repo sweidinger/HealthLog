@@ -143,7 +143,7 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
       { status: 422 },
     );
   }
-  const { conversationId, message, locale: bodyLocale } = parsed.data;
+  const { conversationId, message, locale: bodyLocale, scope } = parsed.data;
 
   await enforceBudget(userId);
 
@@ -201,7 +201,7 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
 
   // Build the prompt: system + (optional) snapshot + recent history +
   // the new user message.
-  const snapshot = await buildCoachSnapshot(userId);
+  const snapshot = await buildCoachSnapshot(userId, scope);
   const systemPrompt = getCoachSystemPrompt(locale);
   const window = buildHistoryWindow([
     ...priorTurns,

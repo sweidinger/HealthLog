@@ -144,6 +144,72 @@ describe("<MessageThread>", () => {
     expect(html).toContain("could not reach an AI provider");
   });
 
+  it("hides the streaming bubble once its persisted twin lands by id", () => {
+    // After the SSE `done` frame the hook keeps `streaming.content`
+    // populated AND fires a TanStack invalidate. When the invalidated
+    // refetch resolves, the persisted message lands inside
+    // `conversation.messages` while `streaming.messageId` matches
+    // exactly. Without de-dup the user sees the assistant reply twice.
+    const conv: CoachConversationDetailDTO = {
+      ...baseConversation,
+      messages: [
+        ...baseConversation.messages,
+        {
+          id: "m3-streaming",
+          role: "assistant",
+          content: "Looking at your data fresh persisted",
+          createdAt: "2026-05-10T09:01:30.000Z",
+          metricSource: null,
+          providerType: "admin-openai",
+          promptVersion: "4.20.0",
+        },
+      ],
+    };
+
+    const html = render(
+      <MessageThread
+        conversation={conv}
+        streaming={{
+          content: "Looking at your data ",
+          metricSource: null,
+          inProgress: false,
+          messageId: "m3-streaming",
+          errorCode: null,
+        }}
+      />,
+    );
+    // 1 persisted user + 2 persisted assistant + 0 streaming → 2.
+    const assistantBubbles = (
+      html.match(/data-slot="coach-bubble-assistant"/g) ?? []
+    ).length;
+    expect(assistantBubbles).toBe(2);
+    // The persisted text shows; the older streaming sketch does not
+    // appear as a separate bubble.
+    expect(html).toContain("fresh persisted");
+  });
+
+  it("still renders the streaming bubble while inProgress and id is null", () => {
+    // Mid-stream — `messageId` is null, persisted twin can't exist
+    // yet. Confirm the streaming branch survives the v1.4.20.1
+    // de-dup logic.
+    const html = render(
+      <MessageThread
+        conversation={baseConversation}
+        streaming={{
+          content: "Looking at your data ",
+          metricSource: null,
+          inProgress: true,
+          messageId: null,
+          errorCode: null,
+        }}
+      />,
+    );
+    const assistantBubbles = (
+      html.match(/data-slot="coach-bubble-assistant"/g) ?? []
+    ).length;
+    expect(assistantBubbles).toBe(2);
+  });
+
   it("uses German empty hint when locale is 'de'", () => {
     const html = render(<MessageThread conversation={null} />, "de");
     expect(html).toContain(

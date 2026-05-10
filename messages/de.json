@@ -883,7 +883,8 @@
         "last30days": "letzte 30 Tage",
         "last90days": "letzte 90 Tage",
         "allTime": "gesamter Zeitraum"
-      }
+      },
+      "windowLabel": "Zeitraum"
     },
     "viewAll": "Alle ansehen",
     "previewEmpty": "Noch keine Empfehlungen.",
