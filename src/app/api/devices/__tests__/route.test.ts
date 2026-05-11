@@ -9,7 +9,15 @@ vi.mock("@/lib/db", () => ({
       create: vi.fn(),
       update: vi.fn(),
     },
+    notificationChannel: {
+      upsert: vi.fn(),
+    },
   },
+}));
+
+vi.mock("@/lib/crypto", () => ({
+  encrypt: (s: string) => `enc(${s})`,
+  decrypt: (s: string) => s.replace(/^enc\(|\)$/g, ""),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -56,6 +64,9 @@ beforeEach(() => {
   vi.mocked(prisma.device.findFirst).mockResolvedValue(null);
   vi.mocked(prisma.device.create).mockResolvedValue({ id: "dev-1" } as never);
   vi.mocked(prisma.device.update).mockResolvedValue({ id: "dev-1" } as never);
+  vi.mocked(prisma.notificationChannel.upsert).mockResolvedValue({
+    id: "ch-1",
+  } as never);
 });
 
 describe("POST /api/devices", () => {
@@ -182,6 +193,7 @@ describe("POST /api/devices", () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.device.findFirst).mockResolvedValue({
       id: "other-dev",
+      userId: "other-user",
     } as never);
     const res = await POST(
       req({
@@ -194,5 +206,28 @@ describe("POST /api/devices", () => {
     expect(res.status).toBe(409);
     expect(prisma.device.create).not.toHaveBeenCalled();
     expect(prisma.device.update).not.toHaveBeenCalled();
+  });
+
+  it("falls through idempotently when the apnsToken already belongs to the same user", async () => {
+    // v1.4.23 W6 reconcile (HIGH 3): the cross-user-hijack guard used
+    // to filter `NOT: { userId }` so it skipped same-user collisions
+    // entirely, letting `findMany({ apnsToken })` fan a single push
+    // out to two Device rows. The guard now reads `userId` and only
+    // rejects cross-user collisions; same-user collisions fall
+    // through to the legacy-token upsert path.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.device.findFirst).mockResolvedValue({
+      id: "self-dev",
+      userId: "user-1",
+    } as never);
+    const res = await POST(
+      req({
+        token: "abcd1234efgh5678",
+        bundleId: "io.healthlog.app",
+        apnsToken: "deadbeef".repeat(8),
+        apnsEnvironment: "sandbox",
+      }),
+    );
+    expect(res.status).toBe(201);
   });
 });

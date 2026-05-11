@@ -447,6 +447,7 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                         {m.source !== "MANUAL" && (
                           <Badge
                             variant="outline"
+                            data-testid="measurement-source-badge"
                             className={`text-xs ${sourceBadgeClass(m.source)}`.trim()}
                           >
                             {formatMeasurementSource(m.source, t)}
@@ -506,7 +507,16 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                           {m.value} {m.unit}
                         </span>
                         <p className="text-muted-foreground truncate text-xs">
-                          {formatDateTime(m.measuredAt)}
+                          <span>{formatDateTime(m.measuredAt)}</span>
+                          {m.source !== "MANUAL" && (
+                            <Badge
+                              variant="outline"
+                              data-testid="measurement-source-badge"
+                              className={`ml-1.5 h-4 px-1 text-[10px] ${sourceBadgeClass(m.source)}`.trim()}
+                            >
+                              {formatMeasurementSource(m.source, t)}
+                            </Badge>
+                          )}
                         </p>
                         {m.notes && (
                           <p className="text-muted-foreground truncate text-xs">

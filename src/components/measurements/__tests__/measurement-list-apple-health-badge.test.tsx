@@ -85,4 +85,18 @@ describe("MeasurementList — APPLE_HEALTH badge", () => {
     const html = render("de");
     expect(html).toContain("Apple Health");
   });
+
+  it("paints the source badge in BOTH the desktop table and the mobile card", () => {
+    // v1.4.23 W6 design review HIGH-1: the badge previously rendered
+    // only inside the desktop `<Table>` cell. iOS users (the audience
+    // that actually consumes Apple Health data) land on the mobile
+    // card branch and saw no source indicator at all, risking
+    // duplicate hand-entries on top of synced rows. Both branches must
+    // carry the badge so the surface is honest at every viewport.
+    const html = render("en");
+    const matches = html.match(
+      /data-testid="measurement-source-badge"/g,
+    );
+    expect(matches?.length ?? 0).toBe(2);
+  });
 });
