@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   Sheet,
@@ -21,7 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
+import { useCoachPrefs } from "@/hooks/use-coach-prefs";
 import {
   DEFAULT_COACH_PREFS,
   type CoachExcludeMetric,
@@ -43,6 +46,13 @@ import {
  * The four controls match the v1.4.23 H4 spec exactly: tone (3-state),
  * verbosity (3-state), excludeMetrics (multi-toggle), and
  * showEvidenceByDefault (single toggle).
+ *
+ * v1.4.23 W6 design-pass:
+ * - Skeleton placeholder while the prefs are loading (Design-H3) so
+ *   the user never sees the `DEFAULT_COACH_PREFS` ghost form snap to
+ *   their saved values mid-paint.
+ * - On save success the sheet emits a sonner toast (Design-H4) before
+ *   closing so the action is visibly acknowledged.
  */
 export interface CoachSettingsSheetProps {
   open: boolean;
@@ -68,16 +78,7 @@ export function CoachSettingsSheet({
   const { t } = useTranslations();
   const queryClient = useQueryClient();
 
-  const { data: persisted } = useQuery({
-    queryKey: ["coach-prefs"],
-    queryFn: async () => {
-      const res = await fetch("/api/auth/me/coach-prefs");
-      if (!res.ok) throw new Error("coach-prefs.fetch_failed");
-      const env = (await res.json()) as { data: CoachPrefs };
-      return env.data;
-    },
-    enabled: open,
-  });
+  const { data: persisted } = useCoachPrefs({ enabled: open });
 
   // Local working copy edited by the form. Re-syncs to the persisted
   // shape on every fetch via the same in-render setState pattern as
@@ -105,6 +106,7 @@ export function CoachSettingsSheet({
     },
     onSuccess: (envelope) => {
       queryClient.setQueryData(["coach-prefs"], envelope.data);
+      toast.success(t("insights.coach.settingsSaved"));
       onOpenChange(false);
     },
   });
@@ -117,6 +119,11 @@ export function CoachSettingsSheet({
         : prev.excludeMetrics.filter((m) => m !== metric),
     }));
   }
+
+  // Render a skeleton shell while the persisted prefs are loading so
+  // we never render the form against `DEFAULT_COACH_PREFS` and snap
+  // the controls when the fetch resolves a moment later.
+  const isLoading = open && !persisted;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -134,139 +141,169 @@ export function CoachSettingsSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
-          {/* Tone */}
-          <div className="flex flex-col gap-2">
-            <Label
-              htmlFor="coach-prefs-tone"
-              className="text-xs font-medium"
-            >
-              {t("insights.coach.settingsToneLabel")}
-            </Label>
-            <Select
-              value={draft.tone}
-              onValueChange={(value) =>
-                setDraft((prev) => ({ ...prev, tone: value as CoachTone }))
-              }
-            >
-              <SelectTrigger
-                id="coach-prefs-tone"
-                data-slot="coach-prefs-tone"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="warm">
-                  {t("insights.coach.settingsToneWarm")}
-                </SelectItem>
-                <SelectItem value="neutral">
-                  {t("insights.coach.settingsToneNeutral")}
-                </SelectItem>
-                <SelectItem value="concise">
-                  {t("insights.coach.settingsToneConcise")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+        {isLoading ? (
+          <div
+            data-slot="coach-prefs-skeleton"
+            className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4"
+          >
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-44 w-full" />
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-1 flex-col gap-1">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+              <Skeleton className="h-5 w-9 rounded-full" />
+            </div>
           </div>
-
-          {/* Verbosity */}
-          <div className="flex flex-col gap-2">
-            <Label
-              htmlFor="coach-prefs-verbosity"
-              className="text-xs font-medium"
-            >
-              {t("insights.coach.settingsVerbosityLabel")}
-            </Label>
-            <Select
-              value={draft.verbosity}
-              onValueChange={(value) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  verbosity: value as CoachVerbosity,
-                }))
-              }
-            >
-              <SelectTrigger
-                id="coach-prefs-verbosity"
-                data-slot="coach-prefs-verbosity"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="brief">
-                  {t("insights.coach.settingsVerbosityBrief")}
-                </SelectItem>
-                <SelectItem value="default">
-                  {t("insights.coach.settingsVerbosityDefault")}
-                </SelectItem>
-                <SelectItem value="detailed">
-                  {t("insights.coach.settingsVerbosityDetailed")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Exclude metrics */}
-          <div className="flex flex-col gap-2">
-            <Label className="text-xs font-medium">
-              {t("insights.coach.settingsExcludeLabel")}
-            </Label>
-            <p className="text-muted-foreground text-[11px] leading-relaxed">
-              {t("insights.coach.settingsExcludeHint")}
-            </p>
-            <ul
-              data-slot="coach-prefs-exclude-list"
-              className="border-border/60 divide-border/50 mt-1 flex flex-col divide-y rounded-md border"
-            >
-              {EXCLUDE_OPTIONS.map((metric) => {
-                const id = `coach-prefs-exclude-${metric}`;
-                const checked = draft.excludeMetrics.includes(metric);
-                return (
-                  <li
-                    key={metric}
-                    className="flex items-center justify-between gap-3 px-3 py-2"
-                  >
-                    <Label htmlFor={id} className="cursor-pointer text-xs">
-                      {t(`insights.coach.metric.${metric}`)}
-                    </Label>
-                    <Switch
-                      id={id}
-                      data-slot={`coach-prefs-exclude-${metric}`}
-                      checked={checked}
-                      onCheckedChange={(next) => toggleExclude(metric, next)}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          {/* Show evidence by default */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-col gap-1">
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
+            {/* Tone */}
+            <div className="flex flex-col gap-2">
               <Label
-                htmlFor="coach-prefs-evidence"
-                className="cursor-pointer text-xs font-medium"
+                htmlFor="coach-prefs-tone"
+                className="text-xs font-medium"
               >
-                {t("insights.coach.settingsEvidenceLabel")}
+                {t("insights.coach.settingsToneLabel")}
+              </Label>
+              <Select
+                value={draft.tone}
+                onValueChange={(value) =>
+                  setDraft((prev) => ({ ...prev, tone: value as CoachTone }))
+                }
+              >
+                <SelectTrigger
+                  id="coach-prefs-tone"
+                  data-slot="coach-prefs-tone"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="warm">
+                    {t("insights.coach.settingsToneWarm")}
+                  </SelectItem>
+                  <SelectItem value="neutral">
+                    {t("insights.coach.settingsToneNeutral")}
+                  </SelectItem>
+                  <SelectItem value="concise">
+                    {t("insights.coach.settingsToneConcise")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Verbosity */}
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="coach-prefs-verbosity"
+                className="text-xs font-medium"
+              >
+                {t("insights.coach.settingsVerbosityLabel")}
+              </Label>
+              <Select
+                value={draft.verbosity}
+                onValueChange={(value) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    verbosity: value as CoachVerbosity,
+                  }))
+                }
+              >
+                <SelectTrigger
+                  id="coach-prefs-verbosity"
+                  data-slot="coach-prefs-verbosity"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="brief">
+                    {t("insights.coach.settingsVerbosityBrief")}
+                  </SelectItem>
+                  <SelectItem value="default">
+                    {t("insights.coach.settingsVerbosityDefault")}
+                  </SelectItem>
+                  <SelectItem value="detailed">
+                    {t("insights.coach.settingsVerbosityDetailed")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Exclude metrics */}
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs font-medium">
+                {t("insights.coach.settingsExcludeLabel")}
               </Label>
               <p className="text-muted-foreground text-[11px] leading-relaxed">
-                {t("insights.coach.settingsEvidenceHint")}
+                {t("insights.coach.settingsExcludeHint")}
               </p>
+              <ul
+                data-slot="coach-prefs-exclude-list"
+                className="border-border/60 divide-border/50 mt-1 flex flex-col divide-y rounded-md border"
+              >
+                {EXCLUDE_OPTIONS.map((metric) => {
+                  const id = `coach-prefs-exclude-${metric}`;
+                  const checked = draft.excludeMetrics.includes(metric);
+                  return (
+                    <li
+                      key={metric}
+                      className="flex items-center justify-between gap-3 px-3 py-2"
+                    >
+                      <Label htmlFor={id} className="cursor-pointer text-xs">
+                        {t(`insights.coach.metric.${metric}`)}
+                      </Label>
+                      <Switch
+                        id={id}
+                        data-slot={`coach-prefs-exclude-${metric}`}
+                        checked={checked}
+                        onCheckedChange={(next) =>
+                          toggleExclude(metric, next)
+                        }
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-            <Switch
-              id="coach-prefs-evidence"
-              data-slot="coach-prefs-evidence"
-              checked={draft.showEvidenceByDefault}
-              onCheckedChange={(next) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  showEvidenceByDefault: next,
-                }))
-              }
-            />
+
+            {/* Show evidence by default */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <Label
+                  htmlFor="coach-prefs-evidence"
+                  className="cursor-pointer text-xs font-medium"
+                >
+                  {t("insights.coach.settingsEvidenceLabel")}
+                </Label>
+                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                  {t("insights.coach.settingsEvidenceHint")}
+                </p>
+              </div>
+              <Switch
+                id="coach-prefs-evidence"
+                data-slot="coach-prefs-evidence"
+                checked={draft.showEvidenceByDefault}
+                onCheckedChange={(next) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    showEvidenceByDefault: next,
+                  }))
+                }
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="border-border/70 flex items-center justify-end gap-2 border-t p-4">
           <Button
@@ -282,7 +319,7 @@ export function CoachSettingsSheet({
             type="button"
             size="sm"
             onClick={() => save.mutate(draft)}
-            disabled={save.isPending}
+            disabled={save.isPending || isLoading}
             data-slot="coach-prefs-save"
           >
             {save.isPending ? (
