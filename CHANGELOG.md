@@ -315,7 +315,7 @@ Coach extension for the new measurement types
   `dailyBriefing` / `trendAnnotations` / `weeklyReport` /
   `storyboardAnnotations` / `healthScore` blocks; legacy v1.4.19
   cached payloads still parse because every new field is nullable
-  + optional.
+  - optional.
 - **Branch + release model.** `CONTRIBUTING.md` documents a
   long-lived `develop` branch as the daily target and `main` as
   release-only. End users follow `main` / latest tag; contributors
@@ -849,11 +849,11 @@ Coach extension for the new measurement types
   permanent reject codes, the channel disables itself and writes an
   audit-log entry. Status + re-enable button live in Settings →
   Notifications.
-- reauth` und der Settings-Eintrag bittet um Neu-Verbindung — statt jeden
-  Sync-Tick weiter gegen den Provider zu hämmern. _Refresh-token failures
-  flip the integration to “needs reauth”. When the Withings or moodLog
-  refresh-token exchange fails (typically after 90 days without re-auth),
-  the integration switches to `error_reauth` and the Settings entry asks
+- reauth`und der Settings-Eintrag bittet um Neu-Verbindung — statt jeden
+Sync-Tick weiter gegen den Provider zu hämmern. _Refresh-token failures
+flip the integration to “needs reauth”. When the Withings or moodLog
+refresh-token exchange fails (typically after 90 days without re-auth),
+the integration switches to`error_reauth` and the Settings entry asks
   for re-connect — instead of hammering the upstream every sync tick.
 - Mobile chart containers no longer eat vertical scroll. On touch devices
   the Recharts wrappers swallowed vertical pans; on slower devices that
@@ -879,7 +879,7 @@ Coach extension for the new measurement types
   — including start markers, denial reasons, and failures — each write an
   audit-log entry with actor and snapshot ID. Restore is additionally
   protected by five independent gates (cookie-only admin auth, `confirm:
-  "RESTORE"` body, typed UI confirmation, idempotency-key wrap,
+"RESTORE"` body, typed UI confirmation, idempotency-key wrap,
   pre-transaction enum validation).
 
 ## [1.4.14] — 2026-05-09
@@ -905,8 +905,8 @@ Coach extension for the new measurement types
   button behind a confirmation dialog clears the stored OpenAI or local
   provider key without touching anything else.
 - MODEL`-Env-Var** als Operator-Override für das Codex- Modell-Slug, damit
-  alternative Modelle ohne Rebuild getestet werden können (z. B. wenn dein
-  ChatGPT-Plan ein anderes Default-Modell bevorzugt). _New `CODEX_MODEL`
+alternative Modelle ohne Rebuild getestet werden können (z. B. wenn dein
+ChatGPT-Plan ein anderes Default-Modell bevorzugt). _New `CODEX_MODEL`
   env var lets operators override the Codex model slug without a rebuild —
   useful for testing alternate slugs against different ChatGPT plan tiers.
 

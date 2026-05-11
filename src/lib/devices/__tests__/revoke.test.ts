@@ -142,8 +142,8 @@ describe("revokeDeviceCascade", () => {
       new Error("postgres-blip"),
     );
 
-    await expect(
-      revokeDeviceCascade("user-1", "dev-3"),
-    ).rejects.toThrow("postgres-blip");
+    await expect(revokeDeviceCascade("user-1", "dev-3")).rejects.toThrow(
+      "postgres-blip",
+    );
   });
 });

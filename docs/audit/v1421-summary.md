@@ -6,14 +6,14 @@ v1.4.21 ships as a same-day patch on top of v1.4.20 to fix a regression in the I
 
 ## Live state
 
-| Field | Value |
-|---|---|
-| URL | `https://healthlog.bombeck.io` |
-| `/api/version` | `1.4.21` |
-| Image digest | `sha256:4e818d44702c3581a14d6480a953fd20d16cbbaf21c41e0c778c07340d3c4b1c` |
-| Version transition | 2026-05-10T17:46:xx (host-side retag fallback) |
-| GH release | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.21 |
-| Branch model | first patch through `develop` → `main` release-merge model (introduced in v1.4.20 F1) |
+| Field              | Value                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| URL                | `https://healthlog.bombeck.io`                                                        |
+| `/api/version`     | `1.4.21`                                                                              |
+| Image digest       | `sha256:4e818d44702c3581a14d6480a953fd20d16cbbaf21c41e0c778c07340d3c4b1c`             |
+| Version transition | 2026-05-10T17:46:xx (host-side retag fallback)                                        |
+| GH release         | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.21                            |
+| Branch model       | first patch through `develop` → `main` release-merge model (introduced in v1.4.20 F1) |
 
 ## Smoke (no session)
 

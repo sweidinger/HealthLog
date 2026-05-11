@@ -12,10 +12,7 @@
  * DB unit, and the aggregation hint all live alongside the identifier
  * so future analytics work has a single discoverable surface.
  */
-import type {
-  MeasurementType,
-  SleepStage,
-} from "@/generated/prisma/client";
+import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 
 /**
  * How a batch of HealthKit samples for the same identifier should be

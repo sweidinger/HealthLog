@@ -13,18 +13,18 @@ Inputs: six W5 reviews + product-lead strategic memo.
 
 ## Commits
 
-| # | SHA | Title | Cross-ref |
-|---|-----|-------|-----------|
-| 1 | `75ccc01` | fix(coach): graceful fallback when sentinel-only output strips empty | Code-H1 |
-| 2 | `ef597bf` | fix(insights): align BD-Zielbereich delta math with comparison window | Code-H2 |
-| 3 | `b1ce6eb` | refactor(auth): fold onboarding-cookie write into createSession + destroySession | Sr-H1 |
-| 4 | `2075d39` | refactor(api): extract createSseStream helper from chat route | Sr-H2 |
-| 5 | `a2e24b1` | a11y(insights): polish sticky section nav (aria-current, focus, motion-reduce) | Design-H1, Design-H3, Code-MED-4, Design-LOW-4 |
-| 6 | `651a529` | fix(insights): collapse BP tile to single secondary row at <sm | Design-H2 |
-| 7 | `65a8b5a` | fix(coach): pin medical disclaimer at bottom of message thread | Design-H3, Design-M4 |
-| 8 | `1631d80` | refactor: simplify-pass apply-yes cleanup | S-01..S-05 |
-| 9 | `6c0c69c` | fix: MED-cluster — SameSite=Strict, exact-match PUBLIC_PATHS, Berlin tz, streaming race | Sec-MED-1, Sec-MED-2, Code-MED-2, Code-MED-3 (×2), Code-LOW-5 |
-| 10 | _this commit_ | docs(planning): record Wave 5 reconcile + v1.4.22 backlog | meta |
+| #   | SHA           | Title                                                                                   | Cross-ref                                                     |
+| --- | ------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 1   | `75ccc01`     | fix(coach): graceful fallback when sentinel-only output strips empty                    | Code-H1                                                       |
+| 2   | `ef597bf`     | fix(insights): align BD-Zielbereich delta math with comparison window                   | Code-H2                                                       |
+| 3   | `b1ce6eb`     | refactor(auth): fold onboarding-cookie write into createSession + destroySession        | Sr-H1                                                         |
+| 4   | `2075d39`     | refactor(api): extract createSseStream helper from chat route                           | Sr-H2                                                         |
+| 5   | `a2e24b1`     | a11y(insights): polish sticky section nav (aria-current, focus, motion-reduce)          | Design-H1, Design-H3, Code-MED-4, Design-LOW-4                |
+| 6   | `651a529`     | fix(insights): collapse BP tile to single secondary row at <sm                          | Design-H2                                                     |
+| 7   | `65a8b5a`     | fix(coach): pin medical disclaimer at bottom of message thread                          | Design-H3, Design-M4                                          |
+| 8   | `1631d80`     | refactor: simplify-pass apply-yes cleanup                                               | S-01..S-05                                                    |
+| 9   | `6c0c69c`     | fix: MED-cluster — SameSite=Strict, exact-match PUBLIC_PATHS, Berlin tz, streaming race | Sec-MED-1, Sec-MED-2, Code-MED-2, Code-MED-3 (×2), Code-LOW-5 |
+| 10  | _this commit_ | docs(planning): record Wave 5 reconcile + v1.4.22 backlog                               | meta                                                          |
 
 ## Findings by bucket
 
@@ -73,6 +73,7 @@ All LOWs deferred to backlog: Code-LOW-1..LOW-4, Sec-LOW-1..LOW-4, Design-L1..L5
 - Integration tests: 81 → 84 (+3) per the new auth-flow + coach-chat + proxy entries; verified locally (`pnpm test:integration auth-flow` passes 6/6).
 
 New test surfaces:
+
 - `src/lib/sse/__tests__/create-stream.test.ts` (3 tests)
 - `src/lib/analytics/__tests__/berlin-day.test.ts` (4 tests)
 - `src/lib/analytics/__tests__/bp-in-target.test.ts` (3 new tests for priorMonth/priorYear/null windows)
@@ -84,11 +85,13 @@ New test surfaces:
 ## Verification gates run between commits
 
 For every commit:
+
 - `pnpm typecheck` (clean — 0 errors)
 - `pnpm test --run` (passes after each change; final 2111/2111)
 - `pnpm lint` (15 pre-existing warnings, 0 errors)
 
 For HIGH 1 + HIGH 3 + Sec-MED-2 (per brief):
+
 - `pnpm test:integration auth-flow` 6/6 passes
 - `pnpm test --run src/__tests__/proxy-onboarding-redirect.test.ts` 9/9 passes
 

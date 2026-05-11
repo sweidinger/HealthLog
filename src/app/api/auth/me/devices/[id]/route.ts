@@ -55,7 +55,11 @@ export const DELETE = apiHandler(
       },
     });
     annotate({
-      action: { name: "auth.me.devices.revoke", entity_type: "device", entity_id: result.id },
+      action: {
+        name: "auth.me.devices.revoke",
+        entity_type: "device",
+        entity_id: result.id,
+      },
       meta: {
         refresh_tokens_revoked: result.refreshTokensRevoked,
         access_tokens_revoked: result.accessTokensRevoked,

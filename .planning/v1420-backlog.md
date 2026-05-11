@@ -15,7 +15,7 @@ component edit.
   (`src/components/admin/user-management-section.tsx`). Spot
   check during Wave B showed every icon button already carries
   `aria-label` + `title` (edit, reset password, force logout,
-  role change). Treat as *not-an-issue*; revisit only if a
+  role change). Treat as _not-an-issue_; revisit only if a
   concrete a11y audit re-flags it.
 - **F-14** — Settings/Integrations status duplicated. Already
   shipped under v1.4.19 A5; keep an eye out for regressions but
@@ -24,7 +24,7 @@ component edit.
   every mood label (`mood.levelLausig` … `mood.moodLabel5`,
   `mood.moodAwful` … `mood.moodGreat`) is translated in
   `messages/de.json`. The achievement-subtitle awkwardness was
-  fixed by F-27. Treat as *not-an-issue*; revisit only with a
+  fixed by F-27. Treat as _not-an-issue_; revisit only with a
   fresh DE-locale screen-by-screen pass.
 - **F-26** — Insights regenerate banner / refresh button conflict.
   Already partially in A3 scope (page-level Regenerate,
@@ -39,7 +39,7 @@ component edit.
 - **F-32** — `/settings/dashboard` triple help blocks
   (subtitle + card help + "Adds a dimmed prior-period overlay…").
   `messages/*.json:settings.sections.dashboard.description`
-  + `dashboardLayout.compareCallout`. **S**.
+  - `dashboardLayout.compareCallout`. **S**.
 - **F-39** — `/settings/dashboard` column heads `TILE` / `CHART`
   in uppercase (`src/components/settings/dashboard-layout-section.tsx`).
   Sentence-case to match the rest of the app. **S**.
@@ -214,7 +214,7 @@ component edit.
   `data?.`) so the rest of the body can drop the redundant
   operators. Touches lots of references but is mechanical.
   `src/app/insights/page.tsx:756,758,1036,1046,1064-1065,1235,1245,
-  1248-1252,1263-1273`. Owner: v1.4.20 Insights redesign.
+1248-1252,1263-1273`. Owner: v1.4.20 Insights redesign.
 - **D-DSGN-H-01** — Truncate-with-tooltip on `/admin/api-tokens` is
   not reachable on touch (Radix Tooltip is hover/focus only, native
   `title=` is iOS-Safari-ignored). Drop `truncate` on the mobile
@@ -233,6 +233,7 @@ component edit.
   `src/components/settings/integrations-section.tsx:199-531,533-831`.
 
 ### MED deferred (code-review M-01..M-07, senior-dev M-1..M-5,
+
 design M-01..M-04)
 
 - **D-CR-M-01** — `/insights` per-section status queries carry
@@ -286,7 +287,7 @@ design M-01..M-04)
   to the SectionFrame `<h1>API Tokens</h1>`. F-08 sweep cleared
   the same dup on `/admin/danger-zone` + `/admin/feedback` but
   deferred this one. `src/app/admin/[section]/renderer.tsx:123-131,
-  180-192` + `src/components/admin/api-token-overview-section.tsx:101-106`.
+180-192` + `src/components/admin/api-token-overview-section.tsx:101-106`.
 - **D-DSGN-M-02** — Profile DOB still wrapped in a
   `grid sm:grid-cols-2` with one cell, leaving an empty right
   column on `>=sm`. Replace with `sm:max-w-md`.
@@ -313,7 +314,7 @@ design M-01..M-04)
   may clip seconds at 1024 px (drop seconds in the formatter),
   IntegrationStatusPill aria-label generic across states.
 - **D-SR-L-1..L-8** — `ai-section.tsx` (1730 lines), `health-
-  chart.tsx` (1360), `integrations-section.tsx` (831) split
+chart.tsx` (1360), `integrations-section.tsx` (831) split
   candidates; Telegram badge concat could reuse the
   IntegrationStatusPill with a `paused` variant; `getViewportWidth`
   SSR fallback `1280` should reference a named constant.
@@ -334,7 +335,7 @@ design M-01..M-04)
 ## Notes for v1.4.20 picks
 
 - The MED block is dominated by copy nits — running prettier
-  + a single i18n sweep would land 12+ of them in one commit.
+  - a single i18n sweep would land 12+ of them in one commit.
 - F-36 (status-word taxonomy) is a small refactor that pays
   off everywhere; consider doing it before the Insights
   redesign so the new surface inherits the canonical

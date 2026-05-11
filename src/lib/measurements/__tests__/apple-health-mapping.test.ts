@@ -38,7 +38,8 @@ describe("APPLE_HEALTH_TYPE_MAP", () => {
   });
 
   it("converts oxygen saturation from 0..1 fraction to 0..100 percent", () => {
-    const mapping = APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierOxygenSaturation;
+    const mapping =
+      APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierOxygenSaturation;
     expect(mapping.convertToDbUnit(0.97)).toBeCloseTo(97);
   });
 

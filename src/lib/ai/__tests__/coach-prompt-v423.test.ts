@@ -52,7 +52,9 @@ describe("getStrictInsightsSystemPrompt — EN", () => {
   });
 
   it("documents the additive sourceMetric tokens in the OUTPUT FORMAT", () => {
-    expect(prompt).toMatch(/hrv \| sleep \| resting_hr \| steps \| active_energy/);
+    expect(prompt).toMatch(
+      /hrv \| sleep \| resting_hr \| steps \| active_energy/,
+    );
   });
 });
 
@@ -70,6 +72,8 @@ describe("getStrictInsightsSystemPrompt — DE", () => {
   });
 
   it("documents the additive sourceMetric tokens in the German OUTPUT FORMAT", () => {
-    expect(prompt).toMatch(/hrv \| sleep \| resting_hr \| steps \| active_energy/);
+    expect(prompt).toMatch(
+      /hrv \| sleep \| resting_hr \| steps \| active_energy/,
+    );
   });
 });

@@ -130,7 +130,7 @@ export function CoachSettingsSheet({
       <SheetContent
         side="right"
         data-slot="coach-settings-sheet"
-        className="w-full p-0 sm:max-w-[420px] flex h-[100dvh] flex-col gap-0"
+        className="flex h-[100dvh] w-full flex-col gap-0 p-0 sm:max-w-[420px]"
       >
         <SheetHeader className="border-border/70 border-b p-4 pr-12">
           <SheetTitle className="text-sm font-semibold">
@@ -171,10 +171,7 @@ export function CoachSettingsSheet({
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
             {/* Tone */}
             <div className="flex flex-col gap-2">
-              <Label
-                htmlFor="coach-prefs-tone"
-                className="text-xs font-medium"
-              >
+              <Label htmlFor="coach-prefs-tone" className="text-xs font-medium">
                 {t("insights.coach.settingsToneLabel")}
               </Label>
               <Select
@@ -267,9 +264,7 @@ export function CoachSettingsSheet({
                         id={id}
                         data-slot={`coach-prefs-exclude-${metric}`}
                         checked={checked}
-                        onCheckedChange={(next) =>
-                          toggleExclude(metric, next)
-                        }
+                        onCheckedChange={(next) => toggleExclude(metric, next)}
                       />
                     </li>
                   );
@@ -323,10 +318,7 @@ export function CoachSettingsSheet({
             data-slot="coach-prefs-save"
           >
             {save.isPending ? (
-              <Loader2
-                className="size-3.5 animate-spin"
-                aria-hidden="true"
-              />
+              <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
             ) : null}
             {t("insights.coach.settingsSave")}
           </Button>

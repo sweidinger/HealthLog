@@ -111,9 +111,9 @@ HIGH and CRITICAL items all landed inline (fix counts in
   `streamRefusal()`. Same broader gap covered by Senior-MED-3.
 - **Refusal patterns miss common injection synonyms** (Sec-M-3).
   Extend `INJECTION_PATTERNS` with `(forget|abandon|drop|skip|toss|
-  bypass|circumvent)` paired with `(instructions?|rules?|prompt|
-  guidelines?|directives?|system\s+message)`, plus a "what
-  (were|are)\s+your.*(instructions|prompt|rules)" probe. Add a
+bypass|circumvent)` paired with `(instructions?|rules?|prompt|
+guidelines?|directives?|system\s+message)`, plus a "what
+  (were|are)\s+your.\*(instructions|prompt|rules)" probe. Add a
   zero-width-stripping normalisation pass before regex.
 - **`assistantMessage` persisted before `recordSpend()`** (Sec-M-4).
   Wrap the `appendMessage(assistant)` + `recordSpend()` pair in a
@@ -138,7 +138,7 @@ HIGH and CRITICAL items all landed inline (fix counts in
 
 - **Hero strip greeting clock is wall-clock, not Berlin** (Design-M1).
   Pass the current Berlin hour through `Intl.DateTimeFormat("en-CA",
-  { timeZone: "Europe/Berlin", hour: "numeric" })` so a traveller
+{ timeZone: "Europe/Berlin", hour: "numeric" })` so a traveller
   sees the Berlin bucket the rest of the UI uses.
 - **Health Score panel mobile order inversion** (Design-M3). On `<lg`
   promote the Health Score panel between the meta row and the weekly
@@ -201,7 +201,7 @@ HIGH and CRITICAL items all landed inline (fix counts in
 - **`apiHandler`-vs-`withIdempotency` stacking** (Sr-MED-6). Largely
   moot now that the chat route doesn't wrap in idempotency, but still
   worth offering `withIdempotency(handler, { skipWhen?: (req) =>
-  boolean })` for the next caller that wants to opt out conditionally.
+boolean })` for the next caller that wants to opt out conditionally.
 - **`coach_usage` redundant index** (Sr-LOW-1). Drop the `@@index`
   line — the `@@unique` already builds an index.
 - **`metricSourceJson` stored as `String`** (Sr-LOW-2). Migrate to
@@ -226,7 +226,6 @@ HIGH and CRITICAL items all landed inline (fix counts in
 - **`health-score-card.tsx` delta-arrow chooser** (S-09). Compress
   three sibling `&&` blocks into a `deltaIcon` lookup. Borderline —
   judgement call for the file's owner.
-
 
 ## F5 — Best-practice repo audit (deferred MED + LOW)
 
@@ -282,7 +281,7 @@ are MED + LOW and were deliberately left for a hygiene pass.
 - **Stale version pins in installation / docker / admin examples.**
   `getting-started/installation.mdx` and `self-hosting/docker.mdx` show
   `:1.2.0` as the pin example; `api/admin.mdx` returns `"version":
-  "1.2.1"` in its sample response. Bump all three to a current `1.4.x`
+"1.2.1"` in its sample response. Bump all three to a current `1.4.x`
   reference on the next docs sweep.
 - **`architecture/database.mdx` model count + measurement-type list.**
   Page claims **22 models**; current schema has **26**. Measurement

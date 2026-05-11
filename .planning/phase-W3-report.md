@@ -15,11 +15,11 @@ of every assistant turn. Five atomic commits on `origin/develop`.
    extension, route + persistence + SSE provenance frame wiring,
    integration coverage.
 3. `feat(coach): collapsible evidence-block disclosure under assistant
-   bubbles` — `<details>` disclosure with chevron in
+bubbles` — `<details>` disclosure with chevron in
    `message-thread.tsx`; closed by default; hides when keyValues is
    empty; both EN + DE labels.
 4. `refactor(coach): drawer polish — Gravatar avatar, disclaimer
-   move, cog removal` — user bubble pulls `useAuth().user.gravatarUrl`
+move, cog removal` — user bubble pulls `useAuth().user.gravatarUrl`
    at the same 32-px dimensions as the Coach avatar with initials
    fallback; disclaimer moved out of `coach-input.tsx` into
    `sources-rail.tsx`'s footer; settings cog removed cleanly from the

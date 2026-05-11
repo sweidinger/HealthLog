@@ -11,13 +11,13 @@ endpoints. The drawer UI (B2b) dispatches separately.
 
 ## Commit timeline (five atomic commits on `develop`)
 
-| SHA | Subject |
-| --- | --- |
+| SHA       | Subject                                                               |
+| --------- | --------------------------------------------------------------------- |
 | `5527001` | `feat(coach): add CoachConversation, CoachMessage, CoachUsage models` |
-| `a68557d` | `feat(coach): types, persistence, budget, and refusal helpers` |
-| `16f3ece` | `feat(coach): add POST /api/insights/chat SSE streaming endpoint` |
-| `3168ba8` | `feat(coach): GET list, GET single, DELETE conversation endpoints` |
-| _(this)_ | `docs(planning): tick B2a complete, record phase-B2a report` |
+| `a68557d` | `feat(coach): types, persistence, budget, and refusal helpers`        |
+| `16f3ece` | `feat(coach): add POST /api/insights/chat SSE streaming endpoint`     |
+| `3168ba8` | `feat(coach): GET list, GET single, DELETE conversation endpoints`    |
+| _(this)_  | `docs(planning): tick B2a complete, record phase-B2a report`          |
 
 ## Schema + migration
 
@@ -49,9 +49,9 @@ every Coach row.
   read helpers, `summariseTitle()` for the rail, cursor-paginated
   `listConversations()`, `deleteConversation()` with ownership check.
 - `src/lib/ai/coach/budget.ts` — `MAX_TOKENS_PER_USER_PER_DAY = 25
-  000`. UTC `dateKey` so the meter aligns with the LLM provider's
+000`. UTC `dateKey` so the meter aligns with the LLM provider's
   billing boundary. `enforceBudget()` throws `HttpError(429,
-  "coach.budget.exceeded")`. `recordSpend()` clamps non-finite token
+"coach.budget.exceeded")`. `recordSpend()` clamps non-finite token
   figures to 0 so a misbehaving provider can't poison the ledger.
 - `src/lib/ai/coach/refusal.ts` — pattern-based detector for prompt
   injection (EN + DE wording, jailbreak variants, "reveal your
@@ -87,10 +87,10 @@ every Coach row.
 
 ## Test coverage
 
-| Suite | Before | After | Δ |
-| --- | --- | --- | --- |
-| Unit (vitest) | 1753 | 1781 | +28 |
-| Integration | 67 | 78 | +11 |
+| Suite         | Before | After | Δ   |
+| ------------- | ------ | ----- | --- |
+| Unit (vitest) | 1753   | 1781  | +28 |
+| Integration   | 67     | 78    | +11 |
 
 Unit tests cover refusal patterns (13 cases), title summarisation (6),
 and budget guard semantics (9). Integration tests pin five chat-route
@@ -131,7 +131,7 @@ without the encryption key for future analytics.
 
 - The "summarise older half" pass is currently a placeholder (the
   history-window builder injects a synthetic `[summary placeholder
-  — N earlier turns elided]` line rather than calling a provider to
+— N earlier turns elided]` line rather than calling a provider to
   produce a real summary). Cheap and deterministic; an opt-in real-
   summarisation pass can land alongside B2b once the drawer UI shows
   whether users actually push past 20 turns.

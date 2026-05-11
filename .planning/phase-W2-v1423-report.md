@@ -9,15 +9,15 @@ analytics-side sleep-stage aggregation the new schema unblocks.
 
 ### Six atomic commits
 
-1. **`feat(schema)` — Apple Health measurement types + sleep stages
-   + dedup index.** `prisma/schema.prisma` gains seven additive
-   `MeasurementType` values, `APPLE_HEALTH` joins `MeasurementSource`,
-   a new `SleepStage` enum mirrors the existing `GlucoseContext`
-   pattern, and `Measurement` picks up nullable `sleepStage` +
-   `externalSourceVersion` columns plus a composite unique index
-   `(user_id, type, source, external_id)`. Migration
-   `0036_apple_health_measurement_types` is strictly additive — no
-   row mutations.
+1. \*\*`feat(schema)` — Apple Health measurement types + sleep stages
+   - dedup index.\*\* `prisma/schema.prisma` gains seven additive
+     `MeasurementType` values, `APPLE_HEALTH` joins `MeasurementSource`,
+     a new `SleepStage` enum mirrors the existing `GlucoseContext`
+     pattern, and `Measurement` picks up nullable `sleepStage` +
+     `externalSourceVersion` columns plus a composite unique index
+     `(user_id, type, source, external_id)`. Migration
+     `0036_apple_health_measurement_types` is strictly additive — no
+     row mutations.
 2. **`feat(measurements)` — Apple Health identifier mapping helper.**
    New `src/lib/measurements/apple-health-mapping.ts` translates each
    HealthKit identifier into the row shape the `Measurement` model
@@ -58,14 +58,14 @@ analytics-side sleep-stage aggregation the new schema unblocks.
 - `ALTER TYPE measurement_type ADD VALUE IF NOT EXISTS …` × 7 (the
   seven new HealthKit-shaped values).
 - `ALTER TYPE measurement_source ADD VALUE IF NOT EXISTS
-  'APPLE_HEALTH'`.
+'APPLE_HEALTH'`.
 - `CREATE TYPE sleep_stage AS ENUM (…)`.
 - `ALTER TABLE measurements ADD COLUMN external_source_version
-  TEXT, ADD COLUMN sleep_stage sleep_stage` (both nullable).
+TEXT, ADD COLUMN sleep_stage sleep_stage` (both nullable).
 - CHECK constraint scoping `sleep_stage` to SLEEP_DURATION rows
   (mirrors the glucose_context constraint from migration 0021).
 - `CREATE UNIQUE INDEX measurements_user_id_type_source_external_id_key
-  ON measurements (user_id, type, source, external_id)` — Apple
+ON measurements (user_id, type, source, external_id)` — Apple
   Health batch dedup key. Postgres treats NULL externalId rows as
   distinct, so manual entries don't collide.
 
@@ -75,15 +75,15 @@ guard.
 
 ## W1 recommendations adopted verbatim
 
-| W1 recommendation | Status |
-|---|---|
-| Source enum value = `APPLE_HEALTH` (not `HEALTHKIT`) | Adopted |
-| Reuse existing `ACTIVITY_STEPS` for HK step count | Adopted |
+| W1 recommendation                                           | Status  |
+| ----------------------------------------------------------- | ------- |
+| Source enum value = `APPLE_HEALTH` (not `HEALTHKIT`)        | Adopted |
+| Reuse existing `ACTIVITY_STEPS` for HK step count           | Adopted |
 | Reuse existing `SLEEP_DURATION`, shift unit hours → minutes | Adopted |
-| Per-stage sleep rows with new `sleep_stage` column | Adopted |
-| `apple-health-mapping.ts` keyed by HK string identifier | Adopted |
-| Apple ships 0..1 fraction for SpO2 + body fat → × 100 | Adopted |
-| `BODY_TEMPERATURE` enum value alongside the other 6 | Adopted |
+| Per-stage sleep rows with new `sleep_stage` column          | Adopted |
+| `apple-health-mapping.ts` keyed by HK string identifier     | Adopted |
+| Apple ships 0..1 fraction for SpO2 + body fat → × 100       | Adopted |
+| `BODY_TEMPERATURE` enum value alongside the other 6         | Adopted |
 
 ## Decisions made beyond W1's scope
 

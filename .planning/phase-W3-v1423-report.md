@@ -99,30 +99,30 @@ could fail on existing data, no enum reorderings.
 `pnpm-lock.yaml` adds `@parse/node-apn@8.1.0` and the documented
 transitive dependency chain only:
 
-| package | reason |
-|---|---|
-| `@parse/node-apn` | direct dependency |
-| `jsonwebtoken` | JWT bearer for APNs auth tokens |
-| `node-forge` | PEM parsing for the .p8 signing key |
-| `verror` | error wrapping inside node-apn |
-| `assert-plus`, `core-util-is`, `extsprintf` | verror's transitive set |
-| `lodash.includes`, `lodash.isboolean`, `lodash.isinteger`, …  | jsonwebtoken's per-helper imports |
+| package                                                      | reason                              |
+| ------------------------------------------------------------ | ----------------------------------- |
+| `@parse/node-apn`                                            | direct dependency                   |
+| `jsonwebtoken`                                               | JWT bearer for APNs auth tokens     |
+| `node-forge`                                                 | PEM parsing for the .p8 signing key |
+| `verror`                                                     | error wrapping inside node-apn      |
+| `assert-plus`, `core-util-is`, `extsprintf`                  | verror's transitive set             |
+| `lodash.includes`, `lodash.isboolean`, `lodash.isinteger`, … | jsonwebtoken's per-helper imports   |
 
 `web-push` already pulls `node-forge` for VAPID JWT signing, so
 the on-disk install footprint delta is small.
 
 ## W1 recommendations adopted verbatim
 
-| W1 recommendation | Status |
-|---|---|
-| Library = `@parse/node-apn` (vs `apns2` / hand-rolled HTTP/2) | Adopted |
-| APNs joins existing `NotificationChannel` enum as 4th type | Adopted |
-| Reuse existing `consecutiveFailures` / `nextRetryAt` / `disabledReason` columns | Adopted |
-| Per-device `apnsEnvironment` (`sandbox` \| `production`); no server-side auto-detect | Adopted |
-| Env-var contract `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_BUNDLE_ID` / one of `APNS_KEY` / `APNS_KEY_FILE` | Adopted |
-| Provider singleton per process — lazy-init, JWT rotated by library | Adopted |
-| Permanent failures (`Unregistered`, `BadDeviceToken`) drop the device row | Adopted, plus `DeviceTokenNotForTopic` for completeness |
-| Mock provider for test isolation | Adopted (`__mocks__/apns.ts` + `__tests__/apns.test.ts`) |
+| W1 recommendation                                                                                        | Status                                                   |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Library = `@parse/node-apn` (vs `apns2` / hand-rolled HTTP/2)                                            | Adopted                                                  |
+| APNs joins existing `NotificationChannel` enum as 4th type                                               | Adopted                                                  |
+| Reuse existing `consecutiveFailures` / `nextRetryAt` / `disabledReason` columns                          | Adopted                                                  |
+| Per-device `apnsEnvironment` (`sandbox` \| `production`); no server-side auto-detect                     | Adopted                                                  |
+| Env-var contract `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_BUNDLE_ID` / one of `APNS_KEY` / `APNS_KEY_FILE` | Adopted                                                  |
+| Provider singleton per process — lazy-init, JWT rotated by library                                       | Adopted                                                  |
+| Permanent failures (`Unregistered`, `BadDeviceToken`) drop the device row                                | Adopted, plus `DeviceTokenNotForTopic` for completeness  |
+| Mock provider for test isolation                                                                         | Adopted (`__mocks__/apns.ts` + `__tests__/apns.test.ts`) |
 
 ## Decisions made beyond W1's scope
 

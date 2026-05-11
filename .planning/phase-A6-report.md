@@ -36,11 +36,11 @@ human eye missed.
 ## What was fixed (5 commits)
 
 1. `957f8e9` — `fix(settings): equalize input heights across all
-   settings sections`. AI active-provider select `h-10` → `h-9`, AI
+settings sections`. AI active-provider select `h-10` → `h-9`, AI
    add-provider select `h-8` → `h-9`, Dashboard "Compare to" trigger
    loses `min-h-11` so the default `h-9` applies.
 2. `9fda634` — `fix(settings): action-button placement consistent
-   across sections (right-side desktop, stacked mobile)`. Account →
+across sections (right-side desktop, stacked mobile)`. Account →
    Password, Account → Restart onboarding tour and Dashboard → Reset
    to defaults all use `flex-col` on `<sm` and `flex-row` on `>=sm`,
    so the button stacks below the title on mobile (full-width) and
@@ -48,21 +48,21 @@ human eye missed.
    pulled into the title cluster on the two account cards so each
    row is a clean `<title-block + button>` flex pair.
 3. `1075784` — `fix(settings): Sprache select position + width
-   consistent`. Language lifted out of the dob/language pair into
+consistent`. Language lifted out of the dob/language pair into
    its own row at the bottom of the Profile card. `max-w-xs` on
    `>=sm` so it doesn't render heavier than other half-width fields.
    Drive-by: pulled the duplicated native-select class string into a
    single `NATIVE_SELECT_CLASS` constant so gender + language render
    identically.
 4. `737b533` — `style(settings): uniform vertical spacing across all
-   sections`. Dashboard layout card `space-y-5` → `space-y-4`. AI
+sections`. Dashboard layout card `space-y-5` → `space-y-4`. AI
    provider config forms `space-y-3` → `space-y-4`. Section roots
    keep `space-y-6` so distinct cards still read as distinct
    surfaces. Note: `.planning/STATE.md` got bundled into this commit
    accidentally via index race with A5; STATE content is correct,
    no semantic harm.
 5. `78f1f3f` — `test(settings): mobile e2e snapshot verifies
-   consistency`. Pixel-5 Playwright spec
+consistency`. Pixel-5 Playwright spec
    (`e2e/settings-mobile-consistency.spec.ts`) locks in five
    invariants: every form input on /settings/account is 36 px,
    neither password nor tour buttons overflow the card right edge,

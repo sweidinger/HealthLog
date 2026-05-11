@@ -523,15 +523,60 @@ export async function buildCoachSnapshot(
   // Apple Health source maps to exactly one MeasurementType (BP is
   // the only fan-out and lives in its own legacy block above).
   const appleHealthBlocks: AppleHealthBlock[] = [
-    { metric: "hrv", snapshotKey: "heartRateVariability", type: "HEART_RATE_VARIABILITY", enabled: sources.has("hrv") },
-    { metric: "sleep", snapshotKey: "sleep", type: "SLEEP_DURATION", enabled: sources.has("sleep") },
-    { metric: "resting_hr", snapshotKey: "restingHeartRate", type: "RESTING_HEART_RATE", enabled: sources.has("resting_hr") },
-    { metric: "steps", snapshotKey: "steps", type: "ACTIVITY_STEPS", enabled: sources.has("steps") },
-    { metric: "active_energy", snapshotKey: "activeEnergy", type: "ACTIVE_ENERGY_BURNED", enabled: sources.has("active_energy") },
-    { metric: "flights", snapshotKey: "flightsClimbed", type: "FLIGHTS_CLIMBED", enabled: sources.has("flights") },
-    { metric: "distance", snapshotKey: "walkingRunningDistance", type: "WALKING_RUNNING_DISTANCE", enabled: sources.has("distance") },
-    { metric: "vo2_max", snapshotKey: "vo2Max", type: "VO2_MAX", enabled: sources.has("vo2_max") },
-    { metric: "body_temp", snapshotKey: "bodyTemperature", type: "BODY_TEMPERATURE", enabled: sources.has("body_temp") },
+    {
+      metric: "hrv",
+      snapshotKey: "heartRateVariability",
+      type: "HEART_RATE_VARIABILITY",
+      enabled: sources.has("hrv"),
+    },
+    {
+      metric: "sleep",
+      snapshotKey: "sleep",
+      type: "SLEEP_DURATION",
+      enabled: sources.has("sleep"),
+    },
+    {
+      metric: "resting_hr",
+      snapshotKey: "restingHeartRate",
+      type: "RESTING_HEART_RATE",
+      enabled: sources.has("resting_hr"),
+    },
+    {
+      metric: "steps",
+      snapshotKey: "steps",
+      type: "ACTIVITY_STEPS",
+      enabled: sources.has("steps"),
+    },
+    {
+      metric: "active_energy",
+      snapshotKey: "activeEnergy",
+      type: "ACTIVE_ENERGY_BURNED",
+      enabled: sources.has("active_energy"),
+    },
+    {
+      metric: "flights",
+      snapshotKey: "flightsClimbed",
+      type: "FLIGHTS_CLIMBED",
+      enabled: sources.has("flights"),
+    },
+    {
+      metric: "distance",
+      snapshotKey: "walkingRunningDistance",
+      type: "WALKING_RUNNING_DISTANCE",
+      enabled: sources.has("distance"),
+    },
+    {
+      metric: "vo2_max",
+      snapshotKey: "vo2Max",
+      type: "VO2_MAX",
+      enabled: sources.has("vo2_max"),
+    },
+    {
+      metric: "body_temp",
+      snapshotKey: "bodyTemperature",
+      type: "BODY_TEMPERATURE",
+      enabled: sources.has("body_temp"),
+    },
   ];
   for (const block of appleHealthBlocks) {
     if (!block.enabled) continue;

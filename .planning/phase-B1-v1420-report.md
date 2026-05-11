@@ -13,28 +13,29 @@ full-width Daily Briefing card, and extend the AI insight pipeline
 with a `dailyBriefing` payload block (paragraph + 0-5 keyFindings).
 
 The 5 prior commits land each sub-deliverable atomically; this report
-+ STATE.md tick complete in commit 6.
+
+- STATE.md tick complete in commit 6.
 
 ## What shipped (5 commits, all on `origin/develop`)
 
-| # | SHA | Sub-deliverable |
-|---|-----|------|
-| 1 | `9873363` | Schema + prompt — `dailyBriefingSchema` (`paragraph`, `keyFindings[0..5]`, tone enum, sourceWindow / sourceMetric enums); PROMPT_VERSION bump 4.19.0 → 4.20.0; GROUND RULE 8 added in EN + DE prompts; new `daily-briefing-schema.test.ts` (+31 specs). |
-| 2 | `9713bf1` | `<SuggestedPrompts>` chip-strip component — 5-chip default ("Try asking" row), lucide `Quote` icon, Dracula purple chip styling, mobile-wrap; EN + DE keys (`insights.suggestedPrompts.*`); +9 specs. |
-| 3 | `92f332e` | `<DailyBriefing>` card — narrative paragraph, 0-5 finding rows with tone-coloured left bar (green/orange/cyan), metric-icon prefix, optional delta badge, empty-state CTA, `animate-pulse` skeleton, optional metaSlot; EN + DE keys (`insights.dailyBriefing.*`); +18 specs. |
-| 4 | `59e63a0` | `<HeroStrip>` — locale-aware time-of-day greeting (4 buckets), briefing-paragraph subtitle with fallback, 3-button action row (weekly-report + ask-coach disabled with `title="Coming soon"`, regenerate wired), suggested-prompt strip below; old `<InsightsPageHero>` JSDoc-deprecated; new `globals.css` utilities `.hero-gradient`, `.glow-purple`, `pulseDot` keyframes; +22 specs. |
-| 5 | `7d29596` | `/insights` page wire-up — `<HeroStrip>` + `<DailyBriefing>` mounted above the existing Status / Advisor / Recommendations blocks; `useInsightsAdvisorQuery` lifts `dailyBriefing` off the cached payload via `dailyBriefingSchema.safeParse`; CompareToggle migrated from hero meta band into briefing metaSlot; v1.4.19 A3 polish-test loosened from string-count to JSX-block check (load-bearing "advisor card carries no onRegenerate" stays). |
+| #   | SHA       | Sub-deliverable                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `9873363` | Schema + prompt — `dailyBriefingSchema` (`paragraph`, `keyFindings[0..5]`, tone enum, sourceWindow / sourceMetric enums); PROMPT_VERSION bump 4.19.0 → 4.20.0; GROUND RULE 8 added in EN + DE prompts; new `daily-briefing-schema.test.ts` (+31 specs).                                                                                                                                                                                             |
+| 2   | `9713bf1` | `<SuggestedPrompts>` chip-strip component — 5-chip default ("Try asking" row), lucide `Quote` icon, Dracula purple chip styling, mobile-wrap; EN + DE keys (`insights.suggestedPrompts.*`); +9 specs.                                                                                                                                                                                                                                               |
+| 3   | `92f332e` | `<DailyBriefing>` card — narrative paragraph, 0-5 finding rows with tone-coloured left bar (green/orange/cyan), metric-icon prefix, optional delta badge, empty-state CTA, `animate-pulse` skeleton, optional metaSlot; EN + DE keys (`insights.dailyBriefing.*`); +18 specs.                                                                                                                                                                       |
+| 4   | `59e63a0` | `<HeroStrip>` — locale-aware time-of-day greeting (4 buckets), briefing-paragraph subtitle with fallback, 3-button action row (weekly-report + ask-coach disabled with `title="Coming soon"`, regenerate wired), suggested-prompt strip below; old `<InsightsPageHero>` JSDoc-deprecated; new `globals.css` utilities `.hero-gradient`, `.glow-purple`, `pulseDot` keyframes; +22 specs.                                                            |
+| 5   | `7d29596` | `/insights` page wire-up — `<HeroStrip>` + `<DailyBriefing>` mounted above the existing Status / Advisor / Recommendations blocks; `useInsightsAdvisorQuery` lifts `dailyBriefing` off the cached payload via `dailyBriefingSchema.safeParse`; CompareToggle migrated from hero meta band into briefing metaSlot; v1.4.19 A3 polish-test loosened from string-count to JSX-block check (load-bearing "advisor card carries no onRegenerate" stays). |
 
 ## Test count
 
-| Snapshot | Files | Tests |
-|----|----|----|
-| Baseline (start of B1) | 210 | 1672 |
-| After commit 1 (schema) | 211 | 1703 (+31) |
-| After commit 2 (suggested-prompts) | 212 | 1712 (+9) |
-| After commit 3 (daily-briefing) | 213 | 1730 (+18) |
-| After commit 4 (hero-strip) | 214 | 1752 (+22) |
-| After commit 5 (page wire-up) | 214 | 1753 (+1 polish guard) |
+| Snapshot                           | Files | Tests                  |
+| ---------------------------------- | ----- | ---------------------- |
+| Baseline (start of B1)             | 210   | 1672                   |
+| After commit 1 (schema)            | 211   | 1703 (+31)             |
+| After commit 2 (suggested-prompts) | 212   | 1712 (+9)              |
+| After commit 3 (daily-briefing)    | 213   | 1730 (+18)             |
+| After commit 4 (hero-strip)        | 214   | 1752 (+22)             |
+| After commit 5 (page wire-up)      | 214   | 1753 (+1 polish guard) |
 
 Net delta: **+4 test files, +81 tests**, all green. `pnpm typecheck`
 clean across the chain. `pnpm lint` baseline preserved (12 pre-
@@ -118,7 +119,7 @@ defer rather than a block — see above for the reasoning.
 
 5. **5 default suggested prompts.** Pinned in i18n
    (`whyMonday / weightVsPulse / weekVsMonth / tellMyDoctor /
-   medicationWorking`). The list mirrors the artboard verbatim; if
+medicationWorking`). The list mirrors the artboard verbatim; if
    "What should I tell my doctor?" reads too clinical, flipping
    the EN value is a one-line edit.
 
@@ -134,6 +135,7 @@ i18n-locale-integrity   ✓ EN + DE share the same key shape
 ## Files added / modified
 
 **Added:**
+
 - `src/components/insights/hero-strip.tsx`
 - `src/components/insights/daily-briefing.tsx`
 - `src/components/insights/suggested-prompts.tsx`
@@ -143,6 +145,7 @@ i18n-locale-integrity   ✓ EN + DE share the same key shape
 - `src/lib/ai/__tests__/daily-briefing-schema.test.ts`
 
 **Modified:**
+
 - `src/lib/ai/schema.ts` — `dailyBriefing` block added to response schema
 - `src/lib/ai/prompts/insight-generator.ts` — PROMPT_VERSION 4.20.0, GROUND RULE 8, JSON-shape examples in EN + DE
 - `src/components/insights/use-insights-advisor.ts` — `dailyBriefing` lifted off cached payload

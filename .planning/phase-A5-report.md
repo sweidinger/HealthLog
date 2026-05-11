@@ -3,11 +3,11 @@
 Completed 2026-05-10 ~13:05 CEST. Three atomic TDD-first commits on
 `origin/main`:
 
-| #   | SHA       | What it ships                                                                  |
-| --- | --------- | ------------------------------------------------------------------------------ |
-| 1   | `ba0d6b8` | `feat(integrations): IntegrationStatusPill component (single tag, mobile-safe)`|
-| 2   | `0dcc91a` | `refactor(integrations): single status pill, drop redundant containers`        |
-| 3   | `47a8fc7` | `test(integrations): Pixel-5 e2e for consolidated status pill`                 |
+| #   | SHA       | What it ships                                                                   |
+| --- | --------- | ------------------------------------------------------------------------------- |
+| 1   | `ba0d6b8` | `feat(integrations): IntegrationStatusPill component (single tag, mobile-safe)` |
+| 2   | `0dcc91a` | `refactor(integrations): single status pill, drop redundant containers`         |
+| 3   | `47a8fc7` | `test(integrations): Pixel-5 e2e for consolidated status pill`                  |
 
 Commit #2 absorbed Marc's planned commits #2 (Withings) and #3
 (Mood Log) — the refactor was inherently atomic because both cards

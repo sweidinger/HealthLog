@@ -97,7 +97,10 @@ describe("<AdminShell>", () => {
     // missing from the nav even though the slug + page + i18n shipped.
     const navSlugs = new Set(ADMIN_SECTIONS.map((s) => s.slug));
     for (const slug of ADMIN_SECTION_SLUGS) {
-      expect(navSlugs.has(slug), `ADMIN_SECTIONS missing nav entry for ${slug}`).toBe(true);
+      expect(
+        navSlugs.has(slug),
+        `ADMIN_SECTIONS missing nav entry for ${slug}`,
+      ).toBe(true);
     }
   });
 
@@ -124,7 +127,9 @@ describe("<AdminShell>", () => {
     // filesystem read isn't accidentally noop'd by a future tree-
     // shaker pass.
     expect(
-      statSync(join(process.cwd(), "src/app/admin/[section]/page.tsx")).isFile(),
+      statSync(
+        join(process.cwd(), "src/app/admin/[section]/page.tsx"),
+      ).isFile(),
     ).toBe(true);
   });
 

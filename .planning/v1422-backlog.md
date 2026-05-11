@@ -33,7 +33,7 @@ Items deferred from the W5 reconcile pass. Carried into v1.4.23 +.
 - **Design M6** (`dashboard-layout-section.tsx:204-241`): comparison-toggle has no live-preview affordance. Add a tiny `<TrendCard>` preview swatch under the picker.
 - **Design M7** (`src/app/targets/page.tsx:286-301`): SVG sparkline `aria-hidden` skips the only "things changing" signal for SR users. Add `aria-label` to the `<TrendIcon>` parent OR move the sentiment into the delta caption prose.
 - **Design L1** (i18n voice asymmetry on `coach.evidenceLabel`): EN ("What I'm looking at") declarative; DE ("Worauf bezieht sich das?") curious. Decide on a unified voice.
-- **Design L2** (`coach-panel/message-thread.tsx:286-304`): React `key={\`\${kv.label}-\${idx}\`}` allows duplicate-label collisions. Use a hash of `\${label}-\${window}-\${value}`.
+- **Design L2** (`coach-panel/message-thread.tsx:286-304`): React `key={\`\${kv.label}-\${idx}\`}`allows duplicate-label collisions. Use a hash of`\${label}-\${window}-\${value}`.
 - **Design L3** (`targets/page.tsx:288`): sparkline `preserveAspectRatio="none"` distorts y vs x. Either keep + accept, or fix Y-range to the target range.
 - **Design L4** (`scroll-mt-28` overshoot): tuned to `scroll-mt-16` in W5 reconcile (Design-H1 commit). — APPLIED.
 - **Design L5** (api-tokens table date wrap): cells wrap to two lines on 1024 px. Either short-format `formatDate` + tooltip, or push `<col>` width to 14 %.

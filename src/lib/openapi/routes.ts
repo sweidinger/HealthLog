@@ -58,9 +58,7 @@ function dataEnvelope<T extends z.ZodType>(payload: T, id: string) {
     .object({
       data: payload,
       error: z.null(),
-      meta: z
-        .object({ requestId: z.string().optional() })
-        .optional(),
+      meta: z.object({ requestId: z.string().optional() }).optional(),
     })
     .meta({ id });
 }
@@ -118,7 +116,10 @@ const coachMessageFeedbackBody = z
 
 const passkeyLoginVerifyRequest = z
   .object({
-    challengeId: z.string().min(1).describe("Server-issued WebAuthn challenge id."),
+    challengeId: z
+      .string()
+      .min(1)
+      .describe("Server-issued WebAuthn challenge id."),
     credential: z
       .object({
         id: z.string(),
@@ -157,9 +158,7 @@ const refreshRequest = z
 
 const accessRefreshBundle = z
   .object({
-    user: z
-      .object({ id: z.string(), username: z.string() })
-      .optional(),
+    user: z.object({ id: z.string(), username: z.string() }).optional(),
     token: z.string().describe("Access token (`hlk_<64hex>`)."),
     tokenExpiresAt: z.iso.datetime({ offset: true }),
     refreshToken: z
@@ -216,7 +215,9 @@ const batchEntrySchema = z
       .string()
       .min(1)
       .max(120)
-      .describe("HealthKit identifier (e.g. `HKQuantityTypeIdentifierBodyMass`)."),
+      .describe(
+        "HealthKit identifier (e.g. `HKQuantityTypeIdentifierBodyMass`).",
+      ),
     value: z.number().finite(),
     unit: z.string().min(1).max(60),
     startDate: z.iso.datetime({ offset: true }),

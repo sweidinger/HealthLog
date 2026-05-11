@@ -150,9 +150,8 @@ describe("APNs dispatcher integration", () => {
       failed: [],
     });
 
-    const { dispatchNotification } = await import(
-      "@/lib/notifications/dispatcher"
-    );
+    const { dispatchNotification } =
+      await import("@/lib/notifications/dispatcher");
     await dispatchNotification({
       userId: TEST_USER_ID,
       eventType: "MEDICATION_REMINDER",
@@ -191,9 +190,8 @@ describe("APNs dispatcher integration", () => {
       ],
     });
 
-    const { dispatchNotification } = await import(
-      "@/lib/notifications/dispatcher"
-    );
+    const { dispatchNotification } =
+      await import("@/lib/notifications/dispatcher");
     await dispatchNotification({
       userId: TEST_USER_ID,
       eventType: "SYSTEM_ALERT",
@@ -245,9 +243,8 @@ describe("APNs dispatcher integration", () => {
 
     telegramSendMock.mockResolvedValueOnce({ ok: true, messageId: 42 });
 
-    const { dispatchNotification } = await import(
-      "@/lib/notifications/dispatcher"
-    );
+    const { dispatchNotification } =
+      await import("@/lib/notifications/dispatcher");
     await dispatchNotification({
       userId: TEST_USER_ID,
       eventType: "MEDICATION_REMINDER",

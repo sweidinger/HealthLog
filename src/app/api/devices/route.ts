@@ -114,10 +114,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
           deviceId: existingApns.id,
         },
       });
-      return apiError(
-        "APNs token already registered to another account",
-        409,
-      );
+      return apiError("APNs token already registered to another account", 409);
     }
   }
 

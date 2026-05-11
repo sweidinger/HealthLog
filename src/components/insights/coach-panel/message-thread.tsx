@@ -444,10 +444,7 @@ function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
   }
 
   return (
-    <div
-      data-slot="coach-message-feedback"
-      className="flex items-center gap-2"
-    >
+    <div data-slot="coach-message-feedback" className="flex items-center gap-2">
       <button
         type="button"
         data-slot="coach-message-feedback-helpful"

@@ -60,15 +60,21 @@ function req(): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.refreshToken.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.refreshToken.updateMany).mockResolvedValue({ count: 0 } as never);
-  vi.mocked(prisma.apiToken.updateMany).mockResolvedValue({ count: 0 } as never);
+  vi.mocked(prisma.refreshToken.updateMany).mockResolvedValue({
+    count: 0,
+  } as never);
+  vi.mocked(prisma.apiToken.updateMany).mockResolvedValue({
+    count: 0,
+  } as never);
   vi.mocked(prisma.$transaction).mockResolvedValue([] as never);
 });
 
 describe("DELETE /api/devices/[id] (iOS token-rotation endpoint)", () => {
   it("returns 401 when unauthenticated", async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const res = await DELETE(req(), { params: Promise.resolve({ id: "dev-1" }) });
+    const res = await DELETE(req(), {
+      params: Promise.resolve({ id: "dev-1" }),
+    });
     expect(res.status).toBe(401);
   });
 
@@ -80,7 +86,9 @@ describe("DELETE /api/devices/[id] (iOS token-rotation endpoint)", () => {
       model: "iPhone",
       bundleId: "io.healthlog.app",
     } as never);
-    const res = await DELETE(req(), { params: Promise.resolve({ id: "dev-x" }) });
+    const res = await DELETE(req(), {
+      params: Promise.resolve({ id: "dev-x" }),
+    });
     expect(res.status).toBe(404);
   });
 
@@ -97,7 +105,9 @@ describe("DELETE /api/devices/[id] (iOS token-rotation endpoint)", () => {
     ] as never);
     vi.mocked(prisma.device.delete).mockResolvedValue({ id: "dev-1" } as never);
 
-    const res = await DELETE(req(), { params: Promise.resolve({ id: "dev-1" }) });
+    const res = await DELETE(req(), {
+      params: Promise.resolve({ id: "dev-1" }),
+    });
     expect(res.status).toBe(200);
     expect(vi.mocked(prisma.device.delete)).toHaveBeenCalled();
   });

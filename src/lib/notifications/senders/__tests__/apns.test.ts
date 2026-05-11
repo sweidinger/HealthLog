@@ -74,8 +74,7 @@ const VALID_ENV = {
   APNS_KEY_ID: "ABCDE12345",
   APNS_TEAM_ID: "TEAM123456",
   APNS_BUNDLE_ID: "test.healthlog.ios",
-  APNS_KEY:
-    "-----BEGIN PRIVATE KEY-----\\nMOCKKEY\\n-----END PRIVATE KEY-----",
+  APNS_KEY: "-----BEGIN PRIVATE KEY-----\\nMOCKKEY\\n-----END PRIVATE KEY-----",
 };
 
 function setEnv(over: Record<string, string | undefined> = {}): void {
@@ -269,7 +268,6 @@ describe("sendApnsPush — failure classification", () => {
     expect(r.reason).toBe("apns_network_error");
     expect(r.shouldDisable).toBeFalsy();
   });
-
 });
 
 describe("sendApnsPush — config disabled paths", () => {
@@ -325,7 +323,11 @@ describe("sendViaApns — dispatcher fan-out", () => {
       .mockResolvedValueOnce({
         sent: [],
         failed: [
-          { device: "tok-b", status: 410, response: { reason: "Unregistered" } },
+          {
+            device: "tok-b",
+            status: 410,
+            response: { reason: "Unregistered" },
+          },
         ],
       });
     const r = await sendViaApns("u-1", {
@@ -349,13 +351,21 @@ describe("sendViaApns — dispatcher fan-out", () => {
       .mockResolvedValueOnce({
         sent: [],
         failed: [
-          { device: "tok-a", status: 410, response: { reason: "Unregistered" } },
+          {
+            device: "tok-a",
+            status: 410,
+            response: { reason: "Unregistered" },
+          },
         ],
       })
       .mockResolvedValueOnce({
         sent: [],
         failed: [
-          { device: "tok-b", status: 400, response: { reason: "BadDeviceToken" } },
+          {
+            device: "tok-b",
+            status: 400,
+            response: { reason: "BadDeviceToken" },
+          },
         ],
       });
     const r = await sendViaApns("u-1", {

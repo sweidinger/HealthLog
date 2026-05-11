@@ -6,9 +6,9 @@ Status: complete · 2026-05-10T15:18+02:00
 
 The two-branch model is documented in two places:
 
-| Surface | File | Audience |
-|---|---|---|
-| Repo root | `CONTRIBUTING.md` (extended) | Contributors cloning the repo |
+| Surface   | File                                             | Audience                                                      |
+| --------- | ------------------------------------------------ | ------------------------------------------------------------- |
+| Repo root | `CONTRIBUTING.md` (extended)                     | Contributors cloning the repo                                 |
 | Docs site | `src/content/docs/contributing/branch-model.mdx` | End users + would-be contributors browsing docs.healthlog.dev |
 
 Both contain:
@@ -20,10 +20,10 @@ Both contain:
 
 ## Commits
 
-| Repo | Commit | Branch |
-|---|---|---|
-| HealthLog | (this commit) | `develop` |
-| healthlog-docs | `5d96861` | `main` |
+| Repo           | Commit        | Branch    |
+| -------------- | ------------- | --------- |
+| HealthLog      | (this commit) | `develop` |
+| healthlog-docs | `5d96861`     | `main`    |
 
 ## Build verification
 

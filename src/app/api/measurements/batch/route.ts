@@ -25,7 +25,12 @@ import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
-import { apiError, apiSuccess, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { withIdempotency } from "@/lib/idempotency";
 import { mapAppleHealthEntry } from "@/lib/measurements/apple-health-mapping";
 import { validateMeasurementRange } from "@/lib/validations/measurement";
@@ -84,11 +89,9 @@ async function postBatch(request: NextRequest): Promise<Response> {
     Array.isArray((rawBody as { entries: unknown }).entries) &&
     (rawBody as { entries: unknown[] }).entries.length > MAX_BATCH_ENTRIES
   ) {
-    return apiError(
-      `Batch exceeds the ${MAX_BATCH_ENTRIES}-entry limit`,
-      422,
-      { errorCode: "coach.batch.too_large" },
-    );
+    return apiError(`Batch exceeds the ${MAX_BATCH_ENTRIES}-entry limit`, 422, {
+      errorCode: "coach.batch.too_large",
+    });
   }
 
   const parsed = batchPayloadSchema.safeParse(rawBody);

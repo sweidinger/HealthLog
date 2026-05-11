@@ -9,25 +9,25 @@ manually as four atomic commits.
 
 ## Pre-existing compliance pass
 
-| File | State |
-|---|---|
-| `README.md` | Comprehensive; no edits |
-| `LICENSE` | AGPL-3.0; no edits |
-| `CONTRIBUTING.md` | Just extended in F2 with branch model |
-| `SECURITY.md` | Current; security@bombeck.io contact |
-| `.gitignore` | Standard Next.js + Node coverage |
-| `.github/dependabot.yml` | npm only — extended below |
+| File                     | State                                 |
+| ------------------------ | ------------------------------------- |
+| `README.md`              | Comprehensive; no edits               |
+| `LICENSE`                | AGPL-3.0; no edits                    |
+| `CONTRIBUTING.md`        | Just extended in F2 with branch model |
+| `SECURITY.md`            | Current; security@bombeck.io contact  |
+| `.gitignore`             | Standard Next.js + Node coverage      |
+| `.github/dependabot.yml` | npm only — extended below             |
 
 ## Inline fixes (CRITICAL + HIGH)
 
 Four atomic commits on `develop`:
 
-| Commit | Adds |
-|---|---|
-| `e7b6b27` | `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1, conduct@bombeck.io contact) + CONTRIBUTING.md link |
+| Commit    | Adds                                                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------- |
+| `e7b6b27` | `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1, conduct@bombeck.io contact) + CONTRIBUTING.md link    |
 | `072941b` | `.github/ISSUE_TEMPLATE/{bug_report,feature_request,config}.yml` + `.github/PULL_REQUEST_TEMPLATE.md` |
-| `779e5a3` | `.github/dependabot.yml` extended with `github-actions` + `docker` ecosystems |
-| `f7977d1` | `package.json` metadata: description, license, homepage, repository, bugs, keywords |
+| `779e5a3` | `.github/dependabot.yml` extended with `github-actions` + `docker` ecosystems                         |
+| `f7977d1` | `package.json` metadata: description, license, homepage, repository, bugs, keywords                   |
 
 ### Why each is non-trivial
 
@@ -66,4 +66,4 @@ repo audit (deferred MED + LOW)". Five items, all LOW:
 - `pnpm install` not re-run (no dependency changes)
 - Pre-commit hooks green on every commit; no `--no-verify`, no
   `--no-gpg-sign`
-- No edits to CHANGELOG.md, docs/audit/*, or any source file
+- No edits to CHANGELOG.md, docs/audit/\*, or any source file

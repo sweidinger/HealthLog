@@ -60,22 +60,30 @@ function req(): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.refreshToken.findMany).mockResolvedValue([]);
-  vi.mocked(prisma.refreshToken.updateMany).mockResolvedValue({ count: 0 } as never);
-  vi.mocked(prisma.apiToken.updateMany).mockResolvedValue({ count: 0 } as never);
+  vi.mocked(prisma.refreshToken.updateMany).mockResolvedValue({
+    count: 0,
+  } as never);
+  vi.mocked(prisma.apiToken.updateMany).mockResolvedValue({
+    count: 0,
+  } as never);
   vi.mocked(prisma.$transaction).mockResolvedValue([] as never);
 });
 
 describe("DELETE /api/auth/me/devices/[id]", () => {
   it("returns 401 when unauthenticated", async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const res = await DELETE(req(), { params: Promise.resolve({ id: "dev-1" }) });
+    const res = await DELETE(req(), {
+      params: Promise.resolve({ id: "dev-1" }),
+    });
     expect(res.status).toBe(401);
   });
 
   it("returns 404 when the device doesn't exist", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.device.findUnique).mockResolvedValue(null);
-    const res = await DELETE(req(), { params: Promise.resolve({ id: "dev-x" }) });
+    const res = await DELETE(req(), {
+      params: Promise.resolve({ id: "dev-x" }),
+    });
     expect(res.status).toBe(404);
   });
 
@@ -87,7 +95,9 @@ describe("DELETE /api/auth/me/devices/[id]", () => {
       model: "iPhone",
       bundleId: "io.healthlog.app",
     } as never);
-    const res = await DELETE(req(), { params: Promise.resolve({ id: "dev-x" }) });
+    const res = await DELETE(req(), {
+      params: Promise.resolve({ id: "dev-x" }),
+    });
     expect(res.status).toBe(404);
     expect(vi.mocked(prisma.device.delete)).not.toHaveBeenCalled();
   });
@@ -105,11 +115,17 @@ describe("DELETE /api/auth/me/devices/[id]", () => {
       { accessTokenHash: "hash:a2" },
       { accessTokenHash: null },
     ] as never);
-    vi.mocked(prisma.refreshToken.updateMany).mockResolvedValue({ count: 3 } as never);
-    vi.mocked(prisma.apiToken.updateMany).mockResolvedValue({ count: 2 } as never);
+    vi.mocked(prisma.refreshToken.updateMany).mockResolvedValue({
+      count: 3,
+    } as never);
+    vi.mocked(prisma.apiToken.updateMany).mockResolvedValue({
+      count: 2,
+    } as never);
     vi.mocked(prisma.device.delete).mockResolvedValue({ id: "dev-1" } as never);
 
-    const res = await DELETE(req(), { params: Promise.resolve({ id: "dev-1" }) });
+    const res = await DELETE(req(), {
+      params: Promise.resolve({ id: "dev-1" }),
+    });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.revoked).toBe(true);
@@ -120,7 +136,8 @@ describe("DELETE /api/auth/me/devices/[id]", () => {
     });
     // The refresh-token revoke filter MUST scope to the deviceId, not
     // every refresh row the user has.
-    const updateCall = vi.mocked(prisma.refreshToken.updateMany).mock.calls[0]?.[0];
+    const updateCall = vi.mocked(prisma.refreshToken.updateMany).mock
+      .calls[0]?.[0];
     expect(updateCall?.where).toMatchObject({
       userId: "user-1",
       deviceId: "dev-1",

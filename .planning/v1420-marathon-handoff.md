@@ -19,6 +19,7 @@ This is the prompt to paste into a fresh Claude Code session to start the v1.4.2
 These foundation tasks **MUST** happen first in the session before any feature work:
 
 ### F1 — Branch model: introduce long-lived `develop` branch
+
 - Create `develop` from current `main` HEAD; push; set as default work-target
 - All v1.4.20 feature/fix/test work commits to `develop`, NOT `main`
 - `main` reserved for release-merges + tags + GHCR builds (no more daily image churn)
@@ -27,12 +28,14 @@ These foundation tasks **MUST** happen first in the session before any feature w
 - Memory: see `feedback_branch_model_dev_main.md`
 
 ### F2 — Document the branch + release model
+
 - Add `CONTRIBUTING.md` at repo root: branch flow, PR conventions, release process
 - Add small Mermaid or ASCII diagram of branch flow (develop → main → tag → deploy; hotfix from main → both)
 - Add `docs/contributing.md` on the docs site mirroring the explanation for end-users / would-be contributors
 - Make clear: end users follow `main` / latest tag (stable), contributors look at `develop`
 
 ### F3 — Repo-cleanup audit (retroactive)
+
 - Multi-agent sweep across the repo for internal jargon leaking into user-facing artifacts:
   - `CHANGELOG.md`, `docs/audit/v*-summary.md`, `docs/`, `README.md`, healthlog-docs site, healthlog-landing site, anywhere `Phase X` / `Wave Y` / `marathon` / `sub-agent` / `autonomous orchestrator` / "Claude" name leaked
   - Replace with neutral language. Keep "Co-Authored-By: Claude Opus 4.7" trailer on commits (git-meta, not prose)
@@ -40,17 +43,20 @@ These foundation tasks **MUST** happen first in the session before any feature w
 - Constraint: do NOT rewrite git history. Only edit current state of files.
 
 ### F4 — Release-notes language audit
+
 - Marc spotted German strings leaking into English-only release notes
-- Audit `CHANGELOG.md` + GitHub releases v1.4.14–v1.4.19 + docs/audit/v*-summary.md (where future ones still pending)
+- Audit `CHANGELOG.md` + GitHub releases v1.4.14–v1.4.19 + docs/audit/v\*-summary.md (where future ones still pending)
 - Translate any German leaks to English
 
 ### F5 — Best-practice GitHub repo audit
+
 - 2 parallel agents survey the repo structure
 - Compare against best-practice OSS repos: README, LICENSE, CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md, .github/ISSUE_TEMPLATE, .github/PULL_REQUEST_TEMPLATE.md, GitHub badges, etc.
 - Identify: files that don't belong, files missing, layout improvements
 - Output: prioritized list, apply CRITICAL/HIGH inline, defer rest to v1.4.21
 
 ### F6 — Multi-agent QA on the new docs (no hallucinations)
+
 - After F2 docs landed: separate agents read the dev-vs-prod docs and verify they describe the actual deployed state — no incorrect claims
 - Flag anything inaccurate; fix before tagging
 
@@ -113,6 +119,7 @@ Speed wichtig — autonom über die Nacht / Tage. Bei Fragen: dispatchen statt f
 ## End state
 
 When v1.4.20 ships:
+
 - v1.4.20 live with the redesigned `/insights` + AI Coach
 - `develop` branch established as the daily work-target
 - CONTRIBUTING.md documents the model

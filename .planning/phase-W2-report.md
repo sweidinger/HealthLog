@@ -132,10 +132,10 @@ copy-paste regression can't reintroduce the leak.
 
 ## Test delta
 
-| Layer       | Before | After |
-| ----------- | ------ | ----- |
-| Unit (vitest) | 2036 tests / 238 files | 2049 tests / 239 files |
-| Integration | (covered separately) | +2 cases in `bp-in-target.test.ts` |
+| Layer         | Before                 | After                              |
+| ------------- | ---------------------- | ---------------------------------- |
+| Unit (vitest) | 2036 tests / 238 files | 2049 tests / 239 files             |
+| Integration   | (covered separately)   | +2 cases in `bp-in-target.test.ts` |
 
 13 new unit cases + 2 new integration cases. All green.
 

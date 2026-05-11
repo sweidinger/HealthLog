@@ -108,9 +108,10 @@ existing Dracula tokens, existing `recommendation-card.tsx` /
 Recharts setup. The proposal is a **superset** of today's `/insights`:
 every existing card has a home in the new layout (status →
 hero strip; advisor → coach entry; recommendations grid → trends
-+ correlation row). I am ordering the work as five sequential
-phases that can ship behind a feature flag and unlock
-independently.
+
+- correlation row). I am ordering the work as five sequential
+  phases that can ship behind a feature flag and unlock
+  independently.
 
 ### Phase B1 — Hero strip + Daily Briefing + Suggested-prompts (~3-5 days)
 
@@ -141,7 +142,8 @@ v1.5 / iOS. The micro-stat tiles need a graceful "not yet
 available" state for non-iOS users today — render a dimmed tile
 with "Connect Apple Health (iOS app)" CTA instead of fake data.
 Mood + Resting HR can be sourced from existing data (mood entries
-+ Withings pulse) so 1-of-3 tiles already work.
+
+- Withings pulse) so 1-of-3 tiles already work.
 
 ### Phase B2 — AI Coach panel + /insights/coach + streaming chat (~5-7 days)
 
@@ -191,8 +193,9 @@ model CoachMessage {
 
 **Source-chip rendering.** Reuse v1.4.16 `metricSource` provenance —
 every assistant message renders a row of chips ("based on 14d HRV
-+ 6 BP readings"), click opens the data range used. This is the
-"AI shows its work" principle from the handoff README.
+
+- 6 BP readings"), click opens the data range used. This is the
+  "AI shows its work" principle from the handoff README.
 
 **Multi-provider** is already there from v1.4.16 B5b — Coach
 inherits the cascade.
@@ -267,6 +270,7 @@ The artboard's right-side hero panel: a composite Health Score
 (0-100) with sub-components and a "Ask the Coach" button.
 
 **Formula.** Composite of four weighted components:
+
 - BP-in-target-rate (30 %) — the existing v1.4.18 A1 number
 - Weight-trend-alignment (20 %) — direction agrees with user's
   goal target
@@ -308,14 +312,14 @@ alongside:
    B5e set up storage; the loop is still open).** v1.4.20 has the
    right shape to wire it — Coach conversations + recommendation
    thumbs feed the same aggregator. When a `(severity ×
-   confidence_band)` bucket's helpful-rate drops below 50 %,
+confidence_band)` bucket's helpful-rate drops below 50 %,
    append "OMIT" / "REPHRASE" rules to the next PROMPT_VERSION.
    Cheap; runs daily; bumps PROMPT_VERSION 4.20.x → 4.20.x+1
    automatically.
 
 4. **MED-block carry from v1.4.19 backlog** (`.planning/v1420-backlog.md`).
    31 MED + 16 LOW; F-36 (status-word taxonomy: `Healthy /
-   Disabled / Error`), F-49 (decimal-separator codemod for DE),
+Disabled / Error`), F-49 (decimal-separator codemod for DE),
    F-37/F-38 (trailing-colon form-label sweep) are the
    highest-leverage. Run them **before** the Insights redesign
    so the new surface inherits the canonical vocabulary.

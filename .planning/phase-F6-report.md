@@ -9,12 +9,12 @@ Dockerfile, docker-compose.yml, and `.github/workflows/docker-publish.yml`.
 
 ## Findings
 
-| Severity | Count | Status |
-|---|---|---|
-| CRITICAL | 2 | fixed inline `19eb8de` |
-| HIGH | 10 | fixed inline `3d3ea21` |
-| MED | 9 | deferred to `v1421-backlog.md` |
-| LOW | 5 | deferred to `v1421-backlog.md` |
+| Severity | Count | Status                         |
+| -------- | ----- | ------------------------------ |
+| CRITICAL | 2     | fixed inline `19eb8de`         |
+| HIGH     | 10    | fixed inline `3d3ea21`         |
+| MED      | 9     | deferred to `v1421-backlog.md` |
+| LOW      | 5     | deferred to `v1421-backlog.md` |
 
 ## Inline fixes
 

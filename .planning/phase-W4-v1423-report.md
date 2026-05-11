@@ -45,13 +45,13 @@ log line).
    the wider user-wide revoke (safety hatch). The two-device case
    (iPad + iPhone) now works as expected.
 6. **`feat(api)` — device management endpoints.** Three new routes:
-     - `GET /api/auth/me/devices` lists devices with label,
-       lastSeen, channels (`web_push` / `apns`), `isCurrent`
-     - `DELETE /api/auth/me/devices/[id]` revokes a device + the
-       refresh + access tokens bound to it + deletes the row
-     - `DELETE /api/devices/[id]` is the native-friendly mirror the
-       iOS APNs-rotation flow calls
-   Cross-user attempts return 404 with no enumeration leak.
+   - `GET /api/auth/me/devices` lists devices with label,
+     lastSeen, channels (`web_push` / `apns`), `isCurrent`
+   - `DELETE /api/auth/me/devices/[id]` revokes a device + the
+     refresh + access tokens bound to it + deletes the row
+   - `DELETE /api/devices/[id]` is the native-friendly mirror the
+     iOS APNs-rotation flow calls
+     Cross-user attempts return 404 with no enumeration leak.
 7. **`ci(deploy)` — Coolify auto-deploy runbook.** The workflow
    already pinged `?force=true` (v1.4.22 C3 commit `b281c06`); W4
    adds a `::notice::` line so future Actions runs surface the
@@ -82,6 +82,7 @@ row and `diff`-ing the outputs — no drift.
 ### New dependencies
 
 Two, exactly per the brief:
+
 - `zod-openapi@5.4.6` — Zod v4 `.meta()` reader, ZodOpenApi document
   builder.
 - `yaml@2.8.4` — stable map-sorted YAML serialiser.
@@ -94,13 +95,13 @@ change is code-only.
 
 ## W1 decisions adopted verbatim
 
-| W1 recommendation | Status |
-|---|---|
-| OpenAPI tool = `zod-openapi` (samchungy) | Adopted |
-| YAML normalisation via `yaml@^2` + `sortMapEntries: true` | Adopted |
-| Two-stage migration (subset start + organic catch-up) | Adopted |
+| W1 recommendation                                                    | Status  |
+| -------------------------------------------------------------------- | ------- |
+| OpenAPI tool = `zod-openapi` (samchungy)                             | Adopted |
+| YAML normalisation via `yaml@^2` + `sortMapEntries: true`            | Adopted |
+| Two-stage migration (subset start + organic catch-up)                | Adopted |
 | CI step `continue-on-error: true` for v1.4.23, hard-fail in v1.4.24+ | Adopted |
-| `oasdiff` adoption deferred to v1.4.24 | Adopted |
+| `oasdiff` adoption deferred to v1.4.24                               | Adopted |
 
 ## Decisions made beyond W1's scope
 
@@ -181,7 +182,7 @@ device-management surface:
     medicationId in the collapseId — confirm before v1.5 ships.
 11. **NEW W4 — device-list rendering on the iOS settings surface.**
     The `GET /api/auth/me/devices` response carries `channels:
-    ["web_push" | "apns"]` per device. Confirm the iOS UI either
+["web_push" | "apns"]` per device. Confirm the iOS UI either
     renders both as chips or filters to the channel matching the
     current platform; the iOS app shouldn't render `web_push`
     chips against an iPhone row.

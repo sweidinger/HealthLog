@@ -8,11 +8,11 @@ release notes leak personal name + health figures.
 
 ## Three repos, three commits
 
-| Repo | Commit | Files | Diff |
-|---|---|---|---|
-| HealthLog (main repo) | `a1cf9bc` on `origin/main` | 20 | +265 / −269 |
-| healthlog-docs | `782862b` on `origin/main` | 7 | API examples + DE leaks |
-| healthlog-landing | `9b31083` on `origin/main` | 1 | JSON-LD author block |
+| Repo                  | Commit                     | Files | Diff                    |
+| --------------------- | -------------------------- | ----- | ----------------------- |
+| HealthLog (main repo) | `a1cf9bc` on `origin/main` | 20    | +265 / −269             |
+| healthlog-docs        | `782862b` on `origin/main` | 7     | API examples + DE leaks |
+| healthlog-landing     | `9b31083` on `origin/main` | 1     | JSON-LD author block    |
 
 Three parallel sub-agents executed the scrubs simultaneously; commits
 landed independently. No working-tree races. No `--no-verify`. No

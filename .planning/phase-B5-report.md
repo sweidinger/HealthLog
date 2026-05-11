@@ -171,8 +171,8 @@ So a curious user can mentally recompute:
   followed the strategic-plan spec verbatim. The four-component
   weighted blend matches the artboard's intent. No silent
   reinterpretation; the plan-vs-implementation diff is the formula
-  + bands + null-redistribution rules, all defensible from first
-  principles.
+  - bands + null-redistribution rules, all defensible from first
+    principles.
 
 ## Flagged-uncertain items (maintainer review)
 
@@ -180,8 +180,8 @@ So a curious user can mentally recompute:
    Prisma schema declares the column but no migration applies it.
    The B5 route worked around it with an explicit `select` clause.
    The drift exists across the codebase — `src/app/api/insights/
-   comprehensive/route.ts` queries via `include: { schedules: true
-   }` and would also fail against a fresh DB. Suggest a v1.4.21
+comprehensive/route.ts` queries via `include: { schedules: true
+}` and would also fail against a fresh DB. Suggest a v1.4.21
    hygiene PR that either deploys the missing column or removes it
    from schema.prisma.
 2. **Previous-week BP rate.** The current implementation reuses the

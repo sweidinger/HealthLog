@@ -7,21 +7,21 @@ clean, all unit + drift gates green.
 ## Commits
 
 1. `58ae9bc` — `feat(coach): partial-malformed observability on
-   sentinel parser` (H1)
+sentinel parser` (H1)
 2. `fa07748` — `perf(api): chunked BP aggregate replaces unbounded
-   findMany` (H2)
+findMany` (H2)
 3. `9413d29` — `refactor(coach): drawer prefill becomes a controlled
-   prop` (H3)
+prop` (H3)
 4. `3f60c81` — `feat(coach): per-user prompt-tuning surface (settings
-   cog returns)` (H4 — prisma + route + UI)
+cog returns)` (H4 — prisma + route + UI)
 5. `0eda1de` — `chore(schema): deploy medication_schedules.days_of_week
-   column` (H5)
+column` (H5)
 6. `1faee95` — `fix(insights): tighter Pearson surfacing gate (n>=20)`
    (H6)
 7. `05c7f14` — `feat(coach): per-message thumbs feedback + admin
-   aggregate view` (H7 — schema + route + UI)
+aggregate view` (H7 — schema + route + UI)
 8. (this commit) — `docs(planning): record W5 hygiene wave + STATE
-   tick`
+tick`
 
 ## H5 decision
 

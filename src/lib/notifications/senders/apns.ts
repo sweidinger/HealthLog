@@ -126,9 +126,7 @@ export function loadApnsConfig(): ApnsConfig | null {
   // configuring and stopped — surface that as a warning so the
   // half-finished state is visible in logs.
   const anySet = Boolean(keyId || teamId || bundleId || inlineKey || keyFile);
-  const allSet = Boolean(
-    keyId && teamId && bundleId && (inlineKey || keyFile),
-  );
+  const allSet = Boolean(keyId && teamId && bundleId && (inlineKey || keyFile));
 
   if (!anySet) {
     cachedConfig = null;

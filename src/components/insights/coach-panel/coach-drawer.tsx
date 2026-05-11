@@ -109,7 +109,9 @@ export function nextResettableValue<T>(
   previous: T,
   incoming: T,
 ): { reset: true; value: T } | { reset: false } {
-  return Object.is(previous, incoming) ? { reset: false } : { reset: true, value: incoming };
+  return Object.is(previous, incoming)
+    ? { reset: false }
+    : { reset: true, value: incoming };
 }
 
 export function CoachDrawer({

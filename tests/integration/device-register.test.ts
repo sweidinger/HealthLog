@@ -89,7 +89,9 @@ describe("POST /api/devices", () => {
       apnsToken: "abcdef0123456789",
       apnsEnvironment: "sandbox",
     });
-    const res = await (POST as (r: import("next/server").NextRequest) => Promise<Response>)(req);
+    const res = await (
+      POST as (r: import("next/server").NextRequest) => Promise<Response>
+    )(req);
     expect(res.status).toBe(201);
 
     const channel = await getPrismaClient().notificationChannel.findFirst({
@@ -107,7 +109,9 @@ describe("POST /api/devices", () => {
       token: "legacy-token-2",
       bundleId: "io.healthlog.ios",
     });
-    const res = await (POST as (r: import("next/server").NextRequest) => Promise<Response>)(req);
+    const res = await (
+      POST as (r: import("next/server").NextRequest) => Promise<Response>
+    )(req);
     expect(res.status).toBe(201);
 
     const channel = await getPrismaClient().notificationChannel.findFirst({
@@ -120,7 +124,9 @@ describe("POST /api/devices", () => {
     const user = await seedSession("device-apns-idempotent");
     const { POST } = await import("@/app/api/devices/route");
 
-    const first = await (POST as (r: import("next/server").NextRequest) => Promise<Response>)(
+    const first = await (
+      POST as (r: import("next/server").NextRequest) => Promise<Response>
+    )(
       buildRequest({
         token: "legacy-token-3",
         bundleId: "io.healthlog.ios",
@@ -130,7 +136,9 @@ describe("POST /api/devices", () => {
     );
     expect(first.status).toBe(201);
 
-    const second = await (POST as (r: import("next/server").NextRequest) => Promise<Response>)(
+    const second = await (
+      POST as (r: import("next/server").NextRequest) => Promise<Response>
+    )(
       buildRequest({
         token: "legacy-token-3",
         bundleId: "io.healthlog.ios",

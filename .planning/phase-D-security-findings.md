@@ -7,12 +7,13 @@ Method: Read CLAUDE.md, .planning/STATE.md, full diff via
 `git log --oneline v1.4.18...HEAD` + targeted `git diff` per file,
 plus reads of every changed source file in the focus list, plus
 cross-checks of:
-  - the prompt revision against the existing server-side n<3
-    confidence clamp (`src/lib/ai/confidence.ts`)
-  - the integration error decryption path (unchanged from v1.4.18)
-  - the admin tokens API selector (no `tokenHash`)
-  - new audit-log labels' semantics
-  - i18n placeholder interpolation (`{count}`, integer-only)
+
+- the prompt revision against the existing server-side n<3
+  confidence clamp (`src/lib/ai/confidence.ts`)
+- the integration error decryption path (unchanged from v1.4.18)
+- the admin tokens API selector (no `tokenHash`)
+- new audit-log labels' semantics
+- i18n placeholder interpolation (`{count}`, integer-only)
 
 (Previous v1.4.18 review at `phase-D-v1418-security-findings.md` was
 overwritten — the v1.4.18 release shipped, those findings already
@@ -97,11 +98,11 @@ filed in `.planning/v1419-backlog.md` / `.planning/v15-backlog.md`.)
 
 - **Severity**: LOW (existing v1.4.18 behaviour, surfaced by A5 refactor)
 - **File**: `src/components/settings/integrations-section.tsx:332-333,
-  354, 630-631, 663` (`<IntegrationErrorMessage>`)
+354, 630-631, 663` (`<IntegrationErrorMessage>`)
 - **Issue**: A5 consolidated the status UI but kept the inline
   actionable error message under the pill. `viewModel.lastError` is
   decrypted by the API in `src/lib/integrations/status.ts:112,
-  376-383` from the `IntegrationStatus.lastError` ciphertext. The
+376-383` from the `IntegrationStatus.lastError` ciphertext. The
   message is bounded to 1024 chars at encrypt time
   (`status.ts:367`) and originates from controlled callsites in
   `src/lib/withings/sync.ts` + `src/lib/moodlog/sync.ts` — neither
@@ -118,7 +119,7 @@ filed in `.planning/v1419-backlog.md` / `.planning/v15-backlog.md`.)
     a token, never an Authorization header. Withings/moodLog OAuth
     error responses do not contain refresh tokens.
   - Pill viewer is the message owner only — `/api/integrations/
-    status` is `requireAuth`-gated and returns the calling user's
+status` is `requireAuth`-gated and returns the calling user's
     own row.
 - **Recommendation**: None for v1.4.19. If a future v1.5 sync
   helper passes raw HTTP body into `recordSyncFailure`, that's the
@@ -172,6 +173,7 @@ purely Tailwind class swaps on `<select>` / button trigger elements
 or any masking logic.
 
 ### Q4 — A7 feedback scrollbar fix drops scroll-confinement that
+
 prevents action-overflow?
 
 **No.** `src/components/ui/tabs.tsx` adds `overflow-y-hidden` and a
@@ -194,6 +196,7 @@ in the DB — only HMAC-SHA-256 of the value. Even if the API leaked
 the hash, it's not a usable secret.
 
 ### Q5 — A1 BD-Zielbereich percentages exposed via API/audit-log to
+
 another user?
 
 **No.** `/api/analytics` uses `requireAuth()` and scopes every
@@ -206,17 +209,20 @@ sample counts, no measurements ever land in the audit log.
 No cross-user pathway exists.
 
 ### Q6 — Wave-B 27 fixes introduce dangerouslySetInnerHTML / new
+
 endpoint / new storage?
 
 **No.**
+
 - `git diff v1.4.18...HEAD | grep dangerouslySetInnerHTML` → empty.
 - `git diff --name-status v1.4.18...HEAD | grep "^A" | grep
-  "src/app/api"` → empty (zero new API routes).
+"src/app/api"` → empty (zero new API routes).
 - Zero new Prisma models, zero new env vars consumed.
 - The Wave-B sweep is i18n-string + `t()`-substitution + minor JSX
   restructuring (drop duplicate card titles, link audit rows, etc.).
 
 ### Q7 — General hygiene: logging respects redactSecrets, new routes
+
 use apiHandler, new i18n keys can't pull arbitrary user input?
 
 - **Logging**: zero new `annotate()` / `getEvent()` calls in the

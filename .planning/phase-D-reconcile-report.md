@@ -16,18 +16,18 @@ Agent: Phase D RECONCILE
 
 ## HIGH triage
 
-| ID | Source | Decision | Commit / Backlog ref |
-|---|---|---|---|
-| H-01 (code) | UTC clock breaks Berlin convention | **fixed** | `1258b24` |
-| H-02 (code) | useViewportWidth setState in effect | **fixed** | `5a8ad3d` |
-| H-03 (code) | Orphan icon wrapper after card-title removal | **fixed via simplify F4** | `6b35cad` |
-| H-04 (code) | Tabs ring clip on focus-visible | **fixed** | `977f124` |
-| H-05 (code) | `/insights` `data?.` post-narrowing | deferred (D-CR-H-05) | v1.4.20 backlog |
-| H-01 (design) | api-tokens truncate-tooltip on touch | deferred (D-DSGN-H-01) | v1.4.20 backlog |
-| H-02 (design) | Insights hero density on Pixel-5 | deferred (D-DSGN-H-02) | folded into v1.4.20 redesign |
-| H-1 (senior-dev) | DateInput wrapper | **fixed via simplify F3** | `6b35cad` |
-| H-2 (senior-dev) | useAuthActionLabels lift-out | **fixed via simplify F1** | `6b35cad` |
-| H-3 (senior-dev) | Withings/MoodLog card chrome | deferred (D-SR-H-3) | v1.4.20 backlog |
+| ID               | Source                                       | Decision                  | Commit / Backlog ref         |
+| ---------------- | -------------------------------------------- | ------------------------- | ---------------------------- |
+| H-01 (code)      | UTC clock breaks Berlin convention           | **fixed**                 | `1258b24`                    |
+| H-02 (code)      | useViewportWidth setState in effect          | **fixed**                 | `5a8ad3d`                    |
+| H-03 (code)      | Orphan icon wrapper after card-title removal | **fixed via simplify F4** | `6b35cad`                    |
+| H-04 (code)      | Tabs ring clip on focus-visible              | **fixed**                 | `977f124`                    |
+| H-05 (code)      | `/insights` `data?.` post-narrowing          | deferred (D-CR-H-05)      | v1.4.20 backlog              |
+| H-01 (design)    | api-tokens truncate-tooltip on touch         | deferred (D-DSGN-H-01)    | v1.4.20 backlog              |
+| H-02 (design)    | Insights hero density on Pixel-5             | deferred (D-DSGN-H-02)    | folded into v1.4.20 redesign |
+| H-1 (senior-dev) | DateInput wrapper                            | **fixed via simplify F3** | `6b35cad`                    |
+| H-2 (senior-dev) | useAuthActionLabels lift-out                 | **fixed via simplify F1** | `6b35cad`                    |
+| H-3 (senior-dev) | Withings/MoodLog card chrome                 | deferred (D-SR-H-3)       | v1.4.20 backlog              |
 
 Tally: **7 HIGH fixed, 3 HIGH deferred**.
 

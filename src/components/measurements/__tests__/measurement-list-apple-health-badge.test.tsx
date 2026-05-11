@@ -94,9 +94,7 @@ describe("MeasurementList — APPLE_HEALTH badge", () => {
     // duplicate hand-entries on top of synced rows. Both branches must
     // carry the badge so the surface is honest at every viewport.
     const html = render("en");
-    const matches = html.match(
-      /data-testid="measurement-source-badge"/g,
-    );
+    const matches = html.match(/data-testid="measurement-source-badge"/g);
     expect(matches?.length ?? 0).toBe(2);
   });
 });

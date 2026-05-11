@@ -13,18 +13,19 @@ review. Findings keyed to file + line numbers in the working tree.
 ## Scope
 
 Pages audited:
+
 - `/dashboard` (`src/app/page.tsx`)
 - `/insights` (`src/app/insights/page.tsx`,
   `src/components/insights/insights-page-hero.tsx`)
 - Settings shell — `/settings/{account,profile,dashboard,ai,
-  notifications,integrations,export}`
+notifications,integrations,export}`
   (`src/components/settings/*.tsx`)
 - `/admin/feedback`, `/admin/api-tokens`
   (`src/components/admin/{feedback-inbox-section,
-  api-token-overview-section}.tsx`)
+api-token-overview-section}.tsx`)
 - Zielwerte (`src/app/targets/page.tsx`)
 - Charts (`src/components/charts/{health,mood,
-  medication-compliance}-chart.tsx`,
+medication-compliance}-chart.tsx`,
   `src/components/charts/chart-overlay-controls.tsx`)
 - Comparison toggle (`src/components/comparison/compare-toggle.tsx`)
 
@@ -93,7 +94,7 @@ Pages audited:
 
 - **Severity:** HIGH
 - **File:** `src/components/admin/api-token-overview-section.tsx:37-56`
-  + `src/components/ui/tooltip.tsx:1-58`
+  - `src/components/ui/tooltip.tsx:1-58`
 - **Issue:** The 4th-attempt truncate-with-tooltip pattern wraps long
   token names / usernames / permission badges in a Radix
   `<Tooltip>` plus a native `title=` attribute. Neither surfaces
@@ -117,6 +118,7 @@ Pages audited:
   truncated api-tokens cells works on touch (long-press on mobile,
   hover on desktop)". The hover path works; the touch path does
   not.
+
 - **Recommendation:** On the mobile card-list (`md:hidden`, line
   232), drop `truncate` and let long values wrap to two lines —
   vertical space is cheap on a card and reading is more important
@@ -133,7 +135,7 @@ Pages audited:
 - **Issue:** When the comparison toggle (`metaSlot`) is mounted AND
   the regenerate button is wired (the live `/insights` config), the
   outer flex `flex-col gap-4 sm:flex-row sm:items-start
-  sm:justify-between` puts the regenerate button in a 2nd column on
+sm:justify-between` puts the regenerate button in a 2nd column on
   desktop; on mobile (`<sm`) it stacks below the meta-slot. The
   meta-slot itself wraps the `<CompareToggle>` (3 buttons, each
   `min-h-11 px-3`).
@@ -149,6 +151,7 @@ Pages audited:
   before any card body. Marc's A3 concern was "three stacked cards
   with separate controls" feel; folding the toggle into the hero
   removed the standalone band but made the hero itself heavy.
+
 - **Recommendation:** On `>=sm`, inline the CompareToggle next to
   the Regenerate button (both in the right-side column) instead of
   inside the title block. On `<sm`, keep the current stacked layout
@@ -164,7 +167,7 @@ Pages audited:
 
 - **Severity:** MED
 - **File:** `src/app/admin/[section]/renderer.tsx:123-131,180-192`
-  + `src/components/admin/api-token-overview-section.tsx:101-106`
+  - `src/components/admin/api-token-overview-section.tsx:101-106`
 - **Issue:** `SectionFrame` renders `<h1>API Tokens</h1>`
   (renderer line 184) AND `<ApiTokenOverviewSection>` body renders
   `<div class="text-lg font-semibold">API Tokens</div>` (section
@@ -190,7 +193,7 @@ Pages audited:
   is 1-column (correct), but on desktop the right cell renders
   empty without a placeholder — visually fine, semantically odd.
 - **Recommendation:** Replace the grid with a plain `<div
-  class="sm:max-w-md">` so the DOB input still caps at half-card
+class="sm:max-w-md">` so the DOB input still caps at half-card
   width on desktop. Drops one DOM node + one CSS class.
 - **Ship-blocker?** No.
 
@@ -273,7 +276,7 @@ Pages audited:
 
 - **Severity:** LOW
 - **File:** `src/components/admin/api-token-overview-section.tsx:135-142,
-  213-220`
+213-220`
 - **Issue:** The colgroup widths sum to `18+28+24+10+12+8 = 100 %`.
   `lastUsedAt` cell is `whitespace-nowrap` rendering
   `formatDateTime(...)` (e.g. "10.05.2026, 13:18:42" — 19 chars +

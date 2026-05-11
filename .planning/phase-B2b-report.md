@@ -12,13 +12,13 @@ strip's "Ask the coach" button + suggested-prompt chips.
 
 ## Commit timeline (four atomic commits + this report on `develop`)
 
-| SHA | Subject |
-| --- | --- |
-| `c42c0a5` | `feat(coach): TanStack Query hooks + SSE streaming client` |
-| `195448a` | `feat(coach): drawer shell, message thread, source chips` |
-| `8dac389` | `feat(coach): composer, history rail, sources rail` |
+| SHA       | Subject                                                           |
+| --------- | ----------------------------------------------------------------- |
+| `c42c0a5` | `feat(coach): TanStack Query hooks + SSE streaming client`        |
+| `195448a` | `feat(coach): drawer shell, message thread, source chips`         |
+| `8dac389` | `feat(coach): composer, history rail, sources rail`               |
 | `e541799` | `feat(insights): wire Coach drawer into /insights via hero strip` |
-| _(this)_  | `docs(planning): tick B2b complete, record phase-B2b report` |
+| _(this)_  | `docs(planning): tick B2b complete, record phase-B2b report`      |
 
 ## Streaming implementation
 
@@ -88,10 +88,10 @@ the defaults so callers only need to pass `open` + `onOpenChange` +
 
 ## Test coverage
 
-| Suite | Before | After | Δ |
-| --- | --- | --- | --- |
-| Unit (vitest) | 1781 | 1833 | +52 |
-| Integration | 78 | 78 | 0 |
+| Suite         | Before | After | Δ   |
+| ------------- | ------ | ----- | --- |
+| Unit (vitest) | 1781   | 1833  | +52 |
+| Integration   | 78     | 78    | 0   |
 
 Six new test files cover the streaming parser, every drawer column,
 the message thread state machine, locale-aware labels, and the
@@ -110,8 +110,8 @@ New strings under `insights.coach.*`:
 - Sources rail: `sourcesTitle`, `sourcesFresh`, `sourcesStale`,
   `sourcesFooter`
 - Provenance chip namespaces: `metric.{bp,weight,pulse,mood,
-  compliance,general}` and `window.{last7days,last30days,last90days,
-  allTime}`
+compliance,general}` and `window.{last7days,last30days,last90days,
+allTime}`
 
 Both `messages/en.json` and `messages/de.json` updated;
 `i18n-locale-integrity.test.ts` keeps passing.
