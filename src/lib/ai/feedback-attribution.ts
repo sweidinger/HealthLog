@@ -87,7 +87,12 @@ export async function resolveFeedbackAttribution(
  * thumbs row. The polymorphic `RecommendationFeedback` table reuses
  * its existing slots for Coach rows:
  *   - `recommendationId` carries the Coach message id
- *   - `recommendationText` carries the assistant prose snapshot
+ *   - `coachMessageId` (added in 0042) FKs the source message so the
+ *     prose stays encrypted-at-rest in `coach_messages`. The senior-
+ *     dev review (Sr-H3) flagged the original H7 design that
+ *     snapshotted decrypted prose into `recommendationText` as a
+ *     silent break of the Coach surface's encryption invariant.
+ *   - `recommendationText` is always NULL for coach rows
  *   - `recommendationSeverity` is always "coach" so dashboards can
  *     filter / group on the literal
  *   - `metricSourceType` encodes the user's active prefs at the

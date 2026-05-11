@@ -85,9 +85,8 @@ describe("POST /api/insights/chat/messages/:id/feedback", () => {
     const user = await seedSession("coach-feedback-h7");
     const message = await seedAssistantMessage(user.id, "Your last week...");
 
-    const { POST } = await import(
-      "@/app/api/insights/chat/messages/[id]/feedback/route"
-    );
+    const { POST } =
+      await import("@/app/api/insights/chat/messages/[id]/feedback/route");
     const res = await (
       POST as (
         req: Request,
@@ -118,6 +117,46 @@ describe("POST /api/insights/chat/messages/:id/feedback", () => {
     expect(rows[0].metricSourceType).toBe("coach:tone=warm:verbosity=default");
     expect(rows[0].providerType).toBe("codex");
     expect(rows[0].promptVersion).toBe("4.23.0");
+    // Sr-H3 reconcile: the FK now carries the message id and the
+    // legacy plaintext snapshot column stays NULL so the encrypted-
+    // at-rest invariant of `coach_messages.encryptedContent` survives.
+    expect(rows[0].coachMessageId).toBe(message.id);
+    expect(rows[0].recommendationText).toBeNull();
+  });
+
+  it("dedupes a second submission for the same message via the partial unique index", async () => {
+    const prisma = getPrismaClient();
+    const user = await seedSession("coach-feedback-dedup");
+    const message = await seedAssistantMessage(user.id, "Reply.");
+
+    const { POST } =
+      await import("@/app/api/insights/chat/messages/[id]/feedback/route");
+    const post = (id: string) =>
+      (
+        POST as (
+          req: Request,
+          ctx: { params: Promise<{ id: string }> },
+        ) => Promise<Response>
+      )(
+        new Request(
+          `http://localhost/api/insights/chat/messages/${id}/feedback`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rating: "helpful" }),
+          },
+        ),
+        { params: Promise.resolve({ id }) },
+      );
+    const first = await post(message.id);
+    expect(first.status).toBe(201);
+    const second = await post(message.id);
+    expect(second.status).toBe(409);
+
+    const rows = await prisma.recommendationFeedback.findMany({
+      where: { userId: user.id },
+    });
+    expect(rows).toHaveLength(1);
   });
 
   it("returns 404 when the message belongs to another user", async () => {
@@ -127,9 +166,8 @@ describe("POST /api/insights/chat/messages/:id/feedback", () => {
     const otherMessage = await seedAssistantMessage(otherUser.id, "private");
     await seedSession("attacker-h7");
 
-    const { POST } = await import(
-      "@/app/api/insights/chat/messages/[id]/feedback/route"
-    );
+    const { POST } =
+      await import("@/app/api/insights/chat/messages/[id]/feedback/route");
     const res = await (
       POST as (
         req: Request,
@@ -153,9 +191,8 @@ describe("POST /api/insights/chat/messages/:id/feedback", () => {
     const user = await seedSession("coach-feedback-422");
     const message = await seedAssistantMessage(user.id, "Reply.");
 
-    const { POST } = await import(
-      "@/app/api/insights/chat/messages/[id]/feedback/route"
-    );
+    const { POST } =
+      await import("@/app/api/insights/chat/messages/[id]/feedback/route");
     const res = await (
       POST as (
         req: Request,

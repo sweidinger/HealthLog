@@ -908,7 +908,13 @@ model RecommendationFeedback {
   id                     String   @id @default(cuid())
   userId                 String   @map("user_id")
   recommendationId       String   @map("recommendation_id")
-  recommendationText     String   @map("recommendation_text")
+  // Nullable since v1.4.23 reconcile (Sr-H3): the recommendation
+  // surface still snapshots the prose here (recommendations are
+  // unencrypted on the wire, so plaintext is the source-of-truth);
+  // the Coach surface leaves it NULL and references the message via
+  // `coachMessageId` so the assistant prose stays encrypted-at-rest
+  // in `coach_messages.encryptedContent`.
+  recommendationText     String?  @map("recommendation_text")
   recommendationSeverity String   @map("recommendation_severity")
   metricSourceType       String   @map("metric_source_type")
   metricSourceTimeRange  String   @map("metric_source_time_range")
@@ -929,12 +935,20 @@ model RecommendationFeedback {
   // pasted essay.
   reason String? @map("reason")
 
+  // v1.4.23 reconcile (Sr-H3) — Coach surface references the source
+  // message instead of snapshotting its prose into
+  // `recommendationText`. FK + cascade so a deleted message drops the
+  // rating row too. Always NULL for `targetType="recommendation"`.
+  coachMessageId String?       @map("coach_message_id")
+  coachMessage   CoachMessage? @relation(fields: [coachMessageId], references: [id], onDelete: Cascade)
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, recommendationId, recommendationText], map: "rec_feedback_user_rec_text_key")
   @@index([userId, createdAt])
   @@index([recommendationSeverity, helpful, createdAt])
   @@index([targetType, createdAt])
+  @@index([coachMessageId])
   @@map("recommendation_feedback")
 }
 
@@ -992,7 +1006,11 @@ model CoachMessage {
   promptVersion    String?  @map("prompt_version")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  conversation CoachConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation CoachConversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // v1.4.23 reconcile (Sr-H3) — back-relation for the FK that lets
+  // Coach feedback rows reference their source message instead of
+  // snapshotting plaintext prose into `recommendation_feedback`.
+  feedback     RecommendationFeedback[]
 
   @@index([conversationId, createdAt])
   @@map("coach_messages")

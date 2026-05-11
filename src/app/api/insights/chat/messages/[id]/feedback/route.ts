@@ -16,22 +16,31 @@
  * return 404 (never 403 — same lesson as the conversation route, no
  * cross-user existence leak).
  *
- * Idempotency: the existing unique
- * `(userId, recommendationId, recommendationText)` index already
- * dedupes a replay submission for the same message + same prose
- * snapshot. A re-rating after the user changes their mind requires the
- * UI to delete + re-create — out of scope for v1.4.23 H7.
+ * Idempotency: a partial unique index on
+ * `(user_id, coach_message_id) WHERE target_type = 'coach'` dedupes
+ * a replay submission for the same message. The Coach surface no
+ * longer snapshots assistant prose into `recommendation_text` —
+ * v1.4.23 senior-dev review (Sr-H3) flagged that as a silent break of
+ * the encryption-at-rest invariant the Coach ships under
+ * (`coach_messages.encrypted_content` is AES-256-GCM). Feedback rows
+ * now reference the source message via `coachMessageId`; the
+ * aggregator never reads the prose anyway, so nothing downstream
+ * notices.
  */
 import type { NextRequest } from "next/server";
 import { z } from "zod/v4";
 
 import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
-import { apiError, apiSuccess, getClientIp, safeJson } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { resolveCoachFeedbackAttribution } from "@/lib/ai/feedback-attribution";
-import { decrypt } from "@/lib/crypto";
 import { annotate } from "@/lib/logging/context";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -76,17 +85,16 @@ async function handlePost(request: NextRequest, ctx: RouteContext) {
   }
   const body = parsed.data;
 
-  // Verify ownership + pull the prose snapshot. The encrypted-content
-  // model stores the message body via AES-256-GCM; decrypt to use as
-  // the `recommendationText` slot so the per-(user, message, text)
-  // dedup remains stable across re-rates.
+  // Verify ownership only — we no longer touch encryptedContent. The
+  // assistant prose stays encrypted-at-rest; the feedback row just
+  // references the message id via the FK.
   const message = await prisma.coachMessage.findFirst({
     where: {
       id: messageId,
       role: "assistant",
       conversation: { userId: user.id },
     },
-    select: { id: true, encryptedContent: true },
+    select: { id: true },
   });
   if (!message) {
     annotate({
@@ -96,22 +104,6 @@ async function handlePost(request: NextRequest, ctx: RouteContext) {
     throw new HttpError(404, "coach.message.notFound");
   }
 
-  let proseSnapshot = "";
-  try {
-    const ciphertext = Buffer.from(message.encryptedContent).toString("utf8");
-    proseSnapshot = decrypt(ciphertext);
-  } catch {
-    // Decryption failure shouldn't block the feedback row — fall back
-    // to a stable id-keyed marker so the dedup still works.
-    proseSnapshot = `<undecryptable:${messageId}>`;
-  }
-  // Cap the snapshot at the same byte budget the rec-feedback table
-  // already accepts (a Coach reply is usually ~400-1500 chars; clip
-  // hard at 4 KB so a runaway provider can't bloat the table).
-  if (proseSnapshot.length > 4096) {
-    proseSnapshot = proseSnapshot.slice(0, 4096);
-  }
-
   const attribution = await resolveCoachFeedbackAttribution(user.id, messageId);
 
   try {
@@ -119,7 +111,10 @@ async function handlePost(request: NextRequest, ctx: RouteContext) {
       data: {
         userId: user.id,
         recommendationId: messageId,
-        recommendationText: proseSnapshot,
+        // v1.4.23 reconcile (Sr-H3): no plaintext prose. The FK
+        // resolves the message at read-time when (and only when) a
+        // future surface needs to render it.
+        coachMessageId: messageId,
         recommendationSeverity: "coach",
         metricSourceType: attribution.metricSourceType,
         metricSourceTimeRange: "single_message",
