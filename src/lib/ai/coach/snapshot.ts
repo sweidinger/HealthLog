@@ -304,35 +304,38 @@ export async function buildCoachSnapshot(
   const wantsPulse = sources.has("pulse");
   const wantsMood = sources.has("mood");
   const wantsCompliance = sources.has("compliance");
-  // v1.4.23 — additive Apple Health sources. The default scope leaves
-  // them off, so non-iOS accounts never pay the SQL `WHERE type IN`
-  // overhead. iOS callers explicitly include them in `scope.sources`.
-  const wantsHrv = sources.has("hrv");
-  const wantsSleep = sources.has("sleep");
-  const wantsRestingHr = sources.has("resting_hr");
-  const wantsSteps = sources.has("steps");
-  const wantsActiveEnergy = sources.has("active_energy");
-  const wantsFlights = sources.has("flights");
-  const wantsDistance = sources.has("distance");
-  const wantsVo2Max = sources.has("vo2_max");
-  const wantsBodyTemp = sources.has("body_temp");
+
+  // v1.4.23 W6 (S-04) — single source of truth for the
+  // CoachScopeSource → MeasurementType[] mapping. Drives both the
+  // SQL `WHERE type IN (…)` build below and the Apple-Health timeline
+  // block table downstream, so adding a new metric is one entry
+  // instead of three (boolean + push + appleHealthBlocks row).
+  // Default Coach scope leaves the Apple Health rows off; non-iOS
+  // accounts never pay the type-IN overhead because their `sources`
+  // set never enables them.
+  const METRIC_TYPES: Record<CoachScopeSource, string[]> = {
+    bp: ["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"],
+    weight: ["WEIGHT"],
+    pulse: ["PULSE"],
+    mood: [],
+    compliance: [],
+    hrv: ["HEART_RATE_VARIABILITY"],
+    sleep: ["SLEEP_DURATION"],
+    resting_hr: ["RESTING_HEART_RATE"],
+    steps: ["ACTIVITY_STEPS"],
+    active_energy: ["ACTIVE_ENERGY_BURNED"],
+    flights: ["FLIGHTS_CLIMBED"],
+    distance: ["WALKING_RUNNING_DISTANCE"],
+    vo2_max: ["VO2_MAX"],
+    body_temp: ["BODY_TEMPERATURE"],
+  };
 
   // Single fetch for all measurement types — Prisma's filter pushes
   // the type list into one SQL `WHERE type IN (…)` so we don't pay
   // per-metric round-trips.
-  const wantedTypes: string[] = [];
-  if (wantsBp) wantedTypes.push("BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA");
-  if (wantsWeight) wantedTypes.push("WEIGHT");
-  if (wantsPulse) wantedTypes.push("PULSE");
-  if (wantsHrv) wantedTypes.push("HEART_RATE_VARIABILITY");
-  if (wantsSleep) wantedTypes.push("SLEEP_DURATION");
-  if (wantsRestingHr) wantedTypes.push("RESTING_HEART_RATE");
-  if (wantsSteps) wantedTypes.push("ACTIVITY_STEPS");
-  if (wantsActiveEnergy) wantedTypes.push("ACTIVE_ENERGY_BURNED");
-  if (wantsFlights) wantedTypes.push("FLIGHTS_CLIMBED");
-  if (wantsDistance) wantedTypes.push("WALKING_RUNNING_DISTANCE");
-  if (wantsVo2Max) wantedTypes.push("VO2_MAX");
-  if (wantsBodyTemp) wantedTypes.push("BODY_TEMPERATURE");
+  const wantedTypes = Array.from(sources).flatMap(
+    (source) => METRIC_TYPES[source] ?? [],
+  );
 
   const measurementRows =
     wantedTypes.length > 0
@@ -514,16 +517,21 @@ export async function buildCoachSnapshot(
     type: string;
     enabled: boolean;
   };
+  // v1.4.23 W6 (S-04) — `enabled` reads from `sources` directly
+  // instead of from a parallel ladder of `wantsHrv/...` booleans. The
+  // `type` field still mirrors `METRIC_TYPES[metric][0]` because each
+  // Apple Health source maps to exactly one MeasurementType (BP is
+  // the only fan-out and lives in its own legacy block above).
   const appleHealthBlocks: AppleHealthBlock[] = [
-    { metric: "hrv", snapshotKey: "heartRateVariability", type: "HEART_RATE_VARIABILITY", enabled: wantsHrv },
-    { metric: "sleep", snapshotKey: "sleep", type: "SLEEP_DURATION", enabled: wantsSleep },
-    { metric: "resting_hr", snapshotKey: "restingHeartRate", type: "RESTING_HEART_RATE", enabled: wantsRestingHr },
-    { metric: "steps", snapshotKey: "steps", type: "ACTIVITY_STEPS", enabled: wantsSteps },
-    { metric: "active_energy", snapshotKey: "activeEnergy", type: "ACTIVE_ENERGY_BURNED", enabled: wantsActiveEnergy },
-    { metric: "flights", snapshotKey: "flightsClimbed", type: "FLIGHTS_CLIMBED", enabled: wantsFlights },
-    { metric: "distance", snapshotKey: "walkingRunningDistance", type: "WALKING_RUNNING_DISTANCE", enabled: wantsDistance },
-    { metric: "vo2_max", snapshotKey: "vo2Max", type: "VO2_MAX", enabled: wantsVo2Max },
-    { metric: "body_temp", snapshotKey: "bodyTemperature", type: "BODY_TEMPERATURE", enabled: wantsBodyTemp },
+    { metric: "hrv", snapshotKey: "heartRateVariability", type: "HEART_RATE_VARIABILITY", enabled: sources.has("hrv") },
+    { metric: "sleep", snapshotKey: "sleep", type: "SLEEP_DURATION", enabled: sources.has("sleep") },
+    { metric: "resting_hr", snapshotKey: "restingHeartRate", type: "RESTING_HEART_RATE", enabled: sources.has("resting_hr") },
+    { metric: "steps", snapshotKey: "steps", type: "ACTIVITY_STEPS", enabled: sources.has("steps") },
+    { metric: "active_energy", snapshotKey: "activeEnergy", type: "ACTIVE_ENERGY_BURNED", enabled: sources.has("active_energy") },
+    { metric: "flights", snapshotKey: "flightsClimbed", type: "FLIGHTS_CLIMBED", enabled: sources.has("flights") },
+    { metric: "distance", snapshotKey: "walkingRunningDistance", type: "WALKING_RUNNING_DISTANCE", enabled: sources.has("distance") },
+    { metric: "vo2_max", snapshotKey: "vo2Max", type: "VO2_MAX", enabled: sources.has("vo2_max") },
+    { metric: "body_temp", snapshotKey: "bodyTemperature", type: "BODY_TEMPERATURE", enabled: sources.has("body_temp") },
   ];
   for (const block of appleHealthBlocks) {
     if (!block.enabled) continue;

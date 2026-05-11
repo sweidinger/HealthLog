@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
   Bot,
   ChevronRight,
@@ -14,10 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
-import {
-  DEFAULT_COACH_PREFS,
-  type CoachPrefs,
-} from "@/lib/validations/coach-prefs";
+import { useCoachPrefs } from "@/hooks/use-coach-prefs";
 
 import { SourceChips } from "./source-chips";
 import type {
@@ -66,18 +63,10 @@ export function MessageThread({
 
   // v1.4.23 H4 — read the user's Coach prefs so the evidence
   // disclosure honours `showEvidenceByDefault`. Cached at the
-  // queryClient level; the settings sheet writes the same key after a
-  // successful save so the new default takes effect on the next reply
-  // without a page reload.
-  const { data: coachPrefs } = useQuery({
-    queryKey: ["coach-prefs"],
-    queryFn: async () => {
-      const res = await fetch("/api/auth/me/coach-prefs");
-      if (!res.ok) return DEFAULT_COACH_PREFS;
-      const env = (await res.json()) as { data: CoachPrefs };
-      return env.data;
-    },
-  });
+  // queryClient level via the shared `useCoachPrefs` hook; the
+  // settings sheet writes the same key after a successful save so the
+  // new default takes effect on the next reply without a page reload.
+  const { data: coachPrefs } = useCoachPrefs();
   const evidenceDefaultOpen = coachPrefs?.showEvidenceByDefault ?? false;
 
   const messages: CoachMessageDTO[] = conversation?.messages ?? [];

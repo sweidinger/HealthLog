@@ -24,6 +24,8 @@
  */
 import { createDocument, type ZodOpenApiObject } from "zod-openapi";
 
+import { openApiPaths, openApiComponents } from "./routes";
+
 export const openApiBase: Pick<
   ZodOpenApiObject,
   "openapi" | "info" | "servers" | "tags"
@@ -57,17 +59,13 @@ export const openApiBase: Pick<
 };
 
 /**
- * Assemble the full OpenAPI 3.1 document. Imports the route table
- * lazily so the base scaffolding stays usable from contexts that
- * shouldn't pull every Zod schema in the project (e.g. a hypothetical
- * future devtools-only consumer).
+ * Assemble the full OpenAPI 3.1 document. Routes live in their own
+ * file so additions don't touch the base scaffolding. The static
+ * import keeps typecheck-narrowing and tree-shaking intact (W6 S-02
+ * removed the lazy-`require` form which had no real consumer and was
+ * costing an `eslint-disable` + an `as` cast for no benefit).
  */
 export function buildOpenApiDocument(): ReturnType<typeof createDocument> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { openApiPaths, openApiComponents } = require("./routes") as {
-    openApiPaths: ZodOpenApiObject["paths"];
-    openApiComponents: ZodOpenApiObject["components"];
-  };
   return createDocument({
     ...openApiBase,
     paths: openApiPaths,
