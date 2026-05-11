@@ -143,8 +143,7 @@ Last update: 2026-05-11T02:00+02:00
       be flipped from CI)
 - [x] Workflow step gains a `::notice::` line so future runs surface
       the deploy timestamp + sha without opening the verbose log
-- [x] Verification recipe (`curl /api/version | jq .data.version`)
-      + host-side fallback documented inline
+- [x] Verification recipe (`curl /api/version | jq .data.version`) + host-side fallback documented inline
 
 ## Wave 5 — Hygiene (H1-H7)
 
@@ -194,16 +193,34 @@ OpenAPI registry coverage: +3 routes (GET / PUT
 
 ## Wave 6 — Multi-agent QA + Product-Lead review
 
-- [ ] code-reviewer
-- [ ] security review
-- [ ] design / UX review
-- [ ] senior-dev review
-- [ ] simplify
-- [ ] Product Lead — v1.5 P1 (iOS first launch) plan refresh with
+- [x] code-reviewer
+- [x] security review
+- [x] design / UX review
+- [x] senior-dev review
+- [x] simplify
+- [x] Product Lead — v1.5 P1 (iOS first launch) plan refresh with
       concrete file paths now that backend contracts exist
-- [ ] Reconcile CRITICAL + HIGH; defer MED/LOW
+- [x] Reconcile — 1 CRITICAL + all 9 HIGH + 4 of 5 simplify + 3 MED
+      applied; remainder triaged into `.planning/v1423-backlog.md`
 
-## Wave 7 — Release v1.4.23
+W6 reconcile commits (11): 5486507, 13977bc, d5202e5, a2dfc5e (Session A
+— CRIT + HIGH 1-3); 3ee6dab, dfffe6b, d25e50e (Session B — HIGH 4 +
+S-02-S-04 simplify + HIGH 6); deadc73 (Session D — HIGH 5); 650f150
+(Session E — HIGH 7); 1a46bfe (Session F — MED cluster); plus this
+STATE tick.
+
+Detailed reconcile report: `.planning/phase-W6-v1423-reconcile-report.md`.
+Deferred items: `.planning/v1423-backlog.md` (settings-cog vs
+per-message-controls debate, rigorous Pearson incomplete-beta, surplus
+MEDs, all LOWs, S-05 simplify, pre-existing `coach-prefs.test.ts` mock
+issue, sandbox `git commit` no-op).
+
+Test deltas: W5 ended at 2223 unit. Session A added the `revoke.test.ts`
++ `apns-dispatch` device tests landing at 2227. Session E ended at 2235.
+Session F added the forged-X-Device-Id regression — final at 2236 unit
+(+45 across the W5+W6 reconcile arc).
+
+## Wave 7 — Release v1.4.23 (next)
 
 - [ ] Pre-release verify
 - [ ] Bump `package.json` 1.4.22 → 1.4.23 + CHANGELOG
