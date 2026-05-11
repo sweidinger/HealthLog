@@ -16,13 +16,18 @@
  * the session lives on `Session.id`, not `Device.id`. Browser logouts
  * keep using /api/auth/logout. The two surfaces address different
  * blast radii.
+ *
+ * v1.4.23 W6 — the four-write cascade now runs through the shared
+ * `revokeDeviceCascade` helper so the writes commit atomically inside
+ * a single `prisma.$transaction`. Previously a partial failure could
+ * leave the device row alive with all its tokens revoked.
  */
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
-import { prisma } from "@/lib/db";
+import { revokeDeviceCascade } from "@/lib/devices/revoke";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -33,62 +38,35 @@ export const DELETE = apiHandler(
     const { user } = await requireAuth();
     const { id } = await context.params;
 
-    const device = await prisma.device.findUnique({
-      where: { id },
-      select: { id: true, userId: true, model: true, bundleId: true },
-    });
-
-    if (!device || device.userId !== user.id) {
+    const result = await revokeDeviceCascade(user.id, id);
+    if (!result) {
       // 404 on cross-user attempts — leaking "this id exists but isn't
       // yours" would let an attacker enumerate device ids.
       return apiError("Device not found", 404);
     }
 
-    // Revoke every refresh token bound to this device + its paired
-    // access tokens.
-    const liveRefreshTokens = await prisma.refreshToken.findMany({
-      where: { userId: user.id, deviceId: device.id, revokedAt: null },
-      select: { accessTokenHash: true },
-    });
-    const revokedAt = new Date();
-    await prisma.refreshToken.updateMany({
-      where: { userId: user.id, deviceId: device.id, revokedAt: null },
-      data: { revokedAt },
-    });
-    const accessHashes = liveRefreshTokens
-      .map((r) => r.accessTokenHash)
-      .filter((v): v is string => Boolean(v));
-    if (accessHashes.length > 0) {
-      await prisma.apiToken.updateMany({
-        where: { tokenHash: { in: accessHashes }, revoked: false },
-        data: { revoked: true },
-      });
-    }
-
-    await prisma.device.delete({ where: { id: device.id } });
-
     await auditLog("devices.revoke", {
       userId: user.id,
       details: {
-        deviceId: device.id,
-        label: device.model ?? device.bundleId ?? null,
-        refreshTokensRevoked: liveRefreshTokens.length,
-        accessTokensRevoked: accessHashes.length,
+        deviceId: result.id,
+        label: result.label,
+        refreshTokensRevoked: result.refreshTokensRevoked,
+        accessTokensRevoked: result.accessTokensRevoked,
       },
     });
     annotate({
-      action: { name: "auth.me.devices.revoke", entity_type: "device", entity_id: device.id },
+      action: { name: "auth.me.devices.revoke", entity_type: "device", entity_id: result.id },
       meta: {
-        refresh_tokens_revoked: liveRefreshTokens.length,
-        access_tokens_revoked: accessHashes.length,
+        refresh_tokens_revoked: result.refreshTokensRevoked,
+        access_tokens_revoked: result.accessTokensRevoked,
       },
     });
 
     return apiSuccess({
-      id: device.id,
+      id: result.id,
       revoked: true,
-      refreshTokensRevoked: liveRefreshTokens.length,
-      accessTokensRevoked: accessHashes.length,
+      refreshTokensRevoked: result.refreshTokensRevoked,
+      accessTokensRevoked: result.accessTokensRevoked,
     });
   },
 );

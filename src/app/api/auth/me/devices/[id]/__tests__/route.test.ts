@@ -14,6 +14,10 @@ vi.mock("@/lib/db", () => ({
     apiToken: {
       updateMany: vi.fn(),
     },
+    // v1.4.23 W6 — the cascade now runs through `prisma.$transaction`
+    // (HIGH 6 fix). The mock returns the resolved batch payload so the
+    // route handler walks past the transaction step.
+    $transaction: vi.fn().mockResolvedValue([] as never),
   },
 }));
 
@@ -58,6 +62,7 @@ beforeEach(() => {
   vi.mocked(prisma.refreshToken.findMany).mockResolvedValue([]);
   vi.mocked(prisma.refreshToken.updateMany).mockResolvedValue({ count: 0 } as never);
   vi.mocked(prisma.apiToken.updateMany).mockResolvedValue({ count: 0 } as never);
+  vi.mocked(prisma.$transaction).mockResolvedValue([] as never);
 });
 
 describe("DELETE /api/auth/me/devices/[id]", () => {
