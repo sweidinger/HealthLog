@@ -32,51 +32,55 @@ export const GET = apiHandler(async () => {
   // by /api/analytics (V3 audit: enum drift cousins).
   const types = [...measurementTypeEnum.options] as MeasurementType[];
 
+  // v1.4.23 Sr-H1 — every per-type read goes through the chunked helper
+  // so the route's working set stays bounded at MEASUREMENT_CHUNK_SIZE
+  // rows per Prisma round-trip even for users with multi-year HealthKit
+  // sync history. `summarize()` requires the full series (slope7/30/90,
+  // anomalies) so groupBy cannot replace this read; the chunked path is
+  // the smallest pagination contract that still satisfies the helper.
+  let totalRowsReadForAggregate = 0;
   const measurementsByType = await Promise.all(
     types.map((type) =>
-      prisma.measurement
-        .findMany({
-          where: { userId: user.id, type },
-          orderBy: { measuredAt: "asc" },
-          select: { value: true, measuredAt: true, sleepStage: true },
-        })
-        .then((measurements) => {
-          // v1.4.23 — Apple Health's sleep ingest stores one row per
-          // stage per night. Summarising the raw rows would treat each
-          // stage as its own datapoint and grossly understate "average
-          // sleep". Aggregate per Berlin day before summarising so the
-          // summary matches the user's intuition (one number per night
-          // = total minutes asleep).
-          let datapoints: DataPoint[];
-          if (type === "SLEEP_DURATION") {
-            const byDay = new Map<string, { total: number; date: Date }>();
-            for (const m of measurements) {
-              const key = berlinDayKey(m.measuredAt);
-              const slot = byDay.get(key) ?? {
-                total: 0,
-                date: m.measuredAt,
-              };
-              slot.total += m.value;
-              if (m.measuredAt > slot.date) slot.date = m.measuredAt;
-              byDay.set(key, slot);
-            }
-            datapoints = Array.from(byDay.values()).map(
-              (s): DataPoint => ({ date: s.date, value: s.total }),
-            );
-            datapoints.sort((a, b) => a.date.getTime() - b.date.getTime());
-          } else {
-            datapoints = measurements.map(
-              (m): DataPoint => ({
-                date: m.measuredAt,
-                value: m.value,
-              }),
-            );
+      fetchMeasurementSeriesChunked(user.id, type, {
+        includeSleepStage: true,
+      }).then((measurements) => {
+        totalRowsReadForAggregate += measurements.length;
+        // v1.4.23 — Apple Health's sleep ingest stores one row per
+        // stage per night. Summarising the raw rows would treat each
+        // stage as its own datapoint and grossly understate "average
+        // sleep". Aggregate per Berlin day before summarising so the
+        // summary matches the user's intuition (one number per night
+        // = total minutes asleep).
+        let datapoints: DataPoint[];
+        if (type === "SLEEP_DURATION") {
+          const byDay = new Map<string, { total: number; date: Date }>();
+          for (const m of measurements) {
+            const key = berlinDayKey(m.measuredAt);
+            const slot = byDay.get(key) ?? {
+              total: 0,
+              date: m.measuredAt,
+            };
+            slot.total += m.value;
+            if (m.measuredAt > slot.date) slot.date = m.measuredAt;
+            byDay.set(key, slot);
           }
-          return {
-            type,
-            summary: summarize(datapoints),
-          };
-        }),
+          datapoints = Array.from(byDay.values()).map(
+            (s): DataPoint => ({ date: s.date, value: s.total }),
+          );
+          datapoints.sort((a, b) => a.date.getTime() - b.date.getTime());
+        } else {
+          datapoints = measurements.map(
+            (m): DataPoint => ({
+              date: m.measuredAt,
+              value: m.value,
+            }),
+          );
+        }
+        return {
+          type,
+          summary: summarize(datapoints),
+        };
+      }),
     ),
   );
 
@@ -84,6 +88,17 @@ export const GET = apiHandler(async () => {
   for (const { type, summary } of measurementsByType) {
     results[type] = summary;
   }
+
+  // v1.4.23 Sr-H1 — slow-query attribution. Total rows pulled across
+  // every per-type chunked read so ops can spot outlier users whose
+  // analytics requests dominate the route's tail latency.
+  annotate({
+    meta: {
+      analytics: {
+        bp_aggregate: { row_count: totalRowsReadForAggregate },
+      },
+    },
+  });
 
   // v1.4.23 — sleep-stage breakdown for the trailing 30 days. Only
   // included when the user has stage-tagged rows in window; null
@@ -138,8 +153,8 @@ export const GET = apiHandler(async () => {
     // `analytics.bp_in_target.row_count` wide-event meta lets ops
     // attribute slow requests to specific outlier users.
     const [sysData, diaData] = await Promise.all([
-      fetchBpSeriesChunked(user.id, "BLOOD_PRESSURE_SYS"),
-      fetchBpSeriesChunked(user.id, "BLOOD_PRESSURE_DIA"),
+      fetchMeasurementSeriesChunked(user.id, "BLOOD_PRESSURE_SYS"),
+      fetchMeasurementSeriesChunked(user.id, "BLOOD_PRESSURE_DIA"),
     ]);
 
     annotate({
@@ -288,32 +303,17 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
   const DAY_MS = 24 * 60 * 60 * 1000;
   const since = new Date(Date.now() - 30 * DAY_MS);
 
+  // v1.4.23 Sr-H1 — the four measurement reads route through the
+  // chunked helper so even a noisy 30-day window (e.g. minute-level
+  // HealthKit pulse samples) cannot allocate an unbounded buffer. The
+  // helper still returns the full filtered series the Pearson runners
+  // need; we just bound the per-page Prisma round-trip.
   const [sysRows, diaRows, pulseRows, weightRows, moodRows, intakeRows] =
     await Promise.all([
-      prisma.measurement.findMany({
-        where: {
-          userId,
-          type: "BLOOD_PRESSURE_SYS",
-          measuredAt: { gte: since },
-        },
-        select: { value: true, measuredAt: true },
-      }),
-      prisma.measurement.findMany({
-        where: {
-          userId,
-          type: "BLOOD_PRESSURE_DIA",
-          measuredAt: { gte: since },
-        },
-        select: { value: true, measuredAt: true },
-      }),
-      prisma.measurement.findMany({
-        where: { userId, type: "PULSE", measuredAt: { gte: since } },
-        select: { value: true, measuredAt: true },
-      }),
-      prisma.measurement.findMany({
-        where: { userId, type: "WEIGHT", measuredAt: { gte: since } },
-        select: { value: true, measuredAt: true },
-      }),
+      fetchMeasurementSeriesChunked(userId, "BLOOD_PRESSURE_SYS", { since }),
+      fetchMeasurementSeriesChunked(userId, "BLOOD_PRESSURE_DIA", { since }),
+      fetchMeasurementSeriesChunked(userId, "PULSE", { since }),
+      fetchMeasurementSeriesChunked(userId, "WEIGHT", { since }),
       prisma.moodEntry.findMany({
         where: { userId, moodLoggedAt: { gte: since } },
         select: { score: true, moodLoggedAt: true, date: true },
@@ -433,50 +433,76 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
 }
 
 /**
- * v1.4.23 H2 — paged read of every BP measurement for a single user.
+ * v1.4.23 Sr-H1 — paged read of every Measurement of a given type for
+ * a single user.
  *
- * The W2-of-v1.4.20 BD-Zielbereich fix relies on the full historical
- * series (the helper needs every paired reading to compute the all-time
- * + prior-month + prior-year windows). A single-shot `findMany` works
- * for users with hundreds of rows but a 5-year tenant carries ~9 000
- * sys rows + ~9 000 dia rows; the route allocated a ~2 MB working set
- * per request. Page through `BP_CHUNK_SIZE` rows at a time so the live
- * memory footprint stays bounded — the per-row payload is still small
- * enough that the final `BpReading[]` survives, but we never have two
- * full copies of the table in flight at once.
+ * Boundary contract:
+ *   - The route's per-type loop, the BD-Zielbereich BP windowing, and
+ *     the correlation-hypothesis reads ALL pull through this helper so
+ *     no analytics path holds an unbounded `findMany` against
+ *     `measurement` any more.
+ *   - `summarize()` (slope7/30/90, anomaly z-scores) and
+ *     `computeBpInTargetWindows` (paired sys/dia matching) both need
+ *     row-level access that `prisma.groupBy` cannot provide; chunked
+ *     paging is the smallest contract that bounds the working set
+ *     without changing the helpers.
+ *   - The cursor is `id` with a stable `(measuredAt, id)` order so two
+ *     rows sharing a timestamp (bulk-imported manual entries) don't
+ *     stall the cursor or duplicate a row across pages.
  *
- * The cursor is `(measuredAt, id)` to break ties when two rows share
- * the same timestamp (manual entries imported in bulk); the result
- * order matches the existing single-shot `orderBy: { measuredAt: "asc" }`
- * the helper assumed.
+ * Page size is `MEASUREMENT_CHUNK_SIZE`; the safety-bound loop caps
+ * total pages at 1 000 (= 5 M rows) which is well above any plausible
+ * single-user single-type plausibility range — defence in depth against
+ * a cursor-staleness infinite-loop bug.
+ *
+ * `since` lets the correlation path pull only the trailing 30 days
+ * without first reading older rows. `includeSleepStage` opts the
+ * per-type loop into the SLEEP_DURATION-only field.
  */
-const BP_CHUNK_SIZE = 5000;
+const MEASUREMENT_CHUNK_SIZE = 5000;
 
-async function fetchBpSeriesChunked(
+interface ChunkedRow {
+  measuredAt: Date;
+  value: number;
+  sleepStage: string | null;
+}
+
+async function fetchMeasurementSeriesChunked(
   userId: string,
-  type: "BLOOD_PRESSURE_SYS" | "BLOOD_PRESSURE_DIA",
-): Promise<Array<{ measuredAt: Date; value: number }>> {
-  const out: Array<{ measuredAt: Date; value: number }> = [];
+  type: MeasurementType,
+  options: { since?: Date; includeSleepStage?: boolean } = {},
+): Promise<ChunkedRow[]> {
+  const out: ChunkedRow[] = [];
   let cursorId: string | undefined;
-  // Loop with a safety bound — at 5 000/page the bound only triggers
-  // for >5 000 pages = >25 M rows, far beyond the per-user plausibility
-  // range. Defence-in-depth against an infinite-loop bug on cursor
-  // staleness.
   for (let page = 0; page < 1000; page++) {
     const chunk = await prisma.measurement.findMany({
-      where: { userId, type },
+      where: {
+        userId,
+        type,
+        ...(options.since ? { measuredAt: { gte: options.since } } : {}),
+      },
       orderBy: [{ measuredAt: "asc" }, { id: "asc" }],
-      select: { id: true, measuredAt: true, value: true },
-      take: BP_CHUNK_SIZE,
-      ...(cursorId
-        ? { cursor: { id: cursorId }, skip: 1 }
-        : {}),
+      select: {
+        id: true,
+        measuredAt: true,
+        value: true,
+        ...(options.includeSleepStage ? { sleepStage: true } : {}),
+      },
+      take: MEASUREMENT_CHUNK_SIZE,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
     });
     if (chunk.length === 0) break;
     for (const row of chunk) {
-      out.push({ measuredAt: row.measuredAt, value: row.value });
+      out.push({
+        measuredAt: row.measuredAt,
+        value: row.value,
+        sleepStage:
+          "sleepStage" in row
+            ? ((row.sleepStage as string | null) ?? null)
+            : null,
+      });
     }
-    if (chunk.length < BP_CHUNK_SIZE) break;
+    if (chunk.length < MEASUREMENT_CHUNK_SIZE) break;
     cursorId = chunk[chunk.length - 1].id;
   }
   return out;
