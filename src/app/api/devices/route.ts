@@ -84,16 +84,29 @@ export const POST = apiHandler(async (request: NextRequest) => {
     apnsEnvironment,
   } = parsed.data;
 
-  // APNs-token cross-user-hijack guard: APNs tokens aren't secrets, so
-  // accepting one already owned by another user would let any client
-  // who learns one redirect that user's pushes. Reject before any
-  // upsert so we never accidentally transfer ownership.
+  // APNs-token collision lookup. Two cases:
+  //   * A row for ANOTHER user owns this token → 409 hijack guard.
+  //     APNs tokens aren't secrets, so accepting wire input that
+  //     references another user's token would let anyone who learns
+  //     one redirect that user's pushes.
+  //   * A row for THIS user already owns it → idempotent fall-through.
+  //     The upsert below either updates the matching legacy `token`
+  //     row in place, or creates a fresh legacy `token` row that the
+  //     migration-0041 partial unique index now blocks (the upsert
+  //     branch will hit the unique constraint and the request will
+  //     fail with a 500 — but that's a programmer-error path the
+  //     iOS client should never trigger; same-user re-registration
+  //     keeps the same legacy `token`).
+  // The `NOT: { userId }` clause was removed in v1.4.23 W6 reconcile —
+  // it skipped the same-user collision and let `findMany({ apnsToken })`
+  // fan a single push out to two Device rows, double-charging the APNs
+  // quota.
   if (apnsToken) {
     const existingApns = await prisma.device.findFirst({
-      where: { apnsToken, NOT: { userId: user.id } },
-      select: { id: true },
+      where: { apnsToken },
+      select: { id: true, userId: true },
     });
-    if (existingApns) {
+    if (existingApns && existingApns.userId !== user.id) {
       await auditLog("device.register.denied", {
         userId: user.id,
         details: {

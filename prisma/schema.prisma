@@ -833,7 +833,11 @@ model Device {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([apnsToken])
+  // `devices_apns_token_unique` is a partial UNIQUE index over
+  // `apns_token IS NOT NULL` — see migration 0041. Prisma can't express
+  // a partial index in the schema language, so it's introduced via raw
+  // SQL and intentionally omitted here. Do not re-add `@@index([apnsToken])`
+  // (the non-unique sibling) — the partial unique index supersedes it.
   @@map("devices")
 }
 
