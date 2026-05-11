@@ -17,6 +17,7 @@ import type { JSX } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { AiQualitySection } from "@/components/admin/ai-quality-section";
+import { CoachFeedbackSection } from "@/components/admin/coach-feedback-section";
 import { ApiTokenOverviewSection } from "@/components/admin/api-token-overview-section";
 import { AppLogPreviewSection } from "@/components/admin/app-log-preview-section";
 import { BackupsSection } from "@/components/admin/backups-section";
@@ -91,6 +92,15 @@ export function AdminSectionRenderer({
           subtitle={t("admin.section.ai-quality.subtitle")}
         >
           <AiQualitySection />
+        </SectionFrame>
+      );
+    case "coach-feedback":
+      return (
+        <SectionFrame
+          title={t("admin.section.coach-feedback.title")}
+          subtitle={t("admin.section.coach-feedback.subtitle")}
+        >
+          <CoachFeedbackSection />
         </SectionFrame>
       );
     case "feedback":

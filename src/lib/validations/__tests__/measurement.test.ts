@@ -13,11 +13,21 @@ describe("measurement validation", () => {
       expect(getUnitForType("BLOOD_PRESSURE_DIA")).toBe("mmHg");
       expect(getUnitForType("PULSE")).toBe("bpm");
       expect(getUnitForType("BODY_FAT")).toBe("%");
-      expect(getUnitForType("SLEEP_DURATION")).toBe("hours");
+      // v1.4.23 — sleep duration shifted from hours to minutes so per-stage
+      // HealthKit category samples can be stored without precision loss.
+      expect(getUnitForType("SLEEP_DURATION")).toBe("minutes");
       expect(getUnitForType("ACTIVITY_STEPS")).toBe("steps");
       expect(getUnitForType("BLOOD_GLUCOSE")).toBe("mg/dL");
       expect(getUnitForType("TOTAL_BODY_WATER")).toBe("kg");
       expect(getUnitForType("BONE_MASS")).toBe("kg");
+      // ── v1.4.23 Apple Health canonical units ──
+      expect(getUnitForType("HEART_RATE_VARIABILITY")).toBe("ms");
+      expect(getUnitForType("RESTING_HEART_RATE")).toBe("bpm");
+      expect(getUnitForType("ACTIVE_ENERGY_BURNED")).toBe("kcal");
+      expect(getUnitForType("FLIGHTS_CLIMBED")).toBe("flights");
+      expect(getUnitForType("WALKING_RUNNING_DISTANCE")).toBe("m");
+      expect(getUnitForType("VO2_MAX")).toBe("mL/(kg·min)");
+      expect(getUnitForType("BODY_TEMPERATURE")).toBe("celsius");
     });
 
     it("returns 'unknown' for unrecognised types", () => {

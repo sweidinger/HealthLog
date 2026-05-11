@@ -31,6 +31,20 @@ const METRIC_KEYS: Record<CoachProvenance["metrics"][number], string> = {
   mood: "insights.coach.metric.mood",
   compliance: "insights.coach.metric.compliance",
   general: "insights.coach.metric.general",
+  // ── v1.4.23 Apple Health additive ──
+  // Optional metric tags surfaced when the iOS app's HealthKit snapshot
+  // contains the matching block. The translation keys follow the same
+  // `insights.coach.metric.<token>` namespace and fall back to the raw
+  // token when a new metric ships before the locale files catch up.
+  hrv: "insights.coach.metric.hrv",
+  sleep: "insights.coach.metric.sleep",
+  resting_hr: "insights.coach.metric.resting_hr",
+  steps: "insights.coach.metric.steps",
+  active_energy: "insights.coach.metric.active_energy",
+  flights: "insights.coach.metric.flights",
+  distance: "insights.coach.metric.distance",
+  vo2_max: "insights.coach.metric.vo2_max",
+  body_temp: "insights.coach.metric.body_temp",
 };
 
 const WINDOW_KEYS: Record<CoachProvenance["windows"][number], string> = {

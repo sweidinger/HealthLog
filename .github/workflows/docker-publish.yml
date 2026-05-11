@@ -159,4 +159,5 @@ jobs:
             echo "::error::Coolify deploy webhook returned HTTP $status — image is published, but auto-deploy did not fire. Marc: deploy manually via SSH recipe in .planning/phase-8-report.md."
             exit 1
           fi
+          echo "::notice::Coolify auto-deploy webhook fired at $(date -u +%FT%TZ) for ref ${{ github.ref_name }} (sha ${GITHUB_SHA::7}). If /api/version doesn't reach the new tag within ~60s, see .planning/coolify-auto-deploy-howto.md."
           echo "Coolify deploy queued — awaiting outgoing notification webhook to /api/internal/deploy-webhook for final status."

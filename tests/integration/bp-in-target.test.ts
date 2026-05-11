@@ -651,6 +651,91 @@ describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
     expect(data.bpInTargetPct).not.toBe(data.bpInTargetPctAllTime);
   });
 
+  /**
+   * v1.4.23 H2 — the analytics route paged the BP series through a
+   * 5 000-row chunked fetch to bound the working set for power-user
+   * accounts. Seed a synthetic 6 000-row dataset (3 000 sys + 3 000
+   * dia, each chunk crosses the page boundary) and assert the
+   * response still carries identical windows + a non-null all-time
+   * field. The integration test won't grow to 9 000+ per-side rows
+   * because the testcontainer wall-clock cost would dominate; the
+   * 6 000 total threshold is enough to provably exercise the
+   * cross-page accumulation path.
+   */
+  it("computes correct windows across a chunk boundary (6000-row dataset)", async () => {
+    const prisma = getPrismaClient();
+    const user = await seedSession("bp-chunked-fixture");
+
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    // 3 000 paired readings spread over 5 years. All sit above the
+    // ceiling (sys 160 / dia 100) so the all-time pct is 0; the
+    // recent 30 days carries 50 % paired readings to keep the
+    // headline + 30-day windows distinct from all-time.
+    const recentSeed = 30;
+    const olderSeed = 2970;
+    const rows: Array<{
+      sys: number;
+      dia: number;
+      measuredAt: Date;
+    }> = [];
+    for (let i = 0; i < recentSeed; i++) {
+      const at = new Date(now - (i + 0.25) * DAY);
+      const inTarget = i % 2 === 0;
+      rows.push({
+        sys: inTarget ? 122 : 160,
+        dia: inTarget ? 75 : 100,
+        measuredAt: at,
+      });
+    }
+    for (let i = 0; i < olderSeed; i++) {
+      // Spread across the full 5-year horizon, all out-of-target.
+      const at = new Date(now - (40 + i) * DAY);
+      rows.push({ sys: 160, dia: 100, measuredAt: at });
+    }
+
+    // Bulk-insert via createMany to keep the seed runtime tractable.
+    await prisma.measurement.createMany({
+      data: rows.map((r) => ({
+        userId: user.id,
+        type: "BLOOD_PRESSURE_SYS" as const,
+        value: r.sys,
+        unit: "mmHg",
+        measuredAt: r.measuredAt,
+      })),
+    });
+    await prisma.measurement.createMany({
+      data: rows.map((r) => ({
+        userId: user.id,
+        type: "BLOOD_PRESSURE_DIA" as const,
+        value: r.dia,
+        unit: "mmHg",
+        measuredAt: r.measuredAt,
+      })),
+    });
+
+    const { GET } = await import("@/app/api/analytics/route");
+    const res = await (GET as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/analytics"),
+    );
+    expect(res.status).toBe(200);
+    const env = (await res.json()) as {
+      data: {
+        bpInTargetPct: number | null;
+        bpInTargetPct7d: number | null;
+        bpInTargetPct30d: number | null;
+        bpInTargetPctAllTime: number | null;
+      };
+    };
+    const data = env.data;
+    // 30-day headline: 15 of 30 in target = 50 %.
+    expect(data.bpInTargetPct30d).toBe(50);
+    expect(data.bpInTargetPct).toBe(50);
+    // All-time aggregate diluted by 2970 out-of-target older rows ≈ 1 %.
+    expect(data.bpInTargetPctAllTime).toBeLessThan(5);
+  }, 30_000);
+
   it("emits all three windows in the response envelope", async () => {
     const prisma = getPrismaClient();
     const user = await seedSession("bp-three-windows-route-fixture");

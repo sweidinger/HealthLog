@@ -38,22 +38,22 @@ annotated tag trigger image publication. The model is documented in
 
 ## Production deploy
 
-| Field | Value |
-| ----- | ----- |
-| URL | `https://healthlog.bombeck.io` |
-| `/api/version` | `1.4.20` (flipped at 2026-05-10T16:49:25Z) |
-| Image digest BEFORE | `sha256:b48f93874cdbcd6c2d729f1b8eeb63a6d1bbb90d56f629846ef6eab6cf272aa9` (v1.4.19) |
-| Image digest AFTER | `sha256:b112a31947b91f2fdb4bb01b60c6b17a0b8ec128ae116d37e1094da5c3decaa6` (v1.4.20) |
-| Release-prep commit (develop) | `aac8b5e chore(release): v1.4.20` |
-| Develop ↔ main sync commit | `dd2ef57 Merge main into develop — sync Dependabot dep bumps before v1.4.20 tag` |
-| Release-merge commit (main) | `666f6ee Release v1.4.20` |
-| Tag | `v1.4.20` (annotated) at `666f6ee` |
-| GHCR — tag run | `25633807964` success (4m02s) |
-| Coolify auto-deploy | NO — webhook secret still missing on the deploy server (same fault mode as v1.4.19); host-side retag fallback used |
-| Smoke (curl, no session) | `/api/version` 200 · `/auth/login` 200 · all gated routes return 307 → `/auth/login` (expected proxy.ts behaviour without a session cookie) |
-| GH release | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.20 |
-| Docs site | `0b83430` on `healthlog-docs/main` (updates.mdx + scaling.mdx version pins; `ai-insights.mdx` v1.4.20 callout) |
-| Landing site | `43ce4c7` on `healthlog-landing/main` (`softwareVersion` JSON-LD bumped, three new featureList entries) |
+| Field                         | Value                                                                                                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| URL                           | `https://healthlog.bombeck.io`                                                                                                              |
+| `/api/version`                | `1.4.20` (flipped at 2026-05-10T16:49:25Z)                                                                                                  |
+| Image digest BEFORE           | `sha256:b48f93874cdbcd6c2d729f1b8eeb63a6d1bbb90d56f629846ef6eab6cf272aa9` (v1.4.19)                                                         |
+| Image digest AFTER            | `sha256:b112a31947b91f2fdb4bb01b60c6b17a0b8ec128ae116d37e1094da5c3decaa6` (v1.4.20)                                                         |
+| Release-prep commit (develop) | `aac8b5e chore(release): v1.4.20`                                                                                                           |
+| Develop ↔ main sync commit    | `dd2ef57 Merge main into develop — sync Dependabot dep bumps before v1.4.20 tag`                                                            |
+| Release-merge commit (main)   | `666f6ee Release v1.4.20`                                                                                                                   |
+| Tag                           | `v1.4.20` (annotated) at `666f6ee`                                                                                                          |
+| GHCR — tag run                | `25633807964` success (4m02s)                                                                                                               |
+| Coolify auto-deploy           | NO — webhook secret still missing on the deploy server (same fault mode as v1.4.19); host-side retag fallback used                          |
+| Smoke (curl, no session)      | `/api/version` 200 · `/auth/login` 200 · all gated routes return 307 → `/auth/login` (expected proxy.ts behaviour without a session cookie) |
+| GH release                    | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.20                                                                                  |
+| Docs site                     | `0b83430` on `healthlog-docs/main` (updates.mdx + scaling.mdx version pins; `ai-insights.mdx` v1.4.20 callout)                              |
+| Landing site                  | `43ce4c7` on `healthlog-landing/main` (`softwareVersion` JSON-LD bumped, three new featureList entries)                                     |
 
 The tag-build pipeline succeeded; the deploy webhook still isn't
 wired on apps-01, so v1.4.20 was promoted via the documented
@@ -84,17 +84,17 @@ cookie, every authenticated route correctly returns 307 →
 `/auth/login`, so the smoke verifies the proxy gate is healthy
 end-to-end:
 
-| Path | Status (no session) | Notes |
-| ---- | ------------------- | ----- |
-| `/api/version` | 200 | Returns `version: "1.4.20"` |
-| `/auth/login` | 200 | Public surface, renders normally |
-| `/` | 307 → `/auth/login` | Gated dashboard root |
-| `/insights` | 307 → `/auth/login` | Redesigned Insights shell |
-| `/insights/report/2026-W19` | 307 → `/auth/login` | New v1.4.20 weekly-report route |
-| `/admin/api-tokens` | 307 → `/auth/login` | Admin section |
-| `/settings/integrations` | 307 → `/auth/login` | Settings section |
-| `/achievements` | 307 → `/auth/login` | Achievements page |
-| `/dashboard` | 307 → `/auth/login` | Expected: root is the dashboard, no `/dashboard` route |
+| Path                        | Status (no session) | Notes                                                  |
+| --------------------------- | ------------------- | ------------------------------------------------------ |
+| `/api/version`              | 200                 | Returns `version: "1.4.20"`                            |
+| `/auth/login`               | 200                 | Public surface, renders normally                       |
+| `/`                         | 307 → `/auth/login` | Gated dashboard root                                   |
+| `/insights`                 | 307 → `/auth/login` | Redesigned Insights shell                              |
+| `/insights/report/2026-W19` | 307 → `/auth/login` | New v1.4.20 weekly-report route                        |
+| `/admin/api-tokens`         | 307 → `/auth/login` | Admin section                                          |
+| `/settings/integrations`    | 307 → `/auth/login` | Settings section                                       |
+| `/achievements`             | 307 → `/auth/login` | Achievements page                                      |
+| `/dashboard`                | 307 → `/auth/login` | Expected: root is the dashboard, no `/dashboard` route |
 
 The Coach drawer and Health Score panel can't be smoked without a
 live session — neither carries a public surface. Confirmed live via

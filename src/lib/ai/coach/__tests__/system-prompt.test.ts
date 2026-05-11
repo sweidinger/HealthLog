@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { PROMPT_VERSION } from "@/lib/ai/prompts/insight-generator";
+import { DEFAULT_COACH_PREFS } from "@/lib/validations/coach-prefs";
 import { getCoachSystemPrompt } from "../system-prompt";
 
 /**
@@ -14,9 +15,12 @@ import { getCoachSystemPrompt } from "../system-prompt";
  *   3. The few-shot tone-calibration `<example>` pairs are baked into
  *      the prompt body (per the W1b research output).
  */
-describe("PROMPT_VERSION (v1.4.22 Coach rewrite)", () => {
-  it("matches the 4.22.x train", () => {
-    expect(PROMPT_VERSION).toMatch(/^4\.22\.\d+$/);
+describe("PROMPT_VERSION (v1.4.23 Coach + Apple Health extension)", () => {
+  it("matches the 4.23.x train", () => {
+    // v1.4.23 ratcheted the prompt to add GROUND RULE 12 (Apple Health
+    // optional categories). Future patches stay on 4.23.x until a
+    // behavioural change ships.
+    expect(PROMPT_VERSION).toMatch(/^4\.23\.\d+$/);
   });
 });
 
@@ -134,5 +138,58 @@ describe("getCoachSystemPrompt — DE", () => {
     expect(exampleOpens).toBe(exampleCloses);
     expect(prompt).toMatch(/Bewegung sehe ich in deinem Tracking gerade nicht/);
     expect(prompt).toMatch(/außerhalb dessen, womit ich helfen kann/);
+  });
+});
+
+/**
+ * v1.4.23 H4 — per-user prompt-tuning prefix. Default prefs leave the
+ * prompt unchanged so the v1.4.22 train stays in place; non-default
+ * tone / verbosity selections prepend a short OVERRIDE paragraph.
+ */
+describe("getCoachSystemPrompt — H4 prefs prefix", () => {
+  it("returns the unchanged base prompt when prefs are at defaults", () => {
+    const base = getCoachSystemPrompt("en");
+    const withDefaults = getCoachSystemPrompt("en", DEFAULT_COACH_PREFS);
+    expect(withDefaults).toBe(base);
+  });
+
+  it("prepends a TONE OVERRIDE for tone=neutral", () => {
+    const out = getCoachSystemPrompt("en", {
+      ...DEFAULT_COACH_PREFS,
+      tone: "neutral",
+    });
+    expect(out.startsWith("TONE OVERRIDE")).toBe(true);
+    expect(out).toMatch(/keep the warmth language minimal/i);
+  });
+
+  it("prepends a TONE OVERRIDE for tone=concise (and forces brief verbosity)", () => {
+    const out = getCoachSystemPrompt("en", {
+      ...DEFAULT_COACH_PREFS,
+      tone: "concise",
+      verbosity: "detailed",
+    });
+    // Concise tone overrides verbosity — even if the user picked
+    // "detailed", the prefix asks for the brief cap.
+    expect(out).toMatch(/TONE OVERRIDE: be concise/);
+    expect(out).toMatch(/VERBOSITY OVERRIDE: cap replies at ~90 words/);
+    expect(out).not.toMatch(/180-250 words is acceptable/);
+  });
+
+  it("prepends a VERBOSITY OVERRIDE for verbosity=detailed at warm tone", () => {
+    const out = getCoachSystemPrompt("en", {
+      ...DEFAULT_COACH_PREFS,
+      verbosity: "detailed",
+    });
+    expect(out).toMatch(/VERBOSITY OVERRIDE: 180-250 words is acceptable/);
+  });
+
+  it("prepends a German prefix in the de locale", () => {
+    const out = getCoachSystemPrompt("de", {
+      ...DEFAULT_COACH_PREFS,
+      tone: "neutral",
+      verbosity: "brief",
+    });
+    expect(out).toMatch(/TONFALL-OVERRIDE/);
+    expect(out).toMatch(/AUSFÜHRLICHKEITS-OVERRIDE/);
   });
 });

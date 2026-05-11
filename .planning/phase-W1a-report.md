@@ -5,6 +5,7 @@ Branch: develop (post-v1.4.21)
 Production probed: `https://healthlog.bombeck.io` (image digest
 `sha256:4e818d44702c…`, v1.4.21)
 Probe scripts (read-only, no commits):
+
 - `.planning/v1422-w1a-tokens-probe.mjs` (admin/api-tokens overflow walk)
 - `.planning/v1422-w1a-insights-probe.mjs` (Insights `Metrik` / token leak hunt)
 - `.planning/v1422-w1a-targets-probe.mjs` (Zielwerte page screenshot)
@@ -38,6 +39,7 @@ takes years of continued discipline to budge.
 #### A) Re-anchor headline to last-30d, surface all-time as a sub-value
 
 Pro:
+
 - The dashboard tile becomes a "what's happening now" widget, matching
   every other tile on the page (weight, pulse, mood — all show recent
   reading + 7d/30d). The BD tile is currently the only one whose
@@ -48,9 +50,10 @@ Pro:
   a new field `bpInTargetPctAllTime` for the sub-row.
 
 Con:
+
 - Inverts the v1.4.19 A1 fix story. Need a backlog entry to clarify
-  that the v1.4.19 fix was about *correctness* (the headline was
-  silently equal to the 30-day) and v1.4.22 is about *framing* (the
+  that the v1.4.19 fix was about _correctness_ (the headline was
+  silently equal to the 30-day) and v1.4.22 is about _framing_ (the
   all-time aggregate belongs in the small text).
 - Cache invalidation on the `analytics` query (existing TanStack
   pattern handles this).
@@ -58,13 +61,15 @@ Con:
 #### B) Explicit window label "Allzeit / All time" on the headline
 
 Pro:
+
 - Smallest diff. Add a `<span className="text-xs text-muted">{t(
-  "dashboard.bpInTargetAllTimeLabel")}</span>` next to the 11 %. No
+"dashboard.bpInTargetAllTimeLabel")}</span>` next to the 11 %. No
   data-shape change, no API change.
 - Honours the v1.4.19 A1 contract verbatim — the headline still
   surfaces the slowest-moving number.
 
 Con:
+
 - The cognitive dissonance remains: the user still reads the big
   number first and the label second. A 50 % → 50 % → 11 % "punishment
   reading" persists; the label only confirms why.
@@ -74,14 +79,16 @@ Con:
 #### C) Three-window chip row (no headline) — replace big-number layout
 
 Pro:
+
 - Renders the tile as three equal-weight chips: `7d 50 % · 30d 50 % ·
-  Allzeit 11 %`. No single number dominates; the user picks the
+Allzeit 11 %`. No single number dominates; the user picks the
   window that matters to them.
 - Visually distinct enough to break the "every TrendCard is identical"
   uniformity, which signals to the user that BP-in-target is a
   conceptually different metric than weight / pulse.
 
 Con:
+
 - Largest design lift. Diverges from the shared `<TrendCard>` chrome
   used everywhere else on the dashboard, so either (a) BD tile gets
   a bespoke `<BpInTargetTile>` component, or (b) the shared TrendCard
@@ -116,12 +123,12 @@ priority changes. The fix is roughly:
 
 ### Per-viewport probe results
 
-| Viewport            | viewport×inner | doc overflow | body overflow | Real culprit                               |
-| ------------------- | -------------- | ------------ | ------------- | ------------------------------------------ |
-| iphone-se 375×667   | 375 / 375      | NO           | NO            | (none — only the intentional `nav.no-scrollbar` mobile section strip) |
-| pixel5 393×851      | 393 / 393      | NO           | NO            | (none — same intentional nav)              |
-| ipad-mini 768×1024  | 768 / 768      | NO           | NO            | `<div class="hidden overflow-x-auto md:block">` (intentional `auto`, BUT triggers because the inner table overflows) — table sw=212, cw=122, delta=90 |
-| desktop 1280×800    | 1280 / 1280    | NO           | NO            | Same wrapper. Table sw=663, cw=634, delta=29 |
+| Viewport           | viewport×inner | doc overflow | body overflow | Real culprit                                                                                                                                          |
+| ------------------ | -------------- | ------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iphone-se 375×667  | 375 / 375      | NO           | NO            | (none — only the intentional `nav.no-scrollbar` mobile section strip)                                                                                 |
+| pixel5 393×851     | 393 / 393      | NO           | NO            | (none — same intentional nav)                                                                                                                         |
+| ipad-mini 768×1024 | 768 / 768      | NO           | NO            | `<div class="hidden overflow-x-auto md:block">` (intentional `auto`, BUT triggers because the inner table overflows) — table sw=212, cw=122, delta=90 |
+| desktop 1280×800   | 1280 / 1280    | NO           | NO            | Same wrapper. Table sw=663, cw=634, delta=29                                                                                                          |
 
 ### Real culprit
 
@@ -187,13 +194,13 @@ breakpoint up.
 The Playwright probe captured the literal substrings rendered in the
 production /insights page (German locale, live-tenant data):
 
-| Match                       | Context (rendered prose, last 60 + 60 chars)                                                  |
-| --------------------------- | --------------------------------------------------------------------------------------------- |
-| `metric:BLOOD_PRESSURE_SYS` | "…strukturiertes Gegensteuern sinnvoll ist. metric:BLOOD_PRESSURE_SYS\n\nZuletzt aktualisiert"  |
-| `metric:BLOOD_PRESSURE_SYS` | "…Medikation mit niedrigeren systolischen Werten einhergeht. metric:BLOOD_PRESSURE_SYS\n\n…" |
-| `metric:WEIGHT`             | "…damit ich die BMI-Klassifikation präzise berechnen kann. metric:WEIGHT\n\nZuletzt aktualisiert" |
-| `metric:PULSE`              | "…und aktuell, daher ist die Aussage belastbar. metric:PULSE\n\nZuletzt aktualisiert"          |
-| `metric:MOOD`               | "…nur 4 % Zielbereichstreffern in den letzten 30 Tagespunkten. metric:MOOD\n\nZuletzt aktualisiert" |
+| Match                       | Context (rendered prose, last 60 + 60 chars)                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `metric:BLOOD_PRESSURE_SYS` | "…strukturiertes Gegensteuern sinnvoll ist. metric:BLOOD_PRESSURE_SYS\n\nZuletzt aktualisiert"          |
+| `metric:BLOOD_PRESSURE_SYS` | "…Medikation mit niedrigeren systolischen Werten einhergeht. metric:BLOOD_PRESSURE_SYS\n\n…"            |
+| `metric:WEIGHT`             | "…damit ich die BMI-Klassifikation präzise berechnen kann. metric:WEIGHT\n\nZuletzt aktualisiert"       |
+| `metric:PULSE`              | "…und aktuell, daher ist die Aussage belastbar. metric:PULSE\n\nZuletzt aktualisiert"                   |
+| `metric:MOOD`               | "…nur 4 % Zielbereichstreffern in den letzten 30 Tagespunkten. metric:MOOD\n\nZuletzt aktualisiert"     |
 | `metric:BLOOD_PRESSURE_SYS` | "…regelmäßig nur eine von zwei geplanten Tagesdosen. metric:BLOOD_PRESSURE_SYS\n\nZuletzt aktualisiert" |
 
 The `Zuletzt aktualisiert: …` timestamp tail is the per-section
@@ -279,7 +286,7 @@ Compared to `/dashboard` and `/insights` the page is visually
 **static and reference-y**:
 
 - No 7-day delta. Only the 30-day mean.
-- No sparkline / mini-chart in the card. The user sees the *current*
+- No sparkline / mini-chart in the card. The user sees the _current_
   value but no story of how they got there.
 - No "Δ vs last month" callout (the comparison toggle pattern shipped
   in v1.4.16 phase B8 lives only on the dashboard).
@@ -441,7 +448,7 @@ complexity bucket below.
   Portal container to SheetContent.
 - **Design-M6** — Tone-bar visual clip at rounded corner.
 - **Design-M8** — "n=N" reads as engineering output — use `{count}
-  samples` / `{count} Werte`.
+samples` / `{count} Werte`.
 - **Design-L2** — Health Score sub-bars per-component band.
 
 **Wave-4 medium count: 26 items.** Recommend Wave-4 picks the BP-tile
@@ -503,6 +510,7 @@ to start with the 13 quick-wins + 8-10 medium picks above.
 - **Obsolete to close:** 7
 
 Probe artifacts:
+
 - `/tmp/v1422-w1a/findings.json` + 4 viewport screenshots
 - `/tmp/v1422-w1a-insights/findings.json` + 3 locale screenshots
 - `/tmp/v1422-w1a-targets/desktop.png` + `pixel5.png`

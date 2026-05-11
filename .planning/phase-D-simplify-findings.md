@@ -75,6 +75,7 @@ is mechanical enough to land without fresh design discussion.
 ---
 
 ## F3 — `lang={locale}` on every `<Input type="datetime-local">` /
+
 `type="date"` — 14 callsites, no shared wrapper
 
 - **Files (count: 14 callsites across 9 files)**:
@@ -127,7 +128,7 @@ is mechanical enough to land without fresh design discussion.
 - **Type**: Dead code (post-removal scaffolding)
 - **Why it's a smell**: Each of the three commits that dropped a
   duplicate card title kept the `<div className="flex items-center
-  gap-2">` wrapper, which now contains exactly one icon. The wrapper
+gap-2">` wrapper, which now contains exactly one icon. The wrapper
   was there to align icon+title on the same row; with the title gone
   the flex/gap classes do nothing. Reads as scar tissue from the
   removal patch.
@@ -174,6 +175,7 @@ is mechanical enough to land without fresh design discussion.
 ---
 
 ## F6 — Speculative permissive `STRIP_TOKEN_REGEX` for hypothetical
+
 hallucinations
 
 - **File**: `src/lib/insights/chart-tokens.ts:42-55`
@@ -207,6 +209,7 @@ hallucinations
 ---
 
 ## F7 — `formatBackupType` / `formatMeasurementSource` are
+
 near-clone enum-translate helpers
 
 - **Files**:
@@ -283,9 +286,9 @@ near-clone enum-translate helpers
   and routed all three values through the windows helper, so the
   redundancy is now resolved. **Clean — no further action.**
 - **A8 / Wave-B copy fixes** — 27 commits, mostly `messages/{de,en}.json`
-  + small per-file edits. Spot-checked five files; no near-duplicate
-  fixes that should share a helper. The two enum-translate helpers
-  (F7) sit at 3 call sites, below threshold. **Clean.**
+  - small per-file edits. Spot-checked five files; no near-duplicate
+    fixes that should share a helper. The two enum-translate helpers
+    (F7) sit at 3 call sites, below threshold. **Clean.**
 - **A7 admin scrollbar / collapse fixes** — `tabs.tsx` got the
   `overflow-y-hidden` clamp once + a single regression test. The
   `api-token-overview-section` collapse-button removal didn't leave

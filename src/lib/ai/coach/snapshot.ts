@@ -17,6 +17,10 @@
  */
 import { prisma } from "@/lib/db";
 import { extractFeatures } from "@/lib/insights/features";
+import {
+  parseCoachPrefs,
+  type CoachExcludeMetric,
+} from "@/lib/validations/coach-prefs";
 import type {
   CoachProvenance,
   CoachScope,
@@ -249,7 +253,29 @@ export async function buildCoachSnapshot(
   userId: string,
   scope?: CoachScope,
 ): Promise<CoachSnapshotResult> {
-  const { sources, window } = resolveScope(scope);
+  const { sources: scopedSources, window } = resolveScope(scope);
+
+  // v1.4.23 H4 — apply per-user `excludeMetrics` BEFORE we read any
+  // measurement rows so the model never sees data the user opted out
+  // of. The filter intersects with the resolved scope (the explicit
+  // `scope` argument from the request body still wins for the
+  // _maximum_ set; prefs only narrow further).
+  const prefsRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { coachPrefsJson: true },
+  });
+  const prefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
+  const excluded = new Set<CoachExcludeMetric>(prefs.excludeMetrics);
+  const sources = new Set<CoachScopeSource>();
+  for (const src of scopedSources) {
+    // The `excludeMetrics` enum is a strict subset of `CoachScopeSource`
+    // (every excludable key is also a valid scope source); this cast is
+    // safe and the runtime check is just defence-in-depth.
+    if (!excluded.has(src as unknown as CoachExcludeMetric)) {
+      sources.add(src);
+    }
+  }
+
   const windowDays = windowToDays(window);
   const features = await extractFeatures(userId, false, {
     sinceDays: windowDays,
@@ -279,13 +305,37 @@ export async function buildCoachSnapshot(
   const wantsMood = sources.has("mood");
   const wantsCompliance = sources.has("compliance");
 
+  // v1.4.23 W6 (S-04) — single source of truth for the
+  // CoachScopeSource → MeasurementType[] mapping. Drives both the
+  // SQL `WHERE type IN (…)` build below and the Apple-Health timeline
+  // block table downstream, so adding a new metric is one entry
+  // instead of three (boolean + push + appleHealthBlocks row).
+  // Default Coach scope leaves the Apple Health rows off; non-iOS
+  // accounts never pay the type-IN overhead because their `sources`
+  // set never enables them.
+  const METRIC_TYPES: Record<CoachScopeSource, string[]> = {
+    bp: ["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"],
+    weight: ["WEIGHT"],
+    pulse: ["PULSE"],
+    mood: [],
+    compliance: [],
+    hrv: ["HEART_RATE_VARIABILITY"],
+    sleep: ["SLEEP_DURATION"],
+    resting_hr: ["RESTING_HEART_RATE"],
+    steps: ["ACTIVITY_STEPS"],
+    active_energy: ["ACTIVE_ENERGY_BURNED"],
+    flights: ["FLIGHTS_CLIMBED"],
+    distance: ["WALKING_RUNNING_DISTANCE"],
+    vo2_max: ["VO2_MAX"],
+    body_temp: ["BODY_TEMPERATURE"],
+  };
+
   // Single fetch for all measurement types — Prisma's filter pushes
   // the type list into one SQL `WHERE type IN (…)` so we don't pay
   // per-metric round-trips.
-  const wantedTypes: string[] = [];
-  if (wantsBp) wantedTypes.push("BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA");
-  if (wantsWeight) wantedTypes.push("WEIGHT");
-  if (wantsPulse) wantedTypes.push("PULSE");
+  const wantedTypes = Array.from(sources).flatMap(
+    (source) => METRIC_TYPES[source] ?? [],
+  );
 
   const measurementRows =
     wantedTypes.length > 0
@@ -445,6 +495,101 @@ export async function buildCoachSnapshot(
       metrics.add("compliance");
       counts.compliance = intakeRows.length;
     }
+  }
+
+  // ── v1.4.23 Apple Health additive blocks ─────────────────────────
+  //
+  // Each new HealthKit-derived metric ships as a timeline-only block
+  // (recent day rows + older weekly buckets). The aggregate features
+  // pipeline doesn't carry them yet — that's a v1.5 follow-up — but
+  // the timeline alone is enough for the Coach to ground "your HRV
+  // last Tuesday was X" replies in real numbers without inventing a
+  // baseline. The block is omitted entirely when the user has no rows
+  // for that metric, so accounts without iOS data never see a void
+  // section in the prompt.
+  type AppleHealthMetric = Exclude<
+    CoachProvenance["metrics"][number],
+    "general" | "bp" | "weight" | "pulse" | "mood" | "compliance"
+  >;
+  type AppleHealthBlock = {
+    metric: AppleHealthMetric;
+    snapshotKey: string;
+    type: string;
+    enabled: boolean;
+  };
+  // v1.4.23 W6 (S-04) — `enabled` reads from `sources` directly
+  // instead of from a parallel ladder of `wantsHrv/...` booleans. The
+  // `type` field still mirrors `METRIC_TYPES[metric][0]` because each
+  // Apple Health source maps to exactly one MeasurementType (BP is
+  // the only fan-out and lives in its own legacy block above).
+  const appleHealthBlocks: AppleHealthBlock[] = [
+    {
+      metric: "hrv",
+      snapshotKey: "heartRateVariability",
+      type: "HEART_RATE_VARIABILITY",
+      enabled: sources.has("hrv"),
+    },
+    {
+      metric: "sleep",
+      snapshotKey: "sleep",
+      type: "SLEEP_DURATION",
+      enabled: sources.has("sleep"),
+    },
+    {
+      metric: "resting_hr",
+      snapshotKey: "restingHeartRate",
+      type: "RESTING_HEART_RATE",
+      enabled: sources.has("resting_hr"),
+    },
+    {
+      metric: "steps",
+      snapshotKey: "steps",
+      type: "ACTIVITY_STEPS",
+      enabled: sources.has("steps"),
+    },
+    {
+      metric: "active_energy",
+      snapshotKey: "activeEnergy",
+      type: "ACTIVE_ENERGY_BURNED",
+      enabled: sources.has("active_energy"),
+    },
+    {
+      metric: "flights",
+      snapshotKey: "flightsClimbed",
+      type: "FLIGHTS_CLIMBED",
+      enabled: sources.has("flights"),
+    },
+    {
+      metric: "distance",
+      snapshotKey: "walkingRunningDistance",
+      type: "WALKING_RUNNING_DISTANCE",
+      enabled: sources.has("distance"),
+    },
+    {
+      metric: "vo2_max",
+      snapshotKey: "vo2Max",
+      type: "VO2_MAX",
+      enabled: sources.has("vo2_max"),
+    },
+    {
+      metric: "body_temp",
+      snapshotKey: "bodyTemperature",
+      type: "BODY_TEMPERATURE",
+      enabled: sources.has("body_temp"),
+    },
+  ];
+  for (const block of appleHealthBlocks) {
+    if (!block.enabled) continue;
+    const rows = byType(block.type);
+    if (rows.length === 0) continue;
+    snapshot[block.snapshotKey] = {
+      timeline: {
+        recent: buildDailyValueRows(rows, recentCutoff),
+        weekly: bucketWeekly(rows.filter((r) => r.measuredAt < recentCutoff)),
+      },
+    };
+    metrics.add(block.metric);
+    counts[block.metric] = rows.length;
   }
 
   if (Object.keys(snapshot).length === 0) {

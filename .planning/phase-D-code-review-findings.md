@@ -208,9 +208,10 @@ without a `chartKey`. The HealthChart contract treats missing chartKey as
 intentional design — but the cog dropdown is therefore invisible on
 `/insights` while it IS visible on the dashboard. Marc may rediscover
 this as an inconsistency. Either:
-  - document it (the per-chart prefs are dashboard-only by design), OR
-  - mount overlay controls on `/insights` too (would require new
-    chart-key entries in the dashboard layout).
+
+- document it (the per-chart prefs are dashboard-only by design), OR
+- mount overlay controls on `/insights` too (would require new
+  chart-key entries in the dashboard layout).
 
 ### M-03 — `formatTokenName` regex doesn't cover non-ISO suffixes
 

@@ -119,21 +119,37 @@ describe("dailyBriefingKeyFindingSchema", () => {
     }
   });
 
-  it.each(["bp", "weight", "pulse", "mood", "compliance"] as const)(
-    "accepts sourceMetric=%s",
-    (sourceMetric) => {
-      const result = dailyBriefingKeyFindingSchema.safeParse({
-        ...baseFinding,
-        sourceMetric,
-      });
-      expect(result.success).toBe(true);
-    },
-  );
-
-  it("rejects an unknown sourceMetric", () => {
+  it.each([
+    "bp",
+    "weight",
+    "pulse",
+    "mood",
+    "compliance",
+    // ── v1.4.23 Apple Health additive ──
+    "hrv",
+    "sleep",
+    "resting_hr",
+    "steps",
+    "active_energy",
+    "flights",
+    "distance",
+    "vo2_max",
+    "body_temp",
+  ] as const)("accepts sourceMetric=%s", (sourceMetric) => {
     const result = dailyBriefingKeyFindingSchema.safeParse({
       ...baseFinding,
-      sourceMetric: "hrv",
+      sourceMetric,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an unknown sourceMetric", () => {
+    // `bodyComposition` is intentionally NOT a token in the enum; the
+    // v1.4.23 extension keeps the unknown-rejection path exercised
+    // without leaking a brand-new sentinel value into the prompt body.
+    const result = dailyBriefingKeyFindingSchema.safeParse({
+      ...baseFinding,
+      sourceMetric: "bodyComposition",
     });
     expect(result.success).toBe(false);
   });

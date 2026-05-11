@@ -7,6 +7,7 @@ vi.mock("@/lib/db", () => ({
     measurement: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
+    user: { findUnique: vi.fn() },
   },
 }));
 
@@ -21,6 +22,7 @@ const prismaMock = prisma as unknown as {
   measurement: { findMany: ReturnType<typeof vi.fn> };
   moodEntry: { findMany: ReturnType<typeof vi.fn> };
   medicationIntakeEvent: { findMany: ReturnType<typeof vi.fn> };
+  user: { findUnique: ReturnType<typeof vi.fn> };
 };
 const featuresMock = extractFeatures as unknown as ReturnType<typeof vi.fn>;
 
@@ -48,6 +50,9 @@ describe("buildCoachSnapshot", () => {
     prismaMock.measurement.findMany.mockResolvedValue([]);
     prismaMock.moodEntry.findMany.mockResolvedValue([]);
     prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
+    // v1.4.23 H4 — snapshot now reads `User.coachPrefsJson` to apply
+    // per-user excludeMetrics. Default null = use legacy defaults.
+    prismaMock.user.findUnique.mockResolvedValue({ coachPrefsJson: null });
     featuresMock.mockResolvedValue({
       bloodPressure: undefined,
       weight: undefined,

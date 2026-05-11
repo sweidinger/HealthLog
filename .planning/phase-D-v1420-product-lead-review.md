@@ -77,7 +77,7 @@ None of these block the tag.
    section status cards already render the same numbers. The four-
    tile artboard layout will only land when B3's trends row
    reorganises the per-section blocks. Tracked in `.planning/v1421-
-   backlog.md`. Not urgent; the briefing fills the role.
+backlog.md`. Not urgent; the briefing fills the role.
 
 ---
 
@@ -99,7 +99,7 @@ In priority order:
    malformed payload, round-trip. Drawer mounts from the hero
    strip's "Ask the coach" button and from suggested-prompt chips;
    `key={prefill}` on `<CoachDrawer>` sidesteps `react-hooks/set-
-   state-in-effect` so the lazy `useState` initialiser fires fresh
+state-in-effect` so the lazy `useState` initialiser fires fresh
    on every chip transition. **This is the feature that defines
    v1.4.20** — every other piece of the redesign supports it. Files:
    `src/app/api/insights/chat/route.ts`, `src/lib/ai/coach/*`,
@@ -113,16 +113,16 @@ In priority order:
    (weekly-report, ask-coach, regenerate), a 5-chip suggested-prompt
    strip, and a full-width Daily Briefing card with 0–5 finding rows
    (each tone-coloured: good/watch/info, with optional delta badge
-   + metric icon). Schema bumped: `dailyBriefingSchema` is
-   `nullable().optional()` on the response root so 4.19 caches
-   round-trip cleanly. PROMPT_VERSION 4.19.0 → 4.20.0 with
-   GROUND RULE 8 added to EN+DE prompts. The Vitals tile row from
-   the artboard was deliberately deferred — the per-section status
-   cards already render the same numbers and a tile row above them
-   would duplicate the surface. Files:
-   `src/components/insights/{hero-strip,daily-briefing,suggested-
-   prompts}.tsx`, `src/lib/ai/schema.ts`. Report:
-   `phase-B1-v1420-report.md`.
+   - metric icon). Schema bumped: `dailyBriefingSchema` is
+     `nullable().optional()` on the response root so 4.19 caches
+     round-trip cleanly. PROMPT_VERSION 4.19.0 → 4.20.0 with
+     GROUND RULE 8 added to EN+DE prompts. The Vitals tile row from
+     the artboard was deliberately deferred — the per-section status
+     cards already render the same numbers and a tile row above them
+     would duplicate the surface. Files:
+     `src/components/insights/{hero-strip,daily-briefing,suggested-
+prompts}.tsx`, `src/lib/ai/schema.ts`. Report:
+     `phase-B1-v1420-report.md`.
 
 3. **Correlation discovery + Trends row (B3).** Three pre-defined
    hypotheses surface as 2-up Correlation cards: BP × medication
@@ -140,26 +140,26 @@ In priority order:
    **Auto-discovery is explicitly v1.5/v1.6 work**; this scope
    discipline is what kept the false-positive risk in check. Files:
    `src/lib/insights/correlations.ts`, `src/components/insights/
-   {correlation-card,correlation-row,trend-annotation,trends-row}.
-   tsx`. Report: `phase-B3-report.md`.
+{correlation-card,correlation-row,trend-annotation,trends-row}.
+tsx`. Report: `phase-B3-report.md`.
 
 4. **Weekly Report + Storyboard + Mobile passes (B4).** New route
    `/insights/report/[week]` (printable via `window.print()`,
    Tailwind `print:` variants for A4/Letter, hero banner card "Your
    Week N report is ready" links into it). New `weeklyReportSchema`
-   + `storyboardAnnotationSchema` blocks added to the AI response
-   root, both `nullable().optional()` for legacy-cache round-trip.
-   `<HealthChart>` gained an additive `annotations[]` prop —
-   storyboard pins ride between cartesian grid and data lines so
-   they read as orientation, not data. `resolveAnnotationPositions`
-   maps annotation dates onto bucketed point indices with a 7-day
-   snap window. Mobile rail trays for the Coach drawer (history +
-   sources rails were desktop-only since B2b; B4 surfaces them on
-   `<lg` via two chevron-button triggers anchored to the inside
-   edges of the message thread). PROMPT_VERSION 4.20.1 → 4.20.2.
-   Files: `src/app/insights/report/[week]/page.tsx`, `src/lib/
-   insights/week-iso.ts`, `src/components/insights/weekly-report-
-   view.tsx`. Report: `phase-B4-report.md`.
+   - `storyboardAnnotationSchema` blocks added to the AI response
+     root, both `nullable().optional()` for legacy-cache round-trip.
+     `<HealthChart>` gained an additive `annotations[]` prop —
+     storyboard pins ride between cartesian grid and data lines so
+     they read as orientation, not data. `resolveAnnotationPositions`
+     maps annotation dates onto bucketed point indices with a 7-day
+     snap window. Mobile rail trays for the Coach drawer (history +
+     sources rails were desktop-only since B2b; B4 surfaces them on
+     `<lg` via two chevron-button triggers anchored to the inside
+     edges of the message thread). PROMPT_VERSION 4.20.1 → 4.20.2.
+     Files: `src/app/insights/report/[week]/page.tsx`, `src/lib/
+insights/week-iso.ts`, `src/components/insights/weekly-report-
+view.tsx`. Report: `phase-B4-report.md`.
 
 5. **Personal Health Score panel (B5).** Server-deterministic
    composite of four weighted components: BP-in-target-rate (30%),
@@ -175,7 +175,7 @@ In priority order:
    `weightTrendAlignment`, `moodStability` — so any downstream
    consumer can recompute without re-running the route. Files:
    `src/lib/analytics/health-score.ts`, `src/components/insights/
-   health-score-card.tsx`. Report: `phase-B5-report.md`.
+health-score-card.tsx`. Report: `phase-B5-report.md`.
 
 ---
 
@@ -191,13 +191,14 @@ diff already applied). Apple Health adds new measurement sources
 Coach should ingest the new metrics — extend the prompt + schema.
 
 The iOS handoff already lays out 9 phases (P0 done, P1 networking
-+ auth, P2 design system, P3 onboarding + HealthKit, P4 dashboard,
-P5 capture + meds + mood, P6 charts + insights, P7 settings +
-doctor report, P8 notifications + widgets, P9 polish). My v1.5
-plan is the **server-side counterpart**: what the web app + API
-need to do so the iOS phases land cleanly. Five phases, each ≤7
-days, sequential where they have to be and parallelisable where
-they don't.
+
+- auth, P2 design system, P3 onboarding + HealthKit, P4 dashboard,
+  P5 capture + meds + mood, P6 charts + insights, P7 settings +
+  doctor report, P8 notifications + widgets, P9 polish). My v1.5
+  plan is the **server-side counterpart**: what the web app + API
+  need to do so the iOS phases land cleanly. Five phases, each ≤7
+  days, sequential where they have to be and parallelisable where
+  they don't.
 
 ### Phase P1 — Apple Health ingest contract + measurement-source taxonomy (~5-7 days)
 
@@ -413,7 +414,7 @@ Six items that aren't on the iOS roadmap but should ride alongside:
    risk is that v1.5 slips and the placeholder lives on the
    production hero for longer than advertised. Mitigation: ship
    v1.5 by the date-card said in `~/Projects/healthlog-iOS/
-   HealthLogIOS/.planning/ROADMAP.md`. If it slips by more than 2
+HealthLogIOS/.planning/ROADMAP.md`. If it slips by more than 2
    weeks, revisit the placeholder copy.
 
 4. **OpenAPI spec drift between server and iOS DTOs.** The iOS app

@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bot, ChevronRight, Sparkles, User } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import {
+  Bot,
+  ChevronRight,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+  User,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
+import { useCoachPrefs } from "@/hooks/use-coach-prefs";
 
 import { SourceChips } from "./source-chips";
 import type {
@@ -51,6 +60,14 @@ export function MessageThread({
   const { t } = useTranslations();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const wasPinnedRef = useRef(true);
+
+  // v1.4.23 H4 — read the user's Coach prefs so the evidence
+  // disclosure honours `showEvidenceByDefault`. Cached at the
+  // queryClient level via the shared `useCoachPrefs` hook; the
+  // settings sheet writes the same key after a successful save so the
+  // new default takes effect on the next reply without a page reload.
+  const { data: coachPrefs } = useCoachPrefs();
+  const evidenceDefaultOpen = coachPrefs?.showEvidenceByDefault ?? false;
 
   const messages: CoachMessageDTO[] = conversation?.messages ?? [];
   // v1.4.20.1 — once the SSE stream emits `done`, the route's
@@ -158,6 +175,8 @@ export function MessageThread({
             content={m.content}
             metricSource={m.metricSource}
             providerType={m.providerType}
+            evidenceDefaultOpen={evidenceDefaultOpen}
+            messageId={m.id}
           />
         );
       })}
@@ -174,6 +193,7 @@ export function MessageThread({
             providerType={streaming.inProgress ? "streaming" : null}
             inProgress={streaming.inProgress}
             errorCode={streaming.errorCode}
+            evidenceDefaultOpen={evidenceDefaultOpen}
           />
         </div>
       )}
@@ -203,6 +223,14 @@ interface ChatBubbleProps {
   providerType?: string | null;
   inProgress?: boolean;
   errorCode?: string | null;
+  /** v1.4.23 H4 — when true the evidence `<details>` mounts open. */
+  evidenceDefaultOpen?: boolean;
+  /**
+   * v1.4.23 H7 — present only on persisted assistant messages.
+   * Streaming bubbles (no message id yet) skip the thumbs row so the
+   * user can't rate before the message lands on disk.
+   */
+  messageId?: string;
 }
 
 function ChatBubble({
@@ -212,6 +240,8 @@ function ChatBubble({
   providerType,
   inProgress,
   errorCode,
+  evidenceDefaultOpen,
+  messageId,
 }: ChatBubbleProps) {
   const { t } = useTranslations();
   const { user } = useAuth();
@@ -306,6 +336,11 @@ function ChatBubble({
         {keyValues.length > 0 && (
           <details
             data-slot="coach-evidence"
+            // v1.4.23 H4 — open by default when the user's prefs ask
+            // for it. Browsers honour the boolean `open` attribute on
+            // initial mount; toggling at runtime keeps the user's
+            // current expansion state intact.
+            open={evidenceDefaultOpen ? true : undefined}
             className={cn(
               "border-border/50 bg-muted/30 group rounded-md border",
               "px-2.5 py-1.5 text-xs",
@@ -352,7 +387,84 @@ function ChatBubble({
             </ul>
           </details>
         )}
+        {/* v1.4.23 H7 — per-message thumbs feedback. Only persisted
+            assistant messages get the row (skipped for refusals,
+            errors, in-flight stream bubbles). The aggregator buckets
+            the rating by (promptVersion, tone, verbosity). */}
+        {messageId &&
+          !inProgress &&
+          !errorCode &&
+          providerType !== "refusal" && (
+            <CoachMessageFeedback messageId={messageId} />
+          )}
       </div>
+    </div>
+  );
+}
+
+interface CoachMessageFeedbackProps {
+  messageId: string;
+}
+
+function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
+  const { t } = useTranslations();
+  const [submittedRating, setSubmittedRating] = useState<
+    "helpful" | "unhelpful" | null
+  >(null);
+
+  const submit = useMutation({
+    mutationFn: async (rating: "helpful" | "unhelpful") => {
+      const res = await fetch(
+        `/api/insights/chat/messages/${messageId}/feedback`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rating }),
+        },
+      );
+      // Treat 409 (already_rated) as a successful no-op so the user
+      // never sees an error toast for double-clicking the same chip.
+      if (!res.ok && res.status !== 409) {
+        throw new Error("coach-feedback.failed");
+      }
+      return rating;
+    },
+    onSuccess: (rating) => setSubmittedRating(rating),
+  });
+
+  if (submittedRating) {
+    return (
+      <p
+        data-slot="coach-message-feedback-thanks"
+        className="text-muted-foreground text-[10px]"
+      >
+        {t("insights.coach.feedbackThanks")}
+      </p>
+    );
+  }
+
+  return (
+    <div data-slot="coach-message-feedback" className="flex items-center gap-2">
+      <button
+        type="button"
+        data-slot="coach-message-feedback-helpful"
+        onClick={() => submit.mutate("helpful")}
+        disabled={submit.isPending}
+        className="text-muted-foreground hover:text-dracula-green focus-visible:ring-ring/50 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] outline-none focus-visible:ring-2 disabled:opacity-50"
+      >
+        <ThumbsUp className="size-3" aria-hidden="true" />
+        {t("insights.coach.feedbackHelpful")}
+      </button>
+      <button
+        type="button"
+        data-slot="coach-message-feedback-unhelpful"
+        onClick={() => submit.mutate("unhelpful")}
+        disabled={submit.isPending}
+        className="text-muted-foreground hover:text-dracula-orange focus-visible:ring-ring/50 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] outline-none focus-visible:ring-2 disabled:opacity-50"
+      >
+        <ThumbsDown className="size-3" aria-hidden="true" />
+        {t("insights.coach.feedbackUnhelpful")}
+      </button>
     </div>
   );
 }

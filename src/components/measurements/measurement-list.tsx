@@ -106,9 +106,10 @@ function toDateTimeLocalValue(isoString: string): string {
 }
 
 /**
- * Render the `MeasurementSource` enum (`MANUAL` / `WITHINGS` / `IMPORT`)
- * using the existing `measurements.source*` translation keys instead of
- * leaking the SCREAMING_SNAKE enum into the table cell.
+ * Render the `MeasurementSource` enum (`MANUAL` / `WITHINGS` / `IMPORT`
+ * / `APPLE_HEALTH`) using the existing `measurements.source*`
+ * translation keys instead of leaking the SCREAMING_SNAKE enum into
+ * the table cell.
  */
 function formatMeasurementSource(
   source: string,
@@ -117,7 +118,20 @@ function formatMeasurementSource(
   if (source === "WITHINGS") return t("measurements.sourceWithings");
   if (source === "IMPORT") return t("measurements.sourceImport");
   if (source === "MANUAL") return t("measurements.sourceManual");
+  if (source === "APPLE_HEALTH") return t("measurements.sourceAppleHealth");
   return source;
+}
+
+/**
+ * Per-source badge colour. `APPLE_HEALTH` gets the Dracula pink that
+ * matches the iOS app's accent; everything else falls back to the
+ * shadcn outline default (no class override).
+ */
+function sourceBadgeClass(source: string): string {
+  if (source === "APPLE_HEALTH") {
+    return "border-dracula-pink/50 bg-dracula-pink/15 text-dracula-pink";
+  }
+  return "";
 }
 
 export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
@@ -431,7 +445,11 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                       </TableCell>
                       <TableCell>
                         {m.source !== "MANUAL" && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge
+                            variant="outline"
+                            data-testid="measurement-source-badge"
+                            className={`text-xs ${sourceBadgeClass(m.source)}`.trim()}
+                          >
                             {formatMeasurementSource(m.source, t)}
                           </Badge>
                         )}
@@ -489,7 +507,16 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                           {m.value} {m.unit}
                         </span>
                         <p className="text-muted-foreground truncate text-xs">
-                          {formatDateTime(m.measuredAt)}
+                          <span>{formatDateTime(m.measuredAt)}</span>
+                          {m.source !== "MANUAL" && (
+                            <Badge
+                              variant="outline"
+                              data-testid="measurement-source-badge"
+                              className={`ml-1.5 h-4 px-1 text-[10px] ${sourceBadgeClass(m.source)}`.trim()}
+                            >
+                              {formatMeasurementSource(m.source, t)}
+                            </Badge>
+                          )}
                         </p>
                         {m.notes && (
                           <p className="text-muted-foreground truncate text-xs">

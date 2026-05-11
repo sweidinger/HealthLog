@@ -4,14 +4,14 @@ Timestamp: 2026-05-10T14:34+02:00 (push)
 
 ## Verification
 
-| Step                    | Result | Notes                                                            |
-| ----------------------- | ------ | ---------------------------------------------------------------- |
-| `pnpm typecheck`        | PASS   | 0 errors                                                         |
-| `pnpm lint`             | PASS   | 0 errors / 12 pre-existing baseline warnings (no new)            |
-| `pnpm format:check`     | PASS\* | only `.planning/*` + `docs/audit/*` baseline noise dirty (same   |
-|                         |        | call as v1.4.18 / v1.4.16; no source-tree drift)                 |
-| `pnpm test`             | PASS   | 1672 / 1672 unit tests, 210 files, 4.59s                         |
-| `pnpm test:integration` | PASS   | 67 / 67 integration tests, 18 files, 8.96s                       |
+| Step                    | Result | Notes                                                          |
+| ----------------------- | ------ | -------------------------------------------------------------- |
+| `pnpm typecheck`        | PASS   | 0 errors                                                       |
+| `pnpm lint`             | PASS   | 0 errors / 12 pre-existing baseline warnings (no new)          |
+| `pnpm format:check`     | PASS\* | only `.planning/*` + `docs/audit/*` baseline noise dirty (same |
+|                         |        | call as v1.4.18 / v1.4.16; no source-tree drift)               |
+| `pnpm test`             | PASS   | 1672 / 1672 unit tests, 210 files, 4.59s                       |
+| `pnpm test:integration` | PASS   | 67 / 67 integration tests, 18 files, 8.96s                     |
 
 `pnpm build` and `pnpm e2e` deferred to CI Docker (Node 22) per
 CLAUDE.md.

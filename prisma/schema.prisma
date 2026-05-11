@@ -112,6 +112,21 @@ model User {
   // `sanitisePracticeName()`. Null = user has never set one.
   lastReportPracticeName String? @map("last_report_practice_name")
 
+  // v1.4.23 H4 — Coach drawer per-user prompt-tuning preferences.
+  // Shape:
+  //   { "tone": "warm" | "neutral" | "concise",
+  //     "verbosity": "brief" | "default" | "detailed",
+  //     "excludeMetrics": ("bp" | "weight" | "pulse" | "mood" |
+  //                        "compliance" | "hrv" | "sleep" |
+  //                        "resting_hr" | "steps")[],
+  //     "showEvidenceByDefault": boolean }
+  // Null = legacy v1.4.22 defaults (tone=warm, verbosity=default, no
+  // metrics excluded, evidence closed). The Coach prompt builder reads
+  // this column and the snapshot builder filters on `excludeMetrics`
+  // BEFORE the snapshot lands in the system prompt — otherwise the
+  // model would still see the data the user excluded.
+  coachPrefsJson Json? @map("coach_prefs_json")
+
   // Relations
   passkeys    Passkey[]
   sessions    Session[]
@@ -192,12 +207,20 @@ enum MeasurementType {
   BLOOD_PRESSURE_DIA
   PULSE
   BODY_FAT
-  SLEEP_DURATION
+  SLEEP_DURATION // v1.4.23: unit semantics shifted from hours to minutes so HealthKit category samples (per-stage rows) survive without precision loss.
   ACTIVITY_STEPS
   BLOOD_GLUCOSE // Canonical storage: mg/dL. Display unit (mg/dL or mmol/L) is user preference.
   TOTAL_BODY_WATER // Canonical storage: kilograms (kg of water). Matches Withings' hydration measure (type 77) and Health Connect's TotalBodyWaterRecord. Display can compute % from same-day weight if desired.
   BONE_MASS // Canonical storage: kilograms (kg). Matches Withings' bone mass measure (type 88).
   OXYGEN_SATURATION // Canonical storage: percent (0..100). Withings ScanWatch reports type 54. Health Connect's OxygenSaturationRecord uses Percentage (already 0..100). HealthKit uses HKQuantityTypeIdentifierOxygenSaturation as a fraction (0..1) — iOS DTO must multiply by 100 before submitting.
+  // ── v1.4.23 Apple Health additions ──
+  HEART_RATE_VARIABILITY // ms — HealthKit `heartRateVariabilitySDNN` (typically one sample per night).
+  RESTING_HEART_RATE // bpm — HealthKit `restingHeartRate` (one sample per day; distinct from spot PULSE).
+  ACTIVE_ENERGY_BURNED // kcal — HealthKit `activeEnergyBurned`, cumulative; daily-rollup pattern.
+  FLIGHTS_CLIMBED // count — HealthKit `flightsClimbed`, cumulative.
+  WALKING_RUNNING_DISTANCE // metres — HealthKit `distanceWalkingRunning`; SI metres in DB, UI converts per locale.
+  VO2_MAX // mL/(kg·min) — HealthKit `vo2Max`; one sample every few days at most.
+  BODY_TEMPERATURE // celsius — HealthKit `bodyTemperature`; iOS DTO already encodes this enum value.
 
   @@map("measurement_type")
 }
@@ -217,8 +240,24 @@ enum MeasurementSource {
   MANUAL
   WITHINGS
   IMPORT
+  APPLE_HEALTH // v1.4.23 — HealthKit batch ingest. iOS DTO mirrors this exact spelling (not "HEALTHKIT").
 
   @@map("measurement_source")
+}
+
+/// Per-stage sleep label for HealthKit `HKCategoryValueSleepAnalysis`
+/// samples. Non-NULL only when `Measurement.type = SLEEP_DURATION`,
+/// mirroring the `GlucoseContext` pattern. A single night produces one
+/// row per stage (analytics sums them for `total_minutes`).
+enum SleepStage {
+  IN_BED
+  AWAKE
+  ASLEEP // legacy iOS 15- `asleepUnspecified` — pre-iOS-16 sleep tracking with no stage breakdown.
+  REM
+  CORE
+  DEEP
+
+  @@map("sleep_stage")
 }
 
 model Measurement {
@@ -226,19 +265,37 @@ model Measurement {
   userId     String            @map("user_id")
   type       MeasurementType
   value      Float
-  unit       String            // kg, mmHg, bpm, %, hours, steps, mg/dL
+  unit       String            // kg, mmHg, bpm, %, minutes (sleep), steps, mg/dL, kcal, m, ms, mL/(kg·min), celsius
   source     MeasurementSource @default(MANUAL)
   measuredAt DateTime          @map("measured_at")
   notes      String?           // encrypted at app level if sensitive
-  externalId String?           @map("external_id") // Withings grpid for dedup
+  // External-system dedup key. Withings used `grpid` (numeric); v1.4.23
+  // adds Apple Health which uses `HKSample.uuid` (string). NULL for
+  // manual entries — Postgres treats NULLs as distinct in unique
+  // indexes, so two manual rows with the same (user, type, source) are
+  // still allowed.
+  externalId String?           @map("external_id")
+  // v1.4.23 — opaque marker for the source's schema version (HealthKit
+  // sample's `metadata.HKWasUserEntered`, Withings model code, …).
+  // Stored as a string so the ingest path can replay it back unchanged.
+  externalSourceVersion String? @map("external_source_version")
   // Only set for BLOOD_GLUCOSE measurements. NULL for all others.
   glucoseContext GlucoseContext? @map("glucose_context")
+  // v1.4.23 — per-stage sleep label. NULL for non-sleep rows; non-NULL
+  // only for `type = SLEEP_DURATION`. Mirrors the glucoseContext
+  // pattern. A single night produces ~5 rows (one per stage).
+  sleepStage SleepStage? @map("sleep_stage")
   createdAt  DateTime          @default(now()) @map("created_at")
   updatedAt  DateTime          @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Original measuredAt-based dedup — kept for legacy Withings ingest
+  // and the manual UI's "no duplicate at the same wall-clock" guard.
   @@unique([userId, type, measuredAt, source])
+  // v1.4.23 — Apple Health batch dedup key. NULL externalId is distinct
+  // (Postgres semantics) so manual entries don't collide here.
+  @@unique([userId, type, source, externalId])
   @@index([userId, type, measuredAt])
   @@index([externalId])
   @@map("measurements")
@@ -636,7 +693,7 @@ model AuditLog {
 model NotificationChannel {
   id        String   @id @default(cuid())
   userId    String   @map("user_id")
-  type      String   // "TELEGRAM" | "NTFY" | "WEB_PUSH"
+  type      String   // "TELEGRAM" | "NTFY" | "WEB_PUSH" | "APNS"
   enabled   Boolean  @default(true)
   config    String   // AES-256-GCM encrypted JSON (channel-specific config)
   createdAt DateTime @default(now()) @map("created_at")
@@ -748,23 +805,39 @@ model IdempotencyKey {
 // ─── Devices (APNs / mobile push targets) ────────────────
 
 /// Registered native-client device for push delivery. Token is unique
-/// across users; re-registering on a different account moves ownership.
+/// across users; re-registering on a different account is rejected with
+/// 409 by `POST /api/devices` (cross-user-hijack guard).
+///
+/// `apnsToken` and `apnsEnvironment` are nullable because today's iOS
+/// builds register through a generic `token` first; a follow-up call
+/// from the iOS app populates the APNs-specific pair once the device
+/// receives its first push token from `application:didRegisterForRemoteNotificationsWithDeviceToken:`.
+/// Loose-typed `apnsEnvironment` (sandbox|production) leaves headroom
+/// for whatever new gateway labels Apple ships next without a forced
+/// migration.
 model Device {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  platform    String   // "ios"
-  token       String   @unique
-  bundleId    String   @map("bundle_id")
-  locale      String?
-  appVersion  String?  @map("app_version")
-  model       String?
-  lastSeen    DateTime @default(now()) @map("last_seen")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  platform        String   // "ios"
+  token           String   @unique
+  bundleId        String   @map("bundle_id")
+  locale          String?
+  appVersion      String?  @map("app_version")
+  model           String?
+  apnsToken       String?  @map("apns_token")
+  apnsEnvironment String?  @map("apns_environment") // "sandbox" | "production"
+  lastSeen        DateTime @default(now()) @map("last_seen")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  // `devices_apns_token_unique` is a partial UNIQUE index over
+  // `apns_token IS NOT NULL` — see migration 0041. Prisma can't express
+  // a partial index in the schema language, so it's introduced via raw
+  // SQL and intentionally omitted here. Do not re-add `@@index([apnsToken])`
+  // (the non-unique sibling) — the partial unique index supersedes it.
   @@map("devices")
 }
 
@@ -835,7 +908,13 @@ model RecommendationFeedback {
   id                     String   @id @default(cuid())
   userId                 String   @map("user_id")
   recommendationId       String   @map("recommendation_id")
-  recommendationText     String   @map("recommendation_text")
+  // Nullable since v1.4.23 reconcile (Sr-H3): the recommendation
+  // surface still snapshots the prose here (recommendations are
+  // unencrypted on the wire, so plaintext is the source-of-truth);
+  // the Coach surface leaves it NULL and references the message via
+  // `coachMessageId` so the assistant prose stays encrypted-at-rest
+  // in `coach_messages.encryptedContent`.
+  recommendationText     String?  @map("recommendation_text")
   recommendationSeverity String   @map("recommendation_severity")
   metricSourceType       String   @map("metric_source_type")
   metricSourceTimeRange  String   @map("metric_source_time_range")
@@ -844,11 +923,32 @@ model RecommendationFeedback {
   promptVersion          String   @map("prompt_version")
   createdAt              DateTime @default(now()) @map("created_at")
 
+  // v1.4.23 H7 — polymorphic target so Coach replies share the table.
+  // "recommendation" (default) is the v1.4.16 B5e shape; "coach" is a
+  // Coach assistant message. The aggregator slices on targetType to
+  // bucket each surface independently. Default value lets every
+  // pre-v1.4.23 row read as "recommendation" without a backfill.
+  targetType String @default("recommendation") @map("target_type")
+  // Optional free-form reason — populated when the user clicks
+  // "unhelpful" and selects a category from the small chip strip.
+  // Capped at 200 chars upstream so the table can't bloat from a
+  // pasted essay.
+  reason String? @map("reason")
+
+  // v1.4.23 reconcile (Sr-H3) — Coach surface references the source
+  // message instead of snapshotting its prose into
+  // `recommendationText`. FK + cascade so a deleted message drops the
+  // rating row too. Always NULL for `targetType="recommendation"`.
+  coachMessageId String?       @map("coach_message_id")
+  coachMessage   CoachMessage? @relation(fields: [coachMessageId], references: [id], onDelete: Cascade)
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, recommendationId, recommendationText], map: "rec_feedback_user_rec_text_key")
   @@index([userId, createdAt])
   @@index([recommendationSeverity, helpful, createdAt])
+  @@index([targetType, createdAt])
+  @@index([coachMessageId])
   @@map("recommendation_feedback")
 }
 
@@ -906,7 +1006,11 @@ model CoachMessage {
   promptVersion    String?  @map("prompt_version")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  conversation CoachConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation CoachConversation       @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // v1.4.23 reconcile (Sr-H3) — back-relation for the FK that lets
+  // Coach feedback rows reference their source message instead of
+  // snapshotting plaintext prose into `recommendation_feedback`.
+  feedback     RecommendationFeedback[]
 
   @@index([conversationId, createdAt])
   @@map("coach_messages")

@@ -1,198 +1,236 @@
-# v1.4.22 marathon — state log
+# v1.4.23 marathon — state log
 
-Status: Wave 5 — multi-agent QA + reconcile complete
-Last update: 2026-05-10T22:30+02:00
+Status: Wave 5 shipped (7 hygiene items + 8 atomic commits)
+Last update: 2026-05-11T02:00+02:00
 
-> Previous patch: v1.4.21 live (image digest
-> `sha256:4e818d44702c…`, `/api/version=1.4.21`).
-> v1.4.22 = big polishing release before v1.5 iOS. Closes ALL known
-> bugs + applies ALL deferred items from `.planning/v1421-backlog.md`
-> so the iOS app builds on a clean foundation.
+> Previous milestone: v1.4.22 live (image digest
+> `sha256:865154614303…`, `/api/version=1.4.22`).
+> v1.4.23 = pre-iOS prep + hygiene. Backend foundation so the iOS
+> Health app can ship in v1.5 without contract churn, plus 7
+> hygiene items from `.planning/v1422-backlog.md`.
 
-## Wave 1 — Research + probe (parallel)
+## Wave 1 — Research (single agent, three streams)
 
-Per `feedback_research_before_complex_features.md`, deep-fix work on
-4-attempt bugs (BD-Zielbereich, api-tokens scrollbar) + Coach prompt
-rewrite needs research first.
+- [ ] Apple Health `HKQuantityTypeIdentifier` → `MeasurementType`
+      mapping, with units + canonical aggregation rules
+- [ ] APNs Node library decision (`apn` vs `@parse/node-apn` vs
+      raw HTTP/2) with maintenance / type-safety / footprint pros/cons
+- [ ] OpenAPI 3.1 generator tooling for Next.js routes
+      (`@asteasolutions/zod-to-openapi`, `ts-rest`, `next-rest`,
+      hand-rolled)
+- Detailed report: `.planning/phase-W1-v1423-research.md`
 
-### W1a — Playwright PROD probe + token-leak hunt
+## Wave 2 — Apple Health foundation (F1+F2+F3)
 
-- [ ] BD-Zielbereich tile rendering against PROD with maintainer
-      session (4-attempt bug pattern: probe before patching)
-- [ ] Admin / api-tokens scrollbar at multiple viewports (5th attempt)
-- [ ] Raw `Metrik <Type>` token leaks in Recommendations / Findings
-- [ ] Targets / Zielwerte page screenshot for upgrade brainstorm
-- [ ] Inventory `.planning/v1421-backlog.md` items by complexity
-- Detailed report: `.planning/phase-W1a-report.md`
+### F1 — `MeasurementType` enum extension
 
-### W1b — Health-coach prompt research
+- [x] Added `HEART_RATE_VARIABILITY`, `RESTING_HEART_RATE`,
+      `ACTIVE_ENERGY_BURNED`, `FLIGHTS_CLIMBED`,
+      `WALKING_RUNNING_DISTANCE`, `VO2_MAX`, `BODY_TEMPERATURE`
+      (W1 recommended reusing `ACTIVITY_STEPS` + `SLEEP_DURATION`
+      verbatim; the iOS DTO already shipped `BODY_TEMPERATURE` so
+      that joined the additive set — net new = 7)
+- [x] Prisma migration `0036_apple_health_measurement_types`
+- [x] Sleep unit shifted from hours to minutes; new `SleepStage`
+      enum + nullable `Measurement.sleepStage` column (CHECK
+      constraint scopes it to SLEEP_DURATION rows)
+- [x] Composite unique index `(user_id, type, source, external_id)`
+      — Apple Health batch dedup key
+- [x] Unit conversions in
+      `src/lib/measurements/apple-health-mapping.ts` (16 unit tests)
 
-- [ ] Benchmark health-coach / motivational-interviewing prompt
-      patterns (Apple Health Coaching, Oura, Whoop, …)
-- [ ] Define "natural prose first, evidence collapsible" structure
-      with concrete EN + DE drafts
-- [ ] PROMPT_VERSION 4.20.2 → 4.22.0 (significant Coach tone shift)
-- Detailed report: `.planning/phase-W1b-coach-prompt-research.md`
+### F2 — `MeasurementSource` enum expansion
 
-## Wave 2 — Insights surface polish
+- [x] `APPLE_HEALTH` appended to the enum
+- [x] UI badge in measurement-list (Dracula-pink chip) + bilingual
+      `measurements.sourceAppleHealth` keys + admin restore-route
+      enum guard sync
 
-### A1 — BD-Zielbereich 5th attempt
+### F3 — `POST /api/measurements/batch`
 
-- [x] Headline re-anchored to `windows.last30Days?.pct`; all-time
-      surfaced as `bpInTargetPctAllTime` for the new sub-row
-- [x] Integration test pins the route contract
-- Detailed report: `.planning/phase-W2-report.md`
+- [x] New route at `src/app/api/measurements/batch/route.ts`,
+      idempotent via `Idempotency-Key`
+- [x] Validates batch ≤ 500 entries (returns 422
+      `coach.batch.too_large`)
+- [x] Dedupes via `(userId, type, source, externalId)` composite
+- [x] Returns per-entry status (`inserted` / `duplicate` /
+      `skipped`) + idempotency-replay-safe
+- [x] Integration test (`tests/integration/measurements-batch.test.ts`,
+      6 cases including idempotency replay)
+- [x] Sleep-stage aggregation in `/api/analytics`:
+      per-Berlin-day summary + `sleepStages` block
+      (`tests/integration/analytics-sleep-stages.test.ts`)
+- Detailed report: `.planning/phase-W2-v1423-report.md`
 
-### A2 — BD-Kachel feature parity
+## Wave 3 — APNs scaffolding (F4)
 
-- [x] Trend arrow + 7-day-trend chip + comparison overlay parity
-      (synthesised slope from 7d/30d delta); `<TrendCard>` extended
-      with optional `avgAllTime` sub-value
+- [x] Library install + lock-file (`@parse/node-apn@8.1.0`,
+      W1 stream-2 decision)
+- [x] `src/lib/notifications/senders/apns.ts` — `sendApnsPush()`
+      one-shot helper plus `sendViaApns(userId, payload)` dispatcher
+      entry mirroring the web-push contract
+- [x] Env-var contract: `APNS_KEY_ID`, `APNS_TEAM_ID`,
+      `APNS_BUNDLE_ID`, one of `APNS_KEY` / `APNS_KEY_FILE`,
+      optional `APNS_PRODUCTION` — documented in `.env.example`,
+      all-or-none guard with one-shot warning when partially set
+- [x] `Device` Prisma model extension via migration
+      `0037_apns_device_columns`: nullable `apnsToken` +
+      `apnsEnvironment`, paired CHECK constraint, single-column
+      index on `apns_token` for the dispatcher fan-out lookup
+- [x] Dispatcher wiring: `APNS` joins the cascade as channel-type
+      4; cascade order is now deterministic
+      (APNs → Telegram → ntfy → Web Push)
+- [x] Mock provider at `src/lib/notifications/senders/__mocks__/apns.ts`
+      with queued per-token responses + recorded calls
+- [x] Integration test
+      `tests/integration/apns-dispatch.test.ts` — round-trip,
+      hard-reject + cleanup, cascade fall-through (3 tests)
+- [x] `POST /api/devices` accepts paired `apnsToken` +
+      `apnsEnvironment`, enforces hex format, applies the
+      cross-user-hijack guard at the APNs-token layer
+      (409 `apns_token_owned_by_other_user`)
+- Detailed report: `.planning/phase-W3-v1423-report.md`
 
-### A3 — Comparison-Toggle → global Settings
+## Wave 4 — OpenAPI + Coach schema + native auth + Coolify
 
-- [x] On-surface `<CompareToggle />` removed from `/insights`;
-      Settings → Dashboard already carries the canonical picker
-- [x] `User.dashboardWidgetsJson.comparisonBaseline` field already
-      exists (v1.4.16 phase B8) — every chart still consumes it
+### F5 — OpenAPI 3.1 generator + CI gate
 
-### A4 — Insights layout grid normalisation
+- [x] Tool wired (W1 decision — `zod-openapi` (samchungy) + `yaml@^2`)
+- [x] `pnpm openapi:generate` script emits
+      `docs/api/openapi.yaml` from Zod schemas
+- [x] CI step compares generated vs committed; PR warns on drift
+      (`continue-on-error: true` — flips to hard-fail in v1.4.24+)
+- [x] Legacy hand-maintained spec preserved at
+      `docs/api/openapi-v1422-legacy.yaml` during the incremental
+      migration
 
-- [x] Row-fill rule: BP / weight / medications grids collapse to
-      full-width when only one card has data
-- [x] Trends row equal heights via `min-h-[300px]`
-- [x] `<CorrelationRow>` drops insufficient-data tiles; zero ok
-      cards hides the row entirely
+### F6 — Coach + Daily Briefing schema slot for new metrics
 
-### A5 — Section heading + tab rename
+- [x] `aiInsightResponseSchema.dailyBriefing.keyFindings[].sourceMetric`
+      enum extends to include the 9 Apple Health categories
+      (hrv, sleep, resting_hr, steps, active_energy, flights,
+      distance, vo2_max, body_temp)
+- [x] `trendAnnotations` schema mirrors the same additive enum
+- [x] `coach/snapshot.ts` queries the new measurement types when
+      scope toggles them on; web-only accounts pay zero extra SQL
+- [x] `CoachProvenance.metrics` + `counts` extended symmetrically
+- [x] PROMPT_VERSION 4.22.0 → 4.23.0 with new GROUND RULE 12
+      ("treat Apple Health categories as silent when absent")
+- [x] EN + DE prompt bodies, OUTPUT FORMAT block, and i18n strings
+      all updated
 
-- [x] "Muster" → "Zusammenhänge" (DE) / "Patterns" → "Relationships"
-      (EN). Picked Zusammenhänge over Trends because the row above
-      already uses Trends.
-- [x] `<InsightsSectionNav>` lifted above the hero strip (sticky
-      scroll-anchored; tabs visible first)
+### F7 — Native API hardening (refresh-token per-device)
 
-### A6 — Raw `Metrik <Type>` token leak fix
+- [x] Refresh-token reuse-detection switches from "revoke all" to
+      per-device-token revocation (legacy null-deviceId tokens fall
+      back to user-wide revoke — safety hatch)
+- [x] New route `GET /api/auth/me/devices` lists active devices
+      with last-seen, label, channels, isCurrent marker
+- [x] New route `DELETE /api/auth/me/devices/[id]` revokes one device
+      (refresh + access tokens + Device row)
+- [x] Alternate `DELETE /api/devices/[id]` for the iOS token-rotation
+      cleanup path (mirror of the auth/me variant)
+- [x] Ownership-boundary 404 on cross-user attempts
 
-- [x] `<RecommendationCard>` text wrapped in `stripChartTokens()`
-- [x] DE `componentMood`/`componentBp`/`componentCompliance` renamed
-      to German nouns; i18n-integrity test pins the contract
+### F8 — Coolify auto-deploy fix for real
 
-## Wave 3 — Coach polish
+- [x] `COOLIFY_WEBHOOK` + `COOLIFY_TOKEN` GitHub repo secrets
+      documented (maintainer action; see
+      `.planning/coolify-auto-deploy-howto.md` for the verbatim
+      recipe)
+- [x] Coolify "Watch image registry for new digests" UI toggle
+      documented as the load-bearing piece (maintainer action — can't
+      be flipped from CI)
+- [x] Workflow step gains a `::notice::` line so future runs surface
+      the deploy timestamp + sha without opening the verbose log
+- [x] Verification recipe (`curl /api/version | jq .data.version`) + host-side fallback documented inline
 
-### B1 — Prompt rewrite
+## Wave 5 — Hygiene (H1-H7)
 
-- [x] Adopt W1b research output: natural prose-first, motivational,
-      conservative, evidence-grounded
-- [x] PROMPT_VERSION 4.22.0; EN + DE
-- [x] Coach-specific test suite covering tone + evidence-collapsible
-      pattern
-- Detailed report: `.planning/phase-W3-report.md`
+- [x] H1 sentinel parser malformed-enum hardening
+      (`SentinelParseResult.malformedEntries[]` + per-line typed
+      reasons; chat route splits `coach.keyvalues.parse_partial` from
+      the full-block `coach.keyvalues.parse_failed`)
+- [x] H2 analytics-route unbounded `findMany` pagination
+      (cursor-paged 5 000-row chunks via `fetchBpSeriesChunked`,
+      `analytics.bp_in_target.row_count` wide-event meta for slow-
+      query attribution; integration test seeds 6 000 rows across a
+      chunk boundary)
+- [x] H3 `<CoachDrawer key={prefill}>` controlled-prop refactor
+      (`useResettableValue` hook + pure `nextResettableValue` helper;
+      `key={prefill}` removed from the parent mount)
+- [x] H4 per-user prompt-tuning surface (Coach settings cog return)
+      (`User.coachPrefsJson` migration `0038_coach_prefs`; new
+      `GET/PUT /api/auth/me/coach-prefs`; settings cog opens a
+      right-edge `<Sheet>`; system-prompt prepends a per-user
+      OVERRIDE; snapshot reads prefs BEFORE measurement queries so
+      `excludeMetrics` filters before the snapshot lands)
+- [x] H5 schema drift on `medication_schedules.days_of_week`
+      (decision: deploy — column is referenced by 9 source files
+      across 4 user-visible surfaces; migration
+      `0039_medication_schedule_days_of_week`, NULL = daily)
+- [x] H6 Pearson p-value normal-approx replacement
+      (raised `MIN_PAIRED_N` from 14 → 20 — conservative patch;
+      rigorous incomplete-beta queued as a v1.4.24 candidate)
+- [x] H7 Coach helpful/unhelpful first-week observation view
+      (polymorphic `RecommendationFeedback.target_type` migration
+      `0040_recommendation_feedback_target_type`; new POST
+      `/api/insights/chat/messages/:id/feedback`; aggregator slice
+      `buildCoachFeedbackBuckets` by (promptVersion, tone, verbosity);
+      admin section `/admin/coach-feedback` with the H7 i18n bundle
+      both EN + DE)
 
-### B2 — Collapsible provenance + values
+W5 commits (8): 58ae9bc, fa07748, 9413d29, 3f60c81, 0eda1de, 1faee95,
+05c7f14, plus this STATE tick.
 
-- [x] Move inline raw values out of prose into a
-      "Worauf bezieht sich das?" expandable below each assistant
-      message; `---KEYVALUES---` … `---END---` sentinel stripped
-      server-side, parsed into `provenance.keyValues`
-- [x] Source chips stay visible; values reveal on click
+Test deltas: 2191 → 2223 unit (+32). Integration suite added 3
+files: `coach-prefs`, `coach-feedback`, plus the 6000-row chunk
+boundary regression in the existing `bp-in-target` test.
 
-### B3 — User avatar = Gravatar (parity)
+OpenAPI registry coverage: +3 routes (GET / PUT
+`/api/auth/me/coach-prefs`, POST
+`/api/insights/chat/messages/{id}/feedback`).
 
-- [x] Same dimensions as Coach avatar
-- [x] Reuses existing `gravatarUrl` from `/api/auth/me`; initials
-      fallback when no Gravatar configured
+## Wave 6 — Multi-agent QA + Product-Lead review
 
-### B4 — Disclaimer move
+- [x] code-reviewer
+- [x] security review
+- [x] design / UX review
+- [x] senior-dev review
+- [x] simplify
+- [x] Product Lead — v1.5 P1 (iOS first launch) plan refresh with
+      concrete file paths now that backend contracts exist
+- [x] Reconcile — 1 CRITICAL + all 9 HIGH + 4 of 5 simplify + 3 MED
+      applied; remainder triaged into `.planning/v1423-backlog.md`
 
-- [x] "Coach replies are generated. Clinical decisions belong with
-      your doctor." moves from below input → sources rail footer
-- [x] "Coach reads only your connected data" caption replaced by the
-      disclaimer so the source picker stands alone
+W6 reconcile commits (11): 5486507, 13977bc, d5202e5, a2dfc5e (Session A
+— CRIT + HIGH 1-3); 3ee6dab, dfffe6b, d25e50e (Session B — HIGH 4 +
+S-02-S-04 simplify + HIGH 6); deadc73 (Session D — HIGH 5); 650f150
+(Session E — HIGH 7); 1a46bfe (Session F — MED cluster); plus this
+STATE tick.
 
-### B5 — Settings cog wire-or-remove
+Detailed reconcile report: `.planning/phase-W6-v1423-reconcile-report.md`.
+Deferred items: `.planning/v1423-backlog.md` (settings-cog vs
+per-message-controls debate, rigorous Pearson incomplete-beta, surplus
+MEDs, all LOWs, S-05 simplify, pre-existing `coach-prefs.test.ts` mock
+issue, sandbox `git commit` no-op).
 
-- [x] Removed for v1.4.22; per-user prompt-tuning surface deferred
-      to v1.4.23 (no dead buttons in this release)
+Test deltas: W5 ended at 2223 unit. Session A added the `revoke.test.ts`
++ `apns-dispatch` device tests landing at 2227. Session E ended at 2235.
+Session F added the forged-X-Device-Id regression — final at 2236 unit
+(+45 across the W5+W6 reconcile arc).
 
-## Wave 4 — Other surfaces + backlog cleanup
+## Wave 7 — Release v1.4.23 (next)
 
-### C1 — Zielwerte page upgrade
-
-- [x] 30-day sparkline + Δ-vs-last-month caption per card (Direction
-      A from W1a §4). Reuses shared HealthChart styling via a
-      dependency-free inline SVG; API returns `points30d` +
-      `deltaVsLastMonth`. BMI derives both from the weight series.
-
-### C2 — Admin / api-tokens scrollbar 5th attempt
-
-- [x] Live Playwright probe confirmed `whitespace-nowrap` on the date
-      `<td>`s was the residual culprit (W1a §2). Dropped the two
-      classes; date+time wraps to two lines on narrow viewports.
-
-### C3 — Coolify image-digest auto-deploy
-
-- [x] Workflow appends `?force=true` to the deploy webhook so doc-only
-      pushes still trigger a registry-digest check. Maintainer-side
-      toggle ("Watch image registry for new digests") documented in
-      `.planning/coolify-auto-deploy-howto.md` — one UI flip.
-
-### C4 — AuthShell post-hydration redirect flicker
-
-- [x] Redirect lives in `proxy.ts`. Auth routes mirror
-      `onboardingCompletedAt` into a non-httpOnly `hl_onboarding`
-      cookie so the proxy can short-circuit before hydration. The
-      e2e onboarding-flicker spec dropped its workaround.
-
-### C5 — node-26-alpine bump
-
-- [x] Dependabot PR #162 closed with reasoning. node:26-alpine ships
-      without corepack pre-installed; Next.js 16 also still pins
-      node 22 LTS as the supported minimum. Reopen when the framework
-      bumps its node-version requirement.
-
-### D — `.planning/v1421-backlog.md` cleanup wave
-
-Apply or confirm-defer every item:
-
-- [x] Phase D reconcile carry-over (22 MED + 16 LOW + 4 simplify-maybe)
-- [x] FX carry-overs:
-  - [x] 191 `Marc` references swept across `src/` (test fixtures kept
-        as opaque test data per brief)
-  - [x] DE+EN bilingual CHANGELOG entries (v1.4.14 + v1.4.15) reduced
-        to English-only
-  - [x] `CLAUDE.md` renamed to `CONTRIBUTING-AI.md` so the filename
-        is not AI-vendor-specific; `AGENTS.md` stays for multi-agent
-        compatibility. `CONTRIBUTING.md` reference updated.
-
-### E2E fix wave (already on develop)
-
-- [x] 5 commits on develop from the v1.4.21 follow-up; release-merge
-      brings them into main when v1.4.22 ships
-
-## Wave 5 — Multi-agent QA + Product-Lead review
-
-- [x] code-reviewer (`.planning/phase-W5-v1422-code-review.md` — 0 CRIT, 2 HIGH, 4 MED, 5 LOW)
-- [x] security review (`.planning/phase-W5-v1422-security-review.md` — 0 CRIT, 0 HIGH, 2 MED, 4 LOW)
-- [x] design / UX review (`.planning/phase-W5-v1422-design-review.md` — 0 CRIT, 3 HIGH, 7 MED, 5 LOW)
-- [x] senior-dev review (`.planning/phase-W5-v1422-senior-dev-review.md` — 0 CRIT, 2 HIGH, 5 MED, 4 LOW)
-- [x] simplify (`.planning/phase-W5-v1422-simplify-review.md` — 5 apply-yes, 4 apply-maybe, 6 apply-no)
-- [x] Product Lead — v1.5 plan refresh based on v1.4.22 state (`.planning/phase-W5-v1422-product-lead-review.md`)
-- [x] Reconcile applied CRITICAL + HIGH; defer MED/LOW with reasoning (10 commits; report at `.planning/phase-W5-v1422-reconcile-report.md`; backlog at `.planning/v1422-backlog.md`)
-
-## Wave 6 — Release v1.4.22
-
-- [ ] Pre-release verify (typecheck, lint, test, integration,
-      format, build)
-- [ ] Bump `package.json` 1.4.21 → 1.4.22 + CHANGELOG
+- [ ] Pre-release verify
+- [ ] Bump `package.json` 1.4.22 → 1.4.23 + CHANGELOG
 - [ ] Release-merge develop → main
-- [ ] Tag + push v1.4.22
+- [ ] Tag + push v1.4.23
 - [ ] GHCR build green
-- [ ] Coolify deploy (should work without host-side fallback after C3)
-- [ ] /api/version=1.4.22 confirmed
-- [ ] Production smoke + e2e workflow on main passes (e2e fix wave
-      from develop is included in the release-merge)
+- [ ] Coolify deploy (auto, if F8 works; else host-side fallback)
+- [ ] /api/version=1.4.23 confirmed
+- [ ] Production smoke + e2e workflow on main passes
 - [ ] GH release
 - [ ] Docs site + landing site sync
-- [ ] `docs/audit/v1422-summary.md` (release brief)
-- [ ] v1.5 plan refreshed for the iOS push
+- [ ] `docs/audit/v1423-summary.md` (release brief)
+- [ ] v1.5 P1 plan refresh recorded

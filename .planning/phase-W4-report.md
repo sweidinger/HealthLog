@@ -7,14 +7,14 @@ commits preserved)
 
 ## Six commits shipped
 
-| # | Subject                                                                              | Verdict   |
-| - | ------------------------------------------------------------------------------------ | --------- |
-| 1 | feat(targets): 30-day sparkline + Δ-vs-last-month caption per card                   | shipped   |
-| 2 | fix(admin): drop whitespace-nowrap on api-tokens date cells (5th attempt)            | shipped   |
-| 3 | ops(deploy): force=true on Coolify webhook + node-26-alpine investigation            | shipped   |
-| 4 | fix(auth): move onboarding redirect from AuthShell useEffect to proxy                | shipped   |
-| 5 | i18n+ui: backlog quick-wins sweep (F-32/33/34/35/44/45/47/50/58/62 + 2 mediums)      | shipped   |
-| 6 | chore: voice + filename hygiene (Marc sweep, bilingual CHANGELOG, CLAUDE.md rename)  | shipped   |
+| #   | Subject                                                                             | Verdict |
+| --- | ----------------------------------------------------------------------------------- | ------- |
+| 1   | feat(targets): 30-day sparkline + Δ-vs-last-month caption per card                  | shipped |
+| 2   | fix(admin): drop whitespace-nowrap on api-tokens date cells (5th attempt)           | shipped |
+| 3   | ops(deploy): force=true on Coolify webhook + node-26-alpine investigation           | shipped |
+| 4   | fix(auth): move onboarding redirect from AuthShell useEffect to proxy               | shipped |
+| 5   | i18n+ui: backlog quick-wins sweep (F-32/33/34/35/44/45/47/50/58/62 + 2 mediums)     | shipped |
+| 6   | chore: voice + filename hygiene (Marc sweep, bilingual CHANGELOG, CLAUDE.md rename) | shipped |
 
 ## C1 — Zielwerte sparkline + delta
 

@@ -50,14 +50,14 @@ noted but is not v1.4.19's regression.
   of HEAD, `grep -rn 'lang={locale}'` returns exactly 14 hits and
   every `<Input type="date">` / `<Input type="datetime-local">`
   callsite carries it (verified via `grep -c
-  'type="date(time-local)?"`). Future date inputs added without
+'type="date(time-local)?"`). Future date inputs added without
   the prop will silently regress.
 - **Recommendation:** Introduce a thin wrapper
   `src/components/ui/date-input.tsx` (or `localized-date-input.tsx`)
   that wraps `<Input>` + reads `useTranslations()` internally to
   set `lang`. Replaces every `<Input type="date" lang={locale} … />`
   with `<DateInput … />` and `<Input type="datetime-local"
-  lang={locale} … />` with `<DateTimeInput … />`. Eliminates the
+lang={locale} … />` with `<DateTimeInput … />`. Eliminates the
   14× duplication and the parent-component `locale` import noise.
 - **Ship-blocker?** No. The pattern works correctly today; the
   refactor is hygiene. Recommend follow-up commit before v1.5
@@ -96,14 +96,14 @@ noted but is not v1.4.19's regression.
 - **File:** `src/components/settings/integrations-section.tsx`
   (`WithingsCard` lines 199-531, `MoodLogCard` lines 533-831)
 - **Issue:** A5 successfully introduced `IntegrationStatusPill` for
-  the status chip, but the *card chrome* itself
+  the status chip, but the _card chrome_ itself
   (`<div className="bg-card border-border rounded-xl border p-6">`
   → header row with icon + title + pill → `<p>` muted description
   → `<hr data-testid="integration-card-divider"
-  className="border-border/60 mt-4">` → `<div className="mt-4
-  space-y-4">` body) is duplicated verbatim between WithingsCard
+className="border-border/60 mt-4">` → `<div className="mt-4
+space-y-4">` body) is duplicated verbatim between WithingsCard
   and MoodLogCard. The Phase A5 report explicitly mentions
-  *"Reusable for v1.4.20 Apple Health card on iOS"* — but the
+  _"Reusable for v1.4.20 Apple Health card on iOS"_ — but the
   reusable surface today is only the pill, not the card. Adding
   Apple Health will paste the same chrome a third time.
 - **Recommendation:** Extract `<IntegrationCard>` co-located with
@@ -116,9 +116,9 @@ noted but is not v1.4.19's regression.
   - `errorMessage?: string`
   - `children` (the unique card body — credentials form, sync
     button, etc.)
-  Both existing cards become a thin shell + their unique body
-  forms. Apple Health card v1.5 ships as ~30 lines of unique
-  form, not ~200 lines of mostly chrome.
+    Both existing cards become a thin shell + their unique body
+    forms. Apple Health card v1.5 ships as ~30 lines of unique
+    form, not ~200 lines of mostly chrome.
 - **Ship-blocker?** No. Defer to v1.4.20 or v1.5 (would touch
   v1.4.19's tested surface, not worth the risk pre-release).
 
@@ -135,7 +135,7 @@ noted but is not v1.4.19's regression.
   - `src/components/charts/medication-compliance-chart.tsx:269`
 - **Issue:** A2 introduced an identical mobile-first header
   layout (`flex flex-col gap-2 sm:flex-row sm:items-center
-  sm:justify-between`) plus the matching chip-hide rules
+sm:justify-between`) plus the matching chip-hide rules
   (`hidden sm:inline-flex` on bucket chip + comparison chip) in
   three chart components. The same 4× `<Button>` time-range tab
   loop on `TIME_RANGES_KEYS` is duplicated between health-chart
@@ -185,11 +185,11 @@ noted but is not v1.4.19's regression.
   (`useAuthActionLabels()` returning a memoised value).
 - **Ship-blocker?** No.
 
-### M-4 — F-02 "auth.* filter" rule expressed in two places
+### M-4 — F-02 "auth.\* filter" rule expressed in two places
 
 - **Severity:** MEDIUM
 - **File:** `src/components/admin/login-overview-section.tsx:96
-  + 256`
+  - 256`
 - **Issue:** F-02's "filter to `auth.*` actions" rule is
   expressed in two places: (1)
   `params.set("filter", "auth")` on the API query at line 96, and
@@ -245,8 +245,8 @@ noted but is not v1.4.19's regression.
   a callsite.
 - **Recommendation:** Defer to v1.4.20 or v1.5. Split into
   `ai-section/{index, active-provider-select,
-  provider-config-card, forms/{codex, openai, anthropic, local,
-  admin-openai}, fallback-chain-card, runtime-actions-row}.tsx`.
+provider-config-card, forms/{codex, openai, anthropic, local,
+admin-openai}, fallback-chain-card, runtime-actions-row}.tsx`.
   Mirrors how `src/components/admin/` is structured (one section
   per file).
 - **Ship-blocker?** No.
@@ -265,7 +265,7 @@ noted but is not v1.4.19's regression.
   own file.
 - **Recommendation:** Same as H-3 — under
   `src/components/settings/integrations/{index, withings-card,
-  mood-log-card, integration-card}.tsx`.
+mood-log-card, integration-card}.tsx`.
 - **Ship-blocker?** No.
 
 ### L-3 — `health-chart.tsx` is 1360 lines
@@ -286,7 +286,7 @@ noted but is not v1.4.19's regression.
 - **Issue:** Uses `getUTCDate()` / `getUTCMonth()` / `getUTCHours()`
   to render the embedded ISO timestamp on auto-issued token
   names (`web auto-login 2026-05-05T19:46:20.603Z` → `web
-  auto-login · 05.05.2026 19:46`). Marc's project default is
+auto-login · 05.05.2026 19:46`). Marc's project default is
   Europe/Berlin display, UTC storage. A token issued at 19:46
   Berlin in winter renders as 18:46. Other admin surfaces use
   `formatDate()` / `formatDateTime()` from `@/lib/format`, which
@@ -295,9 +295,9 @@ noted but is not v1.4.19's regression.
   `format.ts` helpers, with different output rules
   (DD.MM.YYYY HH:MM hard-coded German order).
 - **Recommendation:** Pass the parsed `Date` through `formatDate()`
-  + `formatDateTime()` from `@/lib/format`, or extract a
-  `formatBerlinDateTimeShort()` shared helper. Hand the
-  correctness call to code-reviewer.
+  - `formatDateTime()` from `@/lib/format`, or extract a
+    `formatBerlinDateTimeShort()` shared helper. Hand the
+    correctness call to code-reviewer.
 - **Ship-blocker?** No.
 
 ### L-5 — Telegram badge collapse uses bullet-point string concat instead of single i18n key OR pill
@@ -345,7 +345,7 @@ noted but is not v1.4.19's regression.
   (`{ pct: number; pairs: number } | null`). All three semantics
   are documented in the function header. The analytics route
   mapping (`bpInTargetPct ← allTime`, `bpInTargetPct7d ←
-  last7Days`, `bpInTargetPct30d ← last30Days`) is unambiguous
+last7Days`, `bpInTargetPct30d ← last30Days`) is unambiguous
   and tested.
 
 ### L-8 — A7's "AdminShell tweak" was NOT generalized — local fix only
@@ -414,7 +414,7 @@ production code stays clean.
   also consume it. **NOT premature** — the brief explicitly
   builds for the third future caller. The premature abstraction
   here would be the OPPOSITE direction: see H-3, where the
-  *card chrome around the pill* should also have been
+  _card chrome around the pill_ should also have been
   extracted — but a tactically-narrow extraction (just the
   pill) is justifiable for v1.4.19's scope.
 
@@ -423,7 +423,7 @@ production code stays clean.
   documentation comment ("the shared 36-px input contract used
   everywhere else in Settings") rather than a CSS variable or
   shared class string. The `NATIVE_SELECT_CLASS` constant
-  introduced in account-section centralises the *native select*
+  introduced in account-section centralises the _native select_
   styling (12 visual tokens) — but only within that file. AI
   section's three `<select>` elements were converted to
   `h-9` inline. So: the **rule** is single-source (everything is
@@ -447,7 +447,7 @@ production code stays clean.
   IntegrationStatusPill). No defensive null-checks introduced
   (verified: zero new `?? null` / `?.` patterns wrapping
   values that are typed non-nullable). Translation key additions
-  (auth.token.* ×3) correctly land in both EN+DE per the project
+  (auth.token.\* ×3) correctly land in both EN+DE per the project
   i18n integrity rule.
 
 - **A1 BP-status windows (Q6):** Verified coherent. See L-7.

@@ -4,7 +4,7 @@
  * Events: medication reminders, anomalies, compliance, etc.
  */
 
-export const CHANNEL_TYPES = ["TELEGRAM", "NTFY", "WEB_PUSH"] as const;
+export const CHANNEL_TYPES = ["TELEGRAM", "NTFY", "WEB_PUSH", "APNS"] as const;
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
 
 export const EVENT_TYPES = [
@@ -28,6 +28,7 @@ export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {
   TELEGRAM: "Telegram",
   NTFY: "ntfy",
   WEB_PUSH: "Web Push",
+  APNS: "Apple Push (APNs)",
 };
 
 // ── Channel config shapes (stored as encrypted JSON) ──
@@ -45,10 +46,19 @@ export interface NtfyChannelConfig {
 
 export type WebPushChannelConfig = Record<string, never>;
 
+/**
+ * APNs channel config is empty by design — the per-device APNs token +
+ * environment live on the `Device` model, not on the channel row. The
+ * channel row exists so per-event preference toggles in
+ * `NotificationPreference` apply uniformly across all four channels.
+ */
+export type ApnsChannelConfig = Record<string, never>;
+
 export type ChannelConfig =
   | TelegramChannelConfig
   | NtfyChannelConfig
-  | WebPushChannelConfig;
+  | WebPushChannelConfig
+  | ApnsChannelConfig;
 
 // ── Notification payload ──
 

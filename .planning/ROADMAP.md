@@ -1,55 +1,71 @@
-# HealthLog v1.4.22 — roadmap
+# HealthLog v1.4.23 — roadmap
 
-Milestone: **v1.4.22 — big polishing release before v1.5 iOS** (kicked off 2026-05-10, post-v1.4.21 patch)
-Latest tag at start: v1.4.21 (live in prod, image digest
-`sha256:4e818d44702c…`)
-
-Marc's directive: close ALL known bugs + apply ALL deferred items
-from `.planning/v1421-backlog.md` so the iOS app builds on a clean
-foundation. Marathon-style execution: research/probe first, then
-parallel polish waves, then multi-agent QA, then release.
-
-| Wave | Goal                                                                                                                                                  | State     |
-| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| 1    | Research + probe — Playwright PROD probe (BD-Zielbereich 5th attempt, api-tokens 5th attempt, Metrik token leaks, Targets page brainstorm); health-coach prompt research | in flight |
-| 2    | Insights surface polish — A1 BD framing, A2 BD-Kachel parity, A3 comparison-toggle global, A4 grid normalisation, A5 Muster rename + tabs above hero, A6 token-leak fix | pending   |
-| 3    | Coach polish — B1 prompt rewrite, B2 collapsible provenance, B3 Gravatar parity, B4 disclaimer move, B5 settings cog wire-or-remove                   | pending   |
-| 4    | Other surfaces + backlog cleanup — C1 Zielwerte upgrade, C2 api-tokens 5th attempt, C3 Coolify auto-deploy, C4 AuthShell flicker, C5 node-26-alpine, D backlog wave | pending   |
-| G    | E2E fix wave (already on `develop`) — 7 stale-selector / layout regressions; release-merge brings them into main with v1.4.22                          | done      |
-| 5    | Multi-agent QA + Product-Lead review                                                                                                                  | pending   |
-| 6    | Release v1.4.22 — bump, CHANGELOG, release-merge, tag, GHCR, Coolify deploy (validated by C3), smoke, GH release, docs+landing sync, brief             | pending   |
+Milestone: **v1.4.23 — pre-iOS hygiene + sentinel hardening** (not
+yet kicked off)
+Latest tag at start: v1.4.22 (live in prod, image digest
+`sha256:865154614303…`)
 
 Carry-over candidates already captured in
-`.planning/v1421-backlog.md` (now serving as the v1.4.22 backlog
-shim — the file name is historical):
+`.planning/v1422-backlog.md`:
 
-- 22 MED + 16 LOW + 4 simplify-apply-maybe items from the v1.4.20
-  Phase-D pass (consolidate Pearson / linear-regression maths layer,
-  controlled `<CoachDrawer>` prefill prop, transactional
-  `recordSpend()`, refusal lexicon expansion, …).
+- Sentinel parser malformed-enum hardening (Sr-M5, ~30 LOC,
+  highest signal-to-effort ratio of the deferred MEDs).
+- Analytics-route unbounded `findMany` paging.
+- Targets-route 7-pass sparkline coalesce.
+- `<CoachDrawer key={prefill}>` controlled-prop refactor
+  (Sr-HIGH-4) — drop the React-key reset weaponisation before
+  the iOS Coach surface multiplies the pattern's footprint.
+- Per-user prompt-tuning surface (the v1.4.22 settings cog was
+  removed pending this).
 - Schema drift on `medication_schedules.days_of_week` — either
-  deploy the column or drop it from `schema.prisma`.
-- Split `src/app/insights/page.tsx` (now composes nine surfaces).
-- Wire Coolify image-digest auto-deploy hook on apps-01 so the
-  host-side retag fallback isn't needed.
-- Source-comment hygiene sweep (191 maintainer-name references in
-  `src/`); DE+EN bilingual CHANGELOG entry rewrite.
+  deploy the column or drop it from `schema.prisma`. Last call
+  before v1.5 P0.
+- OpenAPI spec drift CI guard — pull forward from v1.5 D.5 if
+  possible. Cheaper than discovering drift via an iOS build
+  break.
+- Pearson p-value normal-approx replacement (Code-MED-03) —
+  30-LOC incomplete-beta or raise df ≥ 20 surfacing gate. Fix
+  before v1.5/v1.6 auto-discovery ships.
+- Coach helpful/unhelpful first-week observation — does the new
+  warm persona land or does the disclosure-open rate stay below
+  ~30%? If low, tone pull-back before iOS multiplies the
+  audience.
 
 Reserved next strategic milestones:
 
 - **v1.5** — iOS app + Apple Health integration + per-metric APNs
   alerts. Strategic plan at
-  `.planning/phase-D-v1420-product-lead-review.md`.
+  `.planning/phase-W5-v1422-product-lead-review.md`.
 - **v1.6+** — Auto-correlation discovery (FDR-controlled), Coach
   full-page route at `/insights/coach`, conversation-driven goal
   setting.
 
 ---
 
+## Previous milestone — v1.4.22 (completed 2026-05-10T22:43:50+02:00)
+
+| Wave | Goal                                                                                                                                                                                                                           | State |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
+| 1    | Research + probe — Playwright PROD probe (BD-Zielbereich 5th attempt, api-tokens 5th attempt, metric token leaks, Targets page brainstorm); health-coach prompt research                                                       | done  |
+| 2    | Insights surface polish — A1 BD framing, A2 BD-Kachel parity, A3 comparison-toggle global, A4 grid normalisation, A5 Muster rename + tabs above hero, A6 token-leak fix                                                        | done  |
+| 3    | Coach polish — B1 prompt rewrite (PROMPT_VERSION 4.20.2 → 4.22.0), B2 collapsible evidence, B3 Gravatar parity, B4 disclaimer move, B5 settings cog removal                                                                    | done  |
+| 4    | Other surfaces + backlog cleanup — C1 Zielwerte sparkline + Δ-vs-last-month, C2 api-tokens 5th attempt, C3 Coolify auto-deploy runbook, C4 AuthShell flicker → proxy.ts, C5 node-26-alpine deferred, D backlog wave (12 items) | done  |
+| 5    | Multi-agent QA + Product-Lead — code, security, design, senior-dev, simplify, product-lead; 0 CRIT, 7 HIGH all applied inline, ~6 MED applied, rest deferred                                                                   | done  |
+| 6    | Release v1.4.22 — bump, CHANGELOG, release-merge, tag, GHCR, host-side retag deploy (Coolify secrets still missing), /api/version=1.4.22, smoke, GH release, docs+landing sync, brief                                          | done  |
+
+Milestone completed 2026-05-10T22:43:50+02:00 — v1.4.22 LIVE in prod.
+Release brief: `docs/audit/v1422-summary.md`.
+Image digest:
+`sha256:865154614303fdc362ee3941776f73ec0f60e1f16112ec272a75cbbe28e2cffb`.
+Backlog seeded to `.planning/v1422-backlog.md`. v1.5 strategic plan at
+`.planning/phase-W5-v1422-product-lead-review.md`.
+
+---
+
 ## Previous patch — v1.4.21 (completed 2026-05-10T17:46+00:00)
 
-| Phase | Goal                                                                                                                                                  | State |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| Phase | Goal                                                                                                                                                   | State |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
 | F     | Same-day patch on top of v1.4.20 — Daily Briefing regenerate fix, Coach day-level snapshot, duplicate streaming bubble, drawer header, scope picker UI | done  |
 | E     | Release v1.4.21 — develop → main release-merge, bump, CHANGELOG, tag, GHCR, host-side retag fallback, /api/version=1.4.21, smoke, GH release, brief    | done  |
 
@@ -62,21 +78,21 @@ Image digest:
 
 ## Previous milestone — v1.4.20 (completed 2026-05-10T16:49:25Z)
 
-| Phase | Goal                                                                                                                                                       | State |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| F0    | Bootstrap — commit dangling v1.4.19 reports, scaffold STATE+ROADMAP                                                                                        | done  |
-| F1    | Branch model — long-lived `develop` from `main` HEAD; GHCR builds on `main` + `v*` only                                                                    | done  |
-| F2    | Document branch + release model — CONTRIBUTING.md + docs site mirror page                                                                                  | done  |
+| Phase | Goal                                                                                                                                                        | State |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| F0    | Bootstrap — commit dangling v1.4.19 reports, scaffold STATE+ROADMAP                                                                                         | done  |
+| F1    | Branch model — long-lived `develop` from `main` HEAD; GHCR builds on `main` + `v*` only                                                                     | done  |
+| F2    | Document branch + release model — CONTRIBUTING.md + docs site mirror page                                                                                   | done  |
 | FX    | User-facing artifact cleanup — PII (no real names, no health figures), internal jargon, German leaks; CHANGELOG + docs/audit + GH releases + docs + landing | done  |
-| F5    | Best-practice GitHub repo audit — CODE_OF_CONDUCT.md, issue + PR templates, dependabot expansion, package.json metadata                                    | done  |
-| F6    | Multi-agent QA on new docs — 38 docs pages cross-checked vs deployed state, CRIT + HIGH inline                                                             | done  |
-| B1    | Hero strip + Daily Briefing + Suggested-prompts                                                                                                            | done  |
-| B2    | AI Coach drawer + SSE streaming + encrypted persistence                                                                                                    | done  |
-| B3    | Correlation discovery + Trends row with AI annotations                                                                                                     | done  |
-| B4    | Weekly Report + Storyboard markers + Mobile passes                                                                                                         | done  |
-| B5    | Personal Health Score (composite 0–100, 3 bands)                                                                                                           | done  |
-| D     | Multi-agent QA — code, security, design, senior-dev, simplify, product-lead; 13 HIGH + 6 MED + 5 simplify-yes inline; 22 MED + 16 LOW deferred             | done  |
-| E     | Release v1.4.20 — develop → main release-merge, bump, CHANGELOG, tag, GHCR, host-side retag deploy fallback, /api/version=1.4.20, smoke, docs+landing sync | done  |
+| F5    | Best-practice GitHub repo audit — CODE_OF_CONDUCT.md, issue + PR templates, dependabot expansion, package.json metadata                                     | done  |
+| F6    | Multi-agent QA on new docs — 38 docs pages cross-checked vs deployed state, CRIT + HIGH inline                                                              | done  |
+| B1    | Hero strip + Daily Briefing + Suggested-prompts                                                                                                             | done  |
+| B2    | AI Coach drawer + SSE streaming + encrypted persistence                                                                                                     | done  |
+| B3    | Correlation discovery + Trends row with AI annotations                                                                                                      | done  |
+| B4    | Weekly Report + Storyboard markers + Mobile passes                                                                                                          | done  |
+| B5    | Personal Health Score (composite 0–100, 3 bands)                                                                                                            | done  |
+| D     | Multi-agent QA — code, security, design, senior-dev, simplify, product-lead; 13 HIGH + 6 MED + 5 simplify-yes inline; 22 MED + 16 LOW deferred              | done  |
+| E     | Release v1.4.20 — develop → main release-merge, bump, CHANGELOG, tag, GHCR, host-side retag deploy fallback, /api/version=1.4.20, smoke, docs+landing sync  | done  |
 
 Milestone completed 2026-05-10T16:49:25Z — v1.4.20 LIVE in prod.
 Release brief: `docs/audit/v1420-summary.md`. Backlog seeded to
@@ -87,20 +103,20 @@ Release brief: `docs/audit/v1420-summary.md`. Backlog seeded to
 
 ## Previous milestone — v1.4.19 (completed 2026-05-10T12:39:59Z)
 
-| Phase | Goal                                                                                                                                                 | State |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| 0     | Bootstrap — STATE+ROADMAP for v1.4.19                                                                                                                | done  |
-| A1    | BD-Zielbereich constant 50% (4th attempt) — live-DB root-cause + integration test                                                                    | done  |
-| A2    | Charts mobile audit — universal X-tick density helper, mobile-first stacked headers across HealthChart / MoodChart / MedicationComplianceChart        | done  |
-| A3    | `/insights` polish — Comparison-toggle relocated, single page-level refresh, BP/Weight tile strip removed, raw-token leak guarded                    | done  |
-| A4    | AI prompt — GROUND RULE 7 forbids default-positivity opener, PROMPT_VERSION 4.16.1 → 4.19.0                                                          | done  |
-| A5    | Settings/Integrations status-UI — `<IntegrationStatusPill>` consolidates Withings + Mood Log, divider parity, locale-aware relative-time             | done  |
-| A6    | Settings mobile audit — input heights equalised at 36 px, action buttons standardised, Sprache select hoisted to its own row                         | done  |
-| A7    | Admin polish — feedback tab strip scrollbar, api-tokens 4th-attempt truncate+tooltip, Einklappen toggle removed, Zielwerte i18n                       | done  |
-| A8    | Quality-of-life audit — 78 findings prioritised CRITICAL / HIGH / MED / LOW                                                                          | done  |
-| B     | Apply A8 — 6/6 CRITICAL + 21/25 HIGH inline; 31 MED + 16 LOW carried to v1.4.20 backlog                                                              | done  |
-| D     | Multi-agent QA (5 reviewers) + Product-Lead → v1.5 redesign plan filed                                                                               | done  |
-| E1-E3 | Release v1.4.19 — tag, GHCR build green, host-side retag deploy via fallback (Coolify deploy hung, retried via SSH), GH release, docs+landing sync   | done  |
+| Phase | Goal                                                                                                                                               | State |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| 0     | Bootstrap — STATE+ROADMAP for v1.4.19                                                                                                              | done  |
+| A1    | BD-Zielbereich constant 50% (4th attempt) — live-DB root-cause + integration test                                                                  | done  |
+| A2    | Charts mobile audit — universal X-tick density helper, mobile-first stacked headers across HealthChart / MoodChart / MedicationComplianceChart     | done  |
+| A3    | `/insights` polish — Comparison-toggle relocated, single page-level refresh, BP/Weight tile strip removed, raw-token leak guarded                  | done  |
+| A4    | AI prompt — GROUND RULE 7 forbids default-positivity opener, PROMPT_VERSION 4.16.1 → 4.19.0                                                        | done  |
+| A5    | Settings/Integrations status-UI — `<IntegrationStatusPill>` consolidates Withings + Mood Log, divider parity, locale-aware relative-time           | done  |
+| A6    | Settings mobile audit — input heights equalised at 36 px, action buttons standardised, Sprache select hoisted to its own row                       | done  |
+| A7    | Admin polish — feedback tab strip scrollbar, api-tokens 4th-attempt truncate+tooltip, Einklappen toggle removed, Zielwerte i18n                    | done  |
+| A8    | Quality-of-life audit — 78 findings prioritised CRITICAL / HIGH / MED / LOW                                                                        | done  |
+| B     | Apply A8 — 6/6 CRITICAL + 21/25 HIGH inline; 31 MED + 16 LOW carried to v1.4.20 backlog                                                            | done  |
+| D     | Multi-agent QA (5 reviewers) + Product-Lead → v1.5 redesign plan filed                                                                             | done  |
+| E1-E3 | Release v1.4.19 — tag, GHCR build green, host-side retag deploy via fallback (Coolify deploy hung, retried via SSH), GH release, docs+landing sync | done  |
 
 Milestone completed 2026-05-10T12:39:59Z — v1.4.19 LIVE in prod.
 Release brief: `docs/audit/v1419-summary.md`. Backlog seeded to
@@ -111,20 +127,21 @@ Release brief: `docs/audit/v1419-summary.md`. Backlog seeded to
 
 ## Previous milestone — v1.4.18 (completed 2026-05-10T11:45+02:00)
 
-| Phase | Goal                                                                                                       | State |
-| ----- | ---------------------------------------------------------------------------------------------------------- | ----- |
-| 0     | Bootstrap — STATE+ROADMAP for v1.4.18                                                                      | done  |
-| A1    | BD-Zielbereich tile — 7T/30T sub-values render real numbers (currently "—" even with data)                 | done  |
+| Phase | Goal                                                                                                         | State |
+| ----- | ------------------------------------------------------------------------------------------------------------ | ----- |
+| 0     | Bootstrap — STATE+ROADMAP for v1.4.18                                                                        | done  |
+| A1    | BD-Zielbereich tile — 7T/30T sub-values render real numbers (currently "—" even with data)                   | done  |
 | A2    | `/admin/api-tokens` table scrollbar (3rd attempt) — Playwright live-verify against prod, fix actual offender | done  |
-| A3    | Chart visual revert + per-chart toggles — drop gradient/emoji/auto-mean, ship 3 opt-in overlay toggles      | done  |
-| B1    | Achievements expansion — research + 15-25 new, hidden Easter-eggs, lock filter, hidden cards                | done  |
-| D     | Multi-agent QA + Product-Lead — code-reviewer, security, design, senior, simplify, product                  | done  |
-| E     | Release v1.4.18 — bump, CHANGELOG, tag, GHCR, deploy, /api/version=1.4.18, smoke, docs+landing sync         | done  |
+| A3    | Chart visual revert + per-chart toggles — drop gradient/emoji/auto-mean, ship 3 opt-in overlay toggles       | done  |
+| B1    | Achievements expansion — research + 15-25 new, hidden Easter-eggs, lock filter, hidden cards                 | done  |
+| D     | Multi-agent QA + Product-Lead — code-reviewer, security, design, senior, simplify, product                   | done  |
+| E     | Release v1.4.18 — bump, CHANGELOG, tag, GHCR, deploy, /api/version=1.4.18, smoke, docs+landing sync          | done  |
 
 Marathon completed 2026-05-10T11:45+02:00 — v1.4.18 LIVE in prod.
 Full report: `docs/audit/v1418-summary.md`. Backlog seeded to
 `.planning/v1419-backlog.md` (tactical) and `.planning/v15-backlog.md`
-+ `.planning/phase-D-v1418-product-lead-review.md` (strategic).
+
+- `.planning/phase-D-v1418-product-lead-review.md` (strategic).
 
 ---
 

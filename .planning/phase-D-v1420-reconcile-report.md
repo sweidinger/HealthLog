@@ -16,34 +16,34 @@ unchanged).
 
 ## Commits
 
-| # | SHA | Subject | Reviewer cross-reference |
-| - | --- | ------- | ------------------------ |
-| 1 | `e632e26` | `fix(coach): repair SSE idempotency and error-frame handling` | Code-HIGH-1 + Code-HIGH-2 + Code-HIGH-3 + Code-HIGH-4 + Sec-M-1 + Sr-HIGH-1 + Simplify-S-01 |
-| 2 | `249607d` | `perf(coach): bound buildCoachSnapshot to last 90 days` | Sr-HIGH-3 |
-| 3 | `046d788` | `feat(insights): enable Generate weekly report button on hero` | Design pushback (item 6) |
-| 4 | `3c353fe` | `fix(insights): bump suggested-prompt chip touch target to 36px floor` | Design-HIGH-2 |
-| 5 | `8479e05` | `a11y(coach): announce streaming assistant text to screen readers` | Design-HIGH-3 |
-| 6 | `f9af100` | `fix(coach): cap drawer width on lg+ and route sources rail via tray` | Design-HIGH-1 |
-| 7 | `346867b` | `fix(insights): isolate hero glow from sticky section nav` | Design-HIGH-4 |
-| 8 | `cfe6d1c` | `chore(api): drop maintainer-name comment in analytics route` | Sec-LOW-4 |
-| 9 | `3402394` | `refactor(insights): consolidate relative-time and confidence-band tables` | Simplify-S-02 + Simplify-S-03 + Simplify-S-04 + Simplify-S-05 + Code-LOW-02 |
-| 10 | `9f3baf9` | `fix(insights): MED-bucket polish across coach + report surfaces` | Design-M4 + Design-M7 + Design-M9 + Design-L3 + Design-L4 + Code-LOW-04 |
-| 11 | `31fbf98` | `chore(i18n): drop duplicate heroGreetingNight key` | Design-M2 |
+| #   | SHA       | Subject                                                                    | Reviewer cross-reference                                                                    |
+| --- | --------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 1   | `e632e26` | `fix(coach): repair SSE idempotency and error-frame handling`              | Code-HIGH-1 + Code-HIGH-2 + Code-HIGH-3 + Code-HIGH-4 + Sec-M-1 + Sr-HIGH-1 + Simplify-S-01 |
+| 2   | `249607d` | `perf(coach): bound buildCoachSnapshot to last 90 days`                    | Sr-HIGH-3                                                                                   |
+| 3   | `046d788` | `feat(insights): enable Generate weekly report button on hero`             | Design pushback (item 6)                                                                    |
+| 4   | `3c353fe` | `fix(insights): bump suggested-prompt chip touch target to 36px floor`     | Design-HIGH-2                                                                               |
+| 5   | `8479e05` | `a11y(coach): announce streaming assistant text to screen readers`         | Design-HIGH-3                                                                               |
+| 6   | `f9af100` | `fix(coach): cap drawer width on lg+ and route sources rail via tray`      | Design-HIGH-1                                                                               |
+| 7   | `346867b` | `fix(insights): isolate hero glow from sticky section nav`                 | Design-HIGH-4                                                                               |
+| 8   | `cfe6d1c` | `chore(api): drop maintainer-name comment in analytics route`              | Sec-LOW-4                                                                                   |
+| 9   | `3402394` | `refactor(insights): consolidate relative-time and confidence-band tables` | Simplify-S-02 + Simplify-S-03 + Simplify-S-04 + Simplify-S-05 + Code-LOW-02                 |
+| 10  | `9f3baf9` | `fix(insights): MED-bucket polish across coach + report surfaces`          | Design-M4 + Design-M7 + Design-M9 + Design-L3 + Design-L4 + Code-LOW-04                     |
+| 11  | `31fbf98` | `chore(i18n): drop duplicate heroGreetingNight key`                        | Design-M2                                                                                   |
 
 11 commits in total (one extra from the small Design-M2 cleanup that
 folded cleanly into a focused commit alongside the simplify pass).
 
 ## Findings buckets
 
-| Bucket | Applied inline | Deferred to v1.4.21 backlog |
-| ------ | -------------- | --------------------------- |
-| CRITICAL | 0 (none flagged) | 0 |
-| HIGH | 13 | 0 |
-| MED | 6 | 22 |
-| LOW | 4 | 16 |
-| Simplify apply-yes | 5 | 0 |
-| Simplify apply-maybe | 0 | 4 |
-| Simplify apply-no | 0 (rejected with reason; not deferred) | 0 |
+| Bucket               | Applied inline                         | Deferred to v1.4.21 backlog |
+| -------------------- | -------------------------------------- | --------------------------- |
+| CRITICAL             | 0 (none flagged)                       | 0                           |
+| HIGH                 | 13                                     | 0                           |
+| MED                  | 6                                      | 22                          |
+| LOW                  | 4                                      | 16                          |
+| Simplify apply-yes   | 5                                      | 0                           |
+| Simplify apply-maybe | 0                                      | 4                           |
+| Simplify apply-no    | 0 (rejected with reason; not deferred) | 0                           |
 
 ### HIGH applied (13)
 
@@ -82,6 +82,7 @@ Simplify-S-01 was the load-bearing one; the rest are tag-along
 behaviour-preserving cleanups.)
 
 ### Items deferred to `.planning/v1421-backlog.md` "Phase D
+
 reconcile carry-over"
 
 22 MED + 16 LOW + 4 simplify-apply-maybe — full list with one-liner
@@ -130,11 +131,11 @@ fix in this reconcile:
 
 ## Verification gates
 
-| Gate | Pre-reconcile | Post-reconcile |
-| ---- | ------------- | -------------- |
-| `pnpm typecheck` | clean | clean |
-| `pnpm lint` | 0 errors / 13 warn | 0 errors / 13 warn |
-| `pnpm test --run` | 237 files / 2026 tests | 237 files / 2026 tests |
+| Gate                    | Pre-reconcile                                                   | Post-reconcile                                                        |
+| ----------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `pnpm typecheck`        | clean                                                           | clean                                                                 |
+| `pnpm lint`             | 0 errors / 13 warn                                              | 0 errors / 13 warn                                                    |
+| `pnpm test --run`       | 237 files / 2026 tests                                          | 237 files / 2026 tests                                                |
 | `pnpm test:integration` | 21 files / 81 tests (occasional flake on coach-chat round-trip) | 21 files / 81 tests (same flake observed; not regressed by reconcile) |
 
 The integration-suite flake on `coach-chat.test.ts` "round-trips an

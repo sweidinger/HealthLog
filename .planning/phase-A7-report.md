@@ -16,6 +16,7 @@ Commits on `origin/main`:
 ## What landed
 
 ### 1. Feedback tab strip mini-scrollbar — fixed
+
 Marc's "mini Scroll-Button rechts" on the admin feedback inbox tabs
 came from a CSS overflow-axis coupling: `tabsListVariants` set
 `overflow-x: auto` without `overflow-y`, so the browser silently
@@ -27,6 +28,7 @@ short strips. Added `overflow-y-hidden` (with the matching
 component test that locks both axes in.
 
 ### 2. /admin/api-tokens 4th-attempt scrollbar — fixed
+
 Three previous fixes (column-hide v1.4.15, mobile card-list
 v1.4.16, admin-shell mobile-strip `no-scrollbar` v1.4.18) cleared
 the obvious culprits but Marc still saw a residual painted bar.
@@ -49,6 +51,7 @@ Added an e2e regression that walks every element inside the mobile
 card-list and asserts `scrollWidth <= clientWidth + 1` for each.
 
 ### 3. /admin/api-tokens "Einklappen" button — removed
+
 Inherited from the v1.4 shared-admin page where 13 sections lived
 together. On the v1.5 dedicated `/admin/api-tokens` route the
 toggle hides the only card on the page. Marc called it "sinnlos".
@@ -57,10 +60,12 @@ Dropped the `expanded` state + button. The shared `settings.collapse`
 `<LoginOverviewSection>` still uses them.
 
 ### 4. Zielwerte page whitespace — tightened
+
 Outer wrapper changed from `space-y-8` (32 px) to `space-y-6`
 (24 px), matching the admin / settings rhythm.
 
 ### 5. Zielwerte status labels translated
+
 Added two new i18n key blocks under `targets.*`:
 
 - `targets.label.<TYPE>` (11 entries, EN + DE) — used by

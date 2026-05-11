@@ -205,7 +205,7 @@ describe("rotateRefreshToken", () => {
     expect(dbState.refreshTokens).toHaveLength(2);
   });
 
-  it("rejects + revokes family on reuse of consumed refresh token", async () => {
+  it("rejects + revokes per-device family on reuse of consumed refresh token", async () => {
     const initial = await issueAccessAndRefresh({
       userId: "u1",
       policy: NATIVE_POLICY,
@@ -220,7 +220,8 @@ describe("rotateRefreshToken", () => {
     expect(first.ok).toBe(true);
 
     // Replay the original token — must be rejected as `already_used` AND
-    // the replacement family must be revoked too (defence in depth).
+    // the device's replacement family must be revoked too (defence in
+    // depth). Per-device scope means dev-1 rows get revoked.
     const replay = await rotateRefreshToken({
       refreshToken: initial.refreshToken,
       policy: NATIVE_POLICY,
@@ -229,7 +230,89 @@ describe("rotateRefreshToken", () => {
     expect(replay.ok).toBe(false);
     if (replay.ok) return;
     expect(replay.reason).toBe("already_used");
-    // All non-revoked refresh rows should now be revoked
+    // Every dev-1 refresh row should now be revoked
+    const liveDev1 = dbState.refreshTokens.filter(
+      (r) => r.revokedAt === null && r.deviceId === "dev-1",
+    );
+    expect(liveDev1).toHaveLength(0);
+  });
+
+  it("v1.4.23 — per-device replay does NOT revoke another device's tokens", async () => {
+    // Two-device legitimate scenario: an iPad and an iPhone both
+    // refresh independently. A replay attempt on dev-1 must NOT sign
+    // dev-2 out — that was the v1.4.22 behaviour the W4 brief
+    // explicitly called out as broken.
+    const dev1 = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-1",
+    });
+    const dev2 = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-2",
+    });
+
+    // dev-1 rotates legitimately, then someone replays its stale token.
+    await rotateRefreshToken({
+      refreshToken: dev1.refreshToken,
+      policy: NATIVE_POLICY,
+      deviceId: "dev-1",
+    });
+    const replay = await rotateRefreshToken({
+      refreshToken: dev1.refreshToken,
+      policy: NATIVE_POLICY,
+      deviceId: "dev-1",
+    });
+    expect(replay.ok).toBe(false);
+
+    // dev-2's refresh token must still be live.
+    const dev2Row = dbState.refreshTokens.find(
+      (r) => r.tokenHash === `hash:${dev2.refreshToken}`,
+    );
+    expect(dev2Row?.revokedAt).toBeNull();
+
+    // dev-1's family is dead.
+    const liveDev1 = dbState.refreshTokens.filter(
+      (r) => r.revokedAt === null && r.deviceId === "dev-1",
+    );
+    expect(liveDev1).toHaveLength(0);
+  });
+
+  it("v1.4.23 — legacy null-deviceId replay still revokes ALL user tokens", async () => {
+    // Tokens issued before v1.4.23 carry deviceId === null. We can't
+    // safely scope the blast radius — fall back to the conservative
+    // user-wide revoke so a stolen pre-1.4.23 token can't bleed across
+    // every device the user owns.
+    const legacy = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      // deviceId omitted → null in DB row
+    });
+    const dev2 = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-2",
+    });
+
+    // legacy rotates once, then someone replays it.
+    await rotateRefreshToken({
+      refreshToken: legacy.refreshToken,
+      policy: NATIVE_POLICY,
+    });
+    const replay = await rotateRefreshToken({
+      refreshToken: legacy.refreshToken,
+      policy: NATIVE_POLICY,
+    });
+    expect(replay.ok).toBe(false);
+
+    // dev-2 should ALSO be revoked here — null-deviceId triggers the
+    // wide blast radius (safety hatch).
+    void dev2;
     const live = dbState.refreshTokens.filter((r) => r.revokedAt === null);
     expect(live).toHaveLength(0);
   });

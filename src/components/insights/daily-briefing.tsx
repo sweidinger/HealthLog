@@ -3,11 +3,20 @@
 import {
   Activity,
   FileText,
+  Flame,
+  Footprints,
   Heart,
+  HeartPulse,
+  Mountain,
+  Moon,
   Pill,
+  Route,
   Scale,
   Smile,
   Sparkles,
+  Thermometer,
+  Wind,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +72,19 @@ const METRIC_ICON: Record<
   pulse: Activity,
   mood: Smile,
   compliance: Pill,
+  // ── v1.4.23 Apple Health additive ──
+  // Icon picks track the metric domain rather than the brand. Web-only
+  // accounts never receive findings keyed to these metrics, so the
+  // mapping is only exercised on iOS-connected snapshots.
+  hrv: Wind,
+  sleep: Moon,
+  resting_hr: HeartPulse,
+  steps: Footprints,
+  active_energy: Flame,
+  flights: Mountain,
+  distance: Route,
+  vo2_max: Zap,
+  body_temp: Thermometer,
 };
 
 const TONE_BAR_CLASSNAME: Record<DailyBriefingKeyFinding["tone"], string> = {

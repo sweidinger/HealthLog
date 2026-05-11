@@ -80,9 +80,22 @@ const MEASUREMENT_TYPES = new Set([
   "TOTAL_BODY_WATER",
   "BONE_MASS",
   "OXYGEN_SATURATION",
+  // ── v1.4.23 Apple Health additions ──
+  "HEART_RATE_VARIABILITY",
+  "RESTING_HEART_RATE",
+  "ACTIVE_ENERGY_BURNED",
+  "FLIGHTS_CLIMBED",
+  "WALKING_RUNNING_DISTANCE",
+  "VO2_MAX",
+  "BODY_TEMPERATURE",
 ]);
 
-const MEASUREMENT_SOURCES = new Set(["MANUAL", "WITHINGS", "IMPORT"]);
+const MEASUREMENT_SOURCES = new Set([
+  "MANUAL",
+  "WITHINGS",
+  "IMPORT",
+  "APPLE_HEALTH",
+]);
 const INTAKE_SOURCES = new Set(["WEB", "API", "REMINDER", "IMPORT"]);
 
 const handler = apiHandler(

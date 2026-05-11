@@ -283,6 +283,13 @@
     "typeTotalBodyWater": "Total body water",
     "typeBoneMass": "Bone mass",
     "typeOxygenSaturation": "Oxygen saturation",
+    "typeHeartRateVariability": "Heart-rate variability",
+    "typeRestingHeartRate": "Resting heart rate",
+    "typeActiveEnergyBurned": "Active energy",
+    "typeFlightsClimbed": "Flights climbed",
+    "typeWalkingRunningDistance": "Walking + running distance",
+    "typeVo2Max": "VO₂ max",
+    "typeBodyTemperature": "Body temperature",
     "glucoseContext": "Context",
     "glucoseContextFasting": "Fasting (≥8h without food)",
     "glucoseContextPostprandial": "Post-meal (2h after eating)",
@@ -295,6 +302,7 @@
     "sourceManual": "Manual",
     "sourceWithings": "Withings",
     "sourceImport": "Import",
+    "sourceAppleHealth": "Apple Health",
     "systolicLabel": "Systolic (mmHg)",
     "diastolicLabel": "Diastolic (mmHg)",
     "pulseLabel": "Pulse (bpm)",
@@ -876,7 +884,16 @@
         "pulse": "Pulse",
         "mood": "Mood",
         "compliance": "Compliance",
-        "general": "General"
+        "general": "General",
+        "hrv": "HRV",
+        "sleep": "Sleep",
+        "resting_hr": "Resting HR",
+        "steps": "Steps",
+        "active_energy": "Active energy",
+        "flights": "Flights climbed",
+        "distance": "Distance",
+        "vo2_max": "VO₂ max",
+        "body_temp": "Body temperature"
       },
       "window": {
         "last7days": "last 7 days",
@@ -884,7 +901,28 @@
         "last90days": "last 90 days",
         "allTime": "all time"
       },
-      "windowLabel": "Window"
+      "windowLabel": "Window",
+      "settingsAriaLabel": "Coach settings",
+      "settingsTitle": "Coach settings",
+      "settingsDescription": "Tune how the Coach talks with you.",
+      "settingsToneLabel": "Tone",
+      "settingsToneWarm": "Warm",
+      "settingsToneNeutral": "Neutral",
+      "settingsToneConcise": "Concise",
+      "settingsVerbosityLabel": "Reply length",
+      "settingsVerbosityBrief": "Brief",
+      "settingsVerbosityDefault": "Default",
+      "settingsVerbosityDetailed": "Detailed",
+      "settingsExcludeLabel": "Exclude metrics",
+      "settingsExcludeHint": "The Coach will not see data for selected metrics.",
+      "settingsEvidenceLabel": "Show evidence by default",
+      "settingsEvidenceHint": "Open the disclosure under every reply automatically.",
+      "settingsSave": "Save",
+      "settingsSaved": "Saved.",
+      "settingsCancel": "Cancel",
+      "feedbackHelpful": "Helpful",
+      "feedbackUnhelpful": "Not quite",
+      "feedbackThanks": "Thanks for the signal."
     },
     "viewAll": "View all",
     "previewEmpty": "No recommendations yet.",
@@ -1743,6 +1781,21 @@
       "colNotHelpful": "Not helpful",
       "colHelpfulRate": "Helpful rate"
     },
+    "coachFeedback": {
+      "title": "Coach Feedback",
+      "loading": "Loading Coach feedback summary...",
+      "loadError": "Failed to load Coach feedback summary. Try refreshing the page.",
+      "empty": "No Coach feedback yet. The aggregator runs daily at 04:00 — once users rate Coach replies, helpful-rate bands appear here.",
+      "windowLabel": "Last {days} days",
+      "generatedAtLabel": "Generated",
+      "colPromptVersion": "Prompt version",
+      "colTone": "Tone",
+      "colVerbosity": "Verbosity",
+      "colHelpful": "Helpful",
+      "colNotHelpful": "Not helpful",
+      "colN": "n",
+      "colHelpfulRate": "Helpful rate"
+    },
     "workerStatus": "Job Worker",
     "workerRunning": "Running",
     "workerStopped": "Stopped",
@@ -1988,6 +2041,10 @@
       "ai-quality": {
         "title": "AI Quality",
         "subtitle": "Helpfulness scores grouped by severity and provider, from the last 30 days of user feedback."
+      },
+      "coach-feedback": {
+        "title": "Coach Feedback",
+        "subtitle": "Helpful-rate per Coach prompt version, tone, and verbosity from the last 30 days."
       },
       "feedback": {
         "title": "Feedback",

@@ -9,9 +9,9 @@ Both runs `success`. Wave-C v1.4.16 fix (drop arm64 from main publish,
 qemu-SIGILL root cause) continues to hold — neither the tag nor the main
 build hung this release.
 
-| Run         | Branch    | Conclusion | Notes                                          |
-| ----------- | --------- | ---------- | ---------------------------------------------- |
-| 25624945158 | `v1.4.18` | success    | tag build, pushes `:1.4.18`                    |
+| Run         | Branch    | Conclusion | Notes                                                         |
+| ----------- | --------- | ---------- | ------------------------------------------------------------- |
+| 25624945158 | `v1.4.18` | success    | tag build, pushes `:1.4.18`                                   |
 | 25624944843 | `main`    | success    | main build, pushes `:latest` (amd64-only post-Wave-C v1.4.16) |
 
 Both runs target the same head SHA `0243e208` (chore(release) commit on

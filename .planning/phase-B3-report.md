@@ -48,7 +48,7 @@ near-zero scatter that would imply a pattern that isn't there.
    `<ScatterCorrelationChart>` wrapper), confidence chip, source-chip
    ("based on N paired readings · last 30 days"), interpretation
    prose, disabled "Try a 7-day experiment" CTA with `title="Coming
-   soon"`. Row mounts the three cards in 2-up grid on `>=md` and
+soon"`. Row mounts the three cards in 2-up grid on `>=md` and
    single column on `<md`; the correlation-disclaimer footer
    ("Patterns are observational, not causal — talk to your doctor if
    BP runs high.") sits below the row once. 13 component tests.
@@ -127,7 +127,7 @@ near-zero scatter that would imply a pattern that isn't there.
   `__tests__/correlations.test.ts`)
 - `src/lib/ai/schema.ts` — `trendAnnotationsSchema` + integration
 - `src/lib/ai/prompts/insight-generator.ts` — PROMPT_VERSION 4.20.1
-  + GROUND RULE 9 (EN + DE) + JSON shape entry
+  - GROUND RULE 9 (EN + DE) + JSON shape entry
 - `src/lib/ai/__tests__/trend-annotations-schema.test.ts`
 - `src/components/insights/trend-annotation.tsx` +
   `__tests__/trend-annotation.test.tsx`

@@ -1,0 +1,300 @@
+/**
+ * `POST /api/measurements/batch` — Apple Health batch ingest.
+ *
+ * The iOS HealthLog app drains its HealthKit observer queue into this
+ * endpoint. Each entry is a HealthKit sample dressed in a thin
+ * envelope (identifier, value, unit, start/end dates, optional sleep
+ * stage codepoint, opaque external id). The server maps each entry
+ * through `mapAppleHealthEntry()`, inserts it as a `Measurement` row
+ * with `source = APPLE_HEALTH`, and returns a per-entry status so the
+ * client can advance its sync cursor accurately.
+ *
+ * Idempotency contract:
+ *   - A single batch is dedupable end-to-end via `Idempotency-Key` —
+ *     an HTTP-level retry replays the cached response.
+ *   - Individual entries are dedupable via the
+ *     `(user_id, type, source, external_id)` composite unique index —
+ *     a partial-success retry, or two devices uploading the same
+ *     HealthKit sample, surface as `duplicate` per entry instead of
+ *     hard-failing the batch.
+ */
+import { NextRequest } from "next/server";
+import { z } from "zod/v4";
+
+import { prisma } from "@/lib/db";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import {
+  apiError,
+  apiSuccess,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
+import { withIdempotency } from "@/lib/idempotency";
+import { mapAppleHealthEntry } from "@/lib/measurements/apple-health-mapping";
+import { validateMeasurementRange } from "@/lib/validations/measurement";
+import { Prisma } from "@/generated/prisma/client";
+
+const MAX_BATCH_ENTRIES = 500;
+
+const batchEntrySchema = z.object({
+  hkIdentifier: z.string().min(1).max(120),
+  value: z.number().finite(),
+  unit: z.string().min(1).max(60),
+  startDate: z.iso.datetime({ offset: true }),
+  endDate: z.iso.datetime({ offset: true }),
+  sleepStage: z.number().int().min(0).max(20).optional(),
+  externalId: z.string().min(1).max(120),
+  externalSourceVersion: z.string().min(1).max(120).optional(),
+});
+
+const batchPayloadSchema = z.object({
+  entries: z.array(batchEntrySchema).min(1),
+});
+
+type BatchEntry = z.infer<typeof batchEntrySchema>;
+
+/**
+ * Per-entry outcome the iOS client uses to advance its sync cursor.
+ * `inserted` and `duplicate` both indicate the row landed (or was
+ * already present), so the client can checkpoint past them.
+ * `skipped` is the only case where the client may want to surface a
+ * diagnostic — typically because Apple introduced a new identifier the
+ * server doesn't know about yet.
+ */
+type EntryStatus = "inserted" | "duplicate" | "skipped";
+interface EntryResult {
+  index: number;
+  status: EntryStatus;
+  reason?: string;
+}
+
+export const POST = apiHandler(withIdempotency<[NextRequest]>(postBatch));
+
+async function postBatch(request: NextRequest): Promise<Response> {
+  const { user } = await requireAuth();
+
+  const { data: rawBody, error: jsonError } = await safeJson<unknown>(request);
+  if (jsonError) return jsonError;
+
+  // Distinguish "too many entries" from "validation failed" so the
+  // client surfaces a useful diagnostic. The cap stops a buggy client
+  // from saturating the request pipeline; the iOS app paginates above
+  // this threshold.
+  if (
+    typeof rawBody === "object" &&
+    rawBody !== null &&
+    "entries" in rawBody &&
+    Array.isArray((rawBody as { entries: unknown }).entries) &&
+    (rawBody as { entries: unknown[] }).entries.length > MAX_BATCH_ENTRIES
+  ) {
+    return apiError(`Batch exceeds the ${MAX_BATCH_ENTRIES}-entry limit`, 422, {
+      errorCode: "coach.batch.too_large",
+    });
+  }
+
+  const parsed = batchPayloadSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return apiError(parsed.error.issues[0]?.message ?? "Invalid batch", 422);
+  }
+
+  const { entries } = parsed.data;
+
+  // First pass — map each inbound entry; record skipped entries.
+  type Prepared = {
+    index: number;
+    entry: BatchEntry;
+    row: Prisma.MeasurementCreateManyInput;
+  };
+  const prepared: Prepared[] = [];
+  const results: EntryResult[] = new Array(entries.length);
+
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index];
+    const mapped = mapAppleHealthEntry({
+      hkIdentifier: entry.hkIdentifier,
+      value: entry.value,
+      unit: entry.unit,
+      startDate: entry.startDate,
+      endDate: entry.endDate,
+      sleepStage: entry.sleepStage,
+    });
+
+    if (!mapped) {
+      results[index] = {
+        index,
+        status: "skipped",
+        reason: "unmappable_identifier",
+      };
+      continue;
+    }
+
+    // Plausibility-range guard. We tolerate "out of plausible range"
+    // by skipping rather than failing the batch — a single bogus
+    // sensor reading shouldn't poison an otherwise clean ingest.
+    const rangeError = validateMeasurementRange(mapped.type, mapped.value);
+    if (rangeError !== null) {
+      results[index] = {
+        index,
+        status: "skipped",
+        reason: "value_out_of_range",
+      };
+      continue;
+    }
+
+    prepared.push({
+      index,
+      entry,
+      row: {
+        userId: user.id,
+        type: mapped.type,
+        value: mapped.value,
+        unit: mapped.unit,
+        source: "APPLE_HEALTH",
+        measuredAt: mapped.takenAt,
+        externalId: entry.externalId,
+        externalSourceVersion: entry.externalSourceVersion ?? null,
+        sleepStage: mapped.sleepStage ?? null,
+      },
+    });
+  }
+
+  let insertedCount = 0;
+  let duplicateCount = 0;
+
+  if (prepared.length > 0) {
+    // Pre-flight duplicate detection so we can return per-entry status
+    // (createMany with skipDuplicates does the dedup but doesn't tell
+    // us *which* rows it skipped). We look up existing rows under the
+    // composite unique key first, then createMany the survivors.
+    const incomingKeys = prepared.map((p) => ({
+      type: p.row.type as Prisma.MeasurementCreateManyInput["type"],
+      externalId: p.row.externalId as string,
+    }));
+
+    const existing = await prisma.measurement.findMany({
+      where: {
+        userId: user.id,
+        source: "APPLE_HEALTH",
+        OR: incomingKeys.map((k) => ({
+          type: k.type,
+          externalId: k.externalId,
+        })),
+      },
+      select: { type: true, externalId: true },
+    });
+
+    const existingSet = new Set(
+      existing.map((row) => `${row.type}::${row.externalId}`),
+    );
+
+    const toInsert: Prisma.MeasurementCreateManyInput[] = [];
+    for (const p of prepared) {
+      const key = `${p.row.type}::${p.row.externalId}`;
+      if (existingSet.has(key)) {
+        results[p.index] = { index: p.index, status: "duplicate" };
+        duplicateCount += 1;
+      } else {
+        results[p.index] = { index: p.index, status: "inserted" };
+        toInsert.push(p.row);
+      }
+    }
+
+    if (toInsert.length > 0) {
+      // Chunk to keep individual SQL statements bounded — 200 rows per
+      // chunk leaves headroom under Postgres' 65k-parameter cap even
+      // with 9-column inserts. `skipDuplicates: true` guards against
+      // races where two batch retries land in the same tick — the
+      // composite unique index does the actual dedup; skipDuplicates
+      // turns the duplicate-PG error into a no-op insert.
+      const CHUNK = 200;
+      const chunks: Prisma.MeasurementCreateManyInput[][] = [];
+      for (let i = 0; i < toInsert.length; i += CHUNK) {
+        chunks.push(toInsert.slice(i, i + CHUNK));
+      }
+      await prisma.$transaction(async (tx) => {
+        for (const chunk of chunks) {
+          const result = await tx.measurement.createMany({
+            data: chunk,
+            skipDuplicates: true,
+          });
+          insertedCount += result.count;
+        }
+      });
+
+      // If `skipDuplicates` quietly absorbed a row (race with another
+      // batch), reconcile the per-entry status so the inserted +
+      // duplicate counts still equal `prepared.length`.
+      const racedDuplicates = toInsert.length - insertedCount;
+      if (racedDuplicates > 0) {
+        // We can't tell *which* rows raced from the createMany return
+        // value — recheck the DB and downgrade matching `inserted`
+        // rows to `duplicate`. This is a rare path so the extra
+        // round-trip is acceptable.
+        const recheck = await prisma.measurement.findMany({
+          where: {
+            userId: user.id,
+            source: "APPLE_HEALTH",
+            OR: toInsert.map((row) => ({
+              type: row.type,
+              externalId: row.externalId as string,
+            })),
+          },
+          select: { type: true, externalId: true },
+        });
+        const stored = new Set(
+          recheck.map((row) => `${row.type}::${row.externalId}`),
+        );
+        // Anything `prepared` flagged as `inserted` but isn't in
+        // `stored` was never written and was raced by another batch —
+        // surface as duplicate.
+        let downgraded = 0;
+        for (const p of prepared) {
+          if (
+            results[p.index]?.status === "inserted" &&
+            !stored.has(`${p.row.type}::${p.row.externalId}`)
+          ) {
+            results[p.index] = { index: p.index, status: "duplicate" };
+            duplicateCount += 1;
+            downgraded += 1;
+          }
+        }
+        insertedCount -= downgraded;
+      }
+    }
+  }
+
+  const skipped = results
+    .filter((r) => r.status === "skipped")
+    .map((r) => ({ index: r.index, reason: r.reason ?? "unknown" }));
+
+  await auditLog("measurement.batch.ingest", {
+    userId: user.id,
+    ipAddress: getClientIp(request),
+    details: {
+      processed: entries.length,
+      inserted: insertedCount,
+      duplicates: duplicateCount,
+      skipped: skipped.length,
+    },
+  });
+
+  annotate({
+    action: { name: "measurement.batch.ingest" },
+    meta: {
+      processed: entries.length,
+      inserted: insertedCount,
+      duplicates: duplicateCount,
+      skipped: skipped.length,
+    },
+  });
+
+  return apiSuccess({
+    processed: entries.length,
+    inserted: insertedCount,
+    duplicates: duplicateCount,
+    skipped,
+    entries: results,
+  });
+}

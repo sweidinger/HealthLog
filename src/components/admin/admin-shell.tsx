@@ -76,6 +76,11 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     icon: Sparkles,
   },
   {
+    slug: "coach-feedback",
+    titleKey: "admin.section.coach-feedback.title",
+    icon: Sparkles,
+  },
+  {
     slug: "feedback",
     titleKey: "admin.section.feedback.title",
     icon: Inbox,

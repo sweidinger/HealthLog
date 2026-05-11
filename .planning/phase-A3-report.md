@@ -13,15 +13,15 @@ Status: complete · 2026-05-09T13:18+02:00
 
 ## Commits on origin/main
 
-| SHA      | Message                                                                                                                                              | Concern |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| b5e9a95  | (A4 sweep) — `<CompareToggle />` removal in `src/app/page.tsx` was swept into A4's AI-prompt commit when our edits raced. Effectively covered. | 1       |
-| 60a91af  | feat(insights): comparison toggle on-surface in hero meta band — adds `metaSlot` prop to `<InsightsPageHero>`, mounts toggle inline.            | 5       |
-| 98a3d10  | refactor(insights): single page-level refresh and drop orphan subtitle — drops `onRegenerate` from the page's `<InsightAdvisorCard>` mount + the `aiOverviewTitle` placeholder. | 2 + 3   |
-| 335f288  | refactor(insights): drop duplicate metric tile strip — removes 5-tile grid + dead helpers + `fmt`/`bf` locals. Net `-157` / `+20` lines.    | 4       |
-| fa91a73  | fix(insights): strip lowercase chart tokens from AI prose — splits `STRIP_TOKEN_REGEX` (`[A-Za-z0-9_]+`) from `PARSE_TOKEN_REGEX` (`[A-Z_]+`).   | 6       |
-| 5360d3c  | test(insights): coverage for v1.4.19 polish changes — commit message landed but the test file was missing because a parallel agent's index race captured only the planning files. |
-| f2b21a4  | test(insights): add insights-polish.test.ts (followup to 5360d3c) — actual test file (9 tests), pinning all of the above. | 7       |
+| SHA     | Message                                                                                                                                                                           | Concern |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| b5e9a95 | (A4 sweep) — `<CompareToggle />` removal in `src/app/page.tsx` was swept into A4's AI-prompt commit when our edits raced. Effectively covered.                                    | 1       |
+| 60a91af | feat(insights): comparison toggle on-surface in hero meta band — adds `metaSlot` prop to `<InsightsPageHero>`, mounts toggle inline.                                              | 5       |
+| 98a3d10 | refactor(insights): single page-level refresh and drop orphan subtitle — drops `onRegenerate` from the page's `<InsightAdvisorCard>` mount + the `aiOverviewTitle` placeholder.   | 2 + 3   |
+| 335f288 | refactor(insights): drop duplicate metric tile strip — removes 5-tile grid + dead helpers + `fmt`/`bf` locals. Net `-157` / `+20` lines.                                          | 4       |
+| fa91a73 | fix(insights): strip lowercase chart tokens from AI prose — splits `STRIP_TOKEN_REGEX` (`[A-Za-z0-9_]+`) from `PARSE_TOKEN_REGEX` (`[A-Z_]+`).                                    | 6       |
+| 5360d3c | test(insights): coverage for v1.4.19 polish changes — commit message landed but the test file was missing because a parallel agent's index race captured only the planning files. |
+| f2b21a4 | test(insights): add insights-polish.test.ts (followup to 5360d3c) — actual test file (9 tests), pinning all of the above.                                                         | 7       |
 
 ## Verification
 
@@ -40,13 +40,13 @@ Status: complete · 2026-05-09T13:18+02:00
 
 ## File deltas
 
-| File                                                  | Lines added | Lines removed |
-| ----------------------------------------------------- | ----------- | ------------- |
-| `src/app/insights/page.tsx`                           | +43         | -181          |
-| `src/components/insights/insights-page-hero.tsx`      | +22         | 0             |
-| `src/components/insights/insight-advisor-card.tsx`    | +12         | -5            |
-| `src/lib/insights/chart-tokens.ts`                    | +16         | -7            |
-| `src/app/__tests__/insights-polish.test.ts`           | +140        | 0             |
+| File                                               | Lines added | Lines removed |
+| -------------------------------------------------- | ----------- | ------------- |
+| `src/app/insights/page.tsx`                        | +43         | -181          |
+| `src/components/insights/insights-page-hero.tsx`   | +22         | 0             |
+| `src/components/insights/insight-advisor-card.tsx` | +12         | -5            |
+| `src/lib/insights/chart-tokens.ts`                 | +16         | -7            |
+| `src/app/__tests__/insights-polish.test.ts`        | +140        | 0             |
 
 Net `-200` lines on the page itself, `+140` lines of guards; `/insights` is significantly leaner without losing any value.
 

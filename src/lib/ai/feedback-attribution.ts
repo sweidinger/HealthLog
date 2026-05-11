@@ -81,3 +81,70 @@ export async function resolveFeedbackAttribution(
     promptVersion: PROMPT_VERSION,
   };
 }
+
+/**
+ * v1.4.23 H7 — attribution shape for a Coach assistant-message
+ * thumbs row. The polymorphic `RecommendationFeedback` table reuses
+ * its existing slots for Coach rows:
+ *   - `recommendationId` carries the Coach message id
+ *   - `coachMessageId` (added in 0042) FKs the source message so the
+ *     prose stays encrypted-at-rest in `coach_messages`. The senior-
+ *     dev review (Sr-H3) flagged the original H7 design that
+ *     snapshotted decrypted prose into `recommendationText` as a
+ *     silent break of the Coach surface's encryption invariant.
+ *   - `recommendationText` is always NULL for coach rows
+ *   - `recommendationSeverity` is always "coach" so dashboards can
+ *     filter / group on the literal
+ *   - `metricSourceType` encodes the user's active prefs at the
+ *     moment of the rating: `coach:tone=warm:verbosity=default`. The
+ *     aggregator buckets on this field so a future audit can slice
+ *     helpful-rate per (tone, verbosity) without a join.
+ *   - `metricSourceTimeRange` is always "single_message"
+ *   - `target_type` is "coach"
+ */
+export interface CoachFeedbackAttribution extends FeedbackAttribution {
+  metricSourceType: string;
+}
+
+export function buildCoachMetricSourceType(
+  tone: string,
+  verbosity: string,
+): string {
+  return `coach:tone=${tone}:verbosity=${verbosity}`;
+}
+
+/**
+ * Resolve the (providerType, promptVersion, metricSourceType) tuple
+ * for a Coach feedback row. Reads the user's latest persisted
+ * Coach assistant message to recover the providerType + promptVersion
+ * stamped on it, and queries the user's active `coachPrefsJson` for
+ * the tone/verbosity slice. Falls back to safe defaults when either
+ * lookup misses.
+ */
+export async function resolveCoachFeedbackAttribution(
+  userId: string,
+  messageId: string,
+): Promise<CoachFeedbackAttribution> {
+  const [message, userRow] = await Promise.all([
+    prisma.coachMessage.findFirst({
+      where: { id: messageId, conversation: { userId } },
+      select: { providerType: true, promptVersion: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { coachPrefsJson: true },
+    }),
+  ]);
+
+  // Lazy-import to avoid circular imports — coach-prefs validation
+  // doesn't depend on attribution but the inverse would create a cycle.
+  const { parseCoachPrefs } = await import("@/lib/validations/coach-prefs");
+  const prefs = parseCoachPrefs(userRow?.coachPrefsJson);
+
+  return {
+    providerType:
+      message?.providerType ?? FEEDBACK_ATTRIBUTION_FALLBACK.providerType,
+    promptVersion: message?.promptVersion ?? PROMPT_VERSION,
+    metricSourceType: buildCoachMetricSourceType(prefs.tone, prefs.verbosity),
+  };
+}

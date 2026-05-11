@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Plus, Sparkles } from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
+import { Plus, Settings, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,7 @@ import { useTranslations } from "@/lib/i18n/context";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachInput } from "./coach-input";
+import { CoachSettingsSheet } from "./coach-settings-sheet";
 import { HistoryRail } from "./history-rail";
 import { MessageThread } from "./message-thread";
 import { DEFAULT_COACH_SCOPE, SourcesRail } from "./sources-rail";
@@ -63,6 +65,55 @@ export interface CoachDrawerProps {
   composer?: React.ReactNode;
 }
 
+/**
+ * v1.4.23 H3 — local state seeded from a controlled prop, reset on
+ * prop change. Same render-phase pattern React's docs recommend in
+ * place of `useEffect(() => setState(prop), [prop])` (which the
+ * `react-hooks/set-state-in-effect` ESLint rule banned). The reset
+ * runs during render: React detects the queued setState, restarts
+ * the render with the new value, and commits a single coherent
+ * snapshot — no double paint, no flash of stale state.
+ *
+ * Exported so the drawer's prefill-reset behaviour can be unit-
+ * tested in isolation without standing up the whole Sheet portal.
+ */
+export function useResettableValue<T>(
+  controlledValue: T,
+): [T, Dispatch<SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(controlledValue);
+  // Mirror the last observed controlled value via a sibling useState
+  // pair (per React docs:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes).
+  // useRef is the wrong tool here — ESLint rejects ref read+write
+  // during render, and useState already gives us identity tracking
+  // with no extra cost.
+  const [lastSeen, setLastSeen] = useState<T>(controlledValue);
+  if (!Object.is(controlledValue, lastSeen)) {
+    setLastSeen(controlledValue);
+    setValue(controlledValue);
+  }
+  return [value, setValue];
+}
+
+/**
+ * v1.4.23 H3 — pure decision function behind `useResettableValue`.
+ * Given the previous controlled value the hook recorded and the
+ * incoming controlled value, returns either `{ reset: true, value }`
+ * (the next render must seed local state with `value`) or
+ * `{ reset: false }` (local state survives — the user's edits are
+ * preserved). Pure + dependency-free so it tests cleanly without a
+ * React renderer — pin the contract here and trust the hook
+ * implementation to wire the same comparison.
+ */
+export function nextResettableValue<T>(
+  previous: T,
+  incoming: T,
+): { reset: true; value: T } | { reset: false } {
+  return Object.is(previous, incoming)
+    ? { reset: false }
+    : { reset: true, value: incoming };
+}
+
 export function CoachDrawer({
   open,
   onOpenChange,
@@ -82,12 +133,22 @@ export function CoachDrawer({
   // data the Coach is using without losing the message thread context.
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
-  // The composer's input value is seeded from `prefill` whenever the
-  // parent toggles `open` — we mount the drawer with a key derived from
-  // (open, prefill) so the lazy initialiser fires fresh on each
-  // open/prefill transition. That sidesteps `setState`-in-`useEffect`
-  // entirely (banned by `react-hooks/set-state-in-effect`).
-  const [inputValue, setInputValue] = useState<string>(() => prefill ?? "");
+  // v1.4.23 H4 — Coach prompt-tuning sheet. The v1.4.22 B5 audit had
+  // removed the placeholder cog from the drawer header; v1.4.23 H4
+  // returns it with a real surface backed by `/api/auth/me/coach-prefs`.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  // v1.4.23 H3 — `prefill` is now a fully-controlled prop. The
+  // v1.4.20 implementation used `key={prefill}` on the parent mount
+  // to force a fresh `useState()` initialiser run on every prefill
+  // transition (the "weaponise-React-keys" pattern senior-dev
+  // review flagged as Sr-HIGH-4). The replacement is a tiny
+  // `useResettableValue` hook below: tracks the last observed
+  // prefill in a ref and schedules a same-render state update when
+  // the prop changes — a textbook React render-phase update,
+  // ESLint-clean against `react-hooks/set-state-in-effect`. The
+  // user can still type freely; the drawer only resets the composer
+  // when the parent changes which suggested-prompt chip is active.
+  const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
   // v1.4.20.1 — scope picker state (per-source checkboxes + window
   // selector). Resets to the all-source last30days default each time
   // the drawer mounts; no conversation-level persistence in this
@@ -172,13 +233,11 @@ export function CoachDrawer({
           "flex h-[100dvh] flex-col gap-0",
         )}
       >
-        {/* Header (full width). Avatar + title + new-chat button.
-            v1.4.22 B5 — the settings cog was removed: it had no real
-            wiring and the matching v1.4.21 placeholder tooltip
-            ("Coach settings arrive in v1.4.21") read as a dead button.
-            A real settings surface for per-user prompt-tuning lands
-            with v1.4.23. pr-12 keeps the new-chat button clear of the
-            Sheet's close-X on narrower viewports. */}
+        {/* Header (full width). Avatar + title + new-chat button +
+            settings cog (v1.4.23 H4 — real per-user prompt-tuning
+            surface, replacing the v1.4.22 B5 dead-button cleanup).
+            pr-12 keeps the buttons clear of the Sheet's close-X on
+            narrower viewports. */}
         <SheetHeader
           data-slot="coach-drawer-header"
           className="border-border/70 flex-row items-center gap-3 border-b p-3 pr-12 sm:p-4 sm:pr-14"
@@ -209,6 +268,17 @@ export function CoachDrawer({
             <span className="hidden sm:inline">
               {t("insights.coach.newChat")}
             </span>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setSettingsOpen(true)}
+            data-slot="coach-drawer-settings"
+            aria-label={t("insights.coach.settingsAriaLabel")}
+            className="size-8 shrink-0"
+          >
+            <Settings className="size-3.5" aria-hidden="true" />
           </Button>
         </SheetHeader>
 
@@ -280,6 +350,14 @@ export function CoachDrawer({
             </div>
           </SheetContent>
         </Sheet>
+        {/* v1.4.23 H4 — Coach prompt-tuning sheet. Right-edge sheet so
+            it doesn't conflict with the existing left/right rail
+            trays (those are <lg / <xl only; the settings sheet works
+            on every viewport). */}
+        <CoachSettingsSheet
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+        />
         <Sheet open={sourcesTrayOpen} onOpenChange={setSourcesTrayOpen}>
           <SheetContent
             side="right"

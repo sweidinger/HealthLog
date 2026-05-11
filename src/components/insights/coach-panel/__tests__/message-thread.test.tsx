@@ -34,6 +34,23 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => useAuthMock(),
 }));
 
+// v1.4.23 H4 — message-thread reads `useQuery(["coach-prefs"])` so the
+// evidence disclosure honours `showEvidenceByDefault`. SSR has no
+// QueryClientProvider; stub the hook to return the legacy defaults so
+// the existing assertions on the closed-by-default disclosure stay
+// representative.
+//
+// v1.4.23 H7 — also stubs `useMutation` for the per-message thumbs
+// feedback row inside the assistant bubble.
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: () => ({ data: undefined }),
+  useMutation: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+    isError: false,
+  }),
+}));
+
 import { MessageThread } from "../message-thread";
 import type { CoachConversationDetailDTO } from "@/lib/ai/coach/types";
 

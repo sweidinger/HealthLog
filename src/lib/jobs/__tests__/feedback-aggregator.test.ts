@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
   aggregateRecommendationFeedback,
+  buildCoachFeedbackBuckets,
   buildFeedbackBuckets,
   DEFAULT_FEEDBACK_AGGREGATION_WINDOW_DAYS,
 } from "../feedback-aggregator";
@@ -12,6 +13,7 @@ interface FeedbackRow {
   providerType: string;
   promptVersion: string;
   helpful: boolean;
+  targetType?: string;
 }
 
 function makePrismaMock(rows: FeedbackRow[]) {
@@ -165,5 +167,98 @@ describe("aggregateRecommendationFeedback", () => {
     expect(upsertCall.update.adminAiInsightsFeedbackSummary.buckets).toEqual(
       [],
     );
+    // v1.4.23 H7 — coachBuckets always present, empty by default.
+    expect(
+      upsertCall.update.adminAiInsightsFeedbackSummary.coachBuckets,
+    ).toEqual([]);
+  });
+});
+
+/**
+ * v1.4.23 H7 — Coach-only bucket view. The aggregator slices the
+ * unified RecommendationFeedback rows on `targetType === "coach"` and
+ * groups by (promptVersion, tone, verbosity).
+ */
+describe("buildCoachFeedbackBuckets", () => {
+  it("ignores non-Coach rows", () => {
+    const rows: FeedbackRow[] = [
+      {
+        recommendationSeverity: "important",
+        metricSourceType: "bloodPressure",
+        providerType: "codex",
+        promptVersion: "4.16.0",
+        helpful: true,
+        targetType: "recommendation",
+      },
+    ];
+    expect(buildCoachFeedbackBuckets(rows)).toEqual([]);
+  });
+
+  it("groups Coach rows by (promptVersion, tone, verbosity)", () => {
+    const rows: FeedbackRow[] = [
+      {
+        recommendationSeverity: "coach",
+        metricSourceType: "coach:tone=warm:verbosity=default",
+        providerType: "codex",
+        promptVersion: "4.23.0",
+        helpful: true,
+        targetType: "coach",
+      },
+      {
+        recommendationSeverity: "coach",
+        metricSourceType: "coach:tone=warm:verbosity=default",
+        providerType: "codex",
+        promptVersion: "4.23.0",
+        helpful: true,
+        targetType: "coach",
+      },
+      {
+        recommendationSeverity: "coach",
+        metricSourceType: "coach:tone=warm:verbosity=default",
+        providerType: "codex",
+        promptVersion: "4.23.0",
+        helpful: false,
+        targetType: "coach",
+      },
+      {
+        recommendationSeverity: "coach",
+        metricSourceType: "coach:tone=concise:verbosity=brief",
+        providerType: "codex",
+        promptVersion: "4.23.0",
+        helpful: true,
+        targetType: "coach",
+      },
+    ];
+    const buckets = buildCoachFeedbackBuckets(rows);
+    expect(buckets).toHaveLength(2);
+    const warm = buckets.find(
+      (b) => b.tone === "warm" && b.verbosity === "default",
+    );
+    expect(warm).toBeDefined();
+    expect(warm?.helpful).toBe(2);
+    expect(warm?.notHelpful).toBe(1);
+    expect(warm?.helpfulRate).toBeCloseTo(0.67, 2);
+    const concise = buckets.find(
+      (b) => b.tone === "concise" && b.verbosity === "brief",
+    );
+    expect(concise?.total).toBe(1);
+    expect(concise?.helpfulRate).toBe(1);
+  });
+
+  it("falls back to tone=unknown when metricSourceType doesn't match the encoded shape", () => {
+    const rows: FeedbackRow[] = [
+      {
+        recommendationSeverity: "coach",
+        metricSourceType: "weird-shape",
+        providerType: "codex",
+        promptVersion: "4.23.0",
+        helpful: false,
+        targetType: "coach",
+      },
+    ];
+    const buckets = buildCoachFeedbackBuckets(rows);
+    expect(buckets).toHaveLength(1);
+    expect(buckets[0].tone).toBe("unknown");
+    expect(buckets[0].verbosity).toBe("unknown");
   });
 });
