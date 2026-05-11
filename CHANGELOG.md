@@ -1,5 +1,216 @@
 # Changelog
 
+## [1.4.23] — 2026-05-11
+
+### Added
+
+- **Apple Health measurement schema + batch-ingest contract.** Seven
+  new `MeasurementType` values (`HEART_RATE_VARIABILITY`,
+  `RESTING_HEART_RATE`, `ACTIVE_ENERGY_BURNED`, `FLIGHTS_CLIMBED`,
+  `WALKING_RUNNING_DISTANCE`, `VO2_MAX`, `BODY_TEMPERATURE`),
+  `APPLE_HEALTH` joins `MeasurementSource`, and `Measurement` picks
+  up a nullable `sleepStage` column scoped via CHECK constraint to
+  `SLEEP_DURATION` rows. Sleep is now persisted in minutes instead
+  of hours. Migration `0036_apple_health_measurement_types` is
+  strictly additive — no row mutations, no rename, the legacy
+  `(user_id, type, measured_at, source)` unique index stays. A new
+  composite unique index `(user_id, type, source, external_id)`
+  becomes the Apple Health dedup key. New endpoint
+  `POST /api/measurements/batch` accepts ≤500 entries per call,
+  wraps `withIdempotency()`, returns per-entry
+  `inserted | duplicate | skipped` status with a typed reason field,
+  and is idempotency-replay safe. Sleep-stage aggregation in
+  `/api/analytics` rolls multi-stage nights into one Berlin-day
+  datapoint with a per-stage breakdown over the trailing 30 days.
+- **APNs scaffolding + dispatcher cascade rewire.** `@parse/node-apn`
+  joins the senders cascade as channel-type 4 (APNs → Telegram → ntfy
+  → Web Push, deterministic order). Provider is lazily-initialised
+  per gateway (`sandbox` vs `production`), JWT auto-rotates inside
+  the library. Permanent failures (`Unregistered`, `BadDeviceToken`,
+  `DeviceTokenNotForTopic`) drop the dead Device row mirroring the
+  web-push 410 cleanup. `Device` model gains nullable `apnsToken` +
+  `apnsEnvironment` columns with a paired CHECK constraint (either
+  both set or both null) and a partial unique index on `apns_token`.
+  Migration `0037_apns_device_columns`. `POST /api/devices` accepts
+  paired `apnsToken` + `apnsEnvironment` with a 422 when one comes
+  without the other and a 409 + `apns_token_owned_by_other_user`
+  audit reason when a token already belongs to a different account.
+  Production without `APNS_KEY_ID` is a no-op rather than a boot
+  failure; partially-set env triggers a single warning at first
+  dispatch.
+- **OpenAPI 3.1 generator + drift CI gate.** `pnpm openapi:generate`
+  reads Zod v4 `.meta()` annotations on the existing validation
+  schemas and emits a byte-stable `docs/api/openapi.yaml` (`zod-openapi`
+  + `yaml@^2` with `sortMapEntries: true`). The eight iOS-critical
+  routes are registered now: `auth/login`, passkey verify,
+  `auth/refresh`, `measurements` GET + POST + batch, `devices` POST,
+  and the comprehensive insights bundle. A new `pnpm openapi:check`
+  CI step diffs generated vs committed; warn-only for v1.4.23 so a
+  registry oversight on a non-iOS route doesn't red-bar a PR, flips
+  to hard-fail in v1.4.24. The legacy hand-maintained spec is
+  preserved at `docs/api/openapi-v1422-legacy.yaml` so iOS DTO
+  reference doesn't disappear during the incremental migration.
+- **Device-management endpoints for native + web settings.**
+  `GET /api/auth/me/devices` lists active devices with label, last-
+  seen timestamp, channels (`web_push` / `apns`), and an `isCurrent`
+  marker keyed off the session's `deviceId` (not the forgeable
+  `X-Device-Id` header). `DELETE /api/auth/me/devices/[id]` revokes
+  a single device in one transaction: refresh tokens, access tokens,
+  notification channels, push subscriptions, and the `Device` row.
+  `DELETE /api/devices/[id]` is the native-friendly mirror the iOS
+  APNs-rotation flow calls. Cross-user attempts return 404 with no
+  enumeration leak.
+- **Per-user Coach prefs surface (settings cog returns).** New
+  `User.coachPrefsJson` column (migration `0038_coach_prefs`) +
+  `GET / PUT /api/auth/me/coach-prefs`. The settings cog on the
+  Coach drawer opens a right-edge `<Sheet>` letting users dial in
+  `tone`, `verbosity`, focus-metrics, and exclude-metrics. The
+  system prompt prepends a per-user OVERRIDE block; the snapshot
+  pipeline reads prefs BEFORE measurement queries so excluded
+  metrics never enter the snapshot in the first place.
+- **Per-message Coach thumbs feedback + admin aggregate view.** Each
+  Coach reply renders a 👍 / 👎 affordance. `RecommendationFeedback`
+  gains a polymorphic `target_type` discriminator (migration
+  `0040_recommendation_feedback_target_type`); legacy recommendation
+  feedback rows backfill to `RECOMMENDATION`, new Coach rows persist
+  with `COACH_MESSAGE` and the message's `coach_messages.id`. New
+  endpoint `POST /api/insights/chat/messages/:id/feedback`. A new
+  admin section `/admin/coach-feedback` renders helpful-rate buckets
+  by (promptVersion, tone, verbosity) and gets a sidebar entry
+  + EN/DE i18n bundle.
+
+### Changed
+
+- **Refresh-token reuse-detection scopes to the originating device.**
+  Pre-1.4.23 a replayed refresh token revoked every refresh token
+  the user owned. v1.4.23 narrows the blast radius to the device
+  that issued the token (legacy null-deviceId tokens still fall back
+  to user-wide revoke as a safety hatch). A two-device household no
+  longer gets logged out of both phones when one replays.
+- **Pearson surfacing gate raised from n≥14 to n≥20.** Conservative
+  patch on the low-df p-value path — trades a small number of
+  borderline correlation cards for stricter false-positive control.
+  The rigorous incomplete-beta replacement is queued for v1.4.24.
+- **Coach drawer prefill becomes a controlled prop.** The
+  `<CoachDrawer key={prefill}>` mount-cycle hack is replaced with a
+  `useResettableValue` hook + pure `nextResettableValue` helper. The
+  drawer rerenders without remounting; the prefill state lives on
+  the parent as a fully-controlled input.
+- **`/api/analytics` BP-in-target aggregate becomes cursor-paged.**
+  The unbounded `findMany` lands as `fetchBpSeriesChunked` cursoring
+  in 5 000-row batches with a new `analytics.bp_in_target.row_count`
+  wide-event for slow-query attribution. Replay regression test
+  seeds 6 000 rows across a chunk boundary.
+- **Coolify webhook contract documented end-to-end.** GHCR build →
+  `force=true` Coolify deploy → `/api/version` poll → host-side
+  retag fallback if the `:latest` digest hasn't moved. The CI step
+  now emits a `::notice::` line with the deploy timestamp + image
+  sha so future runs surface the contract without opening the
+  verbose log.
+- **Coach feedback foreign-key targets `coach_messages` directly.**
+  The plaintext `content` column on `recommendation_feedback` is
+  retired — feedback rows now reference the canonical encrypted
+  message row, and the aggregator queries through the FK rather
+  than reading prose into memory.
+- **PROMPT_VERSION 4.22.0 → 4.23.0** with a new GROUND RULE 12
+  (EN + DE): treat Apple Health categories (HRV, sleep, resting HR,
+  steps, active energy, flights, distance, VO2 max, body temp) as
+  silent when the snapshot doesn't carry them. No apologetic openers
+  about missing data. `aiInsightResponseSchema.dailyBriefing
+  .keyFindings[].sourceMetric` and `trendAnnotations` enums extend
+  to admit the nine additive HealthKit categories.
+- **`medication_schedules.days_of_week` column deployed.** Migration
+  `0039_medication_schedule_days_of_week` adds the nullable column
+  (NULL = daily). Closes the v1.4.22 schema-drift watchlist item.
+
+### Fixed
+
+- **Admin coach-feedback sidebar entry.** The W5 H7 admin section
+  shipped without a sidebar nav entry, so the page was unreachable
+  from the chrome.
+- **APNs `NotificationChannel` auto-upsert on device registration.**
+  Registering a fresh device with an `apnsToken` now creates the
+  matching `NotificationChannel` row in the same transaction
+  instead of leaving the device row orphaned from the cascade.
+- **Partial unique index enforces `apns_token` global uniqueness.**
+  App-layer guard catches the cross-user-hijack case; the DB-layer
+  partial unique index (`CREATE UNIQUE INDEX … WHERE apns_token IS
+  NOT NULL`) is the defence-in-depth backstop.
+- **Apple Health source badge renders on mobile measurement card.**
+  Desktop list rendered the chip; the mobile card variant fell back
+  to source-less prose. Both surfaces now share the same renderer.
+- **Coach prefs sheet skeleton + save toast.** Initial open painted
+  a flash of unstyled defaults; save action ran silently. The sheet
+  now shows a skeleton during the prefetch and confirms persistence
+  via the standard toast.
+- **Device revoke cascade wraps refresh + access + channels + Device
+  row in one transaction.** Pre-fix a mid-flight failure could leave
+  the device row gone while the refresh tokens stayed live.
+- **`isCurrent` device marker keys off the session's `deviceId`,
+  not `X-Device-Id`.** The header is forgeable; the cookie-bound
+  session record is not. Regression test in the device-list route.
+- **Sentinel parser annotates partial-malformed entries instead of
+  collapsing the whole block.** `SentinelParseResult.malformedEntries[]`
+  now carries per-line typed reasons; the chat route splits
+  `coach.keyvalues.parse_partial` from the full-block
+  `coach.keyvalues.parse_failed` wide-event for partial recovery.
+
+### Security
+
+- **APNs send-side defence-in-depth.** Hex format validated at the
+  registration boundary; cross-user-hijack guard duplicated at the
+  APNs-token layer (409 + dedicated audit reason). Send-side payload
+  redacts the resolved user + device IDs before logging.
+- **Coolify webhook URL scrubbed from the deploy runbook.** Webhook
+  + token live in GH secrets; the runbook references the secret
+  names rather than the raw URL.
+- **Coach prose encryption-at-rest restored.** The plaintext
+  `content` column on `recommendation_feedback` was dropped after
+  the feedback rows migrated to a `coach_messages` FK. Cypher text
+  is now the only on-disk form.
+
+### Refactor
+
+- **`revokeDeviceCascade(deviceId)` helper.** The four-way revoke
+  (refresh + access + channels + device row) lived inline at three
+  call sites. Helper now owns the transaction wrapper; call sites
+  drop to one line.
+- **`useCoachPrefs()` hook.** Coach drawer + settings sheet shared
+  the same fetch + mutate + invalidate triplet; the hook collapses
+  the three call sites into one with shared optimistic-update logic.
+- **`buildCoachSnapshot` scope-record argument.** The build pipeline
+  passed seven booleans across three callees; collapses to a single
+  `scope` record. Per-stream toggles read off `scope.has(metric)`.
+- **OpenAPI registry uses static imports instead of dynamic
+  require.** The lazy require pattern broke type inference at the
+  registration site; the static import keeps the generator output
+  deterministic.
+
+### Deferred to v1.4.24
+
+- Pearson incomplete-beta p-value (W5 H6 carried as the
+  conservative n≥20 patch).
+- Settings-cog vs per-message-controls UX consolidation
+  (waits on first-week thumbs data).
+- OpenAPI drift gate flip from warn-only to hard-fail
+  (requires registry catch-up first).
+- `coach-prefs.test.ts` integration `NextRequest` URL mock
+  regression — predates v1.4.23, surfaced during the W6 reconcile.
+- Sec-MED-1 follow-ups: intra-batch dedup accounting (Sec-LOW-1),
+  idempotency 422 retry hint (Sec-LOW-2), APNs key-file path
+  redaction (Sec-LOW-3), refresh-failure audit userId (Sec-LOW-4).
+
+### Deferred to v1.5
+
+- iOS native client (P1: login + dashboard + widget) — server
+  contracts all locked in v1.4.23.
+- Apple Health sync (P2) — schema + batch endpoint shipped; iOS
+  `HealthKitService` + `SyncCoordinator` wire still pending.
+- Coach extended for HRV / Sleep / Resting HR / Steps (P3) — schema
+  slot + GROUND RULE 12 landed; prompt rules + i18n bundles pending.
+- Per-metric APNs alerts (P4) — sender + dispatcher shipped; per-
+  event opt-out + background pushes pending.
+
 ## [1.4.22] — 2026-05-10
 
 ### Added
