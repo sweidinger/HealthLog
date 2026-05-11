@@ -21,7 +21,11 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockPathnameRef.value,
 }));
 
+import { readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+
 import { I18nProvider } from "@/lib/i18n/context";
+import { ADMIN_SECTION_SLUGS } from "../section-slugs";
 import { ADMIN_SECTIONS, AdminShell } from "../admin-shell";
 
 function renderShell(props: {
@@ -84,6 +88,44 @@ describe("<AdminShell>", () => {
     const activeLinkRegex =
       /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/admin\/api-tokens"|<a\b[^>]*\bhref="\/admin\/api-tokens"[^>]*\baria-current="page"/g;
     expect(html.match(activeLinkRegex)?.length ?? 0).toBe(2);
+  });
+
+  it("ADMIN_SECTIONS covers every slug in ADMIN_SECTION_SLUGS (drift guard)", () => {
+    // Hand-maintained `ADMIN_SECTIONS` (sidebar nav) used to drift from
+    // `ADMIN_SECTION_SLUGS` (slug list / generateStaticParams source of
+    // truth). v1.4.23 W6 design review CRIT C1 caught coach-feedback
+    // missing from the nav even though the slug + page + i18n shipped.
+    const navSlugs = new Set(ADMIN_SECTIONS.map((s) => s.slug));
+    for (const slug of ADMIN_SECTION_SLUGS) {
+      expect(navSlugs.has(slug), `ADMIN_SECTIONS missing nav entry for ${slug}`).toBe(true);
+    }
+  });
+
+  it("every /admin/[section] page slug has a matching ADMIN_SECTIONS nav entry", () => {
+    // Walks the filesystem so any new admin section page added under
+    // ADMIN_SECTION_SLUGS without a nav entry fails this test. Since
+    // /admin/[section] is a single dynamic route, the slug source of
+    // truth is the union of `ADMIN_SECTION_SLUGS` and the renderer's
+    // exhaustive switch — both have to know about the slug for the
+    // page to render.
+    const renderer = readdirSync(
+      join(process.cwd(), "src/app/admin/[section]"),
+    );
+    expect(renderer).toContain("page.tsx");
+    expect(renderer).toContain("renderer.tsx");
+    const navSlugs = new Set(ADMIN_SECTIONS.map((s) => s.slug));
+    for (const slug of ADMIN_SECTION_SLUGS) {
+      expect(
+        navSlugs.has(slug),
+        `slug ${slug} registered in ADMIN_SECTION_SLUGS but missing from ADMIN_SECTIONS`,
+      ).toBe(true);
+    }
+    // Touch statSync so the import isn't dead — and so the
+    // filesystem read isn't accidentally noop'd by a future tree-
+    // shaker pass.
+    expect(
+      statSync(join(process.cwd(), "src/app/admin/[section]/page.tsx")).isFile(),
+    ).toBe(true);
   });
 
   it("does NOT mark any section active on `/admin` overview", () => {
