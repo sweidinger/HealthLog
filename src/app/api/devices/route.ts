@@ -28,6 +28,7 @@ import { apiError, apiSuccess, safeJson } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
+import { encrypt } from "@/lib/crypto";
 
 const deviceSchema = z
   .object({
@@ -155,6 +156,28 @@ export const POST = apiHandler(async (request: NextRequest) => {
       select: { id: true },
     });
     id = created.id;
+  }
+
+  // Auto-create the APNS NotificationChannel row when the device
+  // registers with an apnsToken. Without this row the dispatcher's APNS
+  // branch (`dispatcher.ts:41-49`) never fires for the user — every
+  // production iOS install would otherwise need a manual settings
+  // toggle that doesn't exist. Mirrors the legacy Telegram on-first-
+  // dispatch auto-migration, but eager so the very first reminder
+  // after device registration already routes through APNs. Config is
+  // an encrypted empty record by design — the per-device token +
+  // environment live on the Device row.
+  if (apnsToken) {
+    await prisma.notificationChannel.upsert({
+      where: { userId_type: { userId: user.id, type: "APNS" } },
+      create: {
+        userId: user.id,
+        type: "APNS",
+        enabled: true,
+        config: encrypt("{}"),
+      },
+      update: {},
+    });
   }
 
   await auditLog("devices.register", {
