@@ -117,7 +117,8 @@ auto-deploy code ships:
    Token format: `n_<base62>`.
 2. **Add two GitHub repository secrets**:
    - `COOLIFY_WEBHOOK` =
-     `https://apps-01.bombeck.io/api/v1/deploy?uuid=pg8wggwogo8c4gc4ks0kk4ss&force=false`
+     `https://<COOLIFY_INSTANCE>/api/v1/deploy?uuid=<APPLICATION_UUID>&force=false`
+     (the actual values live in repo secrets only).
    - `COOLIFY_TOKEN` = the token from step 1.
 3. **Configure Coolify outgoing notifications**:
    - Settings → Notifications → Webhook

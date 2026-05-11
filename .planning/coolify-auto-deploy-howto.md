@@ -23,10 +23,11 @@ its image-cache on every workflow-triggered deploy.
 Set these once. Both required.
 
 1. **`COOLIFY_WEBHOOK`**
-   - Value: `https://apps-01.bombeck.io/api/v1/deploy?uuid=pg8wggwogo8c4gc4ks0kk4ss&force=false`
+   - Value: `https://<COOLIFY_INSTANCE>/api/v1/deploy?uuid=<APPLICATION_UUID>&force=false`
    - Find: Coolify UI → Application → **Webhooks** tab → "Deploy" URL.
      The workflow appends `&force=true` if your stored URL doesn't
      already carry a `force=` parameter, so either value is fine.
+   - The actual values live in repo secrets only.
 
 2. **`COOLIFY_TOKEN`**
    - Value: a Bearer token from Coolify UI → **Keys & Tokens** →
@@ -51,6 +52,24 @@ registry round-trip. Flip it once, save, never touch again.
 The toggle's exact wording shifts between Coolify v4 point-releases;
 look for "image registry", "digest auto-deploy", or
 "auto-update" in the same tab.
+
+## Pre-deploy data check (v1.4.23 onwards)
+
+Migration `0036_apple_health_measurement_types` documents a unit
+semantics shift for `SLEEP_DURATION` (hours → minutes) and explicitly
+relies on **zero** pre-existing rows of that type. Before tagging
+v1.4.23 (or any future release that re-applies migration 0036 against
+a fresh database):
+
+```
+psql "$DATABASE_URL" -c "select count(*) from measurements where type = 'SLEEP_DURATION'"
+```
+
+If the count is non-zero, write a one-shot data-migration multiplying
+every existing `SLEEP_DURATION` row's `value` column by 60 (hours →
+minutes) BEFORE running `prisma migrate deploy`. Skipping the check
+will silently shrink displayed sleep duration by 60× without
+rewriting the stored numeric.
 
 ## Verification
 

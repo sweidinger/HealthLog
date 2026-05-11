@@ -7,10 +7,16 @@
  * device-identifying metadata only (label, lastSeen, channels) — no
  * tokens, no APNs identifiers, no IPs.
  *
- * The "current device" marker is best-effort: the route inspects the
- * X-Device-Id header (which the native client always sends) and marks
- * the matching row with `isCurrent: true`. Browser callers don't have a
- * device row and therefore see `isCurrent: false` across the board.
+ * v1.4.23 W6 reconcile (Sr-MED-5) — the "current device" marker is no
+ * longer derived from the unauthenticated `X-Device-Id` request header
+ * alone. The header value is now cross-checked against an unrevoked
+ * RefreshToken row owned by the authenticated user; only when both
+ * agree do we mark the matching row with `isCurrent: true`. This stops
+ * a forged `X-Device-Id` header from flipping the badge for a device
+ * the caller doesn't actually hold a credential for. Browser callers
+ * (cookie sessions, no refresh-token row) continue to see
+ * `isCurrent: false` across the board — there is no server-side anchor
+ * to validate the header against.
  */
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
@@ -32,7 +38,23 @@ interface DeviceDTO {
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
-  const currentDeviceId = request.headers.get("x-device-id");
+  const headerDeviceId = request.headers.get("x-device-id");
+
+  // Sr-MED-5 — anchor `isCurrent` against a server-trusted credential.
+  // The header is only honoured when the user actually holds a live
+  // refresh-token issued for that device. Otherwise, ignore it.
+  let trustedCurrentDeviceId: string | null = null;
+  if (headerDeviceId) {
+    const tokenForDevice = await prisma.refreshToken.findFirst({
+      where: {
+        userId: user.id,
+        deviceId: headerDeviceId,
+        revokedAt: null,
+      },
+      select: { id: true },
+    });
+    if (tokenForDevice) trustedCurrentDeviceId = headerDeviceId;
+  }
 
   const devices = await prisma.device.findMany({
     where: { userId: user.id },
@@ -57,7 +79,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
       channels,
       lastSeenAt: d.lastSeen.toISOString(),
       createdAt: d.createdAt.toISOString(),
-      isCurrent: currentDeviceId !== null && d.id === currentDeviceId,
+      isCurrent:
+        trustedCurrentDeviceId !== null && d.id === trustedCurrentDeviceId,
     };
   });
 

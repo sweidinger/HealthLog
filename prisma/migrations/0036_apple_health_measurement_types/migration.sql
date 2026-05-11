@@ -15,6 +15,18 @@
 -- this enum value yet (per the v1.4.23 W1 research), so the change is
 -- effectively schema-only — the application enforces the new unit going
 -- forward via `getUnitForType()`.
+--
+-- Pre-deploy verification (v1.4.23 W6 reconcile, Sec MED cluster):
+-- Before tagging v1.4.23 the maintainer MUST run
+--   psql -c "select count(*) from measurements where type = 'SLEEP_DURATION'"
+-- and confirm the result is `0`. If the count is non-zero, this
+-- migration's "schema-only" assumption no longer holds and the operator
+-- has to ship a one-shot data-migration multiplying every existing
+-- SLEEP_DURATION row's `value` column by 60 (hours → minutes) BEFORE
+-- this migration is applied. Skipping the check would silently rewrite
+-- the unit semantics on rows that were ingested under the old contract,
+-- shrinking displayed sleep duration by 60× without rewriting the
+-- stored numeric.
 
 -- ── MeasurementType — append 7 Apple-Health-shaped enum values ──────
 
