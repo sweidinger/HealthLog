@@ -35,10 +35,13 @@ Reserved next strategic milestones:
 
 - **v1.5** — iOS app + Apple Health integration + per-metric APNs
   alerts. Strategic plan at
-  `.planning/phase-W5-v1422-product-lead-review.md`.
+  `.planning/phase-W5-v1422-product-lead-review.md`. Per-user
+  timezone (issue #167) is a candidate for this milestone — see
+  `.planning/feature-user-timezone.md` for the full proposal.
 - **v1.6+** — Auto-correlation discovery (FDR-controlled), Coach
   full-page route at `/insights/coach`, conversation-driven goal
-  setting.
+  setting. Per-user timezone slips here if v1.5 stays
+  iOS-focused.
 
 ---
 
