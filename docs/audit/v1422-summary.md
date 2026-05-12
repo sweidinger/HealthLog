@@ -6,14 +6,14 @@ v1.4.22 is the polish release that closes loops the Insights redesign, the AI Co
 
 ## Live state
 
-| Field | Value |
-|---|---|
-| URL | `https://healthlog.bombeck.io` |
-| `/api/version` | `1.4.22` |
-| Image digest | `sha256:865154614303fdc362ee3941776f73ec0f60e1f16112ec272a75cbbe28e2cffb` |
-| Version transition | 2026-05-10T22:43:50+02:00 (host-side retag fallback) |
-| GH release | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.22 |
-| Branch model | second release through the `develop` → `main` model (introduced in v1.4.20 F1) |
+| Field              | Value                                                                          |
+| ------------------ | ------------------------------------------------------------------------------ |
+| URL                | `https://healthlog.bombeck.io`                                                 |
+| `/api/version`     | `1.4.22`                                                                       |
+| Image digest       | `sha256:865154614303fdc362ee3941776f73ec0f60e1f16112ec272a75cbbe28e2cffb`      |
+| Version transition | 2026-05-10T22:43:50+02:00 (host-side retag fallback)                           |
+| GH release         | https://github.com/MBombeck/HealthLog/releases/tag/v1.4.22                     |
+| Branch model       | second release through the `develop` → `main` model (introduced in v1.4.20 F1) |
 
 ## Smoke (no session)
 
