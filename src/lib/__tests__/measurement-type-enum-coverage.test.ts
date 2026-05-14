@@ -34,10 +34,22 @@ const EXPECTED_TYPES = [
   "WALKING_RUNNING_DISTANCE",
   "VO2_MAX",
   "BODY_TEMPERATURE",
+  // ── v1.4.25 W5d Withings full coverage ──
+  "FAT_FREE_MASS",
+  "FAT_MASS",
+  "MUSCLE_MASS",
+  "SKIN_TEMPERATURE",
+  "PULSE_WAVE_VELOCITY",
+  "VASCULAR_AGE",
+  "VISCERAL_FAT",
+  // ── v1.4.25 W8d Apple Health server-prep ──
+  "AUDIO_EXPOSURE_ENV",
+  "AUDIO_EXPOSURE_HEADPHONE",
+  "TIME_IN_DAYLIGHT",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 18 canonical measurement types", () => {
+  it("exposes the 28 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -52,6 +64,11 @@ describe("measurementTypeEnum coverage", () => {
   //    the v1.4.23 release of the doctor PDF — they ship into the
   //    clinical surface alongside the iOS app's first paying-customer
   //    sync in v1.5 once layout + reference ranges are agreed.
+  //  - v1.4.25 Withings additions (fat-free / fat / muscle mass, skin
+  //    temperature, pulse-wave velocity, vascular age, visceral fat) are
+  //    held under the same v1.5 gate. Body composition + cardiovascular
+  //    risk markers warrant their own clinical layout (reference ranges
+  //    differ by sex/age) which lands with the iOS-app clinical surface.
   // Updates to this set MUST be paired with a comment in
   // doctor-report-pdf-core.ts so the rationale stays discoverable.
   const PDF_VITAL_EXCLUSIONS = new Set([
@@ -65,6 +82,20 @@ describe("measurementTypeEnum coverage", () => {
     "WALKING_RUNNING_DISTANCE",
     "VO2_MAX",
     "BODY_TEMPERATURE",
+    "FAT_FREE_MASS",
+    "FAT_MASS",
+    "MUSCLE_MASS",
+    "SKIN_TEMPERATURE",
+    "PULSE_WAVE_VELOCITY",
+    "VASCULAR_AGE",
+    "VISCERAL_FAT",
+    // v1.4.25 W8d Apple Health additions held under the same v1.5 gate.
+    // Audio exposure and time-in-daylight are lifestyle / environment
+    // metrics; reference ranges + clinical layout land alongside the
+    // first iOS-app sync, not the v1.4.25 PDF.
+    "AUDIO_EXPOSURE_ENV",
+    "AUDIO_EXPOSURE_HEADPHONE",
+    "TIME_IN_DAYLIGHT",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

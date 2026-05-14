@@ -13,6 +13,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { syncUserMeasurements } from "@/lib/withings/sync";
+import { syncUserActivity } from "@/lib/withings/sync-activity";
+import { syncUserSleep } from "@/lib/withings/sync-sleep";
 import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
 import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
 import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
@@ -31,6 +33,19 @@ import { cleanupExpiredIdempotencyKeys } from "@/lib/jobs/idempotency-cleanup";
 import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
 import { runHostMetricTick } from "@/lib/jobs/host-metric-sampler";
 import { aggregateRecommendationFeedback } from "@/lib/jobs/feedback-aggregator";
+import {
+  PR_DETECTION_QUEUE,
+  PR_DETECTION_CONCURRENCY,
+  PR_DETECTION_FALLBACK_CRON,
+  type PrDetectionPayload,
+} from "@/lib/jobs/pr-detection";
+import { detectPersonalRecordsForUser } from "@/lib/personal-records/pr-detection-worker";
+import {
+  MEDICATION_INVENTORY_EXPIRE_QUEUE,
+  MEDICATION_INVENTORY_EXPIRE_CRON,
+  type MedicationInventoryExpirePayload,
+} from "@/lib/jobs/medication-inventory-expire";
+import { expireStaleInUseItems } from "@/lib/medications/inventory/service";
 import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
 import { deleteMessage } from "@/lib/telegram";
 import { decrypt, encrypt } from "@/lib/crypto";
@@ -77,6 +92,16 @@ const QUEUE_NAME = "medication-reminder-check";
 const CHECK_INTERVAL_CRON = "*/15 * * * *"; // every 15 minutes
 const WITHINGS_SYNC_QUEUE = "withings-fallback-sync";
 const WITHINGS_SYNC_CRON = "0 * * * *"; // every 60 minutes
+// v1.4.25 W17b/c — webhook-primary + cron-safety-net for activity and
+// sleep v2. The webhook handler enqueues per-user jobs on appli=16 / 44
+// notifications; the crons below are the catch-net for the 1 % of
+// notifications Withings drops. Offset 15-minute cadence per the
+// research recommendation so the two queues don't lockstep against the
+// existing measure cron at :00.
+const WITHINGS_ACTIVITY_QUEUE = "withings-activity-sync";
+const WITHINGS_ACTIVITY_CRON = "0 * * * *"; // every hour at :00
+const WITHINGS_SLEEP_QUEUE = "withings-sleep-sync";
+const WITHINGS_SLEEP_CRON = "15 * * * *"; // every hour at :15
 const GENERAL_STATUS_QUEUE = "insights-general-status";
 const GENERAL_STATUS_CRON = "0 2 * * *"; // daily at 02:00
 const BLOOD_PRESSURE_STATUS_QUEUE = "insights-blood-pressure-status";
@@ -122,6 +147,26 @@ interface ReminderCheckPayload {
 
 interface WithingsSyncPayload {
   triggeredAt: string;
+}
+
+/**
+ * v1.4.25 W17b — payload for the activity-sync queue. When enqueued
+ * by the webhook handler, `userId` is set so the worker syncs only
+ * that user; when enqueued by the cron schedule, `userId` is absent
+ * and the worker iterates every connection (safety-net behaviour).
+ */
+interface WithingsActivitySyncPayload {
+  triggeredAt: string;
+  userId?: string;
+}
+
+/**
+ * v1.4.25 W17c — payload for the sleep-sync queue. Same shape and
+ * webhook-vs-cron semantics as the activity payload.
+ */
+interface WithingsSleepSyncPayload {
+  triggeredAt: string;
+  userId?: string;
 }
 
 interface GeneralStatusPayload {
@@ -539,6 +584,128 @@ async function handleWithingsFallbackSync(jobs: Job<WithingsSyncPayload>[]) {
         result: {
           users_synced: usersSynced,
           total: connections.length,
+          measurements_imported: measurementsImported,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+/**
+ * v1.4.25 W17b — activity-sync handler.
+ *
+ * Two enqueue paths feed this queue:
+ *
+ *   1. Webhook (appli=16) — payload carries `userId`, the handler
+ *      runs `syncUserActivity` for that one user.
+ *   2. Cron (`withings-activity-sync` at :00 every hour) — payload
+ *      has no `userId`, the handler iterates every Withings
+ *      connection and re-syncs each. Catches the 1 % of webhook
+ *      deliveries Withings drops.
+ *
+ * Sync failures per-user are logged as warnings; the queue carries on
+ * so one user's parked-at-reauth state doesn't starve every other
+ * connection on the cron tick.
+ */
+async function handleWithingsActivitySync(
+  jobs: Job<WithingsActivitySyncPayload>[],
+) {
+  await withBackgroundEvent("job.withings_activity_sync", async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      const targets: Array<{ userId: string }> = [];
+      for (const job of jobs) {
+        if (job.data?.userId) {
+          targets.push({ userId: job.data.userId });
+        }
+      }
+      // No user-specific enqueue → cron fallback iterating everyone.
+      if (targets.length === 0) {
+        const connections = await prisma.withingsConnection.findMany({
+          select: { userId: true },
+        });
+        targets.push(...connections);
+      }
+      if (targets.length === 0) return;
+
+      let usersSynced = 0;
+      let measurementsImported = 0;
+      for (const { userId } of targets) {
+        try {
+          const imported = await syncUserActivity(userId);
+          usersSynced++;
+          measurementsImported += imported;
+        } catch (err) {
+          evt.addWarning(
+            `Withings activity sync failed for user ${userId}: ${err}`,
+          );
+        }
+      }
+
+      evt.setBackground({
+        task_name: "job.withings_activity_sync",
+        result: {
+          users_synced: usersSynced,
+          total: targets.length,
+          measurements_imported: measurementsImported,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+/**
+ * v1.4.25 W17c — sleep-sync handler. Same enqueue semantics as the
+ * activity handler: per-user when the webhook fires, full-iteration
+ * when the cron ticks.
+ */
+async function handleWithingsSleepSync(
+  jobs: Job<WithingsSleepSyncPayload>[],
+) {
+  await withBackgroundEvent("job.withings_sleep_sync", async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      const targets: Array<{ userId: string }> = [];
+      for (const job of jobs) {
+        if (job.data?.userId) {
+          targets.push({ userId: job.data.userId });
+        }
+      }
+      if (targets.length === 0) {
+        const connections = await prisma.withingsConnection.findMany({
+          select: { userId: true },
+        });
+        targets.push(...connections);
+      }
+      if (targets.length === 0) return;
+
+      let usersSynced = 0;
+      let measurementsImported = 0;
+      for (const { userId } of targets) {
+        try {
+          const imported = await syncUserSleep(userId);
+          usersSynced++;
+          measurementsImported += imported;
+        } catch (err) {
+          evt.addWarning(
+            `Withings sleep sync failed for user ${userId}: ${err}`,
+          );
+        }
+      }
+
+      evt.setBackground({
+        task_name: "job.withings_sleep_sync",
+        result: {
+          users_synced: usersSynced,
+          total: targets.length,
           measurements_imported: measurementsImported,
         },
       });
@@ -971,6 +1138,68 @@ async function handleFeedbackAggregator(
   });
 }
 
+async function handlePrDetection(
+  jobs: Job<PrDetectionPayload | { userId?: undefined }>[],
+) {
+  for (const job of jobs) {
+    await withBackgroundEvent("job.pr_detection", async (evt) => {
+      const p = getWorkerPrisma();
+      // The cron-fired job carries an empty payload — iterate all
+      // users in that case. The push-suppression flag is irrelevant
+      // for the cron path (the dispatcher's per-user opt-in handles
+      // the loud/quiet decision once the row is written).
+      const payloadUserId = (job.data as PrDetectionPayload | undefined)?.userId;
+      const silent = (job.data as PrDetectionPayload | undefined)?.silent ?? false;
+      const userIds: string[] = payloadUserId
+        ? [payloadUserId]
+        : (await p.user.findMany({ select: { id: true } })).map((u) => u.id);
+
+      let insertedTotal = 0;
+      let tiesTotal = 0;
+      for (const userId of userIds) {
+        try {
+          const result = await detectPersonalRecordsForUser(userId, {
+            silent,
+            prisma: p,
+          });
+          insertedTotal += result.inserted;
+          tiesTotal += result.ties;
+        } catch (err) {
+          evt.addWarning(`pr-detection failed for user ${userId}: ${err}`);
+        }
+      }
+      evt.addMeta("pr_detection_users", userIds.length);
+      evt.addMeta("pr_detection_inserted", insertedTotal);
+      evt.addMeta("pr_detection_ties", tiesTotal);
+      evt.addMeta("pr_detection_silent", silent);
+      evt.addMeta("pr_detection_mode", payloadUserId ? "ingest" : "cron");
+    });
+  }
+}
+
+/**
+ * v1.4.25 W19b — daily expire-stale pass for `MedicationInventoryItem`
+ * rows. Flips IN_USE pens whose 30-day window has lapsed to EXPIRED
+ * via the pure state-machine evaluator.
+ */
+async function handleMedicationInventoryExpire(
+  jobs: Job<MedicationInventoryExpirePayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.medication_inventory_expire", async (evt) => {
+    try {
+      const count = await expireStaleInUseItems({ nowMs: Date.now() });
+      evt.addMeta("inventory_expired_count", count);
+    } catch (err) {
+      evt.addWarning(
+        `medication-inventory-expire failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  });
+}
+
 async function handleOffhostBackup(jobs: Job<OffhostBackupPayload>[]) {
   void jobs;
   await withBackgroundEvent("job.offhost_backup", async (evt) => {
@@ -1203,6 +1432,8 @@ export async function startReminderWorker() {
   const allQueues = [
     QUEUE_NAME,
     WITHINGS_SYNC_QUEUE,
+    WITHINGS_ACTIVITY_QUEUE,
+    WITHINGS_SLEEP_QUEUE,
     GENERAL_STATUS_QUEUE,
     BLOOD_PRESSURE_STATUS_QUEUE,
     WEIGHT_STATUS_QUEUE,
@@ -1218,6 +1449,8 @@ export async function startReminderWorker() {
     OFFHOST_BACKUP_QUEUE,
     HOST_METRIC_QUEUE,
     FEEDBACK_AGGREGATOR_QUEUE,
+    PR_DETECTION_QUEUE,
+    MEDICATION_INVENTORY_EXPIRE_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -1228,6 +1461,8 @@ export async function startReminderWorker() {
   const schedules: [string, string][] = [
     [QUEUE_NAME, CHECK_INTERVAL_CRON],
     [WITHINGS_SYNC_QUEUE, WITHINGS_SYNC_CRON],
+    [WITHINGS_ACTIVITY_QUEUE, WITHINGS_ACTIVITY_CRON],
+    [WITHINGS_SLEEP_QUEUE, WITHINGS_SLEEP_CRON],
     [GENERAL_STATUS_QUEUE, GENERAL_STATUS_CRON],
     [BLOOD_PRESSURE_STATUS_QUEUE, BLOOD_PRESSURE_STATUS_CRON],
     [WEIGHT_STATUS_QUEUE, WEIGHT_STATUS_CRON],
@@ -1242,6 +1477,17 @@ export async function startReminderWorker() {
     [OFFHOST_BACKUP_QUEUE, OFFHOST_BACKUP_CRON],
     [HOST_METRIC_QUEUE, HOST_METRIC_CRON],
     [FEEDBACK_AGGREGATOR_QUEUE, FEEDBACK_AGGREGATOR_CRON],
+    // Fallback rescan every 30 minutes — protects against ingest paths
+    // that ship measurements without enqueueing a per-user job. The
+    // cron payload deliberately omits a `userId` so the handler iterates
+    // every user; per-user push-suppression cannot apply on the cron
+    // path (the silent flag is set by the ingest hooks).
+    [PR_DETECTION_QUEUE, PR_DETECTION_FALLBACK_CRON],
+    // v1.4.25 W19b — daily expire-stale pass for the per-pen inventory
+    // entities. Flips IN_USE rows whose 30-day clock has blown to
+    // EXPIRED at 03:30 Europe/Berlin (in the existing 02:xx–03:xx
+    // maintenance window, right after idempotency-cleanup).
+    [MEDICATION_INVENTORY_EXPIRE_QUEUE, MEDICATION_INVENTORY_EXPIRE_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -1258,6 +1504,16 @@ export async function startReminderWorker() {
     WITHINGS_SYNC_QUEUE,
     { localConcurrency: 1 },
     handleWithingsFallbackSync,
+  );
+  await boss.work<WithingsActivitySyncPayload>(
+    WITHINGS_ACTIVITY_QUEUE,
+    { localConcurrency: 1 },
+    handleWithingsActivitySync,
+  );
+  await boss.work<WithingsSleepSyncPayload>(
+    WITHINGS_SLEEP_QUEUE,
+    { localConcurrency: 1 },
+    handleWithingsSleepSync,
   );
   await boss.work<GeneralStatusPayload>(
     GENERAL_STATUS_QUEUE,
@@ -1333,6 +1589,16 @@ export async function startReminderWorker() {
     FEEDBACK_AGGREGATOR_QUEUE,
     { localConcurrency: 1 },
     handleFeedbackAggregator,
+  );
+  await boss.work<PrDetectionPayload>(
+    PR_DETECTION_QUEUE,
+    { localConcurrency: PR_DETECTION_CONCURRENCY },
+    handlePrDetection,
+  );
+  await boss.work<MedicationInventoryExpirePayload>(
+    MEDICATION_INVENTORY_EXPIRE_QUEUE,
+    { localConcurrency: 1 },
+    handleMedicationInventoryExpire,
   );
 
   return boss;

@@ -25,9 +25,13 @@ import {
   selectReferencesForMetrics,
   type MedicalReferenceMetric,
 } from "../medical-references";
+import {
+  buildNativeInsightsPrompt,
+  buildOutOfScopeRefusal,
+} from "./native-prompts";
 
 /** Stable identifier for the active system prompt revision. */
-export const PROMPT_VERSION = "4.23.0" as const;
+export const PROMPT_VERSION = "4.25.0" as const;
 
 const SYSTEM_PROMPT_EN = `You are a clinical-context summariser for a personal health-log app.
 Prompt version: ${PROMPT_VERSION}.
@@ -187,6 +191,44 @@ GROUND RULES — ZERO HALLUCINATIONS
     the user connect a wearable. The presence or absence of the
     HealthKit metric block in the snapshot is the only signal you
     should act on.
+13. v1.4.25 — Internal metric identifiers stay OUT of your prose.
+    Never write database / enum-style names like "Pressure_Sys",
+    "BLOOD_PRESSURE_SYS", "PULSE_BPM", "MOOD_SCORE",
+    "MEDICATION_COMPLIANCE_PCT", "HEART_RATE_VARIABILITY",
+    "RESTING_HEART_RATE", "ACTIVE_ENERGY_BURNED", "FLIGHTS_CLIMBED",
+    "WALKING_RUNNING_DISTANCE", "VO2_MAX", "BODY_TEMPERATURE", or
+    "SLEEP_DURATION" inside any user-facing string (summary,
+    recommendations[].text, findings[].label / guideline,
+    dailyBriefing.paragraph / keyFindings, trendAnnotations.*,
+    weeklyReport.summary / goingWell / worthWatching / tips /
+    dataQualityNotes, storyboardAnnotations[].label / detail).
+    Reference each metric with the natural-language label the user
+    sees in the app — "your systolic", "your weight", "your pulse",
+    "your mood", "your medication adherence", "your resting heart
+    rate", "your sleep duration", "your steps". Likewise never
+    write the literal "metric:<TYPE>" chart-token string in prose
+    intended for the user; the inline-chart wiring is owned by the
+    UI, not the prose itself. The "metricSource.type" field on each
+    recommendation, the "sourceMetric" field on dailyBriefing
+    findings, and the keys of the trendAnnotations object are
+    contract-level identifiers the parser reads — those stay in
+    the documented enum vocabulary exactly as listed in OUTPUT
+    FORMAT below. The ban applies ONLY to prose.
+14. v1.4.25 W4d — NEVER prescribe or modify medication doses, even
+    when the snapshot reveals a named GLP-1 receptor agonist
+    (Mounjaro, Ozempic, Wegovy, Zepbound, Trulicity, Saxenda,
+    Rybelsus). Findings may NOTE the named medication and the
+    user's current titration step ("week 3 on 7.5 mg") when the
+    "weeklyContext.glp1" block carries it, but recommendations and
+    summary text must NEVER read "you should step up to X mg",
+    "consider increasing to Y mg", "stop at Z mg", or any
+    variation. A plateau finding ALWAYS frames the next decision
+    as a conversation with the prescribing clinician — pattern:
+    "Weight has settled around <kg> for three weeks at <dose> —
+    typical mid-titration. Worth mentioning at the next visit if
+    it persists." This is a SAFETY contract; treat any
+    dose-prescriptive instinct as a sign the response is
+    out-of-bounds.
 
 GUIDELINE TARGETS — generic, do NOT compute precise risk scores
 - Adult resting blood pressure (ESH/ESC 2024 generic): aim < 140/90
@@ -480,6 +522,47 @@ GRUNDREGELN — NULL HALLUZINATIONEN
     HealthKit, schlage nicht vor, ein Wearable zu verbinden. Das
     Vorhandensein oder Fehlen des HealthKit-Metrik-Blocks im Snapshot
     ist das einzige Signal, auf das du reagieren solltest.
+13. v1.4.25 — Interne Metrik-Identifier gehören NICHT in deinen
+    Fließtext. Schreibe niemals Datenbank- bzw. Enum-Namen wie
+    "Pressure_Sys", "BLOOD_PRESSURE_SYS", "PULSE_BPM", "MOOD_SCORE",
+    "MEDICATION_COMPLIANCE_PCT", "HEART_RATE_VARIABILITY",
+    "RESTING_HEART_RATE", "ACTIVE_ENERGY_BURNED", "FLIGHTS_CLIMBED",
+    "WALKING_RUNNING_DISTANCE", "VO2_MAX", "BODY_TEMPERATURE" oder
+    "SLEEP_DURATION" in nutzersichtbare Strings (summary,
+    recommendations[].text, findings[].label / guideline,
+    dailyBriefing.paragraph / keyFindings, trendAnnotations.*,
+    weeklyReport.summary / goingWell / worthWatching / tips /
+    dataQualityNotes, storyboardAnnotations[].label / detail).
+    Verweise auf jede Metrik mit der natürlichsprachlichen
+    Bezeichnung, die der Nutzer in der App sieht — "deine Systole",
+    "dein Gewicht", "dein Puls", "deine Stimmung", "deine
+    Medikamentenadhärenz", "dein Ruhepuls", "deine Schlafdauer",
+    "deine Schritte". Schreibe genauso wenig das wörtliche
+    "metric:<TYPE>"-Chart-Token in nutzersichtbaren Fließtext; die
+    Inline-Chart-Verdrahtung liegt bei der UI, nicht im Fließtext.
+    Die Felder "metricSource.type" jeder Empfehlung, "sourceMetric"
+    in dailyBriefing-Findings und die Schlüssel des
+    trendAnnotations-Objekts sind Vertrags-Identifier, die der
+    Parser liest — diese bleiben EXAKT in der unten in
+    AUSGABEFORMAT dokumentierten Enum-Schreibweise. Das Verbot
+    gilt AUSSCHLIEßLICH für Fließtext.
+14. v1.4.25 W4d — Du verschreibst und änderst NIEMALS
+    Medikamenten-Dosen, auch wenn der Snapshot einen
+    GLP-1-Rezeptoragonisten namentlich benennt (Mounjaro, Ozempic,
+    Wegovy, Zepbound, Trulicity, Saxenda, Rybelsus). Befunde dürfen
+    den benannten Wirkstoff und die aktuelle Titrationsstufe
+    ZITIEREN ("Woche 3 auf 7,5 mg"), wenn der Block
+    "weeklyContext.glp1" diese Informationen mitbringt — aber
+    Empfehlungen und summary-Text dürfen NIEMALS "du solltest auf
+    X mg erhöhen", "erwäge die nächste Stufe Y mg", "bleibe auf Z
+    mg" oder eine Variante davon enthalten. Ein Plateau-Befund
+    rahmt die nächste Entscheidung IMMER als Gespräch mit der
+    behandelnden Ärztin — Muster: "Das Gewicht hat sich seit drei
+    Wochen bei <kg> auf <Dosis> eingependelt — typische
+    mid-titration Phase. Lohnt sich beim nächsten Termin
+    anzusprechen, falls es darüber hinaus persistiert." Das ist
+    ein SICHERHEITS-Vertrag; behandle jeden dosis-präskriptiven
+    Impuls als Signal, dass die Antwort außerhalb des Skopus liegt.
 
 LEITLINIEN-ZIELWERTE — generisch, KEINE genauen Risiko-Scores berechnen
 - Erwachsenen-Ruheblutdruck (ESH/ESC 2024 generisch): Ziel < 140/90
@@ -609,12 +692,39 @@ sourceWindow und sourceMetric bleiben exakt in der englischen
 Kleinschreibung — ebenfalls stabile Vertragsschlüssel.`;
 
 /**
+ * v1.4.25 W14c — native locale-specific Insights system prompts.
+ *
+ * Replaces the W9e REPLY-LANGUAGE-footer plumbing. For FR / ES / IT /
+ * PL the prompt body is assembled from the safety-contract matrix in
+ * the user's language; severity / sourceWindow / sourceMetric / topic
+ * enum values stay in lowercase EN per the matrix's contract_enums
+ * pin. DE keeps the hand-curated body (two-year calibration
+ * reference). On any matrix-load failure the dispatcher falls back to
+ * the W9e EN-body-plus-footer path so the surface stays functional.
+ */
+const INSIGHTS_LOCALE_REPLY_FOOTER_FALLBACK: Record<
+  Exclude<Locale, "de" | "en">,
+  string
+> = {
+  fr: "\n\nREPLY LANGUAGE: render all user-facing strings in French. Use natural French health vocabulary. The severity / sourceWindow / sourceMetric / topic enum values stay in lowercase English exactly as listed in OUTPUT FORMAT — those are contract keys, NOT translations.",
+  es: "\n\nREPLY LANGUAGE: render all user-facing strings in Spanish (peninsular preferred). Use natural Spanish health vocabulary. The severity / sourceWindow / sourceMetric / topic enum values stay in lowercase English exactly as listed in OUTPUT FORMAT — those are contract keys, NOT translations.",
+  it: "\n\nREPLY LANGUAGE: render all user-facing strings in Italian. Use natural Italian health vocabulary. The severity / sourceWindow / sourceMetric / topic enum values stay in lowercase English exactly as listed in OUTPUT FORMAT — those are contract keys, NOT translations.",
+  pl: "\n\nREPLY LANGUAGE: render all user-facing strings in Polish. Use natural Polish health vocabulary with formal Pan/Pani register for medical-adjacent topics. The severity / sourceWindow / sourceMetric / topic enum values stay in lowercase English exactly as listed in OUTPUT FORMAT — those are contract keys, NOT translations.",
+};
+
+/**
  * Returns the active scope-hardened system prompt for a given locale.
  * Use this in place of the legacy `getInsightsSystemPrompt` once the
  * route migrates to `generateInsight()` (planned v1.4.16).
  */
 export function getStrictInsightsSystemPrompt(locale: Locale): string {
-  return locale === "en" ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_DE;
+  if (locale === "de") return SYSTEM_PROMPT_DE;
+  if (locale === "en") return SYSTEM_PROMPT_EN;
+  try {
+    return buildNativeInsightsPrompt(locale, PROMPT_VERSION);
+  } catch {
+    return SYSTEM_PROMPT_EN + INSIGHTS_LOCALE_REPLY_FOOTER_FALLBACK[locale];
+  }
 }
 
 /**
@@ -640,7 +750,12 @@ export function buildSystemPromptWithReferences(
   const refs = selectReferencesForMetrics(metrics);
   if (refs.length === 0) return base;
 
-  if (locale === "en") {
+  // v1.4.25 W9e — AI-initial locales (FR/ES/IT/PL) ride the EN sources
+  // block. The "title" field is the EN title; the model is told to
+  // surface the citation id, not to translate the source title, so this
+  // is safe — citation labels in the UI use the contract id (lowercase,
+  // matched against the curated bundle) and not the prompt's title.
+  if (locale !== "de") {
     const sourcesBlock = refs
       .map(
         (r) =>
@@ -704,3 +819,15 @@ export const OUT_OF_SCOPE_REFUSAL_DE = {
   citations: [] as never[],
   warnings: [] as never[],
 };
+
+/**
+ * v1.4.25 W14c — native out-of-scope refusal payloads. Lazy-built
+ * from the safety-contract matrix so the summary copy stays in sync
+ * with the prompt body that taught the model to emit it. The EN /
+ * DE constants above remain authoritative for their locales — these
+ * helpers cover the AI-initial locales.
+ */
+export const OUT_OF_SCOPE_REFUSAL_FR = buildOutOfScopeRefusal("fr");
+export const OUT_OF_SCOPE_REFUSAL_ES = buildOutOfScopeRefusal("es");
+export const OUT_OF_SCOPE_REFUSAL_IT = buildOutOfScopeRefusal("it");
+export const OUT_OF_SCOPE_REFUSAL_PL = buildOutOfScopeRefusal("pl");

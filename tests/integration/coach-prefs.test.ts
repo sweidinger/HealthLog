@@ -70,7 +70,9 @@ describe("GET /api/auth/me/coach-prefs", () => {
     await seedSession("coach-prefs-defaults");
 
     const { GET } = await import("@/app/api/auth/me/coach-prefs/route");
-    const res = await (GET as () => Promise<Response>)();
+    const res = await (GET as (r: Request) => Promise<Response>)(
+      new Request("http://localhost/api/auth/me/coach-prefs"),
+    );
     expect(res.status).toBe(200);
     const env = (await res.json()) as { data: typeof DEFAULT_COACH_PREFS };
     expect(env.data).toEqual(DEFAULT_COACH_PREFS);
@@ -83,12 +85,17 @@ describe("PUT /api/auth/me/coach-prefs", () => {
     const prisma = getPrismaClient();
 
     const { PUT, GET } = await import("@/app/api/auth/me/coach-prefs/route");
+    // The request body omits `defaultWindow`; the schema (v1.4.25 W5)
+    // defaults it to "allTime", so the canonical PUT response and the
+    // persisted row both carry the defaulted field even when the
+    // caller didn't pass it.
     const body = {
       tone: "concise" as const,
       verbosity: "brief" as const,
       excludeMetrics: ["mood" as const, "compliance" as const],
       showEvidenceByDefault: true,
     };
+    const expected = { ...body, defaultWindow: "allTime" as const };
     const putRes = await (PUT as (r: Request) => Promise<Response>)(
       new Request("http://localhost/api/auth/me/coach-prefs", {
         method: "PUT",
@@ -97,21 +104,23 @@ describe("PUT /api/auth/me/coach-prefs", () => {
       }),
     );
     expect(putRes.status).toBe(200);
-    const putEnv = (await putRes.json()) as { data: typeof body };
-    expect(putEnv.data).toEqual(body);
+    const putEnv = (await putRes.json()) as { data: typeof expected };
+    expect(putEnv.data).toEqual(expected);
 
     // DB row reflects the canonical defaulted form.
     const row = await prisma.user.findUnique({
       where: { id: user.id },
       select: { coachPrefsJson: true },
     });
-    expect(row?.coachPrefsJson).toEqual(body);
+    expect(row?.coachPrefsJson).toEqual(expected);
 
     // GET reads the saved values back.
-    const getRes = await (GET as () => Promise<Response>)();
+    const getRes = await (GET as (r: Request) => Promise<Response>)(
+      new Request("http://localhost/api/auth/me/coach-prefs"),
+    );
     expect(getRes.status).toBe(200);
-    const getEnv = (await getRes.json()) as { data: typeof body };
-    expect(getEnv.data).toEqual(body);
+    const getEnv = (await getRes.json()) as { data: typeof expected };
+    expect(getEnv.data).toEqual(expected);
   });
 
   it("rejects unknown tone values with 422", async () => {

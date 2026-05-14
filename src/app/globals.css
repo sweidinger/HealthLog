@@ -1,6 +1,34 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../..");
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+
+/*
+ * Exclude planning + docs directories from Tailwind v4's content scan.
+ *
+ * v4's scanner walks the entire project root by default and picks any
+ * class-shaped token out of every text file. Planning reports and
+ * design docs often quote literal class-name fragments such as
+ * `bg-[var(...)]/12` as examples, and the bracketed-CSS-variable form
+ * combined with an opacity modifier generates an escaped selector that
+ * Turbopack's CSS parser rejects with `Unexpected token Delim('.')`,
+ * 500-ing every page. Constraining the scan to source code avoids
+ * fixture-style strings poisoning the generated CSS.
+ *
+ * The `source("../..")` argument on the `@import "tailwindcss"` line
+ * above pins auto-detection to the project root (resolved from this
+ * stylesheet) instead of letting Tailwind walk up from whatever cwd
+ * the build tool happens to be sitting at. That mirrors the
+ * cwd-anchored fix the safety-contracts loader landed in
+ * commit `dd44a0d` and stops the planning / docs directories from
+ * leaking class-shaped fragments into the generated CSS regardless of
+ * whether the build runs from the repo root or a tooling subdir.
+ *
+ * The `@source not` directives below are resolved relative to this
+ * stylesheet, so they point at `<repo-root>/.planning` and
+ * `<repo-root>/docs`.
+ */
+@source not "../../.planning";
+@source not "../../docs";
 
 @custom-variant dark (&:is(.dark *));
 

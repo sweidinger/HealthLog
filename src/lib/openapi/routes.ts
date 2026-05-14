@@ -31,6 +31,11 @@ import {
 } from "@/lib/validations/measurement";
 import { loginPasswordSchema } from "@/lib/validations/auth";
 import { coachPrefsSchema } from "@/lib/validations/coach-prefs";
+import {
+  deviceTypeEnum,
+  sourcePrioritySchema,
+} from "@/lib/validations/source-priority";
+import { createBatchWorkoutSchema } from "@/lib/validations/workout";
 
 /**
  * Common envelopes — every HealthLog API response wraps payload in
@@ -99,6 +104,12 @@ coachPrefsSchema.meta({
   id: "CoachPrefs",
   description:
     "Per-user Coach prompt-tuning preferences (v1.4.23 H4). All fields default to the legacy v1.4.22 behaviour when omitted.",
+});
+
+createBatchWorkoutSchema.meta({
+  id: "CreateBatchWorkoutRequest",
+  description:
+    "v1.4.25 W16b — typed workout batch ingest. Each entry is an HKWorkout-aligned record with an optional nested GeoJSON LineString route. Up to 100 workouts per call; nested route geometry capped at 20 000 points. Withings server-to-server callers pass source: WITHINGS and ship no route (Withings reports aggregates only).",
 });
 
 const coachMessageFeedbackBody = z
@@ -237,6 +248,15 @@ const batchEntrySchema = z
       .max(120)
       .describe("HKSample.uuid string — the dedup key."),
     externalSourceVersion: z.string().min(1).max(120).optional(),
+    // v1.4.25 W8c — optional device-type tag fed into the canonical
+    // source picker's second axis. NULL is treated as `unknown`;
+    // legacy iOS builds that don't ship the field continue to work.
+    deviceType: deviceTypeEnum
+      .nullable()
+      .optional()
+      .describe(
+        "Device class mapped from `HKDevice.model`. Used by the analytics aggregator to break ties when the same source contributed multiple devices for the same day. Omit (or send null) on legacy clients — the server treats it as `unknown` and the picker falls through.",
+      ),
   })
   .meta({ id: "AppleHealthBatchEntry" });
 
@@ -266,6 +286,50 @@ const batchResponse = z
     entries: z.array(batchEntryResult),
   })
   .meta({ id: "AppleHealthBatchResponse" });
+
+// v1.4.25 W16b — typed workout batch ingest response envelope. Mirrors
+// the measurements batch shape but reports the `workouts` count rather
+// than the entries count, and the `skipped` field is reserved (the
+// Zod schema rejects malformed entries with a 400 before the per-entry
+// pass, so today's responses always carry an empty array).
+const workoutBatchEntryResult = z
+  .object({
+    index: z.number().int().nonnegative(),
+    status: z.enum(["inserted", "duplicate", "skipped"]),
+    reason: z.string().optional(),
+  })
+  .meta({ id: "WorkoutBatchEntryResult" });
+
+const workoutBatchResponse = z
+  .object({
+    processed: z.number().int().nonnegative(),
+    inserted: z.number().int().nonnegative(),
+    duplicates: z.number().int().nonnegative(),
+    skipped: z.array(
+      z.object({
+        index: z.number().int().nonnegative(),
+        reason: z.string(),
+      }),
+    ),
+    entries: z.array(workoutBatchEntryResult),
+  })
+  .meta({ id: "WorkoutBatchResponse" });
+
+const deleteByExternalIdsRequest = z
+  .object({
+    externalIds: z.array(z.string().min(1).max(120)).min(0).max(500),
+  })
+  .meta({
+    id: "MeasurementsDeleteByExternalIdsRequest",
+    description:
+      "iOS deletion-sync. Up to 500 externalIds per call; matching rows owned by other users are silently skipped (cross-user 404 guard).",
+  });
+
+const deleteByExternalIdsResponse = z
+  .object({
+    deletedCount: z.number().int().nonnegative(),
+  })
+  .meta({ id: "MeasurementsDeleteByExternalIdsResult" });
 
 const measurementResource = z
   .object({
@@ -449,7 +513,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Measurements"],
       summary: "Apple Health batch ingest",
       description:
-        "Up to 500 HealthKit entries per call. Idempotent via the `Idempotency-Key` header (replay window 24h). Per-entry status lets the iOS client advance its sync cursor accurately.",
+        "Up to 500 HealthKit entries per call. Idempotent via the `Idempotency-Key` header (replay window 24h). Per-entry status lets the iOS client advance its sync cursor accurately. v1.4.25 W8c adds an optional `deviceType` per entry — feed it from `HKDevice.model` so the cross-source canonical picker can break Apple-Watch-vs-iPhone ties; null/absent stays backward-compatible with v1.4.23 clients.",
       requestBody: {
         required: true,
         content: { "application/json": { schema: batchPayloadSchema } },
@@ -462,6 +526,69 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(batchResponse, "BatchMeasurementsResponse"),
             },
           },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/measurements/by-external-ids": {
+    delete: {
+      tags: ["Measurements"],
+      summary: "Delete measurements by external ID (iOS deletion-sync)",
+      description:
+        "Removes the user's measurement rows whose externalId is in the request list. Rows owned by another user are silently skipped (cross-user 404 guard). Up to 500 externalIds per call.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: deleteByExternalIdsRequest },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Delete batch processed.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                deleteByExternalIdsResponse,
+                "MeasurementsDeleteByExternalIdsResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/workouts/batch": {
+    post: {
+      tags: ["Measurements"],
+      summary: "Typed workout batch ingest (v1.4.25 W16b)",
+      description:
+        "Server-side ingest endpoint for HKWorkout records (iOS) and Withings activity rows (server-to-server). Up to 100 workouts per call; nested route geometry (GeoJSON LineString) is capped at 20 000 points and stored in a 1:1 `WorkoutRoute` row keyed by `workoutId`. Idempotent via the `Idempotency-Key` header (replay window 24h). Per-entry status (`inserted | duplicate | skipped`) lets the iOS sync cursor checkpoint accurately. The request body ceiling is 5 MB enforced at the HTTP layer — clients above the ceiling receive a 413 with `workout.batch.payload_too_large`.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: createBatchWorkoutSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Batch processed.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                workoutBatchResponse,
+                "BatchWorkoutsResponse",
+              ),
+            },
+          },
+        },
+        "400": {
+          description:
+            "Batch validation failed (over-cap, schema reject, or oversized route).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "413": {
+          description: "Request body exceeds the 5 MB ceiling.",
+          content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
       },
@@ -531,6 +658,52 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           content: {
             "application/json": {
               schema: dataEnvelope(coachPrefsSchema, "PutCoachPrefsResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/source-priority": {
+    get: {
+      tags: ["Auth"],
+      summary: "Read per-user source priority",
+      description:
+        "Returns the per-metric-class source priority used by the analytics aggregator. Missing keys fall back to `DEFAULT_SOURCE_PRIORITY`. Null persisted state resolves to the documented defaults.",
+      responses: {
+        "200": {
+          description: "Resolved priority.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                sourcePrioritySchema,
+                "GetSourcePriorityResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    put: {
+      tags: ["Auth"],
+      summary: "Replace per-user source priority",
+      description:
+        "Persists the supplied priority. Body is validated against `SourcePriority`; missing keys read as `DEFAULT_SOURCE_PRIORITY` at the call site.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: sourcePrioritySchema } },
+      },
+      responses: {
+        "200": {
+          description: "Saved priority (defaulted) echoed back.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                sourcePrioritySchema,
+                "PutSourcePriorityResponse",
+              ),
             },
           },
         },

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/lib/i18n/context";
+import { useAuth } from "@/hooks/use-auth";
 import type {
   InsightRecommendation,
   InsightRecommendationRationale,
@@ -194,6 +195,7 @@ function RationaleCard({
   } | null;
 }) {
   const { t } = useTranslations();
+  const { user } = useAuth();
   const metricType = metricSource?.type;
   const chartTypes = metricTypeToChartTypes(metricType);
   const showLowConfidenceCaption =
@@ -208,15 +210,15 @@ function RationaleCard({
       <div className="space-y-1.5">
         <RationaleRow
           label={t("insights.recommendation.rationaleWindow")}
-          value={rationale.dataWindow}
+          value={stripChartTokens(rationale.dataWindow)}
         />
         <RationaleRow
           label={t("insights.recommendation.rationaleComparedTo")}
-          value={rationale.comparedTo}
+          value={stripChartTokens(rationale.comparedTo)}
         />
         <RationaleRow
           label={t("insights.recommendation.rationaleDeviation")}
-          value={rationale.deviation}
+          value={stripChartTokens(rationale.deviation)}
         />
       </div>
 
@@ -224,13 +226,18 @@ function RationaleCard({
           compliance get dedicated wrappers; everything else routes
           through HealthChart with the metric-key vocabulary. */}
       {isMoodMetric(metricType) ? (
-        <MoodChart mini windowOverride={rationale.dataWindow} />
+        <MoodChart
+          mini
+          windowOverride={rationale.dataWindow}
+          userTimezone={user?.timezone}
+        />
       ) : isComplianceMetric(metricType) ? null : chartTypes.length > 0 ? (
         <HealthChart
           types={chartTypes}
           title={metricType ?? ""}
           mini
           windowOverride={rationale.dataWindow}
+          userTimezone={user?.timezone}
         />
       ) : null}
 

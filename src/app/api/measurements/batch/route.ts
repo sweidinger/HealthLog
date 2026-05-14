@@ -34,9 +34,29 @@ import {
 import { withIdempotency } from "@/lib/idempotency";
 import { mapAppleHealthEntry } from "@/lib/measurements/apple-health-mapping";
 import { validateMeasurementRange } from "@/lib/validations/measurement";
+import { deviceTypeEnum } from "@/lib/validations/source-priority";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
 import { Prisma } from "@/generated/prisma/client";
 
+// v1.4.25 W16c — historical-backfill threshold for PR push
+// suppression. A batch larger than this fires the detection job with
+// `silent: true` so a multi-year Apple Health backfill writes records
+// without spamming the user with hundreds of pushes. Tuned generously
+// — a healthy daily-sync batch is typically well under 50 entries.
+const PR_DETECTION_SILENT_THRESHOLD = 50;
+
 const MAX_BATCH_ENTRIES = 500;
+
+// v1.4.25 W10 reconcile (security H-2): cap batch ingest at 60
+// batches per user per minute. Healthy iOS sync drains its
+// HealthKit observer queue in well under one batch per minute (the
+// observer pattern coalesces), so 60/min × 500 entries/batch =
+// 30 000 rows/min headroom — generous for legitimate use, and a
+// hard stop for a leaked wildcard token trying to saturate the
+// write pipeline.
+const BATCH_RATE_LIMIT_MAX = 60;
+const BATCH_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 const batchEntrySchema = z.object({
   hkIdentifier: z.string().min(1).max(120),
@@ -47,6 +67,14 @@ const batchEntrySchema = z.object({
   sleepStage: z.number().int().min(0).max(20).optional(),
   externalId: z.string().min(1).max(120),
   externalSourceVersion: z.string().min(1).max(120).optional(),
+  // v1.4.25 W8c — optional device-type tag. The iOS client maps the
+  // `HKDevice.model` of each sample to one of the canonical device
+  // classes (watch | band | ring | phone | scale | other | unknown).
+  // Backward-compatible: every pre-W8c iOS build skips the field and
+  // the row is stored with `deviceType = null`; the canonical picker
+  // treats null as `unknown` and only uses it as a tiebreaker when a
+  // ranked device-type coexists in the same daily bucket.
+  deviceType: deviceTypeEnum.nullable().optional(),
 });
 
 const batchPayloadSchema = z.object({
@@ -75,6 +103,25 @@ export const POST = apiHandler(withIdempotency<[NextRequest]>(postBatch));
 async function postBatch(request: NextRequest): Promise<Response> {
   const { user } = await requireAuth();
 
+  // v1.4.25 W10 reconcile (security H-2): per-user rate limit. Without
+  // it, a leaked wildcard iOS token can sustain unbounded writes
+  // (500 rows/batch × N batches/sec) and degrade the database for
+  // every other user on the host. 60 batches/min/user is generous
+  // for healthy iOS sync and tight enough that a misbehaving client
+  // bottoms out within a minute.
+  const rl = await checkRateLimit(
+    `measurements:batch:${user.id}`,
+    BATCH_RATE_LIMIT_MAX,
+    BATCH_RATE_LIMIT_WINDOW_MS,
+  );
+  if (!rl.allowed) {
+    annotate({
+      action: { name: "measurement.batch.ingest" },
+      meta: { outcome: "rate_limited" },
+    });
+    return apiError("Too many batch submissions, try again later", 429);
+  }
+
   const { data: rawBody, error: jsonError } = await safeJson<unknown>(request);
   if (jsonError) return jsonError;
 
@@ -90,7 +137,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
     (rawBody as { entries: unknown[] }).entries.length > MAX_BATCH_ENTRIES
   ) {
     return apiError(`Batch exceeds the ${MAX_BATCH_ENTRIES}-entry limit`, 422, {
-      errorCode: "coach.batch.too_large",
+      errorCode: "measurement.batch.too_large",
     });
   }
 
@@ -156,6 +203,11 @@ async function postBatch(request: NextRequest): Promise<Response> {
         externalId: entry.externalId,
         externalSourceVersion: entry.externalSourceVersion ?? null,
         sleepStage: mapped.sleepStage ?? null,
+        // v1.4.25 W8c — pass the iOS-supplied device-type through to
+        // the row. Stays null for pre-W8c iOS builds; the canonical
+        // picker treats null as `unknown` so legacy ingest keeps
+        // working without a server-side default.
+        deviceType: entry.deviceType ?? null,
       },
     });
   }
@@ -223,44 +275,39 @@ async function postBatch(request: NextRequest): Promise<Response> {
         }
       });
 
-      // If `skipDuplicates` quietly absorbed a row (race with another
-      // batch), reconcile the per-entry status so the inserted +
-      // duplicate counts still equal `prepared.length`.
+      // v1.4.25 W10 reconcile (senior-dev H-1): the previous "stored
+      // vs not-stored" check was an effective no-op. Under standard
+      // Postgres semantics, `skipDuplicates` absorbs duplicate-key
+      // conflicts but the row is STILL present in the table (written
+      // by the other batch that won the race). So every row we
+      // attempted is in the DB after the call, and the
+      // `!stored.has(...)` branch never fired — leaving the aggregate
+      // `inserted` / `duplicate` counts inconsistent with the per-
+      // entry statuses under contention.
+      //
+      // Pragmatic fix: trust the `createMany` return count. The DB
+      // round-trip cannot distinguish a row this request wrote from
+      // a row the racing request wrote (the unique index sees both
+      // as the same key), so we cannot identify the SPECIFIC raced
+      // rows. What we CAN do is preserve count integrity for the
+      // iOS sync cursor: `insertedCount` is already the truth (it
+      // came from `createMany.count`); we only need to downgrade
+      // enough per-entry "inserted" statuses to "duplicate" so the
+      // per-entry envelope sums match. Order doesn't matter — the
+      // client checkpoints past both statuses, and the DB state for
+      // either outcome is identical (the row is now stored,
+      // single-copy).
       const racedDuplicates = toInsert.length - insertedCount;
       if (racedDuplicates > 0) {
-        // We can't tell *which* rows raced from the createMany return
-        // value — recheck the DB and downgrade matching `inserted`
-        // rows to `duplicate`. This is a rare path so the extra
-        // round-trip is acceptable.
-        const recheck = await prisma.measurement.findMany({
-          where: {
-            userId: user.id,
-            source: "APPLE_HEALTH",
-            OR: toInsert.map((row) => ({
-              type: row.type,
-              externalId: row.externalId as string,
-            })),
-          },
-          select: { type: true, externalId: true },
-        });
-        const stored = new Set(
-          recheck.map((row) => `${row.type}::${row.externalId}`),
-        );
-        // Anything `prepared` flagged as `inserted` but isn't in
-        // `stored` was never written and was raced by another batch —
-        // surface as duplicate.
         let downgraded = 0;
         for (const p of prepared) {
-          if (
-            results[p.index]?.status === "inserted" &&
-            !stored.has(`${p.row.type}::${p.row.externalId}`)
-          ) {
+          if (downgraded >= racedDuplicates) break;
+          if (results[p.index]?.status === "inserted") {
             results[p.index] = { index: p.index, status: "duplicate" };
             duplicateCount += 1;
             downgraded += 1;
           }
         }
-        insertedCount -= downgraded;
       }
     }
   }
@@ -279,6 +326,35 @@ async function postBatch(request: NextRequest): Promise<Response> {
       skipped: skipped.length,
     },
   });
+
+  // v1.4.25 W16c — kick off PR detection for this user. We always
+  // enqueue when at least one row was written (or the batch had any
+  // measurements to consider) so a single off-day reading still gets
+  // evaluated; the warm-up gate inside the detector decides whether
+  // it's a record. Suppress push notifications for historical
+  // backfills above the silent threshold.
+  if (insertedCount > 0 || duplicateCount > 0) {
+    const silent = entries.length > PR_DETECTION_SILENT_THRESHOLD;
+    try {
+      await enqueuePrDetection(user.id, { silent });
+      await auditLog("personal_records.detection_enqueued", {
+        userId: user.id,
+        details: {
+          source: "measurement.batch",
+          batchSize: entries.length,
+          silent,
+        },
+      });
+    } catch (err) {
+      // Enqueue failure is non-fatal — the 30-minute fallback cron
+      // picks the user up in the next slot. Log so the operator
+      // notices repeated failures in Wide-Event traffic.
+      annotate({
+        action: { name: "personal_records.detection_enqueue_failed" },
+        meta: { error: err instanceof Error ? err.message : String(err) },
+      });
+    }
+  }
 
   annotate({
     action: { name: "measurement.batch.ingest" },

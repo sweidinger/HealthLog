@@ -1,23 +1,23 @@
 "use client";
 
-import { type FormEvent, type KeyboardEvent, useCallback } from "react";
-import { Loader2, Mic, Send } from "lucide-react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
+import { Loader2, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
  * v1.4.20 phase B2b — Coach composer.
  *
- * `<textarea>` wrapped in a Dracula-styled card with a send button +
- * mic placeholder. Submit fires on:
+ * `<textarea>` wrapped in a Dracula-styled card with a send button.
+ * Submit fires on:
  *   - Enter (no Shift) → send
  *   - Cmd/Ctrl + Enter → send (parity with the artboard ⌘↵ chip)
  *   - Shift + Enter → newline (default browser behaviour)
@@ -26,13 +26,13 @@ import { useTranslations } from "@/lib/i18n/context";
  * the drawer. `disabled` flips during a streamed reply so we never
  * fire two requests in parallel.
  *
- * Mic is rendered but disabled with a tooltip ("Voice input arrives
- * with the iOS app in v1.5") because the natural shipper of voice is
- * the native client, not the PWA.
- *
  * v1.4.22 B4: the disclaimer ("Coach replies are generated …") moved
  * out of the composer and into the sources rail footer, so the
  * composer stays focused on the input affordance.
+ *
+ * v1.4.25 W5: dropped the non-functional mic icon. The voice-input
+ * affordance ships with the iOS client; surfacing a placeholder in the
+ * web composer drew clicks for an action that did nothing.
  */
 export interface CoachInputProps {
   value: string;
@@ -46,6 +46,41 @@ export interface CoachInputProps {
   inputId?: string;
 }
 
+/**
+ * v1.4.25 W5 — Claude-web-style auto-grow.
+ *
+ * The composer textarea starts at 1 line (≈44 px including padding,
+ * matching the disclaimer text height on the sources rail) and grows
+ * with content up to 6 lines (≈144 px). Past 6 lines the textarea
+ * scrolls internally. Implemented as a plain `scrollHeight` measurement
+ * — no external auto-resize library, no `contenteditable` round-trip,
+ * no `field-sizing` (still Chrome-only in 2026-Q2).
+ *
+ * Pure helper so the math can be unit-tested without a DOM:
+ *   - `lineHeight`: cached line-height of the textarea (px)
+ *   - `scrollHeight`: textarea's natural `scrollHeight` after height
+ *     was reset to "auto"
+ *   - `maxLines`: hard cap (6); past this the textarea scrolls
+ * Returns the height in px to apply, clamped to [minHeight, maxHeight].
+ */
+export function computeAutoGrowHeight(args: {
+  lineHeight: number;
+  scrollHeight: number;
+  maxLines: number;
+  paddingY: number;
+}): number {
+  const min = args.lineHeight + args.paddingY;
+  const max = args.lineHeight * args.maxLines + args.paddingY;
+  // Honour the existing scrollHeight (which already includes padding)
+  // but clamp it into the [min,max] band. The minimum guarantees the
+  // textarea never collapses below a single line when the value is
+  // empty; the maximum prevents the row from pushing the composer
+  // taller than 6 lines.
+  return Math.max(min, Math.min(args.scrollHeight, max));
+}
+
+const AUTO_GROW_MAX_LINES = 6;
+
 export function CoachInput({
   value,
   onChange,
@@ -55,6 +90,35 @@ export function CoachInput({
   inputId = "coach-composer-textarea",
 }: CoachInputProps) {
   const { t } = useTranslations();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // v1.4.25 W5 — auto-grow side effect. Runs on every value change
+  // (the controlled `value` prop is the source of truth) plus on mount
+  // so the initial paint already shows the 1-line height even when the
+  // value arrives prefilled. We reset `style.height` to "auto" first so
+  // shrinking text (e.g. after the user hits send) also collapses the
+  // textarea — without the reset, `scrollHeight` only ever monotonically
+  // grows. Reads `getComputedStyle` for line-height + padding once per
+  // tick so a CSS-only theme change re-applies the right minimum.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    // Reset so the browser re-measures the natural content height.
+    el.style.height = "auto";
+    const computed = window.getComputedStyle(el);
+    const rawLineHeight = parseFloat(computed.lineHeight);
+    const lineHeight = Number.isFinite(rawLineHeight) ? rawLineHeight : 20;
+    const paddingY =
+      (parseFloat(computed.paddingTop) || 0) +
+      (parseFloat(computed.paddingBottom) || 0);
+    const height = computeAutoGrowHeight({
+      lineHeight,
+      scrollHeight: el.scrollHeight,
+      maxLines: AUTO_GROW_MAX_LINES,
+      paddingY,
+    });
+    el.style.height = `${height}px`;
+  }, [value]);
 
   const canSubmit = !disabled && value.trim().length > 0;
 
@@ -91,39 +155,26 @@ export function CoachInput({
       >
         <textarea
           id={inputId}
+          ref={textareaRef}
           data-slot="coach-input-textarea"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={t("insights.coach.composerPlaceholder")}
           disabled={disabled}
-          rows={2}
+          // v1.4.25 W5 — single-line initial state, Claude-web-style.
+          // `rows={1}` is the SSR-stable baseline; the `useEffect`
+          // above grows the textarea up to `AUTO_GROW_MAX_LINES`. Past
+          // the cap the textarea scrolls internally (overflow-auto via
+          // `max-h-[9.5rem]`, ≈6 lines at the current line-height).
+          rows={1}
           className={cn(
             "w-full resize-none bg-transparent text-sm leading-relaxed outline-none",
+            "max-h-[9.5rem] overflow-auto",
             "placeholder:text-muted-foreground disabled:opacity-60",
           )}
         />
         <div className="mt-1.5 flex items-center gap-2">
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled
-                  aria-label={t("insights.coach.voiceComingSoon")}
-                  data-slot="coach-input-mic"
-                  className="size-8"
-                >
-                  <Mic className="size-4" aria-hidden="true" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t("insights.coach.voiceComingSoon")}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
           <span
             data-slot="coach-input-hint"
             className="text-muted-foreground text-[11px]"

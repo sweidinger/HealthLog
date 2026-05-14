@@ -30,6 +30,54 @@
 
 export type HealthScoreBand = "green" | "yellow" | "red";
 
+/**
+ * v1.4.25 W8e — per-component source attribution.
+ *
+ * `manual` / `withings` / `appleHealth` map onto the `MeasurementSource`
+ * enum already persisted on the underlying rows. `mixed` is the
+ * aggregate label when the component blends entries from more than one
+ * source. `none` is the explicit empty-state — no measurement contributed.
+ *
+ * The token list is a UI-facing camelCase view of the persisted
+ * `MeasurementSource` enum so the i18n keys (`provenance.sources.*`)
+ * stay locale-stable even if the storage enum grows.
+ */
+/**
+ * Source tokens that can contribute to a component before the
+ * `resolveSourceLabel` aggregation kicks in. Exported here so the
+ * analytics route, the health-score helper, and the React card all
+ * read the same union — the literal `"manual" | "withings" |
+ * "appleHealth"` was previously spelled at four call sites.
+ */
+export type ContributingSource = "manual" | "withings" | "appleHealth";
+
+export type HealthScoreComponentSource = ContributingSource | "mixed" | "none";
+
+/**
+ * v1.4.25 W8e — per-component source attribution as it arrives from the
+ * Prisma layer (the route maps Withings/Apple-Health/Manual rows for
+ * each pillar and forwards the contributing source set plus the
+ * freshest timestamp). `complianceSources` is `null` when no medications
+ * are active so the redistribution helper keeps treating compliance as
+ * "no signal" rather than "manual with zero entries".
+ */
+export interface HealthScoreSourceAttribution {
+  /** Sources that contributed to the BP-in-target rate. */
+  bpSources?: ReadonlyArray<ContributingSource>;
+  asOfBp?: string | null;
+  /** Sources that contributed to the weight series. */
+  weightSources?: ReadonlyArray<ContributingSource>;
+  asOfWeight?: string | null;
+  /** Sources that contributed to the mood entries. */
+  moodSources?: ReadonlyArray<ContributingSource>;
+  asOfMood?: string | null;
+  /** Sources that contributed to medication compliance. */
+  complianceSources?: ReadonlyArray<ContributingSource>;
+  asOfCompliance?: string | null;
+  /** Wall-clock anchor for the as-of-window-end fallback. */
+  windowEndAt?: string;
+}
+
 export interface HealthScoreInput {
   /** All-time BP-in-target rate, already 0..100 (or null). */
   bpInTargetRate: number | null;
@@ -41,6 +89,13 @@ export interface HealthScoreInput {
   moodEntriesLast30d: Array<{ date: string; score: number }>;
   /** Per-active-medication 30-day compliance %. Empty array → null. */
   medicationCompliance30: number[];
+  /**
+   * v1.4.25 W8e — optional source attribution. When omitted the
+   * resulting `HealthScoreComponentDetail.source` falls back to `none`
+   * for null components and `manual` for present ones (the
+   * pre-v1.4.25 implicit default).
+   */
+  attribution?: HealthScoreSourceAttribution;
 }
 
 export interface HealthScoreComponentDetail {
@@ -48,6 +103,17 @@ export interface HealthScoreComponentDetail {
   value: number | null;
   /** Effective weight after null-redistribution, 0..1. */
   weight: number;
+  /**
+   * v1.4.25 W8e — which ingest path produced the underlying
+   * measurement(s) for this component. `mixed` when two or more
+   * sources contributed; `none` when the value is null.
+   */
+  source: HealthScoreComponentSource;
+  /**
+   * ISO timestamp of the most recent contributing measurement, or
+   * the as-of-window-end when no measurement contributed.
+   */
+  asOf: string;
 }
 
 export interface HealthScoreResult {
@@ -220,12 +286,35 @@ export function computeHealthScore(
 
   const complianceValue = complianceRate(input.medicationCompliance30);
 
-  const components = redistribute({
-    bp: bpValue,
-    weight: weightValue,
-    mood: moodValue,
-    compliance: complianceValue,
-  });
+  const attribution = input.attribution ?? {};
+  const windowEndAt = attribution.windowEndAt ?? deriveWindowEndAt(input);
+  const components = redistribute(
+    {
+      bp: bpValue,
+      weight: weightValue,
+      mood: moodValue,
+      compliance: complianceValue,
+    },
+    {
+      bp: {
+        sources: attribution.bpSources ?? null,
+        asOf: attribution.asOfBp ?? null,
+      },
+      weight: {
+        sources: attribution.weightSources ?? null,
+        asOf: attribution.asOfWeight ?? null,
+      },
+      mood: {
+        sources: attribution.moodSources ?? null,
+        asOf: attribution.asOfMood ?? null,
+      },
+      compliance: {
+        sources: attribution.complianceSources ?? null,
+        asOf: attribution.asOfCompliance ?? null,
+      },
+    },
+    windowEndAt,
+  );
 
   let raw = 0;
   for (const key of ["bp", "weight", "mood", "compliance"] as const) {
@@ -245,16 +334,51 @@ export function computeHealthScore(
 }
 
 /**
+ * Collapse a list of contributing source tokens into the single label
+ * the UI renders. `null`/empty when the underlying value is missing
+ * → `none`. Two or more distinct tokens → `mixed`. Exactly one token
+ * → that token. Pre-v1.4.25 inputs (no attribution supplied) default
+ * to `manual` for present values so the contract stays backward-compat
+ * — the manual-entry path has been HealthLog's only ingest since
+ * v1.0.
+ */
+function resolveSourceLabel(
+  hasValue: boolean,
+  sources: ReadonlyArray<ContributingSource> | null,
+): HealthScoreComponentSource {
+  if (!hasValue) return "none";
+  if (!sources || sources.length === 0) return "manual";
+  const unique = Array.from(new Set(sources));
+  if (unique.length === 1) return unique[0];
+  return "mixed";
+}
+
+/**
  * Re-scale the four base weights to skip any component whose value is
  * null. The remaining components keep the same proportional ratio
  * (e.g. BP and Compliance both at 30 % of original 80 % → 37.5 %).
+ *
+ * v1.4.25 W8e — the helper also folds the per-component
+ * `HealthScoreSourceAttribution` slice into each output detail so the
+ * client can render the provenance accordion without a second pass over
+ * the analytics payload.
  */
-function redistribute(values: {
-  bp: number | null;
-  weight: number | null;
-  mood: number | null;
-  compliance: number | null;
-}): HealthScoreResult["components"] {
+function redistribute(
+  values: {
+    bp: number | null;
+    weight: number | null;
+    mood: number | null;
+    compliance: number | null;
+  },
+  attribution: Record<
+    keyof typeof BASE_WEIGHTS,
+    {
+      sources: ReadonlyArray<ContributingSource> | null;
+      asOf: string | null;
+    }
+  >,
+  windowEndAt: string,
+): HealthScoreResult["components"] {
   const present: Array<keyof typeof BASE_WEIGHTS> = [];
   for (const key of ["bp", "weight", "mood", "compliance"] as const) {
     if (values[key] !== null) present.push(key);
@@ -265,15 +389,55 @@ function redistribute(values: {
     if (totalBaseWeight === 0) return 0;
     return BASE_WEIGHTS[key] / totalBaseWeight;
   };
-  return {
-    bp: { value: values.bp, weight: weightFor("bp") },
-    weight: { value: values.weight, weight: weightFor("weight") },
-    mood: { value: values.mood, weight: weightFor("mood") },
-    compliance: {
-      value: values.compliance,
-      weight: weightFor("compliance"),
-    },
+  const detailFor = (
+    key: keyof typeof BASE_WEIGHTS,
+  ): HealthScoreComponentDetail => {
+    const value = values[key];
+    const attr = attribution[key];
+    const source = resolveSourceLabel(value !== null, attr.sources);
+    // When a component is `none`, fall back to the window-end anchor so
+    // the UI can still render "as of <today>" without inventing a date.
+    const asOf =
+      source === "none" ? windowEndAt : (attr.asOf ?? windowEndAt);
+    return {
+      value,
+      weight: weightFor(key),
+      source,
+      asOf,
+    };
   };
+  return {
+    bp: detailFor("bp"),
+    weight: detailFor("weight"),
+    mood: detailFor("mood"),
+    compliance: detailFor("compliance"),
+  };
+}
+
+/**
+ * v1.4.25 Fix-G — when the caller doesn't supply `attribution.windowEndAt`
+ * we synthesise it deterministically from the input data so
+ * `computeHealthScore` stays pure (same input → same output). The route
+ * always supplies its own `windowEndAt`; this fallback exists so unit
+ * tests and ad-hoc callers don't pull `new Date()` into the result.
+ *
+ * Strategy: take the most recent date across the weight and mood series.
+ * If neither has any entries (e.g. compliance-only input), fall back to
+ * the Unix epoch so the value is stable and obviously synthetic — the
+ * UI never renders this string when attribution is provided.
+ */
+function deriveWindowEndAt(input: HealthScoreInput): string {
+  let latest = -Infinity;
+  for (const p of input.weightSeriesLast30d) {
+    const t = new Date(p.date).getTime();
+    if (Number.isFinite(t) && t > latest) latest = t;
+  }
+  for (const p of input.moodEntriesLast30d) {
+    const t = new Date(p.date).getTime();
+    if (Number.isFinite(t) && t > latest) latest = t;
+  }
+  if (latest === -Infinity) return new Date(0).toISOString();
+  return new Date(latest).toISOString();
 }
 
 /**

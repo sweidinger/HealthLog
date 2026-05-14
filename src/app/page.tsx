@@ -7,6 +7,7 @@ import {
   Activity,
   Droplet,
   Footprints,
+  Gauge,
   Heart,
   Moon,
   Percent,
@@ -47,6 +48,7 @@ import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
 import { InsightsCardPreview } from "@/components/insights/insights-card";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
+import { Glp1Tile } from "@/components/dashboard/glp1-tile";
 
 const HealthChart = dynamic(
   () =>
@@ -250,6 +252,10 @@ export default function DashboardPage() {
   const bf = data?.summaries?.BODY_FAT;
   const sleepSummary = data?.summaries?.SLEEP_DURATION;
   const stepsSummary = data?.summaries?.ACTIVITY_STEPS;
+  // v1.4.25 W8d — VO2 max secondary-metric tile. /api/analytics
+  // auto-populates this summary because the route iterates over the
+  // full measurementTypeEnum.options list; no backend change needed.
+  const vo2Summary = data?.summaries?.VO2_MAX;
   const moodSummary = moodData?.summary;
 
   // Resolve full dashboard layout — controls visibility + order of every widget
@@ -306,6 +312,7 @@ export default function DashboardPage() {
   const hasMood = (moodSummary?.count ?? 0) > 0;
   const hasSleep = (sleepSummary?.count ?? 0) > 0;
   const hasSteps = (stepsSummary?.count ?? 0) > 0;
+  const hasVo2 = (vo2Summary?.count ?? 0) > 0;
   const hasBpInTarget = data?.bpInTargetPct != null;
 
   // Tile (strip) gates — controlled by the new `tileVisible` flag.
@@ -316,6 +323,7 @@ export default function DashboardPage() {
   const showMoodTile = isTileVisible("mood") && hasMood;
   const showSleepTile = isTileVisible("sleep") && hasSleep;
   const showStepsTile = isTileVisible("steps") && hasSteps;
+  const showVo2Tile = isTileVisible("vo2Max") && hasVo2;
   const showBpInTargetTile = isTileVisible("bpInTarget") && hasBpInTarget;
 
   // Chart (lower row) gates — controlled by the legacy `visible` flag.
@@ -563,7 +571,7 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="weight"
-                label={t("dashboard.weight")}
+                label={t("dashboard.weightShort")}
                 latest={w?.latest ?? null}
                 unit="kg"
                 avg7={w?.avg7 ?? null}
@@ -608,7 +616,7 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="bp-sys"
-                label={t("dashboard.bloodPressureSys")}
+                label={t("dashboard.bloodPressureSysShort")}
                 latest={sys?.latest ?? null}
                 unit="mmHg"
                 avg7={sys?.avg7 ?? null}
@@ -648,7 +656,7 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="bp-dia"
-                label={t("dashboard.bloodPressureDia")}
+                label={t("dashboard.bloodPressureDiaShort")}
                 latest={dia?.latest ?? null}
                 unit="mmHg"
                 avg7={dia?.avg7 ?? null}
@@ -688,7 +696,7 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="pulse"
-                label={t("dashboard.pulse")}
+                label={t("dashboard.pulseShort")}
                 latest={p?.latest ?? null}
                 unit="bpm"
                 avg7={p?.avg7 ?? null}
@@ -727,7 +735,7 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="bodyFat"
-                label={t("dashboard.bodyFat")}
+                label={t("dashboard.bodyFatShort")}
                 latest={bf?.latest ?? null}
                 unit="%"
                 avg7={bf?.avg7 ?? null}
@@ -749,7 +757,7 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="mood"
-                label={t("dashboard.mood")}
+                label={t("dashboard.moodShort")}
                 latest={moodSummary?.latest ?? null}
                 unit="/ 5"
                 avg7={moodSummary?.avg7 ?? null}
@@ -771,7 +779,7 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="sleep"
-                label={t("dashboard.sleep") ?? "Sleep"}
+                label={t("dashboard.sleepShort") ?? "Sleep"}
                 latest={sleepSummary?.latest ?? null}
                 unit="h"
                 avg7={sleepSummary?.avg7 ?? null}
@@ -793,7 +801,7 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="steps"
-                label={t("dashboard.steps") ?? "Steps"}
+                label={t("dashboard.stepsShort") ?? "Steps"}
                 latest={stepsSummary?.latest ?? null}
                 unit=""
                 avg7={stepsSummary?.avg7 ?? null}
@@ -804,6 +812,35 @@ export default function DashboardPage() {
                 directionSentiment="up-good"
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(stepsSummary)}
+              />
+            ),
+          });
+        }
+        // v1.4.25 W8d — VO2 max trend tile. Self-gates on the
+        // `vo2Max` widget being enabled (Settings → Dashboard) AND
+        // the analytics summary carrying at least one sample. Higher
+        // VO2 max is better, so the directionSentiment is up-good and
+        // an upward 30-day slope renders the green arrow. Unit
+        // matches the canonical DB unit in
+        // src/lib/validations/measurement.ts.
+        if (showVo2Tile) {
+          trendCards.push({
+            id: "vo2Max",
+            order: widgetOrder("vo2Max"),
+            node: (
+              <TrendCard
+                key="vo2Max"
+                label={t("dashboard.vo2MaxShort") ?? "VO₂ max"}
+                latest={vo2Summary?.latest ?? null}
+                unit={t("dashboard.vo2MaxUnit") ?? "mL/(kg·min)"}
+                avg7={vo2Summary?.avg7 ?? null}
+                avg30={vo2Summary?.avg30 ?? null}
+                slope30={vo2Summary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(vo2Summary)}
+                icon={Gauge}
+                directionSentiment="up-good"
+                compareBaseline={compareBaseline}
+                compareDelta={tileCompareDelta(vo2Summary)}
               />
             ),
           });
@@ -872,7 +909,7 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="bpInTarget"
-                label={t("dashboard.bpInTarget")}
+                label={t("dashboard.bpInTargetShort")}
                 latest={data?.bpInTargetPct ?? null}
                 unit="%"
                 /* v1.4.18 A1 — wire 7T / 30T sub-values from the new
@@ -957,6 +994,7 @@ export default function DashboardPage() {
                 unit="kg"
                 valueBands={weightBands}
                 compareBaseline={compareBaseline}
+                userTimezone={user?.timezone}
               />
             ),
           });
@@ -1002,6 +1040,7 @@ export default function DashboardPage() {
                 yAxisUnit="Hg"
                 targetZones={bpTargetZones}
                 compareBaseline={compareBaseline}
+                userTimezone={user?.timezone}
               />
             ),
           });
@@ -1021,6 +1060,7 @@ export default function DashboardPage() {
                 unit="bpm"
                 valueBands={pulseBands}
                 compareBaseline={compareBaseline}
+                userTimezone={user?.timezone}
               />
             ),
           });
@@ -1040,6 +1080,7 @@ export default function DashboardPage() {
                 unit="%"
                 valueBands={bodyFatBands}
                 compareBaseline={compareBaseline}
+                userTimezone={user?.timezone}
               />
             ),
           });
@@ -1054,6 +1095,7 @@ export default function DashboardPage() {
                 key="mood-chart"
                 compareBaseline={compareBaseline}
                 chartKey="mood"
+                userTimezone={user?.timezone}
               />
             ),
           });
@@ -1072,6 +1114,7 @@ export default function DashboardPage() {
                 colors={["#8be9fd"]}
                 unit="h"
                 compareBaseline={compareBaseline}
+                userTimezone={user?.timezone}
               />
             ),
           });
@@ -1089,6 +1132,7 @@ export default function DashboardPage() {
                 title={t("dashboard.steps") ?? "Steps"}
                 colors={["#50fa7b"]}
                 compareBaseline={compareBaseline}
+                userTimezone={user?.timezone}
               />
             ),
           });
@@ -1106,6 +1150,7 @@ export default function DashboardPage() {
               <MedicationComplianceChart
                 key="medications"
                 compareBaseline={compareBaseline}
+                userTimezone={user?.timezone}
               />
             ),
           });
@@ -1215,6 +1260,17 @@ export default function DashboardPage() {
                 insight={advisor.payload?.insights ?? null}
               />
             )}
+            {/* v1.4.25 W6 — GLP-1 status tile. The tile self-gates on
+                `Medication.treatmentClass === "GLP1"` (route returns
+                `data: null` when the user has no active GLP-1 med), so
+                we always mount it and let the tile suppress itself.
+                Slot is below the InsightsCardPreview and above the
+                chart row — high enough that a Mounjaro / Ozempic user
+                sees their dose-response chart without scrolling past
+                BP / pulse, but below the AI preview so the latter
+                stays the "scroll-stop hero" Marc anchored the dashboard
+                around. */}
+            <Glp1Tile />
             {charts.map((entry) => (
               <div key={entry.id} className="space-y-2">
                 {entry.node}

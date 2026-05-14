@@ -32,6 +32,63 @@ export class HttpError extends Error {
  * No CSRF check — HealthLog does not use CSRF tokens.
  * Auth annotation happens in routes via requireAuth().
  */
+// Read a property from a request-like value without invoking native
+// private-field getters (NextRequest.method / .url / .headers access
+// `this.#state` and crash with `Cannot read private member #state from
+// an object whose class did not declare it` when the request is a
+// Proxy or a synthetic placeholder — Next 16 passes such placeholders
+// to `force-static` route handlers during dev). We probe defensively
+// and fall back to safe defaults so logging instrumentation never
+// crashes the handler.
+//
+// The catch is narrowed to two well-known shapes: the V8 private-field
+// TypeError, and the `Cannot read properties of undefined/null` shape
+// raised when the wrapper is invoked without a request (vitest tests
+// frequently invoke handlers as `GET()` with no args, mirroring the
+// shape Next.js exercises for the static-export pass). Any other
+// exception is a real bug in the read callback or in a downstream
+// header parser and must surface — swallowing it would hide
+// regressions in production instrumentation.
+function isTolerableRequestProbeError(err: unknown): boolean {
+  if (!(err instanceof TypeError)) return false;
+  const msg = err.message ?? "";
+  return (
+    // V8 — current
+    msg.includes("private member") ||
+    // V8 — alternative
+    msg.includes("private field") ||
+    // Bun / older V8
+    msg.includes("private name") ||
+    // No request handed in at all (vitest direct-invoke or
+    // force-static placeholder reduced to undefined / null).
+    // Covers both modern `Cannot read properties of undefined
+    // (reading 'X')` and the older `Cannot read property 'X' of
+    // undefined` wordings.
+    /Cannot read propert(?:y|ies)\b.*\bof (?:undefined|null)\b/.test(
+      msg,
+    )
+  );
+}
+
+function safeRequestProp<R>(
+  request: unknown,
+  read: (req: NextRequest) => R,
+  fallback: R,
+): R {
+  try {
+    return read(request as NextRequest);
+  } catch (err) {
+    if (isTolerableRequestProbeError(err)) return fallback;
+    throw err;
+  }
+}
+
+/** @internal — exposed for unit tests of the narrow-catch contract. */
+export const __testables = {
+  safeRequestProp,
+  isTolerableRequestProbeError,
+};
+
 // Next.js route handlers come in two shapes — `(request)` for static routes
 // and `(request, { params })` for dynamic ones. The variadic generic is the
 // only signature TS accepts that covers both at the call site. The `any[]`
@@ -44,23 +101,46 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const wrapped = async (...args: any[]): Promise<Response> => {
     const request = args[0] as NextRequest;
-    const url = new URL(request.url);
+    const requestUrl = safeRequestProp(request, (r) => r.url, "");
+    const url = (() => {
+      try {
+        return new URL(requestUrl);
+      } catch {
+        // No usable URL (e.g. force-static placeholder) — fall back to
+        // a synthetic origin so the rest of the pipeline can still
+        // attach a pathname.
+        return new URL("http://localhost/");
+      }
+    })();
 
     const evt = new WideEventBuilder("http");
 
     // Propagate x-request-id if present
-    const incomingRequestId = request.headers.get("x-request-id");
+    const incomingRequestId = safeRequestProp(
+      request,
+      (r) => r.headers.get("x-request-id"),
+      null,
+    );
     if (incomingRequestId) evt.setRequestId(incomingRequestId);
 
     evt.setHttp({
-      method: request.method,
+      method: safeRequestProp(request, (r) => r.method, "GET"),
       path: url.pathname,
       route: url.pathname,
       status: 200,
-      user_agent: request.headers.get("user-agent") ?? undefined,
+      user_agent:
+        safeRequestProp(
+          request,
+          (r) => r.headers.get("user-agent"),
+          null,
+        ) ?? undefined,
       ip:
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        request.headers.get("x-real-ip") ||
+        safeRequestProp(
+          request,
+          (r) => r.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+          null,
+        ) ||
+        safeRequestProp(request, (r) => r.headers.get("x-real-ip"), null) ||
         undefined,
     });
 
@@ -212,28 +292,27 @@ async function authenticateBearer(
     throw new HttpError(401, "Token expired");
   }
 
-  // Audit V3 NEW-V3-1 fix: `["*"]` is a real wildcard — it grants the
-  // session-equivalent scope (the iOS app receives this on login). Without
-  // the wildcard branch, EVERY future requireAuth("scope:name") call would
-  // 403 every iOS-issued token because string-literal `.includes("*"...)`
-  // never matches.  Worse: today many sensitive routes call requireAuth()
-  // *without* a requiredPermission, so a leaked iOS token can act as a
-  // full-scope token (account delete, settings wipe). Once those routes
-  // adopt requireAuth("scope:name"), the wildcard handling here keeps
-  // the iOS app working while narrower-scoped tokens (e.g. ["medication:
-  // ingest"]) get correctly 403'd.
+  // `["*"]` is the wildcard scope: granted to the iOS app on login so it
+  // can call any authenticated route. Narrow scopes (e.g.
+  // `["medication:ingest"]`) gate specific routes.
+  //
+  // Authorisation contract:
+  //   - Route declares no `requiredPermission`: any valid token passes
+  //     (both wildcard and narrow-scope). The route does not gate on
+  //     scope, so authentication alone is sufficient.
+  //   - Route declares a `requiredPermission`: wildcard tokens pass;
+  //     narrow-scope tokens must list the required permission.
+  //
+  // v1.4.25 W10 reconcile (code-review H2): the previous "no
+  // requiredPermission ⇒ wildcard only" rule misread the contract.
+  // Routes without a declared scope (`/api/measurements/by-external-ids`,
+  // `/api/personal-records`, `/api/medications/[id]/glp1`,
+  // `/api/dashboard/glp1`) 403'd every narrow-scope token even though
+  // those routes did not intend to restrict by scope at all. Allowing
+  // any authenticated token through when the route does not declare a
+  // scope unblocks the v1.5 iOS endpoints while keeping the scoped-
+  // route gating below intact.
   const hasWildcardPermission = apiToken.permissions.includes("*");
-
-  if (!requiredPermission && !hasWildcardPermission) {
-    auditLog("auth.bearer.failure", {
-      userId: apiToken.userId,
-      details: {
-        reason: "scope_required",
-        tokenId: apiToken.id,
-      },
-    }).catch(() => {});
-    throw new HttpError(403, "Insufficient permissions");
-  }
 
   if (
     requiredPermission &&
@@ -349,9 +428,10 @@ async function reportToGlitchtip(
   // GlitchTip. Withings legacy callbacks ship `?secret=…` (see C-3) and
   // OAuth callbacks ship `?code=…&state=…`; if any of those error we
   // don't want their secrets in someone's incident UI.
-  let scrubbedUrl = request.url;
+  const rawUrl = safeRequestProp(request, (r) => r.url, "");
+  let scrubbedUrl = rawUrl;
   try {
-    const u = new URL(request.url);
+    const u = new URL(rawUrl);
     u.search = "";
     scrubbedUrl = u.toString();
   } catch {

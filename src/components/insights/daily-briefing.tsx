@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
+import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { cn } from "@/lib/utils";
 import type {
   DailyBriefing as DailyBriefingPayload,
@@ -85,6 +86,11 @@ const METRIC_ICON: Record<
   distance: Route,
   vo2_max: Zap,
   body_temp: Thermometer,
+  // ── v1.4.25 W4d GLP-1 additive ──
+  // Plateau finding inherits the Pill icon since it's an
+  // adherence-context observation about the user's GLP-1 therapy.
+  // Non-GLP-1 accounts never see this finding type.
+  glp1_plateau: Pill,
 };
 
 const TONE_BAR_CLASSNAME: Record<DailyBriefingKeyFinding["tone"], string> = {
@@ -143,11 +149,13 @@ function KeyFindingRow({ finding }: { finding: DailyBriefingKeyFinding }) {
       />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-sm leading-snug font-medium">{finding.headline}</p>
+          <p className="text-sm leading-snug font-medium">
+            {stripChartTokens(finding.headline)}
+          </p>
           <DeltaBadge delta={finding.delta} tone={finding.tone} />
         </div>
         <p className="text-muted-foreground text-xs leading-snug">
-          {finding.detail}
+          {stripChartTokens(finding.detail)}
         </p>
       </div>
     </div>
@@ -228,7 +236,7 @@ export function DailyBriefing({
               data-slot="daily-briefing-paragraph"
               className="text-foreground text-sm leading-relaxed"
             >
-              {briefing.paragraph}
+              {stripChartTokens(briefing.paragraph)}
             </p>
             {briefing.keyFindings.length > 0 && (
               <div className="space-y-2">

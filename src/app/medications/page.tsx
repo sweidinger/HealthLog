@@ -8,6 +8,7 @@ import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { MedicationForm } from "@/components/medications/medication-form";
 import { MedicationCard } from "@/components/medications/medication-card";
+import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Switch } from "@/components/ui/switch";
@@ -56,6 +57,10 @@ interface Medication {
   name: string;
   dose: string;
   category: string;
+  /** v1.4.25 W4d — Prisma treatment class (GENERIC | GLP1). */
+  treatmentClass?: string;
+  /** v1.4.25 W4d — doses per pen/vial for inventory math. */
+  dosesPerUnit?: number | null;
   active: boolean;
   notificationsEnabled: boolean;
   pausedAt: string | null;
@@ -115,7 +120,7 @@ export default function MedicationsPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">
             {t("medications.title")}
@@ -138,7 +143,7 @@ export default function MedicationsPage() {
   const inactiveMeds = medsArray.filter((m) => !m.active).sort(byName);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">
@@ -190,18 +195,26 @@ export default function MedicationsPage() {
           }
         />
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-6">
           {/* Active medications */}
           {activeMeds.length > 0 && (
             <div className="space-y-3.5">
               <div className="grid gap-4 sm:grid-cols-2">
-                {activeMeds.map((med) => (
-                  <MedicationCard
-                    key={med.id}
-                    medication={med}
-                    onEdit={openEdit}
-                  />
-                ))}
+                {activeMeds.map((med) =>
+                  med.treatmentClass === "GLP1" ? (
+                    <Glp1MedicationCard
+                      key={med.id}
+                      medication={med}
+                      onEdit={openEdit}
+                    />
+                  ) : (
+                    <MedicationCard
+                      key={med.id}
+                      medication={med}
+                      onEdit={openEdit}
+                    />
+                  ),
+                )}
               </div>
             </div>
           )}
@@ -213,13 +226,21 @@ export default function MedicationsPage() {
                 {t("common.inactive")} ({inactiveMeds.length})
               </h2>
               <div className="grid gap-4 sm:grid-cols-2">
-                {inactiveMeds.map((med) => (
-                  <MedicationCard
-                    key={med.id}
-                    medication={med}
-                    onEdit={openEdit}
-                  />
-                ))}
+                {inactiveMeds.map((med) =>
+                  med.treatmentClass === "GLP1" ? (
+                    <Glp1MedicationCard
+                      key={med.id}
+                      medication={med}
+                      onEdit={openEdit}
+                    />
+                  ) : (
+                    <MedicationCard
+                      key={med.id}
+                      medication={med}
+                      onEdit={openEdit}
+                    />
+                  ),
+                )}
               </div>
             </div>
           )}
@@ -253,6 +274,12 @@ export default function MedicationsPage() {
                     name: editingMed.name,
                     dose: editingMed.dose,
                     category: editingMed.category,
+                    // v1.4.25 W4d — pass through the Prisma treatment-class
+                    // discriminator and the optional dosesPerUnit so the
+                    // form preselects the GLP-1 surfaces correctly when
+                    // editing an existing GLP-1 row.
+                    treatmentClass: editingMed.treatmentClass,
+                    dosesPerUnit: editingMed.dosesPerUnit ?? null,
                     active: editingMed.active,
                     notificationsEnabled: editingMed.notificationsEnabled,
                     schedules: editingMed.schedules.map((s) => ({

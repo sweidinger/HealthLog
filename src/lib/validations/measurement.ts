@@ -20,6 +20,18 @@ export const measurementTypeEnum = z.enum([
   "WALKING_RUNNING_DISTANCE",
   "VO2_MAX",
   "BODY_TEMPERATURE",
+  // ── v1.4.25 W5d Withings full coverage ──
+  "FAT_FREE_MASS",
+  "FAT_MASS",
+  "MUSCLE_MASS",
+  "SKIN_TEMPERATURE",
+  "PULSE_WAVE_VELOCITY",
+  "VASCULAR_AGE",
+  "VISCERAL_FAT",
+  // ── v1.4.25 W8d Apple Health server-prep ──
+  "AUDIO_EXPOSURE_ENV",
+  "AUDIO_EXPOSURE_HEADPHONE",
+  "TIME_IN_DAYLIGHT",
 ]);
 
 export const glucoseContextEnum = z.enum([
@@ -68,6 +80,29 @@ const unitMap: Record<string, string> = {
   WALKING_RUNNING_DISTANCE: "m",
   VO2_MAX: "mL/(kg·min)",
   BODY_TEMPERATURE: "celsius",
+  // ── v1.4.25 W5d Withings full coverage ──
+  FAT_FREE_MASS: "kg",
+  FAT_MASS: "kg",
+  MUSCLE_MASS: "kg",
+  // Distinct from BODY_TEMPERATURE — surface temps run ~32 °C; sharing
+  // the bucket would corrupt analytics. Same canonical unit (°C).
+  SKIN_TEMPERATURE: "celsius",
+  PULSE_WAVE_VELOCITY: "m/s",
+  VASCULAR_AGE: "years",
+  // Withings reports visceral fat as a 1–12 rating, not a percent. The
+  // string mirrors what Withings prints in Health Mate.
+  VISCERAL_FAT: "rating",
+  // ── v1.4.25 W8d Apple Health server-prep ──
+  // Sound-pressure level — A-weighted decibels (dBA). HealthKit reports
+  // both audio-exposure metrics in dBASPL; we store the unweighted "dBA"
+  // label because the A-weighting is implicit (every HealthKit audio
+  // sample carries it). 30 dBA = quiet bedroom; 140 dBA = pain threshold.
+  AUDIO_EXPOSURE_ENV: "dBA",
+  AUDIO_EXPOSURE_HEADPHONE: "dBA",
+  // Daily-rollup pattern (one sample = one day's outdoor-light minutes).
+  // 0–1440 covers the 24-hour day; in practice indoor users sit near 0
+  // and outdoor athletes accumulate a few hours.
+  TIME_IN_DAYLIGHT: "minutes",
 };
 
 export function getUnitForType(type: string): string {
@@ -114,6 +149,39 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   VO2_MAX: { min: 5, max: 100 },
   // Body temperature °C — survivable lows ~28; severe hyperthermia ~45.
   BODY_TEMPERATURE: { min: 28, max: 45 },
+  // ── v1.4.25 W5d Withings full coverage ──
+  // Fat-free mass kg — adult plausibility, ~30 kg (small adult) to 120 kg
+  // (large lean athlete). Same bounds as weight minus a fat-mass floor.
+  FAT_FREE_MASS: { min: 10, max: 250 },
+  // Fat mass kg — pairs with FAT_FREE_MASS so totals reconcile to weight.
+  FAT_MASS: { min: 0, max: 250 },
+  // Muscle mass kg — sub-component of fat-free mass; widest sensible bound.
+  MUSCLE_MASS: { min: 5, max: 200 },
+  // Skin temperature °C — surface temps run cooler than core. ScanWatch's
+  // dermal sensor reports a relative offset that lands in the 25–40 °C
+  // band; treat anything outside as a sensor glitch.
+  SKIN_TEMPERATURE: { min: 20, max: 45 },
+  // Pulse-wave velocity m/s — clinical ranges sit ~4–15 m/s. Higher
+  // numbers indicate stiffer arteries (cardiovascular risk).
+  PULSE_WAVE_VELOCITY: { min: 1, max: 30 },
+  // Vascular age in years — Withings derives this from PWV + chronological
+  // age; the value is a "biological age" not a chronological one. Hard cap
+  // at 130 because that's the human longevity record.
+  VASCULAR_AGE: { min: 10, max: 130 },
+  // Visceral fat rating 1–12 (Withings' own scale; not a percent).
+  VISCERAL_FAT: { min: 0, max: 30 },
+  // ── v1.4.25 W8d Apple Health server-prep ──
+  // Audio exposure dBA — Apple's "loud audio" warning sits at 80 dBA;
+  // concerts run 100–115 dBA; 140 dBA is the pain threshold. The floor
+  // of 30 dBA covers a quiet bedroom; anything below is silence and
+  // almost certainly a sensor artefact.
+  AUDIO_EXPOSURE_ENV: { min: 30, max: 140 },
+  // Headphone audio caps slightly below the open-air upper edge because
+  // sealed-driver listening physically cannot reach a concert PA's SPL.
+  AUDIO_EXPOSURE_HEADPHONE: { min: 30, max: 140 },
+  // Time in daylight (minutes/day) — full 24-hour window. Outdoor work
+  // tops the range; sedentary indoor days sit near 0.
+  TIME_IN_DAYLIGHT: { min: 0, max: 1440 },
 };
 
 export function validateMeasurementRange(
@@ -137,6 +205,14 @@ export const createMeasurementSchema = z
     // Only applies when type === BLOOD_GLUCOSE. Mirrored by a CHECK
     // constraint in Postgres (see migration 0021).
     glucoseContext: glucoseContextEnum.optional(),
+    // v1.4.25 W10 reconcile (code-review M4): the single-entry POST
+    // dropped `deviceType` silently because the column existed on
+    // `Measurement` and was accepted by the batch route, but never
+    // declared in this schema. iOS clients that POST one row at a
+    // time (and dashboards that backfill manual rows with device
+    // metadata) now persist the tag instead of seeing it disappear.
+    // Accepts `null` so a client can explicitly clear the column.
+    deviceType: z.string().min(1).max(32).nullable().optional(),
   })
   .refine((data) => validateMeasurementRange(data.type, data.value) === null, {
     message: "Value out of plausible range",

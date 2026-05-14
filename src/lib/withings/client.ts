@@ -23,6 +23,48 @@ function getRedirectUri(): string {
 }
 
 /**
+ * v1.4.25 W5d — Withings OAuth scope set HealthLog requests.
+ *
+ *   - `user.metrics`  : every meastype the Measure / Heart-list /
+ *                       Sleep endpoints expose (weight, BP, pulse,
+ *                       SpO2, body comp, temperature, VO2 max, …)
+ *   - `user.activity` : steps / active energy / distance / floors —
+ *                       served by `POST /v2/measure?action=getactivity`.
+ *                       The sync routine itself lands in v1.4.26; the
+ *                       scope is requested now so existing users
+ *                       reconnect once instead of twice.
+ *
+ * v1.4.24-and-earlier connections requested `user.metrics` only — the
+ * Settings → Integrations card surfaces a reconnect banner for those
+ * users (see `WithingsConnection.scope IS NULL` or scope without
+ * `user.activity`).
+ */
+export const WITHINGS_OAUTH_SCOPE = "user.metrics,user.activity" as const;
+
+/**
+ * Parse the persisted scope string into a Set for membership checks.
+ * Legacy NULL → empty set (treated as "no scopes yet") so the
+ * reconnect-banner conditional reads as truthy.
+ */
+export function parseWithingsScope(scope: string | null): Set<string> {
+  if (!scope) return new Set();
+  return new Set(
+    scope
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
+}
+
+/**
+ * Returns true when the connection holds `user.activity` — the
+ * minimum scope required by the Activity / Sleep endpoints.
+ */
+export function hasActivityScope(scope: string | null): boolean {
+  return parseWithingsScope(scope).has("user.activity");
+}
+
+/**
  * Generate Withings OAuth authorization URL.
  */
 export function getAuthorizationUrl(
@@ -33,7 +75,7 @@ export function getAuthorizationUrl(
     response_type: "code",
     client_id: creds.clientId,
     redirect_uri: getRedirectUri(),
-    scope: "user.metrics",
+    scope: WITHINGS_OAUTH_SCOPE,
     state,
   });
   return `${WITHINGS_OAUTH_URL}?${params}`;
@@ -119,17 +161,52 @@ export async function refreshAccessToken(
   return json.body as WithingsTokenResponse;
 }
 
-// Withings measure type mapping
+// Withings measure type mapping. The single source of truth is
+// `src/lib/withings/mapping.md` — keep both in sync when adding entries.
 // https://developer.withings.com/api-reference#tag/measure/operation/measure-getmeas
-const MEASURE_TYPE_MAP: Record<number, { type: string; factor?: number }> = {
+export const MEASURE_TYPE_MAP: Record<
+  number,
+  { type: string; factor?: number }
+> = {
   1: { type: "WEIGHT" }, // Weight (kg)
   9: { type: "BLOOD_PRESSURE_DIA" }, // Diastolic BP
   10: { type: "BLOOD_PRESSURE_SYS" }, // Systolic BP
   11: { type: "PULSE" }, // Heart rate
   6: { type: "BODY_FAT" }, // Body fat %
+  // v1.4.25 — first-gen Thermo (WBT01) reports temperature as meastype 12;
+  // current-gen Thermo ships meastype 71. Both canonical °C, both into
+  // the BODY_TEMPERATURE bucket. Skin temperature (73, ScanWatch) stays
+  // out until v1.4.26 ships a SKIN_TEMPERATURE enum — surface temps
+  // (~32 °C) and core temps (~37 °C) must not share a rollup.
+  12: { type: "BODY_TEMPERATURE" },
+  71: { type: "BODY_TEMPERATURE" },
   77: { type: "TOTAL_BODY_WATER" }, // Hydration / water mass (kg)
   88: { type: "BONE_MASS" }, // Bone mass (kg)
   54: { type: "OXYGEN_SATURATION" }, // SpO2 (% — only ScanWatch / pulse-ox products)
+  // v1.4.25 — older Withings firmware (and some SDK examples) report
+  // SpO2 under meastype 35 instead of 54. Both target OXYGEN_SATURATION
+  // in percent; the exponent decode handles 0.97 vs 97 transparently.
+  35: { type: "OXYGEN_SATURATION" },
+  // v1.4.25 — VO2 max from the ScanWatch family. Withings reports
+  // mL/(kg·min) directly, matching the canonical DB unit.
+  123: { type: "VO2_MAX" },
+  // ── v1.4.25 W5d — Withings full coverage ──
+  // Body composition expansion (Body+, Body Cardio, Body Comp, Body
+  // Scan ship these values on every measurement). All canonical kg.
+  5: { type: "FAT_FREE_MASS" }, // Fat-free mass
+  8: { type: "FAT_MASS" }, // Fat mass (kg form of BODY_FAT)
+  76: { type: "MUSCLE_MASS" }, // Muscle mass
+  // Skin temperature (ScanWatch dermal sensor). Distinct from
+  // BODY_TEMPERATURE — surface temps ~32 °C, core ~37 °C. Same °C
+  // unit; the SKIN_TEMPERATURE enum value keeps the rollup honest.
+  73: { type: "SKIN_TEMPERATURE" },
+  // Pulse-wave velocity m/s — Body Cardio / Body Scan exclusive.
+  91: { type: "PULSE_WAVE_VELOCITY" },
+  // Vascular age in years — Body Scan composite of PWV + age.
+  155: { type: "VASCULAR_AGE" },
+  // Visceral fat rating (Withings 1–12 scale). Stored under the
+  // canonical VISCERAL_FAT enum with `rating` as the unit string.
+  170: { type: "VISCERAL_FAT" },
 };
 
 export interface WithingsMeasure {

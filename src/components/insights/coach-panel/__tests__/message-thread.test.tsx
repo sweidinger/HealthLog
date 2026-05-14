@@ -304,10 +304,13 @@ describe("<MessageThread>", () => {
     expect(html).toContain('data-slot="coach-evidence-list"');
     const rows = (html.match(/data-slot="coach-evidence-row"/g) ?? []).length;
     expect(rows).toBe(2);
-    expect(html).toContain("avg7 systolic");
+    // v1.4.25 W5 — per-row source labels were dropped. The values +
+    // units + window framing stay; the redundant `kv.label` prefix
+    // (e.g. "avg7 systolic:") does not appear.
+    expect(html).not.toContain("avg7 systolic");
+    expect(html).not.toContain("avg30 systolic");
     expect(html).toContain("138 mmHg");
     expect(html).toContain("(last7days)");
-    expect(html).toContain("avg30 systolic");
     expect(html).toContain("134 mmHg");
     // Disclosure is collapsed by default (no `open` attribute).
     expect(html).not.toMatch(/<details[^>]*\bopen\b/);
@@ -355,11 +358,11 @@ describe("<MessageThread>", () => {
       ],
     };
     const html = render(<MessageThread conversation={withKeyValues} />);
-    expect(html).toContain("30-day adherence");
-    // No stray empty unit/window markup.
-    expect(html).not.toMatch(
-      /30-day adherence:\s*<\/span>\s*<strong[^>]*>\s*</,
-    );
+    // v1.4.25 W5 — `kv.label` no longer renders; only the value
+    // bubbles up. The row still mounts so the value is visible.
+    expect(html).not.toContain("30-day adherence");
+    expect(html).toContain('data-slot="coach-evidence-row"');
+    expect(html).toMatch(/<strong[^>]*>\s*96\s*<\/strong>/);
   });
 
   it("hides the disclosure entirely when keyValues is empty or absent", () => {
@@ -399,5 +402,139 @@ describe("<MessageThread>", () => {
     const html = render(<MessageThread conversation={baseConversation} />);
     expect(html).toContain('data-slot="coach-bubble-user-avatar"');
     expect(html).toMatch(/data-slot="coach-bubble-user-avatar"[^>]*>TE</);
+  });
+
+  // v1.4.25 W5 — optimistic user bubble appears before the "Thinking…"
+  // placeholder so the visible order matches the user's mental model.
+  it("renders the optimistic user bubble before the streaming Thinking placeholder", () => {
+    const html = render(
+      <MessageThread
+        conversation={null}
+        optimisticUser={{
+          localId: "local-1",
+          content: "Wie ist mein Blutdruck letzte Woche?",
+          conversationId: null,
+        }}
+        streaming={{
+          content: "",
+          metricSource: null,
+          inProgress: true,
+          messageId: null,
+          errorCode: null,
+        }}
+      />,
+    );
+    expect(html).toContain("Wie ist mein Blutdruck letzte Woche?");
+    expect(html).toContain("Thinking");
+    // The user bubble appears before the assistant bubble in the DOM.
+    const userIdx = html.indexOf('data-slot="coach-bubble-user"');
+    const assistantIdx = html.indexOf('data-slot="coach-bubble-assistant"');
+    expect(userIdx).toBeGreaterThan(-1);
+    expect(assistantIdx).toBeGreaterThan(-1);
+    expect(userIdx).toBeLessThan(assistantIdx);
+  });
+
+  // v1.4.25 W5 — distinct daily-limit vs provider-rate-limit copy.
+  it("surfaces the daily-limit copy for coach.budget.exceeded", () => {
+    const html = render(
+      <MessageThread
+        conversation={null}
+        streaming={{
+          content: "",
+          metricSource: null,
+          inProgress: false,
+          messageId: null,
+          errorCode: "coach.budget.exceeded",
+        }}
+      />,
+    );
+    expect(html).toContain("Daily limit reached; resets at 00:00 UTC.");
+    expect(html).not.toContain("could not reach an AI provider");
+  });
+
+  it("surfaces the provider rate-limit copy for coach.provider.rate_limited", () => {
+    const html = render(
+      <MessageThread
+        conversation={null}
+        streaming={{
+          content: "",
+          metricSource: null,
+          inProgress: false,
+          messageId: null,
+          errorCode: "coach.provider.rate_limited",
+        }}
+      />,
+    );
+    expect(html).toContain(
+      "Provider temporarily rate-limited; retry in ~5 min.",
+    );
+  });
+
+  it("suppresses the optimistic user bubble once its persisted twin lands", () => {
+    // baseConversation already carries a user message "Why was BP
+    // higher on Monday?". Passing the same content as the optimistic
+    // bubble simulates the post-`done` invalidate-refetch landing the
+    // persisted user message — the optimistic copy must drop so the
+    // user never sees their bubble twice.
+    const html = render(
+      <MessageThread
+        conversation={baseConversation}
+        optimisticUser={{
+          localId: "local-2",
+          content: "Why was BP higher on Monday?",
+          conversationId: "conv-1",
+        }}
+        streaming={{
+          content: "",
+          metricSource: null,
+          inProgress: false,
+          messageId: null,
+          errorCode: null,
+        }}
+      />,
+    );
+    const userBubbles = (html.match(/data-slot="coach-bubble-user"/g) ?? [])
+      .length;
+    expect(userBubbles).toBe(1);
+  });
+});
+
+// v1.4.25 W5 — pin the error-code → i18n-key resolver so future code
+// changes can't silently demote the daily-limit / rate-limit copy
+// back to the generic provider-unavailable fallback.
+import { errorCodeToI18nKey } from "../message-thread";
+
+describe("errorCodeToI18nKey", () => {
+  it("maps daily-budget exceedance to the dedicated key", () => {
+    expect(errorCodeToI18nKey("coach.budget.exceeded")).toBe(
+      "insights.coach.dailyLimitBody",
+    );
+  });
+
+  it("maps provider rate-limit to the dedicated key", () => {
+    expect(errorCodeToI18nKey("coach.provider.rate_limited")).toBe(
+      "insights.coach.providerRateLimitBody",
+    );
+  });
+
+  it("maps every other provider failure to the generic copy", () => {
+    for (const code of [
+      "coach.provider.unavailable",
+      "coach.provider.empty",
+      "coach.provider.none",
+      "coach.network",
+      "coach.stream",
+    ]) {
+      expect(errorCodeToI18nKey(code)).toBe("insights.coach.errorProvider");
+    }
+  });
+
+  it("forward-compats unknown codes with the namespaced key", () => {
+    expect(errorCodeToI18nKey("errorProvider")).toBe(
+      "insights.coach.errorProvider",
+    );
+    expect(errorCodeToI18nKey("brand-new-code")).toBe(
+      "insights.coach.brand-new-code",
+    );
   });
 });

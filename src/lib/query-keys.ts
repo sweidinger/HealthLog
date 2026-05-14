@@ -30,8 +30,6 @@ export const queryKeys = {
    * a second LLM round-trip.
    */
   insightsAdvisor: () => ["insights", "advisor"] as const,
-  insightsGeneralStatus: (locale: string) =>
-    ["insights", "general-status", locale] as const,
   insightsBpStatus: (locale: string) =>
     ["insights", "blood-pressure-status", locale] as const,
   insightsWeightStatus: (locale: string) =>
@@ -83,6 +81,23 @@ export const queryKeys = {
    * against the same query-key-collision class as `analytics()`.
    */
   dashboardWidgets: () => ["user", "dashboardWidgets"] as const,
+
+  /**
+   * v1.4.25 W6 — dashboard GLP-1 tile data. Self-gating: the route
+   * returns `data: null` when the user has no active GLP-1 medication
+   * so the tile component can suppress itself without a 404 special-
+   * case in the cache.
+   */
+  dashboardGlp1: () => ["dashboard", "glp1"] as const,
+
+  /**
+   * v1.4.25 W5e — per-user, per-metric-class source priority. The
+   * Settings → Sources surface reads + writes this key; saving
+   * invalidates `analytics()` because the cumulative-metric aggregator
+   * folds the new priority into the SLEEP_DURATION daily total
+   * immediately.
+   */
+  sourcePriority: () => ["auth", "source-priority"] as const,
 };
 
 /**

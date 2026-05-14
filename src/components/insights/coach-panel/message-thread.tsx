@@ -13,12 +13,14 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
+import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { useAuth } from "@/hooks/use-auth";
 import { useCoachPrefs } from "@/hooks/use-coach-prefs";
 
 import { SourceChips } from "./source-chips";
 import type {
   CoachConversationDetailDTO,
+  CoachOptimisticUserMessage,
   CoachStreamingMessage,
 } from "./use-coach";
 import type { CoachMessageDTO } from "@/lib/ai/coach/types";
@@ -44,6 +46,15 @@ export interface MessageThreadProps {
   conversation: CoachConversationDetailDTO | null;
   /** Optional in-flight bubble from `useSendCoachMessage()`. */
   streaming?: CoachStreamingMessage;
+  /**
+   * v1.4.25 W5 — optimistic user message surfaced by the send hook so
+   * the user sees their own bubble before the "Thinking…" placeholder.
+   * Cleared by the hook once the SSE `done` frame fires (the persisted
+   * twin lands via the invalidate-refetch). When the persisted twin is
+   * already in `conversation.messages` we suppress the optimistic copy
+   * so the user never sees the same bubble twice.
+   */
+  optimisticUser?: CoachOptimisticUserMessage | null;
   /** Empty-state copy when no conversation is loaded yet. */
   emptyHint?: string;
 }
@@ -52,9 +63,42 @@ function isPinnedToBottom(el: HTMLElement, slack = 64): boolean {
   return el.scrollHeight - el.scrollTop - el.clientHeight <= slack;
 }
 
+/**
+ * v1.4.25 W5 — map server-emitted error codes to specific Coach i18n
+ * keys. The chat route distinguishes the daily user-quota
+ * (`coach.budget.exceeded`, returned as a JSON 429) from the provider
+ * rate-limit (`coach.provider.rate_limited`, streamed as an SSE error
+ * frame). Both used to surface as the generic provider-unavailable
+ * copy; we now route each to its dedicated translation so the user
+ * understands whether the limit is on their side (reset at UTC
+ * midnight) or transient on the provider side (retry in ~5 min).
+ *
+ * Exported so the resolver can be pinned by unit tests without
+ * standing up the whole thread renderer.
+ */
+export function errorCodeToI18nKey(code: string): string {
+  switch (code) {
+    case "coach.budget.exceeded":
+      return "insights.coach.dailyLimitBody";
+    case "coach.provider.rate_limited":
+      return "insights.coach.providerRateLimitBody";
+    case "coach.provider.unavailable":
+    case "coach.provider.empty":
+    case "coach.provider.none":
+    case "coach.network":
+    case "coach.stream":
+      return "insights.coach.errorProvider";
+    default:
+      // Forward-compat: try `insights.coach.<code>` for codes that
+      // ship their own translation (e.g. legacy `errorProvider`).
+      return `insights.coach.${code}`;
+  }
+}
+
 export function MessageThread({
   conversation,
   streaming,
+  optimisticUser,
   emptyHint,
 }: MessageThreadProps) {
   const { t } = useTranslations();
@@ -116,6 +160,21 @@ export function MessageThread({
     !streamingPersisted &&
     (!!streaming?.inProgress || !!streaming?.content || !!streaming?.errorCode);
 
+  // v1.4.25 W5 — render the optimistic user bubble only when the
+  // persisted twin hasn't landed yet. We match on (role=user, content
+  // equality, no later persisted user message). The server is the
+  // source of truth — once the persisted user message lands (via the
+  // invalidate-refetch the SSE `done` frame triggers), the optimistic
+  // copy is dropped so the user never sees their bubble twice.
+  const optimisticActive = (() => {
+    if (!optimisticUser) return false;
+    // Suppress if the persisted history already contains the same
+    // user content as the last user message — the twin has landed.
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUser && lastUser.content === optimisticUser.content) return false;
+    return true;
+  })();
+
   // Track scroll position so we don't yank the viewport when the user
   // is browsing earlier turns.
   useEffect(() => {
@@ -129,16 +188,18 @@ export function MessageThread({
   }, []);
 
   // Auto-scroll on new messages OR streaming-content growth, but only
-  // when the user was already at the bottom.
+  // when the user was already at the bottom. v1.4.25 W5 — the
+  // optimistic user bubble counts as a new message; scroll on its
+  // localId so the user sees their own bubble land at the bottom.
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
     if (wasPinnedRef.current) {
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }
-  }, [messages.length, streaming?.content]);
+  }, [messages.length, streaming?.content, optimisticUser?.localId]);
 
-  if (messages.length === 0 && !streamingActive) {
+  if (messages.length === 0 && !streamingActive && !optimisticActive) {
     return (
       <div
         data-slot="coach-message-thread"
@@ -183,6 +244,18 @@ export function MessageThread({
           />
         );
       })}
+      {/* v1.4.25 W5 — optimistic user bubble surfaces between the
+          persisted history and the streaming assistant placeholder so
+          the visible order matches the user's mental model. The
+          send-hook drops it as soon as the SSE `done` frame fires +
+          the invalidate-refetch lands the persisted twin. */}
+      {optimisticActive && optimisticUser && (
+        <ChatBubble
+          key={optimisticUser.localId}
+          role="user"
+          content={optimisticUser.content}
+        />
+      )}
       {streamingActive && streaming && (
         // role=log + aria-live=polite so screen-reader users hear the
         // assistant prose announce as tokens land. aria-relevant=text
@@ -293,12 +366,18 @@ function ChatBubble({
     );
   }
 
-  const errorMessage = errorCode ? t(`insights.coach.${errorCode}`, {}) : null;
-  // When a translated message comes back unchanged (i.e. key missing) we
-  // fall back to a generic provider error string so the bubble doesn't
-  // surface raw `coach.http.503` text to the user.
+  // v1.4.25 W5 — map server-emitted error codes to specific Coach
+  // i18n keys. Distinct user-quota and provider-rate-limit copy so the
+  // user understands daily-cap (resets at UTC midnight) vs. transient
+  // provider load (retry in ~5 min). Codes that have no dedicated
+  // translation fall back to the generic provider-unavailable copy.
+  const errorKey = errorCode ? errorCodeToI18nKey(errorCode) : null;
+  const errorMessage = errorKey ? t(errorKey, {}) : null;
+  // When a translated message comes back unchanged (i.e. key missing)
+  // we fall back to a generic provider error string so the bubble
+  // doesn't surface raw `coach.http.503` text to the user.
   const safeError =
-    errorMessage && errorMessage !== `insights.coach.${errorCode}`
+    errorMessage && errorMessage !== errorKey
       ? errorMessage
       : errorCode
         ? t("insights.coach.errorProvider")
@@ -330,7 +409,17 @@ function ChatBubble({
             inProgress && "animate-pulse motion-reduce:animate-none",
           )}
         >
-          {content || (inProgress ? t("insights.coach.thinking") : "")}
+          {/* v1.4.25 W5b — strip stray Metric/enum leak tokens from
+              the assistant prose before it lands in the bubble. The
+              raw `content` is the streamed Coach reply (or the
+              persisted twin after `done` fires); both paths are AI-
+              authored so they share the same leak surface as the
+              insight prose elsewhere. */}
+          {content
+            ? stripChartTokens(content)
+            : inProgress
+              ? t("insights.coach.thinking")
+              : ""}
         </div>
         {safeError && (
           <p className="text-dracula-orange/90 text-xs">{safeError}</p>
@@ -374,7 +463,12 @@ function ChatBubble({
                   data-slot="coach-evidence-row"
                   className="leading-relaxed"
                 >
-                  <span className="text-muted-foreground">{kv.label}:</span>{" "}
+                  {/* v1.4.25 W5 — `kv.label` (e.g. "avg7 systolic")
+                      was rendered prefixed to every row, repeating
+                      framing the disclosure heading already gives.
+                      Drop the label and lead with the value; the
+                      window stays as a parenthetical tail so the row
+                      still answers "over what timeframe?". */}
                   <strong className="font-semibold">
                     {kv.value}
                     {kv.unit ? ` ${kv.unit}` : ""}

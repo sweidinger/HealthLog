@@ -107,13 +107,24 @@ describe("v1.4.19 A3 — /insights polish", () => {
     expect(advisorBlock?.[0]).not.toContain("onRegenerate");
   });
 
-  it("hero strip is the always-visible page-level refresh affordance", () => {
-    const src = load(INSIGHTS_PATH);
-    // The hero owns the page-level regenerate button (mounted via
-    // `onRegenerate={advisor.regenerate}` on `<HeroStrip>`).
-    expect(src).toMatch(
-      /<HeroStrip[\s\S]*?onRegenerate=\{advisor\.regenerate\}/,
+  it("tab strip owns the always-visible page-level refresh affordance (v1.4.25 W4)", () => {
+    // v1.4.25 W4 — the regenerate handler moved out of the mother page
+    // body entirely and now lives on the layout-mounted
+    // `<InsightsLayoutShell>` (which renders `<InsightsTabStrip>` with
+    // the advisor query's regenerate wired in). The mother-page hero
+    // no longer takes an `onRegenerate` prop, mirroring the v1.4.25 W3
+    // contract while accommodating the new routed sub-page layout.
+    const shellSrc = readFileSync(
+      join(ROOT, "src/components/insights/insights-layout-shell.tsx"),
+      "utf8",
     );
+    expect(shellSrc).toMatch(
+      /<InsightsTabStrip[\s\S]*?onRegenerate=[\s\S]*?advisor\.regenerate[\s\S]*?\/>/,
+    );
+    const insightsSrc = load(INSIGHTS_PATH);
+    const heroBlock = insightsSrc.match(/<HeroStrip[\s\S]*?\/>/);
+    expect(heroBlock).not.toBeNull();
+    expect(heroBlock?.[0]).not.toContain("onRegenerate");
   });
 
   it("does NOT render the duplicate <TrendCard> tile strip on /insights", () => {
@@ -235,10 +246,16 @@ describe("v1.4.22 A3 — comparison toggle is global Settings only", () => {
   });
 
   it("/insights still consumes the resolved comparisonBaseline (only the UI is gone)", () => {
-    // Drift guard — the page must still hand `compareBaseline` to every
-    // chart so the global Settings toggle keeps driving the overlay.
-    const src = load(INSIGHTS_PATH);
-    expect(src).toContain("comparisonBaseline");
-    expect(src).toContain("compareBaseline");
+    // Drift guard — v1.4.25 W4 split each metric onto its own sub-route
+    // under `/insights/<slug>`, and `compareBaseline` propagation now
+    // happens via `useInsightsLayoutPrefs()` on every sub-page. The
+    // central hook is the load-bearing surface; assert it carries both
+    // the resolved value and the persisted preference key.
+    const hookSrc = readFileSync(
+      join(ROOT, "src/hooks/use-insights-layout-prefs.ts"),
+      "utf8",
+    );
+    expect(hookSrc).toContain("comparisonBaseline");
+    expect(hookSrc).toContain("compareBaseline");
   });
 });

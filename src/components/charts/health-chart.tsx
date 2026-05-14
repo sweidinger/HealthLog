@@ -13,6 +13,7 @@ import {
   Legend,
   ReferenceLine,
   ReferenceArea,
+  ReferenceDot,
 } from "recharts";
 import { Loader2 } from "lucide-react";
 import { useState, useMemo } from "react";
@@ -20,8 +21,8 @@ import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { Button } from "@/components/ui/button";
-import { formatDateShort } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { makeFormatters } from "@/lib/format-locale";
 import {
   bucketTimeSeries,
   pickBucket,
@@ -138,6 +139,37 @@ interface HealthChartProps {
    * that needs the same behaviour).
    */
   annotations?: Array<{ date: string; label: string; color: string }>;
+  /**
+   * v1.4.25 W6 — vertical injection-day markers.
+   *
+   * Each entry pins a thin dashed vertical reference line on the chart
+   * at the data point whose Berlin/user-tz day-key matches `date`
+   * (`YYYY-MM-DD`). Designed for the GLP-1 dashboard tile + the
+   * Insights /medikamente sub-page so users can see "I injected on
+   * these days; here's how my weight responded". Differs from
+   * `annotations` in three ways:
+   *   1. No text label by default — these markers represent events
+   *      the user already saw the chart-line shape for; an inline
+   *      label per marker would crowd the canvas.
+   *   2. A small filled dot sits at the x-axis intersection (mood-
+   *      chart style emoji-on-axis pattern repurposed) so a row of
+   *      green dots reads as "injection cadence" at a glance.
+   *   3. Default green (`#50fa7b`) to match the strip-tile palette
+   *      for active medications; callers can override per marker.
+   *
+   * Off-window markers silently drop via `ifOverflow="discard"`,
+   * matching the existing annotations contract.
+   */
+  verticalMarkers?: Array<{ date: string; label?: string; color?: string }>;
+  /**
+   * v1.4.25 W7b — per-user display timezone. When passed (mount sites
+   * thread `useAuth().user?.timezone`), x-axis tick labels and the
+   * per-day bucket keys both render in the user's zone instead of the
+   * legacy Europe/Berlin pin. Defaults to "Europe/Berlin" so older
+   * callers that haven't yet adopted the prop keep their previous
+   * behaviour bit-for-bit.
+   */
+  userTimezone?: string;
 }
 
 interface ChartDataPoint {
@@ -191,15 +223,22 @@ function getTypeLabel(
   return key ? t(key) : type;
 }
 
-const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  timeZone: "Europe/Berlin",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+/**
+ * Build a `YYYY-MM-DD` day-key formatter pinned to the requested
+ * timezone. Memoised per-tz inside the component so we don't allocate a
+ * new `Intl.DateTimeFormat` on every measurement-row pass.
+ */
+function makeDayKeyFormatter(tz: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
 
-function toBerlinDayKey(value: string): string {
-  const parts = BERLIN_DAY_FORMATTER.formatToParts(new Date(value));
+function toDayKey(value: string, formatter: Intl.DateTimeFormat): string {
+  const parts = formatter.formatToParts(new Date(value));
   const year = parts.find((part) => part.type === "year")?.value;
   const month = parts.find((part) => part.type === "month")?.value;
   const day = parts.find((part) => part.type === "day")?.value;
@@ -273,6 +312,53 @@ export interface ResolvedAnnotation {
   label: string;
   color: string;
   truncatedLabel: string;
+}
+
+/**
+ * v1.4.25 W6 — pure helper for the GLP-1 injection-day vertical
+ * markers. Exported so the unit suite can pin behaviour without
+ * spinning Recharts. The shape mirrors `resolveAnnotationPositions`
+ * minus the truncated-label slot.
+ *
+ * `chartData[i].date` is the `YYYY-MM-DD` day-key the chart already
+ * computed when bucketing measurements; we match by exact key so a
+ * marker only lands on a day the chart actually has a data point for.
+ * This is intentional — drawing a vertical line through a gap in the
+ * x-axis paints a hanging line with no data context, which reads as a
+ * rendering bug not as orientation.
+ *
+ * Off-window markers silently drop (the chart's `<ReferenceLine>` also
+ * uses `ifOverflow="discard"` as a belt-and-braces guard).
+ */
+export interface ResolvedVerticalMarker {
+  pointIndex: number;
+  color: string;
+  label: string | undefined;
+}
+
+export function resolveVerticalMarkerPositions(
+  markers: Array<{ date: string; label?: string; color?: string }> | undefined,
+  chartData: Array<{ date: string }> | undefined,
+): ResolvedVerticalMarker[] {
+  if (!markers || !chartData || chartData.length === 0) return [];
+  const indexByDate = new Map<string, number>();
+  for (const [i, point] of chartData.entries()) {
+    // Last-write-wins — multiple bucket-aggregated points should never
+    // share the same day key, but defensively keep the latest if they
+    // do.
+    indexByDate.set(point.date, i);
+  }
+  const out: ResolvedVerticalMarker[] = [];
+  for (const marker of markers) {
+    const idx = indexByDate.get(marker.date);
+    if (idx === undefined) continue;
+    out.push({
+      pointIndex: idx,
+      color: marker.color ?? "#50fa7b",
+      label: marker.label,
+    });
+  }
+  return out;
 }
 
 export function resolveAnnotationPositions(
@@ -367,10 +453,27 @@ export function HealthChart({
   compareBaseline = "none",
   chartKey,
   annotations,
+  verticalMarkers,
+  userTimezone = "Europe/Berlin",
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fmt = useFormatters();
+  // v1.4.25 W7b — tz-aware formatter for x-axis tick labels + tooltip
+  // date strings. `useFormatters()` reads the active UI locale only;
+  // this builds a locale + userTz pair so a Pacific/Auckland user reads
+  // their own day on the axis.
+  const tzFmt = useMemo(
+    () => makeFormatters(locale, userTimezone),
+    [locale, userTimezone],
+  );
+  // v1.4.25 W7b — per-row day-key formatter used to bucket measurement
+  // rows by the user's local calendar day. Memoised on userTimezone so
+  // the inner per-row loop reuses a single Intl.DateTimeFormat.
+  const dayKeyFormatter = useMemo(
+    () => makeDayKeyFormatter(userTimezone),
+    [userTimezone],
+  );
   // v1.4.16 B5c: when a windowOverride is supplied, seed the range
   // state from it so the chart pins to that window. Mini mode also
   // hides the range tabs, so the user can't change it.
@@ -407,6 +510,10 @@ export function HealthChart({
       types.join(","),
       valueMode,
       bmiDivisor ?? "no-bmi",
+      // v1.4.25 W7b — bucket keys + tick labels depend on the active
+      // user timezone, so re-key the cache when it changes. Without
+      // this, a tz change inside a session would render stale buckets.
+      userTimezone,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -451,7 +558,7 @@ export function HealthChart({
               continue;
             }
 
-            const dayKey = toBerlinDayKey(measurement.measuredAt);
+            const dayKey = toDayKey(measurement.measuredAt, dayKeyFormatter);
             const bucket = dailyAggregates.get(dayKey) ?? {
               timestamp: dayKeyToTimestamp(dayKey),
               values: {},
@@ -475,7 +582,7 @@ export function HealthChart({
       const allData: ChartDataPoint[] = Array.from(dailyAggregates.values())
         .map((bucket) => {
           const point: ChartDataPoint = {
-            date: formatDateShort(new Date(bucket.timestamp)),
+            date: tzFmt.dateShort(new Date(bucket.timestamp)),
             timestamp: bucket.timestamp,
           };
 
@@ -525,7 +632,7 @@ export function HealthChart({
           ).points.map<ChartDataPoint>((point) => {
             const date = new Date(point.timestamp);
             const out: ChartDataPoint = {
-              date: formatDateShort(date),
+              date: tzFmt.dateShort(date),
               timestamp: point.timestamp,
             };
             for (const [type, value] of Object.entries(point.values)) {
@@ -590,7 +697,7 @@ export function HealthChart({
     }
 
     return enriched;
-  }, [data, rangePoints, showMA, showTrend, types]);
+  }, [data, rangePoints, showMA, showTrend, types, tzFmt]);
 
   // v1.4.16 phase B8 — comparison overlay.
   //
@@ -624,7 +731,7 @@ export function HealthChart({
     // Index shifted rows by the same day-key the chart already uses.
     const shiftedByDay = new Map<string, Record<string, number>>();
     for (const row of shifted) {
-      const dayKey = formatDateShort(new Date(row.timestamp));
+      const dayKey = tzFmt.dateShort(new Date(row.timestamp));
       const slot = shiftedByDay.get(dayKey) ?? {};
       for (const [type, value] of Object.entries(row.values)) {
         if (typeof value === "number" && Number.isFinite(value)) {
@@ -646,7 +753,7 @@ export function HealthChart({
       }
       return merged;
     });
-  }, [chartData, effectiveCompareBaseline, data, types]);
+  }, [chartData, effectiveCompareBaseline, data, types, tzFmt]);
 
   /**
    * v1.4.16 phase B8 — true when at least one visible day has a prior-
@@ -918,6 +1025,16 @@ export function HealthChart({
     chartData,
   );
 
+  // v1.4.25 W6 — GLP-1 injection-day vertical markers. Pure-helper
+  // pattern lets the chart-tests pin the marker resolution without
+  // mounting Recharts. Off-window markers silently drop here so the
+  // <ReferenceLine> below never paints a line for an out-of-range
+  // day.
+  const verticalMarkerPositions = resolveVerticalMarkerPositions(
+    verticalMarkers,
+    chartData,
+  );
+
   const showContextDetails = showMA || showTrend || showBands;
   const animationsEnabled = !prefersReducedMotion();
 
@@ -1019,6 +1136,7 @@ export function HealthChart({
               <ChartOverlayControls
                 prefs={overlayPrefs.prefs}
                 onChange={overlayPrefs.setPrefs}
+                hasComparisonData={hasComparisonData}
               />
             ) : null}
           </div>
@@ -1101,11 +1219,10 @@ export function HealthChart({
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(value) =>
-                    formatDateShort(
+                    tzFmt.date(
                       new Date(
                         chartData?.[Math.round(value)]?.timestamp ?? Date.now(),
                       ),
-                      true,
                     )
                   }
                   interval={chooseTickInterval(
@@ -1203,6 +1320,47 @@ export function HealthChart({
                     }}
                   />
                 ))}
+                {/* v1.4.25 W6 — GLP-1 injection-day vertical markers.
+                    Thin dashed line + a small filled dot at the x-axis
+                    intersection so a row of markers reads as "injection
+                    cadence" without crowding the canvas. Optional label
+                    rendered only when the caller passed one; the
+                    dashboard tile leaves it undefined (the date is
+                    redundant — the chart's x-axis already shows it). */}
+                {verticalMarkerPositions.map((marker, i) => (
+                  <ReferenceLine
+                    key={`vmarker-${i}-${marker.pointIndex}`}
+                    x={marker.pointIndex}
+                    stroke={marker.color}
+                    strokeDasharray="3 3"
+                    strokeWidth={1.1}
+                    strokeOpacity={0.55}
+                    ifOverflow="discard"
+                    label={
+                      marker.label
+                        ? {
+                            value: marker.label,
+                            position: "insideTopRight",
+                            fill: marker.color,
+                            fontSize: 10,
+                            fontWeight: 500,
+                          }
+                        : undefined
+                    }
+                  />
+                ))}
+                {yDomain &&
+                  verticalMarkerPositions.map((marker, i) => (
+                    <ReferenceDot
+                      key={`vmarker-dot-${i}-${marker.pointIndex}`}
+                      x={marker.pointIndex}
+                      y={yDomain[0]}
+                      r={3}
+                      fill={marker.color}
+                      stroke="none"
+                      ifOverflow="discard"
+                    />
+                  ))}
                 {/* v1.4.18 — personal-baseline reference line is now
                     opt-in via the Trend toggle. the maintainer rejected the
                     always-on dashed mean line; it now only paints when
@@ -1267,9 +1425,7 @@ export function HealthChart({
                       (typeof rechartsLabel === "number"
                         ? chartData?.[Math.round(rechartsLabel)]?.timestamp
                         : undefined);
-                    const dateLabel = ts
-                      ? formatDateShort(new Date(ts), true)
-                      : "";
+                    const dateLabel = ts ? tzFmt.date(new Date(ts)) : "";
                     const rows: RichTooltipRow[] = [];
                     // Build a quick lookup of compare values for this
                     // hover-day so the current-period row can attach

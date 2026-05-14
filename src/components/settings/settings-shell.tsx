@@ -22,6 +22,7 @@ import {
   Download,
   Info,
   KeyRound,
+  Layers,
   LayoutDashboard,
   Link2,
   Settings2,
@@ -86,6 +87,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.thresholds.title",
     icon: SlidersHorizontal,
   },
+  {
+    slug: "sources",
+    titleKey: "settings.sections.sources.title",
+    icon: Layers,
+  },
   { slug: "ai", titleKey: "settings.sections.ai.title", icon: Sparkles },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
   {
@@ -129,8 +135,13 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
   const { t } = useTranslations();
   const activeSlug = deriveActiveSlug(pathname, active);
 
+  // v1.4.25 W8 — AuthShell wraps the page in `px-4 py-6 md:px-6`
+  // already, so this inner shell only carries the wider max-width.
+  // Previously the duplicate `px-4 py-6 md:px-6 md:py-8` here was
+  // producing visibly more top/bottom whitespace on Settings/Admin
+  // pages than on Dashboard/Insights/Measurements.
   return (
-    <div className="mx-auto w-full max-w-screen-xl px-4 py-6 md:px-6 md:py-8">
+    <div className="mx-auto w-full max-w-screen-xl">
       {/* Mobile section strip — horizontal scroll, hidden on md+.
           `no-scrollbar` (defined in `globals.css`) suppresses the
           painted scrollbar; the horizontal swipe + keyboard arrow
@@ -152,7 +163,10 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
                   href={`/settings/${section.slug}`}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+                    // v1.4.25 W8 — chip strip is the primary mobile-settings
+                    // navigation surface. Pad to WCAG 2.5.5 44 px so the
+                    // chips can be tapped without zoom on a Pixel-5.
+                    "flex min-h-11 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
                     isActive
                       ? "border-primary/40 bg-primary/10 text-primary"
                       : "border-border text-foreground hover:bg-accent",

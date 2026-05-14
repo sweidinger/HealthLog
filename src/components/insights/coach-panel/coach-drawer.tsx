@@ -2,11 +2,19 @@
 
 import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { Plus, Settings, Sparkles } from "lucide-react";
+import { Plus, Settings, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -14,6 +22,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
+import { useCoachPrefs } from "@/hooks/use-coach-prefs";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachInput } from "./coach-input";
@@ -153,6 +162,13 @@ export function CoachDrawer({
   // selector). Resets to the all-source last30days default each time
   // the drawer mounts; no conversation-level persistence in this
   // hotfix per the v1.4.20.1 plan.
+  //
+  // v1.4.25 W5 — the scope.window field is now a two-layer override:
+  //   • the user's saved `coachPrefs.defaultWindow` is the base
+  //   • the header pill drops a per-conversation override into
+  //     `windowOverride`; null = "use the saved default"
+  // The override resets to null on drawer close so the next session
+  // starts on the user's saved preference.
   const [scope, setScope] = useState<{
     sources: CoachScopeSource[];
     window: CoachScopeWindow;
@@ -160,15 +176,32 @@ export function CoachDrawer({
     sources: [...DEFAULT_COACH_SCOPE.sources],
     window: DEFAULT_COACH_SCOPE.window,
   }));
+  const [windowOverride, setWindowOverride] = useState<CoachScopeWindow | null>(
+    null,
+  );
+
+  // v1.4.25 W5 — load the user's saved Coach prefs so the default
+  // window picks up the cog's saved selection. The hook gates the
+  // fetch on `enabled` so the network call only fires while the
+  // drawer is open. Falls through to the legacy "last30days" default
+  // when the row is missing or the request is in flight.
+  const { data: coachPrefs } = useCoachPrefs({ enabled: open });
+  const savedDefaultWindow: CoachScopeWindow =
+    coachPrefs?.defaultWindow ?? DEFAULT_COACH_SCOPE.window;
+  const effectiveWindow: CoachScopeWindow =
+    windowOverride ?? savedDefaultWindow;
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
       if (!next) {
         // Reset thread + composer on close so the next open starts on
         // the rail's empty hint instead of re-rendering the previous
-        // conversation by accident.
+        // conversation by accident. v1.4.25 W5 — also drop the
+        // per-conversation window override so the next session starts
+        // on the user's saved `coachPrefs.defaultWindow` again.
         setCurrentConversationId(null);
         setInputValue("");
+        setWindowOverride(null);
       }
       onOpenChange(next);
     },
@@ -189,15 +222,21 @@ export function CoachDrawer({
     // Pass the scope only when the user has narrowed it from the
     // defaults — keeps the wire payload minimal and lets the route
     // tell "no opinion" apart from "intentionally narrow".
-    const isDefault =
-      scope.window === DEFAULT_COACH_SCOPE.window &&
+    //
+    // v1.4.25 W5 — `scope.window` now reflects the per-conversation
+    // override (header pill / rail picker) layered on top of the saved
+    // `coachPrefs.defaultWindow`. Send the override only when the user
+    // explicitly diverged from the saved default; otherwise the route
+    // re-applies the saved preference itself.
+    const allSourcesSelected =
       scope.sources.length === DEFAULT_COACH_SCOPE.sources.length &&
       DEFAULT_COACH_SCOPE.sources.every((s) => scope.sources.includes(s));
+    const isDefault = allSourcesSelected && windowOverride === null;
     const scopePayload: CoachScope | undefined = isDefault
       ? undefined
       : {
           sources: scope.sources,
-          window: scope.window,
+          window: effectiveWindow,
         };
     await send.send({
       conversationId: currentConversationId ?? undefined,
@@ -218,7 +257,13 @@ export function CoachDrawer({
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="right"
-        showCloseButton
+        // v1.4.25 W5 — render our own Close button inside the header so
+        // X / cog / new-chat sit on the same baseline with identical
+        // size, color, and hit target. The Sheet's default close-X is
+        // absolutely positioned with `opacity-70` + tiny `rounded-xs`,
+        // which Marc flagged as misaligned with the rest of the header
+        // cluster.
+        showCloseButton={false}
         data-slot="coach-drawer"
         className={cn(
           // Drawer keeps the dashboard context behind it. On laptops
@@ -234,13 +279,16 @@ export function CoachDrawer({
         )}
       >
         {/* Header (full width). Avatar + title + new-chat button +
-            settings cog (v1.4.23 H4 — real per-user prompt-tuning
-            surface, replacing the v1.4.22 B5 dead-button cleanup).
-            pr-12 keeps the buttons clear of the Sheet's close-X on
-            narrower viewports. */}
+            settings cog + close X. v1.4.25 W5 — the three header
+            actions (new chat, settings, close) all use the same
+            `ghost / size-icon / size-9` shape so they share a single
+            visual cluster instead of feeling like three different
+            controls. The close X used to be the Sheet's absolutely
+            positioned default; bringing it inline normalises the row
+            and frees the `pr-*` reservation. */}
         <SheetHeader
           data-slot="coach-drawer-header"
-          className="border-border/70 flex-row items-center gap-3 border-b p-3 pr-12 sm:p-4 sm:pr-14"
+          className="border-border/70 flex-row items-center gap-2 border-b p-3 sm:gap-3 sm:p-4"
         >
           <div
             aria-hidden="true"
@@ -256,18 +304,66 @@ export function CoachDrawer({
               {t("insights.coach.tagline")}
             </SheetDescription>
           </div>
+          {/* v1.4.25 W5 — per-conversation window override. The pill
+              defaults to the user's saved `coachPrefs.defaultWindow`
+              and resets to it on drawer close. Changing the pill flips
+              `windowOverride`; the rail's window picker mirrors the
+              same source-of-truth so the user can drive the override
+              from either surface. */}
+          <Select
+            value={effectiveWindow}
+            onValueChange={(value) => {
+              const next = value as CoachScopeWindow;
+              setWindowOverride(next === savedDefaultWindow ? null : next);
+            }}
+          >
+            <SelectTrigger
+              data-slot="coach-drawer-window-pill"
+              aria-label={t("insights.coach.windowLabel")}
+              size="sm"
+              className={cn(
+                "border-border/60 bg-muted/40 text-foreground h-7 shrink-0 gap-1 rounded-full px-2.5 text-[11px]",
+                "hover:bg-muted/60 focus-visible:ring-ring/40 focus-visible:ring-2",
+                windowOverride !== null &&
+                  "border-dracula-purple/40 bg-dracula-purple/10 text-dracula-purple",
+              )}
+            >
+              <SelectValue
+                placeholder={t(`insights.coach.window.${effectiveWindow}`)}
+              />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="last7days" className="text-xs">
+                {t("insights.coach.window.last7days")}
+              </SelectItem>
+              <SelectItem value="last30days" className="text-xs">
+                {t("insights.coach.window.last30days")}
+              </SelectItem>
+              <SelectItem value="last90days" className="text-xs">
+                {t("insights.coach.window.last90days")}
+              </SelectItem>
+              <SelectItem value="allTime" className="text-xs">
+                {t("insights.coach.window.allTime")}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          {/* v1.4.25 W5 — header action cluster. All three buttons
+              share the same `ghost / size-icon / size-9` shape so they
+              visually belong together. 36×36 px hit target meets the
+              WCAG 2.1 AA touch-target minimum on mobile; the icons
+              themselves stay 18 px to match the avatar's optical
+              weight. */}
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            size="icon"
             onClick={handleNewChat}
             data-slot="coach-drawer-new-chat"
-            className="shrink-0 gap-1.5"
+            aria-label={t("insights.coach.newChat")}
+            title={t("insights.coach.newChat")}
+            className="text-muted-foreground hover:text-foreground size-9 shrink-0"
           >
-            <Plus className="size-3.5" aria-hidden="true" />
-            <span className="hidden sm:inline">
-              {t("insights.coach.newChat")}
-            </span>
+            <Plus className="size-4" aria-hidden="true" />
           </Button>
           <Button
             type="button"
@@ -276,10 +372,24 @@ export function CoachDrawer({
             onClick={() => setSettingsOpen(true)}
             data-slot="coach-drawer-settings"
             aria-label={t("insights.coach.settingsAriaLabel")}
-            className="size-8 shrink-0"
+            title={t("insights.coach.settingsAriaLabel")}
+            className="text-muted-foreground hover:text-foreground size-9 shrink-0"
           >
-            <Settings className="size-3.5" aria-hidden="true" />
+            <Settings className="size-4" aria-hidden="true" />
           </Button>
+          <SheetClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              data-slot="coach-drawer-close"
+              aria-label={t("common.close")}
+              title={t("common.close")}
+              className="text-muted-foreground hover:text-foreground size-9 shrink-0"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </Button>
+          </SheetClose>
         </SheetHeader>
 
         {/* Body — three columns on lg+, single column on smaller.
@@ -297,13 +407,27 @@ export function CoachDrawer({
           }
           sourcesRail={
             sourcesRail ?? (
-              <SourcesRail scope={scope} onScopeChange={setScope} />
+              <SourcesRail
+                // v1.4.25 W5 — overlay the effective window on the rail
+                // so the picker mirrors the per-conversation override
+                // (or the saved default when no override is active).
+                // The rail's own onChange flips `windowOverride` so the
+                // rail picker is just another way to set the override.
+                scope={{ sources: scope.sources, window: effectiveWindow }}
+                onScopeChange={(next) => {
+                  setScope((prev) => ({ ...prev, sources: next.sources }));
+                  setWindowOverride(
+                    next.window === savedDefaultWindow ? null : next.window,
+                  );
+                }}
+              />
             )
           }
           thread={
             <MessageThread
               conversation={conversation ?? null}
               streaming={send.streaming}
+              optimisticUser={send.optimisticUser}
             />
           }
           composer={
@@ -373,7 +497,18 @@ export function CoachDrawer({
             </SheetHeader>
             <div className="h-full min-h-0 overflow-y-auto">
               {sourcesRail ?? (
-                <SourcesRail scope={scope} onScopeChange={setScope} />
+                <SourcesRail
+                  scope={{
+                    sources: scope.sources,
+                    window: effectiveWindow,
+                  }}
+                  onScopeChange={(next) => {
+                    setScope((prev) => ({ ...prev, sources: next.sources }));
+                    setWindowOverride(
+                      next.window === savedDefaultWindow ? null : next.window,
+                    );
+                  }}
+                />
               )}
             </div>
           </SheetContent>

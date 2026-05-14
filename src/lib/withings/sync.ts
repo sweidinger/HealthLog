@@ -19,14 +19,32 @@ import {
   recordSyncSuccess,
 } from "@/lib/integrations/status";
 
+/**
+ * Build the callback URL handed to Withings at `Notify.subscribe` time.
+ *
+ * v1.4.25 W17a moved the shared secret from `?secret=…` (query
+ * parameter, captured by every reverse-proxy access log) to a path
+ * segment (`/api/withings/webhook/<secret>`). Withings has no
+ * mechanism for setting custom HTTP headers on outgoing notifications
+ * and never signs the body, so the callback URL is the only
+ * authenticity surface a subscriber controls — the path-segment form
+ * is the largest practical shift away from the loggable query string.
+ *
+ * When `WITHINGS_WEBHOOK_SECRET` is unset (dev / new install before
+ * provisioning) we fall back to the bare legacy URL so subscribe
+ * doesn't 500 — the route handler will then reject every inbound
+ * delivery with 401 anyway.
+ */
 export function getWithingsWebhookCallbackUrl(): string {
   const baseUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/withings/webhook`;
   const secret = process.env.WITHINGS_WEBHOOK_SECRET;
   if (!secret) return baseUrl;
-
-  const url = new URL(baseUrl);
-  url.searchParams.set("secret", secret);
-  return url.toString();
+  // Path-segment form. Withings preserves the full callback URL on
+  // every notification, so once a subscription is created with this
+  // URL every delivery carries the secret in the path rather than the
+  // query string. Encode for safety even though we expect a strong
+  // random secret.
+  return `${baseUrl}/${encodeURIComponent(secret)}`;
 }
 
 /**
@@ -178,28 +196,43 @@ export async function syncUserMeasurements(
   let imported = 0;
 
   for (const m of measures) {
-    // Upsert to avoid duplicates (unique on userId+type+measuredAt+source)
     const measType = m.type as MeasurementType;
     try {
-      await prisma.measurement.upsert({
+      // v1.4.25 W17b/c — Migration 0055 added `sleepStage` to the
+      // composite unique with `NULLS NOT DISTINCT`, so a non-sleep
+      // upsert keyed on (userId, type, measuredAt, source) with
+      // sleepStage IS NULL is still safe. But Prisma's typed compound
+      // input requires a non-null `sleepStage`, so we model the
+      // idempotent write as a `findFirst` + `create`/`update`. The
+      // unique index still serializes concurrent inserts, so the worst
+      // case is a Prisma P2002 we catch and ignore.
+      const existing = await prisma.measurement.findFirst({
         where: {
-          userId_type_measuredAt_source: {
+          userId,
+          type: measType,
+          measuredAt: m.measuredAt,
+          source: "WITHINGS",
+          sleepStage: null,
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        await prisma.measurement.update({
+          where: { id: existing.id },
+          data: { value: m.value },
+        });
+      } else {
+        await prisma.measurement.create({
+          data: {
             userId,
             type: measType,
+            value: m.value,
+            unit: getUnitForType(m.type),
             measuredAt: m.measuredAt,
             source: "WITHINGS",
           },
-        },
-        update: { value: m.value },
-        create: {
-          userId,
-          type: measType,
-          value: m.value,
-          unit: getUnitForType(m.type),
-          measuredAt: m.measuredAt,
-          source: "WITHINGS",
-        },
-      });
+        });
+      }
       imported++;
     } catch (err) {
       getEvent()?.addWarning(`Failed to upsert measure: ${err}`);
@@ -255,21 +288,47 @@ export function extractWithingsStatus(message: string): string | undefined {
 }
 
 /**
- * Subscribe to Withings webhook for a user.
+ * Withings notify appli categories HealthLog cares about today. Each
+ * category requires its own subscribe call.
+ *
+ * - 1 — weight + body composition (meastypes 1, 5, 6, 8, 88)
+ * - 2 — temperature (meastypes 12, 71, 73)
+ * - 4 — pressure family (BP dia 9, BP sys 10, pulse 11, SpO2 54)
+ * - 16 — activity (steps, distance, active energy, floors climbed);
+ *        v1.4.25 W17b webhook-primary trigger for the new
+ *        `syncUserActivity` routine.
+ * - 44 — sleep v2 (per-stage segments + nightly summary); v1.4.25 W17c
+ *        webhook-primary trigger for the new `syncUserSleep` routine.
+ *
+ * Without 2 and 4, BP and temperature readings flow only through the
+ * hourly poll fallback. Adding them removes up to an hour of latency
+ * on a freshly-taken BP reading without changing the OAuth scope. The
+ * activity + sleep categories require the `user.activity` scope from
+ * W5d; legacy connections that never reconnected sit on `user.metrics`
+ * only and the subscribe call returns 503/293 — `setupWebhook` logs
+ * the failure and keeps the remaining appli subscriptions.
+ */
+export const WITHINGS_NOTIFY_APPLIS = [1, 2, 4, 16, 44] as const;
+
+/**
+ * Subscribe to every Withings notify category HealthLog ingests. Each
+ * appli is its own subscribe call upstream; a failure on one category
+ * is logged and we continue with the rest, because losing one webhook
+ * is strictly better than rolling back all three.
  */
 export async function setupWebhook(userId: string): Promise<void> {
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return;
 
-  try {
-    await subscribeWebhook(
-      tokenInfo.accessToken,
-      getWithingsWebhookCallbackUrl(),
-    );
-    getEvent()?.addMeta("webhook_subscribed", userId);
-  } catch (err) {
-    getEvent()?.addWarning(
-      `Webhook subscribe failed for user ${userId}: ${err}`,
-    );
+  const callbackUrl = getWithingsWebhookCallbackUrl();
+  for (const appli of WITHINGS_NOTIFY_APPLIS) {
+    try {
+      await subscribeWebhook(tokenInfo.accessToken, callbackUrl, appli);
+      getEvent()?.addMeta(`webhook_subscribed_${appli}`, userId);
+    } catch (err) {
+      getEvent()?.addWarning(
+        `Webhook subscribe (appli=${appli}) failed for user ${userId}: ${err}`,
+      );
+    }
   }
 }

@@ -5,11 +5,12 @@ import { apiSuccess } from "@/lib/api-response";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { computeBpInTargetWindows } from "@/lib/analytics/bp-in-target";
-import { berlinDayKey } from "@/lib/analytics/berlin-day";
+import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { calculateCompliance } from "@/lib/analytics/compliance";
 import {
   computeHealthScore,
   defaultWeightTargetFromHeight,
+  type ContributingSource,
   type HealthScoreInput,
   type HealthScoreResult,
 } from "@/lib/analytics/health-score";
@@ -19,14 +20,26 @@ import {
   correlateWeightWeekday,
   type CorrelationResult,
 } from "@/lib/insights/correlations";
-import type { MeasurementType } from "@/generated/prisma/client";
+import type {
+  MeasurementSource,
+  MeasurementType,
+} from "@/generated/prisma/client";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
+import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
 
 export const dynamic = "force-dynamic";
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "analytics.get" } });
+
+  // v1.4.25 W7b — every day-bucket call inside this route now honours
+  // the user's display timezone. The legacy `berlinDayKey()` import
+  // remains for sleep-stage and correlation paths that share their
+  // helper signature with non-tz-aware code (`computeSleepStageBreakdown`
+  // is called with a userId only); the per-call sites below all pass
+  // `userTz` through `userDayKey()`.
+  const userTz = user.timezone ?? DEFAULT_TIMEZONE;
 
   // Derived from canonical enum so a new measurement type is auto-summarised
   // by /api/analytics (V3 audit: enum drift cousins).
@@ -38,6 +51,12 @@ export const GET = apiHandler(async () => {
   // sync history. `summarize()` requires the full series (slope7/30/90,
   // anomalies) so groupBy cannot replace this read; the chunked path is
   // the smallest pagination contract that still satisfies the helper.
+  // v1.4.25 W5e — per-metric-class source priority pulled once. The
+  // aggregator passes the persisted JSON straight through so the
+  // helper's `parseSourcePriority` runs and falls back to defaults
+  // when the column is null or malformed.
+  const sourcePriorityJson = user.sourcePriorityJson;
+
   let totalRowsReadForAggregate = 0;
   const measurementsByType = await Promise.all(
     types.map((type) =>
@@ -53,9 +72,21 @@ export const GET = apiHandler(async () => {
         // = total minutes asleep).
         let datapoints: DataPoint[];
         if (type === "SLEEP_DURATION") {
+          // v1.4.25 W5e — pick ONE source per day before summing the
+          // night's stages. With only WITHINGS + MANUAL today, the
+          // picker passes everything through; once iOS passthrough
+          // lands (v1.5) the picker prevents double-counted nights
+          // (HealthKit forwards Withings' Sleep summary to iOS in
+          // addition to ScanWatch's own stream).
+          const sleepRows = pickCanonicalSourceRows(
+            measurements,
+            "sleep",
+            sourcePriorityJson,
+            (d) => userDayKey(d, userTz),
+          ).canonicalRows;
           const byDay = new Map<string, { total: number; date: Date }>();
-          for (const m of measurements) {
-            const key = berlinDayKey(m.measuredAt);
+          for (const m of sleepRows) {
+            const key = userDayKey(m.measuredAt, userTz);
             const slot = byDay.get(key) ?? {
               total: 0,
               date: m.measuredAt,
@@ -104,7 +135,7 @@ export const GET = apiHandler(async () => {
   // included when the user has stage-tagged rows in window; null
   // otherwise so the UI can render a plain total without the
   // breakdown card painting empty.
-  const sleepStages = await computeSleepStageBreakdown(user.id);
+  const sleepStages = await computeSleepStageBreakdown(user.id, userTz);
 
   // BMI calculation
   let bmi: number | null = null;
@@ -202,7 +233,7 @@ export const GET = apiHandler(async () => {
   // floor from 14 → 20). Each runner gates on n >= 20 + p < 0.05;
   // below the bar the result.status === "insufficient" and the UI
   // paints an EmptyState.
-  const correlations = await computeCorrelationHypotheses(user.id);
+  const correlations = await computeCorrelationHypotheses(user.id, userTz);
 
   // v1.4.20 phase B5 — Personal Health Score. Server-deterministic
   // composite of BP-in-target % + weight-trend alignment + mood
@@ -248,12 +279,21 @@ export const GET = apiHandler(async () => {
  * `summaries.SLEEP_DURATION` totals without a stage card in that
  * case. Returns the sum-per-stage AND the day count covered so the
  * UI can render an "averaged across N nights" caption truthfully.
+ *
+ * v1.4.25 W3f — also returns a `perNight` array: one entry per
+ * Berlin-tz day inside the window, with minutes-per-stage for the
+ * stacked-bar chart. Days with zero stage-tagged rows are omitted
+ * from `perNight` (the chart treats them as gaps).
  */
-async function computeSleepStageBreakdown(userId: string): Promise<{
+async function computeSleepStageBreakdown(
+  userId: string,
+  userTz: string,
+): Promise<{
   windowDays: number;
   nights: number;
   totalMinutes: number;
   stages: Record<string, number>;
+  perNight: Array<{ dayKey: string; stages: Record<string, number> }>;
 } | null> {
   const DAY_MS = 24 * 60 * 60 * 1000;
   const since = new Date(Date.now() - 30 * DAY_MS);
@@ -272,18 +312,33 @@ async function computeSleepStageBreakdown(userId: string): Promise<{
   const stages: Record<string, number> = {};
   const dayKeys = new Set<string>();
   let totalMinutes = 0;
+  // v1.4.25 W3f — per-day accumulator. Keyed by Berlin-tz day so the
+  // chart's 7/14/30-day slicer can build a left-aligned series.
+  const perNightMap = new Map<string, Record<string, number>>();
   for (const row of rows) {
     if (!row.sleepStage) continue;
     stages[row.sleepStage] = (stages[row.sleepStage] ?? 0) + row.value;
     totalMinutes += row.value;
-    dayKeys.add(berlinDayKey(row.measuredAt));
+    const dayKey = userDayKey(row.measuredAt, userTz);
+    dayKeys.add(dayKey);
+    const nightStages = perNightMap.get(dayKey) ?? {};
+    nightStages[row.sleepStage] =
+      (nightStages[row.sleepStage] ?? 0) + row.value;
+    perNightMap.set(dayKey, nightStages);
   }
+
+  // Sort per-night ascending so the chart consumer can slice the
+  // trailing N entries for the 7d / 14d / 30d toggle.
+  const perNight = Array.from(perNightMap.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([dayKey, stages]) => ({ dayKey, stages }));
 
   return {
     windowDays: 30,
     nights: dayKeys.size,
     totalMinutes,
     stages,
+    perNight,
   };
 }
 
@@ -295,7 +350,10 @@ async function computeSleepStageBreakdown(userId: string): Promise<{
  * because the user-facing "based on N paired readings · last 30 days"
  * source-chip has to remain truthful.
  */
-async function computeCorrelationHypotheses(userId: string): Promise<{
+async function computeCorrelationHypotheses(
+  userId: string,
+  userTz: string,
+): Promise<{
   bpCompliance: CorrelationResult;
   moodPulse: CorrelationResult;
   weightWeekday: CorrelationResult;
@@ -324,10 +382,10 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
     ]);
 
   // ── Hypothesis 1: BP × medication compliance ────────────────
-  // Aggregate by Berlin-day key so DST + UTC boundary issues don't split
-  // a day's readings. The day's "compliance %" is taken / expected for
-  // that calendar day across all medications.
-  const dayKey = (d: Date): string => berlinDayKey(d);
+  // Aggregate by the user's display-tz day key so DST + UTC boundary
+  // issues don't split a day's readings. The day's "compliance %" is
+  // taken / expected for that calendar day across all medications.
+  const dayKey = (d: Date): string => userDayKey(d, userTz);
 
   const dailySys = new Map<string, number[]>();
   for (const row of sysRows) {
@@ -360,7 +418,7 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
     const compliancePct = (slot.taken / slot.expected) * 100;
     const meanSys = sysValues.reduce((s, v) => s + v, 0) / sysValues.length;
     bpCompliancePairs.push({
-      date: dateFromBerlinKey(key),
+      date: dateFromDayKey(key),
       systolic: meanSys,
       compliancePct,
     });
@@ -373,14 +431,14 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
   // resting-pulse field, so we accept the noise rather than skip.
   const dailyMood = new Map<string, number[]>();
   for (const row of moodRows) {
-    const key = berlinDayKey(row.moodLoggedAt);
+    const key = userDayKey(row.moodLoggedAt, userTz);
     const list = dailyMood.get(key) ?? [];
     list.push(row.score);
     dailyMood.set(key, list);
   }
   const dailyPulse = new Map<string, number[]>();
   for (const row of pulseRows) {
-    const key = berlinDayKey(row.measuredAt);
+    const key = userDayKey(row.measuredAt, userTz);
     const list = dailyPulse.get(key) ?? [];
     list.push(row.value);
     dailyPulse.set(key, list);
@@ -397,7 +455,7 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
     const meanPulse =
       pulseValues.reduce((s, v) => s + v, 0) / pulseValues.length;
     moodPulsePairs.push({
-      date: dateFromBerlinKey(key),
+      date: dateFromDayKey(key),
       mood: meanMood,
       restingPulse: meanPulse,
     });
@@ -406,9 +464,17 @@ async function computeCorrelationHypotheses(userId: string): Promise<{
 
   // ── Hypothesis 3: Weight × weekday ──────────────────────────
   // 0 = Monday … 6 = Sunday. ISO weekday minus 1.
+  //
+  // v1.4.25 W10 reconcile (Code-H1) — buckets the weekday by the
+  // user's display tz, matching W7's per-user-tz threading that the
+  // BP, mood, sleep, and pulse aggregators above already honour. The
+  // pre-W10 helper was pinned to `Europe/Berlin` and would land a
+  // user-local 23:30 weight reading from `Pacific/Auckland` under
+  // Sunday's bucket instead of Monday's — Pearson on the wrong
+  // weekday column.
   const weightWeekdayPairs: Array<{ weekday: number; weight: number }> = [];
   for (const row of weightRows) {
-    const isoWeekday = berlinIsoWeekday(row.measuredAt); // 1..7, 1=Mon
+    const isoWeekday = isoWeekdayInTz(row.measuredAt, userTz); // 1..7, 1=Mon
     weightWeekdayPairs.push({
       weekday: isoWeekday - 1,
       weight: row.value,
@@ -464,6 +530,22 @@ interface ChunkedRow {
   measuredAt: Date;
   value: number;
   sleepStage: string | null;
+  /** v1.4.25 W5e — needed by `pickCanonicalSourceRows` so the SLEEP /
+   *  cumulative aggregators can pick ONE source per day when more than
+   *  one ingest path contributes to the same metric. */
+  source: MeasurementSource;
+  /** v1.4.25 W8c — second axis of the canonical picker. Nullable until
+   *  the iOS app starts shipping HKDevice.model with each sample;
+   *  legacy / Withings rows stay NULL and the picker treats them as
+   *  `unknown`. Carried on every type's read so the cumulative-metric
+   *  path can break Apple-Watch-vs-iPhone ties.
+   */
+  deviceType: string | null;
+  /** v1.4.25 W8c — feeds the per-MeasurementType device-type override
+   *  inside the picker. The picker keys
+   *  `deviceTypePriority[type]` off this so the user's "phone wins for
+   *  steps but watch wins for HR" config is honoured. */
+  type: MeasurementType;
 }
 
 async function fetchMeasurementSeriesChunked(
@@ -485,6 +567,11 @@ async function fetchMeasurementSeriesChunked(
         id: true,
         measuredAt: true,
         value: true,
+        source: true,
+        // v1.4.25 W8c — read deviceType so the canonical picker can
+        // honour the per-metric / per-device override. Nullable until
+        // iOS sends it.
+        deviceType: true,
         ...(options.includeSleepStage ? { sleepStage: true } : {}),
       },
       take: MEASUREMENT_CHUNK_SIZE,
@@ -495,6 +582,9 @@ async function fetchMeasurementSeriesChunked(
       out.push({
         measuredAt: row.measuredAt,
         value: row.value,
+        source: row.source,
+        deviceType: row.deviceType ?? null,
+        type,
         sleepStage:
           "sleepStage" in row
             ? ((row.sleepStage as string | null) ?? null)
@@ -511,18 +601,34 @@ async function fetchMeasurementSeriesChunked(
 // `src/lib/analytics/berlin-day.ts` so the targets route's sparkline
 // bucketing shares the same Europe/Berlin contract. The
 // `weekday: "short"` formatter still lives here because it's only
-// used by `berlinIsoWeekday()` below.
-const BERLIN_DATE_PARTS = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Europe/Berlin",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  weekday: "short",
-});
+// used by `isoWeekdayInTz()` below.
+//
+// v1.4.25 W10 reconcile (Code-H1) — formatter is now per-tz so the
+// weight-weekday correlator honours the same per-user-tz contract the
+// BP/mood/pulse aggregators above already use. Memoised by tz so the
+// formatter is built once per unique timezone per process (tz strings
+// rarely change at runtime; the cache is bounded by the IANA database
+// to a few hundred entries even in the worst case).
+const WEEKDAY_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
+function getWeekdayFormatter(timeZone: string): Intl.DateTimeFormat {
+  let formatter = WEEKDAY_FORMATTER_CACHE.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      weekday: "short",
+    });
+    WEEKDAY_FORMATTER_CACHE.set(timeZone, formatter);
+  }
+  return formatter;
+}
 
-function dateFromBerlinKey(key: string): Date {
+function dateFromDayKey(key: string): Date {
   // Anchor to UTC midnight — the date is a sortable bucket label rather
-  // than a wall-clock timestamp, so DST drift is irrelevant.
+  // than a wall-clock timestamp, so DST drift is irrelevant. The tz
+  // info is already baked into the key (built via `userDayKey` upstream).
   return new Date(`${key}T00:00:00.000Z`);
 }
 
@@ -536,10 +642,56 @@ const ISO_WEEKDAY: Record<string, number> = {
   Sun: 7,
 };
 
-function berlinIsoWeekday(d: Date): number {
-  const parts = BERLIN_DATE_PARTS.formatToParts(d);
+function isoWeekdayInTz(d: Date, timeZone: string): number {
+  const parts = getWeekdayFormatter(timeZone).formatToParts(d);
   const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
   return ISO_WEEKDAY[weekday] ?? 1;
+}
+
+
+/**
+ * v1.4.25 W8e — collapse the persisted `MeasurementSource` enum onto
+ * the camelCase token set the health-score analytics layer consumes.
+ *
+ * - `MANUAL` and `IMPORT` (CSV import — still user-supplied data) both
+ *   surface as `"manual"`.
+ * - `WITHINGS` and `APPLE_HEALTH` ride one-to-one.
+ *
+ * Returns `null` for source values that don't fall into the three
+ * exposed buckets — defence-in-depth in case the enum grows before the
+ * client is taught about it.
+ */
+function mapMeasurementSourceToLabel(
+  source: MeasurementSource,
+): ContributingSource | null {
+  switch (source) {
+    case "MANUAL":
+    case "IMPORT":
+      return "manual";
+    case "WITHINGS":
+      return "withings";
+    case "APPLE_HEALTH":
+      return "appleHealth";
+    default:
+      return null;
+  }
+}
+
+/**
+ * v1.4.25 W8e — deduplicate the contributing-source list for a single
+ * component. Returns the empty array when nothing in the input maps
+ * onto a known label so downstream `resolveSourceLabel` falls through
+ * to `none` (matches the empty-state branch).
+ */
+function uniqueComponentSources(
+  rows: ReadonlyArray<MeasurementSource>,
+): ReadonlyArray<ContributingSource> {
+  const seen = new Set<ContributingSource>();
+  for (const src of rows) {
+    const label = mapMeasurementSourceToLabel(src);
+    if (label) seen.add(label);
+  }
+  return Array.from(seen);
 }
 
 /**
@@ -564,38 +716,58 @@ async function computeUserHealthScore(
   const prevSince30d = new Date(now.getTime() - 37 * DAY_MS);
   const prevUntil = new Date(now.getTime() - 7 * DAY_MS);
 
-  const [weightRows, moodRows, medications] = await Promise.all([
-    prisma.measurement.findMany({
-      where: {
-        userId,
-        type: "WEIGHT",
-        measuredAt: { gte: prevSince30d, lte: now },
-      },
-      select: { value: true, measuredAt: true },
-      orderBy: { measuredAt: "asc" },
-    }),
-    prisma.moodEntry.findMany({
-      where: {
-        userId,
-        moodLoggedAt: { gte: prevSince30d, lte: now },
-      },
-      select: { score: true, moodLoggedAt: true },
-      orderBy: { moodLoggedAt: "asc" },
-    }),
-    prisma.medication.findMany({
-      where: { userId, active: true },
-      select: {
-        id: true,
-        createdAt: true,
-        schedules: {
-          select: {
-            windowStart: true,
-            windowEnd: true,
+  // v1.4.25 W8e — read the `source` column alongside the value so the
+  // health-score provenance accordion knows which ingest path drove
+  // each component. The weight + BP reads already paid the row cost;
+  // adding the column to the SELECT is free in Postgres terms (no extra
+  // round-trip, no extra plan node) and the alternative — a second
+  // aggregate just for the source pill — would burn another findMany.
+  const [weightRows, bpSysRowsForSource, moodRows, medications] =
+    await Promise.all([
+      prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "WEIGHT",
+          measuredAt: { gte: prevSince30d, lte: now },
+        },
+        select: { value: true, measuredAt: true, source: true },
+        orderBy: { measuredAt: "asc" },
+      }),
+      // BP source attribution rides on the systolic-readings row set —
+      // diastolic rows always carry the same `source` because both
+      // halves of a pair are persisted in the same write. Pull only the
+      // trailing 30 days to keep the call bounded for power users.
+      prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "BLOOD_PRESSURE_SYS",
+          measuredAt: { gte: since30d, lte: now },
+        },
+        select: { measuredAt: true, source: true },
+        orderBy: { measuredAt: "asc" },
+      }),
+      prisma.moodEntry.findMany({
+        where: {
+          userId,
+          moodLoggedAt: { gte: prevSince30d, lte: now },
+        },
+        select: { score: true, moodLoggedAt: true },
+        orderBy: { moodLoggedAt: "asc" },
+      }),
+      prisma.medication.findMany({
+        where: { userId, active: true },
+        select: {
+          id: true,
+          createdAt: true,
+          schedules: {
+            select: {
+              windowStart: true,
+              windowEnd: true,
+            },
           },
         },
-      },
-    }),
-  ]);
+      }),
+    ]);
 
   // Compliance30 per active medication, then again for the prior-week
   // snapshot. The compliance helper anchors on `Date.now()` internally;
@@ -688,12 +860,62 @@ async function computeUserHealthScore(
     return null;
   }
 
+  // v1.4.25 W8e — build per-component source attribution from the rows
+  // we already hold in memory. `mapMeasurementSourceToLabel` collapses
+  // the persisted `MeasurementSource` enum onto the camelCase token list
+  // the analytics helper consumes; `IMPORT` rides under `manual`
+  // because the v1.4.20 CSV importer ingests user-supplied data — it's
+  // not a wearable stream.
+  const windowEndAt = now.toISOString();
+
+  const weightSourcesIn30d = uniqueComponentSources(
+    weightRows
+      .filter((r) => r.measuredAt >= since30d)
+      .map((r) => r.source),
+  );
+  const latestWeightInWindow = weightRows
+    .filter((r) => r.measuredAt >= since30d)
+    .at(-1);
+
+  const bpSourceTokens = uniqueComponentSources(
+    bpSysRowsForSource.map((r) => r.source),
+  );
+  const latestBpInWindow = bpSysRowsForSource.at(-1);
+
+  // Mood doesn't yet have a non-manual ingest (v1.5 will introduce
+  // Apple Health mood) so the source list is always `["manual"]` when
+  // there are entries in window. Keep the lookup explicit so the
+  // v1.5 ingest path slot just drops in.
+  const moodSourceTokens = moodSeriesLast30d.length > 0
+    ? (["manual"] as const)
+    : [];
+  const latestMoodInWindow = moodRows
+    .filter((r) => r.moodLoggedAt >= since30d)
+    .at(-1);
+
+  // Medication compliance always derives from logged intake events —
+  // user-driven manual logging today.
+  const complianceSourceTokens = medicationCompliance30.length > 0
+    ? (["manual"] as const)
+    : [];
+
   const current: HealthScoreInput = {
     bpInTargetRate: input.bpInTargetPct,
     weightSeriesLast30d,
     weightTargetKg: fallbackTarget,
     moodEntriesLast30d: moodSeriesLast30d,
     medicationCompliance30,
+    attribution: {
+      bpSources: bpSourceTokens,
+      asOfBp: latestBpInWindow?.measuredAt.toISOString() ?? null,
+      weightSources: weightSourcesIn30d,
+      asOfWeight: latestWeightInWindow?.measuredAt.toISOString() ?? null,
+      moodSources: moodSourceTokens,
+      asOfMood: latestMoodInWindow?.moodLoggedAt.toISOString() ?? null,
+      complianceSources: complianceSourceTokens,
+      asOfCompliance: complianceSourceTokens.length > 0 ? windowEndAt : null,
+      windowEndAt,
+    },
   };
   // The all-time `bpInTargetPct` is a slow-moving aggregate and would
   // need a full historical re-pair to "rewind" by a week. We pass the
