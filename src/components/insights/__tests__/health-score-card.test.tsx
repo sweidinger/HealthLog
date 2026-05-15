@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { I18nProvider, useTranslations } from "@/lib/i18n/context";
+import { I18nProvider } from "@/lib/i18n/context";
 import {
   HealthScoreCard,
   type HealthScoreCardProps,
@@ -10,9 +10,10 @@ import {
  * v1.4.20 phase B5 — Personal Health Score card.
  *
  * SSR markup pins the slot wrappers so future polish can't silently
- * drop the score number, sub-bars or disclaimer. The interactive
- * "Ask the Coach" button is exercised through Testing Library so the
- * prefill argument forwarded to the parent handler stays stable.
+ * drop the score number, sub-bars or disclaimer. The inline
+ * Ask-the-Coach button retired in v1.4.27 B1 — the hero strip
+ * carries the CTA. The negative-assertion test below pins that
+ * decision so a future revival has to update the test in lock-step.
  */
 
 const baseComponents: HealthScoreCardProps["components"] = {
@@ -179,8 +180,12 @@ describe("<HealthScoreCard>", () => {
     expect(html).toContain("Indicative");
   });
 
-  it("does NOT render the Ask-the-Coach button when onAskCoach is omitted", () => {
-    const html = ssr(
+  it("v1.4.27 B1 — no longer mounts an inline Ask-the-Coach button (hero strip carries the CTA)", () => {
+    // The hero strip's existing "Ask the coach" action covers this
+    // surface; the card-internal duplicate button retired. The
+    // onAskCoach prop stays on the type signature so callers don't
+    // break, but the card no longer renders it.
+    const omitted = ssr(
       <HealthScoreCard
         score={86}
         band="green"
@@ -188,11 +193,7 @@ describe("<HealthScoreCard>", () => {
         delta={null}
       />,
     );
-    expect(html).not.toContain('data-slot="health-score-card-ask-coach"');
-  });
-
-  it("renders the Ask-the-Coach button when onAskCoach is supplied", () => {
-    const html = ssr(
+    const supplied = ssr(
       <HealthScoreCard
         score={86}
         band="green"
@@ -201,36 +202,10 @@ describe("<HealthScoreCard>", () => {
         onAskCoach={() => {}}
       />,
     );
-    expect(html).toMatch(/data-slot="health-score-card-ask-coach"/);
-    expect(html).toContain("Ask the Coach");
+    expect(omitted).not.toContain('data-slot="health-score-card-ask-coach"');
+    expect(supplied).not.toContain('data-slot="health-score-card-ask-coach"');
   });
 
-  it("captures the score-aware prefill argument when the button is invoked", () => {
-    // The handler closure receives `t("insights.healthScore.coachPrompt", { score })`
-    // which interpolates the current score. We assert the closure shape by
-    // probing the i18n provider directly rather than wiring a DOM testing
-    // library — the component's onClick lambda is one line and its
-    // contract is the prefill string format, not the click plumbing.
-    let captured: string | null = null;
-    const onAskCoach = vi.fn((prefill: string) => {
-      captured = prefill;
-    });
-
-    function Probe() {
-      const { t } = useTranslations();
-      // Reproduce the same call the button's onClick performs.
-      onAskCoach(t("insights.healthScore.coachPrompt", { score: 86 }));
-      return null;
-    }
-
-    renderToStaticMarkup(
-      <I18nProvider initialLocale="en">
-        <Probe />
-      </I18nProvider>,
-    );
-    expect(onAskCoach).toHaveBeenCalledTimes(1);
-    expect(captured).toBe("Why is my health score 86 out of 100?");
-  });
 
   it("renders German strings", () => {
     const html = ssr(
@@ -244,9 +219,11 @@ describe("<HealthScoreCard>", () => {
       "de",
     );
     expect(html).toContain("Gesundheitsscore");
-    expect(html).toContain("Coach fragen");
     expect(html).toContain("im Vergleich zur Vorwoche");
     expect(html).toContain("Orientierungshilfe");
+    // v1.4.27 B1 — the inline Coach button retired; hero strip carries
+    // the action now.
+    expect(html).not.toContain("Coach fragen");
   });
 
   it("uses tabular-nums on the headline number for stable layout", () => {

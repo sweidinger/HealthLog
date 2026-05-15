@@ -26,12 +26,22 @@ describe("<CoachInput>", () => {
     expect(html).not.toContain("Coach replies are generated");
   });
 
-  it("renders the localised placeholder + hint", () => {
+  it("renders the localised placeholder + the popover-trigger hint", () => {
+    // v1.4.27 F15 — the verbose prose hint footer was replaced by an
+    // Info icon button. The same `composerHint` translation surfaces
+    // as the trigger's `aria-label` (so screen-readers announce it on
+    // focus) and as the popover body for sighted users on tap.
+    //
+    // v1.4.27 MB3 / CF-31 — the disclosure swapped off Radix Tooltip
+    // (no reliable tap-toggle on touch surfaces) onto Radix Popover,
+    // so the contract is now "tap to open" instead of "hover".
     const html = render(
       <CoachInput value="" onChange={() => {}} onSubmit={() => {}} />,
     );
     expect(html).toContain("Ask anything about your data");
-    expect(html).toContain("Press Enter to send");
+    expect(html).toMatch(
+      /aria-label="Press Enter to send[^"]*"\s+data-slot="coach-input-hint"/,
+    );
   });
 
   it("renders the German placeholder under the 'de' locale", () => {

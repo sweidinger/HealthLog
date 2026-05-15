@@ -70,7 +70,6 @@ function deriveDrugNames(raw: string): { display: string; generic: string } {
   return { display, generic };
 }
 
-const WEEKDAY_KEYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 function parseDaysOfWeek(raw: string | null): number[] {
   if (!raw) return [];
@@ -411,11 +410,3 @@ export async function buildGlp1SnapshotBlock(
   };
 }
 
-/** Exported for tests. */
-export const __testables = {
-  deriveDrugNames,
-  parseTagList,
-  parseDaysOfWeek,
-  predictNextInjection,
-  WEEKDAY_KEYS,
-};

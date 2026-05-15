@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Lock, Loader2 } from "lucide-react";
@@ -23,6 +23,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // v1.4.27 MB3 — explicit error-region id so the email + password
+  // inputs reference the banner via `aria-describedby`. Screen readers
+  // pair the error with the field instead of announcing it as a
+  // standalone alert detached from the form.
+  const errorId = useId();
+  const errorDescriptor = error ? errorId : undefined;
   const { data: registrationEnabled } = useQuery({
     queryKey: ["auth", "registration-status"],
     queryFn: async () => {
@@ -118,7 +124,11 @@ export default function LoginPage() {
 
   return (
     <div className="flex w-full max-w-sm flex-col gap-4">
-      <div className="border-border bg-card rounded-xl border p-8 shadow-lg shadow-black/20">
+      {/* v1.4.27 MB7 / CF-61 — drop `p-8` to `p-6 sm:p-8` so the
+          auth card breathes on Galaxy Fold / Pixel 5 without stealing
+          half the visible viewport with padding. Tablet+ keeps the
+          generous 32 px padding. */}
+      <div className="border-border bg-card rounded-xl border p-6 shadow-lg shadow-black/20 sm:p-8">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg">
             <Logo className="text-primary" size={28} />
@@ -140,7 +150,7 @@ export default function LoginPage() {
             disabled={loading}
           >
             {loading && mode === "passkey" ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
               <KeyRound className="mr-2 h-4 w-4" />
             )}
@@ -176,6 +186,13 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="username"
+                  inputMode="email"
+                  enterKeyHint="next"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  aria-required="true"
+                  aria-invalid={!!error || undefined}
+                  aria-describedby={errorDescriptor}
                   placeholder={t("auth.emailOrUsernamePlaceholder")}
                 />
               </div>
@@ -188,6 +205,10 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
+                  enterKeyHint="go"
+                  aria-required="true"
+                  aria-invalid={!!error || undefined}
+                  aria-describedby={errorDescriptor}
                   placeholder="********"
                 />
               </div>
@@ -198,7 +219,7 @@ export default function LoginPage() {
                 disabled={loading}
               >
                 {loading && mode === "password" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                 ) : (
                   <Lock className="mr-2 h-4 w-4" />
                 )}
@@ -207,7 +228,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setMode("passkey")}
-                className="text-muted-foreground hover:text-foreground w-full text-center text-xs"
+                className="text-muted-foreground hover:text-foreground inline-flex min-h-11 w-full items-center justify-center text-center text-xs"
               >
                 {t("auth.backToPasskey")}
               </button>
@@ -216,7 +237,9 @@ export default function LoginPage() {
 
           {error && (
             <div
+              id={errorId}
               role="alert"
+              aria-live="polite"
               className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
             >
               {error}

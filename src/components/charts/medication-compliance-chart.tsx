@@ -191,7 +191,15 @@ interface MedicationComplianceChartProps {
 export function MedicationComplianceChart({
   title,
   userTimezone = "Europe/Berlin",
+  compareBaseline,
 }: MedicationComplianceChartProps) {
+  // v1.4.27 R4 RC3 — the prop is accepted so the dashboard can pass
+  // `compareBaseline={compareBaseline}` uniformly across every chart.
+  // The comparison overlay itself is deferred: medication compliance is
+  // a percentage-of-doses metric whose prior-period overlay needs a
+  // second window of intake events. Discard explicitly so the
+  // destructure is intentional rather than a missed wire-up.
+  void compareBaseline;
   const { isAuthenticated } = useAuth();
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
@@ -369,7 +377,7 @@ export function MedicationComplianceChart({
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center">
-          <Loader2 className="text-primary h-6 w-6 animate-spin" />
+          <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
         </div>
       ) : !hasData ? (
         <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
@@ -383,7 +391,7 @@ export function MedicationComplianceChart({
           description={t("charts.emptyStateDescription")}
         />
       ) : (
-        <div className="h-[240px] touch-pan-y">
+        <div className="h-[var(--chart-height,240px)] md:h-[var(--chart-height-md,280px)] touch-pan-y">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}

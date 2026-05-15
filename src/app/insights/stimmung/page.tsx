@@ -11,6 +11,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
@@ -58,20 +59,26 @@ export default function InsightsStimmungPage() {
 
   const moodCount = comprehensive?.moodSummary?.count ?? 0;
 
+  // v1.4.27 F17 — Mood is event-driven so the gate reads
+  // `hasMood = moodCount > 0`. CTA targets `/mood` (the dedicated
+  // mood-logging surface) — short-circuits the user to the quickest
+  // path to log their first entry.
   if (isAuthenticated && comprehensive && moodCount === 0) {
     return (
       <SubPageShell title={t("insights.moodSectionTitle")}>
         <EmptyState
           icon={<Smile className="size-6" />}
-          title={t("insights.subPage.stimmungEmptyTitle")}
-          description={t("insights.subPage.stimmungEmptyDescription")}
+          title={t("insights.emptyState.mood.title")}
+          description={t("insights.emptyState.mood.description")}
+          ctaSize="lg"
           action={
             <Button size="sm" asChild>
-              <Link href="/mood">
-                {t("insights.subPage.stimmungEmptyAction")}
-              </Link>
+              <Link href="/mood">{t("insights.emptyState.mood.cta")}</Link>
             </Button>
           }
+        />
+        <CoachLaunchButton
+          prefill="I haven't logged any mood entries yet — why does mood tracking matter, and how should I start?"
         />
       </SubPageShell>
     );
@@ -97,6 +104,8 @@ export default function InsightsStimmungPage() {
         updatedAt={status?.updatedAt ?? null}
         loading={isStatusLoading}
       />
+
+      <CoachLaunchButton />
     </SubPageShell>
   );
 }

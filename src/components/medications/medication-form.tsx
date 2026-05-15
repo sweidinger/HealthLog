@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,6 +161,14 @@ interface Schedule {
 interface MedicationFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
+  /**
+   * v1.4.27 R4 RC2 — when the form is mounted inside a
+   * `<ResponsiveSheet>` the caller passes the sheet's footer slot
+   * element here. The kebab + Cancel + Save row portals into that slot
+   * so the bottom-sheet branch can sticky-pin it; the Save button keeps
+   * its `<form>` association via the HTML `form` attribute.
+   */
+  footerSlot?: HTMLElement | null;
   editActions?: {
     onImportIntakes: () => void;
     onApiAccess: () => void;
@@ -236,12 +245,18 @@ function sortSchedules(list: Schedule[]): Schedule[] {
 export function MedicationForm({
   onSuccess,
   onCancel,
+  footerSlot,
   editActions,
   initial,
 }: MedicationFormProps) {
   const queryClient = useQueryClient();
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
+
+  // v1.4.27 R4 RC2 — stable form id so the portalled Save button keeps
+  // its `<form>` association via the HTML `form` attribute even when
+  // DOM-mounted in the `<ResponsiveSheet>` footer slot.
+  const formId = useId();
 
   const doseUnits = [
     "mg",
@@ -303,6 +318,12 @@ export function MedicationForm({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
   const [phaseConfigOpen, setPhaseConfigOpen] = useState(false);
+
+  // v1.4.27 MB3 — link the form-level error banner to every required
+  // input via `aria-describedby` so screen readers announce the
+  // validation failure on save.
+  const errorId = useId();
+  const errorDescriptor = error ? errorId : undefined;
 
   const isEdit = !!initial;
   const dose = doseAmount
@@ -517,7 +538,7 @@ export function MedicationForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="med-name">{t("medications.name")}</Label>
         <Input
@@ -527,6 +548,12 @@ export function MedicationForm({
           placeholder={t("medications.namePlaceholder")}
           required
           maxLength={100}
+          enterKeyHint="next"
+          autoCapitalize="words"
+          autoComplete="off"
+          aria-required="true"
+          aria-invalid={!!error || undefined}
+          aria-describedby={errorDescriptor}
         />
       </div>
 
@@ -613,6 +640,11 @@ export function MedicationForm({
             placeholder={t("medications.dosePlaceholder")}
             required
             maxLength={20}
+            enterKeyHint="next"
+            autoComplete="off"
+            aria-required="true"
+            aria-invalid={!!error || undefined}
+            aria-describedby={errorDescriptor}
           />
         </div>
         <div className="space-y-1.5">
@@ -625,6 +657,8 @@ export function MedicationForm({
             placeholder="mg"
             maxLength={30}
             className="w-full"
+            enterKeyHint="next"
+            autoComplete="off"
           />
         </div>
       </div>
@@ -690,11 +724,14 @@ export function MedicationForm({
               id="med-doses-per-unit"
               type="number"
               inputMode="numeric"
+              enterKeyHint="next"
               min={1}
               max={100}
               value={dosesPerUnit}
               onChange={(e) => setDosesPerUnit(e.target.value)}
               placeholder={t("medications.glp1DosesPerUnitPlaceholder")}
+              aria-invalid={!!error || undefined}
+              aria-describedby={errorDescriptor}
             />
             <p className="text-muted-foreground text-xs leading-4">
               {t("medications.glp1DosesPerUnitHelp")}
@@ -768,64 +805,78 @@ export function MedicationForm({
             </div>
 
             <div className="mt-1 grid items-end gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label className="text-xs font-normal">
                   {t("medications.scheduleFrom")}
                 </Label>
                 <Input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-2][0-9]:[0-5][0-9]"
+                  type="time"
+                  enterKeyHint="next"
                   placeholder="08:00"
                   value={s.windowStart}
-                  className="h-11 text-xs md:text-xs"
+                  // v1.4.27 MB3 — `text-base` on mobile keeps the
+                  // schedule time inputs at 16 px, the iOS Safari floor
+                  // below which the focus-zoom auto-fires. Desktop
+                  // stays compact at `text-xs` because the surrounding
+                  // grid carries the small dense rhythm.
+                  className="h-11 text-base md:text-xs"
                   onChange={(e) =>
                     updateSchedule(i, "windowStart", e.target.value)
                   }
                   required
+                  aria-required="true"
+                  aria-invalid={!!error || undefined}
+                  aria-describedby={errorDescriptor}
                   maxLength={5}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label className="text-xs font-normal">
                   {t("medications.scheduleTo")}
                 </Label>
                 <Input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-2][0-9]:[0-5][0-9]"
+                  type="time"
+                  enterKeyHint="next"
                   placeholder="09:00"
                   value={s.windowEnd}
-                  className="h-11 text-xs md:text-xs"
+                  className="h-11 text-base md:text-xs"
                   onChange={(e) =>
                     updateSchedule(i, "windowEnd", e.target.value)
                   }
                   required
+                  aria-required="true"
+                  aria-invalid={!!error || undefined}
+                  aria-describedby={errorDescriptor}
                   maxLength={5}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label className="text-xs font-normal">
                   {t("medications.scheduleLabel")}
                 </Label>
                 <Input
                   value={s.label}
-                  className="h-11 text-xs md:text-xs"
+                  className="h-11 text-base md:text-xs"
                   onChange={(e) => updateSchedule(i, "label", e.target.value)}
                   placeholder={t("medications.labelPlaceholder")}
                   maxLength={50}
+                  enterKeyHint="next"
+                  autoCapitalize="sentences"
+                  autoComplete="off"
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label className="text-xs font-normal">
                   {t("medications.dose")}
                 </Label>
                 <Input
                   value={s.dose}
-                  className="h-11 text-xs md:text-xs"
+                  className="h-11 text-base md:text-xs"
                   onChange={(e) => updateSchedule(i, "dose", e.target.value)}
                   placeholder={dose || t("medications.defaultDose")}
                   maxLength={50}
+                  enterKeyHint="done"
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -838,7 +889,7 @@ export function MedicationForm({
             {/* Day-of-week selection */}
             {s.showAdvanced && (
               <div className="border-border/60 mt-2.5 space-y-2.5 border-t pt-2.5">
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label className="text-sm">
                     {t("medications.scheduleInterval")}
                   </Label>
@@ -862,22 +913,34 @@ export function MedicationForm({
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <Label className="text-sm">
                     {t("medications.scheduleDays")}
                   </Label>
-                  <div className="flex w-full gap-1">
-                    <button
-                      type="button"
-                      onClick={() => updateSchedule(i, "daysOfWeek", [])}
-                      className={`h-8 min-w-24 rounded-md border px-3 text-xs font-medium transition-colors ${
-                        s.daysOfWeek.length === 0
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border/70 bg-muted text-foreground/70 hover:bg-accent hover:text-foreground"
-                      }`}
-                    >
-                      {t("medications.scheduleDaily")}
-                    </button>
+                  {/* v1.4.27 MB6 CF-4 — the previous single-row
+                      `flex w-full gap-1` layout placed the wide
+                      "Daily" pill (min-w-24 ≈ 96 px) next to seven
+                      weekday pills inside the same row. At 320 px
+                      viewport widths the eighth child pushed the row
+                      past the form edge and the last weekday clipped
+                      off-screen. The new layout stacks the Daily
+                      pill above a seven-column grid so each weekday
+                      keeps the 44 px tap-target floor without
+                      relying on the available width. The grid wraps
+                      naturally at any container width because every
+                      cell is one explicit grid track. */}
+                  <button
+                    type="button"
+                    onClick={() => updateSchedule(i, "daysOfWeek", [])}
+                    className={`block w-full min-h-11 rounded-md border px-3 text-xs font-medium transition-colors ${
+                      s.daysOfWeek.length === 0
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border/70 bg-muted text-foreground/70 hover:bg-accent hover:text-foreground"
+                    }`}
+                  >
+                    {t("medications.scheduleDaily")}
+                  </button>
+                  <div className="grid w-full grid-cols-7 gap-1">
                     {getDayLabelsShort(t).map((label, dayIndex) => {
                       const isSelected = s.daysOfWeek.includes(dayIndex);
                       return (
@@ -885,7 +948,7 @@ export function MedicationForm({
                           key={dayIndex}
                           type="button"
                           onClick={() => toggleDay(i, dayIndex)}
-                          className={`h-8 flex-1 rounded-md border text-xs font-medium transition-colors ${
+                          className={`min-h-11 rounded-md border text-xs font-medium transition-colors ${
                             isSelected
                               ? "border-primary bg-primary text-primary-foreground"
                               : "border-border/70 bg-muted text-foreground/75 hover:bg-accent hover:text-foreground"
@@ -910,6 +973,7 @@ export function MedicationForm({
 
       {error && (
         <div
+          id={errorId}
           role="alert"
           aria-live="assertive"
           className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
@@ -918,102 +982,123 @@ export function MedicationForm({
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-9 w-9"
-              disabled={loading || deleting}
-              aria-label={t("common.moreOptions")}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            {isEdit ? (
-              <>
-                {editActions && (
+      {(() => {
+        const footerNode = (
+          <div className="flex w-full items-center justify-between gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-11 w-11"
+                  disabled={loading || deleting}
+                  aria-label={t("common.moreOptions")}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {isEdit ? (
                   <>
-                    <DropdownMenuItem onClick={editActions.onImportIntakes}>
-                      <Upload className="mr-2 h-4 w-4" />
-                      {t("medications.importIntakesAction")}
+                    {editActions && (
+                      <>
+                        <DropdownMenuItem onClick={editActions.onImportIntakes}>
+                          <Upload className="mr-2 h-4 w-4" />
+                          {t("medications.importIntakesAction")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={editActions.onApiAccess}>
+                          <Terminal className="mr-2 h-4 w-4" />
+                          {t("medications.apiEndpointAction")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setPhaseConfigOpen(true)}
+                        >
+                          <Clock className="mr-2 h-4 w-4" />
+                          {t("medications.phaseConfig")}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => setActive((prev) => !prev)}
+                    >
+                      {active ? (
+                        <Pause className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Play className="mr-2 h-4 w-4" />
+                      )}
+                      {active
+                        ? t("medications.pause")
+                        : t("medications.activate")}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={editActions.onApiAccess}>
-                      <Terminal className="mr-2 h-4 w-4" />
-                      {t("medications.apiEndpointAction")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setPhaseConfigOpen(true)}>
-                      <Clock className="mr-2 h-4 w-4" />
-                      {t("medications.phaseConfig")}
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setNotificationsEnabled((prev) => !prev)
+                      }
+                    >
+                      {notificationsEnabled ? (
+                        <BellOff className="mr-2 h-4 w-4" />
+                      ) : (
+                        <Bell className="mr-2 h-4 w-4" />
+                      )}
+                      {notificationsEnabled
+                        ? t("medications.disableNotifications")
+                        : t("medications.enableNotifications")}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setPurgeDialogOpen(true)}
+                    >
+                      <Eraser className="mr-2 h-4 w-4" />
+                      {t("medications.purgeRecords")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setDeleteDialogOpen(true)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {t("common.delete")}
+                    </DropdownMenuItem>
                   </>
+                ) : (
+                  <DropdownMenuItem onClick={resetCreateForm}>
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    {t("medications.formReset")}
+                  </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => setActive((prev) => !prev)}>
-                  {active ? (
-                    <Pause className="mr-2 h-4 w-4" />
-                  ) : (
-                    <Play className="mr-2 h-4 w-4" />
-                  )}
-                  {active ? t("medications.pause") : t("medications.activate")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setNotificationsEnabled((prev) => !prev)}
-                >
-                  {notificationsEnabled ? (
-                    <BellOff className="mr-2 h-4 w-4" />
-                  ) : (
-                    <Bell className="mr-2 h-4 w-4" />
-                  )}
-                  {notificationsEnabled
-                    ? t("medications.disableNotifications")
-                    : t("medications.enableNotifications")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => setPurgeDialogOpen(true)}
-                >
-                  <Eraser className="mr-2 h-4 w-4" />
-                  {t("medications.purgeRecords")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {t("common.delete")}
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <DropdownMenuItem onClick={resetCreateForm}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                {t("medications.formReset")}
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-        <div className="flex items-center gap-2">
-          {onCancel && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={loading || deleting}
-            >
-              {t("common.cancel")}
-            </Button>
-          )}
-          <Button type="submit" disabled={loading || deleting}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEdit ? t("common.save") : t("medications.createMedication")}
-          </Button>
-        </div>
-      </div>
+            <div className="flex items-center gap-2">
+              {onCancel && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCancel}
+                  disabled={loading || deleting}
+                >
+                  {t("common.cancel")}
+                </Button>
+              )}
+              <Button
+                type="submit"
+                form={formId}
+                disabled={loading || deleting}
+              >
+                {loading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                )}
+                {isEdit
+                  ? t("common.save")
+                  : t("medications.createMedication")}
+              </Button>
+            </div>
+          </div>
+        );
+        return footerSlot ? createPortal(footerNode, footerSlot) : footerNode;
+      })()}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -1057,7 +1142,7 @@ export function MedicationForm({
               disabled={purging}
             >
               {purging ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : null}
               {t("medications.purgeRecords")}
             </AlertDialogAction>

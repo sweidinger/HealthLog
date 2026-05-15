@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,6 +79,10 @@ export default function MedicationsPage() {
     id: string;
     name: string;
   } | null>(null);
+  // v1.4.27 R4 RC2 — DOM handle the medication form portals its
+  // action-row into so the sheet branch can sticky-pin Save / Cancel
+  // above the keyboard.
+  const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
 
   const {
     data: medications,
@@ -113,7 +118,7 @@ export default function MedicationsPage() {
   if (authLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-primary h-6 w-6 animate-spin" />
+        <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
       </div>
     );
   }
@@ -161,7 +166,7 @@ export default function MedicationsPage() {
 
       {isLoading ? (
         <div className="flex h-32 items-center justify-center">
-          <Loader2 className="text-primary h-6 w-6 animate-spin" />
+          <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
         </div>
       ) : isError ? (
         <div className="bg-card border-border flex h-64 items-center justify-center rounded-xl border">
@@ -256,17 +261,20 @@ export default function MedicationsPage() {
         onClose={() => setImportMedId(null)}
       />
 
-      {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>
-              {editingMed
-                ? t("medications.editMedication")
-                : t("medications.newMedication")}
-            </DialogTitle>
-          </DialogHeader>
+      {/* Create/Edit Sheet — bottom-sheet on `<md`, centred Dialog on `md+`. */}
+      <ResponsiveSheet
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={
+          editingMed
+            ? t("medications.editMedication")
+            : t("medications.newMedication")
+        }
+        className="sm:max-w-lg"
+        footer={<div ref={setFooterEl} className="flex w-full" />}
+      >
           <MedicationForm
+            footerSlot={footerEl}
             initial={
               editingMed
                 ? {
@@ -307,8 +315,7 @@ export default function MedicationsPage() {
             onSuccess={closeDialog}
             onCancel={closeDialog}
           />
-        </DialogContent>
-      </Dialog>
+      </ResponsiveSheet>
     </div>
   );
 }
@@ -499,7 +506,7 @@ function IntakeImportDialog({
                 onClick={handleImport}
                 disabled={importing || !jsonText.trim()}
               >
-                {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}
                 <Upload className="mr-2 h-4 w-4" />
                 {t("common.import")}
               </Button>

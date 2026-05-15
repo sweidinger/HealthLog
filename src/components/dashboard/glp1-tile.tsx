@@ -26,13 +26,14 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Syringe, ArrowDown, ArrowUp, Minus, Calendar } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { CHART_RANGE_PRESETS } from "@/lib/charts/constants";
 
 const HealthChart = dynamic(
   () =>
@@ -41,6 +42,28 @@ const HealthChart = dynamic(
     })),
   { ssr: false },
 );
+
+const DrugLevelChart = dynamic(
+  () =>
+    import("@/components/medications/DrugLevelChart").then((mod) => ({
+      default: mod.DrugLevelChart,
+    })),
+  { ssr: false },
+);
+
+/**
+ * Map a `CHART_RANGE_PRESETS` `points` value to the drug-level chart's
+ * window length in hours. `points: 0` (the "All" preset) maps to 365
+ * days — past that point the unit-less curve flattens to invisibility,
+ * so a year of history is the practical ceiling.
+ */
+const HOURS_PER_DAY = 24;
+function rangePointsToHours(points: number): number {
+  if (points === 0) return 365 * HOURS_PER_DAY;
+  return points * HOURS_PER_DAY;
+}
+
+type Glp1ChartTab = "level" | "weight";
 
 interface DoseHistoryEntry {
   value: number;
@@ -166,6 +189,14 @@ export function Glp1Tile() {
   const dateWithWeekday = useDateWithWeekday();
   const deltaDisplay = useDeltaDisplay();
 
+  // v1.4.27 B1 — the chart pane carries two views (drug-level / weight)
+  // and a 7d / 30d / 90d / All range strip above. Drug-level is the
+  // default because it's the more informative pane the maintainer
+  // asked for; the weight pane stays one tap away. Both states live
+  // on the tile so a parent re-render doesn't reset the user's pick.
+  const [activeTab, setActiveTab] = useState<Glp1ChartTab>("level");
+  const [rangePoints, setRangePoints] = useState<number>(30);
+
   const { data, isPending } = useQuery({
     queryKey: queryKeys.dashboardGlp1(),
     enabled: isAuthenticated,
@@ -215,11 +246,12 @@ export function Glp1Tile() {
       data-medication-id={med.medicationId ?? ""}
       className={cn(
         "bg-card/65 relative overflow-hidden rounded-xl border px-4 py-4 shadow-sm backdrop-blur-sm",
-        // A faint green seam on the left edge so the tile reads as
-        // "active therapy" at a glance without needing to read the
-        // header. The same green is used for the injection-day markers
-        // below — visual consistency across the tile.
-        "border-l-dracula-green/60 border-l-2",
+        // v1.4.27 B1 — the green left-seam drops. The Syringe-icon in
+        // the title row already carries the "active therapy" signal;
+        // the seam was decoration without a semantic tie to the
+        // schedule dates next to it. The schedule pill row below now
+        // groups the two dates visually so the user reads them as one
+        // cohesive unit.
       )}
     >
       <div className="flex items-center gap-2 pb-3">
@@ -249,50 +281,132 @@ export function Glp1Tile() {
         )}
       </div>
 
-      <dl className="text-muted-foreground grid grid-cols-1 gap-y-1 pb-3 text-xs sm:grid-cols-2 sm:gap-x-4">
-        {med.lastInjection && (
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <dt className="font-medium">
-              {t("dashboard.glp1.lastInjection")}:
-            </dt>
-            <dd
+      {/* v1.4.27 B1 — schedule pill row promotes the two injection
+          dates to a header band. Pills carry a soft dracula-green tint
+          so the two dates read as one cohesive "therapy schedule"
+          unit; the old <dl> grid + arbitrary green seam are gone. */}
+      {(med.lastInjection || med.nextInjection) && (
+        <div
+          data-slot="glp1-tile-schedule"
+          className="flex flex-wrap items-center gap-1.5 pb-3 text-xs"
+        >
+          {med.lastInjection && (
+            <span
               data-slot="glp1-tile-last"
-              className="text-foreground tabular-nums"
+              className="border-dracula-green/30 bg-dracula-green/10 text-foreground inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 tabular-nums"
             >
-              {dateWithWeekday(med.lastInjection.date)}
-            </dd>
-          </div>
-        )}
-        {med.nextInjection && (
-          <div className="flex items-center gap-1.5">
-            <Syringe className="h-3 w-3 shrink-0" aria-hidden="true" />
-            <dt className="font-medium">
-              {t("dashboard.glp1.nextInjection")}:
-            </dt>
-            <dd
+              <Calendar
+                className="text-dracula-green/80 h-3 w-3 shrink-0"
+                aria-hidden="true"
+              />
+              <span className="text-muted-foreground font-medium">
+                {t("dashboard.glp1.lastInjection")}:
+              </span>
+              <span>{dateWithWeekday(med.lastInjection.date)}</span>
+            </span>
+          )}
+          {med.nextInjection && (
+            <span
               data-slot="glp1-tile-next"
-              className="text-foreground tabular-nums"
+              className="border-dracula-green/30 bg-dracula-green/10 text-foreground inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 tabular-nums"
             >
-              {dateWithWeekday(med.nextInjection.date)}
-              <span className="text-muted-foreground ml-1">
-                (
+              <Syringe
+                className="text-dracula-green/80 h-3 w-3 shrink-0"
+                aria-hidden="true"
+              />
+              <span className="text-muted-foreground font-medium">
+                {t("dashboard.glp1.nextInjection")}:
+              </span>
+              <span>{dateWithWeekday(med.nextInjection.date)}</span>
+              <span className="text-muted-foreground">
+                ·{" "}
                 {t("dashboard.glp1.inDays", {
                   count: med.nextInjection.daysAway,
                 })}
-                )
               </span>
-            </dd>
-          </div>
-        )}
-      </dl>
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Compact weight chart with the vertical injection-day markers
-          the v1.4.25 W6 chart-extension adds. Skipped when we have no
-          weight readings since the GLP-1 was started — the empty
-          chart would draw nothing useful. */}
-      {med.weightSeries.length > 0 && (
-        <div data-slot="glp1-tile-chart">
+      {/* v1.4.27 B1 — chart pane carrying a two-tab segmented control
+          (Drug-Level default / Weight) plus a 7d / 30d / 90d / All
+          range strip above. Drug-Level reads the unit-less curve from
+          `<DrugLevelChart compact …>` (Research Mode gating is owned
+          by the chart itself); Weight retains the v1.4.25 W6 mini
+          chart with vertical injection markers. */}
+      <div data-slot="glp1-tile-chart" className="space-y-2 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div
+            data-slot="glp1-tile-tabs"
+            role="tablist"
+            aria-label={t("dashboard.glp1.tabsAria")}
+            className="bg-muted/40 inline-flex rounded-md p-0.5"
+          >
+            <TabButton
+              active={activeTab === "level"}
+              onClick={() => setActiveTab("level")}
+              label={t("dashboard.glp1.tabLevel")}
+              slot="glp1-tile-tab-level"
+            />
+            <TabButton
+              active={activeTab === "weight"}
+              onClick={() => setActiveTab("weight")}
+              label={t("dashboard.glp1.tabWeight")}
+              slot="glp1-tile-tab-weight"
+            />
+          </div>
+          <div
+            data-slot="glp1-tile-range-strip"
+            role="radiogroup"
+            aria-label={t("dashboard.glp1.rangeStripLabel")}
+            className="inline-flex items-center gap-1 text-[11px]"
+          >
+            {CHART_RANGE_PRESETS.map((preset) => (
+              <button
+                key={preset.points}
+                type="button"
+                role="radio"
+                aria-checked={rangePoints === preset.points}
+                data-slot="glp1-tile-range-button"
+                data-points={preset.points}
+                data-active={rangePoints === preset.points ? "true" : "false"}
+                title={t(preset.titleKey)}
+                onClick={() => setRangePoints(preset.points)}
+                className={cn(
+                  "inline-flex min-h-11 items-center justify-center rounded px-3 font-medium tabular-nums",
+                  "hover:text-foreground focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
+                  rangePoints === preset.points
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground",
+                )}
+              >
+                {t(preset.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {activeTab === "level" && med.medicationId ? (
+          <DrugLevelChart
+            compact
+            medication={{
+              id: med.medicationId,
+              name: med.name,
+              dose: med.currentDose
+                ? `${med.currentDose.value}${med.currentDose.unit}`
+                : "",
+            }}
+            windowHoursBefore={rangePointsToHours(rangePoints)}
+          />
+        ) : activeTab === "level" ? (
+          <p
+            data-slot="glp1-tile-level-unavailable"
+            className="text-muted-foreground bg-muted/40 rounded-md p-3 text-xs"
+          >
+            {t("dashboard.glp1.levelUnavailable")}
+          </p>
+        ) : med.weightSeries.length > 0 ? (
           <HealthChart
             mini
             types={["WEIGHT"]}
@@ -302,9 +416,54 @@ export function Glp1Tile() {
             verticalMarkers={med.injectionDates.map((date) => ({ date }))}
             userTimezone={user?.timezone}
           />
-        </div>
-      )}
+        ) : (
+          <p
+            data-slot="glp1-tile-weight-unavailable"
+            className="text-muted-foreground bg-muted/40 rounded-md p-3 text-xs"
+          >
+            {t("dashboard.glp1.weightUnavailable")}
+          </p>
+        )}
+      </div>
     </div>
+  );
+}
+
+/**
+ * v1.4.27 B1 — small segmented-control button used by the tile's
+ * tab strip. Carved into its own component so the active/inactive
+ * styling lives in one place and the test can pin the data-slot
+ * markers per tab.
+ */
+function TabButton({
+  active,
+  onClick,
+  label,
+  slot,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  slot: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      data-slot={slot}
+      data-active={active ? "true" : "false"}
+      onClick={onClick}
+      className={cn(
+        "inline-flex min-h-11 items-center justify-center rounded px-3 text-xs font-medium",
+        "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
+        active
+          ? "bg-card text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {label}
+    </button>
   );
 }
 

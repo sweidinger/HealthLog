@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   Bot,
@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { useAuth } from "@/hooks/use-auth";
-import { useCoachPrefs } from "@/hooks/use-coach-prefs";
 
 import { SourceChips } from "./source-chips";
 import type {
@@ -105,13 +104,13 @@ export function MessageThread({
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const wasPinnedRef = useRef(true);
 
-  // v1.4.23 H4 — read the user's Coach prefs so the evidence
-  // disclosure honours `showEvidenceByDefault`. Cached at the
-  // queryClient level via the shared `useCoachPrefs` hook; the
-  // settings sheet writes the same key after a successful save so the
-  // new default takes effect on the next reply without a page reload.
-  const { data: coachPrefs } = useCoachPrefs();
-  const evidenceDefaultOpen = coachPrefs?.showEvidenceByDefault ?? false;
+  // v1.4.27 F14 — the evidence disclosure used to honour an opt-in
+  // `coachPrefs.showEvidenceByDefault` flag that surfaced the raw
+  // measurement values unconditionally. The flag created an UX trap
+  // (Marc 2026-05-15: "literal metric values exposed under every
+  // bubble") so the disclosure is now collapsed by default for every
+  // reply. The user expands by click; the pref is retired in the
+  // settings sheet so nothing flips it back on.
 
   const messages: CoachMessageDTO[] = useMemo(
     () => conversation?.messages ?? [],
@@ -199,6 +198,28 @@ export function MessageThread({
     }
   }, [messages.length, streaming?.content, optimisticUser?.localId]);
 
+  // v1.4.27 R3d MB4 / CF-74 — re-pin to the bottom when the
+  // visual viewport shrinks (typically the soft keyboard opening on
+  // a phone). Without this the last bubble drifts behind the keyboard
+  // because the scroller's `scrollHeight` references the layout
+  // viewport, not the visible region. Listening on
+  // `window.visualViewport.resize` and re-issuing the scroll keeps the
+  // tail of the thread visible as the keyboard slides in and out.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const handleResize = () => {
+      const el = scrollerRef.current;
+      if (!el) return;
+      if (wasPinnedRef.current) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+      }
+    };
+    vv.addEventListener("resize", handleResize);
+    return () => vv.removeEventListener("resize", handleResize);
+  }, []);
+
   if (messages.length === 0 && !streamingActive && !optimisticActive) {
     return (
       <div
@@ -239,7 +260,6 @@ export function MessageThread({
             content={m.content}
             metricSource={m.metricSource}
             providerType={m.providerType}
-            evidenceDefaultOpen={evidenceDefaultOpen}
             messageId={m.id}
           />
         );
@@ -269,7 +289,6 @@ export function MessageThread({
             providerType={streaming.inProgress ? "streaming" : null}
             inProgress={streaming.inProgress}
             errorCode={streaming.errorCode}
-            evidenceDefaultOpen={evidenceDefaultOpen}
           />
         </div>
       )}
@@ -299,8 +318,6 @@ interface ChatBubbleProps {
   providerType?: string | null;
   inProgress?: boolean;
   errorCode?: string | null;
-  /** v1.4.23 H4 — when true the evidence `<details>` mounts open. */
-  evidenceDefaultOpen?: boolean;
   /**
    * v1.4.23 H7 — present only on persisted assistant messages.
    * Streaming bubbles (no message id yet) skip the thumbs row so the
@@ -316,11 +333,20 @@ function ChatBubble({
   providerType,
   inProgress,
   errorCode,
-  evidenceDefaultOpen,
   messageId,
 }: ChatBubbleProps) {
   const { t } = useTranslations();
   const { user } = useAuth();
+  // v1.4.27 B7 / L3 — pair the evidence `<details>` and its disclosed
+  // list explicitly so screen-readers announce the panel relationship.
+  const evidencePanelId = useId();
+  // v1.4.27 MB3 / CF-32 — track the disclosure state in React so the
+  // summary can carry an accurate `aria-expanded`. Native `<details>`
+  // reflects its open state via the `open` attribute, but that does
+  // not surface as `aria-expanded` on the summary by default; screen
+  // readers still need the explicit attribute to announce the panel
+  // as expanded vs collapsed.
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
   if (role === "user") {
     // v1.4.22 B3 — pull the user's Gravatar so the user bubble's
     // avatar matches the Coach avatar in size and visual weight.
@@ -428,11 +454,20 @@ function ChatBubble({
         {keyValues.length > 0 && (
           <details
             data-slot="coach-evidence"
-            // v1.4.23 H4 — open by default when the user's prefs ask
-            // for it. Browsers honour the boolean `open` attribute on
-            // initial mount; toggling at runtime keeps the user's
-            // current expansion state intact.
-            open={evidenceDefaultOpen ? true : undefined}
+            open={evidenceOpen}
+            onToggle={(e) =>
+              setEvidenceOpen((e.target as HTMLDetailsElement).open)
+            }
+            // v1.4.27 F14 — always closed by default. The `open`
+            // attribute was previously tied to a per-user pref that
+            // surfaced raw values unconditionally; that pref is now
+            // retired and the disclosure is a true progressive-
+            // disclosure surface — the user clicks to expand.
+            //
+            // v1.4.27 MB3 / CF-32 — the `open` attribute is now
+            // controlled from local state so the summary's
+            // `aria-expanded` stays in lock-step. The native disclosure
+            // semantics (Enter / Space toggle) are preserved.
             className={cn(
               "border-border/50 bg-muted/30 group rounded-md border",
               "px-2.5 py-1.5 text-xs",
@@ -440,6 +475,8 @@ function ChatBubble({
           >
             <summary
               data-slot="coach-evidence-summary"
+              aria-controls={evidencePanelId}
+              aria-expanded={evidenceOpen}
               className={cn(
                 "text-muted-foreground hover:text-foreground flex cursor-pointer",
                 "items-center gap-1.5 leading-relaxed",
@@ -454,6 +491,7 @@ function ChatBubble({
               <span>{t("insights.coach.evidenceLabel")}</span>
             </summary>
             <ul
+              id={evidencePanelId}
               data-slot="coach-evidence-list"
               className="text-foreground mt-2 flex flex-col gap-1"
             >
@@ -547,7 +585,7 @@ function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
         data-slot="coach-message-feedback-helpful"
         onClick={() => submit.mutate("helpful")}
         disabled={submit.isPending}
-        className="text-muted-foreground hover:text-dracula-green focus-visible:ring-ring/50 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] outline-none focus-visible:ring-2 disabled:opacity-50"
+        className="text-muted-foreground hover:text-dracula-green focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
       >
         <ThumbsUp className="size-3" aria-hidden="true" />
         {t("insights.coach.feedbackHelpful")}
@@ -557,7 +595,7 @@ function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
         data-slot="coach-message-feedback-unhelpful"
         onClick={() => submit.mutate("unhelpful")}
         disabled={submit.isPending}
-        className="text-muted-foreground hover:text-dracula-orange focus-visible:ring-ring/50 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] outline-none focus-visible:ring-2 disabled:opacity-50"
+        className="text-muted-foreground hover:text-dracula-orange focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
       >
         <ThumbsDown className="size-3" aria-hidden="true" />
         {t("insights.coach.feedbackUnhelpful")}

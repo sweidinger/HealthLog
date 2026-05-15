@@ -37,7 +37,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
-import { PasswordInput } from "@/components/settings/password-input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDate } from "@/lib/format";
 import { locales, localeLabels, type Locale } from "@/lib/i18n/config";
@@ -53,15 +54,10 @@ interface PasskeyInfo {
   createdAt: string;
 }
 
-/**
- * Shared class string for native `<select>` elements inside the Account
- * card. Mirrors the visual contract of `<Input>` and shadcn
- * `<SelectTrigger>` (`h-9`, identical border/focus tokens) so gender,
- * language, and any future native dropdown render at the same height
- * and width as every other input in the form.
- */
-const NATIVE_SELECT_CLASS =
-  "border-input bg-background text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none";
+// v1.4.27 MB7 / CF-52 — the in-file `NATIVE_SELECT_CLASS` constant
+// retired; the shared `<NativeSelect>` primitive owns the visual
+// contract now. Existing `<select className={NATIVE_SELECT_CLASS}>`
+// call sites in this file swapped to `<NativeSelect>` below.
 
 export function AccountSection() {
   const { t, locale, setLocale } = useTranslations();
@@ -355,7 +351,12 @@ export function AccountSection() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="username">{t("settings.username")}</Label>
-              <Input id="username" value={user.username} disabled />
+              <Input
+                id="username"
+                value={user.username}
+                disabled
+                autoComplete="username"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">{t("auth.email")}</Label>
@@ -366,6 +367,8 @@ export function AccountSection() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t("auth.emailPlaceholder")}
                 maxLength={320}
+                autoComplete="email"
+                enterKeyHint="next"
               />
             </div>
           </div>
@@ -373,16 +376,15 @@ export function AccountSection() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="gender">{t("settings.gender")}</Label>
-              <select
+              <NativeSelect
                 id="gender"
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
-                className={NATIVE_SELECT_CLASS}
               >
                 <option value="">{t("settings.genderNone")}</option>
                 <option value="MALE">{t("settings.genderMale")}</option>
                 <option value="FEMALE">{t("settings.genderFemale")}</option>
-              </select>
+              </NativeSelect>
               <p className="text-muted-foreground text-xs">
                 {t("settings.genderHint")}
               </p>
@@ -392,6 +394,8 @@ export function AccountSection() {
               <Input
                 id="height"
                 type="number"
+                inputMode="decimal"
+                enterKeyHint="next"
                 value={heightCm}
                 onChange={(e) => setHeightCm(e.target.value)}
                 placeholder="175"
@@ -402,13 +406,12 @@ export function AccountSection() {
             </div>
           </div>
 
-          {/* Date of birth pairs with the height/gender block above —
-              all three are "biological profile" data the app uses for
-              BMI + BP target calculations. Language is handled as its
-              own row below: it's a UI preference (cookie-backed),
-              not a profile attribute, so v1.4.19 A6 lifted it out of
-              the dob/language pair where users mistook it for a
-              per-account locale setting. */}
+          {/* Date of birth + language share one paired grid row so the
+              profile form keeps a single rhythm (every row two cells
+              wide on sm+). Date of birth is the bottom of the
+              biological-profile block; language is the only UI
+              preference on this card. They sit together to close the
+              "single-cell row" gap that broke the form's grid. */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="dob">{t("settings.dateOfBirth")}</Label>
@@ -422,28 +425,26 @@ export function AccountSection() {
                 {t("settings.dateOfBirthHint")}
               </p>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="language-select">{t("settings.language")}</Label>
+              <NativeSelect
+                id="language-select"
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as Locale)}
+              >
+                {locales.map((loc) => (
+                  <option key={loc} value={loc}>
+                    {localeLabels[loc as Locale]}
+                  </option>
+                ))}
+              </NativeSelect>
+              <p className="text-muted-foreground text-xs">
+                {t("settings.languageDescription")}
+              </p>
+            </div>
           </div>
 
           <TimezonePicker value={timezone} onChange={setTimezone} />
-
-          <div className="space-y-2">
-            <Label htmlFor="language-select">{t("settings.language")}</Label>
-            <select
-              id="language-select"
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as Locale)}
-              className={`${NATIVE_SELECT_CLASS} sm:max-w-xs`}
-            >
-              {locales.map((loc) => (
-                <option key={loc} value={loc}>
-                  {localeLabels[loc as Locale]}
-                </option>
-              ))}
-            </select>
-            <p className="text-muted-foreground text-xs">
-              {t("settings.languageDescription")}
-            </p>
-          </div>
 
           {saveMsg && (
             <p
@@ -461,7 +462,7 @@ export function AccountSection() {
           <div className="flex justify-end">
             <Button type="submit" disabled={saving}>
               {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
@@ -485,7 +486,7 @@ export function AccountSection() {
             disabled={passkeyLoading}
           >
             {passkeyLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
               <KeyRound className="mr-2 h-4 w-4" />
             )}
@@ -609,9 +610,9 @@ export function AccountSection() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleChangePassword} className="space-y-3">
+          <form onSubmit={handleChangePassword} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="current-password">
                   {t("settings.currentPassword")}
                 </Label>
@@ -621,7 +622,7 @@ export function AccountSection() {
                   onChange={(e) => setCurrentPassword(e.target.value)}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="new-password">
                   {t("settings.newPassword")}
                 </Label>
@@ -631,7 +632,7 @@ export function AccountSection() {
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="confirm-password">
                   {t("settings.confirmNewPassword")}
                 </Label>
@@ -709,7 +710,7 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
   if (!passkeys || passkeys.length === 0) {
     return (
       <div>
-        <h3 className="text-sm font-medium">{t("settings.passkeys")}</h3>
+        <h3 className="text-sm font-semibold">{t("settings.passkeys")}</h3>
         <p className="text-muted-foreground mt-1 text-xs">
           {t("settings.noPasskeys")}
         </p>
@@ -719,7 +720,7 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
 
   return (
     <div>
-      <h3 className="text-sm font-medium">
+      <h3 className="text-sm font-semibold">
         {t("settings.registeredPasskeys")}
       </h3>
       <p className="text-muted-foreground mt-1 text-xs">
@@ -832,11 +833,17 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{pk.name}</p>
-                <p className="text-muted-foreground text-xs">
-                  {DEVICE_TYPE_LABELS[pk.credentialDeviceType] ??
-                    pk.credentialDeviceType}
-                </p>
+                {/* v1.4.27 MB7 / CF-75 — promote the device-type from
+                    plain text to an outline Badge so the mobile card
+                    list reads consistent with the desktop table's
+                    "Single-device / Multi-device" column. Sits on the
+                    same chip row as the backup status and date so all
+                    metadata reads as a single horizontal stride. */}
                 <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <Badge variant="outline" className="text-[11px]">
+                    {DEVICE_TYPE_LABELS[pk.credentialDeviceType] ??
+                      pk.credentialDeviceType}
+                  </Badge>
                   <Badge
                     variant={pk.credentialBackedUp ? "secondary" : "outline"}
                     className="text-[11px]"

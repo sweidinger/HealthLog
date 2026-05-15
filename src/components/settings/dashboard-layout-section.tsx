@@ -44,10 +44,6 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   bpInTarget: "dashboard.bpInTarget",
   oxygenSaturation: "measurements.typeOxygenSaturation",
   achievements: "achievements.title",
-  // v1.4.16 phase D reconcile (CRITICAL C2) — dashboard preview tile
-  // for the polished `<InsightsCardPreview>` (top severity-ordered AI
-  // recommendations + ring confidence meter + "View all" CTA).
-  insightsPreview: "dashboard.insightsPreview",
   // v1.4.25 W8d — VO2 max secondary-metric tile (opt-in).
   vo2Max: "dashboard.vo2Max",
 };
@@ -245,7 +241,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
 
       {isLoading || !layout ? (
         <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           {t("common.loading")}
         </div>
       ) : (
@@ -257,7 +253,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
               of the two surfaces (per feedback_dashboard_top_tiles
               _selectable.md). */}
           <div className="text-muted-foreground flex items-center gap-3 px-3 pb-1 text-[10px] font-medium tracking-wide uppercase">
-            <span className="w-5" aria-hidden="true" />
+            <span className="w-11" aria-hidden="true" />
             <span className="flex-1" />
             <span className="w-12 text-center">
               {t("dashboard.layoutTileColumn")}
@@ -284,25 +280,25 @@ export function DashboardLayoutSection({ id }: { id: string }) {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5"
+                      className="size-11"
                       onClick={() => move(widget.id, -1)}
                       disabled={index === 0 || saveMutation.isPending}
                       aria-label={t("dashboard.moveUp")}
                     >
-                      <ArrowUp className="h-3 w-3" />
+                      <ArrowUp className="h-4 w-4" />
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5"
+                      className="size-11"
                       onClick={() => move(widget.id, 1)}
                       disabled={
                         index === arr.length - 1 || saveMutation.isPending
                       }
                       aria-label={t("dashboard.moveDown")}
                     >
-                      <ArrowDown className="h-3 w-3" />
+                      <ArrowDown className="h-4 w-4" />
                     </Button>
                   </div>
                   <span className="flex-1 text-sm">{t(labelKey)}</span>
@@ -346,7 +342,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
             disabled={saveMutation.isPending}
           >
             {saveMutation.isPending && (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             )}
             {t("common.save")}
           </Button>

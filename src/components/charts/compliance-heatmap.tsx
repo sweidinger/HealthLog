@@ -20,6 +20,10 @@ interface ComplianceHeatmapProps {
 
 const CELL_SIZE = 18;
 const GAP = 3;
+// v1.4.27 MB7 / CF-10 — cell-floor so the static heatmap never paints
+// below the touch-friendly 14 px square on narrow viewports. The
+// stretch branch computes an adaptive size; both branches clamp here.
+const CELL_FLOOR_PX = 14;
 
 function getColor(data: DailyData): string {
   if (data.expected === 0) return "var(--secondary)";
@@ -57,8 +61,13 @@ function getColor(data: DailyData): string {
 }
 
 function formatDateDE(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00");
-  return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+  // v1.4.27 B7 / BL-P4-2 — parse the day-key against UTC so the
+  // formatted tooltip label matches the dateKey computation below
+  // (which uses `toISOString().slice(0, 10)`). Without the UTC
+  // anchor an SSR server in a non-Berlin timezone could format the
+  // tick a day off the dateKey it sits under.
+  const d = new Date(dateStr + "T00:00:00Z");
+  return `${d.getUTCDate()}.${d.getUTCMonth() + 1}.${d.getUTCFullYear()}`;
 }
 
 export function ComplianceHeatmap({
@@ -73,7 +82,35 @@ export function ComplianceHeatmap({
     x: number;
     y: number;
     text: string;
+    /**
+     * v1.4.27 MB7 / CF-10 — when `pinned` the tooltip stays mounted
+     * across `onPointerLeave` so a touch user sees the per-cell
+     * breakdown after lifting their finger. Mouse + pen users get the
+     * existing hover-only experience because their interactions never
+     * set `pinned`. A second tap on a different cell repositions the
+     * tooltip; a tap outside any cell clears it (wired below).
+     */
+    pinned?: boolean;
   } | null>(null);
+
+  // v1.4.27 MB7 / CF-10 — outside-click dismisses a pinned tooltip so a
+  // touch user can clear the per-cell detail without scrolling the
+  // pinned label off-screen. The listener is gated on `tooltip?.pinned`
+  // so the non-touch hover flow never pays the indirection cost.
+  useEffect(() => {
+    if (!tooltip?.pinned) return;
+    const handlePointer = (event: PointerEvent) => {
+      const container = containerRef.current;
+      if (!container) return;
+      if (!container.contains(event.target as Node)) {
+        setTooltip(null);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointer, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointer, true);
+    };
+  }, [tooltip?.pinned]);
 
   const WEEKDAY_LABELS = [
     t("charts.weekdays.mon"),
@@ -133,9 +170,16 @@ export function ComplianceHeatmap({
       dates.push(date);
     }
 
-    // Start from the first date, align to Monday
+    // Start from the first date, align to Monday.
+    //
+    // v1.4.27 B7 / BL-P4-2 — read every weekday + month boundary off
+    // the UTC accessor pair (`getUTCDay`, `getUTCMonth`) so the
+    // computation matches the dateKey, which is also UTC-anchored
+    // (`toISOString().slice(0, 10)`). Reading in server-tz here would
+    // shift the Monday-alignment + month-marker placement when the
+    // SSR pass runs on a server in a non-Berlin timezone.
     const firstDate = dates[0];
-    const firstDow = (firstDate.getDay() + 6) % 7; // Monday = 0
+    const firstDow = (firstDate.getUTCDay() + 6) % 7; // Monday = 0
 
     let col = 0;
     const markers: Array<{ col: number; label: string }> = [];
@@ -143,7 +187,7 @@ export function ComplianceHeatmap({
 
     for (let i = 0; i < dates.length; i++) {
       const date = dates[i];
-      const dow = (date.getDay() + 6) % 7; // Monday = 0
+      const dow = (date.getUTCDay() + 6) % 7; // Monday = 0
       const currentCol = Math.floor((i + firstDow) / 7);
       const row = dow;
       const dateKey = date.toISOString().slice(0, 10);
@@ -154,7 +198,7 @@ export function ComplianceHeatmap({
       };
 
       // Track month boundaries
-      const month = date.getMonth();
+      const month = date.getUTCMonth();
       if (month !== lastMonth) {
         markers.push({ col: currentCol, label: MONTH_LABELS[month] });
         lastMonth = month;
@@ -176,10 +220,13 @@ export function ComplianceHeatmap({
 
   const labelWidth = stretch ? 0 : 76;
   const headerHeight = 18;
+  // v1.4.27 MB7 / CF-10 — clamp the stretch-branch adaptive cell to the
+  // 14 px floor so the heatmap stays tap-friendly when the container
+  // narrows. Static (non-stretch) instances use the canonical 18 px.
   const cellSize =
     stretch && containerWidth > 0
       ? Math.max(
-          8,
+          CELL_FLOOR_PX,
           (containerWidth - labelWidth - Math.max(0, weeks - 1) * GAP) /
             Math.max(weeks, 1),
         )
@@ -190,12 +237,20 @@ export function ComplianceHeatmap({
 
   return (
     <div className={`relative ${stretch ? "w-full" : ""}`} ref={containerRef}>
-      <div className={stretch ? "w-full" : "overflow-x-auto"}>
+      {/* v1.4.27 MB7 / CF-10 — `overflow-x-auto` on `<sm` so the heatmap
+          horizontal-scrolls inside its card instead of compressing the
+          cells below the touch floor. The stretch branch already
+          paints to container width on `>=sm`, so the scroll branch
+          only kicks in for the non-stretch (static 18 px cell) case
+          when the parent column is narrower than `weeks * 21 px`. */}
+      <div
+        className={stretch ? "w-full sm:w-full overflow-x-auto sm:overflow-visible" : "overflow-x-auto"}
+      >
         <svg
           width={svgWidth}
           height={svgHeight}
           className={stretch ? "block w-full" : "block"}
-          onMouseLeave={() => setTooltip(null)}
+          onMouseLeave={() => setTooltip((prev) => (prev?.pinned ? prev : null))}
         >
           {/* Month labels */}
           {monthMarkers.map((m, i) => (
@@ -228,43 +283,67 @@ export function ComplianceHeatmap({
                 ),
             )}
 
-          {/* Cells */}
-          {cells.map((cell) => (
-            <rect
-              key={cell.dateKey}
-              x={labelWidth + cell.col * step}
-              y={headerHeight + cell.row * step}
-              width={cellSize}
-              height={cellSize}
-              rx={2}
-              fill={cell.color}
-              className="cursor-pointer"
-              onMouseEnter={(e) => {
-                const rate =
-                  cell.data.expected > 0
-                    ? Math.min(
-                        100,
-                        Math.round(
-                          (cell.data.taken / cell.data.expected) * 100,
-                        ),
-                      )
-                    : 0;
-                const hasTimingData =
-                  cell.data.onTime !== undefined ||
-                  cell.data.late !== undefined ||
-                  cell.data.veryLate !== undefined;
-                const timingInfo = hasTimingData
-                  ? ` | ${cell.data.onTime ?? 0} ${t("charts.heatmapOnTime")}, ${cell.data.late ?? 0} ${t("charts.heatmapLate")}, ${cell.data.veryLate ?? 0} ${t("charts.heatmapVeryLate")}`
-                  : "";
-                setTooltip({
-                  x: e.clientX,
-                  y: e.clientY,
-                  text: `${formatDateDE(cell.dateKey)}: ${cell.data.taken}/${cell.data.expected} (${rate}%)${timingInfo}`,
-                });
-              }}
-              onMouseLeave={() => setTooltip(null)}
-            />
-          ))}
+          {/* Cells — v1.4.27 MB7 / CF-10: tap-to-pin tooltip in
+              parallel with the existing hover affordance. Mouse + pen
+              users keep `onPointerEnter` / `onPointerLeave`; touch
+              users tap the cell to pin and tap outside (or another
+              cell) to move/clear. `pointerType === "touch"` discriminates
+              so a hover dismiss never wipes a pinned tooltip. */}
+          {cells.map((cell) => {
+            const buildText = (): string => {
+              const rate =
+                cell.data.expected > 0
+                  ? Math.min(
+                      100,
+                      Math.round((cell.data.taken / cell.data.expected) * 100),
+                    )
+                  : 0;
+              const hasTimingData =
+                cell.data.onTime !== undefined ||
+                cell.data.late !== undefined ||
+                cell.data.veryLate !== undefined;
+              const timingInfo = hasTimingData
+                ? ` | ${cell.data.onTime ?? 0} ${t("charts.heatmapOnTime")}, ${cell.data.late ?? 0} ${t("charts.heatmapLate")}, ${cell.data.veryLate ?? 0} ${t("charts.heatmapVeryLate")}`
+                : "";
+              return `${formatDateDE(cell.dateKey)}: ${cell.data.taken}/${cell.data.expected} (${rate}%)${timingInfo}`;
+            };
+            return (
+              <rect
+                key={cell.dateKey}
+                x={labelWidth + cell.col * step}
+                y={headerHeight + cell.row * step}
+                width={cellSize}
+                height={cellSize}
+                rx={2}
+                fill={cell.color}
+                className="cursor-pointer"
+                onPointerEnter={(e) => {
+                  // Touch enter fires synthetically immediately before
+                  // `pointerdown`; skip it so the pinned tooltip below
+                  // takes precedence with its real coordinates.
+                  if (e.pointerType === "touch") return;
+                  setTooltip({
+                    x: e.clientX,
+                    y: e.clientY,
+                    text: buildText(),
+                  });
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType === "touch") return;
+                  setTooltip((prev) => (prev?.pinned ? prev : null));
+                }}
+                onPointerDown={(e) => {
+                  if (e.pointerType !== "touch") return;
+                  setTooltip({
+                    x: e.clientX,
+                    y: e.clientY,
+                    text: buildText(),
+                    pinned: true,
+                  });
+                }}
+              />
+            );
+          })}
         </svg>
       </div>
 

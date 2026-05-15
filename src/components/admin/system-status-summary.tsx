@@ -17,6 +17,7 @@ import {
   Cog,
   Database,
   GitCommit,
+  Globe,
   Loader2,
   Server,
   Tag,
@@ -30,6 +31,7 @@ interface VersionResponse {
   version: string;
   buildSha: string | null;
   builtAt: string | null;
+  offlineGeoEnabled?: boolean;
 }
 
 function useVersion() {
@@ -116,6 +118,26 @@ export function SystemStatusSummary() {
               value={formatDateTime(version.builtAt)}
             />
           )}
+          {/* v1.4.27 R5 — surface the offline-geo state so the maintainer
+              spots the missing MAXMIND_LICENSE_KEY without crawling logs.
+              The field is undefined on legacy responses; the row only
+              renders when /api/version answers the new shape. */}
+          {version?.offlineGeoEnabled !== undefined && (
+            <StatusItem
+              icon={Globe}
+              label={t("admin.overview.snapshotOfflineGeo")}
+              value={
+                version.offlineGeoEnabled
+                  ? t("admin.overview.snapshotOfflineGeoOn")
+                  : t("admin.overview.snapshotOfflineGeoOff")
+              }
+              className={
+                version.offlineGeoEnabled
+                  ? "text-dracula-green"
+                  : "text-dracula-yellow"
+              }
+            />
+          )}
         </div>
       ) : isError ? (
         <div
@@ -127,7 +149,7 @@ export function SystemStatusSummary() {
       ) : (
         <div className="mt-4 flex items-center gap-2">
           <Loader2
-            className="text-muted-foreground h-4 w-4 animate-spin"
+            className="text-muted-foreground h-4 w-4 animate-spin motion-reduce:animate-none"
             aria-hidden="true"
           />
           <span className="text-muted-foreground text-sm">

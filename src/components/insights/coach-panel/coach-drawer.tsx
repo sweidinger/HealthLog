@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { useCoachPrefs } from "@/hooks/use-coach-prefs";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachInput } from "./coach-input";
@@ -132,6 +133,13 @@ export function CoachDrawer({
   composer,
 }: CoachDrawerProps) {
   const { t } = useTranslations();
+  // v1.4.27 R3d MB1 — below the `sm` breakpoint (640 px) the Coach
+  // drawer slides up from the bottom edge of the viewport instead of
+  // sliding in from the right. Right-side slide makes the back-arrow
+  // / close-X drift far from the user's thumb on a phone; bottom-up
+  // keeps the drawer chrome reachable. Above `sm` the drawer keeps
+  // its existing right-side slide and `sm:max-w-[720px]` cap.
+  const isPhoneViewport = useIsMobile("sm");
 
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
@@ -256,7 +264,10 @@ export function CoachDrawer({
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
-        side="right"
+        // v1.4.27 R3d MB1 — below `sm` the drawer slides up from the
+        // bottom edge so the header chrome stays near the user's thumb;
+        // above `sm` it keeps its existing right-side slide.
+        side={isPhoneViewport ? "bottom" : "right"}
         // v1.4.25 W5 — render our own Close button inside the header so
         // X / cog / new-chat sit on the same baseline with identical
         // size, color, and hit target. The Sheet's default close-X is
@@ -265,6 +276,7 @@ export function CoachDrawer({
         // cluster.
         showCloseButton={false}
         data-slot="coach-drawer"
+        data-variant={isPhoneViewport ? "bottom-sheet" : "side-sheet"}
         className={cn(
           // Drawer keeps the dashboard context behind it. On laptops
           // (1280-1366px viewports) the previous lg:max-w-[1080px] cap
@@ -275,7 +287,13 @@ export function CoachDrawer({
           // is hidden below xl by the body's lg:hidden chevron rules).
           "w-full p-0 sm:max-w-[720px]",
           "lg:!max-w-[min(960px,75vw)] xl:!max-w-[1080px]",
-          "flex h-[100dvh] flex-col gap-0",
+          isPhoneViewport
+            ? // Bottom-sheet caps at 95 dvh so a sliver of the underlying
+              // /insights page remains visible — clear "this is a
+              // sheet, not a takeover" signal. The rounded top corners
+              // match the iOS bottom-sheet feel.
+              "flex h-[95dvh] max-h-[95dvh] flex-col gap-0 rounded-t-2xl"
+            : "flex h-[100dvh] flex-col gap-0",
         )}
       >
         {/* Header (full width). Avatar + title + new-chat button +
@@ -297,7 +315,11 @@ export function CoachDrawer({
             <Sparkles className="text-background size-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <SheetTitle className="truncate text-sm font-semibold">
+            {/* v1.4.27 R3d MB4 / CF-73 — pin `min-w-0` on the title
+                node itself in addition to the wrapper so the
+                truncate clipping survives any flex-shrink quirk
+                with very long conversation titles. */}
+            <SheetTitle className="min-w-0 truncate text-sm font-semibold">
               {drawerTitle}
             </SheetTitle>
             <SheetDescription className="text-muted-foreground truncate text-[11px]">
@@ -309,44 +331,56 @@ export function CoachDrawer({
               and resets to it on drawer close. Changing the pill flips
               `windowOverride`; the rail's window picker mirrors the
               same source-of-truth so the user can drive the override
-              from either surface. */}
-          <Select
-            value={effectiveWindow}
-            onValueChange={(value) => {
-              const next = value as CoachScopeWindow;
-              setWindowOverride(next === savedDefaultWindow ? null : next);
-            }}
+              from either surface.
+
+              v1.4.27 R3d MB4 — on `<sm` viewports the bottom-sheet
+              header already carries the avatar, title, new-chat,
+              settings, and close buttons; one more pill there shrinks
+              the title to a single character before truncation. The
+              same override is still reachable from the sources-rail's
+              window picker, which is what the user opens via the
+              right-edge chevron tray on phone-class viewports. */}
+          <div
+            data-slot="coach-drawer-window-pill-wrap"
+            className="hidden sm:block"
           >
-            <SelectTrigger
-              data-slot="coach-drawer-window-pill"
-              aria-label={t("insights.coach.windowLabel")}
-              size="sm"
-              className={cn(
-                "border-border/60 bg-muted/40 text-foreground h-7 shrink-0 gap-1 rounded-full px-2.5 text-[11px]",
-                "hover:bg-muted/60 focus-visible:ring-ring/40 focus-visible:ring-2",
-                windowOverride !== null &&
-                  "border-dracula-purple/40 bg-dracula-purple/10 text-dracula-purple",
-              )}
+            <Select
+              value={effectiveWindow}
+              onValueChange={(value) => {
+                const next = value as CoachScopeWindow;
+                setWindowOverride(next === savedDefaultWindow ? null : next);
+              }}
             >
-              <SelectValue
-                placeholder={t(`insights.coach.window.${effectiveWindow}`)}
-              />
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectItem value="last7days" className="text-xs">
-                {t("insights.coach.window.last7days")}
-              </SelectItem>
-              <SelectItem value="last30days" className="text-xs">
-                {t("insights.coach.window.last30days")}
-              </SelectItem>
-              <SelectItem value="last90days" className="text-xs">
-                {t("insights.coach.window.last90days")}
-              </SelectItem>
-              <SelectItem value="allTime" className="text-xs">
-                {t("insights.coach.window.allTime")}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+              <SelectTrigger
+                data-slot="coach-drawer-window-pill"
+                aria-label={t("insights.coach.windowLabel")}
+                className={cn(
+                  "border-border/60 bg-muted/40 text-foreground h-11 shrink-0 gap-1 rounded-full px-3 text-xs",
+                  "hover:bg-muted/60 focus-visible:ring-ring/40 focus-visible:ring-2",
+                  windowOverride !== null &&
+                    "border-dracula-purple/40 bg-dracula-purple/10 text-dracula-purple",
+                )}
+              >
+                <SelectValue
+                  placeholder={t(`insights.coach.window.${effectiveWindow}`)}
+                />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="last7days" className="text-xs">
+                  {t("insights.coach.window.last7days")}
+                </SelectItem>
+                <SelectItem value="last30days" className="text-xs">
+                  {t("insights.coach.window.last30days")}
+                </SelectItem>
+                <SelectItem value="last90days" className="text-xs">
+                  {t("insights.coach.window.last90days")}
+                </SelectItem>
+                <SelectItem value="allTime" className="text-xs">
+                  {t("insights.coach.window.allTime")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {/* v1.4.25 W5 — header action cluster. All three buttons
               share the same `ghost / size-icon / size-9` shape so they
               visually belong together. 36×36 px hit target meets the
@@ -361,7 +395,7 @@ export function CoachDrawer({
             data-slot="coach-drawer-new-chat"
             aria-label={t("insights.coach.newChat")}
             title={t("insights.coach.newChat")}
-            className="text-muted-foreground hover:text-foreground size-9 shrink-0"
+            className="text-muted-foreground hover:text-foreground size-11 shrink-0"
           >
             <Plus className="size-4" aria-hidden="true" />
           </Button>
@@ -373,7 +407,7 @@ export function CoachDrawer({
             data-slot="coach-drawer-settings"
             aria-label={t("insights.coach.settingsAriaLabel")}
             title={t("insights.coach.settingsAriaLabel")}
-            className="text-muted-foreground hover:text-foreground size-9 shrink-0"
+            className="text-muted-foreground hover:text-foreground size-11 shrink-0"
           >
             <Settings className="size-4" aria-hidden="true" />
           </Button>
@@ -385,7 +419,7 @@ export function CoachDrawer({
               data-slot="coach-drawer-close"
               aria-label={t("common.close")}
               title={t("common.close")}
-              className="text-muted-foreground hover:text-foreground size-9 shrink-0"
+              className="text-muted-foreground hover:text-foreground size-11 shrink-0"
             >
               <X className="size-4" aria-hidden="true" />
             </Button>
@@ -438,6 +472,12 @@ export function CoachDrawer({
                 onSubmit={() => handleSubmit(inputValue)}
                 disabled={send.isStreaming}
                 isStreaming={send.isStreaming}
+                // v1.4.27 MB3 / CF-30 — the composer mounts on drawer
+                // open and unmounts on close (the body collapses with
+                // the sheet), so a one-shot mount focus matches the
+                // "drawer just opened" semantic without any re-render
+                // gymnastics.
+                autoFocusOnOpen
               />
             )
           }

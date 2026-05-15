@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, UserPlus } from "lucide-react";
@@ -22,6 +22,12 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { t } = useTranslations();
+  // v1.4.27 MB3 — explicit error-region id wired to every required
+  // input via `aria-describedby` so screen readers pair the validation
+  // failure with the offending field instead of announcing it as a
+  // standalone alert detached from the form.
+  const errorId = useId();
+  const errorDescriptor = error ? errorId : undefined;
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -59,7 +65,11 @@ export default function RegisterPage() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="border-border bg-card rounded-xl border p-8 shadow-lg shadow-black/20">
+      {/* v1.4.27 MB7 / CF-61 — drop `p-8` to `p-6 sm:p-8` so the
+          auth card breathes on Galaxy Fold / Pixel 5 without stealing
+          half the visible viewport with padding. Tablet+ keeps the
+          generous 32 px padding. */}
+      <div className="border-border bg-card rounded-xl border p-6 shadow-lg shadow-black/20 sm:p-8">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-lg">
             <Logo className="text-primary" size={28} />
@@ -85,6 +95,12 @@ export default function RegisterPage() {
               placeholder={t("auth.emailPlaceholder")}
               required
               autoComplete="email"
+              enterKeyHint="next"
+              autoCapitalize="none"
+              spellCheck={false}
+              aria-required="true"
+              aria-invalid={!!error || undefined}
+              aria-describedby={errorDescriptor}
             />
           </div>
 
@@ -98,6 +114,12 @@ export default function RegisterPage() {
               placeholder="user"
               required
               autoComplete="username"
+              enterKeyHint="next"
+              autoCapitalize="none"
+              spellCheck={false}
+              aria-required="true"
+              aria-invalid={!!error || undefined}
+              aria-describedby={errorDescriptor}
               minLength={3}
               maxLength={30}
             />
@@ -113,6 +135,10 @@ export default function RegisterPage() {
               placeholder={t("auth.passwordMinLength")}
               required
               autoComplete="new-password"
+              enterKeyHint="go"
+              aria-required="true"
+              aria-invalid={!!error || undefined}
+              aria-describedby={errorDescriptor}
             />
             <PasswordStrength password={password} />
             <p className="text-muted-foreground text-xs">
@@ -122,16 +148,27 @@ export default function RegisterPage() {
 
           {error && (
             <div
+              id={errorId}
               role="alert"
+              aria-live="polite"
               className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
             >
               {error}
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          {/* v1.4.27 MB6 — lift the submit to the 44 px tap-target
+              floor and the `lg` size so the primary action stays
+              reachable on a narrow viewport without falling under the
+              iOS keyboard's accessory bar. */}
+          <Button
+            type="submit"
+            size="lg"
+            className="min-h-11 w-full"
+            disabled={loading}
+          >
             {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
               <UserPlus className="mr-2 h-4 w-4" />
             )}

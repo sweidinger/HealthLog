@@ -13,6 +13,11 @@ import {
   SUB_PAGE_SLUGS,
   type SubPageSlug,
 } from "@/lib/insights/sub-page-metric";
+import {
+  hasMetricData,
+  type InsightInputs,
+  type InsightMetric,
+} from "@/lib/insights/metric-availability";
 
 /**
  * v1.4.25 W4 — routed tab strip for `/insights`.
@@ -53,6 +58,13 @@ export interface InsightsTabStripProps {
   onRegenerate?: () => void;
   /** Spinner state — disables the button and swaps the icon. */
   regenerating?: boolean;
+  /**
+   * v1.4.27 F19 — analytics + event-driven availability inputs the
+   * gating helper reads. When omitted the strip falls back to its
+   * pre-v1.4.27 behaviour (every pill renders) so legacy mounts
+   * stay backward-compatible.
+   */
+  availability?: InsightInputs;
 }
 
 interface TabEntry {
@@ -62,32 +74,50 @@ interface TabEntry {
   labelKey: string;
 }
 
-function buildTabs(): TabEntry[] {
-  const subPages: Record<SubPageSlug, string> = {
-    blutdruck: "insights.navBloodPressure",
-    gewicht: "insights.navWeight",
-    puls: "insights.navPulse",
-    stimmung: "insights.navMood",
-    medikamente: "insights.navMedication",
-    bmi: "insights.navBmi",
-    schlaf: "insights.navSleep",
-  };
+/**
+ * Slug → (label key, gating metric) mapping. Keeping the metric here
+ * means the tab strip and the empty-state gates on each sub-page can
+ * stay in sync from a single source of truth — adding a sub-page is
+ * one row.
+ */
+const SUB_PAGE_TABS: Record<
+  SubPageSlug,
+  { labelKey: string; metric: InsightMetric }
+> = {
+  blutdruck: {
+    labelKey: "insights.navBloodPressure",
+    metric: "BLOOD_PRESSURE_SYS",
+  },
+  gewicht: { labelKey: "insights.navWeight", metric: "WEIGHT" },
+  puls: { labelKey: "insights.navPulse", metric: "PULSE" },
+  stimmung: { labelKey: "insights.navMood", metric: "MOOD" },
+  medikamente: { labelKey: "insights.navMedication", metric: "MEDICATION" },
+  bmi: { labelKey: "insights.navBmi", metric: "BMI" },
+  schlaf: { labelKey: "insights.navSleep", metric: "SLEEP_DURATION" },
+};
+
+function buildTabs(availability: InsightInputs | undefined): TabEntry[] {
+  const subPageEntries = SUB_PAGE_SLUGS.filter((slug) => {
+    if (!availability) return true;
+    return hasMetricData(SUB_PAGE_TABS[slug].metric, availability);
+  }).map((slug) => ({
+    href: `${INSIGHTS_OVERVIEW_PATH}/${slug}`,
+    labelKey: SUB_PAGE_TABS[slug].labelKey,
+  }));
   return [
     { href: INSIGHTS_OVERVIEW_PATH, labelKey: "insights.navOverview" },
-    ...SUB_PAGE_SLUGS.map((slug) => ({
-      href: `${INSIGHTS_OVERVIEW_PATH}/${slug}`,
-      labelKey: subPages[slug],
-    })),
+    ...subPageEntries,
   ];
 }
 
 export function InsightsTabStrip({
   onRegenerate,
   regenerating = false,
+  availability,
 }: InsightsTabStripProps) {
   const { t } = useTranslations();
   const pathname = usePathname();
-  const tabs = buildTabs();
+  const tabs = buildTabs(availability);
 
   // Fire success toast on the falling edge of `regenerating`. Same
   // rising-edge ref guard as the W3 implementation so the toast fires
@@ -107,6 +137,13 @@ export function InsightsTabStrip({
       data-slot="insights-tab-strip"
       aria-label={t("insights.navAriaLabel")}
       className={cn(
+        // v1.4.27 MB7 / CF-72 — relative wrapper hosts the right-edge
+        // fade overlay below so the user reads "there's more to
+        // scroll" when the pill row overflows. The fade is a tiny
+        // pointer-events-none pseudo-strip painted onto the inner
+        // strip via a sibling div; it sits only on `<sm` because the
+        // wider viewport above already shows every pill.
+        "relative",
         "bg-background/95 sticky top-0 z-30 overflow-x-auto border-b py-2 backdrop-blur",
         "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
       )}
@@ -145,6 +182,20 @@ export function InsightsTabStrip({
             );
           })}
         </div>
+        {/* v1.4.27 MB7 / CF-72 — right-edge fade. The gradient
+            absolute-positions over the rightmost ~24 px of the strip
+            so the last visible pill softly fades into the background
+            colour, signalling "scroll for more" without a scrollbar.
+            Only paints on `<sm` because the wider viewports above
+            already fit every pill. The fade is a sibling of the
+            scrollable inner row + the regenerate button so it
+            visually overlays both without trapping pointer events. */}
+        <div
+          aria-hidden="true"
+          className={cn(
+            "from-background/95 pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l to-transparent sm:hidden",
+          )}
+        />
         {onRegenerate && (
           <button
             type="button"

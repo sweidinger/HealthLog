@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { PasswordInput } from "@/components/settings/password-input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useTranslations } from "@/lib/i18n/context";
 
 interface NtfySettings {
@@ -195,7 +195,7 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
               onClick={() => test.mutate()}
             >
               {test.isPending ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Send className="mr-1 h-3.5 w-3.5" />
               )}
@@ -203,7 +203,7 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
             </Button>
             <Button type="submit" disabled={save.isPending}>
               {save.isPending && (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}
               {t("common.save")}
             </Button>

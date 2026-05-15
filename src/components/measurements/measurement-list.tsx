@@ -23,12 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,7 +53,8 @@ import {
   ArrowUpDown,
   MoreHorizontal,
 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
@@ -150,6 +146,16 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
   const [editNotes, setEditNotes] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   const [editDeleteDialogOpen, setEditDeleteDialogOpen] = useState(false);
+  // v1.4.27 MB3 — link the edit dialog error banner to the inputs via
+  // `aria-describedby` so screen readers announce the validation
+  // failure when the user submits an invalid value or timestamp.
+  const editErrorId = useId();
+  const editErrorDescriptor = editError ? editErrorId : undefined;
+  // v1.4.27 R4 RC2 — Sheet-branch sticky-pinned footer slot.
+  const editFormId = useId();
+  const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   const setTypeFilter = (value: string) => {
     setTypeFilterRaw(value);
@@ -313,9 +319,18 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        {/* v1.4.27 MB7 / CF-46 — the filter row stacks the SelectTrigger
+            and the count caption vertically on `<sm` so the trigger
+            fills the column and the count drops to a separate line.
+            Pre-fix the trigger had a fixed `w-48` (192 px) which on
+            Pixel 5 (375 px content width) left only ~120 px for the
+            count, which wrapped to 2 lines. */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger
+              className="w-full sm:w-48"
+              aria-label={t("measurements.filterByType")}
+            >
               <SelectValue placeholder={t("measurements.allTypes")} />
             </SelectTrigger>
             <SelectContent>
@@ -338,7 +353,7 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
 
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
-            <Loader2 className="text-primary h-6 w-6 animate-spin" />
+            <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
           </div>
         ) : !data?.measurements?.length ? (
           // v1.4.15 phase-C5: replaces the bare-text empty rectangle.
@@ -362,13 +377,12 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
               typeFilter !== "ALL" ? (
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setTypeFilter("ALL")}
                 >
                   {t("measurements.emptyResetFilter")}
                 </Button>
               ) : onAddFirst ? (
-                <Button size="sm" onClick={onAddFirst}>
+                <Button onClick={onAddFirst}>
                   <Plus className="mr-1 h-4 w-4" />
                   {t("measurements.emptyAddFirst")}
                 </Button>
@@ -494,11 +508,20 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                         </div>
                       )}
                       <div className="min-w-0">
+                        {/* v1.4.27 MB7 / CF-76 — bump the metadata
+                            badges from `text-[10px]` to `text-[11px]`
+                            so the legibility floor (12 px is the
+                            mobile baseline; 11 px is the lowest
+                            tolerated value for non-primary chrome)
+                            holds across the row. The badge heights
+                            stay at `h-5` / `h-4` since the type-
+                            preface badge owns vertical real estate
+                            inside the headline line. */}
                         {(m.type === "BLOOD_PRESSURE_SYS" ||
                           m.type === "BLOOD_PRESSURE_DIA") && (
                           <Badge
                             variant="outline"
-                            className="mr-1.5 h-5 px-1 text-[10px]"
+                            className="mr-1.5 h-5 px-1 text-[11px]"
                           >
                             {t(TYPE_LABEL_KEYS[m.type])}
                           </Badge>
@@ -512,7 +535,7 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                             <Badge
                               variant="outline"
                               data-testid="measurement-source-badge"
-                              className={`ml-1.5 h-4 px-1 text-[10px] ${sourceBadgeClass(m.source)}`.trim()}
+                              className={`ml-1.5 h-4 px-1 text-[11px] ${sourceBadgeClass(m.source)}`.trim()}
                             >
                               {formatMeasurementSource(m.source, t)}
                             </Badge>
@@ -529,14 +552,14 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="size-11"
                         onClick={() => startEdit(m)}
                         aria-label={t("common.edit")}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <DeleteButton
-                        className="h-10 w-10"
+                        className="size-11"
                         onConfirm={() => deleteMutation.mutate(m.id)}
                       />
                     </div>
@@ -559,17 +582,21 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
             <div className="flex gap-1">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="size-11"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
+                aria-label={t("measurements.previousPage")}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="size-11"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
+                aria-label={t("measurements.nextPage")}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -578,13 +605,18 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
         )}
       </div>
 
-      <Dialog open={!!editing} onOpenChange={(open) => !open && closeEdit()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("measurements.editMeasurement")}</DialogTitle>
-          </DialogHeader>
+      <ResponsiveSheet
+        open={!!editing}
+        onOpenChange={(open) => !open && closeEdit()}
+        title={t("measurements.editMeasurement")}
+        footer={<div ref={setEditFooterEl} className="flex w-full" />}
+      >
           {editing && (
-            <form onSubmit={submitEdit} className="space-y-4">
+            <form
+              id={editFormId}
+              onSubmit={submitEdit}
+              className="space-y-4"
+            >
               <div className="flex items-center gap-1.5">
                 <Label className="shrink-0">{t("measurements.type")}</Label>
                 <span className="text-sm leading-none font-medium">
@@ -601,10 +633,14 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                 <Input
                   id="edit-value"
                   type="number"
+                  enterKeyHint="next"
                   step="any"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
                   required
+                  aria-required="true"
+                  aria-invalid={!!editError || undefined}
+                  aria-describedby={editErrorDescriptor}
                 />
               </div>
 
@@ -617,6 +653,9 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                   value={editMeasuredAt}
                   onChange={(e) => setEditMeasuredAt(e.target.value)}
                   required
+                  aria-required="true"
+                  aria-invalid={!!editError || undefined}
+                  aria-describedby={editErrorDescriptor}
                 />
               </div>
 
@@ -634,11 +673,14 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
                   maxLength={MAX_COMMENT_LENGTH}
+                  enterKeyHint="done"
+                  autoCapitalize="sentences"
                 />
               </div>
 
               {editError && (
                 <div
+                  id={editErrorId}
                   role="alert"
                   aria-live="assertive"
                   className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
@@ -647,57 +689,66 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                 </div>
               )}
 
-              <div className="flex items-center justify-between gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-9 w-9"
-                      disabled={
-                        updateMutation.isPending || deleteMutation.isPending
-                      }
-                      aria-label={t("common.moreOptions")}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => setEditDeleteDialogOpen(true)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      {t("common.delete")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {editFooterEl
+                ? createPortal(
+                    <div className="flex w-full items-center justify-between gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-11"
+                            disabled={
+                              updateMutation.isPending ||
+                              deleteMutation.isPending
+                            }
+                            aria-label={t("common.moreOptions")}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setEditDeleteDialogOpen(true)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("common.delete")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={closeEdit}
-                    disabled={
-                      updateMutation.isPending || deleteMutation.isPending
-                    }
-                  >
-                    {t("common.cancel")}
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={
-                      updateMutation.isPending || deleteMutation.isPending
-                    }
-                  >
-                    {updateMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {t("common.save")}
-                  </Button>
-                </div>
-              </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={closeEdit}
+                          disabled={
+                            updateMutation.isPending ||
+                            deleteMutation.isPending
+                          }
+                        >
+                          {t("common.cancel")}
+                        </Button>
+                        <Button
+                          type="submit"
+                          form={editFormId}
+                          disabled={
+                            updateMutation.isPending ||
+                            deleteMutation.isPending
+                          }
+                        >
+                          {updateMutation.isPending ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                          ) : null}
+                          {t("common.save")}
+                        </Button>
+                      </div>
+                    </div>,
+                    editFooterEl,
+                  )
+                : null}
 
               <AlertDialog
                 open={editDeleteDialogOpen}
@@ -722,7 +773,7 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
                       disabled={deleteMutation.isPending}
                     >
                       {deleteMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                       ) : null}
                       {t("common.delete")}
                     </AlertDialogAction>
@@ -731,8 +782,7 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
               </AlertDialog>
             </form>
           )}
-        </DialogContent>
-      </Dialog>
+      </ResponsiveSheet>
     </>
   );
 }
@@ -777,7 +827,7 @@ function SortableHead({
 
 function DeleteButton({
   onConfirm,
-  className = "h-8 w-8",
+  className = "size-11",
 }: {
   onConfirm: () => void;
   className?: string;

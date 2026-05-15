@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { PasswordInput } from "@/components/settings/password-input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useTranslations } from "@/lib/i18n/context";
 
 interface TelegramSettings {
@@ -148,6 +148,11 @@ export function TelegramCard({
                     : "123456:ABC-DEF..."
                 }
                 maxLength={100}
+                autoComplete="off"
+                inputMode="text"
+                spellCheck={false}
+                autoCapitalize="none"
+                enterKeyHint="next"
               />
             </div>
             <div className="space-y-2">
@@ -158,6 +163,11 @@ export function TelegramCard({
                 onChange={(e) => setChatId(e.target.value)}
                 placeholder="123456789"
                 maxLength={50}
+                autoComplete="off"
+                inputMode="text"
+                spellCheck={false}
+                autoCapitalize="none"
+                enterKeyHint="done"
               />
             </div>
           </div>
@@ -200,7 +210,7 @@ export function TelegramCard({
               onClick={handleTest}
             >
               {testing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Send className="mr-2 h-4 w-4" />
               )}
@@ -208,7 +218,7 @@ export function TelegramCard({
             </Button>
             <Button type="submit" disabled={saving}>
               {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}

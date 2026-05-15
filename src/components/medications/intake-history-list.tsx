@@ -16,12 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,7 +48,8 @@ import {
   SkipForward,
   AlertTriangle,
 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useId, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -115,6 +111,21 @@ export function IntakeHistoryList({
   const [editSkipped, setEditSkipped] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [editDeleteDialogOpen, setEditDeleteDialogOpen] = useState(false);
+  // v1.4.27 MB3 — error banners reference the form inputs via
+  // aria-describedby so screen readers announce validation failures.
+  const editErrorId = useId();
+  const editErrorDescriptor = editError ? editErrorId : undefined;
+
+  // v1.4.27 R4 RC2 — portal targets + stable form ids so the edit and
+  // create sheets sticky-pin Save / Cancel via the
+  // `<ResponsiveSheet>` footer slot. Submit buttons keep their `<form>`
+  // association via the HTML `form` attribute.
+  const editFormId = useId();
+  const createFormId = useId();
+  const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(null);
+  const [createFooterEl, setCreateFooterEl] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   // Create state — controlled via props or internal
   const [internalCreating, setInternalCreating] = useState(false);
@@ -123,6 +134,8 @@ export function IntakeHistoryList({
   const [createTakenAt, setCreateTakenAt] = useState("");
   const [createSkipped, setCreateSkipped] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const createErrorId = useId();
+  const createErrorDescriptor = createError ? createErrorId : undefined;
   const setCreatingRaw = onCreateOpenChange ?? setInternalCreating;
   const setCreating = useCallback(
     (open: boolean) => {
@@ -370,7 +383,7 @@ export function IntakeHistoryList({
 
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">
-            <Loader2 className="text-primary h-6 w-6 animate-spin" />
+            <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
           </div>
         ) : !data?.events?.length ? (
           <div className="text-muted-foreground flex h-32 items-center justify-center rounded-lg border border-dashed">
@@ -433,11 +446,11 @@ export function IntakeHistoryList({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="size-11"
                             onClick={() => startEdit(event)}
                             aria-label={t("common.edit")}
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                           <DeleteButton
                             label={t("medications.intakeDeleteConfirm")}
@@ -483,11 +496,11 @@ export function IntakeHistoryList({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="size-11"
                         onClick={() => startEdit(event)}
                         aria-label={t("common.edit")}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <DeleteButton
                         label={t("medications.intakeDeleteConfirm")}
@@ -511,17 +524,21 @@ export function IntakeHistoryList({
             <div className="flex gap-1">
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="size-11"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
+                aria-label={t("medications.previousPage")}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="size-11"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
+                aria-label={t("medications.nextPage")}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -530,14 +547,19 @@ export function IntakeHistoryList({
         )}
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editing} onOpenChange={(open) => !open && closeEdit()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("medications.editIntake")}</DialogTitle>
-          </DialogHeader>
+      {/* Edit Sheet */}
+      <ResponsiveSheet
+        open={!!editing}
+        onOpenChange={(open) => !open && closeEdit()}
+        title={t("medications.editIntake")}
+        footer={<div ref={setEditFooterEl} className="flex w-full" />}
+      >
           {editing && (
-            <form onSubmit={submitEdit} className="space-y-4">
+            <form
+              id={editFormId}
+              onSubmit={submitEdit}
+              className="space-y-4"
+            >
               <div className="space-y-2">
                 <Label htmlFor="edit-scheduledFor">
                   {t("medications.intakeScheduledFor")}
@@ -547,6 +569,9 @@ export function IntakeHistoryList({
                   value={editScheduledFor}
                   onChange={(e) => setEditScheduledFor(e.target.value)}
                   required
+                  aria-required="true"
+                  aria-invalid={!!editError || undefined}
+                  aria-describedby={editErrorDescriptor}
                 />
               </div>
 
@@ -559,6 +584,8 @@ export function IntakeHistoryList({
                   value={editTakenAt}
                   onChange={(e) => setEditTakenAt(e.target.value)}
                   disabled={editSkipped}
+                  aria-invalid={!!editError || undefined}
+                  aria-describedby={editErrorDescriptor}
                 />
               </div>
 
@@ -578,6 +605,7 @@ export function IntakeHistoryList({
 
               {editError && (
                 <div
+                  id={editErrorId}
                   role="alert"
                   aria-live="assertive"
                   className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
@@ -586,57 +614,66 @@ export function IntakeHistoryList({
                 </div>
               )}
 
-              <div className="flex items-center justify-between gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="h-9 w-9"
-                      disabled={
-                        updateMutation.isPending || deleteMutation.isPending
-                      }
-                      aria-label={t("common.moreOptions")}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => setEditDeleteDialogOpen(true)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      {t("common.delete")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              {editFooterEl
+                ? createPortal(
+                    <div className="flex w-full items-center justify-between gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-11"
+                            disabled={
+                              updateMutation.isPending ||
+                              deleteMutation.isPending
+                            }
+                            aria-label={t("common.moreOptions")}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setEditDeleteDialogOpen(true)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("common.delete")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={closeEdit}
-                    disabled={
-                      updateMutation.isPending || deleteMutation.isPending
-                    }
-                  >
-                    {t("common.cancel")}
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={
-                      updateMutation.isPending || deleteMutation.isPending
-                    }
-                  >
-                    {updateMutation.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    {t("common.save")}
-                  </Button>
-                </div>
-              </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={closeEdit}
+                          disabled={
+                            updateMutation.isPending ||
+                            deleteMutation.isPending
+                          }
+                        >
+                          {t("common.cancel")}
+                        </Button>
+                        <Button
+                          type="submit"
+                          form={editFormId}
+                          disabled={
+                            updateMutation.isPending ||
+                            deleteMutation.isPending
+                          }
+                        >
+                          {updateMutation.isPending ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                          ) : null}
+                          {t("common.save")}
+                        </Button>
+                      </div>
+                    </div>,
+                    editFooterEl,
+                  )
+                : null}
 
               <AlertDialog
                 open={editDeleteDialogOpen}
@@ -661,7 +698,7 @@ export function IntakeHistoryList({
                       disabled={deleteMutation.isPending}
                     >
                       {deleteMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
                       ) : null}
                       {t("common.delete")}
                     </AlertDialogAction>
@@ -670,16 +707,20 @@ export function IntakeHistoryList({
               </AlertDialog>
             </form>
           )}
-        </DialogContent>
-      </Dialog>
+      </ResponsiveSheet>
 
-      {/* Create Dialog */}
-      <Dialog open={creating} onOpenChange={(open) => !open && closeCreate()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("medications.newIntake")}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={submitCreate} className="space-y-4">
+      {/* Create Sheet */}
+      <ResponsiveSheet
+        open={creating}
+        onOpenChange={(open) => !open && closeCreate()}
+        title={t("medications.newIntake")}
+        footer={<div ref={setCreateFooterEl} className="flex w-full" />}
+      >
+          <form
+            id={createFormId}
+            onSubmit={submitCreate}
+            className="space-y-4"
+          >
             <div className="space-y-2">
               <Label htmlFor="create-scheduledFor">
                 {t("medications.intakeScheduledFor")}
@@ -689,6 +730,9 @@ export function IntakeHistoryList({
                 value={createScheduledFor}
                 onChange={(e) => setCreateScheduledFor(e.target.value)}
                 required
+                aria-required="true"
+                aria-invalid={!!createError || undefined}
+                aria-describedby={createErrorDescriptor}
               />
             </div>
 
@@ -701,6 +745,8 @@ export function IntakeHistoryList({
                 value={createTakenAt}
                 onChange={(e) => setCreateTakenAt(e.target.value)}
                 disabled={createSkipped}
+                aria-invalid={!!createError || undefined}
+                aria-describedby={createErrorDescriptor}
               />
             </div>
 
@@ -720,6 +766,7 @@ export function IntakeHistoryList({
 
             {createError && (
               <div
+                id={createErrorId}
                 role="alert"
                 aria-live="assertive"
                 className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
@@ -728,25 +775,33 @@ export function IntakeHistoryList({
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closeCreate}
-                disabled={createMutation.isPending}
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                {t("common.save")}
-              </Button>
-            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+          {createFooterEl
+            ? createPortal(
+                <div className="flex w-full items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={closeCreate}
+                    disabled={createMutation.isPending}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                  <Button
+                    type="submit"
+                    form={createFormId}
+                    disabled={createMutation.isPending}
+                  >
+                    {createMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                    ) : null}
+                    {t("common.save")}
+                  </Button>
+                </div>,
+                createFooterEl,
+              )
+            : null}
+      </ResponsiveSheet>
     </>
   );
 }
@@ -805,10 +860,10 @@ function DeleteButton({
         <Button
           variant="ghost"
           size="icon"
-          className="text-destructive h-8 w-8"
+          className="text-destructive size-11"
           aria-label={label}
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-4 w-4" />
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>

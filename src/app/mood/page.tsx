@@ -5,13 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { MoodForm } from "@/components/mood/mood-form";
 import { MoodList } from "@/components/mood/mood-list";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -21,6 +15,10 @@ export default function MoodPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
+  // v1.4.27 R4 RC2 — DOM-ref handle the form portals its action row
+  // into. The ref lives on the `<ResponsiveSheet>` footer slot so the
+  // Sheet branch can sticky-pin Save / Cancel above the keyboard.
+  const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
   const { t } = useTranslations();
 
   useEffect(() => {
@@ -32,7 +30,7 @@ export default function MoodPage() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-primary h-8 w-8 animate-spin" />
+        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
       </div>
     );
   }
@@ -48,24 +46,24 @@ export default function MoodPage() {
             {t("mood.subtitle")}
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              {t("mood.addEntry")}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("mood.addEntry")}</DialogTitle>
-            </DialogHeader>
-            <MoodForm
-              onSuccess={() => setDialogOpen(false)}
-              onCancel={() => setDialogOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          {t("mood.addEntry")}
+        </Button>
       </div>
+
+      <ResponsiveSheet
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={t("mood.addEntry")}
+        footer={<div ref={setFooterEl} className="flex w-full" />}
+      >
+        <MoodForm
+          onSuccess={() => setDialogOpen(false)}
+          onCancel={() => setDialogOpen(false)}
+          footerSlot={footerEl}
+        />
+      </ResponsiveSheet>
 
       <MoodList onAddFirst={() => setDialogOpen(true)} />
     </div>

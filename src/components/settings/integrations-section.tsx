@@ -27,7 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PasswordInput } from "@/components/settings/password-input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { IntegrationStatusPill } from "@/components/settings/integration-status-pill";
 import type { IntegrationPillState } from "@/components/settings/integration-status-pill";
@@ -385,11 +385,20 @@ function WithingsCard({
           </a>
         )}
         <div className="space-y-3">
-          <h3 className="text-sm font-medium">
+          <h3 className="text-sm font-semibold">
             {t("settings.withingsCredentials")}
           </h3>
           <form onSubmit={handleSaveCredentials} className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-3">
+            {/* v1.4.27 MB7 / CF-53 — the credentials grid drops from
+                a 3-column row (client-id / secret / save) to a
+                2-column row of inputs at `sm:`, with the Save button
+                lifted out into its own row below. The previous
+                "invisible Label" hack to align the button with the
+                input baselines fell apart on Galaxy Fold; lifting
+                the button into a dedicated `flex justify-end` row
+                gives it consistent placement on every viewport and
+                lets the input pair span the full width. */}
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="w-clientid">
                   {t("settings.withingsClientId")}
@@ -404,6 +413,11 @@ function WithingsCard({
                       : t("settings.withingsClientId")
                   }
                   maxLength={200}
+                  autoComplete="off"
+                  inputMode="text"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  enterKeyHint="next"
                 />
               </div>
               <div className="space-y-1.5">
@@ -420,27 +434,31 @@ function WithingsCard({
                       : t("settings.withingsClientSecret")
                   }
                   maxLength={200}
+                  autoComplete="off"
+                  inputMode="text"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  enterKeyHint="done"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="invisible">{t("common.save")}</Label>
-                <Button
-                  type="submit"
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-full"
-                  disabled={
-                    credsSaving || !clientId.trim() || !clientSecret.trim()
-                  }
-                >
-                  {credsSaving ? (
-                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Save className="mr-1 h-3.5 w-3.5" />
-                  )}
-                  {t("settings.withingsSaveCredentials")}
-                </Button>
-              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+                disabled={
+                  credsSaving || !clientId.trim() || !clientSecret.trim()
+                }
+              >
+                {credsSaving ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Save className="mr-1 h-3.5 w-3.5" />
+                )}
+                {t("settings.withingsSaveCredentials")}
+              </Button>
             </div>
             {credsMsg && (
               <p
@@ -455,7 +473,13 @@ function WithingsCard({
 
         {status?.connected ? (
           <>
-            <div className="flex flex-wrap items-start gap-2">
+            {/* v1.4.27 MB7 / CF-57 — the action row already wraps via
+                `flex-wrap`, but on Pixel 5 the four AlertDialog +
+                test-connection triggers each took a fractional slot
+                that read jagged. Force each button to a `min-w-[10rem]`
+                on `<sm` so they stack two per row at most and fill
+                their column cleanly. Tablet+ keeps the inline row. */}
+            <div className="flex flex-wrap items-start gap-2 [&>*]:min-w-[10rem] sm:[&>*]:min-w-0">
               <Button
                 variant="outline"
                 size="sm"
@@ -463,7 +487,7 @@ function WithingsCard({
                 disabled={syncing}
               >
                 {syncing ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
                   <RefreshCw className="mr-1 h-3.5 w-3.5" />
                 )}
@@ -473,7 +497,7 @@ function WithingsCard({
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm" disabled={syncing}>
                     {syncing ? (
-                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
                       <RefreshCw className="mr-1 h-3.5 w-3.5" />
                     )}
@@ -703,6 +727,10 @@ function MoodLogCard({
               placeholder={t("settings.moodLogUrlPlaceholder")}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              autoCapitalize="none"
+              enterKeyHint="next"
             />
           </div>
           <div>
@@ -718,6 +746,11 @@ function MoodLogCard({
               }
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
+              autoComplete="off"
+              inputMode="text"
+              spellCheck={false}
+              autoCapitalize="none"
+              enterKeyHint="done"
             />
           </div>
           <div className="flex flex-wrap items-start gap-2">
@@ -726,7 +759,7 @@ function MoodLogCard({
               disabled={saving || (!url.trim() && !apiKey.trim())}
               size="sm"
             >
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}
               <Save className="mr-2 h-4 w-4" />
               {t("common.save")}
             </Button>
@@ -792,7 +825,7 @@ function MoodLogCard({
                 disabled={syncing}
                 onClick={() => handleSync(false)}
               >
-                {syncing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {syncing && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}
                 <RefreshCw className="mr-2 h-4 w-4" />
                 {t("settings.moodLogSync")}
               </Button>

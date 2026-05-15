@@ -74,7 +74,12 @@ export function ErrorDetails({
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl space-y-4 p-6">
+    // v1.4.27 MB6 — `min-h-dvh flex flex-col justify-center` makes
+    // the error panel anchor in the middle of the available viewport
+    // even when this component is mounted at the root layout. Without
+    // it the panel hugged the top edge under the notch on
+    // small-screen devices.
+    <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col justify-center space-y-4 p-6">
       <h1 className="text-xl font-semibold">{t("errorBoundary.title")}</h1>
       <p className="text-muted-foreground text-sm">
         {t("errorBoundary.description")}
@@ -84,12 +89,12 @@ export function ErrorDetails({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {reset && (
-          <Button onClick={reset} variant="outline" size="sm">
+          <Button onClick={reset} variant="outline">
             <RotateCcw className="mr-2 h-4 w-4" />
             {t("common.retry")}
           </Button>
         )}
-        <Button onClick={handleCopy} variant="outline" size="sm">
+        <Button onClick={handleCopy} variant="outline">
           {copied ? (
             <CheckCircle2 className="text-dracula-green mr-2 h-4 w-4" />
           ) : (
@@ -98,7 +103,7 @@ export function ErrorDetails({
           {copied ? t("common.copied") : t("common.copyDetails")}
         </Button>
         {bugReportEnabled && (
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline">
             <Link href={reportHref}>
               <Bug className="mr-2 h-4 w-4" />
               {t("common.reportIssue")}

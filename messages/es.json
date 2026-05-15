@@ -33,6 +33,11 @@
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña"
   },
+  "format": {
+    "dateShort": "{day}/{month}/{year}",
+    "timeShort": "{hour}:{minute}",
+    "dateTime": "{day}/{month}/{year} {hour}:{minute}"
+  },
   "doctorReport": {
     "title": "Informe de salud",
     "subtitle": "HealthLog — Informe personal de salud",
@@ -218,8 +223,6 @@
     "streakLabel": "days in a row",
     "weight": "Peso",
     "bloodPressure": "Presión arterial",
-    "bloodPressureSys": "Blood Pressure (Sys)",
-    "bloodPressureDia": "Blood Pressure (Dia)",
     "pulse": "Pulso",
     "bodyFat": "Grasa corporal",
     "sleep": "Sueño",
@@ -238,7 +241,6 @@
     "vo2MaxShort": "VO₂ max",
     "bpInTargetShort": "PA-objetivo",
     "medications": "Medicamentos",
-    "insightsPreview": "AI Insights preview",
     "quickAddMeasurement": "Log measurement",
     "quickAddMood": "Log mood",
     "compliance7d": "Compliance (7 days)",
@@ -259,10 +261,16 @@
     "emptyAddMeasurement": "Add your first measurement",
     "glp1": {
       "title": "Terapia GLP-1",
-      "lastInjection": "Last injection",
-      "nextInjection": "Next injection",
-      "weightDelta": "since start",
-      "inDays": "in {count} days"
+      "lastInjection": "Última inyección",
+      "nextInjection": "Próxima inyección",
+      "weightDelta": "desde el inicio",
+      "inDays": "en {count} días",
+      "tabLevel": "Nivel",
+      "tabWeight": "Peso",
+      "tabsAria": "Cambiar entre vista de nivel y vista de peso",
+      "rangeStripLabel": "Seleccionar rango",
+      "levelUnavailable": "Nivel no disponible aún — registra una dosis y la curva aparecerá.",
+      "weightUnavailable": "Tendencia de peso no disponible aún — registra una medición para verla."
     }
   },
   "measurements": {
@@ -328,6 +336,7 @@
     "invalidTimestamp": "Please select a valid time.",
     "loginRequired": "Please sign in to view measurements.",
     "allTypes": "All types",
+    "filterByType": "Filter by type",
     "measurementCount": "{count} measurements",
     "emptyTitle": "No measurements yet",
     "emptyDescription": "Log your weight, blood pressure, pulse, or other vitals to start tracking trends.",
@@ -339,7 +348,9 @@
     "actions": "Acciones",
     "deleteConfirmTitle": "Delete measurement?",
     "deleteConfirmDescription": "This measurement will be permanently deleted.",
-    "pageInfo": "Page {page} de{total}"
+    "pageInfo": "Página {page} de {total}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page"
   },
   "mood": {
     "title": "Estado de ánimo",
@@ -374,7 +385,7 @@
     "invalidTimestamp": "Please select a valid time.",
     "deleteConfirmTitle": "Delete entry?",
     "deleteConfirmDescription": "This mood entry will be permanently deleted.",
-    "pageInfo": "Page {page} de{total}",
+    "pageInfo": "Página {page} de {total}",
     "loginRequired": "Please sign in to view mood entries."
   },
   "medications": {
@@ -629,8 +640,7 @@
         "missedLast30": "Olvidadas (30 d.)",
         "unit": {
           "days": "d.",
-          "doses": "dosis",
-          "percent": "%"
+          "doses": "dosis"
         },
         "chips": {
           "adherenceTooltip": "Proporción de dosis tomadas en los últimos 30 días (las dosis omitidas se excluyen del denominador).",
@@ -651,7 +661,6 @@
       "ceilingMessage": "Estás en el último escalón estándar.",
       "escalationDueHint": "Llevas {weeks} semanas en este escalón; el esquema suele avanzar tras ~{typical} semanas.",
       "currentStepDwell": "En este escalón desde hace {weeks} semanas",
-      "weeksUnit": "sem.",
       "doseUnitMg": "mg",
       "emptyState": "Aún no hay historial de dosis. Registra una dosis para ver tu posición en el escalado.",
       "nonStandardDose": "La dosis actual está fuera de los escalones estándar.",
@@ -704,9 +713,10 @@
     "purgeError": "Error deleting records",
     "invalidTimestamp": "Please select a valid time.",
     "noIntakesYet": "No intakes recorded yet",
-    "deleteIntakeAriaLabel": "Delete intake",
     "actions": "Acciones",
-    "pageInfo": "Page {page} de{total}",
+    "pageInfo": "Página {page} de {total}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
     "loginRequiredIntakes": "Please sign in to view intakes.",
     "phaseConfig": "Reminder phases",
     "phaseConfigDescription": "Configure timing for reminders.",
@@ -738,29 +748,20 @@
     "glp1": {
       "drug": {
         "tirzepatide": {
-          "name": "Tirzepatida",
-          "class": "Agonista dual GIP-GLP-1"
+          "name": "Tirzepatida"
         },
         "semaglutide": {
-          "name": "Semaglutida",
-          "class": "Agonista del receptor GLP-1"
+          "name": "Semaglutida"
         },
         "liraglutide": {
-          "name": "Liraglutida",
-          "class": "Agonista del receptor GLP-1"
+          "name": "Liraglutida"
         },
         "dulaglutide": {
-          "name": "Dulaglutida",
-          "class": "Agonista del receptor GLP-1"
+          "name": "Dulaglutida"
         },
         "exenatide": {
-          "name": "Exenatida",
-          "class": "Agonista del receptor GLP-1"
+          "name": "Exenatida"
         }
-      },
-      "source": {
-        "ema": "Fuente EMA",
-        "psp4": "Farmacometría revisada por pares"
       }
     },
     "researchMode": {
@@ -830,20 +831,11 @@
     "trend": "Tendencia",
     "perWeek": "/week",
     "totalDelta": "Total",
-    "selectMedication": "Select medication",
-    "noComplianceData": "No compliance data available",
-    "history": "Historial",
-    "complianceDays90": "Compliance (90 days)",
     "colorGreen": "Green:",
     "colorOrange": "Orange:",
     "colorRed": "Red:",
     "mood": "Estado de ánimo",
     "moodScore": "Mood Score",
-    "moodLabel1": "Terrible",
-    "moodLabel2": "Mal",
-    "moodLabel3": "Okay",
-    "moodLabel4": "Bien",
-    "moodLabel5": "Excelente",
     "weekdays": {
       "mon": "Mon",
       "wed": "Wed",
@@ -915,7 +907,7 @@
     "notAvailableForCompliance": "Comparison N/A for compliance"
   },
   "insights": {
-    "aiAnalysisTitle": "AI Health Analysis",
+    "advisorTitle": "Asesor personal de salud",
     "aiOverviewTitle": "Personal advisor",
     "noAnalysisYet": "No analysis yet.",
     "emptyTitle": "Not enough data yet",
@@ -968,10 +960,6 @@
     "confidenceMittel": "Medium",
     "confidenceGering": "Low",
     "loadError": "Failed to load insights",
-    "generationFailed": "The analysis couldn't be generated. Please try again.",
-    "title": "Análisis",
-    "subtitle": "AI-powered analysis of your health data",
-    "overviewSubtitle": "Trends, risks, progress at a glance",
     "heroGenerated": "Generated {time}",
     "heroPersonalBaseline": "Based on your last 90 days",
     "heroRegenerate": "Regenerate",
@@ -985,7 +973,6 @@
     "heroComingSoonTooltip": "Coming soon",
     "heroActionWeeklyReport": "Generate weekly report",
     "heroActionAskCoach": "Ask the coach",
-    "heroActionRerun": "Re-run analysis",
     "heroBanner": {
       "ready": "Your {week} report is ready",
       "read": "Read",
@@ -1005,8 +992,6 @@
       "componentMood": "Estado de ánimo",
       "componentCompliance": "Meds",
       "disclaimer": "Indicative — not a clinical assessment.",
-      "askCoach": "Ask the Coach",
-      "coachPrompt": "Why is my health score {score} out of 100?",
       "provenance": {
         "toggle": "Compuesto por",
         "weightLabel": "peso",
@@ -1179,13 +1164,10 @@
       "providerRateLimitTitle": "Provider rate-limited",
       "providerRateLimitBody": "Provider temporarily rate-limited; retry in ~5 min."
     },
-    "viewAll": "View all",
-    "previewEmpty": "No recommendations yet.",
     "relativeJustNow": "just now",
     "relativeMinutesAgo": "{count} minutes ago",
     "relativeHoursAgo": "{count} hours ago",
     "relativeDaysAgo": "{count} days ago",
-    "navGeneral": "General",
     "navOverview": "Resumen",
     "navBloodPressure": "Presión arterial",
     "navWeight": "Peso",
@@ -1234,38 +1216,7 @@
         "action": "Manage devices"
       }
     },
-    "measurementsOverDays": "{count} measurements over {days} days",
-    "healthStatus": "Health Status",
-    "noWeightData": "No weight data or height not set.",
-    "notEnoughBpData": "Not enough blood pressure data.",
-    "bpTargetRange": "BP Target Range",
-    "inTargetRange": "in target range",
-    "bpTarget": "Target: {range}",
-    "noDobSet": "Date of birth not set.",
-    "avg30dEsc": "30d average · ESH 2023",
-    "whoClassification": "WHO Classification",
     "correlations": "Correlations",
-    "weightVsBp": "Weight vs. Blood Pressure (Systolic)",
-    "strengthStrong": "Strong correlation",
-    "strengthModerate": "Moderate correlation",
-    "strengthWeak": "Weak correlation",
-    "strengthNone": "No correlation",
-    "weightBpStrong": "There is a strong correlation between weight and blood pressure.",
-    "weightBpModerate": "There is a moderate correlation between weight and blood pressure.",
-    "weightBpWeak": "There is a weak correlation between weight and blood pressure.",
-    "weightBpNone": "No discernible correlation between weight and blood pressure.",
-    "notEnoughCorrelationData": "Not enough data for correlation analysis.",
-    "minCorrelationData": "At least 5 time-matched weight and blood pressure measurements needed.",
-    "bpMedContinuity": "BP Medication Continuity vs. Blood Pressure (Systolic)",
-    "continuityLabel": "Continuity",
-    "continuityBpLabel": "BP Medication Continuity (%)",
-    "weightKgLabel": "Weight (kg)",
-    "bpMedNegative": "Negative correlation: higher continuity tends to be associated with lower systolic blood pressure.",
-    "bpMedPositive": "Positive correlation: higher continuity tends to be associated with higher systolic blood pressure in your data.",
-    "bpMedNone": "No discernible correlation in your data.",
-    "bpMedCount": "{count} BP medications",
-    "notEnoughMedData": "Not enough data for this analysis.",
-    "notEnoughMedDataHint": "Tag medications as blood pressure medications and record sufficient intakes + blood pressure measurements.",
     "medicationCompliance": "Medication Compliance",
     "dayStreak": "{count} day streak",
     "compliance7d": "7-day compliance",
@@ -1273,11 +1224,6 @@
     "taken": "Tomada",
     "skipped": "Omitida",
     "missed": "Perdida",
-    "complianceTrend": "Compliance Trend",
-    "generalStatusTitle": "General Health Status",
-    "generalStatusLoading": "Generating general status...",
-    "generalStatusNoKey": "The general status cannot be generated because no OpenAI key is configured.",
-    "generalStatusUnavailable": "The general status is currently unavailable.",
     "generalStatusBadge": {
       "good": "Bien",
       "watch": "Watch",
@@ -1285,70 +1231,51 @@
     },
     "assessmentTitle": "Assessment",
     "bloodPressureSectionTitle": "Presión arterial",
-    "bloodPressureMedicationListTitle": "Blood Pressure Medication & Compliance",
-    "bloodPressureMedicationListEmpty": "No active blood pressure medication configured.",
-    "bloodPressureStatusLoading": "Generating blood pressure summary...",
-    "bloodPressureStatusNoKey": "The blood pressure summary cannot be generated because no OpenAI key is configured.",
-    "bloodPressureStatusUnavailable": "The blood pressure summary is currently unavailable.",
     "weightSectionTitle": "Peso",
-    "weightStatusLoading": "Generating weight summary...",
-    "weightStatusNoKey": "The weight summary cannot be generated because no OpenAI key is configured.",
-    "weightStatusUnavailable": "The weight summary is currently unavailable.",
     "pulseSectionTitle": "Pulso",
-    "pulseStatusLoading": "Generating pulse summary...",
-    "pulseStatusNoKey": "The pulse summary cannot be generated because no OpenAI key is configured.",
-    "pulseStatusUnavailable": "The pulse summary is currently unavailable.",
     "bmiSectionTitle": "IMC",
-    "bmiStatusLoading": "Generating BMI summary...",
-    "bmiStatusNoKey": "The BMI summary cannot be generated because no OpenAI key is configured.",
-    "bmiStatusUnavailable": "The BMI summary is currently unavailable.",
-    "medicationComplianceStatusLoading": "Generating medication compliance text...",
-    "medicationComplianceStatusNoKey": "The medication compliance text cannot be generated because no OpenAI key is configured.",
-    "medicationComplianceStatusUnavailable": "The medication compliance text is currently unavailable.",
     "complianceNoData": "No compliance data available.",
-    "aiInsights": "AI Insights",
-    "configureApiKey": "Configure an OpenAI API key in Settings to get AI-powered insights.",
-    "alertsTitle": "Notes & Recommendations",
-    "showLess": "Show less",
-    "showMore": "+{count} more",
     "generate": "Generate new analysis",
-    "generating": "Generating analysis...",
-    "lastGenerated": "Last analysis",
-    "noInsights": "No analysis available yet.",
-    "rateLimit": "Please wait before generating a new analysis.",
-    "noApiKey": "Please add an OpenAI API key in Settings first.",
-    "sendRawData": "Send raw data",
-    "minMoodCorrelationData": "At least 5 temporally matched mood and measurement data points required.",
-    "moodBpModerate": "There is a moderate correlation between mood and blood pressure.",
-    "moodBpNone": "No detectable correlation between mood and blood pressure.",
-    "moodBpStrong": "There is a strong correlation between mood and blood pressure.",
-    "moodBpWeak": "There is a weak correlation between mood and blood pressure.",
-    "moodScoreLabel": "Mood (avg)",
     "moodSectionTitle": "Estado de ánimo",
-    "moodStatusLoading": "Generating mood analysis...",
-    "moodStatusNoKey": "Mood summary cannot be generated because no OpenAI API key is configured.",
-    "moodStatusUnavailable": "Mood analysis unavailable",
-    "moodVsBp": "Mood vs. Blood Pressure (Systolic)",
-    "moodVsPulse": "Mood vs. Pulse",
-    "moodVsWeight": "Mood vs. Weight",
-    "moodWeightModerate": "There is a moderate correlation between mood and weight.",
-    "moodWeightNone": "No detectable correlation between mood and weight.",
-    "moodWeightStrong": "There is a strong correlation between mood and weight.",
-    "moodWeightWeak": "There is a weak correlation between mood and weight.",
-    "notEnoughMoodCorrelationData": "Not enough mood data for correlation analysis.",
-    "refreshButton": "Refresh",
-    "generateButton": "Generate",
-    "analyzing": "Analyzing health data...",
     "confidence": "Confidence",
-    "confidence_niedrig": "low",
-    "confidence_mittel": "medium",
-    "confidence_hoch": "high",
     "cached": "Cached",
-    "sectionChanged": "What has changed",
-    "sectionStable": "What is stable",
-    "sectionDrivers": "Possible correlations",
-    "sectionNextSteps": "Next steps",
-    "generatePrompt": "Click \"Generate\" for AI-powered insights about your health data."
+    "emptyState": {
+      "bloodPressure": {
+        "title": "Aún no hay registros de presión arterial",
+        "description": "Registra una medición de presión y aquí aparecerán la tendencia, el porcentaje en rango y la clasificación de la OMS.",
+        "cta": "Registrar presión"
+      },
+      "weight": {
+        "title": "Aún no hay registros de peso",
+        "description": "Registra un peso y aparecerán automáticamente la tendencia, la media móvil y la zona objetivo.",
+        "cta": "Registrar peso"
+      },
+      "pulse": {
+        "title": "Aún no hay registros de pulso",
+        "description": "Registra un pulso y aquí aparecerán pulso en reposo, VFC y VO₂ máx.",
+        "cta": "Registrar pulso"
+      },
+      "bmi": {
+        "title": "IMC aún no calculado",
+        "description": "Cuando haya altura y al menos un registro de peso, aquí aparecerá la tendencia del IMC con las zonas de la OMS.",
+        "cta": "Registrar peso"
+      },
+      "mood": {
+        "title": "Aún no hay entradas de estado de ánimo",
+        "description": "Registra un estado de ánimo y aparecerán la tendencia, la banda de estabilidad y las correlaciones.",
+        "cta": "Registrar ánimo"
+      },
+      "medication": {
+        "title": "Aún no hay medicamentos configurados",
+        "description": "Configura un medicamento y aquí aparecerán la adherencia, el nivel plasmático y la titulación.",
+        "cta": "Añadir medicamento"
+      },
+      "sleep": {
+        "title": "Aún no hay registros de sueño",
+        "description": "Una vez disponibles los datos de sueño (manual o vía Withings / Apple Health), aquí aparecerá el desglose por fases.",
+        "cta": "Conectar Withings"
+      }
+    }
   },
   "thresholds": {
     "defaultLabel": "Default",
@@ -1382,47 +1309,9 @@
     "unsetExplanation": "No override — using computed default."
   },
   "onboarding": {
-    "errorProfile": "Could not save your profile. Please try again.",
     "errorGeneric": "Something went wrong while finishing setup. Please try again.",
-    "v2": {
-      "title": "Welcome to HealthLog",
-      "subtitle": "Three quick steps. You can finish anything later from Settings.",
-      "stepOf": "Step {current} de{total}",
-      "back": "Atrás",
-      "continue": "Continuar",
-      "finish": "Finish setup",
-      "skipStep": "Skip this step — you can finish setup later from Settings.",
-      "step1": {
-        "title": "About you",
-        "description": "Used for blood-pressure targets, BMI, and the right reminders.",
-        "displayNameLabel": "Display name",
-        "displayNameHint": "Shown on the dashboard greeting and in reports.",
-        "languageLabel": "Idioma",
-        "languageHint": "We'll use this for the app, PDFs, and notifications."
-      },
-      "step2": {
-        "title": "Log your first measurement",
-        "description": "Weight, blood pressure, or pulse — whatever you have right now. The dashboard comes alive with one entry.",
-        "added": "Got it — you can add more anytime from the dashboard.",
-        "skipHint": "No measurement at hand? Skip and log one when you're ready."
-      },
-      "step3": {
-        "title": "Pick one notification channel",
-        "description": "We'll only send what you ask for. You can add more channels or fine-tune events later.",
-        "channelTelegramTitle": "Telegram bot",
-        "channelTelegramHint": "Reminders with snooze buttons inside Telegram.",
-        "channelWebPushTitle": "Web Push",
-        "channelWebPushHint": "Native browser notifications on this device.",
-        "channelNtfyTitle": "ntfy.sh",
-        "channelNtfyHint": "Open-source push to phone or desktop, no account.",
-        "channelNoneTitle": "Skip for now",
-        "channelNoneHint": "I'll set up notifications later from Settings.",
-        "openSettings": "Continue in Settings"
-      },
-      "doneToast": "You're all set — welcome aboard."
-    },
     "tour": {
-      "stepOf": "Step {current} de{total}",
+      "stepOf": "Paso {current} de {total}",
       "next": "Siguiente",
       "back": "Atrás",
       "skip": "Skip tour",
@@ -1466,7 +1355,6 @@
       "title": "¿Qué te gustaría registrar?",
       "body": "Elige las áreas que te interesan. El panel y los recordatorios se ajustarán a tu elección.",
       "helpHint": "Una a tres prioridades suelen funcionar mejor — siempre podrás añadir más más adelante.",
-      "placeholder": "Selección de objetivos próximamente.",
       "options": {
         "weightManagement": "Control del peso",
         "bpTracking": "Presión arterial",
@@ -1479,7 +1367,6 @@
     "source": {
       "title": "Conectar una fuente",
       "body": "Importa las mediciones automáticamente o sigue con la entrada manual, tú decides.",
-      "placeholder": "Selector de fuente próximamente.",
       "recommended": "Recomendado",
       "manual": {
         "title": "Entrada manual",
@@ -1500,7 +1387,6 @@
     "baseline": {
       "title": "Cuéntanos sobre ti",
       "body": "Cuatro campos opcionales afinan los valores objetivo, el IMC y los recordatorios. Podrás ajustarlo todo más tarde desde Ajustes.",
-      "placeholder": "Entrada inicial próximamente.",
       "displayNameLabel": "Nombre para mostrar",
       "displayNamePlaceholder": "¿Cómo debería llamarte HealthLog?",
       "displayNameHint": "Aparece en el saludo del panel y en los informes.",
@@ -1527,7 +1413,7 @@
   "gettingStarted": {
     "title": "Getting started",
     "subtitle": "Quick wins to get the most out of HealthLog.",
-    "progress": "{done} de{total} Hecho",
+    "progress": "{done} de {total} hecho",
     "dismissAll": "Hide checklist",
     "dismissTooltip": "Hide this item",
     "items": {
@@ -1709,7 +1595,7 @@
     "genderFemale": "Mujer",
     "genderHint": "Used for gender-specific target values.",
     "timezone": "Zona horaria",
-    "timezoneHint": "Used for chart axis labels, reminder times, export timestamps, and AI Coach context. Stored data is unchanged.",
+    "timezoneHint": "Used for chart axis labels, reminder times, export timestamps, and Coach context. Stored data is unchanged.",
     "timezoneDetect": "Use browser timezone ({tz})",
     "timezoneInvalid": "Not a valid IANA timezone.",
     "profileSaved": "Profile saved",
@@ -2110,6 +1996,9 @@
     "webPushGlobal": "Allow browser push notifications.",
     "integrationWebPush": "Web Push",
     "integrationBugReport": "Bug Report",
+    "offlineGeoLabel": "Datos geográficos",
+    "offlineGeoEnabled": "Sin conexión (GeoLite2)",
+    "offlineGeoFallback": "Respaldo (ipwho.is) — configura MAXMIND_LICENSE_KEY en CI",
     "apiGlobal": "Allow API endpoints and API tokens.",
     "umamiTitle": "Umami",
     "umamiDescription": "Web analytics with Umami",
@@ -2184,7 +2073,7 @@
     "loginEmptyFailedTitle": "No failed sign-in attempts",
     "loginEmptyFailedDescription": "That's the safe state. Switch to all events to see successful sign-ins.",
     "loginEmptyResetFilter": "Show all events",
-    "showingEntries": "Showing {count} de{total} auth entries",
+    "showingEntries": "Mostrando {count} de {total} entradas de autenticación",
     "status": "Estado",
     "action": "Action",
     "ip": "IP",
@@ -2290,6 +2179,9 @@
       "snapshotStarted": "Started",
       "snapshotBuildSha": "Build SHA",
       "snapshotBuiltAt": "Built at",
+      "snapshotOfflineGeo": "Datos geográficos",
+      "snapshotOfflineGeoOn": "Sin conexión (GeoLite2)",
+      "snapshotOfflineGeoOff": "Respaldo (ipwho.is)",
       "snapshotLoadError": "Failed to load system snapshot.",
       "snapshotLoading": "Loading snapshot...",
       "auditTitle": "Recent activity",
@@ -2370,7 +2262,7 @@
         "perPage": "Per page",
         "prev": "Previous",
         "next": "Siguiente",
-        "pageOf": "Page {page} de{total}",
+        "pageOf": "Página {page} de {total}",
         "export": "Export CSV",
         "empty": "No audit entries match the current filters."
       },
@@ -2443,7 +2335,9 @@
         "title": "Danger Zone",
         "subtitle": "Destructive system-wide operations."
       }
-    }
+    },
+    "carrier": "Operador",
+    "carrierUnknown": "Operador desconocido"
   },
   "achievements": {
     "title": "Achievements",
@@ -2754,12 +2648,25 @@
     "noChannels": "Configure a notification channel in Settings first.",
     "goToSettings": "Go to Settings",
     "channelDisabled": "Desactivado",
-    "eventPersonalRecord": "Récord personal",
-    "eventPersonalRecordDesc": "Notificación cuando se alcanza un nuevo récord en una métrica o entrenamiento. Desactivado por defecto."
+    "admin": {
+      "deployFailedTitle": "Despliegue fallido: {application}",
+      "deployFailedBody": "Se produjo un error al desplegar {application} (#{deployment}): {error}. Ver registros: {logsUrl}",
+      "testNotificationTitle": "HealthLog notificación de prueba",
+      "testNotificationBody": "Esta notificación de prueba se activó desde el panel de administración. Si la ves, el canal funciona.",
+      "reminderCheckMissedTitle": "Recordatorio perdido: {medication}",
+      "reminderCheckMissedBody": "{medication} ({dose}) no se registró en la ventana {window}.",
+      "reminderCheckOverdueTitle": "Dosis atrasada: {medication}",
+      "reminderCheckOverdueBody": "{medication} ({dose}) en la ventana {window} lleva {minutes} minutos de retraso.",
+      "offlineGeoUnavailableTitle": "Bases de datos de geolocalización sin conexión no cargadas",
+      "offlineGeoUnavailableBody": "HealthLog está resolviendo las ubicaciones de inicio de sesión mediante el respaldo en línea ipwho.is. Para habilitar las bases sin conexión GeoLite2-City y GeoLite2-ASN, configura MAXMIND_LICENSE_KEY en los secrets de GitHub Actions en {secretsUrl} y vuelve a desplegar. Hasta entonces, la columna de operador en el resumen de inicios de sesión permanece vacía."
+    },
+    "user": {
+      "telegramTestBody": "HealthLog: conexión correcta. Las notificaciones de Telegram están activas."
+    }
   },
   "i18n": {
     "maintainershipBanner": {
-      "notice": "Este idioma está redactado por IA, incluidas las instrucciones críticas para la seguridad del Coach. La validación automática se ejecuta en CI; informe de cualquier regresión del Coach IA en GitHub.",
+      "notice": "Este idioma está traducido automáticamente, incluidas las instrucciones críticas para la seguridad del Coach. Un control de deriva automático se ejecuta en CI; informe de cualquier regresión del Coach en GitHub.",
       "cta": "Informar en GitHub",
       "dismiss": "Cerrar"
     }
@@ -2771,8 +2678,8 @@
     "average30d": "30-day average:",
     "consistency": {
       "ariaLabel": "Last 7 days, in-range status per day",
-      "daysInRange": "{count} de{total} in range",
-      "daysLogged": "{count} de{total} logged",
+      "daysInRange": "{count} de {total} en rango",
+      "daysLogged": "{count} de {total} registrados",
       "dotInRange": "in range",
       "dotNearRange": "near range",
       "dotOutOfRange": "out of range",
@@ -2798,7 +2705,7 @@
       "daysAgo": "{count} days ago"
     },
     "summary": {
-      "weekTitle": "{met} de{total} targets met this week",
+      "weekTitle": "{met} de {total} objetivos cumplidos esta semana",
       "weekTitleAll": "Todo{total} targets met this week",
       "streakHighlight": "{count}-day streak: {metric}"
     },

@@ -29,6 +29,7 @@ import {
   type AdminAuditEntry,
   auditLogCsvHeaderLabels,
   buildAuditLogCsvRecords,
+  carrierShortLabel,
   iconForAuthProvider,
   providerForAction,
   useAuthActionLabels,
@@ -159,6 +160,11 @@ export function LoginOverviewSection() {
       user: t("admin.users"),
       ip: t("admin.ip"),
       location: t("admin.location"),
+      // v1.4.27 B3 — `admin.carrier` is shipped by bucket B6. The
+      // `t()` helper falls back to the raw key string when the
+      // translation row hasn't landed yet, so the CSV stays valid
+      // through the staggered B3 → B6 release.
+      carrier: t("admin.carrier"),
       provider: t("admin.provider"),
       outcome: t("admin.outcome"),
       action: t("admin.action"),
@@ -334,7 +340,7 @@ export function LoginOverviewSection() {
 
         {isLoading ? (
           <div className="flex justify-center py-4">
-            <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+            <Loader2 className="text-muted-foreground h-5 w-5 animate-spin motion-reduce:animate-none" />
           </div>
         ) : !entries.length ? (
           <EmptyState
@@ -362,26 +368,34 @@ export function LoginOverviewSection() {
             }
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-muted-foreground border-b text-xs">
-                  <th className="px-3 py-2 text-left font-medium">
-                    {t("admin.status")}
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium">
-                    {t("admin.users")}
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium">
-                    {t("admin.action")}
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium">
-                    {t("admin.provider")}
-                  </th>
-                  <th className="px-3 py-2 text-left font-medium">
-                    {t("admin.ip")}
-                  </th>
-                  {/*
+          // v1.4.27 MB5 — the audit table itself stays in an
+          // `overflow-x-auto` scroll container so wide rows can pan
+          // horizontally on phones, but the pagination + summary line
+          // moved out into a sibling `<div>` below so the prev/next
+          // controls stay reachable without first scrolling the table
+          // back to its starting offset. The CSV-export button was
+          // already in the toolbar row above the table wrapper.
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-muted-foreground border-b text-xs">
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("admin.status")}
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("admin.users")}
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("admin.action")}
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("admin.provider")}
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium">
+                      {t("admin.ip")}
+                    </th>
+                    {/*
                       v1.4.25 W8b — Standort column. Previously rendered
                       `text-right`, which on wide audit tables let the
                       `Berlin, DE` label drift to the table edge and
@@ -390,68 +404,90 @@ export function LoginOverviewSection() {
                       consistency) makes Standort a first-class column
                       that admins actually notice.
                     */}
-                  <th className="px-3 py-2 text-left font-medium">
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="h-3 w-3" aria-hidden="true" />
-                      {t("admin.location")}
-                    </span>
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium">
-                    {t("admin.timestamp")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {entries.map((entry, i) => {
-                  const isFailed = entry.action === "auth.login.failed";
-                  const provider = providerForAction(entry.action);
-                  const ProviderIcon = iconForAuthProvider(provider);
-                  return (
-                    <tr
-                      key={entry.id}
-                      className={i % 2 === 0 ? "bg-muted/30" : ""}
-                    >
-                      <td className="px-3 py-2">
-                        {isFailed ? (
-                          <XCircle className="text-destructive h-4 w-4" />
-                        ) : (
-                          <CheckCircle2 className="text-dracula-green h-4 w-4" />
-                        )}
-                      </td>
-                      <td
-                        className={`px-3 py-2 font-medium ${isFailed ? "text-destructive" : ""}`}
+                    <th className="px-3 py-2 text-left font-medium">
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-3 w-3" aria-hidden="true" />
+                        {t("admin.location")}
+                      </span>
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      {t("admin.timestamp")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-border divide-y">
+                  {entries.map((entry, i) => {
+                    const isFailed = entry.action === "auth.login.failed";
+                    const provider = providerForAction(entry.action);
+                    const ProviderIcon = iconForAuthProvider(provider);
+                    return (
+                      <tr
+                        key={entry.id}
+                        className={i % 2 === 0 ? "bg-muted/30" : ""}
                       >
-                        {entry.user?.username ?? t("common.unknown")}
-                      </td>
-                      <td
-                        className={`px-3 py-2 text-xs ${isFailed ? "text-destructive" : "text-muted-foreground"}`}
-                      >
-                        {AUTH_ACTION_LABELS[entry.action] ?? entry.action}
-                      </td>
-                      <td className="text-muted-foreground px-3 py-2 text-xs">
-                        <span className="inline-flex items-center gap-1.5">
-                          <ProviderIcon
-                            className="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          />
-                          {AUTH_PROVIDER_LABELS[provider]}
-                        </span>
-                      </td>
-                      <td className="text-muted-foreground px-3 py-2 font-mono text-xs">
-                        {entry.ipAddress ?? "—"}
-                      </td>
-                      <td className="text-muted-foreground px-3 py-2 text-xs">
-                        {entry.location ?? "—"}
-                      </td>
-                      <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
-                        {formatDateTime(entry.createdAt)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <div className="text-muted-foreground mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <td className="px-3 py-2">
+                          {isFailed ? (
+                            <XCircle className="text-destructive h-4 w-4" />
+                          ) : (
+                            <CheckCircle2 className="text-dracula-green h-4 w-4" />
+                          )}
+                        </td>
+                        <td
+                          className={`px-3 py-2 font-medium ${isFailed ? "text-destructive" : ""}`}
+                        >
+                          {entry.user?.username ?? t("common.unknown")}
+                        </td>
+                        <td
+                          className={`px-3 py-2 text-xs ${isFailed ? "text-destructive" : "text-muted-foreground"}`}
+                        >
+                          {AUTH_ACTION_LABELS[entry.action] ?? entry.action}
+                        </td>
+                        <td className="text-muted-foreground px-3 py-2 text-xs">
+                          <span className="inline-flex items-center gap-1.5">
+                            <ProviderIcon
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
+                            {AUTH_PROVIDER_LABELS[provider]}
+                          </span>
+                          {/*
+                          v1.4.27 B3 — carrier chip below the auth-provider
+                          chip. Only renders when the GeoLite2-ASN lookup
+                          found an organisation string for the audit-row's
+                          IP; private/loopback IPs and offline-miss rows
+                          keep the original single-chip layout. The chip
+                          carries the short DACH label ("Telekom",
+                          "Vodafone", "1&1", "O2"); unknown organisations
+                          fall through to the raw GeoLite2 string.
+                        */}
+                          {entry.carrier ? (
+                            <span
+                              className="text-muted-foreground/80 mt-0.5 block text-[10px] leading-tight"
+                              data-slot="login-overview-carrier"
+                            >
+                              {carrierShortLabel(entry.carrier)}
+                            </span>
+                          ) : null}
+                        </td>
+                        <td className="text-muted-foreground px-3 py-2 font-mono text-xs">
+                          {entry.ipAddress ?? "—"}
+                        </td>
+                        <td className="text-muted-foreground px-3 py-2 text-xs">
+                          {entry.location ?? "—"}
+                        </td>
+                        <td className="text-muted-foreground px-3 py-2 text-right text-xs whitespace-nowrap">
+                          {formatDateTime(entry.createdAt)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div
+              className="text-muted-foreground mt-3 flex flex-wrap items-center justify-between gap-2 text-xs"
+              data-testid="login-overview-pagination"
+            >
               <span>
                 {t("admin.showingEntries", {
                   count: entries.length,
@@ -483,7 +519,7 @@ export function LoginOverviewSection() {
                 </Button>
               </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>

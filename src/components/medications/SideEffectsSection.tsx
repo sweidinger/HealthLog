@@ -1,17 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -109,6 +104,11 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
   const [severity, setSeverity] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [notes, setNotes] = useState<string>("");
   const [formError, setFormError] = useState<string | null>(null);
+  // v1.4.27 R4 RC2 — sticky-pin the Save / Cancel row by portalling it
+  // into the `<ResponsiveSheet>` footer slot. The submit button keeps
+  // its `<form>` association via the HTML `form` attribute.
+  const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
+  const formId = useId();
 
   const listKey = [
     "medications",
@@ -256,7 +256,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
     >
       {isLoading && (
         <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           <span>{t("medications.sideEffects.loading")}</span>
         </div>
       )}
@@ -308,7 +308,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0"
+                  className="text-muted-foreground hover:text-destructive size-11 shrink-0"
                   aria-label={t("medications.sideEffects.deleteCta")}
                   onClick={() => {
                     if (
@@ -330,13 +330,14 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("medications.sideEffects.sheetTitle")}</DialogTitle>
-          </DialogHeader>
-
+      <ResponsiveSheet
+        open={open}
+        onOpenChange={setOpen}
+        title={t("medications.sideEffects.sheetTitle")}
+        footer={<div ref={setFooterEl} className="flex w-full" />}
+      >
           <form
+            id={formId}
             onSubmit={handleSubmit}
             className="space-y-4"
             aria-label={t("medications.sideEffects.sheetTitle")}
@@ -450,6 +451,9 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
                 placeholder={t("medications.sideEffects.notesPlaceholder")}
                 rows={3}
                 maxLength={NOTES_MAX}
+                enterKeyHint="done"
+                autoCapitalize="sentences"
+                autoComplete="off"
                 className="border-input bg-background text-foreground w-full rounded-md border px-2 py-1.5 text-sm"
               />
               <p className="text-muted-foreground text-right text-[10px]">
@@ -463,24 +467,32 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
               </p>
             )}
 
-            <DialogFooter className="gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setOpen(false)}
-              >
-                {t("medications.sideEffects.cancelCta")}
-              </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending && (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                )}
-                {t("medications.sideEffects.submitCta")}
-              </Button>
-            </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+          {footerEl
+            ? createPortal(
+                <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setOpen(false)}
+                  >
+                    {t("medications.sideEffects.cancelCta")}
+                  </Button>
+                  <Button
+                    type="submit"
+                    form={formId}
+                    disabled={createMutation.isPending}
+                  >
+                    {createMutation.isPending && (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                    )}
+                    {t("medications.sideEffects.submitCta")}
+                  </Button>
+                </div>,
+                footerEl,
+              )
+            : null}
+      </ResponsiveSheet>
     </MedicationDetailSection>
   );
 }

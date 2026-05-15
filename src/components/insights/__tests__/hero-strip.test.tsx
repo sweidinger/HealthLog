@@ -5,11 +5,9 @@ import { HeroStrip } from "../hero-strip";
 import type { DailyBriefing as DailyBriefingPayload } from "@/lib/ai/schema";
 
 /**
- * v1.4.20 phase B1 — Insights hero strip.
- *
- * Replaces v1.4.16 `<InsightsPageHero>`. Pinning the slots so future
- * polish can't silently drop the greeting / subtitle / action row /
- * suggested-prompt strip.
+ * Insights hero strip — pins the slots so future polish can't
+ * silently drop the greeting / subtitle / action row / suggested-
+ * prompt strip.
  */
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
@@ -306,7 +304,12 @@ describe("<HeroStrip>", () => {
     expect(html).toContain(">86<");
   });
 
-  it("forwards onAskCoach into the Health Score panel only when both are supplied", () => {
+  it("does not render an inline Ask-the-Coach button inside the Health Score card", () => {
+    // v1.4.27 F8 — the inline HSC Ask-the-Coach button retired in
+    // favour of the hero strip's existing action-row button. Even
+    // when `onAskCoach` is supplied, the HSC panel must not surface
+    // its own button. The action-row button at
+    // `insights-hero-strip-action-coach` carries the affordance.
     const html = render(
       <HeroStrip
         briefing={null}
@@ -325,31 +328,8 @@ describe("<HeroStrip>", () => {
         onAskCoach={() => {}}
       />,
     );
-    // HSC panel renders its own Ask-the-Coach button with the score-
-    // aware label (the action-row button uses the shorter "Ask the
-    // coach" copy). The HSC button mirrors the panel's slot.
-    expect(html).toMatch(/data-slot="health-score-card-ask-coach"/);
-  });
-
-  it("hides the Health Score panel's Ask button when no onAskCoach is supplied", () => {
-    const html = render(
-      <HeroStrip
-        briefing={null}
-        now={morningLocal}
-        healthScore={{
-          score: 86,
-          band: "green",
-          components: {
-            bp: { value: 80, weight: 0.3 },
-            weight: { value: 70, weight: 0.2 },
-            mood: { value: 90, weight: 0.2 },
-            compliance: { value: 100, weight: 0.3 },
-          },
-          delta: 5,
-        }}
-      />,
-    );
     expect(html).not.toContain('data-slot="health-score-card-ask-coach"');
+    expect(html).toContain('data-slot="insights-hero-strip-action-coach"');
   });
 
   it("uses the lg row layout when healthScore is supplied (smoke test on container class)", () => {

@@ -1045,7 +1045,15 @@ export function HealthChart({
   const containerClass = mini
     ? "bg-card border-border rounded-md border p-2"
     : "bg-card border-border rounded-xl border p-4 md:p-6";
-  const chartHeightClass = mini ? "h-[140px]" : "h-[240px]";
+  // v1.4.27 MB7 / CF-43 — chart height now reads from a CSS variable
+  // (`--chart-height`) so consumers can override the default per-mount
+  // without re-styling the component. The `mini` branch keeps the
+  // 140 px contract; the regular branch defaults to 240 px on mobile
+  // and 280 px from `md:` upwards (the wider container can absorb a
+  // taller chart without crowding the tile strip above).
+  const chartHeightClass = mini
+    ? "h-[var(--chart-height,140px)]"
+    : "h-[var(--chart-height,240px)] md:h-[var(--chart-height-md,280px)]";
 
   return (
     <div className={containerClass} data-slot={mini ? "chart-mini" : undefined}>
@@ -1172,11 +1180,17 @@ export function HealthChart({
       ) : (
         <div className={`relative ${chartHeightClass}`}>
           {visibleBands.length > 0 ? (
+            // v1.4.27 R3d MB2 — band overlay positioning fix. The
+            // overlay used to inset `right: 18px` while the chart
+            // margin is `right: 8`, so the band rectangle drifted left
+            // of the plotted line by 10 px on every viewport. Pin the
+            // overlay to the same right edge the ComposedChart uses so
+            // the band tracks the line exactly.
             <div
               className="pointer-events-none absolute"
               style={{
                 left: `${8 + yAxisWidth}px`,
-                right: "18px",
+                right: "8px",
                 top: "10px",
                 bottom: "32px",
                 zIndex: 0,

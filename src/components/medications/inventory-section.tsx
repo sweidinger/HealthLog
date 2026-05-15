@@ -1,17 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +70,18 @@ export function InventorySection({
 
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  // v1.4.27 B7 / L3 — explicit aria-controls between summary and disclosed
+  // panel for parity with the W8e Provenance accordion.
+  const panelId = useId();
+  const pastPanelId = useId();
+  // v1.4.27 MB3 — link the add-pen error message back to the doses-total
+  // input via aria-describedby so screen readers announce the failure
+  // when the form rejects an out-of-range value.
+  const formErrorId = useId();
+  // v1.4.27 R4 RC2 — portal target + stable form id wire the sticky
+  // Save / Cancel row into the `<ResponsiveSheet>` footer slot.
+  const formId = useId();
+  const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
   const [dosesTotal, setDosesTotal] = useState<string>(
     defaultDosesPerUnit ? String(defaultDosesPerUnit) : "",
   );
@@ -247,7 +254,11 @@ export function InventorySection({
         open={open}
         onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
       >
-        <summary className="text-foreground/85 flex cursor-pointer list-none items-center justify-between px-3 py-2 font-medium">
+        <summary
+          className="text-foreground/85 flex cursor-pointer list-none items-center justify-between px-3 py-2 font-medium"
+          aria-controls={panelId}
+          aria-expanded={open}
+        >
           <span>
             {t("medications.inventory.title")}
             {liveItems.length > 0 && (
@@ -262,10 +273,13 @@ export function InventorySection({
             }`}
           />
         </summary>
-        <div className="border-border/60 space-y-3 border-t px-3 py-2.5">
+        <div
+          id={panelId}
+          className="border-border/60 space-y-3 border-t px-3 py-2.5"
+        >
           {isLoading && (
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               <span>{t("medications.inventory.loading")}</span>
             </div>
           )}
@@ -319,9 +333,8 @@ export function InventorySection({
                   <div className="flex shrink-0 flex-col gap-1">
                     {item.state === "ACTIVE" && (
                       <Button
-                        size="sm"
                         variant="outline"
-                        className="h-7 px-2 text-[10px]"
+                        className="min-h-11 px-3 text-xs"
                         onClick={() =>
                           patchMutation.mutate({
                             itemId: item.id,
@@ -335,9 +348,8 @@ export function InventorySection({
                     )}
                     {(item.state === "ACTIVE" || item.state === "IN_USE") && (
                       <Button
-                        size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-[10px]"
+                        className="min-h-11 px-3 text-xs"
                         onClick={() =>
                           patchMutation.mutate({
                             itemId: item.id,
@@ -357,12 +369,18 @@ export function InventorySection({
 
           {pastItems.length > 0 && (
             <details className="border-border/40 rounded-md border">
-              <summary className="text-muted-foreground cursor-pointer list-none px-2.5 py-1.5 font-medium">
+              <summary
+                className="text-muted-foreground cursor-pointer list-none px-2.5 py-1.5 font-medium"
+                aria-controls={pastPanelId}
+              >
                 {t("medications.inventory.pastTitle", {
                   count: pastItems.length,
                 })}
               </summary>
-              <ul className="border-border/40 space-y-1 border-t px-2.5 py-2">
+              <ul
+                id={pastPanelId}
+                className="border-border/40 space-y-1 border-t px-2.5 py-2"
+              >
                 {pastItems.map((item) => (
                   <li
                     key={item.id}
@@ -386,14 +404,14 @@ export function InventorySection({
                       )}
                     </div>
                     <Button
-                      size="sm"
                       variant="ghost"
-                      className="h-6 w-6 p-0"
+                      size="icon"
+                      className="size-11 shrink-0"
                       onClick={() => deleteMutation.mutate(item.id)}
                       disabled={deleteMutation.isPending}
                       aria-label={t("medications.inventory.delete")}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </li>
                 ))}
@@ -413,14 +431,13 @@ export function InventorySection({
         </div>
       </details>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {t("medications.inventory.addPenTitle")}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <ResponsiveSheet
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        title={t("medications.inventory.addPenTitle")}
+        footer={<div ref={setFooterEl} className="flex w-full" />}
+      >
+          <form id={formId} onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="inv-doses-total">
                 {t("medications.inventory.fieldDosesTotal")}
@@ -429,12 +446,16 @@ export function InventorySection({
                 id="inv-doses-total"
                 type="number"
                 inputMode="numeric"
+                enterKeyHint="next"
                 min={1}
                 max={100}
                 step={1}
                 value={dosesTotal}
                 onChange={(e) => setDosesTotal(e.target.value)}
                 required
+                aria-required="true"
+                aria-invalid={!!formError || undefined}
+                aria-describedby={formError ? formErrorId : undefined}
               />
               <p className="text-muted-foreground text-xs">
                 {t("medications.inventory.fieldDosesTotalHelp")}
@@ -448,6 +469,7 @@ export function InventorySection({
               <Input
                 id="inv-printed-expiry"
                 type="date"
+                enterKeyHint="next"
                 value={printedExpiry}
                 onChange={(e) => setPrintedExpiry(e.target.value)}
               />
@@ -460,6 +482,7 @@ export function InventorySection({
               <Input
                 id="inv-purchased-at"
                 type="date"
+                enterKeyHint="next"
                 value={purchasedAt}
                 onChange={(e) => setPurchasedAt(e.target.value)}
               />
@@ -475,35 +498,52 @@ export function InventorySection({
                 onChange={(e) => setNotes(e.target.value)}
                 maxLength={200}
                 rows={2}
+                enterKeyHint="done"
+                autoCapitalize="sentences"
                 className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex w-full rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
 
             {formError && (
-              <p className="text-destructive text-sm">{formError}</p>
+              <p
+                id={formErrorId}
+                role="alert"
+                aria-live="polite"
+                className="text-destructive text-sm"
+              >
+                {formError}
+              </p>
             )}
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetAddForm();
-                  setAddOpen(false);
-                }}
-              >
-                {t("medications.inventory.cancel")}
-              </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending && (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                )}
-                {t("medications.inventory.save")}
-              </Button>
-            </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+          {footerEl
+            ? createPortal(
+                <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      resetAddForm();
+                      setAddOpen(false);
+                    }}
+                  >
+                    {t("medications.inventory.cancel")}
+                  </Button>
+                  <Button
+                    type="submit"
+                    form={formId}
+                    disabled={createMutation.isPending}
+                  >
+                    {createMutation.isPending && (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                    )}
+                    {t("medications.inventory.save")}
+                  </Button>
+                </div>,
+                footerEl,
+              )
+            : null}
+      </ResponsiveSheet>
     </>
   );
 }

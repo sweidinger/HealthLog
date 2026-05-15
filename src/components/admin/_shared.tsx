@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Cpu, Fingerprint, Globe, KeyRound } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
-import { PasswordInput as SettingsPasswordInput } from "@/components/settings/password-input";
+import { PasswordInput as SharedPasswordInput } from "@/components/ui/password-input";
 
 /**
  * Re-export the canonical password input so admin sections have access to
@@ -15,7 +15,7 @@ import { PasswordInput as SettingsPasswordInput } from "@/components/settings/pa
  * `button-name` violation on `/admin/integrations` and
  * `/admin/users` (axe-core, WCAG 2.1.2).
  */
-export const PasswordInput = SettingsPasswordInput;
+export const PasswordInput = SharedPasswordInput;
 
 export interface AdminUser {
   id: string;
@@ -92,6 +92,11 @@ export interface AdminAuditEntry {
   action: string;
   ipAddress: string | null;
   location: string | null;
+  // v1.4.27 B3 — populated from the bundled GeoLite2-ASN MMDB at
+  // audit-creation time. Both nullable: older rows, private/loopback
+  // IPs, and offline-miss rows stay valid.
+  asn: number | null;
+  carrier: string | null;
   details: string | null;
   createdAt: string;
   user: { id: string; username: string } | null;
@@ -190,11 +195,18 @@ export function SettingsToggle({
   onCheckedChange: (checked: boolean) => void;
   disabled: boolean;
 }) {
+  // v1.4.27 MB7 / CF-56 — stack the toggle row vertically on `<sm` so
+  // the label + description don't have to compete with the switch for
+  // horizontal space on Pixel 5 (the German "Registration enabled — …"
+  // description used to wrap to 4 lines while the switch ate ~52 px on
+  // the right). At `sm:` the original side-by-side layout returns.
+  // The switch self-aligns to the right via `self-end` on the stacked
+  // branch so it stays a familiar tap target.
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        {Icon && <Icon className="text-muted-foreground h-4 w-4" />}
-        <div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="flex min-w-0 items-center gap-2">
+        {Icon && <Icon className="text-muted-foreground h-4 w-4 shrink-0" />}
+        <div className="min-w-0">
           <p className="text-sm font-medium">{label}</p>
           {description && (
             <p className="text-muted-foreground text-xs">{description}</p>
@@ -205,6 +217,7 @@ export function SettingsToggle({
         checked={checked}
         onCheckedChange={onCheckedChange}
         disabled={disabled}
+        className="self-end sm:self-auto"
       />
     </div>
   );
@@ -381,6 +394,30 @@ export function useAuthProviderLabels(): Record<AuthProvider, string> {
 }
 
 /**
+ * v1.4.27 B3 — Fold a GeoLite2 `autonomous_system_organization`
+ * string down to a short DACH carrier label. The MMDB returns the
+ * verbose legal-entity name ("Deutsche Telekom AG", "1&1 Telecom
+ * GmbH", "Telefónica Germany GmbH & Co. OHG"); the admin overview
+ * needs a glanceable chip ("Telekom", "Vodafone", "1&1", "O2").
+ *
+ * The match is case-insensitive substring against the canonical
+ * carrier name; unknown organisations fall through to the original
+ * string so the chip still carries provenance.
+ */
+export function carrierShortLabel(rawAsnOrg: string): string {
+  const haystack = rawAsnOrg.toLowerCase();
+  if (haystack.includes("telekom")) return "Telekom";
+  if (haystack.includes("vodafone")) return "Vodafone";
+  if (haystack.includes("1&1")) return "1&1";
+  // Telefónica / O2 / Telefonica Germany / O2 Deutschland → "O2"
+  if (haystack.includes("telefonica") || haystack.includes("telefónica")) {
+    return "O2";
+  }
+  if (haystack.includes("o2 ") || haystack.endsWith(" o2")) return "O2";
+  return rawAsnOrg;
+}
+
+/**
  * v1.4.25 W8b — Build the CSV record set for the audit-log export.
  *
  * Pulled out of the section component so the column order, header
@@ -391,6 +428,9 @@ export function useAuthProviderLabels(): Record<AuthProvider, string> {
  * require schema/API changes that are out of scope). `action` and
  * `details` follow so the export keeps the full triage payload.
  *
+ * v1.4.27 B3: the `carrier` column lands between `location` and
+ * `provider` so the geo-derived fields stay grouped.
+ *
  * `formatTimestamp` is injected (not imported) so the production
  * callsite passes the user-tz formatter (`formatInUserTz`) while the
  * unit test passes a deterministic stub.
@@ -400,6 +440,10 @@ export interface AuditCsvEntry {
   action: string;
   ipAddress: string | null;
   location: string | null;
+  // v1.4.27 B3 — both optional so legacy fixture data that predates
+  // the column landing still compiles against this shape.
+  carrier?: string | null;
+  asn?: number | null;
   details: string | null;
   user: { id: string; username: string } | null;
 }
@@ -409,6 +453,7 @@ export interface AuditCsvLabels {
   user: string;
   ip: string;
   location: string;
+  carrier: string;
   provider: string;
   outcome: string;
   action: string;
@@ -424,6 +469,7 @@ export interface AuditCsvRecord {
   user: string;
   ip: string;
   location: string;
+  carrier: string;
   provider: string;
   outcome: string;
   action: string;
@@ -450,6 +496,7 @@ export function buildAuditLogCsvRecords(
       user: entry.user?.username ?? labels.unknownUser,
       ip: entry.ipAddress ?? "",
       location: entry.location ?? "",
+      carrier: entry.carrier ? carrierShortLabel(entry.carrier) : "",
       provider: labels.providerLabels[provider],
       outcome: isFailed ? labels.outcomeFailed : labels.outcomeSuccess,
       action: entry.action,
@@ -466,6 +513,7 @@ export function auditLogCsvHeaderLabels(
     user: labels.user,
     ip: labels.ip,
     location: labels.location,
+    carrier: labels.carrier,
     provider: labels.provider,
     outcome: labels.outcome,
     action: labels.action,

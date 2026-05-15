@@ -5,8 +5,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { X } from "lucide-react";
+
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -140,16 +143,39 @@ export function CoachSettingsSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
+        // v1.4.27 R3d MB1 — the default `<SheetContent>` close-X is an
+        // absolutely positioned `opacity-70 rounded-xs` button that
+        // clashed with the in-header layout. Match the coach-drawer
+        // pattern instead: hide the primitive's close-X and render a
+        // matching ghost-icon `<SheetClose>` inline in the header so
+        // the close affordance sits on the same baseline as the rest
+        // of the sheet chrome and clears the 44 px tap target.
+        showCloseButton={false}
         data-slot="coach-settings-sheet"
         className="flex h-[100dvh] w-full flex-col gap-0 p-0 sm:max-w-[420px]"
       >
-        <SheetHeader className="border-border/70 border-b p-4 pr-12">
-          <SheetTitle className="text-sm font-semibold">
-            {t("insights.coach.settingsTitle")}
-          </SheetTitle>
-          <SheetDescription className="text-muted-foreground text-xs">
-            {t("insights.coach.settingsDescription")}
-          </SheetDescription>
+        <SheetHeader className="border-border/70 flex-row items-start gap-2 border-b p-4">
+          <div className="min-w-0 flex-1">
+            <SheetTitle className="text-sm font-semibold">
+              {t("insights.coach.settingsTitle")}
+            </SheetTitle>
+            <SheetDescription className="text-muted-foreground text-xs">
+              {t("insights.coach.settingsDescription")}
+            </SheetDescription>
+          </div>
+          <SheetClose asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              data-slot="coach-settings-sheet-close"
+              aria-label={t("common.close")}
+              title={t("common.close")}
+              className="text-muted-foreground hover:text-foreground -mt-1 shrink-0"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </Button>
+          </SheetClose>
         </SheetHeader>
 
         {isLoading ? (
@@ -323,31 +349,13 @@ export function CoachSettingsSheet({
               </ul>
             </div>
 
-            {/* Show evidence by default */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
-                <Label
-                  htmlFor="coach-prefs-evidence"
-                  className="cursor-pointer text-xs font-medium"
-                >
-                  {t("insights.coach.settingsEvidenceLabel")}
-                </Label>
-                <p className="text-muted-foreground text-[11px] leading-relaxed">
-                  {t("insights.coach.settingsEvidenceHint")}
-                </p>
-              </div>
-              <Switch
-                id="coach-prefs-evidence"
-                data-slot="coach-prefs-evidence"
-                checked={draft.showEvidenceByDefault}
-                onCheckedChange={(next) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    showEvidenceByDefault: next,
-                  }))
-                }
-              />
-            </div>
+            {/* v1.4.27 F14 — the `showEvidenceByDefault` switch was
+                retired. The evidence disclosure is now always closed
+                by default and the user expands by click; surfacing
+                raw values automatically created an UX trap. The
+                persisted `coachPrefs.showEvidenceByDefault` field
+                stays in the schema for backward compatibility, but no
+                UI reads or writes it. */}
           </div>
         )}
 
@@ -369,7 +377,7 @@ export function CoachSettingsSheet({
             data-slot="coach-prefs-save"
           >
             {save.isPending ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+              <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
             ) : null}
             {t("insights.coach.settingsSave")}
           </Button>

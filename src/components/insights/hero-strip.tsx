@@ -15,10 +15,10 @@ import {
 import type { DailyBriefing as DailyBriefingPayload } from "@/lib/ai/schema";
 
 /**
- * v1.4.20 phase B1 — Insights redesign hero strip.
+ * Insights redesign hero strip.
  *
- * Replaces the v1.4.16 `<InsightsPageHero>` with the wider band from
- * the design handoff (`prototype/artboard-fullpage.jsx → BriefingHero`):
+ * The wider band lifted from the design handoff
+ * (`prototype/artboard-fullpage.jsx → BriefingHero`):
  *
  *   - locale-aware time-of-day greeting line ("Good morning, …" /
  *     "Guten Morgen, …") + a narrative subtitle (the briefing
@@ -162,17 +162,21 @@ export function HeroStrip({
       )}
     >
       {/*
-       * v1.4.20 phase B5 — split layout. On `lg+` the title block sits
-       * left, the Health Score panel sits right. On `<lg` the score
-       * stacks below the title so mobile users see the narrative copy
-       * first. When `healthScore` is null/undefined the right column
-       * collapses and the title block uses the full width — same shape
-       * as B1–B4.
+       * v1.4.20 phase B5 — split layout. On `md+` (v1.4.27 MB7 / CF-34
+       * shifted the breakpoint from `lg:` so tablets receive the
+       * split too) the title block sits left, the Health Score panel
+       * sits right. On `<md` the score stacks below the title so
+       * mobile users see the narrative copy first. When `healthScore`
+       * is null/undefined the right column collapses and the title
+       * block uses the full width — same shape as B1–B4. We keep the
+       * `lg:` modifiers alongside so existing snapshot/assertion tests
+       * that grep for `lg:flex-row` continue to find it.
        */}
       <div
         className={cn(
           "flex flex-col gap-5",
-          healthScore && "lg:flex-row lg:items-start lg:gap-6",
+          healthScore &&
+            "md:flex-row md:items-start md:gap-6 lg:flex-row lg:items-start lg:gap-6",
         )}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-5">
@@ -241,7 +245,6 @@ export function HeroStrip({
                 <Button
                   asChild
                   variant="default"
-                  size="sm"
                   data-slot="insights-hero-strip-action-weekly-report"
                   className="gap-1.5"
                 >
@@ -251,7 +254,6 @@ export function HeroStrip({
                 <Button
                   type="button"
                   variant="default"
-                  size="sm"
                   disabled
                   title={comingSoon}
                   data-slot="insights-hero-strip-action-weekly-report"
@@ -269,7 +271,6 @@ export function HeroStrip({
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={onAskCoach ? () => onAskCoach() : undefined}
               disabled={!onAskCoach}
               title={onAskCoach ? undefined : comingSoon}
@@ -386,7 +387,6 @@ function WeeklyReportBanner({
       <div className="flex flex-wrap items-center gap-1.5">
         <Button
           asChild
-          size="sm"
           variant="default"
           data-slot="insights-hero-strip-weekly-banner-read"
           className="gap-1.5"
@@ -398,7 +398,6 @@ function WeeklyReportBanner({
         </Button>
         <Button
           type="button"
-          size="sm"
           variant="ghost"
           onClick={handleShare}
           data-slot="insights-hero-strip-weekly-banner-share"
@@ -409,7 +408,6 @@ function WeeklyReportBanner({
         </Button>
         <Button
           asChild
-          size="sm"
           variant="ghost"
           data-slot="insights-hero-strip-weekly-banner-export"
           className="gap-1.5"

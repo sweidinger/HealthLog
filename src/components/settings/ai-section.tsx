@@ -31,8 +31,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
-import { PasswordInput } from "@/components/settings/password-input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
@@ -249,7 +250,7 @@ function AiInsightsCard({ isAuthenticated }: { isAuthenticated: boolean }) {
   }
 
   return (
-    <div className="bg-card border-border space-y-6 rounded-xl border p-6">
+    <div className="bg-card border-border space-y-4 rounded-xl border p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <Sparkles className="text-primary h-5 w-5" />
@@ -341,12 +342,14 @@ function ProviderStatusBadges({
 }
 
 /**
- * The single Pulldown that drives every form below it. Uses a native
- * `<select>` so the SSR-only settings test renders deterministically
- * without a portal-based Radix tree. Mobile: full-width, height matched
- * to the shared 36-px input contract used everywhere else in Settings
- * (`<Input>` is `h-9`); tap target stays comfortable thanks to the
- * full-width chevron region.
+ * The single Pulldown that drives every form below it. Uses the
+ * shared `<NativeSelect>` primitive so the SSR-only settings test
+ * renders deterministically without a portal-based Radix tree, and so
+ * the visual contract stays uniform with the other settings pickers
+ * that landed behind the same primitive in MB7 / CF-52. Mobile:
+ * full-width, height matched to the shared 36 px input contract used
+ * everywhere else in Settings; tap target stays comfortable thanks to
+ * the full-width chevron region.
  */
 function ActiveProviderSelect({
   value,
@@ -367,7 +370,7 @@ function ActiveProviderSelect({
       <Label htmlFor="ai-active-provider-select">
         {t("settings.ai.activeProviderLabel")}
       </Label>
-      <select
+      <NativeSelect
         id="ai-active-provider-select"
         data-testid="ai-active-provider-select"
         value={value}
@@ -375,14 +378,14 @@ function ActiveProviderSelect({
           const next = e.target.value;
           if (isProviderType(next)) onChange(next);
         }}
-        className="bg-background border-input mt-1 h-9 w-full rounded-md border px-3 text-sm sm:max-w-md"
+        className="mt-1 sm:max-w-md"
       >
         {PROVIDER_TYPES.map((p) => (
           <option key={p} value={p}>
             {t(`settings.ai.providerSelect.${p}` as const)}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </div>
   );
 }
@@ -820,12 +823,12 @@ function OpenAIProviderForm({
         <Label htmlFor="ai-openai-model">
           {t("settings.ai.openai.modelSelect")}
         </Label>
-        <select
+        <NativeSelect
           id="ai-openai-model"
           data-testid="ai-openai-model"
           value={modelChoice}
           onChange={(e) => setModelChoice(e.target.value)}
-          className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
+          className="mt-1"
         >
           <option value="">{t("settings.ai.modelOptionDefault")}</option>
           {OPENAI_MODEL_PRESETS.map((m) => (
@@ -836,7 +839,7 @@ function OpenAIProviderForm({
           <option value={CUSTOM_MODEL_SENTINEL}>
             {t("settings.ai.openai.modelOptionCustom")}
           </option>
-        </select>
+        </NativeSelect>
       </div>
 
       {modelChoice === CUSTOM_MODEL_SENTINEL && (
@@ -889,7 +892,7 @@ function OpenAIProviderForm({
           disabled={saveMutation.isPending}
         >
           {saveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
@@ -1005,11 +1008,11 @@ function AnthropicProviderForm({
         <Label htmlFor="ai-anthropic-model">
           {t("settings.ai.modelLabel")}
         </Label>
-        <select
+        <NativeSelect
           id="ai-anthropic-model"
           value={modelChoice}
           onChange={(e) => setModelChoice(e.target.value)}
-          className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
+          className="mt-1"
         >
           <option value="">{t("settings.ai.modelOptionDefault")}</option>
           {ANTHROPIC_MODEL_PRESETS.map((m) => (
@@ -1020,7 +1023,7 @@ function AnthropicProviderForm({
           <option value={CUSTOM_MODEL_SENTINEL}>
             {t("settings.ai.modelOptionCustom")}
           </option>
-        </select>
+        </NativeSelect>
       </div>
 
       {modelChoice === CUSTOM_MODEL_SENTINEL && (
@@ -1045,7 +1048,7 @@ function AnthropicProviderForm({
           disabled={saveMutation.isPending}
         >
           {saveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
@@ -1163,11 +1166,11 @@ function LocalProviderForm({
       </div>
       <div>
         <Label htmlFor="ai-local-model">{t("settings.ai.modelLabel")}</Label>
-        <select
+        <NativeSelect
           id="ai-local-model"
           value={modelChoice}
           onChange={(e) => setModelChoice(e.target.value)}
-          className="bg-background border-input mt-1 h-9 w-full rounded-md border px-2 text-sm"
+          className="mt-1"
         >
           <option value="">{t("settings.ai.modelOptionDefault")}</option>
           {LOCAL_MODEL_PRESETS.map((m) => (
@@ -1178,7 +1181,7 @@ function LocalProviderForm({
           <option value={CUSTOM_MODEL_SENTINEL}>
             {t("settings.ai.modelOptionCustom")}
           </option>
-        </select>
+        </NativeSelect>
       </div>
       {modelChoice === CUSTOM_MODEL_SENTINEL && (
         <div>
@@ -1202,7 +1205,7 @@ function LocalProviderForm({
           disabled={saveMutation.isPending}
         >
           {saveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
@@ -1454,7 +1457,7 @@ function FallbackChainCard({
           data-testid="ai-fallback-chain-save"
         >
           {saveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
@@ -1507,18 +1510,18 @@ function AddProviderControl({
 
   return (
     <div className="flex items-center gap-2">
-      <select
+      <NativeSelect
         aria-label={t("settings.ai.providerChain.addProvider")}
         value={picked}
         onChange={(e) => setPicked(e.target.value)}
-        className="bg-background border-input h-9 rounded-md border px-2 text-sm"
+        className="w-auto"
       >
         {addable.map((p) => (
           <option key={p} value={p}>
             {t(`settings.ai.providerChain.types.${p}`)}
           </option>
         ))}
-      </select>
+      </NativeSelect>
       <Button
         type="button"
         size="sm"
@@ -1659,7 +1662,7 @@ function RuntimeActionsRow({
           data-testid="ai-test-active-provider"
         >
           {testing ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
             <Sparkles className="mr-2 h-4 w-4" />
           )}
@@ -1673,7 +1676,7 @@ function RuntimeActionsRow({
             disabled={regen}
           >
             {regen ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
               <RefreshCw className="mr-2 h-4 w-4" />
             )}

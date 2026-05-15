@@ -2,14 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, RotateCcw } from "lucide-react";
@@ -160,18 +153,49 @@ export function PhaseConfigDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("medications.phaseConfig")}</DialogTitle>
-          <DialogDescription>
-            {t("medications.phaseConfigDescription")}
-          </DialogDescription>
-        </DialogHeader>
-
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("medications.phaseConfig")}
+      description={t("medications.phaseConfigDescription")}
+      className="sm:max-w-md"
+      footer={
+        <div className="flex w-full flex-row justify-between gap-2 sm:justify-between">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => resetMutation.mutate()}
+            disabled={resetMutation.isPending}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            {t("medications.phaseResetDefaults")}
+          </Button>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => saveMutation.mutate(form)}
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              )}
+              {t("common.save")}
+            </Button>
+          </div>
+        </div>
+      }
+    >
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <Loader2 className="h-6 w-6 animate-spin motion-reduce:animate-none" />
           </div>
         ) : (
           <div className="space-y-3">
@@ -182,7 +206,18 @@ export function PhaseConfigDialog({
               const mode = form[modeKey] as "MINUTES" | "PERCENT";
 
               return (
-                <div key={key} className="flex items-center gap-2">
+                // v1.4.27 MB7 / CF-50 — stack the row on `<sm` so
+                // the input + mode toggle + suffix caption don't
+                // overflow the 280-300 px dialog inner width on
+                // Galaxy Fold. The dot + phase label stay on the
+                // first line; the input / toggle / suffix wrap
+                // beneath. At `sm:` the original single-line layout
+                // returns because the wider dialog can absorb the
+                // five horizontal slots.
+                <div
+                  key={key}
+                  className="flex flex-wrap items-center gap-2 sm:flex-nowrap"
+                >
                   <div
                     className={`h-3 w-3 rounded-full ${dotClass} shrink-0`}
                     aria-hidden="true"
@@ -211,7 +246,7 @@ export function PhaseConfigDialog({
                       ? t("medications.phaseMinutes")
                       : t("medications.phasePercent")}
                   </Button>
-                  <span className="text-muted-foreground shrink-0 text-xs">
+                  <span className="text-muted-foreground basis-full text-xs sm:basis-auto sm:shrink-0">
                     {direction === "before"
                       ? t("medications.phaseBeforeEnd")
                       : t("medications.phaseAfterEnd")}
@@ -227,39 +262,6 @@ export function PhaseConfigDialog({
             {statusMessage}
           </div>
         )}
-
-        <DialogFooter className="flex-row justify-between gap-2 sm:justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => resetMutation.mutate()}
-            disabled={resetMutation.isPending}
-          >
-            <RotateCcw className="mr-2 h-4 w-4" />
-            {t("medications.phaseResetDefaults")}
-          </Button>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => saveMutation.mutate(form)}
-              disabled={saveMutation.isPending}
-            >
-              {saveMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {t("common.save")}
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </ResponsiveSheet>
   );
 }

@@ -18,6 +18,7 @@ import {
   Waves,
 } from "lucide-react";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
+import { cn } from "@/lib/utils";
 import {
   resolveDashboardLayout,
   type DashboardLayout,
@@ -26,12 +27,7 @@ import type { DataSummary as DataSummaryType } from "@/lib/analytics/trends";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,8 +42,6 @@ import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
 import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
-import { InsightsCardPreview } from "@/components/insights/insights-card";
-import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { Glp1Tile } from "@/components/dashboard/glp1-tile";
 
 const HealthChart = dynamic(
@@ -197,6 +191,11 @@ export default function DashboardPage() {
   const [quickEntryDialog, setQuickEntryDialog] = useState<
     "measurement" | "mood" | null
   >(null);
+  // v1.4.27 R4 RC2 — DOM handles for the form action-row portal target
+  // on each quick-entry sheet. The Sheet branch sticky-pins this slot.
+  const [measurementFooterEl, setMeasurementFooterEl] =
+    useState<HTMLDivElement | null>(null);
+  const [moodFooterEl, setMoodFooterEl] = useState<HTMLDivElement | null>(null);
 
   const { data } = useQuery({
     queryKey: queryKeys.analytics(),
@@ -234,16 +233,17 @@ export default function DashboardPage() {
     enabled: isAuthenticated,
   });
 
-  // v1.4.16 phase D reconcile (CRITICAL C2) — pull the rich advisor
-  // payload so the dashboard can surface a compact preview of the top
-  // severity-ordered AI recommendations + ring confidence meter +
-  // "View all" CTA. Shares the cache with /insights via the
-  // queryKeys.insightsAdvisor() key so a regenerate on either surface
-  // refreshes the other without a second LLM round-trip. Returns null
-  // when the user has no provider configured (route 422 → null), so
-  // the preview self-hides without burning rate-limit tokens on
-  // unconfigured accounts.
-  const advisor = useInsightsAdvisorQuery(isAuthenticated);
+  // v1.4.27 B1 — the dashboard's `<InsightsCardPreview>` retired (it
+  // duplicated the much-richer `/insights` advisor surface). The advisor
+  // query lives on `/insights` directly; the dashboard no longer needs
+  // its own hook subscription, so the local `useInsightsAdvisorQuery`
+  // call dropped with the preview.
+
+  // v1.4.27 — per-tile availability gates live a few lines below as the
+  // existing `hasWeight` / `hasBp` / `hasPulse` / `hasBodyFat` / `hasMood` /
+  // `hasSleep` / `hasSteps` flags. They mirror `hasMetricData` from
+  // `src/lib/insights/metric-availability.ts` for the routed Insights
+  // surfaces — both branches read `summaries[METRIC].count > 0`.
 
   const w = data?.summaries?.WEIGHT;
   const sys = data?.summaries?.BLOOD_PRESSURE_SYS;
@@ -340,12 +340,6 @@ export default function DashboardPage() {
   // the layout-toggle gate here. No data-floor check (the empty card is
   // intentional — the maintainer wants the user to discover the feature).
   const showAchievementsCard = isChartVisible("achievements");
-  // v1.4.16 phase D reconcile (CRITICAL C2) — gate the dashboard
-  // insights preview by the layout toggle. The component itself
-  // returns null when the advisor payload is missing or has no
-  // recommendations, so the gate is sufficient — no extra data-floor
-  // check needed.
-  const showInsightsPreview = isChartVisible("insightsPreview");
 
   // Glucose widget — visible iff layout enables it AND at least one reading exists.
   // Glucose has no separate chart slot today, so the tile flag is the
@@ -530,35 +524,33 @@ export default function DashboardPage() {
        * line is free for established users. */}
       <TourLauncher ready={data !== undefined} />
 
-      {/* Quick Entry Dialogs */}
-      <Dialog
+      {/* Quick Entry Sheets — bottom-sheet on `<md`, centred Dialog on `md+`. */}
+      <ResponsiveSheet
         open={quickEntryDialog === "measurement"}
         onOpenChange={(open) => !open && setQuickEntryDialog(null)}
+        title={t("measurements.addMeasurement")}
+        footer={
+          <div ref={setMeasurementFooterEl} className="flex w-full" />
+        }
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("measurements.addMeasurement")}</DialogTitle>
-          </DialogHeader>
-          <MeasurementForm
-            onSuccess={() => setQuickEntryDialog(null)}
-            onCancel={() => setQuickEntryDialog(null)}
-          />
-        </DialogContent>
-      </Dialog>
-      <Dialog
+        <MeasurementForm
+          onSuccess={() => setQuickEntryDialog(null)}
+          onCancel={() => setQuickEntryDialog(null)}
+          footerSlot={measurementFooterEl}
+        />
+      </ResponsiveSheet>
+      <ResponsiveSheet
         open={quickEntryDialog === "mood"}
         onOpenChange={(open) => !open && setQuickEntryDialog(null)}
+        title={t("mood.addEntry")}
+        footer={<div ref={setMoodFooterEl} className="flex w-full" />}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("mood.addEntry")}</DialogTitle>
-          </DialogHeader>
-          <MoodForm
-            onSuccess={() => setQuickEntryDialog(null)}
-            onCancel={() => setQuickEntryDialog(null)}
-          />
-        </DialogContent>
-      </Dialog>
+        <MoodForm
+          onSuccess={() => setQuickEntryDialog(null)}
+          onCancel={() => setQuickEntryDialog(null)}
+          footerSlot={moodFooterEl}
+        />
+      </ResponsiveSheet>
 
       {(() => {
         type TrendEntry = { id: string; order: number; node: React.ReactNode };
@@ -1225,51 +1217,49 @@ export default function DashboardPage() {
                 height for any non-zero count. */}
             {trendCards.length > 0 && (
               <div
-                // CSS Grid with `auto-fit + minmax(9rem, 1fr)` is the v1.4.4
-                // attempt's flex-strip replacement: every tile gets EXACTLY
-                // the same width (1fr each in the row's track list), the gap
-                // is symmetric, and the strip starts and ends at the same
-                // x-coordinates as the charts below because both inherit the
-                // same parent container. When the row no longer fits a 9rem
-                // floor, the grid wraps to a new row instead of horizontal-
-                // scrolling — the maintainer tested both and prefers the v1.3-era
-                // wrap behaviour over the one-row scroll for the symmetry
-                // it preserves.
-                className="grid auto-rows-fr [grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3 pb-2"
+                // v1.4.27 MB7 / CF-42 — at `<sm` the tile strip
+                // switches to a `flex overflow-x-auto` row so the
+                // tiles scroll horizontally instead of wrapping to
+                // 3-4 rows on Pixel 5 / Galaxy Fold. Each tile keeps
+                // a `min-w-[10rem]` so the user sees ~2.5 tiles per
+                // viewport — enough to read "there's more" without
+                // crowding the headline value on the visible tile.
+                // From `sm:` upwards the strip falls back to the
+                // canonical `grid auto-fit + minmax(9rem, 1fr)`
+                // layout (every tile equal width, wraps to a new
+                // row when the 9 rem floor no longer fits) that the
+                // maintainer pinned in v1.4.4.
+                //
+                // `snap-x snap-mandatory` makes the scroll feel
+                // deliberate on touch and is a no-op on the grid
+                // branch above `sm:`.
+                className={cn(
+                  "flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2",
+                  "sm:grid sm:snap-none sm:auto-rows-fr sm:overflow-visible",
+                  "sm:[grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr))]",
+                )}
                 data-slot="dashboard-tile-strip"
                 data-tour-id="dashboard-tile-strip"
                 data-tile-count={trendCards.length}
               >
                 {trendCards.map((entry) => (
-                  <div key={entry.id} className="flex min-w-0">
+                  <div
+                    key={entry.id}
+                    className="flex min-w-[10rem] shrink-0 snap-start sm:min-w-0 sm:shrink"
+                  >
                     {entry.node}
                   </div>
                 ))}
               </div>
             )}
-            {/* v1.4.16 phase D reconcile (CRITICAL C2) — dashboard
-                preview of the polished AI recommendations surface.
-                Pinned above the chart row (out-of-band from the sorted
-                charts[] array) so it stays at the top regardless of
-                widget reorder operations. Self-hides when the user has
-                no provider configured OR no recommendations to surface
-                (`<InsightsCardPreview>` returns null), so the preview
-                doesn't paint an empty card on first visit. */}
-            {showInsightsPreview && (
-              <InsightsCardPreview
-                insight={advisor.payload?.insights ?? null}
-              />
-            )}
             {/* v1.4.25 W6 — GLP-1 status tile. The tile self-gates on
                 `Medication.treatmentClass === "GLP1"` (route returns
                 `data: null` when the user has no active GLP-1 med), so
                 we always mount it and let the tile suppress itself.
-                Slot is below the InsightsCardPreview and above the
-                chart row — high enough that a Mounjaro / Ozempic user
-                sees their dose-response chart without scrolling past
-                BP / pulse, but below the AI preview so the latter
-                stays the "scroll-stop hero" Marc anchored the dashboard
-                around. */}
+                v1.4.27 — the standalone insights preview retired (it
+                duplicated the much-richer `/insights` advisor surface);
+                the GLP-1 tile now anchors the top of the chart-row
+                stack. */}
             <Glp1Tile />
             {charts.map((entry) => (
               <div key={entry.id} className="space-y-2">

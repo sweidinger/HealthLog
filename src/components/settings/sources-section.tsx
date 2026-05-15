@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -314,10 +315,7 @@ export function SourcesSection() {
         </p>
 
         {isLoading || !priority ? (
-          <div className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {t("common.loading")}
-          </div>
+          <SourcesSkeletonList />
         ) : (
           <div className="space-y-3">
             {SOURCE_PRIORITY_METRIC_KEYS.map((metric) => {
@@ -346,30 +344,37 @@ export function SourcesSection() {
                         <span className="flex-1 text-sm">
                           {t(SOURCE_LABEL_KEYS[source] ?? source)}
                         </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-11 w-11"
-                          onClick={() => moveSource(metric, index, -1)}
-                          disabled={index === 0 || saveMutation.isPending}
-                          aria-label={t("settings.sections.sources.moveUp")}
-                        >
-                          <ArrowUp className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-11 w-11"
-                          onClick={() => moveSource(metric, index, 1)}
-                          disabled={
-                            index === list.length - 1 || saveMutation.isPending
-                          }
-                          aria-label={t("settings.sections.sources.moveDown")}
-                        >
-                          <ArrowDown className="h-3.5 w-3.5" />
-                        </Button>
+                        {/* v1.4.27 R3d MB2 — stack up/down vertically on
+                            narrow viewports so each button keeps the
+                            44 px floor without crowding the row. From
+                            `sm:` up the two buttons sit side-by-side
+                            again to preserve the desktop layout. */}
+                        <div className="flex flex-col gap-1 sm:flex-row sm:gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-11 w-11"
+                            onClick={() => moveSource(metric, index, -1)}
+                            disabled={index === 0 || saveMutation.isPending}
+                            aria-label={t("settings.sections.sources.moveUp")}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-11 w-11"
+                            onClick={() => moveSource(metric, index, 1)}
+                            disabled={
+                              index === list.length - 1 || saveMutation.isPending
+                            }
+                            aria-label={t("settings.sections.sources.moveDown")}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -504,32 +509,36 @@ export function SourcesSection() {
                       <span className="flex-1 text-sm">
                         {t(DEVICE_TYPE_LABEL_KEYS[deviceType])}
                       </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-11 w-11"
-                        onClick={() =>
-                          moveDeviceType(null, index, -1)
-                        }
-                        disabled={index === 0 || saveMutation.isPending}
-                        aria-label={t("settings.sections.sources.moveUp")}
-                      >
-                        <ArrowUp className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-11 w-11"
-                        onClick={() => moveDeviceType(null, index, 1)}
-                        disabled={
-                          index === list.length - 1 || saveMutation.isPending
-                        }
-                        aria-label={t("settings.sections.sources.moveDown")}
-                      >
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      </Button>
+                      {/* v1.4.27 R3d MB2 — same stacked-on-mobile shape
+                          as the metric source rows above. */}
+                      <div className="flex flex-col gap-1 sm:flex-row sm:gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-11 w-11"
+                          onClick={() =>
+                            moveDeviceType(null, index, -1)
+                          }
+                          disabled={index === 0 || saveMutation.isPending}
+                          aria-label={t("settings.sections.sources.moveUp")}
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-11 w-11"
+                          onClick={() => moveDeviceType(null, index, 1)}
+                          disabled={
+                            index === list.length - 1 || saveMutation.isPending
+                          }
+                          aria-label={t("settings.sections.sources.moveDown")}
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -562,5 +571,35 @@ export function SourcesSection() {
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * Skeleton placeholder rendered while `/api/auth/me/source-priority`
+ * is in flight. Reserves one row per `SOURCE_PRIORITY_METRIC_KEYS`
+ * entry at roughly the loaded height so the page does not jump when
+ * the fetched ladder list swaps in. The pulsing animation honours
+ * `prefers-reduced-motion` via Tailwind's `motion-reduce:animate-none`.
+ */
+function SourcesSkeletonList() {
+  return (
+    <div
+      className="space-y-3"
+      data-testid="sources-skeleton"
+      aria-hidden="true"
+    >
+      {SOURCE_PRIORITY_METRIC_KEYS.map((metric) => (
+        <div
+          key={metric}
+          className="border-border bg-background/30 space-y-2 rounded-md border p-3"
+        >
+          <Skeleton className="h-4 w-40" />
+          <div className="space-y-1">
+            <Skeleton className="h-9 w-full rounded-md" />
+            <Skeleton className="h-9 w-full rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

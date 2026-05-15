@@ -319,13 +319,20 @@ export function GettingStartedChecklist() {
       aria-labelledby="getting-started-title"
       className="bg-card border-border space-y-4 rounded-2xl border p-5 sm:p-6"
     >
-      <header className="flex items-start justify-between gap-3">
+      {/* v1.4.27 MB7 / CF-44 — `flex-wrap` on the header lets the
+          dismiss button drop to its own row when the German title +
+          subtitle overflow the visible width on Galaxy Fold / Pixel 5
+          (the previous `flex` layout collided the dismiss caption
+          against the chevron). `min-w-0` on the toggle button lets
+          the inner `<h2>` shrink + truncate cleanly instead of
+          pushing the chevron off-screen. */}
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <button
           type="button"
           onClick={() => setExpanded((prev) => !prev)}
           aria-expanded={expanded}
           aria-controls="getting-started-body"
-          className="hover:text-foreground -m-1 flex flex-1 items-center gap-2 rounded-md p-1 text-left transition-colors"
+          className="hover:text-foreground -m-1 flex min-w-0 flex-1 items-center gap-2 rounded-md p-1 text-left transition-colors"
         >
           <ChevronDown
             aria-hidden="true"
@@ -335,10 +342,10 @@ export function GettingStartedChecklist() {
                 : "size-4 shrink-0 -rotate-90 transition-transform"
             }
           />
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <h2
               id="getting-started-title"
-              className="text-base font-semibold tracking-tight"
+              className="truncate text-base font-semibold tracking-tight"
             >
               {t("gettingStarted.title")}
             </h2>
@@ -352,7 +359,6 @@ export function GettingStartedChecklist() {
         <Button
           type="button"
           variant="ghost"
-          size="sm"
           className="text-muted-foreground hover:text-foreground"
           onClick={() => setDismissedAll(true)}
         >
@@ -445,7 +451,7 @@ export function GettingStartedChecklist() {
                     })
                   }
                   aria-label={t("gettingStarted.dismissTooltip")}
-                  className="text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
+                  className="text-muted-foreground hover:text-foreground inline-flex h-11 w-11 items-center justify-center rounded transition-colors"
                 >
                   <X className="size-4" />
                 </button>
