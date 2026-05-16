@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   APPLE_HEALTH_SLEEP_STAGE_MAP,
   APPLE_HEALTH_TYPE_MAP,
+  CUMULATIVE_HK_TYPES,
   HK_QUANTITY_TYPE_DEFERRED,
+  dailyStatsExternalId,
   mapAppleHealthEntry,
 } from "../apple-health-mapping";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
@@ -129,8 +131,8 @@ describe("HK_QUANTITY_TYPE_DEFERRED", () => {
       // Cardiovascular / clinical
       "HKQuantityTypeIdentifierAtrialFibrillationBurden",
       "HKQuantityTypeIdentifierPeripheralPerfusionIndex",
-      // Mobility
-      "HKQuantityTypeIdentifierAppleWalkingSteadiness",
+      // Mobility — `AppleWalkingSteadiness` moved into the mapped
+      // set in v1.4.30. The remaining identifiers stay deferred.
       "HKQuantityTypeIdentifierNumberOfTimesFallen",
       "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
       // Respiratory / pulmonary
@@ -149,9 +151,9 @@ describe("HK_QUANTITY_TYPE_DEFERRED", () => {
       "HKCategoryTypeIdentifierHighHeartRateEvent",
       "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
       "HKCategoryTypeIdentifierLowCardioFitnessEvent",
-      // Audio-exposure events
-      "HKCategoryTypeIdentifierEnvironmentalAudioExposureEvent",
-      "HKCategoryTypeIdentifierHeadphoneAudioExposureEvent",
+      // Audio-exposure events — environmental + headphone moved into
+      // the mapped set in v1.4.30 (AUDIO_EXPOSURE_EVENT). The general
+      // sound-reduction flag stays deferred.
       "HKCategoryTypeIdentifierEnvironmentalSoundReduction",
       // Behavioural / habit
       "HKCategoryTypeIdentifierHandwashingEvent",
@@ -341,5 +343,101 @@ describe("mapAppleHealthEntry", () => {
       sleepStage: 99,
     });
     expect(out).toBeNull();
+  });
+});
+
+describe("v1.4.30 Tier-1 additions (R-F T1.4 + T1.5)", () => {
+  it("maps appleWalkingSteadiness to WALKING_STEADINESS with × 100 scaling", () => {
+    const mapping =
+      APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierAppleWalkingSteadiness;
+    expect(mapping).toBeDefined();
+    expect(mapping.measurementType).toBe("WALKING_STEADINESS");
+    expect(mapping.convertToDbUnit(0.85)).toBeCloseTo(85);
+    expect(mapping.dbUnit).toBe("%");
+  });
+
+  it("maps environmental + headphone audio-exposure events to AUDIO_EXPOSURE_EVENT (count 1)", () => {
+    const envMapping =
+      APPLE_HEALTH_TYPE_MAP.HKCategoryTypeIdentifierEnvironmentalAudioExposureEvent;
+    expect(envMapping).toBeDefined();
+    expect(envMapping.measurementType).toBe("AUDIO_EXPOSURE_EVENT");
+    expect(envMapping.convertToDbUnit(0)).toBe(1);
+    expect(envMapping.convertToDbUnit(99)).toBe(1);
+
+    const hpMapping =
+      APPLE_HEALTH_TYPE_MAP.HKCategoryTypeIdentifierHeadphoneAudioExposureEvent;
+    expect(hpMapping).toBeDefined();
+    expect(hpMapping.measurementType).toBe("AUDIO_EXPOSURE_EVENT");
+    expect(hpMapping.convertToDbUnit(0)).toBe(1);
+  });
+
+  it("does not double-book the new identifiers as deferred AND mapped", () => {
+    expect(
+      HK_QUANTITY_TYPE_DEFERRED.has(
+        "HKQuantityTypeIdentifierAppleWalkingSteadiness",
+      ),
+    ).toBe(false);
+    expect(
+      HK_QUANTITY_TYPE_DEFERRED.has(
+        "HKCategoryTypeIdentifierEnvironmentalAudioExposureEvent",
+      ),
+    ).toBe(false);
+    expect(
+      HK_QUANTITY_TYPE_DEFERRED.has(
+        "HKCategoryTypeIdentifierHeadphoneAudioExposureEvent",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("dailyStatsExternalId (v1.4.30 — R-A Option A handoff lock)", () => {
+  it("produces the canonical stats:<type>:<date> shape for stepCount", () => {
+    expect(
+      dailyStatsExternalId("HKQuantityTypeIdentifierStepCount", "2026-05-16"),
+    ).toBe("stats:HKQuantityTypeIdentifierStepCount:2026-05-16");
+  });
+
+  it("produces the same shape for every cumulative-type identifier", () => {
+    const cases: Array<[string, string]> = [
+      ["HKQuantityTypeIdentifierStepCount", "2026-01-01"],
+      ["HKQuantityTypeIdentifierActiveEnergyBurned", "2026-02-29"],
+      ["HKQuantityTypeIdentifierFlightsClimbed", "2025-12-31"],
+      ["HKQuantityTypeIdentifierDistanceWalkingRunning", "2024-02-29"],
+      ["HKQuantityTypeIdentifierTimeInDaylight", "2026-05-16"],
+    ];
+    for (const [id, day] of cases) {
+      expect(dailyStatsExternalId(id, day)).toBe(`stats:${id}:${day}`);
+    }
+  });
+
+  it("accepts the date string as-is — iOS owns the format", () => {
+    // Per R-A §5, iOS generates the date string from the user's IANA
+    // timezone via DateFormatter with the `yyyy-MM-dd` pattern. The
+    // server trusts the inbound shape rather than re-validating; the
+    // receiving Zod schema already caps `externalId` at 120 chars.
+    expect(
+      dailyStatsExternalId("HKQuantityTypeIdentifierStepCount", " 2026-05-16 "),
+    ).toBe("stats:HKQuantityTypeIdentifierStepCount: 2026-05-16 ");
+    expect(
+      dailyStatsExternalId("HKQuantityTypeIdentifierStepCount", ""),
+    ).toBe("stats:HKQuantityTypeIdentifierStepCount:");
+  });
+
+  it("covers every CUMULATIVE_HK_TYPES MeasurementType via a known HK identifier", () => {
+    // Sanity wall: every cumulative MeasurementType has a forward-map
+    // entry in APPLE_HEALTH_TYPE_MAP so the iOS-side daily-stats
+    // service can mint the externalId without a server round-trip.
+    const cumulativeIdentifiers = Object.values(APPLE_HEALTH_TYPE_MAP)
+      .filter((m) => CUMULATIVE_HK_TYPES.has(m.measurementType))
+      .map((m) => m.hkIdentifier);
+    expect(cumulativeIdentifiers.sort()).toEqual(
+      [
+        "HKQuantityTypeIdentifierStepCount",
+        "HKQuantityTypeIdentifierActiveEnergyBurned",
+        "HKQuantityTypeIdentifierFlightsClimbed",
+        "HKQuantityTypeIdentifierDistanceWalkingRunning",
+        "HKQuantityTypeIdentifierTimeInDaylight",
+      ].sort(),
+    );
   });
 });

@@ -285,6 +285,43 @@ export const APPLE_HEALTH_TYPE_MAP: Record<string, AppleHealthMapping> = {
     convertToDbUnit: (v) => v,
     aggregation: "sum",
   },
+
+  // ── v1.4.30 R-F T1.4 + T1.5 Tier-1 additions ────────────────
+  // Walking steadiness — iOS 15+ Mobility daily rollup. Apple ships
+  // a 0..1 fraction; HealthLog stores 0..100 percent (same convention
+  // as oxygen saturation + body fat).
+  HKQuantityTypeIdentifierAppleWalkingSteadiness: {
+    hkIdentifier: "HKQuantityTypeIdentifierAppleWalkingSteadiness",
+    measurementType: "WALKING_STEADINESS",
+    hkUnit: "%",
+    dbUnit: "%",
+    // Apple ships 0..1 fraction; HealthLog stores 0..100.
+    convertToDbUnit: (v) => v * 100,
+    aggregation: "latest",
+  },
+  // Environmental audio-exposure event — iOS 13+ category-type that
+  // fires when the rolling 7-day average crosses the WHO 80-dBA loud-
+  // listening threshold. Stored as a 1.0 count per fired event; the
+  // `notes` field carries the source token ("env" vs "headphone").
+  HKCategoryTypeIdentifierEnvironmentalAudioExposureEvent: {
+    hkIdentifier: "HKCategoryTypeIdentifierEnvironmentalAudioExposureEvent",
+    measurementType: "AUDIO_EXPOSURE_EVENT",
+    hkUnit: "count",
+    dbUnit: "count",
+    convertToDbUnit: () => 1,
+    aggregation: "sum",
+  },
+  // Headphone audio-exposure event — same shape as the environmental
+  // sibling; both share the AUDIO_EXPOSURE_EVENT MeasurementType so
+  // chart-card consumers can pick them up uniformly.
+  HKCategoryTypeIdentifierHeadphoneAudioExposureEvent: {
+    hkIdentifier: "HKCategoryTypeIdentifierHeadphoneAudioExposureEvent",
+    measurementType: "AUDIO_EXPOSURE_EVENT",
+    hkUnit: "count",
+    dbUnit: "count",
+    convertToDbUnit: () => 1,
+    aggregation: "sum",
+  },
 };
 
 /**
@@ -309,6 +346,62 @@ export const CUMULATIVE_HK_TYPES: ReadonlySet<MeasurementType> = new Set<Measure
   "WALKING_RUNNING_DISTANCE",
   "TIME_IN_DAYLIGHT",
 ]);
+
+/**
+ * v1.4.30 — externalId shape for daily-aggregated cumulative
+ * HealthKit rows. iOS emits one row per day per cumulative type via
+ * `HKStatisticsCollectionQuery` per R-A Option A; the externalId
+ * UPSERTs the matching server row idempotently across re-syncs.
+ *
+ * Format: `stats:<HKQuantityTypeIdentifier>:<YYYY-MM-DD>`.
+ *
+ * Cumulative HK types only — the spot-sample path keeps using
+ * `HKSample.uuid` as `externalId`. The shape is intentionally
+ * stable across the cutover: iOS clients still posting per-sample
+ * rows round-trip through the existing `(userId, type, source,
+ * externalId)` unique index; iOS clients on the daily-stats path
+ * collide on the deterministic `"stats:..."` key for idempotent
+ * UPSERTs.
+ *
+ * Locked contract — see
+ * `.planning/v15-ios-handoff/08-locked-contracts.md` §13 and
+ * `.planning/v15-ios-handoff/06-ios-responsibilities.md` Domain 1
+ * "Cumulative metrics: daily aggregation on iOS".
+ *
+ * The helper accepts the date string as-is: iOS generates it from
+ * the user's IANA timezone via `DateFormatter` with the
+ * `yyyy-MM-dd` pattern; the server trusts that format rather than
+ * re-validating per ingest because the iOS handoff doc locks the
+ * shape and the receiving Zod schema already caps `externalId` at
+ * 120 characters.
+ */
+export function dailyStatsExternalId(
+  hkIdentifier: string,
+  dateYYYYMMDD: string,
+): string {
+  return `stats:${hkIdentifier}:${dateYYYYMMDD}`;
+}
+
+/**
+ * v1.4.30 — reverse lookup from a HealthLog `MeasurementType` to the
+ * canonical HealthKit identifier for that type. Used by the drain
+ * script when minting a `dailyStatsExternalId` from a row whose
+ * `hkIdentifier` is not carried on the table (the per-sample ingest
+ * stores only the resolved `MeasurementType`).
+ *
+ * Returns `null` when the type has no HealthKit counterpart (Withings-
+ * only metrics). Callers in the cumulative-drain path can assume the
+ * lookup succeeds because `CUMULATIVE_HK_TYPES` is a subset of the
+ * HK-mapped types.
+ */
+export function hkIdentifierForType(
+  type: MeasurementType,
+): string | null {
+  for (const mapping of Object.values(APPLE_HEALTH_TYPE_MAP)) {
+    if (mapping.measurementType === type) return mapping.hkIdentifier;
+  }
+  return null;
+}
 
 /**
  * HK identifiers the iOS app may emit that HealthLog deliberately does
@@ -411,9 +504,9 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   // opt-in than the existing Health-share prompt.
   "HKQuantityTypeIdentifierAtrialFibrillationBurden",
   "HKQuantityTypeIdentifierPeripheralPerfusionIndex",
-  // Mobility (iOS 15+) — surface as a wellness signal in v1.5 once the
-  // Insights cardio sub-page has room for a steadiness gauge.
-  "HKQuantityTypeIdentifierAppleWalkingSteadiness",
+  // Mobility (iOS 15+) — `AppleWalkingSteadiness` moved into the
+  // mapping table in v1.4.30 (R-F T1.5). The remaining identifiers
+  // stay deferred until a wellness sub-page surface lands.
   "HKQuantityTypeIdentifierNumberOfTimesFallen",
   "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
   // Respiratory / pulmonary clinical (iOS 17) — pair with FHIR clinical
@@ -435,12 +528,11 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   "HKCategoryTypeIdentifierHighHeartRateEvent",
   "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
   "HKCategoryTypeIdentifierLowCardioFitnessEvent",
-  // Audio-exposure events (iOS 13+) — the continuous AUDIO_EXPOSURE_*
-  // quantity identifiers ARE mapped above; these are the
-  // "loud-event-fired" flags that pair with them. Defer until we
-  // surface event chips in the Insights audio sub-page.
-  "HKCategoryTypeIdentifierEnvironmentalAudioExposureEvent",
-  "HKCategoryTypeIdentifierHeadphoneAudioExposureEvent",
+  // Audio-exposure events (iOS 13+) — Environmental + Headphone
+  // moved into the mapping table in v1.4.30 (R-F T1.4) as
+  // AUDIO_EXPOSURE_EVENT. The general "sound reduction" flag stays
+  // deferred until we surface event chips in the Insights audio
+  // sub-page.
   "HKCategoryTypeIdentifierEnvironmentalSoundReduction",
   // Behavioural / habit category-types — not in HealthLog scope yet.
   "HKCategoryTypeIdentifierHandwashingEvent",

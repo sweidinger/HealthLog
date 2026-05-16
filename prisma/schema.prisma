@@ -181,6 +181,14 @@ model User {
   researchModeAcknowledgedAt      DateTime? @map("research_mode_acknowledged_at")
   researchModeAcknowledgedVersion String?   @map("research_mode_acknowledged_version")
 
+  // v1.4.30 — iOS SyncMode foundation (R-E C-2). Last-known
+  // synchronization checkpoint per user. iOS reads it via
+  // `GET /api/sync/state` to decide whether to drain its local
+  // SwiftData backlog before opening a fresh anchored-query window.
+  // NULL = never synced; the SyncMode store treats that as "force
+  // a full refresh on the next pair".
+  lastSyncedAt DateTime? @map("last_synced_at")
+
   // v1.4.25 W6c — Doctor-report section toggles.
   // Shape:
   //   { "bp": boolean,
@@ -321,6 +329,9 @@ enum MeasurementType {
   AUDIO_EXPOSURE_ENV // dBA — HealthKit `environmentalAudioExposure`; ambient noise sample (e.g. concert, traffic). Watch + iPhone microphone.
   AUDIO_EXPOSURE_HEADPHONE // dBA — HealthKit `headphoneAudioExposure`; AirPods listening-volume sampling.
   TIME_IN_DAYLIGHT // minutes — HealthKit `timeInDaylight` (iOS 17+). Sun-exposure daily rollup; mood + sleep correlate.
+  // ── v1.4.30 R-F T1.4 + T1.5 Tier-1 additions ──
+  WALKING_STEADINESS // percent (0-100, scaled ×100 from Apple's 0..1 fraction) — HealthKit `appleWalkingSteadiness` (iOS 15+). Daily rollup. Falls + mobility-risk signal Apple's own Health app shows prominently in the Mobility section.
+  AUDIO_EXPOSURE_EVENT // count (event flag: 1 per fired loud-listening event) — HealthKit `environmentalAudioExposureEvent` + `headphoneAudioExposureEvent` category-events. Apple fires these when the rolling 7-day average crosses the WHO 80-dBA threshold. The notes field carries the source identifier (env vs headphone).
 
   @@map("measurement_type")
 }
@@ -396,6 +407,21 @@ model Measurement {
   // include `deviceType` so two ingest paths from the same source
   // still dedup on (type, source, externalId).
   deviceType            String?           @map("device_type")
+  // v1.4.30 — iOS SyncMode foundation (R-E C-2). Monotonically
+  // incremented on every server-side mutation of the row. iOS uses
+  // it for last-writer-wins reconciliation when two devices write
+  // the same logical reading. Default = 1 for the create path; the
+  // update path is responsible for bumping it. Existing rows
+  // start at the default after the additive migration so legacy
+  // ingest keeps round-tripping unchanged.
+  syncVersion           Int               @default(1) @map("sync_version")
+  // v1.4.30 — soft-delete column. The DELETE path on the
+  // by-external-ids endpoint flips this rather than removing the row
+  // so paired iOS clients can reconcile deletions without losing the
+  // audit trail. NULL = live row; non-NULL = tombstoned at the
+  // recorded instant. The unique-by-externalId index keeps both
+  // states distinguishable for the bulk-backfill UPSERT path.
+  deletedAt             DateTime?         @map("deleted_at")
   createdAt             DateTime          @default(now()) @map("created_at")
   updatedAt             DateTime          @updatedAt @map("updated_at")
 
@@ -1053,6 +1079,14 @@ model MoodEntry {
   mood         String // SUPER_GUT, GUT, OKAY, SCHLECHT, LAUSIG
   score        Int // 1-5
   tags         String? // JSON array of tag keys
+  /// v1.4.30 — first-class free-text note. Replaces the
+  /// `tags: ["note:<text>"]` workaround the iOS app shipped through
+  /// v0.4.1.1 (per R-E H-5); the prior pattern contaminated the
+  /// tags axis with prose the Coach evidence shelf then read as
+  /// taxonomic labels. Nullable for the additive-only migration
+  /// path; the bulk-backfill endpoint pulls existing `note:...` tag
+  /// rows into this column via the migration script.
+  note         String?  @db.Text
   source       String   @default("MOODLOG") // WEB, TELEGRAM, DAYLIO
   moodLoggedAt DateTime @map("mood_logged_at")
   /// v1.4.25 W7b — per-row IANA timezone that the `date` string is
