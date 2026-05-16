@@ -41,7 +41,7 @@ import type {
 import { ChartOverlayControls } from "./chart-overlay-controls";
 import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
 import { useViewportWidth } from "@/hooks/use-viewport-width";
-import { chooseTickInterval } from "@/lib/charts/x-axis-density";
+import { computeTickPositions } from "@/lib/charts/x-axis-density";
 
 const TIME_RANGES_KEYS = [
   {
@@ -577,6 +577,15 @@ export function HealthChart({
         typeParams.set("from", fetchWindow.from);
         typeParams.set("to", fetchWindow.to);
         typeParams.set("limit", "5000");
+        // v1.4.29 C3 — windows over 7 days ask the server to bucket
+        // daily. Caps the chart's per-type payload at ~365 rows
+        // instead of ~5 000 for high-density types (pulse), and drops
+        // Recharts paint cost ~50× on continuous-monitoring accounts.
+        // Short windows keep raw fetching so hour-by-hour detail
+        // stays visible.
+        if (fetchWindow.windowDays > 7) {
+          typeParams.set("aggregate", "daily");
+        }
 
         const res = await fetch(`/api/measurements?${typeParams}`);
         if (!res.ok) return;
@@ -1272,8 +1281,13 @@ export function HealthChart({
                       ),
                     )
                   }
-                  interval={chooseTickInterval(
-                    chartData?.length ?? 0,
+                  // v1.4.29 — Recharts ignores `interval` on numeric
+                  // axes (`type="number"`). Hand explicit tick
+                  // positions through the `ticks` prop so the legacy
+                  // day-aware density policy stays effective on the
+                  // pulse chart.
+                  ticks={computeTickPositions(
+                    chartData ?? [],
                     viewportWidth,
                   )}
                   padding={{ left: 10, right: 10 }}

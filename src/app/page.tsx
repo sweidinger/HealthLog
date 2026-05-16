@@ -191,6 +191,16 @@ export default function DashboardPage() {
     useState<HTMLDivElement | null>(null);
   const [moodFooterEl, setMoodFooterEl] = useState<HTMLDivElement | null>(null);
 
+  // v1.4.29 M5 — the three inline dashboard queries default to a
+  // 0-ms `staleTime`, so a tab-focus-and-return triggered a refetch
+  // storm. None of these are real-time data; minute-scale staleness
+  // is fine and the dashboard's chart queries already match this
+  // cadence.
+  const DASHBOARD_QUERY_OPTS = {
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  } as const;
+
   const { data } = useQuery({
     queryKey: queryKeys.analytics(),
     queryFn: async () => {
@@ -200,6 +210,7 @@ export default function DashboardPage() {
       return json.data as AnalyticsData;
     },
     enabled: isAuthenticated,
+    ...DASHBOARD_QUERY_OPTS,
   });
 
   const { data: layoutData } = useQuery({
@@ -211,6 +222,7 @@ export default function DashboardPage() {
       return json.data as DashboardLayout;
     },
     enabled: isAuthenticated,
+    ...DASHBOARD_QUERY_OPTS,
   });
 
   const { data: moodData } = useQuery({
@@ -225,6 +237,7 @@ export default function DashboardPage() {
       };
     },
     enabled: isAuthenticated,
+    ...DASHBOARD_QUERY_OPTS,
   });
 
   // v1.4.27 B1 — the dashboard's `<InsightsCardPreview>` retired (it
@@ -1211,6 +1224,14 @@ export default function DashboardPage() {
                 // branch above `sm:`.
                 className={cn(
                   "flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2",
+                  // v1.4.29 — fixed mobile tile height contract.
+                  // At `<sm` every tile pins to 140 px via the
+                  // `--tile-h` CSS custom property so divergent
+                  // content (callout on / off, sub-row wrap / no
+                  // wrap) cannot drift sibling heights. `sm:`
+                  // releases to `auto` where `grid auto-rows-fr`
+                  // already enforces equal heights.
+                  "[--tile-h:140px] sm:[--tile-h:auto]",
                   "sm:grid sm:snap-none sm:auto-rows-fr sm:overflow-visible",
                   "sm:[grid-template-columns:repeat(auto-fit,minmax(min(100%,9rem),1fr))]",
                 )}
@@ -1221,7 +1242,7 @@ export default function DashboardPage() {
                 {trendCards.map((entry) => (
                   <div
                     key={entry.id}
-                    className="flex min-w-[10rem] shrink-0 snap-start sm:min-w-0 sm:shrink"
+                    className="flex h-[var(--tile-h)] min-w-[10rem] shrink-0 snap-start sm:h-auto sm:min-w-0 sm:shrink"
                   >
                     {entry.node}
                   </div>
