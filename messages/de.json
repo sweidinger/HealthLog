@@ -258,7 +258,16 @@
     "layoutChartColumn": "Chart",
     "emptyTitle": "Dein Dashboard ist leer",
     "emptyDescription": "Erfasse den ersten Messwert oder Stimmungseintrag. Kacheln und Charts erscheinen automatisch, sobald Daten vorhanden sind.",
-    "emptyAddMeasurement": "Ersten Messwert erfassen"
+    "emptyAddMeasurement": "Ersten Messwert erfassen",
+    "recentWorkouts": {
+      "title": "Letzte Workouts",
+      "viewAll": "Alle anzeigen",
+      "loading": "Workouts werden geladen…",
+      "empty": {
+        "title": "Noch keine Workouts",
+        "cta": "Öffne die Apple-Health-App auf dem iPhone, damit Workouts hier erscheinen."
+      }
+    }
   },
   "measurements": {
     "title": "Messungen",
@@ -1103,7 +1112,58 @@
     "navMedication": "Medikamente",
     "navBmi": "BMI",
     "navSleep": "Schlaf",
+    "navHrv": "HRV",
+    "navRestingHr": "Ruhepuls",
+    "navOxygenSaturation": "Sauerstoff",
+    "navBodyTemperature": "Temperatur",
+    "navActiveEnergy": "Aktive Energie",
     "navAriaLabel": "Zu Abschnitt springen",
+    "hrv": {
+      "title": "HRV",
+      "description": "Herzratenvariabilität im Verlauf — dein Erholungssignal des autonomen Nervensystems, nächtlich von Apple Watch und kompatiblen Wearables erfasst.",
+      "chartTitle": "Herzratenvariabilität",
+      "emptyState": {
+        "title": "Noch keine HRV-Werte",
+        "description": "HRV-Werte erscheinen hier, sobald die Apple Watch (oder ein kompatibles Withings-Gerät) nächtliche Messungen synchronisiert."
+      }
+    },
+    "restingHr": {
+      "title": "Ruhepuls",
+      "description": "Die tägliche Grundlinie deines Herzschlags — unterschieden vom Spot-Puls. Apple Health liefert einen Wert pro Tag.",
+      "chartTitle": "Ruhepuls",
+      "emptyState": {
+        "title": "Noch kein Ruhepuls",
+        "description": "Der Ruhepuls erscheint, sobald die Apple Watch oder ein kompatibles Withings-Gerät einen ruhigen Tag durchgetragen hat."
+      }
+    },
+    "oxygenSaturation": {
+      "title": "Sauerstoffsättigung",
+      "description": "Blutsauerstoff (SpO₂) — klinischer Normalbereich 95–100 %; Zielzonen sind am Chart hinterlegt.",
+      "chartTitle": "Sauerstoffsättigung",
+      "emptyState": {
+        "title": "Noch keine SpO₂-Werte",
+        "description": "SpO₂-Werte erscheinen, sobald ein kompatibles Wearable (Apple Watch, Withings ScanWatch) eine Messung erfasst."
+      }
+    },
+    "bodyTemperature": {
+      "title": "Körpertemperatur",
+      "description": "Verlauf der Körperkerntemperatur in Celsius. Hauttemperaturwerte von Withings laufen über eine separate Metrik.",
+      "chartTitle": "Körpertemperatur",
+      "emptyState": {
+        "title": "Noch keine Körpertemperatur",
+        "description": "Erfasse eine Körpertemperatur oder lass dein Wearable einen Wert synchronisieren — der Verlauf erscheint dann hier.",
+        "cta": "Körpertemperatur erfassen"
+      }
+    },
+    "activeEnergy": {
+      "title": "Aktive Energie",
+      "description": "Tägliche aktive-Energie-Summe in Kilokalorien — eine Zeile pro Tag, aus Apple Health oder Withings-Aktivität.",
+      "chartTitle": "Aktive Energie",
+      "emptyState": {
+        "title": "Noch keine Aktive-Energie-Werte",
+        "description": "Aktive-Energie-Summen erscheinen hier, sobald Apple Health oder ein Withings-Aktivitätsgerät einen Tagesumfang synchronisiert."
+      }
+    },
     "subPage": {
       "blutdruckDescription": "Dein systolisch-/diastolisch-Verlauf mit altersangepassten Zielbereichen und einer textbasierten KI-Einschätzung.",
       "gewichtDescription": "Gewichtsverlauf gegen das aus deiner Größe abgeleitete gesunde Band, mit KI-Einschätzung.",
@@ -1201,6 +1261,62 @@
         "title": "Noch keine Schlafwerte",
         "description": "Sobald Schlafdaten vorliegen (manuell oder via Withings / Apple Health), erscheint hier der nächtliche Stadien-Verlauf.",
         "cta": "Withings verbinden"
+      }
+    },
+    "navWorkouts": "Workouts",
+    "workouts": {
+      "title": "Workouts",
+      "description": "Letzte Läufe, Touren, Spaziergänge und Krafteinheiten — quellenübergreifend entdoppelt zwischen Apple Watch und Withings.",
+      "emptyState": {
+        "title": "Noch keine Workouts",
+        "description": "Öffne die Apple-Health-App auf dem iPhone, damit Workouts hier synchronisiert werden. Withings-Aktivitätsimport pflegt Geh- und Radtouren mit ein."
+      },
+      "row": {
+        "duration": "Dauer",
+        "distance": "Distanz",
+        "energy": "Aktive Energie"
+      },
+      "detail": {
+        "backToList": "Zurück zu Workouts",
+        "statsTitle": "Werte",
+        "statsDuration": "Dauer",
+        "statsDistance": "Distanz",
+        "statsActiveEnergy": "Aktive Energie",
+        "statsAvgHr": "Ø Herzfrequenz",
+        "statsMaxHr": "Max. Herzfrequenz",
+        "statsMinHr": "Min. Herzfrequenz",
+        "statsStepCount": "Schritte",
+        "statsElevation": "Höhenmeter",
+        "statsPace": "Pace",
+        "statsSource": "Quelle",
+        "routeTitle": "Strecke",
+        "routeUnavailable": "Für dieses Workout liegt keine GPS-Strecke vor.",
+        "hrChartTitle": "Herzfrequenz",
+        "hrChartUnavailable": "Sekundengenaue Herzfrequenz-Werte werden für dieses Workout nicht gespeichert.",
+        "notFound": "Workout nicht gefunden.",
+        "loading": "Workout wird geladen…"
+      },
+      "sport": {
+        "walking": "Gehen",
+        "running": "Laufen",
+        "cycling": "Radfahren",
+        "hiking": "Wandern",
+        "swimming": "Schwimmen",
+        "rowing": "Rudern",
+        "elliptical": "Crosstrainer",
+        "stairClimber": "Stepper",
+        "yoga": "Yoga",
+        "mindAndBody": "Mind and Body",
+        "strength": "Kraft",
+        "hiit": "HIIT",
+        "dance": "Tanz",
+        "golf": "Golf",
+        "tennis": "Tennis",
+        "basketball": "Basketball",
+        "soccer": "Fußball",
+        "crossTraining": "Cross-Training",
+        "mixedCardio": "Mixed Cardio",
+        "other": "Sonstiges"
       }
     }
   },

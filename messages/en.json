@@ -258,7 +258,16 @@
     "layoutChartColumn": "Chart",
     "emptyTitle": "Your dashboard is empty",
     "emptyDescription": "Log your first measurement or mood entry. Tiles and charts appear automatically as data lands.",
-    "emptyAddMeasurement": "Add your first measurement"
+    "emptyAddMeasurement": "Add your first measurement",
+    "recentWorkouts": {
+      "title": "Recent workouts",
+      "viewAll": "View all",
+      "loading": "Loading workouts…",
+      "empty": {
+        "title": "No workouts yet",
+        "cta": "Open Apple Health on your iPhone to sync workouts here."
+      }
+    }
   },
   "measurements": {
     "title": "Measurements",
@@ -1103,7 +1112,58 @@
     "navMedication": "Medication",
     "navBmi": "BMI",
     "navSleep": "Sleep",
+    "navHrv": "HRV",
+    "navRestingHr": "Resting HR",
+    "navOxygenSaturation": "Oxygen",
+    "navBodyTemperature": "Temperature",
+    "navActiveEnergy": "Active energy",
     "navAriaLabel": "Skip to section",
+    "hrv": {
+      "title": "HRV",
+      "description": "Heart-rate variability over time — your nervous-system recovery signal, captured during sleep by Apple Watch and other compatible wearables.",
+      "chartTitle": "Heart-rate variability",
+      "emptyState": {
+        "title": "No HRV samples yet",
+        "description": "HRV samples land here once Apple Watch (or a compatible Withings device) starts syncing nightly readings."
+      }
+    },
+    "restingHr": {
+      "title": "Resting heart rate",
+      "description": "The daily floor your heart settles at — distinct from the spot pulse samples on the pulse page. Apple Health surfaces one value per day.",
+      "chartTitle": "Resting heart rate",
+      "emptyState": {
+        "title": "No resting heart rate yet",
+        "description": "Resting heart rate arrives once Apple Watch or a compatible Withings device has worn through one quiet day."
+      }
+    },
+    "oxygenSaturation": {
+      "title": "Oxygen saturation",
+      "description": "Blood oxygen (SpO₂) — clinical normal is 95–100 %, with target zones shaded on the chart.",
+      "chartTitle": "Oxygen saturation",
+      "emptyState": {
+        "title": "No SpO₂ samples yet",
+        "description": "SpO₂ samples land here once a compatible wearable (Apple Watch, Withings ScanWatch) captures a reading."
+      }
+    },
+    "bodyTemperature": {
+      "title": "Body temperature",
+      "description": "Core body temperature trend — Celsius. Skin-temperature readings from Withings live on a separate metric.",
+      "chartTitle": "Body temperature",
+      "emptyState": {
+        "title": "No body temperature yet",
+        "description": "Log a body-temperature reading or let your wearable sync one, and the trend will appear here.",
+        "cta": "Log body temperature"
+      }
+    },
+    "activeEnergy": {
+      "title": "Active energy",
+      "description": "Daily active-energy total in kilocalories — one row per day, sourced from Apple Health or Withings activity.",
+      "chartTitle": "Active energy",
+      "emptyState": {
+        "title": "No active-energy data yet",
+        "description": "Active-energy totals land here once Apple Health or a Withings activity device syncs a day's worth of movement."
+      }
+    },
     "subPage": {
       "blutdruckDescription": "Your systolic / diastolic trend with age-personalised target zones and a written AI assessment.",
       "gewichtDescription": "Weight trend mapped against your height-derived healthy band, plus an AI assessment.",
@@ -1201,6 +1261,62 @@
         "title": "No sleep entries yet",
         "description": "Once sleep data lands (manual or via Withings / Apple Health), the per-night stage breakdown will appear here.",
         "cta": "Connect Withings"
+      }
+    },
+    "navWorkouts": "Workouts",
+    "workouts": {
+      "title": "Workouts",
+      "description": "Recent runs, rides, walks and strength sessions, deduped across Apple Watch and Withings sources.",
+      "emptyState": {
+        "title": "No workouts yet",
+        "description": "Open the Apple Health app on your iPhone to sync workouts here. Withings activity import keeps walking and cycling sessions flowing in too."
+      },
+      "row": {
+        "duration": "Duration",
+        "distance": "Distance",
+        "energy": "Active energy"
+      },
+      "detail": {
+        "backToList": "Back to workouts",
+        "statsTitle": "Stats",
+        "statsDuration": "Duration",
+        "statsDistance": "Distance",
+        "statsActiveEnergy": "Active energy",
+        "statsAvgHr": "Average HR",
+        "statsMaxHr": "Max HR",
+        "statsMinHr": "Min HR",
+        "statsStepCount": "Steps",
+        "statsElevation": "Elevation",
+        "statsPace": "Pace",
+        "statsSource": "Source",
+        "routeTitle": "Route",
+        "routeUnavailable": "No GPS route recorded for this workout.",
+        "hrChartTitle": "Heart rate",
+        "hrChartUnavailable": "Per-second heart-rate samples are not stored for this workout.",
+        "notFound": "Workout not found.",
+        "loading": "Loading workout…"
+      },
+      "sport": {
+        "walking": "Walking",
+        "running": "Running",
+        "cycling": "Cycling",
+        "hiking": "Hiking",
+        "swimming": "Swimming",
+        "rowing": "Rowing",
+        "elliptical": "Elliptical",
+        "stairClimber": "Stair climber",
+        "yoga": "Yoga",
+        "mindAndBody": "Mind and body",
+        "strength": "Strength",
+        "hiit": "HIIT",
+        "dance": "Dance",
+        "golf": "Golf",
+        "tennis": "Tennis",
+        "basketball": "Basketball",
+        "soccer": "Soccer",
+        "crossTraining": "Cross training",
+        "mixedCardio": "Mixed cardio",
+        "other": "Other"
       }
     }
   },

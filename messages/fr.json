@@ -258,7 +258,16 @@
     "layoutChartColumn": "Graphique",
     "emptyTitle": "Your dashboard is empty",
     "emptyDescription": "Log your first measurement or mood entry. Tiles and charts appear automatically as data lands.",
-    "emptyAddMeasurement": "Add your first measurement"
+    "emptyAddMeasurement": "Add your first measurement",
+    "recentWorkouts": {
+      "title": "Entraînements récents",
+      "viewAll": "Tout voir",
+      "loading": "Chargement des entraînements…",
+      "empty": {
+        "title": "Aucun entraînement",
+        "cta": "Ouvre l'app Apple Santé sur ton iPhone pour synchroniser les entraînements."
+      }
+    }
   },
   "measurements": {
     "title": "Measurements",
@@ -1103,7 +1112,58 @@
     "navMedication": "Médicament",
     "navBmi": "IMC",
     "navSleep": "Sommeil",
+    "navHrv": "VFC",
+    "navRestingHr": "FC repos",
+    "navOxygenSaturation": "Oxygène",
+    "navBodyTemperature": "Température",
+    "navActiveEnergy": "Énergie active",
     "navAriaLabel": "Skip to section",
+    "hrv": {
+      "title": "VFC",
+      "description": "Variabilité de la fréquence cardiaque dans le temps — signal de récupération du système nerveux, capté la nuit par l'Apple Watch et d'autres wearables compatibles.",
+      "chartTitle": "Variabilité de la fréquence cardiaque",
+      "emptyState": {
+        "title": "Aucune mesure de VFC",
+        "description": "Les mesures de VFC apparaîtront ici dès que l'Apple Watch (ou un appareil Withings compatible) synchronisera des relevés nocturnes."
+      }
+    },
+    "restingHr": {
+      "title": "FC au repos",
+      "description": "La fréquence cardiaque de base sur la journée — distincte des pointages ponctuels de la page Pulse. Apple Santé fournit une valeur par jour.",
+      "chartTitle": "Fréquence cardiaque au repos",
+      "emptyState": {
+        "title": "Aucune FC au repos",
+        "description": "La FC au repos arrive dès que l'Apple Watch ou un appareil Withings compatible a porté une journée calme."
+      }
+    },
+    "oxygenSaturation": {
+      "title": "Saturation en oxygène",
+      "description": "Oxygène sanguin (SpO₂) — plage clinique normale 95–100 %, avec zones cibles ombrées sur le graphique.",
+      "chartTitle": "Saturation en oxygène",
+      "emptyState": {
+        "title": "Aucune mesure SpO₂",
+        "description": "Les mesures SpO₂ apparaîtront dès qu'un wearable compatible (Apple Watch, Withings ScanWatch) en capturera une."
+      }
+    },
+    "bodyTemperature": {
+      "title": "Température corporelle",
+      "description": "Tendance de température corporelle centrale en Celsius. La température cutanée Withings vit sur une métrique distincte.",
+      "chartTitle": "Température corporelle",
+      "emptyState": {
+        "title": "Aucune température corporelle",
+        "description": "Enregistre une mesure ou laisse ton wearable en synchroniser une — la tendance apparaîtra ici.",
+        "cta": "Enregistrer la température"
+      }
+    },
+    "activeEnergy": {
+      "title": "Énergie active",
+      "description": "Total quotidien d'énergie active en kilocalories — une ligne par jour, depuis Apple Santé ou Withings activité.",
+      "chartTitle": "Énergie active",
+      "emptyState": {
+        "title": "Aucune donnée d'énergie active",
+        "description": "Les totaux d'énergie active apparaîtront dès qu'Apple Santé ou un appareil Withings activité synchronise une journée complète."
+      }
+    },
     "subPage": {
       "blutdruckDescription": "Your systolic / diastolic trend with age-personalised target zones and a written AI assessment.",
       "gewichtDescription": "Weight trend mapped against your height-derived healthy band, plus an AI assessment.",
@@ -1201,6 +1261,62 @@
         "title": "Aucune donnée de sommeil",
         "description": "Dès que des données de sommeil sont disponibles (manuel ou via Withings / Apple Health), la répartition par stade apparaîtra ici.",
         "cta": "Connecter Withings"
+      }
+    },
+    "navWorkouts": "Entraînements",
+    "workouts": {
+      "title": "Entraînements",
+      "description": "Courses, sorties à vélo, marches et séances de musculation récentes, dédupliquées entre Apple Watch et Withings.",
+      "emptyState": {
+        "title": "Aucun entraînement",
+        "description": "Ouvre l'app Apple Santé sur ton iPhone pour synchroniser tes entraînements. L'import d'activité Withings alimente également la marche et le vélo."
+      },
+      "row": {
+        "duration": "Durée",
+        "distance": "Distance",
+        "energy": "Énergie active"
+      },
+      "detail": {
+        "backToList": "Retour aux entraînements",
+        "statsTitle": "Statistiques",
+        "statsDuration": "Durée",
+        "statsDistance": "Distance",
+        "statsActiveEnergy": "Énergie active",
+        "statsAvgHr": "FC moyenne",
+        "statsMaxHr": "FC max",
+        "statsMinHr": "FC min",
+        "statsStepCount": "Pas",
+        "statsElevation": "Dénivelé",
+        "statsPace": "Allure",
+        "statsSource": "Source",
+        "routeTitle": "Parcours",
+        "routeUnavailable": "Aucun parcours GPS enregistré pour cet entraînement.",
+        "hrChartTitle": "Fréquence cardiaque",
+        "hrChartUnavailable": "Les échantillons de fréquence cardiaque à la seconde ne sont pas stockés pour cet entraînement.",
+        "notFound": "Entraînement introuvable.",
+        "loading": "Chargement de l'entraînement…"
+      },
+      "sport": {
+        "walking": "Marche",
+        "running": "Course",
+        "cycling": "Vélo",
+        "hiking": "Randonnée",
+        "swimming": "Natation",
+        "rowing": "Aviron",
+        "elliptical": "Elliptique",
+        "stairClimber": "Stepper",
+        "yoga": "Yoga",
+        "mindAndBody": "Mind and Body",
+        "strength": "Musculation",
+        "hiit": "HIIT",
+        "dance": "Danse",
+        "golf": "Golf",
+        "tennis": "Tennis",
+        "basketball": "Basket",
+        "soccer": "Football",
+        "crossTraining": "Cross-training",
+        "mixedCardio": "Cardio mixte",
+        "other": "Autre"
       }
     }
   },

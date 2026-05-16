@@ -258,7 +258,16 @@
     "layoutChartColumn": "Gráfico",
     "emptyTitle": "Your dashboard is empty",
     "emptyDescription": "Log your first measurement or mood entry. Tiles and charts appear automatically as data lands.",
-    "emptyAddMeasurement": "Add your first measurement"
+    "emptyAddMeasurement": "Add your first measurement",
+    "recentWorkouts": {
+      "title": "Entrenamientos recientes",
+      "viewAll": "Ver todos",
+      "loading": "Cargando entrenamientos…",
+      "empty": {
+        "title": "Aún no hay entrenamientos",
+        "cta": "Abre la app Apple Salud en el iPhone para sincronizar los entrenamientos."
+      }
+    }
   },
   "measurements": {
     "title": "Measurements",
@@ -1103,7 +1112,58 @@
     "navMedication": "Medicamento",
     "navBmi": "IMC",
     "navSleep": "Sueño",
+    "navHrv": "VFC",
+    "navRestingHr": "FC reposo",
+    "navOxygenSaturation": "Oxígeno",
+    "navBodyTemperature": "Temperatura",
+    "navActiveEnergy": "Energía activa",
     "navAriaLabel": "Skip to section",
+    "hrv": {
+      "title": "VFC",
+      "description": "Variabilidad de la frecuencia cardíaca a lo largo del tiempo — señal de recuperación del sistema nervioso, captada por la noche por Apple Watch y otros wearables compatibles.",
+      "chartTitle": "Variabilidad de la frecuencia cardíaca",
+      "emptyState": {
+        "title": "Aún no hay valores de VFC",
+        "description": "Los valores de VFC aparecerán aquí en cuanto Apple Watch (o un dispositivo Withings compatible) sincronice las mediciones nocturnas."
+      }
+    },
+    "restingHr": {
+      "title": "FC en reposo",
+      "description": "El nivel basal diario del corazón — distinto del pulso puntual de la página de pulso. Apple Salud aporta un valor al día.",
+      "chartTitle": "Frecuencia cardíaca en reposo",
+      "emptyState": {
+        "title": "Aún no hay FC en reposo",
+        "description": "La FC en reposo aparece cuando Apple Watch o un Withings compatible ha llevado puesto un día tranquilo."
+      }
+    },
+    "oxygenSaturation": {
+      "title": "Saturación de oxígeno",
+      "description": "Oxígeno en sangre (SpO₂) — rango clínico normal 95–100 %, con zonas objetivo sombreadas en el gráfico.",
+      "chartTitle": "Saturación de oxígeno",
+      "emptyState": {
+        "title": "Aún no hay muestras de SpO₂",
+        "description": "Las muestras de SpO₂ llegan aquí en cuanto un wearable compatible (Apple Watch, Withings ScanWatch) capture una lectura."
+      }
+    },
+    "bodyTemperature": {
+      "title": "Temperatura corporal",
+      "description": "Tendencia de temperatura corporal central en grados Celsius. La temperatura cutánea de Withings vive en una métrica distinta.",
+      "chartTitle": "Temperatura corporal",
+      "emptyState": {
+        "title": "Aún no hay temperatura corporal",
+        "description": "Registra una lectura o deja que tu wearable sincronice una — la tendencia aparecerá aquí.",
+        "cta": "Registrar temperatura corporal"
+      }
+    },
+    "activeEnergy": {
+      "title": "Energía activa",
+      "description": "Total diario de energía activa en kilocalorías — una fila por día, desde Apple Salud o la actividad de Withings.",
+      "chartTitle": "Energía activa",
+      "emptyState": {
+        "title": "Aún no hay datos de energía activa",
+        "description": "Los totales de energía activa aparecerán aquí en cuanto Apple Salud o un dispositivo de actividad Withings sincronice un día completo."
+      }
+    },
     "subPage": {
       "blutdruckDescription": "Your systolic / diastolic trend with age-personalised target zones and a written AI assessment.",
       "gewichtDescription": "Weight trend mapped against your height-derived healthy band, plus an AI assessment.",
@@ -1201,6 +1261,62 @@
         "title": "Aún no hay registros de sueño",
         "description": "Una vez disponibles los datos de sueño (manual o vía Withings / Apple Health), aquí aparecerá el desglose por fases.",
         "cta": "Conectar Withings"
+      }
+    },
+    "navWorkouts": "Entrenamientos",
+    "workouts": {
+      "title": "Entrenamientos",
+      "description": "Carreras, salidas en bici, paseos y sesiones de fuerza recientes, deduplicados entre Apple Watch y Withings.",
+      "emptyState": {
+        "title": "Aún no hay entrenamientos",
+        "description": "Abre la app Apple Salud en el iPhone para sincronizar tus entrenamientos. La importación de actividad de Withings también incorpora caminatas y rutas en bici."
+      },
+      "row": {
+        "duration": "Duración",
+        "distance": "Distancia",
+        "energy": "Energía activa"
+      },
+      "detail": {
+        "backToList": "Volver a entrenamientos",
+        "statsTitle": "Estadísticas",
+        "statsDuration": "Duración",
+        "statsDistance": "Distancia",
+        "statsActiveEnergy": "Energía activa",
+        "statsAvgHr": "FC media",
+        "statsMaxHr": "FC máx.",
+        "statsMinHr": "FC mín.",
+        "statsStepCount": "Pasos",
+        "statsElevation": "Desnivel",
+        "statsPace": "Ritmo",
+        "statsSource": "Fuente",
+        "routeTitle": "Ruta",
+        "routeUnavailable": "No se registró una ruta GPS para este entrenamiento.",
+        "hrChartTitle": "Frecuencia cardíaca",
+        "hrChartUnavailable": "Las muestras de frecuencia cardíaca por segundo no se almacenan para este entrenamiento.",
+        "notFound": "Entrenamiento no encontrado.",
+        "loading": "Cargando entrenamiento…"
+      },
+      "sport": {
+        "walking": "Caminar",
+        "running": "Correr",
+        "cycling": "Bici",
+        "hiking": "Senderismo",
+        "swimming": "Natación",
+        "rowing": "Remo",
+        "elliptical": "Elíptica",
+        "stairClimber": "Escalera",
+        "yoga": "Yoga",
+        "mindAndBody": "Mente y cuerpo",
+        "strength": "Fuerza",
+        "hiit": "HIIT",
+        "dance": "Baile",
+        "golf": "Golf",
+        "tennis": "Tenis",
+        "basketball": "Baloncesto",
+        "soccer": "Fútbol",
+        "crossTraining": "Entreno cruzado",
+        "mixedCardio": "Cardio mixto",
+        "other": "Otro"
       }
     }
   },
