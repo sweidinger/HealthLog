@@ -83,7 +83,7 @@ consumes.
 ## 3. What is live in production right now
 
 Both production hosts (`healthlog.bombeck.io` and
-`demo.healthlog.dev`) currently serve **v1.4.29.1**.
+`demo.healthlog.dev`) currently serve **v1.4.30**.
 
 ### Recent releases
 
@@ -94,6 +94,8 @@ Both production hosts (`healthlog.bombeck.io` and
 | v1.4.28.1 | Dashboard-save hotfix | Resolver filters retired widget ids from the saved layout on read |
 | v1.4.29 | Dashboard performance + chart polish | aggregate=daily server path, AVG/SUM for cumulative HK types, pulse chart bounds, x-axis tick positions, mobile tile equal-height, drag-list compactness |
 | v1.4.29.1 | Daily-step aggregation hotfix | Client-side daily aggregator branches on `CUMULATIVE_HK_TYPES` for sum vs average |
+| v1.4.30 | iOS-coordinated foundation | Daily-stats externalId lock + SyncMode columns + bulk-backfill endpoints + `MoodEntry.note` first-class column + workouts canonical-row picker + categorisation overlay + two new MeasurementType enums |
+| v1.4.30.1 | Categories endpoint + conflict-resolution spec lock | `GET /api/measurement-categories` exposes the overlay over HTTP; `08-locked-contracts.md` §13 locks the SyncMode conflict-resolution policy (LWW by `updatedAt`, server-wins on tie) |
 
 ### Endpoints the iOS client may consume today (additive contracts)
 
@@ -111,6 +113,11 @@ Stable since their respective release tags. Every one is locked per
 - `GET /api/insights/chat` (SSE) — Coach stream
 - `GET /api/insights/cards`, `GET /api/insights/correlations`, `GET /api/insights/comprehensive`, `GET /api/insights/targets`
 - `POST /api/workouts/batch` — batch ingest from HKWorkout (since v1.4.25 W8d; canonical-row picker added in v1.4.30 — see §4)
+- `GET /api/sync/state` — SyncMode handshake (since v1.4.30). Returns `lastSyncedAt`, server clock for skew, live + tombstoned counters; the call also bumps the user-side checkpoint.
+- `POST /api/mood-entries/bulk` — bulk mood-entry backfill (since v1.4.30). Up to 500 entries per call; probe-then-upsert distinguishes inserted vs duplicate; rate-limited at 60/min/user.
+- `POST /api/medications/intake/bulk` — bulk medication-intake backfill (since v1.4.30). Same envelope shape, idempotency-key collision yields duplicate; rate-limited at 60/min/user.
+- `POST /api/admin/drain-per-sample-cumulative` — operator-only drain endpoint (since v1.4.30, `requireAdmin()`). Collapses pre-Option-A per-sample APPLE_HEALTH cumulative rows into one row per day per type. Idempotent; default `dryRun: true`.
+- `GET /api/measurement-categories` — HTTP projection of the categorisation overlay (since v1.4.30.1). Returns `{ version, categories[], assignments }` per `.planning/RESPONSE-TO-IOS-TEAM-2026-05-16.md` §3 R1. `Cache-Control: public, max-age=600`. iOS reads on cold start to drive the HealthKit permission picker grouping; hard-coded mirror in the iOS app stays as the offline fallback.
 - `GET /api/version` — live build + `offlineGeoEnabled` flag
 - 47 distinct paths total per the R-E iOS audit (`/Users/marc/Projects/HealthLog/.planning/research/v1428-r1-ios-contracts.md` enumerates them; mostly admin + monitoring routes not iOS-relevant)
 
@@ -486,11 +493,18 @@ Mode-switching is iOS-local; the server has no concept of "this user
 is in standalone mode". The server just answers whatever the iOS app
 asks.
 
-### Coach SSE — the v1.5 differentiator
+### Coach SSE — server endpoint stays live; iOS native drawer deferred
 
-By v1.5.0 the iOS Coach drawer is the native implementation of
-`GET /api/insights/chat`. Reference web implementation in
-`src/components/insights/coach-panel/`. Contract specifics:
+Coach SSE remains live as a server endpoint. iOS native server-Coach
+drawer is deferred pending MDR Class-IIa pre-review. v1.5.0 ships
+iOS with Apple Foundation Models on-device Daily Briefing + Trend
+Observations as the primary assistant surface. The server's
+`GET /api/insights/chat` SSE endpoint stays live for: PWA users on
+non-AFM-capable devices, future iOS reevaluation post-MDR, any other
+client that adopts the SSE protocol.
+
+Contract for any future iOS adoption (or for the PWA + non-iOS
+consumers today):
 
 - Server-Sent Events stream
 - Token-by-token streaming text
@@ -498,6 +512,8 @@ By v1.5.0 the iOS Coach drawer is the native implementation of
 - Refusal events per GROUND-RULE-9 / 15
 - 429 `coach.budget.exceeded` on rate-limited paths
 - 403 `assistant.disabled.coach` if the operator-side flag is off
+
+Reference web implementation: `src/components/insights/coach-panel/`.
 
 ### Push notifications (post-APNs `.p8` paste)
 
@@ -538,12 +554,18 @@ pasting the `.p8` into the deployment environment.
 This blocks push notifications only; everything else functions
 without it.
 
-### Coach SSE drawer iOS implementation
+### Coach SSE drawer iOS implementation — deferred past v1.5
 
 Per R-E C-1, the iOS Coach drawer has zero native code today. The
-server-side SSE endpoint at `/api/insights/chat` is live and tested.
-The v1.5 differentiator is the native Coach drawer. The iOS side is
-the implementation:
+server-side SSE endpoint at `/api/insights/chat` stays live and
+tested. v1.5.0 ships iOS with Apple Foundation Models on-device
+Daily Briefing + Trend Observations as the primary assistant
+surface; a native server-Coach drawer is deferred pending the MDR
+Class-IIa pre-review. No server-side coordination needed for the
+deferral — the SSE endpoint is already shaped for the PWA + any
+future client that re-enters this work.
+
+If a future iOS revisit lands post-MDR, the contract is:
 
 - `CoachService` actor over `URLSession.bytes`
 - `CoachStreamEvent` AsyncThrowingStream
@@ -554,8 +576,7 @@ the implementation:
 - `coach.budget.exceeded` 429 surface
 
 Pattern reference: `src/components/insights/coach-panel/` (web
-implementation) is the model. The iOS implementation should mirror
-the user experience while consuming the same SSE stream.
+implementation) stays the model whenever iOS reopens the work.
 
 ### Source-priority editor
 
