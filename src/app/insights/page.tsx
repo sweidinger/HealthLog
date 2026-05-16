@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Loader2, TrendingUp } from "lucide-react";
@@ -8,7 +9,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { InsightAdvisorCard } from "@/components/insights/insight-advisor-card";
 import { HeroStrip } from "@/components/insights/hero-strip";
 import { DailyBriefing } from "@/components/insights/daily-briefing";
 import { TrendsRow } from "@/components/insights/trends-row";
@@ -16,7 +16,6 @@ import { CorrelationRow } from "@/components/insights/correlation-row";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import type { CorrelationResult } from "@/lib/insights/correlations";
-import { toWeekISO } from "@/lib/insights/week-iso";
 import type { DataSummary } from "@/lib/analytics/trends";
 
 /**
@@ -95,6 +94,21 @@ export default function InsightsPage() {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
 
+  // v1.4.28 FB-D3 — mirror `<SubPageShell>`'s deferred scroll-reset on
+  // the mother page so a back-navigation from a sub-page (where
+  // `SubPageShell` already reset the scroll on mount) lands cleanly
+  // at the top of the overview instead of inheriting the sub-page's
+  // vertical position through the cached scroll state. Single
+  // mount-only effect; uses `requestAnimationFrame` so the reset
+  // settles after first paint, same as the sub-page shell.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handle = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(handle);
+  }, []);
+
   // v1.4.27 R3d MB4 — Coach drawer state lives in the layout-level
   // `<CoachLaunchProvider>` so every routed sub-page can reach it.
   // The hero strip + suggested-prompt chips call `askCoach(prefill)`
@@ -161,21 +175,6 @@ export default function InsightsPage() {
   const briefingPayload = advisor.payload?.dailyBriefing ?? null;
   const heroStripUpdatedAt = advisor.payload?.cachedAt ?? null;
 
-  const weeklyReport = (
-    advisor.payload?.insights as
-      | {
-          weeklyReport?: { weekISO: string } | null;
-        }
-      | undefined
-  )?.weeklyReport;
-  const weeklyReportReady = weeklyReport
-    ? {
-        weekISO: weeklyReport.weekISO,
-        href: `/insights/report/${weeklyReport.weekISO}`,
-      }
-    : undefined;
-  const currentWeekHref = `/insights/report/${toWeekISO(new Date())}`;
-
   return (
     <div className="space-y-8">
       <HeroStrip
@@ -192,8 +191,6 @@ export default function InsightsPage() {
             ? (prompt) => coachLaunch.askCoach(prompt)
             : undefined
         }
-        weeklyReportReady={weeklyReportReady}
-        weeklyReportHref={currentWeekHref}
         healthScore={analytics?.healthScore ?? undefined}
       />
 
@@ -210,14 +207,6 @@ export default function InsightsPage() {
       )}
 
       <TrendsRow annotations={advisor.payload?.trendAnnotations ?? null} />
-
-      <InsightAdvisorCard
-        insight={advisor.payload?.insights ?? null}
-        loading={advisor.isLoading}
-        error={advisor.error?.message ?? null}
-        cachedAt={advisor.payload?.cachedAt ?? null}
-        legacyPayload={advisor.payload?.legacyPayload ?? false}
-      />
     </div>
   );
 }

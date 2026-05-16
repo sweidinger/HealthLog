@@ -77,7 +77,11 @@ describe("<SideEffectsSection> — surface render", () => {
     seedSideEffects(client, "med-1", []);
     const html = render(<SideEffectsSection medicationId="med-1" />, client);
     expect(html).toContain("Side effects");
-    expect(html).toContain("Log side effect");
+    // v1.4.28 FB-F1 — the CTA dropped its qualifier so the chip stops
+    // overflowing the side-effects card on narrow viewports. The
+    // section title carries the context.
+    expect(html).toContain(">Log<");
+    expect(html).not.toContain("Log side effect");
   });
 
   it("renders the section heading and add-CTA in German", () => {
@@ -89,7 +93,8 @@ describe("<SideEffectsSection> — surface render", () => {
       "de",
     );
     expect(html).toContain("Nebenwirkungen");
-    expect(html).toContain("Nebenwirkung erfassen");
+    expect(html).toContain(">Erfassen<");
+    expect(html).not.toContain("Nebenwirkung erfassen");
   });
 
   it("renders the empty-state copy when no rows are seeded", () => {
@@ -187,6 +192,41 @@ describe("<SideEffectsSection> — timeline rows", () => {
     const html = render(<SideEffectsSection medicationId="med-1" />, client);
     expect(html).toContain("Mild");
     expect(html).toContain("Very severe");
+  });
+
+  it("narrows the date column to w-14 at narrow viewports (D-H7)", () => {
+    // The earlier `w-[5.5rem]` (88 px) date column overspec pushed
+    // the category badge + entry label + severity chip's left slot
+    // into a wrap-prone shape at 320 px. The narrowed `w-14` (56 px)
+    // fits the longest short-date variant ("15. Mai") with slack
+    // and recovers 32 px for the free-text notes.
+    const client = makeClient();
+    seedSideEffects(client, "med-1", [
+      {
+        id: "se-1",
+        category: "GI",
+        entry: "NAUSEA",
+        severity: 2,
+        occurredAt: "2026-05-13T08:00:00.000Z",
+        notes: null,
+      },
+    ]);
+    const html = render(<SideEffectsSection medicationId="med-1" />, client);
+    // Class attribute order in SSR depends on JSX prop order; match
+    // either order so the assertion stays stable across React minor
+    // versions.
+    const dateCell = html.match(
+      /<p[^>]*data-slot="side-effect-row-date"[^>]*>|<p[^>]*class="[^"]*w-14[^"]*"[^>]*data-slot="side-effect-row-date"/,
+    );
+    expect(dateCell).not.toBeNull();
+    // Source-of-truth check via the rendered HTML — pin both the
+    // adoption (`w-14`) and the absence (`w-[5.5rem]`).
+    expect(html).toContain('data-slot="side-effect-row-date"');
+    const tagWithSlot = html.match(
+      /<p[^>]*data-slot="side-effect-row-date"[^>]*>/,
+    );
+    expect(tagWithSlot?.[0]).toContain("w-14");
+    expect(tagWithSlot?.[0]).not.toContain("w-[5.5rem]");
   });
 
   it("renders German entry and category labels when locale=de", () => {

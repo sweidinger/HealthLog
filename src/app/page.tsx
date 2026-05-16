@@ -27,6 +27,8 @@ import type { DataSummary as DataSummaryType } from "@/lib/analytics/trends";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
   DropdownMenu,
@@ -42,28 +44,20 @@ import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
 import { TourLauncher } from "@/components/onboarding/tour-launcher";
 import { RecentAchievementsCard } from "@/components/gamification/recent-achievements-card";
-import { Glp1Tile } from "@/components/dashboard/glp1-tile";
 
-const HealthChart = dynamic(
-  () =>
-    import("@/components/charts/health-chart").then((mod) => ({
-      default: mod.HealthChart,
-    })),
-  { ssr: false },
-);
 const MoodChart = dynamic(
   () =>
     import("@/components/charts/mood-chart").then((mod) => ({
       default: mod.MoodChart,
     })),
-  { ssr: false },
+  { ssr: false, loading: () => <ChartSkeleton /> },
 );
 const MedicationComplianceChart = dynamic(
   () =>
     import("@/components/charts/medication-compliance-chart").then((mod) => ({
       default: mod.MedicationComplianceChart,
     })),
-  { ssr: false },
+  { ssr: false, loading: () => <ChartSkeleton /> },
 );
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -852,37 +846,24 @@ export default function DashboardPage() {
              tile (no DataSummary) so the prior-period delta uses
              `bpInTargetPctAllTime` as the long-arc baseline — when
              comparison is off the field stays null. */
+          // v1.4.28 FB-C1 + FB-C2 — rewrite the BD-Zielbereich tile
+          // against the shared `<TrendCard>` primitive so it matches
+          // the Weight / BP / Pulse sibling tiles exactly. The
+          // synthetic `bpSlope30 = bpTrendDelta / 30` block produced a
+          // small fractional float that the TrendCard's date-shaped
+          // formatter pipeline rendered as "1.1." — the regression the
+          // maintainer flagged in the post-v1.4.27 walk-through. The
+          // all-time aggregate moves to the `/targets` BP card which
+          // already shows the same number with more context; the
+          // dashboard tile no longer needs to carry it. `avgAllTime`
+          // also retires from the TrendCard API (this was its only
+          // consumer).
           const bp7 = data?.bpInTargetPct7d ?? null;
           const bp30 = data?.bpInTargetPct30d ?? null;
-          const bpAll = data?.bpInTargetPctAllTime ?? null;
           const bpPriorMonth = data?.bpInTargetPctPriorMonth ?? null;
           const bpPriorYear = data?.bpInTargetPctPriorYear ?? null;
           const bpTrendDelta =
             bp7 !== null && bp30 !== null ? bp7 - bp30 : null;
-          const bpSlope30: import("@/lib/analytics/trends").TrendSlope | null =
-            bpTrendDelta === null
-              ? null
-              : {
-                  slope: bpTrendDelta / 30,
-                  direction:
-                    bpTrendDelta > 0.5
-                      ? "up"
-                      : bpTrendDelta < -0.5
-                        ? "down"
-                        : "stable",
-                  // Synthetic slope (last-7d minus last-30d) carries no
-                  // R² — pin to 1 so existing TrendSlope consumers don't
-                  // mis-interpret a `0` as "very low confidence".
-                  confidence: 1,
-                };
-          // v1.4.22 W5 reconcile (Code-H2) — match the comparison
-          // window the user picked. `lastMonth` baseline ⇒ compare
-          // last30 against the now-60d…now-30d window (priorMonth);
-          // `lastYear` baseline ⇒ compare against the matching window
-          // shifted back 365 days. The previous shortcut subtracted
-          // `bpAll` regardless of baseline, which produced a number
-          // whose magnitude was honest but whose label ("vs. last
-          // month") lied to the user.
           const bpComparePrior =
             compareBaseline === "lastMonth"
               ? bpPriorMonth
@@ -904,14 +885,9 @@ export default function DashboardPage() {
                 label={t("dashboard.bpInTargetShort")}
                 latest={data?.bpInTargetPct ?? null}
                 unit="%"
-                /* v1.4.18 A1 — wire 7T / 30T sub-values from the new
-                   windowed analytics fields. Up to v1.4.17 these were
-                   hard-coded to null and rendered "—" even when the
-                   user had paired BP readings in both windows. */
                 avg7={bp7}
                 avg30={bp30}
-                avgAllTime={bpAll}
-                slope30={bpSlope30}
+                slope30={null}
                 trend7Delta={bpTrendDelta}
                 icon={Target}
                 directionSentiment="up-good"
@@ -977,7 +953,7 @@ export default function DashboardPage() {
             order: widgetOrder("weight"),
             count: w?.count ?? 0,
             node: (
-              <HealthChart
+              <HealthChartDynamic
                 key="weight-chart"
                 chartKey="weight"
                 types={["WEIGHT"]}
@@ -995,7 +971,7 @@ export default function DashboardPage() {
               id: "bmi-chart",
               order: widgetOrder("weight") + 0.5,
               node: (
-                <HealthChart
+                <HealthChartDynamic
                   key="bmi-chart"
                   chartKey="bmi"
                   types={["WEIGHT"]}
@@ -1022,7 +998,7 @@ export default function DashboardPage() {
             order: widgetOrder("bp"),
             count: Math.max(sys?.count ?? 0, dia?.count ?? 0),
             node: (
-              <HealthChart
+              <HealthChartDynamic
                 key="bp-chart"
                 chartKey="bp"
                 types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
@@ -1043,7 +1019,7 @@ export default function DashboardPage() {
             order: widgetOrder("pulse"),
             count: p?.count ?? 0,
             node: (
-              <HealthChart
+              <HealthChartDynamic
                 key="pulse-chart"
                 chartKey="pulse"
                 types={["PULSE"]}
@@ -1063,7 +1039,7 @@ export default function DashboardPage() {
             order: widgetOrder("bodyFat"),
             count: bf?.count ?? 0,
             node: (
-              <HealthChart
+              <HealthChartDynamic
                 key="bodyFat-chart"
                 chartKey="bodyFat"
                 types={["BODY_FAT"]}
@@ -1098,7 +1074,7 @@ export default function DashboardPage() {
             order: widgetOrder("sleep"),
             count: sleepSummary?.count ?? 0,
             node: (
-              <HealthChart
+              <HealthChartDynamic
                 key="sleep-chart"
                 chartKey="sleep"
                 types={["SLEEP_DURATION"]}
@@ -1117,7 +1093,7 @@ export default function DashboardPage() {
             order: widgetOrder("steps"),
             count: stepsSummary?.count ?? 0,
             node: (
-              <HealthChart
+              <HealthChartDynamic
                 key="steps-chart"
                 chartKey="steps"
                 types={["ACTIVITY_STEPS"]}
@@ -1252,15 +1228,6 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
-            {/* v1.4.25 W6 — GLP-1 status tile. The tile self-gates on
-                `Medication.treatmentClass === "GLP1"` (route returns
-                `data: null` when the user has no active GLP-1 med), so
-                we always mount it and let the tile suppress itself.
-                v1.4.27 — the standalone insights preview retired (it
-                duplicated the much-richer `/insights` advisor surface);
-                the GLP-1 tile now anchors the top of the chart-row
-                stack. */}
-            <Glp1Tile />
             {charts.map((entry) => (
               <div key={entry.id} className="space-y-2">
                 {entry.node}

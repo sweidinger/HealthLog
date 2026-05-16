@@ -1,18 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Moon } from "lucide-react";
 
-import { useAuth } from "@/hooks/use-auth";
+import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
+import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { SleepOverview } from "@/components/insights/sleep-overview";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
-import type { DataSummary } from "@/lib/analytics/trends";
-import { hasMetricData } from "@/lib/insights/metric-availability";
 
 /**
  * v1.4.25 W4c — `/insights/schlaf`.
@@ -26,53 +23,33 @@ import { hasMetricData } from "@/lib/insights/metric-availability";
  * Apple-Health / Withings sleep rows yet), the page short-circuits
  * to an empty-state CTA pointing at `/settings/data-sources` so the
  * user can connect a sleep source.
+ *
+ * v1.4.28 R3d (BK-F-H1 + BK-F-M1) — analytics fetch + empty-state
+ * render consume the shared hook + primitive.
  */
-interface AnalyticsData {
-  summaries: Record<string, DataSummary>;
-}
-
 export default function InsightsSchlafPage() {
-  const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
 
-  const { data: analytics } = useQuery({
-    queryKey: ["analytics"],
-    queryFn: async () => {
-      const res = await fetch("/api/analytics");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as AnalyticsData;
-    },
-    enabled: isAuthenticated,
-    staleTime: 60 * 1000,
-  });
+  const { isEmpty } = useInsightsAnalytics("SLEEP_DURATION");
 
-  if (
-    isAuthenticated &&
-    analytics &&
-    !hasMetricData("SLEEP_DURATION", {
-      summaries: analytics.summaries,
-      hasMood: false,
-      hasMedication: false,
-    })
-  ) {
+  if (isEmpty) {
     return (
-      <SubPageShell title={t("insights.sleep.title")}>
-        <EmptyState
+      <SubPageShell
+        title={t("insights.sleep.title")}
+        description={t("insights.sleep.description")}
+      >
+        <MetricEmptyState
           icon={<Moon className="size-6" />}
           title={t("insights.emptyState.sleep.title")}
           description={t("insights.emptyState.sleep.description")}
-          ctaSize="lg"
-          action={
+          cta={
             <Button size="sm" asChild>
               <Link href="/settings/data-sources">
                 {t("insights.emptyState.sleep.cta")}
               </Link>
             </Button>
           }
-        />
-        <CoachLaunchButton
-          prefill="I don't have any sleep data yet — why does sleep tracking matter, and what should I know before I connect a source?"
+          coachPrefill="I don't have any sleep data yet — why does sleep tracking matter, and what should I know before I connect a source?"
         />
       </SubPageShell>
     );
@@ -84,6 +61,18 @@ export default function InsightsSchlafPage() {
       description={t("insights.sleep.description")}
     >
       <SleepOverview />
+
+      {/*
+        v1.4.28 (BK-UI-StatusSchlaf) — the six sibling sub-pages all
+        mount `<InsightStatusCard>` underneath the chart so the user
+        sees a written per-section assessment. Sleep has no
+        `/api/insights/sleep-status` route yet (the v1.4.23 schema
+        landed the data but the assessment-generation pass was deferred
+        to the v1.5 iOS sprint where the Apple-Health sleep snapshot
+        will inform the prompt). No per-section assessment yet; the
+        structural slot waits for v1.5 where the route + hook key will
+        wire in.
+      */}
 
       <CoachLaunchButton />
     </SubPageShell>

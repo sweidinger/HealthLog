@@ -4,9 +4,10 @@ import { useId, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, Minus } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { HealthScoreDeltaExplainer } from "./health-score-delta-explainer";
 
 /**
- * v1.4.20 phase B5 — Personal Health Score panel.
+ * v1.4.20 B5 — Personal Health Score panel.
  *
  * Lives on the right side of the `<HeroStrip>` band on `lg+` viewports
  * and stacks below the title block on `<lg`. Surfaces:
@@ -183,6 +184,11 @@ export function HealthScoreCard({
   // the card is mounted twice on the same page (lg+ hero strip vs
   // smaller stacked previews in tests).
   const panelId = useId();
+  // FB-I1 a11y — id wired from the delta `<span>` (aria-describedby)
+  // to the explainer popover/sheet body. The thread lets screen
+  // readers connect "−3 vs last week" to the three-sentence read
+  // without relying on visual proximity alone.
+  const deltaExplainerId = useId();
 
   const componentEntries = (
     Object.keys(components) as Array<ComponentKey>
@@ -241,9 +247,16 @@ export function HealthScoreCard({
         // (~36 % at md, ~40 % at xl) but cede headroom when the parent
         // narrows.
         "w-full md:basis-[22rem] md:shrink-0 md:grow-0 xl:basis-[26rem]",
+        // v1.4.28 R3c-Insights — stretch to match the parent's
+        // `items-stretch` row height (FB-H1/H2). `h-full` + an inner
+        // flex column lets the disclaimer ride to the bottom with
+        // `mt-auto` so the headline number stays at the top and the
+        // recovered vertical space pads through the middle rather
+        // than under the disclaimer.
+        "flex h-full flex-col",
       )}
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-1 flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <p
@@ -312,6 +325,13 @@ export function HealthScoreCard({
           />
         </div>
 
+        {/* v1.4.28 R3c-Insights — FB-I1 — the delta line gets a
+            sibling `?` glyph that opens a 3-sentence read of which
+            components contributed, what the comparison window is,
+            and one concrete next step. Popover on `md+`, bottom-sheet
+            on phone-class viewports. The explainer only mounts when
+            a numeric delta is available; the "no history yet"
+            branch keeps the existing single-line caption. */}
         <p
           data-slot="health-score-card-delta"
           className="text-muted-foreground inline-flex items-center gap-1 text-[11px]"
@@ -338,11 +358,15 @@ export function HealthScoreCard({
                   aria-hidden="true"
                 />
               )}
-              <span>
+              <span aria-describedby={deltaExplainerId}>
                 {t("insights.healthScore.deltaVsLastWeek", {
                   delta: delta > 0 ? `+${delta}` : `${delta}`,
                 })}
               </span>
+              <HealthScoreDeltaExplainer
+                delta={delta}
+                bodyId={deltaExplainerId}
+              />
             </>
           )}
         </p>
@@ -545,10 +569,16 @@ export function HealthScoreCard({
             carries an "Ask the coach" action so the inline button
             here retires; the parent still receives onAskCoach via
             other surfaces but the card no longer mounts a duplicate
-            CTA. */}
+            CTA.
+            v1.4.28 R3c-Insights — `mt-auto` pins the disclaimer to
+            the bottom of the stretched card so the score number and
+            sub-bars stay anchored at the top while the recovered
+            vertical space (when the parent column is taller) sits
+            quietly between the provenance accordion and the
+            disclaimer footer. */}
         <p
           data-slot="health-score-card-disclaimer"
-          className="text-muted-foreground text-[11px] leading-snug"
+          className="text-muted-foreground mt-auto text-[11px] leading-snug"
         >
           {t("insights.healthScore.disclaimer")}
         </p>

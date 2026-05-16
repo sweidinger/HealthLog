@@ -10,10 +10,11 @@ import { MedicationDetailSection } from "@/components/medications/medication-det
 /**
  * v1.4.25 W19f — GLP-1 titration-ladder section.
  *
- * Sits between `<SchedulingSection>` (W19e) and `<IntakeHistoryList>`
- * on the medication detail page. Same chrome as the W19d / W19e
- * sections so the Wave-4b panels read as one visual group — chrome is
- * now composed via the shared `<MedicationDetailSection>` wrapper.
+ * Sits at the bottom of the medication detail page below the W19e
+ * SchedulingSection (v1.4.28 retired the IntakeHistoryList block).
+ * Same chrome as the W19d / W19e sections so the panels read as one
+ * visual group — chrome is now composed via the shared
+ * `<MedicationDetailSection>` wrapper.
  *
  * Layout:
  *   - Header: drug INN + "Standard ladder (EMA reference)"
@@ -103,7 +104,7 @@ export function TitrationSection({ medicationId }: TitrationSectionProps) {
 
   const headerExtras = data ? (
     <span
-      className="text-muted-foreground text-[10px] uppercase tracking-wide"
+      className="text-muted-foreground text-xs uppercase tracking-wide"
       data-slot="titration-drug-inn"
     >
       {data.drugInn}
@@ -132,7 +133,7 @@ export function TitrationSection({ medicationId }: TitrationSectionProps) {
 
       {data && !isLoading && (
         <div className="space-y-3">
-          <p className="text-muted-foreground text-[11px] uppercase tracking-wide">
+          <p className="text-muted-foreground text-xs uppercase tracking-wide">
             {t("medications.titration.drugLadderHeader")}
           </p>
 
@@ -169,7 +170,7 @@ export function TitrationSection({ medicationId }: TitrationSectionProps) {
                       isCurrent ? "current" : isPast ? "past" : "upcoming"
                     }
                   >
-                    <span className="text-muted-foreground text-[10px] uppercase tracking-wide">
+                    <span className="text-muted-foreground text-xs uppercase tracking-wide">
                       {t("medications.titration.stepLabel", {
                         n: step.stepIndex + 1,
                       })}
@@ -177,13 +178,13 @@ export function TitrationSection({ medicationId }: TitrationSectionProps) {
                     <span className="text-foreground text-sm font-medium">
                       {step.doseMg} {t("medications.titration.doseUnitMg")}
                     </span>
-                    <span className="text-muted-foreground text-[10px]">
+                    <span className="text-muted-foreground text-xs">
                       {t("medications.titration.typicalWeeksOnStep", {
                         weeks: step.typicalWeeks,
                       })}
                     </span>
                     {isCurrent && (
-                      <span className="text-primary mt-1 text-[10px] font-medium uppercase tracking-wide">
+                      <span className="text-primary mt-1 text-xs font-medium uppercase tracking-wide">
                         {t("medications.titration.youAreHere")}
                       </span>
                     )}
@@ -223,14 +224,14 @@ export function TitrationSection({ medicationId }: TitrationSectionProps) {
           )}
 
           <div className="border-border/60 border-t pt-2">
-            <p className="text-muted-foreground text-[10px]">
+            <p className="text-muted-foreground text-xs">
               {t("medications.titration.disclaimer")}
             </p>
             <a
               href={data.sourceEMA}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-foreground/80 hover:text-foreground mt-1 inline-flex items-center gap-1 text-[10px] underline-offset-2 hover:underline"
+              className="text-foreground/80 hover:text-foreground mt-1 inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
             >
               {t("medications.titration.emaSourceCta")}
               <ExternalLink className="h-2.5 w-2.5" aria-hidden="true" />

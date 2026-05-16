@@ -178,8 +178,10 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     );
 
     expect(html).toContain("GLP-1 injection");
-    // The Syringe lucide icon renders an SVG with this class.
-    expect(html).toMatch(/lucide-syringe/i);
+    // v1.4.28 FB-G1 — the Syringe glyph + middle-dot separator on the
+    // list row are gone. The list row reads as the canonical two-line
+    // shape: `{name} {dose}` on line 1, class label on line 2.
+    expect(html).not.toMatch(/lucide-syringe/i);
   });
 
   it("renders the default MedicationCard when treatmentClass is null/undefined (back-compat)", () => {
@@ -204,7 +206,7 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).not.toContain("Dose history");
   });
 
-  it("shows drug name + current dose ('Mounjaro · 7.5 mg')", () => {
+  it("shows drug name + current dose on line 1 ('Mounjaro 7.5 mg')", () => {
     const client = makeClient();
     seedCompliance(client, med7p5.id);
     seedGlp1Details(client, med7p5.id, {});
@@ -216,9 +218,10 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
 
     expect(html).toContain("Mounjaro");
     expect(html).toContain("7.5 mg");
-    // Card title joins the two with the middle-dot separator the
-    // glp1Headline copy uses.
-    expect(html).toContain("·");
+    // v1.4.28 FB-G1 — the GLP-1 row drops the middle-dot separator and
+    // surfaces `{name} {dose}` together on line 1 via the shared
+    // `<MedicationCardHeader>` primitive. The dot separator is gone.
+    expect(html).toContain("Mounjaro 7.5 mg");
   });
 
   it("shows last + next injection labels with localised weekday", () => {
@@ -245,11 +248,11 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).toMatch(/Next:/);
   });
 
-  it("renders the inline dose-history disclosure (closed by default)", () => {
-    // The collapsible <details> element keeps the card height matched
-    // to a generic card on first paint. SSR includes the element with
-    // no `open=""` attribute; clicking the summary toggles state via
-    // React's onToggle handler (not exercisable from SSR).
+  it("no longer renders the inline dose-history disclosure (retired v1.4.28)", () => {
+    // The dose-history `<details>` block was retired in v1.4.28 per
+    // maintainer feedback. The doseChanges payload still arrives from
+    // the API (iOS contract preserved), but the GLP-1 card no longer
+    // paints the disclosure or the summary label.
     const client = makeClient();
     seedCompliance(client, med7p5.id);
     seedGlp1Details(client, med7p5.id, {
@@ -276,16 +279,8 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
       client,
     );
 
-    // The <details> wrapper renders with the localised summary.
-    expect(html).toMatch(/<details[^>]*>/);
-    expect(html).toContain("Dose history");
-    // Closed by default — no `open=""` attribute on the <details>.
-    const detailsTag = html.match(/<details[^>]*>/)?.[0] ?? "";
-    expect(detailsTag).not.toMatch(/\sopen(=""|\s|>)/);
-    // Dose-history rows are present in the markup even though they're
-    // visually hidden until expanded.
-    expect(html).toContain("5 mg");
-    expect(html).toContain("7.5 mg");
+    expect(html).not.toContain("Dose history");
+    expect(html).not.toContain("Dosis-Historie");
   });
 
   it("renders the injection-site rotation marker (last + recommended)", () => {
@@ -316,7 +311,11 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).toContain("Abdomen, lower left");
   });
 
-  it("renders the pen-inventory line when inventory data is present", () => {
+  it("no longer renders the pen-inventory line (retired v1.4.28)", () => {
+    // The maintainer retired the entire Bestand / inventory surface
+    // on the GLP-1 card in v1.4.28. The iOS-consumed Glp1InventoryDTO
+    // slot stays in the response shape, but the web card never paints
+    // the inline pens-remaining line or the low-stock badge any more.
     const client = makeClient();
     seedCompliance(client, med7p5.id);
     seedGlp1Details(client, med7p5.id, {
@@ -333,14 +332,11 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
       client,
     );
 
-    // The inventory copy template is "{pens} pens left · ~{weeks} weeks of supply".
-    expect(html).toContain("2 pens left");
-    expect(html).toContain("8 weeks of supply");
-    // Low-stock badge omitted when lowStock=false.
+    expect(html).not.toContain("pens left");
     expect(html).not.toContain("Low stock");
   });
 
-  it("renders the low-stock badge when inventory.lowStock is true", () => {
+  it("does not render the low-stock badge even when inventory.lowStock is true (retired v1.4.28)", () => {
     const client = makeClient();
     seedCompliance(client, med7p5.id);
     seedGlp1Details(client, med7p5.id, {
@@ -357,8 +353,8 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
       client,
     );
 
-    expect(html).toContain("1 pens left");
-    expect(html).toContain("Low stock");
+    expect(html).not.toContain("pens left");
+    expect(html).not.toContain("Low stock");
   });
 
   it("side-effect quick-log button hands off the medication object", () => {
@@ -475,6 +471,7 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).toContain("GLP-1-Injektion");
     expect(html).toContain("Letzter Termin:");
     expect(html).toContain("Bauch, unten links");
-    expect(html).toContain("Dosis-Historie");
+    // v1.4.28 retired the "Dosis-Historie" disclosure on the GLP-1 card.
+    expect(html).not.toContain("Dosis-Historie");
   });
 });

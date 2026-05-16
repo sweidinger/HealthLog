@@ -1,6 +1,6 @@
 {
   "name": "healthlog",
-  "version": "1.4.27",
+  "version": "1.4.28",
   "description": "Self-hosted personal-health-tracking PWA with Withings integration, AI insights, and doctor-report PDF export.",
   "license": "AGPL-3.0-only",
   "homepage": "https://healthlog.dev",
@@ -26,6 +26,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "analyze": "ANALYZE=1 next build",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "prisma generate",
@@ -80,6 +81,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
+    "@next/bundle-analyzer": "^16.2.6",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@testcontainers/postgresql": "^11.14.0",

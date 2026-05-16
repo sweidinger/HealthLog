@@ -14,6 +14,10 @@ import {
   listMeasurementsSchema,
   getUnitForType,
 } from "@/lib/validations/measurement";
+import {
+  BUCKET_CAP,
+  type AggregateGrain,
+} from "@/lib/measurements/range-aggregation";
 import { withIdempotency } from "@/lib/idempotency";
 import { NextRequest } from "next/server";
 import type {
@@ -32,7 +36,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
     return apiError(parsed.error.issues[0].message, 422);
   }
 
-  const { type, from, to, limit, offset, sortBy, sortDir } = parsed.data;
+  const { type, from, to, limit, offset, sortBy, sortDir, aggregate } =
+    parsed.data;
 
   const where = {
     userId: user.id,
@@ -46,6 +51,68 @@ export const GET = apiHandler(async (request: NextRequest) => {
         }
       : {}),
   };
+
+  // v1.4.28 FB-D2 — server-side aggregation. Gated on an explicit
+  // `aggregate` param so the iOS contract (raw `MeasurementWireDTO`
+  // shape on `GET /api/measurements`) is byte-stable for any caller
+  // that omits the new query parameter. The chart-data client opts
+  // in; iOS does not.
+  //
+  // R4-CODE-C1 — `take` no longer applies BEFORE bucketising. The
+  // aggregation runs in Postgres via `date_trunc`, the bucket cap is
+  // applied AFTER, so a 1-year `aggregate=daily` window walks every
+  // row in the window and returns up to 365 buckets per type instead
+  // of truncating to the first N raw rows.
+  //
+  // SD-H1 — "All time" range semantics. When the chart's "All" tab
+  // is active, the client passes `from` = the user's earliest
+  // measurement (or a sentinel like 1970-01-01) plus `to` = now plus
+  // `aggregate=monthly` (or `weekly` when full history < 2 years).
+  // The route's response is bounded by the `BUCKET_CAP` ceiling per
+  // grain (monthly: 24, weekly: 105, daily: 365) so a multi-decade
+  // account never paints an unbounded series.
+  if (aggregate && aggregate !== "raw" && from && to) {
+    const grain: AggregateGrain = aggregate;
+    const cap = Math.min(limit, BUCKET_CAP[grain]);
+    const truncUnit = grain === "daily" ? "day" : grain;
+    const buckets = await prisma.$queryRaw<
+      Array<{ type: string; bucket_start: Date; avg: number; cnt: number }>
+    >`
+      SELECT
+        m."type"::text AS type,
+        date_trunc(${truncUnit}, m."measured_at") AS bucket_start,
+        AVG(m."value")::double precision AS avg,
+        COUNT(*)::int AS cnt
+      FROM measurements m
+      WHERE m."user_id" = ${user.id}
+        AND m."measured_at" >= ${from}
+        AND m."measured_at" <= ${to}
+        ${type ? Prisma.sql`AND m."type" = ${type}::"MeasurementType"` : Prisma.empty}
+      GROUP BY m."type", bucket_start
+      ORDER BY bucket_start ASC
+      LIMIT ${cap}
+    `;
+
+    const measurements = buckets.map((b) => ({
+      type: b.type,
+      value: Number(b.avg),
+      measuredAt: b.bucket_start.toISOString(),
+      count: Number(b.cnt),
+    }));
+    annotate({
+      action: { name: "measurement.list" },
+      meta: { total: measurements.length, type, aggregate: grain },
+    });
+    return apiSuccess({
+      measurements,
+      meta: {
+        total: measurements.length,
+        limit: cap,
+        offset: 0,
+        aggregate: grain,
+      },
+    });
+  }
 
   const [measurements, total] = await Promise.all([
     prisma.measurement.findMany({

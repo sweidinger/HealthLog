@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import type { CoachScope, CoachScopeSource } from "@/lib/ai/coach/types";
 
@@ -17,6 +18,17 @@ import type { CoachScope, CoachScopeSource } from "@/lib/ai/coach/types";
  * On click the button fires `onAskCoach({ prefill, scope })`. The
  * parent owns the `CoachDrawer` state; this button doesn't know about
  * the drawer at all.
+ *
+ * v1.4.28 R3c FB-L1 — collapsed to an icon-only affordance. The card
+ * footer was carrying a labelled pill ("Coach fragen"); on a card with
+ * a status pill, range bar, consistency strip, headline number, edit
+ * cog and a source link, the labelled pill dominated the visual
+ * hierarchy. Dropping the label retains the affordance via the
+ * Sparkles glyph + `aria-label` while shrinking the optical weight
+ * to a per-card icon button. UI-H2 — the glyph is the same Sparkles
+ * the hero strip, the inline pill and the layout-level FAB use, so
+ * the per-card Coach launch reads on one icon vocabulary across the
+ * app.
  */
 export interface TargetCoachButtonProps {
   /**
@@ -33,7 +45,7 @@ export interface TargetCoachButtonProps {
   onAskCoach: (payload: { prefill: string; scope: CoachScope }) => void;
   /**
    * Renders ONLY when this is true. The parent gates on
-   * `chainData?.activeProvider != null` so a user with no AI provider
+   * `chainData?.activeProvider != null` so a user with no provider
    * configured never sees a button that opens an empty drawer.
    */
   aiEnabled: boolean;
@@ -51,11 +63,13 @@ export function TargetCoachButton({
 
   if (!aiEnabled) return null;
 
+  const accessibleLabel = t("targets.coach.cta");
+
   return (
     <Button
       type="button"
       variant="ghost"
-      size="sm"
+      size="icon"
       onClick={() =>
         onAskCoach({
           prefill,
@@ -66,10 +80,15 @@ export function TargetCoachButton({
         })
       }
       data-slot="target-coach-cta"
-      className={className}
+      aria-label={accessibleLabel}
+      title={accessibleLabel}
+      // Lift the icon button to the 44 px WCAG 2.5.5 floor. The
+      // shadcn `icon` variant ships `size-10` (40 px); the project
+      // floor is 44 px (matches the medication-history button and the
+      // Coach drawer cluster). Glyph stays `size-4`.
+      className={cn("min-h-11 min-w-11", className)}
     >
-      <Sparkles className="size-3.5" aria-hidden="true" />
-      <span>{t("targets.coach.cta")}</span>
+      <Sparkles className="size-4" aria-hidden="true" />
     </Button>
   );
 }

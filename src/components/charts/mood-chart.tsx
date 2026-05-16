@@ -54,25 +54,25 @@ interface ChartDataPoint {
   score: number;
   ma?: number;
   trend?: number;
-  /** v1.4.16 phase B8 — prior-period overlay value. */
+  /** v1.4.16 B8 — prior-period overlay value. */
   scoreCompare?: number;
 }
 
 interface MoodChartProps {
   title?: string;
   /**
-   * v1.4.16 phase B5c — compact mode for embedding inside the
+   * v1.4.16 B5c — compact mode for embedding inside the
    * RecommendationCard. Hides the range tabs / toggle row and shrinks
    * padding. Tooltip stays intact.
    */
   mini?: boolean;
   /**
-   * v1.4.16 phase B5c — pin the chart to a specific rationale data
+   * v1.4.16 B5c — pin the chart to a specific rationale data
    * window regardless of any parent UI state.
    */
   windowOverride?: "last7days" | "last30days" | "last90days" | "allTime";
   /**
-   * v1.4.16 phase B8 — when set to "lastMonth" / "lastYear", overlay a
+   * v1.4.16 B8 — when set to "lastMonth" / "lastYear", overlay a
    * dimmed prior-period mood line beneath the current series. Same
    * shift mechanic the BP/weight/pulse chart uses; the mood score is
    * a single metric so only one comparison line is drawn.
@@ -419,7 +419,7 @@ export function MoodChart({
   }, [data, rangePoints, showMA, showTrend, tzFmt]);
 
   /**
-   * v1.4.16 phase B8 — comparison overlay merged into chartData.
+   * v1.4.16 B8 — comparison overlay merged into chartData.
    *
    * Same mechanic as HealthChart: shift the full mood-entries history
    * forward by 30 / 365 days, key by the existing `date` formatter, and
@@ -527,8 +527,32 @@ export function MoodChart({
   if (!isLoading && !data?.entries?.length) return null;
 
   return (
-    <Card data-slot={mini ? "chart-mini" : undefined}>
-      <CardHeader className={mini ? "pb-1" : "pb-2"}>
+    <Card
+      data-slot={mini ? "chart-mini" : undefined}
+      // v1.4.28 R3c-Insights — collapse the Card envelope in mini
+      // mode (FB-K1). The default `<Card>` paints `py-6 gap-6` —
+      // ~48 px of vertical chrome that pulled the mood mini chart
+      // band ~52 px lower than the `<HealthChart mini>` siblings
+      // in the trends row. The mini override gives mood the same
+      // `~p-2` shell HealthChart uses so the chart series anchor
+      // at the same top edge across BP / weight / mood tiles.
+      //
+      // D-H5 follow-up — the Card primitive carries `rounded-xl
+      // border bg-card shadow-sm` by default. HealthChart mini
+      // paints `rounded-md border bg-card` (no shadow). Without an
+      // explicit `rounded-md` override the mood tile painted a
+      // visibly heavier corner radius than BP / weight in the same
+      // row. Align to the `rounded-md` shell so the three trend
+      // tiles share one corner radius.
+      className={
+        mini ? "gap-1 rounded-md py-2 shadow-none" : undefined
+      }
+    >
+      <CardHeader
+        className={
+          mini ? "px-2 pb-1 [&]:gap-0.5" : "pb-2"
+        }
+      >
         {/* v1.4.19 A2 — mobile-first header: stack title row above
             controls row on small viewports so the bucket / comparison
             chips never push the range tabs into a 2nd line. ≥sm goes
@@ -553,7 +577,7 @@ export function MoodChart({
                 )}
               </span>
             )}
-            {/* v1.4.16 phase B8 — comparison caption (mood).
+            {/* v1.4.16 B8 — comparison caption (mood).
                 v1.4.19 A2 — hidden on mobile to free up the title row. */}
             {!mini &&
               effectiveCompareBaseline !== "none" &&
@@ -617,7 +641,7 @@ export function MoodChart({
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className={mini ? "px-2" : undefined}>
         {isLoading ? (
           <div className="flex h-48 items-center justify-center">
             <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
@@ -888,7 +912,7 @@ export function MoodChart({
                     connectNulls
                   />
                 )}
-                {/* v1.4.16 phase B8 — comparison overlay (mood). Same
+                {/* v1.4.16 B8 — comparison overlay (mood). Same
                     dimmed dashed treatment the BP/weight/pulse chart
                     uses; mood is a single metric so we only render
                     one overlay line. Suppressed when there's no prior
