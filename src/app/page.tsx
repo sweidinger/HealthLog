@@ -13,6 +13,7 @@ import {
   Percent,
   Plus,
   Smile,
+  Sparkles,
   Target,
   TrendingUp,
   Waves,
@@ -61,6 +62,8 @@ const MedicationComplianceChart = dynamic(
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
+import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { queryKeys } from "@/lib/query-keys";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import type { DataSummary } from "@/lib/analytics/trends";
@@ -105,6 +108,17 @@ interface AnalyticsData {
   bpInTargetPctPriorMonth?: number | null;
   bpInTargetPctPriorYear?: number | null;
   glucoseByContext?: Record<string, DataSummaryType>;
+  /**
+   * v1.4.34 IW-B — per-type freshness map from `/api/analytics`. The
+   * tile-strip helper reads `lastSeenByType[type]?.daysAgo` and forwards
+   * it to each `<TrendCard staleDays>` so a metric the user hasn't
+   * logged in a while keeps its tile visible (with an explicit
+   * "Letzter Wert vor …" caption) instead of disappearing.
+   */
+  lastSeenByType?: Record<
+    string,
+    { lastSeenAt: string; daysAgo: number } | null
+  >;
 }
 
 interface RangeDisplayConfig {
@@ -184,6 +198,14 @@ export default function DashboardPage() {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
   const fmt = useFormatters();
+  // v1.4.34 IW-B — Coach launch context lives on the auth-shell now so
+  // every authed route (this dashboard included) can call `askCoach()`.
+  // Returns `null` outside the provider; the dashboard hero CTA self-
+  // gates on the hook + the operator's coach feature flag so the
+  // button silently disappears when either is unavailable.
+  const coachLaunch = useCoachLaunch();
+  const featureFlags = useFeatureFlags();
+  const coachEnabled = featureFlags.coach && coachLaunch !== null;
   const [quickEntryDialog, setQuickEntryDialog] = useState<
     "measurement" | "mood" | null
   >(null);
@@ -290,6 +312,25 @@ export default function DashboardPage() {
         : (summary.avg30LastYear ?? null);
     if (current === null || prior === null) return null;
     return Math.round((current - prior) * 100) / 100;
+  };
+
+  /**
+   * v1.4.34 IW-B — read the per-type freshness map and surface the
+   * `daysAgo` value when the metric is older than a week. The
+   * tile-strip below forwards the result to `<TrendCard staleDays>`
+   * which picks the bucket-aware copy (Xd / X weeks / X months) and
+   * paints the caption on the tile. Returns `null` for metrics with no
+   * reading yet OR within the fresh window so call sites stay
+   * undefined-safe and tiles with recent data paint byte-identical
+   * with the pre-v1.4.34 contract.
+   */
+  const tileStaleDays = (
+    type: string | null | undefined,
+  ): number | null => {
+    if (!type) return null;
+    const entry = data?.lastSeenByType?.[type];
+    if (!entry) return null;
+    return entry.daysAgo > 7 ? entry.daysAgo : null;
   };
   /** Whether the widget's *chart* (lower row) shows. */
   const isChartVisible = (id: string) =>
@@ -503,49 +544,73 @@ export default function DashboardPage() {
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">{welcomeText}</p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            {/* v1.4.33 maintainer-item-7 — restore proportional sizing
-                across viewports. The v1.4.27 fix pinned a `size="sm"
-                min-h-11` combo to hit WCAG 2.5.5's 44 px touch-target
-                contract on mobile, but `size="sm"` is h-8 (32 px) and
-                the `min-h-11` override stretched the cap vertically
-                while keeping the small horizontal padding — the
-                button read as klobig on Pixel 5. Switch to
-                `size="default"` (h-10 = 40 px) on mobile with a
-                responsive `min-h-11 sm:min-h-9` so the button is
-                44 px tall under finger pressure and shrinks back to
-                the desktop-friendly 36 px on `sm:` upwards. The icon
-                + label keep the same visual contract. */}
+        <div className="flex items-center gap-2">
+          {/* v1.4.34 IW-B — dashboard hero CTA to the Coach drawer. The
+              provider lives on the auth-shell now so this button can
+              call `askCoach()` from the same context every authed
+              surface shares. Mobile-first: 44 px tap target via
+              `min-h-11` (WCAG 2.5.5), shrinks back to 36 px on `sm:`
+              upwards alongside the sibling "Hinzufügen" button. Self-
+              gates on the provider mount + the operator's `coach`
+              feature flag so the button disappears cleanly when the
+              Coach surface is disabled or unreachable. */}
+          {coachEnabled && coachLaunch ? (
             <Button
+              type="button"
+              variant="outline"
               size="default"
-              className="min-h-11 sm:min-h-9"
-              data-tour-id="dashboard-quick-add"
+              className="min-h-11 gap-1 sm:min-h-9"
+              data-slot="dashboard-coach-cta"
+              onClick={() => coachLaunch.askCoach(null)}
             >
-              <Plus className="mr-1 h-4 w-4" />
-              {t("common.add")}
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+              <span>{t("dashboard.coachCta")}</span>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {/* Menu items must each carry a self-contained verb-phrase
-                ("Log measurement", "Log mood") — the trigger above already
-                says "Add", and the icon is `aria-hidden`, so the visible
-                text is the only thing distinguishing the rows. v1.4.15
-                phase-A3 fix #1 hardened this with a unit guard at
-                `src/app/__tests__/quick-add-labels.test.ts` — both labels
-                must differ from each other AND from `common.add`. */}
-            <DropdownMenuItem
-              onClick={() => setQuickEntryDialog("measurement")}
-            >
-              <Activity className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t("dashboard.quickAddMeasurement")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setQuickEntryDialog("mood")}>
-              <Waves className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t("dashboard.quickAddMood")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              {/* v1.4.33 maintainer-item-7 — restore proportional sizing
+                  across viewports. The v1.4.27 fix pinned a `size="sm"
+                  min-h-11` combo to hit WCAG 2.5.5's 44 px touch-target
+                  contract on mobile, but `size="sm"` is h-8 (32 px) and
+                  the `min-h-11` override stretched the cap vertically
+                  while keeping the small horizontal padding — the
+                  button read as klobig on Pixel 5. Switch to
+                  `size="default"` (h-10 = 40 px) on mobile with a
+                  responsive `min-h-11 sm:min-h-9` so the button is
+                  44 px tall under finger pressure and shrinks back to
+                  the desktop-friendly 36 px on `sm:` upwards. The icon
+                  + label keep the same visual contract. */}
+              <Button
+                size="default"
+                className="min-h-11 sm:min-h-9"
+                data-tour-id="dashboard-quick-add"
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                {t("common.add")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {/* Menu items must each carry a self-contained verb-phrase
+                  ("Log measurement", "Log mood") — the trigger above already
+                  says "Add", and the icon is `aria-hidden`, so the visible
+                  text is the only thing distinguishing the rows. v1.4.15
+                  phase-A3 fix #1 hardened this with a unit guard at
+                  `src/app/__tests__/quick-add-labels.test.ts` — both labels
+                  must differ from each other AND from `common.add`. */}
+              <DropdownMenuItem
+                onClick={() => setQuickEntryDialog("measurement")}
+              >
+                <Activity className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("dashboard.quickAddMeasurement")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setQuickEntryDialog("mood")}>
+                <Waves className="mr-2 h-4 w-4" aria-hidden="true" />
+                {t("dashboard.quickAddMood")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* v1.4: Getting-started checklist for brand-new users.
@@ -632,6 +697,7 @@ export default function DashboardPage() {
                 directionSentiment="up-bad"
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(w)}
+                staleDays={tileStaleDays("WEIGHT")}
               />
             ),
           });
@@ -677,6 +743,7 @@ export default function DashboardPage() {
                 directionSentiment="up-bad"
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(sys)}
+                staleDays={tileStaleDays("BLOOD_PRESSURE_SYS")}
               />
             ),
           });
@@ -717,6 +784,7 @@ export default function DashboardPage() {
                 directionSentiment="up-bad"
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(dia)}
+                staleDays={tileStaleDays("BLOOD_PRESSURE_DIA")}
               />
             ),
           });
@@ -756,6 +824,7 @@ export default function DashboardPage() {
                 icon={TrendingUp}
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(p)}
+                staleDays={tileStaleDays("PULSE")}
               />
             ),
           });
@@ -778,6 +847,7 @@ export default function DashboardPage() {
                 directionSentiment="up-bad"
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(bf)}
+                staleDays={tileStaleDays("BODY_FAT")}
               />
             ),
           });
@@ -822,6 +892,7 @@ export default function DashboardPage() {
                 directionSentiment="up-good"
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(sleepSummary)}
+                staleDays={tileStaleDays("SLEEP_DURATION")}
               />
             ),
           });
@@ -844,6 +915,7 @@ export default function DashboardPage() {
                 directionSentiment="up-good"
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(stepsSummary)}
+                staleDays={tileStaleDays("ACTIVITY_STEPS")}
               />
             ),
           });
@@ -873,6 +945,7 @@ export default function DashboardPage() {
                 directionSentiment="up-good"
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(vo2Summary)}
+                staleDays={tileStaleDays("VO2_MAX")}
               />
             ),
           });
@@ -973,6 +1046,7 @@ export default function DashboardPage() {
                   }
                   slope30={s.slope30 ?? null}
                   icon={Droplet}
+                  staleDays={tileStaleDays("BLOOD_GLUCOSE")}
                 />
               ),
             });
