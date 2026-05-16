@@ -23,7 +23,6 @@ const PUBLIC_PATHS = [
   "/api/withings/webhook",
   "/api/telegram/webhook",
   "/api/integrations/moodlog/webhook",
-  "/api/auth/codex/callback",
   "/api/ingest/",
   // v1.4.26 — `/privacy` is a public legal page. iOS App Store Connect
   // requires a publicly reachable Privacy-Policy URL during submission;
@@ -33,18 +32,24 @@ const PUBLIC_PATHS = [
   // alongside the project credits. The CC licence requires the
   // attribution to be reachable without a sign-in.
   "/about",
-  // v1.4.33 — `/.well-known/*` covers IETF-registered discovery
-  // endpoints (RFC 8615). Apple reads
-  // `/.well-known/apple-app-site-association` without credentials to
-  // wire Web Credentials (passkey sharing) and Universal Links to the
-  // iOS bundle, so the path must answer 200 with the bare JSON body
-  // before any auth gate runs. The trailing slash future-proofs the
-  // namespace for `/security.txt`, `/openid-configuration`, etc.
-  "/.well-known/",
   // `/onboarding` itself + its subroutes are matched exactly via
   // `isPublicPath()` so we don't admit `/onboarding-export` etc.
   "/robots.txt",
 ];
+
+/**
+ * Exact-match allowlist for IETF-registered discovery endpoints
+ * (RFC 8615). Apple reads `/.well-known/apple-app-site-association`
+ * without credentials to wire passkey sharing and Universal Links;
+ * the bare JSON body has to answer 200 before any auth gate runs.
+ *
+ * Exact match (not prefix) — a future `/.well-known/openid-configuration`
+ * or `/.well-known/security.txt` must be added here explicitly so a new
+ * sub-path doesn't auto-inherit "no auth" status.
+ */
+const WELL_KNOWN_PUBLIC_PATHS = new Set<string>([
+  "/.well-known/apple-app-site-association",
+]);
 
 /**
  * v1.4.22 W5 reconcile (Sec-MED-2) — `/onboarding` matches exact
@@ -57,6 +62,9 @@ const PUBLIC_PATHS = [
  */
 function isPublicPath(pathname: string): boolean {
   if (pathname === "/onboarding" || pathname.startsWith("/onboarding/")) {
+    return true;
+  }
+  if (WELL_KNOWN_PUBLIC_PATHS.has(pathname)) {
     return true;
   }
   return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
@@ -226,22 +234,35 @@ export function proxy(request: NextRequest) {
     "camera=(), microphone=(), geolocation=()",
   );
 
-  // CSP — permissive in dev, strict in production. AI provider hosts
-  // (OpenAI / chatgpt.com) are gated to /settings/ai/** because that is
-  // the only surface a browser fetch is needed (V3 audit: blanket
-  // chatgpt.com on /auth/login is a DOM-XSS exfil channel).
+  // CSP — permissive in dev, strict in production. Third-party hosts in
+  // `connect-src` are gated to the surfaces that actually need them so a
+  // DOM-XSS on an unrelated page can't exfiltrate to them (V3 audit:
+  // blanket chatgpt.com on /auth/login was a DOM-XSS exfil channel).
+  //
+  // F-5 (mobile security audit, 2026-05-16): `wbsapi.withings.net` used
+  // to live in the global `connect-src` and shipped on every page. The
+  // Withings client lives server-side, so the browser never needs to
+  // reach it from a non-Withings surface; mirror the AI gating shape.
   const isDev = process.env.NODE_ENV === "development";
   const cspReportEndpoint = "/api/monitoring/csp-report";
   const isAiSettingsRoute = pathname.startsWith("/settings/ai");
   const aiConnectSrc = isAiSettingsRoute
     ? " https://api.openai.com https://chatgpt.com"
     : "";
+  const isWithingsRoute =
+    pathname.startsWith("/settings/integrations/withings") ||
+    pathname.startsWith("/api/withings/");
+  const withingsConnectSrc = isWithingsRoute
+    ? " https://wbsapi.withings.net"
+    : "";
   const csp = isDev
     ? `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.gravatar.com; connect-src 'self'; font-src 'self';`
-    : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.gravatar.com; connect-src 'self'${aiConnectSrc} https://wbsapi.withings.net; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
+    : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://www.gravatar.com; connect-src 'self'${aiConnectSrc}${withingsConnectSrc}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
   response.headers.set("Content-Security-Policy", csp);
 
-  // Production-only headers
+  // Production-only headers. HSTS carries `preload` so the domain stays
+  // eligible for the Chromium preload list — closes the first-visit MITM
+  // window on hostile networks (F-5, mobile security audit 2026-05-16).
   if (!isDev) {
     response.headers.set(
       "Reporting-Endpoints",
@@ -249,7 +270,7 @@ export function proxy(request: NextRequest) {
     );
     response.headers.set(
       "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains",
+      "max-age=31536000; includeSubDomains; preload",
     );
   }
 
