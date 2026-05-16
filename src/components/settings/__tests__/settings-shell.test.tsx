@@ -80,9 +80,16 @@ describe("SETTINGS_SECTION_SLUGS", () => {
 });
 
 describe("<SettingsShell>", () => {
-  it("renders every section link — once for the mobile strip and once for the desktop sidebar", () => {
+  it("renders every navigable section link — once for the mobile strip and once for the desktop sidebar", () => {
     const html = renderShell({ active: "account" });
-    for (const slug of SETTINGS_SECTION_SLUGS) {
+    // v1.4.33 IW7 — the `about` slug is alive as a route
+    // (`/settings/about` still resolves and `generateStaticParams()`
+    // still emits the page) but it is hidden from the in-shell nav.
+    // The user-card dropdown owns the link now. Iterate the visible
+    // sections list, not the slug list, when asserting on rendered
+    // markup.
+    const navigableSlugs = SETTINGS_SECTIONS.map((section) => section.slug);
+    for (const slug of navigableSlugs) {
       const matches = html.match(new RegExp(`href="/settings/${slug}"`, "g"));
       // Two renders — mobile strip + desktop sidebar — guarantee the link
       // exists in both layouts. Tablet/desktop hide the strip with `md:`,
@@ -90,6 +97,8 @@ describe("<SettingsShell>", () => {
       // before media queries resolve.
       expect(matches?.length ?? 0).toBe(2);
     }
+    // The hidden `about` slug must NOT appear in the in-shell nav.
+    expect(html).not.toContain('href="/settings/about"');
   });
 
   it("links use the correct `/settings/<slug>` href — regression guard against typos", () => {
@@ -136,9 +145,12 @@ describe("<SettingsShell>", () => {
     const html = renderShell({ active: "account", locale: "en" });
     expect(html).toContain("Account");
     expect(html).toContain("Integrations");
-    expect(html).toContain("Notifications");
+    // v1.4.33 IW7 — section renamed from "Notifications" to
+    // "Notification channels" so it doesn't collide with the inbox at
+    // `/notifications` ("Notification Center").
+    expect(html).toContain("Notification channels");
     expect(html).toContain("Dashboard");
-    expect(html).toContain("AI Insights");
+    expect(html).toContain("Insights");
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
     // form so we don't accidentally match a parser that double-escapes.
     expect(html).toContain("API &amp; Tokens");
@@ -146,25 +158,35 @@ describe("<SettingsShell>", () => {
     // entry in the sidebar; the link must be present in both locales.
     expect(html).toContain('href="/settings/export"');
     expect(html).toContain("Advanced");
-    expect(html).toContain("About");
+    // v1.4.33 IW7 — About is no longer in the settings nav; it lives
+    // in the sidebar user-card dropdown. Route `/settings/about` is
+    // still alive for direct links.
+    expect(html).not.toContain('href="/settings/about"');
   });
 
   it("resolves every section title via the i18n provider — German", () => {
     const html = renderShell({ active: "account", locale: "de" });
     expect(html).toContain("Konto");
     expect(html).toContain("Integrationen");
-    expect(html).toContain("Benachrichtigungen");
+    // v1.4.33 IW7 — section renamed from "Benachrichtigungen" to
+    // "Benachrichtigungs-Kanäle" so it doesn't collide with the inbox at
+    // `/notifications` ("Benachrichtigungs-Center").
+    expect(html).toContain("Benachrichtigungs-Kanäle");
     // v1.4.3: the Settings sub-section formerly labelled "Übersicht" is now
     // "Dashboard" (matching the term users see in the main nav). The
     // per-metric overrides moved out into their own "Persönliche Zielwerte"
     // section, which is the new entry below the Dashboard one.
     expect(html).toContain("Dashboard");
     expect(html).toContain("Persönliche Zielwerte");
-    expect(html).toContain("KI-Auswertungen");
+    // v1.4.33 IW7 — "KI-Auswertungen" renamed to "Auswertungen" per
+    // the Marc-Voice rule (no "KI"/"AI" prefix in user-facing copy).
+    expect(html).toContain("Auswertungen");
     // API & Tokens is identical in both locales (proper noun + ampersand)
     expect(html).toContain("API &amp; Tokens");
     expect(html).toContain("Erweitert");
-    expect(html).toContain("Über");
+    // v1.4.33 IW7 — "Über" (About) section removed from the in-shell
+    // nav, folded into the sidebar user-card dropdown ("Über HealthLog").
+    expect(html).not.toContain('href="/settings/about"');
   });
 
   it("does NOT surface the raw key when a translation resolves — guards against missing JSON entries", () => {

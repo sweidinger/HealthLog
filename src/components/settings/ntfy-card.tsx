@@ -4,12 +4,12 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, Loader2, Send } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PasswordInput } from "@/components/ui/password-input";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 
 interface NtfySettings {
@@ -101,27 +101,11 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Bell className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.ntfy")}</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {settings?.serverUrl && settings?.topic && (
-            <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-              {t("settings.configured")}
-            </Badge>
-          )}
-          {settings?.enabled && (
-            <Badge variant="outline" className="text-xs">
-              {t("common.enabled")}
-            </Badge>
-          )}
-        </div>
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.ntfyDescription")}
-      </p>
+      <SettingsCardHeader
+        icon={Bell}
+        title={t("settings.ntfy")}
+        description={t("settings.ntfyDescription")}
+      />
 
       <div className="mt-4 space-y-4">
         <div className="flex items-center justify-between">

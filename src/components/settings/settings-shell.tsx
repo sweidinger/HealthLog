@@ -20,7 +20,6 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Download,
-  Info,
   KeyRound,
   Layers,
   LayoutDashboard,
@@ -61,9 +60,19 @@ interface SettingsSection {
 }
 
 /**
- * Source of truth for the section list. Order matches the in-app navigation
- * order so the sidebar, mobile strip, and `generateStaticParams()` all line
- * up. Don't reorder without updating tests.
+ * Source of truth for the section list that the settings shell renders
+ * in its sidebar + mobile chip-strip. Order matches the in-app
+ * navigation order. Don't reorder without updating tests.
+ *
+ * v1.4.33 IW7 — "About" was folded into the sidebar user-card
+ * dropdown (sidebar-nav.tsx -> "Über HealthLog" / "About HealthLog")
+ * because its three small cards (identity / links / update check)
+ * collectively read once or twice a year and didn't earn a top-level
+ * settings slot. The route `/settings/about` is still alive — the
+ * slug stays in `SETTINGS_SECTION_SLUGS` so `generateStaticParams()`
+ * keeps emitting the page — but it no longer appears in the in-page
+ * navigation. Direct links (the user-card dropdown, the public
+ * `/about` permalink) continue to resolve to the same component.
  */
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { slug: "account", titleKey: "settings.sections.account.title", icon: User },
@@ -104,7 +113,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.advanced.title",
     icon: Settings2,
   },
-  { slug: "about", titleKey: "settings.sections.about.title", icon: Info },
 ] as const;
 
 export interface SettingsShellProps {
@@ -135,6 +143,29 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
   const { t } = useTranslations();
   const activeSlug = deriveActiveSlug(pathname, active);
 
+  // v1.4.33 IW4 — scroll the active chip into view inside the
+  // horizontal mobile strip. On a 393 CSS px viewport the strip
+  // is 11 chips wide and the rightmost four sit below the fold; a
+  // user who tapped one of those chips lands on the new route
+  // with the strip still scrolled to the leftmost chip, which
+  // reads as if the navigation is broken. `inline: "center"`
+  // anchors the active chip in the visible middle of its scroll
+  // container so the user keeps spatial orientation between
+  // sections.
+  const mobileStripRef = React.useRef<HTMLElement | null>(null);
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const strip = mobileStripRef.current;
+    if (!strip) return;
+    const active = strip.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!active) return;
+    active.scrollIntoView({
+      block: "nearest",
+      inline: "center",
+      behavior: "smooth",
+    });
+  }, [activeSlug]);
+
   // v1.4.25 W8 — AuthShell wraps the page in `px-4 py-6 md:px-6`
   // already, so this inner shell only carries the wider max-width.
   // Previously the duplicate `px-4 py-6 md:px-6 md:py-8` here was
@@ -148,17 +179,25 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
           scrolling still work. Without it the 10-section strip
           renders an always-on scrollbar at the top of every settings
           page, which makes the page feel like every section card has
-          an overflow problem. */}
+          an overflow problem.
+
+          v1.4.33 IW7 — `snap-x snap-mandatory` lets a swipe-flick land
+          on the next chip's leading edge instead of the in-between
+          dead zone. The auto `scrollIntoView({inline: "center"})`
+          effect above stays the canonical positioner for the active
+          chip; snap is the polish layer when the user manually flicks
+          through the strip without tapping. */}
       <nav
+        ref={mobileStripRef}
         aria-label={t("settings.shell.sectionsNav")}
-        className="no-scrollbar -mx-4 mb-4 overflow-x-auto px-4 md:hidden"
+        className="no-scrollbar -mx-4 mb-4 snap-x snap-mandatory overflow-x-auto px-4 md:hidden"
       >
         <ul className="flex min-w-max gap-2">
           {SETTINGS_SECTIONS.map((section) => {
             const isActive = section.slug === activeSlug;
             const Icon = section.icon;
             return (
-              <li key={section.slug}>
+              <li key={section.slug} className="snap-start">
                 <Link
                   href={`/settings/${section.slug}`}
                   aria-current={isActive ? "page" : undefined}
@@ -218,8 +257,17 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
             `min-h-[calc(100dvh-12rem)]` reserve keeps the column tall
             enough that swapping a short loading state for a long
             section list (Thresholds, Sources) does not jump the page
-            height under the sticky sidebar. */}
-        <main className="min-h-[calc(100dvh-12rem)] min-w-0">{children}</main>
+            height under the sticky sidebar.
+
+            v1.4.33 F14 — `pb-24 md:pb-0` reserves a 96 px bottom gutter
+            on `<md` so the last form field on
+            `/settings/account` (Geschlecht / Gender) and
+            `/settings/ai` (Aktiver Provider) is not eaten by the
+            floating mobile bottom-nav. Desktop reverts to the parent's
+            own padding because the bottom-nav doesn't render on `md+`. */}
+        <main className="min-h-[calc(100dvh-12rem)] min-w-0 pb-24 md:pb-0">
+          {children}
+        </main>
       </div>
     </div>
   );

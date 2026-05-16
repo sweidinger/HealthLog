@@ -482,6 +482,7 @@ function IntakeImportDialog({
                   size="icon"
                   className="h-9 w-9"
                   disabled={importing}
+                  aria-label={t("common.moreOptions")}
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
@@ -505,9 +506,21 @@ function IntakeImportDialog({
               <Button
                 onClick={handleImport}
                 disabled={importing || !jsonText.trim()}
+                aria-busy={importing || undefined}
               >
-                {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}
-                <Upload className="mr-2 h-4 w-4" />
+                {/*
+                  v1.4.33 IW9 — icon swap (not append) on `importing`
+                  to keep the button width stable through the
+                  in-flight request. Pre-v1.4.33 both icons painted
+                  during loading and the button grew by ~24 px, which
+                  showed up as a CLS hit on the medications import
+                  dialog.
+                */}
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
                 {t("common.import")}
               </Button>
             </div>
@@ -720,6 +733,7 @@ function ApiEndpointDialog({
                 size="icon"
                 className="h-8 w-8 shrink-0"
                 onClick={() => copyText(endpoint, "url")}
+                aria-label={t("common.copy")}
               >
                 <Copy className="h-3.5 w-3.5" />
               </Button>
@@ -744,6 +758,7 @@ function ApiEndpointDialog({
                   size="icon"
                   className="h-8 w-8 shrink-0"
                   onClick={() => copyText(token, "token")}
+                  aria-label={t("common.copy")}
                 >
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
@@ -795,6 +810,7 @@ function ApiEndpointDialog({
                 size="icon"
                 className="absolute top-1 right-1 h-7 w-7"
                 onClick={() => copyText(selectedExample.value, "example")}
+                aria-label={t("common.copy")}
               >
                 <Copy className="h-3 w-3" />
               </Button>
@@ -821,6 +837,7 @@ function ApiEndpointDialog({
                   size="icon"
                   className="h-9 w-9"
                   disabled={loadingStatus || toggling}
+                  aria-label={t("common.moreOptions")}
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>

@@ -158,7 +158,6 @@
     "description": "Ein unerwarteter Fehler ist aufgetreten. Du kannst es erneut versuchen, die technischen Details kopieren oder einen Bug-Report öffnen."
   },
   "nav": {
-    "home": "Home",
     "dashboard": "Dashboard",
     "measurements": "Messungen",
     "medications": "Medikamente",
@@ -170,7 +169,8 @@
     "admin": "Admin-Konsole",
     "logout": "Abmelden",
     "login": "Anmelden",
-    "notifications": "Benachrichtigungen",
+    "about": "Über HealthLog",
+    "notifications": "Benachrichtigungs-Center",
     "theme": "Darstellung",
     "themeSystem": "System",
     "themeDark": "Dunkel",
@@ -259,6 +259,7 @@
     "emptyTitle": "Dein Dashboard ist leer",
     "emptyDescription": "Erfasse den ersten Messwert oder Stimmungseintrag. Kacheln und Charts erscheinen automatisch, sobald Daten vorhanden sind.",
     "emptyAddMeasurement": "Ersten Messwert erfassen",
+    "staleHint": "Letzter Wert vor {count} T.",
     "recentWorkouts": {
       "title": "Letzte Workouts",
       "viewAll": "Alle anzeigen",
@@ -866,7 +867,7 @@
     "bmiEmptyDescription": "Für den BMI wird deine Körpergröße benötigt. Hinterlege sie unter Einstellungen → Account.",
     "bmiEmptyAction": "Account-Einstellungen öffnen",
     "noAnalysisYet": "Noch keine Analyse vorhanden.",
-    "noProviderConfigured": "KI-Provider nicht konfiguriert.",
+    "noProviderConfigured": "Auswertung nicht verfügbar.",
     "startAnalysis": "Analyse starten",
     "refreshAnalysis": "Analyse aktualisieren",
     "keyTakeaway": "Das Wichtigste",
@@ -876,9 +877,6 @@
     "heroFindingAttention": "Beachten",
     "heroFindingWarning": "Wichtigster Alarm",
     "correlationsTitle": "Zusammenhänge",
-    "briefingDisabledByOperator": "Das Tagesbriefing ist auf diesem Server derzeit nicht verfügbar.",
-    "statusDisabledByOperator": "Status-Karten sind auf diesem Server derzeit nicht verfügbar.",
-    "correlationsDisabledByOperator": "Korrelations-Erzählung ist auf diesem Server derzeit nicht verfügbar.",
     "recommendationsTitle": "Empfehlungen",
     "personalRecord": {
       "badge": "PR",
@@ -1026,7 +1024,7 @@
       "refusalOutOfScope": "Ich kann nur bei den Gesundheitsdaten in deinem Log helfen — Messwerte, Medikamente, Stimmung, Trends. Fragen außerhalb dieses Themas beantworte ich nicht.",
       "refusalInjection": "In deiner Nachricht stehen Anweisungen, die meine Vorgaben überschreiben sollen. Ich bin der HealthLog-Coach und fasse ausschließlich deine eigenen Gesundheitsdaten zusammen — formuliere deine Frage bitte in diesem Rahmen neu.",
       "errorBudget": "Du hast das heutige Coach-Limit erreicht. Das Budget setzt sich um Mitternacht (UTC) zurück.",
-      "errorProvider": "Der Coach konnte gerade keinen KI-Anbieter erreichen. Bitte versuche es in einem Moment erneut.",
+      "errorProvider": "Der Coach konnte gerade keinen Auswertungs-Anbieter erreichen. Bitte versuche es in einem Moment erneut.",
       "tagline": "Persönlicher Gesundheitscoach, auf deine Daten gestützt.",
       "newChat": "Neuer Chat",
       "send": "Senden",
@@ -1035,7 +1033,6 @@
       "composerHint": "Enter zum Senden, Umschalt+Enter für eine neue Zeile.",
       "composerDisclaimer": "Coach-Antworten sind generiert. Klinische Entscheidungen gehören in die Hand deines Arztes.",
       "voiceComingSoon": "Spracheingabe kommt mit der iOS-App in v1.5.",
-      "disabledByOperator": "Der Coach ist auf diesem Server derzeit nicht verfügbar.",
       "threadEmpty": "Frag mich etwas zu deinen Trends, Medikamenten oder Messwerten, um zu starten.",
       "historyTitle": "Unterhaltungen",
       "historySearchPlaceholder": "Unterhaltungen durchsuchen…",
@@ -1165,19 +1162,19 @@
       }
     },
     "subPage": {
-      "blutdruckDescription": "Dein systolisch-/diastolisch-Verlauf mit altersangepassten Zielbereichen und einer textbasierten KI-Einschätzung.",
-      "gewichtDescription": "Gewichtsverlauf gegen das aus deiner Größe abgeleitete gesunde Band, mit KI-Einschätzung.",
-      "pulsDescription": "Ruhepuls gegenüber dem persönlichen Karvonen-Zielband, mit KI-Einschätzung.",
-      "stimmungDescription": "Tägliche Stimmungswerte im Zeitverlauf mit einer textbasierten KI-Einschätzung.",
+      "blutdruckDescription": "Dein systolisch-/diastolisch-Verlauf mit altersangepassten Zielbereichen und einer textbasierten Einschätzung.",
+      "gewichtDescription": "Gewichtsverlauf gegen das aus deiner Größe abgeleitete gesunde Band, mit Einschätzung.",
+      "pulsDescription": "Pulsverlauf gegenüber dem persönlichen Karvonen-Zielband, mit Einschätzung.",
+      "stimmungDescription": "Tägliche Stimmungswerte im Zeitverlauf mit einer textbasierten Einschätzung.",
       "stimmungEmptyTitle": "Erste Stimmung erfassen",
       "stimmungEmptyDescription": "Stimmungs-Insights erscheinen, sobald du einige Einträge protokolliert hast. Tippe unten, um zu beginnen.",
       "stimmungEmptyAction": "Stimmungs-Tagebuch öffnen",
-      "medikamenteDescription": "Einnahme-Kalender pro Medikament plus eine textbasierte KI-Einschätzung.",
+      "medikamenteDescription": "Einnahme-Kalender pro Medikament plus eine textbasierte Einschätzung.",
       "medikamenteEmptyTitle": "Erstes Medikament hinzufügen",
       "medikamenteEmptyDescription": "Adhärenz-Insights brauchen mindestens ein erfasstes Medikament.",
       "medikamenteEmptyAction": "Medikamente öffnen",
       "therapyTimelineDescription": "Chronologisches GLP-1-Therapieprotokoll — Dosis-Änderungen, Injektionen, Bestand, Nebenwirkungen.",
-      "bmiDescription": "BMI aus deinem Gewicht und deiner Größe abgeleitet, mit KI-Einschätzung."
+      "bmiDescription": "BMI aus deinem Gewicht und deiner Größe abgeleitet, mit Einschätzung."
     },
     "sleep": {
       "title": "Schlaf",
@@ -1324,6 +1321,7 @@
     "defaultLabel": "Default",
     "autoModeLabel": "Auto",
     "overrideModeLabel": "Überschrieben",
+    "overrideToggleLabel": "Eigene Werte",
     "resetAction": "Auf Default zurücksetzen",
     "resetAllAction": "Alle auf Default zurücksetzen",
     "minLabel": "Min",
@@ -1372,12 +1370,12 @@
           "body": "Über den Hinzufügen-Button kannst du Messungen oder Stimmungseinträge anlegen, ohne das Dashboard zu verlassen. Das Formular merkt sich deinen letzten Kontext und Tags."
         },
         "insights": {
-          "title": "KI-gestützte Einblicke",
-          "body": "Insights verwandelt deine Werte in eine klare Gesundheits-Zusammenfassung, mit Einordnung von Blutdruck, Gewicht und Stimmung. Eigener KI-Key oder Standard — du entscheidest."
+          "title": "Automatische Einblicke",
+          "body": "Insights verwandelt deine Werte in eine klare Gesundheits-Zusammenfassung, mit Einordnung von Blutdruck, Gewicht und Stimmung. Eigener Provider-Key oder Standard — du entscheidest."
         },
         "integrations": {
           "title": "Geräte verbinden",
-          "body": "In den Einstellungen verbindest du Withings (Auto-Sync für Gewicht, Blutdruck, Puls), moodLog oder deinen KI-Provider. Alles bleibt optional und verschlüsselt."
+          "body": "In den Einstellungen verbindest du Withings (Auto-Sync für Gewicht, Blutdruck, Puls), moodLog oder deinen Auswertungs-Provider. Alles bleibt optional und verschlüsselt."
         },
         "achievements": {
           "title": "Streaks und Badges sammeln",
@@ -1508,8 +1506,8 @@
         "description": "Withings, moodLog und weitere verbundene Dienste."
       },
       "notifications": {
-        "title": "Benachrichtigungen",
-        "description": "Zustellung pro Kanal und die Live-Übersicht der Kanalzuverlässigkeit für jeden konfigurierten Kanal."
+        "title": "Benachrichtigungs-Kanäle",
+        "description": "Live-Übersicht aller konfigurierten Kanäle."
       },
       "dashboard": {
         "title": "Dashboard",
@@ -1571,7 +1569,7 @@
         }
       },
       "ai": {
-        "title": "KI-Auswertungen",
+        "title": "Auswertungen",
         "description": "Provider, Modell, API-Key."
       },
       "api": {
@@ -1620,9 +1618,6 @@
       "about": {
         "title": "Über",
         "description": "Version, Lizenz, Links."
-      },
-      "placeholder": {
-        "coming_soon": "Wird mit dem nächsten Release-Update hierher umziehen."
       }
     },
     "profile": "Profil",
@@ -1639,7 +1634,8 @@
     "genderHint": "Wird für geschlechtsspezifische Zielwerte verwendet.",
     "timezone": "Zeitzone",
     "timezoneHint": "Wird für Diagrammachsen, Erinnerungszeiten, Export-Zeitstempel und den Coach-Kontext verwendet. Gespeicherte Daten bleiben unverändert.",
-    "timezoneDetect": "Browser-Zeitzone übernehmen ({tz})",
+    "timezoneDetect": "Browser-Zeitzone übernehmen",
+    "timezoneDetectAria": "Browser-Zeitzone {tz} übernehmen",
     "timezoneInvalid": "Keine gültige IANA-Zeitzone.",
     "profileSaved": "Profil gespeichert",
     "changePassword": "Passwort ändern",
@@ -1674,8 +1670,8 @@
     "singleDevice": "Einzelgerät",
     "multiDevice": "Multi-Gerät",
     "backedUp": "gesichert",
-    "telegram": "Telegram-Benachrichtigungen",
-    "telegramDescription": "Erhalte Erinnerungen bei vergessenen Medikamenten-Einnahmen per Telegram.",
+    "telegram": "Telegram",
+    "telegramDescription": "Medikamenten-Erinnerungen per Bot.",
     "telegramSaved": "Telegram-Einstellungen gespeichert",
     "botToken": "Bot-Token",
     "chatId": "Chat-ID",
@@ -1703,22 +1699,21 @@
     "webPushUnsubscribed": "Push-Benachrichtigungen deaktiviert.",
     "webPushSubscribeFailed": "Aktivierung fehlgeschlagen",
     "webPushActive": "Aktiv",
-    "kiInsights": "KI-Insights (OpenAI)",
-    "kiInsightsDescription": "Optional: Hinterlege deinen OpenAI-Key für tägliche, automatische KI-Auswertungen in den Insights.",
-    "codexConnected": "ChatGPT erfolgreich verbunden! KI-Insights sind jetzt aktiv.",
+    "kiInsightsDescription": "Optional: Hinterlege deinen OpenAI-Key für tägliche, automatische Auswertungen in den Insights.",
+    "codexConnected": "ChatGPT erfolgreich verbunden! Insights sind jetzt aktiv.",
     "codexDisconnected": "ChatGPT-Verbindung getrennt.",
     "codexConnectionFailed": "ChatGPT-Verbindung fehlgeschlagen. Bitte versuche es erneut.",
     "rawData": "Rohdaten mitsenden",
-    "rawDataOnDescription": "Es werden aggregierte Kennzahlen plus anonymisierte Rohdaten der letzten 30 Tage gesendet. Dazu zählen einzelne Messpunkte je Bereich (z. B. Gewicht, Blutdruck, Puls) mit Zeitbezug, damit die KI zeitliche Muster, Ausreißer und Zusammenhänge zuverlässiger erkennen kann. Nicht übertragen werden Name, E-Mail oder direkte Kontodaten.",
-    "rawDataOffDescription": "Es werden nur zusammengefasste Werte gesendet (z. B. Durchschnitt, Trend, Minimum/Maximum). Keine einzelnen Messpunkte und keine exakten Zeitbezüge. Das ist datensparsamer, die KI kann dafür aber weniger fein auf Muster und kurzfristige Schwankungen eingehen.",
-    "rawDataWarning": "Rohdaten aktiv: Die KI erhält zusätzlich anonymisierte Messpunkte der letzten 30 Tage für eine präzisere Auswertung.",
+    "rawDataOnDescription": "Es werden aggregierte Kennzahlen plus anonymisierte Rohdaten der letzten 30 Tage gesendet. Dazu zählen einzelne Messpunkte je Bereich (z. B. Gewicht, Blutdruck, Puls) mit Zeitbezug, damit der Provider zeitliche Muster, Ausreißer und Zusammenhänge zuverlässiger erkennen kann. Nicht übertragen werden Name, E-Mail oder direkte Kontodaten.",
+    "rawDataOffDescription": "Es werden nur zusammengefasste Werte gesendet (z. B. Durchschnitt, Trend, Minimum/Maximum). Keine einzelnen Messpunkte und keine exakten Zeitbezüge. Das ist datensparsamer, der Provider kann dafür aber weniger fein auf Muster und kurzfristige Schwankungen eingehen.",
+    "rawDataWarning": "Rohdaten aktiv: Der Provider erhält zusätzlich anonymisierte Messpunkte der letzten 30 Tage für eine präzisere Auswertung.",
     "regenerateInsights": "Reports neu generieren",
     "regenerateSuccess": "Reports wurden neu generiert",
     "regenerateRateLimit": "Bitte warte — du hast das stündliche Limit für Analysen erreicht.",
     "lastGeneratedAt": "Zuletzt generiert",
     "ai": {
       "chatgptConnectedBadge": "ChatGPT verbunden",
-      "adminAiActiveBadge": "Admin-KI aktiv",
+      "adminAiActiveBadge": "Admin-Provider aktiv",
       "connectionExpiredBadge": "Verbindung abgelaufen",
       "connectedSince": "Verbunden seit {when}.",
       "deviceCodeHeading": "Verbindung auf chatgpt.com abschließen",
@@ -1764,7 +1759,7 @@
         "resetConfirmTitle": "Kette auf Standard zurücksetzen?",
         "resetConfirmBody": "Die Kette wird auf Codex → OpenAI → Anthropic → Lokal → Admin-OpenAI zurückgesetzt. Gespeicherte Zugangsdaten bleiben erhalten."
       },
-      "activeProviderHeading": "Aktiver KI-Provider",
+      "activeProviderHeading": "Aktiver Provider",
       "activeProviderBody": "Wähle den Provider, der zuerst genutzt wird. Das Formular darunter konfiguriert ausschließlich den ausgewählten Provider; die Fallback-Kette unten regelt, was passiert, wenn er ausfällt.",
       "activeProviderLabel": "Primärer Provider",
       "providerConfigTitle": "Provider-Konfiguration",
@@ -1888,7 +1883,7 @@
     "saved": "Gespeichert",
     "savingError": "Fehler beim Speichern",
     "moodLogTitle": "moodLog",
-    "moodLogDescription": "Stimmungsdaten aus moodLog importieren",
+    "moodLogDescription": "Stimmungseinträge übernehmen.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "API-Key",
@@ -1897,6 +1892,7 @@
     "moodLogWebhookSecretHelp": "Dieses Secret in moodLog als Webhook-Secret eintragen",
     "moodLogSync": "Sync starten",
     "moodLogFullSync": "Voll-Sync",
+    "moodLogFullSyncConfirm": "Vollständig synchronisieren",
     "moodLogFullSyncTitle": "Vollsynchronisierung?",
     "moodLogFullSyncDescription": "Alle verfügbaren Stimmungsdaten werden vollständig synchronisiert.",
     "moodLogDisconnect": "Trennen",
@@ -1948,8 +1944,8 @@
       }
     },
     "notificationStatus": {
-      "title": "Kanalzuverlässigkeit",
-      "description": "Live-Status jedes Benachrichtigungskanals — \"Automatisch deaktiviert\" bedeutet, HealthLog hat nach einem dauerhaften Fehler aufgehört, weiterzusenden.",
+      "title": "Zustellstatus",
+      "description": "Pro Kanal aktueller Status; \"Automatisch deaktiviert\" stoppt nach dauerhaften Fehlern.",
       "emptyDescription": "Noch keine Kanäle konfiguriert. Lege unten einen Kanal an, um die Zustellung zu überwachen.",
       "stateActive": "Aktiv",
       "stateAutoDisabled": "Automatisch deaktiviert",
@@ -1991,9 +1987,9 @@
       "loadError": "Host-Metriken konnten nicht geladen werden. Bitte die Seite neu laden."
     },
     "aiQuality": {
-      "title": "KI-Qualität",
+      "title": "Auswertungs-Qualität",
       "loading": "Feedback-Zusammenfassung wird geladen...",
-      "loadError": "KI-Qualitätszusammenfassung konnte nicht geladen werden. Bitte die Seite neu laden.",
+      "loadError": "Qualitätszusammenfassung konnte nicht geladen werden. Bitte die Seite neu laden.",
       "empty": "Noch kein Feedback. Der Aggregator läuft täglich um 04:00 — sobald Nutzer Empfehlungen bewerten, erscheinen hier die Hilfreich-Quoten.",
       "windowLabel": "Letzte {days} Tage",
       "generatedAtLabel": "Erstellt",
@@ -2279,7 +2275,7 @@
         "subtitle": "Umami, GlitchTip, Web Push und Bug-Reports konfigurieren."
       },
       "ai-quality": {
-        "title": "KI-Qualität",
+        "title": "Auswertungs-Qualität",
         "subtitle": "Hilfreichkeit nach Schweregrad und Provider — Nutzer-Feedback der letzten 30 Tage."
       },
       "assistant": {
@@ -2716,12 +2712,15 @@
     "disabledBody": "Der Administrator hat Bug-Reports auf diesem Server deaktiviert."
   },
   "notifications": {
-    "title": "Benachrichtigungen",
+    "title": "Benachrichtigungs-Center",
+    "breadcrumbInbox": "Benachrichtigungs-Center",
+    "breadcrumbChannels": "Benachrichtigungs-Kanäle",
+    "breadcrumbSettings": "Einstellungen",
     "eventColumn": "Ereignis",
     "subtitle": "Wähle aus, welche Benachrichtigungen du über welchen Kanal erhalten möchtest.",
     "loadError": "Benachrichtigungseinstellungen konnten nicht geladen werden.",
     "noChannels": "Konfiguriere zuerst einen Benachrichtigungskanal in den Einstellungen.",
-    "goToSettings": "Zu den Einstellungen",
+    "goToSettings": "Zu den Kanal-Einstellungen",
     "channelDisabled": "Deaktiviert",
     "admin": {
       "deployFailedTitle": "Bereitstellung fehlgeschlagen: {application}",

@@ -338,13 +338,68 @@ export function OnboardingTour({
     height: TOOLTIP_HEIGHT,
   });
 
-  // Build a clip-path that punches out the spotlight rect from the
-  // backdrop. `evenodd` fill rule + the outer rect winding the same
-  // way means the inner rect carves a hole. If `rect` is null we
-  // skip the cutout and render a solid backdrop.
-  const clipPath = rect
-    ? `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 ${rect.top}px, ${rect.left}px ${rect.top}px, ${rect.left}px ${rect.top + rect.height}px, ${rect.left + rect.width}px ${rect.top + rect.height}px, ${rect.left + rect.width}px ${rect.top}px, 0 ${rect.top}px)`
-    : undefined;
+  // v1.4.33 F2 — onboarding overlay was a single full-viewport `<button>`
+  // with a `clip-path` punching a hole around the spotlight. The clip-path
+  // only changed PAINT — the button's hit-box still covered every pixel,
+  // so every click on the underlying page (Hinzufügen, sidebar links,
+  // header avatar) hit the dim layer and triggered Skip without forwarding
+  // the click to the real target. New users were effectively locked out.
+  //
+  // Initial fix (f9b8f3bd) split the dim into four rectangles around the
+  // spotlight with `pointer-events: auto` + an `onClick={handleSkip}` on
+  // each. That made the spotlight region click-through but kept blocking
+  // every other interactive element on the page (the header sits ABOVE
+  // the tile-strip spotlight, so the top dim strip still ate the click on
+  // the Hinzufügen dropdown — the very target the F2 audit named).
+  //
+  // The right contract: the dim is purely VISUAL. The whole tour layer is
+  // `pointer-events: none`, and only the tooltip card opts back into hit
+  // testing. Skip lives where users expect it — the explicit "Skip tour"
+  // button in the tooltip footer. The page underneath stays fully usable,
+  // matching the spotlight-tour conventions used by Joyride, Shepherd,
+  // and Intro.js. The four-panel split survives because it still serves
+  // the visual purpose of NOT dimming the spotlighted target, but the
+  // panels are now non-interactive `<div>`s without their own click
+  // handlers.
+  const backdropClass =
+    "pointer-events-none absolute bg-black/70 transition-opacity duration-150 motion-reduce:transition-none";
+  const vw = typeof window !== "undefined" ? window.innerWidth : 0;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 0;
+  const dimRects = rect
+    ? [
+        // Top strip — full width above spotlight.
+        rect.top > 0
+          ? { top: 0, left: 0, width: vw, height: rect.top }
+          : null,
+        // Bottom strip — full width below spotlight.
+        rect.top + rect.height < vh
+          ? {
+              top: rect.top + rect.height,
+              left: 0,
+              width: vw,
+              height: vh - (rect.top + rect.height),
+            }
+          : null,
+        // Left strip — only the band beside the spotlight.
+        rect.left > 0
+          ? {
+              top: rect.top,
+              left: 0,
+              width: rect.left,
+              height: rect.height,
+            }
+          : null,
+        // Right strip — only the band beside the spotlight.
+        rect.left + rect.width < vw
+          ? {
+              top: rect.top,
+              left: rect.left + rect.width,
+              width: vw - (rect.left + rect.width),
+              height: rect.height,
+            }
+          : null,
+      ].filter((r): r is { top: number; left: number; width: number; height: number } => r !== null)
+    : null;
 
   return (
     <div
@@ -352,24 +407,61 @@ export function OnboardingTour({
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-tour-title"
-      className="fixed inset-0 z-[200]"
+      // `pointer-events-none` on the root: the outer container does NOT
+      // capture clicks. Only the tooltip card opts back in via
+      // `pointer-events-auto` below. This guarantees that every pixel of
+      // the underlying page — both inside AND outside the spotlight —
+      // passes pointer events through normally; the tour is purely a
+      // visual overlay with its own self-contained controls.
+      className="pointer-events-none fixed inset-0 z-[200]"
     >
-      {/* Backdrop with cutout. `pointer-events-auto` so a click on
-          the dimmed area dismisses the tour (treated as Skip). The
-          cutout itself uses `pointer-events-none` (transparent click
-          pass-through) on the dimmed region — but to keep the click
-          contract simple we use a single backdrop with the polygon
-          clip and let any backdrop click count as Skip. The actual
-          target underneath stays inert (the tour intentionally takes
-          focus). prefers-reduced-motion users get an instant overlay
-          (no opacity transition). */}
-      <button
-        type="button"
-        aria-label={t("onboarding.tour.skip")}
-        className="focus-visible:ring-primary absolute inset-0 cursor-default bg-black/70 transition-opacity duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none"
-        style={clipPath ? { clipPath, WebkitClipPath: clipPath } : undefined}
-        onClick={handleSkip}
-      />
+      {/* Spotlight outline — purely visual ring around the highlighted
+          target. */}
+      {rect ? (
+        <div
+          aria-hidden="true"
+          data-testid="onboarding-tour-spotlight"
+          className="ring-primary/80 pointer-events-none absolute rounded-lg ring-2 ring-offset-2 ring-offset-transparent"
+          style={{
+            top: `${rect.top}px`,
+            left: `${rect.left}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`,
+          }}
+        />
+      ) : null}
+
+      {/* Dim panels — purely visual. Each panel sits OUTSIDE the spotlight
+          rect so the spotlighted target keeps its full brightness. The
+          panels are `pointer-events-none` so the page underneath stays
+          fully clickable: the user can drive the Hinzufügen dropdown,
+          sidebar links, or header avatar mid-tour and only the
+          tooltip-footer Skip / Back / Next buttons drive tour state. */}
+      {dimRects
+        ? dimRects.map((r, idx) => (
+            <div
+              key={idx}
+              aria-hidden="true"
+              data-testid="onboarding-tour-dim"
+              className={backdropClass}
+              style={{
+                top: `${r.top}px`,
+                left: `${r.left}px`,
+                width: `${r.width}px`,
+                height: `${r.height}px`,
+              }}
+            />
+          ))
+        : (
+          // Center-placement fallback — no spotlight target available.
+          // Render a single full-cover dim layer. Still purely visual:
+          // skip / back / next live on the tooltip itself.
+          <div
+            aria-hidden="true"
+            data-testid="onboarding-tour-dim"
+            className={`${backdropClass} inset-0`}
+          />
+        )}
 
       {/* Polite live region — announces the current step to screen readers. */}
       <p className="sr-only" aria-live="polite">
@@ -381,20 +473,21 @@ export function OnboardingTour({
         {t(stop.titleKey)}
       </p>
 
-      {/* Tooltip card */}
+      {/* Tooltip card — the only interactive surface in the tour.
+          `pointer-events-auto` opts back into click capture against the
+          root's `pointer-events-none`, so the card's buttons (Skip /
+          Back / Next) work while every other pixel of the overlay
+          passes clicks through to the underlying page. */}
       <div
         ref={tooltipRef}
         data-testid="onboarding-tour-tooltip"
         data-placement={tooltipPos.placement}
-        className="bg-card border-border absolute max-h-[80vh] overflow-y-auto rounded-xl border p-5 shadow-2xl"
+        className="bg-card border-border pointer-events-auto absolute max-h-[80vh] overflow-y-auto rounded-xl border p-5 shadow-2xl"
         style={{
           top: `${tooltipPos.top}px`,
           left: `${tooltipPos.left}px`,
           width: `${TOOLTIP_WIDTH}px`,
         }}
-        // Stop click propagation so a click inside the card doesn't
-        // bubble to the backdrop's Skip handler.
-        onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-start justify-between gap-3">
           <div>

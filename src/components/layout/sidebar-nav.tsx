@@ -8,6 +8,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Home,
+  Info,
   Lightbulb,
   LogOut,
   Monitor,
@@ -141,6 +142,17 @@ function SidebarUserSection({ collapsed }: { collapsed: boolean }) {
         <Link href="/notifications" className="cursor-pointer">
           <Bell className="mr-2 h-4 w-4" />
           {t("nav.notifications")}
+        </Link>
+      </DropdownMenuItem>
+      {/* v1.4.33 IW7 — "About" used to live as its own Settings
+          section but the three small cards inside (identity / links /
+          update check) collectively get read once or twice a year, so
+          the top-level slot has been collapsed into this dropdown. The
+          route stays alive at `/settings/about`. */}
+      <DropdownMenuItem asChild>
+        <Link href="/settings/about" className="cursor-pointer">
+          <Info className="mr-2 h-4 w-4" />
+          {t("nav.about")}
         </Link>
       </DropdownMenuItem>
       <DropdownMenuSub>
@@ -341,13 +353,15 @@ export function SidebarNav() {
               {renderCollapseToggle()}
             </div>
           ) : (
-            <div className="relative mb-1">
-              <p className="text-foreground/75 px-3 text-xs font-semibold tracking-wider uppercase">
-                {t("nav.home")}
-              </p>
-              <div className="absolute top-1/2 -right-1 -translate-y-1/2">
-                {renderCollapseToggle()}
-              </div>
+            // v1.4.33 IW7 — drop the "Home" group label. The sidebar
+            // has exactly one nav group, and the first entry is
+            // already "Dashboard" pointing to `/`, so the previous
+            // "HOME / Dashboard" pairing read as if there were two
+            // separate destinations for the homepage. The collapse
+            // toggle stays anchored to the top-right of the strip so
+            // the visual rhythm of the sidebar header is unchanged.
+            <div className="relative mb-1 flex h-5 items-center justify-end">
+              {renderCollapseToggle()}
             </div>
           )}
           <div className="space-y-1">
