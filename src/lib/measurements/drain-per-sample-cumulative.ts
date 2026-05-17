@@ -40,6 +40,20 @@ import {
   hkIdentifierForType,
 } from "./apple-health-mapping";
 
+/**
+ * v1.4.38 — canonical cutoff for the nightly scheduled drain. Rows
+ * whose `measuredAt` is newer than `now() - DRAIN_CUMULATIVE_CUTOFF_HOURS`
+ * are excluded so today's still-in-flight Apple Watch syncs stay as
+ * per-sample rows in the user's "today" view. 36 hours covers the
+ * previous calendar day plus a generous trailing sync window for
+ * watches that weren't worn at midnight. The CLI and the admin route
+ * import the constant for visibility but deliberately pass `undefined`
+ * by default so an explicit one-shot drain collapses every row the
+ * operator points it at; pass the constant explicitly when mirroring
+ * the nightly behaviour from an interactive shell.
+ */
+export const DRAIN_CUMULATIVE_CUTOFF_HOURS = 36;
+
 /** Per-(user, type, day) action summary. */
 export interface DrainBucket {
   userId: string;
@@ -296,6 +310,13 @@ export async function drainPerSampleCumulative(
     const tz = user.timezone && user.timezone.length > 0 ? user.timezone : "Europe/Berlin";
     log(`[drain] user=${user.id} tz=${tz}${dryRun ? " (dry-run)" : ""}`);
 
+    // v1.4.38 — per-user counters that mirror the existing aggregate
+    // totals. Lets the per-user COMPLETE log line carry useful
+    // numbers without re-walking the summary list later.
+    const beforeBucketsCollapsed = summary.totals.bucketsCollapsed;
+    const beforePerSampleDeleted = summary.totals.perSampleRowsDeleted;
+    const beforeDailyUpserted = summary.totals.dailyRowsUpserted;
+
     for (const type of CUMULATIVE_HK_TYPES) {
       const hkIdentifier = hkIdentifierForType(type);
       if (!hkIdentifier) continue;
@@ -403,6 +424,22 @@ export async function drainPerSampleCumulative(
         }
       }
     }
+
+    // v1.4.38 — per-user COMPLETE log line. Mirrors the START line on
+    // line 311 so an operator scanning the worker log can pair
+    // "drain started for user X" with "drain finished for user X"
+    // without scrolling through every per-type bucket. Counts are
+    // computed as the delta against the snapshot taken before the
+    // per-type loop started.
+    const userBucketsCollapsed =
+      summary.totals.bucketsCollapsed - beforeBucketsCollapsed;
+    const userPerSampleDeleted =
+      summary.totals.perSampleRowsDeleted - beforePerSampleDeleted;
+    const userDailyUpserted =
+      summary.totals.dailyRowsUpserted - beforeDailyUpserted;
+    log(
+      `[drain] user=${user.id} complete bucketsCollapsed=${userBucketsCollapsed} perSampleRowsDeleted=${userPerSampleDeleted} dailyRowsUpserted=${userDailyUpserted}${dryRun ? " (dry-run)" : ""}`,
+    );
   }
 
   log(

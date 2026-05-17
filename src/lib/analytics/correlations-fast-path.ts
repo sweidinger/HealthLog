@@ -57,7 +57,7 @@ import {
   correlateWeightWeekday,
   type CorrelationResult,
 } from "@/lib/insights/correlations";
-import { userDayKey } from "@/lib/tz/resolver";
+import { isNearUtc, userDayKey } from "@/lib/tz/resolver";
 
 /**
  * v1.4.37 W2 — cold-path correlation window. Trim from 30 to 28 days
@@ -95,6 +95,13 @@ export interface CorrelationHypothesesResult {
    * Today this is always `false`: the 28-day window is the canonical
    * surface. Reserved for a future "best-effort under load shedding"
    * branch.
+   *
+   * TODO(v1.5): wire this through when the load-shedding branch
+   * lands (pool-pressure detector + shorter window fallback). Until
+   * then the field is pinned to `false` by both branches and the
+   * `meta.correlations.degraded` annotate carries the same value;
+   * downstream consumers can already key on the field shape without
+   * the load-shedding signal being live.
    */
   degraded: boolean;
   /** Window the runner actually scanned, in days. */
@@ -119,12 +126,27 @@ export async function computeCorrelationHypothesesFastPath(
 
   const coverage = input.coverage ?? (await probeRollupCoverage(userId));
 
+  // v1.4.38 W-A — cross-tz runtime guard. The rollup table buckets at
+  // UTC midnight, while the per-event mood / intake streams below are
+  // re-keyed via `userDayKey(..., userTz)`. For a user inside the +-3h
+  // band around UTC (Europe + western Mid-Atlantic), the two keying
+  // schemes line up on the same calendar day. Outside that band the
+  // pairing slips by a day and the Pearson / ANOVA inputs miscorrelate.
+  // The cheap fix: when the user is non-near-UTC, force the live path
+  // so the SYS / PULSE / WEIGHT per-day means are re-keyed via the same
+  // `userDayKey(measuredAt, userTz)` helper the mood / intake streams
+  // use, guaranteeing day-key parity. A v1.5 follow-up will thread
+  // `userTz` into `readRollupBuckets` so the rollup path also addresses
+  // local-day buckets and this guard can come back down.
+  const userNearUtc = isNearUtc(userTz, now);
+
   // The three measurement-derived streams ride the rollup-fast-path
   // only when EVERY type the user has logged is covered AND each of
   // SYS / PULSE / WEIGHT is in the coverage map. Partial coverage
   // falls back to the live path so a brand-new metric type doesn't
   // make the correlation card vanish.
   const measurementsOnRollups =
+    userNearUtc &&
     isFullyCovered(coverage) &&
     coverage.get("BLOOD_PRESSURE_SYS") === true &&
     coverage.get("PULSE") === true &&
@@ -295,6 +317,10 @@ export async function computeCorrelationHypothesesFastPath(
         path: measurementsOnRollups ? "rollup" : "live",
         window_days: CORRELATION_WINDOW_DAYS,
         degraded: false,
+        // v1.4.38 W-A — surfaces the cross-tz guard decision so ops
+        // logs can distinguish "user is Berlin, rollup path eligible"
+        // from "user is Honolulu, forced to live regardless of coverage".
+        tz_guard: userNearUtc ? "near-utc" : "non-utc-live-fallback",
       },
     },
   });

@@ -83,12 +83,21 @@ export const GET = apiHandler(async (request?: Request) => {
   // mount, and the Coach drawer all hit this endpoint within seconds
   // of each other; the 60s TTL converts the 7.99s combined dashboard
   // wait to a Map lookup on every subsequent caller.
-  const body = await cached(
+  const cachedBody = await cached(
     caches.analytics as ServerCache<Awaited<ReturnType<typeof buildAnalyticsResponse>>>,
     `${user.id}|default`,
     () => buildAnalyticsResponse(user),
     annotate,
   );
+
+  // v1.4.38 — `lastSeenByType` lives inside the cached envelope as
+  // `{ lastSeenAt }` only; derive the `daysAgo` caption per call so
+  // the staleness label updates correctly across day boundaries.
+  // The cache TTL is 60s, but the day boundary it can straddle would
+  // otherwise leave the cached `daysAgo` off by one until the next
+  // refresh. Re-deriving on read is a single Date subtraction per
+  // type and stays on the hot path's Map-lookup side of the cache.
+  const body = enrichLastSeenDaysAgo(cachedBody);
 
   const response = apiSuccess(body);
   // v1.4.34 IW-B — bfcache-friendly directive so back-forward navigation
@@ -103,6 +112,44 @@ export const GET = apiHandler(async (request?: Request) => {
 });
 
 type AuthedUser = Awaited<ReturnType<typeof requireAuth>>["user"];
+
+/**
+ * v1.4.38 — derive `daysAgo` from the cached `lastSeenAt` ISO string
+ * per request. The cached envelope deliberately omits `daysAgo` so
+ * the dashboard tile staleness caption stays correct across day
+ * boundaries even when the body has been sitting in the 60s LRU.
+ *
+ * Returns a shallow-copied envelope with the enriched
+ * `lastSeenByType` map; everything else is passed through unchanged.
+ */
+function enrichLastSeenDaysAgo<
+  T extends {
+    lastSeenByType: Record<string, { lastSeenAt: string } | null>;
+  },
+>(
+  body: T,
+): Omit<T, "lastSeenByType"> & {
+  lastSeenByType: Record<
+    string,
+    { lastSeenAt: string; daysAgo: number } | null
+  >;
+} {
+  const nowMs = Date.now();
+  const enriched: Record<
+    string,
+    { lastSeenAt: string; daysAgo: number } | null
+  > = {};
+  for (const [type, slot] of Object.entries(body.lastSeenByType)) {
+    if (slot === null) {
+      enriched[type] = null;
+      continue;
+    }
+    const lastMs = new Date(slot.lastSeenAt).getTime();
+    const daysAgo = Math.floor((nowMs - lastMs) / (24 * 60 * 60 * 1000));
+    enriched[type] = { lastSeenAt: slot.lastSeenAt, daysAgo };
+  }
+  return { ...body, lastSeenByType: enriched };
+}
 
 /**
  * v1.4.34 IW-G — the heavy default-slice body, lifted out of the route
@@ -163,13 +210,15 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // tiles whose latest reading is older than a week. The series read
   // already orders ascending (`fetchMeasurementSeriesChunked`'s stable
   // `(measuredAt, id)` order); the last entry is the freshest sample.
-  // Surface as ISO + a server-computed `daysAgo` so the client never
-  // has to do tz-aware date math to colour the tile.
-  const nowForStaleness = new Date();
-  const lastSeenByType: Record<string, {
-    lastSeenAt: string;
-    daysAgo: number;
-  } | null> = {};
+  //
+  // v1.4.38 — the cached body now carries only `lastSeenAt` (ISO);
+  // `daysAgo` is derived in the GET wrapper per call. Storing the
+  // computed delta inside the cache let the value stale across day
+  // boundaries (60s TTL straddling midnight could surface a "vor 3d"
+  // caption that should read "vor 4d"). The ISO timestamp does not
+  // age, so re-deriving on read costs nothing and pins the caption
+  // to the real wall-clock at every request.
+  const lastSeenByType: Record<string, { lastSeenAt: string } | null> = {};
 
   let totalRowsReadForAggregate = 0;
   const measurementsByType = await Promise.all(
@@ -184,13 +233,8 @@ async function buildAnalyticsResponse(user: AuthedUser) {
         // most-recent point without an extra pass.
         const latest = measurements.at(-1);
         if (latest) {
-          const daysAgo = Math.floor(
-            (nowForStaleness.getTime() - latest.measuredAt.getTime()) /
-              (24 * 60 * 60 * 1000),
-          );
           lastSeenByType[type] = {
             lastSeenAt: latest.measuredAt.toISOString(),
-            daysAgo,
           };
         } else {
           lastSeenByType[type] = null;
@@ -309,6 +353,15 @@ async function buildAnalyticsResponse(user: AuthedUser) {
    */
   let bpInTargetPctPriorMonth: number | null = null;
   let bpInTargetPctPriorYear: number | null = null;
+  /**
+   * v1.4.38 — prior-week BP-in-target pct so the Health-Score
+   * week-over-week delta reflects BP movement. Pre-v1.4.38 the
+   * Health-Score helper pinned both windows to the same value, so the
+   * BP pillar always zeroed out of the delta. Computed by running a
+   * second `computeBpInTargetFastPath` against `now - 7d` and reading
+   * the resulting `last30Days.pct`.
+   */
+  let bpInTargetPctPriorWeek: number | null = null;
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
     const now = new Date();
@@ -323,18 +376,43 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     // a `path: "rollup" | "live"` annotate so prod logs prove which
     // branch fired. See `bp-in-target-fast-path.ts` for the
     // documented per-day-mean approximation.
-    const windows = await computeBpInTargetFastPath({
-      userId: user.id,
-      targets: bpTargets,
-      now,
-      coverage,
-    });
+    //
+    // v1.4.38 — two parallel runs: one anchored at `now` for the
+    // standard windows, one anchored at `now - 7d` so the Health-Score
+    // helper has a real prior-week BP pct to feed into its previous-
+    // window snapshot. The two probes share the coverage map and the
+    // same rollup / live branch decision; the extra call is one extra
+    // pair of `readRollupBuckets` reads on the rollup path and is a
+    // no-op when the user has no BP rows at all.
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const [windows, windowsPriorWeek] = await Promise.all([
+      computeBpInTargetFastPath({
+        userId: user.id,
+        targets: bpTargets,
+        now,
+        coverage,
+        // v1.4.38 W-A — cross-tz runtime guard. The helper falls back
+        // to the live SQL path when the user is more than 3 hours
+        // from UTC, where the rollup table's UTC-midnight day-key
+        // would slip a calendar day relative to the live aggregator's
+        // window cuts.
+        userTz,
+      }),
+      computeBpInTargetFastPath({
+        userId: user.id,
+        targets: bpTargets,
+        now: sevenDaysAgo,
+        coverage,
+        userTz,
+      }),
+    ]);
     bpInTargetPct = windows.last30Days?.pct ?? null;
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
+    bpInTargetPctPriorWeek = windowsPriorWeek.last30Days?.pct ?? null;
   }
 
   // Per-context glucose summaries (canonical mg/dL).
@@ -394,6 +472,12 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   const healthScore = await computeUserHealthScoreFastPath({
     userId: user.id,
     bpInTargetPct,
+    // v1.4.38 — feed the prior-week BP pct into the Health-Score
+    // helper's previous-window snapshot so the week-over-week delta
+    // reflects BP movement instead of zeroing out of the BP pillar.
+    // Computed alongside the current windows via a second
+    // `computeBpInTargetFastPath` run anchored at `now - 7d`.
+    bpInTargetPctPriorWeek,
     heightCm: user.heightCm ?? null,
     now: new Date(),
     coverage,
