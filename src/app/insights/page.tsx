@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Loader2, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
@@ -158,7 +158,16 @@ export default function InsightsPage() {
   const coachLaunch = useCoachLaunch();
   const flags = useFeatureFlags();
 
-  const { data, isLoading } = useQuery({
+  // v1.4.36 W1 — drop the page-level `isLoading` gate that used to
+  // block the entire shell on `/api/insights/comprehensive`. The
+  // comprehensive payload still feeds the empty-state decision but
+  // every other section now mounts in parallel under its own
+  // <Suspense> boundary, so the user sees the hero + tile skeletons
+  // within ~500 ms instead of waiting on the slowest fan-out. The
+  // empty-state branch only fires once the query has resolved AND
+  // reported zero measurements; while it's in-flight the page paints
+  // the regular shell and the tiles fill in as their data lands.
+  const { data, isLoading, isFetched } = useQuery({
     queryKey: ["insights", "comprehensive"],
     queryFn: async () => {
       const res = await fetch("/api/insights/comprehensive");
@@ -181,15 +190,11 @@ export default function InsightsPage() {
   const analyticsQuery = useAnalyticsQuery();
   const analytics = analyticsQuery.data as AnalyticsData | undefined;
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
-      </div>
-    );
-  }
-
-  if (!data) {
+  // Empty-state shortcut — only paint once the comprehensive query has
+  // resolved AND reported zero measurements. While it's in-flight we
+  // fall through to the streamed shell so the user gets the hero +
+  // skeleton tiles inside the first paint budget.
+  if (!isLoading && isFetched && !data) {
     return (
       <EmptyState
         icon={<TrendingUp className="size-6" />}
@@ -212,6 +217,19 @@ export default function InsightsPage() {
       : null;
   const briefingPayload = advisor.payload?.dailyBriefing ?? null;
   const heroStripUpdatedAt = advisor.payload?.cachedAt ?? null;
+
+  // v1.4.36 QA C2 — no `<Suspense>` wrappers below. The mother page is
+  // `"use client"`, the below-the-fold blocks load via `next/dynamic`
+  // with `{ ssr: false }` (no Promise-throw on hydrate), and the
+  // TanStack Query hooks each return their own loading state without
+  // ever throwing a thenable. Wrapping these in `<Suspense>` would be
+  // dead code — Suspense never engages and the `loading` props inside
+  // each section already drive the skeleton. The perceptual win we
+  // ship is "early-skeleton paint": the page-level `isLoading` gate is
+  // gone, the hero + each section's own loader skeleton paints inside
+  // the first paint budget while data fills in. Genuinely streamed
+  // server children would require a Server-Component refactor; that's
+  // a v1.5.x track.
 
   return (
     <div className="space-y-8">
@@ -246,7 +264,10 @@ export default function InsightsPage() {
         <CorrelationRow results={analytics.correlations} />
       )}
 
-      <TrendsRow annotations={advisor.payload?.trendAnnotations ?? null} />
+      <TrendsRow
+        annotations={advisor.payload?.trendAnnotations ?? null}
+        loading={advisor.isLoading || advisor.isRegenerating}
+      />
     </div>
   );
 }

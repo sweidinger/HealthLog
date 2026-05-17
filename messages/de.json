@@ -695,6 +695,20 @@
     "sourceApi": "Externe API",
     "sourceReminder": "Telegram / Erinnerung",
     "sourceImport": "CSV-Import",
+    "intakeHistoryEmptyTitle": "Noch keine Einnahmen erfasst",
+    "intakeHistoryEmptyDescription": "Trage eine Einnahme auf der Tagesübersicht ein, um den Verlauf aufzubauen.",
+    "intakeHistoryEmptyAction": "Zur Tagesübersicht",
+    "intakeHistoryColTaken": "Eingenommen",
+    "intakeHistoryColScheduled": "Geplant",
+    "intakeHistoryColStatus": "Status",
+    "intakeHistoryColSource": "Quelle",
+    "intakeHistoryStatusTaken": "Eingenommen",
+    "intakeHistoryStatusSkipped": "Übersprungen",
+    "intakeHistorySortByTaken": "Nach Einnahme-Zeitpunkt sortieren",
+    "intakeHistorySortByScheduled": "Nach geplantem Zeitpunkt sortieren",
+    "intakeHistoryPageInfo": "Seite {page} von {total} · {count} Einträge",
+    "intakeHistoryPrev": "Zurück",
+    "intakeHistoryNext": "Weiter",
     "unitDrops": "Tropfen",
     "unitTablets": "Tablette(n)",
     "unitCapsules": "Kapsel(n)",
@@ -1004,7 +1018,8 @@
       "emptyMood": "Mehr Daten nötig, um diesen Trend zu kommentieren.",
       "confidenceHigh": "Hohe Konfidenz",
       "confidenceModerate": "Mittlere Konfidenz",
-      "confidenceLow": "Geringe Konfidenz"
+      "confidenceLow": "Geringe Konfidenz",
+      "pendingLabel": "Trend-Kommentar wird generiert"
     },
     "correlationRow": {
       "title": "Zusammenhänge",
@@ -1066,7 +1081,9 @@
         "flights": "Stockwerke",
         "distance": "Strecke",
         "vo2_max": "VO₂ max",
-        "body_temp": "Körpertemperatur"
+        "body_temp": "Körpertemperatur",
+        "medications": "Medikamente",
+        "anthropometrics": "Profil (Größe, Alter, Geschlecht)"
       },
       "window": {
         "last7days": "letzte 7 Tage",
@@ -1089,6 +1106,8 @@
       "settingsVerbosityDetailed": "Ausführlich",
       "settingsExcludeLabel": "Metriken ausschließen",
       "settingsExcludeHint": "Der Coach sieht keine Daten der ausgewählten Metriken.",
+      "settingsContextLabel": "Kontext mitschicken",
+      "settingsContextHint": "Optionale Blöcke, auf die sich der Coach stützen kann. Schalte einen ab, wird der Block in jeder Antwort weggelassen.",
       "settingsEvidenceLabel": "Belege standardmäßig zeigen",
       "settingsEvidenceHint": "Die Belege-Box unter jeder Antwort automatisch öffnen.",
       "settingsDefaultWindowLabel": "Standard-Analysezeitraum",
@@ -1921,19 +1940,13 @@
       "version": "App-Version",
       "gitSha": "Build",
       "builtAt": "Erstellt {time}",
+      "builtAtLabel": "Erstellt",
       "license": "Lizenz",
       "repository": "Quellcode",
       "changelog": "Changelog",
       "docs": "Dokumentation",
       "linksHeading": "Quellen & Dokumentation",
-      "updatesHeading": "Updates",
-      "checkUpdates": "Jetzt prüfen",
-      "checking": "Prüfe…",
-      "lastChecked": "Zuletzt geprüft: {time}",
-      "lastCheckedNever": "Noch nicht geprüft",
-      "upToDate": "Du nutzt die aktuelle Version",
-      "newerAvailable": "Neue Version: {tag}",
-      "checkFailed": "Konnte GitHub nicht erreichen — versuche es später erneut"
+      "newerAvailable": "Neue Version: {tag}"
     },
     "testConnection": {
       "test": "Verbindung testen",
@@ -2419,10 +2432,15 @@
       "danger-zone": {
         "title": "Gefahrenzone",
         "subtitle": "Destruktive systemweite Operationen."
+      },
+      "about": {
+        "title": "Über",
+        "subtitle": "Version, Lizenz, Quellcode und Update-Prüfung."
       }
     },
     "carrier": "Anbieter",
-    "carrierUnknown": "Unbekannter Anbieter"
+    "carrierUnknown": "Unbekannter Anbieter",
+    "carrierUnavailableGeoFallback": "{location} — Anbieter nicht verfügbar"
   },
   "achievements": {
     "title": "Erfolge",

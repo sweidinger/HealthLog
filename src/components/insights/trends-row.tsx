@@ -4,10 +4,11 @@ import dynamic from "next/dynamic";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
-import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
+import { HealthChartDynamicMini } from "@/components/charts/health-chart-dynamic";
 import {
   TrendAnnotation,
   type TrendAnnotationConfidenceBand,
+  type TrendAnnotationStatus,
 } from "./trend-annotation";
 
 /**
@@ -32,7 +33,7 @@ const MoodChart = dynamic(
     import("@/components/charts/mood-chart").then((mod) => ({
       default: mod.MoodChart,
     })),
-  { ssr: false, loading: () => <ChartSkeleton /> },
+  { ssr: false, loading: () => <ChartSkeleton mini /> },
 );
 
 interface TrendsRowProps {
@@ -56,15 +57,35 @@ interface TrendsRowProps {
     weight?: TrendAnnotationConfidenceBand;
     mood?: TrendAnnotationConfidenceBand;
   };
+  /**
+   * v1.4.36 W2 T3 — advisor query / mutation in flight. When true,
+   * every per-metric annotation slot paints a pending shimmer instead
+   * of the "Mehr Daten nötig" empty hint. Resolves the recurring
+   * complaint where the empty hint flashed across all three metrics
+   * while the advisor was generating fresh annotations.
+   */
+  loading?: boolean;
 }
 
-export function TrendsRow({ annotations, confidence }: TrendsRowProps) {
+export function TrendsRow({
+  annotations,
+  confidence,
+  loading = false,
+}: TrendsRowProps) {
   const { t } = useTranslations();
   const { user } = useAuth();
   const userTimezone = user?.timezone;
   const bpAnnotation = annotations?.bp ?? null;
   const weightAnnotation = annotations?.weight ?? null;
   const moodAnnotation = annotations?.mood ?? null;
+  // v1.4.36 W2 T3 — derive the tri-state status per metric from the
+  // advisor's loading flag + the annotation presence. Pending wins
+  // over needs_data so a mid-generation regenerate doesn't flash the
+  // empty hint between the spinner and the new prose.
+  const statusFor = (annotation: string | null): TrendAnnotationStatus => {
+    if (loading) return "pending";
+    return annotation ? "generated" : "needs_data";
+  };
 
   return (
     <section
@@ -117,8 +138,8 @@ export function TrendsRow({ annotations, confidence }: TrendsRowProps) {
               wrapper (which carries a heavier shell on a default
               shadcn Card) lines up with the BP/weight tiles' lighter
               shell. Both chart types ship the same data-slot now. */}
-          <div data-slot="trends-row-chart-slot" className="shrink-0">
-            <HealthChartDynamic
+          <div data-slot="trends-row-chart-slot" className="h-[140px] shrink-0">
+            <HealthChartDynamicMini
               types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
               title={t("charts.bloodPressure")}
               colors={["#ff79c6", "#8be9fd"]}
@@ -132,6 +153,7 @@ export function TrendsRow({ annotations, confidence }: TrendsRowProps) {
             metric="bp"
             annotation={bpAnnotation}
             confidence={confidence?.bp}
+            status={statusFor(bpAnnotation)}
           />
         </div>
         <div
@@ -139,8 +161,8 @@ export function TrendsRow({ annotations, confidence }: TrendsRowProps) {
           data-metric="weight"
           className="flex h-full flex-col gap-2 md:min-h-[300px]"
         >
-          <div data-slot="trends-row-chart-slot" className="shrink-0">
-            <HealthChartDynamic
+          <div data-slot="trends-row-chart-slot" className="h-[140px] shrink-0">
+            <HealthChartDynamicMini
               types={["WEIGHT"]}
               title={t("charts.weight")}
               colors={["#bd93f9"]}
@@ -153,6 +175,7 @@ export function TrendsRow({ annotations, confidence }: TrendsRowProps) {
             metric="weight"
             annotation={weightAnnotation}
             confidence={confidence?.weight}
+            status={statusFor(weightAnnotation)}
           />
         </div>
         <div
@@ -160,7 +183,7 @@ export function TrendsRow({ annotations, confidence }: TrendsRowProps) {
           data-metric="mood"
           className="flex h-full flex-col gap-2 md:min-h-[300px]"
         >
-          <div data-slot="trends-row-chart-slot" className="shrink-0">
+          <div data-slot="trends-row-chart-slot" className="h-[140px] shrink-0">
             <MoodChart
               title={t("charts.mood")}
               mini
@@ -171,6 +194,7 @@ export function TrendsRow({ annotations, confidence }: TrendsRowProps) {
             metric="mood"
             annotation={moodAnnotation}
             confidence={confidence?.mood}
+            status={statusFor(moodAnnotation)}
           />
         </div>
       </div>

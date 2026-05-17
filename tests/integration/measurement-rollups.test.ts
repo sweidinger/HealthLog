@@ -630,4 +630,196 @@ describe("measurement rollups — integration", () => {
 
     vi.mocked(getGlobalBoss).mockReturnValue(null as never);
   });
+
+  // ─── v1.4.36 rollup-fresh skip-live contract ──────────────────
+  //
+  // The v1.4.35 read-swap kept the heavy live aggregate running in
+  // parallel with the rollup read. v1.4.36 drops that — when the
+  // rollup table has DAY buckets for the user, the heavy aggregate
+  // is bypassed entirely. This test pins that the rollup-derived
+  // response is still byte-identical to a parallel live aggregate
+  // over the same rows AND that the response shape matches the
+  // pre-swap contract for every field.
+
+  it("rollup-fresh response matches live SQL for every DataSummary field", async () => {
+    const prisma = getPrismaClient();
+    const user = await prisma.user.create({
+      data: {
+        username: "rollup-skip-live-user",
+        email: "rollup-skip-live@example.test",
+        role: "USER",
+      },
+    });
+
+    // 60 readings over 30 days, two types, deliberately spread so
+    // anomalies + slopes + windowed avgs all have signal.
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const seedRows: Array<{
+      userId: string;
+      type: "WEIGHT" | "PULSE";
+      value: number;
+      unit: string;
+      source: "MANUAL";
+      measuredAt: Date;
+    }> = [];
+    for (let day = 0; day < 30; day++) {
+      seedRows.push({
+        userId: user.id,
+        type: "WEIGHT",
+        value: 80 + day * 0.05 + ((day * 7) % 5) * 0.1,
+        unit: "kg",
+        source: "MANUAL",
+        measuredAt: new Date(now - (29 - day) * dayMs - day * 60 * 1000),
+      });
+      seedRows.push({
+        userId: user.id,
+        type: "PULSE",
+        value: 65 + ((day * 3) % 11) * 0.4,
+        unit: "bpm",
+        source: "MANUAL",
+        measuredAt: new Date(now - (29 - day) * dayMs - day * 90 * 1000),
+      });
+    }
+    await prisma.measurement.createMany({ data: seedRows });
+
+    // Pre-fold the rollup buckets so the rollup-fresh path engages.
+    await recomputeUserRollups(user.id, { granularities: ["DAY"] });
+
+    // Parallel live aggregation over the same 90-day window using the
+    // exact heavy-aggregate shape the cold-mount fallback runs.
+    const ninetyDaysAgo = new Date(now - 90 * dayMs);
+    const live = await prisma.$queryRaw<
+      Array<{
+        type: string;
+        count: bigint;
+        min_value: number;
+        max_value: number;
+        mean_value: number;
+      }>
+    >`
+      SELECT
+        m."type"::text                              AS type,
+        COUNT(*)                                    AS count,
+        MIN(m."value")::double precision            AS min_value,
+        MAX(m."value")::double precision            AS max_value,
+        AVG(m."value")::double precision            AS mean_value
+      FROM measurements m
+      WHERE m."user_id" = ${user.id}
+        AND m."measured_at" >= ${ninetyDaysAgo}
+      GROUP BY m."type"
+    `;
+
+    const aggregate = await buildComprehensiveAggregate(user.id);
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    expect(live.length).toBeGreaterThan(0);
+    for (const liveRow of live) {
+      const summary = aggregate.summaries[liveRow.type];
+      expect(summary, `summary for ${liveRow.type}`).toBeDefined();
+      // count / min / max / mean compose from buckets — byte-identical
+      // to live SQL over the same rows.
+      expect(summary.count).toBe(Number(liveRow.count));
+      expect(summary.min).toBe(round2(liveRow.min_value));
+      expect(summary.max).toBe(round2(liveRow.max_value));
+      expect(summary.mean).toBe(round2(liveRow.mean_value));
+      // Narrow aggregate fills the non-composable windowed columns.
+      // Slope tuples and avg7/avg30 are sourced from live SQL even on
+      // the rollup-fresh path so the values are present (not null) as
+      // long as the windowed avg has rows to chew on.
+      expect(summary.avg30).not.toBeNull();
+      // Latest reading comes from the DISTINCT ON pass — never null
+      // when the user has rows for the type.
+      expect(summary.latest).not.toBeNull();
+    }
+  });
+
+  it("falls back to the live aggregate for a type without rollup coverage", async () => {
+    // v1.4.36 QA C1 — pre-fix the global rollup probe flipped to true
+    // as soon as ANY type had a DAY bucket, which made the comprehensive
+    // response collapse a brand-new type's all-time count to whatever
+    // the bucket-derived path could see (often 1 — the freshly-written
+    // bucket). This guards the per-type probe so adding a first WEIGHT
+    // measurement to a BP-rolled-up account doesn't truncate the WEIGHT
+    // summary.
+    const prisma = getPrismaClient();
+    const user = await prisma.user.create({
+      data: {
+        username: "rollup-coverage-mix",
+        email: "rollup-coverage-mix@example.test",
+        role: "USER",
+      },
+    });
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    // Seed BP — multiple days within the 90-day window so the rollup
+    // path has something to compose against.
+    const bpRows = [];
+    for (let day = 0; day < 10; day += 1) {
+      bpRows.push({
+        userId: user.id,
+        type: "BLOOD_PRESSURE_SYS" as const,
+        value: 120 + day,
+        unit: "mmHg",
+        source: "MANUAL" as const,
+        measuredAt: new Date(now - day * dayMs),
+      });
+    }
+    await prisma.measurement.createMany({ data: bpRows });
+
+    // Pre-fold BP DAY buckets only. WEIGHT will be added below WITHOUT
+    // a populator pass so its coverage probe returns false.
+    await recomputeUserRollups(user.id, {
+      granularities: ["DAY"],
+      types: ["BLOOD_PRESSURE_SYS"],
+    });
+
+    // Insert WEIGHT measurements directly via Prisma — no rollup
+    // populator runs, no DAY bucket exists for WEIGHT.
+    const weightRows = [];
+    for (let day = 0; day < 5; day += 1) {
+      weightRows.push({
+        userId: user.id,
+        type: "WEIGHT" as const,
+        value: 80 + day,
+        unit: "kg",
+        source: "MANUAL" as const,
+        measuredAt: new Date(now - day * dayMs - 1000),
+      });
+    }
+    await prisma.measurement.createMany({ data: weightRows });
+
+    // Confirm setup: BP has rollups, WEIGHT does not.
+    const bpRollups = await prisma.measurementRollup.count({
+      where: { userId: user.id, type: "BLOOD_PRESSURE_SYS", granularity: "DAY" },
+    });
+    const weightRollups = await prisma.measurementRollup.count({
+      where: { userId: user.id, type: "WEIGHT", granularity: "DAY" },
+    });
+    expect(bpRollups).toBeGreaterThan(0);
+    expect(weightRollups).toBe(0);
+
+    const aggregate = await buildComprehensiveAggregate(user.id);
+
+    // Parallel live SQL — the contract is that the aggregator surfaces
+    // a WEIGHT summary whose count matches the actual measurement
+    // count, not zero (pre-fix) and not a bucket-derived partial.
+    const liveCounts = await prisma.$queryRaw<
+      Array<{ type: string; count: bigint }>
+    >`
+      SELECT m."type"::text AS type, COUNT(*) AS count
+      FROM measurements m
+      WHERE m."user_id" = ${user.id}
+        AND m."type" = 'WEIGHT'
+      GROUP BY m."type"
+    `;
+    expect(liveCounts).toHaveLength(1);
+    const expectedWeightCount = Number(liveCounts[0].count);
+
+    expect(aggregate.summaries.WEIGHT).toBeDefined();
+    expect(aggregate.summaries.WEIGHT.count).toBe(expectedWeightCount);
+    expect(aggregate.summaries.BLOOD_PRESSURE_SYS).toBeDefined();
+  });
 });

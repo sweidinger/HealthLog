@@ -29,9 +29,37 @@ import type {
 } from "@/generated/prisma/client";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
+import type { SourcePriorityMetricKey } from "@/lib/validations/source-priority";
 import { ensureUserRollupsFresh } from "@/lib/measurements/rollups";
+import {
+  isCumulativeDaySumType,
+  pickCumulativeDaySum,
+} from "@/lib/measurements/cumulative-day-sum";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * v1.4.36 W4c — cumulative MeasurementType → SourcePriorityMetricKey
+ * for `pickCanonicalSourceRows`. Returns `null` for types without a
+ * dedicated priority ladder (e.g. TIME_IN_DAYLIGHT), which fall
+ * through the picker's "no ladder" pass-through branch.
+ */
+function cumulativeMetricKey(
+  type: MeasurementType,
+): SourcePriorityMetricKey | null {
+  switch (type) {
+    case "ACTIVITY_STEPS":
+      return "steps";
+    case "ACTIVE_ENERGY_BURNED":
+      return "activeEnergy";
+    case "WALKING_RUNNING_DISTANCE":
+      return "walkingRunningDistance";
+    case "FLIGHTS_CLIMBED":
+      return "flightsClimbed";
+    default:
+      return null;
+  }
+}
 
 /**
  * v1.4.33 C1 — pull `?slice=…` from either a NextRequest (the
@@ -208,21 +236,40 @@ async function buildAnalyticsResponse(user: AuthedUser) {
             sourcePriorityJson,
             (d) => userDayKey(d, userTz),
           ).canonicalRows;
-          const byDay = new Map<string, { total: number; date: Date }>();
-          for (const m of sleepRows) {
-            const key = userDayKey(m.measuredAt, userTz);
-            const slot = byDay.get(key) ?? {
-              total: 0,
-              date: m.measuredAt,
-            };
-            slot.total += m.value;
-            if (m.measuredAt > slot.date) slot.date = m.measuredAt;
-            byDay.set(key, slot);
-          }
-          datapoints = Array.from(byDay.values()).map(
-            (s): DataPoint => ({ date: s.date, value: s.total }),
+          datapoints = pickCumulativeDaySum(sleepRows, (d) =>
+            userDayKey(d, userTz),
           );
-          datapoints.sort((a, b) => a.date.getTime() - b.date.getTime());
+        } else if (isCumulativeDaySumType(type)) {
+          // v1.4.36 W4c — broaden the SLEEP_DURATION day-bucket-sum
+          // pattern to every cumulative metric (steps, active energy,
+          // walking + running distance, flights climbed, time in
+          // daylight). Apple Health writes minute-level slices for
+          // these series; the dashboard tile was reading the
+          // *latest slice* via `summary.latest` instead of the day's
+          // total, which Marc reported as "Steps tile shows
+          // last-measurement-not-day-sum". After the per-day sum
+          // collapse, `summary.latest` is the most-recent day's
+          // total — exactly what the tile expects.
+          //
+          // Map cumulative MeasurementType → SourcePriorityMetricKey
+          // for the canonical-row picker. TIME_IN_DAYLIGHT has no
+          // dedicated priority ladder (no clinical-grade competitor
+          // to Apple Health for daylight minutes today) so it falls
+          // through `pickCanonicalSourceRows`'s "no ladder"
+          // pass-through branch — we ALWAYS bucket-and-sum it
+          // regardless of source.
+          const metricKey = cumulativeMetricKey(type);
+          const canonicalRows = metricKey
+            ? pickCanonicalSourceRows(
+                measurements,
+                metricKey,
+                sourcePriorityJson,
+                (d) => userDayKey(d, userTz),
+              ).canonicalRows
+            : measurements;
+          datapoints = pickCumulativeDaySum(canonicalRows, (d) =>
+            userDayKey(d, userTz),
+          );
         } else {
           datapoints = measurements.map(
             (m): DataPoint => ({

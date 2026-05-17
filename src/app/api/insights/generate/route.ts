@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
-import { extractFeatures } from "@/lib/insights/features";
+import {
+  extractFeatures,
+  FeaturesPayloadTooLargeError,
+} from "@/lib/insights/features";
+import { applyInsightsExcludeFilter } from "@/lib/insights/exclude-filter";
+import { compactSections } from "@/lib/insights/prompt-compact";
 import {
   detectGlp1Plateau,
   buildGlp1PlateauPrompt,
@@ -188,6 +193,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
       insightsPrivacyMode: true,
       insightsCachedAt: true,
       insightsCachedText: true,
+      // v1.4.36 W3 T3 — per-user opt-out list mirroring the Coach
+      // settings. Filtered off `features` before serialisation so the
+      // LLM never sees the excluded blocks.
+      insightsExcludeMetrics: true,
       locale: true,
     },
   });
@@ -266,8 +275,102 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   const includeRaw = dbUser?.insightsPrivacyMode === "raw";
-  const features = await extractFeatures(userId, includeRaw);
-  const featuresJson = JSON.stringify(features, null, 2);
+  // v1.4.36 W3 T1 — `extractFeatures` enforces a 5 MB ceiling on the
+  // serialised payload. If the raw (bucketed) shape ever blows past
+  // it (regression watch — the v1.4.35 rawMeasurements shape hit
+  // 25.9 MB on Marc's account), the helper throws
+  // `FeaturesPayloadTooLargeError`. We downgrade to the aggregated
+  // shape rather than 500-ing so the user still gets an insight; the
+  // annotate event surfaces the regression to ops via the Logflare
+  // pipeline.
+  let features: Awaited<ReturnType<typeof extractFeatures>>;
+  let payloadDowngraded = false;
+  let payloadOversizeBytes: number | null = null;
+  // v1.4.36 QA H1 — extra fallback when even the aggregated shape
+  // crosses the 5 MB ceiling (very large medication history + multi-
+  // year context). Strips anthropometrics + medications + every other
+  // exclude-token-mapped block and tries one more time. On a third
+  // failure we return 422 with an annotate event for ops visibility
+  // rather than 500-ing out of an uncaught throw.
+  const MAX_DOWNGRADE_TOKENS: ReadonlyArray<string> = [
+    "anthropometrics",
+    "medications",
+    "compliance",
+    "sleep",
+    "steps",
+    "hrv",
+    "resting_hr",
+  ];
+  let payloadHardDowngraded = false;
+  try {
+    features = await extractFeatures(userId, includeRaw);
+  } catch (err) {
+    if (err instanceof FeaturesPayloadTooLargeError) {
+      payloadDowngraded = true;
+      payloadOversizeBytes = err.sizeBytes;
+      try {
+        features = await extractFeatures(userId, false);
+      } catch (retryErr) {
+        if (retryErr instanceof FeaturesPayloadTooLargeError) {
+          // Aggregated shape ALSO crossed the ceiling. Drop optional
+          // context blocks (anthropometrics, medications, sleep,
+          // steps, hrv, resting_hr) via the existing exclude filter
+          // and try once more.
+          payloadHardDowngraded = true;
+          payloadOversizeBytes = retryErr.sizeBytes;
+          try {
+            const aggregated = await extractFeatures(userId, false);
+            features = applyInsightsExcludeFilter(
+              aggregated,
+              MAX_DOWNGRADE_TOKENS,
+            );
+          } catch (finalErr) {
+            // Even the aggregated read itself blew up. Annotate and
+            // return 422 rather than let the uncaught throw 500 out.
+            annotate({
+              meta: {
+                insights_payload_too_large: true,
+                insights_payload_oversize_bytes:
+                  finalErr instanceof FeaturesPayloadTooLargeError
+                    ? finalErr.sizeBytes
+                    : payloadOversizeBytes,
+              },
+            });
+            return apiError(
+              "Your data exceeds the AI payload size limit. Reduce the data window or exclude optional blocks in Settings > AI.",
+              422,
+            );
+          }
+        } else {
+          throw retryErr;
+        }
+      }
+    } else {
+      throw err;
+    }
+  }
+  // v1.4.36 W3 T3 — apply the user's exclude-metrics opt-out list
+  // BEFORE serialisation so the model never sees the dropped blocks.
+  const excludeList = dbUser?.insightsExcludeMetrics ?? [];
+  features = applyInsightsExcludeFilter(features, excludeList);
+  // v1.4.36 W3 T4 — drop zero-row blocks so the prompt never carries
+  // labelled-empty sections (`"sleep": []`, `"medications": []`,
+  // etc.). Prevents the model from narrating "there are no
+  // medications in your data" when the user explicitly excluded the
+  // block.
+  const compactFeatures = compactSections(
+    features as unknown as Record<string, unknown>,
+  );
+  const featuresJson = JSON.stringify(compactFeatures, null, 2);
+  if (payloadDowngraded) {
+    annotate({
+      meta: {
+        insights_features_downgraded: true,
+        insights_features_oversize_bytes: payloadOversizeBytes,
+        insights_features_hard_downgraded: payloadHardDowngraded,
+      },
+    });
+  }
 
   // v1.4.16 phase B8 — pick up the user's persisted comparison toggle
   // and, when active, build a compact prior-period snapshot from the

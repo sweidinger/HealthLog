@@ -695,6 +695,20 @@
     "sourceApi": "External API",
     "sourceReminder": "Telegram / Reminder",
     "sourceImport": "CSV Import",
+    "intakeHistoryEmptyTitle": "No intakes recorded yet",
+    "intakeHistoryEmptyDescription": "Log a dose on the daily intake page to start building the history.",
+    "intakeHistoryEmptyAction": "Open daily intake",
+    "intakeHistoryColTaken": "Taken",
+    "intakeHistoryColScheduled": "Scheduled",
+    "intakeHistoryColStatus": "Status",
+    "intakeHistoryColSource": "Source",
+    "intakeHistoryStatusTaken": "Taken",
+    "intakeHistoryStatusSkipped": "Skipped",
+    "intakeHistorySortByTaken": "Sort by taken time",
+    "intakeHistorySortByScheduled": "Sort by scheduled time",
+    "intakeHistoryPageInfo": "Page {page} of {total} · {count} entries",
+    "intakeHistoryPrev": "Previous",
+    "intakeHistoryNext": "Next",
     "unitDrops": "Drops",
     "unitTablets": "Tablet(s)",
     "unitCapsules": "Capsule(s)",
@@ -1004,7 +1018,8 @@
       "emptyMood": "Awaiting more data to annotate this trend.",
       "confidenceHigh": "High confidence",
       "confidenceModerate": "Moderate confidence",
-      "confidenceLow": "Low confidence"
+      "confidenceLow": "Low confidence",
+      "pendingLabel": "Generating trend commentary"
     },
     "correlationRow": {
       "title": "Relationships",
@@ -1066,7 +1081,9 @@
         "flights": "Flights climbed",
         "distance": "Distance",
         "vo2_max": "VO₂ max",
-        "body_temp": "Body temperature"
+        "body_temp": "Body temperature",
+        "medications": "Medications",
+        "anthropometrics": "Profile (height, age, gender)"
       },
       "window": {
         "last7days": "Ostatnie 7 dni",
@@ -1102,7 +1119,9 @@
       "dailyLimitTitle": "Daily limit reached",
       "dailyLimitBody": "Daily limit reached; resets at 00:00 UTC.",
       "providerRateLimitTitle": "Provider rate-limited",
-      "providerRateLimitBody": "Provider temporarily rate-limited; retry in ~5 min."
+      "providerRateLimitBody": "Provider temporarily rate-limited; retry in ~5 min.",
+      "settingsContextLabel": "Include context",
+      "settingsContextHint": "Optional blocks the Coach can lean on. Switch one off and the block is dropped from every turn."
     },
     "relativeJustNow": "just now",
     "relativeMinutesAgo": "{count} minutes ago",
@@ -1921,19 +1940,13 @@
       "version": "App version",
       "gitSha": "Build",
       "builtAt": "Built {time}",
+      "builtAtLabel": "Built",
       "license": "License",
       "repository": "Source code",
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources & docs",
-      "updatesHeading": "Updates",
-      "checkUpdates": "Check now",
-      "checking": "Checking…",
-      "lastChecked": "Last checked: {time}",
-      "lastCheckedNever": "Not checked yet",
-      "upToDate": "You are up to date",
-      "newerAvailable": "Newer version: {tag}",
-      "checkFailed": "Could not reach GitHub — try again later"
+      "newerAvailable": "Newer version: {tag}"
     },
     "testConnection": {
       "test": "Test connection",
@@ -2419,10 +2432,15 @@
       "danger-zone": {
         "title": "Danger Zone",
         "subtitle": "Destructive system-wide operations."
+      },
+      "about": {
+        "title": "About",
+        "subtitle": "Version, license, source, and update check."
       }
     },
     "carrier": "Operator",
-    "carrierUnknown": "Nieznany operator"
+    "carrierUnknown": "Nieznany operator",
+    "carrierUnavailableGeoFallback": "{location} — carrier unavailable"
   },
   "achievements": {
     "title": "Achievements",

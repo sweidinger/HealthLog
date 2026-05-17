@@ -89,6 +89,22 @@ describe("<TrendsRow>", () => {
     expect(slots.length).toBe(3);
   });
 
+  it("pins every chart slot to h-[140px] so Recharts mounts with a known size (CLS fix)", () => {
+    // v1.4.36 W2 — without an explicit height the Recharts
+    // ResponsiveContainer mounts with width=-1 height=-1 and emits a
+    // console warning per chart. The mood card also drifted taller
+    // than BP / weight on hydration. Pinning the wrapper at 140 px
+    // matches the mini-chart's internal default; the row paints with
+    // zero layout shift.
+    const html = render(<TrendsRow />);
+    const slots =
+      html.match(/data-slot="trends-row-chart-slot"[^>]*class="[^"]*"/g) ?? [];
+    expect(slots.length).toBe(3);
+    for (const slot of slots) {
+      expect(slot).toMatch(/h-\[140px\]/);
+    }
+  });
+
   it("renders annotations when supplied", () => {
     const html = render(
       <TrendsRow
@@ -110,6 +126,37 @@ describe("<TrendsRow>", () => {
     // All three metric slots show the hint when nothing is supplied.
     const matches = html.match(/Awaiting more data/g) ?? [];
     expect(matches.length).toBe(3);
+  });
+
+  it("loading=true paints the pending shimmer for every metric (no 'mehr Daten' flash)", () => {
+    // v1.4.36 W2 T3 — pre-fix the row painted "Awaiting more data"
+    // across all three metrics whenever the advisor query was in
+    // flight. The loading flag now propagates to each annotation
+    // slot so the user reads a generating-state shimmer instead.
+    const html = render(<TrendsRow loading />);
+    const pending =
+      html.match(/data-slot="trend-annotation-pending"/g) ?? [];
+    expect(pending.length).toBe(3);
+    expect(html).not.toContain("Awaiting more data");
+  });
+
+  it("loading=true keeps the shimmer even when annotations are supplied (regenerate-in-flight)", () => {
+    const html = render(
+      <TrendsRow
+        loading
+        annotations={{
+          bp: "stale BP",
+          weight: "stale weight",
+          mood: "stale mood",
+        }}
+      />,
+    );
+    expect(html).not.toContain("stale BP");
+    expect(html).not.toContain("stale weight");
+    expect(html).not.toContain("stale mood");
+    const pending =
+      html.match(/data-slot="trend-annotation-pending"/g) ?? [];
+    expect(pending.length).toBe(3);
   });
 
   it("propagates per-metric confidence chips", () => {

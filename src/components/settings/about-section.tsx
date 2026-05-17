@@ -3,15 +3,13 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowUpCircle,
   BookOpen,
-  CheckCircle2,
   ExternalLink,
   GitBranch,
   Info,
   Loader2,
-  RefreshCw,
   Sparkles,
-  XCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -69,6 +67,51 @@ function writeLastCheckedISO(iso: string): void {
   }
 }
 
+/**
+ * v1.4.36 QA H7 — keyboard- and touch-accessible update badge.
+ *
+ * Renders as a 44 px-square hit target (anchor when a release URL is
+ * known, span fallback otherwise) with a focus-visible ring, semantic
+ * `text-primary` colour, and a real `aria-label` describing the
+ * available version. Exported so the SSR test can pin the contract
+ * without driving the parent's auto-check effect.
+ */
+export function UpdateBadge({
+  latestTag,
+  htmlUrl,
+  ariaLabel,
+}: {
+  latestTag: string;
+  htmlUrl: string | null;
+  ariaLabel: string;
+}) {
+  if (htmlUrl) {
+    return (
+      <a
+        href={htmlUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={ariaLabel}
+        title={ariaLabel}
+        className="text-primary focus-visible:ring-ring inline-flex min-h-11 min-w-11 items-center justify-center rounded-md hover:opacity-80 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+      >
+        <ArrowUpCircle className="h-4 w-4" />
+        <span className="sr-only">{latestTag}</span>
+      </a>
+    );
+  }
+  return (
+    <span
+      role="img"
+      aria-label={ariaLabel}
+      title={ariaLabel}
+      className="text-primary inline-flex min-h-11 min-w-11 items-center justify-center"
+    >
+      <ArrowUpCircle className="h-4 w-4" />
+    </span>
+  );
+}
+
 export function AboutSection() {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -85,16 +128,15 @@ export function AboutSection() {
     staleTime: Infinity,
   });
 
-  const [checking, setChecking] = useState(false);
+  // v1.4.36 W4f — the explicit "Check for updates" button is gone;
+  // only the 24 h auto-check stays. When the auto-check reports
+  // `newer_available`, a subtle upward-arrow badge appears next to
+  // the version line with the latest tag in its tooltip.
   const [updateResult, setUpdateResult] = useState<CheckUpdatesResult | null>(
     null,
   );
-  const [lastCheckedISO, setLastCheckedISO] = useState<string | null>(() =>
-    readLastCheckedISO(),
-  );
 
   async function runCheck(): Promise<void> {
-    setChecking(true);
     try {
       const res = await fetch("/api/version/check-updates");
       if (!res.ok) {
@@ -109,9 +151,7 @@ export function AboutSection() {
       const result = json.data as CheckUpdatesResult;
       setUpdateResult(result);
       if (result.status !== "unknown") {
-        const iso = new Date().toISOString();
-        writeLastCheckedISO(iso);
-        setLastCheckedISO(iso);
+        writeLastCheckedISO(new Date().toISOString());
       }
     } catch {
       setUpdateResult({
@@ -119,14 +159,12 @@ export function AboutSection() {
         current: version?.version ?? "",
         reason: "network_error",
       });
-    } finally {
-      setChecking(false);
     }
   }
 
   // Auto-check on mount when the last successful check is older than the
-  // refresh interval (or has never run). Keeps the UI populated without
-  // requiring a click — but won't spam GitHub on every navigation.
+  // refresh interval (or has never run). Keeps the badge fresh without a
+  // click — but won't spam GitHub on every navigation.
   // The setState inside runCheck() is intentional: the check is the
   // whole point of the effect, and the staleness gate prevents a
   // cascading-render loop because the timestamp resets after the run.
@@ -184,6 +222,23 @@ export function AboutSection() {
                 {t("settings.about.version")}
               </dt>
               <dd className="font-mono font-medium">v{version.version}</dd>
+              {/* v1.4.36 W4f — subtle upward-arrow badge that
+                  appears only when the 24 h auto-check reports a
+                  newer release. Hover/tap reveals the latest tag via
+                  the title attribute (read by screen readers + as a
+                  native tooltip on desktop, and announced inline as
+                  the link copy on mobile). No bouncing, no badge
+                  counter, no manual recheck button — the badge is
+                  the entire surface. */}
+              {updateResult?.status === "newer_available" && (
+                <UpdateBadge
+                  latestTag={updateResult.latest_tag}
+                  htmlUrl={updateResult.html_url}
+                  ariaLabel={t("settings.about.newerAvailable", {
+                    tag: updateResult.latest_tag,
+                  })}
+                />
+              )}
             </div>
 
             <div className="flex items-baseline gap-2">
@@ -205,8 +260,7 @@ export function AboutSection() {
             {version.builtAt && (
               <div className="flex items-baseline gap-2">
                 <dt className="text-muted-foreground text-xs tracking-wide uppercase">
-                  {t("settings.about.builtAt", { time: "" }).trim() ||
-                    t("settings.about.gitSha")}
+                  {t("settings.about.builtAtLabel")}
                 </dt>
                 <dd className="text-muted-foreground">
                   {fmt.date(version.builtAt)}
@@ -262,91 +316,16 @@ export function AboutSection() {
         </div>
       )}
 
-      {/* Updates — proper heading + last-check timestamp + manual button
-          that proxies through `/api/version/check-updates`. The v1.4.2
-          version called `api.github.com` directly from the browser, which
-          the production CSP blocked silently — that's why "nothing
-          happened" when the user clicked the button. */}
-      {version && (
-        <div className="bg-card border-border rounded-xl border p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <RefreshCw className="text-primary h-5 w-5" />
-            <h2 className="text-lg font-semibold">
-              {t("settings.about.updatesHeading")}
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={runCheck}
-              disabled={checking}
-            >
-              {checking ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              {checking
-                ? t("settings.about.checking")
-                : t("settings.about.checkUpdates")}
-            </Button>
-
-            <p className="text-muted-foreground text-xs">
-              {lastCheckedISO
-                ? t("settings.about.lastChecked", {
-                    time: fmt.dateTime(lastCheckedISO),
-                  })
-                : t("settings.about.lastCheckedNever")}
-            </p>
-          </div>
-
-          {updateResult?.status === "up_to_date" && (
-            <p
-              role="status"
-              className="text-dracula-green mt-3 flex items-center gap-1.5 text-sm"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              {t("settings.about.upToDate")}
-            </p>
-          )}
-
-          {updateResult?.status === "newer_available" && (
-            <p role="status" className="mt-3 flex items-center gap-1.5 text-sm">
-              <Sparkles className="text-dracula-purple h-4 w-4" />
-              {updateResult.html_url ? (
-                <a
-                  href={updateResult.html_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline-offset-2 hover:underline"
-                >
-                  {t("settings.about.newerAvailable", {
-                    tag: updateResult.latest_tag,
-                  })}
-                </a>
-              ) : (
-                <span>
-                  {t("settings.about.newerAvailable", {
-                    tag: updateResult.latest_tag,
-                  })}
-                </span>
-              )}
-            </p>
-          )}
-
-          {updateResult?.status === "unknown" && (
-            <p
-              role="alert"
-              className="text-destructive mt-3 flex items-center gap-1.5 text-sm"
-            >
-              <XCircle className="h-4 w-4" />
-              {t("settings.about.checkFailed")}
-            </p>
-          )}
-        </div>
-      )}
+      {/* v1.4.36 W4f — the dedicated "Updates" card with the
+          manual "Check for updates" button is gone. The 24 h auto-
+          check still runs on mount and writes its result into the
+          local `updateResult` state; the consequence renders as the
+          subtle upward-arrow badge next to the version line above
+          rather than as a separate panel. The card-level last-check
+          timestamp, success / failure states, and the explicit
+          button were collectively never the point of the surface —
+          the only signal users ever cared about was "is a newer
+          release out?", and the badge answers that with no clicks. */}
     </section>
   );
 }

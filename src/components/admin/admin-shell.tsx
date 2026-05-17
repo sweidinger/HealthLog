@@ -21,6 +21,7 @@ import {
   Bell,
   Database,
   FileText,
+  Info,
   KeyRound,
   Inbox,
   Plug,
@@ -125,6 +126,12 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     titleKey: "admin.section.danger-zone.title",
     icon: ShieldAlert,
   },
+  // v1.4.36 W4e — About / version / update check folded into Admin.
+  {
+    slug: "about",
+    titleKey: "admin.section.about.title",
+    icon: Info,
+  },
 ] as const;
 
 export interface AdminShellProps {
@@ -171,7 +178,11 @@ export function AdminShell({ active, children }: AdminShellProps) {
     if (!activeChip) return;
     activeChip.scrollIntoView({
       block: "nearest",
-      inline: "center",
+      // v1.4.36 W4b — `inline: "start"` pins the active chip to the
+      // left edge of the scroller. `inline: "center"` over-scrolled
+      // and the first one or two chips were unreachable on narrow
+      // viewports.
+      inline: "start",
       behavior: "smooth",
     });
   }, [activeSlug]);
