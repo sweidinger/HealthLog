@@ -34,6 +34,11 @@ import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
 import { runHostMetricTick } from "@/lib/jobs/host-metric-sampler";
 import { aggregateRecommendationFeedback } from "@/lib/jobs/feedback-aggregator";
 import {
+  runGeoBackfill,
+  GEO_BACKFILL_QUEUE,
+  GEO_BACKFILL_CRON,
+} from "@/lib/jobs/geo-backfill";
+import {
   PR_DETECTION_QUEUE,
   PR_DETECTION_CONCURRENCY,
   PR_DETECTION_FALLBACK_CRON,
@@ -62,6 +67,7 @@ import {
   type RollupFullBackfillPayload,
   type RollupRecomputePayload,
 } from "@/lib/measurements/rollups";
+import { drainPerSampleCumulative } from "@/lib/measurements/drain-per-sample-cumulative";
 import { expireStaleInUseItems } from "@/lib/medications/inventory/service";
 import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
 import { deleteMessage } from "@/lib/telegram";
@@ -157,6 +163,23 @@ const HOST_METRIC_CRON = "* * * * *";
 // audit-log) so the previous-day's noise is gone before we aggregate.
 const FEEDBACK_AGGREGATOR_QUEUE = "feedback-aggregator";
 const FEEDBACK_AGGREGATOR_CRON = "0 4 * * *";
+// v1.4.37 — hourly geo backfill. Queue name + cron expression live
+// in `@/lib/jobs/geo-backfill` so a unit test can pin the scheduling
+// contract without importing this worker boot file.
+// v1.4.37 W7c — nightly drain of per-sample APPLE_HEALTH cumulative
+// rows. Collapses each user × cumulative-type × calendar-day bucket
+// into one `stats:…` row so the list view stops painting hundreds of
+// step chunks per day. 03:45 Europe/Berlin slots in between the
+// 03:15 audit-log cleanup and the 04:00 feedback aggregator. The
+// 36-hour grace window keeps today + the trailing watch-sync window
+// intact for real-time visibility; only completed-and-stable days
+// fall to the drain.
+const DRAIN_CUMULATIVE_QUEUE = "drain-per-sample-cumulative";
+const DRAIN_CUMULATIVE_CRON = "45 3 * * *";
+const DRAIN_CUMULATIVE_CUTOFF_HOURS = 36;
+interface DrainCumulativePayload {
+  triggeredAt: string;
+}
 
 interface ReminderCheckPayload {
   triggeredAt: string;
@@ -245,6 +268,10 @@ interface HostMetricSamplePayload {
 }
 
 interface FeedbackAggregatorPayload {
+  triggeredAt: string;
+}
+
+interface GeoBackfillPayload {
   triggeredAt: string;
 }
 
@@ -1155,6 +1182,32 @@ async function handleFeedbackAggregator(
   });
 }
 
+/**
+ * v1.4.37 — geo-backfill worker. Walks `audit_logs` rows that landed
+ * with a null `location` (offline MMDB missing at write time, online
+ * provider unreachable) and re-resolves them through the now-bundled
+ * resolver chain. The helper is idempotent and capped per pass so
+ * the hourly cadence cannot starve a live login spike.
+ */
+async function handleGeoBackfill(jobs: Job<GeoBackfillPayload>[]) {
+  void jobs;
+  await withBackgroundEvent("job.geo_backfill", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const summary = await runGeoBackfill(p);
+      evt.addMeta("geo_backfill_scanned", summary.scanned);
+      evt.addMeta("geo_backfill_located", summary.located);
+      evt.addMeta("geo_backfill_carrier_resolved", summary.carrierResolved);
+      evt.addMeta("geo_backfill_still_unresolved", summary.stillUnresolved);
+    } catch (err) {
+      // The admin sign-in overview tolerates a stale Standort cell —
+      // log and move on so a one-off resolver hiccup does not poison
+      // the queue and block the next pass.
+      evt.addWarning(`geo-backfill failed: ${err}`);
+    }
+  });
+}
+
 async function handlePrDetection(
   jobs: Job<PrDetectionPayload | { userId?: undefined }>[],
 ) {
@@ -1466,11 +1519,17 @@ export async function startReminderWorker() {
     OFFHOST_BACKUP_QUEUE,
     HOST_METRIC_QUEUE,
     FEEDBACK_AGGREGATOR_QUEUE,
+    GEO_BACKFILL_QUEUE,
     PR_DETECTION_QUEUE,
     MEDICATION_INVENTORY_EXPIRE_QUEUE,
     APPLE_HEALTH_IMPORT_QUEUE,
     ROLLUP_RECOMPUTE_QUEUE,
     ROLLUP_FULL_BACKFILL_QUEUE,
+    // v1.4.37 W7c — explicit createQueue is required before the
+    // nightly schedule below registers (pg-boss v12 contract). Without
+    // this entry the drain schedule silently no-ops and the
+    // per-sample APPLE_HEALTH rows never collapse.
+    DRAIN_CUMULATIVE_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -1511,6 +1570,11 @@ export async function startReminderWorker() {
     [OFFHOST_BACKUP_QUEUE, OFFHOST_BACKUP_CRON],
     [HOST_METRIC_QUEUE, HOST_METRIC_CRON],
     [FEEDBACK_AGGREGATOR_QUEUE, FEEDBACK_AGGREGATOR_CRON],
+    // v1.4.37 — hourly geo backfill. The helper is idempotent + capped
+    // at 5 000 rows per pass; running it at :40 every hour catches the
+    // long tail of audit rows that landed with the offline MMDB
+    // missing or the online provider unreachable.
+    [GEO_BACKFILL_QUEUE, GEO_BACKFILL_CRON],
     // Fallback rescan every 30 minutes — protects against ingest paths
     // that ship measurements without enqueueing a per-user job. The
     // cron payload deliberately omits a `userId` so the handler iterates
@@ -1522,6 +1586,10 @@ export async function startReminderWorker() {
     // EXPIRED at 03:30 Europe/Berlin (in the existing 02:xx–03:xx
     // maintenance window, right after idempotency-cleanup).
     [MEDICATION_INVENTORY_EXPIRE_QUEUE, MEDICATION_INVENTORY_EXPIRE_CRON],
+    // v1.4.37 W7c — nightly fold of per-sample APPLE_HEALTH cumulative
+    // rows into one row per day per type. Slots between the
+    // audit-log cleanup (03:15) and the feedback aggregator (04:00).
+    [DRAIN_CUMULATIVE_QUEUE, DRAIN_CUMULATIVE_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -1624,6 +1692,11 @@ export async function startReminderWorker() {
     { localConcurrency: 1 },
     handleFeedbackAggregator,
   );
+  await boss.work<GeoBackfillPayload>(
+    GEO_BACKFILL_QUEUE,
+    { localConcurrency: 1 },
+    handleGeoBackfill,
+  );
   await boss.work<PrDetectionPayload>(
     PR_DETECTION_QUEUE,
     { localConcurrency: PR_DETECTION_CONCURRENCY },
@@ -1687,6 +1760,36 @@ export async function startReminderWorker() {
           "info",
           `[rollup-full-backfill] user=${userId} rows=${rowsUpserted} duration=${durationMs}ms`,
         );
+      }
+    },
+  );
+
+  // v1.4.37 W7c — nightly drain worker. Walks every user × cumulative
+  // type and folds per-sample APPLE_HEALTH rows older than the cutoff
+  // into one `stats:…` row per calendar day. Idempotent — a second run
+  // collapses zero buckets once every day is in the `stats:` shape.
+  // Concurrency-1 so the drain never crowds the dashboard request pool
+  // and a long backfill on Marc's account (300 k+ measurement rows)
+  // stays a single sequential walk.
+  await boss.work<DrainCumulativePayload>(
+    DRAIN_CUMULATIVE_QUEUE,
+    { localConcurrency: 1 },
+    async (jobs) => {
+      for (const job of jobs) {
+        try {
+          const summary = await drainPerSampleCumulative(getWorkerPrisma(), {
+            dryRun: false,
+            cutoffHours: DRAIN_CUMULATIVE_CUTOFF_HOURS,
+            log: (line) => workerLog("info", line),
+          });
+          workerLog(
+            "info",
+            `[drain-cumulative] triggeredAt=${job.data.triggeredAt} usersScanned=${summary.totals.usersScanned} bucketsCollapsed=${summary.totals.bucketsCollapsed} perSampleRowsDeleted=${summary.totals.perSampleRowsDeleted} dailyRowsUpserted=${summary.totals.dailyRowsUpserted}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog("error", "[drain-cumulative] run failed", err);
+        }
       }
     },
   );

@@ -61,13 +61,16 @@ function seedIntake(
   const sortDir = opts.sortDir ?? "desc";
   const limit = opts.limit ?? 25;
   const offset = opts.offset ?? 0;
+  // v1.4.37 W3 — the component pins `status:"completed"` on the
+  // server-side query and threads it through the cache key, so the
+  // seed mirrors that shape verbatim.
   client.setQueryData(
     [
       "medications",
       medId,
       "intake",
       "list",
-      { sortBy, sortDir, limit, offset },
+      { sortBy, sortDir, limit, offset, status: "completed" },
     ],
     { events: rows, meta: { total, limit, offset } },
   );
@@ -93,10 +96,7 @@ describe("<IntakeHistoryListV2> — empty state", () => {
   it("renders the empty-state title and CTA in English", () => {
     const client = makeClient();
     seedIntake(client, "med-1", []);
-    const html = render(
-      <IntakeHistoryListV2 medicationId="med-1" />,
-      client,
-    );
+    const html = render(<IntakeHistoryListV2 medicationId="med-1" />, client);
     expect(html).toContain("No intakes recorded yet");
     expect(html).toContain("Open daily intake");
     expect(html).toContain('href="/medications"');
@@ -138,23 +138,101 @@ describe("<IntakeHistoryListV2> — populated rows", () => {
         createdAt: "2026-05-14T20:00:00.000Z",
       },
     ]);
-    const html = render(
-      <IntakeHistoryListV2 medicationId="med-1" />,
-      client,
-    );
+    const html = render(<IntakeHistoryListV2 medicationId="med-1" />, client);
     expect(html).toContain("Taken");
     expect(html).toContain("Skipped");
     expect(html).toContain("Website");
     expect(html).toContain("Telegram / Reminder");
   });
 
+  it("renders the taken row with a green Check chip and the skipped row with an outline SkipForward chip", () => {
+    // v1.4.37 W3 — guards the regression Marc reported on 2026-05-17:
+    // before the fix, every row used the same secondary badge with the
+    // "Eingenommen" label regardless of skipped status. The chip must
+    // surface a distinct icon + label per branch and never label a
+    // skipped row "Eingenommen".
+    const client = makeClient();
+    seedIntake(client, "med-status", [
+      {
+        id: "evt-taken",
+        medicationId: "med-status",
+        scheduledFor: "2026-05-15T08:00:00.000Z",
+        takenAt: "2026-05-15T08:02:00.000Z",
+        skipped: false,
+        source: "WEB",
+        createdAt: "2026-05-15T08:02:00.000Z",
+      },
+      {
+        id: "evt-skipped",
+        medicationId: "med-status",
+        scheduledFor: "2026-05-14T08:00:00.000Z",
+        takenAt: null,
+        skipped: true,
+        source: "REMINDER",
+        createdAt: "2026-05-14T20:00:00.000Z",
+      },
+    ]);
+    const html = render(
+      <IntakeHistoryListV2 medicationId="med-status" />,
+      client,
+    );
+
+    // Distinct lucide icons per branch — proves the row matched the
+    // correct status arm and isn't just printing a label.
+    expect(html).toContain("lucide-check");
+    expect(html).toContain("lucide-skip-forward");
+
+    // The green styling pins the taken branch visually so a future
+    // refactor cannot silently collapse the two chips back into one
+    // neutral badge.
+    expect(html).toMatch(/bg-green-500\/20[^"]*text-green-400/);
+
+    // Skipped rows render as a muted outline chip — never as the
+    // secondary "Eingenommen" badge.
+    expect(html).toMatch(/text-muted-foreground[^"]*gap-1[^"]*text-xs/);
+
+    expect(html).toContain("Taken");
+    expect(html).toContain("Skipped");
+  });
+
+  it("renders the skipped chip in German without leaking the Eingenommen label", () => {
+    // v1.4.37 W3 — UAT echo. Marc reported a German row labelled
+    // both "übersprungen" and "eingenommen". The fix means a
+    // skipped-only fixture renders "Übersprungen" exactly once and
+    // "Eingenommen" zero times.
+    const client = makeClient();
+    seedIntake(client, "med-skipped", [
+      {
+        id: "evt-skipped",
+        medicationId: "med-skipped",
+        scheduledFor: "2026-04-29T05:00:00.000Z",
+        takenAt: null,
+        skipped: true,
+        source: "REMINDER",
+        createdAt: "2026-04-29T05:01:00.000Z",
+      },
+    ]);
+    const html = render(
+      <IntakeHistoryListV2 medicationId="med-skipped" />,
+      client,
+      "de",
+    );
+
+    // Locate the table-body slice so we only count chip labels, not
+    // the column headers (which also say "Eingenommen" for the
+    // takenAt column header).
+    const tbodyMatch = html.match(/<tbody[\s\S]*?<\/tbody>/);
+    expect(tbodyMatch).not.toBeNull();
+    const body = tbodyMatch?.[0] ?? "";
+
+    expect(body).toContain("Übersprungen");
+    expect(body).not.toContain("Eingenommen");
+  });
+
   it("renders the section title across both locales", () => {
     const client = makeClient();
     seedIntake(client, "med-1", []);
-    const enHtml = render(
-      <IntakeHistoryListV2 medicationId="med-1" />,
-      client,
-    );
+    const enHtml = render(<IntakeHistoryListV2 medicationId="med-1" />, client);
     expect(enHtml).toContain("Intake history");
 
     const deClient = makeClient();
@@ -182,10 +260,7 @@ describe("<IntakeHistoryListV2> — sort indicators", () => {
         createdAt: "2026-05-15T08:02:00.000Z",
       },
     ]);
-    const html = render(
-      <IntakeHistoryListV2 medicationId="med-1" />,
-      client,
-    );
+    const html = render(<IntakeHistoryListV2 medicationId="med-1" />, client);
     // Default sort = takenAt desc, so the "taken" header carries the
     // arrow-down icon and the "scheduled" header carries the neutral
     // dual-arrow icon.
@@ -235,10 +310,7 @@ describe("<IntakeHistoryListV2> — sort indicators", () => {
       ],
       50,
     );
-    const html = render(
-      <IntakeHistoryListV2 medicationId="med-2" />,
-      client,
-    );
+    const html = render(<IntakeHistoryListV2 medicationId="med-2" />, client);
     expect(html).toContain("Previous");
     expect(html).toContain("Next");
     // a11y: pagination buttons clear the 44 px mobile touch floor and
@@ -265,10 +337,7 @@ describe("<IntakeHistoryListV2> — sort indicators", () => {
       ],
       1,
     );
-    const html = render(
-      <IntakeHistoryListV2 medicationId="med-3" />,
-      client,
-    );
+    const html = render(<IntakeHistoryListV2 medicationId="med-3" />, client);
     expect(html).not.toContain(">Previous<");
     expect(html).not.toContain(">Next<");
   });

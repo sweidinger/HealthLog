@@ -1,11 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   bucketRowsByUserDay,
   canonicalDailyTimestamp,
   dayKeyForUserTz,
+  drainPerSampleCumulative,
+  localDayWindow,
+  localStartOfDay,
   sumBucketValues,
 } from "../drain-per-sample-cumulative";
+import type { PrismaClient } from "@/generated/prisma/client";
 
 describe("dayKeyForUserTz", () => {
   it("anchors the calendar day to the user's IANA zone", () => {
@@ -52,6 +56,94 @@ describe("canonicalDailyTimestamp", () => {
     // 12:00 IST → 06:30 UTC on the same day.
     const ts = canonicalDailyTimestamp("2026-05-16", "Asia/Kolkata");
     expect(ts.toISOString()).toBe("2026-05-16T06:30:00.000Z");
+  });
+});
+
+describe("localStartOfDay", () => {
+  // v1.4.37 W10 — local 00:00 resolution for any IANA zone. Used by
+  // the W7c drill-down to anchor the per-day UTC window.
+
+  it("returns Berlin 00:00 CET in winter (UTC+1)", () => {
+    // 2026-01-15 00:00 CET = 2026-01-14 23:00 UTC.
+    const ts = localStartOfDay("2026-01-15", "Europe/Berlin");
+    expect(ts.toISOString()).toBe("2026-01-14T23:00:00.000Z");
+  });
+
+  it("returns Berlin 00:00 CEST in summer (UTC+2)", () => {
+    // 2026-05-16 00:00 CEST = 2026-05-15 22:00 UTC.
+    const ts = localStartOfDay("2026-05-16", "Europe/Berlin");
+    expect(ts.toISOString()).toBe("2026-05-15T22:00:00.000Z");
+  });
+
+  it("returns plain UTC midnight for tz=UTC", () => {
+    const ts = localStartOfDay("2026-05-16", "UTC");
+    expect(ts.toISOString()).toBe("2026-05-16T00:00:00.000Z");
+  });
+
+  it("handles half-hour-offset zones (Asia/Kolkata UTC+5:30)", () => {
+    // 2026-05-16 00:00 IST = 2026-05-15 18:30 UTC.
+    const ts = localStartOfDay("2026-05-16", "Asia/Kolkata");
+    expect(ts.toISOString()).toBe("2026-05-15T18:30:00.000Z");
+  });
+});
+
+describe("localDayWindow — DST-aware [dayStart, dayEnd) drill-down bounds", () => {
+  // v1.4.37 W10 H-1 — the previous `canonicalDailyTimestamp ± 12h`
+  // shape silently leaked or hid an hour of samples on the two days
+  // per year when Europe/Berlin (and every other DST-observing IANA
+  // zone) transitions. `localDayWindow` walks the day's true local
+  // 00:00 → next-day 00:00 boundary so the window covers the right
+  // 23 / 24 / 25-hour span.
+
+  it("spring-forward day (Berlin 2025-03-30) is exactly 23 hours wide", () => {
+    const { dayStart, dayEnd } = localDayWindow(
+      "2025-03-30",
+      "Europe/Berlin",
+    );
+    // 2025-03-30 00:00 CET = 2025-03-29 23:00 UTC.
+    // 2025-03-31 00:00 CEST = 2025-03-30 22:00 UTC.
+    expect(dayStart.toISOString()).toBe("2025-03-29T23:00:00.000Z");
+    expect(dayEnd.toISOString()).toBe("2025-03-30T22:00:00.000Z");
+    expect(dayEnd.getTime() - dayStart.getTime()).toBe(23 * 60 * 60 * 1000);
+  });
+
+  it("fall-back day (Berlin 2025-10-26) is exactly 25 hours wide", () => {
+    const { dayStart, dayEnd } = localDayWindow(
+      "2025-10-26",
+      "Europe/Berlin",
+    );
+    // 2025-10-26 00:00 CEST = 2025-10-25 22:00 UTC.
+    // 2025-10-27 00:00 CET  = 2025-10-26 23:00 UTC.
+    expect(dayStart.toISOString()).toBe("2025-10-25T22:00:00.000Z");
+    expect(dayEnd.toISOString()).toBe("2025-10-26T23:00:00.000Z");
+    expect(dayEnd.getTime() - dayStart.getTime()).toBe(25 * 60 * 60 * 1000);
+  });
+
+  it("regular day is exactly 24 hours wide", () => {
+    const { dayStart, dayEnd } = localDayWindow(
+      "2026-05-16",
+      "Europe/Berlin",
+    );
+    expect(dayEnd.getTime() - dayStart.getTime()).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("crosses a month boundary cleanly (2026-05-31 → 2026-06-01)", () => {
+    const { dayStart, dayEnd } = localDayWindow(
+      "2026-05-31",
+      "Europe/Berlin",
+    );
+    expect(dayStart.toISOString()).toBe("2026-05-30T22:00:00.000Z");
+    expect(dayEnd.toISOString()).toBe("2026-05-31T22:00:00.000Z");
+  });
+
+  it("crosses a year boundary cleanly (2025-12-31 → 2026-01-01)", () => {
+    const { dayStart, dayEnd } = localDayWindow(
+      "2025-12-31",
+      "Europe/Berlin",
+    );
+    // Berlin in December is CET (UTC+1).
+    expect(dayStart.toISOString()).toBe("2025-12-30T23:00:00.000Z");
+    expect(dayEnd.toISOString()).toBe("2025-12-31T23:00:00.000Z");
   });
 });
 
@@ -150,5 +242,85 @@ describe("sumBucketValues", () => {
       { id: "2", type: "ACTIVE_ENERGY_BURNED" as const, value: 7.6, measuredAt: new Date(), externalId: null },
     ];
     expect(sumBucketValues(rows)).toBeCloseTo(20.0);
+  });
+});
+
+// v1.4.37 W7c — the scheduled nightly drain passes a 36 h grace
+// window so today + the trailing watch-sync reconciliation period
+// stay per-sample for the list view. The test below pins that the
+// cutoffHours option filters by `measuredAt: { lt: cutoff }` rather
+// than collapsing every row in sight.
+describe("drainPerSampleCumulative — cutoffHours", () => {
+  function buildPrismaMock() {
+    const findManyUser = vi.fn();
+    const findManyMeasurement = vi.fn().mockResolvedValue([]);
+    return {
+      user: { findMany: findManyUser },
+      measurement: { findMany: findManyMeasurement },
+      $transaction: vi.fn(async (cb: (tx: unknown) => Promise<unknown>) =>
+        cb({}),
+      ),
+    } as unknown as PrismaClient & {
+      user: { findMany: ReturnType<typeof vi.fn> };
+      measurement: { findMany: ReturnType<typeof vi.fn> };
+    };
+  }
+
+  it("passes a measuredAt cutoff into the per-sample findMany when cutoffHours is set", async () => {
+    const prismaMock = buildPrismaMock();
+    prismaMock.user.findMany.mockResolvedValue([
+      { id: "user-1", timezone: "Europe/Berlin" },
+    ]);
+
+    const beforeAt = Date.now();
+    await drainPerSampleCumulative(prismaMock, {
+      cutoffHours: 36,
+      log: () => {},
+    });
+    const afterAt = Date.now();
+
+    // The helper iterates every cumulative type — assert the first
+    // findMany call carries the expected cutoff filter shape.
+    const call = prismaMock.measurement.findMany.mock.calls[0]?.[0];
+    expect(call).toBeDefined();
+    expect(call.where.source).toBe("APPLE_HEALTH");
+    expect(call.where.measuredAt?.lt).toBeInstanceOf(Date);
+
+    const cutoff = call.where.measuredAt!.lt as Date;
+    const expectedMin = beforeAt - 36 * 60 * 60 * 1000;
+    const expectedMax = afterAt - 36 * 60 * 60 * 1000;
+    expect(cutoff.getTime()).toBeGreaterThanOrEqual(expectedMin);
+    expect(cutoff.getTime()).toBeLessThanOrEqual(expectedMax);
+  });
+
+  it("omits the cutoff filter when cutoffHours is not provided (CLI / admin one-shot)", async () => {
+    const prismaMock = buildPrismaMock();
+    prismaMock.user.findMany.mockResolvedValue([
+      { id: "user-1", timezone: "Europe/Berlin" },
+    ]);
+
+    await drainPerSampleCumulative(prismaMock, { log: () => {} });
+
+    const call = prismaMock.measurement.findMany.mock.calls[0]?.[0];
+    expect(call).toBeDefined();
+    expect(call.where.source).toBe("APPLE_HEALTH");
+    // Legacy callers (CLI, admin endpoint) must keep the all-rows
+    // behaviour so a backfill drains everything the operator asked for.
+    expect(call.where.measuredAt).toBeUndefined();
+  });
+
+  it("ignores a zero cutoffHours value (treat 0 as not-set)", async () => {
+    const prismaMock = buildPrismaMock();
+    prismaMock.user.findMany.mockResolvedValue([
+      { id: "user-1", timezone: "Europe/Berlin" },
+    ]);
+
+    await drainPerSampleCumulative(prismaMock, {
+      cutoffHours: 0,
+      log: () => {},
+    });
+
+    const call = prismaMock.measurement.findMany.mock.calls[0]?.[0];
+    expect(call.where.measuredAt).toBeUndefined();
   });
 });

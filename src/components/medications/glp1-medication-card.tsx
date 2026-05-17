@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -8,6 +8,7 @@ import {
   Flame,
   History,
   Loader2,
+  MoreVertical,
   Pencil,
   SkipForward,
   Stethoscope,
@@ -16,16 +17,29 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
 import { Progress } from "@/components/ui/progress";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
 import { formatDateTime, formatTime } from "@/lib/format";
+import { formatTimeWindowRange } from "@/lib/time-window-format";
+import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
 import {
   describeInjectionSite,
   nextInjectionSite,
   type InjectionSiteKey,
 } from "@/lib/medications/injection-sites";
+import {
+  reduceCurrentWindowStatus,
+  toBerlinDate,
+} from "@/lib/medications/window-status";
+
 /**
  * v1.4.25 W4d — GLP-1 medication card variant.
  *
@@ -77,6 +91,7 @@ export interface Glp1Medication {
   notificationsEnabled: boolean;
   pausedAt: string | null;
   lastTakenAt: string | null;
+  todayEventCount?: number;
   schedules: ScheduleLite[];
 }
 
@@ -155,9 +170,10 @@ export function Glp1MedicationCard({
   onLogSideEffect,
 }: Glp1MedicationCardProps) {
   const queryClient = useQueryClient();
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fmt = useFormatters();
   const [intakeLoading, setIntakeLoading] = useState<string | null>(null);
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   const { data: compliance } = useQuery({
     queryKey: ["medications", medication.id, "compliance"],
@@ -169,6 +185,20 @@ export function Glp1MedicationCard({
     },
     staleTime: 30 * 1000,
     enabled: medication.active,
+  });
+
+  // v1.4.37 W4b — same reminder-thresholds source as the generic
+  // medication card so the take-now / overdue / very-overdue pill
+  // tiers identically on both surfaces.
+  const { data: thresholds } = useQuery({
+    queryKey: ["settings", "reminder-thresholds"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings/reminder-thresholds");
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data as { lateMinutes: number; missedMinutes: number };
+    },
+    staleTime: 5 * 60 * 1000,
   });
 
   // Pull GLP-1-specific extras (dose history + recent injection sites +
@@ -184,6 +214,14 @@ export function Glp1MedicationCard({
     },
     staleTime: 60 * 1000,
   });
+
+  // Re-render once a minute so the in-window / overdue pill tracks
+  // wall-clock progress without a route reload — mirrors the generic
+  // medication card's tick cadence.
+  useEffect(() => {
+    const interval = setInterval(forceUpdate, 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   async function recordIntake(skipped: boolean) {
     const key = skipped ? "skip" : "take";
@@ -208,6 +246,28 @@ export function Glp1MedicationCard({
   const rate7 = compliance?.compliance7?.rate ?? 0;
   const rate30 = compliance?.compliance30?.rate ?? 0;
   const streak = compliance?.compliance7?.streak ?? 0;
+
+  // v1.4.37 W4b — symmetric take-now / overdue pill with the generic
+  // card. Sort schedules by `windowStart` so the most-actionable
+  // earliest window wins when multiple GLP-1 windows overlap (rare
+  // today; the parity is what matters).
+  const sortedSchedules = [...medication.schedules].sort(
+    (a, b) =>
+      a.windowStart.localeCompare(b.windowStart) ||
+      a.windowEnd.localeCompare(b.windowEnd),
+  );
+  const nowBerlin = toBerlinDate(now);
+  const lateMinutes = thresholds?.lateMinutes ?? 120;
+  const missedMinutes = thresholds?.missedMinutes ?? 240;
+  const currentWindowStatus = reduceCurrentWindowStatus({
+    schedules: sortedSchedules,
+    nowBerlin,
+    lateMinutes,
+    missedMinutes,
+    active: medication.active,
+    lastTakenAt: medication.lastTakenAt,
+    todayEventCount: medication.todayEventCount ?? 0,
+  });
 
   const recentInjections = details?.recentIntakes ?? [];
   const lastSite =
@@ -280,20 +340,86 @@ export function Glp1MedicationCard({
       >
         <Pencil className="h-4 w-4" />
       </Button>
+      {/* v1.4.37 W4b — GLP-1 specifics (side-effect quick-log etc.)
+          live in the header actions overflow so the primary action
+          row stays the canonical two-button shape (Eingenommen /
+          Übersprungen) shared with the generic medication card. The
+          kebab only renders when at least one overflow item is wired
+          for this medication kind. */}
+      {onLogSideEffect && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="min-h-11 min-w-11"
+              aria-label={t("common.moreOptions")}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem
+              onClick={() => onLogSideEffect(medication)}
+              className="whitespace-nowrap"
+            >
+              <Stethoscope className="mr-2 h-4 w-4" />
+              {t("medications.glp1LogSideEffect")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </>
   );
+
+  const categoryLabel = getMedicationCategoryLabel(medication.category, t);
 
   return (
     <Card className={medication.active ? "" : "opacity-60"}>
       <MedicationCardHeader
         name={medication.name}
         dose={medication.dose}
-        categoryLabel={t("medications.treatmentClassGlp1")}
+        categoryLabel={categoryLabel}
         stateBadges={stateBadges}
         actions={headerActions}
       />
 
       <CardContent className="space-y-3.5">
+        {/* v1.4.37 W4b — take-now / overdue / very-overdue pill,
+            byte-equivalent with the generic medication card. The
+            GLP-1 card historically omitted this row, which made
+            Mounjaro feel different from Ramipril on the medications
+            grid even though the underlying schedule contract is
+            the same shape. */}
+        {currentWindowStatus.status && (
+          <p className="text-sm">
+            <span
+              className={
+                currentWindowStatus.status === "in_window"
+                  ? "text-success font-medium"
+                  : currentWindowStatus.status === "late"
+                    ? "text-dracula-yellow font-medium"
+                    : "text-warning font-medium"
+              }
+            >
+              {currentWindowStatus.status === "in_window"
+                ? t("medications.takeNow")
+                : currentWindowStatus.status === "late"
+                  ? t("medications.overdue")
+                  : t("medications.veryOverdue")}
+            </span>
+            <span className="text-muted-foreground hidden sm:inline">
+              {" "}
+              —{" "}
+              {formatTimeWindowRange(
+                currentWindowStatus.schedule!.windowStart,
+                currentWindowStatus.schedule!.windowEnd,
+                locale,
+              )}
+            </span>
+          </p>
+        )}
+
         {/* Injection state — last + next */}
         <div className="space-y-1 text-sm">
           {medication.lastTakenAt && (
@@ -308,7 +434,21 @@ export function Glp1MedicationCard({
                   })}
             </p>
           )}
-          <p className="text-foreground/85">{nextInjectionLabel()}</p>
+          <p className="text-foreground/85">
+            {nextInjectionLabel()}
+            {/* v1.4.37 W4b — purple dose accent on the upcoming
+                schedule dose, byte-equivalent with the generic
+                medication card. Schedule.dose can override the
+                medication-level dose during titration, so we surface
+                it here when set. Hidden below sm: to keep the narrow
+                viewport row tight, matching the generic card. */}
+            {schedule?.dose && (
+              <span className="hidden font-medium text-purple-400 sm:inline">
+                {" "}
+                — {schedule.dose}
+              </span>
+            )}
+          </p>
         </div>
 
         {/* Rotation hint — only when we have a last + recommended site
@@ -379,18 +519,20 @@ export function Glp1MedicationCard({
           </div>
         )}
 
-        {/* Primary actions row — matches the generic card's
-            min-h-11 tap-target rule. The third button opens the
-            side-effect log pre-tagged with the GLP-1 drug name. */}
+        {/* Primary actions row — byte-equivalent with the generic
+            medication card. v1.4.37 W4b moved the GLP-1-specific
+            side-effect quick-log out of this row and into the
+            header-actions overflow (kebab) so Mounjaro and Ramipril
+            share the canonical two-button primary row. */}
         {medication.active && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2">
             <Button
               className="min-h-11 flex-1"
               onClick={() => recordIntake(false)}
               disabled={!!intakeLoading}
             >
               {intakeLoading === "take" ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <Check className="mr-1 h-4 w-4" />
               )}
@@ -403,22 +545,12 @@ export function Glp1MedicationCard({
               disabled={!!intakeLoading}
             >
               {intakeLoading === "skip" ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-1 h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
                 <SkipForward className="mr-1 h-4 w-4" />
               )}
               {t("medications.skipped")}
             </Button>
-            {onLogSideEffect && (
-              <Button
-                variant="ghost"
-                className="min-h-11"
-                onClick={() => onLogSideEffect(medication)}
-              >
-                <Stethoscope className="mr-1 h-4 w-4" />
-                {t("medications.glp1LogSideEffect")}
-              </Button>
-            )}
           </div>
         )}
       </CardContent>

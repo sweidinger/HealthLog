@@ -89,6 +89,24 @@ export const listIntakeEventsSchema = z.object({
     .optional()
     .default("scheduledFor"),
   sortDir: z.enum(["asc", "desc"]).optional().default("desc"),
+  /**
+   * v1.4.37 W3 — server-side status filter so the medication detail
+   * page (IntakeHistoryListV2) can hide unconfirmed / planned rows.
+   *
+   *  - "all" (default): every event, preserves the byte-stable contract
+   *    the iOS Swift client and existing dashboard consumers depend on.
+   *  - "taken": only rows where the dose was confirmed taken
+   *    (`takenAt IS NOT NULL AND skipped = false`).
+   *  - "skipped": only rows the user explicitly skipped (`skipped = true`).
+   *  - "completed": taken OR skipped — anything the user actually
+   *    actioned. Excludes the ambiguous "missed / never confirmed"
+   *    rows (`takenAt IS NULL AND skipped = false`) that the v1 list
+   *    rendered as "verpasst" before the v1 component retired.
+   */
+  status: z
+    .enum(["all", "taken", "skipped", "completed"])
+    .optional()
+    .default("all"),
 });
 
 export const updateIntakeEventSchema = z.object({
@@ -142,8 +160,12 @@ export const updateInventoryItemSchema = z.object({
   notes: z.string().max(200).nullable().optional(),
 });
 
-export type CreateInventoryItemInput = z.infer<typeof createInventoryItemSchema>;
-export type UpdateInventoryItemInput = z.infer<typeof updateInventoryItemSchema>;
+export type CreateInventoryItemInput = z.infer<
+  typeof createInventoryItemSchema
+>;
+export type UpdateInventoryItemInput = z.infer<
+  typeof updateInventoryItemSchema
+>;
 
 /**
  * v1.4.25 W21 Fix-K — `POST /api/medications/[id]/glp1` body validators.
@@ -182,11 +204,7 @@ export const glp1DoseChangePostSchema = z.object({
     .refine((d) => d.getTime() <= Date.now() + FIVE_YEARS_MS, {
       message: "effectiveFrom must be within 5 years of now",
     }),
-  doseValue: z
-    .number()
-    .finite()
-    .min(0)
-    .max(MAX_DOSE_MG),
+  doseValue: z.number().finite().min(0).max(MAX_DOSE_MG),
   doseUnit: z.string().min(1).max(10),
   note: z.string().max(MAX_NOTE_CHARS).nullable().optional(),
 });
@@ -207,10 +225,9 @@ export const glp1PostBodySchema = z
     doseChange: glp1DoseChangePostSchema.optional(),
     inventory: glp1InventoryPostSchema.optional(),
   })
-  .refine(
-    (b) => Boolean(b.doseChange) !== Boolean(b.inventory),
-    { message: "Body must carry exactly one of doseChange or inventory" },
-  );
+  .refine((b) => Boolean(b.doseChange) !== Boolean(b.inventory), {
+    message: "Body must carry exactly one of doseChange or inventory",
+  });
 
 export type Glp1DoseChangePostInput = z.infer<typeof glp1DoseChangePostSchema>;
 export type Glp1InventoryPostInput = z.infer<typeof glp1InventoryPostSchema>;

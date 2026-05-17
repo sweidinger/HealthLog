@@ -244,6 +244,21 @@
     "medications": "Medikamente",
     "quickAddMeasurement": "Messung erfassen",
     "quickAddMood": "Stimmung erfassen",
+    "quickAddMedicationIntake": "Medikamenteneinnahme erfassen",
+    "medicationIntakeQuickAdd": {
+      "sheetTitle": "Medikamenteneinnahme erfassen",
+      "sheetDescription": "Dosis, Zeitpunkt und Medikament in wenigen Tipps protokollieren.",
+      "medicationLabel": "Medikament",
+      "medicationPlaceholder": "Medikament auswählen",
+      "doseLabel": "Dosis",
+      "dosePlaceholder": "z. B. 5 mg",
+      "doseHint": "Aktuell wird die Standarddosis erfasst. Abweichende Dosen kommen in einer kommenden Version.",
+      "timeLabel": "Zeitpunkt",
+      "saveError": "Einnahme konnte nicht gespeichert werden.",
+      "emptyTitle": "Noch keine Medikamente angelegt",
+      "emptyDescription": "Lege zuerst ein Medikament mit Zeitfenster an, damit du die Einnahme protokollieren kannst.",
+      "emptyCta": "Medikament anlegen"
+    },
     "compliance7d": "Einnahmetreue (7 Tage)",
     "mood": "Stimmung",
     "customizeTitle": "Dashboard-Layout",
@@ -356,7 +371,10 @@
     "deleteConfirmDescription": "Dieser Messwert wird unwiderruflich gelöscht.",
     "pageInfo": "Seite {page} von {total}",
     "previousPage": "Vorherige Seite",
-    "nextPage": "Nächste Seite"
+    "nextPage": "Nächste Seite",
+    "dailyTotalCaption": "({count} Einzelwerte)",
+    "expandDay": "Einzelwerte dieses Tages anzeigen",
+    "collapseDay": "Einzelwerte dieses Tages ausblenden"
   },
   "mood": {
     "title": "Stimmung",
@@ -1616,6 +1634,13 @@
       "export": {
         "title": "Export",
         "description": "Lade deine Gesundheitsdaten als PDF, CSV oder vollständiges JSON-Backup herunter.",
+        "otherOptionsHeading": "Weitere Export-Optionen",
+        "hero": {
+          "eyebrow": "Arzttermin",
+          "valueStatement": "Ein druckbarer PDF-Bericht für den Arzttermin — Vitalwerte, BMI, Blutdruck-Klassifikation, Medikamenten-Compliance und (optional) Stimmungsverlauf, alles auf wenigen Seiten.",
+          "cta": "Bericht konfigurieren & generieren",
+          "formatHint": "PDF · druckfertig"
+        },
         "actions": {
           "download": "Herunterladen"
         },
@@ -1626,8 +1651,7 @@
         "cards": {
           "doctorReport": {
             "title": "Arztbericht",
-            "description": "Druckbares PDF für den Arzttermin — Vitalwerte, BMI, BD-Klassifikation, Medikamenten-Compliance, Stimmung.",
-            "action": "Konfigurieren & generieren"
+            "description": "Druckbares PDF für den Arzttermin — Vitalwerte, BMI, BD-Klassifikation, Medikamenten-Compliance, Stimmung."
           },
           "measurementsCsv": {
             "title": "Messwerte",
@@ -1667,8 +1691,6 @@
     "genderHint": "Wird für geschlechtsspezifische Zielwerte verwendet.",
     "timezone": "Zeitzone",
     "timezoneHint": "Wird für Diagrammachsen, Erinnerungszeiten, Export-Zeitstempel und den Coach-Kontext verwendet. Gespeicherte Daten bleiben unverändert.",
-    "timezoneDetect": "Browser-Zeitzone übernehmen",
-    "timezoneDetectAria": "Browser-Zeitzone {tz} übernehmen",
     "timezoneInvalid": "Keine gültige IANA-Zeitzone.",
     "profileSaved": "Profil gespeichert",
     "changePassword": "Passwort ändern",

@@ -62,25 +62,33 @@ export function pickCumulativeDaySum<T extends CumulativeRow>(
   return out;
 }
 
+import type { MeasurementType } from "@/generated/prisma/client";
+import type { SourcePriorityMetricKey } from "@/lib/validations/source-priority";
+import { CUMULATIVE_HK_TYPES } from "./apple-health-mapping";
+
 /**
- * v1.4.36 W4c — Canonical set of cumulative metric types whose
- * dashboard tile should read the *day's sum* and not the latest
- * slice. Kept here so the analytics route and any other consumer
- * (Coach snapshot, exports) share the same source of truth.
+ * v1.4.36 W4c / v1.4.37 W10 — Canonical list of cumulative metric
+ * types whose dashboard tile should read the *day's sum* and not the
+ * latest slice.
+ *
+ * The set lives in `apple-health-mapping.ts` as `CUMULATIVE_HK_TYPES`
+ * (used by the measurements route + nightly drain + chart). This
+ * array is the same membership in stable alphabetical order so
+ * downstream consumers (analytics route, exports) can iterate
+ * deterministically. The W10 reconcile pass collapses the previously
+ * duplicated literal to a single derivation so adding a sixth type
+ * in `apple-health-mapping.ts` automatically flows through every
+ * cumulative-day-sum consumer.
  *
  * Note: SLEEP_DURATION is also cumulative but the route handles
  * it inline because the picker is the canonical sleep source ladder
  * ("sleep" metricKey vs "default"). Once Apple-Health passthrough
  * lands and the sleep ladder needs the same shared treatment it can
- * fold into this list.
+ * fold into `CUMULATIVE_HK_TYPES`.
  */
-export const CUMULATIVE_DAY_SUM_TYPES = [
-  "ACTIVITY_STEPS",
-  "ACTIVE_ENERGY_BURNED",
-  "WALKING_RUNNING_DISTANCE",
-  "FLIGHTS_CLIMBED",
-  "TIME_IN_DAYLIGHT",
-] as const;
+export const CUMULATIVE_DAY_SUM_TYPES = Array.from(
+  CUMULATIVE_HK_TYPES,
+).sort() as readonly MeasurementType[];
 
 export type CumulativeDaySumType = (typeof CUMULATIVE_DAY_SUM_TYPES)[number];
 
@@ -88,4 +96,38 @@ export function isCumulativeDaySumType(
   type: string,
 ): type is CumulativeDaySumType {
   return (CUMULATIVE_DAY_SUM_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * v1.4.36 W4c / v1.4.37 W10 — cumulative MeasurementType →
+ * SourcePriorityMetricKey lookup for `pickCanonicalSourceRows`.
+ *
+ * Returns `null` for types without a dedicated priority ladder
+ * (e.g. TIME_IN_DAYLIGHT, which lacks a clinical-grade competitor
+ * to Apple Health for daylight minutes today). The picker treats a
+ * `null` ladder as the "no priority — pass through every row"
+ * branch, so the bucket-and-sum runs over every source.
+ *
+ * Hoisted out of `src/app/api/analytics/route.ts` so adding a new
+ * cumulative metric is a single-line edit here rather than a
+ * route-level switch that drifts from the `SourcePriorityMetricKey`
+ * enum + `CUMULATIVE_HK_TYPES` set. A parity test pins the contract:
+ * every member of `CUMULATIVE_HK_TYPES` either resolves to a real
+ * `SourcePriorityMetricKey` or is explicitly mapped to `null`.
+ */
+export function cumulativeMetricKey(
+  type: MeasurementType,
+): SourcePriorityMetricKey | null {
+  switch (type) {
+    case "ACTIVITY_STEPS":
+      return "steps";
+    case "ACTIVE_ENERGY_BURNED":
+      return "activeEnergy";
+    case "WALKING_RUNNING_DISTANCE":
+      return "walkingRunningDistance";
+    case "FLIGHTS_CLIMBED":
+      return "flightsClimbed";
+    default:
+      return null;
+  }
 }

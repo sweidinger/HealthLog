@@ -7,59 +7,25 @@ import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { computeSummariesSlice } from "@/lib/analytics/summaries-slice";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
-import { computeBpInTargetWindows } from "@/lib/analytics/bp-in-target";
 import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
-import { calculateCompliance } from "@/lib/analytics/compliance";
-import {
-  computeHealthScore,
-  defaultWeightTargetFromHeight,
-  type ContributingSource,
-  type HealthScoreInput,
-  type HealthScoreResult,
-} from "@/lib/analytics/health-score";
-import {
-  correlateBpCompliance,
-  correlateMoodPulse,
-  correlateWeightWeekday,
-  type CorrelationResult,
-} from "@/lib/insights/correlations";
 import type {
   MeasurementSource,
   MeasurementType,
 } from "@/generated/prisma/client";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
-import type { SourcePriorityMetricKey } from "@/lib/validations/source-priority";
 import { ensureUserRollupsFresh } from "@/lib/measurements/rollups";
+import { probeRollupCoverage } from "@/lib/measurements/rollup-coverage";
+import { computeBpInTargetFastPath } from "@/lib/analytics/bp-in-target-fast-path";
+import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
+import { computeCorrelationHypothesesFastPath } from "@/lib/analytics/correlations-fast-path";
 import {
+  cumulativeMetricKey,
   isCumulativeDaySumType,
   pickCumulativeDaySum,
 } from "@/lib/measurements/cumulative-day-sum";
 
 export const dynamic = "force-dynamic";
-
-/**
- * v1.4.36 W4c — cumulative MeasurementType → SourcePriorityMetricKey
- * for `pickCanonicalSourceRows`. Returns `null` for types without a
- * dedicated priority ladder (e.g. TIME_IN_DAYLIGHT), which fall
- * through the picker's "no ladder" pass-through branch.
- */
-function cumulativeMetricKey(
-  type: MeasurementType,
-): SourcePriorityMetricKey | null {
-  switch (type) {
-    case "ACTIVITY_STEPS":
-      return "steps";
-    case "ACTIVE_ENERGY_BURNED":
-      return "activeEnergy";
-    case "WALKING_RUNNING_DISTANCE":
-      return "walkingRunningDistance";
-    case "FLIGHTS_CLIMBED":
-      return "flightsClimbed";
-    default:
-      return null;
-  }
-}
 
 /**
  * v1.4.33 C1 — pull `?slice=…` from either a NextRequest (the
@@ -154,6 +120,15 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // warm rollup table on their next read. The route's response
   // shape is untouched.
   await ensureUserRollupsFresh(user.id);
+
+  // v1.4.37 W2 — single per-type coverage probe shared by the
+  // bp_in_target / healthScore / correlations branches below. The
+  // probe is one indexed query against `measurement_rollups`; the
+  // three downstream branches each reuse the resulting `coverage`
+  // map to decide between the rollup-fast-path and the live
+  // fallback. Probing once instead of per-branch keeps the fan-out
+  // cost flat across the three branches.
+  const coverage = await probeRollupCoverage(user.id);
 
   // v1.4.25 W7b — every day-bucket call inside this route now honours
   // the user's display timezone. The legacy `berlinDayKey()` import
@@ -333,57 +308,23 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
     const now = new Date();
-    // v1.4.22 A1 — re-anchor the BD-Zielbereich tile headline to the
-    // last-30-day window. Up to v1.4.19 the headline pinned to the
-    // 30-day average (so 7d / 30d / total all read 50 %). v1.4.19 A1
-    // flipped the headline to all-time, which made the tile correct
-    // but emotionally wrong: the headline was the slowest-moving
-    // aggregate possible, punishing recent improvement. v1.4.22 A1
-    // re-routes the headline to last-30-days and surfaces 7d / 30d /
-    // all-time as a 3-line sub-row so power users still see the
-    // long-arc number without it dominating. The helper still returns
-    // every window — only the headline pick changed.
-    //
-    // v1.4.23 H2 — chunked aggregation replaces an unbounded findMany.
-    // The W2-of-v1.4.20 fix did the right thing semantically (all-time
-    // window for the headline) but read the entire BP table into one
-    // array per type. A 5-year power user holds ~9 000 rows × 2; the
-    // single-shot fetch produced a 50-100 ms Prisma round-trip plus a
-    // ~2 MB allocation per request. Page through in 5 000-row chunks
-    // so the working set stays bounded; accumulate into the same
-    // `BpReading[]` shape the existing helper expects. The
-    // `analytics.bp_in_target.row_count` wide-event meta lets ops
-    // attribute slow requests to specific outlier users.
-    // v1.4.29 M1 — bound the BP-in-target reads to the trailing
-    // 365 days. `computeBpInTargetWindows` only needs the last
-    // year (the longest sub-window it computes is `priorYear`);
-    // pre-bound, each chunked walk pulled the entire BP history
-    // every dashboard mount.
-    const bpInTargetSince = new Date(
-      now.getTime() - 365 * 24 * 60 * 60 * 1000,
-    );
-    const [sysData, diaData] = await Promise.all([
-      fetchMeasurementSeriesChunked(user.id, "BLOOD_PRESSURE_SYS", {
-        since: bpInTargetSince,
-      }),
-      fetchMeasurementSeriesChunked(user.id, "BLOOD_PRESSURE_DIA", {
-        since: bpInTargetSince,
-      }),
-    ]);
-
-    annotate({
-      meta: {
-        analytics: {
-          bp_in_target: {
-            row_count: sysData.length + diaData.length,
-            sys_rows: sysData.length,
-            dia_rows: diaData.length,
-          },
-        },
-      },
+    // v1.4.37 W2 — probe-gated dispatcher replaces the inline chunked
+    // read. When BOTH BP types have DAY-bucket coverage the helper
+    // pairs the per-day MEAN SYS + MEAN DIA from `measurement_rollups`
+    // and counts in-target days against the five reporting windows,
+    // skipping the heavy 365-day chunked walk against `measurements`.
+    // Falls back to the legacy `computeBpInTargetWindows` over a
+    // chunked read when coverage is partial so a brand-new account
+    // (no buckets yet) still sees per-event numbers. The helper emits
+    // a `path: "rollup" | "live"` annotate so prod logs prove which
+    // branch fired. See `bp-in-target-fast-path.ts` for the
+    // documented per-day-mean approximation.
+    const windows = await computeBpInTargetFastPath({
+      userId: user.id,
+      targets: bpTargets,
+      now,
+      coverage,
     });
-
-    const windows = computeBpInTargetWindows(sysData, diaData, bpTargets, now);
     bpInTargetPct = windows.last30Days?.pct ?? null;
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;
@@ -420,32 +361,39 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   }
 
   // v1.4.20 phase B3 — three pre-defined correlation hypotheses.
-  // All three run on the trailing 30 days so a sparse account doesn't
-  // burn the n >= 20 gate on a stale window (v1.4.23 H6 raised the
-  // floor from 14 → 20). Each runner gates on n >= 20 + p < 0.05;
-  // below the bar the result.status === "insufficient" and the UI
-  // paints an EmptyState.
-  const correlations = await computeCorrelationHypotheses(user.id, userTz);
+  // v1.4.37 W2 — probe-gated helper. The 28-day scan window (down
+  // from 30 to keep the cold critical path tight while still
+  // satisfying the n >= 20 surface gate) reads SYS / PULSE / WEIGHT
+  // per-day means from `measurement_rollups` when the user has full
+  // coverage; mood and medication-intake reads always stay live (no
+  // rollup equivalent). The helper emits `meta.correlations.path` +
+  // `meta.correlations.window_days` so prod logs prove the branch
+  // selection and the truthful window.
+  const correlations = await computeCorrelationHypothesesFastPath({
+    userId: user.id,
+    userTz,
+    now: new Date(),
+    coverage,
+  });
 
   // v1.4.20 phase B5 — Personal Health Score. Server-deterministic
   // composite of BP-in-target % + weight-trend alignment + mood
   // stability + medication compliance. The "vs last week" delta
   // re-runs the same compute against a 7-day-shifted snapshot.
-  const healthScore = await computeUserHealthScore(user.id, {
+  //
+  // v1.4.37 W2 — probe-gated helper. The weight pillar derives from
+  // DAY-bucket means on `measurement_rollups` when the user has full
+  // coverage; the source-attribution accordion still pulls a narrow
+  // 2-column projection from `measurements` for the ingest-path
+  // pills. Falls back to the legacy 37-day raw read on partial /
+  // missing coverage. Path annotate sits on `meta.healthScore.path`.
+  const healthScore = await computeUserHealthScoreFastPath({
+    userId: user.id,
     bpInTargetPct,
     heightCm: user.heightCm ?? null,
+    now: new Date(),
+    coverage,
   });
-  if (healthScore) {
-    annotate({
-      meta: {
-        healthScore: {
-          score: healthScore.score,
-          band: healthScore.band,
-          delta: healthScore.delta,
-        },
-      },
-    });
-  }
 
   return {
     summaries: results,
@@ -538,160 +486,11 @@ async function computeSleepStageBreakdown(
   };
 }
 
-/**
- * Build inputs for the three pre-defined hypotheses + run them.
- * Pure-ish — only Prisma reads, no external calls.
- *
- * Window: trailing 30 days. Anything older falls outside the surface
- * because the user-facing "based on N paired readings · last 30 days"
- * source-chip has to remain truthful.
- */
-async function computeCorrelationHypotheses(
-  userId: string,
-  userTz: string,
-): Promise<{
-  bpCompliance: CorrelationResult;
-  moodPulse: CorrelationResult;
-  weightWeekday: CorrelationResult;
-}> {
-  const DAY_MS = 24 * 60 * 60 * 1000;
-  const since = new Date(Date.now() - 30 * DAY_MS);
-
-  // v1.4.23 Sr-H1 — the four measurement reads route through the
-  // chunked helper so even a noisy 30-day window (e.g. minute-level
-  // HealthKit pulse samples) cannot allocate an unbounded buffer. The
-  // helper still returns the full filtered series the Pearson runners
-  // need; we just bound the per-page Prisma round-trip.
-  const [sysRows, pulseRows, weightRows, moodRows, intakeRows] =
-    await Promise.all([
-      fetchMeasurementSeriesChunked(userId, "BLOOD_PRESSURE_SYS", { since }),
-      fetchMeasurementSeriesChunked(userId, "PULSE", { since }),
-      fetchMeasurementSeriesChunked(userId, "WEIGHT", { since }),
-      prisma.moodEntry.findMany({
-        where: { userId, moodLoggedAt: { gte: since } },
-        select: { score: true, moodLoggedAt: true, date: true },
-      }),
-      prisma.medicationIntakeEvent.findMany({
-        where: { userId, scheduledFor: { gte: since } },
-        select: { scheduledFor: true, takenAt: true, skipped: true },
-      }),
-    ]);
-
-  // ── Hypothesis 1: BP × medication compliance ────────────────
-  // Aggregate by the user's display-tz day key so DST + UTC boundary
-  // issues don't split a day's readings. The day's "compliance %" is
-  // taken / expected for that calendar day across all medications.
-  const dayKey = (d: Date): string => userDayKey(d, userTz);
-
-  const dailySys = new Map<string, number[]>();
-  for (const row of sysRows) {
-    const key = dayKey(row.measuredAt);
-    const list = dailySys.get(key) ?? [];
-    list.push(row.value);
-    dailySys.set(key, list);
-  }
-
-  const dailyCompliance = new Map<
-    string,
-    { expected: number; taken: number }
-  >();
-  for (const event of intakeRows) {
-    const key = dayKey(event.scheduledFor);
-    const slot = dailyCompliance.get(key) ?? { expected: 0, taken: 0 };
-    slot.expected += 1;
-    if (event.takenAt && !event.skipped) slot.taken += 1;
-    dailyCompliance.set(key, slot);
-  }
-
-  const bpCompliancePairs: Array<{
-    date: Date;
-    systolic: number;
-    compliancePct: number;
-  }> = [];
-  for (const [key, sysValues] of dailySys.entries()) {
-    const slot = dailyCompliance.get(key);
-    if (!slot || slot.expected === 0) continue;
-    const compliancePct = (slot.taken / slot.expected) * 100;
-    const meanSys = sysValues.reduce((s, v) => s + v, 0) / sysValues.length;
-    bpCompliancePairs.push({
-      date: dateFromDayKey(key),
-      systolic: meanSys,
-      compliancePct,
-    });
-  }
-  const bpCompliance = correlateBpCompliance({ daily: bpCompliancePairs });
-
-  // ── Hypothesis 2: Mood × resting pulse ──────────────────────
-  // Same-day pairing: take the day's mean mood vs the day's mean pulse.
-  // "Resting" is approximated by mean — HealthLog has no separate
-  // resting-pulse field, so we accept the noise rather than skip.
-  const dailyMood = new Map<string, number[]>();
-  for (const row of moodRows) {
-    const key = userDayKey(row.moodLoggedAt, userTz);
-    const list = dailyMood.get(key) ?? [];
-    list.push(row.score);
-    dailyMood.set(key, list);
-  }
-  const dailyPulse = new Map<string, number[]>();
-  for (const row of pulseRows) {
-    const key = userDayKey(row.measuredAt, userTz);
-    const list = dailyPulse.get(key) ?? [];
-    list.push(row.value);
-    dailyPulse.set(key, list);
-  }
-  const moodPulsePairs: Array<{
-    date: Date;
-    mood: number;
-    restingPulse: number;
-  }> = [];
-  for (const [key, moodScores] of dailyMood.entries()) {
-    const pulseValues = dailyPulse.get(key);
-    if (!pulseValues || pulseValues.length === 0) continue;
-    const meanMood = moodScores.reduce((s, v) => s + v, 0) / moodScores.length;
-    const meanPulse =
-      pulseValues.reduce((s, v) => s + v, 0) / pulseValues.length;
-    moodPulsePairs.push({
-      date: dateFromDayKey(key),
-      mood: meanMood,
-      restingPulse: meanPulse,
-    });
-  }
-  const moodPulse = correlateMoodPulse({ daily: moodPulsePairs });
-
-  // ── Hypothesis 3: Weight × weekday ──────────────────────────
-  // 0 = Monday … 6 = Sunday. ISO weekday minus 1.
-  //
-  // v1.4.25 W10 reconcile (Code-H1) — buckets the weekday by the
-  // user's display tz, matching W7's per-user-tz threading that the
-  // BP, mood, sleep, and pulse aggregators above already honour. The
-  // pre-W10 helper was pinned to `Europe/Berlin` and would land a
-  // user-local 23:30 weight reading from `Pacific/Auckland` under
-  // Sunday's bucket instead of Monday's — Pearson on the wrong
-  // weekday column.
-  const weightWeekdayPairs: Array<{ weekday: number; weight: number }> = [];
-  for (const row of weightRows) {
-    const isoWeekday = isoWeekdayInTz(row.measuredAt, userTz); // 1..7, 1=Mon
-    weightWeekdayPairs.push({
-      weekday: isoWeekday - 1,
-      weight: row.value,
-    });
-  }
-  const weightWeekday = correlateWeightWeekday({ daily: weightWeekdayPairs });
-
-  // Annotate so admin observability can attribute coverage to the
-  // corresponding wide-event rather than chasing it via DB queries.
-  annotate({
-    meta: {
-      correlations: {
-        bpCompliance: bpCompliance.status,
-        moodPulse: moodPulse.status,
-        weightWeekday: weightWeekday.status,
-      },
-    },
-  });
-
-  return { bpCompliance, moodPulse, weightWeekday };
-}
+// v1.4.37 W2 — `computeCorrelationHypotheses` body relocated to
+// `src/lib/analytics/correlations-fast-path.ts` so the probe-gated
+// rollup / live dispatcher can be unit-tested independently of the
+// route. The new helper also tightens the scan window to 28 days and
+// emits a sentinel on `meta.correlations.window_days` / `degraded`.
 
 /**
  * v1.4.23 Sr-H1 — paged read of every Measurement of a given type for
@@ -793,338 +592,16 @@ async function fetchMeasurementSeriesChunked(
   return out;
 }
 
-// v1.4.22 W5 reconcile (Code-MED-3) — `berlinDayKey()` lifted to
-// `src/lib/analytics/berlin-day.ts` so the targets route's sparkline
-// bucketing shares the same Europe/Berlin contract. The
-// `weekday: "short"` formatter still lives here because it's only
-// used by `isoWeekdayInTz()` below.
-//
-// v1.4.25 W10 reconcile (Code-H1) — formatter is now per-tz so the
-// weight-weekday correlator honours the same per-user-tz contract the
-// BP/mood/pulse aggregators above already use. Memoised by tz so the
-// formatter is built once per unique timezone per process (tz strings
-// rarely change at runtime; the cache is bounded by the IANA database
-// to a few hundred entries even in the worst case).
-const WEEKDAY_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
-function getWeekdayFormatter(timeZone: string): Intl.DateTimeFormat {
-  let formatter = WEEKDAY_FORMATTER_CACHE.get(timeZone);
-  if (!formatter) {
-    formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      weekday: "short",
-    });
-    WEEKDAY_FORMATTER_CACHE.set(timeZone, formatter);
-  }
-  return formatter;
-}
-
-function dateFromDayKey(key: string): Date {
-  // Anchor to UTC midnight — the date is a sortable bucket label rather
-  // than a wall-clock timestamp, so DST drift is irrelevant. The tz
-  // info is already baked into the key (built via `userDayKey` upstream).
-  return new Date(`${key}T00:00:00.000Z`);
-}
-
-const ISO_WEEKDAY: Record<string, number> = {
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-  Sun: 7,
-};
-
-function isoWeekdayInTz(d: Date, timeZone: string): number {
-  const parts = getWeekdayFormatter(timeZone).formatToParts(d);
-  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "Mon";
-  return ISO_WEEKDAY[weekday] ?? 1;
-}
+// v1.4.37 W2 — `WEEKDAY_FORMATTER_CACHE`, `getWeekdayFormatter`,
+// `dateFromDayKey`, `ISO_WEEKDAY`, and `isoWeekdayInTz` relocated
+// alongside the correlation runner in
+// `src/lib/analytics/correlations-fast-path.ts`. They were only ever
+// used by the weight-weekday + day-key helpers inside the old inline
+// correlation builder.
 
 
-/**
- * v1.4.25 W8e — collapse the persisted `MeasurementSource` enum onto
- * the camelCase token set the health-score analytics layer consumes.
- *
- * - `MANUAL` and `IMPORT` (CSV import — still user-supplied data) both
- *   surface as `"manual"`.
- * - `WITHINGS` and `APPLE_HEALTH` ride one-to-one.
- *
- * Returns `null` for source values that don't fall into the three
- * exposed buckets — defence-in-depth in case the enum grows before the
- * client is taught about it.
- */
-function mapMeasurementSourceToLabel(
-  source: MeasurementSource,
-): ContributingSource | null {
-  switch (source) {
-    case "MANUAL":
-    case "IMPORT":
-      return "manual";
-    case "WITHINGS":
-      return "withings";
-    case "APPLE_HEALTH":
-      return "appleHealth";
-    default:
-      return null;
-  }
-}
-
-/**
- * v1.4.25 W8e — deduplicate the contributing-source list for a single
- * component. Returns the empty array when nothing in the input maps
- * onto a known label so downstream `resolveSourceLabel` falls through
- * to `none` (matches the empty-state branch).
- */
-function uniqueComponentSources(
-  rows: ReadonlyArray<MeasurementSource>,
-): ReadonlyArray<ContributingSource> {
-  const seen = new Set<ContributingSource>();
-  for (const src of rows) {
-    const label = mapMeasurementSourceToLabel(src);
-    if (label) seen.add(label);
-  }
-  return Array.from(seen);
-}
-
-/**
- * Build the Health Score input from the user's last-30-day weight,
- * mood, and medication-compliance data, plus the already-computed
- * `bpInTargetPct` headline. Re-runs the same compute against a
- * 7-day-shifted window to populate the "vs last week" delta.
- *
- * Returns null when the score wouldn't carry any signal (every
- * component nullable + no medications). The route surfaces the
- * `null` to the UI so the hero panel hides cleanly.
- */
-async function computeUserHealthScore(
-  userId: string,
-  input: { bpInTargetPct: number | null; heightCm: number | null },
-): Promise<HealthScoreResult | null> {
-  const DAY_MS = 24 * 60 * 60 * 1000;
-  const now = new Date();
-  const since30d = new Date(now.getTime() - 30 * DAY_MS);
-  // Prior week's snapshot — shift everything 7 days into the past so
-  // both windows close at the same wall-clock-of-day boundary.
-  const prevSince30d = new Date(now.getTime() - 37 * DAY_MS);
-  const prevUntil = new Date(now.getTime() - 7 * DAY_MS);
-
-  // v1.4.25 W8e — read the `source` column alongside the value so the
-  // health-score provenance accordion knows which ingest path drove
-  // each component. The weight + BP reads already paid the row cost;
-  // adding the column to the SELECT is free in Postgres terms (no extra
-  // round-trip, no extra plan node) and the alternative — a second
-  // aggregate just for the source pill — would burn another findMany.
-  const [weightRows, bpSysRowsForSource, moodRows, medications] =
-    await Promise.all([
-      prisma.measurement.findMany({
-        where: {
-          userId,
-          type: "WEIGHT",
-          measuredAt: { gte: prevSince30d, lte: now },
-        },
-        select: { value: true, measuredAt: true, source: true },
-        orderBy: { measuredAt: "asc" },
-      }),
-      // BP source attribution rides on the systolic-readings row set —
-      // diastolic rows always carry the same `source` because both
-      // halves of a pair are persisted in the same write. Pull only the
-      // trailing 30 days to keep the call bounded for power users.
-      prisma.measurement.findMany({
-        where: {
-          userId,
-          type: "BLOOD_PRESSURE_SYS",
-          measuredAt: { gte: since30d, lte: now },
-        },
-        select: { measuredAt: true, source: true },
-        orderBy: { measuredAt: "asc" },
-      }),
-      prisma.moodEntry.findMany({
-        where: {
-          userId,
-          moodLoggedAt: { gte: prevSince30d, lte: now },
-        },
-        select: { score: true, moodLoggedAt: true },
-        orderBy: { moodLoggedAt: "asc" },
-      }),
-      prisma.medication.findMany({
-        where: { userId, active: true },
-        select: {
-          id: true,
-          createdAt: true,
-          schedules: {
-            select: {
-              windowStart: true,
-              windowEnd: true,
-            },
-          },
-        },
-      }),
-    ]);
-
-  // Compliance30 per active medication, then again for the prior-week
-  // snapshot. The compliance helper anchors on `Date.now()` internally;
-  // for the previous-week snapshot we reuse the same helper but pass a
-  // shifted "createdAt" floor so the window mathematically reflects the
-  // [-37d, -7d] period — equivalent to running the helper a week ago.
-  let medicationCompliance30: number[] = [];
-  let medicationCompliance30Previous: number[] = [];
-  if (medications.length > 0) {
-    const medIds = medications.map((m) => m.id);
-    const intakeEvents = await prisma.medicationIntakeEvent.findMany({
-      where: {
-        userId,
-        medicationId: { in: medIds },
-        scheduledFor: { gte: prevSince30d, lte: now },
-      },
-      select: {
-        medicationId: true,
-        scheduledFor: true,
-        takenAt: true,
-        skipped: true,
-      },
-    });
-    const eventsByMed = new Map<string, typeof intakeEvents>();
-    for (const ev of intakeEvents) {
-      const list = eventsByMed.get(ev.medicationId);
-      if (list) list.push(ev);
-      else eventsByMed.set(ev.medicationId, [ev]);
-    }
-    medicationCompliance30 = medications.map((med) => {
-      const events = eventsByMed.get(med.id) ?? [];
-      return calculateCompliance(events, med.schedules, 30, med.createdAt).rate;
-    });
-    medicationCompliance30Previous = medications.map((med) => {
-      const events = (eventsByMed.get(med.id) ?? []).filter(
-        (e) => e.scheduledFor <= prevUntil,
-      );
-      // Compute compliance against the prior-week-aligned window by
-      // remapping the helper's "now": shift each event's scheduledFor
-      // and takenAt forward by 7 days so the helper's internal `now`
-      // anchor still captures the same logical 30 days.
-      const shifted = events.map((e) => ({
-        scheduledFor: new Date(e.scheduledFor.getTime() + 7 * DAY_MS),
-        takenAt: e.takenAt ? new Date(e.takenAt.getTime() + 7 * DAY_MS) : null,
-        skipped: e.skipped,
-      }));
-      return calculateCompliance(shifted, med.schedules, 30, med.createdAt)
-        .rate;
-    });
-  }
-
-  const fallbackTarget = defaultWeightTargetFromHeight(input.heightCm);
-
-  const weightSeriesLast30d = weightRows
-    .filter((r) => r.measuredAt >= since30d)
-    .map((r) => ({ date: r.measuredAt.toISOString(), kg: r.value }));
-  const weightSeriesPrev30d = weightRows
-    .filter((r) => r.measuredAt >= prevSince30d && r.measuredAt <= prevUntil)
-    .map((r) => ({ date: r.measuredAt.toISOString(), kg: r.value }));
-
-  const moodSeriesLast30d = moodRows
-    .filter((r) => r.moodLoggedAt >= since30d)
-    .map((r) => ({
-      date: r.moodLoggedAt.toISOString(),
-      score: r.score,
-    }));
-  const moodSeriesPrev30d = moodRows
-    .filter(
-      (r) => r.moodLoggedAt >= prevSince30d && r.moodLoggedAt <= prevUntil,
-    )
-    .map((r) => ({
-      date: r.moodLoggedAt.toISOString(),
-      score: r.score,
-    }));
-
-  // Skip any input shape where literally nothing is computable — the
-  // hero panel hides instead of painting a misleading "0".
-  if (
-    input.bpInTargetPct === null &&
-    weightSeriesLast30d.length === 0 &&
-    moodSeriesLast30d.length === 0 &&
-    medicationCompliance30.length === 0
-  ) {
-    // Tag-only annotation so admin observability can see the empty path.
-    annotate({
-      meta: {
-        healthScore: { score: null, reason: "no_components_available" },
-      },
-    });
-    return null;
-  }
-
-  // v1.4.25 W8e — build per-component source attribution from the rows
-  // we already hold in memory. `mapMeasurementSourceToLabel` collapses
-  // the persisted `MeasurementSource` enum onto the camelCase token list
-  // the analytics helper consumes; `IMPORT` rides under `manual`
-  // because the v1.4.20 CSV importer ingests user-supplied data — it's
-  // not a wearable stream.
-  const windowEndAt = now.toISOString();
-
-  const weightSourcesIn30d = uniqueComponentSources(
-    weightRows
-      .filter((r) => r.measuredAt >= since30d)
-      .map((r) => r.source),
-  );
-  const latestWeightInWindow = weightRows
-    .filter((r) => r.measuredAt >= since30d)
-    .at(-1);
-
-  const bpSourceTokens = uniqueComponentSources(
-    bpSysRowsForSource.map((r) => r.source),
-  );
-  const latestBpInWindow = bpSysRowsForSource.at(-1);
-
-  // Mood doesn't yet have a non-manual ingest (v1.5 will introduce
-  // Apple Health mood) so the source list is always `["manual"]` when
-  // there are entries in window. Keep the lookup explicit so the
-  // v1.5 ingest path slot just drops in.
-  const moodSourceTokens = moodSeriesLast30d.length > 0
-    ? (["manual"] as const)
-    : [];
-  const latestMoodInWindow = moodRows
-    .filter((r) => r.moodLoggedAt >= since30d)
-    .at(-1);
-
-  // Medication compliance always derives from logged intake events —
-  // user-driven manual logging today.
-  const complianceSourceTokens = medicationCompliance30.length > 0
-    ? (["manual"] as const)
-    : [];
-
-  const current: HealthScoreInput = {
-    bpInTargetRate: input.bpInTargetPct,
-    weightSeriesLast30d,
-    weightTargetKg: fallbackTarget,
-    moodEntriesLast30d: moodSeriesLast30d,
-    medicationCompliance30,
-    attribution: {
-      bpSources: bpSourceTokens,
-      asOfBp: latestBpInWindow?.measuredAt.toISOString() ?? null,
-      weightSources: weightSourcesIn30d,
-      asOfWeight: latestWeightInWindow?.measuredAt.toISOString() ?? null,
-      moodSources: moodSourceTokens,
-      asOfMood: latestMoodInWindow?.moodLoggedAt.toISOString() ?? null,
-      complianceSources: complianceSourceTokens,
-      asOfCompliance: complianceSourceTokens.length > 0 ? windowEndAt : null,
-      windowEndAt,
-    },
-  };
-  // The all-time `bpInTargetPct` is a slow-moving aggregate and would
-  // need a full historical re-pair to "rewind" by a week. We pass the
-  // same value to the previous snapshot so the delta primarily
-  // reflects week-over-week changes in the weight / mood / compliance
-  // pillars — the components that actually move on a weekly cadence.
-  const previous: HealthScoreInput = {
-    bpInTargetRate: input.bpInTargetPct,
-    weightSeriesLast30d: weightSeriesPrev30d,
-    weightTargetKg: fallbackTarget,
-    moodEntriesLast30d: moodSeriesPrev30d,
-    medicationCompliance30: medicationCompliance30Previous,
-  };
-
-  return computeHealthScore(current, previous);
-}
+// v1.4.37 W2 — `mapMeasurementSourceToLabel`, `uniqueComponentSources`,
+// and the inline `computeUserHealthScore` body relocated to
+// `src/lib/analytics/health-score-fast-path.ts` so the probe-gated
+// rollup / live dispatcher can be unit-tested independently of the
+// route. The route now delegates through `computeUserHealthScoreFastPath`.

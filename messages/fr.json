@@ -244,6 +244,21 @@
     "medications": "Médicaments",
     "quickAddMeasurement": "Log measurement",
     "quickAddMood": "Log mood",
+    "quickAddMedicationIntake": "Log medication intake",
+    "medicationIntakeQuickAdd": {
+      "sheetTitle": "Log medication intake",
+      "sheetDescription": "Record dose, time, and medication in a few taps.",
+      "medicationLabel": "Medication",
+      "medicationPlaceholder": "Select a medication",
+      "doseLabel": "Dose",
+      "dosePlaceholder": "e.g. 5 mg",
+      "doseHint": "Currently the standard dose is recorded. Variable doses are coming in a later version.",
+      "timeLabel": "Time taken",
+      "saveError": "Could not save medication intake.",
+      "emptyTitle": "No medications yet",
+      "emptyDescription": "Create a medication with a schedule first, then come back here to log the intake.",
+      "emptyCta": "Add medication"
+    },
     "compliance7d": "Compliance (7 days)",
     "mood": "Humeur",
     "customizeTitle": "Dashboard layout",
@@ -356,7 +371,10 @@
     "deleteConfirmDescription": "This measurement will be permanently deleted.",
     "pageInfo": "Page {page} sur {total}",
     "previousPage": "Previous page",
-    "nextPage": "Next page"
+    "nextPage": "Next page",
+    "dailyTotalCaption": "({count} samples)",
+    "expandDay": "Show samples for this day",
+    "collapseDay": "Hide samples for this day"
   },
   "mood": {
     "title": "Humeur",
@@ -1616,6 +1634,13 @@
       "export": {
         "title": "Exporter",
         "description": "Download your health data as PDF, CSV, or a full JSON backup.",
+        "otherOptionsHeading": "Autres options d'export",
+        "hero": {
+          "eyebrow": "Rendez-vous médical",
+          "valueStatement": "Un rapport PDF imprimable pour votre rendez-vous médical — constantes, IMC, classification de tension, observance des traitements et (en option) historique de l'humeur, en quelques pages.",
+          "cta": "Configurer & générer le rapport",
+          "formatHint": "PDF · prêt à imprimer"
+        },
         "actions": {
           "download": "Download"
         },
@@ -1626,8 +1651,7 @@
         "cards": {
           "doctorReport": {
             "title": "Doctor Report",
-            "description": "Printable PDF for the doctor's appointment — vitals, BMI, BP classification, medication compliance, mood.",
-            "action": "Configure & generate"
+            "description": "Printable PDF for the doctor's appointment — vitals, BMI, BP classification, medication compliance, mood."
           },
           "measurementsCsv": {
             "title": "Measurements",
@@ -1667,8 +1691,6 @@
     "genderHint": "Used for gender-specific target values.",
     "timezone": "Fuseau horaire",
     "timezoneHint": "Used for chart axis labels, reminder times, export timestamps, and Coach context. Stored data is unchanged.",
-    "timezoneDetect": "Use browser timezone",
-    "timezoneDetectAria": "Use browser timezone {tz}",
     "timezoneInvalid": "Not a valid IANA timezone.",
     "profileSaved": "Profile saved",
     "changePassword": "Change password",
