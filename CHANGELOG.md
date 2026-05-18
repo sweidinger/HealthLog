@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.4.38.8] — 2026-05-18 — Analytics fast-path gates per-type only
+
+The v1.4.38.5–.7 chain confirmed the rollup-fast-path was bouncing
+to the live SQL aggregator even when the helper's own types were
+fully covered — every fast-path stacked `isFullyCovered(coverage)
+&& specificTypes` and a single unrelated uncovered type (e.g. an
+iOS-pushed brand-new ACTIVITY_FLIGHTS reading) flipped the AND
+false and stranded the whole helper on live SQL across the full
+347 k-row measurement table.
+
+### Fixed
+
+- **`correlations-fast-path` gates only on `BLOOD_PRESSURE_SYS +
+  PULSE + WEIGHT`** — the three types the helper actually reads.
+  `isFullyCovered(coverage)` AND-term dropped.
+- **`bp-in-target-fast-path` gates only on `BLOOD_PRESSURE_SYS +
+  BLOOD_PRESSURE_DIA`**. Same fix.
+- **`health-score-fast-path` gates only on `WEIGHT`**. Same fix.
+
+Coverage-probe semantics unchanged. Each helper now consults the
+per-type entries directly; a brand-new uncovered metric type no
+longer poisons unrelated cards.
+
+### Operator notes
+
+- No new migration. No env-var change.
+- Expected: cold-mount `/api/analytics` on Marc-sized accounts
+  drops from 30-75 s to ~3-5 s.
+
 ## [1.4.38.7] — 2026-05-18 — Rollup recompute observability + admin trigger
 
 The v1.4.38.5 / v1.4.38.6 chain promised a fast-path recovery for
