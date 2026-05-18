@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.4.38.6] — 2026-05-18 — Boot-backfill discovery SQL fix
+
+The v1.4.38.5 discovery rewrite filtered the LEFT JOIN with
+`WHERE r."id" IS NULL` — but `measurement_rollups` has a composite
+primary key `(user_id, type, granularity, bucket_start)` and no
+surrogate `id` column. Postgres rejected the query with
+`column r.id does not exist` (SQL state 42703), the worker boot
+swallowed the error per the helper's best-effort contract, and the
+queue stayed empty. Net effect: v1.4.38.5 deployed cleanly but
+delivered none of its promised fast-path recovery.
+
+### Fixed
+
+- **Boot-backfill discovery now filters on `r."bucket_start" IS NULL`**
+  — any column from the right side of the LEFT JOIN serves as the
+  "no matching row" sentinel; `bucket_start` is part of the composite
+  primary key so the planner already touches the column. Verified
+  against the live schema: `42703` no longer raised on worker boot,
+  and the discovery query returns the expected per-type-missing
+  candidate set.
+
+### Operator notes
+
+- No new migration. No env-var change.
+- On first boot after deploy the rollup-full-backfill queue picks
+  up users with any missing type-coverage and folds them. Power-
+  user accounts may see one slow `/api/analytics` cold-mount before
+  the next request lands on the restored fast path.
+
 ## [1.4.38.5] — 2026-05-18 — Analytics fast-path restored on long-running accounts
 
 Hotfix on top of v1.4.38.4. `/api/analytics` and the dashboard
