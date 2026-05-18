@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.4.38.7] — 2026-05-18 — Rollup recompute observability + admin trigger
+
+The v1.4.38.5 / v1.4.38.6 chain promised a fast-path recovery for
+power-user accounts but gave the operator no way to confirm whether
+the boot-time discovery had actually found a stranded user — the
+success log only fired when `enqueued > 0 || skipped > 0`, so the
+silent "found nothing" case looked identical to the silent "boot hook
+never ran" case. And once the worker was up there was no way to
+re-trigger discovery short of bouncing the container.
+
+### Added
+
+- **`POST /api/admin/rollups/recompute`** — operator-triggered ad-hoc
+  rollup recompute. Body `{ userId: string }` synchronously folds
+  one user (`recomputeUserRollups` awaited inside the request). Body
+  `{}` re-runs `enqueueBootTimeRollupBackfill()` to kick the
+  boot-discovery loop across every user. Admin gate via
+  `requireAdmin()` (cookie-only, never Bearer).
+- **`fallback_reason` + `missing_types` annotate** on the
+  `slim_summaries` live-fallback path. When the rollup-fast-path
+  declines, the wide-event now reports exactly which measurement
+  types are missing DAY-bucket coverage so the operator can match
+  a slow `/api/analytics` cold-mount to the responsible type without
+  touching the DB.
+
+### Changed
+
+- **Boot-backfill discovery now logs every result, including the
+  silent "no users to backfill" case.** The line cost is one row per
+  worker boot; the operator gain is the ability to tell discovery
+  ran cleanly from discovery silently no-op'd.
+
+### Operator notes
+
+- No new migration. No env-var change.
+
 ## [1.4.38.6] — 2026-05-18 — Boot-backfill discovery SQL fix
 
 The v1.4.38.5 discovery rewrite filtered the LEFT JOIN with
