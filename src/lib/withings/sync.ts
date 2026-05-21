@@ -17,7 +17,13 @@ import {
   isReauthRequired,
   recordSyncFailure,
   recordSyncSuccess,
+  type FailureKind,
 } from "@/lib/integrations/status";
+import {
+  classifyError,
+  WithingsApiError,
+  type WithingsClassification,
+} from "./response-classifier";
 import {
   collapseToTypeDayKeys,
   recomputeBucketsForMeasurement,
@@ -109,20 +115,7 @@ export async function getValidToken(userId: string): Promise<{
       };
     } catch (err) {
       getEvent()?.addWarning(`Token refresh failed for user ${userId}: ${err}`);
-      // Withings refresh failures expose the upstream `status` code in
-      // the error message (see refreshAccessToken). We treat any of the
-      // documented permanent-revoke statuses (100, 101, 102, 200..299
-      // for invalid_grant) as reauth-required and everything else as a
-      // transient retryable failure.
-      const message = err instanceof Error ? err.message : String(err);
-      const isReauth = isWithingsRefreshReauthFailure(message);
-      await recordSyncFailure({
-        userId,
-        integration: "withings",
-        kind: isReauth ? "reauth_required" : "transient",
-        message,
-        errorCode: extractWithingsStatus(message),
-      });
+      await recordWithingsSyncFailure(userId, err);
       return null;
     }
   }
@@ -184,16 +177,7 @@ export async function syncUserMeasurements(
   try {
     measures = await fetchMeasurements(tokenInfo.accessToken, startDate);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await recordSyncFailure({
-      userId,
-      integration: "withings",
-      kind: isWithingsRefreshReauthFailure(message)
-        ? "reauth_required"
-        : "transient",
-      message,
-      errorCode: extractWithingsStatus(message),
-    });
+    await recordWithingsSyncFailure(userId, err);
     throw err;
   }
 
@@ -288,6 +272,57 @@ export async function syncUserMeasurements(
 }
 
 /**
+ * Map a Withings response classification onto the `FailureKind` carried
+ * into `recordSyncFailure`. Pure function — no IO, no state.
+ *
+ *   `success`         → not a failure; callers must not invoke this.
+ *   `transient`       → `transient` (retry next sync)
+ *   `reauth_required` → `reauth_required` (park at `error_reauth`)
+ *   `persistent`      → `persistent` (audited; next sync still runs)
+ */
+/**
+ * v1.4.42 — shared failure-recording shape for the two Withings sync
+ * catch-blocks. The typed `WithingsApiError` carries the classification
+ * verdict directly; `classifyError`'s regex fallback handles plain
+ * `Error` instances (e.g. a pg-boss job retry that lost the prototype
+ * during the JSON round-trip).
+ */
+async function recordWithingsSyncFailure(
+  userId: string,
+  err: unknown,
+): Promise<void> {
+  const message = err instanceof Error ? err.message : String(err);
+  await recordSyncFailure({
+    userId,
+    integration: "withings",
+    kind: classificationToFailureKind(classifyError(err)),
+    message,
+    errorCode:
+      err instanceof WithingsApiError
+        ? err.withingsStatus?.toString()
+        : extractWithingsStatus(message),
+  });
+}
+
+export function classificationToFailureKind(
+  classification: WithingsClassification,
+): FailureKind {
+  switch (classification) {
+    case "reauth_required":
+      return "reauth_required";
+    case "persistent":
+      return "persistent";
+    case "transient":
+      return "transient";
+    case "success":
+      // Defensive: a caller asking for the FailureKind of a success
+      // is a contract bug. Default to `transient` so the audit log
+      // still surfaces the bug rather than silently ignoring it.
+      return "transient";
+  }
+}
+
+/**
  * Withings status codes that indicate a permanent-revoke condition
  * (the refresh_token will not work again — the user has to redo OAuth).
  *
@@ -302,6 +337,13 @@ export async function syncUserMeasurements(
  *
  * The error message format from `refreshAccessToken()` is
  * "Withings refresh error: <status> - <error>".
+ *
+ * v1.4.42 W6 — superseded for new code paths by
+ * `classifyError`/`classifyWithingsResponse` in `response-classifier.ts`.
+ * Kept for the W17b/c sync-activity + sync-sleep catch-blocks that
+ * haven't yet been migrated; both paths now also benefit from the
+ * typed-error throw upstream because `classifyError` falls back to the
+ * same regex.
  */
 export function isWithingsRefreshReauthFailure(message: string): boolean {
   const status = extractWithingsStatus(message);
