@@ -51,7 +51,7 @@ import type {
 const ASYNC_GRANULARITIES: RollupGranularity[] = ["WEEK", "MONTH", "YEAR"];
 
 /** All granularities the rollup table tracks. */
-export const ALL_MOOD_GRANULARITIES: RollupGranularity[] = [
+const ALL_MOOD_GRANULARITIES: RollupGranularity[] = [
   "DAY",
   "WEEK",
   "MONTH",
@@ -166,17 +166,12 @@ export async function recomputeUserMoodRollups(
  *
  * Scoped to the affected `(userId, day)` tuple — cheap, and avoids
  * invalidating buckets that haven't changed.
- *
- * Pass `tx` when called from inside a `prisma.$transaction` block so
- * the rollup write commits atomically with the parent mutation.
- * Otherwise the global `prisma` client is used.
  */
 export async function recomputeMoodBucketsForEntry(
   userId: string,
   moodLoggedAt: Date,
-  tx?: PrismaTxOrClient,
 ): Promise<void> {
-  const client = tx ?? prisma;
+  const client = prisma;
   // DAY pass — synchronous. v1.4.39 hotfix (QA F-H-02): one atomic SQL
   // statement re-aggregates inside the upsert subquery, closing the
   // race window where two concurrent writes for the same (user, day)

@@ -16,8 +16,10 @@ import { HeroStrip } from "@/components/insights/hero-strip";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
-import type { CorrelationResult } from "@/lib/insights/correlations";
-import type { DataSummary } from "@/lib/analytics/trends";
+// v1.4.41 W-ORG — shared shape lives in `src/types/analytics.ts` as
+// `InsightsAnalyticsData`; aliased back to the local name to keep the
+// rest of this file readable.
+import type { InsightsAnalyticsData as AnalyticsData } from "@/types/analytics";
 
 /**
  * v1.4.33 IW2 — defer the three below-the-fold mother-page blocks
@@ -94,49 +96,6 @@ const TrendsRow = dynamic(
  */
 interface ComprehensiveData {
   totalMeasurements: number;
-}
-
-interface AnalyticsData {
-  summaries: Record<string, DataSummary>;
-  correlations?: {
-    bpCompliance: CorrelationResult;
-    moodPulse: CorrelationResult;
-    weightWeekday: CorrelationResult;
-  } | null;
-  healthScore?: {
-    score: number;
-    band: "green" | "yellow" | "red";
-    components: {
-      // v1.4.25 W8e — the optional `source`/`asOf` slots feed the
-      // provenance accordion. Older clients reading this payload
-      // happily ignore the extras (additive contract).
-      bp: {
-        value: number | null;
-        weight: number;
-        source?: "manual" | "withings" | "appleHealth" | "mixed" | "none";
-        asOf?: string;
-      };
-      weight: {
-        value: number | null;
-        weight: number;
-        source?: "manual" | "withings" | "appleHealth" | "mixed" | "none";
-        asOf?: string;
-      };
-      mood: {
-        value: number | null;
-        weight: number;
-        source?: "manual" | "withings" | "appleHealth" | "mixed" | "none";
-        asOf?: string;
-      };
-      compliance: {
-        value: number | null;
-        weight: number;
-        source?: "manual" | "withings" | "appleHealth" | "mixed" | "none";
-        asOf?: string;
-      };
-    };
-    delta: number | null;
-  } | null;
 }
 
 export default function InsightsPage() {
