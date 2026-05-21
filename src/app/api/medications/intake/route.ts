@@ -26,6 +26,13 @@ import { auditLog } from "@/lib/auth/audit";
 import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import {
+  readMedicationCompliance,
+  hasMedicationComplianceCoverage,
+  recomputeMedicationComplianceForEvent,
+  enqueueUserMedicationComplianceBackfill,
+  type ComplianceBucket as RollupComplianceBucket,
+} from "@/lib/medications/compliance-rollups";
 
 const querySchema = z.object({
   scope: z.enum(["today", "compliance"]),
@@ -116,10 +123,16 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // are slow-moving (intake events trickle in, yesterday's row doesn't
   // move). Cache key carries the userTz so a user who changes timezone
   // doesn't read another tz's bucketing.
+  //
+  // v1.4.39 W-MED — read path now consumes the persistent
+  // `medication_compliance_rollups` tier. A coverage probe falls back
+  // to the legacy live aggregator when the user has intake events but
+  // zero rollup rows; the fallback fires a boot-backfill enqueue in the
+  // background so the next request hits the rollup tier.
   const result = await cached(
     caches.medicationsIntake as ServerCache<ComplianceBucket[]>,
     `${user.id}|compliance|${days}|${userTz}`,
-    () => buildComplianceBuckets(user.id, days, userTz),
+    () => readComplianceBucketsWithFallback(user.id, days, userTz),
     annotate,
   );
 
@@ -130,6 +143,50 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   return apiSuccess(result);
 });
+
+/**
+ * v1.4.39 W-MED — read from the persistent rollup tier when covered,
+ * fall through to the legacy live aggregator on coverage miss. The
+ * fallback fires the boot backfill in the background so subsequent
+ * requests hit the rollup path; the current request still returns a
+ * correct response built from the raw events.
+ */
+async function readComplianceBucketsWithFallback(
+  userId: string,
+  days: number,
+  userTz: string,
+): Promise<ComplianceBucket[]> {
+  const covered = await hasMedicationComplianceCoverage(userId, days, userTz);
+  if (covered) {
+    const buckets = await readMedicationCompliance(userId, days, userTz);
+    annotate({
+      meta: {
+        medication_compliance_path: "rollup",
+        medication_compliance_days: days,
+      },
+    });
+    return buckets satisfies RollupComplianceBucket[];
+  }
+
+  // Coverage miss — the legacy aggregator stays correct over an empty
+  // rollup window. Fire a user-scoped backfill in the background so
+  // the next request lands on the rollup tier; the current request
+  // still returns the live-derived buckets.
+  //
+  // QA F-SEC-M-01 (v1.4.39): pre-fix this fired the cluster-wide
+  // `enqueueBootTimeMedicationComplianceBackfill` on every coverage-
+  // miss request, opening a soft-DoS amplifier (every authenticated
+  // user could drive a multi-tenant `LEFT JOIN` scan on each hit).
+  // The user-scoped helper enqueues exactly the caller's account.
+  void enqueueUserMedicationComplianceBackfill(userId);
+  annotate({
+    meta: {
+      medication_compliance_path: "live-fallback",
+      medication_compliance_days: days,
+    },
+  });
+  return buildComplianceBuckets(userId, days, userTz);
+}
 
 interface ComplianceBucket {
   date: string;
@@ -194,6 +251,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Intake event not found", 404);
   }
 
+  const userTzForHook = user.timezone ?? DEFAULT_TIMEZONE;
+
   let updated;
   if (status === "taken") {
     [updated] = await prisma.$transaction([
@@ -237,6 +296,17 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // v1.4.34 IW-G — bust the medications + compliance + achievement
   // caches for this user so the next read reflects the dose change.
   invalidateUserMedications(user.id);
+
+  // v1.4.39 W-MED — refresh the persistent compliance rollup row for
+  // the affected day so the next read after the cache miss returns
+  // the up-to-date `(scheduled, taken, skipped)` tuple. Best-effort:
+  // a populator failure annotates ops without blocking the response.
+  await recomputeMedicationComplianceForEvent({
+    userId: user.id,
+    medicationId: existing.medicationId,
+    scheduledFor: existing.scheduledFor,
+    tz: userTzForHook,
+  });
 
   return apiSuccess(updated);
 });

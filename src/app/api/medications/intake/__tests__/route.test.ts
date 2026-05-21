@@ -9,8 +9,21 @@ vi.mock("@/lib/db", () => ({
       update: vi.fn(),
     },
     medication: { update: vi.fn() },
+    medicationComplianceRollup: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     $transaction: vi.fn(),
+    // v1.4.39 QA F-H-01 — coverage probe + atomic upsert use raw SQL.
+    $queryRaw: vi.fn(),
+    $executeRaw: vi.fn().mockResolvedValue(0),
   },
+}));
+
+vi.mock("@/lib/jobs/boss-instance", () => ({
+  getGlobalBoss: () => null,
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -52,6 +65,22 @@ beforeEach(() => {
   vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
     [] as never,
   );
+  // v1.4.39 W-MED — default the coverage probe to "uncovered" so the
+  // legacy compliance test still exercises the live-fallback branch
+  // and finds the legacy mocked intake events.
+  vi.mocked(prisma.medicationComplianceRollup.findFirst).mockResolvedValue(
+    null,
+  );
+  vi.mocked(prisma.medicationComplianceRollup.findMany).mockResolvedValue(
+    [] as never,
+  );
+  // v1.4.39 QA F-H-01 — the coverage probe is now a single `$queryRaw`
+  // aggregate returning `{ rolled_days, event_days }`. Default to
+  // "zero rollups, zero events" (covered/trivial-empty) so tests that
+  // don't care about coverage land on the rollup path.
+  vi.mocked(prisma.$queryRaw).mockResolvedValue([
+    { rolled_days: BigInt(0), event_days: BigInt(0) },
+  ] as never);
 });
 
 describe("GET /api/medications/intake", () => {
@@ -154,6 +183,7 @@ describe("POST /api/medications/intake", () => {
       id: "e1",
       userId: "user-1",
       medicationId: "m1",
+      scheduledFor: new Date("2026-05-18T10:00:00.000Z"),
     } as never);
     vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue({
       id: "e1",
@@ -166,5 +196,60 @@ describe("POST /api/medications/intake", () => {
       where: { id: "e1" },
       data: { takenAt: null, skipped: true },
     });
+  });
+});
+
+describe("v1.4.39 W-MED — compliance rollup read swap", () => {
+  it("reads the rollup tier when coverage is present", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // QA F-H-01 (v1.4.39): coverage probe returns
+    // `{ rolled_days >= event_days }` so the route lands on the
+    // rollup tier. Match the trailing-7-day window.
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([
+      { rolled_days: BigInt(7), event_days: BigInt(7) },
+    ] as never);
+    vi.mocked(prisma.medicationComplianceRollup.findMany).mockResolvedValue([
+      { day: "2026-05-18", scheduled: 3, taken: 2, skipped: 1 },
+    ] as never);
+
+    const res = await GET(
+      new NextRequest(
+        "http://localhost/api/medications/intake?scope=compliance&days=7",
+      ),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: Array<{ date: string; scheduled: number; taken: number }>;
+    };
+    expect(body.data).toHaveLength(7);
+    const today = body.data[body.data.length - 1];
+    expect(today.scheduled).toBe(3);
+    expect(today.taken).toBe(2);
+    // The legacy live aggregator must not have run when coverage is hot.
+    expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the live aggregator on coverage miss", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // QA F-H-01 (v1.4.39): partial coverage — events present but
+    // rollups missing — forces fall-through to the live aggregator.
+    vi.mocked(prisma.$queryRaw).mockResolvedValue([
+      { rolled_days: BigInt(0), event_days: BigInt(7) },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      {
+        scheduledFor: new Date(),
+        takenAt: new Date(),
+        skipped: false,
+      },
+    ] as never);
+
+    const res = await GET(
+      new NextRequest(
+        "http://localhost/api/medications/intake?scope=compliance&days=7",
+      ),
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.medicationIntakeEvent.findMany).toHaveBeenCalled();
   });
 });
