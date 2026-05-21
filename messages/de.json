@@ -145,19 +145,20 @@
       "moodSensitive": "Sensibel — standardmäßig aus.",
       "compliance": "Medikamenten-Compliance",
       "sleep": "Schlafdauer",
-      "empty": "Für den gewählten Zeitraum liegen noch keine Daten vor. Der Bericht enthält dennoch das Deckblatt."
+      "empty": "Für den gewählten Zeitraum liegen noch keine Daten vor. Der Bericht enthält dennoch das Deckblatt.",
+      "unavailableHint": "Keine Daten in diesem Zeitraum"
     }
   },
   "errorBoundary": {
     "title": "Da ist etwas schiefgelaufen",
     "description": "Ein unerwarteter Fehler ist aufgetreten. Du kannst es erneut versuchen, die technischen Details kopieren oder einen Bug-Report öffnen."
   },
-  "errors": {
-    "notFound": {
-      "title": "Seite nicht gefunden",
-      "body": "Die gesuchte Seite existiert nicht oder wurde verschoben. Kehr zum Dashboard zurück, um dort weiterzumachen, wo du aufgehört hast.",
-      "backToDashboard": "Zurück zum Dashboard"
-    }
+  "notFound": {
+    "title": "Diese Seite existiert nicht.",
+    "backToDashboard": "Zurück zum Dashboard"
+  },
+  "offlineBanner": {
+    "message": "Keine Verbindung — Änderungen werden gespeichert, sobald du wieder online bist."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -353,7 +354,6 @@
     "notesPlaceholder": "z.B. nach dem Essen",
     "formReset": "Formular zurücksetzen",
     "saveError": "Fehler beim Speichern",
-    "loadError": "Fehler beim Laden",
     "duplicateTimestamp": "Zum gewählten Zeitpunkt existiert bereits ein Messwert dieses Typs.",
     "deleteError": "Fehler beim Löschen",
     "invalidValue": "Bitte einen gültigen Wert eingeben.",
@@ -797,6 +797,7 @@
   },
   "charts": {
     "loadingLabel": "Diagramm wird geladen…",
+    "loadingSlowHint": "Auswertungen werden berechnet — das kann einen Moment dauern.",
     "weight": "Gewicht",
     "bloodPressure": "Blutdruck",
     "pulse": "Puls",
@@ -862,6 +863,8 @@
     "emptyStateDescription": "Erfasse mindestens 3 Einträge, um die Trendlinie freizuschalten.",
     "needMoreDistinctDaysTitle": "Mehr Messtage erforderlich",
     "needMoreDistinctDaysDescription": "Erfasse an mehreren Tagen, um eine Trendlinie freizuschalten.",
+    "noDataInRangeTitle": "Keine Daten in diesem Zeitraum",
+    "noDataInRangeDescription": "Für den gewählten Bereich liegen keine Messungen vor. Wechsle den Zeitraum oder erfasse einen neuen Wert.",
     "personalBaseline": "Dein Mittel",
     "deltaVsBaseline": "{delta} vs. dein Mittel",
     "deltaUnchanged": "entspricht deinem Mittel",
@@ -1070,6 +1073,7 @@
       "refusalInjection": "In deiner Nachricht stehen Anweisungen, die meine Vorgaben überschreiben sollen. Ich bin der HealthLog-Coach und fasse ausschließlich deine eigenen Gesundheitsdaten zusammen — formuliere deine Frage bitte in diesem Rahmen neu.",
       "errorBudget": "Du hast das heutige Coach-Limit erreicht. Das Budget setzt sich um Mitternacht (UTC) zurück.",
       "errorProvider": "Der Coach konnte gerade keinen Auswertungs-Anbieter erreichen. Bitte versuche es in einem Moment erneut.",
+      "errorNetwork": "Keine Internetverbindung — versuche es erneut, sobald du online bist.",
       "tagline": "Persönlicher Gesundheitscoach, auf deine Daten gestützt.",
       "newChat": "Neuer Chat",
       "send": "Senden",
@@ -1143,8 +1147,8 @@
       "feedbackThanks": "Danke für das Signal.",
       "dailyLimitTitle": "Heute-Limit erreicht",
       "dailyLimitBody": "Heute-Limit erreicht; Reset um 00:00 UTC.",
-      "providerRateLimitTitle": "Anbieter gedrosselt",
-      "providerRateLimitBody": "Anbieter ist temporär überlastet; wieder verfügbar in ~5 min."
+      "providerRateLimitTitle": "Provider rate-limited",
+      "providerRateLimitBody": "Provider ist temporär überlastet; Reset in ~5 min."
     },
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",
@@ -1520,7 +1524,7 @@
       "profileDescription": "Größe, Geburtsdatum und Geschlecht schalten personalisierte Zielwerte frei.",
       "profileCta": "Profil öffnen",
       "measurementTitle": "Erste Messung anlegen",
-      "measurementDescription": "Eine Messung reicht, um deine erste Trend-Kachel zu zeichnen.",
+      "measurementDescription": "Ein Messpunkt reicht, um die Kachel zu aktivieren — der Trend zeichnet sich ab dem 5. Eintrag.",
       "measurementCta": "Messung hinzufügen",
       "medicationTitle": "Medikament hinzufügen",
       "medicationDescription": "Verfolge Compliance und erhalte Erinnerungen genau dann, wenn du sie brauchst.",
@@ -1629,7 +1633,7 @@
       },
       "ai": {
         "title": "Auswertungen",
-        "description": "Anbieter, Modell, API-Schlüssel."
+        "description": "Provider, Modell, API-Key."
       },
       "api": {
         "title": "API & Tokens",
@@ -1767,9 +1771,9 @@
     "codexDisconnected": "ChatGPT-Verbindung getrennt.",
     "codexConnectionFailed": "ChatGPT-Verbindung fehlgeschlagen. Bitte versuche es erneut.",
     "rawData": "Rohdaten mitsenden",
-    "rawDataOnDescription": "Es werden aggregierte Kennzahlen plus anonymisierte Rohdaten der letzten 30 Tage gesendet. Dazu zählen einzelne Messpunkte je Bereich (z. B. Gewicht, Blutdruck, Puls) mit Zeitbezug, damit der Anbieter zeitliche Muster, Ausreißer und Zusammenhänge zuverlässiger erkennen kann. Nicht übertragen werden Name, E-Mail oder direkte Kontodaten.",
-    "rawDataOffDescription": "Es werden nur zusammengefasste Werte gesendet (z. B. Durchschnitt, Trend, Minimum/Maximum). Keine einzelnen Messpunkte und keine exakten Zeitbezüge. Das ist datensparsamer, der Anbieter kann dafür aber weniger fein auf Muster und kurzfristige Schwankungen eingehen.",
-    "rawDataWarning": "Rohdaten aktiv: Der Anbieter erhält zusätzlich anonymisierte Messpunkte der letzten 30 Tage für eine präzisere Auswertung.",
+    "rawDataOnDescription": "Es werden aggregierte Kennzahlen plus anonymisierte Rohdaten der letzten 30 Tage gesendet. Dazu zählen einzelne Messpunkte je Bereich (z. B. Gewicht, Blutdruck, Puls) mit Zeitbezug, damit der Provider zeitliche Muster, Ausreißer und Zusammenhänge zuverlässiger erkennen kann. Nicht übertragen werden Name, E-Mail oder direkte Kontodaten.",
+    "rawDataOffDescription": "Es werden nur zusammengefasste Werte gesendet (z. B. Durchschnitt, Trend, Minimum/Maximum). Keine einzelnen Messpunkte und keine exakten Zeitbezüge. Das ist datensparsamer, der Provider kann dafür aber weniger fein auf Muster und kurzfristige Schwankungen eingehen.",
+    "rawDataWarning": "Rohdaten aktiv: Der Provider erhält zusätzlich anonymisierte Messpunkte der letzten 30 Tage für eine präzisere Auswertung.",
     "regenerateInsights": "Reports neu generieren",
     "regenerateSuccess": "Reports wurden neu generiert",
     "regenerateRateLimit": "Bitte warte — du hast das stündliche Limit für Analysen erreicht.",
@@ -1903,12 +1907,16 @@
       "connected": "Verbunden",
       "errorReconnect": "Fehler — neu verbinden",
       "warningServerError": "Verbunden, aber Serverfehler",
+      "parkedReconnect": "Pausiert — manuell wieder verbinden",
       "notConnected": "Nicht verbunden",
       "justNow": "gerade eben",
       "minutesAgo": "vor {count} min",
       "hoursAgo": "vor {count} Std.",
-      "daysAgo": "vor {count} T.",
-      "ariaLabel": "Integrationsstatus"
+      "daysAgo": "vor {count} d",
+      "ariaLabel": "Integrationsstatus",
+      "resumeCta": "Wieder verbinden",
+      "resumeSuccess": "Integration wieder aktiv",
+      "resumeError": "Wieder verbinden fehlgeschlagen"
     },
     "apiTokens": "API-Tokens",
     "apiTokensDescription": "Erstelle API-Tokens für die externe Medikamenten-Einnahme (z.B. Shortcuts, Automationen).",
@@ -1938,12 +1946,21 @@
     "collapse": "Einklappen",
     "expand": "Ausklappen",
     "dangerZone": "Alle Daten löschen",
+    "dangerZoneTitle": "Gefahrenzone",
     "dangerZoneDescription": "Löscht alle deine Gesundheitsdaten und Integrationen. Dein Benutzerkonto bleibt erhalten.",
     "dangerZoneConfirm": "Alle Daten löschen?",
     "dangerZoneConfirmDescription": "Dieser Vorgang löscht alle deine Gesundheitsdaten und Integrationen unwiderruflich. Dein Benutzerkonto bleibt erhalten.",
     "dangerZoneSuccess": "Alle persönlichen Daten wurden gelöscht",
     "dangerZoneDeleteFailed": "Löschen fehlgeschlagen",
     "finalDelete": "Endgültig löschen",
+    "deleteAccountCardTitle": "Konto vollständig löschen",
+    "deleteAccountCardDescription": "Löscht dein Konto inklusive Passkeys, Audit-Log und Sessions. Dieser Vorgang kann nicht rückgängig gemacht werden.",
+    "deleteAccountCta": "Konto löschen",
+    "deleteAccountConfirmTitle": "Konto endgültig löschen?",
+    "deleteAccountConfirmDescription": "Dein Konto, alle Gesundheitsdaten, Passkeys, Sessions und Audit-Einträge werden unwiderruflich gelöscht. Du wirst danach automatisch abgemeldet.",
+    "deleteAccountSuccess": "Konto wurde gelöscht — du wirst abgemeldet.",
+    "deleteAccountFailed": "Konto konnte nicht gelöscht werden",
+    "deleteAccountFinal": "Endgültig löschen",
     "saved": "Gespeichert",
     "savingError": "Fehler beim Speichern",
     "moodLogTitle": "moodLog",

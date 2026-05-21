@@ -8,7 +8,64 @@ import {
   type VerifiedRegistrationResponse,
   type VerifiedAuthenticationResponse,
 } from "@simplewebauthn/server";
+import { z } from "zod/v4";
 import { prisma } from "@/lib/db";
+
+// v1.4.43 W13 L-3 — explicit Zod narrowing in front of
+// `verifyAuthentication`. Replaces the raw
+// `as AuthenticationResponseJSON` cast; the SimpleWebAuthn verifier
+// still owns the cryptographic validation downstream, but a
+// malformed body now fails fast at the boundary with a structured
+// error rather than crashing on a follow-up `.id` deref.
+//
+// Shape mirrors SimpleWebAuthn's `AuthenticationResponseJSON`:
+//   https://w3c.github.io/webauthn/#dictdef-authenticationresponsejson
+// The schema is intentionally permissive (`passthrough` + optionals)
+// so future authenticator-attachment / extension-result additions
+// don't break the boundary; the strict checks remain inside
+// `verifyAuthenticationResponse`.
+const authenticationResponseSchema = z
+  .object({
+    id: z.string().min(1),
+    rawId: z.string().min(1),
+    response: z
+      .object({
+        clientDataJSON: z.string().min(1),
+        authenticatorData: z.string().min(1),
+        signature: z.string().min(1),
+        userHandle: z.string().optional(),
+      })
+      .loose(),
+    authenticatorAttachment: z.string().optional(),
+    clientExtensionResults: z.unknown().optional(),
+    type: z.literal("public-key"),
+  })
+  .loose();
+
+// v1.4.43 W10 senior-dev L-1 — symmetric Zod narrowing in front of
+// `verifyRegistration`. SimpleWebAuthn's `RegistrationResponseJSON`
+// shape: https://w3c.github.io/webauthn/#dictdef-registrationresponsejson
+// `attestationObject` replaces `authenticatorData + signature` from
+// the authentication shape; everything else mirrors the auth schema.
+const registrationResponseSchema = z
+  .object({
+    id: z.string().min(1),
+    rawId: z.string().min(1),
+    response: z
+      .object({
+        clientDataJSON: z.string().min(1),
+        attestationObject: z.string().min(1),
+        transports: z.array(z.string()).optional(),
+        publicKeyAlgorithm: z.number().optional(),
+        publicKey: z.string().optional(),
+        authenticatorData: z.string().optional(),
+      })
+      .loose(),
+    authenticatorAttachment: z.string().optional(),
+    clientExtensionResults: z.unknown().optional(),
+    type: z.literal("public-key"),
+  })
+  .loose();
 
 type Transport =
   | "ble"
@@ -113,12 +170,18 @@ export async function verifyRegistration(
   }
 
   try {
-    // The caller passes a parsed JSON body without prior shape-validation —
-    // the SimpleWebAuthn verifier owns full schema validation and throws
-    // on any mismatch. We narrow at the boundary so the rest of the file
-    // sees the documented `RegistrationResponseJSON` shape.
+    // v1.4.43 W10 senior-dev L-1 — Zod narrow at the boundary before
+    // delegating to SimpleWebAuthn's full cryptographic validation.
+    // A malformed body now fails fast with a structured Zod error
+    // rather than crashing on a follow-up `.id` deref deeper in the
+    // verifier. Mirrors the v1.4.43 W13 L-3 narrowing on the
+    // authentication side.
+    const parsed = registrationResponseSchema.safeParse(response);
+    if (!parsed.success) {
+      throw new Error("Registration response shape invalid");
+    }
     const verification = await verifyRegistrationResponse({
-      response: response as RegistrationResponseJSON,
+      response: parsed.data as RegistrationResponseJSON,
       expectedChallenge: challenge.challenge,
       expectedOrigin: getExpectedOrigin(),
       expectedRPID: getRpId(),
@@ -184,9 +247,17 @@ export async function verifyAuthentication(
     throw new Error("Challenge expired or not found");
   }
 
-  // The caller passes a parsed JSON body — narrow at the boundary; the
-  // SimpleWebAuthn verifier below performs full shape validation.
-  const typedResponse = response as AuthenticationResponseJSON;
+  // v1.4.43 W13 L-3 — explicit Zod narrowing instead of the previous
+  // raw `as AuthenticationResponseJSON` cast. A malformed body now
+  // throws here with a structured error rather than crashing on a
+  // follow-up `.id` deref. The SimpleWebAuthn verifier downstream
+  // still owns cryptographic validation; this just closes the
+  // type-narrowing gap a future refactor could trip on.
+  const parsed = authenticationResponseSchema.safeParse(response);
+  if (!parsed.success) {
+    throw new Error("Malformed passkey authentication response");
+  }
+  const typedResponse = parsed.data as unknown as AuthenticationResponseJSON;
 
   // Find the passkey by credential ID
   const credentialId = typedResponse.id;

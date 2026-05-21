@@ -145,19 +145,20 @@
       "moodSensitive": "Sensitive — off by default.",
       "compliance": "Medication compliance",
       "sleep": "Sleep duration",
-      "empty": "No data was recorded in this date range yet. The report will still include the cover page."
+      "empty": "No data was recorded in this date range yet. The report will still include the cover page.",
+      "unavailableHint": "No data in this period"
     }
   },
   "errorBoundary": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred. You can retry, copy the technical details, or open a bug report."
   },
-  "errors": {
-    "notFound": {
-      "title": "Page not found",
-      "body": "The page you were looking for doesn't exist or has been moved. Head back to the dashboard to pick up where you left off.",
-      "backToDashboard": "Back to dashboard"
-    }
+  "notFound": {
+    "title": "This page doesn't exist.",
+    "backToDashboard": "Back to dashboard"
+  },
+  "offlineBanner": {
+    "message": "No connection — your changes will save once you're back online."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -353,7 +354,6 @@
     "notesPlaceholder": "e.g. after a meal",
     "formReset": "Reset form",
     "saveError": "Error saving",
-    "loadError": "Could not load measurements",
     "duplicateTimestamp": "A measurement of this type already exists at the selected timestamp.",
     "deleteError": "Error deleting",
     "invalidValue": "Please enter a valid value.",
@@ -797,6 +797,7 @@
   },
   "charts": {
     "loadingLabel": "Loading chart…",
+    "loadingSlowHint": "Computing analytics — this can take a moment.",
     "weight": "Weight",
     "bloodPressure": "Blood Pressure",
     "pulse": "Pulse",
@@ -862,6 +863,8 @@
     "emptyStateDescription": "Log at least 3 entries to unlock the trend line.",
     "needMoreDistinctDaysTitle": "More distinct days needed",
     "needMoreDistinctDaysDescription": "Log on more days to unlock the trend line.",
+    "noDataInRangeTitle": "No data in this range",
+    "noDataInRangeDescription": "No measurements fall inside the selected range. Switch the range or log a new measurement.",
     "personalBaseline": "Your normal",
     "deltaVsBaseline": "{delta} vs. your normal",
     "deltaUnchanged": "matches your normal",
@@ -1070,6 +1073,7 @@
       "refusalInjection": "I noticed wording that tries to override my instructions. I am the HealthLog Coach and only summarise your own health data — please rephrase your question in those terms.",
       "errorBudget": "You've reached today's Coach usage limit. The budget refreshes at midnight UTC.",
       "errorProvider": "The Coach could not reach an Insights provider just now. Please try again in a moment.",
+      "errorNetwork": "No internet connection — try again once you're back online.",
       "tagline": "Personal health coach, grounded in your data.",
       "newChat": "New chat",
       "send": "Send",
@@ -1520,7 +1524,7 @@
       "profileDescription": "Height, date of birth and gender unlock personalised targets.",
       "profileCta": "Open profile",
       "measurementTitle": "Log your first measurement",
-      "measurementDescription": "One reading is enough to draw your first trend tile.",
+      "measurementDescription": "One reading unlocks the tile — the trend itself draws from your 5th reading.",
       "measurementCta": "Add measurement",
       "medicationTitle": "Add a medication",
       "medicationDescription": "Track compliance and get reminders right when you need them.",
@@ -1903,12 +1907,16 @@
       "connected": "Connected",
       "errorReconnect": "Error — reconnect",
       "warningServerError": "Connected, server error",
+      "parkedReconnect": "Paused — reconnect manually",
       "notConnected": "Not connected",
       "justNow": "just now",
       "minutesAgo": "{count} min ago",
       "hoursAgo": "{count} h ago",
       "daysAgo": "{count} d ago",
-      "ariaLabel": "Integration status"
+      "ariaLabel": "Integration status",
+      "resumeCta": "Reconnect",
+      "resumeSuccess": "Integration resumed",
+      "resumeError": "Reconnect failed"
     },
     "apiTokens": "API Tokens",
     "apiTokensDescription": "Create API tokens for external medication intake (e.g., Shortcuts, automations).",
@@ -1938,12 +1946,21 @@
     "collapse": "Collapse",
     "expand": "Expand",
     "dangerZone": "Delete All Data",
+    "dangerZoneTitle": "Danger zone",
     "dangerZoneDescription": "Deletes all your health data and integrations. Your user account will be preserved.",
     "dangerZoneConfirm": "Delete all data?",
     "dangerZoneConfirmDescription": "This will permanently delete all your health data and integrations. Your user account will be preserved.",
     "dangerZoneSuccess": "All personal data has been deleted",
     "dangerZoneDeleteFailed": "Deletion failed",
     "finalDelete": "Delete permanently",
+    "deleteAccountCardTitle": "Delete account entirely",
+    "deleteAccountCardDescription": "Deletes your account along with passkeys, audit log, and sessions. This cannot be undone.",
+    "deleteAccountCta": "Delete account",
+    "deleteAccountConfirmTitle": "Delete account permanently?",
+    "deleteAccountConfirmDescription": "Your account, all health data, passkeys, sessions, and audit entries will be permanently deleted. You will be signed out immediately after.",
+    "deleteAccountSuccess": "Account deleted — signing you out.",
+    "deleteAccountFailed": "Account could not be deleted",
+    "deleteAccountFinal": "Delete permanently",
     "saved": "Saved",
     "savingError": "Error saving",
     "moodLogTitle": "moodLog",
