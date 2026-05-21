@@ -43,12 +43,12 @@ import {
   summarizeBackup,
   type BackupSummary,
 } from "@/lib/validations/backup";
-import { recomputeUserMoodRollups } from "@/lib/mood/rollups";
+import { recomputeUserMoodRollups } from "@/lib/rollups/mood-rollups";
 import {
   recomputeUserMedicationCompliance,
   MEDICATION_COMPLIANCE_BACKFILL_DAYS,
-} from "@/lib/medications/compliance-rollups";
-import { recomputeUserRollups } from "@/lib/measurements/rollups";
+} from "@/lib/rollups/medication-compliance-rollups";
+import { recomputeUserRollups } from "@/lib/rollups/measurement-rollups";
 
 export const dynamic = "force-dynamic";
 

@@ -32,8 +32,8 @@ import {
   recomputeBucketsForMeasurement,
   recomputeUserRollups,
   ALL_GRANULARITIES,
-} from "@/lib/measurements/rollups";
-import { aggregateBuckets } from "@/lib/measurements/rollup-read";
+} from "@/lib/rollups/measurement-rollups";
+import { aggregateBuckets } from "@/lib/rollups/measurement-read";
 import { buildComprehensiveAggregate } from "@/lib/insights/comprehensive-aggregator";
 
 vi.mock("@/lib/db-compat", () => ({

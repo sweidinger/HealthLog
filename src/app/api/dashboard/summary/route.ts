@@ -49,6 +49,7 @@ import { defaultLocale, type Locale } from "@/lib/i18n/config";
 import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { expandTodayIntakes } from "@/lib/medication-schedule";
+import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 
 const SPARK_DAYS = 7;
 const STREAK_WINDOW_DAYS = 365;
@@ -349,6 +350,35 @@ async function projectAndReadTodaysIntakes(
         })),
         skipDuplicates: true,
       });
+
+      // v1.4.40 — close the compliance-rollup hook gap from v1.4.39.4.
+      // Mirrors the intake-route call site: after a bulk projection
+      // backfill, fire one rollup recompute per distinct
+      // `(medication_id, dayKey)` so the rollup row reflects the new
+      // `scheduled` count before the next read. Best-effort: errors
+      // stay caught inside the helper so a populator hiccup doesn't
+      // surface as a 5xx on the dashboard summary.
+      const seenDayKeys = new Set<string>();
+      const recomputeJobs: Array<Promise<void>> = [];
+      for (const m of missing) {
+        const key = `${m.medicationId}|${m.scheduledFor.toISOString().slice(0, 10)}`;
+        if (seenDayKeys.has(key)) continue;
+        seenDayKeys.add(key);
+        recomputeJobs.push(
+          recomputeMedicationComplianceForEvent({
+            userId,
+            medicationId: m.medicationId,
+            scheduledFor: m.scheduledFor,
+            tz: userTz,
+          }),
+        );
+      }
+      // Defence in depth (specialist H1): the helper swallows internally
+      // today, but any future refactor that lets a throw escape would
+      // turn the dashboard summary into a 5xx. `allSettled` keeps the
+      // best-effort contract explicit at the call site so the request
+      // stays 200-OK regardless of helper behaviour.
+      await Promise.allSettled(recomputeJobs);
     }
   }
 
@@ -419,6 +449,7 @@ async function buildDashboardSummary(
         FROM measurements m
         WHERE m."user_id" = ${userId}
           AND m."measured_at" >= ${sevenDaysAgo}
+          AND m."deleted_at" IS NULL
         ORDER BY m."type", m."measured_at" DESC
       `,
     ),
@@ -440,7 +471,7 @@ async function buildDashboardSummary(
     time("allTime", () =>
       prisma.measurement.groupBy({
         by: ["type"],
-        where: { userId, type: { in: measurementTypes } },
+        where: { userId, type: { in: measurementTypes }, deletedAt: null },
         _count: { _all: true },
         _max: { measuredAt: true },
       }),
@@ -485,6 +516,7 @@ async function buildDashboardSummary(
         FROM measurements m
         WHERE m."user_id" = ${userId}
           AND m."measured_at" >= ${streakWindowStart}
+          AND m."deleted_at" IS NULL
       `,
     ),
   ]);
