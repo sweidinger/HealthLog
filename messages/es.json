@@ -152,6 +152,13 @@
     "title": "Algo ha salido mal",
     "description": "Se ha producido un error inesperado. Puedes reintentar, copiar los detalles técnicos o abrir un reporte de bug."
   },
+  "errors": {
+    "notFound": {
+      "title": "Página no encontrada",
+      "body": "La página que buscas no existe o se ha movido. Vuelve al panel para continuar donde lo dejaste.",
+      "backToDashboard": "Volver al panel"
+    }
+  },
   "nav": {
     "dashboard": "Panel",
     "measurements": "Mediciones",
@@ -346,6 +353,7 @@
     "notesPlaceholder": "p. ej. después de comer",
     "formReset": "Restablecer formulario",
     "saveError": "Error al guardar",
+    "loadError": "No se han podido cargar las mediciones",
     "duplicateTimestamp": "Ya existe una medición de este tipo en la marca de tiempo seleccionada.",
     "deleteError": "Error al eliminar",
     "invalidValue": "Introduce un valor válido.",
@@ -852,6 +860,8 @@
     "legendMissed": "Omitida",
     "emptyStateTitle": "Registra más mediciones para ver tendencias",
     "emptyStateDescription": "Registra al menos 3 entradas para desbloquear la línea de tendencia.",
+    "needMoreDistinctDaysTitle": "Se necesitan más días distintos",
+    "needMoreDistinctDaysDescription": "Registra en más días para desbloquear la línea de tendencia.",
     "personalBaseline": "Tu media",
     "deltaVsBaseline": "{delta} vs. tu media",
     "deltaUnchanged": "coincide con tu media",
@@ -1137,9 +1147,12 @@
       "settingsContextHint": "Bloques opcionales en los que el coach puede apoyarse. Si desactivas alguno, se omitirá en cada respuesta."
     },
     "relativeJustNow": "ahora mismo",
-    "relativeMinutesAgo": "hace {count} minutos",
-    "relativeHoursAgo": "hace {count} horas",
-    "relativeDaysAgo": "hace {count} días",
+    "relativeMinutesAgoOne": "hace {count} minuto",
+    "relativeMinutesAgoOther": "hace {count} minutos",
+    "relativeHoursAgoOne": "hace {count} hora",
+    "relativeHoursAgoOther": "hace {count} horas",
+    "relativeDaysAgoOne": "hace {count} día",
+    "relativeDaysAgoOther": "hace {count} días",
     "navOverview": "Resumen",
     "navBloodPressure": "Presión arterial",
     "navWeight": "Peso",
@@ -1887,9 +1900,10 @@
       }
     },
     "integrationPill": {
-      "connected": "Connected",
-      "errorReconnect": "Error — reconnect",
-      "notConnected": "Not connected",
+      "connected": "Conectado",
+      "errorReconnect": "Error — reconectar",
+      "warningServerError": "Conectado, error del servidor",
+      "notConnected": "No conectado",
       "justNow": "just now",
       "minutesAgo": "{count} min ago",
       "hoursAgo": "{count} h ago",

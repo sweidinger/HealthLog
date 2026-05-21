@@ -152,6 +152,13 @@
     "title": "Something went wrong",
     "description": "An unexpected error occurred. You can retry, copy the technical details, or open a bug report."
   },
+  "errors": {
+    "notFound": {
+      "title": "Page not found",
+      "body": "The page you were looking for doesn't exist or has been moved. Head back to the dashboard to pick up where you left off.",
+      "backToDashboard": "Back to dashboard"
+    }
+  },
   "nav": {
     "dashboard": "Dashboard",
     "measurements": "Measurements",
@@ -346,6 +353,7 @@
     "notesPlaceholder": "e.g. after a meal",
     "formReset": "Reset form",
     "saveError": "Error saving",
+    "loadError": "Could not load measurements",
     "duplicateTimestamp": "A measurement of this type already exists at the selected timestamp.",
     "deleteError": "Error deleting",
     "invalidValue": "Please enter a valid value.",
@@ -852,6 +860,8 @@
     "legendMissed": "Missed",
     "emptyStateTitle": "Add more measurements to see trends",
     "emptyStateDescription": "Log at least 3 entries to unlock the trend line.",
+    "needMoreDistinctDaysTitle": "More distinct days needed",
+    "needMoreDistinctDaysDescription": "Log on more days to unlock the trend line.",
     "personalBaseline": "Your normal",
     "deltaVsBaseline": "{delta} vs. your normal",
     "deltaUnchanged": "matches your normal",
@@ -1137,9 +1147,12 @@
       "providerRateLimitBody": "Provider temporarily rate-limited; retry in ~5 min."
     },
     "relativeJustNow": "just now",
-    "relativeMinutesAgo": "{count} minutes ago",
-    "relativeHoursAgo": "{count} hours ago",
-    "relativeDaysAgo": "{count} days ago",
+    "relativeMinutesAgoOne": "{count} minute ago",
+    "relativeMinutesAgoOther": "{count} minutes ago",
+    "relativeHoursAgoOne": "{count} hour ago",
+    "relativeHoursAgoOther": "{count} hours ago",
+    "relativeDaysAgoOne": "{count} day ago",
+    "relativeDaysAgoOther": "{count} days ago",
     "navOverview": "Overview",
     "navBloodPressure": "Blood Pressure",
     "navWeight": "Weight",
@@ -1889,6 +1902,7 @@
     "integrationPill": {
       "connected": "Connected",
       "errorReconnect": "Error — reconnect",
+      "warningServerError": "Connected, server error",
       "notConnected": "Not connected",
       "justNow": "just now",
       "minutesAgo": "{count} min ago",
