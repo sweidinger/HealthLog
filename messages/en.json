@@ -275,6 +275,8 @@
     "moveDown": "Move down",
     "layoutTileColumn": "Tile",
     "layoutChartColumn": "Chart",
+    "dragHandle": "Drag to reorder",
+    "dragHandleHint": "Drag the handle to reorder this widget. You can also use the Up and Down arrow buttons, or focus the handle and press Space and the arrow keys.",
     "emptyTitle": "Your dashboard is empty",
     "emptyDescription": "Log your first measurement or mood entry. Tiles and charts appear automatically as data lands.",
     "emptyAddMeasurement": "Add your first measurement",
@@ -1867,7 +1869,15 @@
       },
       "testProvider": "Test active provider",
       "testSuccess": "OK — {provider} ({model})",
-      "testFailedShort": "Test failed: {message}"
+      "testFailedShort": "Test failed: {message}",
+      "disableCoach": {
+        "title": "Hide Coach",
+        "description": "Hides the Coach button and drawer everywhere.",
+        "toggleAria": "Hide the Coach button and drawer",
+        "savedHidden": "Coach hidden.",
+        "savedShown": "Coach visible.",
+        "saveError": "Could not save the change. Please try again."
+      }
     },
     "withings": "Withings",
     "withingsDescription": "Connect your Withings scale and blood pressure monitors.",
@@ -1994,7 +2004,9 @@
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources & docs",
-      "newerAvailable": "Newer version: {tag}"
+      "newerAvailable": "Newer version: {tag}",
+      "tourReplay": "Replay the tour",
+      "tourReplayHint": "Watch the dashboard walkthrough — handy if you skipped it on first visit."
     },
     "testConnection": {
       "test": "Test connection",

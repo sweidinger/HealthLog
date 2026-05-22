@@ -275,6 +275,8 @@
     "moveDown": "Descendre",
     "layoutTileColumn": "Tuile",
     "layoutChartColumn": "Graphique",
+    "dragHandle": "Glisser pour réordonner",
+    "dragHandleHint": "Glisse la poignée pour réordonner ce widget. Tu peux aussi utiliser les flèches Haut et Bas, ou cibler la poignée puis appuyer sur Espace plus les flèches.",
     "emptyTitle": "Ton tableau de bord est vide",
     "emptyDescription": "Saisis ta première mesure ou humeur. Les tuiles et graphiques apparaissent automatiquement dès qu’il y a des données.",
     "emptyAddMeasurement": "Saisir la première mesure",
@@ -1867,7 +1869,15 @@
       },
       "testProvider": "Test active provider",
       "testSuccess": "OK — {provider} ({model})",
-      "testFailedShort": "Test failed: {message}"
+      "testFailedShort": "Test failed: {message}",
+      "disableCoach": {
+        "title": "Masquer le Coach",
+        "description": "Masque le bouton et le panneau du Coach sur toutes les pages.",
+        "toggleAria": "Masquer le bouton et le panneau du Coach",
+        "savedHidden": "Coach masqué.",
+        "savedShown": "Coach visible.",
+        "saveError": "Impossible d'enregistrer la modification. Veuillez réessayer."
+      }
     },
     "withings": "Withings",
     "withingsDescription": "Connect your Withings scale and blood pressure monitors.",
@@ -1994,7 +2004,9 @@
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources & docs",
-      "newerAvailable": "Newer version: {tag}"
+      "newerAvailable": "Newer version: {tag}",
+      "tourReplay": "Replay the tour",
+      "tourReplayHint": "Watch the dashboard walkthrough — handy if you skipped it on first visit."
     },
     "testConnection": {
       "test": "Test connection",
