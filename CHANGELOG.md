@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.4.50] — 2026-05-24 — MoodLog reverse-sync (HealthLog → MoodLog push)
+
+Marc reported that mood entries logged inside HealthLog — specifically via the iOS app — never reached MoodLog. The historic integration ran one-way: `syncMoodLogEntries` polled MoodLog every 15 minutes and pulled new rows, but nothing flowed the other direction. A user tracking mood in HealthLog ended up with one log per app and no overlap.
+
+### Added
+
+- `src/lib/moodlog/push.ts` — `pushMoodEntriesToMoodLog(userId, entries)`. Best-effort reverse-sync push to MoodLog's new `POST /api/integrations/health-log/mood` endpoint. Same per-user `moodLogUrlEncrypted` + `moodLogApiKeyEncrypted` credentials the pull side uses, same `isPublicUrl` SSRF guard, same manual-redirect policy. Wraps every failure mode in a wide-event warning so a network blip or a stale MoodLog deploy can never bubble back to the user's mood-create request.
+- `POST /api/mood-entries` (single) and `POST /api/mood-entries/bulk` now fire the push as a fire-and-forget side-effect after a successful create. Entries with `source === "MOODLOG"` skip inside the helper to avoid an echo loop. Bulk push only includes rows that landed as `inserted` — duplicates and skips don't retry a known failure.
+
+### Changed
+
+- `src/lib/moodlog/sync.ts` (pull side) filters out entries where MoodLog reports `loggedVia: "HEALTHLOG"`. Those are echoes of rows we just pushed; re-importing them would flip the `source` column from the original attribution (MANUAL / WEB / TELEGRAM / iOS) to MOODLOG and double-count in any source-segregated dashboard. An `echoSkipped` wide-event annotation lets the operator confirm the round-trip is closing at one hop.
+
+### Tests
+
+- `src/lib/moodlog/__tests__/push.test.ts` — 9 cases covering the MOODLOG-source filter, no-credentials skip, SSRF refusal, headers + body shape on the successful path, 5xx + network-reject + 3xx-redirect failure modes, and the `tags` JSON-string → array key normalisation. Pins the contract the call sites no longer await so future helper refactors can't silently break the fire-and-forget integration.
+- HealthLog suite: 5279 unit + integration pass, lint clean, typecheck clean.
+
+### Cross-repo coordination
+
+The matching MoodLog v0.2.0 release adds the `POST /api/integrations/health-log/mood` handler this push targets. Both apps must deploy together for the round-trip to close — MoodLog first so HealthLog never hits a 405 / 404 on the new endpoint.
+
 ## [1.4.49.4] — 2026-05-24 — BD-tile number truncation + medication-compliance test tz drift
 
 Marc reported the dashboard BD (Sys) tile rendering `"13… mmHg"` — the systolic / diastolic pair (`131/85`) was wider than the narrowest grid column and the value-row's `truncate` ellipsis chopped the most important part of the tile (the number itself).

@@ -195,7 +195,16 @@ export async function syncMoodLogEntries(
   const entries = (data as { entries: unknown[] }).entries;
 
   // 4. Upsert entries (note field is intentionally NOT imported)
+  //
+  // v1.4.50 — entries MoodLog re-exports with `loggedVia: "HEALTHLOG"`
+  // are echoes of rows HealthLog pushed via the reverse-sync POST.
+  // Re-importing them would flip the `source` column from the original
+  // attribution (MANUAL / WEB / TELEGRAM / iOS) to MOODLOG, losing the
+  // provenance the user already established and double-counting the
+  // entry in any source-segregated dashboard. Skip them on the pull
+  // side so the loop closes at one round-trip.
   let imported = 0;
+  let echoSkipped = 0;
   for (const e of entries) {
     const entry = e as {
       time: string;
@@ -203,7 +212,12 @@ export async function syncMoodLogEntries(
       mood: string;
       score: number;
       tags?: string[];
+      loggedVia?: string;
     };
+    if (entry.loggedVia === "HEALTHLOG") {
+      echoSkipped += 1;
+      continue;
+    }
     try {
       const moodLoggedAt = new Date(entry.time);
       const date = entry.date;
@@ -244,6 +258,19 @@ export async function syncMoodLogEntries(
     data: { moodLogLastSyncedAt: now },
   });
   await recordSyncSuccess(userId, "moodlog");
+
+  // v1.4.50 — annotate the echo-skip count so an operator can see how
+  // many reverse-sync entries the pull side filtered out per cycle.
+  // Should match the user's recent `pushMoodEntriesToMoodLog` count;
+  // a divergent number signals either a stale MoodLog deploy
+  // (pre-HEALTHLOG-source) or a configuration drift.
+  if (echoSkipped > 0) {
+    getEvent()?.addExternalCall({
+      service: "moodlog",
+      method: "syncMoodLogEntries.echoSkipped",
+      duration_ms: 0,
+    });
+  }
 
   // v1.4.39 W-MOOD — re-fold the rollup tier after a sync. The
   // sync upserts a batch spanning many days; one bounded
