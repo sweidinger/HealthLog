@@ -363,12 +363,26 @@ describe("v1.4.39 W-MED — compliance rollup read swap", () => {
     // runs. The pre-fix shape hard-coded `2026-05-18`, which fell out
     // of the trailing-7-day window on every subsequent wall-clock
     // day and silently shifted the body.data tail off the seed.
+    //
+    // v1.4.49.4 — compute todayKey in the SAME zone the route uses
+    // (`readMedicationCompliance` → `userDayKey(now, safeTz)`), not in
+    // UTC. SESSION_OK carries no `timezone`, so the route falls
+    // through to `DEFAULT_TIMEZONE = "Europe/Berlin"`. The pre-fix
+    // UTC computation diverged from the route's Berlin computation by
+    // one calendar day during the 22:00-24:00 UTC window every night,
+    // causing the test to fail deterministically once the clock
+    // crossed midnight Berlin while still on the previous UTC day.
     const todayKey = (() => {
       const now = new Date();
-      const y = now.getUTCFullYear();
-      const m = String(now.getUTCMonth() + 1).padStart(2, "0");
-      const d = String(now.getUTCDate()).padStart(2, "0");
-      return `${y}-${m}-${d}`;
+      const fmt = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      // `en-CA` short-date format is `YYYY-MM-DD`, matching the
+      // route's `userDayKey` output (see `src/lib/tz/resolver.ts`).
+      return fmt.format(now);
     })();
     vi.mocked(prisma.medicationComplianceRollup.findMany).mockResolvedValue([
       { day: todayKey, scheduled: 3, taken: 2, skipped: 1 },

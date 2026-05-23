@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.49.4] — 2026-05-24 — BD-tile number truncation + medication-compliance test tz drift
+
+Marc reported the dashboard BD (Sys) tile rendering `"13… mmHg"` — the systolic / diastolic pair (`131/85`) was wider than the narrowest grid column and the value-row's `truncate` ellipsis chopped the most important part of the tile (the number itself).
+
+### Fixed
+
+- `src/components/charts/trend-card.tsx` — paired-metric tiles (BP systolic/diastolic) now render the value at `text-2xl` (one Tailwind step down from `text-3xl`). Single-value tiles (weight, pulse, glucose, …) keep `text-3xl` because their value never threatens the column-width budget on its own. The `truncate` class stays as a defence-in-depth safety net so an outlier value (e.g. `200/120 mmHg` plus a future trend caption) still clips gracefully rather than overflowing the card boundary.
+- `cn()` argument ordering tightened so `tailwind-merge` keeps the explicit `leading-none` — Tailwind v4's `text-3xl` / `text-2xl` carry their own default `line-height`, and the last-wins dedup rule would otherwise drop the explicit `leading-none` and break the W20a across-tile baseline alignment. The `<TrendCard>` baseline-alignment tests pin the contract.
+- `src/app/api/medications/intake/__tests__/route.test.ts` (one pre-existing test) computed its `todayKey` from UTC date components but the route's `readMedicationCompliance` uses the user's timezone (Europe/Berlin in the test fixture). At every nightly 22:00 — 24:00 UTC window — once the Berlin clock crossed midnight — the two computations diverged by one calendar day and the rollup-tier read returned zero for "today". The test now derives `todayKey` from the same `Europe/Berlin` zone the route uses; the assertion stays the same.
+
 ## [1.4.49.3] — 2026-05-23 — Full i18n call-site audit + 28 stale missing keys filled
 
 Marc reported additional raw key strings (`notifications.eventMoodReminder`, `notifications.eventMoodReminderDesc`) reaching the UI after v1.4.49.2 had landed the relative-time fix. The narrow `{count}`-call audit that drove v1.4.49.2 had missed every dynamic key construction; the full exhaustive sweep below picked up 28 keys called from real code that had never existed in any locale bundle.
