@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.4.49.1] — 2026-05-23 — Default `/api/analytics` cold-path fix (rollup-tier delegation)
+
+v1.4.49 shipped the slim-slice (`?slice=summaries`) cold-fallback fix, but the production HAR captured against the new image still showed `GET /api/analytics` at 8 s cold on the 467 745-row tenant — and crucially, the supposedly-fixed `?slice=summaries` request observed the same 8 s when fired concurrently. Investigation found the slim slice was queuing behind the default slice's 15-way per-type `fetchMeasurementSeriesChunked` live walk: the fan-out held the `p-limit(4)` lanes saturated and the 20-slot Prisma pool packed for ~8 s, starving every other Prisma client (including the concurrent slim slice) until it drained.
+
+### Fixed
+
+- `GET /api/analytics` (default slice) no longer fans out 15 per-type `findMany` reads against `measurements`. The route now delegates the per-type `summaries` work to `computeSummariesSlice`, which reads the same data from `measurement_rollups` DAY buckets + a 90-day narrow `$queryRaw` for the windowed avg / slope / r² columns. On Marc's production account this drops the cold critical path from ~8 s to sub-second; warm cache is unchanged.
+- Pool starvation that ALSO affected the supposedly-fast `?slice=summaries` request when fired concurrently — the slim slice now resolves in its own SQL budget regardless of whether the default-slice request is also in flight.
+
+### Changed
+
+- `computeSummariesSlice` narrow `$queryRaw` extended with a `FILTER (WHERE measured_at >= NOW() - INTERVAL '60 days' AND measured_at < NOW() - INTERVAL '30 days')` `avg30_last_month` column. The 60-day lower bound stays inside the existing 90-day outer cap, so the additional column adds zero extra row scan work — the planner already touches every block this clause reads. Dashboard `tileCompareDelta` (`compareBaseline === "lastMonth"`) now sees a real value via the slim path; previously only the deleted live walk produced it.
+- Deleted dead code: `fetchMeasurementSeriesChunked`, `ChunkedRow`, `MEASUREMENT_CHUNK_SIZE`, the `ANALYTICS_TYPE_FETCH_CONCURRENCY = 4` constant. None had callers outside the removed fan-out.
+- `meta.analytics.bp_aggregate` wide-event field retired — it carried the per-type walk's row-count + `live_since` cutoff, both meaningless without the walk. The slim slice's `meta.analytics.slim_summaries` (`row_count`, `type_count`, `path`, `year_over_year_types`) carries the equivalent signal.
+- `summary.anomalyCount` on the default-slice response now consistently returns `0`. No consumer in the codebase reads it from `/api/analytics`; the insights pipeline (`/api/insights/comprehensive`, `/api/insights/cards`) sources `anomalyCount` from its own `comprehensive-aggregator` narrow query.
+
+### Test hygiene
+
+- `route.test.ts` updated: dropped the 130k-row PULSE stress test and the `caps per-type Prisma fan-out` concurrency test (both pinned the removed fan-out). Added a negative assertion that `prisma.measurement.findMany` is never called with the chunked-walk shape `(select: { id, source, deviceType }, take: 5000)` on the default critical path, plus a positive assertion that `avg30LastMonth` exists on the response.
+- `since-cap.test.ts` updated: dropped the `where.measuredAt.gte` and `bp_aggregate.live_since` annotation assertions (both pinned the deleted code path). The slim-slice negative invariant (no per-type loop on `?slice=summaries`) remains.
+- Final: **5 268 unit + integration tests pass** (one pre-existing skip), zero failures, lint clean.
+
+### Verification
+
+Post-deploy production logs from `/api/analytics` (default + slim, cold cache) confirm the fix landed: both routes report `path: "rollup"` for every component and `duration_ms` returns to the sub-second envelope. See the v1.4.49.1 deploy verify section in the project memory.
+
 ## [1.4.49] — 2026-05-23 — Audit-backlog closure + server-side reminder suppression + diagnostic endpoint backed
 
 v1.4.47 closed the H1 + Mediums punch list. v1.4.49 bundles the deferred v1.4.47 Mediums and Lows together with the v1.4.48-deferred items: server-side suppression of `MEDICATION_REMINDER` APNs for iOS clients that manage their own local reminders, a `push_attempts` table backing the diagnostic endpoint, the `/api/admin/notifications/diagnostic` OpenAPI entry, and a sweep of v1.4.48 QA forward-findings (Withings reason-tagging, observability PII hardening, MoodReminderCard auto-clear parity, simplifier dead-code, sub-locale copy gaps). The workout-batch integration suite that had been red on `main` for three releases turns green; the cold-mount analytics fallback path picks up the same 90-day outer cap that v1.4.47.1 shipped for the rollup-fresh path; iOS validation-failure audit rows carry the rejected payload shape so iOS serialiser drift can be chased from a single log line.
