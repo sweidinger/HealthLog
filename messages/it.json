@@ -379,7 +379,8 @@
     "nextPage": "Pagina successiva",
     "dailyTotalCaption": "({count} campioni)",
     "expandDay": "Mostra i campioni di questa giornata",
-    "collapseDay": "Nascondi i campioni di questa giornata"
+    "collapseDay": "Nascondi i campioni di questa giornata",
+    "loadError": "Impossibile caricare le misurazioni."
   },
   "mood": {
     "title": "Umore",
@@ -1513,6 +1514,27 @@
       "title": "Bentornato",
       "body": "Hai già completato l'onboarding. Per modificare qualcosa apri le impostazioni — tutto ciò che hai configurato è ancora modificabile.",
       "cta": "Apri la dashboard"
+    },
+    "welcome": {
+      "title": "Benvenuto in HealthLog",
+      "carouselLabel": "Carosello di benvenuto",
+      "slideOf": "Diapositiva {current} di {total}",
+      "prevSlide": "Diapositiva precedente",
+      "nextSlide": "Diapositiva successiva",
+      "gotoSlide": "Vai alla diapositiva {index}",
+      "cta": "Inizia",
+      "slide1": {
+        "title": "Tieni traccia di ogni segnale",
+        "body": "Peso, pressione, glicemia, sonno, umore — un unico registro che è tuo."
+      },
+      "slide2": {
+        "title": "Collega le tue sorgenti",
+        "body": "Sincronizza con Apple Health e Withings o aggiungi le misurazioni a mano. I tuoi dati restano sul tuo server."
+      },
+      "slide3": {
+        "title": "Scopri lo schema",
+        "body": "Riepiloghi giornalieri, grafici di tendenza e un coach che evidenzia i cambiamenti — tutto sul tuo dispositivo."
+      }
     }
   },
   "gettingStarted": {
@@ -2838,7 +2860,21 @@
       "enabledToast": "Promemoria dell’umore attivato.",
       "disabledToast": "Promemoria dell’umore disattivato.",
       "saveError": "Salvataggio non riuscito. Riprova."
-    }
+    },
+    "eventMedicationReminder": "Promemoria farmaco",
+    "eventMedicationReminderDesc": "Inviato a ogni orario di dose programmato.",
+    "eventMeasurementAnomaly": "Misurazione insolita",
+    "eventMeasurementAnomalyDesc": "Inviato quando un valore esce nettamente dal tuo intervallo abituale.",
+    "eventComplianceLow": "Aderenza bassa",
+    "eventComplianceLowDesc": "Inviato quando il tuo tasso di assunzione degli ultimi giorni scende sotto l'80 %.",
+    "eventWithingsSyncFailed": "Sincronizzazione Withings non riuscita",
+    "eventWithingsSyncFailedDesc": "Inviato quando la sincronizzazione Withings fallisce per più tentativi consecutivi.",
+    "eventSystemAlert": "Avviso di sistema",
+    "eventSystemAlertDesc": "Messaggi generali dal server HealthLog, ad esempio finestre di manutenzione o note sull'account.",
+    "eventPersonalRecord": "Record personale",
+    "eventPersonalRecordDesc": "Inviato quando una misurazione supera il tuo precedente record.",
+    "eventMoodReminder": "Promemoria umore",
+    "eventMoodReminderDesc": "Promemoria quotidiano per registrare il tuo umore attuale."
   },
   "i18n": {
     "maintainershipBanner": {

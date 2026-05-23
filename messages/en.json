@@ -379,7 +379,8 @@
     "nextPage": "Next page",
     "dailyTotalCaption": "({count} samples)",
     "expandDay": "Show samples for this day",
-    "collapseDay": "Hide samples for this day"
+    "collapseDay": "Hide samples for this day",
+    "loadError": "Could not load measurements."
   },
   "mood": {
     "title": "Mood",
@@ -1513,6 +1514,27 @@
       "title": "Welcome back",
       "body": "You've already finished onboarding. To adjust anything, head to Settings — everything you set up is editable from there.",
       "cta": "Open dashboard"
+    },
+    "welcome": {
+      "title": "Welcome to HealthLog",
+      "carouselLabel": "Welcome carousel",
+      "slideOf": "Slide {current} of {total}",
+      "prevSlide": "Previous slide",
+      "nextSlide": "Next slide",
+      "gotoSlide": "Go to slide {index}",
+      "cta": "Get started",
+      "slide1": {
+        "title": "Track every signal",
+        "body": "Weight, blood pressure, glucose, sleep, mood — keep your full picture in one log you own."
+      },
+      "slide2": {
+        "title": "Connect your sources",
+        "body": "Sync with Apple Health and Withings, or add readings by hand. Your data stays on your server."
+      },
+      "slide3": {
+        "title": "See the pattern",
+        "body": "Daily summaries, trend charts, and a coach that surfaces what changed — all on your own device."
+      }
     }
   },
   "gettingStarted": {
@@ -2838,7 +2860,21 @@
       "enabledToast": "Mood reminder enabled.",
       "disabledToast": "Mood reminder disabled.",
       "saveError": "Save failed. Please try again."
-    }
+    },
+    "eventMedicationReminder": "Medication reminder",
+    "eventMedicationReminderDesc": "Sent at each scheduled dose time.",
+    "eventMeasurementAnomaly": "Unusual measurement",
+    "eventMeasurementAnomalyDesc": "Sent when a reading is well outside your usual range.",
+    "eventComplianceLow": "Low compliance",
+    "eventComplianceLowDesc": "Sent when your intake rate over the last few days drops below 80 %.",
+    "eventWithingsSyncFailed": "Withings sync failed",
+    "eventWithingsSyncFailedDesc": "Sent when Withings synchronisation fails multiple attempts in a row.",
+    "eventSystemAlert": "System notice",
+    "eventSystemAlertDesc": "General messages from the HealthLog server, e.g. maintenance windows or account notes.",
+    "eventPersonalRecord": "Personal record",
+    "eventPersonalRecordDesc": "Sent when a reading beats your previous best.",
+    "eventMoodReminder": "Mood reminder",
+    "eventMoodReminderDesc": "Daily nudge to log your current mood."
   },
   "i18n": {
     "maintainershipBanner": {

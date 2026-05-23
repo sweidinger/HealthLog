@@ -379,7 +379,8 @@
     "nextPage": "Page suivante",
     "dailyTotalCaption": "({count} échantillons)",
     "expandDay": "Afficher les échantillons de ce jour",
-    "collapseDay": "Masquer les échantillons de ce jour"
+    "collapseDay": "Masquer les échantillons de ce jour",
+    "loadError": "Impossible de charger les mesures."
   },
   "mood": {
     "title": "Humeur",
@@ -1513,6 +1514,27 @@
       "title": "Bon retour",
       "body": "Vous avez déjà terminé la configuration. Pour modifier un élément, ouvrez les paramètres — tout reste éditable.",
       "cta": "Ouvrir le tableau de bord"
+    },
+    "welcome": {
+      "title": "Bienvenue dans HealthLog",
+      "carouselLabel": "Carrousel de bienvenue",
+      "slideOf": "Diapositive {current} sur {total}",
+      "prevSlide": "Diapositive précédente",
+      "nextSlide": "Diapositive suivante",
+      "gotoSlide": "Aller à la diapositive {index}",
+      "cta": "Commencer",
+      "slide1": {
+        "title": "Notez chaque signal",
+        "body": "Poids, tension, glycémie, sommeil, humeur — un seul journal qui vous appartient."
+      },
+      "slide2": {
+        "title": "Connectez vos sources",
+        "body": "Synchronisez avec Apple Health et Withings, ou ajoutez vos mesures à la main. Vos données restent sur votre serveur."
+      },
+      "slide3": {
+        "title": "Repérez les tendances",
+        "body": "Résumés quotidiens, graphiques de tendances et un coach qui met en avant ce qui a changé — le tout sur votre appareil."
+      }
     }
   },
   "gettingStarted": {
@@ -2838,7 +2860,21 @@
       "enabledToast": "Rappel d’humeur activé.",
       "disabledToast": "Rappel d’humeur désactivé.",
       "saveError": "Échec de l’enregistrement. Réessayez."
-    }
+    },
+    "eventMedicationReminder": "Rappel de médicament",
+    "eventMedicationReminderDesc": "Envoyé à chaque heure de prise prévue.",
+    "eventMeasurementAnomaly": "Mesure inhabituelle",
+    "eventMeasurementAnomalyDesc": "Envoyé quand une valeur sort nettement de votre plage habituelle.",
+    "eventComplianceLow": "Observance faible",
+    "eventComplianceLowDesc": "Envoyé quand votre taux de prise des derniers jours passe sous les 80 %.",
+    "eventWithingsSyncFailed": "Échec de la synchronisation Withings",
+    "eventWithingsSyncFailedDesc": "Envoyé quand la synchronisation Withings échoue plusieurs fois d'affilée.",
+    "eventSystemAlert": "Notification système",
+    "eventSystemAlertDesc": "Messages généraux du serveur HealthLog, par exemple maintenance ou avis de compte.",
+    "eventPersonalRecord": "Record personnel",
+    "eventPersonalRecordDesc": "Envoyé quand une valeur dépasse votre meilleur précédent.",
+    "eventMoodReminder": "Rappel d'humeur",
+    "eventMoodReminderDesc": "Rappel quotidien pour noter votre humeur du moment."
   },
   "i18n": {
     "maintainershipBanner": {

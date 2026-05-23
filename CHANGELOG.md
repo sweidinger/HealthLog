@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.49.3] — 2026-05-23 — Full i18n call-site audit + 28 stale missing keys filled
+
+Marc reported additional raw key strings (`notifications.eventMoodReminder`, `notifications.eventMoodReminderDesc`) reaching the UI after v1.4.49.2 had landed the relative-time fix. The narrow `{count}`-call audit that drove v1.4.49.2 had missed every dynamic key construction; the full exhaustive sweep below picked up 28 keys called from real code that had never existed in any locale bundle.
+
+### Fixed
+
+- Filled 28 missing translation keys across all 6 locales (de / en / es / fr / it / pl = 168 entries), grouped by feature surface that introduced them and never wired the strings:
+  - **Notifications event matrix** (14 keys — added with v1.4.41 / MOOD_REMINDER surfaced the gap in v1.4.49): `notifications.event{MedicationReminder,MeasurementAnomaly,ComplianceLow,WithingsSyncFailed,SystemAlert,PersonalRecord,MoodReminder}` and the `Desc` variant of each. The `/notifications` settings page is the consumer; before this release the per-event rows on Marc's account rendered the bare keys instead of the localised name + description.
+  - **Welcome carousel** (13 keys — added with the 3-slide intro in v1.4.45): `onboarding.welcome.{title,carouselLabel,slideOf,prevSlide,nextSlide,gotoSlide,cta}` for the chrome plus `slide{1,2,3}.title/body` for the content. The carousel mounted with raw keys for every screen-reader label, dot-pager aria-label, and slide body.
+  - **Measurement list error state** (1 key — added with v1.4.44): `measurements.loadError`. The error branch in `measurement-list.tsx` rendered the raw key when a fetch failed.
+
+### Added
+
+- `src/__tests__/i18n-call-site-coverage.test.ts` — call-site audit that walks every `.ts` / `.tsx` file under `src/` (excluding tests + generated code), extracts every literal `t("ns.key")` call with comment-aware parsing (skips line + block + JSDoc comments so example pseudocode in docstrings is not flagged), and asserts each key resolves to a string leaf in `messages/en.json`. The existing `i18n-locale-integrity.test.ts` then propagates the EN guarantee to every other locale via key-set parity. Pre-fix this guard would have surfaced 17 stale call sites at every test run; future regressions print a structured punch list so the offender can land every gap in one commit.
+
+### Why this happened
+
+The guard above did not exist before. v1.4.27 B6 introduced `i18n-drift-guard.test.ts` with hand-curated key groups; surfaces introduced after that point (notifications matrix in v1.4.41, measurement list error in v1.4.44, welcome carousel in v1.4.45) shipped without anyone editing the drift-guard groups, and the locale-integrity test only catches DRIFT across locales — it does not flag keys that are missing from EVERY locale uniformly. The call-site test closes that hole: any `t()` call without a backing key now fails at `pnpm test` time, before reaching production.
+
 ## [1.4.49.2] — 2026-05-23 — Raw i18n key leak on relative-time helper
 
 Marc reported the raw string `insights.relativeHoursAgo` rendering verbatim on medication cards, recent-achievements, admin sections, the iOS notification preview, and every other consumer of `formatDateOrRelative`. Audit across the full `t(…, { count })` surface (~20 call sites) confirmed exactly two leaks: `insights.relativeMinutesAgo` and `insights.relativeHoursAgo`. Both pointed to keys that have NEVER existed in the translation bundle — only the pluralised `*One` / `*Other` variants ship.

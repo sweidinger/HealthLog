@@ -379,7 +379,8 @@
     "nextPage": "Nächste Seite",
     "dailyTotalCaption": "({count} Einzelwerte)",
     "expandDay": "Einzelwerte dieses Tages anzeigen",
-    "collapseDay": "Einzelwerte dieses Tages ausblenden"
+    "collapseDay": "Einzelwerte dieses Tages ausblenden",
+    "loadError": "Messwerte konnten nicht geladen werden."
   },
   "mood": {
     "title": "Stimmung",
@@ -1513,6 +1514,27 @@
       "title": "Willkommen zurück",
       "body": "Das Onboarding hast du bereits abgeschlossen. Möchtest du etwas anpassen, findest du alles in den Einstellungen.",
       "cta": "Zum Dashboard"
+    },
+    "welcome": {
+      "title": "Willkommen bei HealthLog",
+      "carouselLabel": "Begrüßungs-Karussell",
+      "slideOf": "Folie {current} von {total}",
+      "prevSlide": "Vorherige Folie",
+      "nextSlide": "Nächste Folie",
+      "gotoSlide": "Zu Folie {index} springen",
+      "cta": "Los geht's",
+      "slide1": {
+        "title": "Alles, was zählt",
+        "body": "Gewicht, Blutdruck, Glukose, Schlaf, Stimmung — alles in einem Verlauf, der dir gehört."
+      },
+      "slide2": {
+        "title": "Verbinde deine Quellen",
+        "body": "Synchronisiere mit Apple Health und Withings oder trage Werte manuell ein. Deine Daten bleiben auf deinem Server."
+      },
+      "slide3": {
+        "title": "Erkenne das Muster",
+        "body": "Tageszusammenfassungen, Trend-Diagramme und ein Coach, der zeigt was sich verändert hat — alles auf deinem Gerät."
+      }
     }
   },
   "gettingStarted": {
@@ -2838,7 +2860,21 @@
       "enabledToast": "Stimmungs-Erinnerung aktiviert.",
       "disabledToast": "Stimmungs-Erinnerung deaktiviert.",
       "saveError": "Speichern fehlgeschlagen. Bitte später erneut versuchen."
-    }
+    },
+    "eventMedicationReminder": "Medikamenten-Erinnerung",
+    "eventMedicationReminderDesc": "Wird zu jeder geplanten Einnahmezeit gesendet.",
+    "eventMeasurementAnomaly": "Auffälliger Messwert",
+    "eventMeasurementAnomalyDesc": "Wird gesendet, wenn ein Wert deutlich außerhalb deines üblichen Bereichs liegt.",
+    "eventComplianceLow": "Niedrige Einnahmequote",
+    "eventComplianceLowDesc": "Wird gesendet, wenn deine Einnahmequote in den letzten Tagen unter 80 % fällt.",
+    "eventWithingsSyncFailed": "Withings-Sync fehlgeschlagen",
+    "eventWithingsSyncFailedDesc": "Wird gesendet, wenn die Withings-Synchronisierung mehrere Versuche in Folge scheitert.",
+    "eventSystemAlert": "Systemmeldung",
+    "eventSystemAlertDesc": "Allgemeine Mitteilungen vom HealthLog-Server, etwa Wartungsfenster oder Konto-Hinweise.",
+    "eventPersonalRecord": "Persönlicher Rekord",
+    "eventPersonalRecordDesc": "Wird gesendet, wenn ein Messwert deine bisherige Bestmarke übertrifft.",
+    "eventMoodReminder": "Stimmungs-Erinnerung",
+    "eventMoodReminderDesc": "Tägliche Erinnerung, deine aktuelle Stimmung zu protokollieren."
   },
   "i18n": {
     "maintainershipBanner": {
