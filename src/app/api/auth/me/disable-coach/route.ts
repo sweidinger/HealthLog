@@ -9,7 +9,7 @@
  *
  * The toggle is reachable from Settings → Insights as a `<Switch>`
  * labelled "Hide Coach" / "Coach ausblenden". Default `false` (Coach
- * visible) — see migration `0076_v1447_user_disable_coach` for the
+ * visible) — see migration `0078_v1447_user_disable_coach` for the
  * column-level documentation.
  *
  * Idempotent. The endpoint always returns the resolved next-state
@@ -19,12 +19,21 @@
  * batch settings round-trips after a passkey re-pair and a tight
  * 5/min would surface as a 429 on a normal onboarding flow.
  */
+import { z } from "zod";
+
 import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
-import { apiError, apiSuccess, getClientIp } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  getClientIp,
+  returnAllZodIssues,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+
+const patchBodySchema = z.object({ disableCoach: z.boolean() });
 
 export const dynamic = "force-dynamic";
 
@@ -72,19 +81,13 @@ export const PATCH = apiHandler(async (req: Request) => {
     throw new HttpError(422, "disable-coach.body.invalid_json");
   }
 
-  // Hand-rolled validation — single boolean field. Keeps the
-  // prompt-injection surface visibly empty in code review (no string
-  // ever reaches an LLM).
-  if (
-    !body ||
-    typeof body !== "object" ||
-    typeof (body as { disableCoach?: unknown }).disableCoach !== "boolean"
-  ) {
+  const parsed = patchBodySchema.safeParse(body);
+  if (!parsed.success) {
     annotate({ action: { name: "auth.me.disable-coach.patch.invalid_shape" } });
-    throw new HttpError(422, "disable-coach.body.invalid_shape");
+    return returnAllZodIssues(parsed.error, 422);
   }
 
-  const next = (body as { disableCoach: boolean }).disableCoach;
+  const next = parsed.data.disableCoach;
 
   const previous = await prisma.user.findUnique({
     where: { id: user.id },

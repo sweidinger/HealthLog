@@ -8,6 +8,7 @@
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import {
   apiSuccess,
+  buildPayloadDiagnostic,
   safeJson,
   returnAllZodIssues,
   sanitiseZodIssues,
@@ -28,6 +29,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod/v4";
 import { invalidateUserDashboardWidgets } from "@/lib/cache/invalidate";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { redactSensitiveFields } from "@/lib/observability/redact-payload";
 import type { NextRequest } from "next/server";
 
 // Single source of truth — every widget id rendered by the Settings →
@@ -145,9 +147,25 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     // `/api/admin/audit` for these without combing the iOS dev
     // console.
     const issues = sanitiseZodIssues(parsed.error.issues);
+    // v1.4.48 H-iOS-1 — surface the iOS-sent payload shape alongside
+    // the Zod rejection so a single wide-event line carries enough
+    // detail to diagnose serialiser drift in `HealthLog-iOS`. We log
+    // ONLY the top-level keys plus a hard 256-char JSON excerpt — never
+    // the full body — so PII / token-like fields cannot leak. The
+    // diagnostic shape is built by the shared `buildPayloadDiagnostic`
+    // helper (v1.4.49) so the widget + series routes can't drift; the
+    // body is routed through `redactSensitiveFields` first so any
+    // future field matching the denylist (password / token / secret /
+    // apiKey / authorization / csrfState / nonce) lands as the literal
+    // `"[redacted]"` instead of its raw value.
+    const payloadDiagnostic = buildPayloadDiagnostic(redactSensitiveFields(body));
     annotate({
       action: { name: "dashboard.widgets.validation-failed" },
-      meta: { issue_count: issues.length },
+      meta: {
+        issue_count: issues.length,
+        ...payloadDiagnostic,
+        zod_issues: issues,
+      },
     });
     // v1.4.43 B2 — gate the breadcrumb behind a 60 s (userId, action) dedup
     // so a misbehaving iOS client retrying every second cannot pump
@@ -160,12 +178,20 @@ export const PUT = apiHandler(async (request: NextRequest) => {
       )
     ) {
       // Best-effort breadcrumb — never block the 422 on a write miss.
+      // v1.4.49 — strip `message` from the audit-ledger row so Zod
+      // codes that embed the offending value in their default message
+      // (`invalid_enum_value` and similar) cannot leak user content
+      // through the audit surface. The wide-event excerpt above
+      // already carries the shape signal for operator debugging.
+      const auditIssues = sanitiseZodIssues(parsed.error.issues, {
+        stripValuesFromMessage: true,
+      });
       prisma.auditLog
         .create({
           data: {
             userId: user.id,
             action: "dashboard.widgets.validation-failed",
-            details: JSON.stringify({ issues }),
+            details: JSON.stringify({ issues: auditIssues }),
           },
         })
         .catch(() => {

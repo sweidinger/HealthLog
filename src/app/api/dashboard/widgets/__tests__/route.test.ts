@@ -36,6 +36,15 @@ vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/logging/context", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/logging/context")>();
+  return {
+    ...actual,
+    annotate: vi.fn(),
+  };
+});
+
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
   cookies: vi.fn(async () => ({
@@ -48,6 +57,7 @@ vi.mock("next/headers", () => ({
 import { PUT, __resetAuditDedupMemoForTests } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { annotate } from "@/lib/logging/context";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
 
 const SESSION_OK = {
@@ -135,13 +145,14 @@ describe("PUT /api/dashboard/widgets — 422 multi-issue envelope (v1.4.42 W2)",
     expect(call.data.userId).toBe("user-1");
     expect(call.data.action).toBe("dashboard.widgets.validation-failed");
     const details = JSON.parse(call.data.details) as {
-      issues: Array<{ path: string; code: string; message: string }>;
+      issues: Array<{ path: string; code: string }>;
     };
     expect(details.issues.length).toBe(2);
     for (const issue of details.issues) {
-      // Audit row carries the same sanitised shape — issue.params never
-      // hits the ledger either.
-      expect(Object.keys(issue).sort()).toEqual(["code", "message", "path"]);
+      // v1.4.49 — audit row is the persisted surface. `message`
+      // strips here so a future Zod code that embeds the offending
+      // value cannot leak into the ledger.
+      expect(Object.keys(issue).sort()).toEqual(["code", "path"]);
     }
   });
 
@@ -165,6 +176,58 @@ describe("PUT /api/dashboard/widgets — 422 multi-issue envelope (v1.4.42 W2)",
     expect(body2.details.issues.length).toBe(2);
   });
 
+  it("surfaces received_keys + received_shape_excerpt + zod_issues in the wide-event meta (v1.4.48 H-iOS-1)", async () => {
+    const payload = { version: 2, widgets: [], extraGarbage: "from-ios" };
+    const res = await callPut(makeReq(payload));
+    expect(res.status).toBe(422);
+
+    const annotated = vi.mocked(annotate).mock.calls.find(
+      (call) =>
+        (call[0] as { action?: { name?: string } })?.action?.name ===
+        "dashboard.widgets.validation-failed",
+    );
+    expect(annotated, "validation-failed annotate call").toBeTruthy();
+    const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
+
+    // Top-level keys mirror the iOS-sent payload (NOT the schema keys).
+    expect(meta.received_keys).toEqual(
+      expect.arrayContaining(["version", "widgets", "extraGarbage"]),
+    );
+
+    // Excerpt is a JSON-stringified prefix, hard-capped at 256 chars.
+    expect(typeof meta.received_shape_excerpt).toBe("string");
+    expect((meta.received_shape_excerpt as string).length).toBeLessThanOrEqual(
+      256,
+    );
+    expect(meta.received_shape_excerpt as string).toContain("\"version\":2");
+
+    // zod_issues is the same sanitised array surfaced under details.issues.
+    const issues = meta.zod_issues as Array<{ path: string; code: string }>;
+    expect(Array.isArray(issues)).toBe(true);
+    expect(issues.length).toBeGreaterThanOrEqual(2);
+    for (const issue of issues) {
+      expect(Object.keys(issue).sort()).toEqual(["code", "message", "path"]);
+    }
+  });
+
+  it("caps received_shape_excerpt at 256 chars even for a large iOS payload", async () => {
+    const widgets = Array.from({ length: 30 }, (_, i) => ({
+      id: `widget-${i}-${"x".repeat(20)}`,
+      visible: true,
+      order: i,
+    }));
+    const res = await callPut(makeReq({ version: 99, widgets }));
+    expect(res.status).toBe(422);
+
+    const annotated = vi.mocked(annotate).mock.calls.find(
+      (call) =>
+        (call[0] as { action?: { name?: string } })?.action?.name ===
+        "dashboard.widgets.validation-failed",
+    );
+    const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
+    expect((meta.received_shape_excerpt as string).length).toBe(256);
+  });
+
   it("does not block the 422 response when the audit-row write rejects", async () => {
     vi.mocked(prisma.auditLog.create).mockRejectedValueOnce(
       new Error("db down"),
@@ -177,5 +240,66 @@ describe("PUT /api/dashboard/widgets — 422 multi-issue envelope (v1.4.42 W2)",
       details: { issues: Array<unknown> };
     };
     expect(body.details.issues.length).toBe(2);
+  });
+
+  it("redacts sensitive keys before writing the wide-event received_shape_excerpt (v1.4.49)", async () => {
+    // Caller adds a credential-shaped field — must not land in the
+    // wide-event excerpt verbatim. The denylist also covers nested
+    // members so `payload.apiKey` is redacted, while `version` /
+    // `widgets` stay readable for operator debug.
+    const payload = {
+      version: 2,
+      widgets: [],
+      apnsToken: "ff".repeat(32),
+      authorization: "Bearer leaked",
+      payload: { apiKey: "sk_live_xxx" },
+    };
+    const res = await callPut(makeReq(payload));
+    expect(res.status).toBe(422);
+
+    const annotated = vi.mocked(annotate).mock.calls.find(
+      (call) =>
+        (call[0] as { action?: { name?: string } })?.action?.name ===
+        "dashboard.widgets.validation-failed",
+    );
+    const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
+    const excerpt = meta.received_shape_excerpt as string;
+
+    // Sensitive values are never written into the excerpt.
+    expect(excerpt).not.toContain("ff".repeat(32));
+    expect(excerpt).not.toContain("Bearer leaked");
+    expect(excerpt).not.toContain("sk_live_xxx");
+    // The redactor leaves the literal sentinel behind so an operator
+    // can still see the shape of the rejected payload.
+    expect(excerpt).toContain("[redacted]");
+    // Non-sensitive keys still surface for debugging.
+    expect(meta.received_keys).toEqual(
+      expect.arrayContaining([
+        "version",
+        "widgets",
+        "apnsToken",
+        "authorization",
+        "payload",
+      ]),
+    );
+  });
+
+  it("strips `message` from the audit-ledger issues row (v1.4.49)", async () => {
+    // The wide-event meta keeps full message for operator debugging,
+    // but the persisted auditLog row must only carry `path` + `code`
+    // so a future Zod code that embeds the offending value cannot
+    // leak into the ledger.
+    await callPut(makeReq({ version: 2, widgets: [] }));
+
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(prisma.auditLog.create).mock.calls[0]?.[0] as {
+      data: { details: string };
+    };
+    const parsed = JSON.parse(call.data.details) as {
+      issues: Array<Record<string, unknown>>;
+    };
+    for (const issue of parsed.issues) {
+      expect(Object.keys(issue).sort()).toEqual(["code", "path"]);
+    }
   });
 });

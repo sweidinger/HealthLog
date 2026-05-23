@@ -2003,10 +2003,10 @@
       "repository": "Source code",
       "changelog": "Changelog",
       "docs": "Documentation",
-      "linksHeading": "Sources & docs",
-      "newerAvailable": "Newer version: {tag}",
-      "tourReplay": "Replay the tour",
-      "tourReplayHint": "Watch the dashboard walkthrough — handy if you skipped it on first visit."
+      "linksHeading": "Fonti e documentazione",
+      "newerAvailable": "Nuova versione: {tag}",
+      "tourReplay": "Rivedi il tour",
+      "tourReplayHint": "Guarda il tour della dashboard — utile se l'hai saltato alla prima visita."
     },
     "testConnection": {
       "test": "Test connection",

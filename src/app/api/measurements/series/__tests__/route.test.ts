@@ -16,6 +16,15 @@ vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/logging/context", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/logging/context")>();
+  return {
+    ...actual,
+    annotate: vi.fn(),
+  };
+});
+
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
   cookies: vi.fn(async () => ({
@@ -28,6 +37,7 @@ vi.mock("next/headers", () => ({
 import { GET } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { annotate } from "@/lib/logging/context";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -157,6 +167,50 @@ describe("GET /api/measurements/series — 422 multi-issue (v1.4.43 W6)", () => 
     expect(call.data.action).toBe("measurements.series.validation-failed");
   });
 
+  it("surfaces received_keys + received_shape_excerpt + zod_issues in the wide-event meta (v1.4.48 H-iOS-2)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await GET(req("kind=garbage&days=0&extraGarbage=fromIos"));
+    expect(res.status).toBe(422);
+
+    const annotated = vi.mocked(annotate).mock.calls.find(
+      (call) =>
+        (call[0] as { action?: { name?: string } })?.action?.name ===
+        "measurements.series.validation-failed",
+    );
+    expect(annotated, "validation-failed annotate call").toBeTruthy();
+    const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
+
+    expect(meta.received_keys).toEqual(
+      expect.arrayContaining(["kind", "days", "extraGarbage"]),
+    );
+    expect(typeof meta.received_shape_excerpt).toBe("string");
+    expect((meta.received_shape_excerpt as string).length).toBeLessThanOrEqual(
+      256,
+    );
+    expect(meta.received_shape_excerpt as string).toContain("\"kind\":\"garbage\"");
+
+    const issues = meta.zod_issues as Array<{ path: string; code: string }>;
+    expect(Array.isArray(issues)).toBe(true);
+    expect(issues.length).toBeGreaterThanOrEqual(2);
+    for (const issue of issues) {
+      expect(Object.keys(issue).sort()).toEqual(["code", "message", "path"]);
+    }
+  });
+
+  it("caps received_shape_excerpt at 256 chars even for a long iOS query", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const long = "x".repeat(500);
+    const res = await GET(req(`kind=garbage&days=0&junk=${long}`));
+    expect(res.status).toBe(422);
+    const annotated = vi.mocked(annotate).mock.calls.find(
+      (call) =>
+        (call[0] as { action?: { name?: string } })?.action?.name ===
+        "measurements.series.validation-failed",
+    );
+    const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
+    expect((meta.received_shape_excerpt as string).length).toBe(256);
+  });
+
   it("does not block the 422 when the audit-row write rejects", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.auditLog.create).mockRejectedValueOnce(
@@ -164,5 +218,48 @@ describe("GET /api/measurements/series — 422 multi-issue (v1.4.43 W6)", () => 
     );
     const res = await GET(req("kind=garbage&days=0"));
     expect(res.status).toBe(422);
+  });
+
+  it("redacts sensitive query keys before writing the wide-event received_shape_excerpt (v1.4.49)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // An attacker-shaped query that mixes a valid `kind` with a
+    // credential-shaped `token` param. The excerpt must keep `kind`
+    // readable for operator debug but redact the token verbatim.
+    const res = await GET(
+      req("kind=garbage&days=0&token=hlk_secret_value&apiKey=sk_live_xxx"),
+    );
+    expect(res.status).toBe(422);
+
+    const annotated = vi.mocked(annotate).mock.calls.find(
+      (call) =>
+        (call[0] as { action?: { name?: string } })?.action?.name ===
+        "measurements.series.validation-failed",
+    );
+    const meta = (annotated![0] as { meta?: Record<string, unknown> }).meta!;
+    const excerpt = meta.received_shape_excerpt as string;
+
+    expect(excerpt).not.toContain("hlk_secret_value");
+    expect(excerpt).not.toContain("sk_live_xxx");
+    expect(excerpt).toContain("[redacted]");
+    // The key inventory still surfaces so operators see the shape.
+    expect(meta.received_keys).toEqual(
+      expect.arrayContaining(["kind", "days", "token", "apiKey"]),
+    );
+  });
+
+  it("strips `message` from the audit-ledger issues row (v1.4.49)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    await GET(req("kind=garbage&days=0"));
+
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(prisma.auditLog.create).mock.calls[0]?.[0] as {
+      data: { details: string };
+    };
+    const parsed = JSON.parse(call.data.details) as {
+      issues: Array<Record<string, unknown>>;
+    };
+    for (const issue of parsed.issues) {
+      expect(Object.keys(issue).sort()).toEqual(["code", "path"]);
+    }
   });
 });
