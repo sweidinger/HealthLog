@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.49.2] — 2026-05-23 — Raw i18n key leak on relative-time helper
+
+Marc reported the raw string `insights.relativeHoursAgo` rendering verbatim on medication cards, recent-achievements, admin sections, the iOS notification preview, and every other consumer of `formatDateOrRelative`. Audit across the full `t(…, { count })` surface (~20 call sites) confirmed exactly two leaks: `insights.relativeMinutesAgo` and `insights.relativeHoursAgo`. Both pointed to keys that have NEVER existed in the translation bundle — only the pluralised `*One` / `*Other` variants ship.
+
+### Fixed
+
+- `formatDateOrRelative` in `src/lib/format.ts` now dispatches to `insights.relativeMinutesAgoOne` / `relativeMinutesAgoOther` / `relativeHoursAgoOne` / `relativeHoursAgoOther` based on `count === 1`, mirroring the `src/lib/i18n/relative-time.ts:24-48` pattern that the v1.4.43 H6 sweep added to its twin helper. The format-twin was missed in that sweep — `t()` performs no auto-pluralisation, so the bare key passed straight through `t()`'s identity fallback into the UI.
+
+### Test hygiene
+
+- `src/lib/__tests__/format-date-or-relative.test.ts` expectations updated to the new `*One` / `*Other` dispatch, plus a new regression guard that drives every relative bucket and asserts each `t()` key has a matching entry in `messages/en.json`. Pre-fix this guard would have failed on `relativeMinutesAgo` and `relativeHoursAgo`; future twin-helper divergence will trip the same check before it reaches prod.
+
+### Why the audit found no other leaks
+
+Cross-checked every `t(…, { count })` call across the codebase against `messages/en.json`. The other 17 sites (`insights.dayStreak`, `medications.importDuplicatesSkipped`, `achievements.metricPercent`, `passwordStrength.minLength`, `settings.integrationPill.*`, `targets.relativeDay.daysAgo`, `targets.card.streak`, `admin.section.backups.uploadSuccess`, `trendHints.remainingMany`, `dashboard.staleHint`, …) all use plain (non-pluralised) keys that exist verbatim in the bundle. The bug was isolated to the format-helper twin.
+
 ## [1.4.49.1] — 2026-05-23 — Default `/api/analytics` cold-path fix (rollup-tier delegation)
 
 v1.4.49 shipped the slim-slice (`?slice=summaries`) cold-fallback fix, but the production HAR captured against the new image still showed `GET /api/analytics` at 8 s cold on the 467 745-row tenant — and crucially, the supposedly-fixed `?slice=summaries` request observed the same 8 s when fired concurrently. Investigation found the slim slice was queuing behind the default slice's 15-way per-type `fetchMeasurementSeriesChunked` live walk: the fan-out held the `p-limit(4)` lanes saturated and the 20-slot Prisma pool packed for ~8 s, starving every other Prisma client (including the concurrent slim slice) until it drained.
