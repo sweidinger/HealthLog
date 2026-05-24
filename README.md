@@ -496,6 +496,52 @@ The detailed changelog lives in [`CHANGELOG.md`](CHANGELOG.md); per-release audi
 
 ---
 
+## Native iOS client
+
+<p align="center">
+  <a href="https://testflight.apple.com/join/bucuTBpa"><strong>Join the TestFlight public beta &rarr;</strong></a>
+</p>
+
+<p align="center">
+  <img src="docs/ios/ios-dashboard.png" alt="Dashboard with Health Score ring, medication compliance, vital-sign tiles" width="220" />
+  <img src="docs/ios/ios-insights.png" alt="Insights tab with Frag-den-Coach CTA, BMI and blood-pressure reference ranges" width="220" />
+  <img src="docs/ios/ios-medication-detail.png" alt="Medication detail with 30-day compliance ring and 14-day intake-status glyph track" width="220" />
+  <img src="docs/ios/ios-mood-entry.png" alt="Mood entry sheet with five mood faces" width="220" />
+</p>
+
+A SwiftUI iOS companion that lives on the same `/api` surfaces as the web client — same server, same data, same source of truth. The phone is a view + a write-ahead log; your server is the database. Code lives in a separate repo: [github.com/MBombeck/healthlog-iOS](https://github.com/MBombeck/healthlog-iOS).
+
+### What the phone unlocks
+
+- **HealthKit two-way sync.** Today's step count, weight, blood pressure, HRV, sleep, glucose, etc. read live from Apple Health and round-trip to your server through `HKObserverQuery` + `HKAnchoredObjectQuery` + a `BGProcessingTask` for guaranteed delivery. `HKMetadataKeyExternalUUID` on every iOS-side write keeps the server and Apple Health from echoing each other.
+- **Medication reminders that actually fire.** Local notifications with action buttons (Genommen / Snooze 15 min / Übersprungen) that hit the server's mark-intake endpoint directly — without opening the app.
+- **On-device AI Coach.** A conversational surface powered by Apple's Foundation Models framework on iOS 26+ Apple-Intelligence-eligible iPhones. The prompt and the response never leave the device — your numbers, your health questions, your phone.
+- **Passkey-first auth.** Sign in with Face ID or Touch ID via WebAuthn; email + magic-link is the fallback. SPKI public-key pinning on every authenticated request, Keychain with `afterFirstUnlockThisDeviceOnly`, and a log sanitizer that filters tokens and hostnames out of every line.
+- **Doctor-report export.** Generate a FHIR-flavoured PDF bundle from the iPhone based on the LOINC mappings reviewed on the server's clinician surface.
+
+### Built on Stanford Spezi
+
+The iOS client adopts the [Stanford Spezi](https://spezi.stanford.edu) digital-health framework where it earns its keep — battle-tested code maintained by Stanford's Biodesign Digital Health group rather than rolled by hand:
+
+- **SpeziHealthKit** for the HealthKit-read pipeline (live and historical),
+- **SpeziChat** under the on-device AI Coach surface,
+- **SpeziFHIR** + **HealthKitOnFHIR** for the doctor-report export bundle,
+- **SpeziAccessGuard**, **SpeziScheduler**, **SpeziMedication** queued for the next release line.
+
+Spezi exists because medical-device-grade software needs medical-device-grade primitives — the same modules ship in clinical-trial apps at Stanford Medicine. Adopting them gives the iOS client a quality + security floor a solo-maintainer code-base could not otherwise hit.
+
+### Status
+
+`v0.6.1.x` ships almost daily; the [iOS repo CHANGELOG](https://github.com/MBombeck/healthlog-iOS/blob/main/CHANGELOG.md) and tag list track what landed in each build. German-primary UI with English secondary. iOS 18+ minimum (iOS 26+ for the on-device Coach). AGPL-3.0, same as this repo.
+
+<p align="center">
+  <a href="https://testflight.apple.com/join/bucuTBpa">TestFlight beta</a> &middot;
+  <a href="https://github.com/MBombeck/healthlog-iOS">iOS repo</a> &middot;
+  <a href="https://github.com/MBombeck/healthlog-iOS/issues">iOS issues</a>
+</p>
+
+---
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
