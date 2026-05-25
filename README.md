@@ -35,7 +35,7 @@
 
 ## What it is
 
-HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESC/ESH 2018, ADA 2024, and NICE NG115. Withings devices sync automatically; an `export.zip` import folds your full Apple Health history into the same timeline; multi-provider AI Insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. AGPL-3.0.
+HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESH 2023, ADA 2024, and NICE NG115. Withings devices sync automatically; an `export.zip` import folds your full Apple Health history into the same timeline; a native SwiftUI iOS client (public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa)) streams HealthKit live; multi-provider AI Insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. AGPL-3.0.
 
 > **Status**: active. New releases roughly weekly -- see [CHANGELOG](CHANGELOG.md). Current line: v1.5 — native iOS client now public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa).
 
@@ -69,7 +69,7 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 
 ## Key Features
 
-**Health Metrics** -- Track weight, blood pressure, pulse, body fat, sleep, steps, blood glucose (fasting/postprandial/random/bedtime, mg/dL ↔ mmol/L), total body water, bone mass, and pulse oximetry (SpO₂) with interactive trend charts, moving averages, and traffic-light ranges based on ESC/ESH 2018, ADA 2024, and consensus pulse-oximeter guidance (NICE NG115). Body-composition + SpO₂ metrics sync automatically from Withings Body+ scales and ScanWatch devices.
+**Health Metrics** -- Track weight, blood pressure, pulse, body fat, sleep, steps, blood glucose (fasting/postprandial/random/bedtime, mg/dL ↔ mmol/L), total body water, bone mass, and pulse oximetry (SpO₂) with interactive trend charts, moving averages, and traffic-light ranges based on ESH 2023, ADA 2024, and consensus pulse-oximeter guidance (NICE NG115). Body-composition + SpO₂ metrics sync automatically from Withings Body+ scales and ScanWatch devices.
 
 **Custom Thresholds** -- Override the computed default ranges per metric with the targets your clinician set. Audit-logged. Doctor Report PDF prints both your target and the standard reference.
 
@@ -77,13 +77,13 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 
 **Mood Logging** -- 5-point scale with tags, notes, and trend analytics. Syncs automatically from moodLog.app via webhook.
 
-**Medication Compliance** -- Flexible scheduling with time windows, recurrence patterns, intake logging (take/skip/snooze), and compliance heatmaps. External API for iOS Shortcuts integration.
+**Medication Compliance** -- Flexible scheduling with time windows, day-of-week recurrence, and `intervalWeeks` (so once-weekly GLP-1 injections and weekday-only doses score honestly, not against a daily denominator). Take / skip / snooze logging, compliance heatmaps, GLP-1 pen-inventory + injection-site rotation, structured side-effect tracking. External API for iOS Shortcuts integration.
 
 **Withings Integration** -- OAuth2 device sync for scales, blood pressure monitors, and activity trackers with automatic deduplication.
 
 **Apple Health import** -- Drop your iOS `export.zip` on the import page. A streaming parser handles multi-gigabyte archives (Zip64), folds every `<Record>`, `<Workout>`, `<Correlation>`, and `<ClinicalRecord>` into the same timeline as your other metrics, and stays idempotent on re-upload. Per-type ingestion stats plus a live status endpoint so you can watch the progress on a long historical drain.
 
-**AI Coach + Insights** -- A conversational Coach grounded in your own data, a daily briefing, a weekly report, and a Health Score tile on the dashboard. Pick OpenAI, Anthropic Claude, or any OpenAI-compatible local endpoint (Ollama, LM Studio, vLLM). BYOK or admin-shared. Every claim links back to the measurements that produced it. Local endpoints keep all data on your network.
+**AI Coach + Insights** -- A conversational Coach grounded in your own data, a daily briefing, a weekly report, and a Health Score tile on the dashboard. Pick OpenAI, Anthropic Claude, ChatGPT via Codex device-OAuth (no API key needed), or any OpenAI-compatible local endpoint (Ollama, LM Studio, vLLM). BYOK or admin-shared. Every claim links back to the measurements that produced it. Local endpoints keep all data on your network.
 
 **Doctor Report PDF Export** -- Generate professional medical reports client-side. Locale-aware (English/German), with vital sign summaries, BP/BMI/glucose classification, compliance rates, custom-threshold badges, and optional AI analysis.
 
@@ -91,13 +91,15 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 
 **PWA with Offline Support** -- Installable on iOS and Android. Service worker with intelligent caching strategies for reliable offline access.
 
-**Multi-Channel Notifications** -- Telegram (with inline action buttons), ntfy (self-hostable), and Web Push. Medication reminders with late/missed escalation.
+**Multi-Channel Notifications** -- Telegram (with inline action buttons), ntfy (self-hostable), Web Push (VAPID), and Apple Push (APNs) for the native iOS client. One dispatcher fans medication reminders out to whichever channels the user has enabled, with late/missed escalation.
 
-**Gamification** -- 38+ persistent achievements across intake streaks, compliance milestones, and healthy metric streaks.
+**Sub-second dashboard** -- A persistent rollup tier pre-aggregates every measurement at DAY / WEEK / MONTH granularity. The dashboard and analytics paths read those buckets first and fall back to live SQL only when a tenant hasn't been backfilled yet, so paint time stays under 500 ms regardless of how many years of history you've imported.
 
-**Internationalization** -- English (default) and German UI with 1500+ translation keys, guarded by a CI integrity test that fails the build on duplicate keys or drift between locales. Numbers, dates, units, and AI prompts all locale-aware via `useFormatters()`. Browser-based detection with per-user override.
+**Gamification** -- 30+ persistent achievements across intake streaks, compliance milestones, and healthy metric streaks.
 
-**Multi-tenant ready** _(v1.4)_ — Off-host AES-GCM-encrypted weekly backups to any S3-compatible bucket (R2, B2, MinIO, AWS), encryption-key versioning + zero-downtime rotation CLI, optional `HEALTHLOG_PROCESS_TYPE=web|worker|all` so HTTP and pg-boss can scale independently, and short-lived 24h access tokens with refresh-token rotation for native API clients. The browser cookie session is unchanged.
+**Internationalization** -- English (default) and German UI with 2500+ translation keys each, guarded by a CI integrity test that fails the build on duplicate keys, drift between locales, or call-sites referencing keys that no locale ships. Numbers, dates, units, and AI prompts all locale-aware via `useFormatters()`. Browser-based detection with per-user override.
+
+**Multi-tenant ready** _(v1.4)_ — Off-host AES-GCM-encrypted daily backups to any S3-compatible bucket (R2, B2, MinIO, AWS), encryption-key versioning + zero-downtime rotation CLI (`scripts/rotate-encryption-key.ts`), optional `HEALTHLOG_PROCESS_TYPE=web|worker|all` so HTTP and pg-boss can scale independently, and short-lived 24h access tokens with refresh-token rotation for native API clients. The browser cookie session is unchanged.
 
 **Test connection buttons** _(v1.4)_ — One-click probes for Withings, moodLog.app, Web Push, Glitchtip, and Umami in addition to the existing AI / Telegram / ntfy tests. Each one rate-limited, sanitised against SSRF redirects, and surfaces a localisable `errorCode` so the UI can render the failure in the user's language.
 
@@ -139,14 +141,14 @@ Open **http://localhost:3000**. The first registered user becomes admin.
 | ------------- | ------------------------------------------------- |
 | Framework     | Next.js 16 (App Router, React Server Components)  |
 | Language      | TypeScript (strict mode)                          |
-| Database      | PostgreSQL 16 + Prisma 7 (26 models)              |
+| Database      | PostgreSQL 16 + Prisma 7 (47 models)              |
 | Job Queue     | pg-boss 12 (reminders, insights, backups)         |
 | UI            | shadcn/ui, Tailwind CSS 4, Radix UI, Lucide Icons |
 | Charts        | Recharts 3                                        |
 | Data Fetching | TanStack Query 5                                  |
 | Forms         | React Hook Form 7 + Zod 4                         |
 | Auth          | SimpleWebAuthn 13, Argon2id                       |
-| Notifications | Telegram Bot API, ntfy, Web Push (VAPID)          |
+| Notifications | Telegram Bot API, ntfy, Web Push (VAPID), APNs    |
 | PDF           | jsPDF (client-side generation)                    |
 | Testing       | Vitest 4                                          |
 | Deployment    | Docker (multi-stage Alpine)                       |
@@ -159,13 +161,16 @@ Open **http://localhost:3000**. The first registered user becomes admin.
 HealthLog is designed for people who take data ownership seriously.
 
 - **Self-hosted** -- Your data never leaves your server. No telemetry, no third-party tracking.
-- **AES-256-GCM encryption** -- All stored secrets (OAuth tokens, API keys, VAPID keys) are encrypted at rest.
+- **AES-256-GCM encryption** -- All stored secrets (OAuth tokens, API keys, VAPID keys, notification credentials, off-host backup payloads) are encrypted at rest.
+- **Key versioning + zero-downtime rotation** -- Multiple encryption keys can coexist (`ENCRYPTION_KEYS` map + `ENCRYPTION_ACTIVE_KEY_ID`) and a CLI (`pnpm dlx tsx scripts/rotate-encryption-key.ts`) re-wraps every encrypted column from the old key to the new one without taking the app offline.
 - **Passkey authentication** -- WebAuthn as primary auth with password fallback (Argon2id + zxcvbn strength validation).
 - **Server-side sessions** -- PostgreSQL-backed with 30-day sliding expiry, HttpOnly/SameSite=Strict cookies.
 - **Security headers** -- CSP with nonces, HSTS, X-Frame-Options DENY, Permissions-Policy, Referrer-Policy.
 - **Rate limiting** -- Sliding window on auth and API endpoints.
 - **HMAC-SHA256 API tokens** -- Bearer tokens are hashed before storage.
-- **Audit logging** -- All sensitive operations tracked with IP addresses.
+- **Offline IP geolocation** -- Bundled MaxMind GeoLite2 City + ASN databases resolve admin login-overview IPs without round-tripping to a third party. Public `ipwho.is` is only consulted when the local lookup misses.
+- **Wide-event structured logging** -- Every API route emits a single envelope with `action`, latency, request id, sampled payload (with secret redaction), and an optional Loki transport for self-hosted log aggregation.
+- **Audit logging** -- All sensitive operations tracked with IP addresses, dedup-windowed to keep the ledger compact under bursty writes.
 
 ---
 
@@ -200,7 +205,7 @@ Telegram bot token, ntfy settings, Web Push VAPID keys, Umami, and GlitchTip URL
 ```
 src/
 ├── app/                    # Next.js App Router pages & API routes
-│   ├── api/                # REST API endpoints (100+ route files)
+│   ├── api/                # REST API endpoints (180+ route files)
 │   ├── admin/              # Admin panel
 │   ├── auth/               # Login, register, passkey enrolment
 │   ├── medications/        # Medication management
@@ -322,7 +327,9 @@ All mutations require authentication via session cookie. External ingest uses Be
 | `PATCH` | `/api/auth/profile`              | Update profile fields               |
 | `POST`  | `/api/auth/passkey/*`            | WebAuthn flows (4 sub-routes)       |
 | `GET`   | `/api/auth/passkeys`             | List enrolled passkeys              |
-| `GET`   | `/api/auth/codex/authorize`      | ChatGPT (codex) OAuth start         |
+| `POST`  | `/api/auth/codex/device-start`   | ChatGPT (Codex) device-OAuth start  |
+| `POST`  | `/api/auth/codex/device-poll`    | Codex device-OAuth poll for token   |
+| `POST`  | `/api/auth/codex/disconnect`     | Revoke the stored Codex session     |
 | `GET`   | `/api/withings/connect`          | Initiate Withings OAuth             |
 | `POST`  | `/api/withings/sync`             | Trigger manual Withings sync        |
 | `POST`  | `/api/withings/webhook`          | Withings notification webhook       |
@@ -403,10 +410,9 @@ All mutations require authentication via session cookie. External ingest uses Be
 | `POST` | `/api/integrations/withings/test`  | Probe a saved Withings connection               |
 | `POST` | `/api/integrations/moodlog/test`   | Probe moodLog.app webhook reachability          |
 | `POST` | `/api/notifications/web-push/test` | Send a test Web Push to the current user        |
-| `POST` | `/api/monitoring/glitchtip/test`   | Trigger a Glitchtip ingest probe                |
-| `POST` | `/api/monitoring/umami/test`       | Verify Umami script + website ID resolve        |
-| `POST` | `/api/auth/refresh`                | Native client refresh-token rotation            |
-| `POST` | `/api/auth/refresh/revoke`         | Revoke an issued refresh token                  |
+| `POST` | `/api/admin/monitoring/glitchtip-test` | Trigger a Glitchtip ingest probe (admin)    |
+| `POST` | `/api/admin/monitoring/umami-test`     | Verify Umami script + website ID resolve (admin) |
+| `POST` | `/api/auth/refresh`                | Native client refresh-token rotation (POST body opts into revoke) |
 
 </details>
 
@@ -467,7 +473,7 @@ The app listens on port **3000**. Place it behind Nginx, Caddy, or Traefik for T
   <img src="docs/diagrams/03-self-hosting-topology.svg" alt="Self-hosting topology: internet → reverse proxy → Next.js app + pg-boss worker → PostgreSQL, with GHCR image pull and optional Coolify autodeploy and S3 backup" width="900" />
 </p>
 
-For a single-process default the same container hosts both the web and worker (`HEALTHLOG_PROCESS_TYPE=all`, the default). Split them via `HEALTHLOG_PROCESS_TYPE=web` and `HEALTHLOG_PROCESS_TYPE=worker` for horizontal scale. Off-host AES-GCM weekly backups to any S3-compatible bucket (R2, B2, MinIO, AWS) are opt-in via the admin panel. See [`docs/self-hosting/`](docs/self-hosting/) and [`docs/ops/`](docs/ops/) for the full operator manual.
+For a single-process default the same container hosts both the web and worker (`HEALTHLOG_PROCESS_TYPE=all`, the default). Split them via `HEALTHLOG_PROCESS_TYPE=web` and `HEALTHLOG_PROCESS_TYPE=worker` for horizontal scale. Off-host AES-GCM daily backups to any S3-compatible bucket (R2, B2, MinIO, AWS) are opt-in via the admin panel. See [`docs/self-hosting/`](docs/self-hosting/) and [`docs/ops/`](docs/ops/) for the full operator manual.
 
 ---
 
@@ -479,7 +485,7 @@ For a single-process default the same container hosts both the web and worker (`
 | **v1.5** (current) | Native iOS client (SwiftUI) in public beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa). Backend contract locked in [`docs/api/openapi.yaml`](docs/api/openapi.yaml); the iOS app lives in a separate repository and ingests via the same `/api/measurements/batch` and `/api/auth/refresh` surfaces the web uses. |
 | **v2.x** (planned) | Multi-tenant hardening, expanded device passthrough (Garmin / Polar), opt-in cross-user aggregate research mode (off by default; never enabled without explicit consent). |
 
-The detailed changelog lives in [`CHANGELOG.md`](CHANGELOG.md); per-release audit summaries live under [`docs/audit/`](docs/audit/).
+The detailed changelog lives in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
