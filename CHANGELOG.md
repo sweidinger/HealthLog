@@ -65,7 +65,7 @@ Marc reported the dashboard BD (Sys) tile rendering `"13… mmHg"` — the systo
 ### Fixed
 
 - `src/components/charts/trend-card.tsx` — paired-metric tiles (BP systolic/diastolic) now render the value at `text-2xl` (one Tailwind step down from `text-3xl`). Single-value tiles (weight, pulse, glucose, …) keep `text-3xl` because their value never threatens the column-width budget on its own. The `truncate` class stays as a defence-in-depth safety net so an outlier value (e.g. `200/120 mmHg` plus a future trend caption) still clips gracefully rather than overflowing the card boundary.
-- `cn()` argument ordering tightened so `tailwind-merge` keeps the explicit `leading-none` — Tailwind v4's `text-3xl` / `text-2xl` carry their own default `line-height`, and the last-wins dedup rule would otherwise drop the explicit `leading-none` and break the W20a across-tile baseline alignment. The `<TrendCard>` baseline-alignment tests pin the contract.
+- `cn()` argument ordering tightened so `tailwind-merge` keeps the explicit `leading-none` — Tailwind v4's `text-3xl` / `text-2xl` carry their own default `line-height`, and the last-wins dedup rule would otherwise drop the explicit `leading-none` and break the across-tile baseline alignment. The `<TrendCard>` baseline-alignment tests pin the contract.
 - `src/app/api/medications/intake/__tests__/route.test.ts` (one pre-existing test) computed its `todayKey` from UTC date components but the route's `readMedicationCompliance` uses the user's timezone (Europe/Berlin in the test fixture). At every nightly 22:00 — 24:00 UTC window — once the Berlin clock crossed midnight — the two computations diverged by one calendar day and the rollup-tier read returned zero for "today". The test now derives `todayKey` from the same `Europe/Berlin` zone the route uses; the assertion stays the same.
 
 ## [1.4.49.3] — 2026-05-23 — Full i18n call-site audit + 28 stale missing keys filled
@@ -93,7 +93,7 @@ Marc reported the raw string `insights.relativeHoursAgo` rendering verbatim on m
 
 ### Fixed
 
-- `formatDateOrRelative` in `src/lib/format.ts` now dispatches to `insights.relativeMinutesAgoOne` / `relativeMinutesAgoOther` / `relativeHoursAgoOne` / `relativeHoursAgoOther` based on `count === 1`, mirroring the `src/lib/i18n/relative-time.ts:24-48` pattern that the v1.4.43 H6 sweep added to its twin helper. The format-twin was missed in that sweep — `t()` performs no auto-pluralisation, so the bare key passed straight through `t()`'s identity fallback into the UI.
+- `formatDateOrRelative` in `src/lib/format.ts` now dispatches to `insights.relativeMinutesAgoOne` / `relativeMinutesAgoOther` / `relativeHoursAgoOne` / `relativeHoursAgoOther` based on `count === 1`, mirroring the `src/lib/i18n/relative-time.ts:24-48` pattern the v1.4.43 i18n fix-up added to its twin helper. The format-twin was missed at the time — `t()` performs no auto-pluralisation, so the bare key passed straight through `t()`'s identity fallback into the UI.
 
 ### Test hygiene
 
@@ -129,9 +129,9 @@ v1.4.49 shipped the slim-slice (`?slice=summaries`) cold-fallback fix, but the p
 
 Post-deploy production logs from `/api/analytics` (default + slim, cold cache) confirm the fix landed: both routes report `path: "rollup"` for every component and `duration_ms` returns to the sub-second envelope. See the v1.4.49.1 deploy verify section in the project memory.
 
-## [1.4.49] — 2026-05-23 — Audit-backlog closure + server-side reminder suppression + diagnostic endpoint backed
+## [1.4.49] — 2026-05-23 — Server-side reminder suppression + diagnostic endpoint backed + backlog closure
 
-v1.4.47 closed the H1 + Mediums punch list. v1.4.49 bundles the deferred v1.4.47 Mediums and Lows together with the v1.4.48-deferred items: server-side suppression of `MEDICATION_REMINDER` APNs for iOS clients that manage their own local reminders, a `push_attempts` table backing the diagnostic endpoint, the `/api/admin/notifications/diagnostic` OpenAPI entry, and a sweep of v1.4.48 QA forward-findings (Withings reason-tagging, observability PII hardening, MoodReminderCard auto-clear parity, simplifier dead-code, sub-locale copy gaps). The workout-batch integration suite that had been red on `main` for three releases turns green; the cold-mount analytics fallback path picks up the same 90-day outer cap that v1.4.47.1 shipped for the rollup-fresh path; iOS validation-failure audit rows carry the rejected payload shape so iOS serialiser drift can be chased from a single log line.
+v1.4.47 closed the high-priority punch list. v1.4.49 bundles the remaining v1.4.47 follow-ups together with the items deferred out of v1.4.48: server-side suppression of `MEDICATION_REMINDER` APNs for iOS clients that manage their own local reminders, a `push_attempts` table backing the diagnostic endpoint, the `/api/admin/notifications/diagnostic` OpenAPI entry, and a sweep of v1.4.48 forward-findings (Withings reason-tagging, observability PII hardening, MoodReminderCard auto-clear parity, simplifier dead-code, sub-locale copy gaps). The workout-batch integration suite that had been red on `main` for three releases turns green; the cold-mount analytics fallback path picks up the same 90-day outer cap v1.4.47.1 shipped for the rollup-fresh path; iOS validation-failure audit rows carry the rejected payload shape so iOS serialiser drift can be chased from a single log line.
 
 ### Added
 
@@ -343,44 +343,44 @@ Effect for a ~450 000-row tenant: slim slice cold ~9 s → ~0.5-1 s, warm cache 
 - **No migration. No schema change. No env-var change.**
 - **Operator notes:** standard image roll; no `prisma migrate deploy` step required.
 
-## [1.4.47] — 2026-05-22 — Audit-backlog closure: drag-to-reorder, Coach disable toggle, OAuth state nonce table, legacy column drop, primitive sweep
+## [1.4.47] — 2026-05-22 — Drag-to-reorder, Coach disable toggle, OAuth state nonce table, legacy column drop, primitive sweep
 
-v1.4.45 closed the v1.4.43-audit follow-up; v1.4.46 caught a same-day server reconcile (PR worker, intake auto-skip, APNS admin test). v1.4.47 is the dedicated follow-up that lands every deferred v1.4.45 audit Medium/Low plus the W14 legacy-column cleanup the v1.4.45 release scheduled for "one release later".
+v1.4.45 closed the v1.4.43 follow-up; v1.4.46 caught a same-day server reconcile (PR worker, intake auto-skip, APNS admin test). v1.4.47 is the dedicated follow-up that lands every remaining v1.4.45 backlog item plus the legacy-column cleanup that v1.4.45 had scheduled for "one release later".
 
 Eight changes landed on `develop` before this release commit:
 
-- **W0** wall-clock pin on the two idempotency tests (`/api/dashboard/summary` + `/api/medications/intake`) that hard-coded `2026-05-21` and broke on the 22nd
-- **W1** drop the legacy `consecutive_failures` column on `integration_statuses` — the v1.4.45 W14 per-kind bucket migration carried the legacy integer for one release as a fallback; now removed, alert ladder reads `Math.max(...buckets)`
-- **W2** extract `<Textarea>` primitive with iOS-zoom defence + WCAG tap-target floor; sweep 4 inline call-sites (bugreport, medication JSON paste, side-effects notes, admin feedback)
-- **W3** per-user Coach disable toggle in Settings → Insights; survives `flags.coach` (admin) gate at all five mount points; new `disableCoach` column + audit-logged PATCH endpoint
-- **W4** dashboard widget drag-to-reorder via `@dnd-kit/sortable` (a11y arrow-button fallback preserved); 6 new locale strings; new `reorderWidgets` pure helper
-- **W5** dashboard tour auto-launch gated on `onboardingCompletedAt + 24 h` so the carousel and tour no longer chain immediately; "Replay the tour" CTA added to Settings → About
-- **W6** Withings OAuth `state` cookie no longer encodes `${userId}:${nonce}` — switched to a 16-byte random nonce + short-lived `WithingsOAuthState` ledger row + 03:20 cleanup cron, closing v1.4.43 audit security L-1
-- **W7** drop the in-memory `legacy_form_total` counter (per-process + useless on multi-container deploys; access-log warning still emits)
-- **W8** Coach client pre-checks `navigator.onLine` before fetching `/api/insights/chat` so an airplane-mode user gets the offline-specific `coach.network` copy immediately
+- Wall-clock pin on the two idempotency tests (`/api/dashboard/summary` + `/api/medications/intake`) that hard-coded `2026-05-21` and broke on the 22nd
+- Drop the legacy `consecutive_failures` column on `integration_statuses` — the v1.4.45 per-kind bucket migration carried the legacy integer for one release as a fallback; now removed, alert ladder reads `Math.max(...buckets)`
+- Extract `<Textarea>` primitive with iOS-zoom defence + WCAG tap-target floor; sweep 4 inline call-sites (bugreport, medication JSON paste, side-effects notes, admin feedback)
+- Per-user Coach disable toggle in Settings → Insights; survives `flags.coach` (admin) gate at all five mount points; new `disableCoach` column + audit-logged PATCH endpoint
+- Dashboard widget drag-to-reorder via `@dnd-kit/sortable` (a11y arrow-button fallback preserved); 6 new locale strings; new `reorderWidgets` pure helper
+- Dashboard tour auto-launch gated on `onboardingCompletedAt + 24 h` so the carousel and tour no longer chain immediately; "Replay the tour" CTA added to Settings → About
+- Withings OAuth `state` cookie no longer encodes `${userId}:${nonce}` — switched to a 16-byte random nonce + short-lived `WithingsOAuthState` ledger row + 03:20 cleanup cron, closing the v1.4.43 OAuth security gap
+- Drop the in-memory `legacy_form_total` counter (per-process + useless on multi-container deploys; access-log warning still emits)
+- Coach client pre-checks `navigator.onLine` before fetching `/api/insights/chat` so an airplane-mode user gets the offline-specific `coach.network` copy immediately
 
 ### Added
 
 - **`<Textarea>` primitive** (`src/components/ui/textarea.tsx`) — mirrors `<Input>`'s shape with `forwardRef` + `data-slot="textarea"`. Bakes in `text-base sm:text-sm` iOS-zoom defence, `min-h-11 sm:min-h-9` tap target floor, `autoCapitalize="sentences"`, `spellCheck={true}`, `autoComplete="off"` + password-manager-ignore data-attributes. 11 unit tests pin the contract.
-- **Per-user Coach disable toggle** — Settings → Insights "Coach ausblenden" / "Hide Coach" Switch (W3). `disableCoach` Boolean column on `User` (migration `0078_v1447_user_disable_coach`). `GET /api/auth/me/disable-coach` + `PATCH /api/auth/me/disable-coach` (60/min/user rate-limit + audit row on every state-changing call). Mount gates on `<CoachFab>`, `<CoachMount>`, `<CoachLaunchButton>`, `<SuggestedPrompts>`, hero-strip `<HealthScoreCard onAskCoach>`, `/targets` per-card CTAs. `useDisableCoach()` SSR-safe hook mirrors `useFeatureFlags()`'s defensive pattern.
+- **Per-user Coach disable toggle** — Settings → Insights "Coach ausblenden" / "Hide Coach" Switch. `disableCoach` Boolean column on `User` (migration `0078_v1447_user_disable_coach`). `GET /api/auth/me/disable-coach` + `PATCH /api/auth/me/disable-coach` (60/min/user rate-limit + audit row on every state-changing call). Mount gates on `<CoachFab>`, `<CoachMount>`, `<CoachLaunchButton>`, `<SuggestedPrompts>`, hero-strip `<HealthScoreCard onAskCoach>`, `/targets` per-card CTAs. `useDisableCoach()` SSR-safe hook mirrors `useFeatureFlags()`'s defensive pattern.
 - **Dashboard drag-to-reorder** — `@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities` runtime deps (~29 KB gzipped). `<SortableWidgetRow>` wrapper, `closestCenter` collision, vertical-list strategy, `KeyboardSensor` + `sortableKeyboardCoordinates` for full keyboard accessibility. Drag handle is a `<GripVertical>` icon button on every row's leading edge with `cursor-grab` + `touch-none` + 6 px activation distance. Existing arrow buttons survive as the a11y fallback. `reorderWidgets()` pure helper exported for unit-testing the contract without a DOM. 6 locale strings (`dashboard.dragHandle` + `dashboard.dragHandleHint`).
-- **`<OfflineBanner>`'s sibling** — Coach send-message path now pre-checks `navigator.onLine` and short-circuits to the `coach.network` error code before the fetch attempt, so the user sees the offline-specific banner copy immediately instead of waiting on a generic network failure (W8).
+- **`<OfflineBanner>`'s sibling** — Coach send-message path now pre-checks `navigator.onLine` and short-circuits to the `coach.network` error code before the fetch attempt, so the user sees the offline-specific banner copy immediately instead of waiting on a generic network failure.
 - **Withings OAuth state ledger** — new `WithingsOAuthState` model + `withings_oauth_states` table with `nonce` PK, `userId` FK (`ON DELETE CASCADE`), `expiresAt` index. Connect mints a row with `randomBytes(16).toString("base64url")` + 10 min TTL; callback verifies + DELETEs on every exit branch (single-use). Cleanup cron `withings-oauth-state-cleanup` runs daily at 03:20 Europe/Berlin via `reminder-worker.ts`. New `src/lib/withings/oauth-state.ts` module exports the shared constants + minter.
 - **"Replay the tour" CTA** in Settings → About (`<AboutSection>`). Clicking re-arms a force-launch sessionStorage marker the `<TourLauncher>` consumes on its next mount, bypassing the new 24 h auto-launch gate. Also wired into the existing "Restart onboarding tour" button in `<AccountSection>` so a same-day click after navigation still lands on the tour.
 
 ### Changed
 
 - **`/api/auth/me` payload** extended with `disableCoach: boolean` (defaulted to `false` for partial-deploy rollback). `useAuth` types extended; the fetcher coerces `undefined → false` at the wire boundary.
-- **`IntegrationStatus.consecutiveFailures` column dropped** — the v1.4.45 W14 migration introduced per-kind buckets but kept the legacy integer one release as a fallback. v1.4.47 drops the column. Alert ladder + audit `attemptNumber` now read `Math.max(...Object.values(consecutiveFailuresByKind))`. Migration `0077_v1447_drop_legacy_consecutive_failures` is reversible via a `GREATEST(transient, reauth_required, persistent)` recipe documented inline.
+- **`IntegrationStatus.consecutiveFailures` column dropped** — the v1.4.45 per-kind bucket migration kept the legacy integer one release as a fallback. v1.4.47 drops the column. Alert ladder + audit `attemptNumber` now read `Math.max(...Object.values(consecutiveFailuresByKind))`. Migration `0077_v1447_drop_legacy_consecutive_failures` is reversible via a `GREATEST(transient, reauth_required, persistent)` recipe documented inline.
 - **`<TourLauncher>` auto-launch gate** extended from "tour not completed" to "tour not completed AND `onboardingCompletedAt + 24 h < now()`". The mount-time clock is captured via `useState(() => Date.now())` so render stays pure. Brand-new users (`onboardingCompletedAt == null`) and same-day re-visits never see the auto-launch; the manual "Replay the tour" button still works.
 - **`messages/de.json`** + 5 sibling locales — added `dashboard.dragHandle` + `dashboard.dragHandleHint`, `settings.ai.disableCoach.{title,description,toggleAria,savedHidden,savedShown,saveError}`, `settings.about.tourReplay` + `settings.about.tourReplayHint`. Copy is tight + professional in every locale; English-fallback on `tourReplay` for es/fr/it/pl per the partial-translation status the rest of the About section already carries.
 - **Withings `state` cookie name preserved** as `withings_state`; the value shape changed from `${userId}:${nonce}` to a bare 22-char base64url nonce. A handshake mid-deploy will fail the CSRF check on the callback side (the cookie carries the old shape, the ledger has no row) and bounce the user to the connect-error page; a retry succeeds. No data loss; users in flight retry once.
 
 ### Fixed
 
-- **Dashboard summary + medications/intake idempotency tests** broke on 2026-05-22 because they hard-coded `2026-05-21` while the route's projection used `new Date()`. `vi.setSystemTime` pins both ends to the same calendar day so the regression guard stays stable on every future test run (W0).
-- **Coach send-while-offline UX** — airplane-mode user no longer sees a delayed generic network error; the `<MessageThread>` now surfaces the `coach.network` copy immediately (W8). Surfaces the v1.4.45 W12 M6 errorNetwork key properly on the client side.
-- **`legacy_form_total` counter removed** — `withingsWebhookLegacyFormTotal` no longer exposed on `/api/admin/status`. Per-process in-memory counters were never accurate across the multi-container deploy; the access-log warning remains the operator signal (W7).
+- **Dashboard summary + medications/intake idempotency tests** broke on 2026-05-22 because they hard-coded `2026-05-21` while the route's projection used `new Date()`. `vi.setSystemTime` pins both ends to the same calendar day so the regression guard stays stable on every future test run.
+- **Coach send-while-offline UX** — airplane-mode user no longer sees a delayed generic network error; the `<MessageThread>` now surfaces the `coach.network` copy immediately. Surfaces the v1.4.45 `errorNetwork` i18n key properly on the client side.
+- **`legacy_form_total` counter removed** — `withingsWebhookLegacyFormTotal` no longer exposed on `/api/admin/status`. Per-process in-memory counters were never accurate across the multi-container deploy; the access-log warning remains the operator signal.
 
 ### Operator notes
 
@@ -404,11 +404,11 @@ Discovery follow-up from the v1.4.45 post-deploy review surfaced three server ga
 
 - 5076 → 5089 (+13: 2 cumulative-bucket cases, 8 auto-skip cases — including grace-window boundary, idempotency, and cron contract — plus 3 APNS-branch cases that didn't already cover the route).
 
-## [1.4.45] — 2026-05-21 — Analytics 9 s perf fix, audit-driven polish, Zod multi-issue rollout, Withings parked-state automation
+## [1.4.45] — 2026-05-21 — Analytics 9 s perf fix, polish sweep, Zod multi-issue rollout, Withings parked-state automation
 
 > Version note — v1.4.43 was skipped: v1.4.44 shipped as a same-day REG-11 iOS hotfix on `main` while this release work was running (REG-11 = Home dashboard tile renders neither chart nor latest value when the most recent reading is older than 7 days; root cause was in `/api/dashboard/summary` SQL gates). The REG-11 fix is included in this release alongside the rest of the closure work. v1.4.45 keeps the version monotone above the hotfix tag.
 
-v1.4.42 closed the iOS-readiness story. v1.4.45 is the post-deploy discovery + closure release: a four-axis audit round (analytics perf / mobile-UI / QoL / security) surfaced one Critical `/api/analytics` 9 s regression that had been latent since v1.4.40, five High mobile-UI WCAG paper-cuts, two PII / log-growth gaps on the security surface, six High QoL copy + i18n gaps, and the chart empty-state false-positive raised after deploy. Eleven separate fixes landed: nine close every audit Critical + High plus the recurring polish items (chart-gate raw-count, QoL copy + plural forms, Withings classifier wiring across both sync paths, ops hardening including the BuildKit version-pin lesson from v1.4.42), one rolls out the v1.4.42 `returnAllZodIssues` helper to the 41 sibling routes that still dropped every issue past the first, and one closes the v1.4.42 Withings classifier deferred items B4 (park after 24 h persistent-failure streak) + B7 (per-kind failure counters). Three companion sub-tasks close the audit Mediums + Lows for mobile-UI, QoL, and security.
+v1.4.42 closed the iOS-readiness story. v1.4.45 is the post-deploy discovery + closure release: a sweep across analytics perf / mobile-UI / QoL / security surfaced one critical `/api/analytics` 9 s regression that had been latent since v1.4.40, five mobile-UI WCAG paper-cuts, two PII / log-growth gaps on the security surface, six QoL copy + i18n gaps, and the chart empty-state false-positive raised after deploy. Eleven separate fixes landed: nine close the critical + high-priority items plus recurring polish (chart-gate raw-count, QoL copy + plural forms, Withings classifier wiring across both sync paths, ops hardening including the BuildKit version-pin lesson from v1.4.42), one rolls out the v1.4.42 `returnAllZodIssues` helper to the 41 sibling routes that still dropped every issue past the first, and one closes the v1.4.42 Withings classifier follow-ups (park after 24 h persistent-failure streak; per-kind failure counters). Three companion sub-tasks close the lower-severity mobile-UI, QoL, and security items.
 
 Fourteen independent sub-tasks landed on `develop` before this release commit.
 
@@ -485,7 +485,7 @@ Fourteen independent sub-tasks landed on `develop` before this release commit.
 
 ## [1.4.44] — 2026-05-21 — REG-11 dashboard summary hotfix (iOS Home tile sparkline + value)
 
-iOS-operator-blocking hotfix for REG-11: the Home dashboard tile rendered neither chart nor latest value for BP / Puls / Körperfett when the most recent reading was older than 7 days. Root cause was in `/api/dashboard/summary` SQL gates — both `latestIn7d` and `sparkBuckets` required `measured_at >= sevenDaysAgo`, which returned empty for sparse accounts. The iOS tile rendered from `latestValue: null` + `sparkline: []`. Five iOS-side attempts had been wrong because the bug was server-side. v1.4.44 was a same-day same-author hotfix on `main` while the v1.4.45 audit-marathon was running; the marathon work is preserved in v1.4.45.
+iOS-operator-blocking hotfix for REG-11: the Home dashboard tile rendered neither chart nor latest value for BP / Puls / Körperfett when the most recent reading was older than 7 days. Root cause was in `/api/dashboard/summary` SQL gates — both `latestIn7d` and `sparkBuckets` required `measured_at >= sevenDaysAgo`, which returned empty for sparse accounts. The iOS tile rendered from `latestValue: null` + `sparkline: []`. Five iOS-side attempts had been wrong because the bug was server-side. v1.4.44 was a same-day same-author hotfix on `main` while broader v1.4.45 work was running in parallel; the broader work is preserved in v1.4.45.
 
 ### Fixed
 
@@ -504,17 +504,15 @@ Four new cases in `src/app/api/dashboard/summary/__tests__/route.test.ts` pin RE
 ### Operator notes
 
 - No migration. No env-var change. No API contract break for iOS v0.5.4.
-- v1.4.43 was skipped; v1.4.45 carries the audit-marathon closure.
+- v1.4.43 was skipped; v1.4.45 carries the broader closure work.
 
 ## [1.4.42] — 2026-05-21 — Knip enforcing, queryKey factory closed, iOS Workouts dedup, Withings off-response classification
 
-v1.4.41 closed the iOS BP/Weight 14 s perf paper-cut and the soft-delete reader-tier completeness story. v1.4.42 is the follow-up polish-and-iOS-readiness release: the knip CI gate flips to enforcing-mode (zero unused exports + zero unused types on `main`), the long-tail queryKey factory migration closes the v1.4.40 audit-H1 contract for the settings / medications / admin / hooks surface, the `/api/dashboard/widgets` 422 returns every Zod issue so the next iOS contract-debugging session takes one round-trip instead of one per wrong field, Withings off-responses are classified into transient / reauth / persistent (rate-limit-induced `601`s no longer silently retry forever), the iOS HealthKit ingest gets a cross-source workout dedup helper that lets Apple Watch + Withings ScanWatch paired captures collapse to one row at write time, and a tree-hygiene wave lands (BERLIN_DAY_FORMATTER consolidated across nine call sites, Suspense double-comment consolidation, doctor-report-data byte-escape so diffs become readable, pr-detection-worker soft-delete filter, offhost-backup DR-intent comment).
-
-Six touch-disjoint waves landed on `develop` before this release commit. The wave reports under `.planning/phase-W*-v1442-report.md` document the per-wave decisions, file inventories, and test deltas; the multi-axis QA round under `.planning/round-v1442-QA-*-findings.md` covers the cross-cutting verdict that gated this tag.
+v1.4.41 closed the iOS BP/Weight 14 s perf paper-cut and the soft-delete reader-tier completeness story. v1.4.42 is the follow-up polish-and-iOS-readiness release: the knip CI gate flips to enforcing-mode (zero unused exports + zero unused types on `main`), the long-tail queryKey factory migration closes the v1.4.40 contract for the settings / medications / admin / hooks surface, the `/api/dashboard/widgets` 422 returns every Zod issue so the next iOS contract-debugging session takes one round-trip instead of one per wrong field, Withings off-responses are classified into transient / reauth / persistent (rate-limit-induced `601`s no longer silently retry forever), the iOS HealthKit ingest gets a cross-source workout dedup helper that lets Apple Watch + Withings ScanWatch paired captures collapse to one row at write time, and a tree-hygiene pass lands (BERLIN_DAY_FORMATTER consolidated across nine call sites, Suspense double-comment consolidation, doctor-report-data byte-escape so diffs become readable, pr-detection-worker soft-delete filter, offhost-backup DR-intent comment).
 
 ### Added
 
-- **`returnAllZodIssues(error, status?, meta?)` shared helper** (`src/lib/api-response.ts`). Replaces the `apiError(parsed.error.issues[0].message, 422)` pattern that dropped every issue past the first. Envelope: `{ data: null, error: "Validation failed", details: { issues: [{ path, code, message }] } }`. Sanitises issues — `issue.params` is never echoed (can carry the raw rejected user input). First consumer is `PUT /api/dashboard/widgets`; 41 sibling routes documented in the W2 phase report for v1.4.43 rollout.
+- **`returnAllZodIssues(error, status?, meta?)` shared helper** (`src/lib/api-response.ts`). Replaces the `apiError(parsed.error.issues[0].message, 422)` pattern that dropped every issue past the first. Envelope: `{ data: null, error: "Validation failed", details: { issues: [{ path, code, message }] } }`. Sanitises issues — `issue.params` is never echoed (can carry the raw rejected user input). First consumer is `PUT /api/dashboard/widgets`; 41 sibling routes were inventoried for the v1.4.45 rollout.
 - **`dedupeWorkoutBatch()` write-time cross-source dedup** (`src/lib/workouts/canonical-rows.ts`). Anticipates the v1.5 iOS HealthKit observer queue ingest where Apple Watch + Withings ScanWatch paired captures collide on the same logical workout. Groups by `(userId, activityType, startedAt ± 90 s)`, prefers the canonical source ladder `APPLE_HEALTH > WITHINGS > MANUAL > IMPORT` shared with the read-time picker, breaks ties on `caloriesKcal > earliest createdAt > input order`. Wired into `POST /api/workouts/batch` pre-`createMany`; losers surface as `duplicate` in the per-entry envelope so the iOS sync cursor advances identically to the existing `externalId` dedup. The name intentionally diverges from the v1.4.30 read-time `pickCanonicalWorkoutRows` so auto-completion paths don't conflate write-time payload-internal dedup with read-time cross-batch dedup.
 - **`pnpm check-env` CLI** (`scripts/check-env.ts` + `scripts/env-manifest.json` + `docs/ops/env-check.md`). Pre-deploy env-var sanity check that catches the v1.4.40 AP-2 silent-disable pattern (three of four `APNS_*` vars set, `.p8` missing) via the `allOrNone` group marker. Two modes: `pnpm check-env` against `process.env`, `pnpm check-env --file <path>` against a Coolify export. Exit code 0 / 1 / 2 for green / missing required / malformed manifest. The renderer surfaces the satisfying alternative on `anyOf` rows (`[OK] APNS_KEY (satisfied by APNS_KEY_FILE)`) so an operator scanning the output never grep-hunts for the wrong variable name.
 - **Withings off-response classifier** (`src/lib/withings/response-classifier.ts`). Pure `(httpStatus, body) → { success | transient | reauth_required | persistent }` taxonomy plus `WithingsApiError` subclass + `classifyError` fallback for pg-boss-rehydrated errors. Surfaces rate-limit (`601`) and contract-mismatch (`293 / 294`) responses to the admin alert path instead of letting them silently retry forever. `FailureKind` extended with `persistent`; persistent failures map to `state=error_transient` with a distinct audit kind so the next sync still runs but the operator sees the trail.
@@ -524,13 +522,13 @@ Six touch-disjoint waves landed on `develop` before this release commit. The wav
 ### Changed
 
 - **Knip CI gate flips to enforcing-mode** (`.github/workflows/knip.yml`). The `--include files,dependencies,binaries,unlisted` flag is dropped; any new unused export, type, file, dependency, or binary on `main` now fails the gate. v1.4.42 brings the baseline to 0 / 0. The ignore-block under `knip.json` scopes shadcn (`src/components/ui/**`) and contract types (`src/lib/validations/**`) — both are intentional surface area we keep.
-- **Long-tail `queryKey` factory migration closed** (W3). Forty call-site files across `settings/`, `medications/`, `admin/`, `hooks/`, plus three `app/` pages, refactored from bare-literal `queryKey: [...]` to `queryKeys.<entry>()`. The custom ESLint rule (`eslint-plugins/healthlog/queryKey-factory.js`) and the test-guard substitute (`src/lib/__tests__/query-keys.test.ts`) extend their `GUARDED_DIRECTORIES` / `GUARDED_FILES` in lockstep so the gate fires at the same boundary at IDE / `pnpm lint` / `pnpm test` time. The `medicationIntakeList` factory entry decomposes its params into a flat tuple to match the `chartData` + `adminAuditLogFiltered` siblings (the prior packed-object form depended on stable JSON-stringify ordering for cache-key correctness).
-- **`PUT /api/dashboard/widgets` 422** now returns every Zod issue plus a worker-side `auditLog` row keyed `dashboard.widgets.validation-failed`. The iOS team picking up the v1.4.41 product-lead H4 callout now sees the full shape mismatch in one response and an operator-grep trail outside the iOS dev console.
-- **`BERLIN_DAY_FORMATTER` consolidated** to `src/lib/tz/resolver.ts`. The seven `src/lib/insights/*-status.ts` files that each carried a byte-identical 20-LOC declaration plus the `bucket-series.ts` and `bp-in-target.ts` siblings (two more sites the W4 wave's initial pass missed) all share one formatter instance now. Net ~120 LOC drop, same runtime behaviour, no DST drift.
+- **Long-tail `queryKey` factory migration closed.** Forty call-site files across `settings/`, `medications/`, `admin/`, `hooks/`, plus three `app/` pages, refactored from bare-literal `queryKey: [...]` to `queryKeys.<entry>()`. The custom ESLint rule (`eslint-plugins/healthlog/queryKey-factory.js`) and the test-guard substitute (`src/lib/__tests__/query-keys.test.ts`) extend their `GUARDED_DIRECTORIES` / `GUARDED_FILES` in lockstep so the gate fires at the same boundary at IDE / `pnpm lint` / `pnpm test` time. The `medicationIntakeList` factory entry decomposes its params into a flat tuple to match the `chartData` + `adminAuditLogFiltered` siblings (the prior packed-object form depended on stable JSON-stringify ordering for cache-key correctness).
+- **`PUT /api/dashboard/widgets` 422** now returns every Zod issue plus a worker-side `auditLog` row keyed `dashboard.widgets.validation-failed`. The iOS team picking up the v1.4.41 product-lead callout now sees the full shape mismatch in one response and an operator-grep trail outside the iOS dev console.
+- **`BERLIN_DAY_FORMATTER` consolidated** to `src/lib/tz/resolver.ts`. The seven `src/lib/insights/*-status.ts` files that each carried a byte-identical 20-LOC declaration plus the `bucket-series.ts` and `bp-in-target.ts` siblings (two more sites missed in the first pass) all share one formatter instance now. Net ~120 LOC drop, same runtime behaviour, no DST drift.
 - **Tile-strip Suspense placeholder** (`src/app/page.tsx`) gains `min-h-[6rem]` plus the cosmetic `flex min-w-0 flex-col` classes so the placeholder chrome matches the live `TrendCard` byte-for-byte. The all-suspend edge case (future RSC hoist of every tile) holds the row open during a synchronous transition instead of collapsing to zero height.
 - **Dashboard Suspense double-comment** (`src/app/page.tsx`) — the two adjacent JSX comment blocks describing the same boundary (v1.4.40 W-RSC seed + v1.4.41 W-FRONTEND-FACTORY fallback hoist) collapse into one 5-6 line block keyed to current behaviour with a one-line history trailer. Pure documentation; rendered output byte-identical.
 - **`apiError` and `returnAllZodIssues` share a `buildJsonErrorResponse` builder** so the meta / headers passthrough lands in one place; a future extension (e.g. an `errorId` autoinject for Sentry) can't drift between the two helpers.
-- **`recordWithingsSyncFailure` extracted** from the two byte-identical 14-LOC catch-blocks in `src/lib/withings/sync.ts`. The sync-activity / sync-sleep migration to typed errors (deferred per the W6 backlog) will collapse to a single-line catch-block when it lands.
+- **`recordWithingsSyncFailure` extracted** from the two byte-identical 14-LOC catch-blocks in `src/lib/withings/sync.ts`. The sync-activity / sync-sleep migration to typed errors (deferred) will collapse to a single-line catch-block when it lands.
 - **`formatAdminAlertPayload` uses a `FailureKind` copy table** instead of nested ternaries. Adding a future fourth `FailureKind` is a one-row table edit, not two more arms in two ternary stacks.
 
 ### Fixed
@@ -539,7 +537,7 @@ Six touch-disjoint waves landed on `develop` before this release commit. The wav
 - **`pr-detection-worker` soft-delete filter** — the v1.4.40 audit's W-DELETED-2 sweep missed the personal-records worker; a soft-deleted measurement could remain the user's "best weight" badge until the next ingest crossed the threshold. Both `prisma.measurement.count` (warm-up gate) and `findBestMeasurement` reads now scope to `deletedAt: null`.
 - **`offhost-backup.ts:219` DR-intent comment** — the nightly disaster-recovery S3 snapshot deliberately includes soft-deleted rows so a future "restore from yesterday" brings back a row the user undeleted on the source side. The inline comment now documents the asymmetry vs the user-facing `/api/export/full-backup` which correctly excludes them.
 - **`src/lib/doctor-report-data.ts` byte cleanliness** — the file was checked in as `Binary files differ` because the sanitiser regex held literal control bytes (NUL + US + DEL) in its character class. The regex now uses `[\x00-\x1F\x7F]` escape-sequence form so the file becomes UTF-8 clean and future code reviews can read the diffs. Same runtime behaviour; the existing 18-case test suite still passes.
-- **Two dead re-exports dropped** (W1 reconcile callouts): `listSupportedTimezones` re-export in `src/lib/tz/resolver.ts` (callers import from `@/lib/tz/format` directly) and the `describeInjectionSite` re-export in `src/components/medications/glp1-medication-card.tsx` ("Re-export so the parent doesn't need to import it" — no caller ever did).
+- **Two dead re-exports dropped**: `listSupportedTimezones` re-export in `src/lib/tz/resolver.ts` (callers import from `@/lib/tz/format` directly) and the `describeInjectionSite` re-export in `src/components/medications/glp1-medication-card.tsx` ("Re-export so the parent doesn't need to import it" — no caller ever did).
 - **`pnpm check-env` catches the v1.4.40 AP-2 silent-disable it was conceived to catch.** The APNs group in `scripts/env-manifest.json` shipped without `allOrNone: true`, so an operator setting three of four `APNS_*` vars and leaving `APNS_KEY` / `APNS_KEY_FILE` empty would still exit 0 — exactly the silent-disable shape the wave was meant to prevent. Adding the flag closes the gap; the regression test pins the AP-2 scenario directly.
 
 ### Operator notes
@@ -553,9 +551,7 @@ Six touch-disjoint waves landed on `develop` before this release commit. The wav
 
 ## [1.4.41] — 2026-05-21 — iOS perf hotfix, soft-delete completeness, tree hygiene
 
-v1.4.40 closed the architecture-level Critical+High audit findings and shipped the iOS PB30 backend prerequisites. v1.4.41 is the follow-up: one user-visible perf hotfix on the iOS-facing insights endpoints (consolidated into a shared timeout-stub helper that now backs all seven status routes), three remaining soft-delete reader-tier gaps closed (the W-DELETED-2 invariant pinned by integration tests), type-consolidation across analytics + backups, a four-branch iOS-onboarding discovery endpoint with per-IP rate-limiting, and a code-hygiene pass that retires the v1.4.39 W-SUM legacy-NULL UNION discovery arm, extracts the today-intake projection helper, and trims a batch of dead exports.
-
-Eight touch-disjoint waves landed on `develop` before this release commit. The wave reports under `.planning/phase-W-*-v1441-report.md` document the per-wave decisions, file inventories, and test deltas; the multi-axis QA round under `.planning/round-v1441-QA-*-findings.md` covers the cross-cutting verdict that gated this tag.
+v1.4.40 closed the architecture-level critical and high-priority findings and shipped the iOS PB30 backend prerequisites. v1.4.41 is the follow-up: one user-visible perf hotfix on the iOS-facing insights endpoints (consolidated into a shared timeout-stub helper that now backs all seven status routes), three remaining soft-delete reader-tier gaps closed (invariant pinned by integration tests), type-consolidation across analytics + backups, a four-branch iOS-onboarding discovery endpoint with per-IP rate-limiting, and a code-hygiene pass that retires the v1.4.39 legacy-NULL UNION discovery arm, extracts the today-intake projection helper, and trims a batch of dead exports.
 
 ### Added
 
@@ -566,8 +562,8 @@ Eight touch-disjoint waves landed on `develop` before this release commit. The w
 ### Changed
 
 - **Types consolidated.** `AnalyticsData` (four named per-surface shapes) lifts into `src/types/analytics.ts`. `BackupRow` / `BackupsList` lifts out of the admin route handler into `src/types/backups.ts`. Prompt helpers under `src/lib/insights/prompt*.ts` unified into `src/lib/ai/prompts/`. queryKey factory expanded with `auth`, `notifications`, and `about` migrations.
-- **queryKey factory enforcement (W-PROCESS-DOCS).** A real ESLint rule (`eslint-plugins/healthlog/queryKey-factory.js`) replaces the v1.4.40 test-guard substitute for fail-fast IDE/CI feedback. The guarded surface mirrors the test-guard's `guardedRoots` exactly — `src/components/{charts,comparison}/`, `src/app/page.tsx`, `src/hooks/use-auth.ts`, `src/app/auth/`, `src/app/notifications/`, `src/components/settings/about-section.tsx`. Future waves extend both lists in lockstep.
-- **`/streak/*` formally deprecated** per the SB-9 follow-up: the endpoint no longer responds; the legacy iOS build path returns `404`.
+- **queryKey factory enforcement.** A real ESLint rule (`eslint-plugins/healthlog/queryKey-factory.js`) replaces the v1.4.40 test-guard substitute for fail-fast IDE/CI feedback. The guarded surface mirrors the test-guard's `guardedRoots` exactly — `src/components/{charts,comparison}/`, `src/app/page.tsx`, `src/hooks/use-auth.ts`, `src/app/auth/`, `src/app/notifications/`, `src/components/settings/about-section.tsx`. Future passes extend both lists in lockstep.
+- **`/streak/*` formally deprecated.** The endpoint no longer responds; the legacy iOS build path returns `404`.
 - **Operator: pg.Pool sizing guidance for multi-container deploys.** Added a section under `docs/operator/` documenting how `DATABASE_POOL_MAX` interacts with horizontal-replica counts and the in-tree `p-limit(4)` analytics fan-out cap.
 - **Per-tile Suspense fallback now layout-stable.** The dashboard tile-strip Suspense boundary swaps its prior `null` fallback for an `aria-hidden` placeholder div that mirrors the trend-card chrome (`bg-card border-border rounded-xl p-4 md:p-6`). The tile body is synchronous today so the fallback rarely paints, but a future RSC hoist of any tile slot would otherwise leave the grid track empty and trigger CLS as the cell paints in. The structural pin in `src/app/__tests__/dashboard-suspense-boundaries.test.ts` was updated to match.
 
@@ -575,29 +571,27 @@ Eight touch-disjoint waves landed on `develop` before this release commit. The w
 
 - **Insights status routes — recurring ~14 s warm response on iOS.** The v1.4.37 bmi-status pattern persists a sentinel `auditLog` row on a 20 s AI-provider stall so the next mount short-circuits at the cache lookup. The blood-pressure and weight status routes shipped without that persist and re-raced the same provider call on every reload. Both routes now route through the shared `persistTimeoutStubAndReturn` helper, as do the four remaining sibling routes (general, pulse, mood, medication-compliance) that carried the same bare-fallback shape and would have leaked the same paper-cut on any of their respective provider stalls. Response envelopes are byte-compatible — iOS v0.5.4 contract preserved. The medication-compliance route's cache-read picked up a stub-row recogniser so its `{ summary, medications }` envelope short-circuits cleanly on the helper's `text` + `timeout: true` payload.
 - **`/api/auth/check-user` identifier mismatch.** The route called `identifier.toLowerCase()` before the `OR`-match on `username` / `email`, but `registerSchema` applies no transform on write — both columns are stored exactly as typed. A user registered as `MixedCase@Example.com` would never resolve and iOS onboarding would route them to the sign-up branch despite an existing account. The route now queries the identifier verbatim; tests pin both the casing invariant and the rate-limit 429 path.
-- **Soft-delete invisibility in three remaining reader tiers.** The v1.4.40 audit closure wired `deletedAt: null` filtering through eleven core read paths. The remaining three — `/api/export` bundle reads, `/api/gamification/achievements` queries, and the doctor-report PDF aggregator — are now also filtered. Integration tests under `src/app/api/export/__tests__/soft-delete-filter.test.ts` pin the invariant on all five W-DELETED-2 reader tiers (the prior pass shipped assertions for three out of the five the file header listed).
-- **Tree hygiene — retired v1.4.39 W-SUM legacy-NULL UNION arm.** The `sum_value IS NULL` discovery arm in `enqueueBootTimeRollupBackfill` was added in v1.4.39 W-SUM to converge DAY rollup rows that pre-dated the writer change. Production data has since converged, so the arm is removed; per-day missing coverage remains the sole discovery anchor. The read-side `mean × count` fallback in `/api/dashboard/summary` retains legacy-row readability for any self-host operator that has not converged.
+- **Soft-delete invisibility in three remaining reader tiers.** The v1.4.40 closure wired `deletedAt: null` filtering through eleven core read paths. The remaining three — `/api/export` bundle reads, `/api/gamification/achievements` queries, and the doctor-report PDF aggregator — are now also filtered. Integration tests under `src/app/api/export/__tests__/soft-delete-filter.test.ts` pin the invariant on all five reader tiers (the prior pass shipped assertions for three out of the five the file header listed).
+- **Tree hygiene — retired the v1.4.39 legacy-NULL UNION arm.** The `sum_value IS NULL` discovery arm in `enqueueBootTimeRollupBackfill` was added in v1.4.39 to converge DAY rollup rows that pre-dated the writer change. Production data has since converged, so the arm is removed; per-day missing coverage remains the sole discovery anchor. The read-side `mean × count` fallback in `/api/dashboard/summary` retains legacy-row readability for any self-host operator that has not converged.
 - **Lint warnings cleared, unused `tx?` params dropped, 13 dead exports trimmed.** Five `@typescript-eslint/no-unused-vars` warnings on `src/app/insights/page.tsx` and `src/lib/analytics/summaries-slice.ts` removed (leftover from the v1.4.37.2 GROUP BY rewrite). `recomputeMoodBucketsForEntry`, `recomputeMedicationComplianceForDay`, and `recomputeMedicationComplianceForEvent` lose their dead optional `tx?: Prisma.TransactionClient` parameter — no call site ever passed one. Thirteen knip-flagged dead exports narrowed or removed (project-wide knip drops from 48 → 35 unused exports; the exported-types bucket at 52 is deferred to v1.4.42 — most are zod-`infer` downstream types consumed via JSON or the iOS contract and require a per-flag audit). Two mid-file `import type` lines (`src/app/insights/page.tsx`, `src/components/onboarding/getting-started-checklist.tsx`) lifted to the top-of-file import block; the duplicate `DataSummary` import alias in `src/types/analytics.ts` + `src/app/page.tsx` collapsed to a single canonical name.
 
 ### Performance
 
-Anchored on the v1.4.41 W-INSIGHTS-HOT / W-RECONCILE-INSIGHTS wave reports; numbers ride the post-deploy window.
+Numbers ride the post-deploy window.
 
 - **Seven insights `*-status` routes: subsequent-mount path 14–20 s → ~50 ms.** Once the AI provider has stalled once that day, the timeout-stub short-circuit eliminates the re-race for the rest of the day. The first-of-day stall still spends the 20 s budget (same as bmi-status pre-v1.4.41). The recurring case the iOS client hits is the subsequent-mount path — eliminated on every status route the dashboard touches.
 
 ### Operator notes
 
 - **No migration.** No env-var change. No API contract break for iOS v0.5.4 — every existing response shape is byte-compatible; the new route (`POST /api/auth/check-user`) is an additive surface; the timeout-stub fallback writes use the existing `audit_log` table.
-- **AP-2 .p8 key install is now closed.** The APNs `time-sensitive + priority 10` payload (shipped in v1.4.40 SB-5) is effective as of v1.4.41 deploy — the `.p8` private key is installed in the Coolify secret store. `aps_last_error` should no longer surface as `auth-failed` on `/api/notifications/status`; the iOS team can verify Focus-bypass behaviour against the live deploy.
-- **`/api/dashboard/widgets` 422 on iOS is an iOS payload-shape mismatch, not a server validator gap.** W-IOS-COORD traced the recurring 422 to one of three iOS payload candidates (unknown widget id, out-of-range `order`, missing required field). The server validator is correct and additive-safe. The iOS team picks up the investigation against the next iOS build; v1.4.42 will land multi-issue Zod-error diagnostics so a future shape mismatch reports every offending field instead of just the first.
+- **APNs .p8 key install is now closed.** The APNs `time-sensitive + priority 10` payload (shipped in v1.4.40) is effective as of v1.4.41 deploy — the `.p8` private key is installed in the Coolify secret store. `aps_last_error` should no longer surface as `auth-failed` on `/api/notifications/status`; the iOS team can verify Focus-bypass behaviour against the live deploy.
+- **`/api/dashboard/widgets` 422 on iOS is an iOS payload-shape mismatch, not a server validator gap.** Investigation narrowed the recurring 422 to one of three iOS payload candidates (unknown widget id, out-of-range `order`, missing required field). The server validator is correct and additive-safe. The iOS team picks up the investigation against the next iOS build; v1.4.42 will land multi-issue Zod-error diagnostics so a future shape mismatch reports every offending field instead of just the first.
 - **Knip exports / types tier remains staged.** Post-v1.4.41 baseline: 35 unused exports + 52 unused exported types. The `--include` flag flip to enforcing mode is deferred to v1.4.42 once the `knip.json` ignore block has been triaged (the remainder is dominated by zod-`infer` downstream types, shadcn surface area exports, and `typeof X[number]` alias backings — each needs a per-flag audit).
 - `pnpm test --run` green at 4732 passing / 1 skipped (4733 total); `pnpm typecheck`, `pnpm lint`, `pnpm knip --include files,dependencies,binaries,unlisted` all green.
 
-## [1.4.40] — 2026-05-21 — Comprehensive Critical+High architecture closure and iOS PB30 enablement
+## [1.4.40] — 2026-05-21 — Architecture closure and iOS PB30 enablement
 
-v1.4.39.x stitched the rollup tier across mood, medication compliance, and cumulative metrics, and closed the dashboard read paths the rollup tier replaced. v1.4.40 is the architecture-closure release on top of that base: the Prisma pool starvation root cause documented in the v1.4.39 empirical trace is fixed at the source, the soft-delete invisibility contract is now consistent across every reader tier (the audit's Critical Finding #3), the per-tile Suspense boundaries that let dashboard chart tiles stream independently are in place, the queryKey factory has CI enforcement that catches bare-literal regressions, and the iOS PB30 backend prerequisites (Apple App-Site Association, AI consent receipts CRUD, time-sensitive APNs payload, public privacy page, notifications/status surface) are live so the iOS v0.5.x sprint can land its dependent screens without further backend churn.
-
-Eleven touch-disjoint waves landed on `develop` before this release commit. The wave reports under `.planning/phase-W-*-v1440-report.md` document the per-wave decisions, file inventories, and test deltas; the multi-axis QA round under `.planning/round-v1440-QA-*-findings.md` covers the cross-cutting verdict that gated this tag.
+v1.4.39.x stitched the rollup tier across mood, medication compliance, and cumulative metrics, and closed the dashboard read paths the rollup tier replaced. v1.4.40 is the architecture-closure release on top of that base: the Prisma pool starvation root cause documented in the v1.4.39 empirical trace is fixed at the source, the soft-delete invisibility contract is now consistent across every reader tier, the per-tile Suspense boundaries that let dashboard chart tiles stream independently are in place, the queryKey factory has CI enforcement that catches bare-literal regressions, and the iOS PB30 backend prerequisites (Apple App-Site Association, AI consent receipts CRUD, time-sensitive APNs payload, public privacy page, notifications/status surface) are live so the iOS v0.5.x sprint can land its dependent screens without further backend churn.
 
 ### Added
 
@@ -616,17 +610,17 @@ Eleven touch-disjoint waves landed on `develop` before this release commit. The 
 ### Fixed
 
 - **Prisma pool starvation root cause** (empirical-trace finding #1). The 15-way `fetchMeasurementSeriesChunked` fan-out in `/api/analytics` thick used to monopolise ≥ 8 of the default-10 `pg.Pool` connections during a power-user cold mount, blocking every Wave-B and Wave-C chart-tile fetch behind it. The fan-out is now wrapped in `p-limit(4)` so analytics holds at most 4 pool slots, and the `pg.Pool` `max` is raised from the library default 10 → 20 (overridable via `DATABASE_POOL_MAX`) so a second concurrent power-user retains ≥ 8 free slots after both branches hit their `p-limit(4)` cap. The cap is a per-request instance, not module-level, so a stale limit cannot leak in-flight state across HTTP boundaries.
-- **Soft-delete invisibility full-wire** (audit Critical Finding #3). Eleven reader-tier helpers across `src/lib/measurements/rollups.ts`, `src/lib/measurements/rollup-coverage.ts`, `src/lib/analytics/{summaries-slice,correlations-fast-path,bp-in-target-fast-path,health-score-fast-path}.ts`, `src/lib/insights/comprehensive-aggregator.ts`, `src/app/api/dashboard/summary/route.ts`, `src/app/api/measurements/route.ts`, `src/app/api/measurements/series/route.ts`, and `src/lib/ai/coach/snapshot.ts` now filter `deletedAt: null` (or the SQL equivalent `m."deleted_at" IS NULL`) at every aggregate, every cursor walk, every `DISTINCT ON` latest probe, and every rollup-rebuild SQL. Three integration-test contracts in `tests/integration/measurement-soft-delete.test.ts` pin the invariant against a Postgres testcontainer.
-- **Six remaining insights `measurement.findMany` sites** that the W-INSIGHTS wave's mood-rollup swap left unfiltered (`/api/insights/{targets,cards,generate}` plus `src/lib/insights/{features,glp1-plateau,pulse-status}.ts`). All six now filter `deletedAt: null` so the iOS-adapter card stream, the AI prompt feature aggregator, the GLP-1 plateau detector window, and the per-type tile-strip averages stop counting tombstoned readings once iOS sync starts emitting deletions.
+- **Soft-delete invisibility full-wire.** Eleven reader-tier helpers across `src/lib/measurements/rollups.ts`, `src/lib/measurements/rollup-coverage.ts`, `src/lib/analytics/{summaries-slice,correlations-fast-path,bp-in-target-fast-path,health-score-fast-path}.ts`, `src/lib/insights/comprehensive-aggregator.ts`, `src/app/api/dashboard/summary/route.ts`, `src/app/api/measurements/route.ts`, `src/app/api/measurements/series/route.ts`, and `src/lib/ai/coach/snapshot.ts` now filter `deletedAt: null` (or the SQL equivalent `m."deleted_at" IS NULL`) at every aggregate, every cursor walk, every `DISTINCT ON` latest probe, and every rollup-rebuild SQL. Three integration-test contracts in `tests/integration/measurement-soft-delete.test.ts` pin the invariant against a Postgres testcontainer.
+- **Six remaining insights `measurement.findMany` sites** that the earlier mood-rollup swap left unfiltered (`/api/insights/{targets,cards,generate}` plus `src/lib/insights/{features,glp1-plateau,pulse-status}.ts`). All six now filter `deletedAt: null` so the iOS-adapter card stream, the AI prompt feature aggregator, the GLP-1 plateau detector window, and the per-type tile-strip averages stop counting tombstoned readings once iOS sync starts emitting deletions.
 - **Compliance-rollup hook gap on bulk-projection paths.** Both `/api/medications/intake?scope=today` and `/api/dashboard/summary` mint fresh `(medicationId, scheduledFor)` rows in PENDING state when a daily schedule is projected on first read. Without a recompute hook the rollup for the affected `(user, medication, day)` tuples stayed at its previous (pre-projection) `scheduled` count, which inflated the apparent compliance % until the user logged against the new row. Both call sites now fire one recompute per distinct `(medicationId, dayKey)` tuple, deduplicated through a `Set` so the cost stays bounded. The recompute call is wrapped in `Promise.allSettled` so any future change that lets the helper throw still leaves the user request 200-OK.
 - **`/api/dashboard/summary` nested-ternary regression** in the heroNumber branch flattened to an `if / else if / else` chain so the linter, the type-narrower, and a human reader all parse the same way.
 - **Lint regression** in `src/lib/rollups/` (post-umbrella-move) — a stray `any` import path and one un-narrowed `unknown` resolved by the typecheck-led restructure.
-- **`dashboard-suspense-boundaries.test.ts` regex pin** updated to the post-W-INFRA shape. The test pinned `useMemo(..., [user?.timezone])` but the production code lifts `user?.timezone` to a `userTimezone` local one line above the `useMemo` so the dependency array stays a stable reference across renders.
+- **`dashboard-suspense-boundaries.test.ts` regex pin** updated to the new shape. The test pinned `useMemo(..., [user?.timezone])` but the production code lifts `user?.timezone` to a `userTimezone` local one line above the `useMemo` so the dependency array stays a stable reference across renders.
 - **Consent artefact 64 KB cap** enforced via `Buffer.byteLength(value, "utf8")` (not the prior `z.string().max()` which counts UTF-16 code units). A UTF-8 artefact full of multi-byte code points would have slipped past the 64 KB row budget; the audit-table guarantee is byte-bounded, not code-unit-bounded.
 
 ### Performance
 
-Expected on Marc-sized accounts; numbers anchored on the v1.4.40 empirical trace and the wave-level instrumentation. Live perf-verify rides the post-deploy window.
+Expected on Marc-sized accounts; numbers anchored on the v1.4.40 empirical trace. Live perf-verify rides the post-deploy window.
 
 - **Wave-C chart-tile first-paint: +7.3 s → +1.6 s.** Bounded analytics fan-out (p-limit 4 + pool max 20) lets the 6× `/api/measurements?source=rollup` Wave-C burst release incrementally as analytics rotates lanes, instead of gating the entire burst behind the thick analytics drain.
 - **6 insights routes cold-mount.** The mood-rollup swap on `/api/insights/{features,targets,cards}` moves mood aggregation off the live `MoodEntry.findMany` walk onto the v1.4.39 mood-rollup tier; the cold-mount budget for the affected routes drops onto the same flat-200 ms band the v1.4.39 `/api/mood/analytics` numbers land in.
@@ -636,7 +630,7 @@ Expected on Marc-sized accounts; numbers anchored on the v1.4.40 empirical trace
 ### Operator notes
 
 - **Migration 0074** adds the `consent_receipts` table (id, userId, kind, artefact, signedAt, revokedAt, createdAt) and the matching index over `(userId, kind, revokedAt, signedAt DESC)`. Additive; no destructive column drops; safe to run forward on a live database.
-- **AP-2 .p8 key install gates SB-5.** The APNs `time-sensitive + priority 10` payload landed in the worker (`MEDICATION_REMINDER` only — the parameterised test pins all six other event-types do not bypass Focus) but real delivery requires the production `.p8` private key to be installed in the Coolify secret store. Until that key lands, `aps_last_error` will surface as `auth-failed` on `/api/notifications/status` — that is the expected pre-key state, not a regression of this release.
+- **APNs .p8 key install gates live delivery.** The APNs `time-sensitive + priority 10` payload landed in the worker (`MEDICATION_REMINDER` only — the parameterised test pins all six other event-types do not bypass Focus) but real delivery requires the production `.p8` private key to be installed in the Coolify secret store. Until that key lands, `aps_last_error` will surface as `auth-failed` on `/api/notifications/status` — that is the expected pre-key state, not a regression of this release.
 - **No breaking API contract change for iOS v0.5.4.** Every existing route shape is byte-compatible; the new routes (`/api/consent/ai*`, `/.well-known/apple-app-site-association`, `/api/notifications/status`, `/privacy`) are additive surfaces.
 - **No env-var change required for upgrade.** `DATABASE_POOL_MAX` is optional (defaults to 20).
 - `pnpm test --run` green at 4726 passing / 1 skipped (4727 total); `pnpm typecheck`, `pnpm lint`, `pnpm knip --include files,dependencies,binaries,unlisted` all green; the knip CI gate now fails any push to `main` carrying unused exports.
@@ -682,7 +676,7 @@ recur.
   both empty leaves the dashboard's data-floor gates to render the
   appropriate empty state.
 - **`MeasurementList` no longer truncates non-grouped readings to
-  integers.** The v1.4.37 W7c collapsed-list view passed every value
+  integers.** The v1.4.37 collapsed-list view passed every value
   through `fmt.integer`, which kept the per-day step / activity
   aggregates correct but silently truncated single weight / body-fat /
   body-temperature readings — 78.4 kg rendered as "78 kg" on both the
@@ -874,10 +868,9 @@ self-heal via boot-time backfill on first reach.
 
 ### Performance
 
-Expected on Marc-sized accounts; numbers anchored on the
-`.planning/round-v1438-perf-analysis.md` audit and confirmed by the
-unit-test fixture suite. Live perf-verify rides the post-deploy
-window.
+Expected on Marc-sized accounts; numbers anchored on the v1.4.38 perf
+analysis and confirmed by the unit-test fixture suite. Live perf-verify
+rides the post-deploy window.
 
 - **`/api/mood/analytics` cold mount: 12.7 s → ~200 ms.** Was an
   unbounded `MoodEntry.findMany` walk + JS aggregation; now a bounded
@@ -1168,7 +1161,7 @@ fix for the stale-shell post-deploy paper-cut.
 
 ## [1.4.38.2] — 2026-05-17 — Mood-reminder hotfix bundle + Settings toggle
 
-Hotfix bundle on top of v1.4.38.1. A six-axis review of the v0.5.4
+Hotfix bundle on top of v1.4.38.1. A close review of the v0.5.4
 iOS-coordination patch surfaced enough real bugs that the
 mood-reminder feature could not have been used safely as shipped:
 the locale resolver demoted four of six supported locales to
@@ -1748,8 +1741,7 @@ five new architecture diagrams in the Dracula palette.
 
 ### Deferred to v1.4.38
 
-See `.planning/round-v1438-backlog.md` for the full triage table
-(~50 items across the six W10 reviewer axes). Headline:
+Roughly 50 backlog items across six review axes. Headline:
 
 - Cross-tz fragility in the rollup fast-paths (UTC-anchored
   buckets vs user-local-day pairing) — Berlin-only today, must
@@ -2050,16 +2042,15 @@ across every analytics surface is planned for a follow-up.
 - Unit suite up by 31 cases (4249 → 4280); integration suite up by 6
   cases (222 → 228). `pnpm typecheck` + `pnpm lint` clean.
 
-## [1.4.34.5] — 2026-05-17 — Audit follow-on: critical-path tests + iOS textarea zoom
+## [1.4.34.5] — 2026-05-17 — Critical-path tests + iOS textarea zoom
 
 Follow-on to v1.4.34.4. Two batches: the missing critical-path
-integration tests the test-coverage audit flagged, and the textarea
-viewport-zoom fix the mobile-deep audit flagged as F-5.
+integration tests the test-coverage review flagged, and the textarea
+viewport-zoom fix surfaced during the mobile-deep pass.
 
 ### Tests
 
-- **24 new integration tests across 5 files** closing the critical
-  gaps from `.planning/round-audit-test-coverage.md`:
+- **24 new integration tests across 5 files** closing critical gaps in the test-coverage matrix:
   - `tests/integration/auth-password-change.test.ts` pins the v1.4.34.3+
     `destroyAllSessions` three-transport revocation contract
     end-to-end (Session.deleteMany, ApiToken.revoked, RefreshToken.revokedAt).
@@ -2084,14 +2075,13 @@ viewport-zoom fix the mobile-deep audit flagged as F-5.
   so the mobile baseline clears the floor while desktop keeps the
   compact look.
 
-## [1.4.34.4] — 2026-05-17 — Audit-driven hotfix bundle (security, UX, code-quality, docs)
+## [1.4.34.4] — 2026-05-17 — Hotfix bundle: security, UX, code-quality, docs
 
-A consolidated hotfix landing the findings from a six-axis audit
-covering mobile security, UX + accessibility, code quality + docs,
+A consolidated hotfix landing findings across mobile security, UX + accessibility, code quality + docs,
 README + discoverability, web performance, and mobile-deep responsive
 behaviour. None of the changes break the public API or the existing
 data shape; every fix is additive and SAFE under the v1.4.34.x web
-freeze. The full audit reports live in `.planning/round-audit-*.md`.
+freeze.
 
 ### Security
 
@@ -2430,8 +2420,7 @@ without leaking userIds.
   footprint: 14 → 10 entries when every metric has data.
 - **Coolify env-var audit.** `mcp__coolify-apps01__env_vars`
   inspection captured the section-1 / section-2 duplicates that
-  have accumulated under apps-01 since v1.3.1. Audit pinned at
-  `.planning/round-v1434-iwa-coolify-env-audit.md`; no env-var
+  have accumulated under apps-01 since v1.3.1. No env-var
   deletes performed (operator action).
 
 ### Fixed
@@ -2715,7 +2704,7 @@ the affected surfaces.
   the Insights mother page now accepts both eager and
   `next/dynamic` spellings.
 
-## [1.4.32] — 2026-05-17 — HealthKit Tier 1 wave A
+## [1.4.32] — 2026-05-17 — HealthKit Tier 1 first wave
 
 First public surface wave for the HealthKit Tier 1 metrics that
 the iOS contributor brief locked in for v1.5. The headline item
@@ -2727,7 +2716,7 @@ of five new metric sub-pages — HRV, resting heart rate, blood
 oxygen, body temperature, and active energy — each carried by a
 shared scaffold so adding the next HealthKit metric is a four-line
 page module. The release also cleans up two latent issues uncovered
-during the wave-A audit: the workouts list endpoint had a Prisma
+during the audit: the workouts list endpoint had a Prisma
 field-name bug that would have produced a 500 the moment a real
 client called it, and HRV plus resting heart rate were sitting
 in the `vitals` insight bucket where they did not belong.
@@ -2880,9 +2869,7 @@ sleep before the trigger step lands inside the existing
   before firing so GHCR's CDN edges have time to propagate the
   fresh `:latest` digest. The webhook lands after the edge read
   catches up, Coolify pulls the new digest, and the running
-  container recreates cleanly. Full root-cause + hypothesis
-  matrix in
-  `.planning/round-coolify-auto-deploy-fix-2026-05-16.md`.
+  container recreates cleanly.
 - **OpenAPI pre-commit hook.** New `.githooks/pre-commit` runs
   `pnpm openapi:check` when the staged diff touches Zod schemas
   or API routes; on drift it regenerates the spec, re-stages the
@@ -3533,17 +3520,17 @@ internal-only `/api/internal/web-vitals` beacon route).
 
 ### Deferred
 
-- **SD-H1 client wire-up.** The server machinery lands in
+- **All-time tab client wire-up.** The server machinery lands in
   `8144281d`; the client still defaults the "All time" tab to a
   365-day window with no `aggregate` param. Flipping the client to
   pass `aggregate=monthly` plus the user's earliest measurement as
   `from` is a four-line edit deferred to v1.4.29 — the bucketed
   rows carry a divergent shape and the chart adapter needs a small
   helper to merge bucketed vs raw inputs.
-- **R4 Medium-tier findings.** The simplifier, design, UI-conformity,
-  i18n, and senior-dev reviewers each surfaced a Medium-tier
+- **Medium-tier findings across surfaces.** The simplifier, design, UI-conformity,
+  i18n, and senior-dev passes each surfaced a medium-tier
   backlog. Closed only the high-impact items in this release;
-  Medium-tier items (8 design, 4 UI-conformity, 5 i18n, 7 senior-
+  medium-tier items (8 design, 4 UI-conformity, 5 i18n, 7 senior-
   dev, plus the `<ResponsiveSheet>` footer-slot wiring and the 5
   `<Dialog>` consumers still to migrate) defer to v1.4.29 per the
   scope-discipline directive ("less scope, more depth").
@@ -4680,7 +4667,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
 - **44-px touch-target floor across the top-bar + section
   strips.** WCAG 2.5.5 alignment across the broader navigation
   surface, complementing the onboarding-specific pass.
-- **Cat-C typo + naming polish from the W10 review pass.** Minor
+- **Typo + naming polish from the review pass.** Minor
   identifier renames flagged by the dead-code probe; no functional
   change.
 - **`safeRequestProp` widened catch.** Narrowed catch broadened to
@@ -4697,8 +4684,8 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
 
 - 2244 → 3828 passing unit tests across 344 files (+1584; one
   pre-existing skip carries through). Integration suite 140 → ~170
-  across 11 files. e2e green on the W2 CI fix (coach-prefs URL
-  mock + Pixel-5 selector hardening) plus the Fix-I hot-fix that
+  across 11 files. e2e green on the CI fix (coach-prefs URL
+  mock + Pixel-5 selector hardening) plus the hot-fix that
   re-anchored the dashboard insight-card and the mobile x-axis
   tick locators.
 - **Coach refusal-probe matrix.** 1800+ assertions exercise 15
@@ -4761,7 +4748,7 @@ estimates and source citations. Headline items:
   (`/api/admin/ai-settings`, `/api/admin/backup/test`,
   `/api/admin/status-overview`,
   `/api/monitoring/{glitchtip,umami}/test`).
-- ~148 dead i18n keys remaining after the W10 runtime-probe sweep
+- ~148 dead i18n keys remaining after the runtime-probe sweep
   (the v1.4.25 pass removed 380 of the 528 candidates; the
   remaining ~148 need second-pass call-site verification).
 - FR / ES / IT / PL prose hand-review by a native speaker for the
@@ -5054,7 +5041,7 @@ settings deep-link anchors round out the user-facing work.
 
 ### Fixed
 
-- **Admin coach-feedback sidebar entry.** The W5 H7 admin section
+- **Admin coach-feedback sidebar entry.** The admin section
   shipped without a sidebar nav entry, so the page was unreachable
   from the chrome.
 - **APNs `NotificationChannel` auto-upsert on device registration.**
@@ -5117,14 +5104,14 @@ NOT NULL`) is the defence-in-depth backstop.
 
 ### Deferred to v1.4.24
 
-- Pearson incomplete-beta p-value (W5 H6 carried as the
+- Pearson incomplete-beta p-value (carried as the
   conservative n≥20 patch).
 - Settings-cog vs per-message-controls UX consolidation
   (waits on first-week thumbs data).
 - OpenAPI drift gate flip from warn-only to hard-fail
   (requires registry catch-up first).
 - `coach-prefs.test.ts` integration `NextRequest` URL mock
-  regression — predates v1.4.23, surfaced during the W6 reconcile.
+  regression — predates v1.4.23, surfaced during the reconcile pass.
 - Sec-MED-1 follow-ups: intra-batch dedup accounting (Sec-LOW-1),
   idempotency 422 retry hint (Sec-LOW-2), APNs key-file path
   redaction (Sec-LOW-3), refresh-failure audit userId (Sec-LOW-4).
@@ -5162,7 +5149,7 @@ NOT NULL`) is the defence-in-depth backstop.
 - **Comparison-overlay as a single global preference under Settings
   → Dashboard.** The on-surface `<CompareToggle />` retired from
   `/insights`; the canonical picker has lived in Settings →
-  Dashboard since v1.4.16 phase B8 and every chart already consumed
+  Dashboard since v1.4.16 and every chart already consumed
   it. Two surfaces for the same concept violated the
   no-split-Settings rule.
 - **Collapsible evidence disclosure under each Coach assistant
@@ -5299,7 +5286,7 @@ NOT NULL`) is the defence-in-depth backstop.
   in two layouts; one component, two consumers.
 - **Five simplify apply-yes items in one commit.** `canSubmit`
   collapse, weekly-report `<Button>` dedup, and three smaller
-  cleanups identified in the W5 simplify pass.
+  cleanups identified in the simplify pass.
 
 ### Operational / hygiene
 
@@ -5330,8 +5317,7 @@ surface; medication_schedules.days_of_week schema-drift cleanup.
 
 ### Deferred to v1.5 (iOS push)
 
-See `.planning/phase-W5-v1422-product-lead-review.md` for the
-full v1.5 plan. Headline: iOS native client + Apple Health
+Headline: iOS native client + Apple Health
 ingest contract (HRV, Sleep, Resting HR, Steps, BodyFat,
 Glucose); per-metric APNs alerts; OpenAPI spec drift CI gate;
 Coach extension for the new measurement types
@@ -5513,9 +5499,8 @@ Coach extension for the new measurement types
 
 ### Deferred to v1.4.21
 
-- 22 MED + 16 LOW + 4 simplify-apply-maybe items from the multi-
-  reviewer Phase-D pass. Highlights at `.planning/v1421-backlog.md`
-  include: senior-dev call to consolidate the duplicated
+- 22 medium + 16 low + 4 simplify-apply-maybe items from the multi-
+  pass review. Highlights include: senior-dev call to consolidate the duplicated
   Pearson / linear-regression maths layer; refactor the
   `<CoachDrawer key={prefill}>` state-reset shortcut into a
   controlled prefill prop; transactional `recordSpend()`; refusal
@@ -5524,8 +5509,7 @@ Coach extension for the new measurement types
 ### Deferred to v1.5
 
 - iOS native app, Apple Health integration, and per-metric APNs
-  alerts. Strategic plan at
-  `.planning/phase-D-v1420-product-lead-review.md`.
+  alerts.
 
 ## [1.4.19] — 2026-05-10
 
