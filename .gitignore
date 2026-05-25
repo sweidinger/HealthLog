@@ -83,3 +83,7 @@ next-env.d.ts
 # Docs scratch — temporary spec drafts that live in the repo only
 # while a release is in flight.
 /docs/ios/
+
+# Per-release internal forensic notes — retained locally for
+# traceability across releases but not part of the public docs surface.
+/docs/audit/
