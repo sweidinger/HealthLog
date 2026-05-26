@@ -233,6 +233,16 @@ export function proxy(request: NextRequest) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()",
   );
+  // COOP isolates this BrowsingContextGroup from cross-origin popups,
+  // closing the Spectre-class side-channel surface a stray
+  // `window.opener` reference would otherwise carry. CORP narrows the
+  // page's resources to same-origin loaders, complementing the
+  // `frame-ancestors 'none'` CSP rule for non-document subresources.
+  // The legacy `X-Permitted-Cross-Domain-Policies` line shuts the
+  // Flash/PDF crossdomain.xml channel that some scanners still flag.
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  response.headers.set("X-Permitted-Cross-Domain-Policies", "none");
 
   // CSP — permissive in dev, strict in production. Third-party hosts in
   // `connect-src` are gated to the surfaces that actually need them so a
