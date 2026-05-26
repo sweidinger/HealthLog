@@ -4,41 +4,21 @@ import { apiError, getClientIp } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { getPublicMonitoringSettings } from "@/lib/monitoring-settings";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isPublicUrl } from "@/lib/validations/notifications";
 
 export const dynamic = "force-dynamic";
 
-// Allowed URL patterns for the Umami proxy to prevent SSRF.
-// Only permits HTTPS URLs (or localhost in dev) to known analytics paths.
+// Use the canonical `isPublicUrl` guard rather than a hand-rolled
+// allowlist. The previous local implementation predated the central
+// helper and was missing CGNAT (100.64/10), IPv6 ULA (fc00::/7), the
+// octal/hex/decimal IPv4 alt-notations, and the IPv4-mapped IPv6
+// shapes — every one of which the shared helper catches. Dev mode is
+// no longer special-cased here: a localhost-or-RFC1918 Umami URL was
+// never a valid configuration anyway (the proxy ships the request to
+// the configured host with the visitor's user-agent + body, which
+// only makes sense against an externally-reachable analytics target).
 function isAllowedUmamiUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    const isDev = process.env.NODE_ENV === "development";
-    if (!isDev && parsed.protocol !== "https:") return false;
-    // Block requests to private/internal networks
-    const hostname = parsed.hostname;
-    if (
-      hostname === "169.254.169.254" || // cloud metadata
-      hostname === "localhost" ||
-      hostname.startsWith("10.") ||
-      hostname.startsWith("192.168.") ||
-      hostname === "127.0.0.1" ||
-      hostname === "[::1]" ||
-      hostname === "0.0.0.0" ||
-      hostname.endsWith(".internal") ||
-      hostname.endsWith(".local") ||
-      // 172.16.0.0/12 (172.16.x.x - 172.31.x.x)
-      (hostname.startsWith("172.") &&
-        (() => {
-          const second = parseInt(hostname.split(".")[1] ?? "0", 10);
-          return second >= 16 && second <= 31;
-        })())
-    ) {
-      if (!isDev) return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
+  return isPublicUrl(url);
 }
 
 function resolveUmamiSendUrls(scriptUrl: string | null): string[] {
