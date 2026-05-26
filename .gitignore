@@ -76,9 +76,13 @@ next-env.d.ts
 /.planning/QA-*
 /.planning/round-*
 /.planning/v14*-*
+/.planning/v15*-*
 /.planning/V0*-*
 /.planning/ios-coord/V*-QA-*
 /.planning/research/v14*-*
+/.planning/marathon-*
+/.planning/security-audit-*
+/.planning/session-*
 
 # Docs scratch — temporary spec drafts that live in the repo only
 # while a release is in flight.
