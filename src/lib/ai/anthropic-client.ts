@@ -49,6 +49,8 @@ export class AnthropicClient implements AIProvider {
         system: params.systemPrompt,
         messages: [{ role: "user", content: wrapForJson(params.userPrompt) }],
       }),
+      // 60 s ceiling — see openai-client.ts for the rationale.
+      signal: AbortSignal.timeout(60_000),
     });
 
     if (!res.ok) {

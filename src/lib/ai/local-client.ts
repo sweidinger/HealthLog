@@ -50,6 +50,10 @@ export class LocalOpenAICompatibleClient implements AIProvider {
         temperature: params.temperature ?? 0.3,
         max_tokens: params.maxTokens ?? 1000,
       }),
+      // 60 s ceiling — a misbehaving local endpoint (Ollama on a stalled
+      // GPU, a tar-pit proxy) shouldn't be able to pin a worker
+      // indefinitely. Real local completions land well inside this.
+      signal: AbortSignal.timeout(60_000),
     });
 
     if (!res.ok) {

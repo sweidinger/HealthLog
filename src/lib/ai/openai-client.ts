@@ -46,6 +46,10 @@ export class OpenAIClient implements AIProvider {
         max_tokens: params.maxTokens ?? 1000,
         response_format: { type: "json_object" },
       }),
+      // Cap any single completion at 60 s so a tar-pit upstream cannot
+      // pin a worker indefinitely. Real completions land well inside this
+      // budget — see `getEvent()?.addExternalCall` timings in production.
+      signal: AbortSignal.timeout(60_000),
     });
 
     if (!res.ok) {
