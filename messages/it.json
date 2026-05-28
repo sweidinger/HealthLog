@@ -654,6 +654,205 @@
           "budget": "Budget IA giornaliero raggiunto — riprova domani.",
           "network": "Impossibile contattare il provider IA — riprova."
         }
+      },
+      "cadence": {
+        "section": "Cadence",
+        "label": "How often",
+        "kind": {
+          "daily": "Every day",
+          "weekdays": "Certain days of the week",
+          "everyNWeeks": "Every N weeks on certain days",
+          "monthly": "Monthly on a specific day",
+          "everyNMonths": "Every N months on a specific day",
+          "yearly": "Once a year",
+          "rolling": "Every N days from when I last took it (flexible)",
+          "rollingExplainer": "Counts from your last logged intake — pauses if you skip a dose.",
+          "oneShot": "One-time dose"
+        },
+        "weekdays": {
+          "label": "Days of the week",
+          "short": {
+            "mo": "Mo",
+            "tu": "Tu",
+            "we": "We",
+            "th": "Th",
+            "fr": "Fr",
+            "sa": "Sa",
+            "su": "Su"
+          },
+          "long": {
+            "mo": "Monday",
+            "tu": "Tuesday",
+            "we": "Wednesday",
+            "th": "Thursday",
+            "fr": "Friday",
+            "sa": "Saturday",
+            "su": "Sunday"
+          }
+        },
+        "intervalWeeks": {
+          "suffix": "weeks"
+        },
+        "dayOfMonth": {
+          "label": "Day"
+        },
+        "intervalMonths": {
+          "suffix": "months",
+          "dayOnLabel": "on day"
+        },
+        "yearly": {
+          "date": {
+            "label": "Date"
+          }
+        },
+        "rollingDays": {
+          "suffix": "days"
+        }
+      },
+      "timesOfDay": {
+        "section": "Times of day",
+        "label": "Times of day",
+        "empty": {
+          "cta": "Add the first time."
+        },
+        "add": "Add time",
+        "remove": "Remove",
+        "presets": {
+          "morning": "Morning",
+          "noon": "Noon",
+          "evening": "Evening",
+          "night": "Night"
+        },
+        "max": {
+          "reached": "Maximum reached — remove a time before adding another."
+        }
+      },
+      "courseWindow": {
+        "section": "Course window",
+        "startsOn": {
+          "label": "Starts on"
+        },
+        "endsOn": {
+          "label": "Ends on"
+        },
+        "noEndDate": "No end date",
+        "oneShotCaption": "(one-time dose)",
+        "invalidRange": "End date must be on or after the start date."
+      },
+      "oneShot": {
+        "section": "Single dose"
+      },
+      "legacyWindow": {
+        "section": "Reminder window (legacy)",
+        "help": "Older schedules still use a window pair. New schedules use times of day above — the window stays for backwards compatibility and is dropped in a future release."
+      }
+    },
+    "create": {
+      "wizard": {
+        "header": {
+          "stepOf": "Step {current} of {total}",
+          "title": {
+            "step1": "What's the medication called and what's a single dose?",
+            "step2": "Is this a one-time dose, or do you take it regularly?",
+            "step3": "How often?",
+            "step4": "Anything special about the days?",
+            "step5": "What time(s) of day?",
+            "step6": "When does the schedule start? When does it end (if ever)?",
+            "step7": "Reminders and summary"
+          }
+        },
+        "step1": {
+          "name": {
+            "label": "Name",
+            "placeholder": "e.g. Mounjaro, Ibuprofen, Vitamin D"
+          },
+          "dose": {
+            "amount": {
+              "label": "Dose",
+              "placeholder": "e.g. 5"
+            },
+            "unit": {
+              "label": "Unit",
+              "mg": "mg",
+              "g": "g",
+              "ml": "ml",
+              "iu": "IU",
+              "tablets": "tablets",
+              "drops": "drops",
+              "puffs": "puffs",
+              "sprays": "sprays",
+              "capsules": "capsules",
+              "pieces": "pieces",
+              "other": "other"
+            }
+          },
+          "naturalLanguage": {
+            "button": "✨ Describe it",
+            "placeholderCopy": "Type the medication in your own words and we will pre-fill the wizard."
+          }
+        },
+        "step2": {
+          "oneShot": {
+            "title": "One-time dose",
+            "description": "A single appointment — flu shot, vaccine, the last dose of a course."
+          },
+          "recurring": {
+            "title": "Recurring",
+            "description": "A medication you take on a schedule, daily or otherwise."
+          }
+        },
+        "step3": {
+          "helper": "Pick the pattern that matches how often you take it. Sub-options appear once you choose."
+        },
+        "step4": {
+          "recap": "Here's the cadence you picked. Tap Back if anything looks wrong.",
+          "oneShotSkipped": "(skipped — one-time dose)"
+        },
+        "step5": {
+          "helper": "Add one or more times of day. Reminders fire at each entry.",
+          "oneShotDate": {
+            "label": "Date of the single dose",
+            "helper": "We use this date to schedule the reminder and to log the intake."
+          }
+        },
+        "step6": {
+          "helper": "The schedule runs from the start date. Leave the end date open if you take it indefinitely."
+        },
+        "step7": {
+          "reminders": {
+            "label": "Reminders on",
+            "description": "Send a push to your configured channels at every scheduled time."
+          },
+          "summary": {
+            "title": "Summary",
+            "cadence": {
+              "daily": "Every day",
+              "weekdays": "On selected days of the week",
+              "weekly": "Once a week",
+              "biweekly": "Every two weeks",
+              "monthly": "Monthly",
+              "quarterly": "Every three months",
+              "yearly": "Once a year",
+              "rolling": "Every {n} days from your last intake",
+              "oneShot": "A single dose",
+              "everyNWeeks": "Every {n} weeks",
+              "everyNMonths": "Every {n} months"
+            },
+            "times": "at {times}",
+            "startsOn": "Starts: {date}",
+            "endsOn": "Ends: {date}",
+            "noEndDate": "No end date"
+          }
+        },
+        "nav": {
+          "back": "Back",
+          "next": "Next",
+          "create": "Create medication"
+        },
+        "errors": {
+          "submitFailed": "Could not create the medication — please retry.",
+          "fieldRequired": "Required"
+        }
       }
     },
     "titration": {

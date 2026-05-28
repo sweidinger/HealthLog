@@ -252,6 +252,12 @@ describe("i18n locale file integrity", () => {
     "targets.status.normal",
     "targets.status.optimal",
     "targets.status.fitness",
+    // v1.5 medication scheduling — SI-unit abbreviations the wizard
+    // surfaces in its dose-unit dropdown. The labels are identical
+    // across every locale (mg / g / ml are universal SI tokens).
+    "medications.create.wizard.step1.dose.unit.mg",
+    "medications.create.wizard.step1.dose.unit.g",
+    "medications.create.wizard.step1.dose.unit.ml",
   ]);
 
   it.each(ALL_LOCALES)("$locale locale has no empty values", ({ path }) => {

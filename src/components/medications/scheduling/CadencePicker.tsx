@@ -27,7 +27,7 @@
  *   .kind.everyNMonths           — "Every N months on day"
  *   .kind.yearly                 — "Yearly on date"
  *   .kind.rolling                — "Every N days from when I last took it (flexible)"
- *   .kind.rolling.explainer      — "Counts from your last logged intake — pauses if you skip"
+ *   .kind.rollingExplainer       — "Counts from your last logged intake — pauses if you skip"
  *   .kind.oneShot                — "One-time dose"
  *   .weekdays.label              — chip-row aria-label "Days of week"
  *   .weekdays.short.mo|tu|we|th|fr|sa|su  — chip abbreviations
@@ -401,7 +401,7 @@ function CadenceOption({
             className="text-muted-foreground text-xs"
             data-slot="cadence-rolling-explainer"
           >
-            {t(`${i18nPrefix}.kind.rolling.explainer`)}
+            {t(`${i18nPrefix}.kind.rollingExplainer`)}
           </p>
         </div>
       )}
