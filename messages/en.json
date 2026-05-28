@@ -899,6 +899,16 @@
         "endsOn": "Ends: {date}",
         "noEndDate": "No end date"
       },
+      "compose": {
+        "scheduleIndex": "Schedule {n} of {total}",
+        "list": {
+          "add": "Add another schedule",
+          "edit": "Edit",
+          "remove": "Remove",
+          "removeDisabled": "At least one schedule is required.",
+          "empty": "No schedule yet."
+        }
+      },
       "errors": {
         "submitFailed": "Could not save the medication — please retry."
       }

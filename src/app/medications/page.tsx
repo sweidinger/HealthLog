@@ -328,6 +328,7 @@ function medicationToPayload(med: Medication): MedicationPayload {
     endsOn: med.endsOn ? new Date(med.endsOn) : null,
     oneShot: med.oneShot ?? false,
     schedules: med.schedules.map((s) => ({
+      id: s.id,
       windowStart: s.windowStart,
       windowEnd: s.windowEnd,
       label: s.label ?? null,

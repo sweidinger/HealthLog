@@ -899,6 +899,16 @@
         "endsOn": "Ende: {date}",
         "noEndDate": "Kein Enddatum"
       },
+      "compose": {
+        "scheduleIndex": "Zeitplan {n} von {total}",
+        "list": {
+          "add": "Weiteren Zeitplan hinzufügen",
+          "edit": "Bearbeiten",
+          "remove": "Entfernen",
+          "removeDisabled": "Mindestens ein Zeitplan ist erforderlich.",
+          "empty": "Noch kein Zeitplan."
+        }
+      },
       "errors": {
         "submitFailed": "Medikament konnte nicht gespeichert werden — bitte erneut versuchen."
       }

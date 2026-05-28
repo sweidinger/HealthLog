@@ -58,11 +58,16 @@ import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
 import { NaturalLanguageExtractor } from "@/components/medications/scheduling/NaturalLanguageExtractor";
 
 import {
+  addSchedule,
   buildCreateBody,
+  commitActiveDraft,
   emptyWizardPayload,
   hydrateWizardPayload,
+  landingStepForEdit,
   type MedicationPayload,
   progressIndices,
+  removeSchedule,
+  setActiveSchedule,
   type WizardPayload,
 } from "./wizard-payload";
 import { Step1Name } from "./steps/Step1Name";
@@ -121,12 +126,18 @@ function WizardDialogShell({
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [step, setStep] = useState<StepNumber>(1);
   const [payload, setPayload] = useState<WizardPayload>(() =>
     mode === "edit" && initial
       ? hydrateWizardPayload(initial)
       : emptyWizardPayload(),
   );
+  const [step, setStep] = useState<StepNumber>(() => {
+    if (mode === "edit" && initial) {
+      const hydrated = hydrateWizardPayload(initial);
+      return landingStepForEdit(hydrated) as StepNumber;
+    }
+    return 1;
+  });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nlOpen, setNlOpen] = useState(false);
@@ -177,6 +188,13 @@ function WizardDialogShell({
     // step in the path, which is the one-shot summary at step 8.
     const forward = list.find((n) => n > step);
     if (forward !== undefined) {
+      // Crossing into Step 8 commits the active per-schedule draft so
+      // the schedule-list view renders the user's just-edited cadence
+      // and times. Step transitions inside Steps 5-7 keep the flat
+      // mirror as the source of truth.
+      if (forward === 8) {
+        setPayload((prev) => commitActiveDraft(prev));
+      }
       setStep(forward as StepNumber);
     }
   }, [canContinue, payload.mode, payload.cadence.kind, step]);
@@ -204,6 +222,32 @@ function WizardDialogShell({
     );
     target?.focus({ preventScroll: true });
   }, [step]);
+
+  /**
+   * Step 8 actions — every schedule-list mutation routes through the
+   * pure helpers so the flat mirror stays in sync.
+   */
+  const onEditSchedule = useCallback((index: number) => {
+    setPayload((prev) => setActiveSchedule(prev, index));
+    setStep(5);
+  }, []);
+
+  const onRemoveSchedule = useCallback((index: number) => {
+    setPayload((prev) => removeSchedule(prev, index));
+  }, []);
+
+  const onAddSchedule = useCallback(() => {
+    setPayload((prev) => addSchedule(prev));
+    setStep(5);
+  }, []);
+
+  const stepCaption =
+    payload.schedules.length > 1 && step >= 5 && step <= 7
+      ? t("medications.wizard.compose.scheduleIndex", {
+          n: payload.activeScheduleIndex + 1,
+          total: payload.schedules.length,
+        })
+      : null;
 
   const onSubmit = useCallback(async () => {
     setSubmitting(true);
@@ -377,6 +421,14 @@ function WizardDialogShell({
                 <Icon className="text-primary h-6 w-6" />
               </div>
               <div className="min-w-0 space-y-1">
+                {stepCaption && (
+                  <p
+                    className="text-muted-foreground text-xs"
+                    data-slot="wizard-schedule-caption"
+                  >
+                    {stepCaption}
+                  </p>
+                )}
                 <h2 className="text-foreground text-base font-medium leading-tight">
                   {stepTitle}
                 </h2>
@@ -424,6 +476,9 @@ function WizardDialogShell({
                   mode={mode}
                   initial={initial}
                   submitError={submitError}
+                  onEditSchedule={onEditSchedule}
+                  onRemoveSchedule={onRemoveSchedule}
+                  onAddSchedule={onAddSchedule}
                 />
               )}
             </div>
