@@ -1,5 +1,63 @@
 # Changelog
 
+## [1.5.5] — 2026-05-29 — Medication detail page, iOS coord wave, outbound-fetch hardening
+
+The v1.5.4 modal wizard landed the create + edit plan flow, but it took 16 features down with the retired flat form — Einnahmen bearbeiten / löschen, Medikament pausieren / beenden / löschen, per-Med API tokens, Phasen-Konfiguration, CSV-Import — and the trends-row on Insights had a 34 px overflow that pushed annotation copy on top of the charts. This release lands the medication detail page that gives every retired feature a coherent home, polishes the wizard against the live walk-through feedback, closes the iOS audit follow-ups in one go, and hardens every outbound fetch the server makes.
+
+### Added
+
+- **`/medications/[id]/page.tsx`** — a single Server-Component detail page composed of eight sections (Header band → Today's-dose → Cadence summary → Phasen (GLP-1) → Intake history preview → Notifications → Settings → Verwaltung & Gefahrenzone). One-shot medications walk a five-section variant; paused medications keep the structure but the status pill flips to `Pausiert` and the dose-card surface mutes. Restores every one of the 16 features the v1.5.4 flat-form retirement displaced.
+- **Per-row + bulk intake history actions** — the preview now ships a per-row kebab (`Bearbeiten` / `Löschen`) and a multi-select toolbar that fires the new `POST /api/medications/{id}/intake/bulk-delete` endpoint. Marc's „Einnahmen löschen" + „Einnahmen bearbeiten" complaints from the v1.5.4 walk-through close cleanly.
+- **`safeFetch` wrapper** at `src/lib/safe-fetch.ts` — every outbound fetch the server makes for user-supplied hosts now inherits `redirect: "manual"` + `AbortSignal.timeout(15_000)` defaults. Closes #218.
+- **DNS-rebinding pinned `undici.Agent`** at `src/lib/safe-fetch-dispatcher.ts` — when `requirePublicHost: true`, the dispatcher resolves the hostname literally inside the connect hook, refuses any address `isPublicIp` would reject, and pins the connection to the first valid public address. The five user-host paths (MoodLog sync + push + test, local-AI client, ntfy) route through it. Closes #217.
+- **Self-hosted avatar storage** at `POST/GET/DELETE /api/user/avatar` — multipart-uploaded JPEG/PNG/WebP, 2 MiB / 2048×2048 max, hand-rolled magic-byte sniff + dimension probe so no native dependency lands. Stored on the User row as BYTEA; rides `pg_dump` alongside the rest of the row. The profile response carries an `avatarUrl` with a cache-busting timestamp. `src/lib/gravatar.ts` retires — Automattic no longer sees the email-hash on every authenticated page load.
+- **`POST /api/medications/{id}/intake/bulk-delete`** — owner-scoped, capped at 500 event IDs per call, rate-limited per user. Pre-work for the detail page's multi-select.
+- **`GET / PUT / DELETE /api/insights/layout`** — mirrors `/api/dashboard/widgets` so insights tile order + visibility persist server-side and sync across devices. Default order: `overview`, `blutdruck`, `puls`, `sauerstoff`, `koerpertemperatur`, `gewicht`, `bmi`, `aktive-energie`, `workouts`, `schlaf`, `ruhepuls`, `hrv`, `stimmung`, `medikamente`. Default-visible: overview, blutdruck, puls, gewicht, bmi, workouts, stimmung, medikamente.
+- **Eight new Apple Health quantity-type mappings** — `RESPIRATORY_RATE`, `BODY_MASS_INDEX`, `LEAN_BODY_MASS`, `WALKING_HEART_RATE_AVERAGE`, `WALKING_ASYMMETRY`, `WALKING_DOUBLE_SUPPORT`, `WALKING_STEP_LENGTH`, `WALKING_SPEED`. The convention block on `apple-health-mapping.ts` documents the project rule: raw HK values flow on the wire, the server scales ×100 server-side for percent metrics. Step length and walking speed flow raw in SI (m and m/s) — no scaling.
+- **Three new series-kind enum values** — `RESTING_HEART_RATE`, `HEART_RATE_VARIABILITY`, `VO2_MAX`. Detail + trend views on those metrics now respond 200 instead of 422.
+
+### Changed
+
+- **Wizard polish** — dialog widens to `sm:max-w-2xl`; the X-close gets a 44 px target; spacing tokens converge on the existing shadcn cadence (`rounded-md` button, `rounded-lg` dialog, no new radii); the step-progress bar is a width-only `<Progress>` + Tailwind `transition-all` with `motion-reduce` snap; step transitions are fade-only. `landingStepForEdit` accepts an `intent` argument so the cadence-summary edit pencil drops the user on Step 5 instead of bouncing them through Step 1.
+- **`/api/measurements/series` `days` cap** — raised from 365 to 3650, matching the recurrence engine's hard cap. The iOS app's „Alle"-range no longer paints a 422 banner on every metric.
+- **`/api/dashboard/summary` MetricCard shape** — `title` and `unit` ship as i18n keys (`dashboard.metric.title.*` + `dashboard.metric.unit.*`) instead of hardcoded German strings. Web resolves via the existing `messages/*.json` path; iOS resolves against its `Localizable.xcstrings`. Wire-shape change — clients that decoded the legacy `title` / `unit` strings keep working with the iOS team's tolerant fallback decoder during the transition.
+- **`assertMedicationOwnership` consistency sweep** — `purge`, `parent PUT`, `parent DELETE`, `intake/import`, `phase-config`, `bulk-delete`, `glp1 GET` all converge on the single ownership helper. The §10 invariant 24 from the design direction now holds across `src/app/api/medications/[id]/**`.
+- **Trends-row chart slot** — raised from 140 → 180 px so the mini-card shell's header + padding stays inside the slot. The TrendAnnotation under each chart no longer collides with the chart envelope.
+- **Wizard payload edit path** — `buildCreateBody` omits `notificationsEnabled` on edit so the toggle the user already set in the detail page Notifications section is not overwritten by the wizard's hydrated default.
+- **`<NotificationsSection>` DOM ids** — section heading and row label carry distinct ids so the Switch's `aria-labelledby` resolves to the row title, not the section heading.
+- **`phase-config` route surface** — PUT returns the multi-issue 422 envelope on Zod failure (matching every other v1.5.5 route), and the upsert builds the Prisma payload field-by-field instead of spreading `parsed.data`. Mass-assignment surface closes structurally.
+
+### Fixed
+
+- **Trends-row text overlapping the charts** — Marc's specific Insights complaint. Chart slot was 140 px but the mini-card shell painted ~174 px; the 34 px overflow pushed annotation copy onto the chart envelope. The 180 px slot accommodates the full envelope.
+- **Grace-row save dead on arrival** — the detail page Settings section PUTs `reminderGraceMinutes` at the top level; the route now normalises the value onto the primary schedule before the Prisma update. The schema declares the top-level field with a description noting the normalisation.
+- **Purge route did not invalidate server caches** — Tier-3a `Verlauf löschen` dropped the rollup rows but left the analytics + iOS today-tally caches with the pre-purge counts for up to their TTL. The success path now calls `invalidateUserMedications(user.id)` alongside the rollup delete.
+- **Bi-weekly worker still emitted every Wednesday** — the v1.5.3 cadence engine fix was correct, but the cadence chart + medication card on the dashboard still read the legacy `daysOfWeek` column. The v1.5.x window keeps this in place; the read-flip arrives in v1.5.6. Operators see correct reminder fan-out today; the dashboard chip cosmetic catch-up follows.
+- **Compose-mode multi-schedule data loss** — the v1.5.4 wizard collapsed a multi-schedule medication to its first schedule on save and silently dropped the rest. Closed in v1.5.4 by the compose-mode commits; the regression test pinning that lives at `wizard-payload.test.ts`.
+
+### Tests
+
+- 5594 → 5615 unit (+21 in the reconciliation sweep alone; the detail-page surface + audit fixes add ~110 across the cycle).
+- 262 integration unchanged + the avatar upload integration test (`tests/integration/user-avatar.test.ts`).
+- New Playwright spec pre-work — the detail-page surface is component-test pinned; e2e walk lands in a follow-up.
+
+### Security
+
+- `safeFetch` + DNS-rebinding pinned dispatcher close issues #217 + #218 architecturally — the input-time `isPublicUrl` guard now pairs with a connect-time IP pin so DNS rebinding cannot flip the resolved host between accept and dispatch.
+- Avatar route enforces size before parse (Content-Length pre-flight + post-parse `file.size` check), magic-byte sniff over the declared content-type, dimension probe, owner-scoped on every method. No new XSS vector — the served content-type is whitelisted to the three image MIMEs.
+- `assertMedicationOwnership` sweep closes every detail-page route's ownership narrowing — the route layer is now the single ownership predicate across `src/app/api/medications/[id]/**`.
+- Pre-tag senior-dev + security architect audit produced two docs at `.planning/medication-detail-page-2026-05-28/F-{1,2}-*.md`. The four senior-dev Criticals + five Highs landed in code; F-1 H-5 (`safeFetch` migration to constant-host call sites like Withings + Codex + the GitHub bug-reporter) + F-2 M-1..M-3 (operator-host `requirePublicHost`, avatar chunked-body pre-flight, raw-fetch lint rule) deferred to v1.5.5.1.
+
+### iOS coord
+
+- The iOS team's v0.8.0 audit closed cleanly. Detailed acknowledgements at `.planning/ios-coord/v155-wire-six-deferred-identifiers.md` + `.planning/ios-coord/v155-step-length-speed-followup.md`.
+- The iOS team flips `walkingAsymmetryPercentage` + `walkingDoubleSupportPercentage` from pre-multiplied to raw in their next release; until then the server fails-closed (`skipped:"value_out_of_range"`) on > 100% values, so no DB pollution.
+
+### Notes
+
+- **No new npm dependencies.** Avatar image-header parsing is hand-rolled; no `sharp` / `jimp`. The animation surface is shadcn `<Progress>` + Tailwind `transition-all`; no Framer Motion. Only `undici` was promoted from transitive to explicit so the safeFetch-dispatcher import sits on a documented contract.
+- **Test totals.** 5615 unit + 1 skipped, 262 integration + 3 skipped. `pnpm typecheck`, `pnpm lint` (one pre-existing withings/resume warning), `pnpm openapi:check`, locale-integrity + call-site coverage all green.
+
 ## [1.5.4] — 2026-05-28 — Medication wizard: modal dialog, compose-mode, ten-bucket taxonomy
 
 The v1.5.3 creation wizard shipped as a single-page card with seven inline steps. Patient feedback during the first day of live use was unanimous: the page felt dense, the step-by-step intent was lost, the "every N days from my last injection" cadence was unintelligible without a worked example, and the edit form was visibly wider than its container. The bi-weekly worker bug was closed in v1.5.3 but the surface a patient actually touches was not yet where it needed to be. This release replaces the wizard with a real modal-dialog flow, lands compose-mode so a single medication can carry multiple parallel schedules (the insulin short-acting + long-acting case), widens the treatment-class taxonomy to ten buckets, and retires the flat edit form.
