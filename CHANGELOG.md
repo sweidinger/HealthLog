@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.5.4] — 2026-05-28 — Medication wizard: modal dialog, compose-mode, ten-bucket taxonomy
+
+The v1.5.3 creation wizard shipped as a single-page card with seven inline steps. Patient feedback during the first day of live use was unanimous: the page felt dense, the step-by-step intent was lost, the "every N days from my last injection" cadence was unintelligible without a worked example, and the edit form was visibly wider than its container. The bi-weekly worker bug was closed in v1.5.3 but the surface a patient actually touches was not yet where it needed to be. This release replaces the wizard with a real modal-dialog flow, lands compose-mode so a single medication can carry multiple parallel schedules (the insulin short-acting + long-acting case), widens the treatment-class taxonomy to ten buckets, and retires the flat edit form.
+
+### Added
+
+- **Modal-dialog wizard**. `src/components/medications/wizard/MedicationWizardDialog.tsx` is the new entry surface — a shadcn `<Dialog>` on desktop, a `<Sheet side="bottom">` on mobile, switched through the existing `<ResponsiveSheet>` primitive at 768 px. The wizard renders its own header inside the body so the iconified step anchor sits where the patient reads, and the footer carries Back / Save with a fixed sticky position on mobile. Eight steps total, one focused question each: name → treatment class → dose → course window → cadence → sub-cadence detail → times of day → review with reminders toggle and per-schedule summary cards. Cadence + sub-cadence + times collapse out of the path when they do not apply (one-shot walks five, daily walks seven, recurring walks eight); the visible counter mirrors the path the patient actually walks.
+- **Compose-mode**. A medication can now hold multiple parallel schedules, each with its own cadence and times. Steps 5–7 are per-schedule; Step 8 renders the schedule list with an "Bearbeiten" and "Entfernen" action on each card plus a "+ Weiteren Zeitplan hinzufügen" card at the bottom. The last remaining schedule is non-removable so the medication always carries at least one schedule. A medication opened in edit mode with more than one configured schedule lands the patient directly on the list view; single-schedule edits keep the Step 1 entry. The header on Steps 5–7 carries a small "Zeitplan {n} von {total}" caption when more than one schedule is configured.
+- **Ten-bucket treatment-class taxonomy on Step 2** — Blutdruck, Diabetes, Hormone, GLP-1-Injektion, Schmerz, Allergie, Vitamine, Nahrungsergänzung, Antibiotikum, Sonstiges. Schmerz lands the chronic-pain cohort with its own rolling-rescue-medication pattern; Antibiotikum lands the one-shot course pattern cleanly so neither falls through to `OTHER` for analytics purposes. Each row carries a monochrome Lucide glyph (Stethoscope / Droplet / Activity / Syringe / Flame / Wind / Apple / Leaf / ShieldCheck / Tag).
+- **`DIABETES` + `ANTIBIOTIC`** as first-class values of the `MedicationCategory` Zod enum so insights routes that filter on the clinical category surface those buckets without falling back to `OTHER`. Additive at the schema layer; existing rows do not need touching.
+- **Rolling-cadence mental-model copy.** Step 5's "Flexibel ab letzter Einnahme" row carries the example sentence directly under the label (not behind a tooltip) — "Du lässt den nächsten Termin offen, drückst 'genommen' wenn du sie genommen hast — ab dem Zeitpunkt zählt der Counter wieder." The patient-pain research across chronic-illness adherence studies identified this exact gap as the #1 reason patients abandon medication apps in week one; the in-line example sentence closes it.
+
+### Changed
+
+- **Edit path routes through the same dialog.** "Bearbeiten" on a medication card opens `<MedicationWizardDialog mode="edit" initial={…} />`; the header swaps to "{name} bearbeiten", the CTA to "Änderungen speichern", and the entire payload hydrates from the existing medication shape including the schedule `id` so a PUT preserves the per-schedule identity. The flat `<MedicationForm>` (1314 LOC, surfaced as a `<ResponsiveSheet>` that rendered wider than its container on the medications list page) retires in the same change.
+- **`/medications/new` retires** to a redirect that opens the dialog from the list page (`/medications?new=1`). Existing bookmarks survive without losing the entry point.
+- **i18n.** A clean `medications.wizard.*` namespace replaces `medications.create.wizard.*` so the locale-integrity guard surfaces every dangling key during the cut. German and English carry native copy; Spanish, French, Italian, Polish ship the English string verbatim as a machine fallback per the project convention. Native polish for the four fallback locales follows.
+- **`<CreationWizard>`** (v1.5.3's inline-stepped Card) and **`<PhaseConfigDialog>`** (an unused titration-phase helper that `knip` flagged once the list page swapped over) retire alongside the form.
+
+### Fixed
+
+- **Multi-schedule data-loss risk** — the v1.5.3 wizard collapsed a multi-schedule medication to its first schedule on save and silently dropped the rest. Compose-mode is the proper fix; the encoder now emits every schedule, the hydrator reads every schedule, the per-schedule `id` round-trips so the PUT preserves identity.
+- **The edit form being wider than its container** — Marc's specific complaint from the v1.5.3 hand-walk. The container is now a constrained Dialog at `sm:max-w-md` on desktop and a sticky-footer Sheet at `max-h-[90dvh]` on mobile; the form-as-page surface is gone.
+
+### Tests
+
+- `src/components/medications/wizard/__tests__/wizard-payload.test.ts` — 54 pure-helper cases pinning `validateStep`, `buildCreateBody`, `buildUpdateBody`, `summariseCadence`, the treatment-class row → request body mapping, the multi-schedule encoder, schedule-`id` preservation on edit, the hydration that lands on the list view when more than one schedule is present, the remove-guard against the last remaining schedule, and the add-then-active-bump behaviour.
+- `e2e/medications-wizard-{daily,weekdays,biweekly,monthly,rolling,oneshot}.spec.ts` — six Playwright specs updated to walk the new dialog surface via the German label set; `e2e/medications-wizard-compose.spec.ts` walks a two-schedule create flow (daily Ramipril + weekly-Wednesday addendum) and asserts both summary cards land on Step 8 before save.
+- Route tests assert POST `/api/medications` accepts a body with `category: "DIABETES"` and `category: "ANTIBIOTIC"`.
+
+### Notes
+
+- **No API or wire-format change.** The wizard writes the same `createMedicationSchema` payload the v1.5.3 wizard wrote; iOS clients reading and writing the existing schedule shape are unaffected. The native `treatmentClass` enum already shipped `GLP1`; the wizard's Step 2 maps the Marc-confirmed labels onto the existing enum + the two new `MedicationCategory` values.
+- **Cadence-engine read-flip is still v1.5.x deferred** — the today-projector, the cadence chart, and the medication card continue to read the legacy `daysOfWeek` / `intervalWeeks` columns. A wizard-minted rolling or one-shot medication will render a daily-looking next-due chip on the dashboard until the read-flip ships. The reminder worker and the engine work with the new fields correctly.
+- **Test totals.** 5500 unit + 1 skipped, 261 integration + 3 skipped, 14 Playwright wizard instances. Typecheck, lint, `openapi:check`, i18n call-site coverage, locale-integrity all green at HEAD.
+
 ## [1.5.3] — 2026-05-28 — Medication scheduling: RRULE cadences, rolling intervals, one-shot lifecycle, creation wizard
 
 The medication surface in v1.5.2 covered daily and weekday-subset schedules cleanly, but everything else — bi-weekly, monthly, quarterly, yearly, "every N days from my last injection", single-dose appointments — either drifted or was unreachable from the UI. The reminder worker also carried a quiet pre-existing bug where `intervalWeeks` was ignored: a schedule meant to fire every other Wednesday fired every Wednesday. This release lands the full cadence surface, closes the worker bug behind a regression test, and adds a step-driven creation flow patients can walk without consulting a manual.
