@@ -197,6 +197,38 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     tz: user.timezone,
   });
 
+  // v1.5.0 — one-shot lifecycle. A `oneShot` medication has at most
+  // one intake; once that intake is logged (non-skipped) the
+  // medication auto-deactivates so the reminder worker stops
+  // considering it and the dashboard "Erfassen" sheet drops it. The
+  // flip runs AFTER the intake row is committed (any failure inside
+  // the transaction above re-raises before this line), so a flaky
+  // write never deactivates a medication that didn't actually
+  // receive its dose. Skipped intakes don't qualify — a "skipped"
+  // event on a one-shot leaves the medication open for the eventual
+  // real dose.
+  const medForOneShotCheck = await prisma.medication.findUnique({
+    where: { id },
+    select: { oneShot: true, active: true },
+  });
+  if (medForOneShotCheck?.oneShot && medForOneShotCheck.active && !skipped) {
+    await prisma.medication.update({
+      where: { id },
+      data: { active: false },
+    });
+    await auditLog("medication.oneShot.deactivated", {
+      userId: user.id,
+      ipAddress: getClientIp(request),
+      details: { medicationId: id, eventId: event.id },
+    });
+    annotate({
+      action: { name: "medication.oneShot.deactivated" },
+      meta: { medication_id: id, event_id: event.id },
+    });
+    // Invalidate again so the next list-meds read sees the flip.
+    invalidateUserMedications(user.id);
+  }
+
   return apiSuccess(event, 201);
 }
 
