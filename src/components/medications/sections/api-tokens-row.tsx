@@ -16,7 +16,7 @@
  * without a manual refresh.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Copy, KeyRound } from "lucide-react";
@@ -48,13 +48,12 @@ export function ApiTokensRow({
   const [mintedToken, setMintedToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Per-medication api-endpoint status reads under a dedicated key
-  // that rides the `["medications", id, …]` prefix so the bundle
-  // invalidation in `medicationDependentKeys` catches it.
-  const queryKey = useMemo(
-    () => ["medications", medicationId, "api-endpoint"] as const,
-    [medicationId],
-  );
+  // v1.5.5 F-1 H-2 — single source of truth for the per-medication
+  // api-endpoint key. The earlier inline `useMemo` minted the same
+  // tuple as a bare array, slipping past `healthlog/queryKey-factory`.
+  // Reading from the factory keeps the bundle invalidation +
+  // `setQueryData` shape stable across consumers.
+  const queryKey = queryKeys.medicationApiEndpoint(medicationId);
 
   const { data: status } = useQuery<ApiEndpointStatus>({
     queryKey,

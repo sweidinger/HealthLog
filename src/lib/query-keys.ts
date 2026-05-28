@@ -130,6 +130,16 @@ export const queryKeys = {
     ["dashboard-medication-compliance", days] as const,
   medicationPhaseConfig: (medicationId: string) =>
     ["phase-config", medicationId] as const,
+  /**
+   * v1.5.5 F-1 H-2 — per-medication api-endpoint status (enabled +
+   * active-token-count) used by the detail-page Externe Integration
+   * row. The key rides under the `["medications", id, …]` prefix so
+   * `medicationDependentKeys` catches it on token mint / disable.
+   * Centralising the tuple closes the bare-array bypass the
+   * useMemo inside `<ApiTokensRow>` was using.
+   */
+  medicationApiEndpoint: (medicationId: string) =>
+    ["medications", medicationId, "api-endpoint"] as const,
 
   gamificationAchievements: () => ["gamification", "achievements"] as const,
 
