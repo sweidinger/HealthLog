@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  addSchedule,
   buildCreateBody,
+  commitActiveDraft,
   emptyWizardPayload,
   hydrateWizardPayload,
+  landingStepForEdit,
   type MedicationPayload,
   progressIndices,
+  removeSchedule,
   rowFromTreatment,
+  setActiveSchedule,
   summariseCadence,
   validateStep,
   type WizardPayload,
@@ -574,5 +579,160 @@ describe("hydrateWizardPayload", () => {
     expect(out.cadence.kind).toBe("everyNWeeks");
     expect(out.subControls.weekdays).toEqual(["WE"]);
     expect(out.subControls.intervalWeeks).toBe(2);
+  });
+});
+
+describe("compose-mode — multi-schedule encoder + hydrator", () => {
+  it("buildCreateBody emits every schedule for a 2-schedule medication", () => {
+    // Active draft is a recurring daily schedule (the wizard flat
+    // mirror). A second draft sits in the list as a weekly Wednesday
+    // schedule. Both must land in the encoded body.
+    const base = withCadence("daily");
+    const second = withCadence("weekdays", { weekdays: ["WE"] });
+    const payload: WizardPayload = {
+      ...base,
+      treatmentRow: "diabetes",
+      timesOfDay: ["08:00"],
+      startsOn: new Date(Date.UTC(2026, 4, 28)),
+      schedules: [
+        // First draft mirrors the flat fields — buildCreateBody
+        // commits the active draft before encoding.
+        {
+          mode: base.mode,
+          cadence: base.cadence,
+          subControls: base.subControls,
+          timesOfDay: ["08:00"],
+        },
+        {
+          mode: second.mode,
+          cadence: second.cadence,
+          subControls: second.subControls,
+          timesOfDay: ["20:00"],
+        },
+      ],
+      activeScheduleIndex: 0,
+    };
+    const body = buildCreateBody(payload);
+    expect(body.schedules).toHaveLength(2);
+    expect(body.schedules[0].rrule).toBe("FREQ=DAILY");
+    expect(body.schedules[0].timesOfDay).toEqual(["08:00"]);
+    expect(body.schedules[1].rrule).toBe("FREQ=WEEKLY;BYDAY=WE");
+    expect(body.schedules[1].timesOfDay).toEqual(["20:00"]);
+  });
+
+  it("buildUpdateBody preserves schedule.id on edit", () => {
+    // Hydrate from a multi-schedule medication, then encode; every
+    // schedule must carry its persisted `id` back through.
+    const initial: MedicationPayload = {
+      id: "med_compose",
+      name: "Insulin",
+      dose: "10 IE",
+      category: "DIABETES",
+      treatmentClass: "GENERIC",
+      notificationsEnabled: true,
+      startsOn: new Date(Date.UTC(2026, 0, 1)),
+      endsOn: null,
+      oneShot: false,
+      schedules: [
+        {
+          id: "sch_short",
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          timesOfDay: ["08:00", "12:00", "18:00"],
+          rrule: "FREQ=DAILY",
+          rollingIntervalDays: null,
+        },
+        {
+          id: "sch_long",
+          windowStart: "22:00",
+          windowEnd: "23:00",
+          timesOfDay: ["22:00"],
+          rrule: "FREQ=DAILY",
+          rollingIntervalDays: null,
+        },
+      ],
+    };
+    const payload = hydrateWizardPayload(initial);
+    const body = buildCreateBody(payload);
+    expect(body.schedules).toHaveLength(2);
+    expect(body.schedules[0].id).toBe("sch_short");
+    expect(body.schedules[1].id).toBe("sch_long");
+  });
+
+  it("hydrateWizardPayload reads N schedules and lands on Step 8 when N > 1", () => {
+    const initial: MedicationPayload = {
+      id: "med_compose",
+      name: "Insulin",
+      dose: "10 IE",
+      category: "DIABETES",
+      treatmentClass: "GENERIC",
+      notificationsEnabled: true,
+      startsOn: new Date(Date.UTC(2026, 0, 1)),
+      endsOn: null,
+      oneShot: false,
+      schedules: [
+        {
+          id: "sch_a",
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          timesOfDay: ["08:00"],
+          rrule: "FREQ=DAILY",
+          rollingIntervalDays: null,
+        },
+        {
+          id: "sch_b",
+          windowStart: "22:00",
+          windowEnd: "23:00",
+          timesOfDay: ["22:00"],
+          rrule: "FREQ=DAILY",
+          rollingIntervalDays: null,
+        },
+      ],
+    };
+    const payload = hydrateWizardPayload(initial);
+    expect(payload.schedules).toHaveLength(2);
+    expect(payload.activeScheduleIndex).toBe(0);
+    expect(payload.schedules[0].id).toBe("sch_a");
+    expect(payload.schedules[1].id).toBe("sch_b");
+    expect(landingStepForEdit(payload)).toBe(8);
+
+    // Single-schedule still lands on Step 1.
+    const single = hydrateWizardPayload({
+      ...initial,
+      schedules: [initial.schedules[0]],
+    });
+    expect(landingStepForEdit(single)).toBe(1);
+  });
+
+  it("removeSchedule refuses when schedules.length === 1", () => {
+    const payload = emptyWizardPayload();
+    expect(payload.schedules).toHaveLength(1);
+    const after = removeSchedule(payload, 0);
+    // Returns the same payload reference / shape — no mutation.
+    expect(after.schedules).toHaveLength(1);
+    expect(after.activeScheduleIndex).toBe(0);
+  });
+
+  it("addSchedule appends and bumps activeScheduleIndex", () => {
+    const payload = emptyWizardPayload();
+    const after = addSchedule(payload);
+    expect(after.schedules).toHaveLength(2);
+    expect(after.activeScheduleIndex).toBe(1);
+
+    // setActiveSchedule routes the flat mirror back to the first
+    // draft, and a removeSchedule then drops the second.
+    const back = setActiveSchedule(after, 0);
+    expect(back.activeScheduleIndex).toBe(0);
+    const dropped = removeSchedule(back, 1);
+    expect(dropped.schedules).toHaveLength(1);
+
+    // commitActiveDraft writes the flat mirror onto the active slot.
+    const edited = commitActiveDraft({
+      ...after,
+      timesOfDay: ["20:00"],
+    });
+    expect(edited.schedules[after.activeScheduleIndex].timesOfDay).toEqual([
+      "20:00",
+    ]);
   });
 });
