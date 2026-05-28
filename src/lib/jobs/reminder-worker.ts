@@ -11,7 +11,11 @@ import type { Job } from "pg-boss";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
-import { parseScheduleRecurrence } from "@/lib/medication-schedule";
+import {
+  buildCanonicalSchedule,
+  buildRecurrenceContext,
+  scheduleEmitsInWindow,
+} from "@/lib/medications/scheduling/worker-helpers";
 import { syncUserMeasurements } from "@/lib/withings/sync";
 import { syncUserActivity } from "@/lib/withings/sync-activity";
 import { syncUserSleep } from "@/lib/withings/sync-sleep";
@@ -116,7 +120,6 @@ import { assertSubsystemEnabled } from "@/lib/process-type";
 import { runOffhostBackup } from "@/lib/jobs/offhost-backup";
 import {
   getUserTodayBounds as getUserTodayBoundsUtil,
-  getDayOfWeekInTz as getDayOfWeekInTzUtil,
   localHmAsUtc,
 } from "@/lib/timezone";
 
@@ -349,7 +352,6 @@ interface MoodReminderPayload {
 
 // Re-export timezone utilities under local names for backward compatibility
 const getUserTodayBounds = getUserTodayBoundsUtil;
-const getDayOfWeekInTz = getDayOfWeekInTzUtil;
 
 /**
  * Process expired TelegramScheduledDeletion records.
@@ -485,8 +487,6 @@ async function handleReminderCheck(jobs: Job<ReminderCheckPayload>[]) {
           hour12: false,
         });
 
-        const todayDow = getDayOfWeekInTz(now, userTz);
-
         // Get today's date string in user's timezone for message tracking
         const localDateStr = now.toLocaleDateString("sv-SE", {
           timeZone: userTz,
@@ -509,12 +509,53 @@ async function handleReminderCheck(jobs: Job<ReminderCheckPayload>[]) {
           a.windowStart.localeCompare(b.windowStart),
         );
 
+        // v1.5.0 — fetch the latest `takenAt` for this medication
+        // once per tick when any schedule on it is rolling. The
+        // canonical recurrence engine needs `lastIntakeAt` to compute
+        // the next-due instant for rolling cadences; calendar
+        // cadences ignore the field, so the fetch is conditional to
+        // avoid an extra round-trip on the common path. Failures bias
+        // toward "treat as never logged" so a flaky DB doesn't
+        // suppress reminders.
+        const hasRollingSchedule = med.schedules.some(
+          (s) => s.rollingIntervalDays !== null,
+        );
+        let lastIntakeAt: Date | null = null;
+        if (hasRollingSchedule) {
+          const lastIntake = await prisma.medicationIntakeEvent.findFirst({
+            where: {
+              userId: med.user.id,
+              medicationId: med.id,
+              takenAt: { not: null },
+            },
+            orderBy: { takenAt: "desc" },
+            select: { takenAt: true },
+          });
+          lastIntakeAt = lastIntake?.takenAt ?? null;
+        }
+
         for (const schedule of sortedSchedules) {
-          // Check day-of-week / recurrence constraints
-          const recurrence = parseScheduleRecurrence(schedule.daysOfWeek);
+          // v1.5.0 — route every "does today emit a slot?" decision
+          // through the canonical recurrence engine. Replaces the
+          // legacy weekday-only filter that silently ignored
+          // `intervalWeeks` (the pre-v1.5 bi-weekly bug — a Wed
+          // bi-weekly schedule fired every Wed instead of every other
+          // Wed). The engine honours RRULE / rolling / one-shot /
+          // legacy-with-interval-weeks / `endsOn` cap; no special-
+          // casing here.
+          const canonicalSchedule = buildCanonicalSchedule(schedule);
+          const recurrenceCtx = buildRecurrenceContext({
+            medication: med,
+            userTz,
+            lastIntakeAt,
+          });
           if (
-            recurrence.daysOfWeek.length > 0 &&
-            !recurrence.daysOfWeek.includes(todayDow)
+            !scheduleEmitsInWindow(
+              canonicalSchedule,
+              recurrenceCtx,
+              todayStart,
+              todayEnd,
+            )
           ) {
             continue;
           }
