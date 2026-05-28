@@ -632,6 +632,28 @@
           "longestTooltip": "Longest unbroken streak within the 30-day window.",
           "missedTooltip": "Count of doses missed in the last 30 days."
         }
+      },
+      "naturalLanguage": {
+        "title": "Describe your medication",
+        "description": "Write the medication in your own words and we will pre-fill the form for you.",
+        "placeholder": "e.g. Mounjaro 5mg weekly on Wednesday morning starting next Monday",
+        "submit": "Extract",
+        "submitBusy": "Extracting…",
+        "cancel": "Cancel",
+        "examples": {
+          "label": "Try one of these examples",
+          "weekly": "Mounjaro 5mg weekly on Wednesday morning",
+          "daily": "Ibuprofen 200mg every day, 3 times a day",
+          "rolling": "Methotrexate 7.5mg every 7 days from last injection"
+        },
+        "error": {
+          "empty": "Type a description first.",
+          "tooLong": "Keep the description under 2000 characters.",
+          "rateLimit": "Too many requests — wait a moment and try again.",
+          "noProvider": "No AI provider configured — set one up in Settings.",
+          "budget": "Daily AI budget reached — try again tomorrow.",
+          "network": "Could not reach the AI provider — please retry."
+        }
       }
     },
     "titration": {

@@ -632,6 +632,28 @@
           "longestTooltip": "Racha continua más larga dentro de la ventana de 30 días.",
           "missedTooltip": "Número de dosis olvidadas en los últimos 30 días."
         }
+      },
+      "naturalLanguage": {
+        "title": "Describe tu medicación",
+        "description": "Describe la medicación con tus propias palabras y completaremos el formulario por ti.",
+        "placeholder": "p. ej. Mounjaro 5 mg semanal los miércoles por la mañana a partir del próximo lunes",
+        "submit": "Extraer",
+        "submitBusy": "Extrayendo…",
+        "cancel": "Cancelar",
+        "examples": {
+          "label": "Prueba uno de estos ejemplos",
+          "weekly": "Mounjaro 5 mg semanal los miércoles por la mañana",
+          "daily": "Ibuprofeno 200 mg todos los días, 3 veces al día",
+          "rolling": "Metotrexato 7,5 mg cada 7 días desde la última inyección"
+        },
+        "error": {
+          "empty": "Escribe una descripción primero.",
+          "tooLong": "Mantén la descripción por debajo de 2000 caracteres.",
+          "rateLimit": "Demasiadas solicitudes — espera un momento e inténtalo de nuevo.",
+          "noProvider": "Sin proveedor de IA configurado — configúralo en Ajustes.",
+          "budget": "Se alcanzó el presupuesto diario de IA — inténtalo de nuevo mañana.",
+          "network": "No se pudo contactar con el proveedor de IA — inténtalo de nuevo."
+        }
       }
     },
     "titration": {

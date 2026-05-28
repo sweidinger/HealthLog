@@ -632,6 +632,28 @@
           "longestTooltip": "Längste durchgehende Serie im 30-Tage-Fenster.",
           "missedTooltip": "Anzahl verpasster Dosen in den letzten 30 Tagen."
         }
+      },
+      "naturalLanguage": {
+        "title": "Medikament beschreiben",
+        "description": "Beschreibe das Medikament in eigenen Worten — das Formular wird automatisch vorausgefüllt.",
+        "placeholder": "z. B. Mounjaro 5 mg wöchentlich am Mittwochmorgen ab nächstem Montag",
+        "submit": "Übernehmen",
+        "submitBusy": "Wird verarbeitet …",
+        "cancel": "Abbrechen",
+        "examples": {
+          "label": "Eines dieser Beispiele übernehmen",
+          "weekly": "Mounjaro 5 mg wöchentlich am Mittwochmorgen",
+          "daily": "Ibuprofen 200 mg täglich, 3-mal am Tag",
+          "rolling": "Methotrexat 7,5 mg alle 7 Tage nach der letzten Spritze"
+        },
+        "error": {
+          "empty": "Bitte zuerst eine Beschreibung eingeben.",
+          "tooLong": "Beschreibung muss unter 2000 Zeichen bleiben.",
+          "rateLimit": "Zu viele Anfragen — bitte kurz warten und erneut versuchen.",
+          "noProvider": "Kein KI-Anbieter konfiguriert — bitte in den Einstellungen einrichten.",
+          "budget": "Tägliches KI-Budget erreicht — bitte morgen erneut versuchen.",
+          "network": "KI-Anbieter nicht erreichbar — bitte erneut versuchen."
+        }
       }
     },
     "titration": {

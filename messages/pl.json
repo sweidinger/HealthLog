@@ -632,6 +632,28 @@
           "longestTooltip": "Najdłuższa nieprzerwana seria w 30-dniowym oknie.",
           "missedTooltip": "Liczba dawek pominiętych w ostatnich 30 dniach."
         }
+      },
+      "naturalLanguage": {
+        "title": "Opisz lek",
+        "description": "Opisz lek własnymi słowami, a my wstępnie wypełnimy formularz za Ciebie.",
+        "placeholder": "np. Mounjaro 5 mg co tydzień w środę rano od najbliższego poniedziałku",
+        "submit": "Wyodrębnij",
+        "submitBusy": "Wyodrębnianie…",
+        "cancel": "Anuluj",
+        "examples": {
+          "label": "Wypróbuj jeden z tych przykładów",
+          "weekly": "Mounjaro 5 mg co tydzień w środę rano",
+          "daily": "Ibuprofen 200 mg codziennie, 3 razy dziennie",
+          "rolling": "Metotreksat 7,5 mg co 7 dni od ostatniego wstrzyknięcia"
+        },
+        "error": {
+          "empty": "Najpierw wpisz opis.",
+          "tooLong": "Utrzymuj opis poniżej 2000 znaków.",
+          "rateLimit": "Zbyt wiele żądań — poczekaj chwilę i spróbuj ponownie.",
+          "noProvider": "Brak skonfigurowanego dostawcy AI — skonfiguruj go w Ustawieniach.",
+          "budget": "Osiągnięto dzienny limit AI — spróbuj jutro.",
+          "network": "Nie udało się połączyć z dostawcą AI — spróbuj ponownie."
+        }
       }
     },
     "titration": {
