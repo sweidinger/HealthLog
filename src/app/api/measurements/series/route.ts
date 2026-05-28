@@ -34,6 +34,14 @@ const kindEnum = z.enum([
   "totalBodyWater",
   "boneMass",
   "oxygenSaturation",
+  // v1.5.5 — the iOS app surfaces these as series-capable, but
+  // the route used to reject the trend/detail view request with a
+  // 422. The underlying MeasurementType enum already carries each
+  // value; this list extends the camelCase wire shape so the route
+  // matches the data it can serve.
+  "restingHeartRate",
+  "heartRateVariability",
+  "vo2Max",
 ]);
 
 const querySchema = z.object({
@@ -58,6 +66,9 @@ const KIND_TO_TYPE: Record<z.infer<typeof kindEnum>, MeasurementType> = {
   totalBodyWater: "TOTAL_BODY_WATER",
   boneMass: "BONE_MASS",
   oxygenSaturation: "OXYGEN_SATURATION",
+  restingHeartRate: "RESTING_HEART_RATE",
+  heartRateVariability: "HEART_RATE_VARIABILITY",
+  vo2Max: "VO2_MAX",
 };
 
 interface SeriesPoint {

@@ -133,6 +133,21 @@ describe("GET /api/measurements/series", () => {
     const res = await GET(req("kind=weight&days=3651"));
     expect(res.status).toBe(422);
   });
+
+  it.each(["restingHeartRate", "heartRateVariability", "vo2Max"])(
+    "accepts kind=%s (v1.5.5)",
+    async (kind) => {
+      // v1.5.5 — the iOS app surfaces these as series-capable; the
+      // previous enum rejected them with 422 even though the
+      // underlying MeasurementType already carried the values.
+      vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+      vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+      const res = await GET(req(`kind=${kind}&days=30`));
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { data: { kind: string } };
+      expect(body.data.kind).toBe(kind);
+    },
+  );
 });
 
 describe("GET /api/measurements/series — 422 multi-issue (v1.4.43 W6)", () => {
