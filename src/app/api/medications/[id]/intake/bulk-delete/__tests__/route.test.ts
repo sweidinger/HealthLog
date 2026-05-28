@@ -35,6 +35,15 @@ vi.mock("@/lib/medications/route-guards", () => ({
   assertMedicationOwnership: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 29,
+    resetAt: Date.now() + 60_000,
+  }),
+  rateLimitHeaders: vi.fn(() => ({ "X-RateLimit-Remaining": "0" })),
+}));
+
 vi.mock("@/lib/rollups/medication-compliance-rollups", () => ({
   dayKeyForScheduledFor: vi.fn((d: Date) => {
     const iso = d.toISOString();
@@ -72,6 +81,7 @@ import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { checkRateLimit } from "@/lib/rate-limit";
 import {
   dayKeyForScheduledFor,
   recomputeMedicationComplianceForDay,
@@ -96,6 +106,11 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(assertMedicationOwnership).mockResolvedValue(null);
+  vi.mocked(checkRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 29,
+    resetAt: Date.now() + 60_000,
+  });
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     timezone: "Europe/Berlin",
   } as never);
@@ -188,5 +203,32 @@ describe("POST /api/medications/[id]/intake/bulk-delete", () => {
       userId: "user-1",
       medicationId: "med-1",
     });
+  });
+});
+
+describe("POST /api/medications/[id]/intake/bulk-delete — F-1 H-6 rate limit", () => {
+  it("returns 429 when the per-user cap is exhausted", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValueOnce({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 60_000,
+    });
+    const res = await POST(
+      postWithBody({ eventIds: ["evt-a"] }),
+      ROUTE_PARAMS,
+    );
+    expect(res.status).toBe(429);
+    expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
+    expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("scopes the bucket key to the calling user", async () => {
+    await POST(postWithBody({ eventIds: ["evt-a"] }), ROUTE_PARAMS);
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      "medication-intake-bulk-delete:user-1",
+      30,
+      60_000,
+    );
   });
 });

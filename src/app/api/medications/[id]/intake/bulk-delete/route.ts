@@ -3,11 +3,13 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import {
+  apiError,
   apiSuccess,
   getClientIp,
   returnAllZodIssues,
   safeJson,
 } from "@/lib/api-response";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { bulkDeleteIntakeEventsSchema } from "@/lib/validations/medication";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import {
@@ -18,6 +20,13 @@ import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+// v1.5.5 F-1 H-6 — match the glp1 POST shape so a caller firing
+// repeated 500-id bulk deletes cannot pin the per-dayKey recompute
+// path. 30/min/user is generous for a hand-driven multi-select and
+// tight enough to cut off the spam case.
+const BULK_DELETE_RATE_LIMIT = 30;
+const BULK_DELETE_WINDOW_MS = 60_000;
 
 /**
  * v1.5.5 D-3 §9.5 + §11 — bulk-delete N intake rows in one transaction
@@ -53,6 +62,20 @@ export const POST = apiHandler(
     const { id } = await params;
     const guard = await assertMedicationOwnership(id, user.id);
     if (guard) return guard;
+
+    // v1.5.5 F-1 H-6 — per-user cap matches the glp1 POST so a caller
+    // firing repeated 500-id bulk deletes cannot pin the per-dayKey
+    // recompute path.
+    const rl = await checkRateLimit(
+      `medication-intake-bulk-delete:${user.id}`,
+      BULK_DELETE_RATE_LIMIT,
+      BULK_DELETE_WINDOW_MS,
+    );
+    if (!rl.allowed) {
+      return apiError("Too many requests", 429, {
+        headers: rateLimitHeaders(rl),
+      });
+    }
 
     const { data: body, error: jsonError } = await safeJson(request);
     if (jsonError) return jsonError;
