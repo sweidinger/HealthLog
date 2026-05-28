@@ -294,6 +294,32 @@
         "title": "No workouts yet",
         "cta": "Open Apple Health on your iPhone to sync workouts here."
       }
+    },
+    "metric": {
+      "title": {
+        "weight": "Weight",
+        "bloodPressure": "Blood Pressure",
+        "pulse": "Pulse",
+        "bodyFat": "Body Fat",
+        "glucose": "Blood Glucose",
+        "sleep": "Sleep",
+        "steps": "Steps",
+        "totalBodyWater": "Total Body Water",
+        "boneMass": "Bone Mass",
+        "oxygenSaturation": "Oxygen Saturation"
+      },
+      "unit": {
+        "weight": "kg",
+        "bloodPressure": "mmHg",
+        "pulse": "bpm",
+        "bodyFat": "%",
+        "glucose": "mg/dL",
+        "sleep": "h",
+        "steps": "steps",
+        "totalBodyWater": "kg",
+        "boneMass": "kg",
+        "oxygenSaturation": "%"
+      }
     }
   },
   "measurements": {

@@ -294,6 +294,32 @@
         "title": "Noch keine Workouts",
         "cta": "Öffne die Apple-Health-App auf dem iPhone, damit Workouts hier erscheinen."
       }
+    },
+    "metric": {
+      "title": {
+        "weight": "Gewicht",
+        "bloodPressure": "Blutdruck",
+        "pulse": "Puls",
+        "bodyFat": "Körperfett",
+        "glucose": "Blutzucker",
+        "sleep": "Schlaf",
+        "steps": "Schritte",
+        "totalBodyWater": "Gesamtkörperwasser",
+        "boneMass": "Knochenmasse",
+        "oxygenSaturation": "Sauerstoffsättigung"
+      },
+      "unit": {
+        "weight": "kg",
+        "bloodPressure": "mmHg",
+        "pulse": "bpm",
+        "bodyFat": "%",
+        "glucose": "mg/dL",
+        "sleep": "h",
+        "steps": "Schritte",
+        "totalBodyWater": "kg",
+        "boneMass": "kg",
+        "oxygenSaturation": "%"
+      }
     }
   },
   "measurements": {

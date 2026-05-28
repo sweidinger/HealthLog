@@ -294,6 +294,32 @@
         "title": "Aún no hay entrenamientos",
         "cta": "Abre la app Apple Salud en el iPhone para sincronizar los entrenamientos."
       }
+    },
+    "metric": {
+      "title": {
+        "weight": "Peso",
+        "bloodPressure": "Presión arterial",
+        "pulse": "Pulso",
+        "bodyFat": "Grasa corporal",
+        "glucose": "Glucemia",
+        "sleep": "Sueño",
+        "steps": "Pasos",
+        "totalBodyWater": "Agua corporal total",
+        "boneMass": "Masa ósea",
+        "oxygenSaturation": "Saturación de oxígeno"
+      },
+      "unit": {
+        "weight": "kg",
+        "bloodPressure": "mmHg",
+        "pulse": "bpm",
+        "bodyFat": "%",
+        "glucose": "mg/dL",
+        "sleep": "h",
+        "steps": "pasos",
+        "totalBodyWater": "kg",
+        "boneMass": "kg",
+        "oxygenSaturation": "%"
+      }
     }
   },
   "measurements": {

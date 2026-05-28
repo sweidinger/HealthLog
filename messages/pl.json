@@ -294,6 +294,32 @@
         "title": "Brak treningów",
         "cta": "Otwórz aplikację Apple Zdrowie na iPhonie, aby zsynchronizować treningi."
       }
+    },
+    "metric": {
+      "title": {
+        "weight": "Waga",
+        "bloodPressure": "Ciśnienie krwi",
+        "pulse": "Tętno",
+        "bodyFat": "Tkanka tłuszczowa",
+        "glucose": "Glikemia",
+        "sleep": "Sen",
+        "steps": "Kroki",
+        "totalBodyWater": "Całkowita woda w organizmie",
+        "boneMass": "Masa kostna",
+        "oxygenSaturation": "Saturacja tlenem"
+      },
+      "unit": {
+        "weight": "kg",
+        "bloodPressure": "mmHg",
+        "pulse": "bpm",
+        "bodyFat": "%",
+        "glucose": "mg/dL",
+        "sleep": "h",
+        "steps": "kroki",
+        "totalBodyWater": "kg",
+        "boneMass": "kg",
+        "oxygenSaturation": "%"
+      }
     }
   },
   "measurements": {
