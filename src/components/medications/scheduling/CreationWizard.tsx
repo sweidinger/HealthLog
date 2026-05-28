@@ -72,7 +72,7 @@
  *   .errors.fieldRequired                — "Required"
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Sparkles } from "lucide-react";
@@ -522,9 +522,36 @@ export function CreationWizard({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // Ref on the step body so we can pull focus into the first
+  // interactive control whenever the wizard advances. Without this a
+  // keyboard / screen-reader user stays parked on the Back / Next
+  // button across step transitions instead of landing on the new
+  // step's input.
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const isFirstRenderRef = useRef(true);
+
   const applyPartial = useCallback((partial: Partial<WizardPayload>) => {
     setPayload((prev) => ({ ...prev, ...partial }));
   }, []);
+
+  // Focus the first interactive element when the step changes.
+  // Skip the initial render so opening the wizard never steals focus
+  // from the page chrome.
+  useEffect(() => {
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      return;
+    }
+    const node = bodyRef.current;
+    if (!node) return;
+    const target = node.querySelector<HTMLElement>(
+      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (!target) return;
+    // preventScroll keeps the focus jump silent for reduced-motion
+    // users; the surrounding layout already keeps the body in view.
+    target.focus({ preventScroll: true });
+  }, [step]);
 
   const canContinue = useMemo(
     () => validateStep(payload, step),
@@ -627,7 +654,7 @@ export function CreationWizard({
         <p className="text-muted-foreground text-xs">{stepOf}</p>
         <CardTitle className="text-base">{stepTitle}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4" ref={bodyRef}>
         {step === 1 && (
           <Step1NameDose
             payload={payload}
@@ -733,9 +760,8 @@ function Step1NameDose({
         <Button
           type="button"
           variant="outline"
-          size="sm"
           onClick={onNlClick}
-          className="w-full"
+          className="h-11 w-full"
           data-slot="wizard-nl-button"
         >
           <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />

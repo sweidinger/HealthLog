@@ -308,7 +308,13 @@ function CadenceOption({
       data-slot="cadence-option"
       data-kind={kind}
     >
-      <div className="flex min-h-11 items-center gap-3">
+      {/* Wrapping the row in <label> makes the entire 44 px-tall card
+          a click target for the radio (WCAG 2.5.5) instead of just the
+          16 px radio glyph + the label text node. */}
+      <label
+        htmlFor={inputId}
+        className="flex min-h-11 cursor-pointer items-center gap-3 select-none"
+      >
         <input
           id={inputId}
           type="radio"
@@ -316,17 +322,11 @@ function CadenceOption({
           checked={selected}
           disabled={disabled}
           onChange={onPick}
-          aria-label={label}
           className="text-primary focus-visible:ring-ring h-4 w-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2"
           data-slot="cadence-option-radio"
         />
-        <Label
-          htmlFor={inputId}
-          className="cursor-pointer select-none text-sm font-medium"
-        >
-          {label}
-        </Label>
-      </div>
+        <span className="text-sm font-medium">{label}</span>
+      </label>
 
       {selected && kind === "weekdays" && (
         <div className="mt-3">
