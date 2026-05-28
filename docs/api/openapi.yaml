@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.5.2
+  version: 1.5.3
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -1691,6 +1691,8 @@ components:
             - HORMONE
             - SKIN
             - SLEEP_AID
+            - DIABETES
+            - ANTIBIOTIC
             - OTHER
         treatmentClass:
           type: string
@@ -1834,6 +1836,8 @@ components:
             - HORMONE
             - SKIN
             - SLEEP_AID
+            - DIABETES
+            - ANTIBIOTIC
             - OTHER
         treatmentClass:
           type: string
@@ -2837,6 +2841,8 @@ components:
         - HORMONE
         - SKIN
         - SLEEP_AID
+        - DIABETES
+        - ANTIBIOTIC
         - OTHER
       description: Clinical taxonomy stored in the `medication_categories` side-table. Orthogonal to `MedicationTreatmentClass`.
     CreateMedicationResponse:

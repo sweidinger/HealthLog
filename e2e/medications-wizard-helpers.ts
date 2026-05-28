@@ -1,27 +1,25 @@
 import { expect, type Page, type Route } from "@playwright/test";
 
 /**
- * Shared helpers for the medication-wizard cadence specs.
+ * v1.5.4 — shared helpers for the modal medication-wizard specs.
  *
  * The six specs (daily / weekdays / biweekly / monthly / rolling /
- * oneshot) walk the same seven-step skeleton with different sub-step
- * inputs. The shared pieces — POST + GET stubs, list-page entry check,
- * step-indicator assertions, dashboard analytics stub — live here so
+ * oneshot) walk the same dialog with different cadence-specific
+ * inputs. The shared pieces — POST + GET stubs, list-page entry
+ * check, dialog open + step-indicator assertions — live here so
  * the per-cadence specs only carry the cadence-specific selectors.
  *
- * No abstraction over the seven steps themselves: the cadence-specific
- * differences (which radio to pick, which sub-control to fill) are the
- * point of the spec, so the per-spec code expresses them directly.
+ * The path counter follows the user's path:
+ *   one-shot   = 5 steps (1, 2, 3, 4, 8)
+ *   daily      = 7 steps (1, 2, 3, 4, 5, 7, 8)
+ *   recurring  = 8 steps (1, 2, 3, 4, 5, 6, 7, 8)
+ *
+ * `expectStep(page, displayIndex, totalSteps)` pins the visible
+ * "Schritt X von Y" string the dialog header renders.
  */
 
-/** The medication id the POST stub echoes back to the wizard. */
 export const STUB_MEDICATION_ID = "med_e2e_wizard";
 
-/**
- * The minimum medication shape `/medications` page reads through
- * `MedicationCard`. The list reads `data: Medication[]` and the card
- * itself is forgiving about missing optional fields.
- */
 interface StubbedMedication {
   id: string;
   name: string;
@@ -31,26 +29,14 @@ interface StubbedMedication {
   oneShot: boolean;
 }
 
-/**
- * Mock `/api/medications` for both the POST (creation) and the GET
- * (list refresh after the wizard redirects). Returns the captured
- * request body so each spec can assert against it independently.
- *
- * The list GET echoes the just-posted medication so the `/medications`
- * page paints a card the spec can pin against.
- */
 export function mockMedicationsApi(page: Page, stubbed: StubbedMedication) {
   const capture: { postBody: unknown } = { postBody: null };
 
-  // The list page reads the schedule shape too — surface the new
-  // v1.5 fields the card consumes (rrule, rollingIntervalDays, oneShot,
-  // timesOfDay). windowStart/windowEnd stay required by the card's
-  // legacy fallback even when timesOfDay is populated.
   const listEntry = {
     id: stubbed.id,
     name: stubbed.name,
     dose: stubbed.dose,
-    category: "MEDICATION",
+    category: "OTHER",
     active: true,
     notificationsEnabled: true,
     pausedAt: null,
@@ -74,15 +60,9 @@ export function mockMedicationsApi(page: Page, stubbed: StubbedMedication) {
     ],
   };
 
-  // The `**/api/medications*` glob matches the bare collection URL the
-  // wizard posts to AND the list query the medications page issues.
-  // Routes registered earlier win, so the list page never falls through
-  // to a real server response.
   void page.route("**/api/medications**", async (route: Route) => {
     const req = route.request();
     const url = new URL(req.url());
-    // Sub-paths (e.g. /api/medications/<id>/...) — let them through
-    // unhandled so the spec only stubs the surfaces it owns.
     if (url.pathname !== "/api/medications") {
       await route.fallback();
       return;
@@ -116,12 +96,6 @@ export function mockMedicationsApi(page: Page, stubbed: StubbedMedication) {
   return capture;
 }
 
-/**
- * Stub the analytics fetches that fire on `/medications` so the page
- * paints without depending on the seed user's measurement state. The
- * `/api/analytics(?slice=…)` regex matches both the slim and thick
- * dashboard variants — same pattern the other specs use.
- */
 export async function stubDashboardAnalytics(page: Page): Promise<void> {
   await page.route(/\/api\/analytics(\?|$)/, (route) =>
     route.fulfill({
@@ -146,47 +120,95 @@ export async function stubDashboardAnalytics(page: Page): Promise<void> {
 }
 
 /**
- * Fill the Step 1 name + dose-amount inputs and confirm the step
- * indicator reads "Schritt 1 von 7" before we leave it. The dose unit
- * already defaults to "mg" via `emptyWizardPayload()` so we leave it
- * alone unless the caller wants something else.
+ * Open the wizard dialog by hitting `/medications/new` (which
+ * redirects to `/medications?new=1` and opens the create dialog).
  */
-export async function fillStep1(
-  page: Page,
-  { name, doseAmount }: { name: string; doseAmount: string },
-): Promise<void> {
-  await expect(page.getByText(/Schritt 1 von 7/i)).toBeVisible();
-  await page.locator("#wizard-name").fill(name);
-  await page.locator("#wizard-dose-amount").fill(doseAmount);
+export async function openCreateWizard(page: Page): Promise<void> {
+  await page.goto("/medications/new", { waitUntil: "domcontentloaded" });
+  await expect(
+    page.locator('[data-slot="medication-wizard-dialog"]'),
+  ).toBeVisible({ timeout: 10_000 });
 }
 
 /**
- * Click the wizard's primary Next button. Pinned by data-slot so we do
- * not collide with any other "Weiter" / "Next" labelled control the
- * page chrome may render.
+ * Fill the Step 1 name input. The dialog's first step asks only for
+ * the medication name — the dose moved to Step 3.
  */
+export async function fillStep1Name(
+  page: Page,
+  { name }: { name: string },
+): Promise<void> {
+  await expectStep(page, 1);
+  await page.locator("#wizard-name").fill(name);
+}
+
+/** Pick a Step 2 treatment-class row by its row identifier. */
+export async function pickTreatmentRow(
+  page: Page,
+  row:
+    | "bloodPressure"
+    | "diabetes"
+    | "hormone"
+    | "glp1"
+    | "painRelief"
+    | "allergy"
+    | "vitamin"
+    | "supplement"
+    | "antibiotic"
+    | "other",
+): Promise<void> {
+  await page
+    .locator(`[data-slot="wizard-class-row"][data-row="${row}"]`)
+    .click();
+}
+
+/** Fill the Step 3 dose amount input. */
+export async function fillStep3Dose(
+  page: Page,
+  { amount }: { amount: string },
+): Promise<void> {
+  await page.locator("#wizard-dose-amount").fill(amount);
+}
+
+/** Pick a Step 5 cadence row by its row identifier. */
+export async function pickCadenceRow(
+  page: Page,
+  row: "daily" | "weekdays" | "everyNWeeks" | "monthly" | "rolling" | "oneShot",
+): Promise<void> {
+  await page
+    .locator(`[data-slot="wizard-cadence-row"][data-row="${row}"]`)
+    .click();
+}
+
+/** Click Next. Pinned by data-slot. */
 export async function clickNext(page: Page): Promise<void> {
   await page.locator('[data-slot="wizard-next"]').click();
 }
 
+/** Click Save (last step CTA on create + edit). */
+export async function clickSave(page: Page): Promise<void> {
+  await page.locator('[data-slot="wizard-save"]').click();
+}
+
 /**
- * Click the wizard's primary Create button at step 7.
+ * Assert the wizard sits on a given visible step counter.
+ * `displayIndex` is the visible 1-based index; `totalSteps` is the
+ * path length for the active mode + cadence.
  */
-export async function clickCreate(page: Page): Promise<void> {
-  await page.locator('[data-slot="wizard-create"]').click();
-}
-
-/** Wait for the wizard to land on a given step (1-7). */
-export async function expectStep(page: Page, step: number): Promise<void> {
-  await expect(
-    page.getByText(new RegExp(`Schritt ${step} von 7`, "i")),
-  ).toBeVisible();
+export async function expectStep(
+  page: Page,
+  displayIndex: number,
+  totalSteps?: number,
+): Promise<void> {
+  const pattern = totalSteps
+    ? new RegExp(`Schritt ${displayIndex} von ${totalSteps}`, "i")
+    : new RegExp(`Schritt ${displayIndex} von \\d+`, "i");
+  await expect(page.getByText(pattern)).toBeVisible({ timeout: 5_000 });
 }
 
 /**
- * Verify the post-submit URL settles on `/medications/<id>`. Next.js
- * 404s for an unknown id which renders the `not-found.tsx` boundary
- * cleanly; the URL is the contract we care about, not the page body.
+ * Verify the post-submit URL settles on `/medications/<id>` (create
+ * path; the dialog navigates there on success).
  */
 export async function expectRedirectToMedication(
   page: Page,
@@ -198,11 +220,9 @@ export async function expectRedirectToMedication(
 }
 
 /**
- * Navigate to the list and assert the just-created medication appears
- * with the "Nächste Einnahme:" next-due chip (`medications.nextIntake`
- * leaf in `messages/de.json`). The one-shot variant uses a different
- * surface — the list still shows the medication name; we only assert
- * on the chip for recurring cadences.
+ * Navigate to the list and assert the just-created medication
+ * appears. The recurring variants surface a "Nächste Einnahme:" chip;
+ * the one-shot variant does not.
  */
 export async function expectMedicationOnList(
   page: Page,
@@ -212,10 +232,6 @@ export async function expectMedicationOnList(
   const main = page.locator("main");
   await expect(main.getByText(name).first()).toBeVisible({ timeout: 10_000 });
   if (withNextDueChip) {
-    // "Nächste Einnahme:" with the trailing colon is the literal label
-    // surfaced by `medications.nextIntake`. The card renders the chip
-    // when the medication is active AND has a next schedule slot, both
-    // true for the stubbed entry.
     await expect(main.getByText(/Nächste Einnahme:/i).first()).toBeVisible();
   }
 }

@@ -2,23 +2,27 @@ import { expect, test } from "@playwright/test";
 
 import {
   STUB_MEDICATION_ID,
-  clickCreate,
   clickNext,
+  clickSave,
   expectMedicationOnList,
   expectRedirectToMedication,
   expectStep,
-  fillStep1,
+  fillStep1Name,
+  fillStep3Dose,
   mockMedicationsApi,
+  openCreateWizard,
+  pickCadenceRow,
+  pickTreatmentRow,
   stubDashboardAnalytics,
 } from "./medications-wizard-helpers";
 import { STORAGE_STATE_PATH } from "./setup/global-setup";
 
 /**
- * Medication wizard end-to-end — monthly cadence.
+ * v1.5.4 — Medication wizard end-to-end — monthly cadence.
  *
- * Picks "Monatlich an einem bestimmten Tag" on step 3 and pins
- * dayOfMonth = 15. The emitted rrule is `FREQ=MONTHLY;BYMONTHDAY=15`
- * and the step-7 summary surfaces the "Monatlich" phrase.
+ * Walks the 8-step recurring path with "Monatlich" picked on Step 5
+ * and dayOfMonth = 15 set on Step 6. Emits
+ * `FREQ=MONTHLY;BYMONTHDAY=15`.
  */
 test.describe("medication wizard — monthly", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
@@ -30,49 +34,44 @@ test.describe("medication wizard — monthly", () => {
     const capture = mockMedicationsApi(page, {
       id: STUB_MEDICATION_ID,
       name: "Vitamin B12",
-      dose: "1000 mcg",
+      dose: "1000 µg",
       rrule: "FREQ=MONTHLY;BYMONTHDAY=15",
       rollingIntervalDays: null,
       oneShot: false,
     });
 
-    await page.goto("/medications/new", { waitUntil: "domcontentloaded" });
+    await openCreateWizard(page);
 
-    await fillStep1(page, { name: "Vitamin B12", doseAmount: "1000" });
+    await fillStep1Name(page, { name: "Vitamin B12" });
     await clickNext(page);
 
     await expectStep(page, 2);
-    await page.getByRole("radio", { name: /Wiederkehrend/i }).click();
+    await pickTreatmentRow(page, "vitamin");
     await clickNext(page);
 
     await expectStep(page, 3);
-    await page
-      .getByRole("radio", { name: /Monatlich an einem bestimmten Tag/i })
-      .click();
-
-    // Set day-of-month to 15. The sub-control input is the only number
-    // input inside the selected `monthly` option block.
-    const dayInput = page
-      .locator('[data-slot="cadence-number-input"]')
-      .first();
-    await dayInput.fill("15");
-
+    await fillStep3Dose(page, { amount: "1000" });
     await clickNext(page);
 
     await expectStep(page, 4);
     await clickNext(page);
 
-    await expectStep(page, 5);
+    await expectStep(page, 5, 8);
+    await pickCadenceRow(page, "monthly");
     await clickNext(page);
 
-    await expectStep(page, 6);
+    await expectStep(page, 6, 8);
+    await page.locator("#wizard-day-of-month").fill("15");
     await clickNext(page);
 
-    await expectStep(page, 7);
-    const summary = page.locator('[data-slot="wizard-step7-summary"]');
+    await expectStep(page, 7, 8);
+    await clickNext(page);
+
+    await expectStep(page, 8, 8);
+    const summary = page.locator('[data-slot="wizard-summary"]');
     await expect(summary).toContainText(/Monatlich/i);
 
-    await clickCreate(page);
+    await clickSave(page);
 
     await expectRedirectToMedication(page, STUB_MEDICATION_ID);
     expect(capture.postBody).toMatchObject({

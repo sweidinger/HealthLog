@@ -2,28 +2,29 @@ import { expect, test } from "@playwright/test";
 
 import {
   STUB_MEDICATION_ID,
-  clickCreate,
   clickNext,
+  clickSave,
   expectMedicationOnList,
   expectRedirectToMedication,
   expectStep,
-  fillStep1,
+  fillStep1Name,
+  fillStep3Dose,
   mockMedicationsApi,
+  openCreateWizard,
+  pickCadenceRow,
+  pickTreatmentRow,
   stubDashboardAnalytics,
 } from "./medications-wizard-helpers";
 import { STORAGE_STATE_PATH } from "./setup/global-setup";
 
 /**
- * Medication wizard end-to-end — bi-weekly cadence (every N weeks).
+ * v1.5.4 — Medication wizard end-to-end — bi-weekly cadence (every N
+ * weeks).
  *
- * The "everyNWeeks" picker carries two sub-controls: an integer-week
- * input (defaults to 2) and a weekday chip row (defaults to [MO]).
- * Keeping both defaults yields `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO`,
- * which the step-7 summary phrase pins as "Alle zwei Wochen".
- *
- * Bi-weekly is the canonical regression case from the design-synthesis
- * (the pre-v1.5 reminder worker ignored intervalWeeks). This spec
- * pins the wizard's emit path; the worker fix lives in the unit suite.
+ * Walks the 8-step recurring path with "Alle X Wochen" picked on
+ * Step 5, then the interval input filled with 2 and Monday toggled
+ * on the weekday chips of Step 6. Emits
+ * `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO`.
  */
 test.describe("medication wizard — bi-weekly", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
@@ -41,45 +42,44 @@ test.describe("medication wizard — bi-weekly", () => {
       oneShot: false,
     });
 
-    await page.goto("/medications/new", { waitUntil: "domcontentloaded" });
+    await openCreateWizard(page);
 
-    await fillStep1(page, { name: "Methotrexat", doseAmount: "10" });
+    await fillStep1Name(page, { name: "Methotrexat" });
     await clickNext(page);
 
     await expectStep(page, 2);
-    await page.getByRole("radio", { name: /Wiederkehrend/i }).click();
+    await pickTreatmentRow(page, "other");
     await clickNext(page);
 
     await expectStep(page, 3);
-    await page
-      .getByRole("radio", { name: /Alle N Wochen an bestimmten Tagen/i })
-      .click();
-
-    // Sub-controls render inline. The integer input defaults to 2; we
-    // re-fill it explicitly so the spec is robust to default drift.
-    const weeksInput = page
-      .locator('[data-slot="cadence-number-input"]')
-      .first();
-    await weeksInput.fill("2");
-
+    await fillStep3Dose(page, { amount: "10" });
     await clickNext(page);
 
     await expectStep(page, 4);
     await clickNext(page);
 
-    await expectStep(page, 5);
+    await expectStep(page, 5, 8);
+    await pickCadenceRow(page, "everyNWeeks");
     await clickNext(page);
 
-    await expectStep(page, 6);
+    await expectStep(page, 6, 8);
+    await page.locator("#wizard-interval-weeks").fill("2");
+    const moChip = page.locator(
+      '[data-slot="wizard-weekday-chip"][data-token="MO"]',
+    );
+    if ((await moChip.getAttribute("data-active")) === "false") {
+      await moChip.click();
+    }
     await clickNext(page);
 
-    await expectStep(page, 7);
-    const summary = page.locator('[data-slot="wizard-step7-summary"]');
-    // n=2 collapses to the "biweekly" summary leaf (intervalWeeks ===
-    // 2 short-circuits in `summaryKeyForCadence`).
-    await expect(summary).toContainText(/Alle zwei Wochen/i);
+    await expectStep(page, 7, 8);
+    await clickNext(page);
 
-    await clickCreate(page);
+    await expectStep(page, 8, 8);
+    const summary = page.locator('[data-slot="wizard-summary"]');
+    await expect(summary).toContainText(/zwei Wochen/i);
+
+    await clickSave(page);
 
     await expectRedirectToMedication(page, STUB_MEDICATION_ID);
     expect(capture.postBody).toMatchObject({

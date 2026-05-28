@@ -2,30 +2,33 @@ import { expect, test } from "@playwright/test";
 
 import {
   STUB_MEDICATION_ID,
-  clickCreate,
   clickNext,
+  clickSave,
   expectMedicationOnList,
   expectRedirectToMedication,
   expectStep,
-  fillStep1,
+  fillStep1Name,
+  fillStep3Dose,
   mockMedicationsApi,
+  openCreateWizard,
+  pickCadenceRow,
+  pickTreatmentRow,
   stubDashboardAnalytics,
 } from "./medications-wizard-helpers";
 import { STORAGE_STATE_PATH } from "./setup/global-setup";
 
 /**
- * Medication wizard end-to-end — one-shot cadence.
+ * v1.5.4 — Medication wizard end-to-end — one-shot cadence.
  *
- * Picking "Einmaldosis" on step 2 short-circuits the wizard past
- * steps 3 + 4 and lands on step 5, where the user picks the single
- * dose date alongside the time-of-day chip. Step 6 keeps endsOn
- * pinned to startsOn via `lockEndsToStart`, and step 7 surfaces the
- * "Einmaldosis" summary phrase.
+ * Picking "Einmalig" on Step 5 collapses the path onto the 5-step
+ * one-shot route ([1, 2, 3, 4, 8]). The wizard skips Steps 6 + 7
+ * because the dose date already lives in Step 4 (course window).
+ * Step 4's CourseWindowRow locks endsOn to startsOn for one-shot.
  *
- * The list-page next-due chip is suppressed for one-shot medications
- * because the design-synthesis lifecycle deactivates the row the
- * moment the single intake is logged. The spec only asserts the row
- * name appears on the list.
+ * The list-page "Nächste Einnahme:" chip is suppressed because the
+ * design-synthesis lifecycle deactivates one-shot medications once
+ * the single intake is logged. The spec only asserts the row name
+ * appears on the list.
  */
 test.describe("medication wizard — one-shot", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
@@ -41,46 +44,43 @@ test.describe("medication wizard — one-shot", () => {
       oneShot: true,
     });
 
-    await page.goto("/medications/new", { waitUntil: "domcontentloaded" });
+    await openCreateWizard(page);
 
-    await fillStep1(page, { name: "Grippeimpfung", doseAmount: "0.5" });
+    await fillStep1Name(page, { name: "Grippeimpfung" });
+    await clickNext(page);
+
+    await expectStep(page, 2);
+    await pickTreatmentRow(page, "other");
+    await clickNext(page);
+
+    await expectStep(page, 3);
+    await fillStep3Dose(page, { amount: "0.5" });
     await page.locator("#wizard-dose-unit").click();
     await page.getByRole("option", { name: /^ml$/i }).click();
     await clickNext(page);
 
-    await expectStep(page, 2);
-    await page.getByRole("radio", { name: /Einmaldosis/i }).click();
-
-    // The wizard skips steps 3 + 4 in one-shot mode — clicking Next on
-    // step 2 jumps directly to step 5 (see `goNext` in CreationWizard).
+    // Step 4 — course window. Set startsOn to a deterministic date so
+    // the post body assertion below is stable.
+    await expectStep(page, 4);
+    await page.locator('[data-slot="course-window-starts"]').fill("2026-10-15");
     await clickNext(page);
 
-    await expectStep(page, 5);
-    // One-shot variant renders the single time picker (maxChips=1) and
-    // a dose-date input. The default startsOn is today; we override to
-    // a fixed date so the assertion below is deterministic.
-    const oneShotDate = page.locator("#wizard-oneshot-date");
-    await expect(oneShotDate).toBeVisible();
-    await oneShotDate.fill("2026-10-15");
+    // Step 5 — pick Einmalig. The path compresses to 5 steps the
+    // moment the row is picked; the visible counter follows.
+    await expectStep(page, 5, 8);
+    await pickCadenceRow(page, "oneShot");
+    // After the pick the path is [1, 2, 3, 4, 8]; the cadence pick
+    // step (raw step 5) sits between slots 4 and 5 of 5, so the
+    // counter pins on slot 4 of 5 until Next.
+    await expectStep(page, 4, 5);
     await clickNext(page);
 
-    await expectStep(page, 6);
-    // One-shot pins endsOn to startsOn — the end-date input is
-    // read-only and the "Kein Enddatum" Switch is hidden.
-    await expect(
-      page.locator('[data-slot="course-window-ends"]'),
-    ).toHaveValue("2026-10-15");
-    await expect(
-      page.locator('[data-slot="course-window-oneshot-caption"]'),
-    ).toBeVisible();
-    await clickNext(page);
-
-    await expectStep(page, 7);
-    const summary = page.locator('[data-slot="wizard-step7-summary"]');
+    await expectStep(page, 5, 5);
+    const summary = page.locator('[data-slot="wizard-summary"]');
     await expect(summary).toContainText(/Einmaldosis/i);
     await expect(summary).toContainText(/2026-10-15/);
 
-    await clickCreate(page);
+    await clickSave(page);
 
     await expectRedirectToMedication(page, STUB_MEDICATION_ID);
     expect(capture.postBody).toMatchObject({

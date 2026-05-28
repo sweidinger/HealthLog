@@ -298,3 +298,55 @@ describe("POST /api/medications — v1.5 scheduling primitives", () => {
     expect(s.timesOfDay).toEqual(["08:00"]);
   });
 });
+
+describe("POST /api/medications — v1.5.4 clinical category extension", () => {
+  /**
+   * The modal wizard's Step 2 taxonomy adds Diabetes and Antibiotikum
+   * as first-class rows. The mapping table writes `category:
+   * "DIABETES"` and `category: "ANTIBIOTIC"` to the side-table for
+   * those rows instead of collapsing them into `"OTHER"`.
+   *
+   * The Zod schema accepts the new values; the route's
+   * `setMedicationCategory` helper normalises them through
+   * `MEDICATION_CATEGORY_VALUES`. The tests below pin that the route
+   * accepts both new values without 422-ing.
+   */
+
+  it("accepts DIABETES as a valid clinical category", async () => {
+    const res = await POST(
+      postReq({
+        name: "Metformin",
+        dose: "500 mg",
+        category: "DIABETES",
+        schedules: [{ windowStart: "08:00", windowEnd: "09:00" }],
+      }),
+    );
+    expect(res.status).toBe(201);
+  });
+
+  it("accepts ANTIBIOTIC as a valid clinical category", async () => {
+    const res = await POST(
+      postReq({
+        name: "Amoxicillin",
+        dose: "500 mg",
+        category: "ANTIBIOTIC",
+        oneShot: true,
+        startsOn: "2026-06-01",
+        schedules: [{ windowStart: "08:00", windowEnd: "08:30" }],
+      }),
+    );
+    expect(res.status).toBe(201);
+  });
+
+  it("still 422s on an unknown category string", async () => {
+    const res = await POST(
+      postReq({
+        name: "Random",
+        dose: "1 tab",
+        category: "MYSTERY",
+        schedules: [{ windowStart: "08:00", windowEnd: "09:00" }],
+      }),
+    );
+    expect(res.status).toBe(422);
+  });
+});

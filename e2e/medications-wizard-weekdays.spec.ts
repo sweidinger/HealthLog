@@ -2,29 +2,33 @@ import { expect, test } from "@playwright/test";
 
 import {
   STUB_MEDICATION_ID,
-  clickCreate,
   clickNext,
+  clickSave,
   expectMedicationOnList,
   expectRedirectToMedication,
   expectStep,
-  fillStep1,
+  fillStep1Name,
+  fillStep3Dose,
   mockMedicationsApi,
+  openCreateWizard,
+  pickCadenceRow,
+  pickTreatmentRow,
   stubDashboardAnalytics,
 } from "./medications-wizard-helpers";
 import { STORAGE_STATE_PATH } from "./setup/global-setup";
 
 /**
- * Medication wizard end-to-end — weekdays cadence.
+ * v1.5.4 — Medication wizard end-to-end — specific weekdays.
  *
- * Walks the seven-step wizard via the DE label surface and picks
- * "An bestimmten Wochentagen" on step 3, toggles Mo + Mi + Fr on the
- * weekday chip-row, then completes the rest of the flow. The emitted
- * rrule is `FREQ=WEEKLY;BYDAY=MO,WE,FR`.
+ * Walks the 8-step recurring path through the modal dialog with
+ * "Bestimmte Wochentage" picked on Step 5, then Mo / Mi / Fr toggled
+ * on the weekday chips of Step 6. The emitted rrule is
+ * `FREQ=WEEKLY;BYDAY=MO,WE,FR`.
  */
 test.describe("medication wizard — weekdays", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
-  test("creates a Mon/Wed/Fri medication end-to-end", async ({ page }) => {
+  test("creates a Mo/Mi/Fr medication end-to-end", async ({ page }) => {
     await stubDashboardAnalytics(page);
     const capture = mockMedicationsApi(page, {
       id: STUB_MEDICATION_ID,
@@ -35,51 +39,51 @@ test.describe("medication wizard — weekdays", () => {
       oneShot: false,
     });
 
-    await page.goto("/medications/new", { waitUntil: "domcontentloaded" });
+    await openCreateWizard(page);
 
-    await fillStep1(page, { name: "Ibuprofen", doseAmount: "400" });
+    await fillStep1Name(page, { name: "Ibuprofen" });
     await clickNext(page);
 
     await expectStep(page, 2);
-    await page.getByRole("radio", { name: /Wiederkehrend/i }).click();
+    await pickTreatmentRow(page, "painRelief");
     await clickNext(page);
 
     await expectStep(page, 3);
-    await page
-      .getByRole("radio", { name: /An bestimmten Wochentagen/i })
-      .click();
-
-    // Toggle Mo + Mi + Fr — `aria-label` uses the long DE name.
-    await page
-      .getByRole("button", { name: /^Montag$/i })
-      .click();
-    // The "weekdays" default is [MO] so Monday may already be active;
-    // re-toggle if so. Cheaper than peeking at aria-pressed: just lean
-    // on the data-active attribute.
-    const moChip = page.locator(
-      '[data-slot="cadence-weekday-chip"][data-token="MO"]',
-    );
-    if ((await moChip.getAttribute("data-active")) === "false") {
-      await moChip.click();
-    }
-    await page.getByRole("button", { name: /^Mittwoch$/i }).click();
-    await page.getByRole("button", { name: /^Freitag$/i }).click();
+    await fillStep3Dose(page, { amount: "400" });
     await clickNext(page);
 
     await expectStep(page, 4);
     await clickNext(page);
 
-    await expectStep(page, 5);
+    await expectStep(page, 5, 8);
+    await pickCadenceRow(page, "weekdays");
     await clickNext(page);
 
-    await expectStep(page, 6);
+    await expectStep(page, 6, 8);
+    // The weekday default may already be [MO]; re-tick to make the
+    // selection deterministic for the assertion below.
+    const moChip = page.locator(
+      '[data-slot="wizard-weekday-chip"][data-token="MO"]',
+    );
+    if ((await moChip.getAttribute("data-active")) === "false") {
+      await moChip.click();
+    }
+    await page
+      .locator('[data-slot="wizard-weekday-chip"][data-token="WE"]')
+      .click();
+    await page
+      .locator('[data-slot="wizard-weekday-chip"][data-token="FR"]')
+      .click();
     await clickNext(page);
 
-    await expectStep(page, 7);
-    const summary = page.locator('[data-slot="wizard-step7-summary"]');
-    await expect(summary).toContainText(/An ausgewählten Wochentagen/i);
+    await expectStep(page, 7, 8);
+    await clickNext(page);
 
-    await clickCreate(page);
+    await expectStep(page, 8, 8);
+    const summary = page.locator('[data-slot="wizard-summary"]');
+    await expect(summary).toContainText(/Wochentagen/i);
+
+    await clickSave(page);
 
     await expectRedirectToMedication(page, STUB_MEDICATION_ID);
     expect(capture.postBody).toMatchObject({
