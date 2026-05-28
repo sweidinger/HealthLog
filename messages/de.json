@@ -740,7 +740,8 @@
         "invalidRange": "Das Enddatum muss am oder nach dem Startdatum liegen."
       },
       "oneShot": {
-        "section": "Einmaldosis"
+        "section": "Einmaldosis",
+        "collapseWarning": "Einmaldosis aktiv — alle weiteren Pläne wurden auf den ersten zusammengeführt."
       },
       "legacyWindow": {
         "section": "Erinnerungsfenster (alt)",

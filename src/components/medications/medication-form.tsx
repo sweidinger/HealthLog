@@ -70,10 +70,28 @@ import {
 } from "@/components/medications/scheduling/TimesOfDayChips";
 import { CourseWindowRow } from "@/components/medications/scheduling/CourseWindowRow";
 import {
+  type CadenceKind,
   type CadenceSubControls,
   type CadenceValue,
   DEFAULT_SUB_CONTROLS,
 } from "@/components/medications/scheduling/types";
+
+/**
+ * Cadence kinds the schedule-level picker exposes when the
+ * medication-level `oneShot` switch is off. `"oneShot"` lives on the
+ * medication-level switch above; surfacing it on the per-schedule
+ * picker would invite a contradictory shape (`oneShot = false` at the
+ * medication level + `cadence.kind = "oneShot"` on a schedule).
+ */
+const RECURRING_CADENCE_KINDS: readonly CadenceKind[] = [
+  "daily",
+  "weekdays",
+  "everyNWeeks",
+  "monthly",
+  "everyNMonths",
+  "yearly",
+  "rolling",
+];
 import {
   inferCadenceFromLegacy,
   legacyPairFromCadence,
@@ -860,9 +878,15 @@ export function MedicationForm({
             onCheckedChange={(checked) => {
               setOneShot(checked);
               if (checked) {
-                // One-shot ⇒ collapse to a single schedule with one
-                // timesOfDay entry and no cadence; the picker stays
-                // hidden under `!oneShot` below.
+                // Flipping into one-shot collapses to a single
+                // schedule with one timesOfDay entry. Warn the user
+                // when this would drop additional schedules so the
+                // collapse stops being a silent data loss.
+                if (schedules.length > 1) {
+                  toast.warning(
+                    t("medications.scheduling.oneShot.collapseWarning"),
+                  );
+                }
                 setSchedules((prev) => {
                   const head = prev[0] ?? { ...DEFAULT_SCHEDULE };
                   const singleTime =
@@ -998,6 +1022,7 @@ export function MedicationForm({
                 <CadencePicker
                   value={s.cadence}
                   subControls={s.cadenceSub}
+                  allowedKinds={RECURRING_CADENCE_KINDS}
                   onChange={(nextValue, nextSub) =>
                     patchSchedule(i, {
                       cadence: nextValue,
