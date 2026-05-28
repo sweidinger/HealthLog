@@ -90,7 +90,10 @@ export async function syncMoodLogEntries(
 
   // safeFetch keeps the no-redirect-follow guard (the apiKey would
   // otherwise leak on an attacker-controlled 302 hop) and adds a hard
-  // upper bound via AbortSignal.timeout.
+  // upper bound via AbortSignal.timeout. requirePublicHost routes the
+  // dial through the pinned-IP dispatcher so a DNS rebinding cannot
+  // flip a public hostname to 169.254.169.254 / RFC1918 between the
+  // input-time accept and the connect call.
   const timeoutMs = opts?.fullSync ? 60_000 : 15_000;
   let response: Response;
   const fetchStart = performance.now();
@@ -98,7 +101,7 @@ export async function syncMoodLogEntries(
     response = await safeFetch(
       url.toString(),
       { headers: { Authorization: `Bearer ${apiKey}` } },
-      { timeoutMs },
+      { timeoutMs, requirePublicHost: true },
     );
   } catch (err) {
     getEvent()?.addExternalCall({

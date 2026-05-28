@@ -39,6 +39,11 @@ export async function sendViaNtfy(
     // Strip HTML tags for ntfy (plain text only)
     const body = payload.message.replace(/<[^>]*>/g, "");
 
+    // requirePublicHost adds the DNS-rebinding pin (issue #217) on top
+    // of the input-time isPublicUrl guard already enforced when the
+    // user saved the ntfy serverUrl in their channel config. The
+    // authToken would otherwise leak on a rebinding flip to a private
+    // address.
     const res = await safeFetch(
       url,
       {
@@ -46,7 +51,7 @@ export async function sendViaNtfy(
         headers,
         body,
       },
-      { timeoutMs: 5_000 },
+      { timeoutMs: 5_000, requirePublicHost: true },
     );
 
     getEvent()?.addExternalCall({

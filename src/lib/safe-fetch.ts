@@ -1,4 +1,5 @@
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { getPinnedPublicDispatcher } from "@/lib/safe-fetch-dispatcher";
 
 /**
  * Defaults applied to every `safeFetch` call. Centralised so the values
@@ -115,8 +116,23 @@ export async function safeFetch(
     opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
   );
 
+  // When the caller asks for the public-host guard, also route through
+  // the pinned-IP dispatcher so a DNS rebinding cannot flip the host
+  // between the input-time `isPublicUrl` accept and the connect call.
+  // Node's `fetch` accepts an undici `dispatcher` on RequestInit; the
+  // DOM types don't reflect that, so we cast at the boundary.
+  const dispatcher = opts.requirePublicHost
+    ? getPinnedPublicDispatcher()
+    : undefined;
+  const finalInit = {
+    ...init,
+    redirect,
+    signal,
+    ...(dispatcher ? { dispatcher } : {}),
+  } as RequestInit;
+
   try {
-    return await fetch(target, { ...init, redirect, signal });
+    return await fetch(target, finalInit);
   } catch (err) {
     // `AbortSignal.timeout` aborts with `TimeoutError` (`DOMException`
     // named "TimeoutError"); a caller-side abort surfaces as

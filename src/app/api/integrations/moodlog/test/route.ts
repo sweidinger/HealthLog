@@ -116,7 +116,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
   try {
     // safeFetch keeps the manual-redirect guard (the apiKey would
     // otherwise leak on a 302 to 169.254.169.254 / RFC1918) and adds
-    // the AbortSignal.timeout convention.
+    // the AbortSignal.timeout convention. requirePublicHost layers in
+    // the connect-time IP pin so a DNS rebinding cannot flip the host
+    // between accept and dispatch (issue #217).
     const res = await safeFetch(
       probeUrl.toString(),
       {
@@ -124,7 +126,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
         headers: { Authorization: `Bearer ${apiKey}` },
         cache: "no-store",
       },
-      { timeoutMs: TIMEOUT_MS },
+      { timeoutMs: TIMEOUT_MS, requirePublicHost: true },
     );
     const latencyMs = Math.round(performance.now() - start);
 

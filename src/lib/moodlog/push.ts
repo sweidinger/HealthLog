@@ -114,6 +114,10 @@ export async function pushMoodEntriesToMoodLog(
   const start = performance.now();
   let response: Response;
   try {
+    // requirePublicHost adds the DNS-rebinding pin to the input-time
+    // isPublicUrl guard (issue #217). The reverse-sync path attaches a
+    // user-supplied bearer; a rebinding flip would leak it on the
+    // connect call to the swapped private address.
     response = await safeFetch(
       url.toString(),
       {
@@ -124,7 +128,7 @@ export async function pushMoodEntriesToMoodLog(
         },
         body: JSON.stringify(body),
       },
-      { timeoutMs: 10_000 },
+      { timeoutMs: 10_000, requirePublicHost: true },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
