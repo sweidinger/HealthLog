@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.5.3
+  version: 1.5.4
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -170,6 +170,12 @@ paths:
               - TIME_IN_DAYLIGHT
               - WALKING_STEADINESS
               - AUDIO_EXPOSURE_EVENT
+              - RESPIRATORY_RATE
+              - BODY_MASS_INDEX
+              - LEAN_BODY_MASS
+              - WALKING_HEART_RATE_AVERAGE
+              - WALKING_ASYMMETRY
+              - WALKING_DOUBLE_SUPPORT
         - in: query
           name: from
           schema:
@@ -295,6 +301,12 @@ paths:
                     - TIME_IN_DAYLIGHT
                     - WALKING_STEADINESS
                     - AUDIO_EXPOSURE_EVENT
+                    - RESPIRATORY_RATE
+                    - BODY_MASS_INDEX
+                    - LEAN_BODY_MASS
+                    - WALKING_HEART_RATE_AVERAGE
+                    - WALKING_ASYMMETRY
+                    - WALKING_DOUBLE_SUPPORT
                 value:
                   type: number
                 measuredAt:
@@ -2222,6 +2234,12 @@ components:
             - TIME_IN_DAYLIGHT
             - WALKING_STEADINESS
             - AUDIO_EXPOSURE_EVENT
+            - RESPIRATORY_RATE
+            - BODY_MASS_INDEX
+            - LEAN_BODY_MASS
+            - WALKING_HEART_RATE_AVERAGE
+            - WALKING_ASYMMETRY
+            - WALKING_DOUBLE_SUPPORT
         value:
           type: number
         unit:

@@ -49,10 +49,17 @@ const EXPECTED_TYPES = [
   // ── v1.4.30 R-F T1.4 + T1.5 ──
   "WALKING_STEADINESS",
   "AUDIO_EXPOSURE_EVENT",
+  // ── v1.5.5 iOS-coord — six previously-deferred HK identifiers wired ──
+  "RESPIRATORY_RATE",
+  "BODY_MASS_INDEX",
+  "LEAN_BODY_MASS",
+  "WALKING_HEART_RATE_AVERAGE",
+  "WALKING_ASYMMETRY",
+  "WALKING_DOUBLE_SUPPORT",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 30 canonical measurement types", () => {
+  it("exposes the 36 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -105,6 +112,17 @@ describe("measurementTypeEnum coverage", () => {
     // in the clinical PDF until the iOS-app sync lands.
     "WALKING_STEADINESS",
     "AUDIO_EXPOSURE_EVENT",
+    // v1.5.5 iOS-coord additions held under the same v1.5 PDF gate.
+    // Respiratory rate, BMI, lean body mass, walking HR average, and
+    // the two gait-percent metrics ride the same clinical-layout
+    // deferral as the other v1.4.23+ additions; the doctor PDF picks
+    // them up once the layout and reference ranges land.
+    "RESPIRATORY_RATE",
+    "BODY_MASS_INDEX",
+    "LEAN_BODY_MASS",
+    "WALKING_HEART_RATE_AVERAGE",
+    "WALKING_ASYMMETRY",
+    "WALKING_DOUBLE_SUPPORT",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

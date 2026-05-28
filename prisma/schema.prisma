@@ -264,6 +264,33 @@ model User {
   // `useAuth()` hook.
   disableCoach Boolean @default(false) @map("disable_coach")
 
+  // v1.5.5 — self-hosted avatar storage.
+  //
+  // Replaces the Gravatar third-party leak (the old `getGravatarUrl`
+  // path hashed the email with SHA-256 and shipped the digest to
+  // www.gravatar.com on every authenticated page load, which let
+  // Automattic correlate the digest against its own table of known
+  // emails). The bytes live on the User row so the standard pg_dump
+  // backup path already covers them — no new filesystem volume to
+  // mount, no new Docker compose change.
+  //
+  // `avatarBytes` carries the raw image (JPEG / PNG / WebP), hard-
+  // capped at 2 MiB by the upload route and at 2048×2048 by the
+  // post-decode dimension check. `avatarContentType` carries the
+  // sniffed MIME (`image/jpeg`, `image/png`, `image/webp`); the
+  // value is never trusted from the multipart header — it is
+  // resolved from the file's magic bytes. `avatarUpdatedAt` is the
+  // cache-bust anchor: the /api/auth/me profile response appends
+  // the unix-ms suffix to the avatar URL so a re-upload paints
+  // fresh client-side without an HTTP cache flush.
+  //
+  // Null on all three columns = the user has not uploaded an
+  // avatar and the profile response returns `avatarUrl: null`. The
+  // client falls back to the username initials.
+  avatarBytes       Bytes?    @map("avatar_bytes")
+  avatarContentType String?   @map("avatar_content_type")
+  avatarUpdatedAt   DateTime? @map("avatar_updated_at")
+
   // Relations
   passkeys               Passkey[]
   sessions               Session[]
@@ -443,6 +470,17 @@ enum MeasurementType {
   // ── v1.4.30 R-F T1.4 + T1.5 Tier-1 additions ──
   WALKING_STEADINESS // percent (0-100, scaled ×100 from Apple's 0..1 fraction) — HealthKit `appleWalkingSteadiness` (iOS 15+). Daily rollup. Falls + mobility-risk signal Apple's own Health app shows prominently in the Mobility section.
   AUDIO_EXPOSURE_EVENT // count (event flag: 1 per fired loud-listening event) — HealthKit `environmentalAudioExposureEvent` + `headphoneAudioExposureEvent` category-events. Apple fires these when the rolling 7-day average crosses the WHO 80-dBA threshold. The notes field carries the source identifier (env vs headphone).
+  // ── v1.5.5 iOS-coord additions — six identifiers the deferred list refused to map. ──
+  // Each one was emitted by the iOS app, dropped server-side with a
+  // per-entry `skipped:"unmappable_identifier"`, and ack-200'd to the
+  // client. iOS read 200 as success, advanced its sync anchor, and the
+  // samples were lost forever. Now mapped end-to-end.
+  RESPIRATORY_RATE // count/min — HealthKit `respiratoryRate`. Watch + iPhone sleep + workout sampling.
+  BODY_MASS_INDEX // kg/m² — HealthKit `bodyMassIndex`. iOS computes it from weight + height before upload; we still store it as a first-class metric for trend display.
+  LEAN_BODY_MASS // kg — HealthKit `leanBodyMass`. Body-composition counterpart to FAT_MASS; pairs with WEIGHT − FAT_MASS for sanity checks.
+  WALKING_HEART_RATE_AVERAGE // bpm — HealthKit `walkingHeartRateAverage`. Daily rollup; cardio-fitness signal distinct from RESTING_HEART_RATE and spot PULSE.
+  WALKING_ASYMMETRY // percent (0-100, scaled ×100 from Apple's 0..1 fraction) — HealthKit `walkingAsymmetryPercentage`. Mobility section sibling to WALKING_STEADINESS.
+  WALKING_DOUBLE_SUPPORT // percent (0-100, scaled ×100 from Apple's 0..1 fraction) — HealthKit `walkingDoubleSupportPercentage`. Mobility section sibling.
 
   @@map("measurement_type")
 }

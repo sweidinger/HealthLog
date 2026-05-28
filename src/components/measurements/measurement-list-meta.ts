@@ -71,6 +71,13 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   // ── v1.4.30 R-F T1.4 + T1.5 ──
   WALKING_STEADINESS: "measurements.typeWalkingSteadiness",
   AUDIO_EXPOSURE_EVENT: "measurements.typeAudioExposureEvent",
+  // ── v1.5.5 iOS-coord additions ──
+  RESPIRATORY_RATE: "measurements.typeRespiratoryRate",
+  BODY_MASS_INDEX: "measurements.typeBodyMassIndex",
+  LEAN_BODY_MASS: "measurements.typeLeanBodyMass",
+  WALKING_HEART_RATE_AVERAGE: "measurements.typeWalkingHeartRateAverage",
+  WALKING_ASYMMETRY: "measurements.typeWalkingAsymmetry",
+  WALKING_DOUBLE_SUPPORT: "measurements.typeWalkingDoubleSupport",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -119,6 +126,16 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   // event flag — the event is a louder-cousin of the env quantity.
   WALKING_STEADINESS: Gauge,
   AUDIO_EXPOSURE_EVENT: Volume2,
+  // ── v1.5.5 iOS-coord additions ──
+  // Wind already carries the breathing family (SpO2 uses it);
+  // Scale carries body-comp; HeartPulse rounds out the cardio
+  // pair; Footprints + Gauge live in the gait family.
+  RESPIRATORY_RATE: Wind,
+  BODY_MASS_INDEX: Scale,
+  LEAN_BODY_MASS: Scale,
+  WALKING_HEART_RATE_AVERAGE: HeartPulse,
+  WALKING_ASYMMETRY: Footprints,
+  WALKING_DOUBLE_SUPPORT: Footprints,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -161,4 +178,13 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   // ── v1.4.30 R-F T1.4 + T1.5 ──
   WALKING_STEADINESS: "bg-chart-2/20 text-chart-2",
   AUDIO_EXPOSURE_EVENT: "bg-chart-5/20 text-chart-5",
+  // ── v1.5.5 iOS-coord additions ──
+  // Reuse the existing palette families: chart-5 (cardio/pulse),
+  // chart-1 (mass), chart-2 (activity/gait).
+  RESPIRATORY_RATE: "bg-chart-5/20 text-chart-5",
+  BODY_MASS_INDEX: "bg-chart-1/20 text-chart-1",
+  LEAN_BODY_MASS: "bg-chart-1/20 text-chart-1",
+  WALKING_HEART_RATE_AVERAGE: "bg-chart-3/20 text-chart-3",
+  WALKING_ASYMMETRY: "bg-chart-2/20 text-chart-2",
+  WALKING_DOUBLE_SUPPORT: "bg-chart-2/20 text-chart-2",
 };

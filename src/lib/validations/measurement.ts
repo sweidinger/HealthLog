@@ -35,6 +35,13 @@ export const measurementTypeEnum = z.enum([
   // ── v1.4.30 R-F T1.4 + T1.5 ──
   "WALKING_STEADINESS",
   "AUDIO_EXPOSURE_EVENT",
+  // ── v1.5.5 iOS-coord — six previously-deferred HK identifiers wired end-to-end ──
+  "RESPIRATORY_RATE",
+  "BODY_MASS_INDEX",
+  "LEAN_BODY_MASS",
+  "WALKING_HEART_RATE_AVERAGE",
+  "WALKING_ASYMMETRY",
+  "WALKING_DOUBLE_SUPPORT",
 ]);
 
 export const glucoseContextEnum = z.enum([
@@ -97,6 +104,23 @@ const unitMap: Record<string, string> = {
   // 0–1440 covers the 24-hour day; in practice indoor users sit near 0
   // and outdoor athletes accumulate a few hours.
   TIME_IN_DAYLIGHT: "minutes",
+  // ── v1.5.5 iOS-coord additions ──
+  // Respiratory rate breaths-per-minute — the HK identifier ships as
+  // `count/min`; we keep the more conventional clinical label.
+  RESPIRATORY_RATE: "breaths/min",
+  // BMI kg/m² — HealthKit ships the unitless ratio; the canonical
+  // display string mirrors clinical convention.
+  BODY_MASS_INDEX: "kg/m²",
+  // Lean body mass kg — body-composition partner to FAT_MASS.
+  LEAN_BODY_MASS: "kg",
+  // Walking heart rate average bpm — daily rollup; distinct from
+  // RESTING_HEART_RATE (sleep-window minimum) and spot PULSE.
+  WALKING_HEART_RATE_AVERAGE: "bpm",
+  // Walking gait percent (0-100 after server-side ×100 scaling).
+  // Same convention as WALKING_STEADINESS / BODY_FAT / OXYGEN_SATURATION
+  // — see the project convention block in `apple-health-mapping.ts`.
+  WALKING_ASYMMETRY: "%",
+  WALKING_DOUBLE_SUPPORT: "%",
 };
 
 export function getUnitForType(type: string): string {
@@ -176,6 +200,24 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // Time in daylight (minutes/day) — full 24-hour window. Outdoor work
   // tops the range; sedentary indoor days sit near 0.
   TIME_IN_DAYLIGHT: { min: 0, max: 1440 },
+  // ── v1.5.5 iOS-coord additions ──
+  // Respiratory rate breaths/min — adult range ~12-20 at rest; severe
+  // distress can spike past 40; bradypnea floor ~4. Generous bounds.
+  RESPIRATORY_RATE: { min: 3, max: 60 },
+  // BMI kg/m² — sub-12 is starvation-class, 70 covers extreme obesity.
+  // Outside the band is almost certainly a height-or-weight typo.
+  BODY_MASS_INDEX: { min: 8, max: 70 },
+  // Lean body mass kg — adult plausibility, ~25 kg (small adult) to
+  // 150 kg (extreme lean athlete). Same shape as FAT_FREE_MASS.
+  LEAN_BODY_MASS: { min: 10, max: 250 },
+  // Walking heart rate average bpm — endurance athletes can sit in
+  // the high 70s while walking; ailing or post-stimulant readings can
+  // touch 200. Same upper bound as the spot PULSE / RESTING_HEART_RATE.
+  WALKING_HEART_RATE_AVERAGE: { min: 30, max: 220 },
+  // Gait percent (0-100). Apple ships these as 0..1 fractions; after
+  // the ×100 server-side scaling the canonical band is 0..100.
+  WALKING_ASYMMETRY: { min: 0, max: 100 },
+  WALKING_DOUBLE_SUPPORT: { min: 0, max: 100 },
 };
 
 export function validateMeasurementRange(

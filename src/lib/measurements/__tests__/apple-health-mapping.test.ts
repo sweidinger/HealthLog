@@ -346,6 +346,117 @@ describe("mapAppleHealthEntry", () => {
   });
 });
 
+describe("v1.5.5 iOS-coord additions — six previously-deferred identifiers", () => {
+  it("maps every one of the six identifiers", () => {
+    const expected: Array<[string, string]> = [
+      ["HKQuantityTypeIdentifierRespiratoryRate", "RESPIRATORY_RATE"],
+      ["HKQuantityTypeIdentifierBodyMassIndex", "BODY_MASS_INDEX"],
+      ["HKQuantityTypeIdentifierLeanBodyMass", "LEAN_BODY_MASS"],
+      [
+        "HKQuantityTypeIdentifierWalkingHeartRateAverage",
+        "WALKING_HEART_RATE_AVERAGE",
+      ],
+      [
+        "HKQuantityTypeIdentifierWalkingAsymmetryPercentage",
+        "WALKING_ASYMMETRY",
+      ],
+      [
+        "HKQuantityTypeIdentifierWalkingDoubleSupportPercentage",
+        "WALKING_DOUBLE_SUPPORT",
+      ],
+    ];
+    for (const [hkId, type] of expected) {
+      const mapping = APPLE_HEALTH_TYPE_MAP[hkId];
+      expect(mapping, `${hkId} should be mapped`).toBeDefined();
+      expect(mapping.measurementType).toBe(type);
+    }
+  });
+
+  it("scales the gait percent identifiers ×100 server-side (project convention)", () => {
+    const asym =
+      APPLE_HEALTH_TYPE_MAP
+        .HKQuantityTypeIdentifierWalkingAsymmetryPercentage;
+    const ds =
+      APPLE_HEALTH_TYPE_MAP
+        .HKQuantityTypeIdentifierWalkingDoubleSupportPercentage;
+    // Apple ships these as 0..1 fractions; HealthLog stores 0..100.
+    expect(asym.convertToDbUnit(0.07)).toBeCloseTo(7);
+    expect(ds.convertToDbUnit(0.2)).toBeCloseTo(20);
+    expect(asym.dbUnit).toBe("%");
+    expect(ds.dbUnit).toBe("%");
+  });
+
+  it("keeps identity conversion for the non-percent additions", () => {
+    expect(
+      APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierRespiratoryRate.convertToDbUnit(
+        16,
+      ),
+    ).toBe(16);
+    expect(
+      APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierBodyMassIndex.convertToDbUnit(
+        24.5,
+      ),
+    ).toBe(24.5);
+    expect(
+      APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierLeanBodyMass.convertToDbUnit(
+        62,
+      ),
+    ).toBe(62);
+    expect(
+      APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierWalkingHeartRateAverage.convertToDbUnit(
+        96,
+      ),
+    ).toBe(96);
+  });
+
+  it("removes the six identifiers from the deferred set", () => {
+    const previouslyDeferred = [
+      "HKQuantityTypeIdentifierRespiratoryRate",
+      "HKQuantityTypeIdentifierBodyMassIndex",
+      "HKQuantityTypeIdentifierLeanBodyMass",
+      "HKQuantityTypeIdentifierWalkingHeartRateAverage",
+      "HKQuantityTypeIdentifierWalkingAsymmetryPercentage",
+      "HKQuantityTypeIdentifierWalkingDoubleSupportPercentage",
+    ];
+    for (const id of previouslyDeferred) {
+      expect(
+        HK_QUANTITY_TYPE_DEFERRED.has(id),
+        `${id} should no longer be deferred`,
+      ).toBe(false);
+    }
+  });
+
+  it("round-trips a respiratory-rate sample through mapAppleHealthEntry", () => {
+    const out = mapAppleHealthEntry({
+      hkIdentifier: "HKQuantityTypeIdentifierRespiratoryRate",
+      value: 16,
+      unit: "count/min",
+      startDate: "2026-05-28T03:00:00.000Z",
+      endDate: "2026-05-28T07:00:00.000Z",
+    });
+    expect(out).toEqual({
+      type: "RESPIRATORY_RATE",
+      value: 16,
+      unit: "breaths/min",
+      takenAt: new Date("2026-05-28T07:00:00.000Z"),
+    });
+  });
+
+  it("round-trips a walking-asymmetry sample with ×100 scaling", () => {
+    const out = mapAppleHealthEntry({
+      hkIdentifier: "HKQuantityTypeIdentifierWalkingAsymmetryPercentage",
+      value: 0.07,
+      unit: "%",
+      startDate: "2026-05-28T08:00:00.000Z",
+      endDate: "2026-05-28T08:00:00.000Z",
+    });
+    expect(out).not.toBeNull();
+    expect(out!.type).toBe("WALKING_ASYMMETRY");
+    expect(out!.unit).toBe("%");
+    expect(out!.value).toBeCloseTo(7);
+  });
+});
+
 describe("v1.4.30 Tier-1 additions (R-F T1.4 + T1.5)", () => {
   it("maps appleWalkingSteadiness to WALKING_STEADINESS with × 100 scaling", () => {
     const mapping =
