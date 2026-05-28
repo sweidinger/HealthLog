@@ -1,6 +1,14 @@
 import { z } from "zod/v4";
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+/**
+ * Clinical-category values stored in the `medication_categories` side-
+ * table (TEXT column). v1.5.4 adds `DIABETES` and `ANTIBIOTIC` so the
+ * wizard's Step 2 taxonomy can write a first-class bucket for those
+ * two rows instead of collapsing them into `OTHER`. The column is a
+ * plain TEXT field — no Prisma enum exists to migrate; the Zod values
+ * list is the only enforcement layer.
+ */
 export const MEDICATION_CATEGORY_VALUES = [
   "BLOOD_PRESSURE",
   "VITAMIN",
@@ -12,8 +20,11 @@ export const MEDICATION_CATEGORY_VALUES = [
   "HORMONE",
   "SKIN",
   "SLEEP_AID",
+  "DIABETES",
+  "ANTIBIOTIC",
   "OTHER",
 ] as const;
+export type MedicationCategoryValue = (typeof MEDICATION_CATEGORY_VALUES)[number];
 
 /**
  * v1.4.25 W4d — Prisma-level treatment class. Orthogonal to
