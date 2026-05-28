@@ -56,6 +56,14 @@ interface Schedule {
   label: string | null;
   dose: string | null;
   daysOfWeek: string | null;
+  /** v1.5 — first-class times-of-day. */
+  timesOfDay?: string[];
+  /** v1.5 — RFC 5545 RRULE string for calendar-anchored cadences. */
+  rrule?: string | null;
+  /** v1.5 — flexible-rolling interval in days. */
+  rollingIntervalDays?: number | null;
+  /** v1.5 — reminder grace window in minutes. */
+  reminderGraceMinutes?: number | null;
 }
 
 interface Medication {
@@ -71,6 +79,12 @@ interface Medication {
   notificationsEnabled: boolean;
   pausedAt: string | null;
   lastTakenAt: string | null;
+  /** v1.5 — medication-level course start date (ISO string). */
+  startsOn?: string | null;
+  /** v1.5 — medication-level course end date (ISO string). */
+  endsOn?: string | null;
+  /** v1.5 — single-administration medication. */
+  oneShot?: boolean;
   schedules: Schedule[];
 }
 
@@ -297,12 +311,31 @@ export default function MedicationsPage() {
                   dosesPerUnit: editingMed.dosesPerUnit ?? null,
                   active: editingMed.active,
                   notificationsEnabled: editingMed.notificationsEnabled,
+                  // v1.5 — medication-level course window + one-shot
+                  // flag. Pass-through so the form can hydrate the
+                  // CourseWindowRow + oneShot Switch with the row's
+                  // current values.
+                  startsOn: editingMed.startsOn
+                    ? new Date(editingMed.startsOn)
+                    : null,
+                  endsOn: editingMed.endsOn
+                    ? new Date(editingMed.endsOn)
+                    : null,
+                  oneShot: editingMed.oneShot ?? false,
                   schedules: editingMed.schedules.map((s) => ({
                     windowStart: s.windowStart,
                     windowEnd: s.windowEnd,
                     label: s.label ?? "",
                     dose: s.dose ?? "",
                     ...parseScheduleRecurrence(s.daysOfWeek),
+                    // v1.5 — pass-through the new scheduling fields so
+                    // the form can render the CadencePicker + chips in
+                    // the row's actual cadence rather than the
+                    // legacy-inferred fallback.
+                    timesOfDay: s.timesOfDay,
+                    rrule: s.rrule,
+                    rollingIntervalDays: s.rollingIntervalDays,
+                    reminderGraceMinutes: s.reminderGraceMinutes,
                   })),
                 }
               : undefined
