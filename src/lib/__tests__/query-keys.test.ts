@@ -223,6 +223,16 @@ describe("dependent-key bundles", () => {
     const keyStrings = medicationDependentKeys.map((k) => JSON.stringify(k));
     expect(keyStrings).toContain(JSON.stringify(["dashboard-medication-compliance"]));
   });
+
+  // v1.5.5 D-3 §10 invariant 20 — the per-medication inline compliance
+  // chart cache key (`["compliance-chart-inline", medicationId]`) needs
+  // its prefix in the bundle so every detail-page mutation evicts the
+  // tile in one tick. Hierarchical prefix-match catches every per-id
+  // slot beneath it.
+  it("medicationDependentKeys bundles the compliance-chart-inline prefix (v1.5.5)", () => {
+    const keyStrings = medicationDependentKeys.map((k) => JSON.stringify(k));
+    expect(keyStrings).toContain(JSON.stringify(["compliance-chart-inline"]));
+  });
 });
 
 /**

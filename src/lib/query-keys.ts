@@ -353,6 +353,19 @@ export const moodDependentKeys = [
  * `["dashboard-medication-compliance"]` lands in the bundle so an
  * intake POST refreshes the chart immediately rather than waiting for
  * `staleTime` (audit L4).
+ *
+ * v1.5.5 D-3 §10 invariant 20 (was C-E2-1 / H-cluster-G) — the
+ * per-medication inline compliance chart used to mount under
+ * `queryKeys.medicationComplianceChart(medicationId)` which expands to
+ * `["compliance-chart-inline", id]`. The prefix `["compliance-chart-inline"]`
+ * lands in the bundle so every detail-page mutation (today's-dose,
+ * Pausieren, end, purge, edit) evicts the inline compliance tile in
+ * one tick. The TanStack hierarchical-prefix semantics catch every
+ * per-medication slot under that prefix.
+ *
+ * `queryKeys.medicationDetail(id)` rides under the
+ * `["medications"]` prefix already so a single medication invalidation
+ * also evicts its detail-page read.
  */
 export const medicationDependentKeys = [
   queryKeys.medications(),
@@ -361,6 +374,7 @@ export const medicationDependentKeys = [
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),
   ["dashboard-medication-compliance"] as const,
+  ["compliance-chart-inline"] as const,
 ];
 
 /**
