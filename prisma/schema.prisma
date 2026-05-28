@@ -784,6 +784,24 @@ model Medication {
   notificationsEnabled Boolean            @default(true) @map("notifications_enabled")
   pausedAt             DateTime?          @map("paused_at")
   snoozedUntil         DateTime?          @map("snoozed_until")
+  /// v1.5 — date the medication course begins. Anchors RRULE BYDAY /
+  /// BYMONTHDAY patterns and the rolling-interval countdown's first
+  /// window. NULL = "active from creation" (the legacy implicit
+  /// behaviour preserved for backwards compatibility). Required when
+  /// `oneShot` is true.
+  startsOn             DateTime?          @map("starts_on") @db.Date
+  /// v1.5 — date the medication course ends. Reminder worker stops
+  /// minting slots past this date. NULL = no end date (chronic).
+  /// When `oneShot` is true, `endsOn` always equals `startsOn`.
+  endsOn               DateTime?          @map("ends_on") @db.Date
+  /// v1.5 — single-administration medication (flu shot, vaccine,
+  /// post-op single dose, etc.). When true the medication has at
+  /// most one MedicationIntakeEvent and `active` flips to false once
+  /// that intake is logged. Mutually exclusive with rolling or
+  /// recurring schedules; the form layer enforces the constraint and
+  /// the migration backfills `oneShot = false` for every existing
+  /// row.
+  oneShot              Boolean            @default(false) @map("one_shot")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 
@@ -829,7 +847,42 @@ model MedicationSchedule {
   windowEnd    String  @map("window_end") // HH:mm format, e.g. "10:00"
   label        String? // e.g. "Morning", "Evening"
   dose         String? // Per-schedule dose override; null = use Medication.dose
-  daysOfWeek   String? @map("days_of_week") // Comma-separated day numbers (0=Sun..6=Sat), null = daily
+  /// Legacy string encoding of the cadence ("null | 1,3,5 | i2;1,3,5").
+  /// Kept for reads of pre-v1.5 rows. v1.5 writes go to `rrule` or
+  /// `rollingIntervalDays`; the migration backfills `rrule` for every
+  /// existing row and v1.5.1 flips the readers to consult the new
+  /// fields first. v1.6.0 drops this column.
+  daysOfWeek   String? @map("days_of_week")
+  /// v1.5 — one or more `HH:mm` strings naming the times the dose is
+  /// taken (in the user's timezone). Replaces the legacy single
+  /// `windowStart` mental model — patients think in points-in-time,
+  /// not in windows. Migration backfills `[windowStart]` for every
+  /// pre-v1.5 row.
+  timesOfDay  String[] @default([]) @map("times_of_day")
+  /// v1.5 — reminder grace window in minutes. Replaces the implicit
+  /// `windowEnd - windowStart` computation for late-dose
+  /// classification. NULL falls back to the legacy math (the
+  /// reminder worker honours `windowEnd` when this is null).
+  reminderGraceMinutes Int? @map("reminder_grace_minutes")
+  /// v1.5 — RFC 5545 RRULE string for calendar-anchored cadences
+  /// (every N weeks, monthly, quarterly, yearly). Examples:
+  ///   FREQ=DAILY
+  ///   FREQ=WEEKLY;BYDAY=MO,WE,FR
+  ///   FREQ=WEEKLY;INTERVAL=2;BYDAY=WE
+  ///   FREQ=MONTHLY;BYMONTHDAY=1
+  ///   FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=10
+  ///   FREQ=YEARLY;BYMONTH=1;BYMONTHDAY=1
+  /// Mutually exclusive with `rollingIntervalDays` — enforced by the
+  /// `medication_schedules_rrule_xor_rolling` CHECK constraint added
+  /// in the v1.5 migration.
+  rrule        String? @map("rrule")
+  /// v1.5 — flexible-rolling interval in days, counted forward from
+  /// the latest `MedicationIntakeEvent.takenAt` for the parent
+  /// medication. NULL when the schedule is calendar-anchored.
+  /// Mutually exclusive with `rrule`. Range 1..365 enforced at the
+  /// Zod layer; the column itself is unconstrained at the DB so
+  /// future extensions don't need a new migration.
+  rollingIntervalDays Int? @map("rolling_interval_days")
 
   medication       Medication                @relation(fields: [medicationId], references: [id], onDelete: Cascade)
   telegramMessages TelegramReminderMessage[]
