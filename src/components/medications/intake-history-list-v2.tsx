@@ -11,6 +11,7 @@ import {
   History,
   Check,
   SkipForward,
+  MoreHorizontal,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -19,6 +20,13 @@ import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
@@ -80,10 +88,38 @@ interface IntakeListResponse {
   meta: { total: number; limit: number; offset: number };
 }
 
+/**
+ * v1.5.5 F-1 C-2 — optional selection contract. When the wrapper
+ * passes `selection`, each row renders a leading `<Checkbox>` that
+ * mirrors the selected set. Single mode hides the bulk-toolbar; multi
+ * mode wires through to `<BulkDeleteToolbar>`. The contract lives on
+ * the list rather than on the wrapper so a future surface (e.g. the
+ * full /history page) can re-use the same shape.
+ */
+export interface IntakeHistoryListV2Selection {
+  mode: "single" | "multi";
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+}
+
 interface IntakeHistoryListV2Props {
   medicationId: string;
   /** Override the default page size — primarily for tests. */
   pageSize?: number;
+  /**
+   * v1.5.5 F-1 C-2 — per-row Bearbeiten callback. When provided the
+   * row renders a kebab `<DropdownMenu>` with an Edit action.
+   */
+  onEditIntake?: (eventId: string) => void;
+  /**
+   * v1.5.5 F-1 C-2 — per-row Löschen callback. When provided the row
+   * renders a kebab `<DropdownMenu>` with a Delete action.
+   */
+  onDeleteIntake?: (eventId: string) => void;
+  /**
+   * v1.5.5 F-1 C-2 — selection contract; see `IntakeHistoryListV2Selection`.
+   */
+  selection?: IntakeHistoryListV2Selection;
 }
 
 type SortKey = "takenAt" | "scheduledFor";
@@ -100,10 +136,19 @@ const STATUS_FILTER = "completed";
 export function IntakeHistoryListV2({
   medicationId,
   pageSize = DEFAULT_PAGE_SIZE,
+  onEditIntake,
+  onDeleteIntake,
+  selection,
 }: IntakeHistoryListV2Props) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
   const formatters = useFormatters();
+
+  // v1.5.5 F-1 C-2 — the kebab + checkbox columns are gated by the
+  // caller-passed callbacks. The list never assumes a wrapper; it
+  // renders the extra columns only when explicitly opted-in.
+  const showRowActions = Boolean(onEditIntake || onDeleteIntake);
+  const showSelection = selection?.mode === "multi";
 
   const [sortBy, setSortBy] = useState<SortKey>("takenAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -207,6 +252,12 @@ export function IntakeHistoryListV2({
             <Table>
               <TableHeader>
                 <TableRow>
+                  {showSelection && (
+                    <TableHead
+                      className="w-8"
+                      data-slot="intake-history-select-col"
+                    />
+                  )}
                   <TableHead>
                     <button
                       type="button"
@@ -235,6 +286,12 @@ export function IntakeHistoryListV2({
                   <TableHead>
                     {t("medications.intakeHistoryColSource")}
                   </TableHead>
+                  {showRowActions && (
+                    <TableHead
+                      className="w-8"
+                      data-slot="intake-history-actions-col"
+                    />
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -248,8 +305,23 @@ export function IntakeHistoryListV2({
                   // sneaks past as "Eingenommen".
                   const isTaken = !event.skipped && !!event.takenAt;
                   const isSkipped = event.skipped;
+                  const isSelected = selection?.selected.has(event.id) ?? false;
                   return (
                     <TableRow key={event.id}>
+                      {showSelection && (
+                        <TableCell className="w-8">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() =>
+                              selection?.onToggle(event.id)
+                            }
+                            aria-label={t(
+                              "medications.detail.intake.selection.rowToggleLabel",
+                            )}
+                            data-slot="intake-history-row-select"
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="text-sm">
                         {event.takenAt
                           ? formatters.dateTime(event.takenAt)
@@ -285,6 +357,50 @@ export function IntakeHistoryListV2({
                           {sourceLabels[event.source] ?? event.source}
                         </Badge>
                       </TableCell>
+                      {showRowActions && (
+                        <TableCell className="w-8 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                aria-label={t(
+                                  "medications.detail.intake.rowActions.openMenu",
+                                )}
+                                data-slot="intake-history-row-kebab"
+                              >
+                                <MoreHorizontal
+                                  aria-hidden="true"
+                                  className="h-4 w-4"
+                                />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {onEditIntake && (
+                                <DropdownMenuItem
+                                  onSelect={() => onEditIntake(event.id)}
+                                  data-slot="intake-history-row-edit"
+                                >
+                                  {t("medications.detail.intake.rowActions.edit")}
+                                </DropdownMenuItem>
+                              )}
+                              {onDeleteIntake && (
+                                <DropdownMenuItem
+                                  onSelect={() => onDeleteIntake(event.id)}
+                                  data-slot="intake-history-row-delete"
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  {t(
+                                    "medications.detail.intake.rowActions.delete",
+                                  )}
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}

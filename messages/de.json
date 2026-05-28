@@ -1139,7 +1139,42 @@
       "intake": {
         "title": "Einnahmeverlauf",
         "importButton": "Importieren",
-        "viewAllLink": "Vollständigen Verlauf öffnen →"
+        "viewAllLink": "Vollständigen Verlauf öffnen →",
+        "rowActions": {
+          "openMenu": "Zeilen-Aktionen öffnen",
+          "edit": "Bearbeiten",
+          "delete": "Löschen"
+        },
+        "selection": {
+          "rowToggleLabel": "Zeile auswählen"
+        },
+        "bulkDelete": {
+          "selectionCount": "{count} Einträge ausgewählt",
+          "deleteButton": "Auswahl löschen",
+          "cancelButton": "Abbrechen",
+          "confirmTitle": "Ausgewählte Einträge löschen?",
+          "confirmBody": "{count} Einträge werden dauerhaft entfernt. Das Medikament bleibt.",
+          "confirmAction": "Löschen",
+          "toast": "Auswahl gelöscht",
+          "failed": "Auswahl konnte nicht gelöscht werden."
+        },
+        "edit": {
+          "dialogTitle": "Einnahme bearbeiten",
+          "takenAtLabel": "Eingenommen um",
+          "skippedLabel": "Übersprungen",
+          "noteLabel": "Notiz",
+          "save": "Speichern",
+          "cancel": "Abbrechen",
+          "savedToast": "Einnahme aktualisiert",
+          "failed": "Einnahme konnte nicht aktualisiert werden."
+        },
+        "deleteRow": {
+          "confirmTitle": "Diese Einnahme löschen?",
+          "confirmBody": "Der Eintrag wird dauerhaft entfernt.",
+          "confirmAction": "Löschen",
+          "toast": "Einnahme gelöscht",
+          "failed": "Einnahme konnte nicht gelöscht werden."
+        }
       },
       "notifications": {
         "title": "Erinnerungen",

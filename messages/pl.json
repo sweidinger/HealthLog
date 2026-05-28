@@ -1139,7 +1139,42 @@
       "intake": {
         "title": "Intake history",
         "importButton": "Import",
-        "viewAllLink": "View full history →"
+        "viewAllLink": "View full history →",
+        "rowActions": {
+          "openMenu": "Open row actions",
+          "edit": "Edit",
+          "delete": "Delete"
+        },
+        "selection": {
+          "rowToggleLabel": "Select row"
+        },
+        "bulkDelete": {
+          "selectionCount": "{count} entries selected",
+          "deleteButton": "Delete selection",
+          "cancelButton": "Cancel",
+          "confirmTitle": "Delete the selected entries?",
+          "confirmBody": "{count} entries will be removed permanently. The medication itself stays.",
+          "confirmAction": "Delete",
+          "toast": "Selection deleted",
+          "failed": "Could not delete the selection."
+        },
+        "edit": {
+          "dialogTitle": "Edit intake",
+          "takenAtLabel": "Taken at",
+          "skippedLabel": "Skipped",
+          "noteLabel": "Note",
+          "save": "Save",
+          "cancel": "Cancel",
+          "savedToast": "Intake updated",
+          "failed": "Could not update the intake."
+        },
+        "deleteRow": {
+          "confirmTitle": "Delete this intake?",
+          "confirmBody": "The entry is removed permanently.",
+          "confirmAction": "Delete",
+          "toast": "Intake deleted",
+          "failed": "Could not delete the intake."
+        }
       },
       "notifications": {
         "title": "Notifications",
