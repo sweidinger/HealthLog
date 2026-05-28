@@ -12,6 +12,8 @@ vi.mock("@/lib/db", () => ({
     },
     medicationSchedule: {
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      findFirst: vi.fn(),
+      update: vi.fn(),
     },
     apiToken: {
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -171,5 +173,83 @@ describe("PUT /api/medications/[id] — v1.5 scheduling primitives", () => {
       ROUTE_CTX,
     );
     expect(res.status).toBe(422);
+  });
+});
+
+describe("PUT /api/medications/[id] — primary-schedule grace bridge", () => {
+  beforeEach(() => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      active: true,
+      schedules: [
+        {
+          id: "sched-primary",
+          windowStart: "08:00",
+          windowEnd: "08:30",
+        },
+      ],
+    } as never);
+    vi.mocked(prisma.medication.update).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      schedules: [
+        {
+          id: "sched-primary",
+          windowStart: "08:00",
+          windowEnd: "08:30",
+        },
+      ],
+    } as never);
+    vi.mocked(getMedicationCategories).mockResolvedValue({});
+    vi.mocked(auditLog).mockResolvedValue(undefined);
+    vi.mocked(prisma.medicationSchedule.findFirst).mockResolvedValue({
+      id: "sched-primary",
+    } as never);
+    vi.mocked(prisma.medicationSchedule.update).mockResolvedValue({
+      id: "sched-primary",
+      reminderGraceMinutes: 45,
+    } as never);
+  });
+
+  it("lands a top-level reminderGraceMinutes value on the primary schedule", async () => {
+    const res = await PUT(putReq({ reminderGraceMinutes: 45 }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+    expect(prisma.medicationSchedule.findFirst).toHaveBeenCalledWith({
+      where: { medicationId: "m1" },
+      orderBy: { windowStart: "asc" },
+      select: { id: true },
+    });
+    expect(prisma.medicationSchedule.update).toHaveBeenCalledWith({
+      where: { id: "sched-primary" },
+      data: { reminderGraceMinutes: 45 },
+    });
+  });
+
+  it("clears the override when the user passes null", async () => {
+    vi.mocked(prisma.medicationSchedule.update).mockResolvedValue({
+      id: "sched-primary",
+      reminderGraceMinutes: null,
+    } as never);
+    const res = await PUT(putReq({ reminderGraceMinutes: null }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+    expect(prisma.medicationSchedule.update).toHaveBeenCalledWith({
+      where: { id: "sched-primary" },
+      data: { reminderGraceMinutes: null },
+    });
+  });
+
+  it("skips the schedule bridge when the body carries a full schedules array", async () => {
+    const res = await PUT(
+      putReq({
+        reminderGraceMinutes: 45,
+        schedules: [{ windowStart: "08:00", windowEnd: "08:30" }],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.medicationSchedule.findFirst).not.toHaveBeenCalled();
+    expect(prisma.medicationSchedule.update).not.toHaveBeenCalled();
   });
 });

@@ -97,7 +97,36 @@ export const PUT = apiHandler(
       startsOn,
       endsOn,
       oneShot,
+      reminderGraceMinutes: topLevelGraceMinutes,
     } = parsed.data;
+
+    // ── v1.5.5 — primary-schedule grace bridge ──────────────────────
+    //
+    // The detail-page settings section saves the reminder-window in
+    // one PUT carrying only `{ reminderGraceMinutes }` at the top
+    // level (no full `schedules` array). Map it onto the medication's
+    // primary schedule before the Prisma update so the persisted
+    // shape stays per-schedule and the engine reads it from the same
+    // column as the wizard write-path. A full `schedules` array on
+    // the same request takes precedence — the wizard already declares
+    // the grace per row and we never want to overwrite that intent.
+    let primaryScheduleGracePatch: {
+      scheduleId: string;
+      reminderGraceMinutes: number | null;
+    } | null = null;
+    if (topLevelGraceMinutes !== undefined && !schedules) {
+      const primary = await prisma.medicationSchedule.findFirst({
+        where: { medicationId: id },
+        orderBy: { windowStart: "asc" },
+        select: { id: true },
+      });
+      if (primary) {
+        primaryScheduleGracePatch = {
+          scheduleId: primary.id,
+          reminderGraceMinutes: topLevelGraceMinutes,
+        };
+      }
+    }
 
     // ── v1.5 route invariants for the new scheduling primitives ─────
     //
@@ -238,6 +267,27 @@ export const PUT = apiHandler(
       }
     }
     if (!medication) throw lastUpdateErr;
+
+    // Apply the v1.5.5 primary-schedule grace bridge after the
+    // medication update so a failure here doesn't roll the medication
+    // edit back. Re-read the row so the response shape carries the
+    // converged grace value.
+    if (primaryScheduleGracePatch) {
+      await prisma.medicationSchedule.update({
+        where: { id: primaryScheduleGracePatch.scheduleId },
+        data: {
+          reminderGraceMinutes:
+            primaryScheduleGracePatch.reminderGraceMinutes,
+        },
+      });
+      const refreshed = await prisma.medication.findUnique({
+        where: { id },
+        include: { schedules: true },
+      });
+      if (refreshed) {
+        medication = refreshed;
+      }
+    }
 
     const normalizedCategory =
       category !== undefined

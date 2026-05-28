@@ -1999,6 +1999,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MedicationScheduleInput"
+        reminderGraceMinutes:
+          description: "Detail-page bridge: primary-schedule reminder-window in minutes. The route maps the value onto the primary
+            schedule's `reminderGraceMinutes` field; ignored when a full `schedules` array is also supplied."
+          anyOf:
+            - type: integer
+              minimum: 0
+              maximum: 1440
+            - type: "null"
       description: Update-medication body. Every field is optional; omitted fields are left untouched. Supplying `schedules`
         REPLACES the medication's full schedule list (the route deletes existing rows before re-creating). Flipping
         `active` to false records the current timestamp on `pausedAt`; flipping back to true clears it. v1.5 invariants

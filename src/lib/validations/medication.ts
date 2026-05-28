@@ -258,6 +258,26 @@ export const updateMedicationSchema = z
     notificationsEnabled: z.boolean().optional(),
     ...courseWindowFields,
     schedules: z.array(scheduleSchema).optional(),
+    /**
+     * v1.5.5 — top-level primary-schedule grace bridge. The detail
+     * page settings section saves the reminder-window in minutes for
+     * the medication's primary schedule without re-sending the full
+     * `schedules` array. The route normalises this value onto the
+     * primary schedule's `reminderGraceMinutes` before the Prisma
+     * update so the persisted shape stays per-schedule. NULL clears
+     * the override and falls back to the legacy `windowEnd -
+     * windowStart` span.
+     */
+    reminderGraceMinutes: z
+      .number()
+      .int()
+      .min(0)
+      .max(24 * 60)
+      .nullable()
+      .optional()
+      .describe(
+        "Detail-page bridge: primary-schedule reminder-window in minutes. The route maps the value onto the primary schedule's `reminderGraceMinutes` field; ignored when a full `schedules` array is also supplied.",
+      ),
   })
   .refine((b) => b.oneShot !== true || !!b.startsOn, {
     message: "startsOn is required when oneShot is true",
