@@ -36,6 +36,13 @@ import {
   sourcePrioritySchema,
 } from "@/lib/validations/source-priority";
 import { createBatchWorkoutSchema } from "@/lib/validations/workout";
+import {
+  createMedicationSchema,
+  updateMedicationSchema,
+  intakeSchema,
+  MEDICATION_CATEGORY_VALUES,
+  MEDICATION_TREATMENT_CLASS_VALUES,
+} from "@/lib/validations/medication";
 
 /**
  * Common envelopes — every HealthLog API response wraps payload in
@@ -488,6 +495,238 @@ const adminDiagnosticData = z
       "Admin notification diagnostic snapshot for the calling user — what the dispatcher would see when targeting this account. Surfaces device tokens (masked), channel state, and recent push attempts so an operator can debug an iOS / Web Push / Telegram / ntfy issue without DB shell access.",
   });
 
+// ── Medications (v1.5 scheduling) ────────────────────────────────────
+//
+// The Medication + MedicationSchedule resource shapes documented below
+// follow the wire envelope the seven routes registered at the bottom of
+// this file emit. `windowStart` / `windowEnd` / `daysOfWeek` /
+// `intervalWeeks` are the legacy primitives kept for backwards
+// compatibility through the v1.5.x line; `timesOfDay`, `rrule`,
+// `rollingIntervalDays`, and `reminderGraceMinutes` are the v1.5
+// first-class primitives the wizard + iOS cadence picker write. The
+// XOR between `rrule` and `rollingIntervalDays` is documented at the
+// schema description AND enforced by the route + a DB CHECK constraint
+// so iOS code-gen surfaces the mutual exclusion.
+
+const medicationCategoryEnum = z
+  .enum(MEDICATION_CATEGORY_VALUES)
+  .meta({
+    id: "MedicationCategory",
+    description:
+      "Clinical taxonomy stored in the `medication_categories` side-table. Orthogonal to `MedicationTreatmentClass`.",
+  });
+
+const medicationTreatmentClassEnum = z
+  .enum(MEDICATION_TREATMENT_CLASS_VALUES)
+  .meta({
+    id: "MedicationTreatmentClass",
+    description:
+      "Prisma-level treatment-class discriminator. `GLP1` unlocks the GLP-1 specialist surfaces (injection-site rotation, titration history, pen inventory, GLP-1-aware Coach).",
+  });
+
+const medicationScheduleResource = z
+  .object({
+    id: z.string(),
+    medicationId: z.string(),
+    windowStart: z
+      .string()
+      .describe(
+        "Legacy single-time-of-intake (HH:mm, user local). Preserved for backwards compatibility; the new `timesOfDay` array supersedes it.",
+      ),
+    windowEnd: z
+      .string()
+      .describe(
+        "Legacy reminder-window upper bound (HH:mm). Used to derive the late-classification grace span when `reminderGraceMinutes` is null.",
+      ),
+    label: z.string().nullable(),
+    dose: z
+      .string()
+      .nullable()
+      .describe(
+        "Per-schedule dose override. NULL means the schedule inherits `Medication.dose`.",
+      ),
+    daysOfWeek: z
+      .string()
+      .nullable()
+      .describe(
+        "Legacy persisted recurrence encoding (`null` | `1,3,5` | `i2;1,3,5`). v1.5 readers consult `rrule` first; the field is kept for pre-v1.5 rows. v1.6.0 drops the column.",
+      ),
+    timesOfDay: z
+      .array(z.string())
+      .describe(
+        "v1.5 first-class points-in-time the dose is taken (HH:mm, user local). Backfilled to `[windowStart]` for every pre-v1.5 row.",
+      ),
+    reminderGraceMinutes: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "Reminder grace window in minutes. NULL falls back to the legacy `windowEnd - windowStart` span.",
+      ),
+    rrule: z
+      .string()
+      .nullable()
+      .describe(
+        "RFC 5545 RRULE string (subset). Used for calendar-anchored cadences. **Mutually exclusive with `rollingIntervalDays`** — exactly one of the two is non-null on any v1.5+ schedule (or both are null on legacy rows that haven't been touched since the migration).",
+      ),
+    rollingIntervalDays: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "Flexible-rolling interval in days, counted forward from the latest `MedicationIntakeEvent.takenAt`. **Mutually exclusive with `rrule`.**",
+      ),
+  })
+  .meta({
+    id: "MedicationSchedule",
+    description:
+      "Schedule entry attached to a medication. v1.5 promotes `timesOfDay` to first-class and introduces `rrule` (calendar-anchored cadences) and `rollingIntervalDays` (flexible-rolling cadences). The two recurrence primitives are mutually exclusive — enforced by the Zod refine on writes, the route layer, and a DB CHECK constraint (`medication_schedules_rrule_xor_rolling`).",
+  });
+
+const medicationResource = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    dose: z.string(),
+    treatmentClass: medicationTreatmentClassEnum,
+    dosesPerUnit: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "Doses per pen / vial for inventory tracking. NULL = inventory tracking off.",
+      ),
+    active: z.boolean(),
+    notificationsEnabled: z.boolean(),
+    pausedAt: z.iso.datetime({ offset: true }).nullable(),
+    snoozedUntil: z.iso.datetime({ offset: true }).nullable(),
+    startsOn: z
+      .iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "v1.5 course start (ISO date). Anchors RRULE BYDAY / BYMONTHDAY patterns and the rolling-interval countdown's first window. NULL means active from creation.",
+      ),
+    endsOn: z
+      .iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "v1.5 course end (ISO date). NULL means chronic. Equals `startsOn` when `oneShot` is true.",
+      ),
+    oneShot: z
+      .boolean()
+      .describe(
+        "v1.5 single-administration flag. When true the medication has at most one schedule (no `rrule` / `rollingIntervalDays`), and `active` auto-flips to false once the dose is logged.",
+      ),
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+    schedules: z.array(medicationScheduleResource),
+  })
+  .meta({
+    id: "Medication",
+    description:
+      "Server-shaped medication row returned by GET / POST / PUT endpoints. Carries the v1.5 course-window fields (`startsOn`, `endsOn`, `oneShot`) at the medication level and the per-schedule cadence fields on the nested `schedules` array.",
+  });
+
+const medicationListEntry = medicationResource
+  .extend({
+    category: medicationCategoryEnum,
+    lastTakenAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "Latest non-skipped `MedicationIntakeEvent.takenAt` for the medication. Drives the rolling-cadence countdown surface.",
+      ),
+    todayEventCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Number of intake events scheduled for today (user-local day window).",
+      ),
+  })
+  .meta({
+    id: "MedicationListEntry",
+    description:
+      "List-row variant of the medication resource enriched with the joined `category`, `lastTakenAt`, and `todayEventCount` fields the dashboard + iOS client consume. The base medication fields (`id`, `name`, `dose`, `treatmentClass`, `dosesPerUnit`, `active`, `notificationsEnabled`, `pausedAt`, `snoozedUntil`, `startsOn`, `endsOn`, `oneShot`, `createdAt`, `updatedAt`, `schedules`) are inlined; see the `Medication` component for their semantics.",
+  });
+
+const medicationDetailEntry = medicationResource
+  .extend({
+    category: medicationCategoryEnum,
+  })
+  .meta({
+    id: "MedicationDetail",
+    description:
+      "Detail variant of the medication resource enriched with the joined `category`. The base medication fields are inlined; see the `Medication` component for their semantics.",
+  });
+
+const medicationIntakeEventResource = z
+  .object({
+    id: z.string(),
+    userId: z.string(),
+    medicationId: z.string(),
+    scheduledFor: z.iso.datetime({ offset: true }),
+    takenAt: z.iso.datetime({ offset: true }).nullable(),
+    skipped: z.boolean(),
+    source: z.enum(["WEB", "API", "REMINDER", "IMPORT"]),
+    idempotencyKey: z.string().nullable(),
+    createdAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({
+    id: "MedicationIntakeEvent",
+    description:
+      "Single dose log row. `takenAt` is non-null for confirmed intakes; `skipped:true` represents a deliberately-missed dose (no inventory consumption).",
+  });
+
+const medicationCadenceTimelinePoint = z
+  .object({
+    day: z.iso.datetime({ offset: true }),
+    windowStart: z.iso.datetime({ offset: true }),
+    windowEnd: z.iso.datetime({ offset: true }),
+    scheduleIndex: z.number().int().nonnegative(),
+    status: z.string(),
+  })
+  .meta({
+    id: "MedicationCadenceTimelinePoint",
+    description:
+      "One expected-vs-actual dose slot for the cadence timeline chart. `status` is one of `taken | skipped | missed | pending | future` and drives the chip colour.",
+  });
+
+const medicationCadenceChips = z
+  .object({
+    adherenceRate: z.number(),
+    streakDays: z.number().int().nonnegative(),
+    expectedSlots: z.number().int().nonnegative(),
+    actualDoses: z.number().int().nonnegative(),
+  })
+  .meta({
+    id: "MedicationCadenceChips",
+    description:
+      "Four compliance summary values for the medication detail page chip row.",
+  });
+
+const medicationCadenceResponse = z
+  .object({
+    windowDays: z.number().int().positive(),
+    anchorIso: z.iso.datetime({ offset: true }),
+    next: z
+      .object({
+        windowStart: z.iso.datetime({ offset: true }),
+        windowEnd: z.iso.datetime({ offset: true }),
+        scheduleIndex: z.number().int().nonnegative(),
+      })
+      .nullable(),
+    chips: medicationCadenceChips,
+    timeline: z.array(medicationCadenceTimelinePoint),
+  })
+  .meta({
+    id: "MedicationCadenceResponse",
+    description:
+      "Cadence + compliance read for a single medication. `next` is the upcoming-dose envelope (null when the course has ended or the rolling clock has no pinning intake yet); `timeline` walks the requested `windowDays` worth of slots in ascending time order.",
+  });
+
 const insightsComprehensiveResponse = z
   .object({
     summary: z.string(),
@@ -820,6 +1059,223 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       },
     },
   },
+  "/api/medications": {
+    get: {
+      tags: ["Medications"],
+      summary: "List medications for the calling user",
+      description:
+        "Returns every medication owned by the caller (active + paused), ordered by `createdAt DESC`. Each row carries its nested `schedules`, the joined clinical `category`, the latest non-skipped `lastTakenAt`, and the count of intake events scheduled for today (`todayEventCount`). The response is cached server-side for 60 s per user; writes flush the cache.",
+      responses: {
+        "200": {
+          description: "Medication list.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.array(medicationListEntry),
+                "ListMedicationsResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Medications"],
+      summary: "Create a medication with at least one schedule",
+      description:
+        "Validates the body against `CreateMedicationRequest`, applies the v1.5 cross-field invariants (one-shot consistency, recurring default `FREQ=DAILY`, `timesOfDay` dual-write), and creates the medication + its schedules in a single Prisma write. Audits as `medication.create`.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: createMedicationSchema } },
+      },
+      responses: {
+        "201": {
+          description: "Created medication with its schedules.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationDetailEntry,
+                "CreateMedicationResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}": {
+    get: {
+      tags: ["Medications"],
+      summary: "Fetch a single medication",
+      description:
+        "Returns the medication + its schedules + the joined `category`. Cross-user rows surface as 404 (existence channel sealed).",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      responses: {
+        "200": {
+          description: "Medication detail.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationDetailEntry,
+                "GetMedicationResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    put: {
+      tags: ["Medications"],
+      summary: "Replace a medication (partial fields)",
+      description:
+        "Every field on the body is optional; omitted fields are left untouched. Supplying `schedules` REPLACES the medication's full schedule list (the route deletes existing rows before re-creating). Flipping `active` to false stamps `pausedAt`; flipping back to true clears it. v1.5 invariants on the `schedules` array match `POST /api/medications`. Audits as `medication.update`.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: updateMedicationSchema } },
+      },
+      responses: {
+        "200": {
+          description: "Updated medication.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationDetailEntry,
+                "UpdateMedicationResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Medications"],
+      summary: "Delete a medication",
+      description:
+        "Cascades to the medication's schedules, intake events, dose changes, inventory rows, and side-effect logs. Revokes every API token scoped to `medication:<id>:ingest`. Audits as `medication.delete`.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      responses: {
+        "200": {
+          description: "Deletion succeeded.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ deleted: z.boolean() }),
+                "DeleteMedicationResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/intake": {
+    post: {
+      tags: ["Medications"],
+      summary: "Log an intake event for a medication",
+      description:
+        "Records a taken or skipped dose. Idempotent via the `Idempotency-Key` header AND the optional `idempotencyKey` body field (the route walks both paths); a re-post inside the 60 s server-side dedup window returns the original event. Non-skipped intakes auto-decrement pen inventory (best-effort), refresh the per-day compliance rollup, and — for `oneShot:true` medications — flip `active` to false.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: intakeSchema } },
+      },
+      responses: {
+        "201": {
+          description: "Intake event created.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationIntakeEventResource,
+                "CreateMedicationIntakeResponse",
+              ),
+            },
+          },
+        },
+        "200": {
+          description:
+            "Idempotent replay — the original event is returned without creating a new row.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationIntakeEventResource,
+                "ReplayMedicationIntakeResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/cadence": {
+    get: {
+      tags: ["Medications"],
+      summary: "Cadence + compliance read for a medication",
+      description:
+        "Returns the expected-vs-actual dose timeline for the requested window plus the four compliance chip values that drive the detail-page section. Pure computation — no writes. Day boundaries are resolved in the user's IANA timezone so a Tokyo user and a Berlin user see the same chips for the same medication. The `days` query parameter caps at 180.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+        query: z.object({
+          days: z
+            .coerce
+            .number()
+            .int()
+            .min(1)
+            .max(180)
+            .optional()
+            .describe("Window size in days (default 30, max 180)."),
+        }),
+      },
+      responses: {
+        "200": {
+          description: "Cadence response.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationCadenceResponse,
+                "GetMedicationCadenceResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/auth/me/coach-prefs": {
     get: {
       tags: ["Auth"],
@@ -1040,6 +1496,17 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
 };
 
 export const openApiComponents: NonNullable<ZodOpenApiObject["components"]> = {
+  // Schemas listed here are forced into `components.schemas` even when no
+  // route references them directly. `Medication` lives in this slot
+  // because its only consumers are the `MedicationListEntry` /
+  // `MedicationDetail` variants which extend it — `.extend()` inlines
+  // the base shape into the derived schema, so without an explicit
+  // registration the standalone `Medication` component would never
+  // emit. The iOS codegen reads from `Medication` directly for the
+  // shared Swift struct backing both variants.
+  schemas: {
+    Medication: medicationResource,
+  },
   securitySchemes: {
     bearerAuth: {
       type: "http",
