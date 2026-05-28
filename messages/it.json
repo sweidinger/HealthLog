@@ -749,6 +749,9 @@
     },
     "create": {
       "wizard": {
+        "page": {
+          "backToList": "Back to medications"
+        },
         "header": {
           "stepOf": "Step {current} of {total}",
           "title": {
