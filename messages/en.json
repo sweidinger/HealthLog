@@ -477,6 +477,8 @@
     "categoryDigestive": "Gastrointestinal",
     "categorySkin": "Skincare",
     "categorySleepAid": "Sleep Aid",
+    "categoryDiabetes": "Diabetes",
+    "categoryAntibiotic": "Antibiotic",
     "categoryOther": "Other",
     "daysSun": "Sun",
     "daysMon": "Mon",
@@ -748,119 +750,157 @@
         "help": "Older schedules still use a window pair. New schedules use times of day above — the window stays for backwards compatibility and is dropped in a future release."
       }
     },
-    "create": {
-      "wizard": {
-        "page": {
-          "backToList": "Back to medications"
-        },
-        "header": {
-          "stepOf": "Step {current} of {total}",
-          "title": {
-            "step1": "What's the medication called and what's a single dose?",
-            "step2": "Is this a one-time dose, or do you take it regularly?",
-            "step3": "How often?",
-            "step4": "Anything special about the days?",
-            "step5": "What time(s) of day?",
-            "step6": "When does the schedule start? When does it end (if ever)?",
-            "step7": "Reminders and summary"
-          }
-        },
+    "wizard": {
+      "header": {
+        "stepOf": "Step {current} of {total}",
+        "createTitle": "New medication",
+        "editTitle": "Edit {name}"
+      },
+      "nav": {
+        "back": "Back",
+        "next": "Next",
+        "save": "Save",
+        "saveEdit": "Save changes"
+      },
+      "nl": {
+        "button": "Describe"
+      },
+      "steps": {
         "step1": {
-          "name": {
-            "label": "Name",
-            "placeholder": "e.g. Mounjaro, Ibuprofen, Vitamin D"
-          },
-          "dose": {
-            "amount": {
-              "label": "Dose",
-              "placeholder": "e.g. 5"
-            },
-            "unit": {
-              "label": "Unit",
-              "mg": "mg",
-              "g": "g",
-              "ml": "ml",
-              "iu": "IU",
-              "tablets": "tablets",
-              "drops": "drops",
-              "puffs": "puffs",
-              "sprays": "sprays",
-              "capsules": "capsules",
-              "pieces": "pieces",
-              "other": "other"
-            }
-          },
-          "naturalLanguage": {
-            "button": "✨ Describe it",
-            "placeholderCopy": "Type the medication in your own words and we will pre-fill the wizard."
-          }
+          "title": "What's the medication called?",
+          "subline": "Exactly as it appears on the box.",
+          "label": "Name",
+          "placeholder": "e.g. Ramipril"
         },
         "step2": {
-          "oneShot": {
-            "title": "One-time dose",
-            "description": "A single appointment — flu shot, vaccine, the last dose of a course."
-          },
-          "recurring": {
-            "title": "Recurring",
-            "description": "A medication you take on a schedule, daily or otherwise."
-          }
+          "title": "What kind of medication is it?",
+          "subline": "We use this for the right templates and analytics."
         },
         "step3": {
-          "helper": "Pick the pattern that matches how often you take it. Sub-options appear once you choose."
+          "title": "What's the dose?",
+          "subline": "A tablet, a puff, a drop — depending on the form.",
+          "amountLabel": "Amount",
+          "amountPlaceholder": "e.g. 5",
+          "unitLabel": "Unit",
+          "unit": {
+            "mg": "mg",
+            "ml": "ml",
+            "iu": "IU",
+            "mcg": "µg",
+            "g": "g",
+            "tablets": "tablet(s)",
+            "capsules": "capsule(s)",
+            "drops": "drops",
+            "puffs": "puff",
+            "sprays": "spray",
+            "pieces": "pieces",
+            "other": "other"
+          }
         },
         "step4": {
-          "recap": "Here's the cadence you picked. Tap Back if anything looks wrong.",
-          "oneShotSkipped": "(skipped — one-time dose)"
+          "title": "Over what period are you taking it?",
+          "subline": "A start date is enough for today. You can add an end date later."
         },
         "step5": {
-          "helper": "Add one or more times of day. Reminders fire at each entry.",
-          "oneShotDate": {
-            "label": "Date of the single dose",
-            "helper": "We use this date to schedule the reminder and to log the intake."
-          }
+          "title": "How often do you take it?",
+          "subline": "Pick the cadence — the details follow on the next step."
         },
         "step6": {
-          "helper": "The schedule runs from the start date. Leave the end date open if you take it indefinitely."
-        },
-        "step7": {
-          "reminders": {
-            "label": "Reminders on",
-            "description": "Send a push to your configured channels at every scheduled time."
+          "title": "What does that look like in detail?",
+          "subline": "Set weekdays, intervals, or the day of the month.",
+          "intervalWeeks": {
+            "label": "Every",
+            "suffix": "weeks"
           },
-          "summary": {
-            "title": "Summary",
-            "cadence": {
-              "daily": "Every day",
-              "weekdays": "On selected days of the week",
-              "weekly": "Once a week",
-              "biweekly": "Every two weeks",
-              "monthly": "Monthly",
-              "quarterly": "Every three months",
-              "yearly": "Once a year",
-              "rolling": "Every {n} days from your last intake",
-              "oneShot": "A single dose",
-              "everyNWeeks": "Every {n} weeks",
-              "everyNMonths": "Every {n} months"
-            },
-            "weekdaysDetail": ", on {days}",
-            "dayOfMonthDetail": ", on day {day}.",
-            "everyNMonthsDetail": ", every {months} months on day {day}.",
-            "yearlyDetail": ", on {date}.",
-            "times": "at {times}",
-            "startsOn": "Starts: {date}",
-            "endsOn": "Ends: {date}",
-            "noEndDate": "No end date"
+          "dayOfMonth": {
+            "label": "On",
+            "suffix": "day of the month"
+          },
+          "rollingDays": {
+            "label": "Every",
+            "suffix": "days from the last intake"
           }
         },
-        "nav": {
-          "back": "Back",
-          "next": "Next",
-          "create": "Create medication"
+        "step7": {
+          "title": "When do you take it?",
+          "subline": "One or more times of day — reminders follow this list.",
+          "presetsLabel": "Time-of-day presets",
+          "presets": {
+            "morning": "Morning",
+            "noon": "Noon",
+            "evening": "Evening",
+            "night": "Night"
+          }
         },
-        "errors": {
-          "submitFailed": "Could not create the medication — please retry.",
-          "fieldRequired": "Required"
+        "step8": {
+          "title": "All done — should HealthLog remind you?",
+          "subline": "Review everything below before you save.",
+          "remindersLabel": "Reminders on",
+          "remindersDescription": "Push, Telegram or ntfy — based on your settings.",
+          "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release."
         }
+      },
+      "classRow": {
+        "bloodPressure": "Blood pressure",
+        "diabetes": "Diabetes",
+        "hormone": "Hormones",
+        "glp1": "GLP-1 injection",
+        "painRelief": "Pain",
+        "allergy": "Allergy",
+        "vitamin": "Vitamins",
+        "supplement": "Supplement",
+        "antibiotic": "Antibiotic",
+        "other": "Other"
+      },
+      "cadence": {
+        "daily": {
+          "label": "Daily",
+          "description": "Every day at the same time."
+        },
+        "weekdays": {
+          "label": "Specific weekdays",
+          "description": "E.g. Monday, Wednesday, Friday."
+        },
+        "everyNWeeks": {
+          "label": "Every few weeks",
+          "description": "E.g. every 2 weeks on Thursdays (GLP-1, biologics)."
+        },
+        "monthly": {
+          "label": "Monthly",
+          "description": "On a fixed day each month (e.g. always the 1st)."
+        },
+        "rolling": {
+          "label": "Flexible from last dose",
+          "description": "Leave the next dose open. When you tap 'taken', the counter starts again from that moment."
+        },
+        "oneShot": {
+          "label": "Single dose",
+          "description": "One administration, e.g. a vaccine or an antibiotic course."
+        }
+      },
+      "summary": {
+        "title": "Summary",
+        "cadence": {
+          "daily": "Every day",
+          "weekdays": "On selected days of the week",
+          "biweekly": "Every two weeks",
+          "monthly": "Monthly",
+          "quarterly": "Every three months",
+          "yearly": "Once a year",
+          "rolling": "Every {n} days from your last intake",
+          "oneShot": "A single dose",
+          "everyNWeeks": "Every {n} weeks",
+          "everyNMonths": "Every {n} months"
+        },
+        "weekdaysDetail": ", on {days}",
+        "dayOfMonthDetail": ", on day {day}.",
+        "times": "at {times}",
+        "startsOn": "Starts: {date}",
+        "endsOn": "Ends: {date}",
+        "noEndDate": "No end date"
+      },
+      "errors": {
+        "submitFailed": "Could not save the medication — please retry."
       }
     },
     "titration": {

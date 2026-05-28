@@ -477,6 +477,8 @@
     "categoryDigestive": "Magen/Darm",
     "categorySkin": "Hautpflege",
     "categorySleepAid": "Schlafmittel",
+    "categoryDiabetes": "Diabetes",
+    "categoryAntibiotic": "Antibiotikum",
     "categoryOther": "Sonstiges",
     "daysSun": "So",
     "daysMon": "Mo",
@@ -748,119 +750,157 @@
         "help": "Ältere Pläne nutzen noch ein Zeitfenster-Paar. Neue Pläne nutzen die Uhrzeiten oben — das Fenster bleibt aus Kompatibilitätsgründen erhalten und entfällt in einer späteren Version."
       }
     },
-    "create": {
-      "wizard": {
-        "page": {
-          "backToList": "Zurück zu den Medikamenten"
-        },
-        "header": {
-          "stepOf": "Schritt {current} von {total}",
-          "title": {
-            "step1": "Wie heißt das Medikament und was ist eine Einzeldosis?",
-            "step2": "Ist das eine einmalige Dosis oder nimmst du es regelmäßig?",
-            "step3": "Wie oft?",
-            "step4": "Etwas Besonderes zu den Tagen?",
-            "step5": "Zu welcher Uhrzeit?",
-            "step6": "Wann beginnt der Plan? Wann endet er (falls überhaupt)?",
-            "step7": "Erinnerungen und Übersicht"
-          }
-        },
+    "wizard": {
+      "header": {
+        "stepOf": "Schritt {current} von {total}",
+        "createTitle": "Neues Medikament",
+        "editTitle": "{name} bearbeiten"
+      },
+      "nav": {
+        "back": "Zurück",
+        "next": "Weiter",
+        "save": "Speichern",
+        "saveEdit": "Änderungen speichern"
+      },
+      "nl": {
+        "button": "Beschreiben"
+      },
+      "steps": {
         "step1": {
-          "name": {
-            "label": "Name",
-            "placeholder": "z. B. Mounjaro, Ibuprofen, Vitamin D"
-          },
-          "dose": {
-            "amount": {
-              "label": "Dosis",
-              "placeholder": "z. B. 5"
-            },
-            "unit": {
-              "label": "Einheit",
-              "mg": "mg",
-              "g": "g",
-              "ml": "ml",
-              "iu": "I.E.",
-              "tablets": "Tabletten",
-              "drops": "Tropfen",
-              "puffs": "Hübe",
-              "sprays": "Sprühstöße",
-              "capsules": "Kapseln",
-              "pieces": "Stück",
-              "other": "andere"
-            }
-          },
-          "naturalLanguage": {
-            "button": "✨ Beschreiben",
-            "placeholderCopy": "Beschreibe das Medikament in eigenen Worten — der Assistent füllt die Schritte für dich aus."
-          }
+          "title": "Wie heißt das Medikament?",
+          "subline": "Genau so wie es auf der Packung steht.",
+          "label": "Name",
+          "placeholder": "z. B. Ramipril"
         },
         "step2": {
-          "oneShot": {
-            "title": "Einmaldosis",
-            "description": "Ein einzelner Termin — Grippeimpfung, Spritze, die letzte Dosis einer Kur."
-          },
-          "recurring": {
-            "title": "Wiederkehrend",
-            "description": "Ein Medikament, das du nach einem Plan nimmst — täglich oder anders."
-          }
+          "title": "Was für ein Medikament ist das?",
+          "subline": "Wir nutzen das für passende Vorlagen und Auswertungen."
         },
         "step3": {
-          "helper": "Wähle das Muster, das zu deiner Einnahme passt. Unteroptionen erscheinen, sobald du eines auswählst."
+          "title": "Wie hoch ist die Dosis?",
+          "subline": "Eine Tablette, ein Hub, ein Tropfen — je nach Form.",
+          "amountLabel": "Menge",
+          "amountPlaceholder": "z. B. 5",
+          "unitLabel": "Einheit",
+          "unit": {
+            "mg": "mg",
+            "ml": "ml",
+            "iu": "I.E.",
+            "mcg": "µg",
+            "g": "g",
+            "tablets": "Tablette(n)",
+            "capsules": "Kapsel(n)",
+            "drops": "Tropfen",
+            "puffs": "Hub",
+            "sprays": "Sprühstoß",
+            "pieces": "Stück",
+            "other": "Sonstige"
+          }
         },
         "step4": {
-          "recap": "Das hast du gewählt. Tippe auf Zurück, wenn etwas nicht passt.",
-          "oneShotSkipped": "(übersprungen — Einmaldosis)"
+          "title": "Über welchen Zeitraum nimmst du es?",
+          "subline": "Heute reicht ein Startdatum. Ein Ende kannst du später setzen."
         },
         "step5": {
-          "helper": "Füge eine oder mehrere Uhrzeiten hinzu. Zu jeder Uhrzeit wird eine Erinnerung gesendet.",
-          "oneShotDate": {
-            "label": "Datum der Einmaldosis",
-            "helper": "Wir verwenden dieses Datum für die Erinnerung und für die Einnahmehistorie."
-          }
+          "title": "Wie oft nimmst du es?",
+          "subline": "Wähle die Regelmäßigkeit — die Details kommen im nächsten Schritt."
         },
         "step6": {
-          "helper": "Der Plan läuft ab dem Startdatum. Lass das Enddatum offen, wenn du es dauerhaft nimmst."
-        },
-        "step7": {
-          "reminders": {
-            "label": "Erinnerungen an",
-            "description": "Sendet eine Push-Benachrichtigung an deine konfigurierten Kanäle zu jeder geplanten Uhrzeit."
+          "title": "Wie sieht das im Detail aus?",
+          "subline": "Trage Wochentage, Intervalle oder den Tag im Monat ein.",
+          "intervalWeeks": {
+            "label": "Alle",
+            "suffix": "Wochen"
           },
-          "summary": {
-            "title": "Übersicht",
-            "cadence": {
-              "daily": "Jeden Tag",
-              "weekdays": "An ausgewählten Wochentagen",
-              "weekly": "Einmal pro Woche",
-              "biweekly": "Alle zwei Wochen",
-              "monthly": "Monatlich",
-              "quarterly": "Alle drei Monate",
-              "yearly": "Einmal im Jahr",
-              "rolling": "Alle {n} Tage seit der letzten Einnahme",
-              "oneShot": "Eine Einmaldosis",
-              "everyNWeeks": "Alle {n} Wochen",
-              "everyNMonths": "Alle {n} Monate"
-            },
-            "weekdaysDetail": ", an {days}",
-            "dayOfMonthDetail": ", am {day}.",
-            "everyNMonthsDetail": ", alle {months} Monate am {day}.",
-            "yearlyDetail": ", am {date}.",
-            "times": "um {times}",
-            "startsOn": "Beginn: {date}",
-            "endsOn": "Ende: {date}",
-            "noEndDate": "Kein Enddatum"
+          "dayOfMonth": {
+            "label": "Am",
+            "suffix": "Tag des Monats"
+          },
+          "rollingDays": {
+            "label": "Alle",
+            "suffix": "Tage ab der letzten Einnahme"
           }
         },
-        "nav": {
-          "back": "Zurück",
-          "next": "Weiter",
-          "create": "Medikament anlegen"
+        "step7": {
+          "title": "Wann nimmst du es?",
+          "subline": "Eine oder mehrere Uhrzeiten — die Erinnerungen richten sich danach.",
+          "presetsLabel": "Tagespresets",
+          "presets": {
+            "morning": "Morgens",
+            "noon": "Mittags",
+            "evening": "Abends",
+            "night": "Nachts"
+          }
         },
-        "errors": {
-          "submitFailed": "Medikament konnte nicht angelegt werden — bitte erneut versuchen.",
-          "fieldRequired": "Pflichtfeld"
+        "step8": {
+          "title": "Fertig — soll HealthLog dich erinnern?",
+          "subline": "Du kannst alles unten nochmal prüfen, bevor du speicherst.",
+          "remindersLabel": "Erinnerungen aktiv",
+          "remindersDescription": "Push, Telegram oder ntfy — je nach deinen Einstellungen.",
+          "multiScheduleNote": "Dieses Medikament hat mehrere Zeitpläne. Den Detail-Editor öffnen wir in einer späteren Version."
         }
+      },
+      "classRow": {
+        "bloodPressure": "Blutdruck",
+        "diabetes": "Diabetes",
+        "hormone": "Hormone",
+        "glp1": "GLP-1-Injektion",
+        "painRelief": "Schmerz",
+        "allergy": "Allergie",
+        "vitamin": "Vitamine",
+        "supplement": "Nahrungsergänzung",
+        "antibiotic": "Antibiotikum",
+        "other": "Sonstiges"
+      },
+      "cadence": {
+        "daily": {
+          "label": "Täglich",
+          "description": "Jeden Tag, immer zur gleichen Uhrzeit."
+        },
+        "weekdays": {
+          "label": "Bestimmte Wochentage",
+          "description": "Z. B. Montag, Mittwoch, Freitag."
+        },
+        "everyNWeeks": {
+          "label": "Alle X Wochen",
+          "description": "Z. B. alle 2 Wochen Donnerstags (GLP-1, Biologika)."
+        },
+        "monthly": {
+          "label": "Monatlich",
+          "description": "An einem festen Tag im Monat (z. B. immer am 1.)."
+        },
+        "rolling": {
+          "label": "Flexibel ab letzter Einnahme",
+          "description": "Du lässt den nächsten Termin offen, drückst 'genommen' wenn du sie genommen hast — ab dem Zeitpunkt zählt der Counter wieder."
+        },
+        "oneShot": {
+          "label": "Einmalig",
+          "description": "Einzelgabe, zum Beispiel eine Impfung oder ein Antibiotikum."
+        }
+      },
+      "summary": {
+        "title": "Übersicht",
+        "cadence": {
+          "daily": "Jeden Tag",
+          "weekdays": "An ausgewählten Wochentagen",
+          "biweekly": "Alle zwei Wochen",
+          "monthly": "Monatlich",
+          "quarterly": "Alle drei Monate",
+          "yearly": "Einmal im Jahr",
+          "rolling": "Alle {n} Tage seit der letzten Einnahme",
+          "oneShot": "Eine Einmaldosis",
+          "everyNWeeks": "Alle {n} Wochen",
+          "everyNMonths": "Alle {n} Monate"
+        },
+        "weekdaysDetail": ", an {days}",
+        "dayOfMonthDetail": ", am {day}.",
+        "times": "um {times}",
+        "startsOn": "Beginn: {date}",
+        "endsOn": "Ende: {date}",
+        "noEndDate": "Kein Enddatum"
+      },
+      "errors": {
+        "submitFailed": "Medikament konnte nicht gespeichert werden — bitte erneut versuchen."
       }
     },
     "titration": {
