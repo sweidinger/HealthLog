@@ -5,6 +5,7 @@ import { annotate } from "@/lib/logging/context";
 import { getPublicMonitoringSettings } from "@/lib/monitoring-settings";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   let lastResponseStatus = 404;
 
   for (const targetUrl of targetUrls) {
-    const upstream = await fetch(targetUrl, {
+    const upstream = await safeFetch(targetUrl, {
       method: "POST",
       headers: {
         "content-type":

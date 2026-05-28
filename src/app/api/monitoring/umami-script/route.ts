@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { getPublicMonitoringSettings } from "@/lib/monitoring-settings";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export const GET = apiHandler(async () => {
     });
   }
 
-  const response = await fetch(settings.umamiScriptUrl, {
+  const response = await safeFetch(settings.umamiScriptUrl, {
     next: { revalidate: 3600 },
   });
   if (!response.ok) {

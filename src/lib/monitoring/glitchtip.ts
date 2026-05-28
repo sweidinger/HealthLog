@@ -1,3 +1,5 @@
+import { safeFetch } from "@/lib/safe-fetch";
+
 interface ParsedGlitchtipDsn {
   dsn: string;
   publicKey: string;
@@ -121,7 +123,7 @@ async function tryEnvelope(
   config: ParsedGlitchtipDsn,
   body: string,
 ): Promise<GlitchtipDeliveryResult> {
-  const response = await fetch(config.envelopeUrl, {
+  const response = await safeFetch(config.envelopeUrl, {
     method: "POST",
     headers: {
       "content-type": "application/x-sentry-envelope",
@@ -150,7 +152,7 @@ async function tryStoreQuery(
   target.searchParams.set("sentry_version", "7");
   target.searchParams.set("sentry_client", "healthlog/1.0");
 
-  const response = await fetch(target, {
+  const response = await safeFetch(target, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -175,7 +177,7 @@ async function tryStoreHeader(
   payload: Record<string, unknown>,
 ): Promise<GlitchtipDeliveryResult> {
   const sentryAuth = `Sentry sentry_version=7, sentry_key=${config.publicKey}, sentry_client=healthlog/1.0`;
-  const response = await fetch(config.storeUrl, {
+  const response = await safeFetch(config.storeUrl, {
     method: "POST",
     headers: {
       "content-type": "application/json",

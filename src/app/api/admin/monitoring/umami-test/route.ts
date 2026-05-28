@@ -3,6 +3,7 @@ import { apiHandler, requireAdmin } from "@/lib/api-handler";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { getPublicMonitoringSettings } from "@/lib/monitoring-settings";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
 
@@ -88,7 +89,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   let lastDetails = "";
 
   for (const targetUrl of targetUrls) {
-    const upstream = await fetch(targetUrl, {
+    const upstream = await safeFetch(targetUrl, {
       method: "POST",
       headers: {
         "content-type": "application/json",

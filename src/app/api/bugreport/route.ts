@@ -11,6 +11,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
+import { safeFetch } from "@/lib/safe-fetch";
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
 
@@ -120,7 +121,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   // Create the issue
-  const issueRes = await fetch(
+  const issueRes = await safeFetch(
     `https://api.github.com/repos/${ghRepo}/issues`,
     {
       method: "POST",

@@ -6,6 +6,7 @@ import type { SendOutcome } from "@/lib/notifications/retry-policy";
 import { classifyHttpStatus } from "@/lib/notifications/retry-policy";
 import { getEvent } from "@/lib/logging/context";
 import { recordPushAttempt } from "@/lib/notifications/senders/push-attempt-record";
+import { safeFetch } from "@/lib/safe-fetch";
 
 /**
  * Send notification via ntfy (simple HTTP POST).
@@ -38,12 +39,15 @@ export async function sendViaNtfy(
     // Strip HTML tags for ntfy (plain text only)
     const body = payload.message.replace(/<[^>]*>/g, "");
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body,
-      signal: AbortSignal.timeout(5000),
-    });
+    const res = await safeFetch(
+      url,
+      {
+        method: "POST",
+        headers,
+        body,
+      },
+      { timeoutMs: 5_000 },
+    );
 
     getEvent()?.addExternalCall({
       service: "ntfy",

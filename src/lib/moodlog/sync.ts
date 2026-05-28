@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
 import { getEvent } from "@/lib/logging/context";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { safeFetch } from "@/lib/safe-fetch";
 import {
   isReauthRequired,
   recordSyncFailure,
@@ -87,23 +88,19 @@ export async function syncMoodLogEntries(
   url.searchParams.set("from", from);
   url.searchParams.set("to", to);
 
-  const controller = new AbortController();
-  const timeoutMs = opts?.fullSync ? 60000 : 15000;
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
+  // safeFetch keeps the no-redirect-follow guard (the apiKey would
+  // otherwise leak on an attacker-controlled 302 hop) and adds a hard
+  // upper bound via AbortSignal.timeout.
+  const timeoutMs = opts?.fullSync ? 60_000 : 15_000;
   let response: Response;
   const fetchStart = performance.now();
   try {
-    response = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: controller.signal,
-      // SSRF defence-in-depth: do NOT follow redirects. A public
-      // host that 302s to an RFC1918 target would otherwise leak
-      // the apiKey to the internal hop.
-      redirect: "manual",
-    });
+    response = await safeFetch(
+      url.toString(),
+      { headers: { Authorization: `Bearer ${apiKey}` } },
+      { timeoutMs },
+    );
   } catch (err) {
-    clearTimeout(timeout);
     getEvent()?.addExternalCall({
       service: "moodlog",
       method: "syncMoodLogEntries",
@@ -118,8 +115,6 @@ export async function syncMoodLogEntries(
       errorCode: "fetch_failed",
     });
     return 0;
-  } finally {
-    clearTimeout(timeout);
   }
   getEvent()?.addExternalCall({
     service: "moodlog",

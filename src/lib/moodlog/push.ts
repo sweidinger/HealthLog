@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { decrypt } from "@/lib/crypto";
 import { getEvent } from "@/lib/logging/context";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { safeFetch } from "@/lib/safe-fetch";
 
 /**
  * v1.4.50 — reverse-sync push: HealthLog → MoodLog.
@@ -110,24 +111,22 @@ export async function pushMoodEntriesToMoodLog(
     })),
   };
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
-
   const start = performance.now();
   let response: Response;
   try {
-    response = await fetch(url.toString(), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    response = await safeFetch(
+      url.toString(),
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-      redirect: "manual",
-    });
+      { timeoutMs: 10_000 },
+    );
   } catch (err) {
-    clearTimeout(timeout);
     const message = err instanceof Error ? err.message : String(err);
     getEvent()?.addExternalCall({
       service: "moodlog",
@@ -138,8 +137,6 @@ export async function pushMoodEntriesToMoodLog(
       `moodlog push failed for ${userId} (fetch): ${message}`,
     );
     return { pushed: 0, skipped: candidates.length, status: "failed" };
-  } finally {
-    clearTimeout(timeout);
   }
 
   getEvent()?.addExternalCall({
