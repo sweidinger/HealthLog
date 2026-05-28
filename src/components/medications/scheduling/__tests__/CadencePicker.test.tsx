@@ -231,4 +231,27 @@ describe("<CadencePicker> — SSR render", () => {
     );
     expect(yearlyHtml).toContain('data-slot="cadence-yearly-date"');
   });
+
+  it("filters the rendered radio list via the allowedKinds prop", () => {
+    const html = render(
+      <CadencePicker
+        value={makeValue("daily")}
+        onChange={NOOP}
+        allowedKinds={["daily", "weekdays"]}
+      />,
+    );
+    expect(html.match(/data-slot="cadence-option"/g)?.length).toBe(2);
+    expect(html).toContain('data-kind="daily"');
+    expect(html).toContain('data-kind="weekdays"');
+    expect(html).not.toContain('data-kind="oneShot"');
+    expect(html).not.toContain('data-kind="monthly"');
+    expect(html).not.toContain('data-kind="rolling"');
+  });
+
+  it("renders every kind when allowedKinds is omitted (edit-form path)", () => {
+    const html = render(
+      <CadencePicker value={makeValue("daily")} onChange={NOOP} />,
+    );
+    expect(html.match(/data-slot="cadence-option"/g)?.length).toBe(8);
+  });
 });

@@ -17,6 +17,13 @@
  * grouped-flat-list semantic (no `RadioGroup` primitive ships in
  * `src/components/ui/`); shadcn `<Label>`, `<Input>` for sub-controls.
  *
+ * Props:
+ *   - `allowedKinds` (optional) — filters the radio list to a subset
+ *     of `CadenceKind`. The wizard passes the recurring-only list so
+ *     `"oneShot"` cannot land alongside the mode picker's canonical
+ *     value. When omitted, every kind is rendered (the edit-form path
+ *     preserves the full picker for legacy schedules).
+ *
  * i18n keys consumed (namespace `medications.scheduling.cadence.*`):
  *
  *   .label                       — picker group ariaLabel
@@ -61,6 +68,15 @@ export interface CadencePickerProps {
    *  stateless. Optional — if omitted, `DEFAULT_SUB_CONTROLS` is used
    *  and the picker simply re-emits with the chosen defaults. */
   subControls?: CadenceSubControls;
+  /**
+   * Optional filter over the rendered radio list. When defined, only
+   * the listed kinds appear (in the file-level `ALL_KINDS` order);
+   * when omitted, every kind renders so the edit-form path stays
+   * fully expressive. Used by the wizard's Step 3 to drop the
+   * `"oneShot"` radio once the mode picker has already taken that
+   * decision.
+   */
+  allowedKinds?: readonly CadenceKind[];
   onChange: (next: CadenceValue, subControls: CadenceSubControls) => void;
   /** Disables the entire picker (edit-locked-while-active medications). */
   disabled?: boolean;
@@ -194,6 +210,7 @@ function parseIsoDate(s: string): { year: number; month: number; day: number } |
 export function CadencePicker({
   value,
   subControls,
+  allowedKinds,
   onChange,
   disabled = false,
   i18nPrefix = "medications.scheduling.cadence",
@@ -201,6 +218,11 @@ export function CadencePicker({
   const { t } = useTranslations();
   const groupName = useId();
   const sub = subControls ?? DEFAULT_SUB_CONTROLS;
+  const renderedKinds = useMemo(() => {
+    if (!allowedKinds) return ALL_KINDS;
+    const allowed = new Set(allowedKinds);
+    return ALL_KINDS.filter((k) => allowed.has(k));
+  }, [allowedKinds]);
 
   const emit = useCallback(
     (kind: CadenceKind, nextSub: CadenceSubControls) => {
@@ -230,7 +252,7 @@ export function CadencePicker({
       aria-label={t(`${i18nPrefix}.label`)}
       data-slot="cadence-picker"
     >
-      {ALL_KINDS.map((kind) => {
+      {renderedKinds.map((kind) => {
         const selected = value.kind === kind;
         return (
           <CadenceOption
