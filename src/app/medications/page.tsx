@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import {
@@ -10,7 +11,8 @@ import {
   queryKeys,
 } from "@/lib/query-keys";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
-import { MedicationForm } from "@/components/medications/medication-form";
+import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
+import type { MedicationPayload } from "@/components/medications/wizard/wizard-payload";
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,17 +92,29 @@ interface Medication {
 export default function MedicationsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useTranslations();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // v1.5.4 — the retired `/medications/new` route redirects here with
+  // `?new=1`, so legacy bookmarks keep landing on the create wizard.
+  // The initial open state reads the query param synchronously so the
+  // dialog opens on the very first render; a follow-up effect strips
+  // the param from the URL so a manual close + refresh stays closed.
+  const shouldOpenFromUrl = searchParams?.get("new") === "1";
+  const [dialogOpen, setDialogOpen] = useState(shouldOpenFromUrl);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
   const [importMedId, setImportMedId] = useState<string | null>(null);
   const [apiMed, setApiMed] = useState<{
     id: string;
     name: string;
   } | null>(null);
-  // v1.4.27 R4 RC2 — DOM handle the medication form portals its
-  // action-row into so the sheet branch can sticky-pin Save / Cancel
-  // above the keyboard.
-  const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (shouldOpenFromUrl) {
+      // Drop the query param so a refresh after closing the dialog
+      // doesn't keep reopening it.
+      router.replace("/medications");
+    }
+  }, [shouldOpenFromUrl, router]);
 
   const {
     data: medications,
@@ -282,82 +295,49 @@ export default function MedicationsPage() {
         onClose={() => setImportMedId(null)}
       />
 
-      {/* Create/Edit Sheet — bottom-sheet on `<md`, centred Dialog on `md+`. */}
-      <ResponsiveSheet
+      {/* v1.5.4 — modal-wizard mount. The same component drives both
+          create (no initial) and edit (hydrates from the medication's
+          payload). The wizard owns its own ResponsiveSheet shell with
+          the dialog/sheet split and the sticky footer. */}
+      <MedicationWizardDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title={
-          editingMed
-            ? t("medications.editMedication")
-            : t("medications.newMedication")
-        }
-        className="sm:max-w-lg"
-        footer={<div ref={setFooterEl} className="flex w-full" />}
-      >
-        <MedicationForm
-          footerSlot={footerEl}
-          initial={
-            editingMed
-              ? {
-                  id: editingMed.id,
-                  name: editingMed.name,
-                  dose: editingMed.dose,
-                  category: editingMed.category,
-                  // v1.4.25 W4d — pass through the Prisma treatment-class
-                  // discriminator and the optional dosesPerUnit so the
-                  // form preselects the GLP-1 surfaces correctly when
-                  // editing an existing GLP-1 row.
-                  treatmentClass: editingMed.treatmentClass,
-                  dosesPerUnit: editingMed.dosesPerUnit ?? null,
-                  active: editingMed.active,
-                  notificationsEnabled: editingMed.notificationsEnabled,
-                  // v1.5 — medication-level course window + one-shot
-                  // flag. Pass-through so the form can hydrate the
-                  // CourseWindowRow + oneShot Switch with the row's
-                  // current values.
-                  startsOn: editingMed.startsOn
-                    ? new Date(editingMed.startsOn)
-                    : null,
-                  endsOn: editingMed.endsOn
-                    ? new Date(editingMed.endsOn)
-                    : null,
-                  oneShot: editingMed.oneShot ?? false,
-                  schedules: editingMed.schedules.map((s) => ({
-                    windowStart: s.windowStart,
-                    windowEnd: s.windowEnd,
-                    label: s.label ?? "",
-                    dose: s.dose ?? "",
-                    ...parseScheduleRecurrence(s.daysOfWeek),
-                    // v1.5 — pass-through the new scheduling fields so
-                    // the form can render the CadencePicker + chips in
-                    // the row's actual cadence rather than the
-                    // legacy-inferred fallback.
-                    timesOfDay: s.timesOfDay,
-                    rrule: s.rrule,
-                    rollingIntervalDays: s.rollingIntervalDays,
-                    reminderGraceMinutes: s.reminderGraceMinutes,
-                  })),
-                }
-              : undefined
-          }
-          editActions={
-            editingMed
-              ? {
-                  onImportIntakes: () => setImportMedId(editingMed.id),
-                  onApiAccess: () =>
-                    setApiMed({
-                      id: editingMed.id,
-                      name: editingMed.name,
-                    }),
-                }
-              : undefined
-          }
-          onSuccess={closeDialog}
-          onCancel={closeDialog}
-        />
-      </ResponsiveSheet>
+        mode={editingMed ? "edit" : "create"}
+        initial={editingMed ? medicationToPayload(editingMed) : undefined}
+        onSuccess={closeDialog}
+      />
     </div>
   );
+}
+
+/**
+ * Map a `Medication` row from `GET /api/medications` onto the
+ * `MedicationPayload` shape the wizard's edit-path hydrator consumes.
+ * Mirrors the schedule pass-through the v1.5.3 flat form relied on so
+ * legacy cadences round-trip through the bridge cleanly.
+ */
+function medicationToPayload(med: Medication): MedicationPayload {
+  return {
+    id: med.id,
+    name: med.name,
+    dose: med.dose,
+    category: med.category,
+    treatmentClass: med.treatmentClass,
+    notificationsEnabled: med.notificationsEnabled,
+    startsOn: med.startsOn ? new Date(med.startsOn) : null,
+    endsOn: med.endsOn ? new Date(med.endsOn) : null,
+    oneShot: med.oneShot ?? false,
+    schedules: med.schedules.map((s) => ({
+      windowStart: s.windowStart,
+      windowEnd: s.windowEnd,
+      label: s.label ?? null,
+      dose: s.dose ?? null,
+      ...parseScheduleRecurrence(s.daysOfWeek),
+      timesOfDay: s.timesOfDay,
+      rrule: s.rrule ?? null,
+      rollingIntervalDays: s.rollingIntervalDays ?? null,
+    })),
+  };
 }
 
 function IntakeImportDialog({
