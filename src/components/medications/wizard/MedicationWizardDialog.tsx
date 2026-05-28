@@ -87,6 +87,14 @@ export interface MedicationWizardDialogProps {
   mode: "create" | "edit";
   /** Required when `mode === "edit"`. */
   initial?: MedicationPayload;
+  /**
+   * v1.5.5 C-E2-2 — call-site intent that drives the landing step on
+   * an edit-open. The detail page's cadence-summary row passes
+   * `"cadence"` so the user lands on Step 5; the header pencil passes
+   * `"name"` so the user lands on Step 1. Defaults to `undefined`
+   * which keeps the legacy 1-or-8 heuristic.
+   */
+  landingIntent?: "cadence" | "summary" | "name";
   /** Fires with the medication id on a successful create / save. */
   onSuccess?: (id: string) => void;
 }
@@ -105,13 +113,14 @@ const STEP_ICONS = {
 type StepNumber = keyof typeof STEP_ICONS;
 
 export function MedicationWizardDialog(props: MedicationWizardDialogProps) {
-  // Key the inner state container on (open + mode + medication id) so
-  // every open gets a fresh state tree. React unmounts the inner
-  // component when the key changes, which sidesteps the "setState in
-  // useEffect" anti-pattern that resetting on open via an effect
-  // would otherwise trigger. The outer shell stays mounted so the
-  // dialog's close animation runs cleanly.
-  const stateKey = `${props.open ? "open" : "closed"}:${props.mode}:${props.initial?.id ?? "new"}`;
+  // Key the inner state container on (open + mode + medication id +
+  // landingIntent) so every open gets a fresh state tree AND every
+  // change of intent re-runs the initial-step decision. React unmounts
+  // the inner component when the key changes, which sidesteps the
+  // "setState in useEffect" anti-pattern that resetting on open via an
+  // effect would otherwise trigger. The outer shell stays mounted so
+  // the dialog's close animation runs cleanly.
+  const stateKey = `${props.open ? "open" : "closed"}:${props.mode}:${props.initial?.id ?? "new"}:${props.landingIntent ?? "default"}`;
   return <WizardDialogShell key={stateKey} {...props} />;
 }
 
@@ -120,6 +129,7 @@ function WizardDialogShell({
   onOpenChange,
   mode,
   initial,
+  landingIntent,
   onSuccess,
 }: MedicationWizardDialogProps) {
   const { t, locale } = useTranslations();
@@ -134,7 +144,7 @@ function WizardDialogShell({
   const [step, setStep] = useState<StepNumber>(() => {
     if (mode === "edit" && initial) {
       const hydrated = hydrateWizardPayload(initial);
-      return landingStepForEdit(hydrated) as StepNumber;
+      return landingStepForEdit(hydrated, landingIntent) as StepNumber;
     }
     return 1;
   });
@@ -142,6 +152,11 @@ function WizardDialogShell({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [nlOpen, setNlOpen] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  // v1.5.5 H-cluster-B / D-3 §8 — title focus on landing ≠ 1. The
+  // `tabIndex={-1}` heading announces the new step on intent-routed
+  // edit-opens (e.g. cadence row → Step 5) so the screen reader hears
+  // "Step 5 of 8 — How often" instead of the first input on the step.
+  const stepTitleRef = useRef<HTMLHeadingElement | null>(null);
   const isFirstRenderRef = useRef(true);
 
   const applyPartial = useCallback((partial: Partial<WizardPayload>) => {
@@ -209,10 +224,18 @@ function WizardDialogShell({
 
   // Focus the first interactive control on each step change. The
   // initial render skips so opening the dialog does not steal focus
-  // from the trigger button.
+  // from the trigger button — UNLESS the dialog opened on a non-Step-1
+  // landing (an intent-routed edit, e.g. cadence row → Step 5). In
+  // that case the title is the right focus target so the screen reader
+  // announces the step the user actually landed on, not the first
+  // input on it. The two branches are mutually exclusive so the user
+  // gets exactly one focus shift per step transition.
   useEffect(() => {
     if (isFirstRenderRef.current) {
       isFirstRenderRef.current = false;
+      if (mode === "edit" && step !== 1) {
+        stepTitleRef.current?.focus({ preventScroll: true });
+      }
       return;
     }
     const node = bodyRef.current;
@@ -221,7 +244,7 @@ function WizardDialogShell({
       'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])',
     );
     target?.focus({ preventScroll: true });
-  }, [step]);
+  }, [mode, step]);
 
   /**
    * Step 8 actions — every schedule-list mutation routes through the
@@ -253,7 +276,7 @@ function WizardDialogShell({
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const body = buildCreateBody(payload);
+      const body = buildCreateBody(payload, mode);
       const url =
         mode === "edit" && initial
           ? `/api/medications/${initial.id}`
@@ -325,7 +348,11 @@ function WizardDialogShell({
         title={headerTitle}
         hideHeader
         showCloseButton
-        className="sm:max-w-md"
+        // v1.5.5 D-3 §8 — desktop shell widens from `sm:max-w-md`
+        // (448 px) to the 560 px ceiling the rest of the v1.5
+        // surfaces use; mobile bottom-sheet keeps the `40dvh` floor
+        // so the sheet never collapses to a stub on short screens.
+        className="sm:max-w-[560px] min-h-[40dvh] md:min-h-0"
         bodyClassName="gap-0 p-0"
         footer={
           <div className="flex w-full items-center justify-between gap-2">
@@ -376,11 +403,19 @@ function WizardDialogShell({
           aria-busy={submitting || undefined}
           className="flex flex-col"
         >
-          {/* Progress + counter */}
-          <div className="border-border/70 space-y-1.5 border-b p-4">
+          {/* v1.5.5 D-3 §8 — progress strip + body share the same
+              outer padding so they read as one column. The right
+              padding leaves room for the shell's 36 px close-X
+              (`pr-12` mobile / `pr-14` desktop). */}
+          <div className="border-border/70 space-y-1.5 border-b p-4 pr-12 sm:p-6 sm:pr-14">
             <Progress
               value={progress}
-              className="h-1"
+              // v1.5.5 D-3 §8 — width-only shadcn `<Progress>`. The
+              // primitive ships `transition-all`; the strip-bar morph
+              // proposed in D-2 was stripped in D-3 #4. No clip-path,
+              // no keyframes; reduced-motion picked up via the shared
+              // `motion-reduce` invariant.
+              className="h-1.5 transition-all motion-reduce:transition-none"
               aria-label={stepOf}
             />
             <div className="flex items-center justify-between gap-2">
@@ -405,10 +440,17 @@ function WizardDialogShell({
             </div>
           </div>
 
-          {/* Step body */}
+          {/* Step body — v1.5.5 D-3 §8 spacing buckets:
+              outer  = p-4 pr-12 sm:p-6 sm:pr-14
+              section = gap-6 sm:gap-8
+              row    = gap-3
+              tight  = space-y-1
+              The fade-only `animate-in fade-in-0` transition is the
+              one motion vocabulary on a step change; `motion-reduce`
+              snaps the step. The slide proposed in D-2 was stripped. */}
           <div
             ref={bodyRef}
-            className="space-y-4 p-4"
+            className="flex flex-col gap-6 p-4 pr-12 sm:gap-8 sm:p-6 sm:pr-14 animate-in fade-in-0 duration-200 motion-reduce:animate-none"
             data-slot="wizard-step-body"
             key={step}
           >
@@ -429,7 +471,17 @@ function WizardDialogShell({
                     {stepCaption}
                   </p>
                 )}
-                <h2 className="text-foreground text-base font-medium leading-tight">
+                {/* v1.5.5 D-3 §8 + H-cluster-B — `tabIndex={-1}`
+                    heading so an intent-routed edit-open (cadence row
+                    → Step 5) can drop focus on the title first. The
+                    `text-base font-semibold` keeps the title at the
+                    same scale as every other section header in the
+                    app (the D-2 `text-lg` outlier is dropped). */}
+                <h2
+                  ref={stepTitleRef}
+                  tabIndex={-1}
+                  className="text-foreground text-base font-semibold leading-tight tracking-tight focus-visible:outline-none"
+                >
                   {stepTitle}
                 </h2>
                 <p className="text-muted-foreground text-sm">

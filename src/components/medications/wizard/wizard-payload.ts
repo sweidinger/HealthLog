@@ -443,7 +443,15 @@ export interface CreateMedicationBody {
   dose: string;
   category: MedicationCategoryValue;
   treatmentClass: MedicationTreatmentClass;
-  notificationsEnabled: boolean;
+  /**
+   * v1.5.5 D-3 §10 invariant 16 — the wizard owns the create-time
+   * default for `notificationsEnabled` but never overwrites it on
+   * edit. The detail page's notifications switch is the single source
+   * of truth post-create; the wizard PUT body omits the field so a
+   * user-toggled value never round-trips back to the wizard default.
+   * `buildCreateBody(payload, "edit")` returns `undefined` here.
+   */
+  notificationsEnabled?: boolean;
   startsOn?: string;
   endsOn?: string;
   oneShot: boolean;
@@ -544,7 +552,10 @@ export function encodeScheduleDraft(
  * recurrence fields are suppressed across the board and the route
  * normalises `endsOn` to equal `startsOn`.
  */
-export function buildCreateBody(payload: WizardPayload): CreateMedicationBody {
+export function buildCreateBody(
+  payload: WizardPayload,
+  forMode: "create" | "edit" = "create",
+): CreateMedicationBody {
   const committed = commitActiveDraft(payload);
   const dose = composeDose(committed.doseAmount, committed.doseUnit);
   const mapping =
@@ -565,7 +576,13 @@ export function buildCreateBody(payload: WizardPayload): CreateMedicationBody {
     dose,
     category: mapping.category,
     treatmentClass: mapping.treatmentClass,
-    notificationsEnabled: committed.notificationsEnabled,
+    // v1.5.5 D-3 §10 invariant 16 — `notificationsEnabled` only on
+    // create. Edits never round-trip the wizard's default because the
+    // detail page's notifications switch is the single source of
+    // truth post-create.
+    ...(forMode === "create" && {
+      notificationsEnabled: committed.notificationsEnabled,
+    }),
     oneShot: isOneShot,
     schedules: draftsToEmit.map((draft) => encodeScheduleDraft(draft, isOneShot)),
   };
@@ -863,11 +880,35 @@ export function hydrateWizardPayload(initial: MedicationPayload): WizardPayload 
 
 /**
  * Decision the dialog uses to pick the landing step on edit-hydrate.
- * Multi-schedule medications open on the list view so the user sees
- * every parallel schedule immediately; single-schedule edits keep the
- * Step 1 entry to preserve muscle memory.
+ *
+ * Three call-site intents:
+ *
+ *   - `"name"` (default header pencil): land on Step 1 so the user
+ *     edits the medication's name, dose, treatment-class as a single
+ *     top-down walk. Multi-schedule medications still jump to the
+ *     summary list because the muscle memory there is "see every
+ *     parallel schedule first".
+ *   - `"cadence"`: land directly on Step 5 (the cadence picker). The
+ *     v1.5.5 detail page's cadence-summary row uses this so a tap on
+ *     the row's edit pencil drops the user one screen away from the
+ *     cadence they wanted to change, not two screens away after the
+ *     intro + summary.
+ *   - undefined: legacy behaviour — Step 1 for single-schedule, Step 8
+ *     for multi-schedule.
+ *
+ * One-shot medications collapse Step 5 out of the path, so a
+ * `"cadence"` intent on a one-shot payload falls back to Step 8
+ * (the summary, where the user can flip the one-shot toggle).
  */
-export function landingStepForEdit(payload: WizardPayload): number {
+export function landingStepForEdit(
+  payload: WizardPayload,
+  intent?: "cadence" | "summary" | "name",
+): number {
+  if (intent === "cadence") {
+    return payload.mode === "oneShot" ? 8 : 5;
+  }
+  if (intent === "summary") return 8;
+  if (intent === "name") return 1;
   return payload.schedules.length > 1 ? 8 : 1;
 }
 

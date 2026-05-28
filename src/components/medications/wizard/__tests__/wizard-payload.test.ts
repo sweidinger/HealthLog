@@ -373,7 +373,7 @@ describe("buildCreateBody", () => {
     expect(body.schedules[0].rollingIntervalDays).toBeUndefined();
   });
 
-  it("threads notificationsEnabled through", () => {
+  it("threads notificationsEnabled through on create", () => {
     const p: WizardPayload = {
       ...withCadence("daily"),
       notificationsEnabled: false,
@@ -381,6 +381,24 @@ describe("buildCreateBody", () => {
       startsOn: new Date(Date.UTC(2026, 4, 28)),
     };
     expect(buildCreateBody(p).notificationsEnabled).toBe(false);
+    expect(buildCreateBody(p, "create").notificationsEnabled).toBe(false);
+  });
+
+  // v1.5.5 D-3 §10 invariant 16 — the wizard never round-trips the
+  // notifications default back to the API on edit. The detail-page
+  // notifications switch is the single source of truth post-create;
+  // omitting the field on edit keeps the wizard from clobbering it
+  // when the user opens + saves without changing anything else.
+  it("omits notificationsEnabled on edit", () => {
+    const p: WizardPayload = {
+      ...withCadence("daily"),
+      notificationsEnabled: false,
+      timesOfDay: ["08:00"],
+      startsOn: new Date(Date.UTC(2026, 4, 28)),
+    };
+    const body = buildCreateBody(p, "edit");
+    expect(body.notificationsEnabled).toBeUndefined();
+    expect("notificationsEnabled" in body).toBe(false);
   });
 });
 
@@ -702,6 +720,59 @@ describe("compose-mode — multi-schedule encoder + hydrator", () => {
       schedules: [initial.schedules[0]],
     });
     expect(landingStepForEdit(single)).toBe(1);
+  });
+
+  // v1.5.5 C-E2-2 — `landingStepForEdit` gains an `intent` arg so the
+  // detail-page cadence-summary row can drop the user directly on
+  // Step 5 instead of bouncing them through Step 1 first. One-shot
+  // payloads fall back to Step 8 because the cadence picker is not on
+  // the one-shot path.
+  it("lands on Step 5 for the cadence intent", () => {
+    const payload = hydrateWizardPayload({
+      id: "m_cadence",
+      name: "Test",
+      dose: "10",
+      category: "OTHER",
+      treatmentClass: "GENERIC",
+      notificationsEnabled: true,
+      oneShot: false,
+      schedules: [
+        {
+          id: "sch_a",
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          timesOfDay: ["08:00"],
+          rrule: "FREQ=DAILY",
+          rollingIntervalDays: null,
+        },
+      ],
+    });
+    expect(landingStepForEdit(payload, "cadence")).toBe(5);
+    expect(landingStepForEdit(payload, "name")).toBe(1);
+    expect(landingStepForEdit(payload, "summary")).toBe(8);
+  });
+
+  it("falls back to Step 8 on cadence intent for a one-shot medication", () => {
+    const payload = hydrateWizardPayload({
+      id: "m_oneshot",
+      name: "Test",
+      dose: "10",
+      category: "OTHER",
+      treatmentClass: "GENERIC",
+      notificationsEnabled: true,
+      oneShot: true,
+      schedules: [
+        {
+          id: "sch_a",
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          timesOfDay: ["08:00"],
+          rrule: null,
+          rollingIntervalDays: null,
+        },
+      ],
+    });
+    expect(landingStepForEdit(payload, "cadence")).toBe(8);
   });
 
   it("removeSchedule refuses when schedules.length === 1", () => {
