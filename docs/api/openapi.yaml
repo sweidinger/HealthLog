@@ -855,6 +855,44 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a2
         "429": *a3
+  /api/medications/extract:
+    post:
+      tags:
+        - Medications
+      summary: Extract scheduling fields from a free-text medication description
+      description: Runs the user's free-text description through the Coach provider chain and returns a citation-guarded
+        partial payload the wizard merges onto whatever the user already typed. `name` and `dose` are dropped when not
+        substring-matched in the original text so the wizard cannot land a hallucinated brand or dose. `cadenceKind` /
+        `doseUnit` / `weekdays` are closed enums; numeric fields are clamped. Rate-limited 10 requests / 5 minutes /
+        user, gated against the daily Coach token budget.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicationExtractRequest"
+      responses:
+        "200":
+          description: Citation-guarded partial extraction.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicationExtractResponse"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+        "502":
+          description: Upstream provider returned an empty, unparseable, or off-schema reply.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "503":
+          description: No AI provider configured for the calling user (or operator).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /api/medications/{id}/cadence:
     get:
       tags:
@@ -1875,6 +1913,35 @@ components:
       description: Per-medication intake log body. Idempotent via `idempotencyKey`; the server also dedupes by a 60-second
         sliding window when the key is absent. Non-skipped intakes auto-decrement pen inventory (best-effort), refresh
         the per-day compliance rollup, and — for one-shot medications — flip `active` to false.
+    MedicationExtractRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Free-text medication description (any locale). Up to 2 000 characters. The model never echoes the text back
+            into another tenant — it is only used to produce the structured fields.
+        locale:
+          description: Optional UI locale hint for the model.
+          type: string
+          enum:
+            - en
+            - de
+            - es
+            - fr
+            - it
+            - pl
+        today:
+          description: "Optional override of the reference date used to resolve relative phrases (\"tomorrow\", \"next Monday\").
+            Format: `YYYY-MM-DD`. Defaults to the server's UTC day."
+          type: string
+          pattern: ^\d{4}-\d{2}-\d{2}$
+      required:
+        - text
+      description: Free-text medication description payload. The route runs the text through the Coach provider chain and
+        returns a partial structured payload the wizard merges. Rate-limited 10 requests / 5 minutes / user;
+        budget-gated against the daily Coach token ceiling.
     DisableCoachFlag:
       type: object
       properties:
@@ -3004,6 +3071,105 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/MedicationIntakeEvent"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MedicationExtractResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 100
+            dose:
+              type: string
+              minLength: 1
+              maxLength: 50
+            doseUnit:
+              type: string
+              enum:
+                - mg
+                - ml
+                - iu
+                - tablets
+                - drops
+                - puffs
+                - sprays
+            cadenceKind:
+              type: string
+              enum:
+                - daily
+                - weekdays
+                - everyNWeeks
+                - monthly
+                - everyNMonths
+                - yearly
+                - rolling
+                - oneShot
+            weekdays:
+              maxItems: 7
+              type: array
+              items:
+                type: string
+                enum:
+                  - MO
+                  - TU
+                  - WE
+                  - TH
+                  - FR
+                  - SA
+                  - SU
+            intervalWeeks:
+              type: integer
+              minimum: 1
+              maximum: 52
+            intervalMonths:
+              type: integer
+              minimum: 1
+              maximum: 12
+            dayOfMonth:
+              type: integer
+              minimum: 1
+              maximum: 31
+            rollingIntervalDays:
+              type: integer
+              minimum: 1
+              maximum: 365
+            timesOfDay:
+              maxItems: 12
+              type: array
+              items:
+                type: string
+                pattern: ^([01]\d|2[0-3]):[0-5]\d$
+            startsOn:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}$
+            endsOn:
+              type: string
+              pattern: ^\d{4}-\d{2}-\d{2}$
+            oneShot:
+              type: boolean
+            confidence:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties:
+                type: number
+                minimum: 0
+                maximum: 1
+          additionalProperties: false
         error:
           type: "null"
         meta:

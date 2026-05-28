@@ -43,6 +43,7 @@ import {
   MEDICATION_CATEGORY_VALUES,
   MEDICATION_TREATMENT_CLASS_VALUES,
 } from "@/lib/validations/medication";
+import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
 
 /**
  * Common envelopes — every HealthLog API response wraps payload in
@@ -746,6 +747,45 @@ const insightsComprehensiveResponse = z
       "AI-generated insights bundle. Strict-schema validated server-side; Coach-routed when the insight surface needs day-level grounding.",
   });
 
+// v1.5.0 — natural-language medication extraction route. The wizard's
+// optional "Beschreiben" overlay POSTs a free-text description and
+// receives a partial structured payload the form merges onto whatever
+// the user already typed. Citation-guarded (`name` and `dose` are
+// dropped when not substring-matched in the original text) and
+// closed-enum-validated.
+const medicationExtractRequest = z
+  .object({
+    text: z
+      .string()
+      .min(1)
+      .max(2000)
+      .describe(
+        "Free-text medication description (any locale). Up to 2 000 characters. The model never echoes the text back into another tenant — it is only used to produce the structured fields.",
+      ),
+    locale: z
+      .enum(["en", "de", "es", "fr", "it", "pl"])
+      .optional()
+      .describe("Optional UI locale hint for the model."),
+    today: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional()
+      .describe(
+        "Optional override of the reference date used to resolve relative phrases (\"tomorrow\", \"next Monday\"). Format: `YYYY-MM-DD`. Defaults to the server's UTC day.",
+      ),
+  })
+  .meta({
+    id: "MedicationExtractRequest",
+    description:
+      "Free-text medication description payload. The route runs the text through the Coach provider chain and returns a partial structured payload the wizard merges. Rate-limited 10 requests / 5 minutes / user; budget-gated against the daily Coach token ceiling.",
+  });
+
+medicationExtractionSchema.meta({
+  id: "MedicationExtractionResult",
+  description:
+    "Citation-guarded partial extraction of medication scheduling fields. Every field is optional; the wizard merges what is present onto the form state and leaves the rest blank. `name` and `dose` are post-validated against the original free-text and dropped when not substring-matched, so the wizard cannot silently land a hallucinated brand or dose. `cadenceKind` / `doseUnit` / `weekdays` are closed enums; numeric fields are clamped to the wizard's wire bounds.",
+});
+
 // ── Standard 401 / 422 / 429 responses ───────────────────────────────
 
 const stdResponses = {
@@ -1231,6 +1271,44 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         },
         "404": {
           description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/extract": {
+    post: {
+      tags: ["Medications"],
+      summary: "Extract scheduling fields from a free-text medication description",
+      description:
+        "Runs the user's free-text description through the Coach provider chain and returns a citation-guarded partial payload the wizard merges onto whatever the user already typed. `name` and `dose` are dropped when not substring-matched in the original text so the wizard cannot land a hallucinated brand or dose. `cadenceKind` / `doseUnit` / `weekdays` are closed enums; numeric fields are clamped. Rate-limited 10 requests / 5 minutes / user, gated against the daily Coach token budget.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: medicationExtractRequest },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Citation-guarded partial extraction.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationExtractionSchema,
+                "MedicationExtractResponse",
+              ),
+            },
+          },
+        },
+        "502": {
+          description:
+            "Upstream provider returned an empty, unparseable, or off-schema reply.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "503": {
+          description:
+            "No AI provider configured for the calling user (or operator).",
           content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,
