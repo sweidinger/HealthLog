@@ -27,14 +27,101 @@ export const MEDICATION_TREATMENT_CLASS_VALUES = ["GENERIC", "GLP1"] as const;
 export type MedicationTreatmentClass =
   (typeof MEDICATION_TREATMENT_CLASS_VALUES)[number];
 
-export const scheduleSchema = z.object({
-  windowStart: z.string().regex(timeRegex, "Format: HH:mm"),
-  windowEnd: z.string().regex(timeRegex, "Format: HH:mm"),
-  label: z.string().max(50).optional(),
-  dose: z.string().max(50).optional(),
-  daysOfWeek: z.array(z.number().int().min(0).max(6)).optional(),
-  intervalWeeks: z.number().int().min(1).max(4).optional(),
-});
+/**
+ * v1.5 — RRULE string shape check.
+ *
+ * Not a full RFC 5545 parser (that lives in the `rrule` npm package on
+ * the server side). The regex catches the subset HealthLog mints from
+ * the wizard / form: a `FREQ=` line with optional `INTERVAL=`,
+ * `BYDAY=`, `BYMONTHDAY=`, `BYMONTH=`, `COUNT=`, `UNTIL=` properties
+ * separated by `;`. Any pathological-looking shape (the `FREQ=SECONDLY`
+ * DoS surface, `;COUNT=999999999`) is filtered at the server route
+ * layer with a hard cap on emitted occurrences.
+ */
+const RRULE_PROPS =
+  /^FREQ=(?:DAILY|WEEKLY|MONTHLY|YEARLY)(?:;(?:INTERVAL=\d{1,3}|BYDAY=(?:MO|TU|WE|TH|FR|SA|SU)(?:,(?:MO|TU|WE|TH|FR|SA|SU))*|BYMONTHDAY=-?\d{1,2}(?:,-?\d{1,2})*|BYMONTH=\d{1,2}(?:,\d{1,2})*|COUNT=\d{1,4}|UNTIL=\d{8}T\d{6}Z))*$/;
+
+export const scheduleSchema = z
+  .object({
+    windowStart: z.string().regex(timeRegex, "Format: HH:mm"),
+    windowEnd: z.string().regex(timeRegex, "Format: HH:mm"),
+    label: z.string().max(50).optional(),
+    dose: z.string().max(50).optional(),
+    daysOfWeek: z.array(z.number().int().min(0).max(6)).optional(),
+    intervalWeeks: z.number().int().min(1).max(4).optional(),
+    /**
+     * v1.5 — first-class times-of-day. One or more HH:mm entries in
+     * the user's wall-clock; the engine applies them per matched day.
+     * Empty array falls back to `[windowStart]` for backwards-compat.
+     */
+    timesOfDay: z
+      .array(z.string().regex(timeRegex, "Format: HH:mm"))
+      .max(8)
+      .optional(),
+    /**
+     * v1.5 — reminder grace window (minutes). Replaces the implicit
+     * `windowEnd - windowStart` span for late-classification. NULL
+     * falls back to the legacy span. Capped at 24 hours.
+     */
+    reminderGraceMinutes: z.number().int().min(1).max(24 * 60).optional(),
+    /**
+     * v1.5 — RFC 5545 RRULE string for calendar-anchored cadences.
+     * Mutually exclusive with `rollingIntervalDays`.
+     */
+    rrule: z
+      .string()
+      .max(200)
+      .regex(RRULE_PROPS, "Invalid RRULE")
+      .optional(),
+    /**
+     * v1.5 — flexible-rolling interval in days, counted from the
+     * latest MedicationIntakeEvent.takenAt. Mutually exclusive with
+     * `rrule`. Range 1..365 days.
+     */
+    rollingIntervalDays: z.number().int().min(1).max(365).optional(),
+  })
+  .refine(
+    (s) => !(s.rrule && s.rollingIntervalDays),
+    {
+      message:
+        "A schedule can be calendar-anchored (rrule) or rolling, not both",
+      path: ["rrule"],
+    },
+  );
+
+/**
+ * v1.5 — medication-level course window + one-shot flag. The fields
+ * are optional on the create path so the existing form (no wizard
+ * yet) keeps working. The route layer enforces the `oneShot` + at-
+ * least-one-schedule invariant for the wizard path.
+ */
+const courseWindowFields = {
+  /**
+   * Date the medication course begins. ISO YYYY-MM-DD. NULL = "from
+   * creation" (the legacy implicit anchor).
+   */
+  startsOn: z.iso
+    .date()
+    .transform((s) => new Date(s))
+    .nullable()
+    .optional(),
+  /**
+   * Date the medication course ends. ISO YYYY-MM-DD. NULL = chronic.
+   * Required to equal `startsOn` when `oneShot` is true (the route
+   * normalises this; the schema doesn't because they're sister
+   * fields and the cross-field refine is enforced at the route).
+   */
+  endsOn: z.iso
+    .date()
+    .transform((s) => new Date(s))
+    .nullable()
+    .optional(),
+  /**
+   * Single-administration medication. Auto-deactivates after the
+   * single intake is logged.
+   */
+  oneShot: z.boolean().optional(),
+};
 
 export const createMedicationSchema = z.object({
   name: z.string().min(1).max(100),
@@ -44,6 +131,7 @@ export const createMedicationSchema = z.object({
   treatmentClass: z.enum(MEDICATION_TREATMENT_CLASS_VALUES).optional(),
   /** v1.4.25 W4d — doses per pen/vial for inventory tracking. */
   dosesPerUnit: z.number().int().min(1).max(100).optional(),
+  ...courseWindowFields,
   schedules: z.array(scheduleSchema).min(1, "Mindestens ein Zeitfenster"),
 });
 
@@ -55,6 +143,7 @@ export const updateMedicationSchema = z.object({
   dosesPerUnit: z.number().int().min(1).max(100).nullable().optional(),
   active: z.boolean().optional(),
   notificationsEnabled: z.boolean().optional(),
+  ...courseWindowFields,
   schedules: z.array(scheduleSchema).optional(),
 });
 
