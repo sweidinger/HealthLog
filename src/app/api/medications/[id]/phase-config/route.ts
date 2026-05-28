@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
-import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
+import {
+  apiSuccess,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
 import { phaseConfigSchema } from "@/lib/validations/phase-config";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { NextRequest } from "next/server";
@@ -59,7 +63,11 @@ export const PUT = apiHandler(
     if (jsonError) return jsonError;
     const parsed = phaseConfigSchema.safeParse(body);
     if (!parsed.success) {
-      return apiError("Invalid input", 400);
+      // v1.5.5 F-1 H-3 — every v1.5.5 route returns the multi-issue
+      // 422 envelope so iOS sees per-field feedback the same way the
+      // bulk-delete and intake routes already do. The old `400 Invalid
+      // input` flat response was the last hold-out in the surface.
+      return returnAllZodIssues(parsed.error, 422);
     }
 
     const config = await prisma.reminderPhaseConfig.upsert({
