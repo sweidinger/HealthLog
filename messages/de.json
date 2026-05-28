@@ -8,6 +8,7 @@
     "create": "Erstellen",
     "close": "Schließen",
     "loading": "Laden...",
+    "loadFailed": "Konnte nicht geladen werden",
     "error": "Fehler",
     "saved": "Gespeichert",
     "no": "Nein",
@@ -1108,6 +1109,117 @@
         "gatedStaleBody": "Der Disclaimer des Forschungsmodus wurde seit deiner letzten Bestätigung aktualisiert. Lies ihn in den Einstellungen erneut und bestätige, um die Kurve wieder einzublenden.",
         "gatedCta": "Forschungsmodus in den Einstellungen öffnen",
         "unknownDrug": "{name} ist nicht im EMA-zugelassenen GLP-1-Katalog enthalten. HealthLog kann dafür keine Populations-Pharmakokinetik-Kurve erzeugen."
+      }
+    },
+    "detail": {
+      "status": {
+        "active": "Aktiv",
+        "paused": "Pausiert",
+        "ended": "Beendet"
+      },
+      "today": {
+        "groupLabel": "Heutige Dosis",
+        "taken": "Genommen",
+        "skipped": "Übersprungen",
+        "toastTaken": "Heutige Dosis erfasst",
+        "toastSkipped": "Heutige Dosis übersprungen",
+        "recordedTaken": "Heute genommen um {time}",
+        "recordedSkipped": "Heute übersprungen um {time}",
+        "recordedOneShot": "Einmalig genommen um {time}",
+        "noneScheduled": "Heute keine Einnahme geplant.",
+        "pausedHint": "Pausiert — heute keine Erinnerung.",
+        "error": "Dosis konnte nicht erfasst werden."
+      },
+      "cadence": {
+        "title": "Rhythmus",
+        "oneShotOn": "Einmalige Dosis am {date}.",
+        "oneShotPending": "Einmalige Dosis ausstehend."
+      },
+      "intake": {
+        "title": "Einnahmeverlauf",
+        "importButton": "Importieren",
+        "viewAllLink": "Vollständigen Verlauf öffnen →"
+      },
+      "notifications": {
+        "title": "Erinnerungen",
+        "switchLabel": "Erinnern, wenn die Dosis fällig ist",
+        "helperOn": "Erinnerungen sind aktiv.",
+        "helperOff": "Erinnerungen sind aus.",
+        "enabledToast": "Erinnerungen aktiv",
+        "disabledToast": "Erinnerungen aus",
+        "toggleFailed": "Erinnerungs-Einstellung konnte nicht geändert werden.",
+        "clientManagedChip": "Dein iPhone steuert die Erinnerungen für dieses Medikament."
+      },
+      "settings": {
+        "title": "Einstellungen",
+        "csvImport": {
+          "title": "CSV-Import",
+          "stub": "Importiere Einnahmen direkt aus dem Verlauf oben."
+        },
+        "phases": {
+          "openButton": "Phasen konfigurieren",
+          "requiresCourseWindow": "Phasen sind nur mit Kurs-Fenster verfügbar."
+        },
+        "grace": {
+          "label": "Erinnerungsfenster — gilt für deinen Hauptzeitplan",
+          "primaryScheduleNote": "Andere Zeitpläne behalten ihr Standard-Fenster.",
+          "unit": "Minuten",
+          "saved": "Erinnerungsfenster gespeichert",
+          "failed": "Erinnerungsfenster konnte nicht gespeichert werden."
+        }
+      },
+      "zone": {
+        "title": "Verwaltung & Gefahrenzone",
+        "pause": {
+          "title": "Pausieren",
+          "helper": "Erinnerungen anhalten, bis du sie wieder aktivierst. Verlauf bleibt erhalten.",
+          "pausedToast": "Erinnerungen pausiert",
+          "resumedToast": "Erinnerungen reaktiviert",
+          "failed": "Status konnte nicht geändert werden."
+        },
+        "end": {
+          "title": "Medikament beenden",
+          "helper": "Erinnerungen stoppen und das Medikament als beendet markieren. Verlauf bleibt sichtbar.",
+          "button": "Beenden",
+          "dialogTitle": "{name} beenden — Erinnerungen stoppen, Verlauf bleibt sichtbar",
+          "dialogBody": "Keine weiteren Erinnerungen. Alte Einträge bleiben in der Übersicht.",
+          "toast": "Medikament beendet",
+          "failed": "Medikament konnte nicht beendet werden."
+        },
+        "purge": {
+          "title": "Verlauf löschen",
+          "helper": "Es sind {count} Einnahmen für dieses Medikament gespeichert.",
+          "button": "Verlauf löschen",
+          "dialogTitle": "Verlauf wirklich löschen?",
+          "dialogBody": "Die {count} Einnahmen werden unwiderruflich gelöscht. Das Medikament selbst bleibt.",
+          "toast": "Verlauf gelöscht",
+          "failed": "Verlauf konnte nicht gelöscht werden."
+        },
+        "delete": {
+          "title": "Medikament löschen",
+          "helper": "Entfernt das Medikament und alle zugehörigen Daten.",
+          "button": "Löschen",
+          "dialogTitle": "{name} löschen?",
+          "dialogBody": "Medikament, Zeitpläne, Verlauf, API-Tokens, Phasen-Konfiguration und Erinnerungen werden unwiderruflich gelöscht.",
+          "toast": "Medikament gelöscht",
+          "failed": "Medikament konnte nicht gelöscht werden."
+        }
+      },
+      "phases": {
+        "modeLabel": "Modus für {phase}",
+        "saveFailed": "Phasen konnten nicht gespeichert werden."
+      },
+      "api": {
+        "caption": "Endpunkt für „{name}\"",
+        "copyUrl": "URL kopieren",
+        "urlCopied": "URL kopiert",
+        "mintToken": "Token erzeugen",
+        "mintAnotherToken": "Weiteres Token erzeugen",
+        "mintFailed": "Token konnte nicht erzeugt werden.",
+        "copyFailed": "Kopieren fehlgeschlagen.",
+        "tokenCopied": "Token kopiert",
+        "copyToken": "Token kopieren",
+        "mintedHint": "Token jetzt kopieren — es wird nur einmal angezeigt."
       }
     }
   },

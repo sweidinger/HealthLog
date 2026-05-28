@@ -8,6 +8,7 @@
     "create": "Crea",
     "close": "Chiudi",
     "loading": "Caricamento…...",
+    "loadFailed": "Could not load",
     "error": "Errore",
     "saved": "Salvato",
     "no": "No",
@@ -1108,6 +1109,117 @@
         "gatedStaleBody": "Il disclaimer della modalità Ricerca è stato aggiornato dall'ultima tua conferma. Rileggilo nelle impostazioni e conferma di nuovo per rivedere la curva.",
         "gatedCta": "Apri la modalità Ricerca nelle impostazioni",
         "unknownDrug": "{name} non è nel catalogo GLP-1 approvato dall'EMA, quindi HealthLog non può tracciare una curva di farmacocinetica di popolazione."
+      }
+    },
+    "detail": {
+      "status": {
+        "active": "Active",
+        "paused": "Paused",
+        "ended": "Ended"
+      },
+      "today": {
+        "groupLabel": "Today's dose",
+        "taken": "Taken",
+        "skipped": "Skipped",
+        "toastTaken": "Today's dose logged",
+        "toastSkipped": "Today's dose skipped",
+        "recordedTaken": "Taken today at {time}",
+        "recordedSkipped": "Skipped today at {time}",
+        "recordedOneShot": "One-shot dose taken at {time}",
+        "noneScheduled": "No dose scheduled for today.",
+        "pausedHint": "Paused — no reminder today.",
+        "error": "Could not log the dose."
+      },
+      "cadence": {
+        "title": "Cadence",
+        "oneShotOn": "One-time dose on {date}.",
+        "oneShotPending": "One-time dose pending."
+      },
+      "intake": {
+        "title": "Intake history",
+        "importButton": "Import",
+        "viewAllLink": "View full history →"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "switchLabel": "Send a reminder when this dose is due",
+        "helperOn": "Reminders are on.",
+        "helperOff": "Reminders are off.",
+        "enabledToast": "Reminders on",
+        "disabledToast": "Reminders off",
+        "toggleFailed": "Could not change the reminder setting.",
+        "clientManagedChip": "Your iPhone manages reminders for this medication."
+      },
+      "settings": {
+        "title": "Settings",
+        "csvImport": {
+          "title": "CSV import",
+          "stub": "Import intakes directly from the history above."
+        },
+        "phases": {
+          "openButton": "Configure phases",
+          "requiresCourseWindow": "Phases are available once a course window is set."
+        },
+        "grace": {
+          "label": "Reminder window — applies to your primary schedule",
+          "primaryScheduleNote": "Multi-schedule medications keep their other schedules' default window.",
+          "unit": "minutes",
+          "saved": "Reminder window saved",
+          "failed": "Could not save the reminder window."
+        }
+      },
+      "zone": {
+        "title": "Manage & danger zone",
+        "pause": {
+          "title": "Pause",
+          "helper": "Pause reminders until you turn them back on. History stays intact.",
+          "pausedToast": "Reminders paused",
+          "resumedToast": "Reminders resumed",
+          "failed": "Could not change the paused state."
+        },
+        "end": {
+          "title": "End medication",
+          "helper": "Stop reminders and mark the medication as ended. History stays visible.",
+          "button": "End",
+          "dialogTitle": "End {name} — stop reminders, history stays visible",
+          "dialogBody": "No more reminders. Old entries remain in the timeline.",
+          "toast": "Medication ended",
+          "failed": "Could not end the medication."
+        },
+        "purge": {
+          "title": "Delete history",
+          "helper": "{count} intake events are stored for this medication.",
+          "button": "Delete history",
+          "dialogTitle": "Really delete the history?",
+          "dialogBody": "The {count} intake events will be removed permanently. The medication itself stays.",
+          "toast": "History deleted",
+          "failed": "Could not delete the history."
+        },
+        "delete": {
+          "title": "Delete medication",
+          "helper": "Removes the medication and every related record.",
+          "button": "Delete",
+          "dialogTitle": "Delete {name}?",
+          "dialogBody": "The medication, its schedules, intake history, API tokens, phase config and reminders will be removed permanently.",
+          "toast": "Medication deleted",
+          "failed": "Could not delete the medication."
+        }
+      },
+      "phases": {
+        "modeLabel": "{phase} mode",
+        "saveFailed": "Could not save the reminder phases."
+      },
+      "api": {
+        "caption": "Endpoint for \"{name}\"",
+        "copyUrl": "Copy URL",
+        "urlCopied": "URL copied",
+        "mintToken": "Mint token",
+        "mintAnotherToken": "Mint another token",
+        "mintFailed": "Could not mint a token.",
+        "copyFailed": "Could not copy.",
+        "tokenCopied": "Token copied",
+        "copyToken": "Copy token",
+        "mintedHint": "Copy this token now — it is shown only once."
       }
     }
   },

@@ -735,6 +735,8 @@ describe("compose-mode — multi-schedule encoder + hydrator", () => {
       category: "OTHER",
       treatmentClass: "GENERIC",
       notificationsEnabled: true,
+      startsOn: new Date(Date.UTC(2026, 4, 28)),
+      endsOn: null,
       oneShot: false,
       schedules: [
         {
@@ -760,6 +762,8 @@ describe("compose-mode — multi-schedule encoder + hydrator", () => {
       category: "OTHER",
       treatmentClass: "GENERIC",
       notificationsEnabled: true,
+      startsOn: new Date(Date.UTC(2026, 4, 28)),
+      endsOn: null,
       oneShot: true,
       schedules: [
         {
