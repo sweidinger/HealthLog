@@ -70,13 +70,35 @@ export const PUT = apiHandler(
       return returnAllZodIssues(parsed.error, 422);
     }
 
+    // v1.5.5 F-1 H-4 — build the Prisma payload field-by-field rather
+    // than spreading `parsed.data`. A future schema extension would
+    // otherwise land on the upsert silently; the explicit pick keeps
+    // the surface honest at the call site.
+    const {
+      greenValue,
+      greenMode,
+      yellowValue,
+      yellowMode,
+      orangeValue,
+      orangeMode,
+      redValue,
+      redMode,
+    } = parsed.data;
+    const phaseFields = {
+      greenValue,
+      greenMode,
+      yellowValue,
+      yellowMode,
+      orangeValue,
+      orangeMode,
+      redValue,
+      redMode,
+    };
+
     const config = await prisma.reminderPhaseConfig.upsert({
       where: { medicationId: id },
-      create: {
-        medicationId: id,
-        ...parsed.data,
-      },
-      update: parsed.data,
+      create: { medicationId: id, ...phaseFields },
+      update: phaseFields,
     });
 
     annotate({

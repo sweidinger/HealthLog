@@ -94,3 +94,64 @@ describe("PUT /api/medications/[id]/phase-config — F-1 H-3 multi-issue 422", (
     }
   });
 });
+
+describe("PUT /api/medications/[id]/phase-config — F-1 H-4 field-by-field upsert", () => {
+  it("builds the create + update payloads field-by-field rather than spreading parsed.data", async () => {
+    const body = {
+      greenValue: 60,
+      greenMode: "MINUTES",
+      yellowValue: 30,
+      yellowMode: "MINUTES",
+      orangeValue: 0,
+      orangeMode: "MINUTES",
+      redValue: 240,
+      redMode: "MINUTES",
+    };
+    await PUT(putReq(body), ROUTE_PARAMS);
+
+    const callArg = vi.mocked(prisma.reminderPhaseConfig.upsert).mock.calls[0][0];
+    // create payload contains exactly the eight enumerated phase fields
+    // plus the `medicationId` route binding — nothing else.
+    expect(Object.keys(callArg.create).sort()).toEqual([
+      "greenMode",
+      "greenValue",
+      "medicationId",
+      "orangeMode",
+      "orangeValue",
+      "redMode",
+      "redValue",
+      "yellowMode",
+      "yellowValue",
+    ]);
+    // update payload mirrors the eight phase fields (no `medicationId`).
+    expect(Object.keys(callArg.update).sort()).toEqual([
+      "greenMode",
+      "greenValue",
+      "orangeMode",
+      "orangeValue",
+      "redMode",
+      "redValue",
+      "yellowMode",
+      "yellowValue",
+    ]);
+  });
+
+  it("ignores an unknown field smuggled in the body (no mass assignment)", async () => {
+    const body = {
+      greenValue: 60,
+      greenMode: "MINUTES",
+      yellowValue: 30,
+      yellowMode: "MINUTES",
+      orangeValue: 0,
+      orangeMode: "MINUTES",
+      redValue: 240,
+      redMode: "MINUTES",
+      // Unknown rogue field — should never reach the Prisma upsert.
+      maliciousField: "owned",
+    };
+    await PUT(putReq(body), ROUTE_PARAMS);
+    const callArg = vi.mocked(prisma.reminderPhaseConfig.upsert).mock.calls[0][0];
+    expect((callArg.create as Record<string, unknown>).maliciousField).toBeUndefined();
+    expect((callArg.update as Record<string, unknown>).maliciousField).toBeUndefined();
+  });
+});
