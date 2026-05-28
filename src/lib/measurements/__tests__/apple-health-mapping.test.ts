@@ -457,6 +457,75 @@ describe("v1.5.5 iOS-coord additions — six previously-deferred identifiers", (
   });
 });
 
+describe("v1.5.5 iOS-coord follow-up — raw-SI gait pair", () => {
+  it("maps walkingStepLength + walkingSpeed to the new MeasurementTypes", () => {
+    const sl = APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierWalkingStepLength;
+    const sp = APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierWalkingSpeed;
+    expect(sl).toBeDefined();
+    expect(sp).toBeDefined();
+    expect(sl.measurementType).toBe("WALKING_STEP_LENGTH");
+    expect(sp.measurementType).toBe("WALKING_SPEED");
+    expect(sl.dbUnit).toBe("m");
+    expect(sp.dbUnit).toBe("m/s");
+  });
+
+  it("passes raw SI values through unchanged (no ×100 scaling)", () => {
+    // Crucial convention pin: the percent gait metrics scale ×100
+    // server-side because Apple ships 0..1 fractions; step length
+    // and speed are already in metres / metres-per-second and MUST
+    // round-trip as identity. A future contributor wiring a new
+    // gait identifier should add to the right bucket — this test
+    // is the regression sentinel for that decision.
+    const sl = APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierWalkingStepLength;
+    const sp = APPLE_HEALTH_TYPE_MAP.HKQuantityTypeIdentifierWalkingSpeed;
+    expect(sl.convertToDbUnit(0.72)).toBe(0.72);
+    expect(sl.convertToDbUnit(1.5)).toBe(1.5);
+    expect(sp.convertToDbUnit(1.3)).toBe(1.3);
+    expect(sp.convertToDbUnit(2.1)).toBe(2.1);
+  });
+
+  it("removes both identifiers from the deferred set", () => {
+    expect(
+      HK_QUANTITY_TYPE_DEFERRED.has("HKQuantityTypeIdentifierWalkingStepLength"),
+    ).toBe(false);
+    expect(
+      HK_QUANTITY_TYPE_DEFERRED.has("HKQuantityTypeIdentifierWalkingSpeed"),
+    ).toBe(false);
+  });
+
+  it("round-trips a walking-step-length sample through mapAppleHealthEntry", () => {
+    const out = mapAppleHealthEntry({
+      hkIdentifier: "HKQuantityTypeIdentifierWalkingStepLength",
+      value: 0.72,
+      unit: "m",
+      startDate: "2026-05-28T09:00:00.000Z",
+      endDate: "2026-05-28T09:00:00.000Z",
+    });
+    expect(out).toEqual({
+      type: "WALKING_STEP_LENGTH",
+      value: 0.72,
+      unit: "m",
+      takenAt: new Date("2026-05-28T09:00:00.000Z"),
+    });
+  });
+
+  it("round-trips a walking-speed sample through mapAppleHealthEntry", () => {
+    const out = mapAppleHealthEntry({
+      hkIdentifier: "HKQuantityTypeIdentifierWalkingSpeed",
+      value: 1.34,
+      unit: "m/s",
+      startDate: "2026-05-28T09:00:00.000Z",
+      endDate: "2026-05-28T09:00:00.000Z",
+    });
+    expect(out).toEqual({
+      type: "WALKING_SPEED",
+      value: 1.34,
+      unit: "m/s",
+      takenAt: new Date("2026-05-28T09:00:00.000Z"),
+    });
+  });
+});
+
 describe("v1.4.30 Tier-1 additions (R-F T1.4 + T1.5)", () => {
   it("maps appleWalkingSteadiness to WALKING_STEADINESS with × 100 scaling", () => {
     const mapping =

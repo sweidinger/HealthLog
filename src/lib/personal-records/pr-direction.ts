@@ -62,6 +62,13 @@ export function getPRDirection(
     // v1.5.5 — lean body mass is the muscle-mass-adjacent body-comp
     // axis where higher is the goal.
     case "LEAN_BODY_MASS":
+    // v1.5.5 follow-up — walking speed is a well-established
+    // clinical fitness marker (often called the "sixth vital
+    // sign" in older-adult medicine); faster gait correlates
+    // with cardiovascular fitness, sarcopenia recovery, and
+    // overall mobility resilience. MAX direction matches Apple's
+    // own Mobility-section framing.
+    case "WALKING_SPEED":
       return PersonalRecordDirection.MAX;
 
     // MIN direction — lower value is the record.
@@ -104,6 +111,13 @@ export function getPRDirection(
     case "RESPIRATORY_RATE":
     case "WALKING_HEART_RATE_AVERAGE":
     case "BODY_MASS_INDEX":
+    // v1.5.5 follow-up — walking step length is a state metric:
+    // taller users have longer strides regardless of fitness, and
+    // there is no clean "higher is better" axis (very long strides
+    // can also signal an unsafe overstride). Defer to a null PR
+    // direction; the future worker can still surface trend deltas
+    // without claiming a record direction.
+    case "WALKING_STEP_LENGTH":
       return null;
   }
 }

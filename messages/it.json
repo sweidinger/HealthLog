@@ -369,6 +369,8 @@
     "typeWalkingHeartRateAverage": "Frequenza cardiaca a passo (media)",
     "typeWalkingAsymmetry": "Asimmetria del cammino",
     "typeWalkingDoubleSupport": "Doppio appoggio nel cammino",
+    "typeWalkingStepLength": "Lunghezza del passo",
+    "typeWalkingSpeed": "Velocità del cammino",
     "glucoseContext": "Contesto",
     "glucoseContextFasting": "A digiuno (≥8 h senza cibo)",
     "glucoseContextPostprandial": "Postprandiale (2 h dopo il pasto)",

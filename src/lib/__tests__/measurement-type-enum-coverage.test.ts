@@ -56,10 +56,13 @@ const EXPECTED_TYPES = [
   "WALKING_HEART_RATE_AVERAGE",
   "WALKING_ASYMMETRY",
   "WALKING_DOUBLE_SUPPORT",
+  // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
+  "WALKING_STEP_LENGTH",
+  "WALKING_SPEED",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 36 canonical measurement types", () => {
+  it("exposes the 38 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -123,6 +126,10 @@ describe("measurementTypeEnum coverage", () => {
     "WALKING_HEART_RATE_AVERAGE",
     "WALKING_ASYMMETRY",
     "WALKING_DOUBLE_SUPPORT",
+    // v1.5.5 iOS-coord follow-up — raw-SI gait pair held under the
+    // same clinical-layout deferral as the rest of the Mobility set.
+    "WALKING_STEP_LENGTH",
+    "WALKING_SPEED",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

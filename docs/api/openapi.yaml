@@ -176,6 +176,8 @@ paths:
               - WALKING_HEART_RATE_AVERAGE
               - WALKING_ASYMMETRY
               - WALKING_DOUBLE_SUPPORT
+              - WALKING_STEP_LENGTH
+              - WALKING_SPEED
         - in: query
           name: from
           schema:
@@ -307,6 +309,8 @@ paths:
                     - WALKING_HEART_RATE_AVERAGE
                     - WALKING_ASYMMETRY
                     - WALKING_DOUBLE_SUPPORT
+                    - WALKING_STEP_LENGTH
+                    - WALKING_SPEED
                 value:
                   type: number
                 measuredAt:
@@ -2343,6 +2347,8 @@ components:
             - WALKING_HEART_RATE_AVERAGE
             - WALKING_ASYMMETRY
             - WALKING_DOUBLE_SUPPORT
+            - WALKING_STEP_LENGTH
+            - WALKING_SPEED
         value:
           type: number
         unit:

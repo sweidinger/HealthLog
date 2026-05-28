@@ -123,6 +123,25 @@ export const APPLE_HEALTH_SLEEP_STAGE_MAP: Record<number, SleepStage> = {
  * through the same canonical server-side scaling path. The coord
  * note in `.planning/ios-coord/` documents the one-release shim and
  * the migration window.
+ *
+ * ── Convention split — percent vs raw SI ───────────────────────────
+ *
+ * The ×100 scaling applies ONLY to identifiers Apple ships as a
+ * 0..1 fraction:
+ *
+ *   - `oxygenSaturation`
+ *   - `bodyFatPercentage`
+ *   - `appleWalkingSteadiness`
+ *   - `walkingAsymmetryPercentage`
+ *   - `walkingDoubleSupportPercentage`
+ *
+ * Identifiers that already ride raw SI units on the wire pass
+ * through `convertToDbUnit` as identity — no scaling, no clamp. The
+ * v1.5.5 follow-up additions `walkingStepLength` (metres) and
+ * `walkingSpeed` (metres per second) belong to this second bucket
+ * and must NOT be scaled. A future contributor adding a new gait
+ * metric: check Apple's HK unit; percent → ×100 path, m/m·s/kg/etc
+ * → identity path.
  */
 export const APPLE_HEALTH_TYPE_MAP: Record<string, AppleHealthMapping> = {
   // ── Body composition ────────────────────────────────────────
@@ -427,6 +446,30 @@ export const APPLE_HEALTH_TYPE_MAP: Record<string, AppleHealthMapping> = {
     convertToDbUnit: (v) => v * 100,
     aggregation: "latest",
   },
+
+  // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ───────────
+  // Walking step length — Apple ships raw metres; canonical DB
+  // unit is metres too. NO scaling — the ×100 convention applies
+  // ONLY to the percent gait metrics above. See the convention
+  // block at the top of this file for the split.
+  HKQuantityTypeIdentifierWalkingStepLength: {
+    hkIdentifier: "HKQuantityTypeIdentifierWalkingStepLength",
+    measurementType: "WALKING_STEP_LENGTH",
+    hkUnit: "m",
+    dbUnit: "m",
+    convertToDbUnit: (v) => v,
+    aggregation: "mean",
+  },
+  // Walking speed — Apple ships raw metres-per-second; canonical
+  // DB unit is m/s too. NO scaling — see the convention block.
+  HKQuantityTypeIdentifierWalkingSpeed: {
+    hkIdentifier: "HKQuantityTypeIdentifierWalkingSpeed",
+    measurementType: "WALKING_SPEED",
+    hkUnit: "m/s",
+    dbUnit: "m/s",
+    convertToDbUnit: (v) => v,
+    aggregation: "mean",
+  },
 };
 
 /**
@@ -536,8 +579,8 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   "HKQuantityTypeIdentifierAppleStandTime", // implied by Workout rows
   "HKCategoryTypeIdentifierAppleStandHour", // implied by Workout rows
   // Running / walking form — v1.5+
-  "HKQuantityTypeIdentifierWalkingSpeed",
-  "HKQuantityTypeIdentifierWalkingStepLength",
+  // v1.5.5 — `WalkingStepLength` + `WalkingSpeed` moved into the
+  // mapping table (raw SI on the wire — metres and m/s respectively).
   "HKQuantityTypeIdentifierStairAscentSpeed",
   "HKQuantityTypeIdentifierStairDescentSpeed",
   "HKQuantityTypeIdentifierSixMinuteWalkTestDistance",

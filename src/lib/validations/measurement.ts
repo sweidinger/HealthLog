@@ -42,6 +42,11 @@ export const measurementTypeEnum = z.enum([
   "WALKING_HEART_RATE_AVERAGE",
   "WALKING_ASYMMETRY",
   "WALKING_DOUBLE_SUPPORT",
+  // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
+  // Both ship raw SI on the wire (metres / metres-per-second); see
+  // the convention block in `apple-health-mapping.ts`.
+  "WALKING_STEP_LENGTH",
+  "WALKING_SPEED",
 ]);
 
 export const glucoseContextEnum = z.enum([
@@ -121,6 +126,12 @@ const unitMap: Record<string, string> = {
   // — see the project convention block in `apple-health-mapping.ts`.
   WALKING_ASYMMETRY: "%",
   WALKING_DOUBLE_SUPPORT: "%",
+  // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
+  // Step length is metres; speed is metres per second. Both flow
+  // raw on the wire — no server-side scaling. The unit strings
+  // match HealthKit's `m` / `m/s` defaults.
+  WALKING_STEP_LENGTH: "m",
+  WALKING_SPEED: "m/s",
 };
 
 export function getUnitForType(type: string): string {
@@ -218,6 +229,16 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // the ×100 server-side scaling the canonical band is 0..100.
   WALKING_ASYMMETRY: { min: 0, max: 100 },
   WALKING_DOUBLE_SUPPORT: { min: 0, max: 100 },
+  // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
+  // Step length (metres) — adult walking sits around 0.5–0.8 m; the
+  // 0.1 floor captures shuffling gait and the 2.0 ceiling covers
+  // unusually tall sprinters without catching obvious sensor noise.
+  WALKING_STEP_LENGTH: { min: 0.1, max: 2.0 },
+  // Walking speed (m/s) — healthy adult casual gait ≈ 1.2–1.4 m/s;
+  // brisk walking tops out near 2.2 m/s before transitioning to a
+  // run. The 0.1 floor captures a very slow shuffle; 3.0 covers
+  // race-walking record territory.
+  WALKING_SPEED: { min: 0.1, max: 3.0 },
 };
 
 export function validateMeasurementRange(

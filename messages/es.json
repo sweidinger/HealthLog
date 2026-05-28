@@ -369,6 +369,8 @@
     "typeWalkingHeartRateAverage": "Frecuencia cardíaca al caminar (media)",
     "typeWalkingAsymmetry": "Asimetría al caminar",
     "typeWalkingDoubleSupport": "Doble apoyo al caminar",
+    "typeWalkingStepLength": "Longitud de zancada",
+    "typeWalkingSpeed": "Velocidad al caminar",
     "glucoseContext": "Contexto",
     "glucoseContextFasting": "En ayunas (≥8 h sin comer)",
     "glucoseContextPostprandial": "Posprandial (2 h tras comer)",

@@ -369,6 +369,8 @@
     "typeWalkingHeartRateAverage": "Walking heart rate (avg)",
     "typeWalkingAsymmetry": "Walking asymmetry",
     "typeWalkingDoubleSupport": "Walking double support",
+    "typeWalkingStepLength": "Walking step length",
+    "typeWalkingSpeed": "Walking speed",
     "glucoseContext": "Context",
     "glucoseContextFasting": "Fasting (≥8h without food)",
     "glucoseContextPostprandial": "Post-meal (2h after eating)",

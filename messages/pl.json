@@ -369,6 +369,8 @@
     "typeWalkingHeartRateAverage": "Tętno przy chodzeniu (śr.)",
     "typeWalkingAsymmetry": "Asymetria chodu",
     "typeWalkingDoubleSupport": "Podwójna podpora chodu",
+    "typeWalkingStepLength": "Długość kroku",
+    "typeWalkingSpeed": "Prędkość chodu",
     "glucoseContext": "Kontekst",
     "glucoseContextFasting": "Na czczo (≥8 godz. bez jedzenia)",
     "glucoseContextPostprandial": "Po posiłku (2 godz. po jedzeniu)",

@@ -78,6 +78,9 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   WALKING_HEART_RATE_AVERAGE: "measurements.typeWalkingHeartRateAverage",
   WALKING_ASYMMETRY: "measurements.typeWalkingAsymmetry",
   WALKING_DOUBLE_SUPPORT: "measurements.typeWalkingDoubleSupport",
+  // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
+  WALKING_STEP_LENGTH: "measurements.typeWalkingStepLength",
+  WALKING_SPEED: "measurements.typeWalkingSpeed",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -136,6 +139,12 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   WALKING_HEART_RATE_AVERAGE: HeartPulse,
   WALKING_ASYMMETRY: Footprints,
   WALKING_DOUBLE_SUPPORT: Footprints,
+  // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
+  // Footprints carries the stride/length signal; Gauge mirrors
+  // the velocity-reading shape (same family as VO2_MAX +
+  // WALKING_STEADINESS).
+  WALKING_STEP_LENGTH: Footprints,
+  WALKING_SPEED: Gauge,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -187,4 +196,11 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   WALKING_HEART_RATE_AVERAGE: "bg-chart-3/20 text-chart-3",
   WALKING_ASYMMETRY: "bg-chart-2/20 text-chart-2",
   WALKING_DOUBLE_SUPPORT: "bg-chart-2/20 text-chart-2",
+  // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
+  // Stay in chart-2 (Dracula green) — the entire Mobility cluster
+  // (steadiness + asymmetry + double-support + step length + speed)
+  // shares the activity-family colour so the gait cards read as one
+  // visual group on Insights.
+  WALKING_STEP_LENGTH: "bg-chart-2/20 text-chart-2",
+  WALKING_SPEED: "bg-chart-2/20 text-chart-2",
 };

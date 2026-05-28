@@ -490,6 +490,14 @@ enum MeasurementType {
   WALKING_HEART_RATE_AVERAGE // bpm — HealthKit `walkingHeartRateAverage`. Daily rollup; cardio-fitness signal distinct from RESTING_HEART_RATE and spot PULSE.
   WALKING_ASYMMETRY // percent (0-100, scaled ×100 from Apple's 0..1 fraction) — HealthKit `walkingAsymmetryPercentage`. Mobility section sibling to WALKING_STEADINESS.
   WALKING_DOUBLE_SUPPORT // percent (0-100, scaled ×100 from Apple's 0..1 fraction) — HealthKit `walkingDoubleSupportPercentage`. Mobility section sibling.
+  // ── v1.5.5 iOS-coord follow-up — gait raw-SI pair ──
+  // Both identifiers flow over the wire in raw SI units (no ×100
+  // scaling). The percent gait metrics above use the server-side
+  // scaling path because Apple ships them as 0..1 fractions; the two
+  // below are already in metres and metres-per-second respectively
+  // and pass through `convertToDbUnit` as identity.
+  WALKING_STEP_LENGTH // metres — HealthKit `walkingStepLength`. Mobility section gait metric; adult walking typically 0.5–0.8 m.
+  WALKING_SPEED // metres per second — HealthKit `walkingSpeed`. Mobility section gait metric; healthy adult casual gait ≈ 1.2–1.4 m/s.
 
   @@map("measurement_type")
 }
