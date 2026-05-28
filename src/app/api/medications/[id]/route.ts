@@ -17,6 +17,7 @@ import {
   setMedicationCategory,
 } from "@/lib/medication-category";
 import { serializeScheduleRecurrence } from "@/lib/medication-schedule";
+import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -60,8 +61,18 @@ export const PUT = apiHandler(
     const { user } = await requireAuth();
 
     const { id } = await params;
-    const existing = await prisma.medication.findUnique({ where: { id } });
-    if (!existing || existing.userId !== user.id) {
+    // v1.5.5 C-E3-3 — route ownership check through the shared helper
+    // so the 404 leak shape stays identical across every
+    // `[id]/**` handler. The PUT branch still needs `existing.active`
+    // for the pausedAt-derivation step below, so re-read the narrow
+    // field after the guard passes.
+    const guard = await assertMedicationOwnership(id, user.id);
+    if (guard) return guard;
+    const existing = await prisma.medication.findUnique({
+      where: { id },
+      select: { active: true },
+    });
+    if (!existing) {
       return apiError("Medication not found", 404);
     }
 
@@ -263,8 +274,16 @@ export const DELETE = apiHandler(
     const { user } = await requireAuth();
 
     const { id } = await params;
-    const existing = await prisma.medication.findUnique({ where: { id } });
-    if (!existing || existing.userId !== user.id) {
+    // v1.5.5 C-E3-3 — ownership via the shared helper. The DELETE
+    // branch needs the medication name for the audit-row detail; pull
+    // it after the guard passes.
+    const guard = await assertMedicationOwnership(id, user.id);
+    if (guard) return guard;
+    const existing = await prisma.medication.findUnique({
+      where: { id },
+      select: { name: true },
+    });
+    if (!existing) {
       return apiError("Medication not found", 404);
     }
 

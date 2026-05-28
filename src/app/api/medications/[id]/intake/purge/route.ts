@@ -2,7 +2,8 @@ import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
-import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
+import { apiSuccess, getClientIp } from "@/lib/api-response";
+import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -12,10 +13,20 @@ export const DELETE = apiHandler(
     const { user } = await requireAuth();
 
     const { id } = await params;
-    const medication = await prisma.medication.findUnique({ where: { id } });
-    if (!medication || medication.userId !== user.id) {
-      return apiError("Medication not found", 404);
-    }
+    // v1.5.5 C-E3-3 — route purge through the same ownership predicate
+    // every other `src/app/api/medications/[id]/**` handler uses. The
+    // hand-rolled `findUnique + userId !== id ? 404` block returned the
+    // medication row only to read its name for the audit details. The
+    // audit row still wants the name; re-read it after the guard so the
+    // ownership check stays the single source of truth on the 404 leak
+    // shape.
+    const guard = await assertMedicationOwnership(id, user.id);
+    if (guard) return guard;
+
+    const medication = await prisma.medication.findUnique({
+      where: { id },
+      select: { name: true },
+    });
 
     const { count } = await prisma.medicationIntakeEvent.deleteMany({
       where: { medicationId: id, userId: user.id },
@@ -31,7 +42,11 @@ export const DELETE = apiHandler(
     await auditLog("medication.intake.purge", {
       userId: user.id,
       ipAddress: getClientIp(request),
-      details: { medicationId: id, name: medication.name, deletedCount: count },
+      details: {
+        medicationId: id,
+        name: medication?.name ?? "",
+        deletedCount: count,
+      },
     });
 
     annotate({
