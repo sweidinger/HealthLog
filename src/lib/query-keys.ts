@@ -263,6 +263,14 @@ export const queryKeys = {
   dashboardWidgets: () => ["user", "dashboardWidgets"] as const,
 
   /**
+   * v1.5.5 — per-user insights tile layout (mirrors
+   * `dashboardWidgets`). The Settings UI + the iOS client + the
+   * `/insights` shell all read this key; the PUT mutation invalidates
+   * it on save so every consumer paints the new layout in lockstep.
+   */
+  insightsLayout: () => ["user", "insightsLayout"] as const,
+
+  /**
    * v1.4.25 W5e — per-user, per-metric-class source priority. The
    * Settings → Sources surface reads + writes this key; saving
    * invalidates `analytics()` because the cumulative-metric aggregator

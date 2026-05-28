@@ -71,6 +71,15 @@ model User {
   // Per-user dashboard layout — widget visibility + ordering.
   // Shape: { "widgets": [{ "id": "weight", "visible": true, "order": 0 }, ...], "version": 1 }
   dashboardWidgetsJson    Json?   @map("dashboard_widgets_json")
+  // Per-user insights tile layout — tile visibility + ordering for the
+  // `/insights` surface. Mirrors `dashboardWidgetsJson` so the iOS
+  // client and the web Settings UI can persist insights tile order +
+  // visibility through the same shape. Null = default layout (see
+  // `src/lib/insights-layout.ts:DEFAULT_INSIGHTS_LAYOUT`). The GET
+  // endpoint never lazy-writes — the column only carries data once
+  // the user has explicitly saved a layout.
+  // Shape: { "tiles": [{ "id": "blutdruck", "visible": true, "order": 0 }, ...], "version": 1 }
+  insightsLayoutJson      Json?   @map("insights_layout_json")
   // Blood-glucose display unit preference. Canonical storage is mg/dL.
   glucoseUnit             String? @map("glucose_unit") // "mg/dL" | "mmol/L" | null = default "mg/dL"
   // AI provider selection for insights. Null = OPENAI fallback.

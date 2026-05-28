@@ -85,6 +85,16 @@ export function invalidateUserDashboardWidgets(userId: string): void {
 }
 
 /**
+ * Invalidate the insights tile-layout cache for a single user. Called
+ * from the insights-layout PUT / DELETE endpoints when the user
+ * reorders / disables a tile so the next `/insights` mount paints the
+ * new layout.
+ */
+export function invalidateUserInsightsLayout(userId: string): void {
+  caches.insightsLayout.deleteByPrefix(userId);
+}
+
+/**
  * Global eviction of the bug-report-status cache.
  *
  * The cache is keyed on the singleton `"singleton"` slot because the

@@ -260,6 +260,18 @@ export const caches = {
     maxEntries: 1000,
     ttlMs: 60_000,
   }),
+  /**
+   * v1.5.5 — per-user insights tile layout cache. Mirrors
+   * `dashboardWidgets` (same 5-minute TTL, same per-user bucket size).
+   * Read on every `/insights` mount; the layout only changes on a
+   * Settings save, which invalidates this cache via
+   * `invalidateUserInsightsLayout()`.
+   */
+  insightsLayout: new ServerCache<unknown>({
+    name: "insightsLayout",
+    maxEntries: 500,
+    ttlMs: 300_000,
+  }),
 } as const;
 
 /**
