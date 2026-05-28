@@ -371,6 +371,23 @@ export const updateIntakeEventSchema = z.object({
 });
 
 /**
+ * v1.5.5 — bulk-delete request body. The detail-page intake-history
+ * preview surfaces a multi-select that posts the resulting eventIds
+ * here. The cap matches `listIntakeEventsSchema.limit` (500) so the
+ * client never selects more rows than the table can return at once.
+ * Server-side guarantees scoped-by-medication ownership via
+ * `assertMedicationOwnership` + a `userId` predicate on the
+ * `deleteMany`.
+ */
+export const bulkDeleteIntakeEventsSchema = z.object({
+  eventIds: z.array(z.string().min(1).max(64)).min(1).max(500),
+});
+
+export type BulkDeleteIntakeEventsInput = z.infer<
+  typeof bulkDeleteIntakeEventsSchema
+>;
+
+/**
  * v1.4.25 W19b — inventory (pen / vial) CRUD validators.
  *
  * The Prisma model carries a 4-state enum
