@@ -2,17 +2,13 @@
  * v1.5.0 — canonical recurrence engine for medication scheduling.
  *
  * Single source of truth for "what dose slots does this schedule emit
- * between A and B?" Consumed by the reminder worker, the today
- * projector, the cadence chart, the medication card, and the
- * medication form. Replaces three duplicate walks (R-3 finding 3):
- *
- *   - `expandScheduleSlots` in `cadence.ts`
- *   - `getNextOccurrenceTimestamp` in `medication-card.tsx`
- *   - `getNextRecurrenceDate` in `medication-form.tsx`
- *
- * Those engines will be retired in a follow-up wire-up step; this
- * module ships standalone so the schema migration + the wizard can
- * land first.
+ * between A and B?" The canonical engine is introduced in this release;
+ * the v1.5.0 cut wires only the reminder worker (via
+ * `worker-helpers.ts`) through it. The today-projector
+ * (`expandTodayIntakes`), the cadence chart (`expandScheduleSlots`),
+ * the medication card (`getNextOccurrenceTimestamp`), and the
+ * form-level helpers continue on the legacy walker through v1.5.x and
+ * migrate in v1.5.1 per the read-flip plan.
  *
  * Dispatch tiers (first matching tier wins):
  *
@@ -44,6 +40,7 @@
 
 import { RRule } from "rrule";
 
+import { annotate } from "@/lib/logging/context";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 
@@ -187,9 +184,21 @@ export function nextOccurrenceAfter(
   }
 
   // Calendar cadences — walk in 90-day chunks.
+  //
+  // Defence-in-depth alongside the 10-year `hardCap`: every chunk
+  // costs one `rrule.between(...)` invocation (the rrule lib's
+  // internal MAXYEAR=9999 bounds each call, but the chunk count
+  // itself is unbounded). Cap the walk at MAX_CHUNKS so a pathological
+  // RRULE that emits very rarely (e.g. `FREQ=YEARLY;BYMONTHDAY=29;
+  // BYMONTH=2`) cannot spend an open-ended amount of time iterating
+  // the engine. Returns null on cap-hit, matching the "schedule has
+  // terminated" contract.
+  const MAX_CHUNKS = 80;
   const chunkMs = 90 * DAY_MS;
   let cursor = new Date(after.getTime() + 1);
+  let chunks = 0;
   while (cursor.getTime() <= limit.getTime()) {
+    if (chunks++ >= MAX_CHUNKS) return null;
     const chunkEnd = new Date(
       Math.min(cursor.getTime() + chunkMs, limit.getTime()),
     );
@@ -271,20 +280,6 @@ function expandRolling(
   if (n === null || n <= 0) return [];
   const anchor =
     ctx.lastIntakeAt ?? ctx.medication.startsOn ?? ctx.medication.createdAt;
-  // No last intake AND no startsOn → terminate. createdAt is the
-  // schema-level fallback but the design synthesis says rolling
-  // schedules require a starting reference; we honour that by
-  // refusing to emit when the caller passes a medication with
-  // neither lastIntakeAt nor startsOn. (Pre-v1.5 rows always have
-  // createdAt populated, so this guard only fires on hand-crafted
-  // test inputs.)
-  if (
-    ctx.lastIntakeAt === null &&
-    ctx.medication.startsOn === null &&
-    !ctx.medication.createdAt
-  ) {
-    return [];
-  }
 
   const nextDue = new Date(anchor.getTime() + n * DAY_MS);
 
@@ -318,15 +313,25 @@ function expandRrule(
 
   const dtstart = ctx.medication.startsOn ?? ctx.medication.createdAt;
   const dtstartLine = `DTSTART:${formatUtcBasic(startOfUtcDay(dtstart))}`;
-  const untilSuffix = ctx.medication.endsOn
-    ? `;UNTIL=${formatUtcBasic(endOfUtcDay(ctx.medication.endsOn))}`
-    : "";
+  // Skip the engine-side UNTIL suffix when the user's RRULE already
+  // bounds the recurrence with COUNT or UNTIL — RFC 5545 forbids both
+  // (and any two-UNTIL collision), and RRule.fromString throws on the
+  // duplicate, silently collapsing the schedule to zero slots.
+  const userBoundsRecurrence = /(?:^|;)(?:COUNT|UNTIL)=/.test(rruleStr);
+  const untilSuffix =
+    ctx.medication.endsOn && !userBoundsRecurrence
+      ? `;UNTIL=${formatUtcBasic(endOfUtcDay(ctx.medication.endsOn))}`
+      : "";
   const full = `${dtstartLine}\nRRULE:${rruleStr}${untilSuffix}`;
 
   let rule: RRule;
   try {
     rule = RRule.fromString(full);
   } catch {
+    annotate({
+      action: { name: "medication.recurrence.parse_error" },
+      meta: { rrule: rruleStr },
+    });
     return [];
   }
 
@@ -374,11 +379,21 @@ function expandLegacy(
   // that might land in [from, to] after applying the local-tz HH:mm.
   const start = startOfUtcDay(new Date(from.getTime() - DAY_MS));
   const end = startOfUtcDay(new Date(to.getTime() + DAY_MS));
+  const startsOnFloor = ctx.medication.startsOn
+    ? startOfUtcDay(ctx.medication.startsOn).getTime()
+    : null;
   for (
     let day = start;
     day.getTime() <= end.getTime();
     day = new Date(day.getTime() + DAY_MS)
   ) {
+    // startsOn floor — every other dispatch tier honours it; the
+    // legacy walker used to iterate from creation regardless, so a
+    // legacy-shape schedule with a future startsOn emitted historical
+    // slots. Mirror the endsOn cap below.
+    if (startsOnFloor !== null && day.getTime() < startsOnFloor) {
+      continue;
+    }
     // Day-of-week filter (empty = every day). Use the user's
     // timezone weekday so the legacy "Mon = 1" encoding aligns with
     // the user's local-Mon, not UTC-Mon.

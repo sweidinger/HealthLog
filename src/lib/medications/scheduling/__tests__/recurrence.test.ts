@@ -595,6 +595,148 @@ describe("endsOn cap", () => {
     // 01, 02, 03 (endsOn day inclusive) → 3 slots.
     expect(slots).toHaveLength(3);
   });
+
+  it("expandLegacy honours medication.startsOn floor", () => {
+    // Schedule with daysOfWeek = null → daily; startsOn in the future
+    // means the legacy walker should emit nothing for the pre-startsOn
+    // window, mirroring the endsOn cap. Pre-fix the legacy fallback
+    // ignored startsOn and emitted historical slots.
+    const schedule = makeSchedule({
+      daysOfWeek: null,
+      windowStart: "08:00",
+      timesOfDay: [],
+    });
+    const ctx = makeCtx({
+      medication: { startsOn: d("2026-06-10T00:00:00Z") },
+    });
+    // Window straddles startsOn: 06-05..06-12 (8 days), 4 of which
+    // are before startsOn (06-05..06-08) and 3 on/after (06-10..06-12;
+    // 06-09 is also before startsOn).
+    const slots = occurrencesBetween(
+      schedule,
+      d("2026-06-05T00:00:00Z"),
+      d("2026-06-12T23:59:59Z"),
+      ctx,
+    );
+    expect(slots).toHaveLength(3);
+    const days = slots.map((s) =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(s.at),
+    );
+    expect(days).toEqual(["2026-06-10", "2026-06-11", "2026-06-12"]);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// RRULE COUNT / UNTIL collision guard
+// ────────────────────────────────────────────────────────────────────
+
+describe("expandRrule respects user-supplied COUNT / UNTIL", () => {
+  it("skips engine-side UNTIL when the user RRULE has COUNT", () => {
+    // FREQ=DAILY;COUNT=3 → exactly 3 daily occurrences from DTSTART.
+    // The engine used to append `;UNTIL=<endsOn>` unconditionally,
+    // producing an invalid two-bound RRULE that rrule.fromString threw
+    // on, collapsing the schedule to zero slots.
+    const schedule = makeSchedule({
+      rrule: "FREQ=DAILY;COUNT=3",
+      timesOfDay: ["08:00"],
+    });
+    const ctx = makeCtx({
+      medication: {
+        startsOn: d("2026-06-01T00:00:00Z"),
+        endsOn: d("2026-06-30T00:00:00Z"),
+      },
+    });
+    const slots = occurrencesBetween(
+      schedule,
+      d("2026-06-01T00:00:00Z"),
+      d("2026-06-30T23:59:59Z"),
+      ctx,
+    );
+    // COUNT=3 → June 01, 02, 03 (one slot per day at 08:00 local).
+    expect(slots).toHaveLength(3);
+  });
+
+  it("skips engine-side UNTIL when the user RRULE has UNTIL", () => {
+    const schedule = makeSchedule({
+      rrule: "FREQ=DAILY;UNTIL=20260603T235959Z",
+      timesOfDay: ["08:00"],
+    });
+    const ctx = makeCtx({
+      medication: {
+        startsOn: d("2026-06-01T00:00:00Z"),
+        endsOn: d("2026-06-30T00:00:00Z"),
+      },
+    });
+    const slots = occurrencesBetween(
+      schedule,
+      d("2026-06-01T00:00:00Z"),
+      d("2026-06-30T23:59:59Z"),
+      ctx,
+    );
+    expect(slots).toHaveLength(3);
+  });
+
+  it("returns [] without throwing on a syntactically malformed rrule", () => {
+    const schedule = makeSchedule({
+      rrule: "FREQ=DAILY",
+      timesOfDay: ["08:00"],
+    });
+    // Patch with a malformed RRULE that bypasses the Zod regex (the
+    // engine accepts whatever the caller wired). Verifies the catch
+    // surfaces zero slots instead of bubbling a ParseError.
+    const broken = {
+      ...schedule,
+      rrule: "FREQ=DAILY;TWICE_DAILY",
+    };
+    const ctx = makeCtx({
+      medication: { startsOn: d("2026-06-01T00:00:00Z") },
+    });
+    expect(() =>
+      occurrencesBetween(
+        broken,
+        d("2026-06-01T00:00:00Z"),
+        d("2026-06-02T23:59:59Z"),
+        ctx,
+      ),
+    ).not.toThrow();
+    const slots = occurrencesBetween(
+      broken,
+      d("2026-06-01T00:00:00Z"),
+      d("2026-06-02T23:59:59Z"),
+      ctx,
+    );
+    expect(slots).toEqual([]);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// nextOccurrenceAfter MAX_CHUNKS cap
+// ────────────────────────────────────────────────────────────────────
+
+describe("nextOccurrenceAfter chunk cap", () => {
+  it("aborts after MAX_CHUNKS for a pathologically-rare schedule with a future startsOn", () => {
+    // A schedule with a startsOn 50 years in the future will never
+    // emit a slot within the 10-year hardCap. The chunk-walk would
+    // otherwise iterate ~40+ 90-day chunks before terminating; with
+    // MAX_CHUNKS the walk returns null in bounded time.
+    const schedule = makeSchedule({
+      rrule: "FREQ=DAILY",
+      timesOfDay: ["08:00"],
+    });
+    const ctx = makeCtx({
+      medication: { startsOn: d("2080-01-01T00:00:00Z") },
+    });
+    const start = Date.now();
+    const next = nextOccurrenceAfter(schedule, d("2026-06-01T00:00:00Z"), ctx);
+    const elapsed = Date.now() - start;
+    expect(next).toBeNull();
+    expect(elapsed).toBeLessThan(1000);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────
