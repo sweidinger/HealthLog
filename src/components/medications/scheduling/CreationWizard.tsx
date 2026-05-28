@@ -3,7 +3,7 @@
 /**
  * v1.5.0 — Medication CreationWizard.
  *
- * Seven-step wizard for cold-start medication creation. Composes the
+ * Multi-step wizard for cold-start medication creation. Composes the
  * v1.5 picker primitives (`CadencePicker`, `TimesOfDayChips`,
  * `CourseWindowRow`) into a guided flow so a user models a cadence,
  * a window of intake, and a single course window without facing the
@@ -14,23 +14,29 @@
  *   1. Name + dose (text + unit). NL-extraction button surfaces a
  *      placeholder slot — the parent supplies an overlay later.
  *   2. One-shot vs Recurring (two-card radio).
- *   3. Cadence picker — skipped when step 2 = one-shot.
- *   4. Day-detail re-cap (sub-controls already render inline in the
- *      picker; the step renders a confirmation summary).
+ *   3. Cadence picker — only shown for recurring; the picker's
+ *      conditional sub-controls (weekday chips / day-of-month /
+ *      yearly date) render inline. One-shot path skips this step.
  *   5. Times of day — re-uses TimesOfDayChips. One-shot path also
  *      shows a date picker for the single dose date.
  *   6. Course window — CourseWindowRow. One-shot pins endsOn to
  *      startsOn (`lockEndsToStart`).
  *   7. Reminders toggle + plain-language summary + "Create".
  *
- * Pure helpers `validateStep`, `buildCreateBody`, and
- * `summariseCadence` carry the test surface; the interactive flow is
- * covered by Playwright in a later commit.
+ * The recurring path walks 6 displayed steps (1, 2, 3, 5, 6, 7 in raw
+ * numbering — step 4 was retired as the picker covers day-detail
+ * inline). The one-shot path walks 5 displayed steps (1, 2, 5, 6, 7).
+ * The displayed counter compresses to the path the user actually
+ * walks so the progress chip stays honest.
+ *
+ * Pure helpers `validateStep`, `buildCreateBody`,
+ * `summariseCadence`, and `progressIndices` carry the test surface;
+ * the interactive flow is covered by Playwright in a later commit.
  *
  * i18n keys consumed (namespace `medications.create.wizard.*`):
  *
  *   .header.stepOf                       — "Schritt {current} von {total}"
- *   .header.title.{step1|step2|step3|step4|step5|step6|step7}
+ *   .header.title.{step1|step2|step3|step5|step6|step7}
  *   .step1.name.label                    — "Name"
  *   .step1.name.placeholder              — name input placeholder
  *   .step1.dose.amount.label             — "Dose"
@@ -43,8 +49,6 @@
  *   .step2.oneShot.title / .oneShot.description
  *   .step2.recurring.title / .recurring.description
  *   .step3.helper                        — cadence picker helper text
- *   .step4.recap                         — re-cap copy
- *   .step4.oneShotSkipped                — "(skipped — one-shot)"
  *   .step5.helper                        — times-of-day helper text
  *   .step5.oneShotDate.label             — "Date of the single dose"
  *   .step5.oneShotDate.helper            — caption under the picker
@@ -53,6 +57,10 @@
  *   .step7.reminders.description         — helper text under switch
  *   .step7.summary.title                 — "Summary"
  *   .step7.summary.cadence.{daily|weekdays|weekly|biweekly|monthly|quarterly|yearly|rolling|oneShot|everyNWeeks|everyNMonths}
+ *   .step7.summary.weekdaysDetail        — ", on {days}"
+ *   .step7.summary.dayOfMonthDetail      — ", on day {day}."
+ *   .step7.summary.everyNMonthsDetail    — ", every {months} months on day {day}."
+ *   .step7.summary.yearlyDetail          — ", on {date}."
  *   .step7.summary.times                 — "at {times}"
  *   .step7.summary.startsOn              — "Starts: {date}"
  *   .step7.summary.endsOn                — "Ends: {date}"
@@ -157,7 +165,25 @@ type DoseUnitKey = (typeof ALL_DOSE_UNIT_KEYS)[number];
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-const TOTAL_STEPS = 7;
+/**
+ * Raw step numbers the wizard renders. Step 4 (day detail) was retired
+ * — the cadence picker covers it inline. The displayed step index is
+ * derived from `progressIndices(payload.mode)` so a one-shot user sees
+ * "Schritt 3 von 5" rather than "Schritt 5 von 7".
+ */
+const RECURRING_STEPS: readonly number[] = [1, 2, 3, 5, 6, 7];
+const ONE_SHOT_STEPS: readonly number[] = [1, 2, 5, 6, 7];
+
+/**
+ * The ordered list of raw step numbers for the active mode. When the
+ * mode is unset the wizard hasn't passed step 2 yet, so we conservatively
+ * surface the recurring list — both branches share steps 1 + 2.
+ */
+export function progressIndices(
+  mode: WizardPayload["mode"],
+): readonly number[] {
+  return mode === "oneShot" ? ONE_SHOT_STEPS : RECURRING_STEPS;
+}
 
 /** Skeleton of the POST /api/medications request body the wizard emits. */
 export interface CreateMedicationBody {
@@ -210,14 +236,18 @@ function todayUtc(): Date {
  * The matrix:
  *   - Step 1: name + doseAmount populated.
  *   - Step 2: a mode picked.
- *   - Step 3: skipped for one-shot. For recurring, the picker always
- *     emits a valid `CadenceValue`; the gate only re-checks that the
- *     yearly date is populated when the cadence kind is `yearly`.
- *   - Step 4: pass-through (re-cap step has no required input).
+ *   - Step 3: only walked for recurring. Picker emits a valid
+ *     `CadenceValue` on every interaction; the gate only re-checks
+ *     that the yearly date is populated when the cadence kind is
+ *     `yearly`.
  *   - Step 5: at least one valid HH:mm time; one-shot requires startsOn.
  *   - Step 6: range valid (endsOn null OR endsOn >= startsOn);
  *     startsOn required for recurring (one-shot already pinned in 5).
  *   - Step 7: gate matches step 6 (the toggle has no failure mode).
+ *
+ * Raw step 4 was retired — the cadence picker carries its day-detail
+ * sub-controls inline. The case stays absent from the switch so a
+ * stale caller that passes `4` lands on the default-false branch.
  */
 export function validateStep(payload: WizardPayload, step: number): boolean {
   switch (step) {
@@ -241,8 +271,6 @@ export function validateStep(payload: WizardPayload, step: number): boolean {
       }
       return true;
     }
-    case 4:
-      return true;
     case 5: {
       const times = payload.timesOfDay.filter((t) => TIME_RE.test(t));
       if (times.length === 0) return false;
@@ -362,6 +390,8 @@ export function summariseCadence(
             ? (payload.cadence.rollingIntervalDays ?? 0)
             : 0,
   });
+  const cadenceDetail = cadenceDetailPhrase(payload, t);
+  const cadenceLine = cadencePhrase + cadenceDetail;
   const timesPhrase =
     payload.timesOfDay.length > 0
       ? t(k("step7.summary.times"), {
@@ -381,9 +411,60 @@ export function summariseCadence(
             date: dateToIsoString(payload.endsOn),
           })
         : t(k("step7.summary.noEndDate"));
-  return [cadencePhrase, timesPhrase, startPhrase, endPhrase]
+  return [cadenceLine, timesPhrase, startPhrase, endPhrase]
     .filter(Boolean)
     .join(" · ");
+}
+
+/**
+ * Trailing phrase that interpolates the picker's sub-control values
+ * into the cadence summary so the user sees the actual weekdays /
+ * day-of-month / yearly date rather than the category label. Returns
+ * an empty string for cadences whose category label already carries
+ * the full information (daily / rolling / oneShot).
+ */
+function cadenceDetailPhrase(
+  payload: WizardPayload,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  if (payload.mode === "oneShot") return "";
+  switch (payload.cadence.kind) {
+    case "weekdays":
+      return weekdaysDetail(payload.subControls.weekdays, t);
+    case "everyNWeeks":
+      return weekdaysDetail(payload.subControls.weekdays, t);
+    case "monthly":
+      return t(k("step7.summary.dayOfMonthDetail"), {
+        day: payload.subControls.dayOfMonth,
+      });
+    case "everyNMonths":
+      return t(k("step7.summary.everyNMonthsDetail"), {
+        months: payload.subControls.intervalMonths,
+        day: payload.subControls.dayOfMonth,
+      });
+    case "yearly":
+      return payload.subControls.yearlyDate
+        ? t(k("step7.summary.yearlyDetail"), {
+            date: payload.subControls.yearlyDate,
+          })
+        : "";
+    default:
+      return "";
+  }
+}
+
+function weekdaysDetail(
+  tokens: readonly string[],
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  if (tokens.length === 0) return "";
+  const names = tokens
+    .map((tok) =>
+      t(`medications.scheduling.cadence.weekdays.long.${tok.toLowerCase()}`),
+    )
+    .filter(Boolean);
+  if (names.length === 0) return "";
+  return t(k("step7.summary.weekdaysDetail"), { days: names.join(", ") });
 }
 
 function summaryKeyForCadence(payload: WizardPayload): string {
@@ -450,25 +531,38 @@ export function CreationWizard({
     [payload, step],
   );
 
+  const stepList = useMemo(
+    () => progressIndices(payload.mode),
+    [payload.mode],
+  );
+  const totalSteps = stepList.length;
+  const currentIndex = stepList.indexOf(step);
+  // currentIndex can be -1 in the transient case where the user is on
+  // raw step 3 and toggles back to one-shot at step 2. Defensive
+  // re-anchoring keeps the indicator monotone.
+  const safeIndex = currentIndex >= 0 ? currentIndex : 0;
+  const displayStep = safeIndex + 1;
+  const isLastStep = displayStep === totalSteps;
+
   const goNext = useCallback(() => {
     if (!canContinue) return;
-    // Skip cadence + day-detail when one-shot.
-    if (step === 2 && payload.mode === "oneShot") {
-      setStep(5);
-      return;
-    }
-    setStep((s) => Math.min(s + 1, TOTAL_STEPS));
-  }, [canContinue, payload.mode, step]);
+    setStep((s) => {
+      const list = progressIndices(payload.mode);
+      const idx = list.indexOf(s);
+      if (idx < 0) return list[0];
+      const nextIdx = Math.min(idx + 1, list.length - 1);
+      return list[nextIdx];
+    });
+  }, [canContinue, payload.mode]);
 
   const goBack = useCallback(() => {
-    // Mirror the skip: jumping back from step 5 lands on step 2 in
-    // one-shot mode (steps 3 + 4 never rendered).
-    if (step === 5 && payload.mode === "oneShot") {
-      setStep(2);
-      return;
-    }
-    setStep((s) => Math.max(s - 1, 1));
-  }, [payload.mode, step]);
+    setStep((s) => {
+      const list = progressIndices(payload.mode);
+      const idx = list.indexOf(s);
+      if (idx <= 0) return list[0];
+      return list[idx - 1];
+    });
+  }, [payload.mode]);
 
   const onSubmit = useCallback(async () => {
     setSubmitting(true);
@@ -517,12 +611,18 @@ export function CreationWizard({
 
   const stepTitle = t(`medications.create.wizard.header.title.step${step}`);
   const stepOf = t(k("header.stepOf"), {
-    current: step,
-    total: TOTAL_STEPS,
+    current: displayStep,
+    total: totalSteps,
   });
 
   return (
-    <Card data-slot="medication-creation-wizard" data-step={step}>
+    <Card
+      data-slot="medication-creation-wizard"
+      data-step={step}
+      data-display-step={displayStep}
+      data-total-steps={totalSteps}
+      aria-busy={submitting || undefined}
+    >
       <CardHeader>
         <p className="text-muted-foreground text-xs">{stepOf}</p>
         <CardTitle className="text-base">{stepTitle}</CardTitle>
@@ -542,9 +642,6 @@ export function CreationWizard({
         )}
         {step === 3 && (
           <Step3Cadence payload={payload} applyPartial={applyPartial} t={t} />
-        )}
-        {step === 4 && (
-          <Step4DayDetail payload={payload} t={t} />
         )}
         {step === 5 && (
           <Step5Times
@@ -574,17 +671,19 @@ export function CreationWizard({
           type="button"
           variant="outline"
           onClick={goBack}
-          disabled={step === 1 || submitting}
+          disabled={displayStep === 1 || submitting}
           data-slot="wizard-back"
+          className="h-11"
         >
           {t(k("nav.back"))}
         </Button>
-        {step < TOTAL_STEPS ? (
+        {!isLastStep ? (
           <Button
             type="button"
             onClick={goNext}
             disabled={!canContinue}
             data-slot="wizard-next"
+            className="h-11"
           >
             {t(k("nav.next"))}
           </Button>
@@ -595,6 +694,7 @@ export function CreationWizard({
             disabled={!canContinue || submitting}
             data-slot="wizard-create"
             aria-busy={submitting || undefined}
+            className="h-11"
           >
             {submitting && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
@@ -786,6 +886,23 @@ function ModeCard({ value, selected, title, description, onSelect }: ModeCardPro
   );
 }
 
+/**
+ * The cadence kinds offered by the wizard's Step 3. One-shot is the
+ * canonical responsibility of Step 2's mode picker — exposing it here
+ * would invite a contradictory `mode = "recurring"` + `cadence.kind =
+ * "oneShot"` payload. The picker accepts an optional `allowedKinds`
+ * filter that we always pass with the recurring-only list.
+ */
+const STEP3_ALLOWED_KINDS = [
+  "daily",
+  "weekdays",
+  "everyNWeeks",
+  "monthly",
+  "everyNMonths",
+  "yearly",
+  "rolling",
+] as const;
+
 function Step3Cadence({ payload, applyPartial, t }: StepProps) {
   return (
     <div className="space-y-3" data-slot="wizard-step3">
@@ -795,48 +912,13 @@ function Step3Cadence({ payload, applyPartial, t }: StepProps) {
       <CadencePicker
         value={payload.cadence}
         subControls={payload.subControls}
+        allowedKinds={[...STEP3_ALLOWED_KINDS]}
         onChange={(cadence, subControls) =>
           applyPartial({ cadence, subControls })
         }
       />
     </div>
   );
-}
-
-function Step4DayDetail({ payload, t }: Pick<StepProps, "payload" | "t">) {
-  // Day-detail follow-ups already render inline in the picker (the
-  // sub-controls are conditional on the selected kind). Step 4 is a
-  // confirmation re-cap that surfaces what got picked so the user can
-  // tap Back if it looks wrong.
-  if (payload.mode === "oneShot") {
-    return (
-      <div className="space-y-3" data-slot="wizard-step4">
-        <p className="text-muted-foreground text-sm">
-          {t(k("step4.oneShotSkipped"))}
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-3" data-slot="wizard-step4">
-      <p className="text-muted-foreground text-sm">
-        {t(k("step4.recap"))}
-      </p>
-      <div
-        className="bg-muted/40 rounded-md border p-3 text-sm"
-        data-slot="wizard-step4-recap"
-      >
-        {recapCadence(payload, t)}
-      </div>
-    </div>
-  );
-}
-
-function recapCadence(
-  payload: WizardPayload,
-  t: (key: string, params?: Record<string, string | number>) => string,
-): string {
-  return summariseCadence(payload, t);
 }
 
 function Step5Times({ payload, applyPartial, t }: StepProps) {

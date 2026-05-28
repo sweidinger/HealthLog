@@ -4,6 +4,7 @@ import {
   buildCreateBody,
   type CreateMedicationBody,
   emptyWizardPayload,
+  progressIndices,
   summariseCadence,
   validateStep,
   type WizardPayload,
@@ -100,9 +101,9 @@ describe("validateStep", () => {
     ).toBe(true);
   });
 
-  it("step 4: always passes (re-cap step)", () => {
-    expect(validateStep(withCadence("daily"), 4)).toBe(true);
-    expect(validateStep(withCadence("oneShot"), 4)).toBe(true);
+  it("step 4: retired — the picker covers day-detail inline, so the gate returns false", () => {
+    expect(validateStep(withCadence("daily"), 4)).toBe(false);
+    expect(validateStep(withCadence("oneShot"), 4)).toBe(false);
   });
 
   it("step 5: requires at least one valid HH:mm time", () => {
@@ -466,5 +467,96 @@ describe("summariseCadence", () => {
     };
     const out = summariseCadence(p, t);
     expect(out).toMatch(/step7\.summary\.times[^|]*"08:00, 20:00"/);
+  });
+
+  it("appends a weekdays-detail phrase with the picked long names", () => {
+    const p = withCadence("weekdays", { weekdays: ["MO", "WE", "FR"] });
+    const out = summariseCadence(p, t);
+    expect(out).toContain(
+      "medications.create.wizard.step7.summary.weekdaysDetail",
+    );
+    // Each token resolves to its long-name key under the cadence
+    // namespace; the stub-t echoes the keys joined by ", ".
+    expect(out).toMatch(/weekdays\.long\.mo[^|]*weekdays\.long\.we[^|]*weekdays\.long\.fr/);
+  });
+
+  it("appends a weekdays-detail phrase for everyNWeeks (interval + picked days)", () => {
+    const p = withCadence("everyNWeeks", {
+      intervalWeeks: 3,
+      weekdays: ["TU"],
+    });
+    const out = summariseCadence(p, t);
+    expect(out).toContain(
+      "medications.create.wizard.step7.summary.weekdaysDetail",
+    );
+    expect(out).toMatch(/weekdays\.long\.tu/);
+  });
+
+  it("appends a day-of-month-detail phrase for monthly cadence", () => {
+    const p = withCadence("monthly", { dayOfMonth: 15 });
+    const out = summariseCadence(p, t);
+    expect(out).toContain(
+      "medications.create.wizard.step7.summary.dayOfMonthDetail",
+    );
+    expect(out).toMatch(/dayOfMonthDetail[^|]*"day":15/);
+  });
+
+  it("appends an everyNMonths-detail phrase with months + day", () => {
+    const p = withCadence("everyNMonths", {
+      intervalMonths: 3,
+      dayOfMonth: 10,
+    });
+    const out = summariseCadence(p, t);
+    expect(out).toContain(
+      "medications.create.wizard.step7.summary.everyNMonthsDetail",
+    );
+    expect(out).toMatch(/everyNMonthsDetail[^|]*"months":3[^|]*"day":10/);
+  });
+
+  it("appends a yearly-detail phrase with the picked date when set", () => {
+    const p = withCadence("yearly", { yearlyDate: "2026-10-15" });
+    const out = summariseCadence(p, t);
+    expect(out).toContain(
+      "medications.create.wizard.step7.summary.yearlyDetail",
+    );
+    expect(out).toMatch(/yearlyDetail[^|]*"date":"2026-10-15"/);
+  });
+
+  it("omits the yearly-detail phrase when no date has been picked yet", () => {
+    const p = withCadence("yearly", { yearlyDate: "" });
+    const out = summariseCadence(p, t);
+    expect(out).not.toContain("yearlyDetail");
+  });
+
+  it("emits no trailing detail for daily / rolling / oneShot cadences", () => {
+    const trailers = [
+      "weekdaysDetail",
+      "dayOfMonthDetail",
+      "everyNMonthsDetail",
+      "yearlyDetail",
+    ];
+    for (const kind of ["daily", "rolling", "oneShot"] as const) {
+      const out = summariseCadence(withCadence(kind), t);
+      for (const trailer of trailers) {
+        expect(out, `${kind} surfaced ${trailer}`).not.toContain(trailer);
+      }
+    }
+  });
+});
+
+describe("progressIndices", () => {
+  it("returns the recurring 6-step path when the mode is recurring", () => {
+    expect(progressIndices("recurring")).toEqual([1, 2, 3, 5, 6, 7]);
+  });
+
+  it("returns the one-shot 5-step path when the mode is oneShot", () => {
+    expect(progressIndices("oneShot")).toEqual([1, 2, 5, 6, 7]);
+  });
+
+  it("falls back to the recurring path while the mode is still unset", () => {
+    // Step 1 / step 2 both render under either path; the recurring
+    // list keeps the displayed counter monotone before the user picks
+    // a mode.
+    expect(progressIndices(null)).toEqual([1, 2, 3, 5, 6, 7]);
   });
 });

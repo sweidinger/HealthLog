@@ -841,6 +841,10 @@
               "everyNWeeks": "Every {n} weeks",
               "everyNMonths": "Every {n} months"
             },
+            "weekdaysDetail": ", on {days}",
+            "dayOfMonthDetail": ", on day {day}.",
+            "everyNMonthsDetail": ", every {months} months on day {day}.",
+            "yearlyDetail": ", on {date}.",
             "times": "at {times}",
             "startsOn": "Starts: {date}",
             "endsOn": "Ends: {date}",
