@@ -157,13 +157,6 @@ export function NaturalLanguageExtractor({
         setError({ kind: "noProvider" });
         return;
       }
-      if (res.status === 402 || res.status === 423) {
-        // Reserved spare codes — keep the budget branch wired even
-        // though the route currently surfaces budget exhaustion via
-        // the apiHandler's HttpError pipeline.
-        setError({ kind: "budget" });
-        return;
-      }
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as {
           error?: string;
