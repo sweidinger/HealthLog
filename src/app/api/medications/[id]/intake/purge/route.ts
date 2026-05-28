@@ -4,6 +4,7 @@ import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, getClientIp } from "@/lib/api-response";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -57,6 +58,13 @@ export const DELETE = apiHandler(
       },
       meta: { purged_count: count },
     });
+
+    // v1.5.5 F-1 C-3 — drop the per-user medication caches so the
+    // analytics + iOS today-tally + dashboard tiles converge on the
+    // post-purge counts rather than reading stale values for the
+    // TTL of each cache. Matches the sibling routes (POST intake,
+    // PUT medication, bulk-delete) that all fire this bundle.
+    invalidateUserMedications(user.id);
 
     return apiSuccess({ purged: true, count });
   },
