@@ -1,8 +1,8 @@
 import { apiSuccess } from "@/lib/api-response";
-import { getGravatarUrl } from "@/lib/gravatar";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { setOnboardingPendingCookie } from "@/lib/auth/session";
+import { buildAvatarUrl } from "@/lib/avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,14 @@ export const GET = apiHandler(async () => {
     timezone: user.timezone,
     onboardingCompletedAt: user.onboardingCompletedAt,
     onboardingTourCompleted: user.onboardingTourCompleted,
-    gravatarUrl: user.email ? getGravatarUrl(user.email) : null,
+    // v1.5.5 — self-hosted avatar. Replaces the Gravatar leak; the
+    // URL is relative so PWA + native clients render identically
+    // and the `?v={updatedAtMs}` suffix busts the browser cache on
+    // a re-upload. Null when the user has not uploaded an avatar
+    // yet; clients paint the username-initials fallback.
+    avatarUrl: user.avatarUpdatedAt
+      ? buildAvatarUrl(user.id, user.avatarUpdatedAt)
+      : null,
     glucoseUnit: user.glucoseUnit ?? null,
     lastReportPracticeName: user.lastReportPracticeName ?? null,
     // v1.4.47 W3 — per-user Coach opt-out. Default `false` if the

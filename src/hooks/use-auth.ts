@@ -21,7 +21,13 @@ export interface AuthUser {
    * `<TourLauncher>` component for the gating logic.
    */
   onboardingTourCompleted: boolean;
-  gravatarUrl: string | null;
+  /**
+   * v1.5.5 — relative URL of the user's self-hosted avatar, served
+   * from `/api/user/avatar/{id}?v={updatedAtMs}`. Replaces the
+   * Gravatar leak; null when the user has not uploaded an avatar
+   * yet (clients paint the username-initials fallback).
+   */
+  avatarUrl: string | null;
   glucoseUnit: string | null;
   /**
    * v1.4.47 W3 — per-user Coach opt-out. When `true`, every Coach

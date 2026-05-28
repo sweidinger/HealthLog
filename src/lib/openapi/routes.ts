@@ -1484,6 +1484,101 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       },
     },
   },
+  "/api/user/avatar": {
+    post: {
+      tags: ["Auth"],
+      summary: "Upload the calling user's avatar",
+      description:
+        "Multipart upload (field `file`). Accepts image/jpeg, image/png, image/webp; rejects anything else at the magic-byte sniff (the multipart Content-Type header is informational only). Hard caps: 2 MiB body, 2048×2048 dimensions. Replaces the v1.4.22 Gravatar leak by storing the bytes on the User row + serving them from same-origin.",
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: z.object({
+              file: z
+                .string()
+                .describe(
+                  "Binary image payload (JPEG / PNG / WebP). Hard-capped at 2 MiB and 2048×2048.",
+                ),
+            }),
+          },
+        },
+      },
+      responses: {
+        "201": {
+          description:
+            "Avatar saved. `avatarUrl` is the same value the /me payload returns; the `?v=` suffix busts client caches on re-upload.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  avatarUrl: z.string(),
+                  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+                  updatedAt: z.iso.datetime({ offset: true }),
+                }),
+                "UploadAvatarResponse",
+              ),
+            },
+          },
+        },
+        "413": {
+          description:
+            "Upload exceeds the 2 MiB byte limit or the 2048×2048 dimension limit.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "415": {
+          description:
+            "Image format is not one of JPEG / PNG / WebP (magic-byte sniff).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Auth"],
+      summary: "Clear the calling user's avatar",
+      description:
+        "Resets the avatar columns to null. Idempotent — a delete on an already-empty row returns 204 with no audit-log row.",
+      responses: {
+        "204": {
+          description: "Avatar cleared (or already empty).",
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/user/avatar/{id}": {
+    get: {
+      tags: ["Auth"],
+      summary: "Serve a user's avatar bytes",
+      description:
+        "Owner-scoped. The `{id}` path segment must match the calling user's id — cross-user reads return 403. Response body is the raw image bytes with the persisted `Content-Type`; the /me payload appends `?v={updatedAtMs}` so clients can cache aggressively.",
+      requestParams: {
+        path: z.object({
+          id: z.string().describe("User id (must match the calling user)."),
+        }),
+      },
+      responses: {
+        "200": {
+          description: "Avatar bytes.",
+          content: {
+            "image/jpeg": { schema: z.string().describe("Raw JPEG bytes.") },
+            "image/png": { schema: z.string().describe("Raw PNG bytes.") },
+            "image/webp": { schema: z.string().describe("Raw WebP bytes.") },
+          },
+        },
+        "403": {
+          description: "Caller is not the avatar's owner.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "404": {
+          description: "The user has no uploaded avatar.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/insights/chat/messages/{id}/feedback": {
     post: {
       tags: ["Insights"],

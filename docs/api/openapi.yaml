@@ -1418,6 +1418,109 @@ paths:
         "401": *a1
         "422": *a2
         "429": *a3
+  /api/user/avatar:
+    post:
+      tags:
+        - Auth
+      summary: Upload the calling user's avatar
+      description: "Multipart upload (field `file`). Accepts image/jpeg, image/png, image/webp; rejects anything else at the
+        magic-byte sniff (the multipart Content-Type header is informational only). Hard caps: 2 MiB body, 2048×2048
+        dimensions. Replaces the v1.4.22 Gravatar leak by storing the bytes on the User row + serving them from
+        same-origin."
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  description: Binary image payload (JPEG / PNG / WebP). Hard-capped at 2 MiB and 2048×2048.
+              required:
+                - file
+      responses:
+        "201":
+          description: Avatar saved. `avatarUrl` is the same value the /me payload returns; the `?v=` suffix busts client caches
+            on re-upload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadAvatarResponse"
+        "401": *a1
+        "413":
+          description: Upload exceeds the 2 MiB byte limit or the 2048×2048 dimension limit.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "415":
+          description: Image format is not one of JPEG / PNG / WebP (magic-byte sniff).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a2
+        "429": *a3
+    delete:
+      tags:
+        - Auth
+      summary: Clear the calling user's avatar
+      description: Resets the avatar columns to null. Idempotent — a delete on an already-empty row returns 204 with no
+        audit-log row.
+      responses:
+        "204":
+          description: Avatar cleared (or already empty).
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/user/avatar/{id}:
+    get:
+      tags:
+        - Auth
+      summary: Serve a user's avatar bytes
+      description: Owner-scoped. The `{id}` path segment must match the calling user's id — cross-user reads return 403.
+        Response body is the raw image bytes with the persisted `Content-Type`; the /me payload appends
+        `?v={updatedAtMs}` so clients can cache aggressively.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            description: User id (must match the calling user).
+          required: true
+          description: User id (must match the calling user).
+      responses:
+        "200":
+          description: Avatar bytes.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                description: Raw JPEG bytes.
+            image/png:
+              schema:
+                type: string
+                description: Raw PNG bytes.
+            image/webp:
+              schema:
+                type: string
+                description: Raw WebP bytes.
+        "401": *a1
+        "403":
+          description: Caller is not the avatar's owner.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: The user has no uploaded avatar.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a2
+        "429": *a3
   /api/insights/chat/messages/{id}/feedback:
     post:
       tags:
@@ -4147,6 +4250,41 @@ components:
                     - scale
                     - other
                     - unknown
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UploadAvatarResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            avatarUrl:
+              type: string
+            contentType:
+              type: string
+              enum:
+                - image/jpeg
+                - image/png
+                - image/webp
+            updatedAt:
+              type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          required:
+            - avatarUrl
+            - contentType
+            - updatedAt
           additionalProperties: false
         error:
           type: "null"

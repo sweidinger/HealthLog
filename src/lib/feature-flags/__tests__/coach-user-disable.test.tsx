@@ -87,7 +87,7 @@ function buildUser(disableCoach: boolean): AuthUser {
     timezone: "Europe/Berlin",
     onboardingCompletedAt: null,
     onboardingTourCompleted: true,
-    gravatarUrl: null,
+    avatarUrl: null,
     glucoseUnit: null,
     disableCoach,
   };
