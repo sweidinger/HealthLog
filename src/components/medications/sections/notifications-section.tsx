@@ -57,7 +57,15 @@ interface UserPrefsResponse {
 }
 
 const SWITCH_ID = "medication-detail-notifications-switch";
-const TITLE_ID = "medication-detail-notifications-title";
+// v1.5.5 F-1 H-1 — split the title id so the section heading and
+// the inner switch label resolve to distinct DOM nodes. The earlier
+// single `TITLE_ID` sat on both `<MedicationDetailSection>`'s heading
+// (`titleId` prop) and the inner `<span>` carrying the switch's
+// `aria-labelledby`, surfacing as an axe duplicate-id failure on
+// every detail-page render and pointing the announced name at the
+// section heading rather than the user's "Send a reminder" target.
+const SECTION_TITLE_ID = "medication-detail-notifications-heading";
+const ROW_TITLE_ID = "medication-detail-notifications-row-label";
 const HELPER_ID = "medication-detail-notifications-helper";
 
 export function NotificationsSection({
@@ -131,7 +139,7 @@ export function NotificationsSection({
 
   return (
     <MedicationDetailSection
-      titleId={TITLE_ID}
+      titleId={SECTION_TITLE_ID}
       title={t("medications.detail.notifications.title")}
       dataSlot="medication-detail-notifications-section"
     >
@@ -155,7 +163,7 @@ export function NotificationsSection({
           >
             <span className="space-y-1">
               <span
-                id={TITLE_ID}
+                id={ROW_TITLE_ID}
                 className="text-foreground block text-sm font-medium"
               >
                 {t("medications.detail.notifications.switchLabel")}
@@ -174,7 +182,7 @@ export function NotificationsSection({
               checked={localEnabled}
               disabled={submitting}
               onCheckedChange={(checked) => void flip(checked)}
-              aria-labelledby={TITLE_ID}
+              aria-labelledby={ROW_TITLE_ID}
               aria-describedby={HELPER_ID}
             />
           </label>
