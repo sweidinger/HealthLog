@@ -24,7 +24,11 @@ import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    medication: { findUnique: vi.fn() },
+    medication: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
     medicationIntakeEvent: {
       findMany: vi.fn(),
       findFirst: vi.fn(),
@@ -264,5 +268,58 @@ describe("v1.4.43 W6 — multi-issue 422 envelope", () => {
     );
     const res = await POST(postReq({ takenAt: "junk" }), ROUTE_PARAMS);
     expect(res.status).toBe(422);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.5.0 — POST intake on a one-shot medication still deactivates
+// ────────────────────────────────────────────────────────────────────
+
+describe("POST /api/medications/[id]/intake — one-shot lifecycle", () => {
+  function postReq(body: unknown): NextRequest {
+    return new NextRequest("http://localhost/api/medications/med-1/intake", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("flips active to false after logging a live intake on a one-shot medication", async () => {
+    const createdEvent = {
+      id: "evt-1",
+      userId: "user-1",
+      medicationId: "med-1",
+      scheduledFor: new Date(),
+      takenAt: new Date(),
+      skipped: false,
+    };
+    vi.mocked(prisma.$transaction).mockResolvedValue([createdEvent] as never);
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValueOnce(
+      null as never, // dedup probe
+    );
+    // Reconcile probes — first call is the medication shape, second is
+    // the live-intake probe (a live intake exists because the POST just
+    // created one), and the update fires with active:false.
+    vi.mocked(prisma.medication.findUnique).mockResolvedValueOnce({
+      oneShot: true,
+      active: true,
+    } as never);
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValueOnce({
+      id: "evt-1",
+    } as never);
+    vi.mocked(prisma.medication.updateMany).mockResolvedValueOnce({
+      count: 1,
+    } as never);
+
+    const res = await POST(
+      postReq({ takenAt: new Date().toISOString(), skipped: false }),
+      ROUTE_PARAMS,
+    );
+    expect(res.status).toBe(201);
+
+    expect(prisma.medication.updateMany).toHaveBeenCalledWith({
+      where: { id: "med-1", userId: "user-1", oneShot: true },
+      data: { active: false },
+    });
   });
 });

@@ -11,6 +11,7 @@ import {
   sanitiseZodIssues,
 } from "@/lib/api-response";
 import { updateIntakeEventSchema } from "@/lib/validations/medication";
+import { reconcileOneShotState } from "@/lib/medications/lifecycle";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 import { NextRequest } from "next/server";
@@ -119,6 +120,12 @@ export const PUT = apiHandler(
       });
     }
 
+    // v1.5.0 — re-evaluate the one-shot active flag. A skip-flip on the
+    // single live intake of a one-shot medication should reactivate it
+    // (the dose is no longer logged), and the reverse case should
+    // deactivate again. No-op for non-one-shot medications.
+    await reconcileOneShotState(prisma, id, user.id);
+
     return apiSuccess(updated);
   },
 );
@@ -168,6 +175,12 @@ export const DELETE = apiHandler(
       scheduledFor: event.scheduledFor,
       tz: user.timezone,
     });
+
+    // v1.5.0 — re-evaluate the one-shot active flag. Deleting the
+    // single live intake of a one-shot medication reactivates it so
+    // the dashboard / lists / worker pick it back up. No-op for
+    // non-one-shot medications.
+    await reconcileOneShotState(prisma, id, user.id);
 
     return apiSuccess({ deleted: true });
   },

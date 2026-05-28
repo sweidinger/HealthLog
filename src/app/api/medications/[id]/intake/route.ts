@@ -15,6 +15,7 @@ import {
 } from "@/lib/validations/medication";
 import { withIdempotency } from "@/lib/idempotency";
 import { consumeOneDose } from "@/lib/medications/inventory/service";
+import { reconcileOneShotState } from "@/lib/medications/lifecycle";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
@@ -197,35 +198,15 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     tz: user.timezone,
   });
 
-  // v1.5.0 — one-shot lifecycle. A `oneShot` medication has at most
-  // one intake; once that intake is logged (non-skipped) the
-  // medication auto-deactivates so the reminder worker stops
-  // considering it and the dashboard "Erfassen" sheet drops it. The
-  // flip runs AFTER the intake row is committed (any failure inside
-  // the transaction above re-raises before this line), so a flaky
-  // write never deactivates a medication that didn't actually
-  // receive its dose. Skipped intakes don't qualify — a "skipped"
-  // event on a one-shot leaves the medication open for the eventual
-  // real dose.
-  const medForOneShotCheck = await prisma.medication.findUnique({
-    where: { id },
-    select: { oneShot: true, active: true },
-  });
-  if (medForOneShotCheck?.oneShot && medForOneShotCheck.active && !skipped) {
-    await prisma.medication.update({
-      where: { id },
-      data: { active: false },
-    });
-    await auditLog("medication.oneShot.deactivated", {
-      userId: user.id,
-      ipAddress: getClientIp(request),
-      details: { medicationId: id, eventId: event.id },
-    });
-    annotate({
-      action: { name: "medication.oneShot.deactivated" },
-      meta: { medication_id: id, event_id: event.id },
-    });
-    // Invalidate again so the next list-meds read sees the flip.
+  // v1.5.0 — one-shot lifecycle reconciliation. A `oneShot` medication
+  // has at most one live intake; the helper re-reads the most recent
+  // non-skipped intake and flips `active` to match. Idempotent on
+  // non-one-shot medications (the underlying updateMany is gated by
+  // `oneShot:true`). The flip runs AFTER the intake row is committed
+  // so a flaky write never deactivates a medication that didn't
+  // actually receive its dose.
+  const reconcileAction = await reconcileOneShotState(prisma, id, user.id);
+  if (reconcileAction !== "noop") {
     invalidateUserMedications(user.id);
   }
 
