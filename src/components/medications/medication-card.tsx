@@ -262,14 +262,19 @@ export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
           min-w-11` (44px) so these meet the WCAG 2.5.5 minimum
           tap-target on mobile without the icon glyph itself
           changing size. */}
+      {/* v1.5.5 — the kebab-style "open" icon routes to the new
+          medication detail page. The detail-page intake-history
+          preview links onward to `/medications/{id}/history` for the
+          bulk-delete sub-route, so the user still reaches the full
+          history in one extra tap. */}
       <Button
         variant="ghost"
         size="icon"
         className="min-h-11 min-w-11"
         asChild
-        aria-label={t("medications.intakeHistory")}
+        aria-label={t("medications.openDetailPage")}
       >
-        <Link href={`/medications/${medication.id}/history`}>
+        <Link href={`/medications/${medication.id}`}>
           <History className="h-4 w-4" />
         </Link>
       </Button>

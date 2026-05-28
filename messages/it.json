@@ -474,6 +474,7 @@
     "scheduleDaily": "Quotidiano",
     "inactive": "In pausa",
     "intakeHistory": "Cronologia assunzioni",
+    "openDetailPage": "Open medication detail page",
     "deleteConfirm": "Eliminare il farmaco?",
     "compliance": "Aderenza",
     "importIntakes": "Import intakes",

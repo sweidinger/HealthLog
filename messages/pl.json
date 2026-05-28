@@ -474,6 +474,7 @@
     "scheduleDaily": "Codziennie",
     "inactive": "Wstrzymany",
     "intakeHistory": "Historia przyjęć",
+    "openDetailPage": "Open medication detail page",
     "deleteConfirm": "Usunąć lek?",
     "compliance": "Przestrzeganie zaleceń",
     "importIntakes": "Import intakes",

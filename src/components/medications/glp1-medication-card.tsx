@@ -326,14 +326,17 @@ export function Glp1MedicationCard({
 
   const headerActions = (
     <>
+      {/* v1.5.5 — routes to the new medication detail page; the
+          detail-page intake-history preview links onward to
+          `/medications/{id}/history` for the bulk-delete sub-route. */}
       <Button
         variant="ghost"
         size="icon"
         className="min-h-11 min-w-11"
         asChild
-        aria-label={t("medications.intakeHistory")}
+        aria-label={t("medications.openDetailPage")}
       >
-        <Link href={`/medications/${medication.id}/history`}>
+        <Link href={`/medications/${medication.id}`}>
           <History className="h-4 w-4" />
         </Link>
       </Button>

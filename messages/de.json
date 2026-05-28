@@ -474,6 +474,7 @@
     "scheduleDaily": "Täglich",
     "inactive": "Pausiert",
     "intakeHistory": "Einnahme-Verlauf",
+    "openDetailPage": "Medikament-Detailseite öffnen",
     "deleteConfirm": "Medikament löschen?",
     "compliance": "Einnahmetreue",
     "importIntakes": "Einnahmen importieren",
