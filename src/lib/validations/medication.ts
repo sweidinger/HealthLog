@@ -143,6 +143,17 @@ export const scheduleSchema = z
       path: ["rrule"],
     },
   )
+  .refine(
+    (s) =>
+      s.rollingIntervalDays === undefined ||
+      s.rollingIntervalDays === null ||
+      !s.timesOfDay ||
+      s.timesOfDay.length <= 1,
+    {
+      message: "rolling-cadence schedules accept at most one time of day",
+      path: ["timesOfDay"],
+    },
+  )
   .meta({
     id: "MedicationScheduleInput",
     description:
@@ -203,9 +214,22 @@ export const createMedicationSchema = z
     treatmentClass: z.enum(MEDICATION_TREATMENT_CLASS_VALUES).optional(),
     /** v1.4.25 W4d — doses per pen/vial for inventory tracking. */
     dosesPerUnit: z.number().int().min(1).max(100).optional(),
+    notificationsEnabled: z.boolean().optional(),
     ...courseWindowFields,
     schedules: z.array(scheduleSchema).min(1, "Mindestens ein Zeitfenster"),
   })
+  .refine((b) => b.oneShot !== true || !!b.startsOn, {
+    message: "startsOn is required when oneShot is true",
+    path: ["startsOn"],
+  })
+  .refine(
+    (b) =>
+      !b.startsOn || !b.endsOn || b.endsOn.getTime() >= b.startsOn.getTime(),
+    {
+      message: "endsOn must be on or after startsOn",
+      path: ["endsOn"],
+    },
+  )
   .meta({
     id: "CreateMedicationRequest",
     description:
@@ -224,6 +248,18 @@ export const updateMedicationSchema = z
     ...courseWindowFields,
     schedules: z.array(scheduleSchema).optional(),
   })
+  .refine((b) => b.oneShot !== true || !!b.startsOn, {
+    message: "startsOn is required when oneShot is true",
+    path: ["startsOn"],
+  })
+  .refine(
+    (b) =>
+      !b.startsOn || !b.endsOn || b.endsOn.getTime() >= b.startsOn.getTime(),
+    {
+      message: "endsOn must be on or after startsOn",
+      path: ["endsOn"],
+    },
+  )
   .meta({
     id: "UpdateMedicationRequest",
     description:

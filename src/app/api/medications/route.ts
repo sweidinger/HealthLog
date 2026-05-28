@@ -121,6 +121,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     category,
     treatmentClass,
     dosesPerUnit,
+    notificationsEnabled,
     schedules,
     startsOn,
     endsOn,
@@ -180,6 +181,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
       // wire schema; Prisma fills the default GENERIC when omitted.
       ...(treatmentClass !== undefined && { treatmentClass }),
       ...(dosesPerUnit !== undefined && { dosesPerUnit }),
+      // v1.5 — wizard's reminders toggle now ships through the create
+      // payload (was orphaned in the initial diff). Prisma defaults to
+      // true when omitted, matching the legacy form's behaviour.
+      ...(notificationsEnabled !== undefined && { notificationsEnabled }),
       // v1.5 scheduling primitives — pass-through when supplied.
       ...(startsOn !== undefined && { startsOn }),
       ...(normalisedEndsOn !== undefined && { endsOn: normalisedEndsOn }),
