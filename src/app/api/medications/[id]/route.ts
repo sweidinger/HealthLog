@@ -83,7 +83,41 @@ export const PUT = apiHandler(
       active,
       notificationsEnabled,
       schedules,
+      startsOn,
+      endsOn,
+      oneShot,
     } = parsed.data;
+
+    // ── v1.5 route invariants for the new scheduling primitives ─────
+    //
+    // Mirrors the POST route: oneShot ⇒ at-most-one schedule + no
+    // recurrence on it; endsOn normalised to startsOn for one-shot;
+    // recurring default = FREQ=DAILY when nothing else is set;
+    // timesOfDay dual-write from windowStart when absent.
+    //
+    // The PUT replaces all schedules wholesale, so the invariants run
+    // against the incoming `schedules` array (if provided) the same
+    // way they do on create.
+    if (oneShot === true && schedules) {
+      if (schedules.length > 1) {
+        return apiError(
+          "A one-shot medication can have at most one schedule",
+          422,
+        );
+      }
+      const s = schedules[0];
+      if (s && (s.rrule !== undefined || s.rollingIntervalDays !== undefined)) {
+        return apiError(
+          "A one-shot medication cannot have a recurrence (rrule or rollingIntervalDays)",
+          422,
+        );
+      }
+    }
+
+    // Normalise endsOn for one-shot. `oneShot === true` + `startsOn`
+    // means the dose is the start date; endsOn auto-matches.
+    const normalisedEndsOn =
+      oneShot === true && startsOn ? startsOn : endsOn;
 
     const pausedAtPatch =
       active === undefined
@@ -108,18 +142,51 @@ export const PUT = apiHandler(
       ...(dosesPerUnit !== undefined && { dosesPerUnit }),
       ...(active !== undefined && { active }),
       ...(notificationsEnabled !== undefined && { notificationsEnabled }),
+      // v1.5 scheduling primitives — pass-through when supplied.
+      // `startsOn` / `endsOn` are `Date | null | undefined` (the
+      // schema lets the user clear them explicitly with null).
+      ...(startsOn !== undefined && { startsOn }),
+      ...(normalisedEndsOn !== undefined && { endsOn: normalisedEndsOn }),
+      ...(oneShot !== undefined && { oneShot }),
       ...(schedules && {
         schedules: {
-          create: schedules.map((s) => ({
-            windowStart: s.windowStart,
-            windowEnd: s.windowEnd,
-            label: s.label ?? null,
-            dose: s.dose ?? null,
-            daysOfWeek: serializeScheduleRecurrence({
-              daysOfWeek: s.daysOfWeek ?? [],
-              intervalWeeks: s.intervalWeeks ?? 1,
-            }),
-          })),
+          create: schedules.map((s) => {
+            // Invariant 2 — default to FREQ=DAILY when nothing else is set.
+            const hasLegacyDays = (s.daysOfWeek?.length ?? 0) > 0;
+            const defaultedRrule =
+              oneShot !== true &&
+              s.rrule === undefined &&
+              s.rollingIntervalDays === undefined &&
+              !hasLegacyDays
+                ? "FREQ=DAILY"
+                : s.rrule;
+
+            // Invariant 3 — dual-write timesOfDay from windowStart.
+            const effectiveTimesOfDay =
+              s.timesOfDay && s.timesOfDay.length > 0
+                ? s.timesOfDay
+                : [s.windowStart];
+
+            return {
+              windowStart: s.windowStart,
+              windowEnd: s.windowEnd,
+              label: s.label ?? null,
+              dose: s.dose ?? null,
+              daysOfWeek: serializeScheduleRecurrence({
+                daysOfWeek: s.daysOfWeek ?? [],
+                intervalWeeks: s.intervalWeeks ?? 1,
+              }),
+              // v1.5 first-class times-of-day.
+              timesOfDay: effectiveTimesOfDay,
+              ...(s.reminderGraceMinutes !== undefined && {
+                reminderGraceMinutes: s.reminderGraceMinutes,
+              }),
+              ...(defaultedRrule !== undefined && { rrule: defaultedRrule }),
+              ...(s.rollingIntervalDays !== undefined && {
+                rollingIntervalDays: s.rollingIntervalDays,
+              }),
+            };
+          }),
         },
       }),
     };

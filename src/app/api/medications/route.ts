@@ -3,6 +3,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import {
+  apiError,
   apiSuccess,
   getClientIp,
   returnAllZodIssues,
@@ -114,8 +115,61 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { name, dose, category, treatmentClass, dosesPerUnit, schedules } =
-    parsed.data;
+  const {
+    name,
+    dose,
+    category,
+    treatmentClass,
+    dosesPerUnit,
+    schedules,
+    startsOn,
+    endsOn,
+    oneShot,
+  } = parsed.data;
+
+  // ── v1.5 route invariants for the new scheduling primitives ───────
+  //
+  // The Zod layer already enforces `rrule` xor `rollingIntervalDays`
+  // (scheduleSchema.refine). The route layer enforces the cross-field
+  // invariants that span medication + schedules:
+  //
+  //   1. **One-shot consistency** — when `oneShot === true`:
+  //      a. The medication has at most ONE schedule.
+  //      b. The single schedule carries neither `rrule` nor
+  //         `rollingIntervalDays` (a one-shot dose IS the schedule).
+  //      c. `endsOn` is normalised to equal `startsOn` on write so the
+  //         worker's date-range cap matches the one-and-only slot.
+  //
+  //   2. **Recurring default** — when `oneShot !== true` AND the
+  //      schedule has no `rrule`, no `rollingIntervalDays`, and no
+  //      legacy `daysOfWeek`, the route stamps `rrule = "FREQ=DAILY"`
+  //      so the canonical recurrence engine has a clean shape going
+  //      forward instead of falling through to the legacy parser.
+  //
+  //   3. **iOS contract dual-write** — when `timesOfDay` is absent or
+  //      empty, the route stamps `[windowStart]` so the new engine
+  //      always sees a populated `timesOfDay` while legacy iOS clients
+  //      (v0.6.x) keep encoding the `windowStart` / `windowEnd` /
+  //      `daysOfWeek` shape. Both shapes coexist through v1.5.x.
+  if (oneShot === true) {
+    if (schedules.length > 1) {
+      return apiError(
+        "A one-shot medication can have at most one schedule",
+        422,
+      );
+    }
+    const s = schedules[0];
+    if (s.rrule !== undefined || s.rollingIntervalDays !== undefined) {
+      return apiError(
+        "A one-shot medication cannot have a recurrence (rrule or rollingIntervalDays)",
+        422,
+      );
+    }
+  }
+
+  // Normalise endsOn for one-shot. Zod gives us `Date | null | undefined`.
+  const normalisedEndsOn =
+    oneShot === true && startsOn ? startsOn : (endsOn ?? undefined);
 
   const medication = await prisma.medication.create({
     data: {
@@ -126,17 +180,49 @@ export const POST = apiHandler(async (request: NextRequest) => {
       // wire schema; Prisma fills the default GENERIC when omitted.
       ...(treatmentClass !== undefined && { treatmentClass }),
       ...(dosesPerUnit !== undefined && { dosesPerUnit }),
+      // v1.5 scheduling primitives — pass-through when supplied.
+      ...(startsOn !== undefined && { startsOn }),
+      ...(normalisedEndsOn !== undefined && { endsOn: normalisedEndsOn }),
+      ...(oneShot !== undefined && { oneShot }),
       schedules: {
-        create: schedules.map((s) => ({
-          windowStart: s.windowStart,
-          windowEnd: s.windowEnd,
-          label: s.label ?? null,
-          dose: s.dose ?? null,
-          daysOfWeek: serializeScheduleRecurrence({
-            daysOfWeek: s.daysOfWeek ?? [],
-            intervalWeeks: s.intervalWeeks ?? 1,
-          }),
-        })),
+        create: schedules.map((s) => {
+          // Invariant 2 — default to FREQ=DAILY when nothing else is set.
+          const hasLegacyDays = (s.daysOfWeek?.length ?? 0) > 0;
+          const defaultedRrule =
+            !oneShot &&
+            s.rrule === undefined &&
+            s.rollingIntervalDays === undefined &&
+            !hasLegacyDays
+              ? "FREQ=DAILY"
+              : s.rrule;
+
+          // Invariant 3 — dual-write `timesOfDay` from windowStart when
+          // the legacy-shape iOS client doesn't send the new field.
+          const effectiveTimesOfDay =
+            s.timesOfDay && s.timesOfDay.length > 0
+              ? s.timesOfDay
+              : [s.windowStart];
+
+          return {
+            windowStart: s.windowStart,
+            windowEnd: s.windowEnd,
+            label: s.label ?? null,
+            dose: s.dose ?? null,
+            daysOfWeek: serializeScheduleRecurrence({
+              daysOfWeek: s.daysOfWeek ?? [],
+              intervalWeeks: s.intervalWeeks ?? 1,
+            }),
+            // v1.5 first-class times-of-day.
+            timesOfDay: effectiveTimesOfDay,
+            ...(s.reminderGraceMinutes !== undefined && {
+              reminderGraceMinutes: s.reminderGraceMinutes,
+            }),
+            ...(defaultedRrule !== undefined && { rrule: defaultedRrule }),
+            ...(s.rollingIntervalDays !== undefined && {
+              rollingIntervalDays: s.rollingIntervalDays,
+            }),
+          };
+        }),
       },
     },
     include: { schedules: true },
