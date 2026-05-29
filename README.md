@@ -1,4 +1,3 @@
-<img width="2516" height="1231" alt="dashboard" src="https://github.com/user-attachments/assets/20771d5d-40fe-4977-b231-1a01a2e8b7f4" />
 <p align="center">
   <img src="public/logo-readme.svg" alt="HealthLog Logo" width="120" height="120" />
 </p>
