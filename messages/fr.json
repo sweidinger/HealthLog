@@ -831,7 +831,18 @@
             "sprays": "spray",
             "pieces": "pieces",
             "other": "other"
-          }
+          },
+          "deliveryFormLabel": "Voie",
+          "deliveryForm": {
+            "ORAL": "Orale",
+            "INJECTION": "Injection",
+            "OTHER": "Autre"
+          },
+          "dosesPerUnitLabel": "Doses par unité",
+          "dosesPerUnitPlaceholder": "p. ex. 4",
+          "dosesPerUnitHint": "Doses par stylo / flacon — laisser vide pour ne pas suivre le stock.",
+          "injectionSiteToggle": "Rotation des sites d'injection",
+          "injectionSiteHint": "Guide de rotation facultatif. Le site de chaque dose est enregistré lors de la saisie de la prise."
         },
         "step4": {
           "title": "Over what period are you taking it?",
@@ -2197,6 +2208,19 @@
     "timezoneHint": "Used for chart axis labels, reminder times, export timestamps, and Coach context. Stored data is unchanged.",
     "timezoneInvalid": "Not a valid IANA timezone.",
     "profileSaved": "Profile saved",
+    "avatar": {
+      "title": "Photo de profil",
+      "description": "Téléverse une photo stockée sur ton propre serveur. Elle apparaît dans toute l'application à la place d'un service d'avatar externe.",
+      "upload": "Téléverser une photo",
+      "replace": "Remplacer la photo",
+      "remove": "Supprimer",
+      "hint": "JPEG, PNG ou WebP. Jusqu'à 2 Mo et 2048×2048 pixels.",
+      "uploaded": "Photo de profil mise à jour",
+      "removed": "Photo de profil supprimée",
+      "invalidType": "Type d'image non pris en charge. Utilise JPEG, PNG ou WebP.",
+      "tooLarge": "L'image dépasse la limite de 2 Mo.",
+      "error": "Impossible de mettre à jour la photo de profil. Réessaie."
+    },
     "changePassword": "Change password",
     "changePasswordDescription": "Replace your current password with a new one.",
     "passwordReset": "Password reset",
@@ -2610,6 +2634,7 @@
     "telegramGlobal": "Allow Telegram notifications.",
     "ntfyGlobal": "Allow ntfy notifications.",
     "webPushGlobal": "Allow browser push notifications.",
+    "moodLogGlobal": "Allow mood-log reminders.",
     "integrationWebPush": "Web Push",
     "integrationBugReport": "Bug Report",
     "offlineGeoLabel": "Données géographiques",

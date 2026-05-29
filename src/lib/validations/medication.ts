@@ -39,6 +39,20 @@ export type MedicationTreatmentClass =
   (typeof MEDICATION_TREATMENT_CLASS_VALUES)[number];
 
 /**
+ * v1.6.0 — route of administration. Decoupled from `treatmentClass`:
+ * the injection-site picker surfaces for any `INJECTION` dose, and a
+ * one-time injection is `oneShot: true` + `deliveryForm: "INJECTION"`.
+ * ORAL is the default the migration backfilled onto every existing row.
+ */
+export const MEDICATION_DELIVERY_FORM_VALUES = [
+  "ORAL",
+  "INJECTION",
+  "OTHER",
+] as const;
+export type MedicationDeliveryForm =
+  (typeof MEDICATION_DELIVERY_FORM_VALUES)[number];
+
+/**
  * v1.5 — RRULE string shape check.
  *
  * Not a full RFC 5545 parser (that lives in the `rrule` npm package on
@@ -225,6 +239,8 @@ export const createMedicationSchema = z
     treatmentClass: z.enum(MEDICATION_TREATMENT_CLASS_VALUES).optional(),
     /** v1.4.25 W4d — doses per pen/vial for inventory tracking. */
     dosesPerUnit: z.number().int().min(1).max(100).optional(),
+    /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
+    deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),
     notificationsEnabled: z.boolean().optional(),
     ...courseWindowFields,
     schedules: z.array(scheduleSchema).min(1, "Mindestens ein Zeitfenster"),
@@ -254,6 +270,8 @@ export const updateMedicationSchema = z
     category: z.enum(MEDICATION_CATEGORY_VALUES).optional(),
     treatmentClass: z.enum(MEDICATION_TREATMENT_CLASS_VALUES).optional(),
     dosesPerUnit: z.number().int().min(1).max(100).nullable().optional(),
+    /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
+    deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),
     active: z.boolean().optional(),
     notificationsEnabled: z.boolean().optional(),
     ...courseWindowFields,

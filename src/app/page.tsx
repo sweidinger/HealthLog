@@ -123,9 +123,9 @@ function getRangeColorClass(
   const inOrange =
     !inGreen && value >= range.orangeMin && value <= range.orangeMax;
 
-  if (inGreen) return "text-green-400";
-  if (inOrange) return "text-orange-400";
-  return "text-red-400";
+  if (inGreen) return "text-success";
+  if (inOrange) return "text-warning";
+  return "text-destructive";
 }
 
 function getRangeHint(
@@ -142,20 +142,22 @@ function getRangeHint(
   return (
     <>
       <p>
-        <span className="font-bold text-green-400">
+        <span className="text-success font-bold">
           {t("charts.colorGreen")}
         </span>{" "}
         {format(range.greenMin)}-{format(range.greenMax)} {unit}
       </p>
       <p>
-        <span className="font-bold text-orange-400">
+        <span className="text-warning font-bold">
           {t("charts.colorOrange")}
         </span>{" "}
         {format(range.orangeMin)}-{format(range.greenMin)} {t("common.or")}{" "}
         {format(range.greenMax)}-{format(range.orangeMax)} {unit}
       </p>
       <p>
-        <span className="font-bold text-red-400">{t("charts.colorRed")}</span>{" "}
+        <span className="text-destructive font-bold">
+          {t("charts.colorRed")}
+        </span>{" "}
         {"< "}
         {format(range.orangeMin)} {t("common.or")} {"> "}
         {format(range.orangeMax)} {unit}

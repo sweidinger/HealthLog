@@ -831,7 +831,18 @@
             "sprays": "spray",
             "pieces": "pieces",
             "other": "other"
-          }
+          },
+          "deliveryFormLabel": "Droga podania",
+          "deliveryForm": {
+            "ORAL": "Doustnie",
+            "INJECTION": "Iniekcja",
+            "OTHER": "Inna"
+          },
+          "dosesPerUnitLabel": "Dawki na jednostkę",
+          "dosesPerUnitPlaceholder": "np. 4",
+          "dosesPerUnitHint": "Dawki na wstrzykiwacz / fiolkę — zostaw puste, aby nie śledzić zapasów.",
+          "injectionSiteToggle": "Rotacja miejsc wstrzyknięcia",
+          "injectionSiteHint": "Opcjonalny przewodnik rotacji. Miejsce każdej dawki zapisywane jest przy rejestrowaniu przyjęcia."
         },
         "step4": {
           "title": "Over what period are you taking it?",
@@ -2197,6 +2208,19 @@
     "timezoneHint": "Used for chart axis labels, reminder times, export timestamps, and Coach context. Stored data is unchanged.",
     "timezoneInvalid": "Not a valid IANA timezone.",
     "profileSaved": "Profile saved",
+    "avatar": {
+      "title": "Zdjęcie profilowe",
+      "description": "Prześlij zdjęcie przechowywane na własnym serwerze. Pojawia się w całej aplikacji zamiast zewnętrznej usługi awatarów.",
+      "upload": "Prześlij zdjęcie",
+      "replace": "Zmień zdjęcie",
+      "remove": "Usuń",
+      "hint": "JPEG, PNG lub WebP. Do 2 MB i 2048×2048 pikseli.",
+      "uploaded": "Zaktualizowano zdjęcie profilowe",
+      "removed": "Usunięto zdjęcie profilowe",
+      "invalidType": "Nieobsługiwany typ obrazu. Użyj JPEG, PNG lub WebP.",
+      "tooLarge": "Obraz przekracza limit 2 MB.",
+      "error": "Nie udało się zaktualizować zdjęcia profilowego. Spróbuj ponownie."
+    },
     "changePassword": "Change password",
     "changePasswordDescription": "Replace your current password with a new one.",
     "passwordReset": "Password reset",
@@ -2610,6 +2634,7 @@
     "telegramGlobal": "Allow Telegram notifications.",
     "ntfyGlobal": "Allow ntfy notifications.",
     "webPushGlobal": "Allow browser push notifications.",
+    "moodLogGlobal": "Allow mood-log reminders.",
     "integrationWebPush": "Web Push",
     "integrationBugReport": "Bug Report",
     "offlineGeoLabel": "Dane geograficzne",

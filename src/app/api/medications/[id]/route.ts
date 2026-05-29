@@ -91,6 +91,7 @@ export const PUT = apiHandler(
       category,
       treatmentClass,
       dosesPerUnit,
+      deliveryForm,
       active,
       notificationsEnabled,
       schedules,
@@ -180,6 +181,7 @@ export const PUT = apiHandler(
       ...(dose !== undefined && { dose }),
       ...(treatmentClass !== undefined && { treatmentClass }),
       ...(dosesPerUnit !== undefined && { dosesPerUnit }),
+      ...(deliveryForm !== undefined && { deliveryForm }),
       ...(active !== undefined && { active }),
       ...(notificationsEnabled !== undefined && { notificationsEnabled }),
       // v1.5 scheduling primitives — pass-through when supplied.

@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.6.0] — 2026-05-30 — Medication editor overhaul, route of administration, today-tile read-flip
+
+v1.5.6 settled the medication detail page into a pure history view, but the create/edit plan still funnelled every dose through the same flat shape, the injection-site picker only surfaced for GLP-1, and the today-tile on the dashboard and the Erfassen sheet still expanded daily schedules through a legacy walker that silently skipped bi-weekly, rolling, RRULE, and one-time cadences. This release reworks the medication editor and its detail surface, gives route of administration a first-class column so any injection can carry a site, adds a one-time-injection shape, and flips the today-tile onto the canonical recurrence engine the reminder worker already uses — so what the tile shows matches what the worker mints. It also restores the multi-language request snippets on the API-tokens row, adds a profile-photo upload to Account, and finishes an admin-surface polish pass.
+
+### Added
+
+- **Route of administration** — a new `deliveryForm` column (`ORAL` | `INJECTION` | `OTHER`) decoupled from `treatmentClass`. The injection-site picker now surfaces for any `INJECTION` dose rather than only GLP-1, and the editor carries the route through create, update, and the detail snapshot. Migration `0088` adds the enum and backfills `ORAL` onto every existing row via a constant column default (a single non-blocking metadata operation).
+- **One-time injection** — a one-off dose modelled as `oneShot = true` + `deliveryForm = INJECTION`, with its own editor path that drops the recurring-schedule step.
+- **Profile-photo upload on Account** — Settings → Account gains an avatar card backed by the v1.5.5 upload endpoint (server-side magic-byte sniff, 2 MiB stream-level cap, 2048² dimension cap, per-user rate limit, owner-scoped read).
+- **Admin global mood-log toggle** — the admin Services section can suspend mood-log reminders site-wide alongside the existing Web-Push and API toggles.
+- **Host-metrics memory detail** — the admin host-metrics memory tooltip now reads `used / total GiB` alongside the percentage.
+
+### Changed
+
+- **Medication editor + detail surface overhaul** — the editor uses the available desktop width while keeping the mobile sheet, restores the edit fields the modal-wizard rework had dropped, and aligns the detail surface with the new route-of-administration and one-time shapes.
+- **Measurement note cap raised 25 → 200 characters** — a 25-character note could not hold a meaningful clinical aside; the cap lifts to 200 through a single `MEASUREMENT_NOTES_MAX_LENGTH` constant the client char-counters import. The DB column was already unbounded.
+- **Dashboard range colors route through semantic tokens** — the dashboard date-range chips read the shared `success` / `warning` / `info` / `destructive` tokens (with their light-mode contrast overrides) instead of hard-coded hues, and the range inputs gain bound-clamping.
+- **Admin surface tidy** — every sidebar section gets a distinct icon, the shared `helpfulRateColour` helper and a `usePublicVersion` hook are consolidated into `_shared`, and the orphaned `status-overview` route is removed.
+- **API-tokens row restores multi-language request snippets** — the per-token row again offers copyable cURL / JavaScript / Python examples.
+
+### Fixed
+
+- **Today-tile diverged from the reminder worker for non-daily cadences** — `/api/medications/intake?scope=today` and `/api/dashboard/summary` projected daily schedules through a legacy walker that read only `daysOfWeek` + `windowStart`, silently skipping `intervalWeeks > 1`, rolling, RRULE, and one-time cadences. Both routes now gate every "does this schedule emit today?" decision through the canonical recurrence engine (the same path the worker uses), anchoring the projected instant to `windowStart` so it stays byte-identical to the worker's row and dedupes against the existing unique index. The rolling-cadence baseline fetch mirrors the worker's per-medication `takenAt` query, so projector and worker resolve the same next-due instant.
+
+### Tests
+
+- 5635 → 5628 unit; 1 skipped. The today-tile read-flip carries new coverage on the intake and dashboard-summary projections; the orphaned status-overview route and its test are gone.
+
 ## [1.5.6] — 2026-05-29 — Pure-history detail page, legacy step consolidation, egress finish
 
 v1.5.5 gave every retired medication feature a home on the detail page, but the page still carried the create/edit affordances that belong on the list. This release turns `/medications/[id]` into a pure history surface, collapses every setting into one advanced sheet, consolidates the pre-v1.5.0 granular step rows that bloated the per-sample read path, and finishes the outbound-fetch migration the `safeFetch` wrapper started.

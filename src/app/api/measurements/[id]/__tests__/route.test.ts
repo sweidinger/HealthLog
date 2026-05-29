@@ -95,7 +95,7 @@ describe("PUT /api/measurements/[id] — 422 multi-issue (v1.4.43 W6)", () => {
       putReq({
         value: "string",
         measuredAt: "not-iso",
-        notes: "a".repeat(200),
+        notes: "a".repeat(201),
       }),
       ROUTE_CTX,
     );

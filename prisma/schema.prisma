@@ -823,6 +823,20 @@ enum MedicationCategory {
   @@map("medication_category")
 }
 
+/// v1.6.0 — route of administration, decoupled from `treatmentClass`.
+/// Drives the injection-site picker (available for any INJECTION, not
+/// only GLP-1) and the one-time-injection shape (`oneShot = true` +
+/// `deliveryForm = INJECTION`). ORAL is the backfilled default for every
+/// pre-v1.6.0 row. OTHER is the catch-all for topical / inhaled / nasal
+/// routes that don't need injection-site tracking.
+enum MedicationDeliveryForm {
+  ORAL
+  INJECTION
+  OTHER
+
+  @@map("medication_delivery_form")
+}
+
 model Medication {
   id                   String             @id @default(cuid())
   userId               String             @map("user_id")
@@ -862,6 +876,11 @@ model Medication {
   /// the migration backfills `oneShot = false` for every existing
   /// row.
   oneShot              Boolean            @default(false) @map("one_shot")
+  /// v1.6.0 — route of administration. Decoupled from `treatmentClass`
+  /// so the injection-site picker can surface for any INJECTION dose.
+  /// A one-time injection is `oneShot = true` + `deliveryForm =
+  /// INJECTION`. The migration backfills ORAL for every existing row.
+  deliveryForm         MedicationDeliveryForm @default(ORAL) @map("delivery_form")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 

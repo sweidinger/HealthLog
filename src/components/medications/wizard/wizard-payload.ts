@@ -61,6 +61,7 @@ import {
 import {
   type MedicationTreatmentClass,
   type MedicationCategoryValue,
+  type MedicationDeliveryForm,
 } from "@/lib/validations/medication";
 
 // ────────────────────────────────────────────────────────────────────
@@ -193,6 +194,19 @@ export interface WizardPayload {
   doseAmount: string;
   doseUnit: string;
   treatmentRow: WizardTreatmentRow | null;
+  /**
+   * v1.6.0 — route of administration. Drives the injection-site
+   * rotation preview (shown when `INJECTION`) and, paired with
+   * `mode === "oneShot"`, the one-time-injection shape. Defaults to
+   * `ORAL`; the GLP-1 treatment row nudges it to `INJECTION` on
+   * selection so the common case needs no extra tap.
+   */
+  deliveryForm: MedicationDeliveryForm;
+  /**
+   * v1.6.0 — doses per pen / vial for inventory math. Empty string =
+   * inventory tracking off (maps to `undefined` / NULL on the wire).
+   */
+  dosesPerUnit: string;
   /** Set in Step 5 — mirrors `schedules[activeScheduleIndex].mode`. */
   mode: "oneShot" | "recurring" | null;
   /** Mirrors `schedules[activeScheduleIndex].cadence`. */
@@ -237,6 +251,8 @@ export function emptyWizardPayload(): WizardPayload {
     doseAmount: "",
     doseUnit: "mg",
     treatmentRow: null,
+    deliveryForm: "ORAL",
+    dosesPerUnit: "",
     mode: draft.mode,
     cadence: draft.cadence,
     subControls: draft.subControls,
@@ -443,6 +459,10 @@ export interface CreateMedicationBody {
   dose: string;
   category: MedicationCategoryValue;
   treatmentClass: MedicationTreatmentClass;
+  /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
+  deliveryForm: MedicationDeliveryForm;
+  /** v1.6.0 — doses per pen / vial. Omitted when inventory is off. */
+  dosesPerUnit?: number;
   /**
    * v1.5.5 D-3 §10 invariant 16 — the wizard owns the create-time
    * default for `notificationsEnabled` but never overwrites it on
@@ -571,11 +591,17 @@ export function buildCreateBody(
     ? [committed.schedules[committed.activeScheduleIndex] ?? committed.schedules[0]]
     : committed.schedules;
 
+  const parsedDosesPerUnit = Number.parseInt(committed.dosesPerUnit, 10);
   const body: CreateMedicationBody = {
     name: committed.name.trim(),
     dose,
     category: mapping.category,
     treatmentClass: mapping.treatmentClass,
+    deliveryForm: committed.deliveryForm,
+    ...(Number.isFinite(parsedDosesPerUnit) &&
+      parsedDosesPerUnit >= 1 && {
+        dosesPerUnit: parsedDosesPerUnit,
+      }),
     // v1.5.5 D-3 §10 invariant 16 — `notificationsEnabled` only on
     // create. Edits never round-trip the wizard's default because the
     // detail page's notifications switch is the single source of
@@ -777,6 +803,10 @@ export interface MedicationPayload {
   dose: string;
   category: string;
   treatmentClass?: string;
+  /** v1.6.0 — route of administration. Defaults to ORAL when absent. */
+  deliveryForm?: string;
+  /** v1.6.0 — doses per pen / vial. NULL = inventory tracking off. */
+  dosesPerUnit?: number | null;
   notificationsEnabled: boolean;
   startsOn: Date | null;
   endsOn: Date | null;
@@ -793,6 +823,11 @@ export interface MedicationPayload {
     rrule?: string | null;
     rollingIntervalDays?: number | null;
   }>;
+}
+
+/** Coerce a persisted `deliveryForm` string onto the closed enum. */
+function normaliseDeliveryForm(value: string | undefined): MedicationDeliveryForm {
+  return value === "INJECTION" || value === "OTHER" ? value : "ORAL";
 }
 
 const DOSE_EXPR_RE = /^\s*(\d+(?:[.,]\d+)?)\s*(.*)$/;
@@ -866,6 +901,11 @@ export function hydrateWizardPayload(initial: MedicationPayload): WizardPayload 
     doseAmount: parsedDose.amount,
     doseUnit: parsedDose.unit || base.doseUnit,
     treatmentRow: rowFromTreatment(initial.treatmentClass, initial.category),
+    deliveryForm: normaliseDeliveryForm(initial.deliveryForm),
+    dosesPerUnit:
+      typeof initial.dosesPerUnit === "number" && initial.dosesPerUnit >= 1
+        ? String(initial.dosesPerUnit)
+        : "",
     mode: first.mode,
     cadence: first.cadence,
     subControls: first.subControls,

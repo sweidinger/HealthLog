@@ -18,16 +18,10 @@
  * destructive zone, not on the header (E-2 M-1).
  */
 
-import { ChevronDown, Pencil } from "lucide-react";
+import { Pencil, Settings2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useTranslations } from "@/lib/i18n/context";
 
 export interface MedicationDetailHeaderProps {
@@ -36,13 +30,15 @@ export interface MedicationDetailHeaderProps {
   active: boolean;
   endsOn?: string | null;
   /**
-   * v1.5.6 G-1 §4 — "Plan bearbeiten" opens the wizard (mode="edit",
-   * Step 1). Fired from the Bearbeiten dropdown's first item.
+   * v1.6.0 — the single "Bearbeiten" button opens the unified editor
+   * (mode="edit"). The two-option dropdown the v1.5.6 header carried
+   * collapsed to one direct button so editing is a single tap.
    */
   onEditPlan: () => void;
   /**
-   * v1.5.6 G-1 §4 — "Erweiterte Einstellungen" opens the
-   * `<AdvancedSettingsSheet>`. Fired from the dropdown's second item.
+   * v1.6.0 — the gear button opens the `<AdvancedSettingsSheet>`
+   * (notifications / API tokens / Phasen / destructive zone). Kept as
+   * a discreet secondary affordance beside the primary edit button.
    */
   onOpenAdvanced: () => void;
 }
@@ -109,34 +105,28 @@ export function MedicationDetailHeader({
           </Badge>
         </div>
       </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="min-h-11 sm:min-h-9"
-            data-slot="medication-detail-edit-button"
-          >
-            <Pencil aria-hidden="true" className="h-4 w-4" />
-            <span>{t("common.edit")}</span>
-            <ChevronDown aria-hidden="true" className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onSelect={onEditPlan}
-            data-slot="medication-detail-edit-plan"
-          >
-            {t("medications.detail.edit.planOption")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={onOpenAdvanced}
-            data-slot="medication-detail-edit-advanced"
-          >
-            {t("medications.detail.edit.advancedOption")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-11 sm:min-h-9"
+          onClick={onEditPlan}
+          data-slot="medication-detail-edit-button"
+        >
+          <Pencil aria-hidden="true" className="h-4 w-4" />
+          <span>{t("common.edit")}</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+          onClick={onOpenAdvanced}
+          aria-label={t("medications.detail.edit.advancedOption")}
+          data-slot="medication-detail-advanced-button"
+        >
+          <Settings2 aria-hidden="true" className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

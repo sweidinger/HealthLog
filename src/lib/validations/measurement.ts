@@ -252,12 +252,20 @@ export function validateMeasurementRange(
   return null;
 }
 
+/**
+ * v1.6.0 — notes cap raised from 25 to 200. A 25-char limit could not
+ * hold a meaningful clinical note ("took after large meal, felt dizzy
+ * standing up"). The DB column is unbounded `String?`; this is the
+ * single source of truth the client char-counters import.
+ */
+export const MEASUREMENT_NOTES_MAX_LENGTH = 200;
+
 export const createMeasurementSchema = z
   .object({
     type: measurementTypeEnum,
     value: z.number(),
     measuredAt: z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
-    notes: z.string().max(25).optional(),
+    notes: z.string().max(MEASUREMENT_NOTES_MAX_LENGTH).optional(),
     source: measurementSourceEnum.optional().default("MANUAL"),
     // Only applies when type === BLOOD_GLUCOSE. Mirrored by a CHECK
     // constraint in Postgres (see migration 0021).
@@ -293,7 +301,10 @@ export const updateMeasurementSchema = z.object({
     .optional(),
   notes: z
     .string()
-    .max(25, "Note cannot exceed 25 characters")
+    .max(
+      MEASUREMENT_NOTES_MAX_LENGTH,
+      `Note cannot exceed ${MEASUREMENT_NOTES_MAX_LENGTH} characters`,
+    )
     .nullable()
     .optional(),
 });

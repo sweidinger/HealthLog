@@ -338,11 +338,14 @@ function WizardDialogShell({
         title={headerTitle}
         hideHeader
         showCloseButton
-        // v1.5.5 D-3 §8 — desktop shell widens from `sm:max-w-md`
-        // (448 px) to the 560 px ceiling the rest of the v1.5
-        // surfaces use; mobile bottom-sheet keeps the `40dvh` floor
-        // so the sheet never collapses to a stub on short screens.
-        className="sm:max-w-[560px] min-h-[40dvh] md:min-h-0"
+        // v1.6.0 — the unified editor widens to the 2xl ceiling on
+        // desktop so the sectioned form (Identity / Plan / Reminders /
+        // Specific) reads comfortably without the cramped 560 px
+        // column the v1.5 wizard used. The mobile bottom-sheet keeps
+        // the `40dvh` floor so the sheet never collapses to a stub on
+        // short screens.
+        contentWidth="2xl"
+        className="min-h-[40dvh] md:min-h-0"
         bodyClassName="gap-0 p-0"
         footer={
           <div className="flex w-full items-center justify-between gap-2">

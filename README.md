@@ -96,7 +96,7 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 
 **Sub-second dashboard** -- A persistent rollup tier pre-aggregates every measurement at DAY / WEEK / MONTH granularity. The dashboard and analytics paths read those buckets first and fall back to live SQL only when a tenant hasn't been backfilled yet, so paint time stays under 500 ms regardless of how many years of history you've imported.
 
-**Gamification** -- 30+ persistent achievements across intake streaks, compliance milestones, and healthy metric streaks.
+**Gamification** -- 59 persistent achievements across intake streaks, compliance milestones, and healthy metric streaks.
 
 **Internationalization** -- English (default) and German UI with 2500+ translation keys each, guarded by a CI integrity test that fails the build on duplicate keys, drift between locales, or call-sites referencing keys that no locale ships. Numbers, dates, units, and AI prompts all locale-aware via `useFormatters()`. Browser-based detection with per-user override.
 
@@ -323,9 +323,11 @@ All mutations require authentication via session cookie. External ingest uses Be
 | `POST`  | `/api/auth/register`             | Create account                      |
 | `POST`  | `/api/auth/login`                | Password login                      |
 | `POST`  | `/api/auth/logout`               | Destroy session                     |
-| `GET`   | `/api/auth/me`                   | Current user profile + Gravatar URL |
+| `GET`   | `/api/auth/me`                   | Current user profile + avatar URL   |
 | `POST`  | `/api/auth/password`             | Change password                     |
 | `PATCH` | `/api/auth/profile`              | Update profile fields               |
+| `POST`  | `/api/user/avatar`               | Upload a profile photo (self-hosted)|
+| `DELETE`| `/api/user/avatar`               | Remove the profile photo            |
 | `POST`  | `/api/auth/passkey/*`            | WebAuthn flows (4 sub-routes)       |
 | `GET`   | `/api/auth/passkeys`             | List enrolled passkeys              |
 | `POST`  | `/api/auth/codex/device-start`   | ChatGPT (Codex) device-OAuth start  |

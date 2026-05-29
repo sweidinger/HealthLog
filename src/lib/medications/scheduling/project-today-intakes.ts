@@ -13,7 +13,8 @@
  * new schedule cadence, audit metadata) only have to land once.
  *
  * The helper is intentionally side-effect-only:
- *   1. Projects the active schedules through `expandTodayIntakes`.
+ *   1. Projects the active schedules through the canonical recurrence
+ *      engine (`scheduleEmitsInWindow`), minting at `windowStart`.
  *   2. Reads existing rows in the today-window.
  *   3. Inserts the missing rows (`skipDuplicates: true` for the
  *      `(userId, medicationId, scheduledFor, source)` unique index).
@@ -28,7 +29,12 @@
  * Returns the counts so the caller can surface them on `annotate(...)`.
  */
 import { prisma } from "@/lib/db";
-import { expandTodayIntakes } from "@/lib/medication-schedule";
+import {
+  buildCanonicalSchedule,
+  buildRecurrenceContext,
+  scheduleEmitsInWindow,
+} from "@/lib/medications/scheduling/worker-helpers";
+import { localHmAsUtc } from "@/lib/timezone";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 
 export interface ProjectTodayIntakesResult {
@@ -48,6 +54,10 @@ export async function projectTodayIntakesAndRecompute(input: {
     where: { userId, active: true },
     select: {
       id: true,
+      startsOn: true,
+      endsOn: true,
+      oneShot: true,
+      createdAt: true,
       schedules: {
         select: {
           id: true,
@@ -55,16 +65,61 @@ export async function projectTodayIntakesAndRecompute(input: {
           windowStart: true,
           windowEnd: true,
           daysOfWeek: true,
+          timesOfDay: true,
+          reminderGraceMinutes: true,
+          rrule: true,
+          rollingIntervalDays: true,
         },
       },
     },
   });
 
-  const projected = expandTodayIntakes(
-    activeMedications.flatMap((m) => m.schedules),
-    new Date(),
-    userTz,
-  );
+  // v1.6.0 read-flip — gate every "does this schedule emit today?"
+  // decision through the canonical recurrence engine (the same path the
+  // reminder worker uses). The legacy `expandTodayIntakes` walker read
+  // only `daysOfWeek` + `windowStart` and silently skipped
+  // `intervalWeeks > 1`, rolling, RRULE, and one-shot cadences — so the
+  // dashboard / intake today-tile diverged from what the worker minted
+  // for bi-weekly (GLP-1), rolling, and RRULE-only schedules. The
+  // `scheduledFor` instant stays anchored to `windowStart` so it remains
+  // byte-identical to the worker's RED-phase row and dedupes against the
+  // `@@unique([userId, medicationId, scheduledFor, source])` index.
+  const now = new Date();
+  const projected: Array<{ medicationId: string; scheduledFor: Date }> = [];
+
+  for (const med of activeMedications) {
+    if (med.schedules.length === 0) continue;
+
+    // Rolling cadence anchors off the last logged intake. One findFirst
+    // per medication, scoped to `takenAt IS NOT NULL` — byte-identical to
+    // the reminder worker's baseline (`reminder-worker.ts`), so projector
+    // and worker resolve the same next-due instant and never mint
+    // divergent `(med, scheduledFor)` rows.
+    let lastIntakeAt: Date | null = null;
+    if (med.schedules.some((s) => s.rollingIntervalDays !== null)) {
+      const lastIntake = await prisma.medicationIntakeEvent.findFirst({
+        where: { userId, medicationId: med.id, takenAt: { not: null } },
+        orderBy: { takenAt: "desc" },
+        select: { takenAt: true },
+      });
+      lastIntakeAt = lastIntake?.takenAt ?? null;
+    }
+
+    const ctx = buildRecurrenceContext({ medication: med, userTz, lastIntakeAt });
+
+    for (const schedule of med.schedules) {
+      const canonical = buildCanonicalSchedule(schedule);
+      if (!scheduleEmitsInWindow(canonical, ctx, todayStart, todayEnd)) {
+        continue;
+      }
+      const [h, m] = schedule.windowStart.split(":").map(Number);
+      if (!Number.isFinite(h) || !Number.isFinite(m)) continue;
+      projected.push({
+        medicationId: schedule.medicationId,
+        scheduledFor: localHmAsUtc(now, userTz, h, m),
+      });
+    }
+  }
 
   if (projected.length === 0) {
     return { projected: 0, backfilled: 0 };

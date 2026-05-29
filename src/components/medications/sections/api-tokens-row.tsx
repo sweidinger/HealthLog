@@ -22,6 +22,14 @@ import { toast } from "sonner";
 import { Copy, KeyRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTranslations } from "@/lib/i18n/context";
 import {
   invalidateKeys,
@@ -33,6 +41,8 @@ export interface ApiTokensRowProps {
   medicationId: string;
   medicationName: string;
 }
+
+type ExampleType = "curl" | "wget" | "fetch" | "powershell";
 
 interface ApiEndpointStatus {
   enabled: boolean;
@@ -47,6 +57,7 @@ export function ApiTokensRow({
   const queryClient = useQueryClient();
   const [mintedToken, setMintedToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [exampleType, setExampleType] = useState<ExampleType>("curl");
 
   // v1.5.5 F-1 H-2 — single source of truth for the per-medication
   // api-endpoint key. The earlier inline `useMemo` minted the same
@@ -73,6 +84,52 @@ export function ApiTokensRow({
   const baseUrl =
     typeof window !== "undefined" ? window.location.origin : "https://...";
   const endpoint = `${baseUrl}/api/ingest/medication`;
+
+  // The minted token is wired straight into the snippets the moment it
+  // exists; before that the templates carry a `YOUR_TOKEN` placeholder.
+  // The idempotency key uses an `intake-` prefix so a re-POST of the
+  // same logical intake collapses to one row.
+  const tokenForExample = mintedToken ?? "YOUR_TOKEN";
+  const examplePayload = `{"medicationName":"${medicationName}","idempotencyKey":"intake-202602191230"}`;
+  const exampleMap: Record<ExampleType, { label: string; value: string }> = {
+    curl: {
+      label: "cURL",
+      value: `curl -X POST ${endpoint} \\
+  -H "Authorization: Bearer ${tokenForExample}" \\
+  -H "Content-Type: application/json" \\
+  -d '${examplePayload}'`,
+    },
+    wget: {
+      label: "wget",
+      value: `wget --method=POST "${endpoint}" \\
+  --header="Authorization: Bearer ${tokenForExample}" \\
+  --header="Content-Type: application/json" \\
+  --body-data='${examplePayload}' \\
+  -O -`,
+    },
+    fetch: {
+      label: "JavaScript fetch",
+      value: `await fetch("${endpoint}", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer ${tokenForExample}",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    medicationName: "${medicationName}",
+    idempotencyKey: "intake-" + Date.now()
+  })
+});`,
+    },
+    powershell: {
+      label: "PowerShell",
+      value: `Invoke-RestMethod -Method Post -Uri "${endpoint}" \`
+  -Headers @{ Authorization = "Bearer ${tokenForExample}" } \`
+  -ContentType "application/json" \`
+  -Body '${examplePayload}'`,
+    },
+  };
+  const selectedExample = exampleMap[exampleType];
 
   async function copy(text: string, label: string) {
     try {
@@ -199,6 +256,47 @@ export function ApiTokensRow({
           </Button>
         </div>
       )}
+
+      {/* v1.6.0 — multi-language request snippets (restored from the
+          v1.5.4 endpoint dialog). The minted token is interpolated
+          live; until then the snippet carries a `YOUR_TOKEN` stand-in. */}
+      <div className="space-y-1.5 pt-1" data-slot="api-tokens-examples">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-xs font-medium">
+            {t("medications.requestExample")}
+          </Label>
+          <Select
+            value={exampleType}
+            onValueChange={(value) => setExampleType(value as ExampleType)}
+          >
+            <SelectTrigger size="sm" className="w-[170px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="end">
+              <SelectItem value="curl">cURL</SelectItem>
+              <SelectItem value="wget">wget</SelectItem>
+              <SelectItem value="fetch">JavaScript fetch</SelectItem>
+              <SelectItem value="powershell">PowerShell</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="relative">
+          <pre className="bg-muted rounded-lg p-3 pr-10 font-mono text-xs break-all whitespace-pre-wrap">
+            {selectedExample.value}
+          </pre>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-1 right-1 h-7 w-7"
+            onClick={() =>
+              void copy(selectedExample.value, t("common.copied"))
+            }
+            aria-label={t("common.copy")}
+          >
+            <Copy aria-hidden="true" className="h-3 w-3" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

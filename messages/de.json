@@ -831,7 +831,18 @@
             "sprays": "Sprühstoß",
             "pieces": "Stück",
             "other": "Sonstige"
-          }
+          },
+          "deliveryFormLabel": "Darreichung",
+          "deliveryForm": {
+            "ORAL": "Oral",
+            "INJECTION": "Injektion",
+            "OTHER": "Sonstige"
+          },
+          "dosesPerUnitLabel": "Dosen pro Einheit",
+          "dosesPerUnitPlaceholder": "z. B. 4",
+          "dosesPerUnitHint": "Dosen pro Pen / Ampulle — leer lassen, wenn kein Bestand getrackt wird.",
+          "injectionSiteToggle": "Injektionsstellen-Rotation",
+          "injectionSiteHint": "Optionaler Rotationshelfer. Die Stelle jeder Dosis wird beim Eintragen der Einnahme erfasst."
         },
         "step4": {
           "title": "Über welchen Zeitraum nimmst du es?",
@@ -2197,6 +2208,19 @@
     "timezoneHint": "Wird für Diagrammachsen, Erinnerungszeiten, Export-Zeitstempel und den Coach-Kontext verwendet. Gespeicherte Daten bleiben unverändert.",
     "timezoneInvalid": "Keine gültige IANA-Zeitzone.",
     "profileSaved": "Profil gespeichert",
+    "avatar": {
+      "title": "Profilfoto",
+      "description": "Lade ein Foto hoch, das auf deinem eigenen Server gespeichert wird. Es erscheint überall in der App anstelle eines externen Avatar-Dienstes.",
+      "upload": "Foto hochladen",
+      "replace": "Foto ersetzen",
+      "remove": "Entfernen",
+      "hint": "JPEG, PNG oder WebP. Bis zu 2 MB und 2048×2048 Pixel.",
+      "uploaded": "Profilfoto aktualisiert",
+      "removed": "Profilfoto entfernt",
+      "invalidType": "Nicht unterstützter Bildtyp. Verwende JPEG, PNG oder WebP.",
+      "tooLarge": "Das Bild überschreitet das Limit von 2 MB.",
+      "error": "Profilfoto konnte nicht aktualisiert werden. Bitte versuche es erneut."
+    },
     "changePassword": "Passwort ändern",
     "changePasswordDescription": "Ersetze dein aktuelles Passwort durch ein neues.",
     "passwordReset": "Passwort-Reset",
@@ -2610,6 +2634,7 @@
     "telegramGlobal": "Telegram-Benachrichtigungen erlauben.",
     "ntfyGlobal": "ntfy-Benachrichtigungen erlauben.",
     "webPushGlobal": "Browser-Push-Benachrichtigungen erlauben.",
+    "moodLogGlobal": "moodLog-Erinnerungen erlauben.",
     "integrationWebPush": "Web Push",
     "integrationBugReport": "Bug-Reports",
     "offlineGeoLabel": "Geodaten",

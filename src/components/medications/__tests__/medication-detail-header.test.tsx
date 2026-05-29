@@ -26,35 +26,6 @@ vi.mock("@/lib/i18n/context", () => ({
   }),
 }));
 
-// `<DropdownMenu>` wraps a Radix portal that `renderToStaticMarkup`
-// does not materialise while closed; mock the primitives to
-// passthroughs so the trigger + menu items are reachable in static
-// markup and the `onSelect` wiring is assertable (G-1 §4).
-vi.mock("@/components/ui/dropdown-menu", () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
-    <div data-slot="mock-dropdown">{children}</div>
-  ),
-  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => (
-    <div data-slot="mock-dropdown-trigger">{children}</div>
-  ),
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-slot="mock-dropdown-content">{children}</div>
-  ),
-  DropdownMenuItem: ({
-    children,
-    onSelect,
-    ...rest
-  }: {
-    children: React.ReactNode;
-    onSelect?: () => void;
-    [key: string]: unknown;
-  }) => (
-    <button onClick={onSelect} {...rest}>
-      {children}
-    </button>
-  ),
-}));
-
 import { MedicationDetailHeader } from "@/components/medications/medication-detail-header";
 
 function render(props: {
@@ -109,20 +80,22 @@ describe("MedicationDetailHeader (D-3 §9.1)", () => {
     expect(headingIndex).toBeLessThan(buttonIndex);
   });
 
-  it("renders the two-option Bearbeiten picker (G-1 §4)", () => {
+  it("renders the edit button beside the advanced-settings gear (v1.6.0)", () => {
     const html = render({ active: true });
-    expect(html).toContain("medications.detail.edit.planOption");
-    expect(html).toContain("medications.detail.edit.advancedOption");
-    expect(html).toContain('data-slot="medication-detail-edit-plan"');
-    expect(html).toContain('data-slot="medication-detail-edit-advanced"');
+    expect(html).toContain("common.edit");
+    expect(html).toContain('data-slot="medication-detail-edit-button"');
+    expect(html).toContain('data-slot="medication-detail-advanced-button"');
+    expect(html).toContain('aria-label="medications.detail.edit.advancedOption"');
   });
 
-  it("orders Plan bearbeiten above Erweiterte Einstellungen", () => {
+  it("orders the primary edit button before the advanced gear", () => {
     const html = render({ active: true });
-    const plan = html.indexOf("medications.detail.edit.planOption");
-    const advanced = html.indexOf("medications.detail.edit.advancedOption");
-    expect(plan).toBeGreaterThan(-1);
-    expect(advanced).toBeGreaterThan(plan);
+    const edit = html.indexOf('data-slot="medication-detail-edit-button"');
+    const advanced = html.indexOf(
+      'data-slot="medication-detail-advanced-button"',
+    );
+    expect(edit).toBeGreaterThan(-1);
+    expect(advanced).toBeGreaterThan(edit);
   });
 
   it("status pill text always renders (no colour-only state)", () => {

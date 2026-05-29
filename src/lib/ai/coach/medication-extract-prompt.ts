@@ -45,7 +45,6 @@ export const DOSE_UNITS = [
   "puffs",
   "sprays",
 ] as const;
-export type DoseUnit = (typeof DOSE_UNITS)[number];
 
 /** `CadenceKind` from the wizard types, mirrored as a Zod-friendly enum. */
 export const CADENCE_KINDS = [

@@ -72,7 +72,16 @@ export function Step2Class({ payload, applyPartial }: StepProps) {
               name="wizard-class"
               value={row}
               checked={selected}
-              onChange={() => applyPartial({ treatmentRow: row })}
+              onChange={() =>
+                applyPartial(
+                  // The GLP-1 row is always injected; nudge the
+                  // delivery form so the common case needs no extra
+                  // tap. The user can still flip it on Step 3.
+                  row === "glp1"
+                    ? { treatmentRow: row, deliveryForm: "INJECTION" }
+                    : { treatmentRow: row },
+                )
+              }
               className="sr-only"
               aria-label={label}
             />

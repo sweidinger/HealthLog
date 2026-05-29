@@ -831,7 +831,18 @@
             "sprays": "spray",
             "pieces": "pieces",
             "other": "other"
-          }
+          },
+          "deliveryFormLabel": "Route",
+          "deliveryForm": {
+            "ORAL": "Oral",
+            "INJECTION": "Injection",
+            "OTHER": "Other"
+          },
+          "dosesPerUnitLabel": "Doses per unit",
+          "dosesPerUnitPlaceholder": "e.g. 4",
+          "dosesPerUnitHint": "Doses per pen / vial — leave empty for no inventory tracking.",
+          "injectionSiteToggle": "Injection-site rotation",
+          "injectionSiteHint": "Optional rotation guide. The site for each dose is recorded when you log the intake."
         },
         "step4": {
           "title": "Over what period are you taking it?",
@@ -2197,6 +2208,19 @@
     "timezoneHint": "Used for chart axis labels, reminder times, export timestamps, and Coach context. Stored data is unchanged.",
     "timezoneInvalid": "Not a valid IANA timezone.",
     "profileSaved": "Profile saved",
+    "avatar": {
+      "title": "Profile photo",
+      "description": "Upload a photo stored on your own server. It appears across the app in place of an external avatar service.",
+      "upload": "Upload photo",
+      "replace": "Replace photo",
+      "remove": "Remove",
+      "hint": "JPEG, PNG, or WebP. Up to 2 MB and 2048×2048 pixels.",
+      "uploaded": "Profile photo updated",
+      "removed": "Profile photo removed",
+      "invalidType": "Unsupported image type. Use JPEG, PNG, or WebP.",
+      "tooLarge": "Image exceeds the 2 MB limit.",
+      "error": "Could not update the profile photo. Please try again."
+    },
     "changePassword": "Change password",
     "changePasswordDescription": "Replace your current password with a new one.",
     "passwordReset": "Password reset",
@@ -2610,6 +2634,7 @@
     "telegramGlobal": "Allow Telegram notifications.",
     "ntfyGlobal": "Allow ntfy notifications.",
     "webPushGlobal": "Allow browser push notifications.",
+    "moodLogGlobal": "Allow mood-log reminders.",
     "integrationWebPush": "Web Push",
     "integrationBugReport": "Bug Report",
     "offlineGeoLabel": "Geo data",

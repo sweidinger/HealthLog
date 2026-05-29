@@ -63,7 +63,7 @@ export function AdvancedSettingsSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={t("medications.detail.advanced.title")}
-      className="sm:max-w-lg"
+      contentWidth="lg"
       bodyClassName="gap-6"
     >
       <div

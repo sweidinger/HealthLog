@@ -43,6 +43,8 @@ import { TitrationSection } from "@/components/medications/TitrationSection";
 import { MedicationDetailHeader } from "@/components/medications/medication-detail-header";
 import { CadenceSummaryRow } from "@/components/medications/cadence-summary-row";
 import { IntakeHistoryPreview } from "@/components/medications/sections/intake-history-preview";
+import { SideEffectsSection } from "@/components/medications/SideEffectsSection";
+import { SchedulingSection } from "@/components/medications/SchedulingSection";
 import { AdvancedSettingsSheet } from "@/components/medications/advanced-settings-sheet";
 import { PhaseConfigSheet } from "@/components/medications/sections/phase-config-sheet";
 import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
@@ -67,6 +69,8 @@ interface MedicationDetailSnapshot {
   dose: string;
   category: string;
   treatmentClass?: string;
+  deliveryForm?: string;
+  dosesPerUnit?: number | null;
   active: boolean;
   notificationsEnabled: boolean;
   pausedAt: string | null;
@@ -103,6 +107,8 @@ function snapshotToWizardPayload(
     dose: med.dose,
     category: med.category,
     treatmentClass: med.treatmentClass,
+    deliveryForm: med.deliveryForm,
+    dosesPerUnit: med.dosesPerUnit ?? null,
     notificationsEnabled: med.notificationsEnabled,
     startsOn: med.startsOn ? new Date(med.startsOn) : null,
     endsOn: med.endsOn ? new Date(med.endsOn) : null,
@@ -269,9 +275,9 @@ export default function MedicationDetailPage({
         onOpenAdvanced={() => setAdvancedOpen(true)}
       />
 
-      {/* G-1 §3.3 — Static cadence line. One-shot collapses to the
-          `Einmalig am …` card; recurring renders the summary row with
-          `hideEdit` (cadence editing lives in the wizard). */}
+      {/* G-1 §3.3 — Cadence line. One-shot collapses to the
+          `Einmalig am …` card; recurring renders the summary row whose
+          edit affordance opens the editor directly. */}
       {oneShot ? (
         <Card
           className="p-5 sm:p-6"
@@ -288,8 +294,7 @@ export default function MedicationDetailPage({
       ) : (
         <CadenceSummaryRow
           medication={payload}
-          hideEdit
-          onEdit={() => {}}
+          onEdit={() => setWizardOpen(true)}
         />
       )}
 
@@ -303,6 +308,14 @@ export default function MedicationDetailPage({
               name: medication.name,
               dose: medication.dose,
             }}
+          />
+          {/* v1.6.0 — side-effect logbook + cadence/compliance section
+              restored onto the detail page (they previously lived only
+              on the legacy `/history` route). */}
+          <SideEffectsSection medicationId={id} />
+          <SchedulingSection
+            medicationId={id}
+            reminderEnabled={medication.notificationsEnabled}
           />
           <TitrationSection medicationId={id} />
         </>

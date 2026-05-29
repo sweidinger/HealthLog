@@ -162,6 +162,10 @@ describe("GET /api/medications/intake", () => {
     vi.mocked(prisma.medication.findMany).mockResolvedValue([
       {
         id: "med-ramipril",
+        startsOn: null,
+        endsOn: null,
+        oneShot: false,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
         schedules: [
           {
             id: "sched-morgens",
@@ -169,6 +173,10 @@ describe("GET /api/medications/intake", () => {
             windowStart: "07:00",
             windowEnd: "09:00",
             daysOfWeek: null,
+            timesOfDay: [],
+            reminderGraceMinutes: null,
+            rrule: null,
+            rollingIntervalDays: null,
           },
         ],
       },
@@ -237,6 +245,10 @@ describe("GET /api/medications/intake", () => {
     vi.mocked(prisma.medication.findMany).mockResolvedValue([
       {
         id: "med-ramipril",
+        startsOn: null,
+        endsOn: null,
+        oneShot: false,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
         schedules: [
           {
             id: "sched-morgens",
@@ -244,6 +256,10 @@ describe("GET /api/medications/intake", () => {
             windowStart: "07:00",
             windowEnd: "09:00",
             daysOfWeek: null,
+            timesOfDay: [],
+            reminderGraceMinutes: null,
+            rrule: null,
+            rollingIntervalDays: null,
           },
         ],
       },

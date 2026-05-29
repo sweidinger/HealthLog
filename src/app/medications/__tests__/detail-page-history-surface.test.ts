@@ -11,8 +11,9 @@
  *   - no `landingIntent` / `wizardIntent` / `openWizardWithIntent`
  *     plumbing (the header dropdown is the only wizard entry, landing
  *     on Step 1);
- *   - the page hosts the `AdvancedSettingsSheet` and renders the
- *     cadence row with `hideEdit`.
+ *   - the page hosts the `AdvancedSettingsSheet` and renders an
+ *     editable cadence row (the v1.6.0 editor opens directly from the
+ *     row, so `hideEdit` is gone).
  */
 
 import { readFileSync } from "node:fs";
@@ -41,8 +42,10 @@ describe("medication detail page is a pure history surface (G-1 §3)", () => {
     expect(source).not.toContain("openWizardWithIntent");
   });
 
-  it("hosts the AdvancedSettingsSheet and the static cadence row", () => {
+  it("hosts the AdvancedSettingsSheet and an editable cadence row", () => {
     expect(source).toContain("AdvancedSettingsSheet");
-    expect(source).toContain("hideEdit");
+    // v1.6.0 — the cadence row opens the editor directly; the dead
+    // `hideEdit` prop is gone.
+    expect(source).not.toContain("hideEdit");
   });
 });
