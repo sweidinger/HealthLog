@@ -6,7 +6,8 @@
  * Renders the medication's cadence as a plain-language line (e.g.
  * "Alle 12 h nach letzter Einnahme", "Alle 2 Wochen, mittwochs",
  * "Monatlich am 15.") with an optional course-window sub-line, and an
- * edit pencil that opens the wizard with `landingIntent: "cadence"`.
+ * optional edit pencil whose `onEdit` the caller wires (suppressed via
+ * `hideEdit` on the read-only detail surface).
  * For one-shot medications the line collapses to
  * `Einmalig am DD.MM.` and the edit affordance is suppressed (the
  * header pencil owns the wizard route per D-3 §6 one-shot variant).

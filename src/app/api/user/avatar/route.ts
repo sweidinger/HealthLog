@@ -62,6 +62,67 @@ interface UploadResponse {
   updatedAt: string;
 }
 
+/** Thrown by `readBoundedBody` when the stream exceeds the byte cap. */
+class BodyTooLargeError extends Error {
+  constructor() {
+    super("Request body exceeds the configured byte cap");
+    this.name = "BodyTooLargeError";
+  }
+}
+
+/**
+ * Read a request body stream into a single buffer while counting bytes,
+ * throwing `BodyTooLargeError` the moment the running total passes
+ * `maxBytes`. Bounds the work at the stream level so a chunked /
+ * unbounded upload cannot park past the cap even when no `Content-Length`
+ * header is present. The captured bytes are retained (capped at
+ * `maxBytes`) so the caller can reconstruct `FormData` from them — this
+ * reads the body exactly once, with no clone and no second parser racing
+ * the same body, so a cap trip frees the allocation immediately instead
+ * of leaving a native parse buffering the rest of an oversized upload.
+ */
+async function readBoundedBody(
+  body: ReadableStream<Uint8Array> | null,
+  maxBytes: number,
+): Promise<Uint8Array<ArrayBuffer>> {
+  if (!body) return new Uint8Array(0);
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let retained = 0;
+  let overflow = false;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (overflow) continue;
+      if (retained + value.byteLength > maxBytes) {
+        // Past the cap. Drop everything retained so far and stop
+        // retaining further chunks — memory stays bounded at the cap.
+        // Keep draining the stream to its natural close rather than
+        // cancelling it: an abrupt cancel mid-transfer races the
+        // underlying (undici) producer, which then enqueues into a
+        // closed controller and surfaces as an unhandled rejection.
+        chunks.length = 0;
+        retained = 0;
+        overflow = true;
+        continue;
+      }
+      chunks.push(value);
+      retained += value.byteLength;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (overflow) throw new BodyTooLargeError();
+  const out = new Uint8Array(retained);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
+}
+
 export const POST = apiHandler(async (request: Request) => {
   const { user } = await requireAuth();
 
@@ -94,10 +155,31 @@ export const POST = apiHandler(async (request: Request) => {
     );
   }
 
+  // Stream-level cap. The Content-Length pre-flight above only fires when
+  // the header is present; a `Transfer-Encoding: chunked` upload (or any
+  // client that omits the header) skips it, and `request.formData()`
+  // would then buffer the whole stream before the post-parse `file.size`
+  // check can run. Read the body ONCE through a bounded reader that
+  // aborts on the first byte past AVATAR_MAX_BYTES, then reconstruct the
+  // FormData from the captured bytes. A single read means the cap trip
+  // frees the allocation immediately — no clone, no tee, and no native
+  // parse left buffering the rest of an oversized body. The post-parse
+  // `file.size` check stays in place as defence-in-depth.
   let formData: FormData;
   try {
-    formData = await request.formData();
+    const bytes = await readBoundedBody(request.body, AVATAR_MAX_BYTES);
+    formData = await new Response(new Blob([bytes]), {
+      headers: { "content-type": request.headers.get("content-type") ?? "" },
+    }).formData();
   } catch (err) {
+    // Surface the most useful failure: a cap overflow always wins.
+    if (err instanceof BodyTooLargeError) {
+      annotate({
+        action: { name: "user.avatar.upload.rejected" },
+        meta: { reason: "stream_size_exceeded" },
+      });
+      return apiError(`Upload exceeds ${AVATAR_MAX_BYTES} byte limit`, 413);
+    }
     return apiError(
       `Invalid multipart body: ${err instanceof Error ? err.message : "unknown"}`,
       400,

@@ -100,9 +100,10 @@ export interface UseAnalyticsQueryOptions {
 async function fetchAnalytics(
   slice: AnalyticsSlice,
 ): Promise<AnalyticsRawPayload> {
-  const url =
-    slice === "summaries" ? "/api/analytics?slice=summaries" : "/api/analytics";
-  const res = await fetch(url);
+  const res =
+    slice === "summaries"
+      ? await fetch("/api/analytics?slice=summaries")
+      : await fetch("/api/analytics");
   if (!res.ok) {
     throw new Error(`Failed to load analytics (${res.status})`);
   }

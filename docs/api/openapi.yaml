@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.5.4
+  version: 1.5.5
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -1525,6 +1525,60 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a2
         "429": *a3
+  /api/insights/layout:
+    get:
+      tags:
+        - Insights
+      summary: Read the calling user's Insights tile layout
+      description: Returns the per-user Insights tile layout (visibility + order). Falls back to the default layout when the
+        user has not customised it. Mirrors the dashboard-widgets contract.
+      responses:
+        "200":
+          description: The resolved layout (custom or default).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsLayout"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+    put:
+      tags:
+        - Insights
+      summary: Replace the calling user's Insights tile layout
+      description: Persists the full tile layout. The normalised layout is returned. Invalid bodies return the multi-issue 422
+        envelope, matching the dashboard-widgets route.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InsightsLayoutBody"
+      responses:
+        "200":
+          description: Layout saved; the normalised layout is echoed back.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsLayoutSaved"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+    delete:
+      tags:
+        - Insights
+      summary: Reset the calling user's Insights tile layout
+      description: Clears the persisted layout and returns the default layout. Idempotent.
+      responses:
+        "200":
+          description: Layout reset; the default layout is returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsLayoutReset"
+        "401": *a1
+        "422": *a2
+        "429": *a3
   /api/insights/chat/messages/{id}/feedback:
     post:
       tags:
@@ -2081,6 +2135,51 @@ components:
       required:
         - disableCoach
       description: Per-account Coach opt-out toggle (v1.4.47 W3). `true` hides the Coach FAB and short-circuits its API gates.
+    InsightsLayoutBody:
+      type: object
+      properties:
+        version:
+          type: number
+          const: 1
+        tiles:
+          minItems: 1
+          maxItems: 50
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                enum:
+                  - overview
+                  - blutdruck
+                  - puls
+                  - sauerstoff
+                  - koerpertemperatur
+                  - gewicht
+                  - bmi
+                  - aktive-energie
+                  - workouts
+                  - schlaf
+                  - ruhepuls
+                  - hrv
+                  - stimmung
+                  - medikamente
+              visible:
+                type: boolean
+              order:
+                type: integer
+                minimum: 0
+                maximum: 99
+            required:
+              - id
+              - visible
+              - order
+      required:
+        - version
+        - tiles
+      description: "Per-user Insights tile layout: an ordered list of tiles with a visibility flag. `version` is the layout
+        schema version; tile ids are a closed enum derived from the server's tile registry."
     CoachMessageFeedbackRequest:
       type: object
       properties:
@@ -4312,6 +4411,57 @@ components:
         - data
         - error
       additionalProperties: false
+    InsightsLayout:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsLayoutBodyOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsLayoutSaved:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsLayoutBodyOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsLayoutReset:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsLayoutBodyOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     CoachMessageFeedbackResponse:
       type: object
       properties:
@@ -4620,6 +4770,53 @@ components:
         - disableCoach
       additionalProperties: false
       description: Per-account Coach opt-out toggle (v1.4.47 W3). `true` hides the Coach FAB and short-circuits its API gates.
+    InsightsLayoutBodyOutput:
+      type: object
+      properties:
+        version:
+          type: number
+          const: 1
+        tiles:
+          minItems: 1
+          maxItems: 50
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                enum:
+                  - overview
+                  - blutdruck
+                  - puls
+                  - sauerstoff
+                  - koerpertemperatur
+                  - gewicht
+                  - bmi
+                  - aktive-energie
+                  - workouts
+                  - schlaf
+                  - ruhepuls
+                  - hrv
+                  - stimmung
+                  - medikamente
+              visible:
+                type: boolean
+              order:
+                type: integer
+                minimum: 0
+                maximum: 99
+            required:
+              - id
+              - visible
+              - order
+            additionalProperties: false
+      required:
+        - version
+        - tiles
+      additionalProperties: false
+      description: "Per-user Insights tile layout: an ordered list of tiles with a visibility flag. `version` is the layout
+        schema version; tile ids are a closed enum derived from the server's tile registry."
     Medication:
       type: object
       properties:

@@ -100,6 +100,13 @@ import {
   drainPerSampleCumulative,
   DRAIN_CUMULATIVE_CUTOFF_HOURS,
 } from "@/lib/measurements/drain-per-sample-cumulative";
+import {
+  STEP_CONSOLIDATION_QUEUE,
+  STEP_CONSOLIDATION_CONCURRENCY,
+  runStepConsolidationForUser,
+  enqueueBootTimeStepConsolidation,
+  type StepConsolidationPayload,
+} from "@/lib/jobs/step-consolidation";
 import { expireStaleInUseItems } from "@/lib/medications/inventory/service";
 import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
 import { probeIntegrationStatusNullBuckets } from "@/lib/jobs/integration-status-null-probe";
@@ -1868,6 +1875,14 @@ export async function startReminderWorker() {
     // rollup tier. Discovery enqueues one job per user with intake
     // events but no rollup coverage; idempotent across reboots.
     MEDICATION_COMPLIANCE_BACKFILL_QUEUE,
+    // v1.5.6 — boot-time legacy step consolidation. Discovery enqueues
+    // one job per user still holding live pre-v1.5.0 granular step
+    // rows; the per-user pass collapses them into one daily total and
+    // soft-deletes the originals. Idempotent across reboots — a
+    // consolidated user drops off the discovery list. The queue MUST be
+    // registered here or pg-boss never provisions it and the boot
+    // enqueue silently never drains.
+    STEP_CONSOLIDATION_QUEUE,
     // v1.4.37 W7c — explicit createQueue is required before the
     // nightly schedule below registers (pg-boss v12 contract). Without
     // this entry the drain schedule silently no-ops and the
@@ -2173,6 +2188,27 @@ export async function startReminderWorker() {
     },
   );
 
+  // v1.5.6 — legacy step consolidation worker. The boot enqueue helper
+  // below sends one job per user still holding live pre-v1.5.0 granular
+  // step rows; this handler collapses them into one daily-total row per
+  // calendar day and soft-deletes the originals. Serial concurrency so
+  // the populator never crowds the dashboard request pool.
+  await boss.work<StepConsolidationPayload>(
+    STEP_CONSOLIDATION_QUEUE,
+    { localConcurrency: STEP_CONSOLIDATION_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const { daysConsolidated, legacyRowsSoftDeleted } =
+          await runStepConsolidationForUser(userId);
+        workerLog(
+          "info",
+          `[step-consolidation] user=${userId} days=${daysConsolidated} legacyRowsSoftDeleted=${legacyRowsSoftDeleted}`,
+        );
+      }
+    },
+  );
+
   // v1.4.39 W-MOOD — mood-rollup per-bucket worker. Folds the
   // WEEK / MONTH / YEAR buckets that the mood-entry write hooks
   // enqueue; the DAY bucket runs synchronously in the hook itself.
@@ -2316,6 +2352,36 @@ export async function startReminderWorker() {
     workerLog(
       "error",
       "[rollup-full-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.5.6 — fire-and-forget boot discovery for the legacy step
+  // consolidation pass. Finds every user still holding live pre-v1.5.0
+  // granular step rows and enqueues one consolidation job per account.
+  // Idempotent across reboots: consolidated legacy rows are
+  // soft-deleted, so the `deleted_at IS NULL` discovery predicate drops
+  // them and the user falls off the list. Errors are returned through
+  // the helper's result value — the worker boot never fails because of
+  // a consolidation miss.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeStepConsolidation();
+    if (error) {
+      workerLog(
+        "error",
+        `[step-consolidation] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[step-consolidation] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[step-consolidation] boot discovery threw an unexpected error",
       err,
     );
   }

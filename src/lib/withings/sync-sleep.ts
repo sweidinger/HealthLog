@@ -35,6 +35,7 @@ import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
+import { safeFetch } from "@/lib/safe-fetch";
 import { getUnitForType } from "@/lib/validations/measurement";
 import {
   collapseToTypeDayKeys,
@@ -118,7 +119,7 @@ export async function fetchWithingsSleep(
   });
 
   const pageStart = performance.now();
-  const res = await fetch(WITHINGS_SLEEP_URL, {
+  const res = await safeFetch(WITHINGS_SLEEP_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",

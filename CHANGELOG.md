@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.5.6] — 2026-05-29 — Pure-history detail page, legacy step consolidation, egress finish
+
+v1.5.5 gave every retired medication feature a home on the detail page, but the page still carried the create/edit affordances that belong on the list. This release turns `/medications/[id]` into a pure history surface, collapses every setting into one advanced sheet, consolidates the pre-v1.5.0 granular step rows that bloated the per-sample read path, and finishes the outbound-fetch migration the `safeFetch` wrapper started.
+
+### Added
+
+- **Legacy step consolidation** — a pg-boss job (`STEP_CONSOLIDATION_QUEUE`) folds pre-v1.5.0 granular `ACTIVITY_STEPS` rows into one canonical daily-total row per user per day, anchored to the user's timezone, and soft-deletes the originals. A day that already carries a post-v1.5.0 `stats:` total is left untouched (no double-count) while its legacy rows are still tombstoned. Boot-time discovery enqueues only users still holding live legacy rows, so the pass converges to zero work and is idempotent across reboots. Migration `0087` adds a partial index scoped to live step rows to keep the discovery scan cheap.
+- **`healthlog/safe-fetch-required` ESLint rule** — bans raw `fetch(` outside the wrapper, exempting only genuine same-origin relative paths. Positioned as the author-time egress floor.
+
+### Changed
+
+- **`/medications/[id]` is now a pure history view** — the Today's-dose card stays on the list page; the detail page reads the medication's past intake, cadence summary, and trends only. Every setting (notifications, phase config, grace window, pause/resume, end, purge) moves into a new `<AdvancedSettingsSheet>` reached from the header. The edit trigger becomes a two-option picker (plan vs. advanced). The `/medications` list page is unchanged apart from matching the detail-nav card glyph to its destination.
+- **Outbound-fetch migration finished** — every remaining server-side fetch routes through `safeFetch`: Withings (token exchange, refresh, measurements, webhook subscribe/unsubscribe, activity + sleep sync), Codex OAuth + SSE client, the bug-report GitHub comment, and the operator-host calls (Umami script/send/test, GlitchTip envelope + store, Loki). Credential-carrying constant hosts inherit the `redirect: "manual"` default so secrets cannot replay onto a redirect hop; operator-supplied hosts additionally pin `requirePublicHost` for the connect-time IP guard.
+- **`/api/insights/layout`** is registered in the OpenAPI spec so the contract matches the shipped route.
+
+### Fixed
+
+- **Intake-edit dialog opened empty** — editing a logged intake row now seeds the dialog from the row's real `takenAt` / `skipped` instead of an empty stub.
+- **Step consolidation could strand a day** — a minted daily total can collide on the second unique index when a manual step row already sits at the day's canonical-noon instant; the collision rolled back the in-transaction soft-delete and the day re-appeared on every boot. The pass now catches the constraint violation, logs and counts the skip, and steps to the next day.
+- **Avatar upload over-buffered on the abort path** — the upload body is now read once through a bounded reader that drops retained bytes past the 2 MiB cap, replacing the clone + parallel parse that left the native parse buffering an oversized body after the cap tripped.
+- **Egress lint exemption let absolute URLs through** — the same-origin exemption now rejects protocol-relative (`//host`) and backslash (`/\host`) forms, which both resolve off-origin.
+
+### Removed
+
+- **Dead wizard landing-intent path** — the pure-history rewrite removed the last caller that passed a landing intent into the medication wizard, so the prop, its state-key segment, and the intent branch in `landingStepForEdit` are gone; the helper reduces to the schedule-count heuristic.
+
+### Tests
+
+- 5615 → 5635 unit; 1 skipped. Detail-page history surface, advanced-settings sheet, intake-edit seed, and legacy step consolidation are covered; the pre-tag reconcile sweep keeps the suite green.
+
 ## [1.5.5] — 2026-05-29 — Medication detail page, iOS coord wave, outbound-fetch hardening
 
 The v1.5.4 modal wizard landed the create + edit plan flow, but it took 16 features down with the retired flat form — Einnahmen bearbeiten / löschen, Medikament pausieren / beenden / löschen, per-Med API tokens, Phasen-Konfiguration, CSV-Import — and the trends-row on Insights had a 34 px overflow that pushed annotation copy on top of the charts. This release lands the medication detail page that gives every retired feature a coherent home, polishes the wizard against the live walk-through feedback, closes the iOS audit follow-ups in one go, and hardens every outbound fetch the server makes.

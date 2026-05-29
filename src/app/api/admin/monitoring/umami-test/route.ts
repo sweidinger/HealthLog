@@ -89,15 +89,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
   let lastDetails = "";
 
   for (const targetUrl of targetUrls) {
-    const upstream = await safeFetch(targetUrl, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "user-agent": "healthlog-admin-monitoring-test",
+    const upstream = await safeFetch(
+      targetUrl,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "user-agent": "healthlog-admin-monitoring-test",
+        },
+        body: JSON.stringify(payload),
+        cache: "no-store",
       },
-      body: JSON.stringify(payload),
-      cache: "no-store",
-    });
+      // Operator-configured Umami host — pin the connect-time IP.
+      { requirePublicHost: true },
+    );
 
     if (upstream.ok) {
       return apiSuccess({

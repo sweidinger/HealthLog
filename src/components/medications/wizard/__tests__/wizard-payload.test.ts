@@ -722,63 +722,6 @@ describe("compose-mode — multi-schedule encoder + hydrator", () => {
     expect(landingStepForEdit(single)).toBe(1);
   });
 
-  // v1.5.5 C-E2-2 — `landingStepForEdit` gains an `intent` arg so the
-  // detail-page cadence-summary row can drop the user directly on
-  // Step 5 instead of bouncing them through Step 1 first. One-shot
-  // payloads fall back to Step 8 because the cadence picker is not on
-  // the one-shot path.
-  it("lands on Step 5 for the cadence intent", () => {
-    const payload = hydrateWizardPayload({
-      id: "m_cadence",
-      name: "Test",
-      dose: "10",
-      category: "OTHER",
-      treatmentClass: "GENERIC",
-      notificationsEnabled: true,
-      startsOn: new Date(Date.UTC(2026, 4, 28)),
-      endsOn: null,
-      oneShot: false,
-      schedules: [
-        {
-          id: "sch_a",
-          windowStart: "08:00",
-          windowEnd: "09:00",
-          timesOfDay: ["08:00"],
-          rrule: "FREQ=DAILY",
-          rollingIntervalDays: null,
-        },
-      ],
-    });
-    expect(landingStepForEdit(payload, "cadence")).toBe(5);
-    expect(landingStepForEdit(payload, "name")).toBe(1);
-    expect(landingStepForEdit(payload, "summary")).toBe(8);
-  });
-
-  it("falls back to Step 8 on cadence intent for a one-shot medication", () => {
-    const payload = hydrateWizardPayload({
-      id: "m_oneshot",
-      name: "Test",
-      dose: "10",
-      category: "OTHER",
-      treatmentClass: "GENERIC",
-      notificationsEnabled: true,
-      startsOn: new Date(Date.UTC(2026, 4, 28)),
-      endsOn: null,
-      oneShot: true,
-      schedules: [
-        {
-          id: "sch_a",
-          windowStart: "08:00",
-          windowEnd: "09:00",
-          timesOfDay: ["08:00"],
-          rrule: null,
-          rollingIntervalDays: null,
-        },
-      ],
-    });
-    expect(landingStepForEdit(payload, "cadence")).toBe(8);
-  });
-
   it("removeSchedule refuses when schedules.length === 1", () => {
     const payload = emptyWizardPayload();
     expect(payload.schedules).toHaveLength(1);

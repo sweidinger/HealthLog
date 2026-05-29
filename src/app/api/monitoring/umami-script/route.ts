@@ -26,9 +26,16 @@ export const GET = apiHandler(async () => {
     });
   }
 
-  const response = await safeFetch(settings.umamiScriptUrl, {
-    next: { revalidate: 3600 },
-  });
+  const response = await safeFetch(
+    settings.umamiScriptUrl,
+    {
+      next: { revalidate: 3600 },
+    },
+    // Operator-configured host — pin the connect-time IP so a low-TTL
+    // DNS record cannot rebind the fetch at an internal range between
+    // the input-time `isPublicUrl` accept and the socket connect.
+    { requirePublicHost: true },
+  );
   if (!response.ok) {
     return new NextResponse(NOOP_SCRIPT, {
       status: 200,

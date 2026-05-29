@@ -7,9 +7,9 @@ import {
   AlertCircle,
   AlertTriangle,
   Check,
+  ChevronRight,
   CircleCheck,
   Flame,
-  History,
   Loader2,
   MoreVertical,
   Pencil,
@@ -337,7 +337,7 @@ export function Glp1MedicationCard({
         aria-label={t("medications.openDetailPage")}
       >
         <Link href={`/medications/${medication.id}`}>
-          <History className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
         </Link>
       </Button>
       <Button

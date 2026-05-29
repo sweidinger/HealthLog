@@ -124,7 +124,7 @@ const mounjaro: Glp1Medication = {
 };
 
 describe("medication card symmetry — Ramipril vs Mounjaro", () => {
-  it("both cards render History + Pencil header buttons", () => {
+  it("both cards render the detail-nav + Pencil header buttons", () => {
     const client = makeClient();
     seedCompliance(client, ramipril.id);
     seedCompliance(client, mounjaro.id);
@@ -140,7 +140,10 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
     );
 
     for (const html of [ramiprilHtml, mounjaroHtml]) {
-      expect(html).toContain("lucide-history");
+      // v1.5.6 F-1 M-1 — the detail-nav icon swapped from the
+      // history glyph to a neutral chevron now that it routes to the
+      // detail page rather than the history sub-route.
+      expect(html).toContain("lucide-chevron-right");
       expect(html).toContain("lucide-pencil");
     }
   });

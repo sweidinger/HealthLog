@@ -72,7 +72,9 @@ async function flushLokiBuffer(): Promise<void> {
         headers,
         body: JSON.stringify({ streams }),
       },
-      { timeoutMs: 10_000 },
+      // Operator-configured Loki endpoint — pin the connect-time IP
+      // against DNS rebinding.
+      { timeoutMs: 10_000, requirePublicHost: true },
     );
   } catch {
     // Events gehen verloren — akzeptabel fuer Logging

@@ -18,10 +18,16 @@
  * destructive zone, not on the header (E-2 M-1).
  */
 
-import { Pencil } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTranslations } from "@/lib/i18n/context";
 
 export interface MedicationDetailHeaderProps {
@@ -30,11 +36,15 @@ export interface MedicationDetailHeaderProps {
   active: boolean;
   endsOn?: string | null;
   /**
-   * Fires when the user taps the Bearbeiten pencil. The detail page
-   * routes this to the wizard with `landingIntent: "name"` so the
-   * user lands on Step 1.
+   * v1.5.6 G-1 §4 — "Plan bearbeiten" opens the wizard (mode="edit",
+   * Step 1). Fired from the Bearbeiten dropdown's first item.
    */
-  onEdit: () => void;
+  onEditPlan: () => void;
+  /**
+   * v1.5.6 G-1 §4 — "Erweiterte Einstellungen" opens the
+   * `<AdvancedSettingsSheet>`. Fired from the dropdown's second item.
+   */
+  onOpenAdvanced: () => void;
 }
 
 type Status = "active" | "paused" | "ended";
@@ -58,7 +68,8 @@ export function MedicationDetailHeader({
   dose,
   active,
   endsOn,
-  onEdit,
+  onEditPlan,
+  onOpenAdvanced,
 }: MedicationDetailHeaderProps) {
   const { t } = useTranslations();
   const status = resolveStatus(active, endsOn);
@@ -98,16 +109,34 @@ export function MedicationDetailHeader({
           </Badge>
         </div>
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onEdit}
-        className="min-h-11 sm:min-h-9"
-        data-slot="medication-detail-edit-button"
-      >
-        <Pencil aria-hidden="true" className="h-4 w-4" />
-        <span>{t("common.edit")}</span>
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-11 sm:min-h-9"
+            data-slot="medication-detail-edit-button"
+          >
+            <Pencil aria-hidden="true" className="h-4 w-4" />
+            <span>{t("common.edit")}</span>
+            <ChevronDown aria-hidden="true" className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onSelect={onEditPlan}
+            data-slot="medication-detail-edit-plan"
+          >
+            {t("medications.detail.edit.planOption")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={onOpenAdvanced}
+            data-slot="medication-detail-edit-advanced"
+          >
+            {t("medications.detail.edit.advancedOption")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

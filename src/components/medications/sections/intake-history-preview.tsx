@@ -40,7 +40,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { IntakeEditDialog } from "@/components/medications/intake-edit-dialog";
-import { IntakeHistoryListV2 } from "@/components/medications/intake-history-list-v2";
+import {
+  IntakeHistoryListV2,
+  type IntakeEvent,
+} from "@/components/medications/intake-history-list-v2";
 import { IntakeImportDialog } from "@/components/medications/intake-import-dialog";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 import { useTranslations } from "@/lib/i18n/context";
@@ -61,7 +64,7 @@ export function IntakeHistoryPreview({
   const queryClient = useQueryClient();
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<IntakeEvent | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -206,7 +209,7 @@ export function IntakeHistoryPreview({
           <IntakeHistoryListV2
             medicationId={medicationId}
             pageSize={14}
-            onEditIntake={setEditingId}
+            onEditIntake={setEditingEvent}
             onDeleteIntake={setPendingDeleteId}
             selection={{
               mode: "multi",
@@ -226,19 +229,25 @@ export function IntakeHistoryPreview({
         </div>
       </MedicationDetailSection>
 
-      <IntakeImportDialog
-        medicationId={importOpen ? medicationId : null}
-        onClose={() => onImportOpenChange(false)}
-      />
+      {importOpen && (
+        <IntakeImportDialog
+          medicationId={medicationId}
+          onClose={() => onImportOpenChange(false)}
+        />
+      )}
 
       <IntakeEditDialog
         medicationId={medicationId}
         event={
-          editingId
-            ? { id: editingId, takenAt: null, skipped: false }
+          editingEvent
+            ? {
+                id: editingEvent.id,
+                takenAt: editingEvent.takenAt,
+                skipped: editingEvent.skipped,
+              }
             : null
         }
-        onClose={() => setEditingId(null)}
+        onClose={() => setEditingEvent(null)}
       />
 
       <AlertDialog

@@ -37,6 +37,7 @@ import type { MeasurementType } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
+import { safeFetch } from "@/lib/safe-fetch";
 import { getUnitForType } from "@/lib/validations/measurement";
 import {
   collapseToTypeDayKeys,
@@ -148,7 +149,7 @@ export async function fetchWithingsActivity(
       offset: String(offset),
     });
     const pageStart = performance.now();
-    const res = await fetch(WITHINGS_MEASURE_URL, {
+    const res = await safeFetch(WITHINGS_MEASURE_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",

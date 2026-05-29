@@ -87,14 +87,6 @@ export interface MedicationWizardDialogProps {
   mode: "create" | "edit";
   /** Required when `mode === "edit"`. */
   initial?: MedicationPayload;
-  /**
-   * v1.5.5 C-E2-2 — call-site intent that drives the landing step on
-   * an edit-open. The detail page's cadence-summary row passes
-   * `"cadence"` so the user lands on Step 5; the header pencil passes
-   * `"name"` so the user lands on Step 1. Defaults to `undefined`
-   * which keeps the legacy 1-or-8 heuristic.
-   */
-  landingIntent?: "cadence" | "summary" | "name";
   /** Fires with the medication id on a successful create / save. */
   onSuccess?: (id: string) => void;
 }
@@ -113,14 +105,13 @@ const STEP_ICONS = {
 type StepNumber = keyof typeof STEP_ICONS;
 
 export function MedicationWizardDialog(props: MedicationWizardDialogProps) {
-  // Key the inner state container on (open + mode + medication id +
-  // landingIntent) so every open gets a fresh state tree AND every
-  // change of intent re-runs the initial-step decision. React unmounts
-  // the inner component when the key changes, which sidesteps the
-  // "setState in useEffect" anti-pattern that resetting on open via an
-  // effect would otherwise trigger. The outer shell stays mounted so
-  // the dialog's close animation runs cleanly.
-  const stateKey = `${props.open ? "open" : "closed"}:${props.mode}:${props.initial?.id ?? "new"}:${props.landingIntent ?? "default"}`;
+  // Key the inner state container on (open + mode + medication id) so
+  // every open gets a fresh state tree. React unmounts the inner
+  // component when the key changes, which sidesteps the "setState in
+  // useEffect" anti-pattern that resetting on open via an effect would
+  // otherwise trigger. The outer shell stays mounted so the dialog's
+  // close animation runs cleanly.
+  const stateKey = `${props.open ? "open" : "closed"}:${props.mode}:${props.initial?.id ?? "new"}`;
   return <WizardDialogShell key={stateKey} {...props} />;
 }
 
@@ -129,7 +120,6 @@ function WizardDialogShell({
   onOpenChange,
   mode,
   initial,
-  landingIntent,
   onSuccess,
 }: MedicationWizardDialogProps) {
   const { t, locale } = useTranslations();
@@ -144,7 +134,7 @@ function WizardDialogShell({
   const [step, setStep] = useState<StepNumber>(() => {
     if (mode === "edit" && initial) {
       const hydrated = hydrateWizardPayload(initial);
-      return landingStepForEdit(hydrated, landingIntent) as StepNumber;
+      return landingStepForEdit(hydrated) as StepNumber;
     }
     return 1;
   });

@@ -146,6 +146,41 @@ describe("POST /api/user/avatar", () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
+  it("rejects an oversize chunked upload with no Content-Length at the stream level (413)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+
+    // Build a multipart body as a streamed ReadableStream with NO
+    // Content-Length header — the shape a `Transfer-Encoding: chunked`
+    // upload takes. The bounded stream reader must trip before the body
+    // is fully buffered.
+    const boundary = "----healthlogtest";
+    const head = Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="a.png"\r\nContent-Type: image/png\r\n\r\n`,
+    );
+    const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+    const oversize = Buffer.alloc(2 * 1024 * 1024 + 1, 0x41);
+    const parts = [head, oversize, tail];
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const p of parts) {
+          controller.enqueue(new Uint8Array(p));
+        }
+        controller.close();
+      },
+    });
+    const req = new Request("http://localhost/api/user/avatar", {
+      method: "POST",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+      body: stream,
+      // Node's fetch requires `duplex: "half"` for a streamed body.
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+
+    const res = await post(req);
+    expect(res.status).toBe(413);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
   it("rejects an unsupported MIME with 415 (magic-byte sniff)", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     // Plain text content — no JPEG/PNG/WebP magic.

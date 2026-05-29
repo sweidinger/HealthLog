@@ -73,7 +73,7 @@ import {
 
 type IntakeSource = "WEB" | "API" | "REMINDER" | "IMPORT";
 
-interface IntakeEvent {
+export interface IntakeEvent {
   id: string;
   medicationId: string;
   scheduledFor: string;
@@ -108,9 +108,12 @@ interface IntakeHistoryListV2Props {
   pageSize?: number;
   /**
    * v1.5.5 F-1 C-2 — per-row Bearbeiten callback. When provided the
-   * row renders a kebab `<DropdownMenu>` with an Edit action.
+   * row renders a kebab `<DropdownMenu>` with an Edit action. v1.5.6
+   * G-1 §9 Q1: threads the whole `IntakeEvent` (not just the id) so
+   * the edit dialog seeds from the row's real `takenAt` / `skipped`
+   * instead of an empty stub.
    */
-  onEditIntake?: (eventId: string) => void;
+  onEditIntake?: (event: IntakeEvent) => void;
   /**
    * v1.5.5 F-1 C-2 — per-row Löschen callback. When provided the row
    * renders a kebab `<DropdownMenu>` with a Delete action.
@@ -380,7 +383,7 @@ export function IntakeHistoryListV2({
                             <DropdownMenuContent align="end">
                               {onEditIntake && (
                                 <DropdownMenuItem
-                                  onSelect={() => onEditIntake(event.id)}
+                                  onSelect={() => onEditIntake(event)}
                                   data-slot="intake-history-row-edit"
                                 >
                                   {t("medications.detail.intake.rowActions.edit")}

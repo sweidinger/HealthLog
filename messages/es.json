@@ -1256,6 +1256,13 @@
         "tokenCopied": "Token copied",
         "copyToken": "Copy token",
         "mintedHint": "Copy this token now — it is shown only once."
+      },
+      "edit": {
+        "planOption": "Editar plan",
+        "advancedOption": "Ajustes avanzados"
+      },
+      "advanced": {
+        "title": "Ajustes avanzados"
       }
     }
   },

@@ -1,42 +1,31 @@
 "use client";
 
 /**
- * v1.5.5 D-3 §6 + §9 — medication detail page.
+ * v1.5.6 G-1 — medication detail page as a pure history surface.
  *
- * Replaces the v1.5.4 "form retirement" gap that left every action
- * (Pausieren / Beenden / Notifications / API tokens / Phasen / CSV
- * import / Verlauf löschen / Medikament löschen) reachable only
- * through the list-page kebab — which the kebab didn't actually wire
- * up. The detail page surfaces every restored action in section
- * order; one phone-scroll reaches every one of them.
+ * Supersedes the v1.5.5 composition that stacked every setting inline.
+ * The page now reads as a calm "Vergangenheit" view: back link → slim
+ * header (name / dose / status + a two-option Bearbeiten dropdown) →
+ * STATIC cadence line → GLP-1 dose-ladder read-only visualisation →
+ * intake-history table. Every setting — Notifications, API tokens,
+ * Phasen, CSV import, grace and the destructive zone — moves into the
+ * `<AdvancedSettingsSheet>`, reached from the dropdown's "Erweiterte
+ * Einstellungen" item. "Plan bearbeiten" opens the wizard at Step 1.
  *
- * Recurring variant: 8 sections (header → today's dose → cadence →
- * dose ladder / phases → intake history preview → notifications →
- * settings → destructive zone).
- *
- * One-shot variant: 5 sections (header → today's-dose-or-logged →
- * cadence static line → intake history single row → destructive
- * zone). Per D-3 §6 the wizard handles cadence edit via the header
- * pencil so the cadence row hides its own edit affordance.
- *
- * Paused variant: same as the recurring/one-shot layout; the header
- * status pill flips and the today's-dose card disables both buttons
- * with a muted helper. Settings and destructive zone keep rendering.
+ * One-shot variant drops the dose-ladder section and renders the
+ * static `Einmalig am …` line in place of the cadence summary.
  *
  * Reads:
  *
  *   - `medicationDetail(id)` for the medication snapshot.
- *   - `medicationIntakeList(id, …)` for the last-14-grouped preview
- *     (the v2 list owns its own paging).
- *   - `notificationsStatus()` + `authMe()` on the notifications
- *     section.
- *   - `medicationTitration(id)` on the GLP-1 dose ladder.
+ *   - `medicationIntakeList(id, …)` for `intakeCount`, which the
+ *     sheet's destructive zone needs.
  *
- * Mutations all cascade through `medicationDependentKeys` (which now
+ * Mutations all cascade through `medicationDependentKeys` (which
  * includes the `compliance-chart-inline` prefix per D-3 §10).
  */
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -49,16 +38,13 @@ import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { DrugLevelChart } from "@/components/medications/DrugLevelChart";
 import { TitrationSection } from "@/components/medications/TitrationSection";
 import { MedicationDetailHeader } from "@/components/medications/medication-detail-header";
-import { TodaysDoseCard } from "@/components/medications/todays-dose-card";
 import { CadenceSummaryRow } from "@/components/medications/cadence-summary-row";
 import { IntakeHistoryPreview } from "@/components/medications/sections/intake-history-preview";
-import { NotificationsSection } from "@/components/medications/sections/notifications-section";
-import { SettingsSection } from "@/components/medications/sections/settings-section";
-import { DestructiveZoneSection } from "@/components/medications/sections/destructive-zone-section";
+import { AdvancedSettingsSheet } from "@/components/medications/advanced-settings-sheet";
+import { PhaseConfigSheet } from "@/components/medications/sections/phase-config-sheet";
 import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
 import type { MedicationPayload } from "@/components/medications/wizard/wizard-payload";
 
@@ -135,16 +121,6 @@ function snapshotToWizardPayload(
   };
 }
 
-function isToday(iso: string): boolean {
-  const d = new Date(iso);
-  const today = new Date();
-  return (
-    d.getFullYear() === today.getFullYear() &&
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate()
-  );
-}
-
 export default function MedicationDetailPage({
   params,
 }: {
@@ -157,9 +133,8 @@ export default function MedicationDetailPage({
   const formatters = useFormatters();
 
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [wizardIntent, setWizardIntent] = useState<
-    "cadence" | "name" | undefined
-  >(undefined);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [phaseSheetOpen, setPhaseSheetOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
@@ -200,6 +175,14 @@ export default function MedicationDetailPage({
     },
     enabled: isAuthenticated && !!medication,
   });
+
+  // v1.5.6 F-1 M-2 — memoise the wizard payload so the header dropdown
+  // + wizard mount share one object identity per medication snapshot
+  // instead of recomputing it on every render.
+  const wizardPayload = useMemo<MedicationPayload | null>(
+    () => (medication ? snapshotToWizardPayload(medication) : null),
+    [medication],
+  );
 
   if (authLoading || isLoading) {
     return (
@@ -246,23 +229,18 @@ export default function MedicationDetailPage({
   }
 
   const oneShot = medication.oneShot === true;
-  const todayEvent = intakeList?.events.find(
-    (e) =>
-      (e.takenAt && isToday(e.takenAt)) ||
-      (e.skipped && isToday(e.scheduledFor)),
-  );
   const intakeCount = intakeList?.meta.total ?? 0;
   const primaryGrace =
     medication.schedules[0]?.reminderGraceMinutes ?? null;
+  // `wizardPayload` is non-null here — the early returns above bail
+  // before this point whenever `medication` is undefined.
+  const payload = wizardPayload as MedicationPayload;
 
-  function openWizardWithIntent(intent: "cadence" | "name") {
-    setWizardIntent(intent);
-    setWizardOpen(true);
-  }
-
-  function closeWizard() {
-    setWizardOpen(false);
-    setWizardIntent(undefined);
+  // v1.5.6 G-1 §5 — sibling-swap: close the advanced sheet first, then
+  // open the phase sheet so the two never stack (modal depth ≤ 2).
+  function openPhaseSheet() {
+    setAdvancedOpen(false);
+    setPhaseSheetOpen(true);
   }
 
   return (
@@ -279,30 +257,21 @@ export default function MedicationDetailPage({
         </Link>
       </Button>
 
-      {/* §9.1 — Header band */}
+      {/* G-1 §3.2 — Header band. The Bearbeiten dropdown owns the
+          wizard ("Plan bearbeiten") + the advanced sheet ("Erweiterte
+          Einstellungen"); the page owns both open-states. */}
       <MedicationDetailHeader
         name={medication.name}
         dose={medication.dose}
         active={medication.active}
         endsOn={medication.endsOn}
-        onEdit={() => openWizardWithIntent("name")}
+        onEditPlan={() => setWizardOpen(true)}
+        onOpenAdvanced={() => setAdvancedOpen(true)}
       />
 
-      {/* §9.2 — Today's dose card */}
-      <TodaysDoseCard
-        medicationId={id}
-        active={medication.active}
-        oneShot={oneShot}
-        scheduledForToday={!oneShot || !todayEvent}
-        alreadyTakenAt={
-          todayEvent && !todayEvent.skipped ? todayEvent.takenAt : null
-        }
-        alreadySkipped={Boolean(todayEvent?.skipped)}
-      />
-
-      {/* §9.3 — Cadence summary. One-shot: static line; the
-          `hideEdit` flag suppresses the row's own edit affordance
-          because the header pencil routes the wizard. */}
+      {/* G-1 §3.3 — Static cadence line. One-shot collapses to the
+          `Einmalig am …` card; recurring renders the summary row with
+          `hideEdit` (cadence editing lives in the wizard). */}
       {oneShot ? (
         <Card
           className="p-5 sm:p-6"
@@ -318,13 +287,14 @@ export default function MedicationDetailPage({
         </Card>
       ) : (
         <CadenceSummaryRow
-          medication={snapshotToWizardPayload(medication)}
-          onEdit={() => openWizardWithIntent("cadence")}
+          medication={payload}
+          hideEdit
+          onEdit={() => {}}
         />
       )}
 
-      {/* §9.4 — Dose ladder / Phasen (GLP-1 only, recurring path
-          only — one-shot variant drops this) */}
+      {/* G-1 §3.4 — Dose ladder / Phasen visualisation (read-only,
+          GLP-1 recurring only). The editor lives in the sheet. */}
       {!oneShot && medication.treatmentClass === "GLP1" && (
         <>
           <DrugLevelChart
@@ -338,54 +308,52 @@ export default function MedicationDetailPage({
         </>
       )}
 
-      {/* §9.5 — Intake history preview */}
+      {/* G-1 §3.5 — Intake history table (primary surface). */}
       <IntakeHistoryPreview
         medicationId={id}
         importOpen={importOpen}
         onImportOpenChange={setImportOpen}
       />
 
-      {/* §9.6 + §9.7 — Notifications + Settings: recurring path only. */}
-      {!oneShot && (
-        <>
-          <NotificationsSection
-            medicationId={id}
-            notificationsEnabled={medication.notificationsEnabled}
-          />
-          <Separator className="opacity-0" />
-          <SettingsSection
-            medicationId={id}
-            medicationName={medication.name}
-            treatmentClass={medication.treatmentClass}
-            startsOn={medication.startsOn}
-            endsOn={medication.endsOn}
-            reminderGraceMinutes={primaryGrace}
-          />
-        </>
-      )}
-
-      {/* §9.8 — Verwaltung & Gefahrenzone */}
-      <DestructiveZoneSection
+      {/* G-1 §5 — Advanced settings sheet. Hosts Notifications →
+          Settings → destructive zone. The Phasen button sibling-swaps
+          to the phase sheet below. */}
+      <AdvancedSettingsSheet
+        open={advancedOpen}
+        onOpenChange={setAdvancedOpen}
         medicationId={id}
         medicationName={medication.name}
+        treatmentClass={medication.treatmentClass}
         active={medication.active}
+        startsOn={medication.startsOn}
+        endsOn={medication.endsOn}
+        notificationsEnabled={medication.notificationsEnabled}
+        reminderGraceMinutes={primaryGrace}
         intakeCount={intakeCount}
+        onRequestPhaseSheet={openPhaseSheet}
       />
 
-      {/* Wizard mount — edit-only on the detail page. Intent flips
-          between "name" (header pencil → Step 1) and "cadence"
-          (cadence row pencil → Step 5). Cancel returns to the detail
-          page (the success branch refreshes the medication detail
-          via the `medicationDependentKeys` cascade). */}
+      {/* G-1 §5 — phase sheet mounted as a sibling of the advanced
+          sheet so they never stack (GLP-1 + course window only). */}
+      {!oneShot &&
+        medication.treatmentClass === "GLP1" &&
+        Boolean(medication.startsOn) &&
+        Boolean(medication.endsOn) && (
+          <PhaseConfigSheet
+            medicationId={id}
+            open={phaseSheetOpen}
+            onOpenChange={setPhaseSheetOpen}
+          />
+        )}
+
+      {/* Wizard mount — edit-only, lands on Step 1 (no landing
+          intent). Cancel + success both close via the cascade. */}
       <MedicationWizardDialog
         open={wizardOpen}
-        onOpenChange={(open) => {
-          if (!open) closeWizard();
-        }}
+        onOpenChange={setWizardOpen}
         mode="edit"
-        initial={snapshotToWizardPayload(medication)}
-        landingIntent={wizardIntent}
-        onSuccess={() => closeWizard()}
+        initial={payload}
+        onSuccess={() => setWizardOpen(false)}
       />
     </div>
   );

@@ -25,7 +25,7 @@ import {
   Flame,
   Pencil,
   Loader2,
-  History,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -275,7 +275,7 @@ export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
         aria-label={t("medications.openDetailPage")}
       >
         <Link href={`/medications/${medication.id}`}>
-          <History className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
         </Link>
       </Button>
       <Button

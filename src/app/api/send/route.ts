@@ -74,16 +74,21 @@ export const POST = apiHandler(async (request: NextRequest) => {
   let lastResponseStatus = 404;
 
   for (const targetUrl of targetUrls) {
-    const upstream = await safeFetch(targetUrl, {
-      method: "POST",
-      headers: {
-        "content-type":
-          request.headers.get("content-type") || "application/json",
-        "user-agent": request.headers.get("user-agent") || "healthlog-proxy",
+    const upstream = await safeFetch(
+      targetUrl,
+      {
+        method: "POST",
+        headers: {
+          "content-type":
+            request.headers.get("content-type") || "application/json",
+          "user-agent": request.headers.get("user-agent") || "healthlog-proxy",
+        },
+        body,
+        cache: "no-store",
       },
-      body,
-      cache: "no-store",
-    });
+      // Operator-configured Umami host — pin the connect-time IP.
+      { requirePublicHost: true },
+    );
 
     lastResponseStatus = upstream.status;
 

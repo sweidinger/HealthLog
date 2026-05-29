@@ -159,7 +159,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     // GitHub doesn't support base64 in comments, so we note the limitation
     const commentBody = `### Screenshot\n\n![Screenshot](data:image/${ext};base64,${base64Data.slice(0, 100)}...)\n\n*Note: The full screenshot was truncated due to size limits. Please contact the user directly.*`;
 
-    await fetch(
+    await safeFetch(
       `https://api.github.com/repos/${ghRepo}/issues/${issue.number}/comments`,
       {
         method: "POST",

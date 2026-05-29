@@ -40,6 +40,15 @@ export interface SettingsSectionProps {
   startsOn?: string | null;
   endsOn?: string | null;
   reminderGraceMinutes?: number | null;
+  /**
+   * v1.5.6 G-1 §5 — sibling-swap the phase sheet. When provided, the
+   * Phasen button hands control to the parent (which closes the
+   * hosting sheet before opening `<PhaseConfigSheet>`) instead of the
+   * self-managed `phaseSheetOpen` state, so the two sheets never
+   * stack. Absent on the standalone surface, where the section owns
+   * its own phase sheet.
+   */
+  onRequestPhaseSheet?: () => void;
 }
 
 export function SettingsSection({
@@ -49,6 +58,7 @@ export function SettingsSection({
   startsOn,
   endsOn,
   reminderGraceMinutes,
+  onRequestPhaseSheet,
 }: SettingsSectionProps) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
@@ -136,7 +146,11 @@ export function SettingsSection({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPhaseSheetOpen(true)}
+                  onClick={() =>
+                    onRequestPhaseSheet
+                      ? onRequestPhaseSheet()
+                      : setPhaseSheetOpen(true)
+                  }
                   className="min-h-11 sm:min-h-9"
                   data-slot="medication-detail-phase-management-button"
                 >
@@ -196,7 +210,7 @@ export function SettingsSection({
         </div>
       </div>
 
-      {showPhases && (
+      {showPhases && !onRequestPhaseSheet && (
         <PhaseConfigSheet
           medicationId={medicationId}
           open={phaseSheetOpen}

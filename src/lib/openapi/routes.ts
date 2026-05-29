@@ -44,6 +44,7 @@ import {
   MEDICATION_TREATMENT_CLASS_VALUES,
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
+import { INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
 
 /**
  * Common envelopes — every HealthLog API response wraps payload in
@@ -785,6 +786,29 @@ medicationExtractionSchema.meta({
   description:
     "Citation-guarded partial extraction of medication scheduling fields. Every field is optional; the wizard merges what is present onto the form state and leaves the rest blank. `name` and `dose` are post-validated against the original free-text and dropped when not substring-matched, so the wizard cannot silently land a hallucinated brand or dose. `cadenceKind` / `doseUnit` / `weekdays` are closed enums; numeric fields are clamped to the wizard's wire bounds.",
 });
+
+// Insights tile layout — mirrors the Zod schema in
+// `src/app/api/insights/layout/route.ts`. The tile-id enum is derived
+// from the same `INSIGHTS_TILE_IDS` source so the contract cannot drift.
+const insightsLayoutSchema = z
+  .object({
+    version: z.literal(1),
+    tiles: z
+      .array(
+        z.object({
+          id: z.enum(INSIGHTS_TILE_IDS),
+          visible: z.boolean(),
+          order: z.number().int().min(0).max(99),
+        }),
+      )
+      .min(1)
+      .max(50),
+  })
+  .meta({
+    id: "InsightsLayoutBody",
+    description:
+      "Per-user Insights tile layout: an ordered list of tiles with a visibility flag. `version` is the layout schema version; tile ids are a closed enum derived from the server's tile registry.",
+  });
 
 // ── Standard 401 / 422 / 429 responses ───────────────────────────────
 
@@ -1574,6 +1598,69 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         "404": {
           description: "The user has no uploaded avatar.",
           content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/layout": {
+    get: {
+      tags: ["Insights"],
+      summary: "Read the calling user's Insights tile layout",
+      description:
+        "Returns the per-user Insights tile layout (visibility + order). Falls back to the default layout when the user has not customised it. Mirrors the dashboard-widgets contract.",
+      responses: {
+        "200": {
+          description: "The resolved layout (custom or default).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(insightsLayoutSchema, "InsightsLayout"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    put: {
+      tags: ["Insights"],
+      summary: "Replace the calling user's Insights tile layout",
+      description:
+        "Persists the full tile layout. The normalised layout is returned. Invalid bodies return the multi-issue 422 envelope, matching the dashboard-widgets route.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: insightsLayoutSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Layout saved; the normalised layout is echoed back.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(insightsLayoutSchema, "InsightsLayoutSaved"),
+            },
+          },
+        },
+        // 422 (multi-issue validation envelope) comes from stdResponses.
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Insights"],
+      summary: "Reset the calling user's Insights tile layout",
+      description:
+        "Clears the persisted layout and returns the default layout. Idempotent.",
+      responses: {
+        "200": {
+          description: "Layout reset; the default layout is returned.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightsLayoutSchema,
+                "InsightsLayoutReset",
+              ),
+            },
+          },
         },
         ...stdResponses,
       },

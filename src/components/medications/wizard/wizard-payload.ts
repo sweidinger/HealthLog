@@ -879,36 +879,12 @@ export function hydrateWizardPayload(initial: MedicationPayload): WizardPayload 
 }
 
 /**
- * Decision the dialog uses to pick the landing step on edit-hydrate.
- *
- * Three call-site intents:
- *
- *   - `"name"` (default header pencil): land on Step 1 so the user
- *     edits the medication's name, dose, treatment-class as a single
- *     top-down walk. Multi-schedule medications still jump to the
- *     summary list because the muscle memory there is "see every
- *     parallel schedule first".
- *   - `"cadence"`: land directly on Step 5 (the cadence picker). The
- *     v1.5.5 detail page's cadence-summary row uses this so a tap on
- *     the row's edit pencil drops the user one screen away from the
- *     cadence they wanted to change, not two screens away after the
- *     intro + summary.
- *   - undefined: legacy behaviour — Step 1 for single-schedule, Step 8
- *     for multi-schedule.
- *
- * One-shot medications collapse Step 5 out of the path, so a
- * `"cadence"` intent on a one-shot payload falls back to Step 8
- * (the summary, where the user can flip the one-shot toggle).
+ * Decision the dialog uses to pick the landing step on edit-hydrate:
+ * Step 1 for a single-schedule medication (a straight top-down walk),
+ * Step 8 (the summary list) for a multi-schedule one, where the muscle
+ * memory is "see every parallel schedule first".
  */
-export function landingStepForEdit(
-  payload: WizardPayload,
-  intent?: "cadence" | "summary" | "name",
-): number {
-  if (intent === "cadence") {
-    return payload.mode === "oneShot" ? 8 : 5;
-  }
-  if (intent === "summary") return 8;
-  if (intent === "name") return 1;
+export function landingStepForEdit(payload: WizardPayload): number {
   return payload.schedules.length > 1 ? 8 : 1;
 }
 
