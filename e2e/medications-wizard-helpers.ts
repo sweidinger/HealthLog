@@ -124,6 +124,23 @@ export async function stubDashboardAnalytics(page: Page): Promise<void> {
  * redirects to `/medications?new=1` and opens the create dialog).
  */
 export async function openCreateWizard(page: Page): Promise<void> {
+  // Pin the German locale for the wizard flow. The app default locale is
+  // English; these specs assert the "Schritt N von M" counter and other
+  // German label surfaces, which only render when the `healthlog-locale`
+  // cookie resolves to "de". Both the server layout and the client i18n
+  // provider read this exact cookie name, so setting it before the first
+  // navigation makes the dialog render German on first paint. Scoped here
+  // rather than in the shared auth state so English-asserting specs keep
+  // the default locale.
+  await page.context().addCookies([
+    {
+      name: "healthlog-locale",
+      value: "de",
+      url: page.url().startsWith("http")
+        ? new URL(page.url()).origin
+        : "http://localhost:3000",
+    },
+  ]);
   await page.goto("/medications/new", { waitUntil: "domcontentloaded" });
   await expect(
     page.locator('[data-slot="medication-wizard-dialog"]'),

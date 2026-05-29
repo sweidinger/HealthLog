@@ -133,6 +133,26 @@ async function loadCanonical(medicationId: string): Promise<{
  * matching `getUserTodayBounds` in `src/lib/timezone.ts` so the test
  * window matches what the worker would build on that tick.
  */
+// UTC midnight on the local calendar day that `now` falls within for `tz`.
+// Mirrors the column convention for `startsOn`/`endsOn` (stored as
+// `...T00:00:00.000Z` on the local calendar day). Deriving the day from
+// the same timezone `todayBounds` uses keeps a one-shot's emit day inside
+// the checked window regardless of wall-clock time — reading the UTC date
+// instead drifts a day late in the UTC evening when the local zone has
+// already rolled into the next calendar day.
+function localCalendarMidnightUtc(now: Date, tz: string): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const y = Number(parts.find((p) => p.type === "year")?.value);
+  const m = Number(parts.find((p) => p.type === "month")?.value);
+  const d = Number(parts.find((p) => p.type === "day")?.value);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+}
+
 function todayBounds(now: Date, tz: string): { start: Date; end: Date } {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
@@ -467,17 +487,7 @@ describe("one-shot lifecycle", () => {
   it("mints the slot, the intake POST flips medication.active to false", async () => {
     const prisma = getPrismaClient();
     const today = new Date();
-    const todayDate = new Date(
-      Date.UTC(
-        today.getUTCFullYear(),
-        today.getUTCMonth(),
-        today.getUTCDate(),
-        0,
-        0,
-        0,
-        0,
-      ),
-    );
+    const todayDate = localCalendarMidnightUtc(today, "Europe/Berlin");
 
     const med = await prisma.medication.create({
       data: {
@@ -543,17 +553,7 @@ describe("one-shot lifecycle", () => {
   it("does NOT deactivate when the intake is skipped", async () => {
     const prisma = getPrismaClient();
     const today = new Date();
-    const todayDate = new Date(
-      Date.UTC(
-        today.getUTCFullYear(),
-        today.getUTCMonth(),
-        today.getUTCDate(),
-        0,
-        0,
-        0,
-        0,
-      ),
-    );
+    const todayDate = localCalendarMidnightUtc(today, "Europe/Berlin");
 
     const med = await prisma.medication.create({
       data: {
