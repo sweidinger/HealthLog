@@ -30,7 +30,8 @@
   <a href="https://docs.healthlog.dev">Documentation</a> &middot;
   <a href="https://testflight.apple.com/join/bucuTBpa">iOS TestFlight</a>
 </p>
-<img width="2516" height="1231" alt="dashboard" src="https://github.com/user-attachments/assets/82bdb29d-d1f7-430b-b989-d4f4caaa0214" />
+<img width="2316" height="1207" alt="home" src="https://github.com/user-attachments/assets/aac0931d-5ea2-45b8-9a12-5f2f013d19e5" />
+
 ---
 
 ## What it is
