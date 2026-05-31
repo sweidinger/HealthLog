@@ -5,19 +5,24 @@
  * trends + advisor). Each named slug below is a sub-route that focuses
  * one metric. Charts on the sub-pages still use the dashboard chart-cog
  * surface — see `chartKey` strings in `src/lib/dashboard-layout.ts`
- * (`CHART_OVERLAY_KEYS`). The slugs themselves are German because the
- * product surface is bilingual and German is the primary author voice.
+ * (`CHART_OVERLAY_KEYS`).
  *
- * `medikamente` carries no `MeasurementType[]` because medication
+ * v1.8.0 — the slugs are English. They were German through v1.7.x; the
+ * naming-convention ADR (`docs/adr/0001-insights-naming-convention.md`)
+ * settled the surface: UI copy stays localised (resolved through `t()`
+ * keys), but internal identifiers — route slugs, tile ids, query keys —
+ * are English. Legacy `/insights/<de-slug>` URLs 301-redirect to their
+ * English target via `next.config.ts` `redirects()`.
+ *
+ * `medications` carries no `MeasurementType[]` because medication
  * compliance is event-driven (`MedicationIntakeEvent` rows) rather than
  * time-series `Measurement` rows; the page fetches that data via the
  * existing `/api/insights/comprehensive` consumer.
  *
- * `bmi` lists both `WEIGHT` + `BODY_HEIGHT` because BMI is derived
- * client-side — `WEIGHT / (heightCm/100)^2` — and the chart sets
- * `valueMode="bmi"` on `<HealthChart>`. `BODY_HEIGHT` is informational
- * only (we don't fetch a height series; the user's height lives on the
- * profile).
+ * `bmi` lists `WEIGHT` because BMI is derived client-side —
+ * `WEIGHT / (heightCm/100)^2` — and the chart sets `valueMode="bmi"` on
+ * `<HealthChart>`. The user's height lives on the profile, so there is
+ * no separate height series to fetch.
  */
 /**
  * Single source of truth for the routed insights sub-pages. The slug
@@ -36,66 +41,66 @@
 // so the five pills collapse behind one "Vitalwerte" / "Vitals" parent
 // pill with a popover sub-list. The `group: "vitals"` field below
 // drives that grouping; the canonical order inside the popover follows
-// the strip order. The earlier inline pills (`puls`, `blutdruck`,
-// `gewicht`, `bmi`, `schlaf`, `stimmung`, `medikamente`, `workouts`)
-// stay flat — they predate v1.4.32 and the maintainer's audit kept
-// them as direct entries.
+// the strip order. The earlier inline pills (`pulse`, `blood-pressure`,
+// `weight`, `bmi`, `sleep`, `mood`, `medications`, `workouts`) stay
+// flat — they predate v1.4.32 and the maintainer's audit kept them as
+// direct entries.
 const SUB_PAGE_METRIC = {
   // ── vitals ──
-  blutdruck: ["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA", "PULSE"],
-  puls: ["PULSE"],
-  sauerstoff: ["OXYGEN_SATURATION"],
-  koerpertemperatur: ["BODY_TEMPERATURE"],
+  "blood-pressure": ["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA", "PULSE"],
+  pulse: ["PULSE"],
+  oxygen: ["OXYGEN_SATURATION"],
+  "body-temperature": ["BODY_TEMPERATURE"],
   // v1.7.0 — respiratory rate joins the vitals cluster.
-  atemfrequenz: ["RESPIRATORY_RATE"],
+  "respiratory-rate": ["RESPIRATORY_RATE"],
   // ── body composition ──
-  gewicht: ["WEIGHT"],
+  weight: ["WEIGHT"],
   // BMI is derived from WEIGHT + profile height (no separate series).
   bmi: ["WEIGHT"],
   // v1.7.0 — Withings / Apple body-composition tail.
-  koerperwasser: ["TOTAL_BODY_WATER"],
-  knochenmasse: ["BONE_MASS"],
-  "fettfreie-masse": ["FAT_FREE_MASS"],
-  fettmasse: ["FAT_MASS"],
-  muskelmasse: ["MUSCLE_MASS"],
-  viszeralfett: ["VISCERAL_FAT"],
-  magermasse: ["LEAN_BODY_MASS"],
+  "body-water": ["TOTAL_BODY_WATER"],
+  "bone-mass": ["BONE_MASS"],
+  "fat-free-mass": ["FAT_FREE_MASS"],
+  "fat-mass": ["FAT_MASS"],
+  "muscle-mass": ["MUSCLE_MASS"],
+  "visceral-fat": ["VISCERAL_FAT"],
+  "lean-body-mass": ["LEAN_BODY_MASS"],
   // ── activity ──
-  "aktive-energie": ["ACTIVE_ENERGY_BURNED"],
+  "active-energy": ["ACTIVE_ENERGY_BURNED"],
   // v1.4.32 — workouts surface; the page reads `Workout` rows directly
   // through `useWorkouts()` rather than the `summaries` map, so the
   // metric list stays empty.
   workouts: [],
   // v1.7.0 — activity + Apple-Health Mobility cluster.
-  stockwerke: ["FLIGHTS_CLIMBED"],
-  gehstrecke: ["WALKING_RUNNING_DISTANCE"],
-  gangstabilitaet: ["WALKING_STEADINESS"],
-  gehpuls: ["WALKING_HEART_RATE_AVERAGE"],
-  gangasymmetrie: ["WALKING_ASYMMETRY"],
-  doppelstandphase: ["WALKING_DOUBLE_SUPPORT"],
-  schrittlaenge: ["WALKING_STEP_LENGTH"],
-  gehgeschwindigkeit: ["WALKING_SPEED"],
+  "flights-climbed": ["FLIGHTS_CLIMBED"],
+  "walking-distance": ["WALKING_RUNNING_DISTANCE"],
+  "walking-steadiness": ["WALKING_STEADINESS"],
+  "walking-heart-rate": ["WALKING_HEART_RATE_AVERAGE"],
+  "walking-asymmetry": ["WALKING_ASYMMETRY"],
+  "double-support-time": ["WALKING_DOUBLE_SUPPORT"],
+  "step-length": ["WALKING_STEP_LENGTH"],
+  "walking-speed": ["WALKING_SPEED"],
   // ── sleep ──
-  schlaf: ["SLEEP_DURATION"],
+  sleep: ["SLEEP_DURATION"],
   // ── cardiovascular ──
-  ruhepuls: ["RESTING_HEART_RATE"],
+  "resting-pulse": ["RESTING_HEART_RATE"],
   hrv: ["HEART_RATE_VARIABILITY"],
   // v1.7.0 — Withings cardiovascular risk markers.
-  pulswellengeschwindigkeit: ["PULSE_WAVE_VELOCITY"],
-  gefaessalter: ["VASCULAR_AGE"],
+  "pulse-wave-velocity": ["PULSE_WAVE_VELOCITY"],
+  "vascular-age": ["VASCULAR_AGE"],
   // ── hearing (v1.7.0) — audio-exposure cluster ──
-  laermbelastung: ["AUDIO_EXPOSURE_ENV"],
-  kopfhoererpegel: ["AUDIO_EXPOSURE_HEADPHONE"],
-  laermereignisse: ["AUDIO_EXPOSURE_EVENT"],
+  "environmental-audio": ["AUDIO_EXPOSURE_ENV"],
+  "headphone-audio": ["AUDIO_EXPOSURE_HEADPHONE"],
+  "audio-events": ["AUDIO_EXPOSURE_EVENT"],
   // ── environment (v1.7.0) ──
-  tageslicht: ["TIME_IN_DAYLIGHT"],
+  daylight: ["TIME_IN_DAYLIGHT"],
   // ── metabolic (v1.7.0) ──
-  blutzucker: ["BLOOD_GLUCOSE"],
-  hauttemperatur: ["SKIN_TEMPERATURE"],
+  "blood-glucose": ["BLOOD_GLUCOSE"],
+  "skin-temperature": ["SKIN_TEMPERATURE"],
   // ── mood ──
-  stimmung: ["MOOD"],
+  mood: ["MOOD"],
   // ── events (medication adherence is event-driven; no measurement series) ──
-  medikamente: [],
+  medications: [],
 } as const satisfies Record<string, readonly string[]>;
 
 export type SubPageSlug = keyof typeof SUB_PAGE_METRIC;
@@ -112,7 +117,7 @@ export const SUB_PAGE_SLUGS = Object.keys(SUB_PAGE_METRIC) as SubPageSlug[];
  */
 // v1.7.0 — the new metric clusters each collapse behind a parent pill
 // so the strip stays scannable as the sub-page count grows. The flat
-// pills (puls, blutdruck, gewicht, bmi, schlaf, stimmung, medikamente,
+// pills (pulse, blood-pressure, weight, bmi, sleep, mood, medications,
 // workouts) stay direct entries as before.
 export type SubPageGroup =
   | "vitals"
@@ -126,40 +131,40 @@ export type SubPageGroup =
 export const SUB_PAGE_GROUP: Partial<Record<SubPageSlug, SubPageGroup>> = {
   // vitals
   hrv: "vitals",
-  ruhepuls: "vitals",
-  sauerstoff: "vitals",
-  koerpertemperatur: "vitals",
-  "aktive-energie": "vitals",
-  atemfrequenz: "vitals",
+  "resting-pulse": "vitals",
+  oxygen: "vitals",
+  "body-temperature": "vitals",
+  "active-energy": "vitals",
+  "respiratory-rate": "vitals",
   // body composition (v1.7.0)
-  koerperwasser: "body",
-  knochenmasse: "body",
-  "fettfreie-masse": "body",
-  fettmasse: "body",
-  muskelmasse: "body",
-  viszeralfett: "body",
-  magermasse: "body",
+  "body-water": "body",
+  "bone-mass": "body",
+  "fat-free-mass": "body",
+  "fat-mass": "body",
+  "muscle-mass": "body",
+  "visceral-fat": "body",
+  "lean-body-mass": "body",
   // activity / mobility (v1.7.0)
-  stockwerke: "activity",
-  gehstrecke: "activity",
-  gangstabilitaet: "activity",
-  gehpuls: "activity",
-  gangasymmetrie: "activity",
-  doppelstandphase: "activity",
-  schrittlaenge: "activity",
-  gehgeschwindigkeit: "activity",
+  "flights-climbed": "activity",
+  "walking-distance": "activity",
+  "walking-steadiness": "activity",
+  "walking-heart-rate": "activity",
+  "walking-asymmetry": "activity",
+  "double-support-time": "activity",
+  "step-length": "activity",
+  "walking-speed": "activity",
   // cardiovascular (v1.7.0)
-  pulswellengeschwindigkeit: "cardiovascular",
-  gefaessalter: "cardiovascular",
+  "pulse-wave-velocity": "cardiovascular",
+  "vascular-age": "cardiovascular",
   // hearing (v1.7.0)
-  laermbelastung: "hearing",
-  kopfhoererpegel: "hearing",
-  laermereignisse: "hearing",
+  "environmental-audio": "hearing",
+  "headphone-audio": "hearing",
+  "audio-events": "hearing",
   // environment (v1.7.0)
-  tageslicht: "environment",
+  daylight: "environment",
   // metabolic (v1.7.0)
-  blutzucker: "metabolic",
-  hauttemperatur: "metabolic",
+  "blood-glucose": "metabolic",
+  "skin-temperature": "metabolic",
 };
 
 /**

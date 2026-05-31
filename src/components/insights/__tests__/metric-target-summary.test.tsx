@@ -80,7 +80,7 @@ const BP_DATA: TargetsFixture = {
 
 describe("<MetricTargetSummary>", () => {
   it("renders the numeric range + in-target share for a simple metric", () => {
-    const html = renderWith("gewicht", WEIGHT_DATA);
+    const html = renderWith("weight", WEIGHT_DATA);
     // Trailing `.0` trimmed, single-decimal kept.
     expect(html).toContain("Target: 60.1–80.9 kg");
     // round(18/24*100) = 75
@@ -88,19 +88,19 @@ describe("<MetricTargetSummary>", () => {
   });
 
   it("stitches the systolic + diastolic bands for blood pressure", () => {
-    const html = renderWith("blutdruck", BP_DATA);
+    const html = renderWith("blood-pressure", BP_DATA);
     expect(html).toContain("Target: 120–129 / 70–79 mmHg");
     expect(html).toContain("50% of logged days within target");
   });
 
   it("renders the adjust-target link to /targets", () => {
-    const html = renderWith("gewicht", WEIGHT_DATA);
+    const html = renderWith("weight", WEIGHT_DATA);
     expect(html).toContain('href="/targets"');
     expect(html).toContain("Adjust target range");
   });
 
   it("suppresses the share when the route flags insufficient data", () => {
-    const html = renderWith("gewicht", {
+    const html = renderWith("weight", {
       ...WEIGHT_DATA,
       targets: [{ ...WEIGHT_DATA.targets[0], insufficientData: true }],
     });
@@ -114,12 +114,12 @@ describe("<MetricTargetSummary>", () => {
   });
 
   it("renders nothing before the payload resolves", () => {
-    const html = renderWith("gewicht", undefined);
+    const html = renderWith("weight", undefined);
     expect(html).toBe("");
   });
 
   it("renders nothing when the matching target has no range", () => {
-    const html = renderWith("gewicht", {
+    const html = renderWith("weight", {
       ...WEIGHT_DATA,
       targets: [{ ...WEIGHT_DATA.targets[0], range: null }],
     });

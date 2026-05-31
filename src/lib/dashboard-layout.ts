@@ -176,7 +176,7 @@ export const CHART_OVERLAY_KEYS = [
   "medications",
   "sleep",
   "steps",
-  // v1.4.25 W16a — VO2 max chart-row on /insights/puls. Independent
+  // v1.4.25 W16a — VO2 max chart-row on /insights/pulse. Independent
   // overlay-prefs slot so the cardio sub-page's VO2 chart-cog state
   // doesn't bleed into the pulse chart sitting directly above it.
   "vo2Max",

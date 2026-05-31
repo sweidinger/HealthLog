@@ -67,17 +67,17 @@ interface TargetsResponse {
  * component renders nothing for them, so the sub-page collapses cleanly.
  */
 const SLUG_TO_TARGET_TYPE: Record<string, string> = {
-  blutdruck: "BLOOD_PRESSURE",
-  gewicht: "WEIGHT",
+  "blood-pressure": "BLOOD_PRESSURE",
+  weight: "WEIGHT",
   bmi: "BMI",
-  puls: "PULSE",
-  schlaf: "SLEEP_DURATION",
-  stimmung: "MOOD_SCORE",
-  medikamente: "MEDICATION_COMPLIANCE",
+  pulse: "PULSE",
+  sleep: "SLEEP_DURATION",
+  mood: "MOOD_SCORE",
+  medications: "MEDICATION_COMPLIANCE",
 };
 
 interface MetricTargetSummaryProps {
-  /** Insights category slug, e.g. `"blutdruck"`. */
+  /** Insights category slug, e.g. `"blood-pressure"`. */
   slug: string;
 }
 

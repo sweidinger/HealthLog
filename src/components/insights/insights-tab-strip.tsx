@@ -31,7 +31,7 @@ import {
  * v1.4.25 W4 — routed tab strip for `/insights`.
  *
  * Behaviour evolved from the v1.4.25 W3 scroll-anchor version: each pill
- * is now a `<Link>` to a routed sub-page (`/insights/blutdruck` …),
+ * is now a `<Link>` to a routed sub-page (`/insights/blood-pressure` …),
  * `usePathname()` decides the active pill, and the strip is mounted in
  * `src/app/insights/layout.tsx` so it persists across navigation
  * without re-rendering. The CoachDrawer is NOT mounted in this layout —
@@ -116,47 +116,47 @@ const SUB_PAGE_TABS: Record<
   { labelKey: string; metric: InsightMetric }
 > = {
   // ── vitals ──
-  blutdruck: {
+  "blood-pressure": {
     labelKey: "insights.navBloodPressure",
     metric: "BLOOD_PRESSURE_SYS",
   },
-  puls: { labelKey: "insights.navPulse", metric: "PULSE" },
-  sauerstoff: {
+  pulse: { labelKey: "insights.navPulse", metric: "PULSE" },
+  oxygen: {
     labelKey: "insights.navOxygenSaturation",
     metric: "OXYGEN_SATURATION",
   },
-  koerpertemperatur: {
+  "body-temperature": {
     labelKey: "insights.navBodyTemperature",
     metric: "BODY_TEMPERATURE",
   },
-  atemfrequenz: {
+  "respiratory-rate": {
     labelKey: "insights.navRespiratoryRate",
     metric: "RESPIRATORY_RATE",
   },
   // ── body composition ──
-  gewicht: { labelKey: "insights.navWeight", metric: "WEIGHT" },
+  weight: { labelKey: "insights.navWeight", metric: "WEIGHT" },
   bmi: { labelKey: "insights.navBmi", metric: "BMI" },
-  koerperwasser: {
+  "body-water": {
     labelKey: "insights.navTotalBodyWater",
     metric: "TOTAL_BODY_WATER",
   },
-  knochenmasse: { labelKey: "insights.navBoneMass", metric: "BONE_MASS" },
-  "fettfreie-masse": {
+  "bone-mass": { labelKey: "insights.navBoneMass", metric: "BONE_MASS" },
+  "fat-free-mass": {
     labelKey: "insights.navFatFreeMass",
     metric: "FAT_FREE_MASS",
   },
-  fettmasse: { labelKey: "insights.navFatMass", metric: "FAT_MASS" },
-  muskelmasse: { labelKey: "insights.navMuscleMass", metric: "MUSCLE_MASS" },
-  viszeralfett: {
+  "fat-mass": { labelKey: "insights.navFatMass", metric: "FAT_MASS" },
+  "muscle-mass": { labelKey: "insights.navMuscleMass", metric: "MUSCLE_MASS" },
+  "visceral-fat": {
     labelKey: "insights.navVisceralFat",
     metric: "VISCERAL_FAT",
   },
-  magermasse: {
+  "lean-body-mass": {
     labelKey: "insights.navLeanBodyMass",
     metric: "LEAN_BODY_MASS",
   },
   // ── activity ──
-  "aktive-energie": {
+  "active-energy": {
     labelKey: "insights.navActiveEnergy",
     metric: "ACTIVE_ENERGY_BURNED",
   },
@@ -164,85 +164,85 @@ const SUB_PAGE_TABS: Record<
   // availability helper reads `inputs.hasWorkouts` rather than a
   // `summaries[…].count`.
   workouts: { labelKey: "insights.navWorkouts", metric: "WORKOUTS" },
-  stockwerke: {
+  "flights-climbed": {
     labelKey: "insights.navFlightsClimbed",
     metric: "FLIGHTS_CLIMBED",
   },
-  gehstrecke: {
+  "walking-distance": {
     labelKey: "insights.navWalkingRunningDistance",
     metric: "WALKING_RUNNING_DISTANCE",
   },
-  gangstabilitaet: {
+  "walking-steadiness": {
     labelKey: "insights.navWalkingSteadiness",
     metric: "WALKING_STEADINESS",
   },
-  gehpuls: {
+  "walking-heart-rate": {
     labelKey: "insights.navWalkingHeartRateAverage",
     metric: "WALKING_HEART_RATE_AVERAGE",
   },
-  gangasymmetrie: {
+  "walking-asymmetry": {
     labelKey: "insights.navWalkingAsymmetry",
     metric: "WALKING_ASYMMETRY",
   },
-  doppelstandphase: {
+  "double-support-time": {
     labelKey: "insights.navWalkingDoubleSupport",
     metric: "WALKING_DOUBLE_SUPPORT",
   },
-  schrittlaenge: {
+  "step-length": {
     labelKey: "insights.navWalkingStepLength",
     metric: "WALKING_STEP_LENGTH",
   },
-  gehgeschwindigkeit: {
+  "walking-speed": {
     labelKey: "insights.navWalkingSpeed",
     metric: "WALKING_SPEED",
   },
   // ── sleep ──
-  schlaf: { labelKey: "insights.navSleep", metric: "SLEEP_DURATION" },
+  sleep: { labelKey: "insights.navSleep", metric: "SLEEP_DURATION" },
   // ── cardiovascular ──
-  ruhepuls: {
+  "resting-pulse": {
     labelKey: "insights.navRestingHr",
     metric: "RESTING_HEART_RATE",
   },
   hrv: { labelKey: "insights.navHrv", metric: "HEART_RATE_VARIABILITY" },
-  pulswellengeschwindigkeit: {
+  "pulse-wave-velocity": {
     labelKey: "insights.navPulseWaveVelocity",
     metric: "PULSE_WAVE_VELOCITY",
   },
-  gefaessalter: {
+  "vascular-age": {
     labelKey: "insights.navVascularAge",
     metric: "VASCULAR_AGE",
   },
   // ── hearing ──
-  laermbelastung: {
+  "environmental-audio": {
     labelKey: "insights.navAudioExposureEnv",
     metric: "AUDIO_EXPOSURE_ENV",
   },
-  kopfhoererpegel: {
+  "headphone-audio": {
     labelKey: "insights.navAudioExposureHeadphone",
     metric: "AUDIO_EXPOSURE_HEADPHONE",
   },
-  laermereignisse: {
+  "audio-events": {
     labelKey: "insights.navAudioExposureEvent",
     metric: "AUDIO_EXPOSURE_EVENT",
   },
   // ── environment ──
-  tageslicht: {
+  daylight: {
     labelKey: "insights.navTimeInDaylight",
     metric: "TIME_IN_DAYLIGHT",
   },
   // ── metabolic ──
-  blutzucker: {
+  "blood-glucose": {
     labelKey: "insights.navBloodGlucose",
     metric: "BLOOD_GLUCOSE",
   },
-  hauttemperatur: {
+  "skin-temperature": {
     labelKey: "insights.navSkinTemperature",
     metric: "SKIN_TEMPERATURE",
   },
   // ── mood ──
-  stimmung: { labelKey: "insights.navMood", metric: "MOOD" },
+  mood: { labelKey: "insights.navMood", metric: "MOOD" },
   // ── events ──
-  medikamente: { labelKey: "insights.navMedication", metric: "MEDICATION" },
+  medications: { labelKey: "insights.navMedication", metric: "MEDICATION" },
 };
 
 /**
@@ -409,7 +409,7 @@ function InsightsTabStripImpl({
             if (tab.kind === "link") {
               // The overview pill matches the mother page exactly; the
               // sub-page pills match a prefix so future nested routes
-              // (e.g. `/insights/schlaf/2026-05-11`) still highlight the
+              // (e.g. `/insights/sleep/2026-05-11`) still highlight the
               // parent tab.
               const isActive =
                 tab.href === INSIGHTS_OVERVIEW_PATH
