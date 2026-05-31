@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import { complianceChips } from "../compliance";
+import { buildCadenceTimeline } from "../cadence";
 import type {
   CadenceEngineContext,
   IntakeEventLike,
@@ -318,4 +319,41 @@ describe("complianceChips — canonical-engine delegation (v1.7.0 SB-SCHED-2)", 
     // than the equivalent every-day SCHEDULED expansion.
     expect(engine.missedLast30).toBeLessThan(everyDay.missedLast30);
   });
+
+  it("B15: a legacy daysOfWeek row with multiple timesOfDay emits one slot per time", () => {
+    // Repro of the compliance divergence: a plain `daysOfWeek` schedule
+    // (no rrule / rolling, SCHEDULED, not one-shot) carrying two
+    // `timesOfDay` must expand to two slots per qualifying day through the
+    // engine. Before the fix the cadence numerator routed such a row to
+    // the local legacy walker, which emitted a single slot/day from
+    // `windowStart` — so a 2×/day medication reported 1/2 = 50%.
+    const twiceDaily: ScheduleLike = {
+      windowStart: "08:00",
+      windowEnd: "19:30",
+      daysOfWeek: null, // every day
+      timesOfDay: ["08:00", "19:00"],
+      // no rrule, no rollingIntervalDays, scheduleType defaults to SCHEDULED
+    };
+    // A single 24-hour window starting at local midnight Berlin.
+    const dayStart = d("2025-06-09T00:00:00Z");
+    const NOW = d("2025-06-09T23:59:00Z");
+    const ctx = engineCtx({
+      startsOn: d("2025-05-01T00:00:00Z"),
+      timeZone: "Europe/Berlin",
+    });
+
+    const timeline = buildCadenceTimeline(
+      [twiceDaily],
+      [],
+      NOW,
+      1,
+      dayStart,
+      ctx.timeZone,
+      ctx,
+    );
+
+    // Both configured times land inside the one-day window → two slots.
+    expect(timeline.length).toBe(2);
+  });
+
 });

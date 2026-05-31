@@ -23,6 +23,7 @@ import {
   type ComplianceSchedule,
 } from "../compliance";
 import type { IntakeTimingClass } from "../compliance";
+import { buildCadenceTimeline } from "@/lib/medications/scheduling/cadence";
 import { getUserTodayBounds } from "@/lib/timezone";
 import { userDayKey } from "@/lib/tz/format";
 
@@ -557,6 +558,39 @@ describe("calculateCompliance — engine-routed (medicationContext)", () => {
     expect(result.rate).toBe(100);
     expect(result.missed).toBe(0);
   });
+
+  it("B15: legacy daysOfWeek row with two timesOfDay — 2×/day taken reads 100%, not 50%", () => {
+    // Regression for the compliance divergence: a plain `daysOfWeek`
+    // schedule (no rrule / rolling, SCHEDULED, not one-shot) carrying two
+    // `timesOfDay` must expand its numerator through the same engine as
+    // the denominator. Before the fix the numerator's local legacy walker
+    // emitted one slot/day from `windowStart`, while the denominator's
+    // engine counted both — collapsing a fully-adherent 2×/day med to
+    // 1/2 = 50%.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "19:30",
+        daysOfWeek: null, // every day
+        timesOfDay: ["08:00", "19:00"],
+        // no rrule, no rollingIntervalDays, scheduleType defaults SCHEDULED
+      },
+    ];
+    // Pin a single-day window so exactly two slots are expected. NOW is
+    // late evening UTC so both of today's slots are in the past.
+    vi.setSystemTime(new Date("2025-06-09T23:30:00Z"));
+    const events = [
+      eventAt(new Date("2025-06-09T08:00:00Z"), true),
+      eventAt(new Date("2025-06-09T19:00:00Z"), true),
+    ];
+    const result = calculateCompliance(events, schedules, 1, undefined, {
+      medicationContext: ctx({ startsOn: new Date("2025-05-01T00:00:00Z") }),
+    });
+    // Both daily slots expand and both pair with a taken intake → 2/2.
+    expect(result.totalExpected).toBe(2);
+    expect(result.taken).toBe(2);
+    expect(result.rate).toBe(100);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────
@@ -643,6 +677,62 @@ describe("expectedSlotCountForDay + lastNonSkippedTakenAt", () => {
       ctx(),
     );
     expect(count).toBe(2);
+  });
+
+  it("B15 invariant: legacy multi-time row — denominator and numerator expand identically", () => {
+    // The B15 bug lived in the numerator's expander, not here — this
+    // helper always ran the engine. Pin the convergence directly: for a
+    // plain `daysOfWeek` row carrying two `timesOfDay` (no rrule), the
+    // per-day denominator and the cadence numerator
+    // (`buildCadenceTimeline`) must report the same slot count.
+    const dayStart = new Date("2025-06-09T00:00:00Z");
+    const dayEnd = new Date("2025-06-10T00:00:00Z");
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "19:30",
+        daysOfWeek: null,
+        timesOfDay: ["08:00", "19:00"],
+      },
+    ];
+    const medCtx = ctx({
+      startsOn: new Date("2025-05-01T00:00:00Z"),
+      timeZone: "Europe/Berlin",
+    });
+
+    const denominator = expectedSlotCountForDay(
+      schedules,
+      dayStart,
+      dayEnd,
+      medCtx,
+    );
+
+    const numerator = buildCadenceTimeline(
+      [
+        {
+          windowStart: "08:00",
+          windowEnd: "19:30",
+          daysOfWeek: null,
+          timesOfDay: ["08:00", "19:00"],
+        },
+      ],
+      [],
+      new Date("2025-06-09T23:59:00Z"),
+      1,
+      dayStart,
+      medCtx.timeZone,
+      {
+        startsOn: medCtx.startsOn,
+        endsOn: medCtx.endsOn,
+        oneShot: medCtx.oneShot,
+        createdAt: medCtx.createdAt,
+        lastIntakeAt: medCtx.lastIntakeAt,
+        timeZone: medCtx.timeZone,
+      },
+    ).length;
+
+    expect(numerator).toBe(denominator);
+    expect(numerator).toBe(2);
   });
 
   it("lastNonSkippedTakenAt picks the newest non-skipped takenAt", () => {
