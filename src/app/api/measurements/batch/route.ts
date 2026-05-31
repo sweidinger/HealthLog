@@ -46,6 +46,7 @@ import { deviceTypeEnum } from "@/lib/validations/source-priority";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
+import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
   recomputeBucketsForMeasurement,
   collapseToTypeDayKeys,
@@ -484,6 +485,17 @@ async function postBatch(request: NextRequest): Promise<Response> {
       for (const k of insertedKeys) {
         await recomputeBucketsForMeasurement(user.id, k.type, k.measuredAt);
       }
+
+      // v1.8.0 — drop the cached per-metric assessment rows the ingested
+      // types dirty so the next mount / nightly warm pass regenerates
+      // them against the new data instead of serving stale text.
+      // Fire-and-forget: never a blocker on the user's ingest.
+      invalidateStatusInsightsForTypes(
+        user.id,
+        insertedKeys.map((k) => k.type),
+      ).catch((err) => {
+        console.warn("[measurements] status-insight invalidate failed", err);
+      });
     } catch (err) {
       console.warn("[measurements] rollup recompute failed", err);
     }
