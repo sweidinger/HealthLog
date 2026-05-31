@@ -21,9 +21,14 @@
 
 import {
   buildCadenceTimeline,
+  type CadenceEngineContext,
   type IntakeEventLike,
   type ScheduleLike,
 } from "@/lib/medications/scheduling/cadence";
+import {
+  occurrencesBetween,
+  type ScheduleType,
+} from "@/lib/medications/scheduling/recurrence";
 
 interface IntakeEvent {
   takenAt: Date | null;
@@ -56,6 +61,18 @@ export interface ComplianceResult {
  */
 export interface DailyComplianceEntry {
   expected: number;
+  /**
+   * v1.7.0 item 5 — the true engine-computed due-slot count for the day.
+   * Equals `expected`; carried as an explicit additive field iOS keys
+   * off so it doesn't have to infer "due-ness" from `expected`.
+   */
+  expectedCount: number;
+  /**
+   * v1.7.0 item 5 — `expectedCount > 0`. iOS renders a "missed" mark
+   * only when `due === true`, so off-weeks / non-matching weekdays / PRN
+   * days no longer paint a false miss.
+   */
+  due: boolean;
   taken: number;
   skipped: number;
   onTime: number;
@@ -154,6 +171,135 @@ export interface ComplianceSchedule {
   windowStart: string; // HH:mm
   windowEnd: string; // HH:mm
   daysOfWeek?: string | null;
+  /**
+   * v1.7.0 SB-SCHED-2 — canonical-engine fields. When present (and a
+   * `medicationContext` is threaded into `calculateCompliance`), the
+   * expected-slot grid is computed through the canonical recurrence
+   * engine, so an `rrule = "FREQ=WEEKLY;BYDAY=MO"` schedule counts only
+   * Mondays in the denominator instead of every day. Absent fields keep
+   * the legacy `daysOfWeek` path — existing fixtures / callers that pass
+   * only `{ windowStart, windowEnd }` behave exactly as before.
+   */
+  rrule?: string | null;
+  rollingIntervalDays?: number | null;
+  timesOfDay?: string[];
+  reminderGraceMinutes?: number | null;
+  scheduleType?: ScheduleType | null;
+  cyclicOnWeeks?: number | null;
+  cyclicOffWeeks?: number | null;
+}
+
+/**
+ * v1.7.0 SB-SCHED-2 — medication-level context the canonical engine
+ * needs to expand expected slots. When supplied, `calculateCompliance`
+ * routes the denominator through the engine; when omitted, every
+ * schedule falls back to the legacy weekday walker (the byte-stable
+ * pre-v1.7 behaviour that the parity fixtures pin).
+ */
+export interface ComplianceMedicationContext {
+  startsOn: Date | null;
+  endsOn: Date | null;
+  oneShot: boolean;
+  createdAt: Date;
+  lastIntakeAt: Date | null;
+  timeZone: string;
+}
+
+/**
+ * v1.7.0 SB-SCHED-2 — convenience builder so the eight compliance call
+ * sites don't each re-spell the context shape. Pass the medication row
+ * (any object carrying the course-window fields), the latest non-skipped
+ * intake instant, and the user's timezone.
+ */
+export function buildComplianceMedicationContext(
+  med: {
+    startsOn: Date | null;
+    endsOn: Date | null;
+    oneShot: boolean;
+    createdAt: Date;
+  },
+  lastIntakeAt: Date | null,
+  timeZone: string,
+): ComplianceMedicationContext {
+  return {
+    startsOn: med.startsOn,
+    endsOn: med.endsOn,
+    oneShot: med.oneShot,
+    createdAt: med.createdAt,
+    lastIntakeAt,
+    timeZone,
+  };
+}
+
+/**
+ * v1.7.0 SB-SCHED-2 — the latest non-skipped `takenAt` across an event
+ * list (rolling cadences re-anchor on it). Returns null when the user
+ * has never logged a non-skipped intake. Order-independent, so the
+ * caller can pass an events array in any sort order.
+ */
+export function lastNonSkippedTakenAt(
+  events: { takenAt: Date | null; skipped: boolean }[],
+): Date | null {
+  return events.reduce<Date | null>((latest, e) => {
+    if (e.skipped || e.takenAt === null) return latest;
+    if (latest === null || e.takenAt.getTime() > latest.getTime()) {
+      return e.takenAt;
+    }
+    return latest;
+  }, null);
+}
+
+/**
+ * v1.7.0 item 5 — count the expected dose slots a medication's schedules
+ * emit inside `[dayStart, dayEnd)`, routed through the canonical engine.
+ * Powers the per-day `due` / `expectedCount` fields on the per-med
+ * compliance payload so iOS history renders a "missed" mark only on days
+ * the schedule actually expected a dose (not off-weeks / non-matching
+ * weekdays / PRN days).
+ */
+export function expectedSlotCountForDay(
+  schedules: ComplianceSchedule[],
+  dayStart: Date,
+  dayEnd: Date,
+  ctx: ComplianceMedicationContext,
+): number {
+  let count = 0;
+  const recurrenceCtx = {
+    medication: {
+      id: "compliance-daily",
+      startsOn: ctx.startsOn,
+      endsOn: ctx.endsOn,
+      oneShot: ctx.oneShot,
+      createdAt: ctx.createdAt,
+    },
+    timeZone: ctx.timeZone,
+    lastIntakeAt: ctx.lastIntakeAt,
+  };
+  for (let i = 0; i < schedules.length; i++) {
+    const s = schedules[i];
+    const canonical = {
+      id: `compliance-daily-${i}`,
+      rrule: s.rrule ?? null,
+      rollingIntervalDays: s.rollingIntervalDays ?? null,
+      timesOfDay: s.timesOfDay ?? [],
+      daysOfWeek: s.daysOfWeek ?? null,
+      windowStart: s.windowStart,
+      windowEnd: s.windowEnd,
+      reminderGraceMinutes: s.reminderGraceMinutes ?? null,
+      scheduleType: s.scheduleType ?? ("SCHEDULED" as const),
+      cyclicOnWeeks: s.cyclicOnWeeks ?? null,
+      cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+    };
+    count += occurrencesBetween(
+      canonical,
+      dayStart,
+      // occurrencesBetween is inclusive of both ends; subtract 1 ms so a
+      // slot exactly at the next day's midnight doesn't double-count.
+      new Date(dayEnd.getTime() - 1),
+      recurrenceCtx,
+    ).length;
+  }
+  return count;
 }
 
 /**
@@ -205,7 +351,7 @@ export function calculateCompliance(
   schedules: ComplianceSchedule[],
   days: number,
   medicationCreatedAt?: Date,
-  options?: { now?: Date },
+  options?: { now?: Date; medicationContext?: ComplianceMedicationContext },
 ): ComplianceResult {
   if (schedules.length === 0) {
     return {
@@ -233,11 +379,39 @@ export function calculateCompliance(
   // Normalise the schedule shape so legacy callers that pass only
   // `{ windowStart, windowEnd }` still produce a usable `daysOfWeek`
   // field (treated as daily by the cadence parser).
-  const normalisedSchedules: ScheduleLike[] = schedules.map((s) => ({
+  const normalisedSchedules: ScheduleLike[] = schedules.map((s, i) => ({
+    id: `compliance-${i}`,
     windowStart: s.windowStart,
     windowEnd: s.windowEnd,
     daysOfWeek: s.daysOfWeek ?? null,
+    // v1.7.0 SB-SCHED-2 — thread the canonical-engine fields so the
+    // cadence expander can delegate to `occurrencesBetween` when a
+    // medication context is supplied. Undefined fields collapse to the
+    // legacy weekday path inside `expandScheduleSlots`.
+    rrule: s.rrule ?? null,
+    rollingIntervalDays: s.rollingIntervalDays ?? null,
+    timesOfDay: s.timesOfDay,
+    reminderGraceMinutes: s.reminderGraceMinutes ?? null,
+    scheduleType: s.scheduleType ?? null,
+    cyclicOnWeeks: s.cyclicOnWeeks ?? null,
+    cyclicOffWeeks: s.cyclicOffWeeks ?? null,
   }));
+
+  // v1.7.0 SB-SCHED-2 — build the engine context once per medication.
+  // When the caller supplies it, the timeline routes through the
+  // canonical engine (RRULE / rolling / one-shot / PRN / cyclic);
+  // otherwise the legacy weekday walker stays in force.
+  const ctx = options?.medicationContext;
+  const engineCtx: CadenceEngineContext | undefined = ctx
+    ? {
+        startsOn: ctx.startsOn,
+        endsOn: ctx.endsOn,
+        oneShot: ctx.oneShot,
+        createdAt: ctx.createdAt,
+        lastIntakeAt: ctx.lastIntakeAt,
+        timeZone: ctx.timeZone,
+      }
+    : undefined;
 
   // Match events against the same slot grid the cadence chart uses.
   // The chart's pairing radius is ±12 h so a late-by-six-hours dose
@@ -257,6 +431,8 @@ export function calculateCompliance(
     now,
     effectiveDays,
     medicationCreatedAt ?? effectiveStart,
+    engineCtx?.timeZone,
+    engineCtx,
   );
 
   let taken = 0;

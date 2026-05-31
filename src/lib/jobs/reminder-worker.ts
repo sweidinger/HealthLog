@@ -36,6 +36,11 @@ import { setGlobalBoss } from "@/lib/jobs/boss-instance";
 import { cleanupExpiredIdempotencyKeys } from "@/lib/jobs/idempotency-cleanup";
 import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
 import { cleanupExpiredWithingsOAuthStates } from "@/lib/jobs/withings-oauth-state-cleanup";
+import {
+  cleanupExpiredMeasurementTombstones,
+  cleanupExpiredMoodTombstones,
+  cleanupExpiredIntakeTombstones,
+} from "@/lib/jobs/measurement-tombstone-cleanup";
 import { runHostMetricTick } from "@/lib/jobs/host-metric-sampler";
 import { aggregateRecommendationFeedback } from "@/lib/jobs/feedback-aggregator";
 import {
@@ -55,6 +60,12 @@ import {
   MEDICATION_INVENTORY_EXPIRE_CRON,
   type MedicationInventoryExpirePayload,
 } from "@/lib/jobs/medication-inventory-expire";
+import {
+  INSIGHT_PREGENERATE_QUEUE,
+  INSIGHT_PREGENERATE_CRON,
+  runInsightPregenerate,
+  type InsightPregeneratePayload,
+} from "@/lib/jobs/insight-pregenerate";
 import {
   INTAKE_AUTO_SKIP_QUEUE,
   INTAKE_AUTO_SKIP_CRON,
@@ -107,6 +118,13 @@ import {
   enqueueBootTimeStepConsolidation,
   type StepConsolidationPayload,
 } from "@/lib/jobs/step-consolidation";
+import {
+  MEAN_CONSOLIDATION_QUEUE,
+  MEAN_CONSOLIDATION_CONCURRENCY,
+  runMeanConsolidationForUser,
+  enqueueBootTimeMeanConsolidation,
+  type MeanConsolidationPayload,
+} from "@/lib/jobs/mean-consolidation";
 import { expireStaleInUseItems } from "@/lib/medications/inventory/service";
 import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
 import { probeIntegrationStatusNullBuckets } from "@/lib/jobs/integration-status-null-probe";
@@ -253,6 +271,15 @@ const MOOD_REMINDER_RETENTION_DAYS = 90;
 const PUSH_ATTEMPT_CLEANUP_QUEUE = "push-attempt-cleanup";
 const PUSH_ATTEMPT_CLEANUP_CRON = "35 3 * * *";
 const PUSH_ATTEMPT_RETENTION_DAYS = 90;
+// v1.7.0 — daily prune for soft-deleted measurement tombstones. Rows
+// whose `deletedAt` predates the refresh-token lifetime + margin are
+// hard-deleted (a device offline that long re-pairs with a full backfill,
+// not an incremental delta, so it never relies on the tombstone).
+// Retention lives on the helper module keyed to the refresh lifetime so
+// the two never drift. Slots at 03:40 between push-attempt cleanup (03:35)
+// and the drain (03:45) inside the existing 03:xx maintenance window.
+const MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE = "measurement-tombstone-cleanup";
+const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
 // v1.4.38 — the per-sample cutoff hours constant now lives on the
 // helper module so the worker, the admin route, and the CLI all read
 // the same source of truth. Re-export pulled in alongside
@@ -499,19 +526,38 @@ async function handleReminderCheck(jobs: Job<ReminderCheckPayload>[]) {
           timeZone: userTz,
         }); // YYYY-MM-DD format
 
-        // Count existing intake events for this medication today
-        const eventCount = await prisma.medicationIntakeEvent.count({
+        // v1.7.0 code-correctness M4 — fetch today's intake events so a
+        // logged dose suppresses the reminder for the SLOT it belongs to,
+        // not a positional running counter. The pre-v1.7 code suppressed
+        // by `eventCount > schedulesProcessed`, which attributed a logged
+        // morning dose to whichever slot iterated first; with an unsorted
+        // `timesOfDay = ["20:00","08:00"]` that suppressed the evening
+        // reminder while the morning still fired. We match by time-of-day
+        // proximity instead. Worker-minted RED placeholders (takenAt null,
+        // not skipped, source REMINDER) are NOT a user action, so they are
+        // excluded from the suppression set.
+        const todayEvents = await prisma.medicationIntakeEvent.findMany({
           where: {
             medicationId: med.id,
             userId: med.user.id,
+            // v1.7.0 sync — a tombstoned dose is no longer a logged
+            // action, so it must not suppress today's reminder.
+            deletedAt: null,
             scheduledFor: { gte: todayStart, lte: todayEnd },
           },
+          select: { scheduledFor: true, takenAt: true, skipped: true },
         });
+        const loggedDoseInstants = todayEvents
+          .filter((e) => e.takenAt !== null || e.skipped)
+          .map((e) => (e.takenAt ?? e.scheduledFor).getTime());
 
         // Resolve phase configuration
         const phaseConfig = med.phaseConfig ?? DEFAULT_PHASE_CONFIG;
 
-        let schedulesProcessed = 0;
+        // Slots a logged dose has already claimed (by index into the
+        // chronologically-sorted slotTimes) so one dose can't suppress two.
+        const claimedSlotInstants = new Set<number>();
+
         const sortedSchedules = [...med.schedules].sort((a, b) =>
           a.windowStart.localeCompare(b.windowStart),
         );
@@ -533,6 +579,9 @@ async function handleReminderCheck(jobs: Job<ReminderCheckPayload>[]) {
             where: {
               userId: med.user.id,
               medicationId: med.id,
+              // v1.7.0 sync — a tombstoned intake no longer anchors the
+              // rolling-interval next-due computation.
+              deletedAt: null,
               takenAt: { not: null },
             },
             orderBy: { takenAt: "desc" },
@@ -567,210 +616,236 @@ async function handleReminderCheck(jobs: Job<ReminderCheckPayload>[]) {
             continue;
           }
 
-          const startMins = parseTimeToMinutes(schedule.windowStart);
-          const endMins = parseTimeToMinutes(schedule.windowEnd);
+          // v1.7.0 SB-SCHED-4 — multi-time-of-day dispatch. A schedule
+          // with `timesOfDay = ["08:00","20:00"]` is two distinct dose
+          // slots per day; the pre-v1.7 worker keyed phase + dedup on the
+          // single `windowStart`, so the evening dose never reminded.
+          // Iterate every first-class time-of-day, each with its own
+          // window (anchored at the time, spanning the legacy
+          // `windowEnd - windowStart` duration), phase, dedup key
+          // (now including the time-of-day), and RED-mint instant.
+          //
+          // The legacy single-window contract is preserved: a schedule
+          // with no first-class `timesOfDay` emits exactly one slot at
+          // `windowStart` with `timeOfDay = ""`, which dedupes against
+          // pre-v1.7 rows (backfilled to "") byte-for-byte.
+          const baseStartMins = parseTimeToMinutes(schedule.windowStart);
+          const baseEndMins = parseTimeToMinutes(schedule.windowEnd);
+          const windowDuration = baseEndMins - baseStartMins;
           const currentMins = parseTimeToMinutes(currentTime);
-          const windowDuration = endMins - startMins;
-          const minutesToEnd = endMins - currentMins;
-          const minutesFromStart = currentMins - startMins;
 
-          // Skip if enough intake events exist
-          if (eventCount > schedulesProcessed) {
-            schedulesProcessed++;
-            continue;
-          }
+          const hasFirstClassTimes =
+            schedule.timesOfDay && schedule.timesOfDay.length > 0;
+          // v1.7.0 code-correctness M4 — iterate slots in chronological
+          // order so phase/dedup/suppression decisions are deterministic
+          // and a logged dose maps to the nearest slot, not whichever the
+          // stored array order happened to surface first.
+          const slotTimes = (
+            hasFirstClassTimes ? [...schedule.timesOfDay] : [schedule.windowStart]
+          ).sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
 
-          // Skip if medication is snoozed
-          if (med.snoozedUntil && now < med.snoozedUntil) {
-            schedulesProcessed++;
-            continue;
-          }
+          for (const slotTime of slotTimes) {
+            // Dedup key time-of-day: "" for a legacy single-window
+            // schedule (byte-stable against pre-v1.7 rows), else the
+            // explicit HH:mm.
+            const dedupTimeOfDay = hasFirstClassTimes ? slotTime : "";
+            const slotStartMins = parseTimeToMinutes(slotTime);
+            const slotEndMins = slotStartMins + windowDuration;
+            const minutesToEnd = slotEndMins - currentMins;
+            const minutesFromStart = currentMins - slotStartMins;
 
-          // Resolve phase thresholds
-          const thresholds = resolvePhaseThresholds(
-            phaseConfig,
-            windowDuration,
-          );
+            // The UTC instant this slot is due (DST-safe).
+            const [slotH, slotM] = slotTime.split(":").map(Number);
+            const slotInstant = localHmAsUtc(
+              now,
+              med.user.timezone,
+              slotH,
+              slotM,
+            ).getTime();
 
-          // Determine current phase
-          const currentPhase = determinePhase(
-            minutesToEnd,
-            minutesFromStart,
-            thresholds,
-          );
+            // Suppress this slot's reminder if a user-logged dose (taken
+            // or skipped) sits within half the window duration of the
+            // slot's due time. Matching by proximity — not a positional
+            // counter — means a partially-dosed day still reminds for the
+            // correct missing slot. Each logged dose claims at most one
+            // slot so two slots can't both be suppressed by one dose.
+            const matchRadiusMs =
+              Math.max(windowDuration, 60) * 60_000 * 0.5;
+            let matchedIdx = -1;
+            let matchedDist = Infinity;
+            for (let li = 0; li < loggedDoseInstants.length; li++) {
+              if (claimedSlotInstants.has(li)) continue;
+              const dist = Math.abs(loggedDoseInstants[li] - slotInstant);
+              if (dist <= matchRadiusMs && dist < matchedDist) {
+                matchedDist = dist;
+                matchedIdx = li;
+              }
+            }
+            if (matchedIdx >= 0) {
+              claimedSlotInstants.add(matchedIdx);
+              continue;
+            }
 
-          if (!currentPhase) {
-            schedulesProcessed++;
-            continue;
-          }
+            // Skip if medication is snoozed
+            if (med.snoozedUntil && now < med.snoozedUntil) {
+              continue;
+            }
 
-          // Check if this phase was already notified today
-          const existingMessage =
-            await prisma.telegramReminderMessage.findUnique({
-              where: {
-                medicationId_scheduleId_date_phase: {
-                  medicationId: med.id,
-                  scheduleId: schedule.id,
-                  date: localDateStr,
-                  phase: currentPhase,
+            // Resolve phase thresholds
+            const thresholds = resolvePhaseThresholds(
+              phaseConfig,
+              windowDuration,
+            );
+
+            // Determine current phase for this slot's window.
+            const currentPhase = determinePhase(
+              minutesToEnd,
+              minutesFromStart,
+              thresholds,
+            );
+
+            if (!currentPhase) {
+              continue;
+            }
+
+            // Check if this phase was already notified today for this
+            // time-of-day.
+            const existingMessage =
+              await prisma.telegramReminderMessage.findUnique({
+                where: {
+                  medicationId_scheduleId_date_phase_timeOfDay: {
+                    medicationId: med.id,
+                    scheduleId: schedule.id,
+                    date: localDateStr,
+                    phase: currentPhase,
+                    timeOfDay: dedupTimeOfDay,
+                  },
                 },
-              },
-            });
+              });
 
-          if (existingMessage) {
-            // Already sent for this phase — skip
-            schedulesProcessed++;
-            continue;
-          }
+            if (existingMessage) {
+              // Already sent for this phase + time-of-day — skip
+              continue;
+            }
 
-          const doseInfo = schedule.dose ?? med.dose;
-          const timeWindow = `${schedule.windowStart}–${schedule.windowEnd}`;
+            const doseInfo = schedule.dose ?? med.dose;
+            const timeWindow = `${slotTime}`;
 
-          // RED phase: create missed intake event
-          if (currentPhase === "RED") {
-            const [h, m] = schedule.windowStart.split(":").map(Number);
-            // DST-safe: re-derive the offset at the target local time so
-            // the UTC instant is correct on spring-forward / fall-back
-            // days. `todayStart + h * 3.6e6` drifts by an hour twice a
-            // year — the iOS snooze action would otherwise pin against
-            // the wrong baseline.
-            const scheduledFor = localHmAsUtc(now, med.user.timezone, h, m);
+            // DST-safe slot instant, computed once above.
+            const slotScheduledFor = new Date(slotInstant);
 
-            const existingMissed = await prisma.medicationIntakeEvent.count({
-              where: {
-                medicationId: med.id,
-                userId: med.user.id,
-                scheduledFor,
-                takenAt: null,
-                source: "REMINDER",
-              },
-            });
-
-            if (existingMissed === 0) {
-              await prisma.medicationIntakeEvent.create({
-                data: {
-                  userId: med.user.id,
+            // RED phase: create missed intake event for this slot.
+            if (currentPhase === "RED") {
+              // v1.7.0 sync — intentionally NO `deletedAt: null` filter:
+              // a tombstoned row still occupies the `(userId, medicationId,
+              // scheduledFor, source)` unique slot, so the missed-dose
+              // create must treat it as present to avoid a P2002 collision.
+              const existingMissed = await prisma.medicationIntakeEvent.count({
+                where: {
                   medicationId: med.id,
-                  scheduledFor,
+                  userId: med.user.id,
+                  scheduledFor: slotScheduledFor,
                   takenAt: null,
-                  skipped: false,
                   source: "REMINDER",
                 },
               });
 
-              evt.addMeta(
-                "missed_dose",
-                `${med.name}:${schedule.windowStart}-${schedule.windowEnd}`,
-              );
+              if (existingMissed === 0) {
+                await prisma.medicationIntakeEvent.create({
+                  data: {
+                    userId: med.user.id,
+                    medicationId: med.id,
+                    scheduledFor: slotScheduledFor,
+                    takenAt: null,
+                    skipped: false,
+                    source: "REMINDER",
+                  },
+                });
 
-              // v1.4.39 W-MED — the worker just minted a fresh
-              // `scheduledFor` row with `takenAt: null`; refresh the
-              // compliance rollup so the per-day `scheduled` count
-              // increments before any read sees the user's tile.
-              await recomputeMedicationComplianceForEvent({
-                userId: med.user.id,
-                medicationId: med.id,
-                scheduledFor,
-                tz: med.user.timezone,
-              });
+                evt.addMeta("missed_dose", `${med.name}:${slotTime}`);
+
+                // v1.4.39 W-MED — refresh the compliance rollup so the
+                // per-day `scheduled` count increments before any read.
+                await recomputeMedicationComplianceForEvent({
+                  userId: med.user.id,
+                  medicationId: med.id,
+                  scheduledFor: slotScheduledFor,
+                  tz: med.user.timezone,
+                });
+              }
             }
-          }
 
-          // Send notification if enabled
-          if (med.notificationsEnabled) {
-            // v1.4.49 M-DOUBLE-REMINDER — opt-in client-managed
-            // suppression. When the iOS app has confirmed local
-            // SpeziScheduler banners cover the dose, the server-side
-            // APNs push is redundant. Skip the dispatch and emit a
-            // wide-event annotation so the operator can audit the
-            // skip path. ONLY suppresses MEDICATION_REMINDER — other
-            // notification kinds (MOOD_REMINDER, PERSONAL_RECORD,
-            // SYSTEM_ALERT, anomaly alerts) flow unchanged.
-            if (
-              isMedicationReminderClientManaged(med.user.notificationPrefs)
-            ) {
-              const [winH, winM] = schedule.windowStart.split(":").map(Number);
-              const doseAtIso = localHmAsUtc(
-                now,
-                med.user.timezone,
-                winH,
-                winM,
-              ).toISOString();
-              evt.addMeta(
-                "medication_reminder_suppressed_client_managed",
-                `${med.name}:${schedule.windowStart}-${schedule.windowEnd}`,
-              );
-              evt.addMeta(
-                "medication_reminder_suppressed_meta",
-                {
+            // Send notification if enabled
+            if (med.notificationsEnabled) {
+              // v1.4.49 M-DOUBLE-REMINDER — opt-in client-managed
+              // suppression. ONLY suppresses MEDICATION_REMINDER.
+              if (
+                isMedicationReminderClientManaged(med.user.notificationPrefs)
+              ) {
+                const doseAtIso = slotScheduledFor.toISOString();
+                evt.addMeta(
+                  "medication_reminder_suppressed_client_managed",
+                  `${med.name}:${slotTime}`,
+                );
+                evt.addMeta("medication_reminder_suppressed_meta", {
                   user_id: med.user.id,
                   medication_id: med.id,
                   schedule_id: schedule.id,
                   phase: currentPhase,
                   dose_at: doseAtIso,
-                },
+                });
+                continue;
+              }
+
+              const { title, message } = getPhaseMessage(
+                currentPhase,
+                med.name,
+                doseInfo,
+                timeWindow,
+                minutesToEnd,
+                med.user.locale,
               );
-              schedulesProcessed++;
-              continue;
-            }
 
-            const { title, message } = getPhaseMessage(
-              currentPhase,
-              med.name,
-              doseInfo,
-              timeWindow,
-              minutesToEnd,
-              med.user.locale,
-            );
-
-            const keyboard = getPhaseKeyboard(
-              currentPhase,
-              med.id,
-              med.user.locale,
-            );
-
-            // v0.5.4 — surface the window-start as an ISO 8601 string so
-            // the iOS notification handler can pin a "snooze 15 min"
-            // action against the actual schedule slot rather than the
-            // wall-clock moment APNs delivered. DST-safe via
-            // `localHmAsUtc` so spring-forward / fall-back days don't
-            // drift the baseline by an hour.
-            const [winH, winM] = schedule.windowStart.split(":").map(Number);
-            const scheduledAtIso = localHmAsUtc(
-              now,
-              med.user.timezone,
-              winH,
-              winM,
-            ).toISOString();
-
-            evt.addMeta(
-              "notification_phase",
-              `${currentPhase}:${med.name}:${schedule.windowStart}-${schedule.windowEnd}`,
-            );
-
-            try {
-              await dispatchNotification({
-                eventType: "MEDICATION_REMINDER",
-                userId: med.user.id,
-                title,
-                message,
-                metadata: {
-                  medicationId: med.id,
-                  scheduleId: schedule.id,
-                  phase: currentPhase,
-                  date: localDateStr,
-                  scheduledAt: scheduledAtIso,
-                  replyMarkup: keyboard,
-                },
-              });
-            } catch (notifErr) {
-              evt.addWarning(
-                `Notification dispatch failed for ${currentPhase} phase ${med.name}: ${notifErr}`,
+              const keyboard = getPhaseKeyboard(
+                currentPhase,
+                med.id,
+                med.user.locale,
               );
+
+              // v0.5.4 — surface the slot time as an ISO 8601 string so
+              // the iOS snooze action pins against the actual slot.
+              const scheduledAtIso = slotScheduledFor.toISOString();
+
+              evt.addMeta(
+                "notification_phase",
+                `${currentPhase}:${med.name}:${slotTime}`,
+              );
+
+              try {
+                await dispatchNotification({
+                  eventType: "MEDICATION_REMINDER",
+                  userId: med.user.id,
+                  title,
+                  message,
+                  metadata: {
+                    medicationId: med.id,
+                    scheduleId: schedule.id,
+                    phase: currentPhase,
+                    date: localDateStr,
+                    // v1.7.0 SB-SCHED-4 — carry the dedup time-of-day so
+                    // the Telegram-message ledger keys per slot.
+                    timeOfDay: dedupTimeOfDay,
+                    scheduledAt: scheduledAtIso,
+                    replyMarkup: keyboard,
+                  },
+                });
+              } catch (notifErr) {
+                evt.addWarning(
+                  `Notification dispatch failed for ${currentPhase} phase ${med.name}: ${notifErr}`,
+                );
+              }
             }
           }
-
-          schedulesProcessed++;
         }
       }
     } catch (err) {
@@ -1330,6 +1405,33 @@ async function handlePushAttemptCleanup(
   });
 }
 
+interface MeasurementTombstoneCleanupPayload {
+  triggeredAt: string;
+}
+
+async function handleMeasurementTombstoneCleanup(
+  jobs: Job<MeasurementTombstoneCleanupPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.measurement_tombstone_cleanup", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      // v1.7.0 sync — prune tombstones across all three sync domains on
+      // the same retention horizon.
+      const [measurements, mood, intakes] = await Promise.all([
+        cleanupExpiredMeasurementTombstones(p),
+        cleanupExpiredMoodTombstones(p),
+        cleanupExpiredIntakeTombstones(p),
+      ]);
+      evt.addMeta("measurement_tombstone_cleanup_pruned", measurements);
+      evt.addMeta("mood_tombstone_cleanup_pruned", mood);
+      evt.addMeta("intake_tombstone_cleanup_pruned", intakes);
+    } catch (err) {
+      evt.addWarning(`tombstone-cleanup failed: ${err}`);
+    }
+  });
+}
+
 async function handleMoodReminderCheck(jobs: Job<MoodReminderPayload>[]) {
   void jobs;
   await withBackgroundEvent("job.mood_reminder", async (evt) => {
@@ -1560,6 +1662,27 @@ async function handleMedicationInventoryExpire(
     } catch (err) {
       evt.addWarning(
         `medication-inventory-expire failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  });
+}
+
+async function handleInsightPregenerateJob(
+  jobs: Job<InsightPregeneratePayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.insight_pregenerate", async (evt) => {
+    try {
+      const summary = await runInsightPregenerate(getWorkerPrisma());
+      evt.setBackground({
+        task_name: "job.insight_pregenerate",
+        result: { ...summary },
+      });
+    } catch (err) {
+      evt.addWarning(
+        `insight-pregenerate failed: ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
@@ -1883,6 +2006,14 @@ export async function startReminderWorker() {
     // registered here or pg-boss never provisions it and the boot
     // enqueue silently never drains.
     STEP_CONSOLIDATION_QUEUE,
+    // v1.7.0 — daily-mean consolidation for high-frequency spot
+    // HealthKit metrics (walking speed/step length, respiratory rate,
+    // audio exposure). Boot discovery enqueues one job per user holding
+    // live per-sample mean-type rows; the per-user pass collapses each
+    // day to its mean and soft-deletes the originals. Idempotent across
+    // reboots. The queue MUST be registered here or pg-boss never
+    // provisions it and the boot enqueue silently never drains.
+    MEAN_CONSOLIDATION_QUEUE,
     // v1.4.37 W7c — explicit createQueue is required before the
     // nightly schedule below registers (pg-boss v12 contract). Without
     // this entry the drain schedule silently no-ops and the
@@ -1898,6 +2029,17 @@ export async function startReminderWorker() {
     // as the other cleanup jobs; the daily schedule below would
     // silently no-op without this entry.
     PUSH_ATTEMPT_CLEANUP_QUEUE,
+    // v1.7.0 — nightly comprehensive-insight pre-generation so the
+    // daily briefing is warm before the user opens /insights or the
+    // dashboard snapshot. Same pg-boss v12 createQueue contract; without
+    // this entry the 04:30 schedule silently no-ops and every briefing
+    // falls back to the lazy on-demand generation it was meant to retire.
+    INSIGHT_PREGENERATE_QUEUE,
+    // v1.7.0 — soft-deleted measurement tombstone prune. Same createQueue
+    // contract as the other cleanup jobs; without this entry the daily
+    // schedule silently no-ops and pruned-past-retention tombstones pile
+    // up forever.
+    MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -1982,6 +2124,12 @@ export async function startReminderWorker() {
     [MOOD_REMINDER_CLEANUP_QUEUE, MOOD_REMINDER_CLEANUP_CRON],
     // v1.4.49 — daily 03:35 Europe/Berlin prune for push_attempts.
     [PUSH_ATTEMPT_CLEANUP_QUEUE, PUSH_ATTEMPT_CLEANUP_CRON],
+    // v1.7.0 — nightly 04:30 Europe/Berlin comprehensive-insight
+    // pre-generation. Budget-gated per user inside the handler.
+    [INSIGHT_PREGENERATE_QUEUE, INSIGHT_PREGENERATE_CRON],
+    // v1.7.0 — daily 03:40 Europe/Berlin prune for expired measurement
+    // tombstones.
+    [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -2112,6 +2260,13 @@ export async function startReminderWorker() {
     { localConcurrency: 1 },
     handlePushAttemptCleanup,
   );
+  // v1.7.0 — daily prune of expired measurement tombstones. Single-flight
+  // like every other cleanup queue.
+  await boss.work<MeasurementTombstoneCleanupPayload>(
+    MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleMeasurementTombstoneCleanup,
+  );
   await boss.work<PrDetectionPayload>(
     PR_DETECTION_QUEUE,
     { localConcurrency: PR_DETECTION_CONCURRENCY },
@@ -2121,6 +2276,15 @@ export async function startReminderWorker() {
     MEDICATION_INVENTORY_EXPIRE_QUEUE,
     { localConcurrency: 1 },
     handleMedicationInventoryExpire,
+  );
+  // v1.7.0 — nightly comprehensive-insight pre-generation. Single-flight
+  // so two ticks can't double-generate the same user; the per-user
+  // budget gate inside the handler also covers the race, but
+  // serialising here avoids wasted chain-resolves.
+  await boss.work<InsightPregeneratePayload>(
+    INSIGHT_PREGENERATE_QUEUE,
+    { localConcurrency: 1 },
+    handleInsightPregenerateJob,
   );
   // v1.4.46 — hourly auto-skip for stale unmarked intakes.
   // Single-flight: two ticks racing against the same row pile is wasted
@@ -2204,6 +2368,27 @@ export async function startReminderWorker() {
         workerLog(
           "info",
           `[step-consolidation] user=${userId} days=${daysConsolidated} legacyRowsSoftDeleted=${legacyRowsSoftDeleted}`,
+        );
+      }
+    },
+  );
+
+  // v1.7.0 — daily-mean consolidation worker. The boot enqueue helper
+  // below sends one job per user holding live per-sample high-frequency
+  // mean-type rows; this handler collapses each completed day to its
+  // mean and soft-deletes the originals. Serial concurrency so the
+  // populator never crowds the dashboard request pool.
+  await boss.work<MeanConsolidationPayload>(
+    MEAN_CONSOLIDATION_QUEUE,
+    { localConcurrency: MEAN_CONSOLIDATION_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const { daysConsolidated, perSampleRowsSoftDeleted } =
+          await runMeanConsolidationForUser(userId);
+        workerLog(
+          "info",
+          `[mean-consolidation] user=${userId} days=${daysConsolidated} perSampleRowsSoftDeleted=${perSampleRowsSoftDeleted}`,
         );
       }
     },
@@ -2382,6 +2567,34 @@ export async function startReminderWorker() {
     workerLog(
       "error",
       "[step-consolidation] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.7.0 — fire-and-forget boot discovery for the daily-mean
+  // consolidation pass. Finds every user holding live per-sample
+  // high-frequency mean-type rows and enqueues one job per account.
+  // Idempotent across reboots: consolidated rows are soft-deleted, so
+  // the discovery predicate drops them. Errors are returned through the
+  // helper's result value — the worker boot never fails on a miss.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeMeanConsolidation();
+    if (error) {
+      workerLog(
+        "error",
+        `[mean-consolidation] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[mean-consolidation] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[mean-consolidation] boot discovery threw an unexpected error",
       err,
     );
   }

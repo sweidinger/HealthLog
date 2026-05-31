@@ -14,11 +14,17 @@
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import {
+  buildComplianceMedicationContext,
   calculateCompliance,
   classifyIntakeTiming,
+  expectedSlotCountForDay,
+  lastNonSkippedTakenAt,
+  type ComplianceMedicationContext,
   type ComplianceSchedule,
 } from "../compliance";
 import type { IntakeTimingClass } from "../compliance";
+import { getUserTodayBounds } from "@/lib/timezone";
+import { userDayKey } from "@/lib/tz/format";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -314,6 +320,410 @@ describe("calculateCompliance — cadence-aware adapter", () => {
     }));
     const result = calculateCompliance(events, schedules, 7);
     expect(result.rate).toBeLessThanOrEqual(100);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.7.0 SB-SCHED-2 — canonical-engine-routed compliance (Option B)
+//
+// When a `medicationContext` is supplied, the expected-slot denominator
+// runs through the canonical recurrence engine. These golden fixtures
+// pin every cadence type's denominator explicitly — this is the
+// riskiest change of the release because it moves every adherence number
+// for non-daily meds.
+// ────────────────────────────────────────────────────────────────────
+
+describe("calculateCompliance — engine-routed (medicationContext)", () => {
+  // Pin `now` to a Wednesday so a weekly Monday cadence has a clean
+  // count of Mondays in the trailing 30-day window.
+  const NOW = new Date("2025-01-15T12:00:00Z");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function ctx(overrides: Partial<{
+    startsOn: Date | null;
+    endsOn: Date | null;
+    oneShot: boolean;
+    createdAt: Date;
+    lastIntakeAt: Date | null;
+    timeZone: string;
+  }> = {}) {
+    return {
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      createdAt: new Date("2024-12-01T00:00:00Z"),
+      lastIntakeAt: null,
+      timeZone: "UTC",
+      ...overrides,
+    };
+  }
+
+  it("parity: a legacy daysOfWeek-only schedule yields identical numbers with no context", () => {
+    const schedules: ComplianceSchedule[] = [
+      { windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null },
+    ];
+    const events = Array.from({ length: 7 }, (_, i) =>
+      eventAt(new Date(NOW.getTime() - (i + 1) * DAY_MS), true),
+    );
+    const legacy = calculateCompliance(events, schedules, 7);
+    const withCtx = calculateCompliance(events, schedules, 7, undefined, {
+      medicationContext: ctx(),
+    });
+    // Legacy daysOfWeek-only schedule has no canonical fields → both
+    // paths run the legacy walker → identical numbers.
+    expect(withCtx).toEqual(legacy);
+  });
+
+  it("FREQ=WEEKLY;BYDAY=MO — took every Monday → 100%, denominator counts only Mondays", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=WEEKLY;BYDAY=MO",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // Mondays in the trailing 30 days from Wed 2025-01-15: Jan 13, 6,
+    // Dec 30, 23, 16. Log a taken intake on each.
+    const mondays = [
+      "2025-01-13T08:30:00Z",
+      "2025-01-06T08:30:00Z",
+      "2024-12-30T08:30:00Z",
+      "2024-12-23T08:30:00Z",
+      "2024-12-16T08:30:00Z",
+    ].map((s) => ({
+      scheduledFor: new Date(s),
+      takenAt: new Date(s),
+      skipped: false,
+    }));
+    const result = calculateCompliance(mondays, schedules, 30, undefined, {
+      medicationContext: ctx(),
+    });
+    expect(result.rate).toBe(100);
+    // Denominator is the count of Mondays, not 30 days.
+    expect(result.totalExpected).toBeLessThanOrEqual(6);
+    expect(result.totalExpected).toBeGreaterThanOrEqual(4);
+  });
+
+  it("FREQ=WEEKLY;INTERVAL=2;BYDAY=WE — bi-weekly denominator counts only on-weeks", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=WE",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const result = calculateCompliance([], schedules, 30, undefined, {
+      medicationContext: ctx({ startsOn: new Date("2024-12-04T00:00:00Z") }),
+    });
+    // Over ~30 days a bi-weekly Wednesday emits roughly 2 slots, never
+    // the ~4 a weekly Wednesday would. Nothing taken → all missed.
+    expect(result.totalExpected).toBeLessThanOrEqual(3);
+  });
+
+  it("rolling rollingIntervalDays=7 — only the next-due slot counts", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // Last intake 5 days ago → next due in 2 days (future) → no past
+    // expected slot inside the window → empty-window contract → 100.
+    const result = calculateCompliance([], schedules, 30, undefined, {
+      medicationContext: ctx({
+        lastIntakeAt: new Date(NOW.getTime() - 5 * DAY_MS),
+      }),
+    });
+    expect(result.totalExpected).toBe(0);
+    expect(result.rate).toBe(100);
+  });
+
+  it("one-shot — exactly one expected slot on startsOn", () => {
+    const startsOn = new Date("2025-01-10T00:00:00Z");
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        scheduleType: "SCHEDULED",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const result = calculateCompliance([], schedules, 30, undefined, {
+      medicationContext: ctx({ oneShot: true, startsOn, endsOn: startsOn }),
+    });
+    // One-shot anchored on Jan 10 → exactly one expected slot in the
+    // trailing-30 window; nothing taken → one missed.
+    expect(result.totalExpected).toBe(1);
+    expect(result.missed).toBe(1);
+  });
+
+  it("PRN — rate 100, totalExpected 0, even with a daily rrule present", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        scheduleType: "PRN",
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const result = calculateCompliance([], schedules, 30, undefined, {
+      medicationContext: ctx(),
+    });
+    expect(result.totalExpected).toBe(0);
+    expect(result.rate).toBe(100);
+  });
+
+  it("cyclic 2-on/1-off — off-week days are not counted in the denominator", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        scheduleType: "CYCLIC",
+        cyclicOnWeeks: 2,
+        cyclicOffWeeks: 1,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const cyclicResult = calculateCompliance([], schedules, 30, undefined, {
+      medicationContext: ctx({ startsOn: new Date("2024-12-01T00:00:00Z") }),
+    });
+    const dailySchedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const dailyResult = calculateCompliance([], dailySchedules, 30, undefined, {
+      medicationContext: ctx({ startsOn: new Date("2024-12-01T00:00:00Z") }),
+    });
+    // Cyclic drops the off-weeks → strictly fewer expected slots than a
+    // plain daily over the same window.
+    expect(cyclicResult.totalExpected).toBeLessThan(dailyResult.totalExpected);
+  });
+
+  it("DST spring-forward day (Europe/Berlin) parity — daily rate stays 100", () => {
+    // Europe/Berlin spring-forward 2025-03-30. Pin now just after it.
+    vi.setSystemTime(new Date("2025-03-31T12:00:00Z"));
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // Log a taken intake around 08:00 Berlin local for each of the past
+    // 7 days. The ±12 h pairing radius absorbs the DST hour shift, so a
+    // daily schedule across the spring-forward boundary stays compliant.
+    // Log a taken intake around 08:00 Berlin local for each day spanning
+    // the window with a one-day pad on each edge. The ±12 h pairing
+    // radius absorbs the DST hour shift, so every expected daily slot
+    // across the spring-forward boundary pairs with a logged intake.
+    const events = Array.from({ length: 10 }, (_, i) => {
+      const sched = new Date(
+        new Date("2025-03-31T12:00:00Z").getTime() - (i - 1) * DAY_MS,
+      );
+      sched.setUTCHours(6, 30, 0, 0); // ~08:00 Berlin (CET/CEST)
+      return { scheduledFor: sched, takenAt: sched, skipped: false };
+    });
+    const result = calculateCompliance(events, schedules, 7, undefined, {
+      medicationContext: ctx({ timeZone: "Europe/Berlin" }),
+    });
+    // Daily cadence across the DST boundary stays fully compliant — no
+    // expected slot is left unpaired.
+    expect(result.rate).toBe(100);
+    expect(result.missed).toBe(0);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.7.0 item 5 — per-day due / expectedCount helpers
+// ────────────────────────────────────────────────────────────────────
+
+describe("expectedSlotCountForDay + lastNonSkippedTakenAt", () => {
+  function ctx(
+    overrides: Partial<ComplianceMedicationContext> = {},
+  ): ComplianceMedicationContext {
+    return buildComplianceMedicationContext(
+      {
+        startsOn: overrides.startsOn ?? null,
+        endsOn: overrides.endsOn ?? null,
+        oneShot: overrides.oneShot ?? false,
+        createdAt: overrides.createdAt ?? new Date("2024-12-01T00:00:00Z"),
+      },
+      overrides.lastIntakeAt ?? null,
+      overrides.timeZone ?? "UTC",
+    );
+  }
+
+  it("weekly BYDAY — due on the matching weekday, not due otherwise", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=WEEKLY;BYDAY=MO",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // 2025-01-13 is a Monday; 2025-01-14 a Tuesday.
+    const monday = expectedSlotCountForDay(
+      schedules,
+      new Date("2025-01-13T00:00:00Z"),
+      new Date("2025-01-14T00:00:00Z"),
+      ctx(),
+    );
+    const tuesday = expectedSlotCountForDay(
+      schedules,
+      new Date("2025-01-14T00:00:00Z"),
+      new Date("2025-01-15T00:00:00Z"),
+      ctx(),
+    );
+    expect(monday).toBe(1);
+    expect(tuesday).toBe(0);
+  });
+
+  it("PRN — never due", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        scheduleType: "PRN",
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const count = expectedSlotCountForDay(
+      schedules,
+      new Date("2025-01-13T00:00:00Z"),
+      new Date("2025-01-14T00:00:00Z"),
+      ctx(),
+    );
+    expect(count).toBe(0);
+  });
+
+  it("multi time-of-day daily — expectedCount reflects each dose", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00", "20:00"],
+      },
+    ];
+    const count = expectedSlotCountForDay(
+      schedules,
+      new Date("2025-01-13T00:00:00Z"),
+      new Date("2025-01-14T00:00:00Z"),
+      ctx(),
+    );
+    expect(count).toBe(2);
+  });
+
+  it("lastNonSkippedTakenAt picks the newest non-skipped takenAt", () => {
+    const events = [
+      { takenAt: new Date("2025-01-10T08:00:00Z"), skipped: false },
+      { takenAt: new Date("2025-01-12T08:00:00Z"), skipped: false },
+      { takenAt: new Date("2025-01-13T08:00:00Z"), skipped: true },
+      { takenAt: null, skipped: false },
+    ];
+    expect(lastNonSkippedTakenAt(events)?.toISOString()).toBe(
+      "2025-01-12T08:00:00.000Z",
+    );
+    expect(lastNonSkippedTakenAt([])).toBe(null);
+  });
+
+  // v1.7.0 code-correctness M1 — the per-med compliance route must
+  // anchor each daily cell on the user-tz local-day boundary so the
+  // `due` / `expectedCount` flag attaches to the calendar cell the user
+  // actually sees. A UTC-midnight slice would shove a tz-distant user's
+  // dose into the adjacent day. These tests model the route's day
+  // computation (getUserTodayBounds + userDayKey) and assert the engine
+  // counts the dose in the cell its dateKey labels.
+  it("anchors the due slot on the user-tz local day for a UTC+13 user", () => {
+    const tz = "Pacific/Auckland"; // UTC+12, +13 in DST (January = NZDT +13)
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+
+    // A representative instant inside 2025-01-14 local (noon NZ).
+    const representative = new Date("2025-01-14T12:00:00+13:00");
+    const { start, end } = getUserTodayBounds(representative, tz);
+    const dayEnd = new Date(end.getTime() + 1); // half-open [start, dayEnd)
+
+    // The cell key is the user-tz day, not the UTC slice. 08:00 NZ on
+    // the 14th is 19:00 UTC on the 13th — a UTC slice would mislabel it.
+    expect(userDayKey(start, tz)).toBe("2025-01-14");
+
+    const count = expectedSlotCountForDay(schedules, start, dayEnd, ctx({ timeZone: tz }));
+    expect(count).toBe(1);
+  });
+
+  it("does not double-count or drop a dose at the user-tz day boundary", () => {
+    const tz = "Pacific/Auckland";
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+
+    // Two adjacent local days: the 14th must hold exactly one dose, the
+    // 13th exactly one — neither steals the other's slot.
+    const day14 = getUserTodayBounds(new Date("2025-01-14T12:00:00+13:00"), tz);
+    const day13 = getUserTodayBounds(new Date("2025-01-13T12:00:00+13:00"), tz);
+
+    const count14 = expectedSlotCountForDay(
+      schedules,
+      day14.start,
+      new Date(day14.end.getTime() + 1),
+      ctx({ timeZone: tz }),
+    );
+    const count13 = expectedSlotCountForDay(
+      schedules,
+      day13.start,
+      new Date(day13.end.getTime() + 1),
+      ctx({ timeZone: tz }),
+    );
+
+    expect(count14).toBe(1);
+    expect(count13).toBe(1);
+    expect(userDayKey(day14.start, tz)).toBe("2025-01-14");
+    expect(userDayKey(day13.start, tz)).toBe("2025-01-13");
   });
 });
 

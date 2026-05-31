@@ -4,6 +4,7 @@ import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
+import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
 import type { DataSummary } from "@/lib/analytics/trends";
 
 /**
@@ -25,6 +26,13 @@ import type { DataSummary } from "@/lib/analytics/trends";
  *     free cache hit,
  *   - sets `refetchOnMount: false` + `refetchOnWindowFocus: false` so
  *     route transitions never trigger a refetch storm,
+ *   - sets `refetchInterval: 120_000` + `refetchIntervalInBackground:
+ *     false` so an open page (dashboard tile-strip, Insights charts)
+ *     picks up freshly-synced Withings / HealthKit readings without a
+ *     manual reload. The two-minute poll hits the warm 60 s server cache
+ *     cheaply and only rebuilds a rollup when the underlying data moved;
+ *     it never touches the LLM surfaces, which stay daily /
+ *     pre-generated. The interval pauses while the tab is backgrounded,
  *   - defaults to `enabled: isAuthenticated` so the unauthenticated
  *     surfaces (registration, sign-in) don't spin up a 401-bound
  *     request,
@@ -131,5 +139,7 @@ export function useAnalyticsQuery(
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    refetchInterval: DASHBOARD_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: false,
   });
 }

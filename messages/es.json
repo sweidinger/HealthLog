@@ -148,7 +148,17 @@
       "sleep": "Duración del sueño",
       "empty": "No hay datos para el periodo seleccionado. El informe se generará con la portada.",
       "unavailableHint": "Sin datos en este periodo"
-    }
+    },
+    "insurer": "Seguro médico",
+    "insuranceNumber": "N.º de asegurado",
+    "summaryTitle": "Resumen clínico",
+    "summaryReadings": "Registrado durante {days} días: {count} mediciones en {params} parámetros.",
+    "summaryTrend": "{label}: último {latest} {arrow}",
+    "summaryAdherence": "Adherencia a la medicación: {rate}% (media ponderada).",
+    "chartsTitle": "Gráficos de tendencia",
+    "aiSummaryTitle": "Resumen de IA — no validado clínicamente",
+    "aiSummaryDisclaimer": "Esta sección fue generada automáticamente por un modelo de IA y no está validada clínicamente. No sustituye una evaluación médica.",
+    "packageReadme": "Historial de salud de HealthLog\n\nEste paquete contiene:\n- report.pdf: el informe de salud para su médico.\n- bundle.json: los mismos datos como Bundle de documento HL7 FHIR R4, compatible con ePA.\n\nGenerado con HealthLog."
   },
   "errorBoundary": {
     "title": "Algo ha salido mal",
@@ -1150,7 +1160,6 @@
       "intake": {
         "title": "Intake history",
         "importButton": "Import",
-        "viewAllLink": "View full history →",
         "rowActions": {
           "openMenu": "Open row actions",
           "edit": "Edit",
@@ -1199,10 +1208,6 @@
       },
       "settings": {
         "title": "Settings",
-        "csvImport": {
-          "title": "CSV import",
-          "stub": "Import intakes directly from the history above."
-        },
         "phases": {
           "openButton": "Configure phases",
           "requiresCourseWindow": "Phases are available once a course window is set."
@@ -1273,7 +1278,28 @@
         "advancedOption": "Ajustes avanzados"
       },
       "advanced": {
-        "title": "Ajustes avanzados"
+        "title": "Ajustes avanzados",
+        "group": {
+          "data": "Datos",
+          "reminders": "Recordatorios",
+          "lifecycle": "Ciclo de vida",
+          "danger": "Zona de peligro"
+        },
+        "csvImport": {
+          "title": "Importar CSV/JSON",
+          "helper": "Importa tomas anteriores desde un archivo o JSON pegado.",
+          "button": "Importar CSV/JSON"
+        }
+      },
+      "header": {
+        "historyLabel": "Ver historial de tomas",
+        "advancedLabel": "Configuración avanzada"
+      },
+      "history": {
+        "back": "Volver al medicamento",
+        "subtitle": "Historial completo de tomas",
+        "plannedSuffix": "planificado",
+        "drugLevelDisclosure": "Mostrar curva estimada del principio activo"
       }
     }
   },
@@ -1592,7 +1618,33 @@
         "vo2_max": "VO₂ máx",
         "body_temp": "Temperatura corporal",
         "medications": "Medicamentos",
-        "anthropometrics": "Perfil (altura, edad, sexo)"
+        "anthropometrics": "Perfil (altura, edad, sexo)",
+        "walking_hr": "Frecuencia cardiaca al caminar",
+        "respiratory_rate": "Frecuencia respiratoria",
+        "spo2": "Oxígeno en sangre",
+        "pulse_wave_velocity": "Velocidad de onda de pulso",
+        "vascular_age": "Edad vascular",
+        "body_fat": "Grasa corporal",
+        "fat_mass": "Masa grasa",
+        "fat_free_mass": "Masa libre de grasa",
+        "muscle_mass": "Masa muscular",
+        "lean_body_mass": "Masa corporal magra",
+        "bone_mass": "Masa ósea",
+        "total_body_water": "Agua corporal",
+        "bmi": "IMC",
+        "visceral_fat": "Grasa visceral",
+        "glucose": "Glucosa",
+        "walking_steadiness": "Estabilidad al caminar",
+        "walking_asymmetry": "Asimetría al caminar",
+        "walking_double_support": "Tiempo de doble apoyo",
+        "walking_step_length": "Longitud de paso",
+        "walking_speed": "Velocidad al caminar",
+        "audio_env": "Sonido ambiental",
+        "audio_headphone": "Audio de auriculares",
+        "audio_event": "Eventos de sonido fuerte",
+        "daylight": "Tiempo a la luz del día",
+        "skin_temp": "Temperatura de la piel",
+        "workouts": "Entrenamientos"
       },
       "window": {
         "last7days": "Últimos 7 días",
@@ -1630,7 +1682,52 @@
       "providerRateLimitTitle": "Proveedor con límite de tasa",
       "providerRateLimitBody": "El proveedor está temporalmente saturado; reinicio en ~5 min.",
       "settingsContextLabel": "Enviar contexto",
-      "settingsContextHint": "Bloques opcionales en los que el coach puede apoyarse. Si desactivas alguno, se omitirá en cada respuesta."
+      "settingsContextHint": "Bloques opcionales en los que el coach puede apoyarse. Si desactivas alguno, se omitirá en cada respuesta.",
+      "cluster": {
+        "cardio": {
+          "label": "Cardiovascular",
+          "hint": "Presión · pulso · VFC · FC en reposo y al caminar"
+        },
+        "body": {
+          "label": "Composición corporal",
+          "hint": "Peso · grasa · músculo · IMC"
+        },
+        "activity": {
+          "label": "Actividad",
+          "hint": "Pasos · energía · distancia · VO₂ máx"
+        },
+        "workouts": {
+          "label": "Entrenamientos",
+          "hint": "Carreras · paseos · sesiones"
+        },
+        "sleep": {
+          "label": "Sueño",
+          "hint": "Duración · fases"
+        },
+        "mood": {
+          "label": "Estado de ánimo",
+          "hint": "Registros diarios de ánimo"
+        },
+        "glucose": {
+          "label": "Glucosa",
+          "hint": "Lecturas en ayunas y posprandiales"
+        },
+        "medication": {
+          "label": "Medicación",
+          "hint": "Adherencia · contexto GLP-1"
+        },
+        "mobility": {
+          "label": "Movilidad y marcha",
+          "hint": "Estabilidad · asimetría · marcha"
+        },
+        "environment": {
+          "label": "Entorno",
+          "hint": "Ruido · luz del día · temp. piel"
+        }
+      },
+      "settingsClustersLabel": "Datos que ve el Coach",
+      "settingsClustersHint": "Elige qué grupos de datos puede leer el Coach. Más datos significan respuestas más ricas y un prompt mayor.",
+      "settingsClusterNoData": "Aún no hay datos"
     },
     "relativeJustNow": "ahora mismo",
     "relativeMinutesAgoOne": "hace {count} minuto",
@@ -1657,6 +1754,30 @@
       "vitalsParent": {
         "label": "Vitales",
         "header": "Constantes vitales"
+      },
+      "bodyParent": {
+        "label": "Cuerpo",
+        "header": "Composición corporal"
+      },
+      "activityParent": {
+        "label": "Actividad",
+        "header": "Actividad y movilidad"
+      },
+      "cardiovascularParent": {
+        "label": "Cardiovascular",
+        "header": "Marcadores cardiovasculares"
+      },
+      "hearingParent": {
+        "label": "Audición",
+        "header": "Audición y exposición sonora"
+      },
+      "environmentParent": {
+        "label": "Entorno",
+        "header": "Entorno"
+      },
+      "metabolicParent": {
+        "label": "Metabólico",
+        "header": "Metabólico"
       }
     },
     "hrv": {
@@ -1859,7 +1980,247 @@
         "mixedCardio": "Cardio mixto",
         "other": "Otro"
       }
-    }
+    },
+    "bloodGlucose": {
+      "title": "Glucosa en sangre",
+      "description": "Tus lecturas de glucosa en el tiempo, en mg/dL.",
+      "chartTitle": "Glucosa en sangre",
+      "emptyState": {
+        "title": "Aún no hay datos de glucosa",
+        "description": "Las lecturas de glucosa aparecen aquí cuando registras una o un dispositivo sincroniza."
+      }
+    },
+    "navBloodGlucose": "Glucosa",
+    "totalBodyWater": {
+      "title": "Agua corporal total",
+      "description": "Tu agua corporal total en el tiempo, en kilogramos.",
+      "chartTitle": "Agua corporal total",
+      "emptyState": {
+        "title": "Aún no hay datos de agua corporal",
+        "description": "Las lecturas de agua corporal aparecen aquí cuando una báscula de composición se sincroniza."
+      }
+    },
+    "navTotalBodyWater": "Agua corporal",
+    "boneMass": {
+      "title": "Masa ósea",
+      "description": "Tu masa ósea en el tiempo, en kilogramos.",
+      "chartTitle": "Masa ósea",
+      "emptyState": {
+        "title": "Aún no hay datos de masa ósea",
+        "description": "Las lecturas de masa ósea aparecen aquí cuando una báscula de composición se sincroniza."
+      }
+    },
+    "navBoneMass": "Masa ósea",
+    "flightsClimbed": {
+      "title": "Pisos subidos",
+      "description": "Tramos de escaleras que subiste cada día.",
+      "chartTitle": "Pisos subidos por día",
+      "emptyState": {
+        "title": "Aún no hay datos de pisos",
+        "description": "Los totales de pisos aparecen aquí cuando Apple Health sincroniza un día."
+      }
+    },
+    "navFlightsClimbed": "Pisos",
+    "walkingRunningDistance": {
+      "title": "Distancia a pie + corriendo",
+      "description": "Distancia caminando y corriendo cada día, en kilómetros.",
+      "chartTitle": "Distancia por día",
+      "emptyState": {
+        "title": "Aún no hay datos de distancia",
+        "description": "La distancia diaria aparece aquí cuando Apple Health sincroniza un día."
+      }
+    },
+    "navWalkingRunningDistance": "Distancia",
+    "fatFreeMass": {
+      "title": "Masa libre de grasa",
+      "description": "Tu masa libre de grasa en el tiempo, en kilogramos.",
+      "chartTitle": "Masa libre de grasa",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando una báscula de composición se sincroniza."
+      }
+    },
+    "navFatFreeMass": "Masa magra",
+    "fatMass": {
+      "title": "Masa grasa",
+      "description": "Tu masa grasa en el tiempo, en kilogramos.",
+      "chartTitle": "Masa grasa",
+      "emptyState": {
+        "title": "Aún no hay datos de masa grasa",
+        "description": "Las lecturas aparecen aquí cuando una báscula de composición se sincroniza."
+      }
+    },
+    "navFatMass": "Masa grasa",
+    "muscleMass": {
+      "title": "Masa muscular",
+      "description": "Tu masa muscular en el tiempo, en kilogramos.",
+      "chartTitle": "Masa muscular",
+      "emptyState": {
+        "title": "Aún no hay datos de masa muscular",
+        "description": "Las lecturas aparecen aquí cuando una báscula de composición se sincroniza."
+      }
+    },
+    "navMuscleMass": "Masa muscular",
+    "skinTemperature": {
+      "title": "Temperatura de la piel",
+      "description": "La temperatura de la piel de tu muñeca en el tiempo, en grados Celsius.",
+      "chartTitle": "Temperatura de la piel",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando un wearable sincroniza la temperatura nocturna."
+      }
+    },
+    "navSkinTemperature": "Temp. piel",
+    "pulseWaveVelocity": {
+      "title": "Velocidad de onda de pulso",
+      "description": "Tu velocidad de onda de pulso arterial en el tiempo, en m/s — valores más altos sugieren arterias más rígidas.",
+      "chartTitle": "Velocidad de onda de pulso",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando un dispositivo Withings compatible se sincroniza."
+      }
+    },
+    "navPulseWaveVelocity": "Velocidad de onda de pulso",
+    "vascularAge": {
+      "title": "Edad vascular",
+      "description": "Tu edad vascular estimada en el tiempo, en años.",
+      "chartTitle": "Edad vascular",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las estimaciones aparecen aquí cuando un dispositivo Withings compatible se sincroniza."
+      }
+    },
+    "navVascularAge": "Edad vascular",
+    "visceralFat": {
+      "title": "Grasa visceral",
+      "description": "Tu índice de grasa visceral en el tiempo.",
+      "chartTitle": "Grasa visceral",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Los índices aparecen aquí cuando una báscula de composición compatible se sincroniza."
+      }
+    },
+    "navVisceralFat": "Grasa visceral",
+    "audioExposureEnv": {
+      "title": "Ruido ambiental",
+      "description": "Tu exposición media diaria a sonido ambiental, en dBA.",
+      "chartTitle": "Exposición a sonido ambiental",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas de nivel sonoro aparecen aquí cuando Apple Health sincroniza."
+      }
+    },
+    "navAudioExposureEnv": "Ruido ambiental",
+    "audioExposureHeadphone": {
+      "title": "Audio de auriculares",
+      "description": "Tu exposición media diaria con auriculares, en dBA.",
+      "chartTitle": "Exposición de auriculares",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza."
+      }
+    },
+    "navAudioExposureHeadphone": "Audio auriculares",
+    "timeInDaylight": {
+      "title": "Tiempo con luz diurna",
+      "description": "Minutos al día con luz diurna.",
+      "chartTitle": "Luz diurna por día",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Los totales aparecen aquí cuando Apple Health sincroniza un día."
+      }
+    },
+    "navTimeInDaylight": "Luz diurna",
+    "walkingSteadiness": {
+      "title": "Estabilidad al andar",
+      "description": "Tu estabilidad al andar en el tiempo, en porcentaje.",
+      "chartTitle": "Estabilidad al andar",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza."
+      }
+    },
+    "navWalkingSteadiness": "Estabilidad al andar",
+    "audioExposureEvent": {
+      "title": "Eventos de audio fuerte",
+      "description": "Días con un evento de exposición a ruido fuerte.",
+      "chartTitle": "Eventos de ruido por día",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Los eventos aparecen aquí cuando Apple Health sincroniza."
+      }
+    },
+    "navAudioExposureEvent": "Eventos de ruido",
+    "respiratoryRate": {
+      "title": "Frecuencia respiratoria",
+      "description": "Tu frecuencia respiratoria en el tiempo, en respiraciones por minuto.",
+      "chartTitle": "Frecuencia respiratoria",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza la respiración del sueño o del entrenamiento."
+      }
+    },
+    "navRespiratoryRate": "Frecuencia respiratoria",
+    "leanBodyMass": {
+      "title": "Masa corporal magra",
+      "description": "Tu masa corporal magra en el tiempo, en kilogramos.",
+      "chartTitle": "Masa corporal magra",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando una báscula de composición se sincroniza."
+      }
+    },
+    "navLeanBodyMass": "Masa corporal magra",
+    "walkingHeartRateAverage": {
+      "title": "Pulso al caminar",
+      "description": "Tu frecuencia cardíaca media al caminar, en lpm.",
+      "chartTitle": "Pulso medio al caminar",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza."
+      }
+    },
+    "navWalkingHeartRateAverage": "Pulso al caminar",
+    "walkingAsymmetry": {
+      "title": "Asimetría al andar",
+      "description": "Tu asimetría al andar en el tiempo, en porcentaje.",
+      "chartTitle": "Asimetría al andar",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza."
+      }
+    },
+    "navWalkingAsymmetry": "Asimetría al andar",
+    "walkingDoubleSupport": {
+      "title": "Tiempo de doble apoyo",
+      "description": "El porcentaje de cada zancada con ambos pies en el suelo.",
+      "chartTitle": "Tiempo de doble apoyo",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza."
+      }
+    },
+    "navWalkingDoubleSupport": "Doble apoyo",
+    "walkingStepLength": {
+      "title": "Longitud de paso",
+      "description": "Tu longitud de paso media en el tiempo, en metros.",
+      "chartTitle": "Longitud de paso",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza."
+      }
+    },
+    "navWalkingStepLength": "Longitud de paso",
+    "walkingSpeed": {
+      "title": "Velocidad al andar",
+      "description": "Tu velocidad media al andar en el tiempo, en km/h.",
+      "chartTitle": "Velocidad al andar (km/h)",
+      "emptyState": {
+        "title": "Aún no hay datos",
+        "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza."
+      }
+    },
+    "navWalkingSpeed": "Velocidad al andar"
   },
   "thresholds": {
     "defaultLabel": "Por defecto",
@@ -2393,6 +2754,16 @@
         "saveError": "No se pudo guardar el cambio. Inténtalo de nuevo."
       }
     },
+    "dashboard": {
+      "units": {
+        "title": "Unidades",
+        "description": "Elige cómo se muestran las distancias y velocidades en los gráficos y mosaicos.",
+        "metric": "Métrico",
+        "imperial": "Imperial",
+        "saved": "Preferencia de unidades guardada.",
+        "saveError": "No se pudo guardar tu preferencia de unidades."
+      }
+    },
     "withings": "Withings",
     "withingsDescription": "Connect your Withings scale and blood pressure monitors.",
     "withingsCredentials": "API Credentials",
@@ -2559,6 +2930,54 @@
       "nextRetry": "Next retry",
       "reEnable": "Re-enable",
       "sendTest": "Send test"
+    },
+    "identity": {
+      "description": "Datos opcionales para la exportación del historial de salud (portada PDF + exportación FHIR). Todos los campos son opcionales.",
+      "fullName": "Nombre completo",
+      "fullNamePlaceholder": "p. ej. Ana García",
+      "insurer": "Seguro médico",
+      "insurerPlaceholder": "p. ej. AOK Bayern",
+      "insuranceNumber": "Número de asegurado (KVNR)",
+      "insuranceNumberHint": "10 caracteres: una letra + nueve dígitos (p. ej. A123456780)."
+    },
+    "healthRecord": {
+      "title": "Exportar historial de salud",
+      "description": "Genere un historial de salud completo para su médico — como PDF, estructurado (FHIR) o un paquete combinado.",
+      "format": "Formato",
+      "format_pdf": "PDF",
+      "format_fhir": "Estructurado (FHIR)",
+      "format_package": "Paquete: PDF + FHIR",
+      "range": "Período",
+      "range90": "Últimos 90 días",
+      "range180": "Últimos 6 meses",
+      "range365": "Últimos 12 meses",
+      "practiceName": "Consulta (opcional)",
+      "practiceNamePlaceholder": "p. ej. Dr. García",
+      "includedData": "Datos incluidos",
+      "groupVitals": "Signos vitales",
+      "groupCardio": "Corazón y forma física",
+      "groupActivity": "Actividad y sueño",
+      "weight": "Peso",
+      "bp": "Presión arterial",
+      "pulse": "Pulso",
+      "oxygenSaturation": "Saturación de oxígeno",
+      "bodyFat": "Grasa corporal",
+      "bodyComposition": "Composición corporal",
+      "restingHeartRate": "Pulso en reposo",
+      "hrv": "Variabilidad de la frecuencia cardíaca",
+      "vo2max": "VO₂máx",
+      "steps": "Pasos",
+      "distance": "Distancia",
+      "sleep": "Sueño",
+      "glucose": "Glucosa en sangre",
+      "medications": "Medicamentos y adherencia",
+      "mood": "Estado de ánimo (desactivado por defecto — datos sensibles)",
+      "bmi": "IMC",
+      "includeCharts": "Incrustar gráficos de tendencia (solo PDF)",
+      "includeAiSummary": "Añadir resumen de IA (no validado clínicamente)",
+      "fhirNote": "La salida estructurada sigue el estándar FHIR R4 (compatible con ePA).",
+      "generate": "Generar",
+      "error": "Error en la exportación ({code})."
     }
   },
   "admin": {
@@ -3346,13 +3765,16 @@
     },
     "moodReminder": {
       "title": "Recordatorio diario de ánimo",
-      "description": "Aviso suave a las 22:00 si aún no has registrado el ánimo del día. Se envía solo por canales ya configurados (Telegram, ntfy, Web Push, Apple Push) y permanece en silencio una vez que has registrado el ánimo hoy.",
+      "description": "Aviso suave a la hora que elijas si aún no has registrado el ánimo del día. Se envía solo por canales ya configurados (Telegram, ntfy, Web Push, Apple Push) y permanece en silencio una vez que has registrado el ánimo hoy.",
       "toggleAria": "Alternar recordatorio diario de ánimo",
-      "statusOn": "Activo a las 22:00 hora local",
+      "statusOn": "Activo a la hora que elijas",
       "statusOff": "Desactivado",
       "enabledToast": "Recordatorio de ánimo activado.",
       "disabledToast": "Recordatorio de ánimo desactivado.",
-      "saveError": "No se pudo guardar. Inténtalo de nuevo."
+      "saveError": "No se pudo guardar. Inténtalo de nuevo.",
+      "hourLabel": "Hora del recordatorio",
+      "hourAria": "Hora del recordatorio de ánimo",
+      "hourSavedToast": "Hora del recordatorio actualizada."
     },
     "eventMedicationReminder": "Recordatorio de medicación",
     "eventMedicationReminderDesc": "Se envía a cada hora de dosis programada.",

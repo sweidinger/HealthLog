@@ -28,6 +28,10 @@ describe("queryKeys factory", () => {
   // v1.4.33 IW2 — slice param routes the slim consumer onto its own
   // cache slot but leaves `["analytics"]` (the root) as a prefix so
   // mutation invalidations sweep both shapes.
+  it("exposes the unified dashboard-snapshot key", () => {
+    expect(queryKeys.dashboardSnapshot()).toEqual(["dashboard", "snapshot"]);
+  });
+
   it("threads the slim slice through queryKeys.analytics", () => {
     expect(queryKeys.analytics("summaries")).toEqual(["analytics", "summaries"]);
   });
@@ -65,6 +69,11 @@ describe("queryKeys factory", () => {
       "notifications",
       "status",
     ]);
+    expect(queryKeys.authNotificationPrefs()).toEqual([
+      "auth",
+      "me",
+      "notification-prefs",
+    ]);
     expect(queryKeys.apiVersion()).toEqual(["api", "version"]);
   });
 
@@ -78,7 +87,20 @@ describe("queryKeys factory", () => {
       "2026-05-01T00:00:00.000Z",
     );
     expect(key[0]).toBe("chart-data");
-    expect(key.length).toBe(7);
+    // v1.7.0 — the tuple trails with the display `valueScale` (default 1).
+    expect(key.length).toBe(8);
+    expect(key[7]).toBe(1);
+    expect(
+      queryKeys.chartData(
+        "WALKING_SPEED",
+        "raw",
+        "no-bmi",
+        "Europe/Berlin",
+        "2026-04-01T00:00:00.000Z",
+        "2026-05-01T00:00:00.000Z",
+        3.6,
+      )[7],
+    ).toBe(3.6);
     // Numeric bmiDivisor is allowed (BMI charts pass `heightCm * heightCm`).
     const bmiKey = queryKeys.chartData(
       "WEIGHT",

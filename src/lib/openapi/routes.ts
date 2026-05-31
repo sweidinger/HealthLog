@@ -45,6 +45,7 @@ import {
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
 import { INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
+import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 
 /**
  * Common envelopes — every HealthLog API response wraps payload in
@@ -239,6 +240,13 @@ const deviceRegisterRequest = z
       .optional()
       .describe(
         "Gateway the iOS client received `apnsToken` from. Server never auto-detects.",
+      ),
+    medicationDelivery: z
+      .enum(["server", "client"])
+      .nullable()
+      .optional()
+      .describe(
+        "v1.7.0 per-device medication-delivery override. NULL / omitted = inherit the user-level roaming default. \"server\" forces server APNs for this device; \"client\" forces local. Stored + echoed; cron suppression stays user-level.",
       ),
   })
   .meta({
@@ -435,6 +443,206 @@ const measurementResource = z
     description: "Server-shaped measurement row returned by GET endpoints.",
   });
 
+// ── Sync (v1.7.0 offline / server-optional) ─────────────────────────
+
+const syncStateResponse = z
+  .object({
+    userId: z.string(),
+    timezone: z.string(),
+    lastSyncedAt: z.iso.datetime({ offset: true }).nullable(),
+    serverNow: z.iso.datetime({ offset: true }),
+    measurements: z.object({
+      lastUpdatedAt: z.iso.datetime({ offset: true }).nullable(),
+      liveCount: z.number().int().nonnegative(),
+      tombstonedCount: z.number().int().nonnegative(),
+    }),
+    mood: z.object({
+      lastUpdatedAt: z.iso.datetime({ offset: true }).nullable(),
+      liveCount: z.number().int().nonnegative(),
+      tombstonedCount: z.number().int().nonnegative(),
+    }),
+    intakes: z.object({
+      lastUpdatedAt: z.iso.datetime({ offset: true }).nullable(),
+      liveCount: z.number().int().nonnegative(),
+      tombstonedCount: z.number().int().nonnegative(),
+    }),
+    sync: z
+      .object({
+        incrementalWindowDays: z
+          .number()
+          .int()
+          .positive()
+          .describe(
+            "Days an incremental delta stays valid; tracks the native refresh-token lifetime. Beyond it a device re-pairs with a full backfill. iOS derives its window from this rather than hardcoding 60.",
+          ),
+        tombstoneRetentionDays: z
+          .number()
+          .int()
+          .positive()
+          .describe(
+            "Horizon past which tombstones may be pruned. A cursor older than this gets `cursorExpired` on `/api/sync/changes`.",
+          ),
+      })
+      .describe("Sync-window metadata the client reads instead of hardcoding."),
+  })
+  .meta({
+    id: "SyncStateResponse",
+    description:
+      "iOS SyncMode handshake. Each GET also advances the server-side `lastSyncedAt` checkpoint and returns the previous value. The cheap 'should I sync?' summary; the durable delta cursor lives on `/api/sync/changes`.",
+  });
+
+const syncMeasurementUpsert = measurementResource
+  .extend({
+    externalId: z
+      .string()
+      .nullable()
+      .describe("Cross-device dedup key (UUID string or `stats:<id>:<date>`)."),
+    syncVersion: z
+      .number()
+      .int()
+      .positive()
+      .describe("LWW reconciliation counter; echo to keep the mirror monotonic."),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({ id: "SyncMeasurementUpsert" });
+
+const syncMeasurementTombstone = z
+  .object({
+    id: z.string(),
+    externalId: z
+      .string()
+      .nullable()
+      .describe("The identity key the client dedups on for measurements."),
+    syncVersion: z.number().int().positive(),
+    deletedAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({
+    id: "SyncMeasurementTombstone",
+    description:
+      "A soft-deleted measurement. Apply tombstones BEFORE upserts within a page to avoid resurrecting a row.",
+  });
+
+const syncMoodUpsert = z
+  .object({
+    id: z.string(),
+    date: z.string().describe("YYYY-MM-DD anchored to the row's `tz`."),
+    mood: z.string(),
+    score: z.number().int(),
+    tags: z.string().nullable().describe("JSON array of tag keys, or null."),
+    note: z.string().nullable(),
+    moodLoggedAt: z.iso.datetime({ offset: true }),
+    source: z.string(),
+    syncVersion: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("LWW reconciliation counter; mood is last-writer-wins by it."),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({ id: "SyncMoodUpsert" });
+
+const syncMoodTombstone = z
+  .object({
+    id: z.string().describe("Server id — the identity key the client dedups on for mood."),
+    syncVersion: z.number().int().nonnegative(),
+    deletedAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({
+    id: "SyncMoodTombstone",
+    description:
+      "A soft-deleted mood entry, keyed on server `id`. Apply before upserts within the domain page.",
+  });
+
+const syncIntakeUpsert = z
+  .object({
+    id: z.string(),
+    medicationId: z.string(),
+    scheduledFor: z.iso.datetime({ offset: true }),
+    takenAt: z.iso.datetime({ offset: true }).nullable(),
+    skipped: z.boolean(),
+    source: z.string(),
+    syncVersion: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Reconciliation counter. An intake is immutable; a correction is a tombstone + re-insert.",
+      ),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({ id: "SyncIntakeUpsert" });
+
+const syncIntakeTombstone = z
+  .object({
+    id: z.string().describe("Server id — the identity key the client dedups on for intakes."),
+    syncVersion: z.number().int().nonnegative(),
+    deletedAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({
+    id: "SyncIntakeTombstone",
+    description:
+      "A soft-deleted medication intake, keyed on server `id`. Apply before upserts within the domain page.",
+  });
+
+const syncChangesQuery = z
+  .object({
+    cursor: z
+      .string()
+      .min(1)
+      .max(2048)
+      .optional()
+      .describe(
+        "Opaque multi-domain keyset cursor from the previous page. Treat as fully opaque — echo, never parse. Omit for the initial sync.",
+      ),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(500)
+      .optional()
+      .describe("Page size, default 200, hard cap 500."),
+  })
+  .meta({ id: "SyncChangesQuery" });
+
+const syncChangesResponse = z
+  .object({
+    serverNow: z.iso.datetime({ offset: true }),
+    cursor: z
+      .string()
+      .nullable()
+      .describe("Opaque cursor to echo into the next request."),
+    hasMore: z
+      .boolean()
+      .describe("False once the client is caught up as of `serverNow`."),
+    cursorExpired: z
+      .boolean()
+      .describe(
+        "True when the supplied cursor predates tombstone retention — drop the cursor and do a clean initial sync.",
+      ),
+    changes: z.object({
+      measurements: z.object({
+        upserts: z.array(syncMeasurementUpsert),
+        tombstones: z.array(syncMeasurementTombstone),
+      }),
+      mood: z.object({
+        upserts: z.array(syncMoodUpsert),
+        tombstones: z.array(syncMoodTombstone),
+      }),
+      intakes: z.object({
+        upserts: z.array(syncIntakeUpsert),
+        tombstones: z.array(syncIntakeTombstone),
+      }),
+    }),
+  })
+  .meta({
+    id: "SyncChangesResponse",
+    description:
+      "Multi-domain delta page (v1.7.0): measurements + mood + intakes. One opaque multi-domain keyset cursor; tombstones apply before upserts within each domain. Tombstone identity: measurements key on externalId, mood + intakes on server id. The iOS consumer is measurements-only this cycle; mood + intakes are forward-prep.",
+  });
+
 // v1.4.48 H-APNs-1 — admin diagnostic endpoint for the notification
 // subsystem. Mirrors the runtime types in
 // `src/app/api/admin/notifications/diagnostic/route.ts`: APNs tokens
@@ -578,11 +786,30 @@ const medicationScheduleResource = z
       .describe(
         "Flexible-rolling interval in days, counted forward from the latest `MedicationIntakeEvent.takenAt`. **Mutually exclusive with `rrule`.**",
       ),
+    scheduleType: z
+      .enum(["SCHEDULED", "PRN", "CYCLIC"])
+      .describe(
+        "v1.7.0 schedule-type discriminator. SCHEDULED = rrule / rolling / legacy cadence. PRN = as-needed (never projected, reminded, or counted in compliance expected; still loggable via the intake route). CYCLIC = N weeks on / M weeks off, gating whichever inner cadence the rrule / legacy fields describe.",
+      ),
+    cyclicOnWeeks: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "v1.7.0 cyclic \"on\" weeks. Only meaningful when `scheduleType` is CYCLIC; null otherwise.",
+      ),
+    cyclicOffWeeks: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "v1.7.0 cyclic \"off\" weeks. Only meaningful when `scheduleType` is CYCLIC; null otherwise.",
+      ),
   })
   .meta({
     id: "MedicationSchedule",
     description:
-      "Schedule entry attached to a medication. v1.5 promotes `timesOfDay` to first-class and introduces `rrule` (calendar-anchored cadences) and `rollingIntervalDays` (flexible-rolling cadences). The two recurrence primitives are mutually exclusive — enforced by the Zod refine on writes, the route layer, and a DB CHECK constraint (`medication_schedules_rrule_xor_rolling`).",
+      "Schedule entry attached to a medication. v1.5 promotes `timesOfDay` to first-class and introduces `rrule` (calendar-anchored cadences) and `rollingIntervalDays` (flexible-rolling cadences). The two recurrence primitives are mutually exclusive — enforced by the Zod refine on writes, the route layer, and a DB CHECK constraint (`medication_schedules_rrule_xor_rolling`). v1.7.0 adds `scheduleType` (SCHEDULED / PRN / CYCLIC) and the cyclic on/off-week fields.",
   });
 
 const medicationResource = z
@@ -600,8 +827,24 @@ const medicationResource = z
       ),
     active: z.boolean(),
     notificationsEnabled: z.boolean(),
+    liveActivityEnabled: z
+      .boolean()
+      .describe(
+        "v1.7.0 iOS Live Activity opt-in for this medication's reminders. Default false. The iOS client owns the ActivityKit lifecycle; the server only stores + echoes the flag.",
+      ),
+    criticalAlarmEnabled: z
+      .boolean()
+      .describe(
+        "v1.7.0 iOS 26 AlarmKit critical-reminder opt-in. Default false. Critical alarms bypass the device mute switch / Focus; the server stores the preference only.",
+      ),
     pausedAt: z.iso.datetime({ offset: true }).nullable(),
     snoozedUntil: z.iso.datetime({ offset: true }).nullable(),
+    nextDueAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "v1.7.0 server-computed next due instant across all the medication's schedules (earliest `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). The list GET is cached 60 s, so a 60 s staleness is accepted.",
+      ),
     startsOn: z
       .iso
       .datetime({ offset: true })
@@ -748,6 +991,95 @@ const insightsComprehensiveResponse = z
       "AI-generated insights bundle. Strict-schema validated server-side; Coach-routed when the insight surface needs day-level grounding.",
   });
 
+// v1.7.0 — unified dashboard first-paint snapshot. One GET that
+// assembles every above-the-fold tile field in a single round-trip.
+// Two-phase shape: `tiles` (fast, always present) + `extras` (thick,
+// nullable on a rollup-coverage miss). The nested AI / DataSummary
+// blocks are typed loosely (`z.record`) to match the comprehensive
+// response style above — the strict shapes live in their own Zod
+// modules and the iOS client does not consume this web-only route.
+const dataSummaryRecord = z.record(z.string(), z.unknown());
+
+const dashboardSnapshotResponse = z
+  .object({
+    user: z.object({
+      username: z.string(),
+      timezone: z.string(),
+      heightCm: z.number().nullable(),
+      dateOfBirth: z.string().nullable(),
+      gender: z.enum(["MALE", "FEMALE"]).nullable(),
+      glucoseUnit: z.string().nullable(),
+      onboardingTourCompleted: z.boolean(),
+      greetingHour: z.number().int(),
+    }),
+    layout: z.record(z.string(), z.unknown()),
+    // v1.7.0 — full 27-id widget catalogue (16 server-known + 11
+    // iOS-only) so a cold-launch first-paint seeds every tile and the
+    // layout round-trips in one key. Additive alongside the web
+    // `layout` block, which stays byte-identical.
+    layoutCatalogue: z
+      .array(
+        z.object({
+          id: z.string(),
+          visible: z.boolean(),
+          order: z.number().int(),
+        }),
+      )
+      .describe(
+        "Full 27-id widget catalogue (server-known + iOS-only) with per-widget visibility + order. iOS-only ids are appended default-invisible. The web dashboard reads `layout`; this block is the cold-launch seed for the native client.",
+      ),
+    // v1.7.0 — per-chartable-metric latest reading keyed by iOS
+    // `MetricKind` raw value (e.g. `oxygenSaturation`,
+    // `heartRateVariability`, `bodyMassIndex`). Derived in-process from
+    // the slim summaries slice — no extra DB read.
+    metricStates: z
+      .record(
+        z.string(),
+        z.object({
+          value: z.number(),
+          measuredAt: z.string(),
+          unit: z.string(),
+        }),
+      )
+      .describe(
+        "Latest reading per chartable metric, keyed by the iOS `MetricKind` raw value (the non-obvious raws: `oxygenSaturation`, `totalBodyWater`, `heartRateVariability`, `bodyMassIndex`, `walkingAsymmetryPercentage`, `walkingDoubleSupportPercentage`, `environmentalAudioExposure`, `headphoneAudioExposure`, `activeEnergyBurned`). Each entry carries `value`, `measuredAt` (ISO8601), and the canonical `unit`. Types the user has never logged are omitted.",
+      ),
+    tiles: z.object({
+      summaries: dataSummaryRecord,
+      lastSeenByType: z.record(z.string(), z.unknown()),
+      mood: z.object({
+        summary: dataSummaryRecord.nullable(),
+        entries: z.array(
+          z.object({
+            date: z.string(),
+            score: z.number(),
+            samples: z.number().int(),
+          }),
+        ),
+      }),
+    }),
+    extras: z
+      .object({
+        bpInTargetPct: z.number().nullable(),
+        bpInTargetPct7d: z.number().nullable(),
+        bpInTargetPct30d: z.number().nullable(),
+        bpInTargetPctAllTime: z.number().nullable(),
+        bpInTargetPctPriorMonth: z.number().nullable(),
+        bpInTargetPctPriorYear: z.number().nullable(),
+        glucoseByContext: dataSummaryRecord,
+      })
+      .nullable(),
+    briefing: z.record(z.string(), z.unknown()).nullable(),
+    briefingState: z.enum(["ready", "preparing", "disabled"]),
+    briefingUpdatedAt: z.string().nullable(),
+    generatedAt: z.string(),
+  })
+  .meta({
+    id: "DashboardSnapshotResponse",
+    description:
+      "Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget layout); `extras` (BD-in-target + per-context glucose) is null on a rollup-coverage miss so the strip never waits on the slowest read. `briefing` is lifted read-only from the pre-generated insight cache — never generated synchronously — and reports `ready` / `preparing` / `disabled` via `briefingState`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive in-process from data already fetched, adding no DB round-trip.",
+  });
+
 // v1.5.0 — natural-language medication extraction route. The wizard's
 // optional "Beschreiben" overlay POSTs a free-text description and
 // receives a partial structured payload the form merges onto whatever
@@ -810,6 +1142,14 @@ const insightsLayoutSchema = z
       "Per-user Insights tile layout: an ordered list of tiles with a visibility flag. `version` is the layout schema version; tile ids are a closed enum derived from the server's tile registry.",
   });
 
+// v1.7.0 — health-record export selection. Strict shape: unknown keys
+// (including any attempt to smuggle a userId) 422 via returnAllZodIssues.
+exportSelectionSchema.meta({
+  id: "HealthRecordExportRequest",
+  description:
+    "v1.7.0 — health-record / doctor-handover export selection. `format` picks PDF, FHIR R4 document Bundle, or a combined zip package. Grouped `sections` toggles drive which domains are read (mood is opt-in, off by default). No `userId` field — the user is always narrowed from the session/Bearer. The route is strict: unknown keys 422.",
+});
+
 // ── Standard 401 / 422 / 429 responses ───────────────────────────────
 
 const stdResponses = {
@@ -830,6 +1170,38 @@ const stdResponses = {
 // ── Path table ───────────────────────────────────────────────────────
 
 export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/export/health-record": {
+    post: {
+      tags: ["Export"],
+      summary: "Generate a health-record export (PDF / FHIR / package)",
+      description:
+        "v1.7.0 flagship export. Returns the doctor-handover artefact in the requested `format`: `pdf` → application/pdf, `fhir` → application/fhir+json (HL7 FHIR R4 document Bundle), `package` → application/zip (PDF + FHIR + README). Auth via cookie or Bearer; shared `export:<userId>` rate bucket (10/h). Strict validation: unknown keys 422.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: exportSelectionSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Export generated. Content-Type varies by `format`: application/pdf, application/fhir+json, or application/zip.",
+          content: {
+            "application/pdf": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+            "application/fhir+json": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+            "application/zip": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/auth/login": {
     post: {
       tags: ["Auth"],
@@ -882,7 +1254,8 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Auth"],
       summary: "Rotate refresh token (one-time use)",
       description:
-        "Reuse of a consumed refresh token revokes every refresh token still active for the originating device (per-device blast radius from v1.4.23). Legacy tokens issued before v1.4.23 with a null deviceId fall back to revoke-all-for-user.",
+        "Reuse of a consumed refresh token revokes every refresh token still active for the originating device (per-device blast radius from v1.4.23). Legacy tokens issued before v1.4.23 with a null deviceId fall back to revoke-all-for-user.\n\n" +
+        "On a 401, `meta.errorCode` is a stable machine code so the client can branch terminal re-auth from a transient blip without parsing the prose `error`: `auth.refresh.reuse` (a consumed token was replayed — device family revoked, re-pair required), `auth.refresh.revoked` (family revoked out-of-band — re-pair required), `auth.refresh.invalid` (not found / expired — drop the token and re-authenticate).",
       requestBody: {
         required: true,
         content: { "application/json": { schema: refreshRequest } },
@@ -893,6 +1266,47 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           content: {
             "application/json": {
               schema: dataEnvelope(accessRefreshBundle, "RefreshResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/sync/state": {
+    get: {
+      tags: ["Sync"],
+      summary: "Sync handshake + window metadata",
+      description:
+        "Cheap 'should I sync?' summary. Returns the previous `lastSyncedAt` checkpoint and advances it server-side on each call. The `sync` block carries the incremental-delta window + tombstone retention so the client reads them rather than hardcoding.",
+      responses: {
+        "200": {
+          description: "Sync state summary.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(syncStateResponse, "SyncStateEnvelope"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/sync/changes": {
+    get: {
+      tags: ["Sync"],
+      summary: "Measurements delta feed",
+      description:
+        "Incremental catch-up after the first-pair backfill (never a replacement for it). Pages over an opaque keyset cursor; each page carries `tombstones` (soft-deleted rows, keyed on `externalId`) and `upserts` (live rows). Apply tombstones before upserts within a page. `cursorExpired: true` forces a clean re-init.",
+      requestParams: {
+        query: syncChangesQuery,
+      },
+      responses: {
+        "200": {
+          description: "Delta page.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(syncChangesResponse, "SyncChangesEnvelope"),
             },
           },
         },
@@ -1726,6 +2140,28 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         "403": {
           description: "Caller is not an admin.",
           content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/dashboard/snapshot": {
+    get: {
+      tags: ["Dashboard"],
+      summary: "Unified dashboard first-paint snapshot",
+      description:
+        "Assembles every above-the-fold tile field in one round-trip from the rollup / mood / widget helpers plus a read-only lift of the pre-generated daily briefing. Two-phase: `tiles` always present, `extras` nullable on a rollup-coverage miss. No LLM is reachable from this path. Cookie or Bearer auth.",
+      responses: {
+        "200": {
+          description: "Dashboard snapshot.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                dashboardSnapshotResponse,
+                "DashboardSnapshotResponseEnvelope",
+              ),
+            },
+          },
         },
         ...stdResponses,
       },

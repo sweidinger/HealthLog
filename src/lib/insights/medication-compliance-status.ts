@@ -4,7 +4,12 @@ import {
   getMedicationComplianceSystemPrompt,
   getMedicationComplianceUserPrompt,
 } from "@/lib/ai/prompts/medication-compliance";
-import { calculateCompliance } from "@/lib/analytics/compliance";
+import {
+  buildComplianceMedicationContext,
+  calculateCompliance,
+  lastNonSkippedTakenAt,
+} from "@/lib/analytics/compliance";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { getMedicationCategories } from "@/lib/medication-category";
 import { sanitizeForPrompt } from "@/lib/insights/sanitize";
 import { getNoKeyMedicationComplianceStatusText } from "@/lib/insights/no-key-fallbacks";
@@ -167,6 +172,8 @@ export async function generateMedicationComplianceStatusForUser(
   const medicationEvents = await prisma.medicationIntakeEvent.findMany({
     where: {
       userId,
+      // v1.7.0 sync — exclude tombstoned rows from compliance status.
+      deletedAt: null,
       medicationId: { in: medications.map((medication) => medication.id) },
       scheduledFor: { gte: rangeStart },
     },
@@ -179,22 +186,33 @@ export async function generateMedicationComplianceStatusForUser(
     },
   });
 
+  // v1.7.0 SB-SCHED-2 — resolve the user timezone once so the
+  // compliance-pillar denominators route through the canonical engine.
+  const userTz = await resolveUserTimezone(userId);
+
   const medicationSnapshots = medications.map((medication) => {
     const events = medicationEvents.filter(
       (event) => event.medicationId === medication.id,
     );
 
+    const medicationContext = buildComplianceMedicationContext(
+      medication,
+      lastNonSkippedTakenAt(events),
+      userTz,
+    );
     const compliance7 = calculateCompliance(
       events,
       medication.schedules,
       7,
       medication.createdAt,
+      { medicationContext },
     );
     const compliance30 = calculateCompliance(
       events,
       medication.schedules,
       30,
       medication.createdAt,
+      { medicationContext },
     );
 
     // Collapse the events into one rate-per-day record, then run them

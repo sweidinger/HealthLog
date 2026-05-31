@@ -24,8 +24,12 @@ export const GET = apiHandler(
 
     const { id } = await params;
 
-    const measurement = await prisma.measurement.findUnique({
-      where: { id },
+    // v1.7.0 — filter `deletedAt: null` so a soft-deleted (tombstoned)
+    // row 404s on a direct GET, matching the list / analytics / rollup
+    // read invariant. `findFirst` (not `findUnique`) because `deletedAt`
+    // is not part of a unique index.
+    const measurement = await prisma.measurement.findFirst({
+      where: { id, deletedAt: null },
     });
 
     if (!measurement || measurement.userId !== user.id) {
@@ -50,8 +54,11 @@ export const PUT = apiHandler(
 
     const { id } = await params;
 
-    const existing = await prisma.measurement.findUnique({
-      where: { id },
+    // v1.7.0 — refuse to resurrect-edit a tombstoned row. The
+    // `deletedAt: null` filter makes a soft-deleted measurement 404 on
+    // PUT rather than letting an `update` re-write a still-tombstoned row.
+    const existing = await prisma.measurement.findFirst({
+      where: { id, deletedAt: null },
     });
 
     if (!existing || existing.userId !== user.id) {
@@ -183,7 +190,21 @@ export const DELETE = apiHandler(
       return apiError("Measurement not found", 404);
     }
 
-    await prisma.measurement.delete({ where: { id } });
+    // v1.7.0 — soft-delete instead of a hard `delete`. Setting `deletedAt`
+    // (+ bumping `syncVersion`) leaves the row in place so the
+    // `/api/sync/changes` delta feed can surface it as a tombstone to
+    // paired clients that were offline at delete time. Every list /
+    // analytics / rollup read already filters `deletedAt: null`
+    // (see `measurements/route.ts:100`), so the row is invisible to
+    // normal reads from this point on. A row that is already tombstoned
+    // re-bumps `syncVersion` harmlessly (idempotent re-delete).
+    await prisma.measurement.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        syncVersion: { increment: 1 },
+      },
+    });
 
     await auditLog("measurement.delete", {
       userId: user.id,
