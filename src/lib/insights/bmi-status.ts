@@ -7,6 +7,10 @@ import {
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
+import {
+  buildGradedSeriesFromPoints,
+  degradeStatusSnapshotToBudget,
+} from "@/lib/insights/graded-series";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { readFreshStatusText } from "@/lib/insights/status-cache";
@@ -130,26 +134,19 @@ export async function generateBmiStatusForUser(
     .then((rows) => rows.reverse());
 
   const now = new Date();
-  const weightSeries = applyPayloadBudget(
-    measurements.map((measurement) => ({
-      measuredAt: measurement.measuredAt,
-      value: measurement.value,
-    })),
-    { now },
-  );
-
   const heightFactor = (user.heightCm / 100) ** 2;
+
+  const bmiPoints = measurements.map((measurement) => ({
+    measuredAt: measurement.measuredAt,
+    value: round(measurement.value / heightFactor, 2),
+  }));
+  // `applyPayloadBudget` daily buckets drive the latest/previous focus;
+  // the compact graded series is what reaches the prompt.
+  const weightSeries = applyPayloadBudget(bmiPoints, { now });
+  const bmiGraded = buildGradedSeriesFromPoints(bmiPoints, now);
   const bmiSeries = {
-    daily: weightSeries.daily.map((bucket) => ({
-      dayOffset: bucket.dayOffset,
-      value: round(bucket.value / heightFactor, 2),
-      n: bucket.n,
-    })),
-    monthly: weightSeries.monthly.map((bucket) => ({
-      monthOffset: bucket.monthOffset,
-      value: round(bucket.value / heightFactor, 2),
-      n: bucket.n,
-    })),
+    daily: weightSeries.daily,
+    monthly: weightSeries.monthly,
   };
 
   // daily[0] = newest bucket (lowest dayOffset).
@@ -189,7 +186,7 @@ export async function generateBmiStatusForUser(
       summary: summarizeSeries(
         bmiSeries.daily.map((bucket) => ({ value: bucket.value })),
       ),
-      series: bmiSeries,
+      series: bmiGraded,
       latestDayFocus: latestBmi
         ? {
             dayOffset: latestBmi.dayOffset,
@@ -208,11 +205,17 @@ export async function generateBmiStatusForUser(
     },
   };
 
+  const shed = degradeStatusSnapshotToBudget(
+    snapshot as unknown as Record<string, unknown>,
+  );
   const snapshotJson = JSON.stringify(snapshot, null, 2);
 
   annotate({
     action: { name: cacheAction },
-    meta: { payload_size_bytes: snapshotJson.length },
+    meta: {
+      payload_size_bytes: snapshotJson.length,
+      ...(shed.length > 0 ? { snapshot_shed: shed } : {}),
+    },
   });
 
   const previousContext = await getPreviousInsightContext(

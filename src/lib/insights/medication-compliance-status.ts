@@ -17,6 +17,10 @@ import {
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
+import {
+  buildGradedSeriesFromPoints,
+  degradeStatusSnapshotToBudget,
+} from "@/lib/insights/graded-series";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { isTimeoutStub } from "@/lib/insights/status-cache";
@@ -218,8 +222,11 @@ export async function generateMedicationComplianceStatusForUser(
         value: round(Math.min(100, (stats.taken / expectedPerDay) * 100), 1),
       }));
 
-    const dailySeries = applyPayloadBudget(perDayRecords, { now });
-    const latestDay = dailySeries.daily[0] ?? null;
+    // `applyPayloadBudget` gives the latest-day focus; the compact
+    // graded series is what reaches the prompt.
+    const dailyBudgeted = applyPayloadBudget(perDayRecords, { now });
+    const dailySeries = buildGradedSeriesFromPoints(perDayRecords, now);
+    const latestDay = dailyBudgeted.daily[0] ?? null;
 
     return {
       medicationId: medication.id,
@@ -289,11 +296,17 @@ export async function generateMedicationComplianceStatusForUser(
     medications: medicationSnapshots,
   };
 
+  const shed = degradeStatusSnapshotToBudget(
+    snapshot as unknown as Record<string, unknown>,
+  );
   const snapshotJson = JSON.stringify(snapshot, null, 2);
 
   annotate({
     action: { name: cacheAction },
-    meta: { payload_size_bytes: snapshotJson.length },
+    meta: {
+      payload_size_bytes: snapshotJson.length,
+      ...(shed.length > 0 ? { snapshot_shed: shed } : {}),
+    },
   });
 
   const previousContext = await getPreviousInsightContext(

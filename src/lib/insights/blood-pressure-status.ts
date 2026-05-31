@@ -27,6 +27,10 @@ import {
   dayOffsetToBerlinDayKey,
   type DailyBucket,
 } from "@/lib/insights/bucket-series";
+import {
+  buildGradedSeriesFromPoints,
+  degradeStatusSnapshotToBudget,
+} from "@/lib/insights/graded-series";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { readFreshStatusText } from "@/lib/insights/status-cache";
@@ -35,6 +39,13 @@ import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 
 type SupportedLocale = "de" | "en";
+
+/**
+ * Cap on the embedded correlation / paired-daily arrays. The Pearson
+ * coefficients stay computed over the full overlap; only the row-by-row
+ * lists the prompt carries are trimmed to their most recent entries.
+ */
+const CORRELATION_PAIR_CAP = 30;
 
 function round(value: number, digits = 1): number {
   const factor = 10 ** digits;
@@ -370,6 +381,21 @@ export async function generateBloodPressureStatusForUser(
   );
   const moodMean = moodSummary?.mean ?? null;
 
+  // Compact graded series for the prompt. The `*Series.daily` buckets
+  // above stay for the correlation pairing + in-target gate; only the
+  // graded shape is embedded so the full daily arrays never ship.
+  const gradedFromDaily = (buckets: DailyBucket[]) =>
+    buildGradedSeriesFromPoints(
+      buckets.map((b) => ({
+        measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
+        value: b.value,
+      })),
+      now,
+    );
+  const sysGraded = gradedFromDaily(sysSeries.daily);
+  const diaGraded = gradedFromDaily(diaSeries.daily);
+  const moodGraded = gradedFromDaily(moodSeries.daily);
+
   const continuityVsSystolicPairs: PairedPoint[] = continuityVsSystolicSeries
     .map((entry) => {
       if (entry.continuityPct == null) return null;
@@ -419,13 +445,13 @@ export async function generateBloodPressureStatusForUser(
         summary: summarizeSeries(
           sysSeries.daily.map((bucket) => ({ value: bucket.value })),
         ),
-        series: sysSeries,
+        series: sysGraded,
       },
       diastolic: {
         summary: summarizeSeries(
           diaSeries.daily.map((bucket) => ({ value: bucket.value })),
         ),
-        series: diaSeries,
+        series: diaGraded,
       },
       paired: {
         summary: summarizeSeries(
@@ -433,7 +459,7 @@ export async function generateBloodPressureStatusForUser(
             value: (entry.sys + entry.dia) / 2,
           })),
         ),
-        series: pairedBloodPressure,
+        series: pairedBloodPressure.slice(-CORRELATION_PAIR_CAP),
       },
       targets: bpTargets
         ? {
@@ -445,7 +471,7 @@ export async function generateBloodPressureStatusForUser(
     },
     weightVsSystolic: {
       correlation: weightVsSystolicCorrelation,
-      pairs: weightVsSystolicPairs.map((entry) => ({
+      pairs: weightVsSystolicPairs.slice(-CORRELATION_PAIR_CAP).map((entry) => ({
         day: entry.dayKey,
         weight: round(entry.a, 2),
         systolic: round(entry.b, 2),
@@ -455,7 +481,7 @@ export async function generateBloodPressureStatusForUser(
       expectedIntakesPerDay: expectedBpIntakesPerDay,
       medicationCount: bpMedications.length,
       correlation: continuityVsSystolicCorrelation,
-      series: continuityVsSystolicSeries,
+      series: continuityVsSystolicSeries.slice(-CORRELATION_PAIR_CAP),
     },
     bpMedications: medicationCompliance,
     moodContext:
@@ -464,7 +490,7 @@ export async function generateBloodPressureStatusForUser(
             points: moodSeries.daily.length,
             mean: moodMean,
             latest: moodSeries.daily[0]?.value ?? null,
-            series: moodSeries,
+            series: moodGraded,
             moodVsSystolicCorrelation: (() => {
               const moodVsSysPairs = pairDailyBuckets(
                 moodSeries.daily,
@@ -477,11 +503,17 @@ export async function generateBloodPressureStatusForUser(
         : null,
   };
 
+  const shed = degradeStatusSnapshotToBudget(
+    snapshot as unknown as Record<string, unknown>,
+  );
   const snapshotJson = JSON.stringify(snapshot, null, 2);
 
   annotate({
     action: { name: cacheAction },
-    meta: { payload_size_bytes: snapshotJson.length },
+    meta: {
+      payload_size_bytes: snapshotJson.length,
+      ...(shed.length > 0 ? { snapshot_shed: shed } : {}),
+    },
   });
 
   const previousContext = await getPreviousInsightContext(

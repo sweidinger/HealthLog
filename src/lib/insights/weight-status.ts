@@ -17,6 +17,10 @@ import {
   dayOffsetToBerlinDayKey,
   type DailyBucket,
 } from "@/lib/insights/bucket-series";
+import {
+  buildGradedSeriesFromPoints,
+  degradeStatusSnapshotToBudget,
+} from "@/lib/insights/graded-series";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { readFreshStatusText } from "@/lib/insights/status-cache";
@@ -25,6 +29,13 @@ import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 
 type SupportedLocale = "de" | "en";
+
+/**
+ * Cap on the embedded correlation pair arrays. The Pearson coefficient
+ * is still computed over the full overlap; only the row-by-row pair
+ * list the prompt carries is trimmed to its most recent entries.
+ */
+const CORRELATION_PAIR_CAP = 30;
 
 function round(value: number, digits = 1): number {
   const factor = 10 ** digits;
@@ -212,6 +223,38 @@ export async function generateWeightStatusForUser(
   );
   const moodMean = moodSummary?.mean ?? null;
 
+  // Compact graded series for the prompt. The `*Series.daily` buckets
+  // above stay for the correlation pairing + latest-day focus; only the
+  // graded shape is embedded so the full daily arrays never ship.
+  const weightGraded = buildGradedSeriesFromPoints(
+    weightSeries.daily.map((b) => ({
+      measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
+      value: b.value,
+    })),
+    now,
+  );
+  const sysGraded = buildGradedSeriesFromPoints(
+    sysSeries.daily.map((b) => ({
+      measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
+      value: b.value,
+    })),
+    now,
+  );
+  const diaGraded = buildGradedSeriesFromPoints(
+    diaSeries.daily.map((b) => ({
+      measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
+      value: b.value,
+    })),
+    now,
+  );
+  const moodGraded = buildGradedSeriesFromPoints(
+    moodSeries.daily.map((b) => ({
+      measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
+      value: b.value,
+    })),
+    now,
+  );
+
   const weightVsSystolicPairs = pairDailyBuckets(
     weightSeries.daily,
     sysSeries.daily,
@@ -296,7 +339,7 @@ export async function generateWeightStatusForUser(
       summary: summarizeSeries(
         weightSeries.daily.map((bucket) => ({ value: bucket.value })),
       ),
-      series: weightSeries,
+      series: weightGraded,
       latestDayFocus: latestWeight
         ? {
             day: latestWeightDay,
@@ -315,19 +358,22 @@ export async function generateWeightStatusForUser(
         summary: summarizeSeries(
           sysSeries.daily.map((bucket) => ({ value: bucket.value })),
         ),
-        series: sysSeries,
+        series: sysGraded,
       },
       diastolic: {
         summary: summarizeSeries(
           diaSeries.daily.map((bucket) => ({ value: bucket.value })),
         ),
-        series: diaSeries,
+        series: diaGraded,
       },
-      pairedDaily: pairedSystolicDiastolic,
+      // Keep the correlation coefficients (computed over the full
+      // overlap) but cap the embedded pair arrays to the most recent
+      // paired days — the raw pair lists were a major payload driver.
+      pairedDaily: pairedSystolicDiastolic.slice(-CORRELATION_PAIR_CAP),
     },
     weightVsSystolic: {
       correlation: weightVsSystolicCorrelation,
-      pairs: weightVsSystolicPairs.map((entry) => ({
+      pairs: weightVsSystolicPairs.slice(-CORRELATION_PAIR_CAP).map((entry) => ({
         day: entry.dayKey,
         weight: round(entry.a, 2),
         systolic: round(entry.b, 2),
@@ -335,7 +381,7 @@ export async function generateWeightStatusForUser(
     },
     weightVsMeanBloodPressure: {
       correlation: weightVsMeanBpCorrelation,
-      pairs: weightVsMeanBpPairs.map((entry) => ({
+      pairs: weightVsMeanBpPairs.slice(-CORRELATION_PAIR_CAP).map((entry) => ({
         day: entry.dayKey,
         weight: round(entry.a, 2),
         meanBloodPressure: round(entry.b, 2),
@@ -347,7 +393,7 @@ export async function generateWeightStatusForUser(
             points: moodSeries.daily.length,
             mean: moodMean,
             latest: moodSeries.daily[0]?.value ?? null,
-            series: moodSeries,
+            series: moodGraded,
             moodVsWeightCorrelation: (() => {
               const moodVsWeightPairs = pairDailyBuckets(
                 moodSeries.daily,
@@ -360,11 +406,17 @@ export async function generateWeightStatusForUser(
         : null,
   };
 
+  const shed = degradeStatusSnapshotToBudget(
+    snapshot as unknown as Record<string, unknown>,
+  );
   const snapshotJson = JSON.stringify(snapshot, null, 2);
 
   annotate({
     action: { name: cacheAction },
-    meta: { payload_size_bytes: snapshotJson.length },
+    meta: {
+      payload_size_bytes: snapshotJson.length,
+      ...(shed.length > 0 ? { snapshot_shed: shed } : {}),
+    },
   });
 
   const previousContext = await getPreviousInsightContext(

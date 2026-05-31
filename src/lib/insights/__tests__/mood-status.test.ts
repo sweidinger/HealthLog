@@ -45,8 +45,8 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("generateMoodStatusForUser — v1.4.6 bucketed payload", () => {
-  it("emits {daily, monthly} mood series spanning 3 years", async () => {
+describe("generateMoodStatusForUser — graded payload", () => {
+  it("emits a graded {recent, weekly, monthly} mood series, not the full daily array", async () => {
     const now = new Date();
     const entries: Array<{
       date: string;
@@ -80,16 +80,20 @@ describe("generateMoodStatusForUser — v1.4.6 bucketed payload", () => {
     const snapshot = JSON.parse(match![0]);
 
     const mood = snapshot.mood.series;
-    expect(mood).toHaveProperty("daily");
+    expect(mood).toHaveProperty("recent");
+    expect(mood).toHaveProperty("weekly");
     expect(mood).toHaveProperty("monthly");
-    expect(mood.daily.length).toBeGreaterThan(0);
-    expect(mood.monthly.length).toBeGreaterThan(0);
-    expect(mood.daily[0]).toHaveProperty("dayOffset");
-    expect(mood.daily[0]).toHaveProperty("value");
-    expect(mood.daily[0]).toHaveProperty("n");
-    expect(mood.monthly[0]).toHaveProperty("monthOffset");
-    expect(mood.monthly[0]).toHaveProperty("value");
-    expect(mood.monthly[0]).toHaveProperty("n");
+    expect(mood).toHaveProperty("yearly");
+    expect(mood.recent.length).toBeLessThanOrEqual(21);
+    expect(mood.recent[0]).toHaveProperty("date");
+    expect(mood.recent[0]).toHaveProperty("mean");
+    expect(mood.monthly[0]).toHaveProperty("month");
+    const total =
+      mood.recent.length +
+      mood.weekly.length +
+      mood.monthly.length +
+      mood.yearly.length;
+    expect(total).toBeLessThanOrEqual(50);
   });
 });
 

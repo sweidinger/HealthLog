@@ -46,8 +46,8 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("generatePulseStatusForUser — v1.4.6 bucketed payload", () => {
-  it("emits {daily, monthly} pulse series with dayOffset/monthOffset/value/n", async () => {
+describe("generatePulseStatusForUser — graded payload", () => {
+  it("emits a graded {recent, weekly, monthly} pulse series, not the full daily array", async () => {
     const now = new Date();
     const records: Array<{ value: number; measuredAt: Date }> = [];
     for (let day = 0; day < 1000; day++) {
@@ -77,16 +77,20 @@ describe("generatePulseStatusForUser — v1.4.6 bucketed payload", () => {
     const snapshot = JSON.parse(match![0]);
 
     const pulse = snapshot.pulse.series;
-    expect(pulse).toHaveProperty("daily");
+    expect(pulse).toHaveProperty("recent");
+    expect(pulse).toHaveProperty("weekly");
     expect(pulse).toHaveProperty("monthly");
-    expect(pulse.daily.length).toBeGreaterThan(0);
-    expect(pulse.monthly.length).toBeGreaterThan(0);
-    expect(pulse.daily[0]).toHaveProperty("dayOffset");
-    expect(pulse.daily[0]).toHaveProperty("value");
-    expect(pulse.daily[0]).toHaveProperty("n");
-    expect(pulse.monthly[0]).toHaveProperty("monthOffset");
-    expect(pulse.monthly[0]).toHaveProperty("value");
-    expect(pulse.monthly[0]).toHaveProperty("n");
+    expect(pulse).toHaveProperty("yearly");
+    expect(pulse.recent.length).toBeLessThanOrEqual(21);
+    expect(pulse.recent[0]).toHaveProperty("date");
+    expect(pulse.recent[0]).toHaveProperty("mean");
+    expect(pulse.monthly[0]).toHaveProperty("month");
+    const total =
+      pulse.recent.length +
+      pulse.weekly.length +
+      pulse.monthly.length +
+      pulse.yearly.length;
+    expect(total).toBeLessThanOrEqual(50);
   });
 });
 

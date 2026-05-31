@@ -54,8 +54,8 @@ beforeEach(() => {
   vi.mocked(getMedicationCategories).mockResolvedValue({});
 });
 
-describe("generateBloodPressureStatusForUser — v1.4.6 bucketed payload", () => {
-  it("emits {daily, monthly} per metric series with correct field shape", async () => {
+describe("generateBloodPressureStatusForUser — graded payload", () => {
+  it("emits a graded {recent, weekly, monthly} per-metric series, not the full daily array", async () => {
     const now = new Date();
 
     const records: Array<{
@@ -99,20 +99,22 @@ describe("generateBloodPressureStatusForUser — v1.4.6 bucketed payload", () =>
     const snapshot = JSON.parse(match![0]);
 
     const sys = snapshot.bloodPressure.systolic.series;
-    expect(sys).toHaveProperty("daily");
+    expect(sys).toHaveProperty("recent");
+    expect(sys).toHaveProperty("weekly");
     expect(sys).toHaveProperty("monthly");
-    expect(sys.daily.length).toBeGreaterThan(0);
-    expect(sys.monthly.length).toBeGreaterThan(0);
-    expect(sys.daily[0]).toHaveProperty("dayOffset");
-    expect(sys.daily[0]).toHaveProperty("value");
-    expect(sys.daily[0]).toHaveProperty("n");
-    expect(sys.monthly[0]).toHaveProperty("monthOffset");
-    expect(sys.monthly[0]).toHaveProperty("value");
-    expect(sys.monthly[0]).toHaveProperty("n");
+    expect(sys).toHaveProperty("yearly");
+    expect(sys.recent.length).toBeLessThanOrEqual(21);
+    expect(sys.recent[0]).toHaveProperty("date");
+    expect(sys.recent[0]).toHaveProperty("mean");
+    expect(sys.monthly[0]).toHaveProperty("month");
 
     const dia = snapshot.bloodPressure.diastolic.series;
-    expect(dia.daily.length).toBeGreaterThan(0);
-    expect(dia.monthly.length).toBeGreaterThan(0);
+    expect(dia).toHaveProperty("recent");
+    expect(dia).toHaveProperty("monthly");
+    expect(dia.recent.length).toBeLessThanOrEqual(21);
+
+    // Embedded correlation pair arrays are capped, not full-length.
+    expect(snapshot.weightVsSystolic.pairs.length).toBeLessThanOrEqual(30);
   });
 });
 

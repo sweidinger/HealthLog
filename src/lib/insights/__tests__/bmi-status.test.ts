@@ -46,8 +46,8 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("generateBmiStatusForUser — v1.4.6 bucketed payload", () => {
-  it("emits {daily, monthly} BMI series derived from bucketed weight", async () => {
+describe("generateBmiStatusForUser — graded payload", () => {
+  it("emits a graded {recent, weekly, monthly} BMI series, not the full daily array", async () => {
     const now = new Date();
     const records: Array<{ value: number; measuredAt: Date }> = [];
     for (let day = 0; day < 1000; day++) {
@@ -75,16 +75,20 @@ describe("generateBmiStatusForUser — v1.4.6 bucketed payload", () => {
     const snapshot = JSON.parse(match![0]);
 
     const bmi = snapshot.bmi.series;
-    expect(bmi).toHaveProperty("daily");
+    expect(bmi).toHaveProperty("recent");
+    expect(bmi).toHaveProperty("weekly");
     expect(bmi).toHaveProperty("monthly");
-    expect(bmi.daily.length).toBeGreaterThan(0);
-    expect(bmi.monthly.length).toBeGreaterThan(0);
-    expect(bmi.daily[0]).toHaveProperty("dayOffset");
-    expect(bmi.daily[0]).toHaveProperty("value");
-    expect(bmi.daily[0]).toHaveProperty("n");
-    expect(bmi.monthly[0]).toHaveProperty("monthOffset");
-    expect(bmi.monthly[0]).toHaveProperty("value");
-    expect(bmi.monthly[0]).toHaveProperty("n");
+    expect(bmi).toHaveProperty("yearly");
+    expect(bmi.recent.length).toBeLessThanOrEqual(21);
+    expect(bmi.recent[0]).toHaveProperty("date");
+    expect(bmi.recent[0]).toHaveProperty("mean");
+    expect(bmi.monthly[0]).toHaveProperty("month");
+    const total =
+      bmi.recent.length +
+      bmi.weekly.length +
+      bmi.monthly.length +
+      bmi.yearly.length;
+    expect(total).toBeLessThanOrEqual(50);
   });
 });
 

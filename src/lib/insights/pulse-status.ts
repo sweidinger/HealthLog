@@ -13,6 +13,10 @@ import {
 } from "@/lib/analytics/pulse-targets";
 import { getNoKeyPulseStatusText } from "@/lib/insights/no-key-fallbacks";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
+import {
+  buildGradedSeriesFromPoints,
+  degradeStatusSnapshotToBudget,
+} from "@/lib/insights/graded-series";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { readFreshStatusText } from "@/lib/insights/status-cache";
@@ -125,13 +129,15 @@ export async function generatePulseStatusForUser(
 
   const now = new Date();
 
-  const pulseSeries = applyPayloadBudget(
-    measurements.map((measurement) => ({
-      measuredAt: measurement.measuredAt,
-      value: measurement.value,
-    })),
-    { now },
-  );
+  const pulsePoints = measurements.map((measurement) => ({
+    measuredAt: measurement.measuredAt,
+    value: measurement.value,
+  }));
+  // `applyPayloadBudget` daily buckets still drive the derived stats
+  // below (latest, in-target %, delta). They are NOT embedded in the
+  // prompt — the compact graded series replaces the full daily array.
+  const pulseSeries = applyPayloadBudget(pulsePoints, { now });
+  const pulseGraded = buildGradedSeriesFromPoints(pulsePoints, now);
   const pulseSummary = summarizeSeries(
     pulseSeries.daily.map((bucket) => ({ value: bucket.value })),
   );
@@ -148,13 +154,12 @@ export async function generatePulseStatusForUser(
     })
     .then((rows) => rows.reverse());
 
-  const moodSeries = applyPayloadBudget(
-    moodEntries.map((entry) => ({
-      measuredAt: entry.moodLoggedAt,
-      value: entry.score,
-    })),
-    { now },
-  );
+  const moodPoints = moodEntries.map((entry) => ({
+    measuredAt: entry.moodLoggedAt,
+    value: entry.score,
+  }));
+  const moodSeries = applyPayloadBudget(moodPoints, { now });
+  const moodGraded = buildGradedSeriesFromPoints(moodPoints, now);
   const moodSummary = summarizeSeries(
     moodSeries.daily.map((bucket) => ({ value: bucket.value })),
   );
@@ -218,7 +223,7 @@ export async function generatePulseStatusForUser(
     },
     pulse: {
       summary: pulseSummary,
-      series: pulseSeries,
+      series: pulseGraded,
       latestDayFocus: latestPulse
         ? {
             dayOffset: latestPulse.dayOffset,
@@ -243,16 +248,22 @@ export async function generatePulseStatusForUser(
             points: moodSeries.daily.length,
             mean: moodMean,
             latest: moodSeries.daily[0]?.value ?? null,
-            series: moodSeries,
+            series: moodGraded,
           }
         : null,
   };
 
+  const shed = degradeStatusSnapshotToBudget(
+    snapshot as unknown as Record<string, unknown>,
+  );
   const snapshotJson = JSON.stringify(snapshot, null, 2);
 
   annotate({
     action: { name: cacheAction },
-    meta: { payload_size_bytes: snapshotJson.length },
+    meta: {
+      payload_size_bytes: snapshotJson.length,
+      ...(shed.length > 0 ? { snapshot_shed: shed } : {}),
+    },
   });
 
   const previousContext = await getPreviousInsightContext(

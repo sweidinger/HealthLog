@@ -14,6 +14,10 @@ import {
   dayOffsetToBerlinDayKey,
   type DailyBucket,
 } from "@/lib/insights/bucket-series";
+import {
+  buildGradedSeriesFromPoints,
+  degradeStatusSnapshotToBudget,
+} from "@/lib/insights/graded-series";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { readFreshStatusText } from "@/lib/insights/status-cache";
@@ -152,13 +156,14 @@ export async function generateMoodStatusForUser(
 
   const now = new Date();
 
-  const moodSeries = applyPayloadBudget(
-    entries.map((entry) => ({
-      measuredAt: entry.moodLoggedAt,
-      value: entry.score,
-    })),
-    { now },
-  );
+  const moodPoints = entries.map((entry) => ({
+    measuredAt: entry.moodLoggedAt,
+    value: entry.score,
+  }));
+  // `applyPayloadBudget` daily buckets drive the in-target %, latest,
+  // and correlations; the compact graded series reaches the prompt.
+  const moodSeries = applyPayloadBudget(moodPoints, { now });
+  const moodGraded = buildGradedSeriesFromPoints(moodPoints, now);
   const moodSummary = summarizeSeries(
     moodSeries.daily.map((bucket) => ({ value: bucket.value })),
   );
@@ -302,7 +307,7 @@ export async function generateMoodStatusForUser(
     },
     mood: {
       summary: moodSummary,
-      series: moodSeries,
+      series: moodGraded,
       latestDayFocus: latestMood
         ? {
             dayOffset: latestMood.dayOffset,
@@ -364,11 +369,17 @@ export async function generateMoodStatusForUser(
         : null,
   };
 
+  const shed = degradeStatusSnapshotToBudget(
+    snapshot as unknown as Record<string, unknown>,
+  );
   const snapshotJson = JSON.stringify(snapshot, null, 2);
 
   annotate({
     action: { name: cacheAction },
-    meta: { payload_size_bytes: snapshotJson.length },
+    meta: {
+      payload_size_bytes: snapshotJson.length,
+      ...(shed.length > 0 ? { snapshot_shed: shed } : {}),
+    },
   });
 
   const previousContext = await getPreviousInsightContext(

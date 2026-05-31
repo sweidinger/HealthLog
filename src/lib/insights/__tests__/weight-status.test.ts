@@ -45,8 +45,8 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("generateWeightStatusForUser — v1.4.6 bucketed payload", () => {
-  it("emits {daily, monthly} weight series with bucket fields", async () => {
+describe("generateWeightStatusForUser — graded payload", () => {
+  it("emits a graded {recent, weekly, monthly} weight series, not the full daily array", async () => {
     const now = new Date();
     const records: Array<{
       type: string;
@@ -77,16 +77,26 @@ describe("generateWeightStatusForUser — v1.4.6 bucketed payload", () => {
     const snapshot = JSON.parse(match![0]);
 
     const weight = snapshot.weight.series;
-    expect(weight).toHaveProperty("daily");
+    expect(weight).toHaveProperty("recent");
+    expect(weight).toHaveProperty("weekly");
     expect(weight).toHaveProperty("monthly");
-    expect(weight.daily.length).toBeGreaterThan(0);
-    expect(weight.monthly.length).toBeGreaterThan(0);
-    expect(weight.daily[0]).toHaveProperty("dayOffset");
-    expect(weight.daily[0]).toHaveProperty("value");
-    expect(weight.daily[0]).toHaveProperty("n");
-    expect(weight.monthly[0]).toHaveProperty("monthOffset");
-    expect(weight.monthly[0]).toHaveProperty("value");
-    expect(weight.monthly[0]).toHaveProperty("n");
+    expect(weight).toHaveProperty("yearly");
+    // No raw daily array beyond the bounded recent window.
+    expect(weight.recent.length).toBeLessThanOrEqual(21);
+    expect(weight.recent[0]).toHaveProperty("date");
+    expect(weight.recent[0]).toHaveProperty("mean");
+    expect(weight.recent[0]).toHaveProperty("min");
+    expect(weight.recent[0]).toHaveProperty("max");
+    expect(weight.monthly[0]).toHaveProperty("month");
+    expect(weight.monthly[0]).toHaveProperty("mean");
+    // The whole graded series collapses 1000 daily readings to a tiny
+    // bucket count.
+    const total =
+      weight.recent.length +
+      weight.weekly.length +
+      weight.monthly.length +
+      weight.yearly.length;
+    expect(total).toBeLessThanOrEqual(50);
   });
 });
 

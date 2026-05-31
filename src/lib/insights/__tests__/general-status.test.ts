@@ -47,8 +47,8 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-describe("generateGeneralStatusForUser — v1.4.6 bucketed payload", () => {
-  it("emits {daily, monthly} per metric series with dayOffset/monthOffset/value/n", async () => {
+describe("generateGeneralStatusForUser — graded payload", () => {
+  it("emits a graded {recent, weekly, monthly} per-metric series, not the full daily array", async () => {
     const now = new Date();
 
     const weightRecords: Array<{
@@ -90,18 +90,47 @@ describe("generateGeneralStatusForUser — v1.4.6 bucketed payload", () => {
     const snapshot = JSON.parse(match![0]);
 
     const weight = snapshot.measurementSeries.WEIGHT.series;
-    expect(weight).toHaveProperty("daily");
+    expect(weight).toHaveProperty("recent");
+    expect(weight).toHaveProperty("weekly");
     expect(weight).toHaveProperty("monthly");
-    expect(Array.isArray(weight.daily)).toBe(true);
-    expect(Array.isArray(weight.monthly)).toBe(true);
-    expect(weight.daily.length).toBeGreaterThan(0);
-    expect(weight.monthly.length).toBeGreaterThan(0);
-    expect(weight.daily[0]).toHaveProperty("dayOffset");
-    expect(weight.daily[0]).toHaveProperty("value");
-    expect(weight.daily[0]).toHaveProperty("n");
-    expect(weight.monthly[0]).toHaveProperty("monthOffset");
-    expect(weight.monthly[0]).toHaveProperty("value");
-    expect(weight.monthly[0]).toHaveProperty("n");
+    expect(weight).toHaveProperty("yearly");
+    expect(weight.recent.length).toBeLessThanOrEqual(21);
+    expect(weight.recent[0]).toHaveProperty("date");
+    expect(weight.recent[0]).toHaveProperty("mean");
+    expect(weight.monthly[0]).toHaveProperty("month");
+    const total =
+      weight.recent.length +
+      weight.weekly.length +
+      weight.monthly.length +
+      weight.yearly.length;
+    expect(total).toBeLessThanOrEqual(50);
+  });
+
+  it("omits measurement types with no data", async () => {
+    const now = new Date();
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dateOfBirth: null,
+    } as never);
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { type: "WEIGHT", value: 80, measuredAt: now },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: now,
+    } as never);
+
+    const captured: { userPrompt: string | null } = { userPrompt: null };
+    stubCompletion('{"summary":"OK"}', captured);
+
+    await generateGeneralStatusForUser("user-1", { locale: "en" });
+    const snapshot = JSON.parse(captured.userPrompt!.match(/\{[\s\S]*\}/)![0]);
+
+    // Only WEIGHT has data — no empty PULSE/BP/etc. series objects.
+    expect(Object.keys(snapshot.measurementSeries)).toEqual(["WEIGHT"]);
   });
 });
 

@@ -64,8 +64,8 @@ beforeEach(() => {
   vi.mocked(getMedicationCategories).mockResolvedValue({});
 });
 
-describe("generateMedicationComplianceStatusForUser — v1.4.6 bucketed payload", () => {
-  it("emits {daily, monthly} compliance series per medication spanning 3 years", async () => {
+describe("generateMedicationComplianceStatusForUser — graded payload", () => {
+  it("emits a graded {recent, weekly, monthly} compliance series per medication", async () => {
     const now = new Date();
     const medication = {
       id: "med-1",
@@ -118,16 +118,14 @@ describe("generateMedicationComplianceStatusForUser — v1.4.6 bucketed payload"
     expect(snapshot.medications).toBeInstanceOf(Array);
     expect(snapshot.medications.length).toBe(1);
     const dailySeries = snapshot.medications[0].dailySeries;
-    expect(dailySeries).toHaveProperty("daily");
+    expect(dailySeries).toHaveProperty("recent");
+    expect(dailySeries).toHaveProperty("weekly");
     expect(dailySeries).toHaveProperty("monthly");
-    expect(dailySeries.daily.length).toBeGreaterThan(0);
-    expect(dailySeries.monthly.length).toBeGreaterThan(0);
-    expect(dailySeries.daily[0]).toHaveProperty("dayOffset");
-    expect(dailySeries.daily[0]).toHaveProperty("value");
-    expect(dailySeries.daily[0]).toHaveProperty("n");
-    expect(dailySeries.monthly[0]).toHaveProperty("monthOffset");
-    expect(dailySeries.monthly[0]).toHaveProperty("value");
-    expect(dailySeries.monthly[0]).toHaveProperty("n");
+    expect(dailySeries).toHaveProperty("yearly");
+    expect(dailySeries.recent.length).toBeLessThanOrEqual(21);
+    expect(dailySeries.recent[0]).toHaveProperty("date");
+    expect(dailySeries.recent[0]).toHaveProperty("mean");
+    expect(dailySeries.monthly[0]).toHaveProperty("month");
   });
 });
 

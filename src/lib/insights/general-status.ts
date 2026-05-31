@@ -12,6 +12,10 @@ import {
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
+import {
+  buildGradedSeriesFromPoints,
+  degradeStatusSnapshotToBudget,
+} from "@/lib/insights/graded-series";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { readFreshStatusText } from "@/lib/insights/status-cache";
@@ -130,25 +134,39 @@ export async function generateGeneralStatusForUser(
 
   const now = new Date();
 
+  // `dailyByType` keeps the `applyPayloadBudget` daily buckets for the
+  // downstream BP in-target pairing; the prompt embeds the compact
+  // graded series instead of the full daily array. Skip types with no
+  // data so a many-metric account can't balloon the snapshot with empty
+  // series objects.
+  const dailyByType = new Map<
+    (typeof MEASUREMENT_TYPES)[number],
+    ReturnType<typeof applyPayloadBudget>
+  >();
   const measurementSeries = Object.fromEntries(
-    MEASUREMENT_TYPES.map((type) => {
+    MEASUREMENT_TYPES.flatMap((type) => {
       const records = measurements
         .filter((measurement) => measurement.type === type)
         .map((measurement) => ({
           measuredAt: measurement.measuredAt,
           value: measurement.value,
         }));
+      if (records.length === 0) return [];
 
       const series = applyPayloadBudget(records, { now });
+      dailyByType.set(type, series);
+      const graded = buildGradedSeriesFromPoints(records, now);
 
       return [
-        type,
-        {
-          summary: summarizeSeries(
-            series.daily.map((bucket) => ({ value: bucket.value })),
-          ),
-          series,
-        },
+        [
+          type,
+          {
+            summary: summarizeSeries(
+              series.daily.map((bucket) => ({ value: bucket.value })),
+            ),
+            series: graded,
+          },
+        ] as const,
       ];
     }),
   );
@@ -195,6 +213,7 @@ export async function generateGeneralStatusForUser(
       value: value.total > 0 ? round((value.taken / value.total) * 100, 1) : 0,
     }));
   const adherenceSeries = applyPayloadBudget(adherenceRecords, { now });
+  const adherenceGraded = buildGradedSeriesFromPoints(adherenceRecords, now);
 
   // Fetch mood context (optional — for enrichment only). v1.4.28
   // FB-D2 — cap at 90 entries.
@@ -212,6 +231,7 @@ export async function generateGeneralStatusForUser(
     value: entry.score,
   }));
   const moodSeries = applyPayloadBudget(moodRecords, { now });
+  const moodGraded = buildGradedSeriesFromPoints(moodRecords, now);
   const moodSummary = summarizeSeries(
     moodSeries.daily.map((bucket) => ({ value: bucket.value })),
   );
@@ -220,9 +240,9 @@ export async function generateGeneralStatusForUser(
   const bpTargets = getBpTargets(user?.dateOfBirth ?? null);
   let bpInTargetLast30Days: number | null = null;
   if (bpTargets) {
-    const sysDaily = measurementSeries.BLOOD_PRESSURE_SYS?.series.daily ?? [];
+    const sysDaily = dailyByType.get("BLOOD_PRESSURE_SYS")?.daily ?? [];
     const diaMap = new Map(
-      (measurementSeries.BLOOD_PRESSURE_DIA?.series.daily ?? []).map(
+      (dailyByType.get("BLOOD_PRESSURE_DIA")?.daily ?? []).map(
         (bucket) => [bucket.dayOffset, bucket.value] as const,
       ),
     );
@@ -285,7 +305,7 @@ export async function generateGeneralStatusForUser(
       summary: summarizeSeries(
         adherenceSeries.daily.map((bucket) => ({ value: bucket.value })),
       ),
-      series: adherenceSeries,
+      series: adherenceGraded,
     },
     bloodPressureTargets: bpTargets
       ? {
@@ -300,16 +320,22 @@ export async function generateGeneralStatusForUser(
             points: moodSeries.daily.length,
             mean: moodMean,
             latest: moodSeries.daily[0]?.value ?? null,
-            series: moodSeries,
+            series: moodGraded,
           }
         : null,
   };
 
+  const shed = degradeStatusSnapshotToBudget(
+    snapshot as unknown as Record<string, unknown>,
+  );
   const snapshotJson = JSON.stringify(snapshot, null, 2);
 
   annotate({
     action: { name: cacheAction },
-    meta: { payload_size_bytes: snapshotJson.length },
+    meta: {
+      payload_size_bytes: snapshotJson.length,
+      ...(shed.length > 0 ? { snapshot_shed: shed } : {}),
+    },
   });
 
   // v1.4: pull the previous cached general-status into the prompt so

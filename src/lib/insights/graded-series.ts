@@ -366,6 +366,97 @@ export async function buildGradedSeriesWithRollups(
 }
 
 /**
+ * Assembled-snapshot soft char cap, mirroring the Coach's
+ * `MAX_SNAPSHOT_CHARS` (~24 000 chars ≈ ~6 000 tokens against the
+ * pretty-printed form). The status snapshots had no cap at all; a
+ * many-metric `general-status` could balloon past 100 K tokens.
+ */
+export const MAX_SNAPSHOT_CHARS = 24_000;
+
+/**
+ * Walk an arbitrary snapshot object and, while it exceeds
+ * `MAX_SNAPSHOT_CHARS` (measured against the pretty-printed form the
+ * prompt ships), shed the lowest-signal slices in order:
+ *   1. drop every graded `yearly` array,
+ *   2. drop every graded `weekly` array,
+ *   3. truncate any other array to its tail `arrayTailCap` entries
+ *      (correlation pair arrays, paired-daily rows, …),
+ *   4. drop every graded `recent` array (last resort — the coarse
+ *      monthly summary survives).
+ *
+ * Mutates `snapshot` in place and returns the slices it shed so the
+ * caller can annotate. Generic by design: it keys off the graded field
+ * names + array length, never off a specific generator's shape.
+ */
+export function degradeStatusSnapshotToBudget(
+  snapshot: Record<string, unknown>,
+  arrayTailCap = 30,
+): string[] {
+  const shed: string[] = [];
+  const size = () => JSON.stringify(snapshot, null, 2).length;
+  if (size() <= MAX_SNAPSHOT_CHARS) return shed;
+
+  const walk = (
+    node: unknown,
+    fn: (parent: Record<string, unknown>, key: string, value: unknown) => void,
+  ): void => {
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item, fn);
+      return;
+    }
+    if (node && typeof node === "object") {
+      const obj = node as Record<string, unknown>;
+      for (const key of Object.keys(obj)) {
+        fn(obj, key, obj[key]);
+        walk(obj[key], fn);
+      }
+    }
+  };
+
+  const dropField = (field: string) => {
+    walk(snapshot, (parent, key) => {
+      if (key === field && Array.isArray(parent[key])) {
+        delete parent[key];
+      }
+    });
+  };
+
+  dropField("yearly");
+  if (size() <= MAX_SNAPSHOT_CHARS) {
+    shed.push("yearly");
+    return shed;
+  }
+  shed.push("yearly");
+
+  dropField("weekly");
+  if (size() <= MAX_SNAPSHOT_CHARS) {
+    shed.push("weekly");
+    return shed;
+  }
+  shed.push("weekly");
+
+  // Truncate every remaining non-graded array to its tail.
+  walk(snapshot, (parent, key, value) => {
+    if (
+      Array.isArray(value) &&
+      key !== "recent" &&
+      value.length > arrayTailCap
+    ) {
+      parent[key] = value.slice(-arrayTailCap);
+    }
+  });
+  if (size() <= MAX_SNAPSHOT_CHARS) {
+    shed.push("array-tails");
+    return shed;
+  }
+  shed.push("array-tails");
+
+  dropField("recent");
+  shed.push("recent");
+  return shed;
+}
+
+/**
  * Headline summary across the whole graded series — min/max/mean/n —
  * for the snapshot's summary line. Composes the per-bucket stats; uses
  * `aggregateWmyBuckets` semantics for the count-weighted mean.
