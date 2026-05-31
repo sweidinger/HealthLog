@@ -1,18 +1,21 @@
 /**
- * v1.7.0 W6 — reversible rollout flag for the unified dashboard
- * snapshot consumption (R-firstpaint §6 rollout).
+ * Reversible rollout flag for the unified dashboard snapshot
+ * consumption.
  *
- * The `GET /api/dashboard/snapshot` endpoint and the
- * `insight-pregenerate` cron ship inert in step 1. This flag controls
- * step 2 — whether the dashboard page reads every tile from the single
- * snapshot cell (flag ON) or keeps the legacy four independent cells
- * (flag OFF, today's behaviour, zero risk). Default OFF so the swap is
- * opt-in until the stagger is verified gone in production.
+ * Controls whether the dashboard page reads every above-the-fold tile
+ * from the single `GET /api/dashboard/snapshot` cell (default) or falls
+ * back to the legacy four independent cells (slim analytics + thick
+ * analytics + mood + widget layout). The snapshot path is the desired
+ * behaviour: one un-gated request hydrates the whole strip so every
+ * tile shares one completion moment, instead of four parallel cells
+ * where the mood cache resolves fastest and pops in ahead of the rest.
  *
- * Build-time `NEXT_PUBLIC_*` env var so the bundle is statically
- * branched; flipping it is a redeploy, not a runtime toggle, which
- * keeps the off-path bundle identical to today's.
+ * Default ON. Set `NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false` to fall back
+ * to the legacy multi-cell path. Defaulting on (rather than gating on
+ * `=== "true"`) avoids the `NEXT_PUBLIC_*` build-time-baking trap: the
+ * snapshot path is exercised in dev / e2e without a special build
+ * flag, and the production image gets it without a Dockerfile ARG.
  */
 export function isDashboardSnapshotEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DASHBOARD_SNAPSHOT === "true";
+  return process.env.NEXT_PUBLIC_DASHBOARD_SNAPSHOT !== "false";
 }

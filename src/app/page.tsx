@@ -120,8 +120,8 @@ function getHourForTimeZone(timeZone?: string): number {
  * v1.7.0 — first-paint gate for the dashboard tile strip.
  *
  * `primaryLoading` must come from whichever query actually drives the
- * tiles: the snapshot cell under `NEXT_PUBLIC_DASHBOARD_SNAPSHOT=true`,
- * the slim analytics cell otherwise. A disabled TanStack query reports
+ * tiles: the snapshot cell by default, the slim analytics cell when
+ * `NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false`. A disabled TanStack query reports
  * `isLoading: false` (idle fetch status), so keying off the wrong
  * source flashes the empty state for the whole fetch. Pure + exported
  * so the gate has direct unit coverage without mounting the page.
@@ -245,12 +245,12 @@ export default function DashboardPage() {
   // Both queries share `caches.analytics` server-side so warm hits
   // stay free, and TanStack's parallel-mounting keeps the network fan-
   // out flat.
-  // v1.7.0 W6 — unified first-paint snapshot (reversible rollout flag).
-  // When `NEXT_PUBLIC_DASHBOARD_SNAPSHOT=true`, every tile hydrates from
-  // ONE un-gated `/api/dashboard/snapshot` cell so the whole strip
-  // shares one completion moment and the `/api/auth/me` round-trip
-  // leaves the cold critical path. Flag OFF keeps the legacy four
-  // independent cells (today's behaviour, byte-identical).
+  // Unified first-paint snapshot (reversible rollout flag, default ON).
+  // Every tile hydrates from ONE un-gated `/api/dashboard/snapshot` cell
+  // so the whole strip shares one completion moment and the
+  // `/api/auth/me` round-trip leaves the cold critical path. Set
+  // `NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false` to fall back to the legacy
+  // four independent cells.
   const snapshotEnabled = isDashboardSnapshotEnabled();
   const snapshotQuery = useDashboardSnapshot(snapshotEnabled);
 
