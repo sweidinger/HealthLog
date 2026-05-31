@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.7.3] — 2026-05-31 — Health-record PDF fixes, multi-time compliance
+
+Two fixes to live behaviour.
+
+### Fixed
+
+- **Health-record export renders in the account language** — the PDF came out in English regardless of the in-app language because the export only consulted the browser's `Accept-Language`. The client now sends the active language and the server falls back to the language cookie before the browser header.
+- **Health-record export layout** — charts now label their time axis (start and end date of the plotted window), modules are kept together instead of breaking across a page, a consistent bottom margin is held on every page, and a glyph-encoding issue that stretched a few lines (trend arrows and the `m²` unit) is resolved by sanitising to the font's supported characters.
+- **Compliance counts every scheduled time on multi-time plans** — a medication taken twice a day on a weekday plan with two times but no recurrence rule reported 50% even when both doses were logged: the expected-dose count and the taken count expanded the schedule through two different code paths. Both now run through the one canonical recurrence engine, so the rate is correct for every schedule shape.
+
 ## [1.7.2] — 2026-05-31 — Coach source parity, first-paint snapshot, medication card cleanup
 
 A focused follow-up to v1.7.0. The unified dashboard snapshot that shipped in v1.7.0 is now the default, so a cold dashboard paints its above-the-fold tiles together instead of letting the mood tile arrive ahead of the rest. The Coach's in-chat data-source rail now reads and writes the same persisted data clusters as the settings sheet — one source of truth that survives a reload, so what the panel shows always matches what reaches the model. The medication overview cards collapse their action row into a single overflow menu, and the detail page is pared back to the intake history under a read-only plan summary. The advanced-settings sheet widens into a two-column layout and offers a medications export beside the existing import.
