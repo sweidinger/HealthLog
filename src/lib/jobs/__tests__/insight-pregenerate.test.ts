@@ -27,6 +27,30 @@ vi.mock("@/lib/feature-flags", () => ({
 vi.mock("@/lib/insights/comprehensive-generate", () => ({
   generateComprehensiveInsight: vi.fn(),
 }));
+// The seven status generators import the provider chain transitively;
+// stub the modules so the warm-pass never touches a live provider when
+// the test does not inject its own generators.
+vi.mock("@/lib/insights/blood-pressure-status", () => ({
+  generateBloodPressureStatusForUser: vi.fn(),
+}));
+vi.mock("@/lib/insights/pulse-status", () => ({
+  generatePulseStatusForUser: vi.fn(),
+}));
+vi.mock("@/lib/insights/weight-status", () => ({
+  generateWeightStatusForUser: vi.fn(),
+}));
+vi.mock("@/lib/insights/bmi-status", () => ({
+  generateBmiStatusForUser: vi.fn(),
+}));
+vi.mock("@/lib/insights/mood-status", () => ({
+  generateMoodStatusForUser: vi.fn(),
+}));
+vi.mock("@/lib/insights/medication-compliance-status", () => ({
+  generateMedicationComplianceStatusForUser: vi.fn(),
+}));
+vi.mock("@/lib/insights/general-status", () => ({
+  generateGeneralStatusForUser: vi.fn(),
+}));
 
 import {
   runInsightPregenerate,
@@ -177,6 +201,100 @@ describe("runInsightPregenerate — outcome tally", () => {
       locale: "de",
       force: true,
     });
+  });
+});
+
+describe("runInsightPregenerate — per-metric warm pass", () => {
+  function warmGen(result: { hasProvider: boolean; cached: boolean }) {
+    return vi.fn().mockResolvedValue(result);
+  }
+
+  it("forces all seven status generators after a successful comprehensive generation", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "generated", providerType: "x" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      warmGen({ hasProvider: true, cached: false }),
+    );
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+    });
+
+    // Every status generator forced with the resolved locale.
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: true });
+    }
+    // Seven fresh, provider-backed assessments warmed.
+    expect(result.assessmentsWarmed).toBe(7);
+  });
+
+  it("does NOT warm when the comprehensive pass skipped (no provider)", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "en" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "skipped", reason: "no-provider" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      warmGen({ hasProvider: false, cached: true }),
+    );
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+    });
+
+    for (const g of statusGenerators) {
+      expect(g).not.toHaveBeenCalled();
+    }
+    expect(result.assessmentsWarmed).toBe(0);
+  });
+
+  it("does NOT warm when the comprehensive pass failed", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "failed", reason: "provider-error" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      warmGen({ hasProvider: true, cached: false }),
+    );
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+    });
+
+    for (const g of statusGenerators) {
+      expect(g).not.toHaveBeenCalled();
+    }
+    expect(result.assessmentsWarmed).toBe(0);
+  });
+
+  it("counts only fresh provider-backed assessments and survives a thrown generator", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "generated", providerType: "x" });
+    const statusGenerators = [
+      warmGen({ hasProvider: true, cached: false }), // counts
+      warmGen({ hasProvider: false, cached: true }), // no provider — skip
+      warmGen({ hasProvider: true, cached: true }), // served cache — skip
+      vi.fn().mockRejectedValue(new Error("boom")), // throws — swallowed
+      warmGen({ hasProvider: true, cached: false }), // counts
+    ];
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+    });
+
+    // The throw must not abort the loop — every generator was attempted.
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(1);
+    }
+    expect(result.assessmentsWarmed).toBe(2);
   });
 });
 

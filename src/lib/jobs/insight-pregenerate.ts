@@ -10,6 +10,16 @@
  * snapshot embeds a `briefingState: "ready"` block instead of
  * `"preparing"`.
  *
+ * v1.8.0 — warm the per-metric assessment caches too. The comprehensive
+ * generator evicts the seven `insights.<scope>-status.<locale>` caches
+ * as part of its write (so a stale comprehensive insight can never leave
+ * a stale per-metric card behind) but does NOT re-fill them. Before this,
+ * the morning after the cron ran the per-metric status caches were
+ * empty, so the first `/insights` mount still ran one live status
+ * generation per card. After a successful comprehensive generation this
+ * cron now forces the seven `*StatusForUser` generators so their caches
+ * are warm, not empty, by the user's first visit.
+ *
  * Runs once nightly at 04:30 Europe/Berlin — inside the existing
  * 03:xx–04:xx maintenance window, after the feedback aggregator (04:00)
  * and the cumulative drain (03:30) so the late-night CPU profile stays
@@ -38,10 +48,18 @@
 import type { PrismaClient } from "@/generated/prisma/client";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getAssistantFlags } from "@/lib/feature-flags";
+import { annotate } from "@/lib/logging/context";
 import {
   generateComprehensiveInsight,
   type GenerateOutcome,
 } from "@/lib/insights/comprehensive-generate";
+import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
+import { generatePulseStatusForUser } from "@/lib/insights/pulse-status";
+import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
+import { generateBmiStatusForUser } from "@/lib/insights/bmi-status";
+import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
+import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
+import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
 
 export const INSIGHT_PREGENERATE_QUEUE = "insight-pregenerate";
 
@@ -74,6 +92,71 @@ export interface PregenerateRunResult {
   skipped: number;
   failed: number;
   budgetBlocked: number;
+  /**
+   * Count of per-metric assessment caches written warm across the whole
+   * run. The comprehensive generator evicts the seven `*-status`
+   * caches as part of its write (so a stale comprehensive insight can't
+   * leave a stale per-metric card), but it does not re-fill them — so
+   * without this warm pass the first morning visit after the cron runs
+   * one live status generation per card. This counts the warm writes.
+   */
+  assessmentsWarmed: number;
+}
+
+/**
+ * Signature for one per-metric status generator. The seven
+ * `*StatusForUser` functions all share this shape: `(userId, { locale,
+ * force }) => { hasProvider, text, cached, updatedAt }`. We only need to
+ * know whether the call produced a fresh (non-cached, provider-backed)
+ * assessment, so the warm-pass narrows to those two fields.
+ */
+type StatusGenerator = (
+  userId: string,
+  options: { locale: "de" | "en"; force?: boolean },
+) => Promise<{ hasProvider: boolean; cached: boolean }>;
+
+/**
+ * The seven per-metric status generators the warm pass re-fills after
+ * the comprehensive generator evicted them. Each writes its own
+ * `insights.<scope>-status.<locale>` cache row on a fresh generation and
+ * resolves the user's provider chain internally, so a provider-less
+ * account costs one cheap chain-resolve and no LLM call (`hasProvider:
+ * false`).
+ */
+const DEFAULT_STATUS_GENERATORS: ReadonlyArray<StatusGenerator> = [
+  generateBloodPressureStatusForUser,
+  generatePulseStatusForUser,
+  generateWeightStatusForUser,
+  generateBmiStatusForUser,
+  generateMoodStatusForUser,
+  generateMedicationComplianceStatusForUser,
+  generateGeneralStatusForUser,
+];
+
+/**
+ * Re-fill the per-metric assessment caches for one user, forcing a fresh
+ * generation so the row the comprehensive generator just evicted is
+ * written warm. Returns the count of fresh (provider-backed,
+ * non-cached) assessments written. A generator that has no provider or
+ * fails serves its fallback without persisting it, so it does not count
+ * toward the warmed tally and never throws the batch loop off course.
+ */
+async function warmPerStatusCaches(
+  userId: string,
+  locale: "de" | "en",
+  generators: ReadonlyArray<StatusGenerator>,
+): Promise<number> {
+  let warmed = 0;
+  for (const generate of generators) {
+    try {
+      const outcome = await generate(userId, { locale, force: true });
+      if (outcome.hasProvider && !outcome.cached) warmed++;
+    } catch {
+      // A single card's generation failing must not abort the rest of
+      // the warm pass for this user, nor the cron's user loop.
+    }
+  }
+  return warmed;
 }
 
 interface PregenerateCandidate {
@@ -130,11 +213,15 @@ export async function runInsightPregenerate(
       userId: string,
       opts: { locale: "de" | "en"; force?: boolean },
     ) => Promise<GenerateOutcome>;
+    /** Injected for the test — defaults to the seven real status generators. */
+    statusGenerators?: ReadonlyArray<StatusGenerator>;
   } = {},
 ): Promise<PregenerateRunResult> {
   const now = options.now ?? new Date();
   const cap = options.cap ?? PREGENERATE_BATCH_CAP;
   const generate = options.generate ?? generateComprehensiveInsight;
+  const statusGenerators =
+    options.statusGenerators ?? DEFAULT_STATUS_GENERATORS;
 
   const result: PregenerateRunResult = {
     total: 0,
@@ -143,6 +230,7 @@ export async function runInsightPregenerate(
     skipped: 0,
     failed: 0,
     budgetBlocked: 0,
+    assessmentsWarmed: 0,
   };
 
   // Master kill-switch — when the operator disabled the briefing
@@ -174,8 +262,9 @@ export async function runInsightPregenerate(
     // pre-generation — defeating the "warm the cache before the user's
     // morning visit" intent for the common case. The per-user budget
     // bucket (above) is what bounds cost, not the TTL re-check.
+    const locale = normalizeLocale(candidate.locale);
     const outcome = await generate(candidate.id, {
-      locale: normalizeLocale(candidate.locale),
+      locale,
       force: true,
     });
     switch (outcome.status) {
@@ -192,7 +281,39 @@ export async function runInsightPregenerate(
         result.failed++;
         break;
     }
+
+    // Warm the per-metric assessment caches the comprehensive generator
+    // evicts (`evictPerStatusInsightCache`) but does not re-fill. Only
+    // do this when the comprehensive pass actually produced an insight:
+    // a `skipped` (no-provider) user has nothing to warm, and a `failed`
+    // pass means the provider chain is unhealthy this run — re-running
+    // it seven more times would only multiply the failure. A `cached`
+    // outcome can't happen here (we always force), but if a future
+    // change reintroduces it the per-metric caches were not evicted, so
+    // there is nothing to warm.
+    if (outcome.status === "generated") {
+      result.assessmentsWarmed += await warmPerStatusCaches(
+        candidate.id,
+        locale,
+        statusGenerators,
+      );
+    }
   }
+
+  // Wide-event tally so the nightly dashboard can track how many
+  // comprehensive insights and per-metric assessments each tick wrote.
+  annotate({
+    action: { name: "insights.pregenerate.run" },
+    meta: {
+      total: result.total,
+      generated: result.generated,
+      cached: result.cached,
+      skipped: result.skipped,
+      failed: result.failed,
+      budget_blocked: result.budgetBlocked,
+      assessments_warmed: result.assessmentsWarmed,
+    },
+  });
 
   return result;
 }
