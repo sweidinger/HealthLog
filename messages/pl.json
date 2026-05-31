@@ -642,45 +642,6 @@
       }
     },
     "scheduling": {
-      "section": "Harmonogram",
-      "loading": "Wczytywanie danych harmonogramu",
-      "loadFailed": "Nie udało się wczytać danych harmonogramu.",
-      "editCta": "Edytuj",
-      "reminders": {
-        "on": "Przypomnienia włączone",
-        "off": "Przypomnienia wyłączone"
-      },
-      "cadenceViz": {
-        "title": "Ostatnie 30 dni",
-        "ariaTimeline": "Oś czasu dawek z ostatnich 30 dni",
-        "emptyState": "Brak zaplanowanych dawek w tym oknie.",
-        "nextDoseLabel": "Następna dawka:",
-        "noNextDose": "Brak zaplanowanej nadchodzącej dawki.",
-        "status": {
-          "taken": "Przyjęta",
-          "skipped": "Pominięta",
-          "missed": "Niepodjęta",
-          "upcoming": "Nadchodząca"
-        }
-      },
-      "compliance": {
-        "title": "Adherencja",
-        "noData": "Brak danych",
-        "adherenceRate": "Adherencja",
-        "currentStreak": "Bieżąca seria",
-        "longestStreak": "Najdłuższa seria",
-        "missedLast30": "Pominięte (30 d.)",
-        "unit": {
-          "days": "d.",
-          "doses": "dawek"
-        },
-        "chips": {
-          "adherenceTooltip": "Udział dawek przyjętych w ostatnich 30 dniach (pominięte dawki są wyłączone z mianownika).",
-          "streakTooltip": "Kolejne dni do dziś, w których każda zaplanowana dawka została przyjęta lub świadomie pominięta.",
-          "longestTooltip": "Najdłuższa nieprzerwana seria w 30-dniowym oknie.",
-          "missedTooltip": "Liczba dawek pominiętych w ostatnich 30 dniach."
-        }
-      },
       "naturalLanguage": {
         "title": "Opisz lek",
         "description": "Opisz lek własnymi słowami, a my wstępnie wypełnimy formularz za Ciebie.",
@@ -786,14 +747,6 @@
         "noEndDate": "No end date",
         "oneShotCaption": "(one-time dose)",
         "invalidRange": "End date must be on or after the start date."
-      },
-      "oneShot": {
-        "section": "Single dose",
-        "collapseWarning": "Single dose enabled — every other schedule was merged into the first."
-      },
-      "legacyWindow": {
-        "section": "Reminder window (legacy)",
-        "help": "Older schedules still use a window pair. New schedules use times of day above — the window stays for backwards compatibility and is dropped in a future release."
       }
     },
     "wizard": {
@@ -1153,7 +1106,6 @@
         "error": "Could not log the dose."
       },
       "cadence": {
-        "title": "Cadence",
         "oneShotOn": "One-time dose on {date}.",
         "oneShotPending": "One-time dose pending."
       },

@@ -8,9 +8,15 @@
  * / advanced) into a single overflow kebab so the card header carries one
  * affordance instead of a cluster. The card body itself navigates to the
  * detail page (the former chevron target); this menu owns the edit /
- * history / advanced actions. The GLP-1 card folds its "Log side effect"
- * item into the SAME menu via the optional `onLogSideEffect` slot so the
- * two card variants stay byte-symmetric in the header.
+ * history / advanced actions.
+ *
+ * The optional `onLogSideEffect` slot exists for the GLP-1 card to fold a
+ * "Log side effect" item into the SAME menu, but it is NOT wired on the
+ * medications list page — both card variants there receive only the
+ * edit / history / advanced handlers, so the item never renders. Side-
+ * effect logging lives on the detail page's `<SideEffectsSection>`. When
+ * the slot is left undefined the two card variants stay byte-symmetric in
+ * the header (one kebab, identical items).
  *
  * The trigger is a 44px ghost icon-button (WCAG 2.5.5); every
  * `DropdownMenuItem` already carries `min-h-11` from the shadcn

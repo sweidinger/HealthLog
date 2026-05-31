@@ -642,45 +642,6 @@
       }
     },
     "scheduling": {
-      "section": "Schedule",
-      "loading": "Loading schedule data",
-      "loadFailed": "Schedule data failed to load.",
-      "editCta": "Edit",
-      "reminders": {
-        "on": "Reminders on",
-        "off": "Reminders off"
-      },
-      "cadenceViz": {
-        "title": "Last 30 days",
-        "ariaTimeline": "Dose timeline for the last 30 days",
-        "emptyState": "No doses scheduled in this window.",
-        "nextDoseLabel": "Next dose:",
-        "noNextDose": "No upcoming dose scheduled.",
-        "status": {
-          "taken": "Taken",
-          "skipped": "Skipped",
-          "missed": "Missed",
-          "upcoming": "Upcoming"
-        }
-      },
-      "compliance": {
-        "title": "Adherence",
-        "noData": "No data",
-        "adherenceRate": "Adherence",
-        "currentStreak": "Current streak",
-        "longestStreak": "Longest streak",
-        "missedLast30": "Missed (30 d.)",
-        "unit": {
-          "days": "d.",
-          "doses": "doses"
-        },
-        "chips": {
-          "adherenceTooltip": "Share of doses taken across the last 30 days (skipped doses are excluded from the denominator).",
-          "streakTooltip": "Consecutive days up to today on which every scheduled dose was taken or deliberately skipped.",
-          "longestTooltip": "Longest unbroken streak within the 30-day window.",
-          "missedTooltip": "Count of doses missed in the last 30 days."
-        }
-      },
       "naturalLanguage": {
         "title": "Describe your medication",
         "description": "Write the medication in your own words and we will pre-fill the form for you.",
@@ -786,14 +747,6 @@
         "noEndDate": "No end date",
         "oneShotCaption": "(one-time dose)",
         "invalidRange": "End date must be on or after the start date."
-      },
-      "oneShot": {
-        "section": "Single dose",
-        "collapseWarning": "Single dose enabled — every other schedule was merged into the first."
-      },
-      "legacyWindow": {
-        "section": "Reminder window (legacy)",
-        "help": "Older schedules still use a window pair. New schedules use times of day above — the window stays for backwards compatibility and is dropped in a future release."
       }
     },
     "wizard": {
@@ -1153,7 +1106,6 @@
         "error": "Could not log the dose."
       },
       "cadence": {
-        "title": "Cadence",
         "oneShotOn": "One-time dose on {date}.",
         "oneShotPending": "One-time dose pending."
       },
