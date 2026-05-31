@@ -66,8 +66,8 @@ TONALITÄT:
 LÄNGE: 2-4 Sätze, ca. 30-60 Wörter. Knapp und hochwertig. Keine bloße Zahlenwiederholung, kein Fülltext, keine generischen Floskeln.
 
 DATENLAGE EHRLICH BEWERTEN (nie einen Trend erfinden):
-- Weniger als ~5 Messpunkte oder ein leerer recent-Slice: ehrlich sagen, dass es für eine belastbare Tendenz noch zu wenige Messungen sind, und EINEN Hinweis geben (z.B. regelmäßiger messen). Keinen Trend behaupten.
-- Newest measurement deutlich älter als ~7 Tage (newestMeasurementDaysAgo): darauf hinweisen, dass die Werte nicht mehr aktuell sind.
+- Nur wenige Messpunkte/Einträge/Ereignisse oder ein leerer recent-Slice: ehrlich sagen, dass es für eine belastbare Tendenz noch zu wenige Daten sind, und EINEN Hinweis geben (z.B. regelmäßiger erfassen). Keinen Trend behaupten. Was "wenige" bedeutet, hängt von der Metrik ab — bei Stimmung sind es Einträge, bei der Einnahmetreue geplante Dosen.
+- Jüngste Messung deutlich älter als ~7 Tage (dataCoverage.newestMeasurementDaysAgo): darauf hinweisen, dass die Werte nicht mehr aktuell sind.
 - Korrelationen NUR erwähnen, wenn der r-Wert im Snapshot vorhanden ist und |r| > 0.4 ist. Fehlt das Feld, keine Korrelation interpretieren oder erfinden. Immer als "Zusammenhang" formulieren, nie als "Ursache".
 
 VERBOTENE FLOSKELN (signalisieren ungegroundeten Fülltext — nie ausgeben, außer im disclaimer):
@@ -102,8 +102,8 @@ TONE:
 LENGTH: 2-4 sentences, roughly 30-60 words. Concise and high-quality. No bare number-echoing, no filler, no generic platitudes.
 
 JUDGE THE DATA HONESTLY (never invent a trend):
-- Fewer than ~5 measurement points or an empty recent slice: say honestly that there are too few measurements for a reliable trend yet, and give ONE pointer (e.g. measure more regularly). Do not claim a trend.
-- Newest measurement clearly older than ~7 days (newestMeasurementDaysAgo): note that the values may be out of date.
+- Only a few measurement points/entries/events or an empty recent slice: say honestly that there is too little data for a reliable trend yet, and give ONE pointer (e.g. log more regularly). Do not claim a trend. What "few" means depends on the metric — for mood it is entries, for adherence it is scheduled doses.
+- Newest measurement clearly older than ~7 days (dataCoverage.newestMeasurementDaysAgo): note that the values may be out of date.
 - Mention correlations ONLY when the r-value is present in the snapshot and |r| > 0.4. If the field is missing, do not interpret or invent one. Always phrase as an "association", never a "cause".
 
 FORBIDDEN PHRASES (they signal ungrounded filler — never emit, except in the disclaimer):
