@@ -1,19 +1,19 @@
 /**
- * v1.5.6 G-1 §3 — the `/medications/[id]` detail page is a pure
- * history surface.
+ * v1.7.2 W3 — the `/medications/[id]` detail page IS the history view.
  *
- * Source-level guards (the page is a client component with `use()`
- * + hooks, so a full render is heavier than the contract warrants):
- *   - no `TodaysDoseCard` import or render (removed from the detail
- *     page; it lives only on the list page);
+ * Editing and advanced settings are reached from the medications-list
+ * card kebab only; the detail page is purely history-centric. Source-
+ * level guards (the page is a client component with `use()` + hooks, so
+ * a full render is heavier than the contract warrants):
+ *   - no `TodaysDoseCard` import or render (lives only on the list page);
  *   - no `isToday` / `todayEvent` derivations (dead once the card is
  *     gone);
  *   - no `landingIntent` / `wizardIntent` / `openWizardWithIntent`
- *     plumbing (the header dropdown is the only wizard entry, landing
- *     on Step 1);
- *   - the page hosts the `AdvancedSettingsSheet` and renders an
- *     editable cadence row (the v1.6.0 editor opens directly from the
- *     row, so `hideEdit` is gone).
+ *     plumbing;
+ *   - the page no longer hosts the wizard, the `AdvancedSettingsSheet`,
+ *     the `MedicationDetailHeader` action row, or an editable cadence
+ *     ("Rhythmus") block — those moved to the card kebab. It renders the
+ *     read-only `MedicationDetailSummary` + the intake-history table.
  */
 
 import { readFileSync } from "node:fs";
@@ -25,7 +25,7 @@ const source = readFileSync(
   "utf8",
 );
 
-describe("medication detail page is a pure history surface (G-1 §3)", () => {
+describe("medication detail page is the history view (W3)", () => {
   it("does not import or render TodaysDoseCard", () => {
     expect(source).not.toContain("TodaysDoseCard");
     expect(source).not.toContain("todays-dose-card");
@@ -42,10 +42,18 @@ describe("medication detail page is a pure history surface (G-1 §3)", () => {
     expect(source).not.toContain("openWizardWithIntent");
   });
 
-  it("hosts the AdvancedSettingsSheet and an editable cadence row", () => {
-    expect(source).toContain("AdvancedSettingsSheet");
-    // v1.6.0 — the cadence row opens the editor directly; the dead
-    // `hideEdit` prop is gone.
+  it("no longer hosts the wizard, advanced sheet, detail-header, or cadence row", () => {
+    // v1.7.2 W3 — editing + advanced moved to the medications-list card
+    // kebab; the detail page carries none of those affordances.
+    expect(source).not.toContain("AdvancedSettingsSheet");
+    expect(source).not.toContain("MedicationWizardDialog");
+    expect(source).not.toContain("MedicationDetailHeader");
+    expect(source).not.toContain("CadenceSummaryRow");
     expect(source).not.toContain("hideEdit");
+  });
+
+  it("renders the read-only summary header + the intake-history table", () => {
+    expect(source).toContain("MedicationDetailSummary");
+    expect(source).toContain("IntakeHistoryPreview");
   });
 });
