@@ -45,6 +45,8 @@
  * Recurring pg-boss task — never runs inside an HTTP request and never
  * shells out to `tsx` (CLAUDE.md DO-NOTs).
  */
+import pLimit from "p-limit";
+
 import type { PrismaClient } from "@/generated/prisma/client";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getAssistantFlags } from "@/lib/feature-flags";
@@ -80,6 +82,17 @@ export const PREGENERATE_BATCH_CAP = 200;
 
 /** Per-user budget bucket window — one pre-generation per 20 h. */
 const PREGENERATE_BUDGET_WINDOW_MS = 20 * 60 * 60 * 1000;
+
+/**
+ * Concurrency for the per-user warm pass. The seven `*StatusForUser`
+ * generators are independent (each writes its own cache row), so they run
+ * a few at a time rather than strictly serially — a daily-weigher with
+ * every card configured was paying ~7× one LLM round-trip per user back
+ * to back. Capped low (3) so the warm pass cannot saturate the Prisma
+ * pool or fan out an unbounded number of concurrent provider calls; the
+ * per-user budget gate above still bounds total cost per night.
+ */
+const WARM_PASS_CONCURRENCY = 3;
 
 export interface InsightPregeneratePayload {
   triggeredAt: string;
@@ -146,17 +159,22 @@ async function warmPerStatusCaches(
   locale: "de" | "en",
   generators: ReadonlyArray<StatusGenerator>,
 ): Promise<number> {
-  let warmed = 0;
-  for (const generate of generators) {
-    try {
-      const outcome = await generate(userId, { locale, force: true });
-      if (outcome.hasProvider && !outcome.cached) warmed++;
-    } catch {
-      // A single card's generation failing must not abort the rest of
-      // the warm pass for this user, nor the cron's user loop.
-    }
-  }
-  return warmed;
+  const limit = pLimit(WARM_PASS_CONCURRENCY);
+  const results = await Promise.all(
+    generators.map((generate) =>
+      limit(async () => {
+        try {
+          const outcome = await generate(userId, { locale, force: true });
+          return outcome.hasProvider && !outcome.cached ? 1 : 0;
+        } catch {
+          // A single card's generation failing must not abort the rest of
+          // the warm pass for this user, nor the cron's user loop.
+          return 0;
+        }
+      }),
+    ),
+  );
+  return results.reduce((sum: number, n) => sum + n, 0);
 }
 
 interface PregenerateCandidate {
