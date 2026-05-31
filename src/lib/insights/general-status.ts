@@ -16,61 +16,31 @@ import {
   buildGradedSeriesFromPoints,
   degradeStatusSnapshotToBudget,
 } from "@/lib/insights/graded-series";
-import { stripChartTokens } from "@/lib/insights/chart-tokens";
+import {
+  normalizeLocale,
+  normalizeSummaryText,
+  parseSummaryFromContent,
+  persistStatusInsight,
+  round,
+  summarizeSeries,
+} from "@/lib/insights/status-shared";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { readFreshStatusText } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 
-type SupportedLocale = "de" | "en";
-
 // Derived from canonical enum so a new measurement type is auto-included
 // in the AI general-status fetch (V3 audit: enum drift cousins).
 const MEASUREMENT_TYPES = measurementTypeEnum.options;
 
-function round(value: number, digits = 1): number {
-  const factor = 10 ** digits;
-  return Math.round(value * factor) / factor;
-}
-
-function normalizeSummaryText(value: string): string {
-  return stripChartTokens(value).replace(/\s+/g, " ").trim();
-}
-
-function summarizeSeries(series: Array<{ value: number }>) {
-  if (series.length === 0) return null;
-  const first = series[0].value;
-  const last = series[series.length - 1].value;
-  // v1.4.33 — fold sum/min/max into a single walk. The previous
-  // `Math.min(...series.map(...))` / `Math.max(...series.map(...))`
-  // spread tripped V8's ~125 000-arg ceiling on the bound /api/analytics
-  // path; see `.planning/round-v1433-analytics-500-report.md` §"Carry-
-  // over". These helpers are fed bounded windows today so the crash
-  // never reached them, but the spread allocates a transient args array
-  // on every call — the fold is both stack-safe and cheaper.
-  let sum = 0;
-  let minVal = series[0].value;
-  let maxVal = series[0].value;
-  for (const entry of series) {
-    sum += entry.value;
-    if (entry.value < minVal) minVal = entry.value;
-    if (entry.value > maxVal) maxVal = entry.value;
-  }
-  return {
-    points: series.length,
-    start: round(first, 2),
-    end: round(last, 2),
-    delta: round(last - first, 2),
-    mean: round(sum / series.length, 2),
-    min: round(minVal, 2),
-    max: round(maxVal, 2),
-  };
-}
-
-function normalizeLocale(value: string | null | undefined): SupportedLocale {
-  return value === "en" ? "en" : "de";
-}
+// The general overview folds its per-type graded series in memory from a
+// single bounded read (take 5000, desc) rather than per-type rollup-tier
+// reads: a many-metric account would otherwise fan out ~15 metrics × 3
+// rollup round-trips per render. `degradeStatusSnapshotToBudget` already
+// caps the multi-metric snapshot, so the bounded in-memory fold is the
+// deliberate design here; the rollup tier is wired into the focused
+// single-metric cards (weight / pulse / bmi / blood-pressure) instead.
 
 export async function generateGeneralStatusForUser(
   userId: string,
@@ -382,44 +352,27 @@ export async function generateGeneralStatusForUser(
     });
   }
 
-  let summary = "";
-  try {
-    const parsed = JSON.parse(outcome.content) as { summary?: string };
-    if (typeof parsed.summary === "string") {
-      summary = parsed.summary;
-    } else {
-      summary = outcome.content;
-    }
-  } catch {
-    summary = outcome.content;
-  }
-
-  summary = normalizeSummaryText(summary);
+  const summary = normalizeSummaryText(parseSummaryFromContent(outcome.content));
   if (!summary) {
     throw new Error("General-status summary was empty after normalization");
   }
 
-  const created = await prisma.auditLog.create({
-    data: {
-      userId,
-      action: cacheAction,
-      details: JSON.stringify({
-        dateKey: todayKey,
-        locale,
-        text: summary,
-        providerType: outcome.providerType,
-        model: outcome.model,
-        tokensUsed: outcome.tokensUsed,
-      }),
-    },
-    select: { createdAt: true },
+  const updatedAt = await persistStatusInsight({
+    userId,
+    cacheAction,
+    todayKey,
+    locale,
+    text: summary,
+    providerType: outcome.providerType,
+    model: outcome.model,
+    tokensUsed: outcome.tokensUsed,
   });
 
   return {
     hasProvider: true,
     text: summary,
     cached: false,
-    updatedAt: created.createdAt.toISOString(),
+    updatedAt,
   };
 }
 

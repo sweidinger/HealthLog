@@ -5,6 +5,7 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: vi.fn() },
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
     measurement: { findMany: vi.fn() },
+    measurementRollup: { findMany: vi.fn() },
     medication: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
@@ -52,6 +53,9 @@ function stubCompletion(
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getMedicationCategories).mockResolvedValue({});
+  // Cold rollup tier: the BP channels fold monthly/yearly from the
+  // full-history `measurement.findMany` fallback on a tier miss.
+  vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
 });
 
 describe("generateBloodPressureStatusForUser — graded payload", () => {

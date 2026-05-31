@@ -17,6 +17,7 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: vi.fn() },
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
     measurement: { findMany: vi.fn() },
+    measurementRollup: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
   },
 }));
@@ -36,6 +37,7 @@ import { generatePulseStatusForUser } from "../pulse-status";
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
 });
 
 describe("generatePulseStatusForUser — provider timeout fallback", () => {

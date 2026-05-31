@@ -19,16 +19,23 @@ import {
 } from "@/lib/insights/bucket-series";
 import {
   buildGradedSeriesFromPoints,
+  buildGradedSeriesWithRollups,
   degradeStatusSnapshotToBudget,
 } from "@/lib/insights/graded-series";
-import { stripChartTokens } from "@/lib/insights/chart-tokens";
+import {
+  type SupportedLocale,
+  normalizeLocale,
+  normalizeSummaryText,
+  parseSummaryFromContent,
+  persistStatusInsight,
+  round,
+  summarizeSeries,
+} from "@/lib/insights/status-shared";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { readFreshStatusText } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
-
-type SupportedLocale = "de" | "en";
 
 /**
  * Cap on the embedded correlation pair arrays. The Pearson coefficient
@@ -36,49 +43,6 @@ type SupportedLocale = "de" | "en";
  * list the prompt carries is trimmed to its most recent entries.
  */
 const CORRELATION_PAIR_CAP = 30;
-
-function round(value: number, digits = 1): number {
-  const factor = 10 ** digits;
-  return Math.round(value * factor) / factor;
-}
-
-function normalizeSummaryText(value: string): string {
-  return stripChartTokens(value).replace(/\s+/g, " ").trim();
-}
-
-function normalizeLocale(value: string | null | undefined): SupportedLocale {
-  return value === "en" ? "en" : "de";
-}
-
-function summarizeSeries(series: Array<{ value: number }>) {
-  if (series.length === 0) return null;
-  const first = series[0].value;
-  const last = series[series.length - 1].value;
-  // v1.4.33 — fold sum/min/max into a single walk. The previous
-  // `Math.min(...series.map(...))` / `Math.max(...series.map(...))`
-  // spread tripped V8's ~125 000-arg ceiling on the bound /api/analytics
-  // path; see `.planning/round-v1433-analytics-500-report.md` §"Carry-
-  // over". These helpers are fed bounded windows today so the crash
-  // never reached them, but the spread allocates a transient args array
-  // on every call — the fold is both stack-safe and cheaper.
-  let sum = 0;
-  let minVal = series[0].value;
-  let maxVal = series[0].value;
-  for (const entry of series) {
-    sum += entry.value;
-    if (entry.value < minVal) minVal = entry.value;
-    if (entry.value > maxVal) maxVal = entry.value;
-  }
-  return {
-    points: series.length,
-    start: round(first, 2),
-    end: round(last, 2),
-    delta: round(last - first, 2),
-    mean: round(sum / series.length, 2),
-    min: round(minVal, 2),
-    max: round(maxVal, 2),
-  };
-}
 
 /**
  * Pair two daily-bucket series on `dayOffset`. The synthesised `date`
@@ -226,27 +190,17 @@ export async function generateWeightStatusForUser(
   // Compact graded series for the prompt. The `*Series.daily` buckets
   // above stay for the correlation pairing + latest-day focus; only the
   // graded shape is embedded so the full daily arrays never ship.
-  const weightGraded = buildGradedSeriesFromPoints(
-    weightSeries.daily.map((b) => ({
-      measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
-      value: b.value,
-    })),
-    now,
-  );
-  const sysGraded = buildGradedSeriesFromPoints(
-    sysSeries.daily.map((b) => ({
-      measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
-      value: b.value,
-    })),
-    now,
-  );
-  const diaGraded = buildGradedSeriesFromPoints(
-    diaSeries.daily.map((b) => ({
-      measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
-      value: b.value,
-    })),
-    now,
-  );
+  //
+  // Weight + the two BP context channels source their recent / weekly
+  // slices from a bounded raw read and their monthly / yearly tail from
+  // the MONTH / YEAR rollup tier (with a full-history in-memory fallback
+  // on a cold-tier coverage miss). Mood has no rollup tier, so it stays
+  // an in-memory fold.
+  const [weightGraded, sysGraded, diaGraded] = await Promise.all([
+    buildGradedSeriesWithRollups(userId, "WEIGHT", now),
+    buildGradedSeriesWithRollups(userId, "BLOOD_PRESSURE_SYS", now),
+    buildGradedSeriesWithRollups(userId, "BLOOD_PRESSURE_DIA", now),
+  ]);
   const moodGraded = buildGradedSeriesFromPoints(
     moodSeries.daily.map((b) => ({
       measuredAt: new Date(dayOffsetToBerlinDayKey(now, b.dayOffset)),
@@ -464,44 +418,27 @@ export async function generateWeightStatusForUser(
     });
   }
 
-  let summary = "";
-  try {
-    const parsed = JSON.parse(outcome.content) as { summary?: string };
-    if (typeof parsed.summary === "string") {
-      summary = parsed.summary;
-    } else {
-      summary = outcome.content;
-    }
-  } catch {
-    summary = outcome.content;
-  }
-
-  summary = normalizeSummaryText(summary);
+  const summary = normalizeSummaryText(parseSummaryFromContent(outcome.content));
   if (!summary) {
     throw new Error("Weight-status summary was empty after normalization");
   }
 
-  const created = await prisma.auditLog.create({
-    data: {
-      userId,
-      action: cacheAction,
-      details: JSON.stringify({
-        dateKey: todayKey,
-        locale,
-        text: summary,
-        providerType: outcome.providerType,
-        model: outcome.model,
-        tokensUsed: outcome.tokensUsed,
-      }),
-    },
-    select: { createdAt: true },
+  const updatedAt = await persistStatusInsight({
+    userId,
+    cacheAction,
+    todayKey,
+    locale,
+    text: summary,
+    providerType: outcome.providerType,
+    model: outcome.model,
+    tokensUsed: outcome.tokensUsed,
   });
 
   return {
     hasProvider: true,
     text: summary,
     cached: false,
-    updatedAt: created.createdAt.toISOString(),
+    updatedAt,
   };
 }
 

@@ -198,7 +198,7 @@ describe("generateMedicationComplianceStatusForUser — cache-read skips a stub"
 });
 
 describe("generateMedicationComplianceStatusForUser — token-leak hardening (v1.4.27 F16)", () => {
-  it("strips metric: tokens out of the cached summary + per-medication text", async () => {
+  it("strips metric: tokens out of the cached summary", async () => {
     const now = new Date();
 
     vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
@@ -212,17 +212,13 @@ describe("generateMedicationComplianceStatusForUser — token-leak hardening (v1
       createdAt: new Date(),
     } as never);
 
+    // The compliance prompt returns only a `{ summary }` envelope; the
+    // per-medication cards are placeholder text built server-side, never
+    // model-authored. So token-leak hardening only has to scrub `summary`.
     stubCompletion(
       JSON.stringify({
         summary:
           "Compliance held steady at 96%. metric:BLOOD_PRESSURE_SYS over the last 30 days.",
-        medications: [
-          {
-            medicationId: "med-1",
-            summary:
-              "Ramipril taken on schedule. metric:PULSE no missed doses in 30 days.",
-          },
-        ],
       }),
     );
 
@@ -232,6 +228,9 @@ describe("generateMedicationComplianceStatusForUser — token-leak hardening (v1
 
     expect(result.summary).toBeTruthy();
     expect(result.summary).not.toContain("metric:");
+    // A per-medication placeholder row is still surfaced for the active med.
+    expect(result.medications).toHaveLength(1);
+    expect(result.medications[0].medicationId).toBe("med-1");
     expect(result.medications[0].text).not.toContain("metric:");
     const createCalls = vi.mocked(prisma.auditLog.create).mock.calls;
     expect(createCalls.length).toBeGreaterThan(0);

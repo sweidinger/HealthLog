@@ -4,6 +4,7 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
     measurement: { findMany: vi.fn() },
+    measurementRollup: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
   },
 }));
@@ -43,6 +44,9 @@ function stubCompletion(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // Cold rollup tier: the graded builder folds monthly/yearly from the
+  // full-history `measurement.findMany` fallback the test already mocks.
+  vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
 });
 
 describe("generateWeightStatusForUser — graded payload", () => {

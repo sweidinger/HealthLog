@@ -5,6 +5,7 @@ vi.mock("@/lib/db", () => ({
     user: { findUnique: vi.fn() },
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
     measurement: { findMany: vi.fn() },
+    measurementRollup: { findMany: vi.fn() },
   },
 }));
 
@@ -44,6 +45,9 @@ function stubCompletion(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // Cold rollup tier: the BMI graded series scales the WEIGHT tier, which
+  // folds from the full-history `measurement.findMany` fallback on a miss.
+  vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
 });
 
 describe("generateBmiStatusForUser — graded payload", () => {

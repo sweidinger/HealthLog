@@ -4,12 +4,19 @@
  * Background — see `.planning/research/ai-payload-compression-audit.md`.
  * The seven per-card status generators embedded the FULL daily array
  * per metric (`bucketSeries`, up to ~360 daily buckets + ~24 monthly)
- * plus correlation pair arrays, and never touched the WEEK / MONTH /
- * YEAR rollup tier. A daily-weigher's `weight-status` snapshot ran
+ * plus correlation pair arrays, and originally never touched the WEEK /
+ * MONTH / YEAR rollup tier. A daily-weigher's `weight-status` snapshot ran
  * ~23 KB for weight alone; `general-status` across many Apple-Health
  * types could blow past 100 K tokens. The Coach is the one path that
  * already grades its timeline (recent days verbatim → weekly means →
  * bounded window).
+ *
+ * As of v1.8.0 the focused single-metric cards (weight / pulse / bmi /
+ * blood-pressure) source their monthly / yearly slices from the MONTH /
+ * YEAR rollup tier via `buildGradedSeriesWithRollups`, so the coarse
+ * tiers finally earn their write amplification. The multi-metric
+ * `general-status` and the tier-less mood / adherence series stay on the
+ * bounded in-memory fold (`buildGradedSeriesFromPoints`).
  *
  * This module is the single graded shape every status path uses:
  *
@@ -43,7 +50,6 @@
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import {
-  aggregateWmyBuckets,
   readBestGranularityRollups,
   type RollupBucketRow,
 } from "@/lib/rollups/measurement-read-wmy";
@@ -310,12 +316,22 @@ function rollupYearly(rows: RollupBucketRow[]): YearlyBucket[] {
  * bounded raw read and the monthly / yearly slices read from the
  * pre-aggregated rollup tier.
  *
- * The raw read is capped to the recent + weekly horizon (last ~90 days),
- * so dense accounts never pull the full multi-year history into memory.
- * The rollup router picks MONTH for the ~1-year window and YEAR for the
- * multi-year tail, falling back to a finer tier on coverage miss; when
- * the tier has no coverage at all the in-memory folder still produces
- * monthly/yearly buckets from whatever the raw read returned.
+ * The recent / weekly read is capped to the recent + weekly horizon
+ * (last ~90 days), so the common warm-tier path never pulls the full
+ * multi-year history into memory. The rollup router picks MONTH for the
+ * ~1-year window and YEAR for the multi-year tail.
+ *
+ * Coverage-miss fallback: when the tier has no MONTH (resp. YEAR)
+ * coverage for a metric — a fresh account the boot-backfill has not yet
+ * caught up on — the bounded ~90-day read can NOT supply the monthly /
+ * yearly slices (every row in it folds into recent / weekly), so naively
+ * reusing it would ship empty monthly / yearly arrays even when years of
+ * raw history exist. On that miss this falls back to a full-history
+ * in-memory fold so the coarse slices are populated from the raw rows
+ * rather than left falsely empty. The full read only happens when the
+ * tier is cold, which is exactly the case the write-amplified tier was
+ * meant to avoid — so the hot path stays bounded and the cold path stays
+ * correct.
  */
 export async function buildGradedSeriesWithRollups(
   userId: string,
@@ -324,7 +340,7 @@ export async function buildGradedSeriesWithRollups(
 ): Promise<GradedSeries> {
   const since = new Date(now.getTime() - WEEKLY_WINDOW_MS);
   const rawRecent = await prisma.measurement.findMany({
-    where: { userId, type, measuredAt: { gte: since } },
+    where: { userId, type, deletedAt: null, measuredAt: { gte: since } },
     orderBy: { measuredAt: "asc" },
     select: { measuredAt: true, value: true },
   });
@@ -339,22 +355,49 @@ export async function buildGradedSeriesWithRollups(
   // Yearly slice: route a multi-year window through the tier.
   const yearlyRouted = await readBestGranularityRollups(userId, type, 1095);
 
-  let monthly: MonthlyBucket[] = recentGraded.monthly;
-  let yearly: YearlyBucket[] = recentGraded.yearly;
+  const monthlyCovered =
+    monthlyRouted !== null && monthlyRouted.granularity === "MONTH";
+  const yearlyCovered =
+    yearlyRouted !== null && yearlyRouted.granularity === "YEAR";
 
-  if (monthlyRouted && monthlyRouted.granularity === "MONTH") {
+  let monthly: MonthlyBucket[];
+  let yearly: YearlyBucket[];
+
+  if (monthlyCovered) {
     // Drop the months already covered by recent/weekly (last ~90 d).
     const cutoff = new Date(now.getTime() - WEEKLY_WINDOW_MS);
     monthly = rollupMonthly(
       monthlyRouted.rows.filter((r) => r.bucketStart < cutoff),
     ).slice(-MONTHLY_MONTHS);
+  } else {
+    monthly = [];
   }
-  if (yearlyRouted && yearlyRouted.granularity === "YEAR") {
+  if (yearlyCovered) {
     // Keep only years older than the monthly horizon.
     const cutoff = new Date(now.getTime() - MONTHLY_WINDOW_MS);
     yearly = rollupYearly(
       yearlyRouted.rows.filter((r) => r.bucketStart < cutoff),
     );
+  } else {
+    yearly = [];
+  }
+
+  // Tier coverage miss for one or both coarse slices: the bounded
+  // ~90-day read can't supply them, so fold the FULL history in memory
+  // and take whichever slices the tier left empty. The full read is the
+  // exception (cold-tier accounts), never the warm-tier norm.
+  if (!monthlyCovered || !yearlyCovered) {
+    const allRows = await prisma.measurement.findMany({
+      where: { userId, type, deletedAt: null },
+      orderBy: { measuredAt: "asc" },
+      select: { measuredAt: true, value: true },
+    });
+    const fullGraded = buildGradedSeriesFromPoints(
+      allRows.map((r) => ({ measuredAt: r.measuredAt, value: r.value })),
+      now,
+    );
+    if (!monthlyCovered) monthly = fullGraded.monthly;
+    if (!yearlyCovered) yearly = fullGraded.yearly;
   }
 
   return {
@@ -362,6 +405,50 @@ export async function buildGradedSeriesWithRollups(
     weekly: recentGraded.weekly,
     monthly,
     yearly,
+  };
+}
+
+/**
+ * Apply a constant multiplier to every value in a graded series, keeping
+ * the bucket keys / counts intact. BMI = weight ÷ height² is a linear
+ * transform of weight by a per-user constant, so the BMI status card can
+ * read the WEIGHT rollup tier and scale it rather than maintaining a
+ * separate (non-existent) BMI tier — `mean / min / max / slope` all carry
+ * the factor exactly, so the scaled series is identical to folding the
+ * derived BMI points directly.
+ */
+export function scaleGradedSeries(
+  series: GradedSeries,
+  factor: number,
+  digits = 2,
+): GradedSeries {
+  const r = (v: number) => round(v * factor, digits);
+  return {
+    recent: series.recent.map((b) => ({
+      ...b,
+      min: r(b.min),
+      max: r(b.max),
+      mean: r(b.mean),
+    })),
+    weekly: series.weekly.map((b) => ({
+      ...b,
+      min: r(b.min),
+      max: r(b.max),
+      mean: r(b.mean),
+    })),
+    monthly: series.monthly.map((b) => ({
+      ...b,
+      min: r(b.min),
+      max: r(b.max),
+      mean: r(b.mean),
+    })),
+    yearly: series.yearly.map((b) => ({
+      ...b,
+      min: r(b.min),
+      max: r(b.max),
+      mean: r(b.mean),
+      slope: b.slope === null ? null : round(b.slope * factor, 4),
+    })),
   };
 }
 
@@ -454,41 +541,4 @@ export function degradeStatusSnapshotToBudget(
   dropField("recent");
   shed.push("recent");
   return shed;
-}
-
-/**
- * Headline summary across the whole graded series — min/max/mean/n —
- * for the snapshot's summary line. Composes the per-bucket stats; uses
- * `aggregateWmyBuckets` semantics for the count-weighted mean.
- */
-export function summarizeGradedSeries(series: GradedSeries): {
-  n: number;
-  min: number | null;
-  max: number | null;
-  mean: number | null;
-} {
-  const rows: RollupBucketRow[] = [];
-  const push = (mean: number, min: number, max: number, n: number) =>
-    rows.push({
-      bucketStart: new Date(0),
-      count: n,
-      mean,
-      sd: null,
-      slope: null,
-      r2: null,
-      sumValue: null,
-      minValue: min,
-      maxValue: max,
-    });
-  for (const r of series.recent) push(r.mean, r.min, r.max, r.n);
-  for (const w of series.weekly) push(w.mean, w.min, w.max, w.n);
-  for (const m of series.monthly) push(m.mean, m.min, m.max, m.n);
-  for (const y of series.yearly) push(y.mean, y.min, y.max, y.n);
-  const agg = aggregateWmyBuckets(rows);
-  return {
-    n: agg.count,
-    min: agg.min === null ? null : round(agg.min),
-    max: agg.max === null ? null : round(agg.max),
-    mean: agg.mean === null ? null : round(agg.mean),
-  };
 }

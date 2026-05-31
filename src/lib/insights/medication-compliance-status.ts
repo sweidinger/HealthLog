@@ -17,11 +17,15 @@ import {
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
+import { buildGradedSeriesFromPoints } from "@/lib/insights/graded-series";
+import { degradeStatusSnapshotToBudget } from "@/lib/insights/graded-series";
 import {
-  buildGradedSeriesFromPoints,
-  degradeStatusSnapshotToBudget,
-} from "@/lib/insights/graded-series";
-import { stripChartTokens } from "@/lib/insights/chart-tokens";
+  type SupportedLocale,
+  normalizeLocale,
+  normalizeSummaryText,
+  parseSummaryFromContent,
+  round,
+} from "@/lib/insights/status-shared";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { isTimeoutStub } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
@@ -32,24 +36,9 @@ import { toBerlinDayKey } from "@/lib/tz/resolver";
 const COMPLIANCE_HISTORY_DAYS = 360 + 24 * 30;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-type SupportedLocale = "de" | "en";
-
 interface MedicationSummaryItem {
   medicationId: string;
   text: string;
-}
-
-function round(value: number, digits = 1): number {
-  const factor = 10 ** digits;
-  return Math.round(value * factor) / factor;
-}
-
-function normalizeSummaryText(value: string): string {
-  return stripChartTokens(value).replace(/\s+/g, " ").trim();
-}
-
-function normalizeLocale(value: string | null | undefined): SupportedLocale {
-  return value === "en" ? "en" : "de";
 }
 
 export async function generateMedicationComplianceStatusForUser(
@@ -360,49 +349,22 @@ export async function generateMedicationComplianceStatusForUser(
     };
   }
 
-  const content = outcome.content;
-
-  let summary = "";
-  let medicationSummaries: MedicationSummaryItem[] = [];
-  try {
-    const parsed = JSON.parse(content) as {
-      summary?: string;
-      medications?: Array<{ medicationId?: string; summary?: string }>;
-    };
-    summary = typeof parsed.summary === "string" ? parsed.summary : content;
-
-    const incomingMap = new Map<string, string>();
-    for (const entry of parsed.medications ?? []) {
-      if (
-        typeof entry?.medicationId === "string" &&
-        typeof entry?.summary === "string" &&
-        entry.summary.trim().length > 0
-      ) {
-        incomingMap.set(entry.medicationId, entry.summary);
-      }
-    }
-
-    medicationSummaries = medicationSnapshots.map((medication) => ({
+  // The compliance prompt returns a single `{ summary }` envelope — it
+  // does not emit per-medication text. The per-medication cards carry a
+  // placeholder so the UI surfaces a row per active medication; the
+  // overall `summary` is the model-authored assessment.
+  const summary = normalizeSummaryText(parseSummaryFromContent(outcome.content));
+  const medicationSummaries: MedicationSummaryItem[] = medicationSnapshots.map(
+    (medication) => ({
       medicationId: medication.medicationId,
       text: normalizeSummaryText(
-        incomingMap.get(medication.medicationId) ??
-          (locale === "de"
-            ? `${medication.name}: Es liegen noch nicht genügend konsistente Detaildaten für eine belastbare Kurzbewertung vor.`
-            : `${medication.name}: There is currently not enough consistent detail data for a robust short assessment.`),
-      ),
-    }));
-  } catch {
-    summary = content;
-    medicationSummaries = medicationSnapshots.map((medication) => ({
-      medicationId: medication.medicationId,
-      text:
         locale === "de"
-          ? `${medication.name}: Die medikamentenspezifische Kurzbewertung konnte heute nicht separat aufbereitet werden.`
-          : `${medication.name}: The medication-specific short assessment could not be prepared separately today.`,
-    }));
-  }
+          ? `${medication.name}: Es liegen noch nicht genügend konsistente Detaildaten für eine belastbare Kurzbewertung vor.`
+          : `${medication.name}: There is currently not enough consistent detail data for a robust short assessment.`,
+      ),
+    }),
+  );
 
-  summary = normalizeSummaryText(summary);
   if (!summary) {
     throw new Error(
       "Medication-compliance-status summary was empty after normalization",
