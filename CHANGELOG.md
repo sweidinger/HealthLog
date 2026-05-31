@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.7.2] — 2026-05-31 — Coach source parity, first-paint snapshot, medication card cleanup
+
+A focused follow-up to v1.7.0. The unified dashboard snapshot that shipped in v1.7.0 is now the default, so a cold dashboard paints its above-the-fold tiles together instead of letting the mood tile arrive ahead of the rest. The Coach's in-chat data-source rail now reads and writes the same persisted data clusters as the settings sheet — one source of truth that survives a reload, so what the panel shows always matches what reaches the model. The medication overview cards collapse their action row into a single overflow menu, and the detail page is pared back to the intake history under a read-only plan summary. The advanced-settings sheet widens into a two-column layout and offers a medications export beside the existing import.
+
+### Changed
+
+- **Unified dashboard snapshot on by default** — the above-the-fold tiles read from the single `/api/dashboard/snapshot` round-trip introduced in v1.7.0, so they share one completion moment instead of staggering in as independent queries resolve. The build-time toggle `NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false` falls back to the per-tile path if an operator needs it.
+- **Coach data-source rail matches the settings sheet** — the in-chat rail now toggles the same persisted data clusters as the gear-icon settings, stored per user rather than reset when the panel closes. The chat request derives its scope from those saved clusters, so the rail always reflects exactly what is sent to the model, and the analysis window persists alongside.
+- **Medication card actions in one menu** — the overview cards, standard and GLP-1 alike, move their edit / history / advanced actions into a single overflow menu; the card itself opens the detail page.
+- **Medication detail page is history-first** — the redundant header action row and the schedule block are gone; the page leads with the intake history under a read-only summary (name, dose, status, plain-language cadence), and editing happens from the card menu. The estimated active-ingredient curve stays an opt-in disclosure.
+- **Advanced-settings sheet widened** — a two-column layout (Data, Reminders, Lifecycle, with the danger zone full-width) so the sheet no longer scrolls on a desktop viewport, and a medications CSV export sits beside the intake import.
+
+### Fixed
+
+- **Medication cards render identically** — the day-streak flame used two different oranges between the standard and GLP-1 cards; both now share one token. The repeated card sections are a single set of shared components, so the two variants stay in lockstep instead of drifting on each edit.
+- **Intake import labelled honestly** — the import affordance described CSV/JSON but accepts a JSON intake array; the copy now says JSON.
+
 ## [1.7.1] — 2026-05-31 — Overview-card actions
 
 The v1.7.0 medication detail page gained edit / history / advanced-settings actions in its header, but the medication cards in the overview list kept only the edit pencil. This patch brings the **history** (intake history) and **advanced-settings** actions onto the overview cards — both the standard and the GLP-1 variant — so the card and the detail page offer the same three actions. The advanced-settings sheet is mounted once on the list and reused; the history button routes to the same intake-history view.
