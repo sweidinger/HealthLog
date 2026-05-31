@@ -122,7 +122,7 @@ describe("GET /api/insights/layout", () => {
         version: 1,
         tiles: [
           { id: "overview", visible: false, order: 0 },
-          { id: "blutdruck", visible: true, order: 1 },
+          { id: "blood-pressure", visible: true, order: 1 },
         ],
       },
     } as never);
@@ -141,11 +141,41 @@ describe("GET /api/insights/layout", () => {
       order: 0,
     });
     expect(body.data.tiles[1]).toEqual({
-      id: "blutdruck",
+      id: "blood-pressure",
       visible: true,
       order: 1,
     });
     expect(body.data.tiles.length).toBe(DEFAULT_INSIGHTS_LAYOUT.tiles.length);
+  });
+
+  it("normalises a legacy German tile id stored by a ≤ v1.7.x client to its canonical English id on read", async () => {
+    // A layout persisted before the v1.8.0 rename (or by an iOS client
+    // still speaking the German ids). The resolver must surface the
+    // canonical English id so the GET contract is current-build clean
+    // without forcing a re-PUT.
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      insightsLayoutJson: {
+        version: 1,
+        tiles: [
+          { id: "overview", visible: true, order: 0 },
+          { id: "blutdruck", visible: true, order: 1 },
+          { id: "stimmung", visible: false, order: 2 },
+        ],
+      },
+    } as never);
+
+    const res = await callGet();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { tiles: Array<{ id: string; visible: boolean; order: number }> };
+    };
+    const ids = body.data.tiles.map((t) => t.id);
+    // Legacy ids collapse to their English replacement…
+    expect(ids).toContain("blood-pressure");
+    expect(ids).toContain("mood");
+    // …and the German originals never leak back out.
+    expect(ids).not.toContain("blutdruck");
+    expect(ids).not.toContain("stimmung");
   });
 });
 
@@ -157,8 +187,8 @@ describe("PUT /api/insights/layout — happy path", () => {
       version: 1,
       tiles: [
         { id: "overview", visible: true, order: 0 },
-        { id: "blutdruck", visible: true, order: 1 },
-        { id: "puls", visible: false, order: 2 },
+        { id: "blood-pressure", visible: true, order: 1 },
+        { id: "pulse", visible: false, order: 2 },
       ],
     };
     const res = await callPut(makeReq(payload));
@@ -168,7 +198,7 @@ describe("PUT /api/insights/layout — happy path", () => {
     };
     expect(body.data.tiles[0]?.id).toBe("overview");
     expect(body.data.tiles[0]?.order).toBe(0);
-    expect(body.data.tiles[2]?.id).toBe("puls");
+    expect(body.data.tiles[2]?.id).toBe("pulse");
     expect(body.data.tiles[2]?.visible).toBe(false);
 
     expect(prisma.user.update).toHaveBeenCalledTimes(1);
@@ -178,6 +208,47 @@ describe("PUT /api/insights/layout — happy path", () => {
     };
     expect(updateCall.where.id).toBe("user-1");
     expect(updateCall.data.insightsLayoutJson).toBeTruthy();
+  });
+
+  it("accepts a body carrying legacy German tile ids and persists the canonical English ones", async () => {
+    // Non-breaking iOS contract: a client still sending the pre-v1.8.0
+    // German ids must NOT 422. The route validates the legacy ids and
+    // `serializeInsightsLayout` normalises them to English before the
+    // row persists, so the stored blob is always canonical.
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const payload = {
+      version: 1,
+      tiles: [
+        { id: "overview", visible: true, order: 0 },
+        { id: "blutdruck", visible: true, order: 1 },
+        { id: "medikamente", visible: true, order: 2 },
+      ],
+    };
+    const res = await callPut(makeReq(payload));
+    // No 422 — the legacy ids pass validation.
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      data: { tiles: Array<{ id: string }> };
+    };
+    const returnedIds = body.data.tiles.map((t) => t.id);
+    expect(returnedIds).toContain("blood-pressure");
+    expect(returnedIds).toContain("medications");
+    expect(returnedIds).not.toContain("blutdruck");
+    expect(returnedIds).not.toContain("medikamente");
+
+    // The persisted blob is canonical too.
+    const updateCall = vi.mocked(prisma.user.update).mock.calls[0]?.[0] as unknown as {
+      data: { insightsLayoutJson: { tiles: Array<{ id: string }> } };
+    };
+    const persistedIds = updateCall.data.insightsLayoutJson.tiles.map(
+      (t) => t.id,
+    );
+    expect(persistedIds).toContain("blood-pressure");
+    expect(persistedIds).toContain("medications");
+    expect(persistedIds).not.toContain("blutdruck");
+    expect(persistedIds).not.toContain("medikamente");
   });
 });
 
