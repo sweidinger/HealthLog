@@ -29,9 +29,10 @@ import { Card, CardContent } from "@/components/ui/card";
  *
  * The "in target" share reads `daysInRange30d / daysLogged30d` — the
  * fraction of logged days over the last 30 whose mean reading landed in
- * the green band. We hide the share (and the range) entirely when the
- * route flags `insufficientData`, matching the `/targets` consistency
- * strip so the two surfaces never disagree.
+ * the green band. We hide the share alone when the route flags
+ * `insufficientData`; the range stays visible so the band is always
+ * legible. This matches the `/targets` consistency strip so the two
+ * surfaces never disagree.
  *
  * A discreet "Adjust target range" link routes to `/targets`, which
  * stays the canonical place to view / tune the bands.

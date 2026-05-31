@@ -113,7 +113,7 @@ export function MetricExplainer({ metric, className }: MetricExplainerProps) {
         <p
           id={bodyId}
           data-slot="metric-explainer-body"
-          className="text-muted-foreground text-[11px] leading-snug"
+          className="text-muted-foreground text-xs leading-snug"
         >
           {body}
         </p>
