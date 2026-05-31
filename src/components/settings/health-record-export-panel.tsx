@@ -97,7 +97,7 @@ function buildSelectionSections(s: SectionState) {
 }
 
 export function HealthRecordExportPanel() {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [days, setDays] = useState<number>(90);
   const [practiceName, setPracticeName] = useState("");
@@ -140,6 +140,10 @@ export function HealthRecordExportPanel() {
         credentials: "include",
         body: JSON.stringify({
           format,
+          // Carry the active in-app locale so the generated artefact matches
+          // the UI language instead of falling back to the browser's
+          // Accept-Language header on the server.
+          locale,
           range: { days },
           practiceName: practiceName.trim() || undefined,
           includeCharts,

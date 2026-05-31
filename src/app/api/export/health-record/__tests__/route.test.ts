@@ -9,6 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { PDFParse } from "pdf-parse";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -38,12 +39,25 @@ const SESSION_OK = {
   user: { id: "user-1", email: "test@example.com", role: "USER" },
 } as const;
 
-function mkReq(body: unknown): NextRequest {
+function mkReq(
+  body: unknown,
+  headers: Record<string, string> = {},
+): NextRequest {
   return new NextRequest("http://localhost/api/export/health-record", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
+}
+
+async function pdfText(res: Response): Promise<string> {
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const parser = new PDFParse({ data: bytes });
+  try {
+    return (await parser.getText()).text;
+  } finally {
+    await parser.destroy();
+  }
 }
 
 beforeEach(() => {
@@ -135,6 +149,46 @@ describe("POST /api/export/health-record — outputs", () => {
     const buf = Buffer.from(await res.arrayBuffer());
     // ZIP local-file-header magic: PK\x03\x04
     expect(buf.subarray(0, 2).toString("latin1")).toBe("PK");
+  });
+
+  it("renders the PDF in the explicit selection locale", async () => {
+    const { POST } = await import("../route");
+    const res = await POST(
+      mkReq({ format: "pdf", locale: "de", practiceName: "Sample Practice" }),
+    );
+    const text = await pdfText(res);
+    // German cover label.
+    expect(text).toContain("Praxis:");
+  });
+
+  it("falls back to the healthlog-locale cookie when no locale is sent", async () => {
+    const { POST } = await import("../route");
+    const res = await POST(
+      mkReq(
+        { format: "pdf", practiceName: "Sample Practice" },
+        {
+          // Browser default English, but the in-app cookie says German — the
+          // cookie must win over Accept-Language.
+          "accept-language": "en-US,en;q=0.9",
+          cookie: "healthlog-locale=de",
+        },
+      ),
+    );
+    const text = await pdfText(res);
+    expect(text).toContain("Praxis:");
+    expect(text).not.toContain("Practice:");
+  });
+
+  it("uses Accept-Language only when neither selection nor cookie is present", async () => {
+    const { POST } = await import("../route");
+    const res = await POST(
+      mkReq(
+        { format: "pdf", practiceName: "Sample Practice" },
+        { "accept-language": "en-US,en;q=0.9" },
+      ),
+    );
+    const text = await pdfText(res);
+    expect(text).toContain("Practice:");
   });
 
   it("scopes the aggregator measurement read to the session user", async () => {

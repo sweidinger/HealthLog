@@ -46,7 +46,7 @@ import {
 } from "@/lib/validations/health-record-export";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { parseLocaleFromAcceptLanguage } from "@/lib/format-locale";
-import { type Locale } from "@/lib/i18n/config";
+import { locales, type Locale } from "@/lib/i18n/config";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 
 export const POST = apiHandler(async (request: NextRequest) => {
@@ -72,8 +72,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const sections = toDoctorReportPrefs(selection.sections);
   const includeCharts = selection.includeCharts ?? true;
 
+  // Locale resolution, most-specific first: the explicit selection wins, then
+  // the in-app `healthlog-locale` cookie (what the user actually chose in the
+  // UI), and only then the browser's Accept-Language header. The header is the
+  // weakest signal — a German user on an English-default browser would
+  // otherwise get an English report.
+  const cookieValue = request.cookies.get("healthlog-locale")?.value;
+  const cookieLocale = (locales as readonly string[]).includes(
+    cookieValue ?? "",
+  )
+    ? (cookieValue as Locale)
+    : null;
   const locale: Locale =
     selection.locale ??
+    cookieLocale ??
     parseLocaleFromAcceptLanguage(
       request.headers.get("accept-language") ?? "",
     );
