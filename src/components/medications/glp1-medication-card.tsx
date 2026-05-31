@@ -2,33 +2,21 @@
 
 import { useEffect, useReducer, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import {
   AlertCircle,
   AlertTriangle,
   Check,
-  ChevronRight,
   CircleCheck,
   Flame,
-  History,
   Loader2,
-  MoreVertical,
-  Pencil,
   SkipForward,
-  SlidersHorizontal,
-  Stethoscope,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
+import { MedicationCardMenu } from "@/components/medications/medication-card-menu";
 import { Progress } from "@/components/ui/progress";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
@@ -340,84 +328,21 @@ export function Glp1MedicationCard({
     </>
   );
 
+  // v1.7.2 W3 — the four former header icon-buttons (open / edit /
+  // history / advanced) plus the GLP-1 side-effect kebab collapse into a
+  // SINGLE overflow menu so the GLP-1 card stays byte-symmetric with the
+  // generic medication card. The card header itself links to the detail
+  // page (the former chevron target). The side-effect quick-log folds in
+  // as a last menu item when `onLogSideEffect` is wired.
   const headerActions = (
-    <>
-      {/* v1.5.5 — routes to the new medication detail page; the
-          detail-page intake-history preview links onward to
-          `/medications/{id}/history` for the bulk-delete sub-route. */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="min-h-11 min-w-11"
-        asChild
-        aria-label={t("medications.openDetailPage")}
-      >
-        <Link href={`/medications/${medication.id}`}>
-          <ChevronRight className="h-4 w-4" />
-        </Link>
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="min-h-11 min-w-11"
-        onClick={() => onEdit(medication)}
-        aria-label={t("common.edit")}
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
-      {/* v1.7.1 — History + Advanced icon buttons mirror the generic
-          medication card and the detail-page header so the GLP-1 card
-          carries the same three actions (edit / history / advanced).
-          History routes to the full intake-history view; Advanced opens
-          the shared settings sheet mounted by the list page. */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="min-h-11 min-w-11"
-        onClick={() => onOpenHistory(medication)}
-        aria-label={t("medications.detail.header.historyLabel")}
-      >
-        <History className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="min-h-11 min-w-11"
-        onClick={() => onOpenAdvanced(medication)}
-        aria-label={t("medications.detail.header.advancedLabel")}
-      >
-        <SlidersHorizontal className="h-4 w-4" />
-      </Button>
-      {/* v1.4.37 W4b — GLP-1 specifics (side-effect quick-log etc.)
-          live in the header actions overflow so the primary action
-          row stays the canonical two-button shape (Eingenommen /
-          Übersprungen) shared with the generic medication card. The
-          kebab only renders when at least one overflow item is wired
-          for this medication kind. */}
-      {onLogSideEffect && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="min-h-11 min-w-11"
-              aria-label={t("common.moreOptions")}
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem
-              onClick={() => onLogSideEffect(medication)}
-              className="whitespace-nowrap"
-            >
-              <Stethoscope className="mr-2 h-4 w-4" />
-              {t("medications.glp1LogSideEffect")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-    </>
+    <MedicationCardMenu
+      onEdit={() => onEdit(medication)}
+      onOpenHistory={() => onOpenHistory(medication)}
+      onOpenAdvanced={() => onOpenAdvanced(medication)}
+      onLogSideEffect={
+        onLogSideEffect ? () => onLogSideEffect(medication) : undefined
+      }
+    />
   );
 
   const categoryLabel = getMedicationCategoryLabel(medication.category, t);
@@ -430,6 +355,8 @@ export function Glp1MedicationCard({
         categoryLabel={categoryLabel}
         stateBadges={stateBadges}
         actions={headerActions}
+        href={`/medications/${medication.id}`}
+        linkLabel={t("medications.openDetailPage")}
       />
 
       <CardContent className="space-y-3.5">

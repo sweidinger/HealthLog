@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
+import { MedicationCardMenu } from "@/components/medications/medication-card-menu";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { formatDateTime, formatTime } from "@/lib/format";
@@ -23,13 +24,8 @@ import {
   CircleCheck,
   SkipForward,
   Flame,
-  History,
-  Pencil,
-  SlidersHorizontal,
   Loader2,
-  ChevronRight,
 } from "lucide-react";
-import Link from "next/link";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
   invalidateKeys,
@@ -275,61 +271,15 @@ export function MedicationCard({
     </>
   );
 
+  // v1.7.2 W3 — the four former header icon-buttons (open / edit /
+  // history / advanced) collapse into a single overflow kebab. The card
+  // header itself links to the detail page (the former chevron target).
   const headerActions = (
-    <>
-      {/* Phase A5: bumped from `h-8 w-8` (32px) to `min-h-11
-          min-w-11` (44px) so these meet the WCAG 2.5.5 minimum
-          tap-target on mobile without the icon glyph itself
-          changing size. */}
-      {/* v1.5.5 — the kebab-style "open" icon routes to the new
-          medication detail page. The detail-page intake-history
-          preview links onward to `/medications/{id}/history` for the
-          bulk-delete sub-route, so the user still reaches the full
-          history in one extra tap. */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="min-h-11 min-w-11"
-        asChild
-        aria-label={t("medications.openDetailPage")}
-      >
-        <Link href={`/medications/${medication.id}`}>
-          <ChevronRight className="h-4 w-4" />
-        </Link>
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="min-h-11 min-w-11"
-        onClick={() => onEdit(medication)}
-        aria-label={t("common.edit")}
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
-      {/* v1.7.1 — History + Advanced icon buttons mirror the
-          detail-page header so the overview card carries the same three
-          actions (edit / history / advanced). History routes to the
-          full intake-history view; Advanced opens the shared settings
-          sheet mounted by the list page. */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="min-h-11 min-w-11"
-        onClick={() => onOpenHistory(medication)}
-        aria-label={t("medications.detail.header.historyLabel")}
-      >
-        <History className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="min-h-11 min-w-11"
-        onClick={() => onOpenAdvanced(medication)}
-        aria-label={t("medications.detail.header.advancedLabel")}
-      >
-        <SlidersHorizontal className="h-4 w-4" />
-      </Button>
-    </>
+    <MedicationCardMenu
+      onEdit={() => onEdit(medication)}
+      onOpenHistory={() => onOpenHistory(medication)}
+      onOpenAdvanced={() => onOpenAdvanced(medication)}
+    />
   );
 
   return (
@@ -340,6 +290,8 @@ export function MedicationCard({
         categoryLabel={categoryLabel}
         stateBadges={stateBadges}
         actions={headerActions}
+        href={`/medications/${medication.id}`}
+        linkLabel={t("medications.openDetailPage")}
       />
 
       <CardContent className="space-y-3.5">
