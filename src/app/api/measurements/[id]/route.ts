@@ -12,6 +12,7 @@ import {
 } from "@/lib/api-response";
 import { updateMeasurementSchema } from "@/lib/validations/measurement";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
+import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 import { Prisma } from "@/generated/prisma/client";
 import { NextRequest } from "next/server";
@@ -172,6 +173,18 @@ export const PUT = apiHandler(
       console.warn("[measurements] rollup recompute failed", err);
     }
 
+    // v1.8.0 — drop the cached per-metric assessment rows this edit
+    // dirties so the next mount / nightly warm pass regenerates against
+    // the new value. An edit can re-type a row, so invalidate both the
+    // old and the new type's scopes. Fire-and-forget: never blocks the
+    // user's edit.
+    invalidateStatusInsightsForTypes(user.id, [
+      existing.type,
+      measurement.type,
+    ]).catch((err) => {
+      console.warn("[measurements] status-insight invalidate failed", err);
+    });
+
     return apiSuccess(measurement);
   },
 );
@@ -237,6 +250,13 @@ export const DELETE = apiHandler(
     } catch (err) {
       console.warn("[measurements] rollup recompute failed", err);
     }
+
+    // v1.8.0 — drop the cached per-metric assessment rows this deletion
+    // dirties so the next mount / nightly warm pass regenerates against
+    // the reduced history. Fire-and-forget: never blocks the user's delete.
+    invalidateStatusInsightsForTypes(user.id, [existing.type]).catch((err) => {
+      console.warn("[measurements] status-insight invalidate failed", err);
+    });
 
     return apiSuccess({ deleted: true });
   },
