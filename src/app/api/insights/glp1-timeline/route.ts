@@ -4,7 +4,7 @@
  * Returns a chronological merge of every GLP-1-relevant event the user
  * has logged: dose changes, injections (with site if recorded),
  * inventory events, and side-effect-tagged mood entries from the
- * trailing 90 days. Used by /insights/medikamente's TherapyTimeline
+ * trailing 90 days. Used by /insights/medications' TherapyTimeline
  * component. Web-only users without a GLP-1 medication get
  * `hasGlp1: false` so the component hides cleanly.
  */

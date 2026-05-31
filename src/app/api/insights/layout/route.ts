@@ -27,7 +27,7 @@ import {
   resolveInsightsLayout,
   serializeInsightsLayout,
   DEFAULT_INSIGHTS_LAYOUT,
-  INSIGHTS_TILE_IDS,
+  ACCEPTED_INSIGHTS_TILE_IDS,
   type InsightsLayout,
 } from "@/lib/insights-layout";
 import { Prisma } from "@/generated/prisma/client";
@@ -38,11 +38,18 @@ import { redactSensitiveFields } from "@/lib/observability/redact-payload";
 import { shouldEmitAuditRow } from "@/lib/audit-dedup";
 import type { NextRequest } from "next/server";
 
-// Derive the enum from `INSIGHTS_TILE_IDS` so the schema + the default
-// layout cannot drift — the same root-cause class that produced the
-// v1.4.16 A5 silent-422 on dashboard widgets when `achievements` was
-// added to the layout but not to the validation enum.
-const tileIdEnum = z.enum(INSIGHTS_TILE_IDS);
+// Derive the enum from `ACCEPTED_INSIGHTS_TILE_IDS` so the schema + the
+// default layout cannot drift — the same root-cause class that produced
+// the v1.4.16 A5 silent-422 on dashboard widgets when `achievements`
+// was added to the layout but not to the validation enum.
+//
+// v1.8.0 — the accepted set is canonical English ids PLUS the legacy
+// German aliases, so an iOS client still PUTting `blutdruck` / `puls` /
+// … passes validation rather than tripping a 422 on the rename.
+// `serializeInsightsLayout` normalises any legacy id onto its canonical
+// English replacement before the row persists, so the stored blob is
+// always canonical regardless of which id the client sent.
+const tileIdEnum = z.enum(ACCEPTED_INSIGHTS_TILE_IDS);
 
 const layoutSchema = z.object({
   version: z.literal(1),

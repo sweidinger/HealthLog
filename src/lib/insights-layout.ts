@@ -21,32 +21,84 @@
  * `DEFAULT_INSIGHTS_LAYOUT.tiles[].order` drives the visual order.
  * Exported so the API Zod `tileIdEnum` can be built from a single
  * source of truth.
+ *
+ * v1.8.0 — the canonical ids are English, matching the routed slugs
+ * (`/insights/<slug>`) and the naming-convention ADR
+ * (`docs/adr/0001-insights-naming-convention.md`). The ids were German
+ * through v1.7.x and the iOS layout-sync contract
+ * (`GET/PUT /api/insights/layout`) speaks them, so the layout endpoint
+ * keeps ACCEPTING the legacy German ids and NORMALISES them to the
+ * canonical English ones on both read and write — see
+ * `LEGACY_INSIGHTS_TILE_ID_ALIASES` + `normalizeInsightsTileId` below.
+ * No client breaks; iOS migrates to the English ids at its own pace.
  */
 export const INSIGHTS_TILE_IDS = [
   "overview",
   // ── vitals ──
-  "blutdruck",
-  "puls",
-  "sauerstoff",
-  "koerpertemperatur",
+  "blood-pressure",
+  "pulse",
+  "oxygen",
+  "body-temperature",
   // ── body composition ──
-  "gewicht",
+  "weight",
   "bmi",
   // ── activity ──
-  "aktive-energie",
+  "active-energy",
   "workouts",
   // ── sleep ──
-  "schlaf",
+  "sleep",
   // ── cardiovascular ──
-  "ruhepuls",
+  "resting-pulse",
   "hrv",
   // ── mood ──
-  "stimmung",
+  "mood",
   // ── events ──
-  "medikamente",
+  "medications",
 ] as const;
 
 export type InsightsTileId = (typeof INSIGHTS_TILE_IDS)[number];
+
+/**
+ * Legacy (≤ v1.7.x) German tile ids mapped to their canonical English
+ * replacement. The layout endpoint accepts these as input so the iOS
+ * client's stored layouts keep round-tripping after the v1.8.0 rename;
+ * every write path normalises them away before persisting (see
+ * `normalizeInsightsTileId`). `bmi`, `hrv`, `workouts`, and `overview`
+ * were already language-neutral and need no alias.
+ */
+export const LEGACY_INSIGHTS_TILE_ID_ALIASES: Record<string, InsightsTileId> = {
+  blutdruck: "blood-pressure",
+  puls: "pulse",
+  sauerstoff: "oxygen",
+  koerpertemperatur: "body-temperature",
+  gewicht: "weight",
+  "aktive-energie": "active-energy",
+  schlaf: "sleep",
+  ruhepuls: "resting-pulse",
+  stimmung: "mood",
+  medikamente: "medications",
+};
+
+/**
+ * Every id the layout endpoint accepts on input — canonical English
+ * plus the legacy German aliases. The Zod `tileIdEnum` is built from
+ * this union so a PUT carrying old ids passes validation rather than
+ * tripping a 422; `normalizeInsightsTileId` collapses the union back to
+ * the canonical id before anything persists.
+ */
+export const ACCEPTED_INSIGHTS_TILE_IDS = [
+  ...INSIGHTS_TILE_IDS,
+  ...Object.keys(LEGACY_INSIGHTS_TILE_ID_ALIASES),
+] as const;
+
+/**
+ * Collapse a legacy German tile id onto its canonical English id.
+ * Canonical ids (and unknown ids) pass through unchanged — the
+ * resolver's known-id filter drops anything truly unrecognised.
+ */
+export function normalizeInsightsTileId(id: string): string {
+  return LEGACY_INSIGHTS_TILE_ID_ALIASES[id] ?? id;
+}
 
 export interface InsightsTileConfig {
   id: InsightsTileId;
@@ -75,19 +127,19 @@ export const DEFAULT_INSIGHTS_LAYOUT: InsightsLayout = {
   version: INSIGHTS_LAYOUT_VERSION,
   tiles: [
     { id: "overview", visible: true, order: 0 },
-    { id: "blutdruck", visible: true, order: 1 },
-    { id: "puls", visible: true, order: 2 },
-    { id: "sauerstoff", visible: false, order: 3 },
-    { id: "koerpertemperatur", visible: false, order: 4 },
-    { id: "gewicht", visible: true, order: 5 },
+    { id: "blood-pressure", visible: true, order: 1 },
+    { id: "pulse", visible: true, order: 2 },
+    { id: "oxygen", visible: false, order: 3 },
+    { id: "body-temperature", visible: false, order: 4 },
+    { id: "weight", visible: true, order: 5 },
     { id: "bmi", visible: true, order: 6 },
-    { id: "aktive-energie", visible: false, order: 7 },
+    { id: "active-energy", visible: false, order: 7 },
     { id: "workouts", visible: true, order: 8 },
-    { id: "schlaf", visible: false, order: 9 },
-    { id: "ruhepuls", visible: false, order: 10 },
+    { id: "sleep", visible: false, order: 9 },
+    { id: "resting-pulse", visible: false, order: 10 },
     { id: "hrv", visible: false, order: 11 },
-    { id: "stimmung", visible: true, order: 12 },
-    { id: "medikamente", visible: true, order: 13 },
+    { id: "mood", visible: true, order: 12 },
+    { id: "medications", visible: true, order: 13 },
   ],
 };
 
@@ -101,13 +153,22 @@ export function resolveInsightsLayout(raw: unknown): InsightsLayout {
     return DEFAULT_INSIGHTS_LAYOUT;
   }
 
-  // Drop tile ids the current build does not know about so a future
-  // retirement (mirroring the dashboard's v1.4.28 `glp1` drop) doesn't
-  // wedge the PUT round-trip on the next save. Filtering on read keeps
-  // the GET shape current-build-safe and lets the Settings UI re-PUT
-  // a clean array.
+  // v1.8.0 — normalise legacy German tile ids onto their canonical
+  // English replacement BEFORE the known-id filter so a layout persisted
+  // by a ≤ v1.7.x client (or the iOS app still speaking the old ids)
+  // survives the read instead of being silently dropped as "unknown".
+  // Dedupe afterwards: a layout carrying both the legacy and the
+  // canonical id (e.g. a partial migration) keeps the first occurrence
+  // so the round-trip stays idempotent.
   const knownIds = new Set<string>(INSIGHTS_TILE_IDS);
-  const filtered = candidate.tiles.filter((t) => knownIds.has(t.id));
+  const seen = new Set<string>();
+  const filtered: InsightsTileConfig[] = candidate.tiles
+    .map((t) => ({ ...t, id: normalizeInsightsTileId(t.id) }))
+    .filter((t): t is InsightsTileConfig => {
+      if (!knownIds.has(t.id) || seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
 
   // Merge with defaults so new tiles introduced in later versions show
   // up automatically (invisible by default, the user opts in).
@@ -128,16 +189,41 @@ export function resolveInsightsLayout(raw: unknown): InsightsLayout {
   };
 }
 
+/**
+ * Input shape for {@link serializeInsightsLayout}. Looser than
+ * {@link InsightsLayout}: the tile `id` is a bare `string` so the PUT
+ * handler can hand a Zod-parsed body that still carries legacy German
+ * aliases — `serializeInsightsLayout` normalises them onto canonical
+ * {@link InsightsTileId} values on the way through.
+ */
+export interface InsightsLayoutInput {
+  version: number;
+  tiles: Array<{ id: string; visible: boolean; order: number }>;
+}
+
 export function serializeInsightsLayout(
-  layout: InsightsLayout,
+  layout: InsightsLayoutInput,
 ): InsightsLayout {
+  // v1.8.0 — normalise legacy German tile ids onto canonical English
+  // before persisting so the stored blob is always canonical even when
+  // the PUT body carried the old ids (the Zod enum accepts both via
+  // `ACCEPTED_INSIGHTS_TILE_IDS`). Dedupe so a body sending both the
+  // legacy and canonical id for one tile collapses to a single entry,
+  // keeping the dense 0-based order contiguous.
+  const seen = new Set<string>();
   return {
     version: INSIGHTS_LAYOUT_VERSION,
     tiles: layout.tiles
       .slice()
       .sort((a, b) => a.order - b.order)
+      .map((t) => ({ ...t, id: normalizeInsightsTileId(t.id) }))
+      .filter((t) => {
+        if (seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+      })
       .map((t, i) => ({
-        id: t.id,
+        id: t.id as InsightsTileId,
         visible: t.visible,
         order: i, // normalize to 0-based dense order
       })),

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.7.3
+  version: 1.8.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -2440,17 +2440,27 @@ components:
                 type: string
                 enum:
                   - overview
+                  - blood-pressure
+                  - pulse
+                  - oxygen
+                  - body-temperature
+                  - weight
+                  - bmi
+                  - active-energy
+                  - workouts
+                  - sleep
+                  - resting-pulse
+                  - hrv
+                  - mood
+                  - medications
                   - blutdruck
                   - puls
                   - sauerstoff
                   - koerpertemperatur
                   - gewicht
-                  - bmi
                   - aktive-energie
-                  - workouts
                   - schlaf
                   - ruhepuls
-                  - hrv
                   - stimmung
                   - medikamente
               visible:
@@ -2467,7 +2477,11 @@ components:
         - version
         - tiles
       description: "Per-user Insights tile layout: an ordered list of tiles with a visibility flag. `version` is the layout
-        schema version; tile ids are a closed enum derived from the server's tile registry."
+        schema version. Tile ids are a closed enum: the canonical ids are English (matching the routed
+        `/insights/<slug>` sub-pages). The legacy German ids (blutdruck, puls, sauerstoff, koerpertemperatur, gewicht,
+        aktive-energie, schlaf, ruhepuls, stimmung, medikamente) remain accepted on input for backward compatibility and
+        are normalised to their English equivalents before persisting; GET responses always carry the canonical English
+        ids. The legacy ids are deprecated and will be removed in a future major version."
     CoachMessageFeedbackRequest:
       type: object
       properties:
@@ -5935,17 +5949,27 @@ components:
                 type: string
                 enum:
                   - overview
+                  - blood-pressure
+                  - pulse
+                  - oxygen
+                  - body-temperature
+                  - weight
+                  - bmi
+                  - active-energy
+                  - workouts
+                  - sleep
+                  - resting-pulse
+                  - hrv
+                  - mood
+                  - medications
                   - blutdruck
                   - puls
                   - sauerstoff
                   - koerpertemperatur
                   - gewicht
-                  - bmi
                   - aktive-energie
-                  - workouts
                   - schlaf
                   - ruhepuls
-                  - hrv
                   - stimmung
                   - medikamente
               visible:
@@ -5964,7 +5988,11 @@ components:
         - tiles
       additionalProperties: false
       description: "Per-user Insights tile layout: an ordered list of tiles with a visibility flag. `version` is the layout
-        schema version; tile ids are a closed enum derived from the server's tile registry."
+        schema version. Tile ids are a closed enum: the canonical ids are English (matching the routed
+        `/insights/<slug>` sub-pages). The legacy German ids (blutdruck, puls, sauerstoff, koerpertemperatur, gewicht,
+        aktive-energie, schlaf, ruhepuls, stimmung, medikamente) remain accepted on input for backward compatibility and
+        are normalised to their English equivalents before persisting; GET responses always carry the canonical English
+        ids. The legacy ids are deprecated and will be removed in a future major version."
     Medication:
       type: object
       properties:

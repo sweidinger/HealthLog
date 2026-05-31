@@ -80,6 +80,12 @@ export interface HealthKitMetricPageProps {
    * (identity) so every existing page renders unchanged.
    */
   valueScale?: number;
+  /**
+   * v1.8.0 — metric key threaded into `<SubPageShell explainerMetric>`
+   * so the `?` heading glyph opens the static "What is X?" explainer.
+   * Resolves `insights.subPage.explainer.<explainerMetric>{Title,Body}`.
+   */
+  explainerMetric?: string;
 }
 
 export function HealthKitMetricPage({
@@ -95,6 +101,7 @@ export function HealthKitMetricPage({
   emptyStateIcon,
   coachPrefill,
   valueScale,
+  explainerMetric,
 }: HealthKitMetricPageProps) {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -115,7 +122,11 @@ export function HealthKitMetricPage({
         </Button>
       ) : null;
     return (
-      <SubPageShell title={title} description={description}>
+      <SubPageShell
+        title={title}
+        description={description}
+        explainerMetric={explainerMetric}
+      >
         <MetricEmptyState
           icon={emptyStateIcon}
           title={t(`${i18nPrefix}.emptyState.title`)}
@@ -128,7 +139,11 @@ export function HealthKitMetricPage({
   }
 
   return (
-    <SubPageShell title={title} description={description}>
+    <SubPageShell
+      title={title}
+      description={description}
+      explainerMetric={explainerMetric}
+    >
       <HealthChartDynamic
         chartKey={chartKey}
         types={[measurementType]}

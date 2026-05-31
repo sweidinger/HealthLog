@@ -35,6 +35,7 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
+import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
   recomputeBucketsForMeasurement,
   collapseToTypeDayKeys,
@@ -152,6 +153,17 @@ async function deleteByExternalIds(request: NextRequest): Promise<Response> {
     } catch (err) {
       console.warn("[measurements] rollup recompute failed", err);
     }
+
+    // v1.8.0 — drop the cached per-metric assessment rows the deleted
+    // types dirty so the next mount / nightly warm pass regenerates
+    // against the reconciled history. Fire-and-forget: never blocks the
+    // iOS reconciliation.
+    invalidateStatusInsightsForTypes(
+      user.id,
+      affectedRows.map((row) => row.type),
+    ).catch((err) => {
+      console.warn("[measurements] status-insight invalidate failed", err);
+    });
   }
 
   return apiSuccess({ deletedCount: result.count });

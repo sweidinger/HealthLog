@@ -157,6 +157,82 @@ export async function evictPerStatusInsightCache(
   });
 }
 
+/**
+ * The seven per-metric assessment scopes. Each generator persists its
+ * cached text under `insights.<scope>-status.<locale>`; the warm-pass in
+ * the nightly cron re-fills these after `evictPerStatusInsightCache`
+ * clears them, and the targeted invalidator below drops only the scopes
+ * a fresh measurement of a given type actually dirties.
+ */
+export const PER_STATUS_SCOPES = [
+  "blood-pressure",
+  "pulse",
+  "weight",
+  "bmi",
+  "mood",
+  "medication-compliance",
+  "general",
+] as const;
+
+export type PerStatusScope = (typeof PER_STATUS_SCOPES)[number];
+
+/**
+ * Map a measurement type to the assessment scopes a fresh reading of it
+ * dirties. `general` is the catch-all overview, so every measurement
+ * type touches it. BMI rides on WEIGHT (it is weight ÷ height²), so a
+ * new weight reading invalidates both the weight and the BMI card.
+ */
+function statusScopesForMeasurementType(type: MeasurementType): PerStatusScope[] {
+  switch (type) {
+    case "WEIGHT":
+      return ["weight", "bmi", "general"];
+    case "BLOOD_PRESSURE_SYS":
+    case "BLOOD_PRESSURE_DIA":
+      return ["blood-pressure", "general"];
+    case "PULSE":
+    case "RESTING_HEART_RATE":
+      return ["pulse", "general"];
+    default:
+      // Every other tracked metric (body composition, sleep, steps,
+      // glucose, …) still feeds the general overview assessment.
+      return ["general"];
+  }
+}
+
+/**
+ * Drop the cached per-metric assessment rows that a batch of fresh
+ * measurements dirties, so the next mount (or the next nightly warm
+ * pass) regenerates them against the new data instead of serving the
+ * pre-measurement text for the rest of the day.
+ *
+ * Fire-and-forget from the measurement ingest path — idempotent (a
+ * redundant delete costs nothing) and never a blocker on the user's
+ * write. Deletes every locale variant of each affected scope in one
+ * sweep; the `-status.` substring guard keeps it from touching the
+ * comprehensive cache or any unrelated `insights.*` audit row.
+ */
+export async function invalidateStatusInsightsForTypes(
+  userId: string,
+  types: Iterable<MeasurementType>,
+): Promise<void> {
+  const scopes = new Set<PerStatusScope>();
+  for (const type of types) {
+    for (const scope of statusScopesForMeasurementType(type)) {
+      scopes.add(scope);
+    }
+  }
+  if (scopes.size === 0) return;
+
+  await prisma.auditLog.deleteMany({
+    where: {
+      userId,
+      OR: Array.from(scopes, (scope) => ({
+        action: { startsWith: `insights.${scope}-status.` },
+      })),
+    },
+  });
+}
+
 interface GenerateOptions {
   /** Resolved UI locale for the prompt + cache row. */
   locale: "de" | "en";

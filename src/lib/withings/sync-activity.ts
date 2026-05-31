@@ -43,6 +43,7 @@ import {
   collapseToTypeDayKeys,
   recomputeBucketsForMeasurement,
 } from "@/lib/rollups/measurement-rollups";
+import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 
 import { hasActivityScope } from "./client";
 import {
@@ -371,6 +372,17 @@ export async function syncUserActivity(
     for (const k of keys) {
       await recomputeBucketsForMeasurement(userId, k.type, k.measuredAt);
     }
+
+    // v1.8.0 — drop the per-metric assessment caches the synced types
+    // dirty (steps feed the general overview). Fire-and-forget.
+    invalidateStatusInsightsForTypes(
+      userId,
+      keys.map((k) => k.type),
+    ).catch((err) => {
+      getEvent()?.addWarning(
+        `withings activity: status-insight invalidate failed for ${userId}: ${err}`,
+      );
+    });
   } catch (err) {
     getEvent()?.addWarning(
       `withings activity: rollup recompute failed for ${userId}: ${err}`,

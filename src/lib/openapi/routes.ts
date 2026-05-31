@@ -44,7 +44,7 @@ import {
   MEDICATION_TREATMENT_CLASS_VALUES,
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
-import { INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
+import { ACCEPTED_INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 
 /**
@@ -1121,14 +1121,26 @@ medicationExtractionSchema.meta({
 
 // Insights tile layout — mirrors the Zod schema in
 // `src/app/api/insights/layout/route.ts`. The tile-id enum is derived
-// from the same `INSIGHTS_TILE_IDS` source so the contract cannot drift.
+// from the same `ACCEPTED_INSIGHTS_TILE_IDS` source so the contract
+// cannot drift.
+//
+// v1.8.0 — the canonical ids are English (`blood-pressure`, `pulse`,
+// `oxygen`, `body-temperature`, `weight`, `active-energy`, `sleep`,
+// `resting-pulse`, `mood`, `medications`). The endpoint still ACCEPTS
+// the legacy German ids (`blutdruck`, `puls`, `sauerstoff`,
+// `koerpertemperatur`, `gewicht`, `aktive-energie`, `schlaf`,
+// `ruhepuls`, `stimmung`, `medikamente`) on input so existing iOS
+// layouts keep validating; the server normalises them to the canonical
+// English id before persisting, and GET always returns canonical ids.
+// The legacy ids are accepted-but-deprecated and will be dropped from
+// the accepted set in a future major.
 const insightsLayoutSchema = z
   .object({
     version: z.literal(1),
     tiles: z
       .array(
         z.object({
-          id: z.enum(INSIGHTS_TILE_IDS),
+          id: z.enum(ACCEPTED_INSIGHTS_TILE_IDS),
           visible: z.boolean(),
           order: z.number().int().min(0).max(99),
         }),
@@ -1139,7 +1151,7 @@ const insightsLayoutSchema = z
   .meta({
     id: "InsightsLayoutBody",
     description:
-      "Per-user Insights tile layout: an ordered list of tiles with a visibility flag. `version` is the layout schema version; tile ids are a closed enum derived from the server's tile registry.",
+      "Per-user Insights tile layout: an ordered list of tiles with a visibility flag. `version` is the layout schema version. Tile ids are a closed enum: the canonical ids are English (matching the routed `/insights/<slug>` sub-pages). The legacy German ids (blutdruck, puls, sauerstoff, koerpertemperatur, gewicht, aktive-energie, schlaf, ruhepuls, stimmung, medikamente) remain accepted on input for backward compatibility and are normalised to their English equivalents before persisting; GET responses always carry the canonical English ids. The legacy ids are deprecated and will be removed in a future major version.",
   });
 
 // v1.7.0 — health-record export selection. Strict shape: unknown keys
