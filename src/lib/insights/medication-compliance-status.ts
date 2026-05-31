@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { resolveProvider } from "@/lib/ai/provider";
 import {
   getMedicationComplianceSystemPrompt,
   getMedicationComplianceUserPrompt,
@@ -19,11 +18,9 @@ import {
 } from "@/lib/insights/memory";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
-import {
-  withTimeout,
-  STATUS_PROVIDER_TIMEOUT_MS,
-} from "@/lib/insights/with-timeout";
-import { persistTimeoutStubAndReturn } from "@/lib/insights/persist-timeout-stub";
+import { runStatusCompletion } from "@/lib/insights/status-provider";
+import { isTimeoutStub } from "@/lib/insights/status-cache";
+import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 
@@ -69,73 +66,50 @@ export async function generateMedicationComplianceStatusForUser(
   const cacheAction = `insights.medication-compliance-status.${locale}`;
   const todayKey = toBerlinDayKey(new Date());
 
-  const provider = await resolveProvider(userId);
-  if (provider.type === "none") {
-    return {
-      hasProvider: false,
-      summary: getNoKeyMedicationComplianceStatusText(locale),
-      medications: [],
-      cached: true,
-      updatedAt: null,
-    };
-  }
-
-  const latestCache = await prisma.auditLog.findFirst({
-    where: { userId, action: cacheAction },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true, details: true },
-  });
-
-  if (!force && latestCache?.details) {
-    try {
-      const parsed = JSON.parse(latestCache.details) as {
-        dateKey?: string;
-        summary?: string;
-        text?: string;
-        timeout?: boolean;
-        medications?: MedicationSummaryItem[];
-      };
-
-      if (
-        parsed.dateKey === todayKey &&
-        typeof parsed.summary === "string" &&
-        parsed.summary.trim().length > 0 &&
-        Array.isArray(parsed.medications)
-      ) {
-        return {
-          hasProvider: true,
-          summary: parsed.summary,
-          medications: parsed.medications.filter(
-            (entry): entry is MedicationSummaryItem =>
-              typeof entry?.medicationId === "string" &&
-              typeof entry?.text === "string" &&
-              entry.text.trim().length > 0,
-          ),
-          cached: true,
-          updatedAt: latestCache.createdAt.toISOString(),
+  // This route carries a richer cached envelope (`summary` +
+  // `medications`) than the standard `text`-only generators, so it
+  // keeps its own cache-read — but it shares the stub-rejection
+  // predicate so a timeout stub never sticks for the day.
+  if (!force) {
+    const latestCache = await prisma.auditLog.findFirst({
+      where: { userId, action: cacheAction },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true, details: true },
+    });
+    if (latestCache?.details) {
+      try {
+        const parsed = JSON.parse(latestCache.details) as {
+          dateKey?: string;
+          summary?: string;
+          text?: string;
+          model?: string;
+          timeout?: boolean;
+          medications?: MedicationSummaryItem[];
         };
-      }
 
-      // v1.4.41 — timeout-stub rows persist `text` + `timeout: true`
-      // instead of the standard `summary` + `medications` envelope.
-      // Recognise the stub so the second mount short-circuits at the
-      // cache lookup instead of re-racing the provider call.
-      if (
-        parsed.dateKey === todayKey &&
-        parsed.timeout === true &&
-        typeof parsed.text === "string" &&
-        parsed.text.trim().length > 0
-      ) {
-        return {
-          hasProvider: true,
-          summary: parsed.text,
-          medications: [],
-          cached: true,
-          updatedAt: latestCache.createdAt.toISOString(),
-        };
+        if (
+          parsed.dateKey === todayKey &&
+          !isTimeoutStub(parsed) &&
+          typeof parsed.summary === "string" &&
+          parsed.summary.trim().length > 0 &&
+          Array.isArray(parsed.medications)
+        ) {
+          return {
+            hasProvider: true,
+            summary: parsed.summary,
+            medications: parsed.medications.filter(
+              (entry): entry is MedicationSummaryItem =>
+                typeof entry?.medicationId === "string" &&
+                typeof entry?.text === "string" &&
+                entry.text.trim().length > 0,
+            ),
+            cached: true,
+            updatedAt: latestCache.createdAt.toISOString(),
+          };
+        }
+      } catch {
+        // ignore invalid cache payload
       }
-    } catch {
-      // ignore invalid cache payload
     }
   }
 
@@ -154,7 +128,7 @@ export async function generateMedicationComplianceStatusForUser(
           : "There are currently no active medications configured.",
       medications: [],
       cached: true,
-      updatedAt: latestCache?.createdAt.toISOString() ?? null,
+      updatedAt: null,
     };
   }
 
@@ -333,58 +307,47 @@ export async function generateMedicationComplianceStatusForUser(
     locale,
   );
 
-  // v1.4.28 FB-D2 — 20 s timeout race; fall back to the no-key text
-  // on stall so the InsightStatusCard renders deterministically.
-  const raced = await withTimeout(
-    () =>
-      provider.generateCompletion({
-        systemPrompt: getMedicationComplianceSystemPrompt(locale),
-        userPrompt: getMedicationComplianceUserPrompt(
-          snapshotJson,
-          todayKey,
-          locale,
-          previousContextBlock,
-        ),
-        temperature: 0.3,
-        maxTokens: 1000,
-      }),
-    STATUS_PROVIDER_TIMEOUT_MS,
-    null,
-  );
-
-  if (raced.timedOut || raced.value === null) {
-    // v1.4.37 — persist a sentinel row keyed to today so the next
-    // mount short-circuits at the cache lookup above instead of
-    // re-racing the same 20 s provider call on every cold visit.
-    // See `persistTimeoutStubAndReturn` for the full rationale.
-    // This route returns a richer shape (`summary`, `medications`)
-    // than the standard `text` envelope, so the helper is called
-    // for its persist side-effect and the route maps `summary` ←
-    // `text` on the way out.
-    const stubReturn = await persistTimeoutStubAndReturn({
-      userId,
-      cacheAction,
+  const outcome = await runStatusCompletion({
+    userId,
+    cacheAction,
+    systemPrompt: getMedicationComplianceSystemPrompt(locale),
+    userPrompt: getMedicationComplianceUserPrompt(
+      snapshotJson,
       todayKey,
       locale,
-      providerType: provider.type,
+      previousContextBlock,
+    ),
+    temperature: 0.3,
+    maxTokens: 1000,
+  });
+
+  if (outcome.kind === "none") {
+    return {
+      hasProvider: false,
+      summary: getNoKeyMedicationComplianceStatusText(locale),
+      medications: [],
+      cached: true,
+      updatedAt: null,
+    };
+  }
+  if (outcome.kind === "timeout" || outcome.kind === "error") {
+    // Transient miss — serve the fallback for this render without
+    // persisting it, so the next mount re-attempts a real generation.
+    returnTimeoutFallback({
+      cacheAction,
+      reason: outcome.kind,
       stubText: getNoKeyMedicationComplianceStatusText(locale),
     });
     return {
       hasProvider: true,
-      summary: stubReturn.text,
+      summary: getNoKeyMedicationComplianceStatusText(locale),
       medications: [],
       cached: true,
-      updatedAt: stubReturn.updatedAt,
+      updatedAt: null,
     };
   }
 
-  const result = raced.value;
-  const content = result.content;
-  if (typeof content !== "string" || content.trim().length === 0) {
-    throw new Error(
-      "AI returned empty content for medication-compliance-status",
-    );
-  }
+  const content = outcome.content;
 
   let summary = "";
   let medicationSummaries: MedicationSummaryItem[] = [];
@@ -442,9 +405,9 @@ export async function generateMedicationComplianceStatusForUser(
         locale,
         summary,
         medications: medicationSummaries,
-        providerType: provider.type,
-        model: result.model ?? "unknown",
-        tokensUsed: result.tokensUsed ?? null,
+        providerType: outcome.providerType,
+        model: outcome.model,
+        tokensUsed: outcome.tokensUsed,
       }),
     },
     select: { createdAt: true },

@@ -8,8 +8,8 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-vi.mock("@/lib/ai/provider", () => ({
-  resolveProvider: vi.fn(),
+vi.mock("@/lib/insights/status-provider", () => ({
+  runStatusCompletion: vi.fn(),
 }));
 
 vi.mock("@/lib/insights/memory", () => ({
@@ -18,10 +18,28 @@ vi.mock("@/lib/insights/memory", () => ({
 }));
 
 import { prisma } from "@/lib/db";
-import { resolveProvider } from "@/lib/ai/provider";
+import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { generateMoodStatusForUser } from "../mood-status";
 
 const dayMs = 24 * 60 * 60 * 1000;
+
+function stubCompletion(
+  content: string,
+  capture?: { userPrompt: string | null },
+) {
+  vi.mocked(runStatusCompletion).mockImplementation(
+    async (args: { userPrompt: string }) => {
+      if (capture) capture.userPrompt = args.userPrompt;
+      return {
+        kind: "ok",
+        content,
+        providerType: "anthropic",
+        model: "x",
+        tokensUsed: 1,
+      } as never;
+    },
+  );
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -39,9 +57,6 @@ describe("generateMoodStatusForUser — v1.4.6 bucketed payload", () => {
     for (let day = 0; day < 1000; day++) {
       const t = new Date(now.getTime() - day * dayMs);
       entries.push({
-        // production code keys mood buckets by `moodLoggedAt`, so the
-        // `date` string here is irrelevant for bucketing — keep it
-        // ISO-shaped so other downstream consumers don't choke.
         date: t.toISOString().slice(0, 10),
         score: 3 + (day % 3) * 0.5,
         tags: [],
@@ -57,17 +72,7 @@ describe("generateMoodStatusForUser — v1.4.6 bucketed payload", () => {
     } as never);
 
     const captured: { userPrompt: string | null } = { userPrompt: null };
-    vi.mocked(resolveProvider).mockResolvedValue({
-      type: "anthropic",
-      generateCompletion: vi.fn(async (args: { userPrompt: string }) => {
-        captured.userPrompt = args.userPrompt;
-        return {
-          content: '{"summary":"OK"}',
-          model: "x",
-          tokensUsed: 1,
-        };
-      }),
-    } as never);
+    stubCompletion('{"summary":"OK"}', captured);
 
     await generateMoodStatusForUser("user-1", { locale: "en" });
 
@@ -88,94 +93,62 @@ describe("generateMoodStatusForUser — v1.4.6 bucketed payload", () => {
   });
 });
 
-describe("generateMoodStatusForUser — v1.4.41 timeout-stub persistence", () => {
-  it("persists a sentinel row keyed to today when the provider times out", async () => {
+describe("generateMoodStatusForUser — timeout/error never persists", () => {
+  it("serves the fallback without writing a cache row on timeout", async () => {
     const t = new Date();
     vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([
-      {
-        date: t.toISOString().slice(0, 10),
-        score: 4,
-        tags: [],
-        moodLoggedAt: t,
-      },
+      { date: t.toISOString().slice(0, 10), score: 4, tags: [], moodLoggedAt: t },
     ] as never);
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.auditLog.create).mockResolvedValue({
       createdAt: new Date(),
     } as never);
 
-    vi.mocked(resolveProvider).mockResolvedValue({
-      type: "anthropic",
-      generateCompletion: vi.fn(
-        () =>
-          new Promise(() => {
-            /* never resolves */
-          }),
-      ),
-    } as never);
-
-    vi.useFakeTimers();
-    const promise = generateMoodStatusForUser("user-1", { locale: "en" });
-    await vi.advanceTimersByTimeAsync(25_000);
-    const result = await promise;
-    vi.useRealTimers();
-
-    expect(result.text).toBeTruthy();
-    expect(result.cached).toBe(true);
-    expect(result.updatedAt).toBeTruthy();
-
-    const createCalls = vi.mocked(prisma.auditLog.create).mock.calls;
-    expect(createCalls.length).toBe(1);
-    const details = (createCalls[0][0] as { data: { details: string } }).data
-      .details;
-    const parsed = JSON.parse(details) as {
-      dateKey?: string;
-      text?: string;
-      timeout?: boolean;
-      model?: string;
-    };
-    expect(parsed.text).toBeTruthy();
-    expect(parsed.timeout).toBe(true);
-    expect(parsed.model).toBe("timeout-stub");
-    expect(parsed.dateKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  });
-
-  it("subsequent mounts short-circuit at the cache lookup and skip the race", async () => {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Europe/Berlin",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(new Date());
-    const y = parts.find((p) => p.type === "year")!.value;
-    const m = parts.find((p) => p.type === "month")!.value;
-    const d = parts.find((p) => p.type === "day")!.value;
-    const todayKey = `${y}-${m}-${d}`;
-    const stubRow = {
-      createdAt: new Date(),
-      details: JSON.stringify({
-        dateKey: todayKey,
-        locale: "en",
-        text: "Mood fallback text…",
-        timeout: true,
-      }),
-    };
-
-    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(stubRow as never);
-    const providerCall = vi.fn();
-    vi.mocked(resolveProvider).mockResolvedValue({
-      type: "anthropic",
-      generateCompletion: providerCall,
+    vi.mocked(runStatusCompletion).mockResolvedValue({
+      kind: "timeout",
     } as never);
 
     const result = await generateMoodStatusForUser("user-1", { locale: "en" });
 
-    expect(providerCall).not.toHaveBeenCalled();
-    expect(result.text).toBe("Mood fallback text…");
+    expect(result.text).toBeTruthy();
     expect(result.cached).toBe(true);
-    expect(result.updatedAt).toBe(stubRow.createdAt.toISOString());
+    expect(result.updatedAt).toBeNull();
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("generateMoodStatusForUser — cache-read skips a stub", () => {
+  it("regenerates when the only cached row is a timeout stub", async () => {
+    const now = new Date();
+    const todayKey = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Berlin",
+    }).format(now);
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue({
+      createdAt: now,
+      details: JSON.stringify({
+        dateKey: todayKey,
+        locale: "en",
+        text: "Mood fallback text…",
+        model: "timeout-stub",
+        timeout: true,
+      }),
+    } as never);
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([
+      { date: now.toISOString().slice(0, 10), score: 4, tags: [], moodLoggedAt: now },
+    ] as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: now,
+    } as never);
+
+    stubCompletion('{"summary":"Fresh mood assessment."}');
+
+    const result = await generateMoodStatusForUser("user-1", { locale: "en" });
+
+    expect(runStatusCompletion).toHaveBeenCalledTimes(1);
+    expect(result.text).toBe("Fresh mood assessment.");
+    expect(result.cached).toBe(false);
   });
 });
 
@@ -191,14 +164,7 @@ describe("generateMoodStatusForUser — token-leak hardening (v1.4.27 F16)", () 
       createdAt: new Date(),
     } as never);
 
-    vi.mocked(resolveProvider).mockResolvedValue({
-      type: "anthropic",
-      generateCompletion: vi.fn(async () => ({
-        content: '{"summary":"Mood stayed positive. metric:MOOD"}',
-        model: "x",
-        tokensUsed: 1,
-      })),
-    } as never);
+    stubCompletion('{"summary":"Mood stayed positive. metric:MOOD"}');
 
     const result = await generateMoodStatusForUser("user-1", { locale: "en" });
 

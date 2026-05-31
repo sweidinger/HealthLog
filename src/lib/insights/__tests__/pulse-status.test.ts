@@ -9,8 +9,8 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-vi.mock("@/lib/ai/provider", () => ({
-  resolveProvider: vi.fn(),
+vi.mock("@/lib/insights/status-provider", () => ({
+  runStatusCompletion: vi.fn(),
 }));
 
 vi.mock("@/lib/insights/memory", () => ({
@@ -19,10 +19,28 @@ vi.mock("@/lib/insights/memory", () => ({
 }));
 
 import { prisma } from "@/lib/db";
-import { resolveProvider } from "@/lib/ai/provider";
+import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { generatePulseStatusForUser } from "../pulse-status";
 
 const dayMs = 24 * 60 * 60 * 1000;
+
+function stubCompletion(
+  content: string,
+  capture?: { userPrompt: string | null },
+) {
+  vi.mocked(runStatusCompletion).mockImplementation(
+    async (args: { userPrompt: string }) => {
+      if (capture) capture.userPrompt = args.userPrompt;
+      return {
+        kind: "ok",
+        content,
+        providerType: "anthropic",
+        model: "x",
+        tokensUsed: 1,
+      } as never;
+    },
+  );
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -51,17 +69,7 @@ describe("generatePulseStatusForUser — v1.4.6 bucketed payload", () => {
     } as never);
 
     const captured: { userPrompt: string | null } = { userPrompt: null };
-    vi.mocked(resolveProvider).mockResolvedValue({
-      type: "anthropic",
-      generateCompletion: vi.fn(async (args: { userPrompt: string }) => {
-        captured.userPrompt = args.userPrompt;
-        return {
-          content: '{"summary":"OK"}',
-          model: "x",
-          tokensUsed: 1,
-        };
-      }),
-    } as never);
+    stubCompletion('{"summary":"OK"}', captured);
 
     await generatePulseStatusForUser("user-1", { locale: "en" });
 
@@ -82,50 +90,41 @@ describe("generatePulseStatusForUser — v1.4.6 bucketed payload", () => {
   });
 });
 
-describe("generatePulseStatusForUser — v1.4.41 timeout-stub short-circuit", () => {
-  // The persist-on-timeout path is covered by
-  // `pulse-status-timeout.test.ts`. This block pins the second-mount
-  // behaviour: when a sentinel row already exists for today the cache
-  // lookup short-circuits and the provider is never invoked.
-  it("subsequent mounts short-circuit at the cache lookup and skip the race", async () => {
-    const parts = new Intl.DateTimeFormat("en-US", {
+describe("generatePulseStatusForUser — cache-read skips a stub", () => {
+  it("regenerates when the only cached row is a timeout stub", async () => {
+    const now = new Date();
+    const todayKey = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Europe/Berlin",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(new Date());
-    const y = parts.find((p) => p.type === "year")!.value;
-    const m = parts.find((p) => p.type === "month")!.value;
-    const d = parts.find((p) => p.type === "day")!.value;
-    const todayKey = `${y}-${m}-${d}`;
-    const stubRow = {
-      createdAt: new Date(),
-      details: JSON.stringify({
-        dateKey: todayKey,
-        locale: "en",
-        text: "Pulse fallback text…",
-        timeout: true,
-      }),
-    };
-
+    }).format(now);
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       dateOfBirth: null,
       gender: null,
     } as never);
-    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(stubRow as never);
-    const providerCall = vi.fn();
-    vi.mocked(resolveProvider).mockResolvedValue({
-      type: "anthropic",
-      generateCompletion: providerCall,
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue({
+      createdAt: now,
+      details: JSON.stringify({
+        dateKey: todayKey,
+        locale: "en",
+        text: "Pulse fallback text…",
+        model: "timeout-stub",
+        timeout: true,
+      }),
     } as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { value: 72, measuredAt: now },
+    ] as never);
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: now,
+    } as never);
+
+    stubCompletion('{"summary":"Fresh pulse assessment."}');
 
     const result = await generatePulseStatusForUser("user-1", { locale: "en" });
 
-    expect(providerCall).not.toHaveBeenCalled();
-    expect(result.text).toBe("Pulse fallback text…");
-    expect(result.cached).toBe(true);
-    expect(result.updatedAt).toBe(stubRow.createdAt.toISOString());
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    expect(runStatusCompletion).toHaveBeenCalledTimes(1);
+    expect(result.text).toBe("Fresh pulse assessment.");
+    expect(result.cached).toBe(false);
   });
 });
 
@@ -144,15 +143,9 @@ describe("generatePulseStatusForUser — token-leak hardening (v1.4.27 F16)", ()
       createdAt: new Date(),
     } as never);
 
-    vi.mocked(resolveProvider).mockResolvedValue({
-      type: "anthropic",
-      generateCompletion: vi.fn(async () => ({
-        content:
-          '{"summary":"Your pulse is stable. metric:PULSE The 7-day average sits inside the band."}',
-        model: "x",
-        tokensUsed: 1,
-      })),
-    } as never);
+    stubCompletion(
+      '{"summary":"Your pulse is stable. metric:PULSE The 7-day average sits inside the band."}',
+    );
 
     const result = await generatePulseStatusForUser("user-1", { locale: "en" });
 

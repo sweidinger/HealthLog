@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { resolveProvider } from "@/lib/ai/provider";
 import {
   getWeightSystemPrompt,
   getWeightUserPrompt,
@@ -19,11 +18,9 @@ import {
   type DailyBucket,
 } from "@/lib/insights/bucket-series";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
-import {
-  withTimeout,
-  STATUS_PROVIDER_TIMEOUT_MS,
-} from "@/lib/insights/with-timeout";
-import { persistTimeoutStubAndReturn } from "@/lib/insights/persist-timeout-stub";
+import { runStatusCompletion } from "@/lib/insights/status-provider";
+import { readFreshStatusText } from "@/lib/insights/status-cache";
+import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 
@@ -121,43 +118,22 @@ export async function generateWeightStatusForUser(
   const cacheAction = `insights.weight-status.${locale}`;
   const todayKey = toBerlinDayKey(new Date());
 
-  const provider = await resolveProvider(userId);
-  if (provider.type === "none") {
-    return {
-      hasProvider: false,
-      text: getNoKeyWeightStatusText(locale),
-      cached: true,
-      updatedAt: null,
-    };
-  }
-
-  const latestCache = await prisma.auditLog.findFirst({
-    where: { userId, action: cacheAction },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true, details: true },
+  // Serve today's real assessment when present. The shared reader
+  // rejects timeout stubs, so a single stall no longer pins the
+  // fallback for the day.
+  const cached = await readFreshStatusText({
+    userId,
+    cacheAction,
+    todayKey,
+    force,
   });
-
-  if (!force && latestCache?.details) {
-    try {
-      const parsed = JSON.parse(latestCache.details) as {
-        dateKey?: string;
-        text?: string;
-      };
-      if (
-        parsed.dateKey === todayKey &&
-        typeof parsed.text === "string" &&
-        parsed.text.trim().length > 0
-      ) {
-        return {
-          hasProvider: true,
-          text: parsed.text,
-          cached: true,
-          updatedAt: latestCache.createdAt.toISOString(),
-        };
-      }
-    } catch {
-      // ignore invalid cache payload
-    }
+  if (cached) {
+    return {
+      hasProvider: true,
+      text: cached.text,
+      cached: true,
+      updatedAt: cached.updatedAt,
+    };
   }
 
   // v1.4.28 FB-D2 — cap the snapshot input. BP captures three types
@@ -402,56 +378,50 @@ export async function generateWeightStatusForUser(
     locale,
   );
 
-  // v1.4.28 FB-D2 — 20 s timeout race; fall back to the no-key text
-  // on stall so the InsightStatusCard renders deterministically.
-  const raced = await withTimeout(
-    () =>
-      provider.generateCompletion({
-        systemPrompt: getWeightSystemPrompt(locale),
-        userPrompt: getWeightUserPrompt(
-          snapshotJson,
-          todayKey,
-          locale,
-          previousContextBlock,
-        ),
-        temperature: 0.3,
-        maxTokens: 1000,
-      }),
-    STATUS_PROVIDER_TIMEOUT_MS,
-    null,
-  );
-
-  if (raced.timedOut || raced.value === null) {
-    // v1.4.37 — persist a sentinel row keyed to today so the next
-    // mount short-circuits at the cache lookup above instead of
-    // re-racing the same 20 s provider call on every cold visit.
-    // See `persistTimeoutStubAndReturn` for the full rationale.
-    return persistTimeoutStubAndReturn({
-      userId,
-      cacheAction,
+  // Run the provider chain bounded by the aligned 60 s budget. A
+  // timeout / error / empty content is a transient miss — serve the
+  // fallback for this render without persisting it, so the next mount
+  // re-attempts a real generation rather than sticking the fallback.
+  const outcome = await runStatusCompletion({
+    userId,
+    cacheAction,
+    systemPrompt: getWeightSystemPrompt(locale),
+    userPrompt: getWeightUserPrompt(
+      snapshotJson,
       todayKey,
       locale,
-      providerType: provider.type,
+      previousContextBlock,
+    ),
+    temperature: 0.3,
+    maxTokens: 1000,
+  });
+
+  if (outcome.kind === "none") {
+    return {
+      hasProvider: false,
+      text: getNoKeyWeightStatusText(locale),
+      cached: true,
+      updatedAt: null,
+    };
+  }
+  if (outcome.kind === "timeout" || outcome.kind === "error") {
+    return returnTimeoutFallback({
+      cacheAction,
+      reason: outcome.kind,
       stubText: getNoKeyWeightStatusText(locale),
     });
   }
 
-  const result = raced.value;
-  const content = result.content;
-  if (typeof content !== "string" || content.trim().length === 0) {
-    throw new Error("AI returned empty content for weight-status");
-  }
-
   let summary = "";
   try {
-    const parsed = JSON.parse(content) as { summary?: string };
+    const parsed = JSON.parse(outcome.content) as { summary?: string };
     if (typeof parsed.summary === "string") {
       summary = parsed.summary;
     } else {
-      summary = content;
+      summary = outcome.content;
     }
   } catch {
-    summary = content;
+    summary = outcome.content;
   }
 
   summary = normalizeSummaryText(summary);
@@ -467,9 +437,9 @@ export async function generateWeightStatusForUser(
         dateKey: todayKey,
         locale,
         text: summary,
-        providerType: provider.type,
-        model: result.model ?? "unknown",
-        tokensUsed: result.tokensUsed ?? null,
+        providerType: outcome.providerType,
+        model: outcome.model,
+        tokensUsed: outcome.tokensUsed,
       }),
     },
     select: { createdAt: true },
