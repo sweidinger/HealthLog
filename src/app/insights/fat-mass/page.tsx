@@ -19,6 +19,7 @@ export default function InsightsFettmassePage() {
       insightMetric="FAT_MASS"
       chartKey="fatMass"
       i18nPrefix="insights.fatMass"
+      explainerMetric="fatMass"
       color="#ffb86c"
       unit="kg"
       yAxisUnit="kg"

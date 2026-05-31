@@ -19,6 +19,7 @@ export default function InsightsTageslichtPage() {
       insightMetric="TIME_IN_DAYLIGHT"
       chartKey="timeInDaylight"
       i18nPrefix="insights.timeInDaylight"
+      explainerMetric="daylight"
       color="#50fa7b"
       unit="min"
       yAxisUnit="min"

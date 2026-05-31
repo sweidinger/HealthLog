@@ -62,7 +62,7 @@ export default function InsightsPulsPage() {
       <SubPageShell
         title={t("insights.pulseSectionTitle")}
         description={t("insights.subPage.pulsDescription")}
-        explainerMetric="puls"
+        explainerMetric="pulse"
       >
         <MetricEmptyState
           icon={<Heart className="size-6" />}
@@ -113,7 +113,7 @@ export default function InsightsPulsPage() {
     <SubPageShell
       title={t("insights.pulseSectionTitle")}
       description={t("insights.subPage.pulsDescription")}
-      explainerMetric="puls"
+      explainerMetric="pulse"
     >
       <HealthChartDynamic
         chartKey="pulse"

@@ -19,6 +19,7 @@ export default function InsightsGehpulsPage() {
       insightMetric="WALKING_HEART_RATE_AVERAGE"
       chartKey="walkingHeartRateAverage"
       i18nPrefix="insights.walkingHeartRateAverage"
+      explainerMetric="walkingHeartRate"
       color="#ff5555"
       unit="bpm"
       yAxisUnit="bpm"

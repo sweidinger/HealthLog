@@ -19,6 +19,7 @@ export default function InsightsViszeralfettPage() {
       insightMetric="VISCERAL_FAT"
       chartKey="visceralFat"
       i18nPrefix="insights.visceralFat"
+      explainerMetric="visceralFat"
       color="#ffb86c"
       unit=""
       yAxisUnit=""

@@ -19,6 +19,7 @@ export default function InsightsGefaessalterPage() {
       insightMetric="VASCULAR_AGE"
       chartKey="vascularAge"
       i18nPrefix="insights.vascularAge"
+      explainerMetric="vascularAge"
       color="#ff79c6"
       unit="years"
       yAxisUnit="years"

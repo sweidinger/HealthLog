@@ -19,6 +19,7 @@ export default function InsightsPulswellengeschwindigkeitPage() {
       insightMetric="PULSE_WAVE_VELOCITY"
       chartKey="pulseWaveVelocity"
       i18nPrefix="insights.pulseWaveVelocity"
+      explainerMetric="pulseWaveVelocity"
       color="#ff5555"
       unit="m/s"
       yAxisUnit="m/s"

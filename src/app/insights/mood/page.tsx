@@ -76,7 +76,7 @@ export default function InsightsStimmungPage() {
       <SubPageShell
         title={t("insights.moodSectionTitle")}
         description={t("insights.subPage.stimmungDescription")}
-        explainerMetric="stimmung"
+        explainerMetric="mood"
       >
         <MetricEmptyState
           icon={<Smile className="size-6" />}
@@ -97,7 +97,7 @@ export default function InsightsStimmungPage() {
     <SubPageShell
       title={t("insights.moodSectionTitle")}
       description={t("insights.subPage.stimmungDescription")}
-      explainerMetric="stimmung"
+      explainerMetric="mood"
     >
       <MoodChart
         chartKey="mood"

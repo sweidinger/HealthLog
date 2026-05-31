@@ -19,6 +19,7 @@ export default function InsightsKopfhoererpegelPage() {
       insightMetric="AUDIO_EXPOSURE_HEADPHONE"
       chartKey="audioExposureHeadphone"
       i18nPrefix="insights.audioExposureHeadphone"
+      explainerMetric="headphoneAudio"
       color="#ff79c6"
       unit="dBA"
       yAxisUnit="dBA"

@@ -19,6 +19,7 @@ export default function InsightsHauttemperaturPage() {
       insightMetric="SKIN_TEMPERATURE"
       chartKey="skinTemperature"
       i18nPrefix="insights.skinTemperature"
+      explainerMetric="skinTemperature"
       color="#ffb86c"
       unit="°C"
       yAxisUnit="°C"

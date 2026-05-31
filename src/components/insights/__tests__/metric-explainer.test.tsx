@@ -41,25 +41,52 @@ function KeyProbe({ metric }: { metric: string }) {
   );
 }
 
+// v1.8.0 — English key segments (ADR-0001). Every routed insights
+// category page now passes one of these; the explainer copy ships in
+// all six locales.
 const METRICS = [
-  "blutdruck",
-  "puls",
-  "gewicht",
+  "bloodPressure",
+  "pulse",
+  "weight",
   "bmi",
-  "schlaf",
-  "stimmung",
-  "medikamente",
+  "sleep",
+  "mood",
+  "medications",
   "restingHr",
   "hrv",
   "oxygenSaturation",
   "bodyTemperature",
   "activeEnergy",
   "workouts",
+  "respiratoryRate",
+  "bodyWater",
+  "boneMass",
+  "fatFreeMass",
+  "fatMass",
+  "muscleMass",
+  "visceralFat",
+  "leanBodyMass",
+  "flightsClimbed",
+  "walkingDistance",
+  "walkingSteadiness",
+  "walkingHeartRate",
+  "walkingAsymmetry",
+  "doubleSupportTime",
+  "stepLength",
+  "walkingSpeed",
+  "pulseWaveVelocity",
+  "vascularAge",
+  "environmentalAudio",
+  "headphoneAudio",
+  "audioEvents",
+  "daylight",
+  "bloodGlucose",
+  "skinTemperature",
 ] as const;
 
 describe("<MetricExplainer>", () => {
   it("renders an icon-only trigger button with a metric-specific accessible label (EN)", () => {
-    const html = ssr(<MetricExplainer metric="blutdruck" />);
+    const html = ssr(<MetricExplainer metric="bloodPressure" />);
     const trigger = html.match(
       /<button[^>]*data-slot="metric-explainer-trigger"[^>]*>/,
     );
@@ -72,7 +99,7 @@ describe("<MetricExplainer>", () => {
     // `min-h-11 min-w-11`; the surrounding heading row keeps its stride
     // because `-my-3 -mx-2` swallows the extra reach. Pinned so a future
     // refactor can't collapse the hit surface back to the visual chip.
-    const html = ssr(<MetricExplainer metric="puls" />);
+    const html = ssr(<MetricExplainer metric="pulse" />);
     const trigger = html.match(
       /<button[^>]*data-slot="metric-explainer-trigger"[^>]*>/,
     );
@@ -94,13 +121,13 @@ describe("<MetricExplainer>", () => {
     // the user activates the trigger. Pinning the negative keeps a
     // future "open on render" refactor from leaking copy into the
     // static markup.
-    const html = ssr(<MetricExplainer metric="gewicht" />);
+    const html = ssr(<MetricExplainer metric="weight" />);
     expect(html).not.toContain('data-slot="metric-explainer-body"');
     expect(html).not.toContain('data-slot="metric-explainer-title"');
   });
 
   it("localises the trigger label in German", () => {
-    const html = ssr(<MetricExplainer metric="schlaf" />, "de");
+    const html = ssr(<MetricExplainer metric="sleep" />, "de");
     const trigger = html.match(
       /<button[^>]*data-slot="metric-explainer-trigger"[^>]*>/,
     );

@@ -44,7 +44,7 @@ export default function InsightsGewichtPage() {
       <SubPageShell
         title={t("insights.weightSectionTitle")}
         description={t("insights.subPage.gewichtDescription")}
-        explainerMetric="gewicht"
+        explainerMetric="weight"
       >
         <MetricEmptyState
           icon={<Scale className="size-6" />}
@@ -74,7 +74,7 @@ export default function InsightsGewichtPage() {
     <SubPageShell
       title={t("insights.weightSectionTitle")}
       description={t("insights.subPage.gewichtDescription")}
-      explainerMetric="gewicht"
+      explainerMetric="weight"
     >
       <HealthChartDynamic
         chartKey="weight"

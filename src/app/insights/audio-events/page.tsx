@@ -19,6 +19,7 @@ export default function InsightsLaermereignissePage() {
       insightMetric="AUDIO_EXPOSURE_EVENT"
       chartKey="audioExposureEvent"
       i18nPrefix="insights.audioExposureEvent"
+      explainerMetric="audioEvents"
       color="#ff79c6"
       unit=""
       yAxisUnit=""

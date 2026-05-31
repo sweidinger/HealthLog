@@ -19,6 +19,7 @@ export default function InsightsLaermbelastungPage() {
       insightMetric="AUDIO_EXPOSURE_ENV"
       chartKey="audioExposureEnv"
       i18nPrefix="insights.audioExposureEnv"
+      explainerMetric="environmentalAudio"
       color="#ff79c6"
       unit="dBA"
       yAxisUnit="dBA"

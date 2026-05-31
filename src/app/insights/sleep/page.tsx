@@ -38,7 +38,7 @@ export default function InsightsSchlafPage() {
       <SubPageShell
         title={t("insights.sleep.title")}
         description={t("insights.sleep.description")}
-        explainerMetric="schlaf"
+        explainerMetric="sleep"
       >
         <MetricEmptyState
           icon={<Moon className="size-6" />}
@@ -61,7 +61,7 @@ export default function InsightsSchlafPage() {
     <SubPageShell
       title={t("insights.sleep.title")}
       description={t("insights.sleep.description")}
-      explainerMetric="schlaf"
+      explainerMetric="sleep"
     >
       <SleepOverview />
 

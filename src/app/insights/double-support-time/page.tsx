@@ -19,6 +19,7 @@ export default function InsightsDoppelstandphasePage() {
       insightMetric="WALKING_DOUBLE_SUPPORT"
       chartKey="walkingDoubleSupport"
       i18nPrefix="insights.walkingDoubleSupport"
+      explainerMetric="doubleSupportTime"
       color="#50fa7b"
       unit="%"
       yAxisUnit="%"

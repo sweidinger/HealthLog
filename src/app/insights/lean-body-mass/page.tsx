@@ -19,6 +19,7 @@ export default function InsightsMagermassePage() {
       insightMetric="LEAN_BODY_MASS"
       chartKey="leanBodyMass"
       i18nPrefix="insights.leanBodyMass"
+      explainerMetric="leanBodyMass"
       color="#bd93f9"
       unit="kg"
       yAxisUnit="kg"

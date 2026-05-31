@@ -52,7 +52,7 @@ export default function InsightsBlutdruckPage() {
       <SubPageShell
         title={t("insights.bloodPressureSectionTitle")}
         description={t("insights.subPage.blutdruckDescription")}
-        explainerMetric="blutdruck"
+        explainerMetric="bloodPressure"
       >
         <MetricEmptyState
           icon={<HeartPulse className="size-6" />}
@@ -100,7 +100,7 @@ export default function InsightsBlutdruckPage() {
     <SubPageShell
       title={t("insights.bloodPressureSectionTitle")}
       description={t("insights.subPage.blutdruckDescription")}
-      explainerMetric="blutdruck"
+      explainerMetric="bloodPressure"
     >
       <HealthChartDynamic
         chartKey="bp"

@@ -19,6 +19,7 @@ export default function InsightsGangstabilitaetPage() {
       insightMetric="WALKING_STEADINESS"
       chartKey="walkingSteadiness"
       i18nPrefix="insights.walkingSteadiness"
+      explainerMetric="walkingSteadiness"
       color="#50fa7b"
       unit="%"
       yAxisUnit="%"

@@ -19,6 +19,7 @@ export default function InsightsKoerperwasserPage() {
       insightMetric="TOTAL_BODY_WATER"
       chartKey="totalBodyWater"
       i18nPrefix="insights.totalBodyWater"
+      explainerMetric="bodyWater"
       color="#8be9fd"
       unit="kg"
       yAxisUnit="kg"

@@ -19,6 +19,7 @@ export default function InsightsGehstreckePage() {
       insightMetric="WALKING_RUNNING_DISTANCE"
       chartKey="walkingRunningDistance"
       i18nPrefix="insights.walkingRunningDistance"
+      explainerMetric="walkingDistance"
       color="#50fa7b"
       unit="km"
       yAxisUnit="km"

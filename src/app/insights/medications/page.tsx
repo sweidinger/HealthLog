@@ -114,7 +114,7 @@ export default function InsightsMedikamentePage() {
     return (
       <SubPageShell
         title={t("insights.medicationCompliance")}
-        explainerMetric="medikamente"
+        explainerMetric="medications"
       >
         <div className="flex items-center justify-center py-12">
           <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
@@ -130,7 +130,7 @@ export default function InsightsMedikamentePage() {
     return (
       <SubPageShell
         title={t("insights.medicationCompliance")}
-        explainerMetric="medikamente"
+        explainerMetric="medications"
       >
         <EmptyState
           icon={<Pill className="size-6" />}
@@ -156,7 +156,7 @@ export default function InsightsMedikamentePage() {
     <SubPageShell
       title={t("insights.medicationCompliance")}
       description={t("insights.subPage.medikamenteDescription")}
-      explainerMetric="medikamente"
+      explainerMetric="medications"
     >
       <div
         className={

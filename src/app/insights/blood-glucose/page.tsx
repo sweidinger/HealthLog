@@ -19,6 +19,7 @@ export default function InsightsBlutzuckerPage() {
       insightMetric="BLOOD_GLUCOSE"
       chartKey="bloodGlucose"
       i18nPrefix="insights.bloodGlucose"
+      explainerMetric="bloodGlucose"
       color="#ff79c6"
       unit="mg/dL"
       yAxisUnit="mg/dL"

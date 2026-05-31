@@ -19,6 +19,7 @@ export default function InsightsKnochenmassePage() {
       insightMetric="BONE_MASS"
       chartKey="boneMass"
       i18nPrefix="insights.boneMass"
+      explainerMetric="boneMass"
       color="#ffb86c"
       unit="kg"
       yAxisUnit="kg"

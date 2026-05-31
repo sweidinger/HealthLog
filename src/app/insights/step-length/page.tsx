@@ -19,6 +19,7 @@ export default function InsightsSchrittlaengePage() {
       insightMetric="WALKING_STEP_LENGTH"
       chartKey="walkingStepLength"
       i18nPrefix="insights.walkingStepLength"
+      explainerMetric="stepLength"
       color="#50fa7b"
       unit="m"
       yAxisUnit="m"

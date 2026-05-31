@@ -19,6 +19,7 @@ export default function InsightsStockwerkePage() {
       insightMetric="FLIGHTS_CLIMBED"
       chartKey="flightsClimbed"
       i18nPrefix="insights.flightsClimbed"
+      explainerMetric="flightsClimbed"
       color="#50fa7b"
       unit="flights"
       yAxisUnit="flights"

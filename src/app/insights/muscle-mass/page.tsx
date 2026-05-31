@@ -19,6 +19,7 @@ export default function InsightsMuskelmassePage() {
       insightMetric="MUSCLE_MASS"
       chartKey="muscleMass"
       i18nPrefix="insights.muscleMass"
+      explainerMetric="muscleMass"
       color="#bd93f9"
       unit="kg"
       yAxisUnit="kg"
