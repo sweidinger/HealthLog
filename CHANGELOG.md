@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.8.0] — 2026-05-31 — Insights: reliable data-driven assessments, embedded targets, explainers
+
+The per-metric Insights pages become the coherent heart of the app. The data-driven assessment — a short, honest reading of your own trend — now reliably reaches the page: it previously timed out and cached a generic placeholder for the rest of the day, so most users only ever saw the platitude. The generation budget is aligned with the provider, the placeholder is never cached, and the AI payload is compressed into a graded shape (recent days raw, then weekly, monthly, and yearly aggregates drawn from the rollup tier) so a heavy logger no longer ships thousands of raw points. Each metric's prompt is rewritten to a consistent house style — name the finding, place it against your own baseline, offer one concrete step; honest on poor values, never alarmist, never diagnostic. Target ranges move onto each category page beside the chart, every category gains a plain-language "what is this?" tooltip, and the assessment is warmed overnight so the page is a cache read instead of a live call. Route slugs and tile ids move to English (German tile ids stay accepted as aliases, so existing clients keep working).
+
+### Added
+
+- **Per-category target ranges** — each Insights category page shows its numeric target range and the share of recent days within target, beside the chart and the assessment, with a link to adjust the range. The dedicated targets page remains the editing surface.
+- **Per-category explainer tooltips** — a question-mark affordance next to every category heading opens a short, plain-language definition of the metric, available offline in all six languages and reachable by keyboard and touch.
+- **Nightly assessment pre-generation** — a budget-gated overnight job warms the per-metric assessment caches (and invalidates them when fresh measurements arrive), so opening a category page is a cache read rather than a synchronous model call.
+- **Graded measurement compression for assessments** — a shared compressor folds a metric's history into recent (daily), weekly, monthly, and yearly buckets, drawing the monthly/yearly tiers from the rollup store, so the model receives a compact picture instead of the full daily series.
+- **Naming decision record** — `docs/adr/0001-insights-naming-convention.md` documents the convention: localised UI, English internal keys and route slugs.
+
+### Changed
+
+- **Data-driven assessments reach the page reliably** — the per-metric assessment generation budget is aligned with the provider (was capped well below the provider floor), runs through the provider chain with fallback, and a transient timeout or error is treated as a passing miss rather than cached as a placeholder for the rest of the day.
+- **Assessment wording** — every metric prompt follows one house style (name → place against own baseline → one actionable step; 2–4 sentences; honest, autonomy-supporting, non-diagnostic; says so plainly when the data is too thin). Blood pressure reads systolic and diastolic together; weight tracks the trend while BMI speaks to threshold bands; the mood assessment carries a calm support cue on a sustained low.
+- **Insights route slugs are English** — `/insights/<german>` moves to `/insights/<english>` with permanent redirects from the old paths. The dashboard-layout tile ids are English canonically; the previous German ids stay accepted as aliases and are normalised on read and write, so a client that stored the old ids keeps working.
+- **Per-metric assessment caches drop on measurement changes** — a fresh, edited, or deleted measurement invalidates the affected category's cached assessment so it regenerates rather than serving a stale reading.
+
 ## [1.7.2] — 2026-05-31 — Coach source parity, first-paint snapshot, medication card cleanup
 
 A focused follow-up to v1.7.0. The unified dashboard snapshot that shipped in v1.7.0 is now the default, so a cold dashboard paints its above-the-fold tiles together instead of letting the mood tile arrive ahead of the rest. The Coach's in-chat data-source rail now reads and writes the same persisted data clusters as the settings sheet — one source of truth that survives a reload, so what the panel shows always matches what reaches the model. The medication overview cards collapse their action row into a single overflow menu, and the detail page is pared back to the intake history under a read-only plan summary. The advanced-settings sheet widens into a two-column layout and offers a medications export beside the existing import.
