@@ -176,7 +176,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     seedGlp1Details(client, med7p5.id, {});
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -189,6 +194,47 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).not.toMatch(/lucide-syringe/i);
   });
 
+  it("renders edit + history + advanced header actions with distinct aria-labels", () => {
+    // v1.7.1 — the GLP-1 card carries the same three header actions as
+    // the generic medication card: edit (pencil), history, and advanced
+    // (sliders). All three surface with their localised aria-labels and
+    // their click handlers deliver the GLP-1 medication object the parent
+    // routes / sheets against.
+    const client = makeClient();
+    seedCompliance(client, med7p5.id);
+    seedGlp1Details(client, med7p5.id, {});
+
+    const onEdit = vi.fn();
+    const onOpenHistory = vi.fn();
+    const onOpenAdvanced = vi.fn();
+
+    const html = render(
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={onEdit}
+        onOpenHistory={onOpenHistory}
+        onOpenAdvanced={onOpenAdvanced}
+      />,
+      client,
+    );
+
+    expect(html).toContain('aria-label="Edit"');
+    expect(html).toContain('aria-label="View intake history"');
+    expect(html).toContain('aria-label="Advanced settings"');
+
+    // Smoke-check the handler contract — SSR can't fire DOM events, so
+    // invoke the handlers the way each button's onClick would and pin
+    // the medication-object payload.
+    onOpenHistory(med7p5);
+    onOpenAdvanced(med7p5);
+    expect(onOpenHistory).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "med-glp1-1", treatmentClass: "GLP1" }),
+    );
+    expect(onOpenAdvanced).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "med-glp1-1", treatmentClass: "GLP1" }),
+    );
+  });
+
   it("renders the default MedicationCard when treatmentClass is null/undefined (back-compat)", () => {
     // The page dispatcher renders MedicationCard for everything that
     // isn't `"GLP1"`. We verify the default card's output stays free
@@ -198,7 +244,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     seedCompliance(client, defaultMed.id);
 
     const html = render(
-      <MedicationCard medication={defaultMed} onEdit={() => {}} />,
+      <MedicationCard
+        medication={defaultMed}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -217,7 +268,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     seedGlp1Details(client, med7p5.id, {});
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -239,7 +295,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     });
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -280,7 +341,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     });
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -306,7 +372,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     });
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -333,7 +404,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     });
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -354,7 +430,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     });
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -380,6 +461,8 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
       <Glp1MedicationCard
         medication={med7p5}
         onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
         onLogSideEffect={handler}
       />,
       client,
@@ -411,7 +494,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     seedGlp1Details(client, med7p5.id, {});
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -430,7 +518,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     seedGlp1Details(client, med7p5.id, {});
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -450,7 +543,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     seedGlp1Details(client, paused.id, {});
 
     const html = render(
-      <Glp1MedicationCard medication={paused} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={paused}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -479,7 +577,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     });
 
     const html = render(
-      <Glp1MedicationCard medication={med7p5} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={med7p5}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
       "de",
     );

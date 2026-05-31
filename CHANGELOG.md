@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.7.1] — 2026-05-31 — Overview-card actions
+
+The v1.7.0 medication detail page gained edit / history / advanced-settings actions in its header, but the medication cards in the overview list kept only the edit pencil. This patch brings the **history** (intake history) and **advanced-settings** actions onto the overview cards — both the standard and the GLP-1 variant — so the card and the detail page offer the same three actions. The advanced-settings sheet is mounted once on the list and reused; the history button routes to the same intake-history view.
+
 ## [1.7.0] — 2026-05-31 — Health-record export, flexible schedules, first-paint snapshot, full HealthKit coverage
 
 A broad polishing release across the medication, dashboard, export, and HealthKit surfaces. Medications gain PRN (as-needed) and cyclic on/off-week schedules, a server-computed next-due instant, and cadence-canonical compliance so non-daily plans report adherence correctly everywhere — including the detail page, which previously still expanded through the legacy weekday walker. The dashboard now assembles its above-the-fold tiles in a single snapshot round-trip and pre-generates the daily briefing overnight, so a cold load no longer staggers tile-by-tile and never blocks on the model. The doctor handover grows into a selectable health-record export — an enriched PDF and a machine-readable HL7 FHIR R4 bundle, packaged together. Every previously-unplotted HealthKit metric gets a chart, walking speed reads in km/h, and the Coach can be fed any chosen cluster of data instead of a fixed five. The medication detail page restores its history view and gathers every setting into one redesigned advanced sheet.

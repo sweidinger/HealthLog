@@ -23,7 +23,9 @@ import {
   CircleCheck,
   SkipForward,
   Flame,
+  History,
   Pencil,
+  SlidersHorizontal,
   Loader2,
   ChevronRight,
 } from "lucide-react";
@@ -82,6 +84,18 @@ interface ComplianceData {
 interface MedicationCardProps {
   medication: Medication;
   onEdit: (med: Medication) => void;
+  /**
+   * v1.7.1 — routes to the medication's full intake-history view
+   * (`/medications/{id}/history`), mirroring the detail-header History
+   * button. The parent owns the navigation.
+   */
+  onOpenHistory: (med: Medication) => void;
+  /**
+   * v1.7.1 — opens the shared `<AdvancedSettingsSheet>` (mounted by the
+   * list page) for this medication, mirroring the detail-header sliders
+   * button.
+   */
+  onOpenAdvanced: (med: Medication) => void;
 }
 
 function getNextOccurrenceTimestamp(
@@ -125,7 +139,12 @@ function getNextOccurrenceTimestamp(
   return null;
 }
 
-export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
+export function MedicationCard({
+  medication,
+  onEdit,
+  onOpenHistory,
+  onOpenAdvanced,
+}: MedicationCardProps) {
   const queryClient = useQueryClient();
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
@@ -286,6 +305,29 @@ export function MedicationCard({ medication, onEdit }: MedicationCardProps) {
         aria-label={t("common.edit")}
       >
         <Pencil className="h-4 w-4" />
+      </Button>
+      {/* v1.7.1 — History + Advanced icon buttons mirror the
+          detail-page header so the overview card carries the same three
+          actions (edit / history / advanced). History routes to the
+          full intake-history view; Advanced opens the shared settings
+          sheet mounted by the list page. */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="min-h-11 min-w-11"
+        onClick={() => onOpenHistory(medication)}
+        aria-label={t("medications.detail.header.historyLabel")}
+      >
+        <History className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="min-h-11 min-w-11"
+        onClick={() => onOpenAdvanced(medication)}
+        aria-label={t("medications.detail.header.advancedLabel")}
+      >
+        <SlidersHorizontal className="h-4 w-4" />
       </Button>
     </>
   );

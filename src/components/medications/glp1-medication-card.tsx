@@ -10,10 +10,12 @@ import {
   ChevronRight,
   CircleCheck,
   Flame,
+  History,
   Loader2,
   MoreVertical,
   Pencil,
   SkipForward,
+  SlidersHorizontal,
   Stethoscope,
 } from "lucide-react";
 
@@ -120,6 +122,18 @@ interface DetailsResponse {
 interface Glp1MedicationCardProps {
   medication: Glp1Medication;
   onEdit: (med: Glp1Medication) => void;
+  /**
+   * v1.7.1 — routes to the medication's full intake-history view
+   * (`/medications/{id}/history`), mirroring the generic medication card
+   * and the detail-header History button. The parent owns the navigation.
+   */
+  onOpenHistory: (med: Glp1Medication) => void;
+  /**
+   * v1.7.1 — opens the shared `<AdvancedSettingsSheet>` (mounted by the
+   * list page) for this medication, mirroring the generic medication card
+   * and the detail-header sliders button.
+   */
+  onOpenAdvanced: (med: Glp1Medication) => void;
   onLogSideEffect?: (med: Glp1Medication) => void;
 }
 
@@ -173,6 +187,8 @@ function predictNextWeeklyDate(
 export function Glp1MedicationCard({
   medication,
   onEdit,
+  onOpenHistory,
+  onOpenAdvanced,
   onLogSideEffect,
 }: Glp1MedicationCardProps) {
   const queryClient = useQueryClient();
@@ -348,6 +364,29 @@ export function Glp1MedicationCard({
         aria-label={t("common.edit")}
       >
         <Pencil className="h-4 w-4" />
+      </Button>
+      {/* v1.7.1 — History + Advanced icon buttons mirror the generic
+          medication card and the detail-page header so the GLP-1 card
+          carries the same three actions (edit / history / advanced).
+          History routes to the full intake-history view; Advanced opens
+          the shared settings sheet mounted by the list page. */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="min-h-11 min-w-11"
+        onClick={() => onOpenHistory(medication)}
+        aria-label={t("medications.detail.header.historyLabel")}
+      >
+        <History className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="min-h-11 min-w-11"
+        onClick={() => onOpenAdvanced(medication)}
+        aria-label={t("medications.detail.header.advancedLabel")}
+      >
+        <SlidersHorizontal className="h-4 w-4" />
       </Button>
       {/* v1.4.37 W4b — GLP-1 specifics (side-effect quick-log etc.)
           live in the header actions overflow so the primary action

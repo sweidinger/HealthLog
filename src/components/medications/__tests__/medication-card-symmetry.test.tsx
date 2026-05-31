@@ -131,11 +131,21 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
     seedGlp1Details(client, mounjaro.id);
 
     const ramiprilHtml = render(
-      <MedicationCard medication={ramipril} onEdit={() => {}} />,
+      <MedicationCard
+        medication={ramipril}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
     const mounjaroHtml = render(
-      <Glp1MedicationCard medication={mounjaro} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={mounjaro}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -148,6 +158,32 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
     }
   });
 
+  it("the overview card renders the three header actions (edit / history / advanced)", () => {
+    // v1.7.1 — the overview card mirrors the detail-page header: an
+    // edit pencil, a History (clock) button routing to the intake
+    // history, and a SlidersHorizontal button opening the shared
+    // advanced-settings sheet. Each carries a distinct aria-label.
+    const client = makeClient();
+    seedCompliance(client, ramipril.id);
+
+    const html = render(
+      <MedicationCard
+        medication={ramipril}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
+      client,
+    );
+
+    expect(html).toContain("lucide-pencil");
+    expect(html).toContain("lucide-history");
+    expect(html).toContain("lucide-sliders-horizontal");
+    expect(html).toContain('aria-label="Edit"');
+    expect(html).toContain('aria-label="View intake history"');
+    expect(html).toContain('aria-label="Advanced settings"');
+  });
+
   it("neither card paints a kebab when no overflow prop is wired", () => {
     // Symmetry default: without onLogSideEffect, the Mounjaro header
     // shape matches the Ramipril header exactly (history + edit only).
@@ -157,11 +193,21 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
     seedGlp1Details(client, mounjaro.id);
 
     const ramiprilHtml = render(
-      <MedicationCard medication={ramipril} onEdit={() => {}} />,
+      <MedicationCard
+        medication={ramipril}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
     const mounjaroHtml = render(
-      <Glp1MedicationCard medication={mounjaro} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={mounjaro}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -179,6 +225,8 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
       <Glp1MedicationCard
         medication={mounjaro}
         onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
         onLogSideEffect={() => {}}
       />,
       client,
@@ -194,11 +242,21 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
     seedGlp1Details(client, mounjaro.id);
 
     const ramiprilHtml = render(
-      <MedicationCard medication={ramipril} onEdit={() => {}} />,
+      <MedicationCard
+        medication={ramipril}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
     const mounjaroHtml = render(
-      <Glp1MedicationCard medication={mounjaro} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={mounjaro}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -217,11 +275,21 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
     seedGlp1Details(client, mounjaro.id);
 
     const ramiprilHtml = render(
-      <MedicationCard medication={ramipril} onEdit={() => {}} />,
+      <MedicationCard
+        medication={ramipril}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
     const mounjaroHtml = render(
-      <Glp1MedicationCard medication={mounjaro} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={mounjaro}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 
@@ -240,13 +308,20 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
     seedGlp1Details(client, mounjaro.id);
 
     const ramiprilHtml = render(
-      <MedicationCard medication={ramipril} onEdit={() => {}} />,
+      <MedicationCard
+        medication={ramipril}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
     const mounjaroHtml = render(
       <Glp1MedicationCard
         medication={mounjaro}
         onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
         onLogSideEffect={() => {}}
       />,
       client,
@@ -307,11 +382,21 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
     seedGlp1Details(client, mounjaroFuture.id);
 
     const ramiprilHtml = render(
-      <MedicationCard medication={ramiprilFuture} onEdit={() => {}} />,
+      <MedicationCard
+        medication={ramiprilFuture}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
     const mounjaroHtml = render(
-      <Glp1MedicationCard medication={mounjaroFuture} onEdit={() => {}} />,
+      <Glp1MedicationCard
+        medication={mounjaroFuture}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
       client,
     );
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AdvancedSettingsSheet } from "@/components/medications/advanced-settings-sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -69,6 +70,11 @@ export default function MedicationsPage() {
   const shouldOpenFromUrl = searchParams?.get("new") === "1";
   const [dialogOpen, setDialogOpen] = useState(shouldOpenFromUrl);
   const [editingMed, setEditingMed] = useState<Medication | null>(null);
+  // v1.7.1 — the medications-card History + Advanced actions. History
+  // navigates to the full intake-history view; Advanced opens one shared
+  // `<AdvancedSettingsSheet>` mounted below, keyed to the selected
+  // medication (reused, not duplicated per card).
+  const [advancedMed, setAdvancedMed] = useState<Medication | null>(null);
 
   useEffect(() => {
     if (shouldOpenFromUrl) {
@@ -94,6 +100,40 @@ export default function MedicationsPage() {
     enabled: isAuthenticated,
   });
 
+  // v1.7.1 — the advanced sheet's danger zone needs `intakeCount` to
+  // gate the purge button. Fetch it lazily once a medication is selected
+  // (the list view never pays for it otherwise), mirroring the
+  // detail-page query shape.
+  const advancedIntakeParams = {
+    sortBy: "takenAt",
+    sortDir: "desc" as const,
+    limit: 1,
+    offset: 0,
+    status: "completed",
+  };
+  const { data: advancedIntakeCount } = useQuery({
+    queryKey: advancedMed
+      ? queryKeys.medicationIntakeList(advancedMed.id, advancedIntakeParams)
+      : ["medications", "intake-count", "none"],
+    queryFn: async () => {
+      if (!advancedMed) return 0;
+      const params = new URLSearchParams({
+        sortBy: advancedIntakeParams.sortBy,
+        sortDir: advancedIntakeParams.sortDir,
+        limit: String(advancedIntakeParams.limit),
+        offset: String(advancedIntakeParams.offset),
+        status: advancedIntakeParams.status,
+      });
+      const res = await fetch(
+        `/api/medications/${advancedMed.id}/intake?${params.toString()}`,
+      );
+      if (!res.ok) return 0;
+      const json = await res.json();
+      return (json.data?.meta?.total ?? 0) as number;
+    },
+    enabled: isAuthenticated && !!advancedMed,
+  });
+
   function openCreate() {
     setEditingMed(null);
     setDialogOpen(true);
@@ -102,6 +142,14 @@ export default function MedicationsPage() {
   function openEdit(med: Medication) {
     setEditingMed(med);
     setDialogOpen(true);
+  }
+
+  function openHistory(med: Medication) {
+    router.push(`/medications/${med.id}/history`);
+  }
+
+  function openAdvanced(med: Medication) {
+    setAdvancedMed(med);
   }
 
   function closeDialog() {
@@ -207,12 +255,16 @@ export default function MedicationsPage() {
                       key={med.id}
                       medication={med}
                       onEdit={openEdit}
+                      onOpenHistory={openHistory}
+                      onOpenAdvanced={openAdvanced}
                     />
                   ) : (
                     <MedicationCard
                       key={med.id}
                       medication={med}
                       onEdit={openEdit}
+                      onOpenHistory={openHistory}
+                      onOpenAdvanced={openAdvanced}
                     />
                   ),
                 )}
@@ -233,12 +285,16 @@ export default function MedicationsPage() {
                       key={med.id}
                       medication={med}
                       onEdit={openEdit}
+                      onOpenHistory={openHistory}
+                      onOpenAdvanced={openAdvanced}
                     />
                   ) : (
                     <MedicationCard
                       key={med.id}
                       medication={med}
                       onEdit={openEdit}
+                      onOpenHistory={openHistory}
+                      onOpenAdvanced={openAdvanced}
                     />
                   ),
                 )}
@@ -269,6 +325,30 @@ export default function MedicationsPage() {
         initial={editingMed ? medicationToPayload(editingMed) : undefined}
         onSuccess={closeDialog}
       />
+
+      {/* v1.7.1 — one shared advanced-settings sheet for every card.
+          Reuses the exact component the detail page mounts (Data /
+          Reminders / Lifecycle / Danger zone); the card's sliders button
+          selects the medication and opens it. Not duplicated per card. */}
+      {advancedMed && (
+        <AdvancedSettingsSheet
+          open={!!advancedMed}
+          onOpenChange={(open) => {
+            if (!open) setAdvancedMed(null);
+          }}
+          medicationId={advancedMed.id}
+          medicationName={advancedMed.name}
+          treatmentClass={advancedMed.treatmentClass}
+          active={advancedMed.active}
+          startsOn={advancedMed.startsOn}
+          endsOn={advancedMed.endsOn}
+          notificationsEnabled={advancedMed.notificationsEnabled}
+          reminderGraceMinutes={
+            advancedMed.schedules[0]?.reminderGraceMinutes ?? null
+          }
+          intakeCount={advancedIntakeCount ?? 0}
+        />
+      )}
     </div>
   );
 }
