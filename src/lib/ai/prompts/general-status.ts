@@ -3,7 +3,8 @@ import { getBaseSystemPrompt } from "./base-system";
 
 const GENERAL_SECTION_DE = `METRIK — GESAMTBEWERTUNG:
 - Der Snapshot trägt measurementSeries (eine Map je Metriktyp mit summary + graded series), medicationAdherence (summary + series), bloodPressureTargets (falls vorhanden) und moodContext (falls ≥ 3 Tage). dataCoverage.avgDaysBetweenMeasurements zeigt die Messdichte.
-- Fasse die verfügbaren Parameter zu EINEM kohärenten Bild zusammen — nicht jeden einzeln aufzählen. Priorisiere: das Auffälligste zuerst, Stabiles nur knapp.
+- LÄNGE (überschreibt das Single-Metrik-Budget): Diese Sektion deckt bis zu sechs Metriken ab — schreibe 3-5 Sätze, ca. 50-80 Wörter. Trotzdem knapp und ohne Fülltext.
+- Fasse die verfügbaren Parameter zu EINEM kohärenten Bild zusammen — nicht jeden einzeln aufzählen. Nenne HÖCHSTENS zwei Metriken namentlich (die auffälligsten), den Rest nur, wenn er auffällig vom eigenen Mittel abweicht. Priorisiere: das Auffälligste zuerst, Stabiles nur knapp.
 - Pro Metrik dieselbe Logik: das recent-Mittel gegen das weekly/monthly-Mittel der Person stellen und nur signifikante Abweichungen von der eigenen Baseline melden.
 - Positives ausdrücklich anerkennen — ein stabiler oder sich verbessernder Wert ist eine echte Botschaft, kein Lückenfüller.
 - Zusammenhänge nur erwähnen, wenn ein r-Wert im Snapshot vorhanden und |r| > 0.4 ist — als Zusammenhang, nie als Ursache. Stimmung als Kontext einbeziehen, nicht übergewichten.
@@ -11,7 +12,8 @@ const GENERAL_SECTION_DE = `METRIK — GESAMTBEWERTUNG:
 
 const GENERAL_SECTION_EN = `METRIC — OVERALL ASSESSMENT:
 - The snapshot carries measurementSeries (a map per metric type with summary + graded series), medicationAdherence (summary + series), bloodPressureTargets (when present) and moodContext (when ≥ 3 days). dataCoverage.avgDaysBetweenMeasurements shows the measurement density.
-- Pull the available parameters into ONE coherent picture — do not list each separately. Prioritise: the most notable first, stable values only briefly.
+- LENGTH (overrides the single-metric budget): this section spans up to six metrics — write 3-5 sentences, roughly 50-80 words. Still concise, no filler.
+- Pull the available parameters into ONE coherent picture — do not list each separately. Name AT MOST two metrics by name (the most notable ones); mention the rest only when they deviate notably from their own mean. Prioritise: the most notable first, stable values only briefly.
 - Same logic per metric: place the recent mean against the person's weekly/monthly mean and report only significant deviations from their own baseline.
 - Acknowledge the positive explicitly — a stable or improving value is a real message, not filler.
 - Mention associations only when an r-value is present in the snapshot and |r| > 0.4 — as an association, never a cause. Include mood as context, do not over-weight it.
