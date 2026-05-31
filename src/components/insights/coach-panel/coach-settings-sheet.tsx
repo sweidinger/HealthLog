@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
-import { useCoachPrefs } from "@/hooks/use-coach-prefs";
+import { useCoachPrefs, useSaveCoachPrefs } from "@/hooks/use-coach-prefs";
 import {
   DEFAULT_COACH_CLUSTERS,
   DEFAULT_COACH_PREFS,
@@ -112,7 +111,6 @@ export function CoachSettingsSheet({
   onOpenChange,
 }: CoachSettingsSheetProps) {
   const { t } = useTranslations();
-  const queryClient = useQueryClient();
 
   const { data: persisted } = useCoachPrefs({ enabled: open });
 
@@ -130,18 +128,11 @@ export function CoachSettingsSheet({
     setDraft(persisted);
   }
 
-  const save = useMutation({
-    mutationFn: async (next: CoachPrefs) => {
-      const res = await fetch("/api/auth/me/coach-prefs", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-      if (!res.ok) throw new Error("coach-prefs.save_failed");
-      return (await res.json()) as { data: CoachPrefs };
-    },
-    onSuccess: (envelope) => {
-      queryClient.setQueryData(["coach-prefs"], envelope.data);
+  // v1.7.2 — write through the shared `useSaveCoachPrefs` mutation so
+  // the cog and the chat-side sources rail persist via one code path
+  // and seed the same `coachPrefs()` cache key on success.
+  const save = useSaveCoachPrefs({
+    onSuccess: () => {
       toast.success(t("insights.coach.settingsSaved"));
       onOpenChange(false);
     },

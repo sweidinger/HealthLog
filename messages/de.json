@@ -1735,7 +1735,8 @@
       },
       "settingsClustersLabel": "Daten, die der Coach sieht",
       "settingsClustersHint": "Wähle, welche Datencluster der Coach lesen darf. Mehr Daten bedeuten reichhaltigere Antworten und einen größeren Prompt.",
-      "settingsClusterNoData": "Noch keine Daten"
+      "settingsClusterNoData": "Noch keine Daten",
+      "sourcesMemberCount": "{count} Werte"
     },
     "relativeJustNow": "gerade eben",
     "relativeMinutesAgoOne": "vor {count} Minute",

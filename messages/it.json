@@ -1735,7 +1735,8 @@
       },
       "settingsClustersLabel": "Dati che il Coach vede",
       "settingsClustersHint": "Scegli quali gruppi di dati il Coach può leggere. Più dati significano risposte più ricche e un prompt più grande.",
-      "settingsClusterNoData": "Ancora nessun dato"
+      "settingsClusterNoData": "Ancora nessun dato",
+      "sourcesMemberCount": "{count} metriche"
     },
     "relativeJustNow": "proprio ora",
     "relativeMinutesAgoOne": "{count} minuto fa",
