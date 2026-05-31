@@ -8,9 +8,10 @@
  * and echoes `contentWidth`. The bodies are mocked to ordered markers.
  * The test pins:
  *   - the four groups render in the documented order;
- *   - the sheet opens at the `2xl` width token;
+ *   - the sheet opens at the `4xl` width token;
  *   - `onRequestPhaseSheet` threads through to the phases row;
- *   - `onOpenImport` wires the CSV-import button;
+ *   - `onOpenImport` wires the import button (co-located with export);
+ *   - the export control sits beside the import control;
  *   - the lifecycle + danger bodies receive an `onAfterAction` closer;
  *   - the sheet renders nothing when `open` is false.
  */
@@ -122,11 +123,11 @@ describe("AdvancedSettingsSheet (v1.7.0)", () => {
     expect(danger).toBeGreaterThan(lifecycle);
   });
 
-  it("opens at the 2xl width token", () => {
+  it("opens at the 4xl width token", () => {
     const html = renderToStaticMarkup(
       <AdvancedSettingsSheet {...baseProps(true)} />,
     );
-    expect(html).toContain('data-content-width="2xl"');
+    expect(html).toContain('data-content-width="4xl"');
   });
 
   it("threads onRequestPhaseSheet through to the phases row", () => {
@@ -138,14 +139,30 @@ describe("AdvancedSettingsSheet (v1.7.0)", () => {
     expect(html).toContain('data-has-phase-swap="yes"');
   });
 
-  it("wires the CSV/JSON import button", () => {
+  it("wires the import button", () => {
     const html = renderToStaticMarkup(
       <AdvancedSettingsSheet
         {...baseProps(true, { onOpenImport: () => {} })}
       />,
     );
-    expect(html).toContain("advanced-csv-import-button");
-    expect(html).toContain("medications.detail.advanced.csvImport.button");
+    expect(html).toContain("advanced-import-button");
+    expect(html).toContain(
+      "medications.detail.advanced.dataPortability.import.button",
+    );
+  });
+
+  it("co-locates an export control beside the import control", () => {
+    const html = renderToStaticMarkup(
+      <AdvancedSettingsSheet {...baseProps(true)} />,
+    );
+    expect(html).toContain("advanced-export-button");
+    expect(html).toContain(
+      "medications.detail.advanced.dataPortability.export.button",
+    );
+    const importIdx = html.indexOf("advanced-import-block");
+    const exportIdx = html.indexOf("advanced-export-block");
+    expect(importIdx).toBeGreaterThan(-1);
+    expect(exportIdx).toBeGreaterThan(importIdx);
   });
 
   it("passes an onAfterAction to the lifecycle and danger bodies so they can close the sheet", () => {

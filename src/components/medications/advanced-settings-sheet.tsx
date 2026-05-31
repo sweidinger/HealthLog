@@ -2,22 +2,29 @@
 
 /**
  * v1.7.0 — Advanced settings sheet.
+ * v1.7.2 — widened to `4xl` and re-laid into a responsive two-column
+ * grid so a normal desktop viewport shows every group without forcing
+ * a long single-column scroll.
  *
- * Widened to the `2xl` ResponsiveSheet token (672px desktop) and
- * regrouped from three stacked section cards into four labelled groups
- * under one consistent visual system (R-medui §5):
+ * Four labelled groups under one consistent visual system (R-medui §5):
  *
- *   - Data: real CSV/JSON import + external-API endpoint / token.
+ *   - Data: intake Import + medications CSV Export (co-located) +
+ *     external-API endpoint / token.
  *   - Reminders: notifications switch + reminder window (grace).
  *   - Lifecycle: pause/resume + end course + phases.
  *   - Danger zone: purge intake history + delete medication.
  *
+ * Layout: on `lg+` the first three groups flow into a two-column grid —
+ * the Data group (tallest, with the export toggle + token snippets)
+ * holds the left column; Reminders + Lifecycle stack down the right.
+ * The Danger zone always spans the full width at the bottom, set off by
+ * its own destructive-tinted card, so an irreversible action never
+ * shares a column with a routine toggle. On `<lg` everything stacks in
+ * the documented Data → Reminders → Lifecycle → Danger order.
+ *
  * Button styling is consistent: reversible / neutral actions are
  * `outline`, destructive actions are `destructive font-semibold`,
- * toggles are switches wrapped in labels. The CSV import is promoted
- * from a one-line stub to a real button that opens the existing
- * `<IntakeImportDialog>` (mounted by the page; opened via
- * `onOpenImport`).
+ * toggles are switches wrapped in labels.
  *
  * The Phasen button is sibling-swapped, not nested: `onRequestPhaseSheet`
  * closes this sheet first and lets the parent open the phase sheet so
@@ -25,13 +32,11 @@
  * self-saves, so the footer slot stays empty.
  */
 
-import { Upload } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { ApiTokensRow } from "@/components/medications/sections/api-tokens-row";
+import { DataPortabilityRow } from "@/components/medications/sections/data-portability-row";
 import { NotificationsBody } from "@/components/medications/sections/notifications-section";
 import {
   GraceRow,
@@ -62,7 +67,7 @@ export interface AdvancedSettingsSheetProps {
   onRequestPhaseSheet?: () => void;
   /**
    * v1.7.0 — opens the page-owned `<IntakeImportDialog>` from the Data
-   * group's CSV/JSON import button.
+   * group's import button.
    */
   onOpenImport?: () => void;
 }
@@ -90,89 +95,85 @@ export function AdvancedSettingsSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={t("medications.detail.advanced.title")}
-      contentWidth="2xl"
+      contentWidth="4xl"
       bodyClassName="gap-6"
     >
-      <div className="space-y-8" data-slot="advanced-settings-sheet-body">
-        {/* DATA — CSV/JSON import + external API endpoint */}
-        <SettingsGroup
-          label={t("medications.detail.advanced.group.data")}
-          dataSlot="advanced-group-data"
-        >
-          <div className="space-y-2" data-slot="advanced-csv-import-block">
-            <div className="space-y-1">
-              <p className="text-foreground text-sm font-medium">
-                {t("medications.detail.advanced.csvImport.title")}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {t("medications.detail.advanced.csvImport.helper")}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onOpenImport?.()}
-              className="min-h-11 sm:min-h-9"
-              data-slot="advanced-csv-import-button"
+      <div className="space-y-6" data-slot="advanced-settings-sheet-body">
+        {/* Top region: Data + Reminders + Lifecycle in a two-column grid
+            on lg+, single column below. `items-start` keeps each group
+            top-aligned so the shorter right column never stretches. */}
+        <div className="grid items-start gap-6 lg:grid-cols-2">
+          {/* DATA — import + export + external API. Tallest group → left
+              column on lg+ so the right column's two shorter groups
+              balance against it. */}
+          <SettingsGroup
+            label={t("medications.detail.advanced.group.data")}
+            dataSlot="advanced-group-data"
+          >
+            <DataPortabilityRow
+              medicationId={medicationId}
+              onOpenImport={onOpenImport}
+            />
+
+            <Separator />
+
+            <ApiTokensRow
+              medicationId={medicationId}
+              medicationName={medicationName}
+            />
+          </SettingsGroup>
+
+          {/* Right column: Reminders + Lifecycle stacked. */}
+          <div className="space-y-6">
+            {/* REMINDERS — notifications + reminder window */}
+            <SettingsGroup
+              label={t("medications.detail.advanced.group.reminders")}
+              dataSlot="advanced-group-reminders"
             >
-              <Upload aria-hidden="true" className="h-4 w-4" />
-              {t("medications.detail.advanced.csvImport.button")}
-            </Button>
-          </div>
-
-          <Separator />
-
-          <ApiTokensRow
-            medicationId={medicationId}
-            medicationName={medicationName}
-          />
-        </SettingsGroup>
-
-        {/* REMINDERS — notifications + reminder window */}
-        <SettingsGroup
-          label={t("medications.detail.advanced.group.reminders")}
-          dataSlot="advanced-group-reminders"
-        >
-          <NotificationsBody
-            medicationId={medicationId}
-            notificationsEnabled={notificationsEnabled}
-          />
-
-          <Separator />
-
-          <GraceRow
-            medicationId={medicationId}
-            reminderGraceMinutes={reminderGraceMinutes}
-          />
-        </SettingsGroup>
-
-        {/* LIFECYCLE — pause/resume + end course + phases */}
-        <SettingsGroup
-          label={t("medications.detail.advanced.group.lifecycle")}
-          dataSlot="advanced-group-lifecycle"
-        >
-          <LifecycleManageBody
-            medicationId={medicationId}
-            medicationName={medicationName}
-            active={active}
-            onAfterAction={() => onOpenChange(false)}
-          />
-
-          {isGlp1 && (
-            <>
-              <Separator />
-              <PhasesRow
+              <NotificationsBody
                 medicationId={medicationId}
-                treatmentClass={treatmentClass}
-                startsOn={startsOn}
-                endsOn={endsOn}
-                onRequestPhaseSheet={onRequestPhaseSheet}
+                notificationsEnabled={notificationsEnabled}
               />
-            </>
-          )}
-        </SettingsGroup>
 
-        {/* DANGER ZONE — purge + delete */}
+              <Separator />
+
+              <GraceRow
+                medicationId={medicationId}
+                reminderGraceMinutes={reminderGraceMinutes}
+              />
+            </SettingsGroup>
+
+            {/* LIFECYCLE — pause/resume + end course + phases */}
+            <SettingsGroup
+              label={t("medications.detail.advanced.group.lifecycle")}
+              dataSlot="advanced-group-lifecycle"
+            >
+              <LifecycleManageBody
+                medicationId={medicationId}
+                medicationName={medicationName}
+                active={active}
+                onAfterAction={() => onOpenChange(false)}
+              />
+
+              {isGlp1 && (
+                <>
+                  <Separator />
+                  <PhasesRow
+                    medicationId={medicationId}
+                    treatmentClass={treatmentClass}
+                    startsOn={startsOn}
+                    endsOn={endsOn}
+                    onRequestPhaseSheet={onRequestPhaseSheet}
+                  />
+                </>
+              )}
+            </SettingsGroup>
+          </div>
+        </div>
+
+        {/* DANGER ZONE — purge + delete. Full-width at the bottom, set
+            off by the destructive-tinted card inside the body so an
+            irreversible action never shares a column with a toggle. */}
         <SettingsGroup
           label={t("medications.detail.advanced.group.danger")}
           dataSlot="advanced-group-danger"

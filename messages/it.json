@@ -1285,10 +1285,18 @@
           "lifecycle": "Ciclo di vita",
           "danger": "Zona pericolosa"
         },
-        "csvImport": {
-          "title": "Importa CSV/JSON",
-          "helper": "Importa le assunzioni passate da un file o da JSON incollato.",
-          "button": "Importa CSV/JSON"
+        "dataPortability": {
+          "import": {
+            "title": "Importa assunzioni",
+            "helper": "Carica le assunzioni passate da un file JSON o da JSON incollato.",
+            "button": "Importa JSON"
+          },
+          "export": {
+            "title": "Esporta farmaco",
+            "helper": "Scarica questo farmaco come file CSV.",
+            "includeIntake": "Includi cronologia delle assunzioni",
+            "button": "Esporta CSV"
+          }
         }
       },
       "header": {

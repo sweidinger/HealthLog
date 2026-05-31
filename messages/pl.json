@@ -1285,10 +1285,18 @@
           "lifecycle": "Cykl życia",
           "danger": "Strefa zagrożenia"
         },
-        "csvImport": {
-          "title": "Import CSV/JSON",
-          "helper": "Importuj wcześniejsze przyjęcia z pliku lub wklejonego JSON.",
-          "button": "Importuj CSV/JSON"
+        "dataPortability": {
+          "import": {
+            "title": "Importuj przyjęcia",
+            "helper": "Wczytaj wcześniejsze przyjęcia z pliku JSON lub wklejonego JSON.",
+            "button": "Importuj JSON"
+          },
+          "export": {
+            "title": "Eksportuj lek",
+            "helper": "Pobierz ten lek jako plik CSV.",
+            "includeIntake": "Dołącz historię przyjęć",
+            "button": "Eksportuj CSV"
+          }
         }
       },
       "header": {

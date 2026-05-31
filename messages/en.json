@@ -1285,10 +1285,18 @@
           "lifecycle": "Lifecycle",
           "danger": "Danger zone"
         },
-        "csvImport": {
-          "title": "CSV / JSON import",
-          "helper": "Import past intakes from a file or pasted JSON.",
-          "button": "Import CSV/JSON"
+        "dataPortability": {
+          "import": {
+            "title": "Import intakes",
+            "helper": "Load past intakes from a JSON file or pasted JSON.",
+            "button": "Import JSON"
+          },
+          "export": {
+            "title": "Export medication",
+            "helper": "Download this medication as a CSV file.",
+            "includeIntake": "Include intake history",
+            "button": "Export CSV"
+          }
         }
       },
       "header": {

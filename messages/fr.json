@@ -1285,10 +1285,18 @@
           "lifecycle": "Cycle de vie",
           "danger": "Zone de danger"
         },
-        "csvImport": {
-          "title": "Import CSV/JSON",
-          "helper": "Importez les prises passées depuis un fichier ou du JSON collé.",
-          "button": "Importer CSV/JSON"
+        "dataPortability": {
+          "import": {
+            "title": "Importer les prises",
+            "helper": "Chargez les prises passées depuis un fichier JSON ou du JSON collé.",
+            "button": "Importer JSON"
+          },
+          "export": {
+            "title": "Exporter le médicament",
+            "helper": "Téléchargez ce médicament au format CSV.",
+            "includeIntake": "Inclure l'historique des prises",
+            "button": "Exporter CSV"
+          }
         }
       },
       "header": {

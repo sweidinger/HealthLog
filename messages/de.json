@@ -1285,10 +1285,18 @@
           "lifecycle": "Lebenszyklus",
           "danger": "Gefahrenzone"
         },
-        "csvImport": {
-          "title": "CSV-/JSON-Import",
-          "helper": "Vergangene Einnahmen aus einer Datei oder eingefügtem JSON importieren.",
-          "button": "CSV/JSON importieren"
+        "dataPortability": {
+          "import": {
+            "title": "Einnahmen importieren",
+            "helper": "Vergangene Einnahmen aus einer JSON-Datei oder eingefügtem JSON laden.",
+            "button": "JSON importieren"
+          },
+          "export": {
+            "title": "Medikament exportieren",
+            "helper": "Dieses Medikament als CSV-Datei herunterladen.",
+            "includeIntake": "Einnahmeverlauf einschließen",
+            "button": "CSV exportieren"
+          }
         }
       },
       "header": {
