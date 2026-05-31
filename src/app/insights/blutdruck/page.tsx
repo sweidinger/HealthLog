@@ -13,6 +13,7 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 
@@ -51,6 +52,7 @@ export default function InsightsBlutdruckPage() {
       <SubPageShell
         title={t("insights.bloodPressureSectionTitle")}
         description={t("insights.subPage.blutdruckDescription")}
+        explainerMetric="blutdruck"
       >
         <MetricEmptyState
           icon={<HeartPulse className="size-6" />}
@@ -98,6 +100,7 @@ export default function InsightsBlutdruckPage() {
     <SubPageShell
       title={t("insights.bloodPressureSectionTitle")}
       description={t("insights.subPage.blutdruckDescription")}
+      explainerMetric="blutdruck"
     >
       <HealthChartDynamic
         chartKey="bp"
@@ -110,6 +113,8 @@ export default function InsightsBlutdruckPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+
+      <MetricTargetSummary slug="blutdruck" />
 
       <InsightStatusCard
         title={t("insights.assessmentTitle")}

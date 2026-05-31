@@ -1800,7 +1800,42 @@
       "medikamenteEmptyDescription": "Compliance insights need at least one tracked medication.",
       "medikamenteEmptyAction": "Open medications",
       "therapyTimelineDescription": "Chronological GLP-1 therapy log — dose changes, injections, inventory, side effects.",
-      "bmiDescription": "BMI derived from your weight and height, with a written assessment."
+      "bmiDescription": "BMI derived from your weight and height, with a written assessment.",
+      "target": {
+        "range": "Target: {min}–{max} {unit}",
+        "bpRange": "Target: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
+        "inTargetShare": "{pct}% of logged days within target",
+        "adjustLink": "Adjust target range"
+      },
+      "explainer": {
+        "trigger": "What is {title}?",
+        "blutdruckTitle": "Blood pressure",
+        "blutdruckBody": "Blood pressure is the force your blood exerts on the artery walls, written as systolic over diastolic (the peak during a heartbeat over the resting value between beats). Consistently high readings strain the heart and blood vessels over time.",
+        "pulsTitle": "Pulse",
+        "pulsBody": "Your pulse is how many times your heart beats per minute. A spot reading reflects what you were doing in the moment — at rest it is typically 60–100 beats per minute, and it rises naturally with movement, stress, or caffeine.",
+        "gewichtTitle": "Weight",
+        "gewichtBody": "Body weight is one of the simplest signals of long-term energy balance and overall health. The trend over weeks matters far more than any single reading, which fluctuates with hydration, food, and time of day.",
+        "bmiTitle": "Body mass index (BMI)",
+        "bmiBody": "BMI is your weight divided by your height squared, giving a single number that places you in a broad weight category. It is a population-level screen, not a diagnosis, and does not distinguish muscle from fat.",
+        "schlafTitle": "Sleep",
+        "schlafBody": "Sleep duration is how long you actually slept across the night, split into light, deep, and REM stages. Most adults need roughly seven to nine hours; both consistent quantity and quality support recovery, mood, and metabolism.",
+        "stimmungTitle": "Mood",
+        "stimmungBody": "Mood tracking records how you feel over time on a simple scale. Logging it regularly reveals patterns — how sleep, activity, or medication line up with how you feel — that a single day never shows.",
+        "medikamenteTitle": "Medication adherence",
+        "medikamenteBody": "Adherence is how reliably you take your medication as prescribed, shown here as the share of expected doses you actually logged. Steady intake is often what makes a treatment work as intended.",
+        "restingHrTitle": "Resting heart rate",
+        "restingHrBody": "Resting heart rate is your heart rate when you are completely at rest, usually measured overnight. A lower resting rate generally points to better cardiovascular fitness, and a rising trend can be an early sign of stress or illness.",
+        "hrvTitle": "Heart rate variability (HRV)",
+        "hrvBody": "HRV is the tiny variation in time between consecutive heartbeats. Higher variability usually reflects a well-recovered, adaptable nervous system, while a sustained drop can signal fatigue, stress, or insufficient recovery.",
+        "oxygenSaturationTitle": "Oxygen saturation (SpO₂)",
+        "oxygenSaturationBody": "SpO₂ is the percentage of your red blood cells carrying oxygen. Readings of 95–100% are normal at rest; values that stay below 90% warrant attention, though brief nightly dips are common.",
+        "bodyTemperatureTitle": "Body temperature",
+        "bodyTemperatureBody": "Body temperature reflects your core thermal state, normally around 37 °C with small daily swings. A sustained rise can indicate infection, while overnight wrist readings mainly track relative changes rather than a clinical value.",
+        "activeEnergyTitle": "Active energy",
+        "activeEnergyBody": "Active energy is the calories you burn through movement, on top of the baseline your body uses at rest. It is a direct measure of how physically active your day was.",
+        "workoutsTitle": "Workouts",
+        "workoutsBody": "Workouts are the structured exercise sessions your devices record, with type, duration, and energy. Tracking them shows how regular training accumulates over weeks and how it relates to your other health signals."
+      }
     },
     "sleep": {
       "title": "Sleep",

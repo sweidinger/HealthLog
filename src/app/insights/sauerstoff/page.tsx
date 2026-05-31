@@ -21,6 +21,7 @@ export default function InsightsOxygenSaturationPage() {
       insightMetric="OXYGEN_SATURATION"
       chartKey="oxygenSaturation"
       i18nPrefix="insights.oxygenSaturation"
+      explainerMetric="oxygenSaturation"
       color="#8be9fd"
       unit="%"
       yAxisUnit="%"

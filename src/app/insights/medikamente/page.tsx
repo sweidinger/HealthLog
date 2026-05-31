@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { ComplianceHeatmap } from "@/components/charts/compliance-heatmap";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { TherapyTimeline } from "@/components/insights/therapy-timeline";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
@@ -111,7 +112,10 @@ export default function InsightsMedikamentePage() {
 
   if (isComprehensiveLoading) {
     return (
-      <SubPageShell title={t("insights.medicationCompliance")}>
+      <SubPageShell
+        title={t("insights.medicationCompliance")}
+        explainerMetric="medikamente"
+      >
         <div className="flex items-center justify-center py-12">
           <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
         </div>
@@ -124,7 +128,10 @@ export default function InsightsMedikamentePage() {
     // gate reads `medications.length > 0`. CTA targets `/medications`
     // (the dedicated medication-management surface).
     return (
-      <SubPageShell title={t("insights.medicationCompliance")}>
+      <SubPageShell
+        title={t("insights.medicationCompliance")}
+        explainerMetric="medikamente"
+      >
         <EmptyState
           icon={<Pill className="size-6" />}
           title={t("insights.emptyState.medication.title")}
@@ -149,6 +156,7 @@ export default function InsightsMedikamentePage() {
     <SubPageShell
       title={t("insights.medicationCompliance")}
       description={t("insights.subPage.medikamenteDescription")}
+      explainerMetric="medikamente"
     >
       <div
         className={
@@ -234,6 +242,8 @@ export default function InsightsMedikamentePage() {
           );
         })}
       </div>
+
+      <MetricTargetSummary slug="medikamente" />
 
       <InsightStatusCard
         title={t("insights.assessmentTitle")}

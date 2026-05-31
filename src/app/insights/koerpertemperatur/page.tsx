@@ -19,6 +19,7 @@ export default function InsightsBodyTemperaturePage() {
       insightMetric="BODY_TEMPERATURE"
       chartKey="bodyTemperature"
       i18nPrefix="insights.bodyTemperature"
+      explainerMetric="bodyTemperature"
       color="#ff79c6"
       unit="°C"
       yAxisUnit="°C"

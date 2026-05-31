@@ -1800,7 +1800,42 @@
       "medikamenteEmptyDescription": "Insights przestrzegania wymagają przynajmniej jednego zarejestrowanego leku.",
       "medikamenteEmptyAction": "Otwórz leki",
       "therapyTimelineDescription": "Chronologiczny protokół terapii GLP-1 — zmiany dawki, iniekcje, stan, działania niepożądane.",
-      "bmiDescription": "BMI obliczone z twojej wagi i wzrostu, z oceną."
+      "bmiDescription": "BMI obliczone z twojej wagi i wzrostu, z oceną.",
+      "target": {
+        "range": "Cel: {min}–{max} {unit}",
+        "bpRange": "Cel: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
+        "inTargetShare": "{pct}% zarejestrowanych dni w zakresie celu",
+        "adjustLink": "Dostosuj zakres docelowy"
+      },
+      "explainer": {
+        "trigger": "Czym jest {title}?",
+        "blutdruckTitle": "Ciśnienie krwi",
+        "blutdruckBody": "Ciśnienie krwi to siła, z jaką krew napiera na ściany tętnic, zapisywana jako skurczowe do rozkurczowego (szczyt podczas uderzenia serca do wartości spoczynkowej między uderzeniami). Stale wysokie wartości z czasem obciążają serce i naczynia.",
+        "pulsTitle": "Tętno",
+        "pulsBody": "Tętno to liczba uderzeń serca na minutę. Pojedynczy pomiar odzwierciedla to, co robiłeś w danej chwili — w spoczynku wynosi zwykle 60–100 uderzeń na minutę i naturalnie rośnie przy ruchu, stresie lub kofeinie.",
+        "gewichtTitle": "Waga",
+        "gewichtBody": "Masa ciała to jeden z najprostszych sygnałów długoterminowego bilansu energetycznego i ogólnego zdrowia. Trend na przestrzeni tygodni liczy się znacznie bardziej niż pojedynczy odczyt, który zmienia się wraz z nawodnieniem, jedzeniem i porą dnia.",
+        "bmiTitle": "Wskaźnik masy ciała (BMI)",
+        "bmiBody": "BMI to waga podzielona przez wzrost do kwadratu — jedna liczba przypisująca Cię do szerokiej kategorii wagowej. To badanie przesiewowe dla populacji, a nie diagnoza, i nie odróżnia mięśni od tłuszczu.",
+        "schlafTitle": "Sen",
+        "schlafBody": "Długość snu to czas, który faktycznie przespałeś w nocy, podzielony na fazy lekką, głęboką i REM. Większość dorosłych potrzebuje około siedmiu do dziewięciu godzin; stała ilość i jakość wspierają regenerację, nastrój i metabolizm.",
+        "stimmungTitle": "Nastrój",
+        "stimmungBody": "Śledzenie nastroju rejestruje Twoje samopoczucie w czasie na prostej skali. Regularne zapisywanie ujawnia wzorce — jak sen, aktywność czy leki łączą się z samopoczuciem — których pojedynczy dzień nigdy nie pokaże.",
+        "medikamenteTitle": "Przestrzeganie zaleceń lekowych",
+        "medikamenteBody": "Przestrzeganie zaleceń to rzetelność przyjmowania leków zgodnie z zaleceniami, pokazana tu jako odsetek oczekiwanych dawek, które zarejestrowałeś. Regularne przyjmowanie często decyduje o tym, czy terapia działa zgodnie z zamierzeniem.",
+        "restingHrTitle": "Tętno spoczynkowe",
+        "restingHrBody": "Tętno spoczynkowe to częstość uderzeń serca w pełnym spoczynku, zwykle mierzona w nocy. Niższe tętno zwykle wskazuje na lepszą wydolność krążeniową, a rosnący trend może być wczesnym sygnałem stresu lub choroby.",
+        "hrvTitle": "Zmienność rytmu serca (HRV)",
+        "hrvBody": "HRV to drobna zmienność czasu między kolejnymi uderzeniami serca. Wyższa zmienność zwykle odzwierciedla dobrze zregenerowany, elastyczny układ nerwowy, a utrzymujący się spadek może sygnalizować zmęczenie, stres lub niewystarczającą regenerację.",
+        "oxygenSaturationTitle": "Saturacja tlenem (SpO₂)",
+        "oxygenSaturationBody": "SpO₂ to odsetek czerwonych krwinek przenoszących tlen. Wartości 95–100% są normalne w spoczynku; wartości utrzymujące się poniżej 90% wymagają uwagi, choć krótkie nocne spadki są częste.",
+        "bodyTemperatureTitle": "Temperatura ciała",
+        "bodyTemperatureBody": "Temperatura ciała odzwierciedla stan cieplny rdzenia, zwykle około 37 °C z niewielkimi dobowymi wahaniami. Utrzymujący się wzrost może wskazywać na infekcję, podczas gdy nocne pomiary na nadgarstku śledzą głównie zmiany względne, a nie wartość kliniczną.",
+        "activeEnergyTitle": "Energia aktywna",
+        "activeEnergyBody": "Energia aktywna to kalorie spalane przez ruch, ponad podstawowy wydatek w spoczynku. To bezpośrednia miara tego, jak aktywny fizycznie był Twój dzień.",
+        "workoutsTitle": "Treningi",
+        "workoutsBody": "Treningi to ustrukturyzowane sesje ćwiczeń rejestrowane przez Twoje urządzenia, wraz z typem, czasem trwania i energią. Ich śledzenie pokazuje, jak regularny trening kumuluje się przez tygodnie i jak wiąże się z innymi sygnałami zdrowotnymi."
+      }
     },
     "sleep": {
       "title": "Sen",

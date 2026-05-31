@@ -20,6 +20,7 @@ export default function InsightsRestingHrPage() {
       insightMetric="RESTING_HEART_RATE"
       chartKey="restingHr"
       i18nPrefix="insights.restingHr"
+      explainerMetric="restingHr"
       color="#ff5555"
       unit="bpm"
       yAxisUnit="bpm"

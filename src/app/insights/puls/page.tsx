@@ -13,6 +13,7 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { Vo2MaxChartRow } from "@/components/insights/vo2-max-chart-row";
 import {
@@ -61,6 +62,7 @@ export default function InsightsPulsPage() {
       <SubPageShell
         title={t("insights.pulseSectionTitle")}
         description={t("insights.subPage.pulsDescription")}
+        explainerMetric="puls"
       >
         <MetricEmptyState
           icon={<Heart className="size-6" />}
@@ -111,6 +113,7 @@ export default function InsightsPulsPage() {
     <SubPageShell
       title={t("insights.pulseSectionTitle")}
       description={t("insights.subPage.pulsDescription")}
+      explainerMetric="puls"
     >
       <HealthChartDynamic
         chartKey="pulse"
@@ -122,6 +125,8 @@ export default function InsightsPulsPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+
+      <MetricTargetSummary slug="puls" />
 
       <InsightStatusCard
         title={t("insights.assessmentTitle")}

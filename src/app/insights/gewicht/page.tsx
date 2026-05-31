@@ -13,6 +13,7 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { buildWeightBandsFromHeight } from "@/lib/analytics/value-bands";
 
@@ -43,6 +44,7 @@ export default function InsightsGewichtPage() {
       <SubPageShell
         title={t("insights.weightSectionTitle")}
         description={t("insights.subPage.gewichtDescription")}
+        explainerMetric="gewicht"
       >
         <MetricEmptyState
           icon={<Scale className="size-6" />}
@@ -72,6 +74,7 @@ export default function InsightsGewichtPage() {
     <SubPageShell
       title={t("insights.weightSectionTitle")}
       description={t("insights.subPage.gewichtDescription")}
+      explainerMetric="gewicht"
     >
       <HealthChartDynamic
         chartKey="weight"
@@ -83,6 +86,8 @@ export default function InsightsGewichtPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+
+      <MetricTargetSummary slug="gewicht" />
 
       <InsightStatusCard
         title={t("insights.assessmentTitle")}

@@ -15,6 +15,7 @@ import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -75,6 +76,7 @@ export default function InsightsStimmungPage() {
       <SubPageShell
         title={t("insights.moodSectionTitle")}
         description={t("insights.subPage.stimmungDescription")}
+        explainerMetric="stimmung"
       >
         <MetricEmptyState
           icon={<Smile className="size-6" />}
@@ -95,12 +97,15 @@ export default function InsightsStimmungPage() {
     <SubPageShell
       title={t("insights.moodSectionTitle")}
       description={t("insights.subPage.stimmungDescription")}
+      explainerMetric="stimmung"
     >
       <MoodChart
         chartKey="mood"
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+
+      <MetricTargetSummary slug="stimmung" />
 
       <InsightStatusCard
         title={t("insights.assessmentTitle")}

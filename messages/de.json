@@ -1800,7 +1800,42 @@
       "medikamenteEmptyDescription": "Adhärenz-Insights brauchen mindestens ein erfasstes Medikament.",
       "medikamenteEmptyAction": "Medikamente öffnen",
       "therapyTimelineDescription": "Chronologisches GLP-1-Therapieprotokoll — Dosis-Änderungen, Injektionen, Bestand, Nebenwirkungen.",
-      "bmiDescription": "BMI aus deinem Gewicht und deiner Größe abgeleitet, mit Einschätzung."
+      "bmiDescription": "BMI aus deinem Gewicht und deiner Größe abgeleitet, mit Einschätzung.",
+      "target": {
+        "range": "Ziel: {min}–{max} {unit}",
+        "bpRange": "Ziel: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
+        "inTargetShare": "{pct}% der erfassten Tage im Zielbereich",
+        "adjustLink": "Zielbereich anpassen"
+      },
+      "explainer": {
+        "trigger": "Was ist {title}?",
+        "blutdruckTitle": "Blutdruck",
+        "blutdruckBody": "Der Blutdruck ist die Kraft, die das Blut auf die Gefäßwände ausübt, angegeben als systolisch zu diastolisch (Spitzenwert beim Herzschlag über dem Ruhewert dazwischen). Dauerhaft hohe Werte belasten Herz und Gefäße auf Dauer.",
+        "pulsTitle": "Puls",
+        "pulsBody": "Der Puls gibt an, wie oft das Herz pro Minute schlägt. Eine Einzelmessung spiegelt den Moment wider – in Ruhe liegt er meist bei 60–100 Schlägen pro Minute und steigt natürlicherweise bei Bewegung, Stress oder Koffein.",
+        "gewichtTitle": "Gewicht",
+        "gewichtBody": "Das Körpergewicht ist eines der einfachsten Signale für die langfristige Energiebilanz und die allgemeine Gesundheit. Der Trend über Wochen zählt weit mehr als ein einzelner Wert, der mit Flüssigkeit, Ernährung und Tageszeit schwankt.",
+        "bmiTitle": "Body-Mass-Index (BMI)",
+        "bmiBody": "Der BMI ist das Gewicht geteilt durch die Körpergröße zum Quadrat und ordnet Sie einer groben Gewichtskategorie zu. Er ist ein Orientierungswert, keine Diagnose, und unterscheidet nicht zwischen Muskeln und Fett.",
+        "schlafTitle": "Schlaf",
+        "schlafBody": "Die Schlafdauer ist die tatsächlich geschlafene Zeit pro Nacht, aufgeteilt in Leicht-, Tief- und REM-Schlaf. Die meisten Erwachsenen brauchen etwa sieben bis neun Stunden; gleichmäßige Menge und Qualität unterstützen Erholung, Stimmung und Stoffwechsel.",
+        "stimmungTitle": "Stimmung",
+        "stimmungBody": "Die Stimmungserfassung hält auf einer einfachen Skala fest, wie Sie sich fühlen. Regelmäßiges Protokollieren zeigt Muster – wie Schlaf, Aktivität oder Medikamente mit dem Befinden zusammenhängen –, die ein einzelner Tag nie offenbart.",
+        "medikamenteTitle": "Medikamenten-Therapietreue",
+        "medikamenteBody": "Die Therapietreue zeigt, wie zuverlässig Sie Ihre Medikamente wie verordnet einnehmen, hier als Anteil der erwarteten Dosen, die Sie erfasst haben. Eine gleichmäßige Einnahme entscheidet oft darüber, ob eine Therapie wie beabsichtigt wirkt.",
+        "restingHrTitle": "Ruhepuls",
+        "restingHrBody": "Der Ruhepuls ist die Herzfrequenz in völliger Ruhe, meist über Nacht gemessen. Ein niedriger Ruhepuls deutet in der Regel auf eine bessere Herz-Kreislauf-Fitness hin, ein steigender Trend kann ein frühes Zeichen für Stress oder Krankheit sein.",
+        "hrvTitle": "Herzfrequenzvariabilität (HRV)",
+        "hrvBody": "Die HRV ist die kleine Schwankung der Zeit zwischen aufeinanderfolgenden Herzschlägen. Eine höhere Variabilität spiegelt meist ein gut erholtes, anpassungsfähiges Nervensystem wider, ein anhaltender Rückgang kann auf Erschöpfung, Stress oder mangelnde Erholung hinweisen.",
+        "oxygenSaturationTitle": "Sauerstoffsättigung (SpO₂)",
+        "oxygenSaturationBody": "Die SpO₂ ist der Prozentsatz der roten Blutkörperchen, die Sauerstoff transportieren. Werte von 95–100 % sind in Ruhe normal; Werte, die dauerhaft unter 90 % liegen, verdienen Aufmerksamkeit, kurze nächtliche Abfälle sind jedoch häufig.",
+        "bodyTemperatureTitle": "Körpertemperatur",
+        "bodyTemperatureBody": "Die Körpertemperatur spiegelt Ihren Kernwärmezustand wider, normalerweise um 37 °C mit kleinen Tagesschwankungen. Ein anhaltender Anstieg kann auf eine Infektion hindeuten; nächtliche Messungen am Handgelenk erfassen vor allem relative Änderungen, keinen klinischen Wert.",
+        "activeEnergyTitle": "Aktive Energie",
+        "activeEnergyBody": "Die aktive Energie sind die Kalorien, die Sie durch Bewegung verbrennen, zusätzlich zum Grundumsatz in Ruhe. Sie ist ein direktes Maß dafür, wie körperlich aktiv Ihr Tag war.",
+        "workoutsTitle": "Workouts",
+        "workoutsBody": "Workouts sind die strukturierten Trainingseinheiten, die Ihre Geräte mit Art, Dauer und Energie aufzeichnen. Ihre Erfassung zeigt, wie sich regelmäßiges Training über Wochen summiert und wie es mit Ihren anderen Gesundheitssignalen zusammenhängt."
+      }
     },
     "sleep": {
       "title": "Schlaf",

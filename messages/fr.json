@@ -1800,7 +1800,42 @@
       "medikamenteEmptyDescription": "Les insights d’observance ont besoin d’au moins un médicament enregistré.",
       "medikamenteEmptyAction": "Ouvrir les médicaments",
       "therapyTimelineDescription": "Journal chronologique de la thérapie GLP-1 — changements de dose, injections, stock, effets secondaires.",
-      "bmiDescription": "IMC dérivé de ton poids et de ta taille, avec évaluation."
+      "bmiDescription": "IMC dérivé de ton poids et de ta taille, avec évaluation.",
+      "target": {
+        "range": "Cible : {min}–{max} {unit}",
+        "bpRange": "Cible : {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
+        "inTargetShare": "{pct}% des jours enregistrés dans la cible",
+        "adjustLink": "Ajuster la plage cible"
+      },
+      "explainer": {
+        "trigger": "Qu'est-ce que {title} ?",
+        "blutdruckTitle": "Tension artérielle",
+        "blutdruckBody": "La tension artérielle est la force exercée par le sang sur les parois des artères, exprimée en systolique sur diastolique (le pic lors d'un battement sur la valeur de repos entre les battements). Des valeurs durablement élevées sollicitent le cœur et les vaisseaux à la longue.",
+        "pulsTitle": "Pouls",
+        "pulsBody": "Le pouls correspond au nombre de battements du cœur par minute. Une mesure ponctuelle reflète ce que vous faisiez à l'instant : au repos, il est généralement de 60 à 100 battements par minute et augmente naturellement avec le mouvement, le stress ou la caféine.",
+        "gewichtTitle": "Poids",
+        "gewichtBody": "Le poids corporel est l'un des signaux les plus simples de l'équilibre énergétique à long terme et de la santé globale. La tendance sur plusieurs semaines compte bien plus qu'une mesure isolée, qui varie avec l'hydratation, l'alimentation et l'heure de la journée.",
+        "bmiTitle": "Indice de masse corporelle (IMC)",
+        "bmiBody": "L'IMC correspond à votre poids divisé par votre taille au carré, un seul chiffre qui vous situe dans une large catégorie de poids. C'est un dépistage de population, pas un diagnostic, et il ne distingue pas le muscle de la graisse.",
+        "schlafTitle": "Sommeil",
+        "schlafBody": "La durée du sommeil est le temps réellement dormi au cours de la nuit, réparti entre sommeil léger, profond et paradoxal. La plupart des adultes ont besoin d'environ sept à neuf heures ; une quantité et une qualité régulières soutiennent la récupération, l'humeur et le métabolisme.",
+        "stimmungTitle": "Humeur",
+        "stimmungBody": "Le suivi de l'humeur consigne ce que vous ressentez au fil du temps sur une échelle simple. Le noter régulièrement révèle des tendances — comment le sommeil, l'activité ou les médicaments s'alignent sur votre ressenti — qu'une seule journée ne montre jamais.",
+        "medikamenteTitle": "Observance du traitement",
+        "medikamenteBody": "L'observance mesure la fiabilité avec laquelle vous prenez votre traitement comme prescrit, ici sous forme de la part des doses attendues que vous avez enregistrées. Une prise régulière est souvent ce qui permet à un traitement d'agir comme prévu.",
+        "restingHrTitle": "Fréquence cardiaque au repos",
+        "restingHrBody": "La fréquence cardiaque au repos est votre rythme cardiaque lorsque vous êtes totalement au repos, généralement mesuré la nuit. Une fréquence plus basse indique souvent une meilleure forme cardiovasculaire, et une tendance à la hausse peut être un signe précoce de stress ou de maladie.",
+        "hrvTitle": "Variabilité de la fréquence cardiaque (VFC)",
+        "hrvBody": "La VFC est la petite variation du temps entre des battements consécutifs. Une variabilité plus élevée reflète généralement un système nerveux bien récupéré et adaptable, tandis qu'une baisse durable peut signaler de la fatigue, du stress ou une récupération insuffisante.",
+        "oxygenSaturationTitle": "Saturation en oxygène (SpO₂)",
+        "oxygenSaturationBody": "La SpO₂ est le pourcentage de globules rouges transportant de l'oxygène. Des valeurs de 95 à 100 % sont normales au repos ; des valeurs qui restent sous 90 % méritent attention, bien que de brèves baisses nocturnes soient fréquentes.",
+        "bodyTemperatureTitle": "Température corporelle",
+        "bodyTemperatureBody": "La température corporelle reflète votre état thermique central, normalement autour de 37 °C avec de petites variations quotidiennes. Une hausse durable peut indiquer une infection, tandis que les mesures nocturnes au poignet suivent surtout des variations relatives plutôt qu'une valeur clinique.",
+        "activeEnergyTitle": "Énergie active",
+        "activeEnergyBody": "L'énergie active correspond aux calories que vous brûlez par le mouvement, en plus de la dépense de base au repos. C'est une mesure directe du niveau d'activité physique de votre journée.",
+        "workoutsTitle": "Entraînements",
+        "workoutsBody": "Les entraînements sont les séances d'exercice structurées que vos appareils enregistrent, avec le type, la durée et l'énergie. Les suivre montre comment un entraînement régulier s'accumule au fil des semaines et comment il se relie à vos autres signaux de santé."
+      }
     },
     "sleep": {
       "title": "Sommeil",

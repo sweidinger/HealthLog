@@ -8,6 +8,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
@@ -37,6 +38,7 @@ export default function InsightsSchlafPage() {
       <SubPageShell
         title={t("insights.sleep.title")}
         description={t("insights.sleep.description")}
+        explainerMetric="schlaf"
       >
         <MetricEmptyState
           icon={<Moon className="size-6" />}
@@ -59,8 +61,11 @@ export default function InsightsSchlafPage() {
     <SubPageShell
       title={t("insights.sleep.title")}
       description={t("insights.sleep.description")}
+      explainerMetric="schlaf"
     >
       <SleepOverview />
+
+      <MetricTargetSummary slug="schlaf" />
 
       {/*
         v1.4.28 (BK-UI-StatusSchlaf) — the six sibling sub-pages all

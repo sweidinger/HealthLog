@@ -20,6 +20,7 @@ export default function InsightsActiveEnergyPage() {
       insightMetric="ACTIVE_ENERGY_BURNED"
       chartKey="activeEnergy"
       i18nPrefix="insights.activeEnergy"
+      explainerMetric="activeEnergy"
       color="#ffb86c"
       unit="kcal"
       yAxisUnit="kcal"
