@@ -61,11 +61,14 @@ export function DataPortabilityRow({
     setBusy(true);
     setError(null);
     try {
-      const query = includeIntake ? "?intake=true" : "?intake=false";
+      const query = new URLSearchParams({
+        intake: includeIntake ? "true" : "false",
+        medicationId,
+      }).toString();
       const stamp = new Date().toISOString().slice(0, 10);
       await downloadFromUrl(
-        `/api/export/medications${query}`,
-        `healthlog-medications-${stamp}.csv`,
+        `/api/export/medications?${query}`,
+        `healthlog-medication-${stamp}.csv`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

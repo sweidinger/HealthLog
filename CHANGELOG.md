@@ -10,7 +10,7 @@ A focused follow-up to v1.7.0. The unified dashboard snapshot that shipped in v1
 - **Coach data-source rail matches the settings sheet** — the in-chat rail now toggles the same persisted data clusters as the gear-icon settings, stored per user rather than reset when the panel closes. The chat request derives its scope from those saved clusters, so the rail always reflects exactly what is sent to the model, and the analysis window persists alongside.
 - **Medication card actions in one menu** — the overview cards, standard and GLP-1 alike, move their edit / history / advanced actions into a single overflow menu; the card itself opens the detail page.
 - **Medication detail page is history-first** — the redundant header action row and the schedule block are gone; the page leads with the intake history under a read-only summary (name, dose, status, plain-language cadence), and editing happens from the card menu. The estimated active-ingredient curve stays an opt-in disclosure.
-- **Advanced-settings sheet widened** — a two-column layout (Data, Reminders, Lifecycle, with the danger zone full-width) so the sheet no longer scrolls on a desktop viewport, and a medications CSV export sits beside the intake import.
+- **Advanced-settings sheet widened** — a two-column layout (Data, Reminders, Lifecycle, with the danger zone full-width) so the sheet no longer scrolls on a desktop viewport, and a CSV export of that medication (its row plus intake history) sits beside the per-medication intake import.
 
 ### Fixed
 
