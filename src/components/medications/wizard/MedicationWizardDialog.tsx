@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import {
   Bell,
   CalendarRange,
+  ChevronRight,
   Clock,
   FlaskConical,
   Loader2,
@@ -50,7 +51,6 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
@@ -62,6 +62,7 @@ import {
   buildCreateBody,
   commitActiveDraft,
   emptyWizardPayload,
+  firstInvalidIndex,
   hydrateWizardPayload,
   landingStepForEdit,
   type MedicationPayload,
@@ -70,6 +71,7 @@ import {
   setActiveSchedule,
   type WizardPayload,
 } from "./wizard-payload";
+import { WizardStepper } from "./WizardStepper";
 import { Step1Name } from "./steps/Step1Name";
 import { Step2Class } from "./steps/Step2Class";
 import { Step3Dose } from "./steps/Step3Dose";
@@ -176,7 +178,26 @@ function WizardDialogShell({
   const displayStep = fallbackIndex + 1;
   const isLastStep = displayStep === totalSteps;
   const isFirstStep = displayStep === 1;
-  const progress = (displayStep / totalSteps) * 100;
+
+  // v1.8.6 W4b — forward-reachability ceiling for the dot stepper. The
+  // dot at path-index `j` is reachable iff every gate from the active
+  // slot up to (but not including) `j` passes. `firstInvalidIndex`
+  // returns the first failing slot from `fallbackIndex`; every slot up
+  // to and including that index is reachable (the user can always step
+  // onto the gate that's currently blocking them). Slots already at or
+  // behind the active slot are always reachable. On edit the hydrated
+  // payload validates every gate, so the ceiling is the whole path.
+  const reachableUntil = useMemo(
+    () =>
+      Math.max(fallbackIndex, firstInvalidIndex(payload, stepList, fallbackIndex)),
+    [payload, stepList, fallbackIndex],
+  );
+  // Jump-to-last is enabled only when the WHOLE path validates — i.e.
+  // every step from the first slot onward passes its gate, so a single
+  // tap can land the user on the review step without stranding them
+  // behind an unmet requirement.
+  const lastReachable =
+    firstInvalidIndex(payload, stepList, 0) >= totalSteps;
 
   const canContinue = useMemo(
     () => validateStep(payload, step),
@@ -211,6 +232,31 @@ function WizardDialogShell({
       setStep(backward as StepNumber);
     }
   }, [payload.mode, payload.cadence.kind, step]);
+
+  // v1.8.6 W4b — jump-to-arbitrary-step from the dot stepper. Backward
+  // jumps are always allowed; a forward jump is gated on EVERY
+  // intervening path gate validating (a multi-step lookahead over the
+  // single-step `validateStep`). A jump that lands on the final review
+  // step replicates the `goNext` Step-8 commit so the schedule-list view
+  // renders the just-edited cadence + times. On edit the payload is
+  // pre-hydrated so every gate passes → all dots reachable and
+  // jump-to-last is one tap.
+  const goToStep = useCallback(
+    (target: number) => {
+      const list = progressIndices(payload.mode, payload.cadence.kind);
+      const j = list.indexOf(target);
+      // `fallbackIndex` mirrors the active dot the stepper renders, so
+      // the jump gate and the visual reachability never drift.
+      const from = fallbackIndex;
+      if (j < 0 || j === from) return;
+      if (j > from && firstInvalidIndex(payload, list, from) < j) return;
+      if (target === 8) {
+        setPayload((prev) => commitActiveDraft(prev));
+      }
+      setStep(target as StepNumber);
+    },
+    [payload, fallbackIndex],
+  );
 
   // Focus the first interactive control on each step change. The
   // initial render skips so opening the dialog does not steal focus
@@ -324,6 +370,26 @@ function WizardDialogShell({
     total: totalSteps,
   });
 
+  // v1.8.6 W4b — short per-slot labels for the dot stepper. Keyed by
+  // raw step number so the path-aware `stepList` maps straight through.
+  const stepperLabels = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const n of stepList) {
+      map[n] = t(`medications.wizard.steps.step${n}.short`);
+    }
+    return map;
+  }, [stepList, t]);
+
+  // "What's next" hint under the step title. On the final slot the
+  // hint flips to the save target; otherwise it names the next slot's
+  // short label.
+  const nextSlot = stepList[fallbackIndex + 1];
+  const nextHint = isLastStep
+    ? t("medications.wizard.nav.reviewHint")
+    : t("medications.wizard.nav.nextHint", {
+        step: t(`medications.wizard.steps.step${nextSlot}.short`),
+      });
+
   const primaryCtaLabel = isLastStep
     ? mode === "edit"
       ? t("medications.wizard.nav.saveEdit")
@@ -396,24 +462,30 @@ function WizardDialogShell({
           aria-busy={submitting || undefined}
           className="flex flex-col"
         >
-          {/* v1.5.5 D-3 §8 — progress strip + body share the same
-              outer padding so they read as one column. The right
-              padding leaves room for the shell's 36 px close-X
-              (`pr-12` mobile / `pr-14` desktop). */}
+          {/* v1.8.6 W4b — dot stepper replaces the v1.5.5 continuous
+              `<Progress>` strip + "Step X of Y" caption. The dot row +
+              body share the same outer padding so they read as one
+              column; the right padding leaves room for the shell's
+              36 px close-X (`pr-12` mobile / `pr-14` desktop). The NL
+              "Describe" affordance is re-homed beside the stepper on
+              the Step-1 create path. */}
           <div className="border-border/70 space-y-1.5 border-b p-4 pr-12 sm:p-6 sm:pr-14">
-            <Progress
-              value={progress}
-              // v1.5.5 D-3 §8 — width-only shadcn `<Progress>`. The
-              // primitive ships `transition-all`; the strip-bar morph
-              // proposed in D-2 was stripped in D-3 #4. No clip-path,
-              // no keyframes; reduced-motion picked up via the shared
-              // `motion-reduce` invariant.
-              className="h-1.5 transition-all motion-reduce:transition-none"
-              aria-label={stepOf}
+            <WizardStepper
+              steps={stepList}
+              current={step}
+              reachableUntil={reachableUntil}
+              labels={stepperLabels}
+              onJump={goToStep}
+              onFirst={() => goToStep(stepList[0])}
+              onLast={() => goToStep(stepList[totalSteps - 1])}
+              firstEnabled={!isFirstStep}
+              lastEnabled={lastReachable && !isLastStep}
+              firstLabel={t("medications.wizard.nav.jumpFirst")}
+              lastLabel={t("medications.wizard.nav.jumpLast")}
+              srLabel={stepOf}
             />
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-muted-foreground text-xs">{stepOf}</p>
-              {step === 1 && mode === "create" && (
+            {step === 1 && mode === "create" && (
+              <div className="flex justify-end">
                 <Button
                   type="button"
                   variant="ghost"
@@ -429,8 +501,8 @@ function WizardDialogShell({
                   />
                   {t("medications.wizard.nl.button")}
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Step body — v1.5.5 D-3 §8 spacing buckets:
@@ -479,6 +551,19 @@ function WizardDialogShell({
                 </h2>
                 <p className="text-muted-foreground text-sm">
                   {stepSubline}
+                </p>
+                {/* v1.8.6 W4b — muted "what's next" hint so the user
+                    knows what the Next tap leads to (or, on the final
+                    slot, that Next saves). */}
+                <p
+                  className="text-muted-foreground/80 flex items-center gap-0.5 pt-0.5 text-xs"
+                  data-slot="wizard-next-hint"
+                >
+                  <ChevronRight
+                    className="h-3 w-3 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {nextHint}
                 </p>
               </div>
             </div>
