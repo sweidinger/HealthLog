@@ -167,27 +167,34 @@ async function postMoodEntry(request: NextRequest) {
   const score = getScoreForMood(mood);
 
   try {
-    const entry = await prisma.moodEntry.create({
-      data: {
-        userId: user.id,
-        date,
-        tz,
-        mood,
-        score,
-        tags: tags ? JSON.stringify(tags) : null,
-        note: note ?? null,
-        source: source ?? "MANUAL",
-        moodLoggedAt,
-      },
-    });
+    // v1.8.5 — write the entry and its structured-tag links in one
+    // transaction. The links are user-intended content, not a cache, so a
+    // tag-link failure must roll the entry back too — otherwise a client
+    // retry on the 5xx mints a duplicate entry. The tx client is threaded
+    // through the helper so both writes commit (or abort) together.
+    const entry = await prisma.$transaction(async (tx) => {
+      const created = await tx.moodEntry.create({
+        data: {
+          userId: user.id,
+          date,
+          tz,
+          mood,
+          score,
+          tags: tags ? JSON.stringify(tags) : null,
+          note: note ?? null,
+          source: source ?? "MANUAL",
+          moodLoggedAt,
+        },
+      });
 
-    // v1.8.5 — write the structured-tag links. Unknown keys are dropped
-    // inside the helper (the catalog is the source of truth). Best-effort
-    // is wrong here — the links are user-intended content, not a cache —
-    // so a failure surfaces as a 5xx via the outer try/catch.
-    if (tagKeys && tagKeys.length > 0) {
-      await createTagLinks(entry.id, tagKeys);
-    }
+      if (tagKeys && tagKeys.length > 0) {
+        // Unknown keys are dropped inside the helper (the catalog is the
+        // source of truth).
+        await createTagLinks(created.id, tagKeys, tx);
+      }
+
+      return created;
+    });
 
     await auditLog("moodEntry.create", {
       userId: user.id,

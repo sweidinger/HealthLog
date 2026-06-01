@@ -134,17 +134,26 @@ export const PUT = apiHandler(
     // monotonic value and paired clients reconcile higher-wins.
     updateData.syncVersion = { increment: 1 };
 
-    const entry = await prisma.moodEntry.update({
-      where: { id },
-      data: updateData,
-    });
+    // v1.8.5 — update the entry and replace its structured-tag links in
+    // one transaction. A tag-link failure must roll the entry update back
+    // too — otherwise a client retry on the 5xx double-applies the edit
+    // (and the `syncVersion` increment). The tx client is threaded through
+    // the helper so both writes commit (or abort) together.
+    const entry = await prisma.$transaction(async (tx) => {
+      const updated = await tx.moodEntry.update({
+        where: { id },
+        data: updateData,
+      });
 
-    // v1.8.5 — full replacement of the structured-tag link set when
-    // `tagKeys` is present in the body. `null` clears every link; an
-    // omitted field leaves the links untouched.
-    if (data.tagKeys !== undefined) {
-      await replaceTagLinks(id, data.tagKeys ?? []);
-    }
+      // Full replacement of the structured-tag link set when `tagKeys`
+      // is present in the body. `null` clears every link; an omitted
+      // field leaves the links untouched.
+      if (data.tagKeys !== undefined) {
+        await replaceTagLinks(id, data.tagKeys ?? [], tx);
+      }
+
+      return updated;
+    });
 
     await auditLog("moodEntry.update", {
       userId: user.id,

@@ -4,6 +4,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
+// v1.8.5 — the POST happy path writes the entry + its structured-tag
+// links inside one `$transaction`. The mock hands the same client object
+// to the interactive-transaction callback so the route's tx-scoped writes
+// (entry create + tag-link read-back) resolve against the same fakes.
+const txClient = {
+  moodEntry: {
+    create: vi.fn(),
+  },
+  moodEntryTagLink: {
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+};
+
 vi.mock("@/lib/db", () => ({
   prisma: {
     moodEntry: {
@@ -11,8 +24,18 @@ vi.mock("@/lib/db", () => ({
       count: vi.fn().mockResolvedValue(0),
       create: vi.fn(),
     },
+    moodEntryTagLink: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     auditLog: { create: vi.fn() },
+    $transaction: vi.fn(
+      async (fn: (tx: typeof txClient) => unknown) => fn(txClient),
+    ),
   },
+}));
+
+vi.mock("@/lib/mood/tag-links", () => ({
+  createTagLinks: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -31,6 +54,9 @@ vi.mock("@/lib/cache/invalidate", () => ({
 vi.mock("@/lib/rollups/mood-rollups", () => ({
   recomputeMoodBucketsForEntry: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/moodlog/push", () => ({
+  pushMoodEntriesToMoodLog: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
@@ -47,6 +73,9 @@ vi.mock("next/headers", () => ({
 import { GET, POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { createTagLinks } from "@/lib/mood/tag-links";
+import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
+import { pushMoodEntriesToMoodLog } from "@/lib/moodlog/push";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -69,6 +98,20 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
+  // Re-establish the interactive-transaction passthrough after the reset.
+  vi.mocked(prisma.$transaction).mockImplementation(
+    async (fn: unknown) => (fn as (tx: typeof txClient) => unknown)(txClient),
+  );
+  txClient.moodEntryTagLink.findMany.mockResolvedValue([]);
+  vi.mocked(createTagLinks).mockResolvedValue(undefined);
+  // `reset` blanks the post-commit best-effort mocks; restore the promise
+  // returns so `recompute(...)` awaits and `push(...).catch()` is callable.
+  vi.mocked(recomputeMoodBucketsForEntry).mockResolvedValue(undefined);
+  vi.mocked(pushMoodEntriesToMoodLog).mockResolvedValue({
+    pushed: 0,
+    skipped: 0,
+    status: "ok",
+  });
 });
 
 describe("GET /api/mood-entries — 422 multi-issue (v1.4.43 W6)", () => {
@@ -172,5 +215,57 @@ describe("POST /api/mood-entries — 422 multi-issue (v1.4.43 W6)", () => {
     );
     const res = await POST(postReq({ mood: "junk" }));
     expect(res.status).toBe(422);
+  });
+});
+
+describe("POST /api/mood-entries — entry + tag-links transaction (v1.8.5)", () => {
+  const VALID_BODY = {
+    mood: "GUT",
+    moodLoggedAt: "2026-06-01T08:00:00.000Z",
+    tagKeys: ["happy"],
+  };
+
+  it("writes the entry + tag links through the transaction client", async () => {
+    txClient.moodEntry.create.mockResolvedValue({
+      id: "mood-1",
+      tags: null,
+      moodLoggedAt: new Date(VALID_BODY.moodLoggedAt),
+      mood: "GUT",
+      note: null,
+      source: "MANUAL",
+      date: "2026-06-01",
+    });
+
+    const res = await POST(postReq(VALID_BODY));
+    expect(res.status).toBe(201);
+    // The tag-link write runs against the same `$transaction` client that
+    // created the entry, so both commit (or roll back) together.
+    expect(createTagLinks).toHaveBeenCalledWith("mood-1", ["happy"], txClient);
+  });
+
+  it("rolls the entry back when the tag-link write fails (no commit)", async () => {
+    txClient.moodEntry.create.mockResolvedValue({
+      id: "mood-2",
+      tags: null,
+      moodLoggedAt: new Date(VALID_BODY.moodLoggedAt),
+      mood: "GUT",
+      note: null,
+      source: "MANUAL",
+      date: "2026-06-01",
+    });
+    // A failing tag-link write must propagate out of the transaction so
+    // Prisma aborts the entry create — the route surfaces it as a 5xx and
+    // the entry is never committed (no audit row, no rollup recompute).
+    vi.mocked(createTagLinks).mockRejectedValueOnce(new Error("link write"));
+
+    const res = await POST(postReq(VALID_BODY));
+    expect(res.status).toBe(500);
+
+    const { auditLog } = await import("@/lib/auth/audit");
+    expect(auditLog).not.toHaveBeenCalled();
+    const { recomputeMoodBucketsForEntry } = await import(
+      "@/lib/rollups/mood-rollups"
+    );
+    expect(recomputeMoodBucketsForEntry).not.toHaveBeenCalled();
   });
 });
