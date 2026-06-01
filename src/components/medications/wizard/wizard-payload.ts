@@ -466,6 +466,36 @@ export function validateStep(payload: WizardPayload, step: number): boolean {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// firstInvalidIndex — multi-step forward lookahead
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Walks `stepList` from `fromIndex` (inclusive) and returns the index of
+ * the first slot whose `validateStep` gate fails, or `stepList.length`
+ * when every slot from `fromIndex` onward validates.
+ *
+ * This generalises the single-step `canContinue` gate
+ * (`validateStep(payload, step)`) into the forward-jump lookahead the
+ * dot stepper uses: a forward jump to path-index `j` is allowed iff
+ * `firstInvalidIndex(payload, stepList, i) >= j` — i.e. every gate
+ * between the current slot `i` and the target `j` passes. The dot
+ * stepper reuses the same value as its `reachableUntil` ceiling so the
+ * gate and the visual reachability never drift.
+ *
+ * Pure: reuses `validateStep` verbatim, no new validation logic.
+ */
+export function firstInvalidIndex(
+  payload: WizardPayload,
+  stepList: readonly number[],
+  fromIndex: number,
+): number {
+  for (let k = Math.max(0, fromIndex); k < stepList.length; k++) {
+    if (!validateStep(payload, stepList[k])) return k;
+  }
+  return stepList.length;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // buildCreateBody — POST /api/medications request body
 // ────────────────────────────────────────────────────────────────────
 
