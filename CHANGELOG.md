@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.1] — 2026-06-01 — Multi-time medication compliance
+
+A follow-up to the multi-time compliance work in 1.7.3, closing the two surfaces it did not reach.
+
+### Fixed
+
+- **Every scheduled time of a multi-time medication is now loggable** — a medication taken more than once a day on a single schedule with several times (e.g. 07:00 and 19:00) surfaced only its first dose in the today tile and the logging sheet, so the second dose could never be recorded and the day's compliance was counted against a single expected dose. The today-window projection now creates one pending dose per scheduled time, matching how reminders are issued.
+- **The compliance heatmap classifies each dose against its own time** — a twice-daily dose logged in the evening was measured against the morning time and read as very late, painting the day amber even when both doses were taken on time. Each logged dose is now matched to its nearest scheduled time, so a day with every dose taken on time reads as on time. Single-time schedules are unaffected.
+
 ## [1.8.0] — 2026-05-31 — Insights: reliable data-driven assessments, embedded targets, explainers
 
 The per-metric Insights pages become the coherent heart of the app. The data-driven assessment — a short, honest reading of your own trend — now reliably reaches the page: it previously timed out and cached a generic placeholder for the rest of the day, so most users only ever saw the platitude. The generation budget is aligned with the provider, the placeholder is never cached, and the AI payload is compressed into a graded shape (recent days raw, then weekly, monthly, and yearly aggregates drawn from the rollup tier) so a heavy logger no longer ships thousands of raw points. Each metric's prompt is rewritten to a consistent house style — name the finding, place it against your own baseline, offer one concrete step; honest on poor values, never alarmist, never diagnostic. Target ranges move onto each category page beside the chart, every category gains a plain-language "what is this?" tooltip, and the assessment is warmed overnight so the page is a cache read instead of a live call. Route slugs and tile ids move to English (German tile ids stay accepted as aliases, so existing clients keep working).
