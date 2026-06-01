@@ -65,6 +65,7 @@ export const profileSchema = z.object({
   // the iOS client contract). Surfaced on the FHIR `Coverage` payor.
   insurerIkNumber: z
     .string()
+    .max(32)
     .nullable()
     .optional()
     .transform((v) => {
