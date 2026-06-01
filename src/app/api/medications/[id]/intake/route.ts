@@ -19,6 +19,7 @@ import { reconcileOneShotState } from "@/lib/medications/lifecycle";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
+import { resolveSlotInstantForWrite } from "@/lib/medications/scheduling/slot-upsert";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -74,6 +75,29 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
 
   const { scheduledFor, takenAt, skipped, idempotencyKey } = parsed.data;
 
+  const resolvedTakenAt = skipped ? null : (takenAt ?? new Date());
+  const incomingScheduledFor = scheduledFor ?? takenAt ?? new Date();
+
+  // v1.8.2 — source-agnostic slot snap. A twice-daily med carries a
+  // pending REMINDER row the projector/worker minted at the canonical
+  // `localHmAsUtc` slot instant. Without this, a manual "Genommen" write
+  // (source WEB) inserted a SECOND row for the slot because the unique
+  // key includes `source` and the iOS-vs-server `scheduledFor` can drift
+  // by a minute — inflating compliance to 100% and suppressing the
+  // "take now" prompt for a dose the user hadn't taken. Snap the write
+  // to the canonical slot and update the existing row in place.
+  //
+  // Resolved BEFORE the idempotency/dedup window so a scheduled dose
+  // routes through the slot upsert (which is itself the dedup): the
+  // legacy 60-second window would otherwise short-circuit by returning
+  // the slot's pending REMINDER row WITHOUT applying the user's takenAt.
+  const canonicalSlot = await resolveSlotInstantForWrite({
+    userId: user.id,
+    medicationId: id,
+    userTz: user.timezone,
+    incoming: incomingScheduledFor,
+  });
+
   // Idempotency check (explicit key or server-side dedup window)
   if (idempotencyKey) {
     const existing = await prisma.medicationIntakeEvent.findFirst({
@@ -86,8 +110,10 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     if (existing) {
       return apiSuccess(existing);
     }
-  } else {
-    // Server-side dedup: prevent double-logging within 60 seconds
+  } else if (!canonicalSlot) {
+    // Unscheduled / PRN only — the slot upsert handles dedup for
+    // scheduled doses by collapsing onto the canonical slot row.
+    // Server-side dedup: prevent double-logging within 60 seconds.
     const recentDuplicate = await prisma.medicationIntakeEvent.findFirst({
       where: {
         userId: user.id,
@@ -102,28 +128,89 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  const [event] = await prisma.$transaction([
-    prisma.medicationIntakeEvent.create({
-      data: {
+  let event;
+  if (canonicalSlot) {
+    // Scheduled dose — find the slot row regardless of `source` (the
+    // pending REMINDER row, or any prior row for this slot) and update
+    // it in place; mirrors the status-toggle route. Falls through to a
+    // create when the slot has no row yet.
+    const existingSlotRow = await prisma.medicationIntakeEvent.findFirst({
+      where: {
         userId: user.id,
         medicationId: id,
-        scheduledFor: scheduledFor ?? takenAt ?? new Date(),
-        takenAt: skipped ? null : (takenAt ?? new Date()),
-        skipped,
-        source: "WEB",
-        idempotencyKey: idempotencyKey ?? null,
+        scheduledFor: canonicalSlot,
+        deletedAt: null,
       },
-    }),
-    // Reset snooze when medication is taken
-    ...(!skipped
-      ? [
-          prisma.medication.update({
-            where: { id },
-            data: { snoozedUntil: null },
-          }),
-        ]
-      : []),
-  ]);
+    });
+    if (existingSlotRow) {
+      [event] = await prisma.$transaction([
+        prisma.medicationIntakeEvent.update({
+          where: { id: existingSlotRow.id },
+          data: {
+            takenAt: resolvedTakenAt,
+            skipped,
+            syncVersion: { increment: 1 },
+            idempotencyKey:
+              idempotencyKey ?? existingSlotRow.idempotencyKey ?? null,
+          },
+        }),
+        ...(!skipped
+          ? [
+              prisma.medication.update({
+                where: { id },
+                data: { snoozedUntil: null },
+              }),
+            ]
+          : []),
+      ]);
+    } else {
+      [event] = await prisma.$transaction([
+        prisma.medicationIntakeEvent.create({
+          data: {
+            userId: user.id,
+            medicationId: id,
+            scheduledFor: canonicalSlot,
+            takenAt: resolvedTakenAt,
+            skipped,
+            source: "WEB",
+            idempotencyKey: idempotencyKey ?? null,
+          },
+        }),
+        ...(!skipped
+          ? [
+              prisma.medication.update({
+                where: { id },
+                data: { snoozedUntil: null },
+              }),
+            ]
+          : []),
+      ]);
+    }
+  } else {
+    // Unscheduled / PRN / off-slot — keep the original insert behaviour.
+    [event] = await prisma.$transaction([
+      prisma.medicationIntakeEvent.create({
+        data: {
+          userId: user.id,
+          medicationId: id,
+          scheduledFor: incomingScheduledFor,
+          takenAt: resolvedTakenAt,
+          skipped,
+          source: "WEB",
+          idempotencyKey: idempotencyKey ?? null,
+        },
+      }),
+      // Reset snooze when medication is taken
+      ...(!skipped
+        ? [
+            prisma.medication.update({
+              where: { id },
+              data: { snoozedUntil: null },
+            }),
+          ]
+        : []),
+    ]);
+  }
 
   // v1.4.25 W19b — pen-inventory dose decrement. Only fires for
   // non-skipped intakes; a skipped event is not a consumption event.

@@ -41,6 +41,7 @@ import {
   buildRecurrenceContext,
   scheduleEmitsInWindow,
 } from "@/lib/medications/scheduling/worker-helpers";
+import { localHmAsUtc } from "@/lib/timezone";
 
 const TEST_USER_ID = "user-medication-cadence-worker";
 
@@ -710,5 +711,79 @@ describe("legacy daysOfWeek fallback", () => {
       "Europe/Berlin",
     );
     expect(scheduleEmitsInWindow(schedule, ctx, on.start, on.end)).toBe(true);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// 8. v1.8.2 — per-med intake POST collapses onto the canonical slot
+// ────────────────────────────────────────────────────────────────────
+
+describe("v1.8.2 per-med intake POST — source-agnostic slot collapse", () => {
+  it("updates a pre-existing pending REMINDER slot row instead of inserting a second WEB row", async () => {
+    const prisma = getPrismaClient();
+    const med = await prisma.medication.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Bisoprolol",
+        dose: "2.5mg",
+        active: true,
+        schedules: {
+          create: {
+            windowStart: "07:00",
+            windowEnd: "07:00",
+            timesOfDay: ["07:00"],
+            daysOfWeek: null,
+            scheduleType: "SCHEDULED",
+          },
+        },
+      },
+    });
+
+    const slot = localHmAsUtc(new Date(), "Europe/Berlin", 7, 0);
+    const pending = await prisma.medicationIntakeEvent.create({
+      data: {
+        userId: TEST_USER_ID,
+        medicationId: med.id,
+        scheduledFor: slot,
+        takenAt: null,
+        skipped: false,
+        source: "REMINDER",
+      },
+    });
+
+    const session = await prisma.session.create({
+      data: {
+        userId: TEST_USER_ID,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+    cookieJar.set("healthlog_session", session.id);
+
+    const { POST } = await import("@/app/api/medications/[id]/intake/route");
+    // +1 minute drift between the iOS write and the server's localHmAsUtc.
+    const drifted = new Date(slot.getTime() + 60_000);
+    const res = await POST(
+      new NextRequest(`http://localhost/api/medications/${med.id}/intake`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          scheduledFor: drifted.toISOString(),
+          takenAt: drifted.toISOString(),
+          skipped: false,
+        }),
+      }),
+      { params: Promise.resolve({ id: med.id }) },
+    );
+    expect(res.status).toBe(201);
+    const json = (await res.json()) as { data: { id: string } };
+    expect(json.data.id).toBe(pending.id); // updated the SAME row
+
+    const rows = await prisma.medicationIntakeEvent.findMany({
+      where: { userId: TEST_USER_ID, medicationId: med.id },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toBe(pending.id);
+    expect(rows[0]?.takenAt).not.toBeNull();
+    expect(rows[0]?.scheduledFor.toISOString()).toBe(slot.toISOString());
   });
 });

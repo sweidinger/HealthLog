@@ -127,3 +127,63 @@ export function scheduleEmitsInWindow(
 ): boolean {
   return occurrencesBetween(schedule, windowStart, windowEnd, ctx).length > 0;
 }
+
+/**
+ * Minimal Prisma surface the missed-dose guard needs — just a `count`
+ * over `MedicationIntakeEvent`. Keeps the helper unit-testable with a
+ * tiny fake and the worker passing its real client.
+ */
+interface IntakeCountClient {
+  medicationIntakeEvent: {
+    count: (args: { where: Record<string, unknown> }) => Promise<number>;
+  };
+}
+
+/**
+ * v1.8.2 — decide whether the reminder worker should mint a RED-phase
+ * pending `REMINDER` row for the given slot.
+ *
+ * Returns `false` (skip the mint) when the slot already carries either:
+ *   - an existing pending `REMINDER` row (P2002-collision avoidance; the
+ *     `deletedAt: null` filter is intentionally omitted because a
+ *     tombstoned REMINDER row still occupies the `(userId, medicationId,
+ *     scheduledFor, source)` unique slot), OR
+ *   - an ACTIONED row — `takenAt` set OR `skipped` — from ANY source,
+ *     restricted to live rows (`deletedAt: null`). The intake write
+ *     paths snap a "Genommen" / "Übersprungen" write onto this exact
+ *     canonical slot instant via a source-agnostic update, so a dose the
+ *     user acted on before the RED phase opens already has a live
+ *     taken/skipped row here. Without this arm the worker would mint a
+ *     pending REMINDER row alongside the user's WEB/API taken row — the
+ *     duplicate-intake bug — because the two differ by `source` and the
+ *     unique index would not collide.
+ *
+ * `scheduledFor` must be the canonical `localHmAsUtc` slot instant the
+ * projector + write paths use, so the existence probes match byte-for-byte.
+ */
+export async function shouldMintMissedDoseRow(
+  client: IntakeCountClient,
+  slot: { userId: string; medicationId: string; scheduledFor: Date },
+): Promise<boolean> {
+  const existingPendingReminder = await client.medicationIntakeEvent.count({
+    where: {
+      medicationId: slot.medicationId,
+      userId: slot.userId,
+      scheduledFor: slot.scheduledFor,
+      takenAt: null,
+      source: "REMINDER",
+    },
+  });
+  if (existingPendingReminder > 0) return false;
+
+  const existingActioned = await client.medicationIntakeEvent.count({
+    where: {
+      medicationId: slot.medicationId,
+      userId: slot.userId,
+      scheduledFor: slot.scheduledFor,
+      deletedAt: null,
+      OR: [{ takenAt: { not: null } }, { skipped: true }],
+    },
+  });
+  return existingActioned === 0;
+}

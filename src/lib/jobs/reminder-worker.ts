@@ -15,6 +15,7 @@ import {
   buildCanonicalSchedule,
   buildRecurrenceContext,
   scheduleEmitsInWindow,
+  shouldMintMissedDoseRow,
 } from "@/lib/medications/scheduling/worker-helpers";
 import { syncUserMeasurements } from "@/lib/withings/sync";
 import { syncUserActivity } from "@/lib/withings/sync-activity";
@@ -736,21 +737,23 @@ async function handleReminderCheck(jobs: Job<ReminderCheckPayload>[]) {
 
             // RED phase: create missed intake event for this slot.
             if (currentPhase === "RED") {
-              // v1.7.0 sync — intentionally NO `deletedAt: null` filter:
-              // a tombstoned row still occupies the `(userId, medicationId,
-              // scheduledFor, source)` unique slot, so the missed-dose
-              // create must treat it as present to avoid a P2002 collision.
-              const existingMissed = await prisma.medicationIntakeEvent.count({
-                where: {
-                  medicationId: med.id,
-                  userId: med.user.id,
-                  scheduledFor: slotScheduledFor,
-                  takenAt: null,
-                  source: "REMINDER",
-                },
+              // v1.8.2 — gate the missed-dose mint through the shared
+              // guard. It refuses to mint when the slot already carries an
+              // existing pending REMINDER row (P2002-collision avoidance,
+              // tombstones included) OR an ACTIONED row (taken / skipped)
+              // from ANY source. The intake write paths snap a "Genommen" /
+              // "Übersprungen" write onto the canonical slot instant
+              // (source-agnostic update), so a user who acted before the
+              // RED phase opens has a live taken/skipped row at this exact
+              // slot — minting here would re-create the duplicate the
+              // write paths just collapsed.
+              const shouldMint = await shouldMintMissedDoseRow(prisma, {
+                userId: med.user.id,
+                medicationId: med.id,
+                scheduledFor: slotScheduledFor,
               });
 
-              if (existingMissed === 0) {
+              if (shouldMint) {
                 await prisma.medicationIntakeEvent.create({
                   data: {
                     userId: med.user.id,

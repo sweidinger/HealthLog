@@ -26,6 +26,10 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     medication: {
       findUnique: vi.fn(),
+      // v1.8.2 — the slot-snap resolver loads the medication via
+      // findFirst; default to a schedule-less med so the resolver returns
+      // null (unscheduled path) and the original insert behaviour holds.
+      findFirst: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
     },
@@ -307,6 +311,16 @@ describe("POST /api/medications/[id]/intake — one-shot lifecycle", () => {
       skipped: false,
     };
     vi.mocked(prisma.$transaction).mockResolvedValue([createdEvent] as never);
+    // v1.8.2 — slot-snap resolver loads the med; no schedules → null slot
+    // → original insert + dedup path preserved.
+    vi.mocked(prisma.medication.findFirst).mockResolvedValueOnce({
+      id: "med-1",
+      startsOn: null,
+      endsOn: null,
+      oneShot: true,
+      createdAt: new Date(),
+      schedules: [],
+    } as never);
     vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValueOnce(
       null as never, // dedup probe
     );
