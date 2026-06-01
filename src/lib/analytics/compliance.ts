@@ -340,6 +340,15 @@ export function expectedSlotCountForDay(
  * `occurrencesBetween` is inclusive of both ends; the caller passes a
  * `[from, to]` window and we sort the union of every schedule's slots so
  * a multi-schedule medication interleaves its slots in time order.
+ *
+ * v1.8.6 QA — the window lower bound is clamped to `ctx.createdAt`. The
+ * legacy weekday walker floors on `startsOn` but not on `createdAt`, so a
+ * brand-new daily med queried over a 30-day window would otherwise emit
+ * slots for every day before it existed (7/30 expected on a 2-day-old med).
+ * Clamping here keeps the expected-dose denominator — and the window
+ * selection that reads it — honest about the medication's real age. The
+ * displayed rates clamp independently via `calculateCompliance`'s
+ * `medicationCreatedAt` argument, so this only fixes the slot counts.
  */
 export function expectedSlotsBetween(
   schedules: ComplianceSchedule[],
@@ -348,12 +357,14 @@ export function expectedSlotsBetween(
   ctx: ComplianceMedicationContext,
 ): Occurrence[] {
   const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-slots");
+  const effectiveFrom =
+    ctx.createdAt.getTime() > from.getTime() ? ctx.createdAt : from;
   const all: Occurrence[] = [];
   for (let i = 0; i < schedules.length; i++) {
     all.push(
       ...occurrencesBetween(
         toCanonicalSchedule(schedules[i], `compliance-slots-${i}`),
-        from,
+        effectiveFrom,
         to,
         recurrenceCtx,
       ),

@@ -1221,6 +1221,33 @@ describe("buildComplianceDisplay — two rows, cadence-scaled windows", () => {
     expect(display.short).toBeDefined();
     expect(display.long).toBeDefined();
   });
+
+  it("a 2-day-old daily med's expected counts reflect its real age", () => {
+    // Created two days ago: the expected-dose counts must reflect ~2 days
+    // of daily doses, not the 7 / 30 a full-window walk would report. No
+    // rung clears the floor, so the selection falls back to the widest
+    // rung while keeping the counts age-accurate.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const createdAt = new Date(NOW.getTime() - 2 * DAY_MS);
+    const display = buildComplianceDisplay([], schedules, ctx({ createdAt }), {
+      now: NOW,
+    });
+    // ~2 days of daily doses — nowhere near the 7 a 7-day window or the 30
+    // a 30-day window would report before the createdAt clamp.
+    expect(display.expectedShort).toBeLessThanOrEqual(3);
+    expect(display.expectedLong).toBeLessThanOrEqual(3);
+    // No rung clears the floor → widest windows still render two rows.
+    expect(display.shortDays).toBe(90);
+    expect(display.longDays).toBe(365);
+  });
 });
 
 describe("expectedSlotsBetween", () => {
@@ -1282,5 +1309,58 @@ describe("expectedSlotsBetween", () => {
       ctx(),
     );
     expect(slots.length).toBe(0);
+  });
+
+  it("clamps the window lower bound to createdAt for a young med", () => {
+    // A daily med created two days before the window's upper bound: the
+    // legacy weekday walker floors on `startsOn` (none here) but not on
+    // `createdAt`, so without the clamp this 30-day window would count
+    // ~30 days of pre-creation slots. With the clamp only the ~2 days the
+    // med actually existed emit a slot.
+    const to = new Date("2025-06-15T00:00:00Z");
+    const from = new Date(to.getTime() - 30 * DAY_MS);
+    const createdAt = new Date(to.getTime() - 2 * DAY_MS);
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const slots = expectedSlotsBetween(schedules, from, to, ctx({ createdAt }));
+    // Daily cadence over ~2 days → at most 3 slots, never the ~30 a full
+    // 30-day window would otherwise emit.
+    expect(slots.length).toBeLessThanOrEqual(3);
+    expect(slots.length).toBeGreaterThanOrEqual(1);
+    // Every emitted slot lands at or after the creation instant.
+    for (const s of slots) {
+      expect(s.at.getTime()).toBeGreaterThanOrEqual(createdAt.getTime());
+    }
+  });
+
+  it("leaves the window untouched when createdAt predates it", () => {
+    // createdAt well before `from` → the clamp is a no-op and the full
+    // window's slots survive.
+    const to = new Date("2025-06-15T00:00:00Z");
+    const from = new Date(to.getTime() - 7 * DAY_MS);
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const slots = expectedSlotsBetween(
+      schedules,
+      from,
+      to,
+      ctx({ createdAt: new Date("2025-01-01T00:00:00Z") }),
+    );
+    // A full week of daily doses → ~7 slots.
+    expect(slots.length).toBeGreaterThanOrEqual(7);
   });
 });
