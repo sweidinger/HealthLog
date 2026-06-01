@@ -4001,6 +4001,10 @@
   "targets": {
     "title": "Valori obiettivo",
     "introText": "I tuoi valori attuali rispetto agli intervalli obiettivo consigliati. Le fonti delle linee guida sono collegate su ogni card.",
+    "deprecation": {
+      "title": "Questa pagina verrà rimossa",
+      "body": "Gli intervalli obiettivo ora si modificano direttamente dalle pagine Insights, nel pannello di riferimento di ogni metrica. Questa pagina resta disponibile per ora e verrà rimossa in una versione futura."
+    },
     "bmi": "IMC",
     "average30d": "Media 30 giorni:",
     "consistency": {

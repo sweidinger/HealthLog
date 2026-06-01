@@ -4001,6 +4001,10 @@
   "targets": {
     "title": "Zielwerte",
     "introText": "Deine aktuellen Werte im Vergleich zu empfohlenen Zielbereichen. Quellen der Leitlinien sind auf jeder Karte verlinkt.",
+    "deprecation": {
+      "title": "Diese Seite wird eingestellt",
+      "body": "Zielbereiche werden jetzt direkt in den Insights bearbeitet, im Referenzbereich jeder Metrik. Diese Seite bleibt vorerst erreichbar und wird in einem künftigen Release entfernt."
+    },
     "bmi": "BMI",
     "average30d": "30-Tage-Schnitt:",
     "consistency": {

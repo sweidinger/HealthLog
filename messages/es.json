@@ -4001,6 +4001,10 @@
   "targets": {
     "title": "Valores objetivo",
     "introText": "Tus valores actuales frente a los rangos objetivo recomendados. Las fuentes de las guías clínicas están enlazadas en cada tarjeta.",
+    "deprecation": {
+      "title": "Esta página se va a retirar",
+      "body": "Los rangos objetivo ahora se editan directamente desde las páginas de Insights, en el panel de referencia de cada métrica. Esta página sigue disponible por ahora y se eliminará en una versión futura."
+    },
     "bmi": "IMC",
     "average30d": "Media 30 días:",
     "consistency": {

@@ -17,7 +17,6 @@ import {
   Settings,
   Shield,
   Sun,
-  Target,
   Trophy,
   Waves,
 } from "lucide-react";
@@ -72,12 +71,6 @@ const navItems = [
     tKey: "nav.insights",
     icon: Lightbulb,
     tourId: "nav-insights",
-  },
-  {
-    href: "/targets",
-    tKey: "nav.targets",
-    icon: Target,
-    tourId: "nav-targets",
   },
   {
     href: "/achievements",

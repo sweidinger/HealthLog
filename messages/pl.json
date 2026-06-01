@@ -4001,6 +4001,10 @@
   "targets": {
     "title": "Wartości docelowe",
     "introText": "Twoje aktualne wartości na tle zalecanych zakresów docelowych. Źródła wytycznych podlinkowane na każdej karcie.",
+    "deprecation": {
+      "title": "Ta strona zostanie wycofana",
+      "body": "Zakresy docelowe edytuje się teraz bezpośrednio na stronach Insights, w panelu referencyjnym każdej metryki. Ta strona pozostaje na razie dostępna i zostanie usunięta w przyszłej wersji."
+    },
     "bmi": "BMI",
     "average30d": "Średnia 30-dniowa:",
     "consistency": {

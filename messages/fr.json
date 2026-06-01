@@ -4001,6 +4001,10 @@
   "targets": {
     "title": "Valeurs cibles",
     "introText": "Tes valeurs actuelles face aux plages cibles recommandées. Les sources des recommandations sont liées sur chaque carte.",
+    "deprecation": {
+      "title": "Cette page va être retirée",
+      "body": "Les plages cibles se modifient désormais directement depuis les pages Insights, sur le panneau de référence de chaque métrique. Cette page reste accessible pour l'instant et sera supprimée dans une prochaine version."
+    },
     "bmi": "IMC",
     "average30d": "Moy. 30 jours :",
     "consistency": {

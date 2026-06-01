@@ -84,6 +84,18 @@ describe("<SidebarNav> bug-report toggle", () => {
   });
 });
 
+describe("<SidebarNav> targets deprecation (v1.8.6)", () => {
+  it("no longer renders the deprecated /targets entry", () => {
+    // The Targets (Zielwerte) page is deprecated; target editing moved
+    // inline into Insights, so the sidebar drops the entry. The main nav
+    // links render into the SSR markup, so asserting absence here is a
+    // real regression net (Insights, the sibling that stays, still shows).
+    const html = render();
+    expect(html).not.toContain('href="/targets"');
+    expect(html).toContain('href="/insights"');
+  });
+});
+
 describe("<SidebarNav> admin entry mirrors Settings (no sub-item expansion)", () => {
   // v1.4.16 A1: the maintainer reported the global sidebar expanding admin
   // sub-items on `/admin/*` was unwanted UX — the in-shell `<AdminShell>`

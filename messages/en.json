@@ -4001,6 +4001,10 @@
   "targets": {
     "title": "Targets",
     "introText": "Your current values compared to recommended target ranges. Guideline sources are linked on each card.",
+    "deprecation": {
+      "title": "This page is being retired",
+      "body": "Target ranges are now edited directly from the Insights pages, on each metric's reference panel. This page stays available for now and will be removed in a future release."
+    },
     "bmi": "BMI",
     "average30d": "30-day average:",
     "consistency": {
