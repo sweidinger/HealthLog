@@ -34,6 +34,22 @@ describe("<MoodNarrativeFeed>", () => {
     expect(html).toContain('data-slot="mood-narrative-feed"');
   });
 
+  it("resolves a structured tag key into the sentence", () => {
+    const items: MoodNarrativeItem[] = [
+      {
+        kind: "tag-lift",
+        messageKey: "insights.mood.narrative.tagLift",
+        vars: { tagKey: "charts.weekdaysFull.fri", delta: "0.6" },
+      },
+    ];
+    // `charts.weekdaysFull.fri` stands in for a catalog label key — the
+    // renderer must resolve `tagKey` the same way it resolves `weekdayKey`.
+    const html = render(<MoodNarrativeFeed items={items} />);
+    expect(html).toContain("Friday");
+    expect(html).not.toContain("charts.weekdaysFull.fri");
+    expect(html).toContain("0.6");
+  });
+
   it("renders one row per takeaway in order", () => {
     const items: MoodNarrativeItem[] = [
       {

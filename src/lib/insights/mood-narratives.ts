@@ -230,17 +230,27 @@ function weekendNarrative(input: MoodNarrativeInput): MoodNarrative | null {
 }
 
 /**
- * Top tag→mood deltas against the overall daily mean. Flat tags and
- * structured tags share one ranked pool; the strongest lift and the
- * strongest drop survive (capped). Each needs the min occurrence count
- * and an effect that clears the magnitude threshold.
+ * Top tag→mood deltas against the overall daily mean. Flat free-text tags
+ * AND structured taxonomy tags share one ranked pool: the strongest lift
+ * and the strongest drop across both axes survive (capped). Each candidate
+ * needs the min occurrence count and an effect that clears the magnitude
+ * threshold.
+ *
+ * The two axes carry different label shapes. A flat tag's label is the
+ * raw free-text string, emitted as `vars.tag` and rendered verbatim. A
+ * structured tag's label is an i18n message key from the catalog, emitted
+ * as `vars.tagKey` so the renderer resolves it in the active locale
+ * (mirroring the `weekdayKey` → `weekday` pattern) before interpolation.
  */
 function tagNarratives(input: MoodNarrativeInput): MoodNarrative[] {
   const overall = mean(input.daily.map((b) => b.value));
   if (overall == null) return [];
 
   type Candidate = {
-    label: string;
+    /** Free-text label for flat tags; null for structured (use `labelKey`). */
+    label: string | null;
+    /** i18n key for structured tags; null for flat (use `label`). */
+    labelKey: string | null;
     delta: number;
     count: number;
   };
@@ -250,6 +260,16 @@ function tagNarratives(input: MoodNarrativeInput): MoodNarrative[] {
     if (row.count < MOOD_NARRATIVE_MIN_TAG_COUNT) continue;
     candidates.push({
       label: row.tag,
+      labelKey: null,
+      delta: round(row.avgScore - overall, 2),
+      count: row.count,
+    });
+  }
+  for (const row of input.structuredTags) {
+    if (row.count < MOOD_NARRATIVE_MIN_TAG_COUNT) continue;
+    candidates.push({
+      label: null,
+      labelKey: row.labelKey,
       delta: round(row.avgScore - overall, 2),
       count: row.count,
     });
@@ -262,13 +282,16 @@ function tagNarratives(input: MoodNarrativeInput): MoodNarrative[] {
     .filter((c) => c.delta <= -MOOD_NARRATIVE_MIN_EFFECT)
     .sort((a, b) => a.delta - b.delta);
 
+  const tagVars = (c: Candidate): Record<string, string> =>
+    c.labelKey != null ? { tagKey: c.labelKey } : { tag: c.label ?? "" };
+
   const out: MoodNarrative[] = [];
   const topLift = lifts[0];
   if (topLift) {
     out.push({
       kind: "tag-lift",
       messageKey: "insights.mood.narrative.tagLift",
-      vars: { tag: topLift.label, delta: topLift.delta.toFixed(1) },
+      vars: { ...tagVars(topLift), delta: topLift.delta.toFixed(1) },
       strength: topLift.delta,
     });
   }
@@ -277,7 +300,10 @@ function tagNarratives(input: MoodNarrativeInput): MoodNarrative[] {
     out.push({
       kind: "tag-drop",
       messageKey: "insights.mood.narrative.tagDrop",
-      vars: { tag: topDrop.label, delta: Math.abs(topDrop.delta).toFixed(1) },
+      vars: {
+        ...tagVars(topDrop),
+        delta: Math.abs(topDrop.delta).toFixed(1),
+      },
       strength: Math.abs(topDrop.delta),
     });
   }

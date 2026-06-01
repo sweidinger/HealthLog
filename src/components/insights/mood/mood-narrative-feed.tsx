@@ -70,9 +70,12 @@ export function MoodNarrativeFeed({ items }: { items: MoodNarrativeItem[] }) {
       {items.map((item, index) => {
         const Icon = pickIcon(item);
         // The weekday key is itself an i18n key — resolve it before
-        // interpolating so the sentence reads in the active locale.
+        // interpolating so the sentence reads in the active locale. A
+        // structured tag→mood takeaway carries its catalog `tagKey`
+        // (an i18n key) the same way; flat tags supply `tag` verbatim.
         const vars: Record<string, string> = { ...item.vars };
         if (vars.weekdayKey) vars.weekday = t(vars.weekdayKey);
+        if (vars.tagKey) vars.tag = t(vars.tagKey);
         return (
           <li
             key={`${item.kind}-${index}`}

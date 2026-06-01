@@ -13,6 +13,7 @@ import {
   MOOD_ORANGE_MAX,
   MOOD_ORANGE_MIN,
   computeInTargetPct,
+  computeStructuredTagSummary,
   computeTagSummary,
   computeWeekdayAverages,
   pairDailyBuckets,
@@ -115,9 +116,37 @@ export async function generateMoodStatusForUser(
         score: true,
         tags: true,
         moodLoggedAt: true,
+        // v1.8.6 — pull the structured-tag links so the snapshot feeds
+        // `computeMoodNarratives` the same structured-tag pool the visible
+        // mood page does (shown == sent for the tag→mood takeaways).
+        tagLinks: {
+          select: {
+            moodTag: {
+              select: {
+                key: true,
+                labelKey: true,
+                icon: true,
+                category: { select: { key: true } },
+              },
+            },
+          },
+        },
       },
     })
-    .then((rows) => rows.reverse());
+    .then((rows) =>
+      rows.reverse().map((row) => ({
+        date: row.date,
+        score: row.score,
+        tags: row.tags,
+        moodLoggedAt: row.moodLoggedAt,
+        structuredTags: (row.tagLinks ?? []).map((link) => ({
+          key: link.moodTag.key,
+          categoryKey: link.moodTag.category.key,
+          labelKey: link.moodTag.labelKey,
+          icon: link.moodTag.icon,
+        })),
+      })),
+    );
 
   const now = new Date();
 
@@ -224,17 +253,18 @@ export async function generateMoodStatusForUser(
   // tag patterns. Shared with the `/api/mood/insights` tag breakdown
   // via `computeTagSummary` so the prose and the chart never drift.
   const tagSummary = computeTagSummary(entries, now);
+  const structuredTagSummary = computeStructuredTagSummary(entries, now);
 
   // v1.8.6 — the same threshold-gated narrative feed the user sees on
   // the mood page, computed from the same aggregates so the prose the
   // model writes never contradicts the takeaways on screen (shown ==
-  // sent). Structured tags are not loaded on this lean snapshot path,
-  // so the tag deltas ride the flat-tag summary only.
+  // sent). Both the flat free-text tags and the structured taxonomy tags
+  // feed the tag→mood pool, matching the visible feed exactly.
   const narratives = computeMoodNarratives({
     daily: moodSeries.daily,
     weekday: computeWeekdayAverages(moodSeries.daily, now),
     tags: tagSummary,
-    structuredTags: [],
+    structuredTags: structuredTagSummary,
     inTargetPct: inTargetPctLast30DailyPoints,
     loggedDayKeys: Array.from(new Set(entries.map((entry) => entry.date))),
     now,

@@ -177,6 +177,80 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
     );
   });
 
+  it("surfaces a structured tag→mood lift via its catalog label key", () => {
+    const input: MoodNarrativeInput = {
+      ...emptyInput(),
+      daily: daily([
+        { dayOffset: 0, value: 3 },
+        { dayOffset: 1, value: 3 },
+        { dayOffset: 2, value: 3 },
+      ]),
+      structuredTags: [
+        {
+          key: "happy",
+          categoryKey: "feelings",
+          labelKey: "insights.mood.tags.feelings.happy",
+          icon: null,
+          count: MOOD_NARRATIVE_MIN_TAG_COUNT,
+          avgScore: 4.5,
+        },
+      ],
+    };
+    const out = computeMoodNarratives(input);
+    const lift = out.find((n) => n.kind === "tag-lift");
+    // structured tags carry an i18n key the renderer resolves, never a
+    // raw label string.
+    expect(lift?.vars.tagKey).toBe("insights.mood.tags.feelings.happy");
+    expect(lift?.vars.tag).toBeUndefined();
+  });
+
+  it("ranks flat and structured tags in one shared pool", () => {
+    const input: MoodNarrativeInput = {
+      ...emptyInput(),
+      daily: daily([
+        { dayOffset: 0, value: 3 },
+        { dayOffset: 1, value: 3 },
+        { dayOffset: 2, value: 3 },
+      ]),
+      tags: [{ tag: "sport", count: MOOD_NARRATIVE_MIN_TAG_COUNT, avgScore: 4 }],
+      structuredTags: [
+        {
+          key: "celebrating",
+          categoryKey: "events",
+          labelKey: "insights.mood.tags.events.celebrating",
+          icon: null,
+          count: MOOD_NARRATIVE_MIN_TAG_COUNT,
+          avgScore: 5, // stronger lift than the flat "sport" tag
+        },
+      ],
+    };
+    const lift = computeMoodNarratives(input).find((n) => n.kind === "tag-lift");
+    // the stronger structured lift wins the single tag-lift slot.
+    expect(lift?.vars.tagKey).toBe("insights.mood.tags.events.celebrating");
+  });
+
+  it("ignores a structured tag below the occurrence gate", () => {
+    const input: MoodNarrativeInput = {
+      ...emptyInput(),
+      daily: daily([
+        { dayOffset: 0, value: 3 },
+        { dayOffset: 1, value: 3 },
+      ]),
+      structuredTags: [
+        {
+          key: "rare",
+          categoryKey: "events",
+          labelKey: "insights.mood.tags.events.rare",
+          icon: null,
+          count: MOOD_NARRATIVE_MIN_TAG_COUNT - 1,
+          avgScore: 5,
+        },
+      ],
+    };
+    const out = computeMoodNarratives(input);
+    expect(out.some((n) => n.kind === "tag-lift")).toBe(false);
+  });
+
   it("stays silent on a tag whose delta is below the effect threshold", () => {
     const input: MoodNarrativeInput = {
       ...emptyInput(),
