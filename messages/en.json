@@ -1323,9 +1323,7 @@
     "trackInjectionSitesToggle": "Track injection sites",
     "trackInjectionSitesHint": "After a dose is taken, ask which site was used and suggest the next rotation.",
     "allowedSitesLabel": "Allowed sites",
-    "allowedSitesHint": "Leave all selected for no restriction. Sites you excluded globally are never offered.",
-    "injectionRotationOverviewTitle": "Site rotation",
-    "injectionRotationNextSuggested": "Suggested next: {site}"
+    "allowedSitesHint": "Leave all selected for no restriction. Sites you excluded globally are never offered."
   },
   "charts": {
     "loadingLabel": "Loading chart…",

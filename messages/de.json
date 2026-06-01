@@ -1323,9 +1323,7 @@
     "trackInjectionSitesToggle": "Injektionsstellen erfassen",
     "trackInjectionSitesHint": "Nach einer eingenommenen Dosis nach der verwendeten Stelle fragen und die nächste Rotation vorschlagen.",
     "allowedSitesLabel": "Erlaubte Stellen",
-    "allowedSitesHint": "Alle ausgewählt lassen für keine Einschränkung. Global ausgeschlossene Stellen werden nie angeboten.",
-    "injectionRotationOverviewTitle": "Stellen-Rotation",
-    "injectionRotationNextSuggested": "Vorschlag als Nächstes: {site}"
+    "allowedSitesHint": "Alle ausgewählt lassen für keine Einschränkung. Global ausgeschlossene Stellen werden nie angeboten."
   },
   "charts": {
     "loadingLabel": "Diagramm wird geladen…",
