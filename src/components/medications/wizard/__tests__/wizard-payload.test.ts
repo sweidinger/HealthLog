@@ -14,6 +14,7 @@ import {
   rowFromTreatment,
   setActiveSchedule,
   summariseCadence,
+  summariseScheduleDraft,
   validateStep,
   type WizardPayload,
   WIZARD_TREATMENT_MAPPING,
@@ -556,6 +557,49 @@ describe("summariseCadence", () => {
     const out = summariseCadence(p, t);
     expect(out).toContain("medications.wizard.summary.dayOfMonthDetail");
     expect(out).toMatch(/dayOfMonthDetail[^|]*"day":15/);
+  });
+});
+
+describe("summariseScheduleDraft — shared cadence-line helper", () => {
+  const t = makeStubT();
+
+  // The per-schedule summary and the medication-wide summary build their
+  // cadence segment from the same extracted helper, so for an equivalent
+  // cadence shape the draft summary equals the leading segment of the
+  // full summary (which trails the times / course-window phrases).
+  it("matches summariseCadence's leading cadence segment", () => {
+    const cases: WizardPayload[] = [
+      withCadence("daily"),
+      withCadence("everyNWeeks", { intervalWeeks: 2, weekdays: ["MO"] }),
+      withCadence("rolling", { rollingDays: 14 }),
+      withCadence("weekdays", { weekdays: ["MO", "WE", "FR"] }),
+      withCadence("monthly", { dayOfMonth: 15 }),
+    ];
+    for (const base of cases) {
+      // `withCadence` only sets the flat mirror fields; commit them onto
+      // the active schedule draft so the draft carries the same cadence.
+      const p = commitActiveDraft(base);
+      const draft = p.schedules[p.activeScheduleIndex];
+      const draftLine = summariseScheduleDraft(draft, t);
+      const fullSummary = summariseCadence(p, t);
+      // The draft line's cadence segment is the leading " · " segment of
+      // the full summary (which trails times / course-window phrases).
+      const firstSegment = fullSummary.split(" · ")[0];
+      expect(draftLine.split(" · ")[0]).toBe(firstSegment);
+    }
+  });
+
+  it("threads the everyNWeeks interval into the cadence key", () => {
+    const p = commitActiveDraft(withCadence("everyNWeeks", { intervalWeeks: 3 }));
+    const out = summariseScheduleDraft(p.schedules[p.activeScheduleIndex], t);
+    expect(out).toMatch(/cadence\.everyNWeeks[^|]*"n":3/);
+  });
+
+  it("omits the cadence detail for a one-shot draft", () => {
+    const p = commitActiveDraft(withCadence("oneShot"));
+    const out = summariseScheduleDraft(p.schedules[p.activeScheduleIndex], t);
+    expect(out).not.toContain("weekdaysDetail");
+    expect(out).not.toContain("dayOfMonthDetail");
   });
 });
 
