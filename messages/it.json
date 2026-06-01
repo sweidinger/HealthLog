@@ -1408,7 +1408,8 @@
       "fri": "Venerdì",
       "sat": "Sabato",
       "sun": "Domenica"
-    }
+    },
+    "rangeBand": "Intervallo"
   },
   "chart": {
     "overlay": {
@@ -1956,7 +1957,22 @@
         "bloodGlucoseBody": "La glicemia è la quantità di zucchero nel sangue, la principale fonte di energia del corpo. Sale dopo i pasti e si stabilizza tra un pasto e l'altro; valori che restano alti nel tempo possono indicare diabete o prediabete.",
         "skinTemperatureTitle": "Temperatura cutanea",
         "skinTemperatureBody": "La temperatura cutanea qui è la piccola variazione notturna della temperatura del polso rispetto al tuo valore di riferimento, non una misura assoluta della febbre. Le variazioni possono seguire sonno, ambiente, malattia o fase del ciclo mestruale."
-      }
+      },
+      "stats": {
+        "label": "Statistiche riepilogative",
+        "min": "Min",
+        "max": "Max",
+        "median": "Mediana",
+        "mean": "Media"
+      },
+      "showAllValues": "Mostra tutte le misurazioni",
+      "valuesPageTitle": "{metric} — tutte le misurazioni",
+      "valuesPageDescription": "Ogni misurazione dietro questa metrica. Modifica o rimuovi una voce direttamente.",
+      "diversity": {
+        "weekday": "La maggior parte delle tue misurazioni di {metric} cade in un solo giorno della settimana. Registrare in altri giorni offre un quadro più completo.",
+        "timeOfDay": "La maggior parte delle tue misurazioni di {metric} cade in un orario simile della giornata. Variare l'orario offre un quadro più completo."
+      },
+      "valuesBack": "Torna a Insights"
     },
     "sleep": {
       "title": "Sonno",

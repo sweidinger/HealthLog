@@ -24,6 +24,7 @@ const stubSummary = (): DataSummary => ({
   min: 76,
   max: 80,
   mean: 78,
+  median: 78,
   avg7: 78.2,
   avg30: 77.9,
   slope7: null,

@@ -13,6 +13,8 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { Vo2MaxChartRow } from "@/components/insights/vo2-max-chart-row";
@@ -114,6 +116,20 @@ export default function InsightsPulsPage() {
       title={t("insights.pulseSectionTitle")}
       description={t("insights.subPage.pulsDescription")}
       explainerMetric="pulse"
+      statStrip={
+        <MetricStatStrip
+          summary={analytics?.summaries?.PULSE ?? null}
+          unit="bpm"
+        />
+      }
+      diversityNudge={
+        <MeasurementDiversityNudge
+          measurementType="PULSE"
+          metricLabel={t("insights.pulseSectionTitle")}
+          timeZone={user?.timezone ?? undefined}
+        />
+      }
+      showAllValuesType="PULSE"
     >
       <HealthChartDynamic
         chartKey="pulse"

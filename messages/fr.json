@@ -1408,7 +1408,8 @@
       "fri": "Vendredi",
       "sat": "Samedi",
       "sun": "Dimanche"
-    }
+    },
+    "rangeBand": "Plage"
   },
   "chart": {
     "overlay": {
@@ -1956,7 +1957,22 @@
         "bloodGlucoseBody": "La glycémie est la quantité de sucre dans votre sang, principale source d'énergie de l'organisme. Elle augmente après les repas et se stabilise entre eux ; des valeurs durablement élevées peuvent signaler un diabète ou un prédiabète.",
         "skinTemperatureTitle": "Température cutanée",
         "skinTemperatureBody": "La température cutanée correspond ici à la petite variation nocturne de la température de votre poignet par rapport à votre propre référence, et non à une mesure absolue de fièvre. Les variations peuvent suivre le sommeil, l'environnement, une maladie ou la phase du cycle menstruel."
-      }
+      },
+      "stats": {
+        "label": "Statistiques récapitulatives",
+        "min": "Min",
+        "max": "Max",
+        "median": "Médiane",
+        "mean": "Moyenne"
+      },
+      "showAllValues": "Afficher toutes les mesures",
+      "valuesPageTitle": "{metric} — toutes les mesures",
+      "valuesPageDescription": "Chaque mesure derrière cette métrique. Modifiez ou supprimez une entrée directement.",
+      "diversity": {
+        "weekday": "La plupart de vos mesures de {metric} tombent le même jour de la semaine. Enregistrer d'autres jours donne une image plus complète.",
+        "timeOfDay": "La plupart de vos mesures de {metric} tombent à une heure similaire de la journée. Varier l'heure donne une image plus complète."
+      },
+      "valuesBack": "Retour aux Insights"
     },
     "sleep": {
       "title": "Sommeil",

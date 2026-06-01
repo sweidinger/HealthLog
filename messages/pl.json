@@ -1408,7 +1408,8 @@
       "fri": "Piątek",
       "sat": "Sobota",
       "sun": "Niedziela"
-    }
+    },
+    "rangeBand": "Zakres"
   },
   "chart": {
     "overlay": {
@@ -1956,7 +1957,22 @@
         "bloodGlucoseBody": "Poziom glukozy we krwi to ilość cukru we krwi, głównego źródła energii organizmu. Rośnie po jedzeniu i ustala się między posiłkami; wartości utrzymujące się wysoko mogą sygnalizować cukrzycę lub stan przedcukrzycowy.",
         "skinTemperatureTitle": "Temperatura skóry",
         "skinTemperatureBody": "Temperatura skóry to tutaj niewielka nocna zmiana temperatury nadgarstka względem twojej własnej wartości bazowej, a nie bezwzględny pomiar gorączki. Zmiany mogą odzwierciedlać sen, otoczenie, chorobę lub fazę cyklu menstruacyjnego."
-      }
+      },
+      "stats": {
+        "label": "Statystyki podsumowujące",
+        "min": "Min",
+        "max": "Maks",
+        "median": "Mediana",
+        "mean": "Średnia"
+      },
+      "showAllValues": "Pokaż wszystkie pomiary",
+      "valuesPageTitle": "{metric} — wszystkie pomiary",
+      "valuesPageDescription": "Każdy pomiar stojący za tą metryką. Edytuj lub usuń wpis bezpośrednio.",
+      "diversity": {
+        "weekday": "Większość Twoich pomiarów {metric} przypada na jeden dzień tygodnia. Pomiary w inne dni dają pełniejszy obraz.",
+        "timeOfDay": "Większość Twoich pomiarów {metric} przypada o podobnej porze dnia. Różne pory dają pełniejszy obraz."
+      },
+      "valuesBack": "Powrót do Insights"
     },
     "sleep": {
       "title": "Sen",

@@ -13,6 +13,8 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { buildWeightBandsFromHeight } from "@/lib/analytics/value-bands";
@@ -37,7 +39,8 @@ export default function InsightsGewichtPage() {
   const { data: status, isLoading: isStatusLoading } =
     useInsightStatus("weight");
 
-  const { isEmpty } = useInsightsAnalytics("WEIGHT");
+  const { data: analytics, isEmpty } = useInsightsAnalytics("WEIGHT");
+  const weightSummary = analytics?.summaries?.WEIGHT ?? null;
 
   if (isEmpty) {
     return (
@@ -75,6 +78,15 @@ export default function InsightsGewichtPage() {
       title={t("insights.weightSectionTitle")}
       description={t("insights.subPage.gewichtDescription")}
       explainerMetric="weight"
+      statStrip={<MetricStatStrip summary={weightSummary} unit="kg" />}
+      diversityNudge={
+        <MeasurementDiversityNudge
+          measurementType="WEIGHT"
+          metricLabel={t("insights.weightSectionTitle")}
+          timeZone={user?.timezone ?? undefined}
+        />
+      }
+      showAllValuesType="WEIGHT"
     >
       <HealthChartDynamic
         chartKey="weight"

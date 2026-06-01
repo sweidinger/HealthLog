@@ -374,6 +374,16 @@ export const queryKeys = {
       toIso,
       valueScale,
     ] as const,
+
+  /**
+   * v1.8.5 — bounded recent-timestamp read powering the
+   * measurement-diversity nudge on an insights category page. Keyed by
+   * the page's `MeasurementType` so each metric caches its own window.
+   * Shares the `measurement-dependent` invalidation prefix below so an
+   * edit/delete in the values subpage re-runs the clustering check.
+   */
+  measurementDiversity: (type: string) =>
+    ["measurement-diversity", type] as const,
 };
 
 /**
@@ -394,6 +404,8 @@ export const measurementDependentKeys = [
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),
   ["chart-data"] as const,
+  // v1.8.5 — re-run the diversity-nudge clustering when readings change.
+  ["measurement-diversity"] as const,
 ];
 
 /**

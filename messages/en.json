@@ -1408,7 +1408,8 @@
       "fri": "Friday",
       "sat": "Saturday",
       "sun": "Sunday"
-    }
+    },
+    "rangeBand": "Range"
   },
   "chart": {
     "overlay": {
@@ -1956,7 +1957,22 @@
         "bloodGlucoseBody": "Blood glucose is the amount of sugar in your blood, the body's main energy source. It rises after eating and settles between meals; readings that stay high over time can signal diabetes or prediabetes.",
         "skinTemperatureTitle": "Skin temperature",
         "skinTemperatureBody": "Skin temperature here is the small nightly change in your wrist temperature from your own baseline, not an absolute fever reading. Shifts can track sleep, environment, illness, or menstrual-cycle phase."
-      }
+      },
+      "stats": {
+        "label": "Summary statistics",
+        "min": "Min",
+        "max": "Max",
+        "median": "Median",
+        "mean": "Mean"
+      },
+      "showAllValues": "Show all readings",
+      "valuesPageTitle": "{metric} — all readings",
+      "valuesPageDescription": "Every reading behind this metric. Edit or remove an entry directly.",
+      "diversity": {
+        "weekday": "Most of your {metric} readings land on one weekday. Logging on other days gives a fuller picture.",
+        "timeOfDay": "Most of your {metric} readings land at a similar time of day. Varying the time gives a fuller picture."
+      },
+      "valuesBack": "Back to insights"
     },
     "sleep": {
       "title": "Sleep",

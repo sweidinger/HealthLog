@@ -120,6 +120,13 @@ export interface DataSummary {
   max: number | null;
   /** Null when the series is empty (vs the previous 0 sentinel). */
   mean: number | null;
+  /**
+   * v1.8.5 — 50th percentile (median) of the value series. Surfaced on
+   * the insights category-page stat strip alongside min / max / mean so
+   * a skewed series (a few very high or very low readings dragging the
+   * mean) reads honestly. Null when the series is empty.
+   */
+  median: number | null;
   avg7: number | null;
   avg30: number | null;
   slope7: TrendSlope | null;
@@ -152,6 +159,7 @@ export function summarize(data: DataPoint[]): DataSummary {
       min: null,
       max: null,
       mean: null,
+      median: null,
       avg7: null,
       avg30: null,
       slope7: null,
@@ -184,6 +192,19 @@ export function summarize(data: DataPoint[]): DataSummary {
   }
   const mean = sum / values.length;
 
+  // v1.8.5 — median (50th percentile) over the full series. A separate
+  // numeric sort from the date-ordered `sorted` array above so the
+  // percentile is taken over values, not timestamps. Linear-interpolated
+  // midpoint on an even-length series (the standard PERCENTILE_CONT
+  // definition) so this matches the SQL `PERCENTILE_CONT(0.5)` the
+  // rollup-tier slim slice emits.
+  const valueSorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(valueSorted.length / 2);
+  const median =
+    valueSorted.length % 2 === 0
+      ? (valueSorted[mid - 1] + valueSorted[mid]) / 2
+      : valueSorted[mid];
+
   const now = Date.now();
   const DAY = 24 * 60 * 60 * 1000;
   const last7 = sorted.filter((p) => now - p.date.getTime() < 7 * DAY);
@@ -215,6 +236,7 @@ export function summarize(data: DataPoint[]): DataSummary {
     min: minVal,
     max: maxVal,
     mean: Math.round(mean * 100) / 100,
+    median: Math.round(median * 100) / 100,
     avg7:
       last7.length > 0
         ? Math.round(

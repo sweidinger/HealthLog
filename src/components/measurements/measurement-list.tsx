@@ -103,6 +103,15 @@ interface MeasurementListProps {
    * (fallback to the header CTA) instead of crashing.
    */
   onAddFirst?: () => void;
+  /**
+   * v1.8.5 — pin the list to a single `MeasurementType` and hide the
+   * type selector. Used by the insights "all readings" subpage, which
+   * already knows the metric from the route and wants a focused list
+   * (pagination + inline edit/delete) rather than the global filter UI.
+   * When set, the type `Select` is not rendered and every fetch is
+   * scoped to this type; the count caption still shows.
+   */
+  lockedType?: string;
 }
 
 const PAGE_SIZE = 25;
@@ -152,12 +161,20 @@ function sourceBadgeClass(source: string): string {
   return "";
 }
 
-export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
+export function MeasurementList({
+  onEdit,
+  onAddFirst,
+  lockedType,
+}: MeasurementListProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
-  const [typeFilter, setTypeFilterRaw] = useState<string>("ALL");
+  // v1.8.5 — when `lockedType` is set the list is pinned to that metric
+  // and the type selector is hidden; the filter state seeds from it.
+  const [typeFilter, setTypeFilterRaw] = useState<string>(
+    lockedType ?? "ALL",
+  );
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<string>("measuredAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -419,22 +436,31 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
             Pixel 5 (375 px content width) left only ~120 px for the
             count, which wrapped to 2 lines. */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger
-              className="w-full sm:w-48"
-              aria-label={t("measurements.filterByType")}
-            >
-              <SelectValue placeholder={t("measurements.allTypes")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">{t("measurements.allTypes")}</SelectItem>
-              {Object.entries(TYPE_LABEL_KEYS).map(([val, labelKey]) => (
-                <SelectItem key={val} value={val}>
-                  {t(labelKey)}
+          {lockedType ? (
+            // v1.8.5 — the insights "all readings" subpage knows the
+            // metric from the route, so the global type selector is
+            // suppressed; the count caption still anchors the column.
+            <span className="sr-only">{t("measurements.filterByType")}</span>
+          ) : (
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger
+                className="w-full sm:w-48"
+                aria-label={t("measurements.filterByType")}
+              >
+                <SelectValue placeholder={t("measurements.allTypes")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">
+                  {t("measurements.allTypes")}
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {Object.entries(TYPE_LABEL_KEYS).map(([val, labelKey]) => (
+                  <SelectItem key={val} value={val}>
+                    {t(labelKey)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {data?.meta?.total !== undefined && (
             <span className="text-muted-foreground text-sm">
               {t("measurements.measurementCount", {
@@ -457,17 +483,19 @@ export function MeasurementList({ onEdit, onAddFirst }: MeasurementListProps) {
           <EmptyState
             icon={<Activity className="size-6" />}
             title={
-              typeFilter === "ALL"
+              typeFilter === "ALL" || lockedType
                 ? t("measurements.emptyTitle")
                 : t("measurements.emptyFilteredTitle")
             }
             description={
-              typeFilter === "ALL"
+              typeFilter === "ALL" || lockedType
                 ? t("measurements.emptyDescription")
                 : t("measurements.emptyFilteredDescription")
             }
             action={
-              typeFilter !== "ALL" ? (
+              // v1.8.5 — a locked-type list has no "reset filter" path;
+              // the metric is fixed by the route.
+              typeFilter !== "ALL" && !lockedType ? (
                 <Button
                   variant="outline"
                   onClick={() => setTypeFilter("ALL")}

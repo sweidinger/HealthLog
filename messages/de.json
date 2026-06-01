@@ -1408,7 +1408,8 @@
       "fri": "Freitag",
       "sat": "Samstag",
       "sun": "Sonntag"
-    }
+    },
+    "rangeBand": "Bereich"
   },
   "chart": {
     "overlay": {
@@ -1956,7 +1957,22 @@
         "bloodGlucoseBody": "Der Blutzucker ist die Zuckermenge in deinem Blut, die wichtigste Energiequelle des Körpers. Er steigt nach dem Essen und pendelt sich zwischen den Mahlzeiten ein; dauerhaft hohe Werte können auf Diabetes oder Prädiabetes hinweisen.",
         "skinTemperatureTitle": "Hauttemperatur",
         "skinTemperatureBody": "Die Hauttemperatur ist hier die kleine nächtliche Abweichung deiner Handgelenkstemperatur von deinem eigenen Ausgangswert, keine absolute Fiebermessung. Veränderungen können Schlaf, Umgebung, Krankheit oder Zyklusphase widerspiegeln."
-      }
+      },
+      "stats": {
+        "label": "Zusammenfassende Statistik",
+        "min": "Min",
+        "max": "Max",
+        "median": "Median",
+        "mean": "Mittelwert"
+      },
+      "showAllValues": "Alle Werte anzeigen",
+      "valuesPageTitle": "{metric} — alle Werte",
+      "valuesPageDescription": "Jeder einzelne Wert hinter dieser Kennzahl. Einträge lassen sich direkt bearbeiten oder entfernen.",
+      "diversity": {
+        "weekday": "Die meisten deiner {metric}-Werte fallen auf einen Wochentag. Messungen an anderen Tagen ergeben ein vollständigeres Bild.",
+        "timeOfDay": "Die meisten deiner {metric}-Werte fallen auf eine ähnliche Tageszeit. Unterschiedliche Zeiten ergeben ein vollständigeres Bild."
+      },
+      "valuesBack": "Zurück zu Insights"
     },
     "sleep": {
       "title": "Schlaf",

@@ -1408,7 +1408,8 @@
       "fri": "Viernes",
       "sat": "Sábado",
       "sun": "Domingo"
-    }
+    },
+    "rangeBand": "Rango"
   },
   "chart": {
     "overlay": {
@@ -1956,7 +1957,22 @@
         "bloodGlucoseBody": "La glucosa en sangre es la cantidad de azúcar en tu sangre, la principal fuente de energía del cuerpo. Sube tras comer y se estabiliza entre comidas; valores que se mantienen altos con el tiempo pueden indicar diabetes o prediabetes.",
         "skinTemperatureTitle": "Temperatura de la piel",
         "skinTemperatureBody": "La temperatura de la piel aquí es el pequeño cambio nocturno de la temperatura de tu muñeca respecto a tu propio valor de referencia, no una medición absoluta de fiebre. Las variaciones pueden seguir el sueño, el entorno, una enfermedad o la fase del ciclo menstrual."
-      }
+      },
+      "stats": {
+        "label": "Estadísticas resumidas",
+        "min": "Mín",
+        "max": "Máx",
+        "median": "Mediana",
+        "mean": "Media"
+      },
+      "showAllValues": "Mostrar todas las mediciones",
+      "valuesPageTitle": "{metric} — todas las mediciones",
+      "valuesPageDescription": "Cada medición detrás de esta métrica. Edita o elimina una entrada directamente.",
+      "diversity": {
+        "weekday": "La mayoría de tus mediciones de {metric} caen en un mismo día de la semana. Registrar en otros días ofrece una imagen más completa.",
+        "timeOfDay": "La mayoría de tus mediciones de {metric} caen a una hora similar del día. Variar la hora ofrece una imagen más completa."
+      },
+      "valuesBack": "Volver a Insights"
     },
     "sleep": {
       "title": "Sueño",

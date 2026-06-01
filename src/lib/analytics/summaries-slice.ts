@@ -109,6 +109,16 @@ interface NarrowAggregateRow {
   type: string;
   avg7: number | null;
   avg30: number | null;
+  /**
+   * v1.8.5 — 50th percentile over the trailing 90-day window. The
+   * windowed median is cheap (the narrow query already index-scans the
+   * 90-day partition) and represents the central reading the stat strip
+   * surfaces next to min / max / mean. An all-time median would require
+   * sorting every raw row per type, which the rollup tier cannot
+   * compose and which the perf posture (v1.8.3 anti-freeze) forbids on
+   * the read path. Null when the window holds no rows.
+   */
+  median: number | null;
   avg30_last_month: number | null;
   slope7: number | null;
   r2_7: number | null;
@@ -159,6 +169,7 @@ function emptySummary(): DataSummary {
     min: null,
     max: null,
     mean: null,
+    median: null,
     avg7: null,
     avg30: null,
     slope7: null,
@@ -271,6 +282,11 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
           WHERE m."measured_at" >= NOW() - INTERVAL '60 days'
             AND m."measured_at" <  NOW() - INTERVAL '30 days'
         )::double precision                                           AS avg30_last_month,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (
+          ORDER BY m."value"
+        ) FILTER (
+          WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
+        )::double precision                                           AS median,
         REGR_SLOPE(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
@@ -414,6 +430,7 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
       min: round2(row.min),
       max: round2(row.max),
       mean: round2(row.mean),
+      median: round2(narrow?.median ?? null),
       avg7: round2(narrow?.avg7 ?? null),
       avg30: round2(narrow?.avg30 ?? null),
       slope7: buildSlope(narrow?.slope7 ?? null, narrow?.r2_7 ?? null),
@@ -509,6 +526,11 @@ async function computeFromLiveAggregate(
           WHERE m."measured_at" >= NOW() - INTERVAL '60 days'
             AND m."measured_at" <  NOW() - INTERVAL '30 days'
         )::double precision                                           AS avg30_last_month,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (
+          ORDER BY m."value"
+        ) FILTER (
+          WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
+        )::double precision                                           AS median,
         REGR_SLOPE(
           m."value",
           EXTRACT(EPOCH FROM m."measured_at") / 86400.0
@@ -617,6 +639,7 @@ async function computeFromLiveAggregate(
       min: round2(row.min_value),
       max: round2(row.max_value),
       mean: round2(row.mean_value),
+      median: round2(win?.median ?? null),
       avg7: round2(win?.avg7 ?? null),
       avg30: round2(win?.avg30 ?? null),
       slope7: buildSlope(win?.slope7 ?? null, win?.r2_7 ?? null),

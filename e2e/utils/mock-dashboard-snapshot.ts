@@ -37,6 +37,7 @@ function summary(partial: Partial<DataSummary>): DataSummary {
     min: null,
     max: null,
     mean: null,
+    median: null,
     avg7: null,
     avg30: null,
     slope7: null,

@@ -7,6 +7,7 @@ import {
   ResponsiveContainer,
   ComposedChart,
   Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -193,12 +194,20 @@ interface ChartDataPoint {
   date: string;
   timestamp: number;
   pointIndex?: number;
-  [key: string]: string | number | undefined;
+  // v1.8.5 — `${type}__range` keys carry a `[min, max]` tuple for the
+  // range-band <Area>; every other key stays a scalar.
+  [key: string]: string | number | undefined | [number, number];
 }
 
 interface MeasurementApiRow {
   measuredAt: string;
   value: number;
+  // v1.8.5 — per-day min / max emitted by the rollup daily-aggregate
+  // path (non-cumulative metrics only). Drive the Apple-Health-style
+  // range band shaded around the mean line. Absent on the raw-row path
+  // (windows ≤ 7 days) and on cumulative metrics.
+  minValue?: number;
+  maxValue?: number;
   // v1.4.43 W2-CHART-GATE — the rollup / daily-aggregate paths return
   // the underlying raw-row count per bucket. Used downstream to gate
   // the "more days needed" empty-state copy on the actual measurement
@@ -597,7 +606,19 @@ export function HealthChart({
         string,
         {
           timestamp: number;
-          values: Record<string, { sum: number; count: number }>;
+          values: Record<
+            string,
+            {
+              sum: number;
+              count: number;
+              // v1.8.5 — per-bucket spread for the range band. Seeded
+              // from the rollup daily-aggregate's min / max columns;
+              // null when the API row carries no spread (raw-row path
+              // or cumulative metric).
+              min: number | null;
+              max: number | null;
+            }
+          >;
         }
       >();
 
@@ -674,9 +695,30 @@ export function HealthChart({
             timestamp: dayKeyToTimestamp(dayKey),
             values: {},
           };
-          const current = bucket.values[type] ?? { sum: 0, count: 0 };
+          const current = bucket.values[type] ?? {
+            sum: 0,
+            count: 0,
+            min: null,
+            max: null,
+          };
           current.sum += value;
           current.count += 1;
+          // v1.8.5 — carry the rollup bucket's min / max through when the
+          // API supplies them (daily-aggregate path, non-cumulative).
+          // `valueScale` already folded into `value` above; apply the
+          // same scale to the spread so the band tracks the line.
+          if (
+            typeof measurement.minValue === "number" &&
+            typeof measurement.maxValue === "number" &&
+            valueMode !== "bmi"
+          ) {
+            const scaledMin = measurement.minValue * valueScale;
+            const scaledMax = measurement.maxValue * valueScale;
+            current.min =
+              current.min === null ? scaledMin : Math.min(current.min, scaledMin);
+            current.max =
+              current.max === null ? scaledMax : Math.max(current.max, scaledMax);
+          }
           bucket.values[type] = current;
           dailyAggregates.set(dayKey, bucket);
         }
@@ -702,6 +744,13 @@ export function HealthChart({
               type as MeasurementType,
             );
             point[type] = isCumulative ? stats.sum : stats.sum / stats.count;
+            // v1.8.5 — emit the day's spread as a `[min, max]` tuple key
+            // so the range-band <Area> can shade it. Only when the
+            // rollup supplied both bounds and the metric is not
+            // cumulative (a SUM has no meaningful intra-day spread).
+            if (!isCumulative && stats.min !== null && stats.max !== null) {
+              point[`${type}__range`] = [stats.min, stats.max] as never;
+            }
           }
 
           return point;
@@ -1746,6 +1795,33 @@ export function HealthChart({
                     }}
                   />
                 )}
+                {/* v1.8.5 — min–max range band. An Apple-Health-style
+                    shaded area between each day's min and max, painted
+                    behind the mean line so it reads as context, not a
+                    second series. Gated on `!mini` (the dashboard
+                    sparkline stays clean) and on the daily-aggregate
+                    path supplying a `[min, max]` tuple per point — single
+                    non-cumulative metrics with intra-day spread (pulse,
+                    weight, glucose, BP). The toggle rides the existing
+                    target-range pref so the user controls both bands
+                    from one switch. */}
+                {!mini &&
+                  showBands &&
+                  types.map((type, i) => (
+                    <Area
+                      key={`${type}__range`}
+                      type="monotone"
+                      dataKey={`${type}__range`}
+                      name={`${getTypeLabel(type, valueMode, t)} (${t("charts.rangeBand")})`}
+                      stroke="none"
+                      fill={colors[i % colors.length]}
+                      fillOpacity={0.12}
+                      connectNulls
+                      isAnimationActive={animationsEnabled}
+                      legendType="none"
+                      tooltipType="none"
+                    />
+                  ))}
                 {types.map((type, i) => (
                   <Line
                     key={type}
