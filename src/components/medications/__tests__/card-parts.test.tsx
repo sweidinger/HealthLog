@@ -56,6 +56,23 @@ describe("medication card-parts — shared presentational components", () => {
     expect(html).not.toContain("text-orange-400");
   });
 
+  it("compliance bars scale the row labels to the chosen windows", () => {
+    // v1.8.6 — a sparse cadence steps both windows up; the labels follow.
+    const html = render(
+      <MedicationComplianceBars
+        rate7={75}
+        rate30={80}
+        streak={0}
+        shortDays={90}
+        longDays={365}
+      />,
+    );
+    expect(html).toContain("90-day compliance");
+    expect(html).toContain("365-day compliance");
+    expect(html).not.toContain("7-day compliance");
+    expect(html).not.toContain("30-day compliance");
+  });
+
   it("compliance bars hide the streak flame when streak is zero", () => {
     const html = render(
       <MedicationComplianceBars rate7={90} rate30={88} streak={0} />,

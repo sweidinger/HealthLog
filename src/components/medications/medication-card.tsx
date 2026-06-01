@@ -9,10 +9,6 @@ import { MedicationCardMenu } from "@/components/medications/medication-card-men
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
-import {
-  DoseAdherenceTimeline,
-  type DoseAdherenceCell,
-} from "@/components/medications/card-parts/dose-adherence-timeline";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { formatDateTime, formatTime } from "@/lib/format";
@@ -76,12 +72,13 @@ interface Medication {
 }
 
 interface ComplianceDisplay {
-  mode: "percent" | "timeline";
-  expected7: number;
-  expected30: number;
+  shortDays: number;
+  longDays: number;
+  expectedShort: number;
+  expectedLong: number;
   minStableDoses: number;
-  doseTimeline: DoseAdherenceCell[];
-  recentDoseSummary: { taken: number; total: number; doseStreak: number };
+  short: { rate: number; streak: number };
+  long: { rate: number };
 }
 
 interface ComplianceData {
@@ -97,9 +94,11 @@ interface ComplianceData {
     rate: number;
   };
   /**
-   * v1.8.5 — server-decided render mode for the compliance region. Dense
-   * cadences keep the 7-/30-day bars (`"percent"`); sparse cadences swap to
-   * the per-dose uptime strip (`"timeline"`). Additive — older mocks omit it.
+   * v1.8.6 — the two compliance windows scaled to the dosing cadence. The
+   * card always shows two percentage rows; `shortDays` / `longDays` name the
+   * windows and `short` / `long` carry their rates. Additive — older mocks
+   * omit it, in which case the card falls back to the static 7-/30-day
+   * `compliance7` / `compliance30` fields.
    */
   complianceDisplay?: ComplianceDisplay;
 }
@@ -222,9 +221,15 @@ export function MedicationCard({
     }
   }
 
-  const rate7 = compliance?.compliance7?.rate ?? 0;
-  const rate30 = compliance?.compliance30?.rate ?? 0;
-  const streak = compliance?.compliance7?.streak ?? 0;
+  // v1.8.6 — the two compliance windows scale with the dosing cadence. When
+  // the server supplies `complianceDisplay` the card reads its cadence-scaled
+  // rows; otherwise it falls back to the static 7-/30-day fields.
+  const display = compliance?.complianceDisplay;
+  const shortDays = display?.shortDays ?? 7;
+  const longDays = display?.longDays ?? 30;
+  const rate7 = display?.short.rate ?? compliance?.compliance7?.rate ?? 0;
+  const rate30 = display?.long.rate ?? compliance?.compliance30?.rate ?? 0;
+  const streak = display?.short.streak ?? compliance?.compliance7?.streak ?? 0;
   const categoryLabel = getMedicationCategoryLabel(medication.category, t);
   const sortedSchedules = [...medication.schedules].sort(
     (a, b) =>
@@ -391,24 +396,19 @@ export function MedicationCard({
           </p>
         )}
 
-        {/* Compliance region — the server decides whether the percentage
-            bars stay (dense cadences) or the per-dose uptime strip takes
-            over (sparse cadences). Falls back to the bars when the older
-            payload omits `complianceDisplay`. */}
-        {medication.active &&
-          compliance &&
-          (compliance.complianceDisplay?.mode === "timeline" ? (
-            <DoseAdherenceTimeline
-              doses={compliance.complianceDisplay.doseTimeline}
-              summary={compliance.complianceDisplay.recentDoseSummary}
-            />
-          ) : (
-            <MedicationComplianceBars
-              rate7={rate7}
-              rate30={rate30}
-              streak={streak}
-            />
-          ))}
+        {/* Compliance bars — always two rows. The server scales the two
+            windows to the dosing cadence (7 / 30 days for dense meds,
+            stepping up to 90 / 365 for sparse ones); the labels follow the
+            chosen windows. */}
+        {medication.active && compliance && (
+          <MedicationComplianceBars
+            rate7={rate7}
+            rate30={rate30}
+            streak={streak}
+            shortDays={shortDays}
+            longDays={longDays}
+          />
+        )}
 
         {/* Quick actions — primary buttons of the medication card. */}
         {medication.active && (

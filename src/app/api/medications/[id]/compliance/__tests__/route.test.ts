@@ -247,13 +247,12 @@ describe("GET /api/medications/[id]/compliance — per-slot timing", () => {
   });
 });
 
-// v1.8.5 — the additive `complianceDisplay` block. The server decides the
-// render mode from expected-dose density: a daily med keeps the percentage
-// bars (`"percent"`), a sparse rolling/long-interval med swaps to the
-// per-dose timeline (`"timeline"`). The existing `compliance7` /
-// `compliance30` fields stay untouched.
+// v1.8.6 — the `complianceDisplay` block is always two percentage rows; the
+// server scales the two windows to the dosing cadence. A daily med keeps
+// 7 / 30 days; a sparse rolling med steps both windows up to the widest rung.
+// The existing `compliance7` / `compliance30` fields stay untouched.
 describe("GET /api/medications/[id]/compliance — complianceDisplay", () => {
-  it("daily med → mode: percent", async () => {
+  it("daily med → 7 / 30-day windows", async () => {
     vi.mocked(prisma.medication.findUnique).mockResolvedValue(
       medication([
         {
@@ -277,24 +276,32 @@ describe("GET /api/medications/[id]/compliance — complianceDisplay", () => {
 
     const data = await callRouteData();
     const display = data.complianceDisplay as {
-      mode: string;
-      expected30: number;
+      shortDays: number;
+      longDays: number;
+      expectedLong: number;
       minStableDoses: number;
+      short: { rate: number; streak: number };
+      long: { rate: number };
     };
-    expect(display.mode).toBe("percent");
-    expect(display.expected30).toBeGreaterThanOrEqual(display.minStableDoses);
+    expect(display.shortDays).toBe(7);
+    expect(display.longDays).toBe(30);
+    expect(display.expectedLong).toBeGreaterThanOrEqual(display.minStableDoses);
+    expect(display.short).toBeDefined();
+    expect(display.long).toBeDefined();
+    // No timeline field — the display is two rows only.
+    expect(display).not.toHaveProperty("mode");
     // The legacy fields stay on the wire.
     expect(data.compliance7).toBeDefined();
     expect(data.compliance30).toBeDefined();
   });
 
-  it("35-day-interval med → mode: timeline", async () => {
+  it("35-day-interval med → steps the windows up past 7 / 30 days", async () => {
     vi.mocked(prisma.medication.findUnique).mockResolvedValue(
       {
         id: "med-1",
         userId: "user-1",
-        createdAt: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000),
-        startsOn: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+        createdAt: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000),
+        startsOn: new Date(Date.now() - 380 * 24 * 60 * 60 * 1000),
         endsOn: null,
         oneShot: false,
         schedules: [
@@ -314,8 +321,6 @@ describe("GET /api/medications/[id]/compliance — complianceDisplay", () => {
         ],
       } as never,
     );
-    // One past intake re-anchors the rolling cadence ~25 days ago, so the
-    // next slot lands beyond the 30-day window → <4 expected → timeline.
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
       {
         takenAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
@@ -326,11 +331,12 @@ describe("GET /api/medications/[id]/compliance — complianceDisplay", () => {
 
     const data = await callRouteData();
     const display = data.complianceDisplay as {
-      mode: string;
-      expected30: number;
-      minStableDoses: number;
+      shortDays: number;
+      longDays: number;
     };
-    expect(display.mode).toBe("timeline");
-    expect(display.expected30).toBeLessThan(display.minStableDoses);
+    // A 35-day cadence can't clear four expected doses in a 30-day window, so
+    // the ladder steps the short window beyond 7 days and the long beyond 30.
+    expect(display.shortDays).toBeGreaterThan(7);
+    expect(display.longDays).toBeGreaterThan(30);
   });
 });
