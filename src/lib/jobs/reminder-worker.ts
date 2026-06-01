@@ -126,6 +126,13 @@ import {
   enqueueBootTimeMeanConsolidation,
   type MeanConsolidationPayload,
 } from "@/lib/jobs/mean-consolidation";
+import {
+  INTAKE_SLOT_DEDUP_QUEUE,
+  INTAKE_SLOT_DEDUP_CONCURRENCY,
+  dedupeUserIntakeSlots,
+  enqueueBootTimeIntakeSlotDedup,
+  type IntakeSlotDedupPayload,
+} from "@/lib/medications/intake-slot-dedup";
 import { expireStaleInUseItems } from "@/lib/medications/inventory/service";
 import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
 import { probeIntegrationStatusNullBuckets } from "@/lib/jobs/integration-status-null-probe";
@@ -2017,6 +2024,16 @@ export async function startReminderWorker() {
     // reboots. The queue MUST be registered here or pg-boss never
     // provisions it and the boot enqueue silently never drains.
     MEAN_CONSOLIDATION_QUEUE,
+    // v1.8.2 — one-time duplicate dose-slot cleanup. Boot discovery
+    // enqueues one job per user holding two live intake rows that snap to
+    // the same canonical slot (the pre-fix REMINDER-pending + API-taken
+    // pair). The per-user pass keeps the winner (taken > skipped >
+    // pending), soft-deletes the losers, and recomputes the affected
+    // compliance rollups. Idempotent across reboots — a deduped user
+    // falls off the discovery list. The queue MUST be registered here or
+    // pg-boss never provisions it and the boot enqueue silently never
+    // drains.
+    INTAKE_SLOT_DEDUP_QUEUE,
     // v1.4.37 W7c — explicit createQueue is required before the
     // nightly schedule below registers (pg-boss v12 contract). Without
     // this entry the drain schedule silently no-ops and the
@@ -2397,6 +2414,37 @@ export async function startReminderWorker() {
     },
   );
 
+  // v1.8.2 — duplicate dose-slot cleanup worker. The boot enqueue helper
+  // below sends one job per user holding two live intake rows that snap
+  // to the same canonical slot; this handler keeps the winner, soft-
+  // deletes the losers, normalises the winner's scheduledFor, and
+  // recomputes the affected compliance rollups. Serial concurrency so the
+  // one-time pass never crowds the request pool.
+  await boss.work<IntakeSlotDedupPayload>(
+    INTAKE_SLOT_DEDUP_QUEUE,
+    { localConcurrency: INTAKE_SLOT_DEDUP_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        try {
+          const summary = await dedupeUserIntakeSlots(userId);
+          workerLog(
+            "info",
+            `[intake-slot-dedup] user=${userId} slotsCollapsed=${summary.slotsCollapsed} rowsSoftDeleted=${summary.rowsSoftDeleted} rowsNormalised=${summary.rowsNormalised} daysRecomputed=${summary.daysRecomputed}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[intake-slot-dedup] user=${userId} failed`,
+            err,
+          );
+          throw err;
+        }
+      }
+    },
+  );
+
   // v1.4.39 W-MOOD — mood-rollup per-bucket worker. Folds the
   // WEEK / MONTH / YEAR buckets that the mood-entry write hooks
   // enqueue; the DAY bucket runs synchronously in the hook itself.
@@ -2598,6 +2646,35 @@ export async function startReminderWorker() {
     workerLog(
       "error",
       "[mean-consolidation] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.8.2 — fire-and-forget boot discovery for the duplicate dose-slot
+  // cleanup. Finds every user holding two live intake rows within the
+  // drift window on the same medication and enqueues one dedup job per
+  // account. Idempotent across reboots: collapsed losers are soft-deleted
+  // so the `deleted_at IS NULL` discovery predicate drops them. Errors are
+  // returned through the helper's result value — the worker boot never
+  // fails because of a dedup miss.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeIntakeSlotDedup();
+    if (error) {
+      workerLog(
+        "error",
+        `[intake-slot-dedup] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[intake-slot-dedup] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[intake-slot-dedup] boot discovery threw an unexpected error",
       err,
     );
   }
