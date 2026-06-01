@@ -169,6 +169,9 @@ export function MetricTargetSummary({ slug }: MetricTargetSummaryProps) {
 
     if (panels.length === 0) return null;
 
+    // Glucose fans out to up to four per-context panels. The
+    // "Adjust target range" link is identical on every one, so render
+    // it once for the whole group rather than repeating it per panel.
     return (
       <div className="space-y-2" data-slot="metric-target-summary-group">
         {panels.map((panel) => (
@@ -176,8 +179,12 @@ export function MetricTargetSummary({ slug }: MetricTargetSummaryProps) {
             key={panel.type}
             target={panel}
             heading={panel.label}
+            hideAdjustLink
           />
         ))}
+        <div className="flex justify-end px-1">
+          <AdjustTargetLink />
+        </div>
       </div>
     );
   }
@@ -200,6 +207,25 @@ interface TargetReferencePanelProps {
   bpDiastolic?: TargetsResponse["bpDiastolic"];
   /** Optional sub-heading shown above the panel (used for glucose contexts). */
   heading?: string;
+  /**
+   * Suppress the per-panel "Adjust target range" link. Glucose stacks
+   * up to four panels and lifts a single link to the group wrapper, so
+   * each panel omits its own to avoid repeating the same link.
+   */
+  hideAdjustLink?: boolean;
+}
+
+/** The shared "Adjust target range" link to the `/targets` editing surface. */
+function AdjustTargetLink() {
+  const { t } = useTranslations();
+  return (
+    <Link
+      href="/targets"
+      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center rounded-sm px-1 text-xs font-medium underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:outline-none"
+    >
+      {t("insights.subPage.target.adjustLink")}
+    </Link>
+  );
 }
 
 /**
@@ -213,6 +239,7 @@ function TargetReferencePanel({
   target,
   bpDiastolic,
   heading,
+  hideAdjustLink,
 }: TargetReferencePanelProps) {
   const { t } = useTranslations();
 
@@ -368,12 +395,7 @@ function TargetReferencePanel({
             {t("targets.sourceLabel", { source: target.source })}
           </span>
         )}
-        <Link
-          href="/targets"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center rounded-sm px-1 text-xs font-medium underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:outline-none"
-        >
-          {t("insights.subPage.target.adjustLink")}
-        </Link>
+        {hideAdjustLink ? null : <AdjustTargetLink />}
       </div>
     </div>
   );
