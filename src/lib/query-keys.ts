@@ -53,6 +53,21 @@ export const queryKeys = {
   analytics: (slice?: "summaries") =>
     (slice ? (["analytics", slice] as const) : (["analytics"] as const)),
   moodAnalytics: () => ["mood-analytics"] as const,
+  /**
+   * v1.8.5 — pre-computed mood-insights aggregates (heatmap, distribution,
+   * weekday, tag breakdown, cross-metric correlations) for the Mood
+   * Insights page. Read-only; invalidated on a mood write through the
+   * `moodDependentKeys` fan-out below.
+   */
+  moodInsights: () => ["mood-insights"] as const,
+  /**
+   * v1.8.5 — structured mood-tag taxonomy catalog (global reference
+   * data, identical for every user). Read by the mood-logging form's
+   * tag-category capture surface. Not invalidated on a mood write — the
+   * catalog only changes on a migration / admin edit, so a long
+   * `staleTime` is fine.
+   */
+  moodTagCatalog: () => ["mood-tag-catalog"] as const,
 
   /**
    * v1.7.0 W6 — unified dashboard first-paint snapshot. One client cell
@@ -172,6 +187,9 @@ export const queryKeys = {
   settingsNtfy: () => ["settings", "ntfy"] as const,
   settingsReminderThresholds: () =>
     ["settings", "reminder-thresholds"] as const,
+
+  /** v1.8.5 — user-level injection-site preferences (global exclusion). */
+  injectionSitePrefs: () => ["settings", "injection-site-prefs"] as const,
 
   /**
    * v1.4.41 W-FRONTEND-FACTORY — Settings → AI surfaces (provider chain,
@@ -356,6 +374,16 @@ export const queryKeys = {
       toIso,
       valueScale,
     ] as const,
+
+  /**
+   * v1.8.5 — bounded recent-timestamp read powering the
+   * measurement-diversity nudge on an insights category page. Keyed by
+   * the page's `MeasurementType` so each metric caches its own window.
+   * Shares the `measurement-dependent` invalidation prefix below so an
+   * edit/delete in the values subpage re-runs the clustering check.
+   */
+  measurementDiversity: (type: string) =>
+    ["measurement-diversity", type] as const,
 };
 
 /**
@@ -376,6 +404,8 @@ export const measurementDependentKeys = [
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),
   ["chart-data"] as const,
+  // v1.8.5 — re-run the diversity-nudge clustering when readings change.
+  ["measurement-diversity"] as const,
 ];
 
 /**
@@ -385,6 +415,7 @@ export const measurementDependentKeys = [
 export const moodDependentKeys = [
   queryKeys.moodEntries(),
   queryKeys.moodAnalytics(),
+  queryKeys.moodInsights(),
   queryKeys.insightsRoot(),
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),

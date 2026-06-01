@@ -43,22 +43,82 @@ export const SITE_COORDS: Record<InjectionSiteKey, { x: number; y: number }> = {
 };
 
 /**
+ * v1.8.5 — resolve the effective allowed set for a medication given the
+ * per-medication preference and the user-level global exclusion. The
+ * global exclusion is a deny-list and ALWAYS wins: a site the user has
+ * globally excluded is never offered, even if a per-medication entry
+ * lists it as preferred. An empty per-medication list means "no
+ * restriction" — every site is allowed (minus the global exclusion).
+ *
+ * Returns the sites in canonical `INJECTION_SITE_KEYS` order so callers
+ * render a stable picker. The result can be empty only when the global
+ * exclusion covers every remaining site — callers treat an empty set as
+ * "no recommendation, picker shows nothing selectable".
+ */
+export function effectiveAllowedSites(
+  allowed: ReadonlyArray<InjectionSiteKey>,
+  globalExcluded: ReadonlyArray<InjectionSiteKey>,
+): InjectionSiteKey[] {
+  const excludedSet = new Set(globalExcluded);
+  // Empty per-med list = no per-med restriction → start from all sites.
+  const base: ReadonlyArray<InjectionSiteKey> =
+    allowed.length === 0 ? INJECTION_SITE_KEYS : allowed;
+  const allowedSet = new Set(base);
+  // Canonical order, per-med restriction applied, global exclusion wins.
+  return INJECTION_SITE_KEYS.filter(
+    (site) => allowedSet.has(site) && !excludedSet.has(site),
+  );
+}
+
+/**
+ * v1.8.5 — server-side guard: is `site` a member of the effective
+ * allowed set for this medication? Used by the intake write path to
+ * reject (422) a site the user can no longer pick.
+ */
+export function isSiteAllowed(
+  site: InjectionSiteKey,
+  allowed: ReadonlyArray<InjectionSiteKey>,
+  globalExcluded: ReadonlyArray<InjectionSiteKey>,
+): boolean {
+  return effectiveAllowedSites(allowed, globalExcluded).includes(site);
+}
+
+/**
  * Recommend the next injection site given the recent rotation
  * history. Strategy: maximise the average Euclidean distance from the
  * candidate to each of the last N sites (N defaults to 4), tie-break
  * by least-recently-used (an unseen site beats a stale one).
  *
- * Returns `null` only when the input history is empty (no
- * recommendation to make — the picker shows all sites as available).
+ * v1.8.5 — an optional `allowed` set constrains the candidate pool to
+ * the effective allowed sites (per-med list minus the global
+ * exclusion). Pass the result of {@link effectiveAllowedSites}.
+ *   - `undefined` (no argument) → legacy "all eight sites" behaviour.
+ *   - a non-empty array → the recommender never suggests a site outside it.
+ *   - an explicitly-EMPTY array → no candidate (every site excluded);
+ *     the function returns `null`.
+ *
+ * Returns `null` when there is no candidate to recommend — an empty
+ * effective set, or when the only allowed site is the most-recent pick.
  */
 export function nextInjectionSite(
   history: ReadonlyArray<InjectionSiteKey>,
   windowSize = 4,
+  allowed?: ReadonlyArray<InjectionSiteKey>,
 ): InjectionSiteKey | null {
+  // v1.8.5 — restrict the candidate pool when an allowed set is given.
+  // `undefined` keeps the legacy all-sites behaviour; an explicitly
+  // empty array means "nothing allowed" and yields no recommendation.
+  const candidates: ReadonlyArray<InjectionSiteKey> =
+    allowed === undefined
+      ? INJECTION_SITE_KEYS
+      : INJECTION_SITE_KEYS.filter((s) => allowed.includes(s));
+  if (candidates.length === 0) return null;
+
   if (history.length === 0) {
-    // First-time user — recommend a sensible default (abdomen left)
-    // rather than null. The card needs SOMETHING to point to.
-    return "ABDOMEN_LEFT";
+    // First-time user — recommend a sensible default. Within an allowed
+    // set the first candidate in canonical order stands in for the
+    // legacy "abdomen left" pick.
+    return candidates.includes("ABDOMEN_LEFT") ? "ABDOMEN_LEFT" : candidates[0];
   }
 
   const recent = history.slice(0, windowSize);
@@ -72,10 +132,10 @@ export function nextInjectionSite(
     }
   }
 
-  let bestSite: InjectionSiteKey = INJECTION_SITE_KEYS[0];
+  let bestSite: InjectionSiteKey | null = null;
   let bestScore = -Infinity;
 
-  for (const candidate of INJECTION_SITE_KEYS) {
+  for (const candidate of candidates) {
     if (candidate === recent[0]) continue; // never recommend the most-recent site
     const candidateCoord = SITE_COORDS[candidate];
     let dist = 0;
@@ -95,6 +155,7 @@ export function nextInjectionSite(
     }
   }
 
+  // Only candidate was the most-recent site — nothing else to rotate to.
   return bestSite;
 }
 

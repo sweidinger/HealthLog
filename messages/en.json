@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "Delete entry?",
     "deleteConfirmDescription": "This mood entry will be permanently deleted.",
     "pageInfo": "Page {page} of {total}",
-    "loginRequired": "Please sign in to view mood entries."
+    "loginRequired": "Please sign in to view mood entries.",
+    "note": "Note",
+    "notePlaceholder": "Add a note about how you're feeling…",
+    "tagPicker": "Tags",
+    "tagCategory": {
+      "feelings": "Feelings",
+      "sleep": "Sleep",
+      "health": "Health",
+      "social": "Social",
+      "work": "Work"
+    },
+    "tag": {
+      "happy": "happy",
+      "excited": "excited",
+      "grateful": "grateful",
+      "relaxed": "relaxed",
+      "content": "content",
+      "tired": "tired",
+      "unsure": "unsure",
+      "bored": "bored",
+      "tense": "tense",
+      "angry": "angry",
+      "stressed": "stressed",
+      "sad": "sad",
+      "sleptWell": "slept well",
+      "sleptOk": "slept okay",
+      "sleptPoorly": "slept poorly",
+      "earlyNight": "early night",
+      "workedOut": "worked out",
+      "ateWell": "ate well",
+      "hydrated": "hydrated",
+      "walked": "walked",
+      "alcohol": "alcohol",
+      "family": "family",
+      "friends": "friends",
+      "party": "party",
+      "alone": "alone",
+      "productive": "productive",
+      "overtime": "overtime",
+      "dayOff": "day off",
+      "travel": "travel",
+      "sickDay": "sick day"
+    }
   },
   "medications": {
     "title": "Medications",
@@ -547,6 +589,13 @@
     "lastIntake": "Last intake:",
     "nextIntake": "Next intake:",
     "dayStreak": "day streak",
+    "lastNDoses": "Last {total} doses: {taken} of {total}",
+    "doseStreak": "{count} in a row",
+    "doseTimelineAriaLabel": "Recent dose adherence",
+    "doseTaken": "Taken",
+    "doseMissed": "Missed",
+    "doseSkipped": "Skipped",
+    "doseUpcoming": "Upcoming",
     "taken": "Taken",
     "skipped": "Skipped",
     "intakeToastTaken": "{name} recorded as taken",
@@ -945,6 +994,7 @@
     },
     "injectionSiteBodyOutlineAriaLabel": "Body outline",
     "injectionSitePickerAriaLabel": "Injection site picker",
+    "injectionSiteRecommendedAriaLabel": "{site} — recommended next site",
     "siteAbdomenLeft": "Abdomen, lower left",
     "siteAbdomenRight": "Abdomen, lower right",
     "siteAbdomenUpperLeft": "Abdomen, upper left",
@@ -1264,7 +1314,16 @@
         "plannedSuffix": "planned",
         "drugLevelDisclosure": "Show estimated drug-level curve"
       }
-    }
+    },
+    "logInjectionSiteTitle": "Log injection site",
+    "logInjectionSiteDescription": "Where did you inject {name}? Optional — you can skip this.",
+    "logInjectionSiteSkip": "Skip",
+    "logInjectionSiteConfirm": "Save site",
+    "logInjectionSiteNoneAvailable": "No injection site is available — every site is excluded in your settings.",
+    "trackInjectionSitesToggle": "Track injection sites",
+    "trackInjectionSitesHint": "After a dose is taken, ask which site was used and suggest the next rotation.",
+    "allowedSitesLabel": "Allowed sites",
+    "allowedSitesHint": "Leave all selected for no restriction. Sites you excluded globally are never offered."
   },
   "charts": {
     "loadingLabel": "Loading chart…",
@@ -1275,6 +1334,13 @@
     "bodyFat": "Body Fat",
     "sleep": "Sleep",
     "steps": "Steps",
+    "hrv": "HRV",
+    "restingHeartRate": "Resting heart rate",
+    "activeEnergy": "Active energy",
+    "flights": "Flights climbed",
+    "distance": "Walking + running distance",
+    "vo2Max": "VO₂ max",
+    "bodyTemperature": "Body temperature",
     "noData": "No data in selected time range",
     "bucketWeekly": "Weekly avg",
     "bucketMonthly": "Monthly avg",
@@ -1339,7 +1405,17 @@
     "personalBaseline": "Your normal",
     "deltaVsBaseline": "{delta} vs. your normal",
     "deltaUnchanged": "matches your normal",
-    "deltaVsTarget": "{delta} vs. target"
+    "deltaVsTarget": "{delta} vs. target",
+    "weekdaysFull": {
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday",
+      "sun": "Sunday"
+    },
+    "rangeBand": "Range"
   },
   "chart": {
     "overlay": {
@@ -1887,7 +1963,22 @@
         "bloodGlucoseBody": "Blood glucose is the amount of sugar in your blood, the body's main energy source. It rises after eating and settles between meals; readings that stay high over time can signal diabetes or prediabetes.",
         "skinTemperatureTitle": "Skin temperature",
         "skinTemperatureBody": "Skin temperature here is the small nightly change in your wrist temperature from your own baseline, not an absolute fever reading. Shifts can track sleep, environment, illness, or menstrual-cycle phase."
-      }
+      },
+      "stats": {
+        "label": "Summary statistics",
+        "min": "Min",
+        "max": "Max",
+        "median": "Median",
+        "mean": "Mean"
+      },
+      "showAllValues": "Show all readings",
+      "valuesPageTitle": "{metric} — all readings",
+      "valuesPageDescription": "Every reading behind this metric. Edit or remove an entry directly.",
+      "diversity": {
+        "weekday": "Most of your {metric} readings land on one weekday. Logging on other days gives a fuller picture.",
+        "timeOfDay": "Most of your {metric} readings land at a similar time of day. Varying the time gives a fuller picture."
+      },
+      "valuesBack": "Back to insights"
     },
     "sleep": {
       "title": "Sleep",
@@ -2268,7 +2359,41 @@
         "description": "Walking-speed readings appear here once Apple Health syncs."
       }
     },
-    "navWalkingSpeed": "Walking Speed"
+    "navWalkingSpeed": "Walking Speed",
+    "mood": {
+      "heatmapTitle": "Mood calendar",
+      "heatmapNoEntry": "No entry",
+      "legendGreat": "Great",
+      "legendGood": "Good",
+      "legendOkay": "Okay",
+      "legendLow": "Low",
+      "distributionTitle": "Mood distribution",
+      "distributionDaysUnit": "days",
+      "weekdayTitle": "Average by weekday",
+      "weekdayNoData": "No data",
+      "weekdayBestWorst": "Best day: {best} · Toughest day: {worst}",
+      "tagsTitle": "Tags and triggers",
+      "tagAvgMood": "Average mood when tagged",
+      "correlationsTitle": "Mood and other metrics",
+      "correlationsDescription": "How your mood moves with sleep, activity, and pulse on the same day.",
+      "correlation": {
+        "sleepTitle": "Mood vs. sleep",
+        "stepsTitle": "Mood vs. activity",
+        "pulseTitle": "Mood vs. pulse",
+        "sleepAxis": "Sleep (min)",
+        "stepsAxis": "Steps",
+        "pulseAxis": "Pulse (bpm)",
+        "strengthStrong": "Strong",
+        "strengthModerate": "Moderate",
+        "strengthWeak": "Weak",
+        "strengthNone": "None",
+        "source": "{n} paired days · r = {r}",
+        "emptyTitle": "Not enough paired data yet",
+        "emptyDescription": "Log mood and this metric on the same days to see a correlation."
+      },
+      "structuredTagsTitle": "Tag breakdown",
+      "notesTimelineTitle": "Notes"
+    }
   },
   "thresholds": {
     "defaultLabel": "Default",
@@ -3026,7 +3151,9 @@
       "fhirNote": "The structured output follows the FHIR R4 standard (ePA-compatible).",
       "generate": "Generate",
       "error": "Export failed ({code})."
-    }
+    },
+    "globalExcludedInjectionSitesLabel": "Globally excluded injection sites",
+    "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them."
   },
   "admin": {
     "title": "Administration",

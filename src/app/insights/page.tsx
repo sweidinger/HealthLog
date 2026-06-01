@@ -225,6 +225,7 @@ export default function InsightsPage() {
       )}
 
       <TrendsRow
+        briefing={briefingPayload}
         annotations={advisor.payload?.trendAnnotations ?? null}
         loading={advisor.isLoading || advisor.isRegenerating}
       />

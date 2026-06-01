@@ -648,8 +648,25 @@ describe("HIGH_FREQUENCY_MEAN_TYPES (v1.7.0)", () => {
         "AUDIO_EXPOSURE_HEADPHONE",
         "WALKING_SPEED",
         "WALKING_STEP_LENGTH",
+        // v1.8.5 — the gait/mobility metrics that previously fell to no
+        // consolidation set and piled up raw at sampling granularity.
+        "WALKING_ASYMMETRY",
+        "WALKING_DOUBLE_SUPPORT",
+        "WALKING_STEADINESS",
+        "WALKING_HEART_RATE_AVERAGE",
       ].sort(),
     );
+  });
+
+  it("consolidates the v1.8.5 gait/mobility metrics", () => {
+    for (const type of [
+      "WALKING_ASYMMETRY",
+      "WALKING_DOUBLE_SUPPORT",
+      "WALKING_STEADINESS",
+      "WALKING_HEART_RATE_AVERAGE",
+    ] as const) {
+      expect(HIGH_FREQUENCY_MEAN_TYPES.has(type)).toBe(true);
+    }
   });
 
   it("every mean type resolves to a HealthKit identifier", () => {

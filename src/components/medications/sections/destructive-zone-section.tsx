@@ -47,7 +47,11 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
-import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  medicationDependentKeys,
+  queryKeys,
+} from "@/lib/query-keys";
 
 const PAUSE_SWITCH_ID = "medication-detail-pause-switch";
 const PAUSE_TITLE_ID = "medication-detail-pause-title";
@@ -283,15 +287,29 @@ export function DangerZoneBody({
       });
       if (!res.ok) {
         toast.error(t("medications.detail.zone.delete.failed"));
+        setTier3bBusy(false);
         return;
       }
-      // Cache cascade first so the list page paints without the
-      // medication, then route. The bundle includes
-      // `compliance-chart-inline` so the inline chart's stale cache
-      // evicts before the user lands on the list.
-      await invalidateKeys(queryClient, medicationDependentKeys);
+      // Drop the deleted medication's own detail query before the
+      // prefix-invalidate below. `medicationDependentKeys` carries
+      // `["medications"]`, which covers the active `["medications", id]`
+      // detail query on this page; awaiting that invalidation refetched
+      // a now-404 resource, retried, and hung the spinner forever (the
+      // delete had already persisted server-side). `removeQueries`
+      // evicts the dead key so the prefix-invalidate can't refetch it.
+      queryClient.removeQueries({
+        queryKey: queryKeys.medicationDetail(medicationId),
+      });
+      // Navigate away first — we're leaving the detail page, so the
+      // dependent-bundle invalidation can settle in the background while
+      // the list page mounts and re-reads `["medications"]` fresh.
       toast.success(t("medications.detail.zone.delete.toast"));
+      setDeleteDialogOpen(false);
       router.push("/medications");
+      // Fire-and-forget the dependent-bundle invalidation (list /
+      // analytics / compliance / inline chart). Not awaited: navigation
+      // already happened and a transient refetch must not block it.
+      void invalidateKeys(queryClient, medicationDependentKeys);
     } catch {
       toast.error(t("medications.detail.zone.delete.failed"));
       setTier3bBusy(false);

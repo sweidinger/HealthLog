@@ -3,6 +3,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import {
+  apiError,
   apiSuccess,
   getClientIp,
   returnAllZodIssues,
@@ -13,6 +14,8 @@ import {
   intakeSchema,
   listIntakeEventsSchema,
 } from "@/lib/validations/medication";
+import { resolveInjectionSiteForWrite } from "@/lib/medications/injection-site-write";
+import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 import { withIdempotency } from "@/lib/idempotency";
 import { consumeOneDose } from "@/lib/medications/inventory/service";
 import { reconcileOneShotState } from "@/lib/medications/lifecycle";
@@ -76,7 +79,51 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { scheduledFor, takenAt, skipped, idempotencyKey } = parsed.data;
+  const { scheduledFor, takenAt, skipped, idempotencyKey, injectionSite } =
+    parsed.data;
+
+  // v1.8.5 — resolve + server-validate the optional injection site. Load
+  // the medication's delivery form + tracking opt-in + per-medication
+  // allowed sites, plus the user's global exclusion deny-list. A site
+  // outside the effective allowed set is a hard 422; a site on a
+  // non-injection / tracking-off med (or a skip) is silently dropped.
+  let resolvedInjectionSite: InjectionSiteKey | null = null;
+  if (injectionSite !== undefined) {
+    const [med, userRow] = await Promise.all([
+      prisma.medication.findUnique({
+        where: { id },
+        select: {
+          deliveryForm: true,
+          trackInjectionSites: true,
+          allowedInjectionSites: true,
+        },
+      }),
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { globalExcludedInjectionSites: true },
+      }),
+    ]);
+    const resolution = resolveInjectionSiteForWrite({
+      submitted: injectionSite,
+      taken: !skipped,
+      deliveryForm: med?.deliveryForm ?? "ORAL",
+      trackInjectionSites: med?.trackInjectionSites ?? false,
+      allowedInjectionSites: (med?.allowedInjectionSites ??
+        []) as InjectionSiteKey[],
+      globalExcludedInjectionSites: (userRow?.globalExcludedInjectionSites ??
+        []) as InjectionSiteKey[],
+    });
+    if (resolution.kind === "disallowed") {
+      annotate({
+        action: { name: "medication.intake.injection_site.disallowed" },
+        meta: { medication_id: id, site: resolution.site },
+      });
+      return apiError("Injection site is not allowed for this medication", 422, {
+        errorCode: "medications.intake.injection_site.disallowed",
+      });
+    }
+    resolvedInjectionSite = resolution.site;
+  }
 
   const resolvedTakenAt = skipped ? null : (takenAt ?? new Date());
   const incomingScheduledFor = scheduledFor ?? takenAt ?? new Date();
@@ -163,6 +210,9 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
       isExplicitSkip,
       idempotencyKey: idempotencyKey ?? null,
       createSource: "WEB",
+      // v1.8.5 — resolved + validated site (null unless a tracking-on
+      // injection taken write supplied an allowed site).
+      injectionSite: resolvedInjectionSite,
     });
     event = applied.row;
     consumedTransition = applied.consumedTransition;
@@ -186,6 +236,10 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
           skipped,
           source: "WEB",
           idempotencyKey: idempotencyKey ?? null,
+          // v1.8.5 — site only on a resolved taken-injection write.
+          ...(resolvedInjectionSite !== null && {
+            injectionSite: resolvedInjectionSite,
+          }),
         },
       }),
       // Reset snooze when medication is taken

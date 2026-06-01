@@ -51,6 +51,12 @@ import {
   applyCanonicalSlotWrite,
   resolveSlotInstantForWrite,
 } from "@/lib/medications/scheduling/slot-upsert";
+import { resolveInjectionSiteForWrite } from "@/lib/medications/injection-site-write";
+import {
+  injectionSiteEnum,
+  type InjectionSiteValue,
+} from "@/lib/validations/medication";
+import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
 const MAX_ENTRIES_PER_BATCH = 500;
 const BATCH_RATE_LIMIT_MAX = 60;
@@ -68,6 +74,11 @@ const bulkEntrySchema = z.object({
     .optional(),
   skipped: z.boolean().optional().default(false),
   idempotencyKey: z.string().min(1).max(128).optional(),
+  // v1.8.5 — optional per-entry injection site. Validated against the
+  // medication's effective allowed set; a disallowed site marks the
+  // entry skipped (`injection_site_not_allowed`) without failing the
+  // whole batch, matching the bulk endpoint's per-entry contract.
+  injectionSite: injectionSiteEnum.optional(),
 });
 
 const bulkPayloadSchema = z.object({
@@ -157,9 +168,35 @@ async function postBulk(request: NextRequest): Promise<Response> {
   const medicationIds = Array.from(new Set(entries.map((e) => e.medicationId)));
   const ownedMedications = await prisma.medication.findMany({
     where: { id: { in: medicationIds }, userId: user.id },
-    select: { id: true },
+    // v1.8.5 — pull the injection-tracking fields so a per-entry
+    // `injectionSite` can be resolved + validated without an extra
+    // per-entry read.
+    select: {
+      id: true,
+      deliveryForm: true,
+      trackInjectionSites: true,
+      allowedInjectionSites: true,
+    },
   });
   const ownedSet = new Set(ownedMedications.map((m) => m.id));
+  const medById = new Map(ownedMedications.map((m) => [m.id, m]));
+
+  // v1.8.5 — the user's global exclusion deny-list, loaded once for the
+  // whole batch (it is user-scoped, not per-medication). Only read when
+  // at least one entry actually carries an `injectionSite`, so the hot
+  // sync path (no site) pays for zero extra round-trips.
+  const batchHasInjectionSite = entries.some(
+    (e) => e.injectionSite !== undefined,
+  );
+  let globalExcluded: InjectionSiteValue[] = [];
+  if (batchHasInjectionSite) {
+    const userRow = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { globalExcludedInjectionSites: true },
+    });
+    globalExcluded = (userRow?.globalExcludedInjectionSites ??
+      []) as InjectionSiteValue[];
+  }
 
   const results: EntryResult[] = [];
   let inserted = 0;
@@ -209,6 +246,31 @@ async function postBulk(request: NextRequest): Promise<Response> {
       const isExplicitTaken = !entry.skipped && entry.takenAt !== undefined;
       const isExplicitSkip = entry.skipped === true;
 
+      // v1.8.5 — resolve + validate the optional per-entry injection
+      // site. A disallowed site marks the entry skipped without failing
+      // the batch (per-entry contract); a non-injection / tracking-off /
+      // non-taken entry silently drops it.
+      let resolvedInjectionSite: InjectionSiteKey | null = null;
+      if (entry.injectionSite !== undefined) {
+        const med = medById.get(entry.medicationId);
+        const resolution = resolveInjectionSiteForWrite({
+          submitted: entry.injectionSite,
+          taken: isExplicitTaken,
+          deliveryForm: med?.deliveryForm ?? "ORAL",
+          trackInjectionSites: med?.trackInjectionSites ?? false,
+          allowedInjectionSites: (med?.allowedInjectionSites ??
+            []) as InjectionSiteKey[],
+          globalExcludedInjectionSites: globalExcluded as InjectionSiteKey[],
+        });
+        if (resolution.kind === "disallowed") {
+          const reason = "injection_site_not_allowed";
+          skipped.push({ index: i, reason });
+          results.push({ index: i, status: "skipped", reason });
+          continue;
+        }
+        resolvedInjectionSite = resolution.site;
+      }
+
       if (canonicalSlot) {
         // Scheduled dose — converge onto the one canonical slot row through
         // the shared upsert: H1 deterministic selection, C2 no-downgrade
@@ -226,6 +288,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
           isExplicitSkip,
           idempotencyKey: entry.idempotencyKey ?? null,
           createSource: "API",
+          injectionSite: resolvedInjectionSite,
         });
         if (applied.noDowngradeNoOp) {
           // C2 — pending echo onto an already-actioned slot. Report it as a
@@ -253,6 +316,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
             skipped: entry.skipped,
             source: "API",
             idempotencyKey: entry.idempotencyKey ?? null,
+            // v1.8.5 — site only on a resolved taken-injection entry.
+            ...(resolvedInjectionSite !== null && {
+              injectionSite: resolvedInjectionSite,
+            }),
           },
         });
         inserted += 1;

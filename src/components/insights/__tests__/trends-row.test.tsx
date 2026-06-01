@@ -30,6 +30,23 @@ vi.mock("next/dynamic", () => ({
 }));
 
 import { TrendsRow } from "../trends-row";
+import type { DailyBriefing } from "@/lib/ai/schema";
+
+function briefing(
+  metrics: DailyBriefing["keyFindings"][number]["sourceMetric"][],
+): DailyBriefing {
+  return {
+    paragraph: "Synthesised briefing paragraph.",
+    keyFindings: metrics.map((sourceMetric) => ({
+      tone: "watch" as const,
+      headline: `${sourceMetric} headline`,
+      detail: `${sourceMetric} detail`,
+      delta: null,
+      sourceWindow: "30d" as const,
+      sourceMetric,
+    })),
+  };
+}
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
   const queryClient = new QueryClient({
@@ -163,6 +180,44 @@ describe("<TrendsRow>", () => {
     const pending =
       html.match(/data-slot="trend-annotation-pending"/g) ?? [];
     expect(pending.length).toBe(3);
+  });
+
+  // ── v1.8.5 — dynamic chart set driven by the daily briefing ───────
+  it("charts the metrics the briefing flags, in briefing order", () => {
+    const html = render(
+      <TrendsRow briefing={briefing(["weight", "pulse", "sleep"])} />,
+    );
+    expect(html).toMatch(/data-metric="weight"/);
+    expect(html).toMatch(/data-metric="pulse"/);
+    expect(html).toMatch(/data-metric="sleep"/);
+    // The default BP / mood tiles drop out when the briefing flags
+    // other metrics.
+    expect(html).not.toMatch(/data-metric="bp"/);
+    expect(html).not.toMatch(/data-metric="mood"/);
+  });
+
+  it("caps the briefing-driven set at three tiles", () => {
+    const html = render(
+      <TrendsRow
+        briefing={briefing(["weight", "pulse", "sleep", "hrv", "steps"])}
+      />,
+    );
+    const cards = html.match(/data-slot="trends-row-card"/g) ?? [];
+    expect(cards.length).toBe(3);
+  });
+
+  it("falls back to BP / weight / mood when the briefing is empty", () => {
+    const html = render(<TrendsRow briefing={briefing([])} />);
+    expect(html).toMatch(/data-metric="bp"/);
+    expect(html).toMatch(/data-metric="weight"/);
+    expect(html).toMatch(/data-metric="mood"/);
+  });
+
+  it("renders additive metrics chart-only (no annotation slot)", () => {
+    const html = render(<TrendsRow briefing={briefing(["pulse"])} />);
+    expect(html).toMatch(/data-metric="pulse"/);
+    // No TrendAnnotation empty/pending slot for a chart-only tile.
+    expect(html).not.toMatch(/data-slot="trend-annotation-empty"/);
   });
 
   it("propagates per-metric confidence chips", () => {

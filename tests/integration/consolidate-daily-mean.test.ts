@@ -199,6 +199,62 @@ describe("consolidateDailyMean (real Postgres)", () => {
     expect(live).toHaveLength(2);
   });
 
+  it("consolidates a v1.8.5 gait type and recomputes the DAY rollup", async () => {
+    const prisma = getPrismaClient();
+    await prisma.measurement.createMany({
+      data: [
+        {
+          userId: TEST_USER_ID,
+          type: "WALKING_ASYMMETRY",
+          value: 2.0,
+          unit: "%",
+          source: "APPLE_HEALTH",
+          measuredAt: new Date("2026-05-16T08:00:00.000Z"),
+          externalId: "hk-asym-1",
+        },
+        {
+          userId: TEST_USER_ID,
+          type: "WALKING_ASYMMETRY",
+          value: 4.0,
+          unit: "%",
+          source: "APPLE_HEALTH",
+          measuredAt: new Date("2026-05-16T14:00:00.000Z"),
+          externalId: "hk-asym-2",
+        },
+      ],
+    });
+
+    const summary = await consolidateDailyMean(prisma, {
+      userId: TEST_USER_ID,
+      dryRun: false,
+      log: () => {},
+    });
+    expect(summary.totals.daysConsolidated).toBe(1);
+
+    // One live daily MEAN row carrying 3.0 (the mean of 2 + 4), not 6.
+    const live = await prisma.measurement.findMany({
+      where: {
+        userId: TEST_USER_ID,
+        type: "WALKING_ASYMMETRY",
+        deletedAt: null,
+      },
+    });
+    expect(live).toHaveLength(1);
+    expect(live[0].value).toBeCloseTo(3.0, 6);
+
+    // T3 — the DAY rollup bucket reflects the single consolidated row, not
+    // a pre-drain mean over the now soft-deleted samples.
+    const dayRollup = await prisma.measurementRollup.findMany({
+      where: {
+        userId: TEST_USER_ID,
+        type: "WALKING_ASYMMETRY",
+        granularity: "DAY",
+      },
+    });
+    expect(dayRollup).toHaveLength(1);
+    expect(dayRollup[0].mean).toBeCloseTo(3.0, 6);
+  });
+
   it("is idempotent — a second run is a no-op", async () => {
     const prisma = getPrismaClient();
     await prisma.measurement.createMany({

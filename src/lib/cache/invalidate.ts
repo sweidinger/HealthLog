@@ -76,6 +76,9 @@ export function invalidateUserMood(userId: string): void {
   // v1.4.36 W1 — mood writes change the mood target rows on the
   // insights/targets response (MOOD_SCORE, MOOD_STABILITY).
   caches.insightsTargets.deleteByPrefix(userId);
+  // v1.8.5 — mood writes dirty every dimension of the mood-insights
+  // aggregate (heatmap cell, distribution, weekday, tag breakdown).
+  caches.moodInsights.deleteByPrefix(userId);
 }
 
 /**

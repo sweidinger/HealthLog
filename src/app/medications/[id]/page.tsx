@@ -132,6 +132,11 @@ export default function MedicationDetailPage({
       return (await res.json()).data as MedicationDetailSnapshot;
     },
     enabled: isAuthenticated,
+    // A deleted medication 404s here. Don't burn a retry/backoff cycle on
+    // a resource that no longer exists — the delete handler evicts this
+    // key on success, but `retry: false` hardens any caller that
+    // prefix-invalidates `["medications"]` while this page is mounted.
+    retry: false,
   });
 
   // v1.7.2 W3 — derive the wizard payload purely to feed the read-only

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useTranslations } from "@/lib/i18n/context";
 import {
   INJECTION_SITE_KEYS,
@@ -32,6 +34,15 @@ interface InjectionSitePickerProps {
   /** Recent rotation history (most recent first). Powers the
    *  "recommended next site" dashed-ring annotation. */
   history?: ReadonlyArray<InjectionSiteKey>;
+  /**
+   * v1.8.5 — the effective allowed set (per-medication allowed sites
+   * minus the user's global exclusion). When supplied, sites outside it
+   * render disabled + non-interactive and the rotation recommendation is
+   * constrained to this set. `undefined` keeps the legacy all-sites
+   * picker (e.g. the wizard rotation preview, which has no medication
+   * context yet).
+   */
+  allowed?: ReadonlyArray<InjectionSiteKey>;
   /** Called when the user picks a site. */
   onChange: (site: InjectionSiteKey) => void;
   /** Optional class for the outer wrapper. */
@@ -41,11 +52,30 @@ interface InjectionSitePickerProps {
 export function InjectionSitePicker({
   value,
   history = [],
+  allowed,
   onChange,
   className,
 }: InjectionSitePickerProps) {
   const { t } = useTranslations();
-  const recommended = nextInjectionSite(history);
+  const recommended = nextInjectionSite(history, 4, allowed);
+  const allowedSet = allowed ? new Set(allowed) : null;
+  const isAllowed = (site: InjectionSiteKey) =>
+    allowedSet === null || allowedSet.has(site);
+  // Track which site currently holds keyboard focus so we can paint a
+  // high-contrast focus halo on the filled dot itself — a transparent
+  // hit-target stroke alone is effectively invisible on the muted body
+  // map (WCAG 2.4.7).
+  const [focusedSite, setFocusedSite] = useState<InjectionSiteKey | null>(null);
+
+  // Accessible name: fold the rotation recommendation into the label so a
+  // screen-reader user gets the "recommended next site" cue that is
+  // otherwise conveyed only by the dashed ring.
+  const siteLabel = (site: InjectionSiteKey): string => {
+    const name = t(describeInjectionSite(site));
+    return site === recommended
+      ? t("medications.injectionSiteRecommendedAriaLabel", { site: name })
+      : name;
+  };
 
   return (
     <div
@@ -138,9 +168,27 @@ export function InjectionSitePicker({
           const coord = SITE_COORDS[site];
           const isActive = site === value;
           const isRecommended = site === recommended;
+          // v1.8.5 — a site outside the effective allowed set renders
+          // disabled (dimmed, non-interactive) so the user cannot pick a
+          // site the server would reject.
+          const disabled = !isAllowed(site);
+          const isFocused = site === focusedSite;
           return (
             <g key={site}>
-              {isRecommended && !isActive && (
+              {/* Keyboard focus halo — a contrasting ring on the filled dot
+                  that only shows while this site holds focus. Painted under
+                  the recommendation ring and the dot so both stay legible. */}
+              {isFocused && !disabled && (
+                <circle
+                  cx={coord.x}
+                  cy={coord.y}
+                  r="10.5"
+                  fill="none"
+                  className="stroke-ring"
+                  strokeWidth="2.5"
+                />
+              )}
+              {isRecommended && !isActive && !disabled && (
                 <circle
                   cx={coord.x}
                   cy={coord.y}
@@ -156,9 +204,11 @@ export function InjectionSitePicker({
                 cy={coord.y}
                 r="6"
                 className={
-                  isActive
-                    ? "fill-primary stroke-primary-foreground"
-                    : "fill-muted stroke-foreground/60 hover:fill-accent"
+                  disabled
+                    ? "fill-muted/30 stroke-foreground/20"
+                    : isActive
+                      ? "fill-primary stroke-primary-foreground"
+                      : "fill-muted stroke-foreground/60 hover:fill-accent"
                 }
                 strokeWidth="1.5"
               />
@@ -175,17 +225,35 @@ export function InjectionSitePicker({
                 r="12"
                 fill="transparent"
                 role="button"
-                tabIndex={0}
+                tabIndex={disabled ? -1 : 0}
                 aria-pressed={isActive}
-                aria-label={t(describeInjectionSite(site))}
-                onClick={() => onChange(site)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onChange(site);
-                  }
-                }}
-                className="cursor-pointer focus:outline-none focus-visible:stroke-current focus-visible:stroke-2"
+                aria-disabled={disabled}
+                aria-label={siteLabel(site)}
+                onClick={disabled ? undefined : () => onChange(site)}
+                onFocus={disabled ? undefined : () => setFocusedSite(site)}
+                onBlur={
+                  disabled
+                    ? undefined
+                    : () =>
+                        setFocusedSite((current) =>
+                          current === site ? null : current,
+                        )
+                }
+                onKeyDown={
+                  disabled
+                    ? undefined
+                    : (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onChange(site);
+                        }
+                      }
+                }
+                className={
+                  disabled
+                    ? "cursor-not-allowed focus:outline-none"
+                    : "cursor-pointer focus:outline-none"
+                }
               />
             </g>
           );

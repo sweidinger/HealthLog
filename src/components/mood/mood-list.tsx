@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
@@ -64,6 +65,7 @@ import {
 } from "@/lib/mood/labels";
 import { invalidateKeys, moodDependentKeys } from "@/lib/query-keys";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
+import { MoodTagPicker } from "./mood-tag-picker";
 
 // Re-export the score map under the legacy local name to keep the
 // rest of this file unchanged. v1.4.27 B6 / BL-P6-11 — the single
@@ -76,6 +78,9 @@ interface MoodEntry {
   mood: string;
   score: number;
   tags: string[];
+  // v1.8.5 — structured-tag keys + free-text note.
+  tagKeys: string[];
+  note: string | null;
   source: string;
   moodLoggedAt: string;
 }
@@ -127,8 +132,16 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     onSelect: (index) => setEditMood(MOOD_LEVELS_LIST[index]!),
   });
   const [editTagsInput, setEditTagsInput] = useState("");
+  const [editTagKeys, setEditTagKeys] = useState<string[]>([]);
+  const [editNote, setEditNote] = useState("");
   const [editMoodLoggedAt, setEditMoodLoggedAt] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
+
+  function toggleEditTagKey(key: string) {
+    setEditTagKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  }
   const [editDeleteDialogOpen, setEditDeleteDialogOpen] = useState(false);
   // v1.4.27 R4 RC2 — Sheet-branch sticky-pinned footer slot.
   const editFormId = useId();
@@ -194,17 +207,21 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       id,
       mood,
       tags,
+      tagKeys,
+      note,
       moodLoggedAt,
     }: {
       id: string;
       mood: string;
       tags: string[] | null;
+      tagKeys: string[];
+      note: string | null;
       moodLoggedAt: string;
     }) => {
       const res = await fetch(`/api/mood-entries/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood, tags, moodLoggedAt }),
+        body: JSON.stringify({ mood, tags, tagKeys, note, moodLoggedAt }),
       });
 
       const json = await res.json();
@@ -228,6 +245,8 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     setEditing(entry);
     setEditMood(entry.mood);
     setEditTagsInput(entry.tags.join(", "));
+    setEditTagKeys(entry.tagKeys ?? []);
+    setEditNote(entry.note ?? "");
     setEditMoodLoggedAt(toDateTimeLocalValue(entry.moodLoggedAt));
     setEditError(null);
   }
@@ -266,11 +285,15 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       .map((t) => t.trim())
       .filter(Boolean);
 
+    const trimmedNote = editNote.trim();
+
     setEditError(null);
     updateMutation.mutate({
       id: editing.id,
       mood: editMood,
       tags: tags.length > 0 ? tags : null,
+      tagKeys: editTagKeys,
+      note: trimmedNote.length > 0 ? trimmedNote : null,
       moodLoggedAt: measuredDate.toISOString(),
     });
   }
@@ -395,6 +418,11 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {entry.tags.length > 0 ? entry.tags.join(", ") : "-"}
+                        {entry.note && (
+                          <p className="text-muted-foreground/80 mt-0.5 line-clamp-2 text-xs italic">
+                            {entry.note}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {formatDateTime(entry.moodLoggedAt)}
@@ -465,6 +493,11 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                       {entry.tags.length > 0 && (
                         <p className="text-muted-foreground truncate text-xs">
                           {entry.tags.join(", ")}
+                        </p>
+                      )}
+                      {entry.note && (
+                        <p className="text-muted-foreground/80 truncate text-xs italic">
+                          {entry.note}
                         </p>
                       )}
                     </div>
@@ -600,6 +633,32 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                   value={editTagsInput}
                   onChange={(e) => setEditTagsInput(e.target.value)}
                   placeholder={t("mood.tagsPlaceholder")}
+                />
+              </div>
+
+              {/* v1.8.5 — structured-tag taxonomy picker. */}
+              <div className="space-y-2">
+                <Label>
+                  {t("mood.tagPicker")} ({t("common.optional")})
+                </Label>
+                <MoodTagPicker
+                  selected={editTagKeys}
+                  onToggle={toggleEditTagKey}
+                />
+              </div>
+
+              {/* v1.8.5 (C1) — free-text note. */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-mood-note">
+                  {t("mood.note")} ({t("common.optional")})
+                </Label>
+                <Textarea
+                  id="edit-mood-note"
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  placeholder={t("mood.notePlaceholder")}
+                  maxLength={500}
+                  rows={3}
                 />
               </div>
 

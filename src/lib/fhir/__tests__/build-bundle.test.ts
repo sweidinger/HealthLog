@@ -398,6 +398,44 @@ describe("buildFhirDocumentBundle", () => {
     expect(flights?.valueQuantity?.code).toBe("{flights}");
   });
 
+  it("routes HealthKit placeholder codes onto the custom CodeSystem, never LOINC", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        measurements: {
+          WEIGHT: [{ value: 80, measuredAt: "2026-04-30T08:00:00.000Z" }],
+          FLIGHTS_CLIMBED: [
+            { value: 12, measuredAt: "2026-04-30T08:00:00.000Z" },
+          ],
+        },
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const codings = observationsOf(bundle).flatMap((o) => o.code.coding ?? []);
+
+    // A real LOINC metric keeps the LOINC namespace.
+    const weight = codings.find((c) => c.code === "29463-7");
+    expect(weight?.system).toBe("http://loinc.org");
+
+    // The HealthKit placeholder moves to the shared custom CodeSystem with the
+    // raw HK identifier as the code (byte-aligned with the iOS exporter).
+    const flightsCoding = codings.find(
+      (c) => c.code === "HKQuantityTypeIdentifierFlightsClimbed",
+    );
+    expect(flightsCoding?.system).toBe(
+      "https://healthlog.dev/fhir/CodeSystem/healthkit",
+    );
+
+    // Conformance invariant: no HealthKit identifier is ever emitted under the
+    // LOINC namespace anywhere in the bundle.
+    const hkUnderLoinc = codings.filter(
+      (c) =>
+        c.system === "http://loinc.org" &&
+        c.code?.startsWith("HKQuantityTypeIdentifier"),
+    );
+    expect(hkUnderLoinc).toHaveLength(0);
+  });
+
   it("discriminates glucose LOINC by context (random/fasting/afterMeal)", () => {
     const bundle = buildFhirDocumentBundle(
       makeData({

@@ -1,6 +1,19 @@
 import { z } from "zod/v4";
 
 import { SCHEDULE_TYPES } from "@/lib/medications/scheduling/recurrence";
+import { INJECTION_SITE_KEYS } from "@/lib/medications/injection-sites";
+
+/**
+ * v1.8.5 — the eight injection-site enum values, mirrored from the
+ * Prisma `InjectionSite` enum via the shared `INJECTION_SITE_KEYS`
+ * tuple. Reused by the intake + bulk-intake request schemas (the
+ * `injectionSite` field) and the per-medication allowed-sites editor.
+ */
+export const INJECTION_SITE_VALUES = INJECTION_SITE_KEYS;
+export type InjectionSiteValue = (typeof INJECTION_SITE_VALUES)[number];
+
+/** Zod enum over the eight injection sites. */
+export const injectionSiteEnum = z.enum(INJECTION_SITE_VALUES);
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 /**
@@ -294,6 +307,28 @@ export const createMedicationSchema = z
     dosesPerUnit: z.number().int().min(1).max(100).optional(),
     /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
     deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),
+    /**
+     * v1.8.5 — per-medication injection-site tracking opt-in. Default
+     * false. Only meaningful when `deliveryForm === "INJECTION"`.
+     */
+    trackInjectionSites: z
+      .boolean()
+      .optional()
+      .describe(
+        "Per-medication injection-site tracking opt-in. Default false. Only meaningful for an INJECTION delivery form; when true the client prompts (skippably) for the site after a taken dose.",
+      ),
+    /**
+     * v1.8.5 — per-medication allowed / preferred injection sites.
+     * Empty = no per-medication restriction. The effective pickable set
+     * subtracts the user's global exclusion (deny wins).
+     */
+    allowedInjectionSites: z
+      .array(injectionSiteEnum)
+      .max(INJECTION_SITE_VALUES.length)
+      .optional()
+      .describe(
+        "Per-medication allowed / preferred injection sites. Empty array = no per-medication restriction (every site offered). The effective pickable set is this list minus the user's global exclusion.",
+      ),
     notificationsEnabled: z.boolean().optional(),
     /** v1.7.0 — iOS Live Activity opt-in for this medication's reminders. */
     liveActivityEnabled: z
@@ -339,6 +374,21 @@ export const updateMedicationSchema = z
     dosesPerUnit: z.number().int().min(1).max(100).nullable().optional(),
     /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
     deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),
+    /** v1.8.5 — per-medication injection-site tracking opt-in. */
+    trackInjectionSites: z
+      .boolean()
+      .optional()
+      .describe(
+        "Per-medication injection-site tracking opt-in. Only meaningful for an INJECTION delivery form. Set false to deactivate tracking.",
+      ),
+    /** v1.8.5 — per-medication allowed / preferred injection sites. */
+    allowedInjectionSites: z
+      .array(injectionSiteEnum)
+      .max(INJECTION_SITE_VALUES.length)
+      .optional()
+      .describe(
+        "Per-medication allowed / preferred injection sites. Empty array clears the restriction. The effective pickable set subtracts the user's global exclusion (deny wins).",
+      ),
     active: z.boolean().optional(),
     notificationsEnabled: z.boolean().optional(),
     /** v1.7.0 — iOS Live Activity opt-in for this medication's reminders. */
@@ -432,11 +482,26 @@ export const intakeSchema = z
       .describe(
         "Caller-issued de-dup key. A second POST with the same key returns the original event without creating a new row.",
       ),
+    /**
+     * v1.8.5 — optional injection-site capture. Only honoured on a
+     * non-skipped (taken) write for a medication with
+     * `deliveryForm === "INJECTION"` and `trackInjectionSites === true`.
+     * The site is validated server-side against the medication's
+     * effective allowed set (per-medication `allowedInjectionSites`
+     * minus the user's `globalExcludedInjectionSites` deny-list); a
+     * disallowed value is rejected with 422. Always optional — the
+     * client may omit it (the dose still records).
+     */
+    injectionSite: injectionSiteEnum
+      .optional()
+      .describe(
+        "Optional injection site for a taken dose. Honoured only when the medication is an INJECTION with site-tracking enabled; validated against the medication's effective allowed set (per-medication allowed sites minus the user's global exclusion). A disallowed site returns 422. Omit to record the dose without a site.",
+      ),
   })
   .meta({
     id: "MedicationIntakeRequest",
     description:
-      "Per-medication intake log body. Idempotent via `idempotencyKey`; the server also dedupes by a 60-second sliding window when the key is absent. Non-skipped intakes auto-decrement pen inventory (best-effort), refresh the per-day compliance rollup, and — for one-shot medications — flip `active` to false.",
+      "Per-medication intake log body. Idempotent via `idempotencyKey`; the server also dedupes by a 60-second sliding window when the key is absent. Non-skipped intakes auto-decrement pen inventory (best-effort), refresh the per-day compliance rollup, and — for one-shot medications — flip `active` to false. The optional `injectionSite` is persisted only for an INJECTION medication with site-tracking enabled and is validated against the medication's effective allowed set (422 on a disallowed value).",
   });
 
 export const externalIntakeSchema = z.object({

@@ -16,10 +16,11 @@
  *   1. **One-shot** (`medication.oneShot === true`) — single slot at
  *      the anchor date, one per `timesOfDay` entry.
  *   2. **Rolling** (`schedule.rollingIntervalDays !== null`) — next
- *      slot is `lastIntakeAt + N days` (or `startsOn + N days` if
- *      the user has never logged an intake). Only the immediately
- *      next slot is emitted; further slots depend on the user
- *      actually logging the intake.
+ *      slot is `lastIntakeAt + N days`. With no intake yet the FIRST
+ *      dose is due AT `startsOn ?? createdAt` (not `+ N`); the `+ N`
+ *      cadence only begins once the first intake is logged. Only the
+ *      immediately next slot is emitted; further slots depend on the
+ *      user actually logging the intake.
  *   3. **RRULE** (`schedule.rrule !== null`) — RFC 5545 expansion
  *      via the `rrule` npm lib. Day-anchored dates are returned in
  *      UTC by the library; each `timesOfDay` entry is then applied
@@ -248,15 +249,31 @@ export function nextOccurrenceAfter(
   }
 
   // Rolling is also single-slot (only emits the immediately next).
+  //
+  // v1.8.5 — floor the search window to the start of the user's current
+  // day rather than the strict `after` instant. A rolling dose whose slot
+  // lands earlier today (a past `startsOn` with no intake, or an overdue
+  // `lastIntakeAt + N`) is DUE/OVERDUE and must surface as "take now",
+  // not be skipped by a strict `> now` filter. Flooring to start-of-day
+  // keeps a slot the user has not yet acted on visible through the rest
+  // of its due day instead of silently rolling it forward by N.
   if (schedule.rollingIntervalDays !== null) {
-    const slots = expandRolling(
-      schedule,
-      ctx,
-      new Date(after.getTime() + 1),
-      limit,
-    );
+    const dayFloor = startOfDayInTz(after, ctx.timeZone);
+    // With no intake logged the first dose anchors at `startsOn ?? createdAt`.
+    // When that anchor is on a PRIOR calendar day the dose is overdue by ≥1
+    // day and must still surface ("take now"); flooring only to the start of
+    // the user's current day dropped it out of existence (null next-due AND
+    // no reminder). Reach the floor back to the first-dose instant in that
+    // case so a multi-day-overdue start dose is returned. After an intake the
+    // re-anchor (`lastIntakeAt + N`) is always in the future, so the dayFloor
+    // is the correct, tighter bound there.
+    const floor =
+      ctx.lastIntakeAt === null
+        ? new Date(Math.min(dayFloor.getTime(), firstRollingDoseDayFloor(ctx)))
+        : dayFloor;
+    const slots = expandRolling(schedule, ctx, floor, limit);
     for (const s of slots) {
-      if (s.at.getTime() <= after.getTime()) continue;
+      if (s.at.getTime() < floor.getTime()) continue;
       if (cyclic && !isInCyclicOnWeek(s.at, schedule, ctx)) continue;
       return s;
     }
@@ -334,9 +351,21 @@ function expandOneShot(
 // ────────────────────────────────────────────────────────────────────
 
 /**
- * Rolling cadence — "every N days from last intake". Emits one
- * occurrence at `(lastIntakeAt ?? startsOn ?? createdAt) + N days`,
- * applied at the first `timesOfDay` entry (or `windowStart`).
+ * Rolling cadence — "every N days from last intake".
+ *
+ * Anchoring (v1.8.5 — medically-correct first dose):
+ *   - After an intake → next slot is `lastIntakeAt + N days` (the
+ *     v1.8.4 re-anchor). Logging a dose pushes the next one out by N.
+ *   - No intake yet → the FIRST dose is due AT `startsOn ?? createdAt`,
+ *     NOT `start + N`. A rolling course's first dose lands on the start
+ *     date; the `+ N` cadence only kicks in once the first intake is
+ *     logged. The pre-v1.8.5 engine emitted `start + N` here, which
+ *     silently skipped the start-date dose (and suppressed its reminder,
+ *     since the worker shares this engine).
+ *
+ * A past `startsOn` with no intake therefore surfaces the start dose as
+ * DUE/OVERDUE ("take now") via `nextOccurrenceAfter`'s rolling branch,
+ * rather than rolling it forward.
  *
  * Design choice: only the FIRST time-of-day entry is emitted even
  * when multiple are configured. The rolling semantic — "every N days
@@ -350,6 +379,19 @@ function expandOneShot(
  * historical intake events, not "expected slots" the schedule
  * predicts forward.
  */
+/**
+ * Start-of-day (in the user's timezone) of the no-intake first rolling dose
+ * anchor — `startsOn ?? createdAt`. Used by `nextOccurrenceAfter` to clamp the
+ * search floor so a multi-day-overdue first dose still surfaces. Mirrors the
+ * anchor `expandRolling` emits in the `lastIntakeAt === null` branch; flooring
+ * to the anchor's start-of-day keeps the time-of-day slot (e.g. 08:00) within
+ * the window rather than ahead of a raw-instant floor.
+ */
+function firstRollingDoseDayFloor(ctx: RecurrenceContext): number {
+  const anchor = ctx.medication.startsOn ?? ctx.medication.createdAt;
+  return startOfDayInTz(anchor, ctx.timeZone).getTime();
+}
+
 function expandRolling(
   schedule: CanonicalSchedule,
   ctx: RecurrenceContext,
@@ -358,10 +400,13 @@ function expandRolling(
 ): Occurrence[] {
   const n = schedule.rollingIntervalDays;
   if (n === null || n <= 0) return [];
-  const anchor =
-    ctx.lastIntakeAt ?? ctx.medication.startsOn ?? ctx.medication.createdAt;
 
-  const nextDue = new Date(anchor.getTime() + n * DAY_MS);
+  // After an intake the next dose is N days out. With no intake yet the
+  // FIRST dose is the start date itself (no `+ N`) — see the doc comment.
+  const nextDue =
+    ctx.lastIntakeAt !== null
+      ? new Date(ctx.lastIntakeAt.getTime() + n * DAY_MS)
+      : ctx.medication.startsOn ?? ctx.medication.createdAt;
 
   // endsOn cap.
   if (
@@ -558,6 +603,16 @@ function applyTimeOfDayToDate(day: Date, hhmm: string, tz: string): Date {
     );
   }
   return guess;
+}
+
+/**
+ * The UTC instant of midnight (00:00 wall-clock) on `instant`'s day in
+ * the user's IANA timezone. Used by the rolling-cadence next-due search
+ * to floor the window to the start of the user's current day so an
+ * overdue / due-earlier-today rolling dose still surfaces.
+ */
+function startOfDayInTz(instant: Date, tz: string): Date {
+  return applyTimeOfDayToDate(instant, "00:00", tz);
 }
 
 function tzOffsetMinutes(date: Date, tz: string): number {

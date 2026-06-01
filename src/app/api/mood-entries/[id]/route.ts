@@ -18,6 +18,7 @@ import { annotate } from "@/lib/logging/context";
 import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
+import { replaceTagLinks } from "@/lib/mood/tag-links";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -133,10 +134,38 @@ export const PUT = apiHandler(
     // monotonic value and paired clients reconcile higher-wins.
     updateData.syncVersion = { increment: 1 };
 
-    const entry = await prisma.moodEntry.update({
-      where: { id },
-      data: updateData,
-    });
+    // v1.8.5 — update the entry and replace its structured-tag links in
+    // one transaction. A tag-link failure must roll the entry update back
+    // too — otherwise a client retry on the 5xx double-applies the edit
+    // (and the `syncVersion` increment). The tx client is threaded through
+    // the helper so both writes commit (or abort) together.
+    const { entry, persistedTagKeys } = await prisma.$transaction(
+      async (tx) => {
+        const updated = await tx.moodEntry.update({
+          where: { id },
+          data: updateData,
+        });
+
+        // Full replacement of the structured-tag link set when `tagKeys`
+        // is present in the body. `null` clears every link; an omitted
+        // field leaves the links untouched.
+        if (data.tagKeys !== undefined) {
+          await replaceTagLinks(id, data.tagKeys ?? [], tx);
+        }
+
+        // v1.8.5 — read the persisted link keys back so the update
+        // response mirrors the list GET shape exactly.
+        const links = await tx.moodEntryTagLink.findMany({
+          where: { moodEntryId: id },
+          select: { moodTag: { select: { key: true } } },
+        });
+
+        return {
+          entry: updated,
+          persistedTagKeys: links.map((link) => link.moodTag.key),
+        };
+      },
+    );
 
     await auditLog("moodEntry.update", {
       userId: user.id,
@@ -177,7 +206,14 @@ export const PUT = apiHandler(
       });
     }
 
-    return apiSuccess({ ...entry, tags: parseTags(entry.tags) });
+    return apiSuccess({
+      ...entry,
+      tags: parseTags(entry.tags),
+      // v1.8.5 — surface the persisted structured-tag keys so a client
+      // hydrating from the update response renders the tag set without a
+      // refetch (shape-matches the list GET).
+      tagKeys: persistedTagKeys,
+    });
   },
 );
 

@@ -1,5 +1,50 @@
 import { describe, expect, it } from "vitest";
-import { moodLogCredentialsSchema } from "../moodlog";
+import {
+  moodLogCredentialsSchema,
+  createMoodEntrySchema,
+  updateMoodEntrySchema,
+} from "../moodlog";
+
+describe("createMoodEntrySchema — note + structured tagKeys (v1.8.5)", () => {
+  const base = { mood: "GUT", moodLoggedAt: "2026-06-01T12:00:00.000Z" };
+
+  it("round-trips the note field", () => {
+    const r = createMoodEntrySchema.safeParse({ ...base, note: "felt great" });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.note).toBe("felt great");
+  });
+
+  it("accepts structured tagKeys alongside flat tags", () => {
+    const r = createMoodEntrySchema.safeParse({
+      ...base,
+      tags: ["nausea"],
+      tagKeys: ["happy", "worked_out"],
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.tagKeys).toEqual(["happy", "worked_out"]);
+      expect(r.data.tags).toEqual(["nausea"]);
+    }
+  });
+
+  it("rejects an over-long note and an over-large tagKeys set", () => {
+    expect(
+      createMoodEntrySchema.safeParse({ ...base, note: "x".repeat(501) }).success,
+    ).toBe(false);
+    expect(
+      createMoodEntrySchema.safeParse({
+        ...base,
+        tagKeys: Array.from({ length: 31 }, (_, i) => `t${i}`),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("allows update to clear tagKeys with null", () => {
+    const r = updateMoodEntrySchema.safeParse({ tagKeys: null });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.tagKeys).toBeNull();
+  });
+});
 
 describe("moodLogCredentialsSchema SSRF guard", () => {
   it("accepts a public moodLog URL", () => {

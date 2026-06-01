@@ -262,7 +262,13 @@ export function HeroStrip({
           {coachEnabled && (
             <div
               data-slot="insights-hero-strip-prompts"
-              className="border-border/50 border-t pt-4"
+              // v1.8.5 W4a — condense the "Coach fragen" band so the left
+              // column stops out-running the Health-Score card on the
+              // right. Tighter top padding (`pt-3` vs `pt-4`) plus a
+              // `mt-auto` push pins the chip strip to the bottom of the
+              // left column, so the recovered slack lands between the meta
+              // row and the prompts instead of stacking the column tall.
+              className="border-border/50 mt-auto border-t pt-3"
             >
               {/*
                * v1.4.20 phase B2b — chip clicks open the Coach drawer

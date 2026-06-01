@@ -76,6 +76,7 @@ describe("summarize", () => {
     expect(summary.min).toBeNull();
     expect(summary.max).toBeNull();
     expect(summary.mean).toBeNull();
+    expect(summary.median).toBeNull();
     expect(summary.avg7).toBeNull();
     expect(summary.avg30).toBeNull();
   });
@@ -88,8 +89,31 @@ describe("summarize", () => {
     expect(summary.min).toBe(70);
     expect(summary.max).toBe(80);
     expect(summary.mean).toBe(75);
+    // 11 values — odd length, median is the 6th value (75).
+    expect(summary.median).toBe(75);
     expect(summary.avg7).not.toBeNull();
     expect(summary.slope7).not.toBeNull();
+  });
+
+  // v1.8.5 — median powers the category-page stat strip. It must be the
+  // 50th percentile over VALUES (not timestamps) and must resist a skew
+  // the mean would otherwise hide.
+  it("computes the median over an even-length series as the midpoint", () => {
+    // Four values; median = (72 + 74) / 2 = 73. Insertion order is
+    // intentionally not sorted to prove the helper sorts by value.
+    const data = makePoints([74, 70, 72, 76], 4);
+    const summary = summarize(data);
+    expect(summary.median).toBe(73);
+  });
+
+  it("median diverges from the mean on a right-skewed series", () => {
+    // One large outlier drags the mean up; the median stays at the
+    // central reading — exactly the honesty the stat strip surfaces.
+    const data = makePoints([10, 11, 12, 13, 200], 5);
+    const summary = summarize(data);
+    expect(summary.median).toBe(12);
+    expect(summary.mean).not.toBe(summary.median);
+    expect(summary.mean as number).toBeGreaterThan(summary.median as number);
   });
 
   // v3 audit caught a divergence: summarize().avg7 used `now` as the

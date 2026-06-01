@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "Usunąć wpis?",
     "deleteConfirmDescription": "Ten wpis nastroju zostanie nieodwracalnie usunięty.",
     "pageInfo": "Strona {page} z {total}",
-    "loginRequired": "Zaloguj się, aby zobaczyć wpisy nastroju."
+    "loginRequired": "Zaloguj się, aby zobaczyć wpisy nastroju.",
+    "note": "Notatka",
+    "notePlaceholder": "Dodaj notatkę o swoim samopoczuciu…",
+    "tagPicker": "Tagi",
+    "tagCategory": {
+      "feelings": "Uczucia",
+      "sleep": "Sen",
+      "health": "Zdrowie",
+      "social": "Społeczne",
+      "work": "Praca"
+    },
+    "tag": {
+      "happy": "szczęśliwy",
+      "excited": "podekscytowany",
+      "grateful": "wdzięczny",
+      "relaxed": "zrelaksowany",
+      "content": "zadowolony",
+      "tired": "zmęczony",
+      "unsure": "niepewny",
+      "bored": "znudzony",
+      "tense": "spięty",
+      "angry": "zły",
+      "stressed": "zestresowany",
+      "sad": "smutny",
+      "sleptWell": "dobrze spałem",
+      "sleptOk": "sen średni",
+      "sleptPoorly": "źle spałem",
+      "earlyNight": "wcześnie spać",
+      "workedOut": "trening",
+      "ateWell": "zdrowo zjadłem",
+      "hydrated": "piłem wodę",
+      "walked": "spacer",
+      "alcohol": "alkohol",
+      "family": "rodzina",
+      "friends": "znajomi",
+      "party": "impreza",
+      "alone": "sam",
+      "productive": "produktywny",
+      "overtime": "nadgodziny",
+      "dayOff": "dzień wolny",
+      "travel": "podróż",
+      "sickDay": "dzień chorobowy"
+    }
   },
   "medications": {
     "title": "Leki",
@@ -547,6 +589,13 @@
     "lastIntake": "Ostatnie przyjęcie:",
     "nextIntake": "Następne przyjęcie:",
     "dayStreak": "dni serii",
+    "lastNDoses": "Ostatnie {total} dawek: {taken} z {total}",
+    "doseStreak": "{count} z rzędu",
+    "doseTimelineAriaLabel": "Ostatnie przestrzeganie dawek",
+    "doseTaken": "Przyjęte",
+    "doseMissed": "Pominięte",
+    "doseSkipped": "Opuszczone",
+    "doseUpcoming": "Nadchodzące",
     "taken": "Przyjęte",
     "skipped": "Pominięte",
     "intakeToastTaken": "{name} oznaczone jako przyjęte",
@@ -945,6 +994,7 @@
     },
     "injectionSiteBodyOutlineAriaLabel": "Sylwetka ciała",
     "injectionSitePickerAriaLabel": "Wybór miejsca iniekcji",
+    "injectionSiteRecommendedAriaLabel": "{site} — zalecane następne miejsce",
     "siteAbdomenLeft": "Brzuch, dolny lewy",
     "siteAbdomenRight": "Brzuch, dolny prawy",
     "siteAbdomenUpperLeft": "Brzuch, górny lewy",
@@ -1264,7 +1314,16 @@
         "plannedSuffix": "zaplanowane",
         "drugLevelDisclosure": "Pokaż szacowaną krzywą stężenia leku"
       }
-    }
+    },
+    "logInjectionSiteTitle": "Zarejestruj miejsce iniekcji",
+    "logInjectionSiteDescription": "Gdzie wstrzyknięto {name}? Opcjonalnie — możesz to pominąć.",
+    "logInjectionSiteSkip": "Pomiń",
+    "logInjectionSiteConfirm": "Zapisz miejsce",
+    "logInjectionSiteNoneAvailable": "Brak dostępnego miejsca iniekcji — wszystkie miejsca są wykluczone w Twoich ustawieniach.",
+    "trackInjectionSitesToggle": "Rejestruj miejsca iniekcji",
+    "trackInjectionSitesHint": "Po przyjęciu dawki zapytaj, którego miejsca użyto, i zaproponuj kolejną rotację.",
+    "allowedSitesLabel": "Dozwolone miejsca",
+    "allowedSitesHint": "Pozostaw wszystkie zaznaczone, aby nie stosować ograniczeń. Miejsca wykluczone globalnie nigdy nie są proponowane."
   },
   "charts": {
     "loadingLabel": "Ładowanie wykresu…",
@@ -1275,6 +1334,13 @@
     "bodyFat": "Tkanka tłuszczowa",
     "sleep": "Sen",
     "steps": "Kroki",
+    "hrv": "HRV",
+    "restingHeartRate": "Tętno spoczynkowe",
+    "activeEnergy": "Energia czynna",
+    "flights": "Pokonane piętra",
+    "distance": "Dystans marsz + bieg",
+    "vo2Max": "VO₂ max",
+    "bodyTemperature": "Temperatura ciała",
     "noData": "Brak danych w wybranym okresie",
     "bucketWeekly": "Średnia tygodniowa",
     "bucketMonthly": "Średnia miesięczna",
@@ -1339,7 +1405,17 @@
     "personalBaseline": "Twoja średnia",
     "deltaVsBaseline": "{delta} vs. twoja średnia",
     "deltaUnchanged": "odpowiada twojej średniej",
-    "deltaVsTarget": "{delta} vs. cel"
+    "deltaVsTarget": "{delta} vs. cel",
+    "weekdaysFull": {
+      "mon": "Poniedziałek",
+      "tue": "Wtorek",
+      "wed": "Środa",
+      "thu": "Czwartek",
+      "fri": "Piątek",
+      "sat": "Sobota",
+      "sun": "Niedziela"
+    },
+    "rangeBand": "Zakres"
   },
   "chart": {
     "overlay": {
@@ -1887,7 +1963,22 @@
         "bloodGlucoseBody": "Poziom glukozy we krwi to ilość cukru we krwi, głównego źródła energii organizmu. Rośnie po jedzeniu i ustala się między posiłkami; wartości utrzymujące się wysoko mogą sygnalizować cukrzycę lub stan przedcukrzycowy.",
         "skinTemperatureTitle": "Temperatura skóry",
         "skinTemperatureBody": "Temperatura skóry to tutaj niewielka nocna zmiana temperatury nadgarstka względem twojej własnej wartości bazowej, a nie bezwzględny pomiar gorączki. Zmiany mogą odzwierciedlać sen, otoczenie, chorobę lub fazę cyklu menstruacyjnego."
-      }
+      },
+      "stats": {
+        "label": "Statystyki podsumowujące",
+        "min": "Min",
+        "max": "Maks",
+        "median": "Mediana",
+        "mean": "Średnia"
+      },
+      "showAllValues": "Pokaż wszystkie pomiary",
+      "valuesPageTitle": "{metric} — wszystkie pomiary",
+      "valuesPageDescription": "Każdy pomiar stojący za tą metryką. Edytuj lub usuń wpis bezpośrednio.",
+      "diversity": {
+        "weekday": "Większość Twoich pomiarów {metric} przypada na jeden dzień tygodnia. Pomiary w inne dni dają pełniejszy obraz.",
+        "timeOfDay": "Większość Twoich pomiarów {metric} przypada o podobnej porze dnia. Różne pory dają pełniejszy obraz."
+      },
+      "valuesBack": "Powrót do Insights"
     },
     "sleep": {
       "title": "Sen",
@@ -2268,7 +2359,41 @@
         "description": "Odczyty pojawią się tutaj po synchronizacji Apple Health."
       }
     },
-    "navWalkingSpeed": "Prędkość chodu"
+    "navWalkingSpeed": "Prędkość chodu",
+    "mood": {
+      "heatmapTitle": "Kalendarz nastroju",
+      "heatmapNoEntry": "Brak wpisu",
+      "legendGreat": "Świetnie",
+      "legendGood": "Dobrze",
+      "legendOkay": "W porządku",
+      "legendLow": "Nisko",
+      "distributionTitle": "Rozkład nastroju",
+      "distributionDaysUnit": "dni",
+      "weekdayTitle": "Średnia wg dnia tygodnia",
+      "weekdayNoData": "Brak danych",
+      "weekdayBestWorst": "Najlepszy dzień: {best} · Najtrudniejszy dzień: {worst}",
+      "tagsTitle": "Tagi i wyzwalacze",
+      "tagAvgMood": "Średni nastrój z tym tagiem",
+      "correlationsTitle": "Nastrój a inne wskaźniki",
+      "correlationsDescription": "Jak Twój nastrój zmienia się wraz ze snem, aktywnością i tętnem tego samego dnia.",
+      "correlation": {
+        "sleepTitle": "Nastrój a sen",
+        "stepsTitle": "Nastrój a aktywność",
+        "pulseTitle": "Nastrój a tętno",
+        "sleepAxis": "Sen (min)",
+        "stepsAxis": "Kroki",
+        "pulseAxis": "Tętno (bpm)",
+        "strengthStrong": "Silna",
+        "strengthModerate": "Umiarkowana",
+        "strengthWeak": "Słaba",
+        "strengthNone": "Brak",
+        "source": "{n} sparowanych dni · r = {r}",
+        "emptyTitle": "Za mało sparowanych danych",
+        "emptyDescription": "Rejestruj nastrój i ten wskaźnik w te same dni, aby zobaczyć korelację."
+      },
+      "structuredTagsTitle": "Podział tagów",
+      "notesTimelineTitle": "Notatki"
+    }
   },
   "thresholds": {
     "defaultLabel": "Domyślne",
@@ -3026,7 +3151,9 @@
       "fhirNote": "Dane ustrukturyzowane są zgodne ze standardem FHIR R4 (kompatybilne z ePA).",
       "generate": "Generuj",
       "error": "Eksport nie powiódł się ({code})."
-    }
+    },
+    "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
+    "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje."
   },
   "admin": {
     "title": "Administration",

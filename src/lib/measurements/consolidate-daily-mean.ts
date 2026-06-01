@@ -12,7 +12,8 @@
  *
  * Scope per `HIGH_FREQUENCY_MEAN_TYPES`:
  *   RESPIRATORY_RATE, AUDIO_EXPOSURE_ENV, AUDIO_EXPOSURE_HEADPHONE,
- *   WALKING_SPEED, WALKING_STEP_LENGTH
+ *   WALKING_SPEED, WALKING_STEP_LENGTH, WALKING_ASYMMETRY,
+ *   WALKING_DOUBLE_SUPPORT, WALKING_STEADINESS, WALKING_HEART_RATE_AVERAGE
  *
  * PULSE is NOT in the set — correlation/scatter analytics read raw PULSE
  * rows. PULSE keeps raw storage; its display stays daily-averaged via
@@ -58,6 +59,7 @@ import {
   type DayWriteOutcome,
 } from "./consolidation-base";
 import { type PerSampleRow } from "./drain-per-sample-cumulative";
+import { recomputeBucketsForMeasurement } from "@/lib/rollups/measurement-rollups";
 
 /**
  * Grace window — rows newer than `now() - cutoffHours` stay raw so
@@ -241,6 +243,17 @@ export async function consolidateDailyMean(
         });
         removed = del.count;
       });
+
+      // T3 — recompute the affected (user, type, day) rollup buckets after
+      // the consolidation commits, the same way the batch route does on
+      // ingest. Without it, a rollup-covered read could serve a pre-drain
+      // mean derived from the now soft-deleted per-sample rows: the rollup
+      // tier reads only `deleted_at IS NULL`, so the stale DAY bucket must
+      // be re-aggregated against the single consolidated row. The
+      // canonical timestamp is local-noon of the consolidated day, which
+      // lands the recompute on the correct UTC day bucket.
+      await recomputeBucketsForMeasurement(userId, type, canonicalTimestamp);
+
       return { kind: "written", sourceRowsRemoved: removed };
     },
     recordBucket: ({

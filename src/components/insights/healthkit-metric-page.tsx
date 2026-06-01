@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
+import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -86,6 +89,13 @@ export interface HealthKitMetricPageProps {
    * Resolves `insights.subPage.explainer.<explainerMetric>{Title,Body}`.
    */
   explainerMetric?: string;
+  /**
+   * v1.8.5 W5 — when set, renders `<MetricTargetSummary slug=…>` beneath
+   * the chart. Used by blood glucose, whose per-context ADA / DDG bands
+   * live on the targets wire but whose page rides this generic scaffold
+   * rather than a bespoke module. Omit it for metrics without a target.
+   */
+  targetSummarySlug?: string;
 }
 
 export function HealthKitMetricPage({
@@ -102,12 +112,32 @@ export function HealthKitMetricPage({
   coachPrefill,
   valueScale,
   explainerMetric,
+  targetSummarySlug,
 }: HealthKitMetricPageProps) {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
 
-  const { isEmpty } = useInsightsAnalytics(insightMetric);
+  const { data: analytics, isEmpty } = useInsightsAnalytics(insightMetric);
+  const rawSummary = analytics?.summaries?.[measurementType] ?? null;
+  // The stat strip renders display-unit values. The summary holds stored
+  // values, so when the page renders a scaled unit (e.g. WALKING_SPEED
+  // stores m/s but displays km/h via `valueScale`), fold the same scale
+  // into the strip's min / max / median / mean so the numbers and the
+  // unit agree. `valueScale` defaults to 1 (identity) → byte-identical
+  // for every non-scaled metric.
+  const scale = valueScale ?? 1;
+  const summary =
+    rawSummary && scale !== 1
+      ? {
+          ...rawSummary,
+          min: rawSummary.min === null ? null : rawSummary.min * scale,
+          max: rawSummary.max === null ? null : rawSummary.max * scale,
+          mean: rawSummary.mean === null ? null : rawSummary.mean * scale,
+          median:
+            rawSummary.median === null ? null : rawSummary.median * scale,
+        }
+      : rawSummary;
 
   const title = t(`${i18nPrefix}.title`);
   const description = t(`${i18nPrefix}.description`);
@@ -143,6 +173,15 @@ export function HealthKitMetricPage({
       title={title}
       description={description}
       explainerMetric={explainerMetric}
+      statStrip={<MetricStatStrip summary={summary} unit={yAxisUnit ?? unit} />}
+      diversityNudge={
+        <MeasurementDiversityNudge
+          measurementType={measurementType}
+          metricLabel={title}
+          timeZone={user?.timezone ?? undefined}
+        />
+      }
+      showAllValuesType={measurementType}
     >
       <HealthChartDynamic
         chartKey={chartKey}
@@ -156,6 +195,9 @@ export function HealthKitMetricPage({
         userTimezone={user?.timezone}
         valueScale={valueScale}
       />
+      {targetSummarySlug ? (
+        <MetricTargetSummary slug={targetSummarySlug} />
+      ) : null}
       <CoachLaunchButton />
     </SubPageShell>
   );

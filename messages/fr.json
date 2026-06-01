@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "Supprimer l’entrée ?",
     "deleteConfirmDescription": "Cette entrée d’humeur sera supprimée définitivement.",
     "pageInfo": "Page {page} sur {total}",
-    "loginRequired": "Connecte-toi pour voir tes entrées d’humeur."
+    "loginRequired": "Connecte-toi pour voir tes entrées d’humeur.",
+    "note": "Note",
+    "notePlaceholder": "Ajoutez une note sur votre ressenti…",
+    "tagPicker": "Étiquettes",
+    "tagCategory": {
+      "feelings": "Émotions",
+      "sleep": "Sommeil",
+      "health": "Santé",
+      "social": "Social",
+      "work": "Travail"
+    },
+    "tag": {
+      "happy": "heureux",
+      "excited": "enthousiaste",
+      "grateful": "reconnaissant",
+      "relaxed": "détendu",
+      "content": "satisfait",
+      "tired": "fatigué",
+      "unsure": "incertain",
+      "bored": "ennuyé",
+      "tense": "tendu",
+      "angry": "en colère",
+      "stressed": "stressé",
+      "sad": "triste",
+      "sleptWell": "bien dormi",
+      "sleptOk": "sommeil moyen",
+      "sleptPoorly": "mal dormi",
+      "earlyNight": "couché tôt",
+      "workedOut": "fait du sport",
+      "ateWell": "bien mangé",
+      "hydrated": "bu de l'eau",
+      "walked": "marché",
+      "alcohol": "alcool",
+      "family": "famille",
+      "friends": "amis",
+      "party": "fête",
+      "alone": "seul",
+      "productive": "productif",
+      "overtime": "heures sup",
+      "dayOff": "jour de repos",
+      "travel": "voyage",
+      "sickDay": "jour de maladie"
+    }
   },
   "medications": {
     "title": "Médicaments",
@@ -547,6 +589,13 @@
     "lastIntake": "Dernière prise :",
     "nextIntake": "Prochaine prise :",
     "dayStreak": "jours de série",
+    "lastNDoses": "{total} dernières doses : {taken} sur {total}",
+    "doseStreak": "{count} d'affilée",
+    "doseTimelineAriaLabel": "Observance récente des doses",
+    "doseTaken": "Pris",
+    "doseMissed": "Manqué",
+    "doseSkipped": "Ignoré",
+    "doseUpcoming": "À venir",
     "taken": "Pris",
     "skipped": "Sauté",
     "intakeToastTaken": "{name} enregistré comme pris",
@@ -945,6 +994,7 @@
     },
     "injectionSiteBodyOutlineAriaLabel": "Silhouette du corps",
     "injectionSitePickerAriaLabel": "Sélecteur de site d'injection",
+    "injectionSiteRecommendedAriaLabel": "{site} — prochain site recommandé",
     "siteAbdomenLeft": "Abdomen, en bas à gauche",
     "siteAbdomenRight": "Abdomen, en bas à droite",
     "siteAbdomenUpperLeft": "Abdomen, en haut à gauche",
@@ -1264,7 +1314,16 @@
         "plannedSuffix": "prévu",
         "drugLevelDisclosure": "Afficher la courbe estimée du principe actif"
       }
-    }
+    },
+    "logInjectionSiteTitle": "Enregistrer le site d'injection",
+    "logInjectionSiteDescription": "Où avez-vous injecté {name} ? Facultatif — vous pouvez l'ignorer.",
+    "logInjectionSiteSkip": "Ignorer",
+    "logInjectionSiteConfirm": "Enregistrer le site",
+    "logInjectionSiteNoneAvailable": "Aucun site d'injection disponible — tous les sites sont exclus dans vos réglages.",
+    "trackInjectionSitesToggle": "Suivre les sites d'injection",
+    "trackInjectionSitesHint": "Après la prise d'une dose, demander quel site a été utilisé et suggérer la prochaine rotation.",
+    "allowedSitesLabel": "Sites autorisés",
+    "allowedSitesHint": "Laissez tout sélectionné pour aucune restriction. Les sites exclus globalement ne sont jamais proposés."
   },
   "charts": {
     "loadingLabel": "Chargement du graphique…",
@@ -1275,6 +1334,13 @@
     "bodyFat": "Masse grasse",
     "sleep": "Sommeil",
     "steps": "Pas",
+    "hrv": "VFC",
+    "restingHeartRate": "FC au repos",
+    "activeEnergy": "Énergie active",
+    "flights": "Étages gravis",
+    "distance": "Distance marche + course",
+    "vo2Max": "VO₂ max",
+    "bodyTemperature": "Température corporelle",
     "noData": "Aucune donnée sur la période sélectionnée",
     "bucketWeekly": "Moyenne hebdomadaire",
     "bucketMonthly": "Moyenne mensuelle",
@@ -1339,7 +1405,17 @@
     "personalBaseline": "Ta moyenne",
     "deltaVsBaseline": "{delta} vs. ta moyenne",
     "deltaUnchanged": "correspond à ta moyenne",
-    "deltaVsTarget": "{delta} vs. cible"
+    "deltaVsTarget": "{delta} vs. cible",
+    "weekdaysFull": {
+      "mon": "Lundi",
+      "tue": "Mardi",
+      "wed": "Mercredi",
+      "thu": "Jeudi",
+      "fri": "Vendredi",
+      "sat": "Samedi",
+      "sun": "Dimanche"
+    },
+    "rangeBand": "Plage"
   },
   "chart": {
     "overlay": {
@@ -1887,7 +1963,22 @@
         "bloodGlucoseBody": "La glycémie est la quantité de sucre dans votre sang, principale source d'énergie de l'organisme. Elle augmente après les repas et se stabilise entre eux ; des valeurs durablement élevées peuvent signaler un diabète ou un prédiabète.",
         "skinTemperatureTitle": "Température cutanée",
         "skinTemperatureBody": "La température cutanée correspond ici à la petite variation nocturne de la température de votre poignet par rapport à votre propre référence, et non à une mesure absolue de fièvre. Les variations peuvent suivre le sommeil, l'environnement, une maladie ou la phase du cycle menstruel."
-      }
+      },
+      "stats": {
+        "label": "Statistiques récapitulatives",
+        "min": "Min",
+        "max": "Max",
+        "median": "Médiane",
+        "mean": "Moyenne"
+      },
+      "showAllValues": "Afficher toutes les mesures",
+      "valuesPageTitle": "{metric} — toutes les mesures",
+      "valuesPageDescription": "Chaque mesure derrière cette métrique. Modifiez ou supprimez une entrée directement.",
+      "diversity": {
+        "weekday": "La plupart de vos mesures de {metric} tombent le même jour de la semaine. Enregistrer d'autres jours donne une image plus complète.",
+        "timeOfDay": "La plupart de vos mesures de {metric} tombent à une heure similaire de la journée. Varier l'heure donne une image plus complète."
+      },
+      "valuesBack": "Retour aux Insights"
     },
     "sleep": {
       "title": "Sommeil",
@@ -2268,7 +2359,41 @@
         "description": "Les relevés apparaissent ici dès qu’Apple Health se synchronise."
       }
     },
-    "navWalkingSpeed": "Vitesse de marche"
+    "navWalkingSpeed": "Vitesse de marche",
+    "mood": {
+      "heatmapTitle": "Calendrier d'humeur",
+      "heatmapNoEntry": "Aucune entrée",
+      "legendGreat": "Excellent",
+      "legendGood": "Bien",
+      "legendOkay": "Correct",
+      "legendLow": "Bas",
+      "distributionTitle": "Répartition de l'humeur",
+      "distributionDaysUnit": "jours",
+      "weekdayTitle": "Moyenne par jour de la semaine",
+      "weekdayNoData": "Aucune donnée",
+      "weekdayBestWorst": "Meilleur jour : {best} · Jour le plus difficile : {worst}",
+      "tagsTitle": "Étiquettes et déclencheurs",
+      "tagAvgMood": "Humeur moyenne avec cette étiquette",
+      "correlationsTitle": "Humeur et autres mesures",
+      "correlationsDescription": "Comment votre humeur évolue avec le sommeil, l'activité et le pouls le même jour.",
+      "correlation": {
+        "sleepTitle": "Humeur vs. sommeil",
+        "stepsTitle": "Humeur vs. activité",
+        "pulseTitle": "Humeur vs. pouls",
+        "sleepAxis": "Sommeil (min)",
+        "stepsAxis": "Pas",
+        "pulseAxis": "Pouls (bpm)",
+        "strengthStrong": "Forte",
+        "strengthModerate": "Modérée",
+        "strengthWeak": "Faible",
+        "strengthNone": "Aucune",
+        "source": "{n} jours appariés · r = {r}",
+        "emptyTitle": "Pas encore assez de données appariées",
+        "emptyDescription": "Enregistrez l'humeur et cette mesure les mêmes jours pour voir une corrélation."
+      },
+      "structuredTagsTitle": "Répartition des étiquettes",
+      "notesTimelineTitle": "Notes"
+    }
   },
   "thresholds": {
     "defaultLabel": "Par défaut",
@@ -3026,7 +3151,9 @@
       "fhirNote": "La sortie structurée suit la norme FHIR R4 (compatible ePA).",
       "generate": "Générer",
       "error": "Échec de l’export ({code})."
-    }
+    },
+    "globalExcludedInjectionSitesLabel": "Sites d'injection exclus globalement",
+    "globalExcludedInjectionSitesHint": "Les sites listés ici ne sont proposés pour aucun médicament et sont refusés lors de l'enregistrement d'une dose, même si un médicament les privilégie."
   },
   "admin": {
     "title": "Administration",

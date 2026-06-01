@@ -9,6 +9,10 @@ import { MedicationCardMenu } from "@/components/medications/medication-card-men
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
+import {
+  DoseAdherenceTimeline,
+  type DoseAdherenceCell,
+} from "@/components/medications/card-parts/dose-adherence-timeline";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { formatDateTime, formatTime } from "@/lib/format";
@@ -23,6 +27,9 @@ import {
   medicationDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
+import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
+import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
+import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
 interface Schedule {
   id: string;
@@ -46,6 +53,12 @@ interface Medication {
    */
   treatmentClass?: string;
   dosesPerUnit?: number | null;
+  /** v1.6.0 — route of administration (drives the injection-site prompt). */
+  deliveryForm?: string;
+  /** v1.8.5 — per-medication injection-site tracking opt-in. */
+  trackInjectionSites?: boolean;
+  /** v1.8.5 — per-medication allowed / preferred injection sites. */
+  allowedInjectionSites?: string[];
   active: boolean;
   notificationsEnabled: boolean;
   pausedAt: string | null;
@@ -62,6 +75,15 @@ interface Medication {
   schedules: Schedule[];
 }
 
+interface ComplianceDisplay {
+  mode: "percent" | "timeline";
+  expected7: number;
+  expected30: number;
+  minStableDoses: number;
+  doseTimeline: DoseAdherenceCell[];
+  recentDoseSummary: { taken: number; total: number; doseStreak: number };
+}
+
 interface ComplianceData {
   compliance7: {
     totalExpected: number;
@@ -74,6 +96,12 @@ interface ComplianceData {
   compliance30: {
     rate: number;
   };
+  /**
+   * v1.8.5 — server-decided render mode for the compliance region. Dense
+   * cadences keep the 7-/30-day bars (`"percent"`); sparse cadences swap to
+   * the per-dose uptime strip (`"timeline"`). Additive — older mocks omit it.
+   */
+  complianceDisplay?: ComplianceDisplay;
 }
 
 interface MedicationCardProps {
@@ -103,6 +131,14 @@ export function MedicationCard({
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
   const [intakeLoading, setIntakeLoading] = useState<string | null>(null);
+  // v1.8.5 — post-dose injection-site prompt state. Holds the intake
+  // event id returned by the take POST so the confirm handler can PATCH
+  // the chosen site onto it. Null = dialog closed.
+  const [siteIntakeId, setSiteIntakeId] = useState<string | null>(null);
+  const globalExcluded = useGlobalExcludedInjectionSites();
+  const tracksInjection =
+    medication.deliveryForm === "INJECTION" &&
+    medication.trackInjectionSites === true;
 
   const { data: compliance } = useQuery({
     queryKey: queryKeys.medicationCompliance(medication.id),
@@ -152,9 +188,37 @@ export function MedicationCard({
           ),
         );
         await invalidateKeys(queryClient, medicationDependentKeys);
+        // v1.8.5 — after a TAKEN dose on a tracking-enabled injection,
+        // prompt (skippably) for the site. The dialog PATCHes it onto
+        // the just-created event via the status-toggle route.
+        if (!skipped && tracksInjection) {
+          try {
+            const json = await res.json();
+            const eventId = json?.data?.id as string | undefined;
+            if (eventId) setSiteIntakeId(eventId);
+          } catch {
+            /* dose recorded; the site prompt is best-effort */
+          }
+        }
       }
     } finally {
       setIntakeLoading(null);
+    }
+  }
+
+  async function confirmInjectionSite(site: InjectionSiteKey) {
+    const intakeId = siteIntakeId;
+    setSiteIntakeId(null);
+    if (!intakeId) return;
+    const res = await fetch("/api/medications/intake", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intakeId, status: "taken", injectionSite: site }),
+    });
+    if (res.ok) {
+      await invalidateKeys(queryClient, medicationDependentKeys);
+    } else {
+      toast.error(t("medications.logInjectionSiteNoneAvailable"));
     }
   }
 
@@ -327,14 +391,24 @@ export function MedicationCard({
           </p>
         )}
 
-        {/* Compliance bar */}
-        {medication.active && compliance && (
-          <MedicationComplianceBars
-            rate7={rate7}
-            rate30={rate30}
-            streak={streak}
-          />
-        )}
+        {/* Compliance region — the server decides whether the percentage
+            bars stay (dense cadences) or the per-dose uptime strip takes
+            over (sparse cadences). Falls back to the bars when the older
+            payload omits `complianceDisplay`. */}
+        {medication.active &&
+          compliance &&
+          (compliance.complianceDisplay?.mode === "timeline" ? (
+            <DoseAdherenceTimeline
+              doses={compliance.complianceDisplay.doseTimeline}
+              summary={compliance.complianceDisplay.recentDoseSummary}
+            />
+          ) : (
+            <MedicationComplianceBars
+              rate7={rate7}
+              rate30={rate30}
+              streak={streak}
+            />
+          ))}
 
         {/* Quick actions — primary buttons of the medication card. */}
         {medication.active && (
@@ -344,6 +418,21 @@ export function MedicationCard({
           />
         )}
       </CardContent>
+
+      {/* v1.8.5 — post-dose injection-site capture (optional, skippable). */}
+      {tracksInjection && (
+        <LogInjectionSiteDialog
+          open={siteIntakeId !== null}
+          medicationName={medication.name}
+          allowedInjectionSites={
+            (medication.allowedInjectionSites ?? []) as InjectionSiteKey[]
+          }
+          globalExcludedInjectionSites={globalExcluded}
+          history={[]}
+          onConfirm={confirmInjectionSite}
+          onSkip={() => setSiteIntakeId(null)}
+        />
+      )}
     </Card>
   );
 }

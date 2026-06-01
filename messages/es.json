@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "¿Eliminar entrada?",
     "deleteConfirmDescription": "Esta entrada de estado de ánimo se eliminará de forma permanente.",
     "pageInfo": "Página {page} de {total}",
-    "loginRequired": "Inicia sesión para ver tus estados de ánimo."
+    "loginRequired": "Inicia sesión para ver tus estados de ánimo.",
+    "note": "Nota",
+    "notePlaceholder": "Añade una nota sobre cómo te sientes…",
+    "tagPicker": "Etiquetas",
+    "tagCategory": {
+      "feelings": "Sentimientos",
+      "sleep": "Sueño",
+      "health": "Salud",
+      "social": "Social",
+      "work": "Trabajo"
+    },
+    "tag": {
+      "happy": "feliz",
+      "excited": "emocionado",
+      "grateful": "agradecido",
+      "relaxed": "relajado",
+      "content": "satisfecho",
+      "tired": "cansado",
+      "unsure": "inseguro",
+      "bored": "aburrido",
+      "tense": "tenso",
+      "angry": "enfadado",
+      "stressed": "estresado",
+      "sad": "triste",
+      "sleptWell": "dormí bien",
+      "sleptOk": "dormí regular",
+      "sleptPoorly": "dormí mal",
+      "earlyNight": "me acosté pronto",
+      "workedOut": "entrené",
+      "ateWell": "comí bien",
+      "hydrated": "bebí agua",
+      "walked": "caminé",
+      "alcohol": "alcohol",
+      "family": "familia",
+      "friends": "amigos",
+      "party": "fiesta",
+      "alone": "solo",
+      "productive": "productivo",
+      "overtime": "horas extra",
+      "dayOff": "día libre",
+      "travel": "viaje",
+      "sickDay": "día de baja"
+    }
   },
   "medications": {
     "title": "Medicamentos",
@@ -547,6 +589,13 @@
     "lastIntake": "Última toma:",
     "nextIntake": "Próxima toma:",
     "dayStreak": "días de racha",
+    "lastNDoses": "Últimas {total} dosis: {taken} de {total}",
+    "doseStreak": "{count} seguidas",
+    "doseTimelineAriaLabel": "Adherencia reciente a las dosis",
+    "doseTaken": "Tomada",
+    "doseMissed": "Omitida",
+    "doseSkipped": "Saltada",
+    "doseUpcoming": "Próxima",
     "taken": "Tomada",
     "skipped": "Omitida",
     "intakeToastTaken": "{name} registrada como tomada",
@@ -945,6 +994,7 @@
     },
     "injectionSiteBodyOutlineAriaLabel": "Silueta del cuerpo",
     "injectionSitePickerAriaLabel": "Selector de sitio de inyección",
+    "injectionSiteRecommendedAriaLabel": "{site}: sitio siguiente recomendado",
     "siteAbdomenLeft": "Abdomen, inferior izquierdo",
     "siteAbdomenRight": "Abdomen, inferior derecho",
     "siteAbdomenUpperLeft": "Abdomen, superior izquierdo",
@@ -1264,7 +1314,16 @@
         "plannedSuffix": "planificado",
         "drugLevelDisclosure": "Mostrar curva estimada del principio activo"
       }
-    }
+    },
+    "logInjectionSiteTitle": "Registrar sitio de inyección",
+    "logInjectionSiteDescription": "¿Dónde te inyectaste {name}? Opcional: puedes omitirlo.",
+    "logInjectionSiteSkip": "Omitir",
+    "logInjectionSiteConfirm": "Guardar sitio",
+    "logInjectionSiteNoneAvailable": "No hay ningún sitio de inyección disponible: todos los sitios están excluidos en tu configuración.",
+    "trackInjectionSitesToggle": "Registrar sitios de inyección",
+    "trackInjectionSitesHint": "Tras administrar una dosis, pregunta qué sitio se usó y sugiere la siguiente rotación.",
+    "allowedSitesLabel": "Sitios permitidos",
+    "allowedSitesHint": "Deja todos seleccionados para no aplicar restricciones. Los sitios que excluiste globalmente nunca se ofrecen."
   },
   "charts": {
     "loadingLabel": "Cargando la gráfica…",
@@ -1275,6 +1334,13 @@
     "bodyFat": "Grasa corporal",
     "sleep": "Sueño",
     "steps": "Pasos",
+    "hrv": "VFC",
+    "restingHeartRate": "FC en reposo",
+    "activeEnergy": "Energía activa",
+    "flights": "Pisos subidos",
+    "distance": "Distancia a pie + corriendo",
+    "vo2Max": "VO₂ máx",
+    "bodyTemperature": "Temperatura corporal",
     "noData": "Sin datos en el periodo seleccionado",
     "bucketWeekly": "Media semanal",
     "bucketMonthly": "Media mensual",
@@ -1339,7 +1405,17 @@
     "personalBaseline": "Tu media",
     "deltaVsBaseline": "{delta} vs. tu media",
     "deltaUnchanged": "coincide con tu media",
-    "deltaVsTarget": "{delta} vs. objetivo"
+    "deltaVsTarget": "{delta} vs. objetivo",
+    "weekdaysFull": {
+      "mon": "Lunes",
+      "tue": "Martes",
+      "wed": "Miércoles",
+      "thu": "Jueves",
+      "fri": "Viernes",
+      "sat": "Sábado",
+      "sun": "Domingo"
+    },
+    "rangeBand": "Rango"
   },
   "chart": {
     "overlay": {
@@ -1887,7 +1963,22 @@
         "bloodGlucoseBody": "La glucosa en sangre es la cantidad de azúcar en tu sangre, la principal fuente de energía del cuerpo. Sube tras comer y se estabiliza entre comidas; valores que se mantienen altos con el tiempo pueden indicar diabetes o prediabetes.",
         "skinTemperatureTitle": "Temperatura de la piel",
         "skinTemperatureBody": "La temperatura de la piel aquí es el pequeño cambio nocturno de la temperatura de tu muñeca respecto a tu propio valor de referencia, no una medición absoluta de fiebre. Las variaciones pueden seguir el sueño, el entorno, una enfermedad o la fase del ciclo menstrual."
-      }
+      },
+      "stats": {
+        "label": "Estadísticas resumidas",
+        "min": "Mín",
+        "max": "Máx",
+        "median": "Mediana",
+        "mean": "Media"
+      },
+      "showAllValues": "Mostrar todas las mediciones",
+      "valuesPageTitle": "{metric} — todas las mediciones",
+      "valuesPageDescription": "Cada medición detrás de esta métrica. Edita o elimina una entrada directamente.",
+      "diversity": {
+        "weekday": "La mayoría de tus mediciones de {metric} caen en un mismo día de la semana. Registrar en otros días ofrece una imagen más completa.",
+        "timeOfDay": "La mayoría de tus mediciones de {metric} caen a una hora similar del día. Variar la hora ofrece una imagen más completa."
+      },
+      "valuesBack": "Volver a Insights"
     },
     "sleep": {
       "title": "Sueño",
@@ -2268,7 +2359,41 @@
         "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza."
       }
     },
-    "navWalkingSpeed": "Velocidad al andar"
+    "navWalkingSpeed": "Velocidad al andar",
+    "mood": {
+      "heatmapTitle": "Calendario de ánimo",
+      "heatmapNoEntry": "Sin registro",
+      "legendGreat": "Genial",
+      "legendGood": "Bien",
+      "legendOkay": "Regular",
+      "legendLow": "Bajo",
+      "distributionTitle": "Distribución del ánimo",
+      "distributionDaysUnit": "días",
+      "weekdayTitle": "Promedio por día de la semana",
+      "weekdayNoData": "Sin datos",
+      "weekdayBestWorst": "Mejor día: {best} · Día más difícil: {worst}",
+      "tagsTitle": "Etiquetas y desencadenantes",
+      "tagAvgMood": "Ánimo promedio con esta etiqueta",
+      "correlationsTitle": "Ánimo y otras métricas",
+      "correlationsDescription": "Cómo se mueve tu ánimo con el sueño, la actividad y el pulso el mismo día.",
+      "correlation": {
+        "sleepTitle": "Ánimo vs. sueño",
+        "stepsTitle": "Ánimo vs. actividad",
+        "pulseTitle": "Ánimo vs. pulso",
+        "sleepAxis": "Sueño (min)",
+        "stepsAxis": "Pasos",
+        "pulseAxis": "Pulso (lpm)",
+        "strengthStrong": "Fuerte",
+        "strengthModerate": "Moderada",
+        "strengthWeak": "Débil",
+        "strengthNone": "Ninguna",
+        "source": "{n} días emparejados · r = {r}",
+        "emptyTitle": "Aún no hay suficientes datos emparejados",
+        "emptyDescription": "Registra el ánimo y esta métrica los mismos días para ver una correlación."
+      },
+      "structuredTagsTitle": "Desglose de etiquetas",
+      "notesTimelineTitle": "Notas"
+    }
   },
   "thresholds": {
     "defaultLabel": "Por defecto",
@@ -3026,7 +3151,9 @@
       "fhirNote": "La salida estructurada sigue el estándar FHIR R4 (compatible con ePA).",
       "generate": "Generar",
       "error": "Error en la exportación ({code})."
-    }
+    },
+    "globalExcludedInjectionSitesLabel": "Sitios de inyección excluidos globalmente",
+    "globalExcludedInjectionSitesHint": "Los sitios listados aquí no se ofrecen para ningún medicamento y se rechazan al registrar una dosis, aunque un medicamento los prefiera."
   },
   "admin": {
     "title": "Administration",

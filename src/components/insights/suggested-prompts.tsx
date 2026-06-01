@@ -70,7 +70,10 @@ export function SuggestedPrompts({
   return (
     <div
       data-slot="insights-suggested-prompts"
-      className={cn("flex flex-wrap items-center gap-2", className)}
+      // v1.8.5 W4a — tighten the chip row gutter (`gap-1.5` vs `gap-2`) so
+      // the condensed Coach band reads as a dense, deliberate strip rather
+      // than an airy wrap. The chips themselves shrink their padding below.
+      className={cn("flex flex-wrap items-center gap-1.5", className)}
     >
       <span
         data-slot="insights-suggested-prompts-label"
@@ -84,10 +87,15 @@ export function SuggestedPrompts({
           type="button"
           onClick={() => onPick(prompt)}
           data-slot="insights-suggested-prompts-chip"
+          // v1.8.5 W4a — denser chips. The tap target stays comfortable
+          // (`min-h-9` ≈ 36 px, the WCAG/iOS floor) but the horizontal
+          // padding + type size drop a notch so five prompts pack into
+          // fewer rows and the left column stops towering over the
+          // Health-Score card.
           className={cn(
             "border-dracula-purple/18 hover:border-dracula-purple/40 hover:text-foreground",
-            "text-muted-foreground inline-flex min-h-11 items-center gap-1.5",
-            "rounded-full border bg-transparent px-3.5 py-2 text-[13px]",
+            "text-muted-foreground inline-flex min-h-9 items-center gap-1.5",
+            "rounded-full border bg-transparent px-3 py-1.5 text-xs",
             "transition-colors focus-visible:ring-2 focus-visible:outline-none",
             "focus-visible:ring-dracula-purple/50",
           )}

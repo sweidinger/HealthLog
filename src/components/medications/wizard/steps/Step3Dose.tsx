@@ -13,8 +13,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { InjectionSitePicker } from "@/components/medications/injection-site-picker";
-import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  INJECTION_SITE_KEYS,
+  describeInjectionSite,
+  type InjectionSiteKey,
+} from "@/lib/medications/injection-sites";
 import type { MedicationDeliveryForm } from "@/lib/validations/medication";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -48,13 +53,23 @@ const DELIVERY_FORM_KEYS: readonly MedicationDeliveryForm[] = [
 
 export function Step3Dose({ payload, applyPartial }: StepProps) {
   const { t } = useTranslations();
-  // The injection-site rotation map is a visual aide on the editor: the
-  // chosen site is persisted per intake-event (no medication-level
-  // column), so the picker selection here is a local preview the user
-  // collapses when not needed.
-  const [siteOpen, setSiteOpen] = useState(false);
-  const [previewSite, setPreviewSite] = useState<InjectionSiteKey | null>(null);
+  // v1.8.5 — injection-site tracking is a per-medication opt-in surfaced
+  // only for an INJECTION delivery form. When enabled, the user can
+  // restrict the allowed sites; an empty selection means "no
+  // restriction" (every site offered, minus the global exclusion).
+  const [allowedOpen, setAllowedOpen] = useState(false);
   const isInjection = payload.deliveryForm === "INJECTION";
+
+  function toggleAllowedSite(site: InjectionSiteKey, checked: boolean) {
+    const current = new Set(payload.allowedInjectionSites);
+    if (checked) current.add(site);
+    else current.delete(site);
+    applyPartial({
+      allowedInjectionSites: INJECTION_SITE_KEYS.filter((s) =>
+        current.has(s),
+      ),
+    });
+  }
 
   return (
     <div className="space-y-6" data-slot="wizard-step3">
@@ -151,40 +166,83 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
         </div>
       </div>
 
-      {/* v1.6.0 — collapsible injection-site rotation map. Shown only for
-          INJECTION delivery; the per-dose site is logged at intake time
-          so this surface is an optional rotation aide, not a persisted
-          medication field. */}
+      {/* v1.8.5 — injection-site tracking opt-in + allowed-sites editor.
+          Shown only for an INJECTION delivery form. Default off; enabling
+          it surfaces the post-dose site prompt and the rotation
+          suggestion. The allowed-sites checklist restricts the picker
+          (empty = no restriction). */}
       {isInjection && (
         <div
-          className="border-border/60 rounded-lg border"
+          className="border-border/60 space-y-3 rounded-lg border p-3"
           data-slot="wizard-injection-site"
         >
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-11 w-full justify-between px-3"
-            aria-expanded={siteOpen}
-            onClick={() => setSiteOpen((prev) => !prev)}
-          >
-            <span className="text-sm font-medium">
-              {t("medications.wizard.steps.step3.injectionSiteToggle")}
+          <label className="flex items-start justify-between gap-3">
+            <span className="space-y-0.5">
+              <span className="block text-sm font-medium">
+                {t("medications.trackInjectionSitesToggle")}
+              </span>
+              <span className="text-muted-foreground block text-xs">
+                {t("medications.trackInjectionSitesHint")}
+              </span>
             </span>
-            {siteOpen ? (
-              <ChevronUp aria-hidden="true" className="h-4 w-4" />
-            ) : (
-              <ChevronDown aria-hidden="true" className="h-4 w-4" />
-            )}
-          </Button>
-          {siteOpen && (
-            <div className="space-y-2 px-3 pb-4">
-              <p className="text-muted-foreground text-xs">
-                {t("medications.wizard.steps.step3.injectionSiteHint")}
-              </p>
-              <InjectionSitePicker
-                value={previewSite}
-                onChange={setPreviewSite}
-              />
+            <Switch
+              checked={payload.trackInjectionSites}
+              onCheckedChange={(checked) =>
+                applyPartial({
+                  trackInjectionSites: checked,
+                  // Clear the per-med restriction when tracking is turned off.
+                  ...(checked ? {} : { allowedInjectionSites: [] }),
+                })
+              }
+              aria-label={t("medications.trackInjectionSitesToggle")}
+            />
+          </label>
+
+          {payload.trackInjectionSites && (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-9 w-full justify-between px-2"
+                aria-expanded={allowedOpen}
+                onClick={() => setAllowedOpen((prev) => !prev)}
+              >
+                <span className="text-sm font-medium">
+                  {t("medications.allowedSitesLabel")}
+                </span>
+                {allowedOpen ? (
+                  <ChevronUp aria-hidden="true" className="h-4 w-4" />
+                ) : (
+                  <ChevronDown aria-hidden="true" className="h-4 w-4" />
+                )}
+              </Button>
+              {allowedOpen && (
+                <div className="space-y-2 px-1">
+                  <p className="text-muted-foreground text-xs">
+                    {t("medications.allowedSitesHint")}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {INJECTION_SITE_KEYS.map((site) => {
+                      const checked =
+                        payload.allowedInjectionSites.includes(site);
+                      return (
+                        <label
+                          key={site}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(c) =>
+                              toggleAllowedSite(site, c === true)
+                            }
+                          />
+                          {t(describeInjectionSite(site))}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

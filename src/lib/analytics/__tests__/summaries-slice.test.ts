@@ -74,6 +74,7 @@ describe("computeSummariesSlice", () => {
         min: null,
         max: null,
         mean: null,
+        median: null,
         avg7: null,
         avg30: null,
         slope7: null,
@@ -273,6 +274,7 @@ describe("computeSummariesSlice", () => {
             type: "WEIGHT",
             avg7: 82,
             avg30: 82.5,
+            median: 82.1,
             slope7: 0.02,
             r2_7: 0.5,
             slope30: 0.01,
@@ -307,6 +309,9 @@ describe("computeSummariesSlice", () => {
       expect(weight.min).toBe(79.5);
       expect(weight.max).toBe(84.0);
       expect(weight.mean).toBe(82);
+      // v1.8.5 — the windowed median flows through from the narrow
+      // `PERCENTILE_CONT` column onto the slim summary.
+      expect(weight.median).toBe(82.1);
       expect(weight.latest).toBe(82.7);
       expect(weight.avg7).toBe(82);
       expect(weight.slope7).toEqual({

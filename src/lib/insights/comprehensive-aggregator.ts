@@ -490,6 +490,11 @@ async function buildFromRollups(
       min: round2(composed.min),
       max: round2(composed.max),
       mean: round2(composed.mean),
+      // v1.8.5 — the comprehensive aggregator feeds the AI snapshot, not
+      // the category-page stat strip, and does not compute a percentile.
+      // Left null so the shared `DataSummary` contract holds without
+      // paying a per-type percentile sort on the AI read path.
+      median: null,
       avg7: round2(narrow?.avg7 ?? null),
       avg30: round2(narrow?.avg30 ?? null),
       slope7: buildSlope(narrow?.slope7 ?? null, narrow?.r2_7 ?? null),
@@ -662,6 +667,9 @@ async function buildFromLiveAggregate(
       min: round2(row.min_value),
       max: round2(row.max_value),
       mean: round2(row.mean_value),
+      // v1.8.5 — see the parallel block above: the AI snapshot path
+      // omits the percentile.
+      median: null,
       avg7: round2(row.avg7),
       avg30: round2(row.avg30),
       slope7: buildSlope(row.slope7, row.r2_7),

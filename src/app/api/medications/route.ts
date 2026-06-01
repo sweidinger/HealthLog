@@ -155,6 +155,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
     treatmentClass,
     dosesPerUnit,
     deliveryForm,
+    trackInjectionSites,
+    allowedInjectionSites,
     notificationsEnabled,
     liveActivityEnabled,
     criticalAlarmEnabled,
@@ -219,6 +221,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ...(dosesPerUnit !== undefined && { dosesPerUnit }),
       // v1.6.0 — route of administration; Prisma defaults to ORAL when omitted.
       ...(deliveryForm !== undefined && { deliveryForm }),
+      // v1.8.5 — injection-site tracking opt-in + per-medication allowed
+      // sites; Prisma defaults to false / [] when omitted.
+      ...(trackInjectionSites !== undefined && { trackInjectionSites }),
+      ...(allowedInjectionSites !== undefined && { allowedInjectionSites }),
       // v1.7.0 — iOS reminder flags; Prisma defaults both to false.
       ...(liveActivityEnabled !== undefined && { liveActivityEnabled }),
       ...(criticalAlarmEnabled !== undefined && { criticalAlarmEnabled }),

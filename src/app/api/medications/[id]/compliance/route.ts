@@ -3,6 +3,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import {
+  buildComplianceDisplay,
   buildComplianceMedicationContext,
   calculateCompliance,
   classifyIntakeTiming,
@@ -141,6 +142,18 @@ export const GET = apiHandler(
       { medicationContext },
     );
 
+    // v1.8.5 — the additive display block. `mode` is server-decided from
+    // expected-dose density: dense cadences keep the 7-/30-day percentage
+    // bars (`"percent"`), sparse cadences (weekly, bi-/tri-weekly, rolling
+    // 35-day injections) swap to the per-dose uptime strip (`"timeline"`).
+    // `compliance7` / `compliance30` above are untouched — iOS + the Health
+    // Score read them verbatim.
+    const complianceDisplay = buildComplianceDisplay(
+      mapped,
+      medication.schedules,
+      medicationContext,
+    );
+
     // Build daily compliance map for heatmap/line chart (90 days)
     const now = new Date();
     const dailyCompliance: Record<string, DailyComplianceEntry> = {};
@@ -273,9 +286,18 @@ export const GET = apiHandler(
         entity_type: "medication",
         entity_id: id,
       },
-      meta: { compliance7: compliance7.rate, compliance30: compliance30.rate },
+      meta: {
+        compliance7: compliance7.rate,
+        compliance30: compliance30.rate,
+        displayMode: complianceDisplay.mode,
+      },
     });
 
-    return apiSuccess({ compliance7, compliance30, dailyCompliance });
+    return apiSuccess({
+      compliance7,
+      compliance30,
+      dailyCompliance,
+      complianceDisplay,
+    });
   },
 );

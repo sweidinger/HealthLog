@@ -328,6 +328,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
         // legacy fallback below covers the boot-backfill convergence
         // window when an existing bucket pre-dates v1.4.39.
         sumValue: true,
+        minValue: true,
+        maxValue: true,
       },
     });
     // v1.4.39.2 — coverage-mismatch fallback. v1.4.39.1 wired the
@@ -417,6 +419,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
               mean: true,
               count: true,
               sumValue: true,
+              minValue: true,
+              maxValue: true,
             },
           });
         } catch (err) {
@@ -454,6 +458,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
           : r.mean,
         measuredAt: r.bucketStart.toISOString(),
         count: r.count,
+        // v1.8.5 — per-day min / max so the chart can shade an
+        // Apple-Health-style range band around the daily mean line.
+        // Omitted for cumulative metrics (steps, distance, …) where the
+        // daily value is a SUM, not a central tendency, so an intra-day
+        // spread band carries no meaning.
+        minValue: useSum ? undefined : r.minValue,
+        maxValue: useSum ? undefined : r.maxValue,
       }));
       annotate({
         action: { name: "measurement.list" },

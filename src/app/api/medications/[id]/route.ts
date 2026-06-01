@@ -130,6 +130,8 @@ export const PUT = apiHandler(
       treatmentClass,
       dosesPerUnit,
       deliveryForm,
+      trackInjectionSites,
+      allowedInjectionSites,
       active,
       notificationsEnabled,
       liveActivityEnabled,
@@ -222,6 +224,11 @@ export const PUT = apiHandler(
       ...(treatmentClass !== undefined && { treatmentClass }),
       ...(dosesPerUnit !== undefined && { dosesPerUnit }),
       ...(deliveryForm !== undefined && { deliveryForm }),
+      // v1.8.5 — injection-site tracking opt-in + per-medication allowed
+      // sites. Field-by-field; `false` / `[]` are valid explicit values
+      // (deactivate tracking / clear the per-med restriction).
+      ...(trackInjectionSites !== undefined && { trackInjectionSites }),
+      ...(allowedInjectionSites !== undefined && { allowedInjectionSites }),
       ...(active !== undefined && { active }),
       ...(notificationsEnabled !== undefined && { notificationsEnabled }),
       // v1.7.0 — iOS reminder flags, field-by-field.

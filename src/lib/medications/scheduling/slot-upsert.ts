@@ -19,6 +19,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma as defaultPrisma } from "@/lib/db";
 import { resolveCanonicalSlotInstant } from "@/lib/medications/scheduling/resolve-slot-instant";
 import type { WorkerScheduleRow } from "@/lib/medications/scheduling/worker-helpers";
+import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
 type PrismaLike = Pick<PrismaClient, "medication" | "medicationIntakeEvent">;
 
@@ -58,6 +59,14 @@ export interface ApplyCanonicalSlotWriteInput {
   idempotencyKey: string | null;
   /** Source to stamp on a freshly-created slot row. */
   createSource: "WEB" | "API";
+  /**
+   * v1.8.5 — resolved + server-validated injection site to persist on a
+   * taken write. `null` = no site (the column stays / is set NULL). Only
+   * ever non-null on an explicit taken write for a tracking-enabled
+   * INJECTION medication; the route resolves + validates it before the
+   * upsert, so this is trusted here.
+   */
+  injectionSite?: InjectionSiteKey | null;
 }
 
 export interface ApplyCanonicalSlotWriteResult {
@@ -158,6 +167,7 @@ export async function applyCanonicalSlotWrite(
     skipped,
     idempotencyKey,
     createSource,
+    injectionSite = null,
   } = input;
 
   const rows = await findSlotRows(client, userId, medicationId, canonicalSlot);
@@ -183,6 +193,9 @@ export async function applyCanonicalSlotWrite(
         skipped,
         source: createSource,
         idempotencyKey,
+        // v1.8.5 — site only when the route resolved one (taken
+        // injection, tracking on, validated allowed).
+        ...(injectionSite !== null && { injectionSite }),
       },
       select: SLOT_ROW_SELECT,
     })) as SlotIntakeRow;
@@ -221,8 +234,14 @@ async function applyToExisting(
   existing: SlotIntakeRow,
   input: ApplyCanonicalSlotWriteInput,
 ): Promise<ApplyCanonicalSlotWriteResult> {
-  const { takenAt, skipped, isExplicitTaken, isExplicitSkip, idempotencyKey } =
-    input;
+  const {
+    takenAt,
+    skipped,
+    isExplicitTaken,
+    isExplicitSkip,
+    idempotencyKey,
+    injectionSite = null,
+  } = input;
 
   const existingActioned = existing.takenAt !== null || existing.skipped;
   const incomingIsPendingEcho = !isExplicitTaken && !isExplicitSkip;
@@ -255,6 +274,10 @@ async function applyToExisting(
       skipped,
       syncVersion: { increment: 1 },
       idempotencyKey: idempotencyKey ?? existing.idempotencyKey ?? null,
+      // v1.8.5 — write the site only when this write carries a resolved
+      // one (taken injection, tracking on, validated). Never clear a
+      // previously-recorded site with a null on an idempotent re-post.
+      ...(injectionSite !== null && { injectionSite }),
     },
     select: SLOT_ROW_SELECT,
   })) as SlotIntakeRow;

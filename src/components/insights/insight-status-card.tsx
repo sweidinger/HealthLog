@@ -57,6 +57,7 @@ export function InsightStatusCard({
         aria-busy="true"
         aria-live="polite"
         data-testid="insight-status-card-preparing"
+        className="gap-2 py-4 md:gap-3 md:py-5"
       >
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
@@ -88,7 +89,12 @@ export function InsightStatusCard({
     // (`text-sm` → 0.875 rem) so the post-load swap reflows by less
     // than a row.
     return (
-      <Card aria-busy="true" aria-live="polite" data-testid="insight-status-card-loading">
+      <Card
+        aria-busy="true"
+        aria-live="polite"
+        data-testid="insight-status-card-loading"
+        className="gap-2 py-4 md:gap-3 md:py-5"
+      >
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             <div className="bg-muted h-5 w-5 animate-pulse rounded motion-reduce:animate-none" />
@@ -108,7 +114,7 @@ export function InsightStatusCard({
 
   if (!hasProvider) {
     return (
-      <Card className="opacity-60">
+      <Card className="gap-2 py-4 opacity-60 md:gap-3 md:py-5">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             {icon}
@@ -126,7 +132,7 @@ export function InsightStatusCard({
 
   if (!text) {
     return (
-      <Card>
+      <Card className="gap-2 py-4 md:gap-3 md:py-5">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
             {icon}
@@ -150,7 +156,14 @@ export function InsightStatusCard({
     // on the success card closes the load→loaded transition signal.
     <Card
       aria-live="polite"
-      className="animate-insight-in border-l-dracula-purple border-l-2"
+      // v1.8.5 W4a — the `Card` primitive ships `gap-4 md:gap-6` as the flex
+      // gap between header and content, which floated the "Einschätzung"
+      // heading ~16-24 px above its prose. Override to `gap-2 md:gap-3` (the
+      // `CardHeader`'s own `pb-2` does not touch the flex gap) and trim the
+      // shell padding to `py-4 md:py-5` so the assessment block reads tight
+      // in the denser sub-page rhythm. The same override lands on every
+      // status variant below so the gap is consistent across states.
+      className="animate-insight-in border-l-dracula-purple gap-2 border-l-2 py-4 md:gap-3 md:py-5"
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">

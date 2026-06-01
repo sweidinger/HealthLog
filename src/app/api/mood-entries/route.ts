@@ -22,6 +22,7 @@ import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
 import { pushMoodEntriesToMoodLog } from "@/lib/moodlog/push";
+import { createTagLinks } from "@/lib/mood/tag-links";
 
 function parseTags(tags: string | null): string[] {
   if (!tags) return [];
@@ -90,6 +91,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
       orderBy: { [sortBy]: sortDir },
       take: limit,
       skip: offset,
+      // v1.8.5 — include the structured-tag link keys so the edit form
+      // can pre-populate the taxonomy picker.
+      include: {
+        tagLinks: {
+          select: { moodTag: { select: { key: true } } },
+        },
+      },
     }),
     prisma.moodEntry.count({ where }),
   ]);
@@ -99,9 +107,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
     meta: { total, limit, offset },
   });
 
-  const entriesWithParsedTags = entries.map((e) => ({
+  const entriesWithParsedTags = entries.map(({ tagLinks, ...e }) => ({
     ...e,
     tags: parseTags(e.tags),
+    // v1.8.5 — flat list of structured-tag keys attached to the entry.
+    tagKeys: tagLinks.map((link) => link.moodTag.key),
   }));
 
   return apiSuccess({
@@ -147,7 +157,7 @@ async function postMoodEntry(request: NextRequest) {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { mood, tags, note, moodLoggedAt, source } = parsed.data;
+  const { mood, tags, tagKeys, note, moodLoggedAt, source } = parsed.data;
   // v1.4.25 W7b (Decision A) — anchor the `date` string to the user's
   // current displayTimezone and store the resolved zone on the row.
   // Legacy rows with `tz IS NULL` continue to read as Europe/Berlin
@@ -157,19 +167,47 @@ async function postMoodEntry(request: NextRequest) {
   const score = getScoreForMood(mood);
 
   try {
-    const entry = await prisma.moodEntry.create({
-      data: {
-        userId: user.id,
-        date,
-        tz,
-        mood,
-        score,
-        tags: tags ? JSON.stringify(tags) : null,
-        note: note ?? null,
-        source: source ?? "MANUAL",
-        moodLoggedAt,
+    // v1.8.5 — write the entry and its structured-tag links in one
+    // transaction. The links are user-intended content, not a cache, so a
+    // tag-link failure must roll the entry back too — otherwise a client
+    // retry on the 5xx mints a duplicate entry. The tx client is threaded
+    // through the helper so both writes commit (or abort) together.
+    const { entry, persistedTagKeys } = await prisma.$transaction(
+      async (tx) => {
+        const created = await tx.moodEntry.create({
+          data: {
+            userId: user.id,
+            date,
+            tz,
+            mood,
+            score,
+            tags: tags ? JSON.stringify(tags) : null,
+            note: note ?? null,
+            source: source ?? "MANUAL",
+            moodLoggedAt,
+          },
+        });
+
+        if (tagKeys && tagKeys.length > 0) {
+          // Unknown keys are dropped inside the helper (the catalog is the
+          // source of truth).
+          await createTagLinks(created.id, tagKeys, tx);
+        }
+
+        // v1.8.5 — read the persisted link keys back so the create
+        // response mirrors the list GET shape exactly (unknown keys
+        // already filtered out).
+        const links = await tx.moodEntryTagLink.findMany({
+          where: { moodEntryId: created.id },
+          select: { moodTag: { select: { key: true } } },
+        });
+
+        return {
+          entry: created,
+          persistedTagKeys: links.map((link) => link.moodTag.key),
+        };
       },
-    });
+    );
 
     await auditLog("moodEntry.create", {
       userId: user.id,
@@ -225,7 +263,17 @@ async function postMoodEntry(request: NextRequest) {
       // rejection in the Next.js runtime.
     });
 
-    return apiSuccess({ ...entry, tags: parseTags(entry.tags) }, 201);
+    return apiSuccess(
+      {
+        ...entry,
+        tags: parseTags(entry.tags),
+        // v1.8.5 — surface the persisted structured-tag keys so a client
+        // hydrating from the create response renders the tag set without a
+        // refetch (shape-matches the list GET).
+        tagKeys: persistedTagKeys,
+      },
+      201,
+    );
   } catch (err) {
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&

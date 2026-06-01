@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import Link from "next/link";
+import { ListOrdered } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { MetricExplainer } from "@/components/insights/metric-explainer";
 import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
 import { useTranslations } from "@/lib/i18n/context";
@@ -66,6 +69,26 @@ export interface SubPageShellProps {
    * affordance, not an a11y one.
    */
   focusOnMount?: boolean;
+  /**
+   * v1.8.5 W4b — numbers-first stat strip rendered directly beneath the
+   * header, above the chart. Sub-pages pass `<MetricStatStrip metric=… />`
+   * so every metric (including the thin HealthKit pages) leads with
+   * min / max / median / mean. Omitted on the empty-state branch.
+   */
+  statStrip?: ReactNode;
+  /**
+   * v1.8.5 W4b — measurement-diversity nudge mounted just under the stat
+   * strip. A gentle hint when readings cluster on one weekday / time.
+   * Self-gating: renders nothing when the spread is healthy.
+   */
+  diversityNudge?: ReactNode;
+  /**
+   * v1.8.5 W4b — a "show all readings" entry rendered at the foot of the
+   * page, after the chart + cards. Sub-pages pass the metric's
+   * `MeasurementType`; the shell renders a button that links to the
+   * dedicated `/insights/values/<type>` subpage.
+   */
+  showAllValuesType?: string;
   children: ReactNode;
 }
 
@@ -75,6 +98,9 @@ export function SubPageShell({
   description,
   explainerMetric,
   focusOnMount = false,
+  statStrip,
+  diversityNudge,
+  showAllValuesType,
   children,
 }: SubPageShellProps) {
   const { t } = useTranslations();
@@ -100,8 +126,8 @@ export function SubPageShell({
   }, [focusOnMount]);
 
   return (
-    <div data-slot="insights-subpage" className="space-y-6">
-      <header className="space-y-2">
+    <div data-slot="insights-subpage" className="space-y-4 md:space-y-5">
+      <header className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <h1
             ref={headingRef}
@@ -129,9 +155,16 @@ export function SubPageShell({
         </div>
         {explainerMetric ? (
           // v1.8.4 — surface the explainer definition inline, reusing the
-          // exact body string the `?` popover reads. Muted caption styling
-          // matches the description paragraph below so the under-heading
-          // band reads as one calm block.
+          // exact body string the `?` popover reads.
+          //
+          // v1.8.5 W4a — render the explainer body as the *single* caption
+          // under the heading. Pre-v1.8.5 both this paragraph and the
+          // `description` below it stacked, so every metric page opened
+          // with two near-duplicative muted captions before any data — the
+          // root of the "airy / static under the heading" feel. The
+          // explainer body is the definition, so it wins; the description
+          // only renders when no explainer is set (the mother page and any
+          // future explainer-less sub-page).
           <p
             data-slot="metric-explainer-inline"
             className="text-muted-foreground text-sm leading-relaxed"
@@ -139,11 +172,34 @@ export function SubPageShell({
             {t(`insights.subPage.explainer.${explainerMetric}Body`)}
           </p>
         ) : null}
-        {description ? (
+        {description && !explainerMetric ? (
           <p className="text-muted-foreground text-sm">{description}</p>
         ) : null}
       </header>
+      {/* v1.8.5 W4b — numbers-first stat strip + diversity nudge sit
+          between the header and the chart so the page leads with data,
+          mirroring the Apple Health / Withings detail layout. Both are
+          self-gating (render nothing without data), so the spacing
+          rhythm holds on the empty-state and brand-new-metric paths. */}
+      {statStrip}
+      {diversityNudge}
       {children}
+      {/* v1.8.5 W4b — "show all readings" entry at the foot, linking to
+          the dedicated per-metric values subpage. */}
+      {showAllValuesType ? (
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          data-slot="metric-show-all-values"
+          className="w-full sm:w-auto"
+        >
+          <Link href={`/insights/values/${showAllValuesType}`}>
+            <ListOrdered className="mr-1.5 size-4" aria-hidden="true" />
+            {t("insights.subPage.showAllValues")}
+          </Link>
+        </Button>
+      ) : null}
     </div>
   );
 }
