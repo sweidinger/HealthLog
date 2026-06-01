@@ -27,6 +27,9 @@ import {
   medicationDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
+import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
+import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
+import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
 interface Schedule {
   id: string;
@@ -50,6 +53,12 @@ interface Medication {
    */
   treatmentClass?: string;
   dosesPerUnit?: number | null;
+  /** v1.6.0 — route of administration (drives the injection-site prompt). */
+  deliveryForm?: string;
+  /** v1.8.5 — per-medication injection-site tracking opt-in. */
+  trackInjectionSites?: boolean;
+  /** v1.8.5 — per-medication allowed / preferred injection sites. */
+  allowedInjectionSites?: string[];
   active: boolean;
   notificationsEnabled: boolean;
   pausedAt: string | null;
@@ -122,6 +131,14 @@ export function MedicationCard({
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
   const [intakeLoading, setIntakeLoading] = useState<string | null>(null);
+  // v1.8.5 — post-dose injection-site prompt state. Holds the intake
+  // event id returned by the take POST so the confirm handler can PATCH
+  // the chosen site onto it. Null = dialog closed.
+  const [siteIntakeId, setSiteIntakeId] = useState<string | null>(null);
+  const globalExcluded = useGlobalExcludedInjectionSites();
+  const tracksInjection =
+    medication.deliveryForm === "INJECTION" &&
+    medication.trackInjectionSites === true;
 
   const { data: compliance } = useQuery({
     queryKey: queryKeys.medicationCompliance(medication.id),
@@ -171,9 +188,37 @@ export function MedicationCard({
           ),
         );
         await invalidateKeys(queryClient, medicationDependentKeys);
+        // v1.8.5 — after a TAKEN dose on a tracking-enabled injection,
+        // prompt (skippably) for the site. The dialog PATCHes it onto
+        // the just-created event via the status-toggle route.
+        if (!skipped && tracksInjection) {
+          try {
+            const json = await res.json();
+            const eventId = json?.data?.id as string | undefined;
+            if (eventId) setSiteIntakeId(eventId);
+          } catch {
+            /* dose recorded; the site prompt is best-effort */
+          }
+        }
       }
     } finally {
       setIntakeLoading(null);
+    }
+  }
+
+  async function confirmInjectionSite(site: InjectionSiteKey) {
+    const intakeId = siteIntakeId;
+    setSiteIntakeId(null);
+    if (!intakeId) return;
+    const res = await fetch("/api/medications/intake", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ intakeId, status: "taken", injectionSite: site }),
+    });
+    if (res.ok) {
+      await invalidateKeys(queryClient, medicationDependentKeys);
+    } else {
+      toast.error(t("medications.logInjectionSiteNoneAvailable"));
     }
   }
 
@@ -373,6 +418,21 @@ export function MedicationCard({
           />
         )}
       </CardContent>
+
+      {/* v1.8.5 — post-dose injection-site capture (optional, skippable). */}
+      {tracksInjection && (
+        <LogInjectionSiteDialog
+          open={siteIntakeId !== null}
+          medicationName={medication.name}
+          allowedInjectionSites={
+            (medication.allowedInjectionSites ?? []) as InjectionSiteKey[]
+          }
+          globalExcludedInjectionSites={globalExcluded}
+          history={[]}
+          onConfirm={confirmInjectionSite}
+          onSkip={() => setSiteIntakeId(null)}
+        />
+      )}
     </Card>
   );
 }

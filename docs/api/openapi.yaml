@@ -2123,6 +2123,26 @@ components:
             - ORAL
             - INJECTION
             - OTHER
+        trackInjectionSites:
+          description: Per-medication injection-site tracking opt-in. Default false. Only meaningful for an INJECTION delivery
+            form; when true the client prompts (skippably) for the site after a taken dose.
+          type: boolean
+        allowedInjectionSites:
+          description: Per-medication allowed / preferred injection sites. Empty array = no per-medication restriction (every site
+            offered). The effective pickable set is this list minus the user's global exclusion.
+          maxItems: 8
+          type: array
+          items:
+            type: string
+            enum:
+              - ABDOMEN_LEFT
+              - ABDOMEN_RIGHT
+              - ABDOMEN_UPPER_LEFT
+              - ABDOMEN_UPPER_RIGHT
+              - THIGH_LEFT
+              - THIGH_RIGHT
+              - UPPER_ARM_LEFT
+              - UPPER_ARM_RIGHT
         notificationsEnabled:
           type: boolean
         liveActivityEnabled:
@@ -2303,6 +2323,26 @@ components:
             - ORAL
             - INJECTION
             - OTHER
+        trackInjectionSites:
+          description: Per-medication injection-site tracking opt-in. Only meaningful for an INJECTION delivery form. Set false to
+            deactivate tracking.
+          type: boolean
+        allowedInjectionSites:
+          description: Per-medication allowed / preferred injection sites. Empty array clears the restriction. The effective
+            pickable set subtracts the user's global exclusion (deny wins).
+          maxItems: 8
+          type: array
+          items:
+            type: string
+            enum:
+              - ABDOMEN_LEFT
+              - ABDOMEN_RIGHT
+              - ABDOMEN_UPPER_LEFT
+              - ABDOMEN_UPPER_RIGHT
+              - THIGH_LEFT
+              - THIGH_RIGHT
+              - UPPER_ARM_LEFT
+              - UPPER_ARM_RIGHT
         active:
           type: boolean
         notificationsEnabled:
@@ -2381,11 +2421,28 @@ components:
             row.
           type: string
           maxLength: 128
+        injectionSite:
+          description: Optional injection site for a taken dose. Honoured only when the medication is an INJECTION with
+            site-tracking enabled; validated against the medication's effective allowed set (per-medication allowed
+            sites minus the user's global exclusion). A disallowed site returns 422. Omit to record the dose without a
+            site.
+          type: string
+          enum:
+            - ABDOMEN_LEFT
+            - ABDOMEN_RIGHT
+            - ABDOMEN_UPPER_LEFT
+            - ABDOMEN_UPPER_RIGHT
+            - THIGH_LEFT
+            - THIGH_RIGHT
+            - UPPER_ARM_LEFT
+            - UPPER_ARM_RIGHT
       required:
         - medicationId
       description: Per-medication intake log body. Idempotent via `idempotencyKey`; the server also dedupes by a 60-second
         sliding window when the key is absent. Non-skipped intakes auto-decrement pen inventory (best-effort), refresh
-        the per-day compliance rollup, and — for one-shot medications — flip `active` to false.
+        the per-day compliance rollup, and — for one-shot medications — flip `active` to false. The optional
+        `injectionSite` is persisted only for an INJECTION medication with site-tracking enabled and is validated
+        against the medication's effective allowed set (422 on a disallowed value).
     MedicationExtractRequest:
       type: object
       properties:

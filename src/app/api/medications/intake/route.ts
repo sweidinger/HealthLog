@@ -36,6 +36,11 @@ import {
   type ComplianceBucket as RollupComplianceBucket,
 } from "@/lib/rollups/medication-compliance-rollups";
 import { projectTodayIntakesAndRecompute } from "@/lib/medications/scheduling/project-today-intakes";
+import { resolveInjectionSiteForWrite } from "@/lib/medications/injection-site-write";
+import {
+  injectionSiteEnum,
+  type InjectionSiteValue,
+} from "@/lib/validations/medication";
 
 const querySchema = z.object({
   scope: z.enum(["today", "compliance"]),
@@ -53,6 +58,10 @@ const updateSchema = z.object({
     .datetime({ offset: true })
     .transform((s) => new Date(s))
     .optional(),
+  // v1.8.5 — optional injection site captured alongside a "taken"
+  // status toggle. Validated server-side against the medication's
+  // effective allowed set; ignored for skipped / snoozed.
+  injectionSite: injectionSiteEnum.optional(),
 });
 
 function startOfDayInTz(date: Date, tz: string): Date {
@@ -314,15 +323,56 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { intakeId, status, takenAt, snoozedUntil } = parsed.data;
+  const { intakeId, status, takenAt, snoozedUntil, injectionSite } =
+    parsed.data;
 
   // v1.7.0 sync — a tombstoned intake 404s on a status toggle; the
   // `deletedAt: null` filter refuses to mutate a soft-deleted row.
   const existing = await prisma.medicationIntakeEvent.findFirst({
     where: { id: intakeId, deletedAt: null },
+    include: {
+      medication: {
+        select: {
+          deliveryForm: true,
+          trackInjectionSites: true,
+          allowedInjectionSites: true,
+        },
+      },
+    },
   });
   if (!existing || existing.userId !== user.id) {
     return apiError("Intake event not found", 404);
+  }
+
+  // v1.8.5 — resolve + server-validate the optional injection site for a
+  // "taken" toggle. A site outside the medication's effective allowed
+  // set is a hard 422; non-injection / tracking-off / non-taken drops it.
+  let resolvedInjectionSite: InjectionSiteValue | null = null;
+  if (injectionSite !== undefined) {
+    const userRow = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { globalExcludedInjectionSites: true },
+    });
+    const resolution = resolveInjectionSiteForWrite({
+      submitted: injectionSite,
+      taken: status === "taken",
+      deliveryForm: existing.medication.deliveryForm,
+      trackInjectionSites: existing.medication.trackInjectionSites,
+      allowedInjectionSites:
+        existing.medication.allowedInjectionSites as InjectionSiteValue[],
+      globalExcludedInjectionSites: (userRow?.globalExcludedInjectionSites ??
+        []) as InjectionSiteValue[],
+    });
+    if (resolution.kind === "disallowed") {
+      annotate({
+        action: { name: "medication.intake.injection_site.disallowed" },
+        meta: { medication_id: existing.medicationId, site: resolution.site },
+      });
+      return apiError("Injection site is not allowed for this medication", 422, {
+        errorCode: "medications.intake.injection_site.disallowed",
+      });
+    }
+    resolvedInjectionSite = resolution.site;
   }
 
   const userTzForHook = user.timezone ?? DEFAULT_TIMEZONE;
@@ -338,6 +388,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
           takenAt: takenAt ?? new Date(),
           skipped: false,
           syncVersion: { increment: 1 },
+          // v1.8.5 — persist the resolved site on the taken branch.
+          ...(resolvedInjectionSite !== null && {
+            injectionSite: resolvedInjectionSite,
+          }),
         },
       }),
       prisma.medication.update({

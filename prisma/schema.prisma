@@ -43,6 +43,13 @@ model User {
   // behaviour for every existing row.
   insightsExcludeMetrics     String[]  @default([]) @map("insights_exclude_metrics")
 
+  // v1.8.5 — user-level injection-site deny-list. Sites listed here are
+  // never offered for ANY medication's injection-site picker and the
+  // intake write path 422s a submitted site that lands on this list,
+  // even when the per-medication `allowedInjectionSites` lists it as
+  // preferred (deny always wins). Default `[]` = no global exclusion.
+  globalExcludedInjectionSites InjectionSite[] @default([]) @map("global_excluded_injection_sites")
+
   // Telegram notifications (per-user)
   telegramBotToken String? @map("telegram_bot_token") // AES-256-GCM encrypted
   telegramChatId   String? @map("telegram_chat_id")
@@ -917,6 +924,19 @@ model Medication {
   /// A one-time injection is `oneShot = true` + `deliveryForm =
   /// INJECTION`. The migration backfills ORAL for every existing row.
   deliveryForm         MedicationDeliveryForm @default(ORAL) @map("delivery_form")
+  /// v1.8.5 — per-medication injection-site tracking opt-in. Only
+  /// meaningful (and only offered in the UI) when `deliveryForm ===
+  /// INJECTION`. Default false: after marking a dose taken the client
+  /// prompts for the site only when this is true, and the prompt is
+  /// always skippable (never blocking). Deactivatable at any time.
+  trackInjectionSites  Boolean @default(false) @map("track_injection_sites")
+  /// v1.8.5 — per-medication allowed / preferred injection sites. Empty
+  /// = no per-medication restriction (every site is offered). The
+  /// effective pickable set is this list MINUS the user-level
+  /// `globalExcludedInjectionSites` deny-list (deny always wins). The
+  /// intake write path validates a submitted site against the effective
+  /// set and 422s on a disallowed value.
+  allowedInjectionSites InjectionSite[] @default([]) @map("allowed_injection_sites")
   /// v1.7.0 — iOS Live Activity opt-in for this medication's reminders.
   /// Default false; existing rows backfill false. The server stores +
   /// echoes the flag; the iOS client owns the ActivityKit lifecycle. No

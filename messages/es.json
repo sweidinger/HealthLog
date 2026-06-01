@@ -1271,7 +1271,18 @@
         "plannedSuffix": "planificado",
         "drugLevelDisclosure": "Mostrar curva estimada del principio activo"
       }
-    }
+    },
+    "logInjectionSiteTitle": "Log injection site",
+    "logInjectionSiteDescription": "Where did you inject {name}? Optional — you can skip this.",
+    "logInjectionSiteSkip": "Skip",
+    "logInjectionSiteConfirm": "Save site",
+    "logInjectionSiteNoneAvailable": "No injection site is available — every site is excluded in your settings.",
+    "trackInjectionSitesToggle": "Track injection sites",
+    "trackInjectionSitesHint": "After a dose is taken, ask which site was used and suggest the next rotation.",
+    "allowedSitesLabel": "Allowed sites",
+    "allowedSitesHint": "Leave all selected for no restriction. Sites you excluded globally are never offered.",
+    "injectionRotationOverviewTitle": "Site rotation",
+    "injectionRotationNextSuggested": "Suggested next: {site}"
   },
   "charts": {
     "loadingLabel": "Cargando la gráfica…",
@@ -3074,7 +3085,9 @@
       "fhirNote": "La salida estructurada sigue el estándar FHIR R4 (compatible con ePA).",
       "generate": "Generar",
       "error": "Error en la exportación ({code})."
-    }
+    },
+    "globalExcludedInjectionSitesLabel": "Globally excluded injection sites",
+    "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them."
   },
   "admin": {
     "title": "Administration",

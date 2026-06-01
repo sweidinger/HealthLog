@@ -63,6 +63,7 @@ import {
   type MedicationCategoryValue,
   type MedicationDeliveryForm,
 } from "@/lib/validations/medication";
+import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
 // ────────────────────────────────────────────────────────────────────
 // Step 2 — treatment-class taxonomy
@@ -207,6 +208,18 @@ export interface WizardPayload {
    * inventory tracking off (maps to `undefined` / NULL on the wire).
    */
   dosesPerUnit: string;
+  /**
+   * v1.8.5 — per-medication injection-site tracking opt-in. Only
+   * surfaced in Step 3 when `deliveryForm === "INJECTION"`. Default
+   * false (opt-in). Toggling it off clears `allowedInjectionSites`.
+   */
+  trackInjectionSites: boolean;
+  /**
+   * v1.8.5 — per-medication allowed / preferred injection sites. Empty =
+   * no restriction (every site offered). Only meaningful when
+   * `trackInjectionSites` is true.
+   */
+  allowedInjectionSites: InjectionSiteKey[];
   /** Set in Step 5 — mirrors `schedules[activeScheduleIndex].mode`. */
   mode: "oneShot" | "recurring" | null;
   /** Mirrors `schedules[activeScheduleIndex].cadence`. */
@@ -253,6 +266,8 @@ export function emptyWizardPayload(): WizardPayload {
     treatmentRow: null,
     deliveryForm: "ORAL",
     dosesPerUnit: "",
+    trackInjectionSites: false,
+    allowedInjectionSites: [],
     mode: draft.mode,
     cadence: draft.cadence,
     subControls: draft.subControls,
@@ -463,6 +478,10 @@ export interface CreateMedicationBody {
   deliveryForm: MedicationDeliveryForm;
   /** v1.6.0 — doses per pen / vial. Omitted when inventory is off. */
   dosesPerUnit?: number;
+  /** v1.8.5 — injection-site tracking opt-in. Omitted for non-injections. */
+  trackInjectionSites?: boolean;
+  /** v1.8.5 — per-medication allowed sites. Omitted when tracking is off. */
+  allowedInjectionSites?: InjectionSiteKey[];
   /**
    * v1.5.5 D-3 §10 invariant 16 — the wizard owns the create-time
    * default for `notificationsEnabled` but never overwrites it on
@@ -602,6 +621,16 @@ export function buildCreateBody(
       parsedDosesPerUnit >= 1 && {
         dosesPerUnit: parsedDosesPerUnit,
       }),
+    // v1.8.5 — injection-site tracking is only meaningful for an
+    // INJECTION delivery form. Always send the boolean for an injection
+    // (so edits can deactivate it); send the allowed list only when
+    // tracking is on. Non-injections omit both (server keeps defaults).
+    ...(committed.deliveryForm === "INJECTION" && {
+      trackInjectionSites: committed.trackInjectionSites,
+      ...(committed.trackInjectionSites && {
+        allowedInjectionSites: committed.allowedInjectionSites,
+      }),
+    }),
     // v1.5.5 D-3 §10 invariant 16 — `notificationsEnabled` only on
     // create. Edits never round-trip the wizard's default because the
     // detail page's notifications switch is the single source of
@@ -807,6 +836,10 @@ export interface MedicationPayload {
   deliveryForm?: string;
   /** v1.6.0 — doses per pen / vial. NULL = inventory tracking off. */
   dosesPerUnit?: number | null;
+  /** v1.8.5 — injection-site tracking opt-in. */
+  trackInjectionSites?: boolean;
+  /** v1.8.5 — per-medication allowed / preferred injection sites. */
+  allowedInjectionSites?: string[];
   notificationsEnabled: boolean;
   startsOn: Date | null;
   endsOn: Date | null;
@@ -906,6 +939,9 @@ export function hydrateWizardPayload(initial: MedicationPayload): WizardPayload 
       typeof initial.dosesPerUnit === "number" && initial.dosesPerUnit >= 1
         ? String(initial.dosesPerUnit)
         : "",
+    trackInjectionSites: initial.trackInjectionSites ?? false,
+    allowedInjectionSites: (initial.allowedInjectionSites ??
+      []) as InjectionSiteKey[],
     mode: first.mode,
     cadence: first.cadence,
     subControls: first.subControls,

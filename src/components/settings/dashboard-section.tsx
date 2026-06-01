@@ -2,6 +2,7 @@
 
 import { DashboardLayoutSection } from "@/components/settings/dashboard-layout-section";
 import { UnitPreferenceCard } from "@/components/settings/unit-preference-card";
+import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -27,6 +28,8 @@ export function DashboardSection() {
       </header>
 
       <UnitPreferenceCard isAuthenticated={isAuthenticated} />
+
+      <InjectionSitesCard isAuthenticated={isAuthenticated} />
 
       <DashboardLayoutSection id="dashboard-layout" />
     </section>

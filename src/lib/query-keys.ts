@@ -180,6 +180,9 @@ export const queryKeys = {
   settingsReminderThresholds: () =>
     ["settings", "reminder-thresholds"] as const,
 
+  /** v1.8.5 — user-level injection-site preferences (global exclusion). */
+  injectionSitePrefs: () => ["settings", "injection-site-prefs"] as const,
+
   /**
    * v1.4.41 W-FRONTEND-FACTORY — Settings → AI surfaces (provider chain,
    * insights settings, user provider preference) and the targets editor

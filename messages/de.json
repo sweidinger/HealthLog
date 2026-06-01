@@ -1271,7 +1271,18 @@
         "plannedSuffix": "geplant",
         "drugLevelDisclosure": "Geschätzte Wirkstoffkurve anzeigen"
       }
-    }
+    },
+    "logInjectionSiteTitle": "Injektionsstelle erfassen",
+    "logInjectionSiteDescription": "Wo hast du {name} gespritzt? Optional — du kannst dies überspringen.",
+    "logInjectionSiteSkip": "Überspringen",
+    "logInjectionSiteConfirm": "Stelle speichern",
+    "logInjectionSiteNoneAvailable": "Keine Injektionsstelle verfügbar — alle Stellen sind in deinen Einstellungen ausgeschlossen.",
+    "trackInjectionSitesToggle": "Injektionsstellen erfassen",
+    "trackInjectionSitesHint": "Nach einer eingenommenen Dosis nach der verwendeten Stelle fragen und die nächste Rotation vorschlagen.",
+    "allowedSitesLabel": "Erlaubte Stellen",
+    "allowedSitesHint": "Alle ausgewählt lassen für keine Einschränkung. Global ausgeschlossene Stellen werden nie angeboten.",
+    "injectionRotationOverviewTitle": "Stellen-Rotation",
+    "injectionRotationNextSuggested": "Vorschlag als Nächstes: {site}"
   },
   "charts": {
     "loadingLabel": "Diagramm wird geladen…",
@@ -3074,7 +3085,9 @@
       "fhirNote": "Die strukturierte Ausgabe folgt dem FHIR-R4-Standard (ePA-kompatibel).",
       "generate": "Erstellen",
       "error": "Export fehlgeschlagen ({code})."
-    }
+    },
+    "globalExcludedInjectionSitesLabel": "Global ausgeschlossene Injektionsstellen",
+    "globalExcludedInjectionSitesHint": "Hier gelistete Stellen werden für keine Medikation angeboten und beim Erfassen einer Dosis abgelehnt — auch wenn eine Medikation sie bevorzugt."
   },
   "admin": {
     "title": "Administration",

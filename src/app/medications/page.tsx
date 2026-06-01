@@ -44,6 +44,10 @@ interface Medication {
   dosesPerUnit?: number | null;
   /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
   deliveryForm?: string;
+  /** v1.8.5 — per-medication injection-site tracking opt-in. */
+  trackInjectionSites?: boolean;
+  /** v1.8.5 — per-medication allowed / preferred injection sites. */
+  allowedInjectionSites?: string[];
   active: boolean;
   notificationsEnabled: boolean;
   pausedAt: string | null;
@@ -374,6 +378,8 @@ function medicationToPayload(med: Medication): MedicationPayload {
     treatmentClass: med.treatmentClass,
     deliveryForm: med.deliveryForm,
     dosesPerUnit: med.dosesPerUnit ?? null,
+    trackInjectionSites: med.trackInjectionSites ?? false,
+    allowedInjectionSites: med.allowedInjectionSites ?? [],
     notificationsEnabled: med.notificationsEnabled,
     startsOn: med.startsOn ? new Date(med.startsOn) : null,
     endsOn: med.endsOn ? new Date(med.endsOn) : null,
