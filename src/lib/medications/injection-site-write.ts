@@ -20,7 +20,7 @@
  * request that does is either stale UI or a hand-rolled call.
  */
 import {
-  effectiveAllowedSites,
+  isSiteAllowed,
   type InjectionSiteKey,
 } from "@/lib/medications/injection-sites";
 
@@ -68,11 +68,13 @@ export function resolveInjectionSiteForWrite(
     return { kind: "ok", site: null };
   }
 
-  const allowed = effectiveAllowedSites(
-    input.allowedInjectionSites,
-    input.globalExcludedInjectionSites,
-  );
-  if (!allowed.includes(submitted)) {
+  if (
+    !isSiteAllowed(
+      submitted,
+      input.allowedInjectionSites,
+      input.globalExcludedInjectionSites,
+    )
+  ) {
     return { kind: "disallowed", site: submitted };
   }
   return { kind: "ok", site: submitted };
