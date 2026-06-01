@@ -125,6 +125,17 @@ export interface DataSummary {
    * the insights category-page stat strip alongside min / max / mean so
    * a skewed series (a few very high or very low readings dragging the
    * mean) reads honestly. Null when the series is empty.
+   *
+   * Window: caller-defined. `summarize()` computes the median over the
+   * full `DataPoint[]` it is handed, so the window is whatever the caller
+   * passed (full history for `/api/measurements/series`, per-day means
+   * for the snapshot builder, …). It is NOT guaranteed to be the trailing
+   * 90-day window. The insights stat strip does not read this value — its
+   * median comes from the SQL `summaries-slice` path, which fixes the
+   * window to the trailing 90 days (`PERCENTILE_CONT(0.5) … FILTER (WHERE
+   * measured_at >= NOW() - INTERVAL '90 days')`). A consumer comparing the
+   * two must account for the differing windows. The percentile *algorithm*
+   * matches (linear-interpolated midpoint), only the window differs.
    */
   median: number | null;
   avg7: number | null;
@@ -192,12 +203,16 @@ export function summarize(data: DataPoint[]): DataSummary {
   }
   const mean = sum / values.length;
 
-  // v1.8.5 — median (50th percentile) over the full series. A separate
-  // numeric sort from the date-ordered `sorted` array above so the
-  // percentile is taken over values, not timestamps. Linear-interpolated
-  // midpoint on an even-length series (the standard PERCENTILE_CONT
-  // definition) so this matches the SQL `PERCENTILE_CONT(0.5)` the
-  // rollup-tier slim slice emits.
+  // v1.8.5 — median (50th percentile) over the FULL series handed to
+  // this function (the window is caller-defined; see the `median` doc on
+  // DataSummary). A separate numeric sort from the date-ordered `sorted`
+  // array above so the percentile is taken over values, not timestamps.
+  // Linear-interpolated midpoint on an even-length series (the standard
+  // PERCENTILE_CONT definition) so the *algorithm* matches the SQL
+  // `PERCENTILE_CONT(0.5)` the rollup-tier slim slice emits — but note
+  // the SQL path windows to the trailing 90 days while this path does
+  // not, so the two are byte-comparable only when the caller already
+  // passed a 90-day series.
   const valueSorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(valueSorted.length / 2);
   const median =

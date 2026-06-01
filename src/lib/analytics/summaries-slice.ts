@@ -117,6 +117,12 @@ interface NarrowAggregateRow {
    * sorting every raw row per type, which the rollup tier cannot
    * compose and which the perf posture (v1.8.3 anti-freeze) forbids on
    * the read path. Null when the window holds no rows.
+   *
+   * NOTE: this window (trailing 90 days) is the contract for the stat
+   * strip's `DataSummary.median`. The JS `summarize()` in `trends.ts`
+   * computes its median over the *full* series it is handed (a
+   * caller-defined window), so the two share a field name but not a
+   * window — see the `median` doc on `DataSummary`.
    */
   median: number | null;
   avg30_last_month: number | null;
