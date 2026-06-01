@@ -1281,8 +1281,7 @@
         "group": {
           "data": "Daten",
           "reminders": "Erinnerungen",
-          "lifecycle": "Lebenszyklus",
-          "danger": "Gefahrenzone"
+          "lifecycle": "Lebenszyklus"
         },
         "dataPortability": {
           "import": {
