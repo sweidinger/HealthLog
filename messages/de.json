@@ -1573,7 +1573,22 @@
     },
     "trendsRow": {
       "title": "Trends",
-      "subtitle": "Die letzten 30 Tage auf einen Blick"
+      "subtitle": "Die letzten 30 Tage auf einen Blick",
+      "caption": {
+        "bp": "Systolische und diastolische Werte der letzten 30 Tage.",
+        "weight": "Gewichtsverlauf der letzten 30 Tage.",
+        "pulse": "Ruhepuls der letzten 30 Tage.",
+        "mood": "Täglicher Stimmungswert der letzten 30 Tage.",
+        "sleep": "Nächtliche Schlafdauer der letzten 30 Tage.",
+        "steps": "Tägliche Schrittzahl der letzten 30 Tage.",
+        "hrv": "Herzratenvariabilität der letzten 30 Tage.",
+        "resting_hr": "Ruheherzfrequenz der letzten 30 Tage.",
+        "active_energy": "Aktiv verbrauchte Energie der letzten 30 Tage.",
+        "flights": "Erklommene Stockwerke der letzten 30 Tage.",
+        "distance": "Geh- und Laufstrecke der letzten 30 Tage.",
+        "vo2_max": "VO₂max der letzten 30 Tage.",
+        "body_temp": "Körpertemperatur der letzten 30 Tage."
+      }
     },
     "vo2Max": {
       "statLatest": "Aktuell",

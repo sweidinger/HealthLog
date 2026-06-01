@@ -1573,7 +1573,22 @@
     },
     "trendsRow": {
       "title": "Tendencias",
-      "subtitle": "Los últimos 30 días de un vistazo"
+      "subtitle": "Los últimos 30 días de un vistazo",
+      "caption": {
+        "bp": "Valores sistólicos y diastólicos de los últimos 30 días.",
+        "weight": "Evolución del peso corporal de los últimos 30 días.",
+        "pulse": "Pulso en reposo de los últimos 30 días.",
+        "mood": "Puntuación diaria del estado de ánimo de los últimos 30 días.",
+        "sleep": "Duración del sueño nocturno de los últimos 30 días.",
+        "steps": "Recuento diario de pasos de los últimos 30 días.",
+        "hrv": "Variabilidad de la frecuencia cardíaca de los últimos 30 días.",
+        "resting_hr": "Frecuencia cardíaca en reposo de los últimos 30 días.",
+        "active_energy": "Energía activa quemada en los últimos 30 días.",
+        "flights": "Pisos subidos en los últimos 30 días.",
+        "distance": "Distancia caminando y corriendo de los últimos 30 días.",
+        "vo2_max": "VO₂ máx de los últimos 30 días.",
+        "body_temp": "Temperatura corporal de los últimos 30 días."
+      }
     },
     "vo2Max": {
       "statLatest": "Actual",

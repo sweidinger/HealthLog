@@ -1573,7 +1573,22 @@
     },
     "trendsRow": {
       "title": "Trendy",
-      "subtitle": "Ostatnie 30 dni w skrócie"
+      "subtitle": "Ostatnie 30 dni w skrócie",
+      "caption": {
+        "bp": "Wartości skurczowe i rozkurczowe z ostatnich 30 dni.",
+        "weight": "Trend masy ciała z ostatnich 30 dni.",
+        "pulse": "Tętno spoczynkowe z ostatnich 30 dni.",
+        "mood": "Dzienna ocena nastroju z ostatnich 30 dni.",
+        "sleep": "Długość snu nocnego z ostatnich 30 dni.",
+        "steps": "Dzienna liczba kroków z ostatnich 30 dni.",
+        "hrv": "Zmienność rytmu serca z ostatnich 30 dni.",
+        "resting_hr": "Spoczynkowe tętno z ostatnich 30 dni.",
+        "active_energy": "Aktywnie spalona energia z ostatnich 30 dni.",
+        "flights": "Pokonane piętra z ostatnich 30 dni.",
+        "distance": "Dystans marszu i biegu z ostatnich 30 dni.",
+        "vo2_max": "VO₂ max z ostatnich 30 dni.",
+        "body_temp": "Temperatura ciała z ostatnich 30 dni."
+      }
     },
     "vo2Max": {
       "statLatest": "Aktualne",
