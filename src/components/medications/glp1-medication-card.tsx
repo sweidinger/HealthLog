@@ -29,6 +29,7 @@ import {
   reduceCurrentWindowStatus,
   toBerlinDate,
 } from "@/lib/medications/window-status";
+import type { ComplianceDisplay } from "@/lib/analytics/compliance";
 
 /**
  * v1.4.25 W4d — GLP-1 medication card variant.
@@ -97,16 +98,6 @@ export interface Glp1Medication {
    */
   nextDueAt?: string | null;
   schedules: ScheduleLite[];
-}
-
-interface ComplianceDisplay {
-  shortDays: number;
-  longDays: number;
-  expectedShort: number;
-  expectedLong: number;
-  minStableDoses: number;
-  short: { rate: number; streak: number };
-  long: { rate: number };
 }
 
 interface ComplianceData {

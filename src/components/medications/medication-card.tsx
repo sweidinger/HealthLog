@@ -26,6 +26,7 @@ import {
 import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
 import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
+import type { ComplianceDisplay } from "@/lib/analytics/compliance";
 
 interface Schedule {
   id: string;
@@ -69,16 +70,6 @@ interface Medication {
    */
   nextDueAt?: string | null;
   schedules: Schedule[];
-}
-
-interface ComplianceDisplay {
-  shortDays: number;
-  longDays: number;
-  expectedShort: number;
-  expectedLong: number;
-  minStableDoses: number;
-  short: { rate: number; streak: number };
-  long: { rate: number };
 }
 
 interface ComplianceData {
