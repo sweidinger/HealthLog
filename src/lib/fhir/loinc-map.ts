@@ -12,6 +12,15 @@
 
 export const LOINC_SYSTEM = "http://loinc.org";
 export const UCUM_SYSTEM = "http://unitsofmeasure.org";
+/**
+ * Shared custom CodeSystem for HealthKit placeholder metrics that have no
+ * published LOINC term. A non-LOINC code under `http://loinc.org` is a FHIR
+ * conformance violation, so these route here instead. Byte-aligned with the
+ * iOS exporter (confirmed 2026-06-01) — both clients emit the identical
+ * `system` + raw `HKQuantityTypeIdentifier…` `code`.
+ */
+export const HEALTHKIT_CODESYSTEM =
+  "https://healthlog.dev/fhir/CodeSystem/healthkit";
 
 export type FhirObservationCategory =
   | "vital-signs"
@@ -145,10 +154,12 @@ export const MEASUREMENT_LOINC: Record<string, LoincMapping> = {
     unit: "kg",
     category: "vital-signs",
   },
-  // HK-placeholder codes — no published LOINC term. iOS emits the HealthKit
-  // identifier STRING as the `code` (in the LOINC system slot); the server
-  // must emit the identical placeholder, not invent a LOINC. The `loinc`
-  // field below carries that placeholder string verbatim.
+  // HK-placeholder codes — no published LOINC term. Both iOS and the server
+  // emit the HealthKit identifier STRING as the `code` under the shared
+  // `HEALTHKIT_CODESYSTEM` (NOT the LOINC namespace — a non-LOINC code under
+  // http://loinc.org fails FHIR conformance). The `loinc` field below carries
+  // the placeholder string verbatim; the builder routes any
+  // `HKQuantityTypeIdentifier…` code onto the custom system.
   WALKING_DOUBLE_SUPPORT: {
     loinc: "HKQuantityTypeIdentifierWalkingDoubleSupportPercentage",
     display: "Walking double support percentage",

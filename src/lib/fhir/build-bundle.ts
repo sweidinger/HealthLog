@@ -21,6 +21,7 @@ import type { DoctorReportData } from "@/lib/doctor-report-data";
 import { resolveGlucoseUnit, convertGlucose } from "@/lib/glucose";
 import {
   LOINC_SYSTEM,
+  HEALTHKIT_CODESYSTEM,
   UCUM_SYSTEM,
   MEASUREMENT_LOINC,
   BP_PANEL_LOINC,
@@ -66,8 +67,15 @@ function escapeXml(value: string): string {
 
 function codeableFromMapping(m: LoincMapping): FhirCodeableConcept {
   if (m.loinc) {
+    // HealthKit placeholder codes have no published LOINC term; they must not
+    // sit under the LOINC namespace (a non-LOINC code there is a conformance
+    // violation). Route them onto the shared custom CodeSystem instead —
+    // byte-aligned with the iOS exporter.
+    const system = m.loinc.startsWith("HKQuantityTypeIdentifier")
+      ? HEALTHKIT_CODESYSTEM
+      : LOINC_SYSTEM;
     return {
-      coding: [{ system: LOINC_SYSTEM, code: m.loinc, display: m.display }],
+      coding: [{ system, code: m.loinc, display: m.display }],
       text: m.display,
     };
   }
