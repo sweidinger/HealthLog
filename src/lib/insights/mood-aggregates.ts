@@ -478,6 +478,23 @@ export function computeMoodMetricCorrelation(
 
 // --- Orchestrated aggregate shape ---
 
+/**
+ * v1.8.5 — the cross-metric channels the mood page correlates against,
+ * mapping the correlation key the UI reads to its measurement type. This
+ * is the single source for both the `correlations` object below and the
+ * `fetchMoodAggregates` measurement `in:[...]` filter, so the two can
+ * never drift out of sync.
+ */
+export const CORRELATION_METRICS = {
+  sleep: "SLEEP_DURATION",
+  steps: "ACTIVITY_STEPS",
+  pulse: "PULSE",
+  weight: "WEIGHT",
+  bloodPressureSystolic: "BLOOD_PRESSURE_SYS",
+} as const;
+
+type CorrelationKey = keyof typeof CORRELATION_METRICS;
+
 export interface MoodAggregates {
   summary: {
     points: number;
@@ -503,13 +520,7 @@ export interface MoodAggregates {
   structuredTags: StructuredTagRow[];
   /** v1.8.5 — recent notes timeline (qualitative-reflection feed). */
   notesTimeline: NoteTimelineEntry[];
-  correlations: {
-    sleep: MoodMetricCorrelation;
-    steps: MoodMetricCorrelation;
-    pulse: MoodMetricCorrelation;
-    weight: MoodMetricCorrelation;
-    bloodPressureSystolic: MoodMetricCorrelation;
-  };
+  correlations: Record<CorrelationKey, MoodMetricCorrelation>;
 }
 
 /**
@@ -583,33 +594,12 @@ export function computeMoodAggregates(args: {
     tags: computeTagSummary(entries, now),
     structuredTags: computeStructuredTagSummary(entries, now),
     notesTimeline: computeNotesTimeline(entries),
-    correlations: {
-      sleep: computeMoodMetricCorrelation(
-        moodDaily,
-        metricDaily("SLEEP_DURATION"),
-        now,
-      ),
-      steps: computeMoodMetricCorrelation(
-        moodDaily,
-        metricDaily("ACTIVITY_STEPS"),
-        now,
-      ),
-      pulse: computeMoodMetricCorrelation(
-        moodDaily,
-        metricDaily("PULSE"),
-        now,
-      ),
-      weight: computeMoodMetricCorrelation(
-        moodDaily,
-        metricDaily("WEIGHT"),
-        now,
-      ),
-      bloodPressureSystolic: computeMoodMetricCorrelation(
-        moodDaily,
-        metricDaily("BLOOD_PRESSURE_SYS"),
-        now,
-      ),
-    },
+    correlations: Object.fromEntries(
+      Object.entries(CORRELATION_METRICS).map(([key, type]) => [
+        key,
+        computeMoodMetricCorrelation(moodDaily, metricDaily(type), now),
+      ]),
+    ) as MoodAggregates["correlations"],
   };
 }
 
@@ -678,15 +668,9 @@ export async function fetchMoodAggregates(
         userId,
         deletedAt: null,
         measuredAt: { gte: windowCutoff },
-        type: {
-          in: [
-            "WEIGHT",
-            "BLOOD_PRESSURE_SYS",
-            "PULSE",
-            "SLEEP_DURATION",
-            "ACTIVITY_STEPS",
-          ],
-        },
+        // v1.8.5 — single-sourced from CORRELATION_METRICS so the fetched
+        // channels and the computed correlations never drift apart.
+        type: { in: Object.values(CORRELATION_METRICS) },
       },
       orderBy: { measuredAt: "desc" },
       take: 5000,
