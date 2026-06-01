@@ -143,37 +143,55 @@ export function SubPageShell({
   return (
     <div data-slot="insights-subpage" className="space-y-4 md:space-y-5">
       <header className="space-y-1.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1
-            ref={headingRef}
-            id="insights-subpage-title"
-            tabIndex={-1}
-            className={cn(
-              "text-xl font-semibold sm:text-2xl",
-              // a11y: sighted-keyboard users (e.g. "Skip to content")
-              // need a visible focus indicator on the programmatic
-              // `headingRef.focus()` call below. Match the focus ring
-              // vocabulary used on insights pills + Coach affordances.
-              "rounded-sm focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
-            )}
-          >
-            {title}
-          </h1>
-          {/* v1.8.6 — the diversity nudge now rides the heading as a
-              `Lightbulb` glyph (the node self-gates to nothing when the
-              spread is healthy), replacing the old inline block. */}
-          {diversityNudge}
-          {badge ? (
-            <Badge variant="outline" className="border text-xs">
-              {badge}
-            </Badge>
-          ) : null}
+        {/* v1.8.6 — the heading row pins the Coach icon top-right while the
+            title / nudge / badge wrap together on the left.
+
+            Design M2 fix: the Coach icon is a `shrink-0` sibling of the
+            left group (not an `ml-auto` member of a single flex-wrap row),
+            so a long or wrapped title can never isolate it or crowd it on a
+            375 px screen — it stays cleanly top-right and the title text
+            reflows in the space that remains.
+
+            Design M1 fix: the row reserves a constant `min-h-10` so the
+            baseline holds whether or not the self-gating diversity-nudge
+            glyph (a 44 px-tall touch target) is present — category pages
+            with and without a nudge now align. `items-start` keeps the
+            Coach icon at the top of the row when the title wraps to two
+            lines. */}
+        <div className="flex min-h-10 items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h1
+              ref={headingRef}
+              id="insights-subpage-title"
+              tabIndex={-1}
+              className={cn(
+                "text-xl font-semibold sm:text-2xl",
+                // a11y: sighted-keyboard users (e.g. "Skip to content")
+                // need a visible focus indicator on the programmatic
+                // `headingRef.focus()` call below. Match the focus ring
+                // vocabulary used on insights pills + Coach affordances.
+                "rounded-sm focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+              )}
+            >
+              {title}
+            </h1>
+            {/* v1.8.6 — the diversity nudge rides the heading as a
+                `Lightbulb` glyph (the node self-gates to nothing when the
+                spread is healthy), replacing the old inline block. */}
+            {diversityNudge}
+            {badge ? (
+              <Badge variant="outline" className="border text-xs">
+                {badge}
+              </Badge>
+            ) : null}
+          </div>
           {/* v1.8.6 — Coach launch sits top-right at heading height as an
-              icon. `ml-auto` pushes it to the row's trailing edge so it
-              aligns with the title regardless of badge / glyph presence.
-              The button self-gates on the Coach flag + per-user opt-out. */}
+              icon, pinned by the row's `justify-between` so it aligns with
+              the title regardless of badge / glyph presence or a wrapped
+              title. The button self-gates on the Coach flag + per-user
+              opt-out. */}
           {coachLaunch ? (
-            <CoachLaunchButton variant="icon" className="ml-auto" />
+            <CoachLaunchButton variant="icon" className="shrink-0" />
           ) : null}
         </div>
         {explainerMetric ? (
