@@ -25,6 +25,10 @@ import {
   type DailyBucket,
 } from "@/lib/insights/bucket-series";
 import { round, summarizeSeries } from "@/lib/insights/status-shared";
+import {
+  computeMoodNarratives,
+  type MoodNarrative,
+} from "@/lib/insights/mood-narratives";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -87,53 +91,6 @@ export interface MoodAggregateEntry {
    * aggregate tests (flat tags only) keep their narrow fixtures.
    */
   structuredTags?: StructuredTagRef[];
-  /** v1.8.5 — free-text note (C1). */
-  note?: string | null;
-  /** Mood enum (for the notes timeline label / colour). */
-  mood?: string;
-}
-
-// --- Notes timeline (v1.8.5 C1 — qualitative reflection feed) ---
-
-export interface NoteTimelineEntry {
-  /** TZ-anchored day key. */
-  date: string;
-  /** ISO timestamp of the log. */
-  loggedAt: string;
-  score: number;
-  mood: string | null;
-  note: string;
-  /** Flat free-text tags on the entry. */
-  tags: string[];
-  /** Structured-tag labels (i18n keys) on the entry. */
-  structuredTagLabelKeys: string[];
-}
-
-/**
- * Recent entries that carry a free-text note, newest first. Bounded to
- * `limit` so the cached aggregate payload stays small. Entries without a
- * note are skipped — the timeline is the qualitative-reflection feed.
- */
-export function computeNotesTimeline(
-  entries: MoodAggregateEntry[],
-  limit = 20,
-): NoteTimelineEntry[] {
-  return entries
-    .filter((entry) => typeof entry.note === "string" && entry.note.trim())
-    .slice()
-    .reverse() // entries arrive oldest-first; show newest first
-    .slice(0, limit)
-    .map((entry) => ({
-      date: entry.date,
-      loggedAt: entry.moodLoggedAt.toISOString(),
-      score: entry.score,
-      mood: entry.mood ?? null,
-      note: entry.note!.trim(),
-      tags: Array.isArray(entry.tags) ? (entry.tags as string[]) : [],
-      structuredTagLabelKeys: (entry.structuredTags ?? []).map(
-        (tag) => tag.labelKey,
-      ),
-    }));
 }
 
 /** Cross-metric row shape (WEIGHT / BLOOD_PRESSURE_SYS / PULSE / …). */
@@ -518,8 +475,12 @@ export interface MoodAggregates {
   tags: TagSummaryRow[];
   /** v1.8.5 — structured-tag breakdown from the taxonomy join. */
   structuredTags: StructuredTagRow[];
-  /** v1.8.5 — recent notes timeline (qualitative-reflection feed). */
-  notesTimeline: NoteTimelineEntry[];
+  /**
+   * v1.8.6 — ranked, threshold-gated narrative takeaways. The "read
+   * this first" layer above the charts; the same array feeds the LLM
+   * snapshot so prose and feed never drift.
+   */
+  narratives: MoodNarrative[];
   correlations: Record<CorrelationKey, MoodMetricCorrelation>;
 }
 
@@ -571,6 +532,14 @@ export function computeMoodAggregates(args: {
 
   const windowDays = selectHeatmapWindow(totalSpanDays);
 
+  const weekday = computeWeekdayAverages(moodDaily, now);
+  const tags = computeTagSummary(entries, now);
+  const structuredTags = computeStructuredTagSummary(entries, now);
+  const inTargetPct = computeInTargetPct(moodDaily);
+
+  // Distinct day keys the user logged on — drives the streak takeaway.
+  const loggedDayKeys = Array.from(new Set(entries.map((entry) => entry.date)));
+
   return {
     summary: {
       points: moodSummary?.points ?? 0,
@@ -580,7 +549,7 @@ export function computeMoodAggregates(args: {
       latest: latest?.value ?? null,
       delta:
         latest && previous ? round(latest.value - previous.value, 2) : null,
-      inTargetPct: computeInTargetPct(moodDaily),
+      inTargetPct,
       totalEntries: entries.length,
       totalSpanDays,
       newestEntryDaysAgo,
@@ -590,10 +559,18 @@ export function computeMoodAggregates(args: {
       cells: computeHeatmapCells(entries, now, windowDays),
     },
     distribution: computeDistribution(moodDaily),
-    weekday: computeWeekdayAverages(moodDaily, now),
-    tags: computeTagSummary(entries, now),
-    structuredTags: computeStructuredTagSummary(entries, now),
-    notesTimeline: computeNotesTimeline(entries),
+    weekday,
+    tags,
+    structuredTags,
+    narratives: computeMoodNarratives({
+      daily: moodDaily,
+      weekday,
+      tags,
+      structuredTags,
+      inTargetPct,
+      loggedDayKeys,
+      now,
+    }),
     correlations: Object.fromEntries(
       Object.entries(CORRELATION_METRICS).map(([key, type]) => [
         key,
@@ -627,8 +604,6 @@ export async function fetchMoodAggregates(
         score: true,
         tags: true,
         moodLoggedAt: true,
-        mood: true,
-        note: true,
         // v1.8.5 — pull the structured-tag links + their catalog rows so
         // the breakdown can fold structured tags next to the flat ones.
         tagLinks: {
@@ -651,8 +626,6 @@ export async function fetchMoodAggregates(
         score: row.score,
         tags: parseTags(row.tags),
         moodLoggedAt: row.moodLoggedAt,
-        mood: row.mood,
-        note: row.note,
         structuredTags: row.tagLinks.map((link) => ({
           key: link.moodTag.key,
           categoryKey: link.moodTag.category.key,

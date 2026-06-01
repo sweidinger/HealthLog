@@ -2387,7 +2387,21 @@
         "emptyDescription": "Rejestruj nastrój i ten wskaźnik w te same dni, aby zobaczyć korelację."
       },
       "structuredTagsTitle": "Podział tagów",
-      "notesTimelineTitle": "Notatki"
+      "inTargetValue": "{pct}%",
+      "inTargetCaption": "ostatnich dni w zakresie dobrego nastroju",
+      "narrative": {
+        "title": "Co się wyróżnia",
+        "weekdayDip": "Twój nastrój najbardziej spada w {weekday} — {delta} poniżej twojego tygodnia.",
+        "weekdayPeak": "{weekday} to zawsze twój najlepszy dzień, średnio {value}.",
+        "trendUp": "Twój nastrój rośnie w ciągu ostatnich {days} dni (+{delta} względem poprzedniego okresu).",
+        "trendDown": "Twój nastrój spada w ciągu ostatnich {days} dni (-{delta} względem poprzedniego okresu).",
+        "weekendUp": "W weekendy czujesz się lepiej (+{delta} względem dni roboczych).",
+        "weekendDown": "Twój nastrój jest niższy w weekendy (-{delta} względem dni roboczych).",
+        "tagLift": "Dni z tagiem „{tag}” są średnio o {delta} powyżej twojego ogólnego nastroju.",
+        "tagDrop": "Dni z tagiem „{tag}” są o {delta} poniżej twojej średniej.",
+        "inTarget": "Przez {pct}% ostatnich 30 dni byłeś w zakresie dobrego nastroju.",
+        "streak": "Rejestrujesz nastrój od {days} dni z rzędu — tak trzymaj."
+      }
     }
   },
   "thresholds": {

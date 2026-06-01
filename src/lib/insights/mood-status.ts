@@ -14,8 +14,10 @@ import {
   MOOD_ORANGE_MIN,
   computeInTargetPct,
   computeTagSummary,
+  computeWeekdayAverages,
   pairDailyBuckets,
 } from "@/lib/insights/mood-aggregates";
+import { computeMoodNarratives } from "@/lib/insights/mood-narratives";
 import {
   buildGradedSeriesFromPoints,
   degradeStatusSnapshotToBudget,
@@ -223,6 +225,21 @@ export async function generateMoodStatusForUser(
   // via `computeTagSummary` so the prose and the chart never drift.
   const tagSummary = computeTagSummary(entries, now);
 
+  // v1.8.6 — the same threshold-gated narrative feed the user sees on
+  // the mood page, computed from the same aggregates so the prose the
+  // model writes never contradicts the takeaways on screen (shown ==
+  // sent). Structured tags are not loaded on this lean snapshot path,
+  // so the tag deltas ride the flat-tag summary only.
+  const narratives = computeMoodNarratives({
+    daily: moodSeries.daily,
+    weekday: computeWeekdayAverages(moodSeries.daily, now),
+    tags: tagSummary,
+    structuredTags: [],
+    inTargetPct: inTargetPctLast30DailyPoints,
+    loggedDayKeys: Array.from(new Set(entries.map((entry) => entry.date))),
+    now,
+  });
+
   const snapshot = {
     locale,
     generatedForDay: todayKey,
@@ -253,6 +270,7 @@ export async function generateMoodStatusForUser(
         inTargetPctLast30DailyPoints,
       },
       tags: tagSummary.length > 0 ? tagSummary : null,
+      narratives: narratives.length > 0 ? narratives : null,
     },
     crossMetricContext:
       weightSeries.daily.length >= 3 ||

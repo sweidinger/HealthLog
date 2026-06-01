@@ -29,9 +29,10 @@ import {
   type MoodStructuredTagRow,
 } from "./mood-structured-tag-breakdown";
 import {
-  MoodNotesTimeline,
-  type MoodNoteEntry,
-} from "./mood-notes-timeline";
+  MoodNarrativeFeed,
+  type MoodNarrativeItem,
+} from "./mood-narrative-feed";
+import { MoodInTargetTile } from "./mood-in-target-tile";
 
 /**
  * v1.8.5 — additional Mood Insights sections.
@@ -46,6 +47,7 @@ import {
 interface MoodInsightsResponse {
   summary: {
     totalEntries: number;
+    inTargetPct: number | null;
   };
   heatmap: {
     windowDays: number;
@@ -55,7 +57,7 @@ interface MoodInsightsResponse {
   weekday: MoodWeekdayRow[];
   tags: MoodTagRow[];
   structuredTags: MoodStructuredTagRow[];
-  notesTimeline: MoodNoteEntry[];
+  narratives: MoodNarrativeItem[];
   correlations: {
     sleep: MoodMetricCorrelationData;
     steps: MoodMetricCorrelationData;
@@ -110,10 +112,13 @@ export function MoodInsightsSections() {
 
   const hasTags = data.tags.length > 0;
   const hasStructuredTags = data.structuredTags.length > 0;
-  const hasNotes = data.notesTimeline.length > 0;
 
   return (
     <div className="space-y-4">
+      <MoodInTargetTile pct={data.summary.inTargetPct} />
+
+      <MoodNarrativeFeed items={data.narratives} />
+
       <SectionCard title={t("insights.mood.heatmapTitle")}>
         <MoodHeatmap
           cells={heatmapCells}
@@ -156,12 +161,6 @@ export function MoodInsightsSections() {
           pulse={data.correlations.pulse}
         />
       </div>
-
-      {hasNotes && (
-        <SectionCard title={t("insights.mood.notesTimelineTitle")}>
-          <MoodNotesTimeline notes={data.notesTimeline} />
-        </SectionCard>
-      )}
     </div>
   );
 }

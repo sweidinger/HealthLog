@@ -2387,7 +2387,21 @@
         "emptyDescription": "Log mood and this metric on the same days to see a correlation."
       },
       "structuredTagsTitle": "Tag breakdown",
-      "notesTimelineTitle": "Notes"
+      "inTargetValue": "{pct}%",
+      "inTargetCaption": "of recent days in your good-mood range",
+      "narrative": {
+        "title": "What stands out",
+        "weekdayDip": "Your mood dips most on {weekday} — {delta} below your week.",
+        "weekdayPeak": "{weekday} is consistently your best day, averaging {value}.",
+        "trendUp": "Your mood is trending up over the last {days} days (+{delta} vs the prior period).",
+        "trendDown": "Your mood is trending down over the last {days} days (-{delta} vs the prior period).",
+        "weekendUp": "You feel better on weekends (+{delta} vs weekdays).",
+        "weekendDown": "Your mood runs lower on weekends (-{delta} vs weekdays).",
+        "tagLift": "Days tagged \"{tag}\" average {delta} above your overall mood.",
+        "tagDrop": "Days tagged \"{tag}\" run {delta} below your average.",
+        "inTarget": "You've been in your good-mood range {pct}% of the last 30 days.",
+        "streak": "You've logged your mood {days} days in a row — keep it up."
+      }
     }
   },
   "thresholds": {

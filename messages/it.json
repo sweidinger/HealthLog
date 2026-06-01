@@ -2387,7 +2387,21 @@
         "emptyDescription": "Registra umore e questa metrica negli stessi giorni per vedere una correlazione."
       },
       "structuredTagsTitle": "Analisi etichette",
-      "notesTimelineTitle": "Note"
+      "inTargetValue": "{pct} %",
+      "inTargetCaption": "degli ultimi giorni nel tuo intervallo di buon umore",
+      "narrative": {
+        "title": "Cosa risalta",
+        "weekdayDip": "Il tuo umore cala di più il {weekday}: {delta} sotto la tua settimana.",
+        "weekdayPeak": "Il {weekday} è sempre il tuo giorno migliore, con una media di {value}.",
+        "trendUp": "Il tuo umore è in crescita negli ultimi {days} giorni (+{delta} rispetto al periodo precedente).",
+        "trendDown": "Il tuo umore è in calo negli ultimi {days} giorni (-{delta} rispetto al periodo precedente).",
+        "weekendUp": "Ti senti meglio nel weekend (+{delta} rispetto ai giorni feriali).",
+        "weekendDown": "Il tuo umore è più basso nel weekend (-{delta} rispetto ai giorni feriali).",
+        "tagLift": "I giorni con l'etichetta «{tag}» superano in media il tuo umore generale di {delta}.",
+        "tagDrop": "I giorni con l'etichetta «{tag}» restano {delta} sotto la tua media.",
+        "inTarget": "Sei stato nel tuo intervallo di buon umore il {pct} % degli ultimi 30 giorni.",
+        "streak": "Hai registrato il tuo umore per {days} giorni di fila — continua così."
+      }
     }
   },
   "thresholds": {

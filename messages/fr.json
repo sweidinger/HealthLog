@@ -2387,7 +2387,21 @@
         "emptyDescription": "Enregistrez l'humeur et cette mesure les mêmes jours pour voir une corrélation."
       },
       "structuredTagsTitle": "Répartition des étiquettes",
-      "notesTimelineTitle": "Notes"
+      "inTargetValue": "{pct} %",
+      "inTargetCaption": "des derniers jours dans votre plage de bonne humeur",
+      "narrative": {
+        "title": "Ce qui ressort",
+        "weekdayDip": "Votre humeur baisse surtout le {weekday} — {delta} sous votre semaine.",
+        "weekdayPeak": "Le {weekday} est toujours votre meilleur jour, avec une moyenne de {value}.",
+        "trendUp": "Votre humeur progresse sur les {days} derniers jours (+{delta} par rapport à la période précédente).",
+        "trendDown": "Votre humeur recule sur les {days} derniers jours (-{delta} par rapport à la période précédente).",
+        "weekendUp": "Vous vous sentez mieux le week-end (+{delta} par rapport à la semaine).",
+        "weekendDown": "Votre humeur est plus basse le week-end (-{delta} par rapport à la semaine).",
+        "tagLift": "Les jours marqués « {tag} » dépassent votre humeur générale de {delta} en moyenne.",
+        "tagDrop": "Les jours marqués « {tag} » sont {delta} sous votre moyenne.",
+        "inTarget": "Vous avez été dans votre plage de bonne humeur {pct} % des 30 derniers jours.",
+        "streak": "Vous avez noté votre humeur {days} jours d'affilée — continuez."
+      }
     }
   },
   "thresholds": {

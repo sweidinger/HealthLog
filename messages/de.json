@@ -2387,7 +2387,21 @@
         "emptyDescription": "Erfasse Stimmung und diesen Wert an denselben Tagen, um einen Zusammenhang zu sehen."
       },
       "structuredTagsTitle": "Tag-Auswertung",
-      "notesTimelineTitle": "Notizen"
+      "inTargetValue": "{pct} %",
+      "inTargetCaption": "der letzten Tage im guten Stimmungsbereich",
+      "narrative": {
+        "title": "Das fällt auf",
+        "weekdayDip": "Deine Stimmung sinkt am stärksten am {weekday} – {delta} unter deinem Wochenschnitt.",
+        "weekdayPeak": "{weekday} ist durchgehend dein bester Tag mit einem Schnitt von {value}.",
+        "trendUp": "Deine Stimmung steigt über die letzten {days} Tage (+{delta} gegenüber dem Vorzeitraum).",
+        "trendDown": "Deine Stimmung sinkt über die letzten {days} Tage (-{delta} gegenüber dem Vorzeitraum).",
+        "weekendUp": "Am Wochenende geht es dir besser (+{delta} gegenüber Wochentagen).",
+        "weekendDown": "Am Wochenende ist deine Stimmung niedriger (-{delta} gegenüber Wochentagen).",
+        "tagLift": "Tage mit „{tag}“ liegen im Schnitt {delta} über deiner allgemeinen Stimmung.",
+        "tagDrop": "Tage mit „{tag}“ liegen {delta} unter deinem Durchschnitt.",
+        "inTarget": "Du warst an {pct} % der letzten 30 Tage in deinem guten Stimmungsbereich.",
+        "streak": "Du hast deine Stimmung {days} Tage in Folge erfasst – weiter so."
+      }
     }
   },
   "thresholds": {
