@@ -6,9 +6,10 @@
  * the v1.5.0 cut wires only the reminder worker (via
  * `worker-helpers.ts`) through it. The today-projector
  * (`expandTodayIntakes`), the cadence chart (`expandScheduleSlots`),
- * the medication card (`getNextOccurrenceTimestamp`), and the
- * form-level helpers continue on the legacy walker through v1.5.x and
- * migrate in v1.5.1 per the read-flip plan.
+ * and the form-level helpers continue on the legacy walker through
+ * v1.5.x and migrate per the read-flip plan. The medication card's
+ * "next intake" line reads the server-computed `nextDueAt` (this engine
+ * via `computeNextDueAt`) directly as of v1.8.4.
  *
  * Dispatch tiers (first matching tier wins):
  *

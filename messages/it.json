@@ -549,6 +549,8 @@
     "dayStreak": "giorni di serie",
     "taken": "Assunta",
     "skipped": "Saltata",
+    "intakeToastTaken": "{name} registrata come assunta",
+    "intakeToastSkipped": "{name} saltata",
     "weekdaySunday": "Domenica",
     "weekdayMonday": "Lunedì",
     "weekdayTuesday": "Martedì",

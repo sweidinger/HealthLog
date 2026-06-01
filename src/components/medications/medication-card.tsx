@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useReducer } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
 import { MedicationCardMenu } from "@/components/medications/medication-card-menu";
@@ -9,12 +10,10 @@ import { MedicationStateBadges } from "@/components/medications/card-parts/medic
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
-import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
 import {
-  parseTimeToMinutes,
   reduceCurrentWindowStatus,
   toBerlinDate,
 } from "@/lib/medications/window-status";
@@ -52,6 +51,14 @@ interface Medication {
   pausedAt: string | null;
   lastTakenAt: string | null;
   todayEventCount?: number;
+  /**
+   * v1.8.4 — server-computed next due instant from `GET /api/medications`
+   * (`computeNextDueAt` → the canonical recurrence engine, anchored on the
+   * last intake). The card renders this directly instead of re-deriving the
+   * timestamp client-side; the engine honours rolling / RRULE / one-shot
+   * cadences that the legacy daysOfWeek-only walker ignored.
+   */
+  nextDueAt?: string | null;
   schedules: Schedule[];
 }
 
@@ -84,47 +91,6 @@ interface MedicationCardProps {
    * button.
    */
   onOpenAdvanced: (med: Medication) => void;
-}
-
-function getNextOccurrenceTimestamp(
-  schedule: Schedule,
-  nowBerlin: Date,
-): number | null {
-  const recurrence = parseScheduleRecurrence(schedule.daysOfWeek);
-  const baseDay = new Date(nowBerlin);
-  baseDay.setHours(0, 0, 0, 0);
-
-  const nowMinutes = nowBerlin.getHours() * 60 + nowBerlin.getMinutes();
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const baseWeekIndex = Math.floor(baseDay.getTime() / weekMs);
-  const startMinutes = parseTimeToMinutes(schedule.windowStart);
-
-  for (let offset = 0; offset <= 400; offset += 1) {
-    const candidate = new Date(baseDay);
-    candidate.setDate(baseDay.getDate() + offset);
-
-    const candidateWeekIndex = Math.floor(candidate.getTime() / weekMs);
-    const isAllowedWeek =
-      recurrence.intervalWeeks <= 1 ||
-      candidateWeekIndex % recurrence.intervalWeeks ===
-        baseWeekIndex % recurrence.intervalWeeks;
-    if (!isAllowedWeek) continue;
-
-    if (
-      recurrence.daysOfWeek.length > 0 &&
-      !recurrence.daysOfWeek.includes(candidate.getDay())
-    ) {
-      continue;
-    }
-
-    if (offset === 0 && startMinutes <= nowMinutes) {
-      continue;
-    }
-
-    return candidate.getTime() + startMinutes * 60 * 1000;
-  }
-
-  return null;
 }
 
 export function MedicationCard({
@@ -177,6 +143,14 @@ export function MedicationCard({
         body: JSON.stringify({ skipped }),
       });
       if (res.ok) {
+        toast.success(
+          t(
+            skipped
+              ? "medications.intakeToastSkipped"
+              : "medications.intakeToastTaken",
+            { name: medication.name },
+          ),
+        );
         await invalidateKeys(queryClient, medicationDependentKeys);
       }
     } finally {
@@ -194,19 +168,18 @@ export function MedicationCard({
       a.windowEnd.localeCompare(b.windowEnd),
   );
   const nowBerlin = toBerlinDate(new Date());
-  const nextOccurrence =
-    sortedSchedules.length > 0
-      ? (sortedSchedules
-          .map((schedule) => ({
-            schedule,
-            nextAt: getNextOccurrenceTimestamp(schedule, nowBerlin),
-          }))
-          .filter((entry): entry is { schedule: Schedule; nextAt: number } =>
-            Number.isFinite(entry.nextAt),
-          )
-          .sort((a, b) => a.nextAt - b.nextAt)[0] ?? null)
-      : null;
-  const nextSchedule = nextOccurrence?.schedule ?? sortedSchedules[0] ?? null;
+  // v1.8.4 — the next-due instant comes from the server (`nextDueAt`,
+  // computed by the canonical recurrence engine anchored on the last
+  // intake). The day label below derives from it; the window-range /
+  // dose / label still come from the earliest configured schedule. The
+  // legacy client-side daysOfWeek walker only ever read daysOfWeek +
+  // windowStart and silently mis-anchored rolling / RRULE / one-shot
+  // cadences, so it is gone.
+  const nextDueMs = medication.nextDueAt
+    ? new Date(medication.nextDueAt).getTime()
+    : NaN;
+  const nextAt = Number.isFinite(nextDueMs) ? nextDueMs : undefined;
+  const nextSchedule = sortedSchedules[0] ?? null;
 
   const lateMinutes = thresholds?.lateMinutes ?? 120;
   const missedMinutes = thresholds?.missedMinutes ?? 240;
@@ -291,7 +264,6 @@ export function MedicationCard({
           currentWindowStatus.status !== "in_window" &&
           (() => {
             const s = nextSchedule;
-            const nextAt = nextOccurrence?.nextAt;
 
             // Format day label relative to today
             let dayLabel = "";

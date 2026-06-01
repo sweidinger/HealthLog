@@ -2,6 +2,7 @@
 
 import { useEffect, useReducer, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
@@ -79,6 +80,14 @@ export interface Glp1Medication {
   pausedAt: string | null;
   lastTakenAt: string | null;
   todayEventCount?: number;
+  /**
+   * v1.8.4 — server-computed next due instant from `GET /api/medications`
+   * (the canonical recurrence engine anchored on the last intake). The card
+   * renders this directly so a rolling GLP-1 with an interval other than the
+   * weekly default re-anchors correctly; the old client-side predictor only
+   * walked a single hardcoded weekly day-of-week.
+   */
+  nextDueAt?: string | null;
   schedules: ScheduleLite[];
 }
 
@@ -126,14 +135,6 @@ const DAY_KEYS = [
   "medications.daysSat",
 ] as const;
 
-function parseDayList(raw: string | null): number[] {
-  if (!raw) return [];
-  return raw
-    .split(",")
-    .map((p) => Number(p.trim()))
-    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
-}
-
 function diffDays(target: Date, from: Date): number {
   const ms =
     Date.UTC(target.getFullYear(), target.getMonth(), target.getDate()) -
@@ -141,26 +142,22 @@ function diffDays(target: Date, from: Date): number {
   return Math.round(ms / (24 * 60 * 60 * 1000));
 }
 
-function predictNextWeeklyDate(
-  schedule: ScheduleLite | null,
-  lastTakenAt: string | null,
+/**
+ * v1.8.4 — the next injection instant now comes from the server's
+ * `nextDueAt` (the canonical recurrence engine, anchored on the last
+ * intake). The legacy client-side predictor only handled a single
+ * hardcoded weekly day-of-week and re-anchored at +7 days, so a rolling
+ * GLP-1 with a non-weekly interval rendered the wrong date and never
+ * advanced after an injection.
+ */
+function nextInjectionFromServer(
+  nextDueAt: string | null | undefined,
   now: Date,
 ): { date: Date; daysAway: number } | null {
-  if (!schedule) return null;
-  const dow = parseDayList(schedule.daysOfWeek);
-  if (dow.length !== 1) return null;
-  const target = dow[0];
-  const anchor = lastTakenAt ? new Date(lastTakenAt) : now;
-  const cursor = new Date(anchor);
-  cursor.setHours(0, 0, 0, 0);
-  for (let i = 1; i <= 14; i += 1) {
-    cursor.setDate(cursor.getDate() + 1);
-    if (cursor.getDay() === target) {
-      const days = diffDays(cursor, now);
-      return { date: cursor, daysAway: Math.max(0, days) };
-    }
-  }
-  return null;
+  if (!nextDueAt) return null;
+  const date = new Date(nextDueAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return { date, daysAway: Math.max(0, diffDays(date, now)) };
 }
 
 export function Glp1MedicationCard({
@@ -234,6 +231,14 @@ export function Glp1MedicationCard({
         body: JSON.stringify({ skipped }),
       });
       if (res.ok) {
+        toast.success(
+          t(
+            skipped
+              ? "medications.intakeToastSkipped"
+              : "medications.intakeToastTaken",
+            { name: medication.name },
+          ),
+        );
         await invalidateKeys(queryClient, medicationDependentKeys);
       }
     } finally {
@@ -243,7 +248,7 @@ export function Glp1MedicationCard({
 
   const schedule = medication.schedules[0] ?? null;
   const now = new Date();
-  const next = predictNextWeeklyDate(schedule, medication.lastTakenAt, now);
+  const next = nextInjectionFromServer(medication.nextDueAt, now);
   const rate7 = compliance?.compliance7?.rate ?? 0;
   const rate30 = compliance?.compliance30?.rate ?? 0;
   const streak = compliance?.compliance7?.streak ?? 0;

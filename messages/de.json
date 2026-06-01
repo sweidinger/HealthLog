@@ -549,6 +549,8 @@
     "dayStreak": "Tage Serie",
     "taken": "Genommen",
     "skipped": "Übersprungen",
+    "intakeToastTaken": "{name} als genommen erfasst",
+    "intakeToastSkipped": "{name} übersprungen",
     "weekdaySunday": "Sonntag",
     "weekdayMonday": "Montag",
     "weekdayTuesday": "Dienstag",

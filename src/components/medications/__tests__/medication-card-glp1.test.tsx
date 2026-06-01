@@ -49,11 +49,14 @@ const med7p5: Glp1Medication = {
   // not "today/yesterday" — keeps the SSR string deterministic-ish
   // across local clocks while still exercising the with-site branch.
   lastTakenAt: "2026-05-08T08:00:00.000Z",
+  // v1.8.4 — the card now reads the server-computed next-due instant
+  // directly instead of re-deriving it client-side. A far-future fixed
+  // date keeps the "in N days" branch deterministic across host clocks.
+  nextDueAt: "2099-05-09T08:00:00.000Z",
   schedules: [
     {
       id: "s1",
-      // Saturday only — one entry triggers the weekly-preset branch
-      // in `predictNextWeeklyDate()`.
+      // Saturday only.
       windowStart: "08:00",
       windowEnd: "20:00",
       label: null,

@@ -549,6 +549,8 @@
     "dayStreak": "day streak",
     "taken": "Taken",
     "skipped": "Skipped",
+    "intakeToastTaken": "{name} recorded as taken",
+    "intakeToastSkipped": "{name} skipped",
     "weekdaySunday": "Sunday",
     "weekdayMonday": "Monday",
     "weekdayTuesday": "Tuesday",

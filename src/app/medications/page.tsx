@@ -48,6 +48,12 @@ interface Medication {
   notificationsEnabled: boolean;
   pausedAt: string | null;
   lastTakenAt: string | null;
+  /**
+   * v1.8.4 — server-computed next due instant (canonical recurrence
+   * engine). Threaded straight through to both card variants, which render
+   * it instead of re-deriving the timestamp client-side.
+   */
+  nextDueAt?: string | null;
   /** v1.5 — medication-level course start date (ISO string). */
   startsOn?: string | null;
   /** v1.5 — medication-level course end date (ISO string). */

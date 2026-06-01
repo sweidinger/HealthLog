@@ -549,6 +549,8 @@
     "dayStreak": "días de racha",
     "taken": "Tomada",
     "skipped": "Omitida",
+    "intakeToastTaken": "{name} registrada como tomada",
+    "intakeToastSkipped": "{name} omitida",
     "weekdaySunday": "Domingo",
     "weekdayMonday": "Lunes",
     "weekdayTuesday": "Martes",
