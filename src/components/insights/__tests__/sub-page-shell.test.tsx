@@ -47,7 +47,30 @@ describe("<SubPageShell>", () => {
       </SubPageShell>,
     );
     // The shell uses a `<p>` for the description; no `<p>` appears when
-    // the description prop is absent.
+    // neither a description nor an explainer metric is supplied.
     expect(html).not.toMatch(/<p[^>]*class="text-muted-foreground/);
+  });
+
+  it("renders the explainer body inline beneath the heading", () => {
+    const html = render(
+      <SubPageShell title="Blood pressure" explainerMetric="bloodPressure">
+        <span />
+      </SubPageShell>,
+    );
+    // The inline caption reuses the same body string the `?` popover reads.
+    expect(html).toMatch(/data-slot="metric-explainer-inline"/);
+    expect(html).toContain(
+      "Blood pressure is the force your blood exerts on the artery walls",
+    );
+  });
+
+  it("keeps the explainer trigger glyph when explainerMetric is set", () => {
+    const html = render(
+      <SubPageShell title="Blood pressure" explainerMetric="bloodPressure">
+        <span />
+      </SubPageShell>,
+    );
+    // The `?` glyph stays available alongside the inline caption.
+    expect(html).toMatch(/data-slot="metric-explainer-trigger"/);
   });
 });

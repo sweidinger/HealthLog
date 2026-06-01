@@ -5,6 +5,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { MetricExplainer } from "@/components/insights/metric-explainer";
 import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
+import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,6 +42,13 @@ export interface SubPageShellProps {
    * The value is the metric key feeding
    * `insights.subPage.explainer.<metric>{Title,Body}`. Omitted on the
    * mother page; every routed metric sub-page passes its key.
+   *
+   * v1.8.4 — the same explainer body also renders inline as a muted
+   * caption directly beneath the heading, so the one- to two-sentence
+   * definition is visible without opening the popover. The `?` glyph
+   * stays as the always-available pointer for the same copy. Both the
+   * inline caption and the popover read the identical
+   * `insights.subPage.explainer.<metric>Body` string — no duplicated copy.
    */
   explainerMetric?: string;
   /**
@@ -69,6 +77,7 @@ export function SubPageShell({
   focusOnMount = false,
   children,
 }: SubPageShellProps) {
+  const { t } = useTranslations();
   // a11y: focus the heading on mount so a tab-strip navigation actually
   // moves screen-reader focus into the sub-page body. v1.4.27 MB7 /
   // CF-35 made the focus call opt-in via `focusOnMount` — the
@@ -118,6 +127,18 @@ export function SubPageShell({
             </Badge>
           ) : null}
         </div>
+        {explainerMetric ? (
+          // v1.8.4 — surface the explainer definition inline, reusing the
+          // exact body string the `?` popover reads. Muted caption styling
+          // matches the description paragraph below so the under-heading
+          // band reads as one calm block.
+          <p
+            data-slot="metric-explainer-inline"
+            className="text-muted-foreground text-sm leading-relaxed"
+          >
+            {t(`insights.subPage.explainer.${explainerMetric}Body`)}
+          </p>
+        ) : null}
         {description ? (
           <p className="text-muted-foreground text-sm">{description}</p>
         ) : null}
