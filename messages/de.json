@@ -1346,7 +1346,16 @@
     "personalBaseline": "Dein Mittel",
     "deltaVsBaseline": "{delta} vs. dein Mittel",
     "deltaUnchanged": "entspricht deinem Mittel",
-    "deltaVsTarget": "{delta} vs. Ziel"
+    "deltaVsTarget": "{delta} vs. Ziel",
+    "weekdaysFull": {
+      "mon": "Montag",
+      "tue": "Dienstag",
+      "wed": "Mittwoch",
+      "thu": "Donnerstag",
+      "fri": "Freitag",
+      "sat": "Samstag",
+      "sun": "Sonntag"
+    }
   },
   "chart": {
     "overlay": {
@@ -2275,7 +2284,39 @@
         "description": "Werte erscheinen hier, sobald Apple Health synchronisiert."
       }
     },
-    "navWalkingSpeed": "Gehgeschwindigkeit"
+    "navWalkingSpeed": "Gehgeschwindigkeit",
+    "mood": {
+      "heatmapTitle": "Stimmungskalender",
+      "heatmapNoEntry": "Kein Eintrag",
+      "legendGreat": "Super",
+      "legendGood": "Gut",
+      "legendOkay": "Okay",
+      "legendLow": "Niedrig",
+      "distributionTitle": "Stimmungsverteilung",
+      "distributionDaysUnit": "Tage",
+      "weekdayTitle": "Durchschnitt nach Wochentag",
+      "weekdayNoData": "Keine Daten",
+      "weekdayBestWorst": "Bester Tag: {best} · Schwerster Tag: {worst}",
+      "tagsTitle": "Tags und Auslöser",
+      "tagAvgMood": "Durchschnittliche Stimmung mit diesem Tag",
+      "correlationsTitle": "Stimmung und andere Werte",
+      "correlationsDescription": "Wie sich deine Stimmung am selben Tag mit Schlaf, Aktivität und Puls bewegt.",
+      "correlation": {
+        "sleepTitle": "Stimmung vs. Schlaf",
+        "stepsTitle": "Stimmung vs. Aktivität",
+        "pulseTitle": "Stimmung vs. Puls",
+        "sleepAxis": "Schlaf (Min.)",
+        "stepsAxis": "Schritte",
+        "pulseAxis": "Puls (bpm)",
+        "strengthStrong": "Stark",
+        "strengthModerate": "Moderat",
+        "strengthWeak": "Schwach",
+        "strengthNone": "Keine",
+        "source": "{n} gepaarte Tage · r = {r}",
+        "emptyTitle": "Noch nicht genug gepaarte Daten",
+        "emptyDescription": "Erfasse Stimmung und diesen Wert an denselben Tagen, um einen Zusammenhang zu sehen."
+      }
+    }
   },
   "thresholds": {
     "defaultLabel": "Default",

@@ -53,6 +53,13 @@ export const queryKeys = {
   analytics: (slice?: "summaries") =>
     (slice ? (["analytics", slice] as const) : (["analytics"] as const)),
   moodAnalytics: () => ["mood-analytics"] as const,
+  /**
+   * v1.8.5 — pre-computed mood-insights aggregates (heatmap, distribution,
+   * weekday, tag breakdown, cross-metric correlations) for the Mood
+   * Insights page. Read-only; invalidated on a mood write through the
+   * `moodDependentKeys` fan-out below.
+   */
+  moodInsights: () => ["mood-insights"] as const,
 
   /**
    * v1.7.0 W6 — unified dashboard first-paint snapshot. One client cell
@@ -385,6 +392,7 @@ export const measurementDependentKeys = [
 export const moodDependentKeys = [
   queryKeys.moodEntries(),
   queryKeys.moodAnalytics(),
+  queryKeys.moodInsights(),
   queryKeys.insightsRoot(),
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),

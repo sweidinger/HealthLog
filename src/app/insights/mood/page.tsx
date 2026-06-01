@@ -16,6 +16,7 @@ import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
+import { MoodInsightsSections } from "@/components/insights/mood/mood-insights-sections";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -106,6 +107,8 @@ export default function InsightsStimmungPage() {
       />
 
       <MetricTargetSummary slug="mood" />
+
+      <MoodInsightsSections />
 
       <InsightStatusCard
         title={t("insights.assessmentTitle")}

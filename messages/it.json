@@ -1346,7 +1346,16 @@
     "personalBaseline": "La tua media",
     "deltaVsBaseline": "{delta} vs. la tua media",
     "deltaUnchanged": "corrisponde alla tua media",
-    "deltaVsTarget": "{delta} vs. obiettivo"
+    "deltaVsTarget": "{delta} vs. obiettivo",
+    "weekdaysFull": {
+      "mon": "Lunedì",
+      "tue": "Martedì",
+      "wed": "Mercoledì",
+      "thu": "Giovedì",
+      "fri": "Venerdì",
+      "sat": "Sabato",
+      "sun": "Domenica"
+    }
   },
   "chart": {
     "overlay": {
@@ -2275,7 +2284,39 @@
         "description": "Le letture appaiono qui quando Apple Health si sincronizza."
       }
     },
-    "navWalkingSpeed": "Velocità di cammino"
+    "navWalkingSpeed": "Velocità di cammino",
+    "mood": {
+      "heatmapTitle": "Calendario dell'umore",
+      "heatmapNoEntry": "Nessun dato",
+      "legendGreat": "Ottimo",
+      "legendGood": "Buono",
+      "legendOkay": "Discreto",
+      "legendLow": "Basso",
+      "distributionTitle": "Distribuzione dell'umore",
+      "distributionDaysUnit": "giorni",
+      "weekdayTitle": "Media per giorno della settimana",
+      "weekdayNoData": "Nessun dato",
+      "weekdayBestWorst": "Giorno migliore: {best} · Giorno più difficile: {worst}",
+      "tagsTitle": "Tag e fattori scatenanti",
+      "tagAvgMood": "Umore medio con questo tag",
+      "correlationsTitle": "Umore e altre metriche",
+      "correlationsDescription": "Come il tuo umore si muove con sonno, attività e battito nello stesso giorno.",
+      "correlation": {
+        "sleepTitle": "Umore vs. sonno",
+        "stepsTitle": "Umore vs. attività",
+        "pulseTitle": "Umore vs. battito",
+        "sleepAxis": "Sonno (min)",
+        "stepsAxis": "Passi",
+        "pulseAxis": "Battito (bpm)",
+        "strengthStrong": "Forte",
+        "strengthModerate": "Moderata",
+        "strengthWeak": "Debole",
+        "strengthNone": "Nessuna",
+        "source": "{n} giorni appaiati · r = {r}",
+        "emptyTitle": "Non ci sono ancora abbastanza dati appaiati",
+        "emptyDescription": "Registra umore e questa metrica negli stessi giorni per vedere una correlazione."
+      }
+    }
   },
   "thresholds": {
     "defaultLabel": "Predefinito",

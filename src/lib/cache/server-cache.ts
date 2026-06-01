@@ -261,6 +261,18 @@ export const caches = {
     ttlMs: 60_000,
   }),
   /**
+   * v1.8.5 — pre-computed mood-insights aggregates (heatmap, distribution,
+   * weekday, tags, cross-metric correlations) for the Mood Insights page.
+   * Read on every `/insights/mood` mount; bounded 365-day live read behind
+   * the cache. 60 s TTL matches `moodAnalytics`; invalidated alongside it
+   * on a mood write via `invalidateUserMood`.
+   */
+  moodInsights: new ServerCache<unknown>({
+    name: "moodInsights",
+    maxEntries: 1000,
+    ttlMs: 60_000,
+  }),
+  /**
    * v1.4.36 W1 — `/api/insights/targets` is read on every Insights
    * mount and runs >1 s cold (it pulls 30-day measurements for every
    * type + medications + intakes + mood + glucose). 60 s TTL matches

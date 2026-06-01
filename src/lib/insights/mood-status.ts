@@ -5,15 +5,17 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
+import { pearsonCorrelation } from "@/lib/analytics/correlations";
+import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
-  pearsonCorrelation,
-  type PairedPoint,
-} from "@/lib/analytics/correlations";
-import {
-  applyPayloadBudget,
-  dayOffsetToBerlinDayKey,
-  type DailyBucket,
-} from "@/lib/insights/bucket-series";
+  MOOD_GREEN_MAX,
+  MOOD_GREEN_MIN,
+  MOOD_ORANGE_MAX,
+  MOOD_ORANGE_MIN,
+  computeInTargetPct,
+  computeTagSummary,
+  pairDailyBuckets,
+} from "@/lib/insights/mood-aggregates";
 import {
   buildGradedSeriesFromPoints,
   degradeStatusSnapshotToBudget,
@@ -35,38 +37,6 @@ import {
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
-
-/**
- * Pair two daily-bucket series on `dayOffset`. The synthesised `date`
- * field is anchored at the UTC midnight of the Berlin calendar day —
- * `dayOffsetToBerlinDayKey()` is the source of truth so DST boundaries
- * don't slip the day-key by one. Each pair also carries `dayKey`
- * directly so callers can label points without re-formatting.
- */
-function pairDailyBuckets(
-  seriesA: DailyBucket[],
-  seriesB: DailyBucket[],
-  now: Date,
-): Array<PairedPoint & { dayKey: string }> {
-  const mapB = new Map(seriesB.map((entry) => [entry.dayOffset, entry.value]));
-
-  return seriesA
-    .map((entry) => {
-      const b = mapB.get(entry.dayOffset);
-      if (b == null) return null;
-      const dayKey = dayOffsetToBerlinDayKey(now, entry.dayOffset);
-      const [y, m, d] = dayKey.split("-").map(Number);
-      return {
-        a: entry.value,
-        b,
-        date: new Date(Date.UTC(y, m - 1, d)),
-        dayKey,
-      };
-    })
-    .filter(
-      (entry): entry is PairedPoint & { dayKey: string } => entry !== null,
-    );
-}
 
 export async function generateMoodStatusForUser(
   userId: string,
@@ -161,26 +131,13 @@ export async function generateMoodStatusForUser(
     moodSeries.daily.map((bucket) => ({ value: bucket.value })),
   );
 
-  const greenMin = 3.5;
-  const greenMax = 5;
-  const orangeMin = 2;
-  const orangeMax = 3.5;
+  const greenMin = MOOD_GREEN_MIN;
+  const greenMax = MOOD_GREEN_MAX;
+  const orangeMin = MOOD_ORANGE_MIN;
+  const orangeMax = MOOD_ORANGE_MAX;
 
   // "Last 30 daily points" = the newest 30 daily buckets (offsets 0..29).
-  const recentMoodDaily = moodSeries.daily.filter(
-    (bucket) => bucket.dayOffset < 30,
-  );
-  const inTargetPctLast30DailyPoints =
-    recentMoodDaily.length === 0
-      ? null
-      : round(
-          (recentMoodDaily.filter(
-            (entry) => entry.value >= greenMin && entry.value <= greenMax,
-          ).length /
-            recentMoodDaily.length) *
-            100,
-          1,
-        );
+  const inTargetPctLast30DailyPoints = computeInTargetPct(moodSeries.daily);
 
   // daily[0] = newest bucket (lowest dayOffset).
   const latestMood = moodSeries.daily[0] ?? null;
@@ -262,32 +219,9 @@ export async function generateMoodStatusForUser(
 
   // Extract tag frequencies from recent entries — keep the v1.4.5
   // ~90-day window so the model still gets a recency-weighted view of
-  // tag patterns. The mood DB query already pulls 3 years (no where
-  // filter); we slice by date here, not by record count.
-  const tagWindowCutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-  const recentEntries = entries.filter(
-    (entry) => entry.moodLoggedAt.getTime() >= tagWindowCutoff.getTime(),
-  );
-  const tagCounts = new Map<string, { count: number; scoreSum: number }>();
-  for (const entry of recentEntries) {
-    if (entry.tags && Array.isArray(entry.tags)) {
-      for (const tag of entry.tags as string[]) {
-        const current = tagCounts.get(tag) ?? { count: 0, scoreSum: 0 };
-        current.count += 1;
-        current.scoreSum += entry.score;
-        tagCounts.set(tag, current);
-      }
-    }
-  }
-  const tagSummary = Array.from(tagCounts.entries())
-    .filter(([, stats]) => stats.count >= 2)
-    .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 10)
-    .map(([tag, stats]) => ({
-      tag,
-      count: stats.count,
-      avgScore: round(stats.scoreSum / stats.count, 2),
-    }));
+  // tag patterns. Shared with the `/api/mood/insights` tag breakdown
+  // via `computeTagSummary` so the prose and the chart never drift.
+  const tagSummary = computeTagSummary(entries, now);
 
   const snapshot = {
     locale,

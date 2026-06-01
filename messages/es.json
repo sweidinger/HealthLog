@@ -1346,7 +1346,16 @@
     "personalBaseline": "Tu media",
     "deltaVsBaseline": "{delta} vs. tu media",
     "deltaUnchanged": "coincide con tu media",
-    "deltaVsTarget": "{delta} vs. objetivo"
+    "deltaVsTarget": "{delta} vs. objetivo",
+    "weekdaysFull": {
+      "mon": "Lunes",
+      "tue": "Martes",
+      "wed": "Miércoles",
+      "thu": "Jueves",
+      "fri": "Viernes",
+      "sat": "Sábado",
+      "sun": "Domingo"
+    }
   },
   "chart": {
     "overlay": {
@@ -2275,7 +2284,39 @@
         "description": "Las lecturas aparecen aquí cuando Apple Health sincroniza."
       }
     },
-    "navWalkingSpeed": "Velocidad al andar"
+    "navWalkingSpeed": "Velocidad al andar",
+    "mood": {
+      "heatmapTitle": "Calendario de ánimo",
+      "heatmapNoEntry": "Sin registro",
+      "legendGreat": "Genial",
+      "legendGood": "Bien",
+      "legendOkay": "Regular",
+      "legendLow": "Bajo",
+      "distributionTitle": "Distribución del ánimo",
+      "distributionDaysUnit": "días",
+      "weekdayTitle": "Promedio por día de la semana",
+      "weekdayNoData": "Sin datos",
+      "weekdayBestWorst": "Mejor día: {best} · Día más difícil: {worst}",
+      "tagsTitle": "Etiquetas y desencadenantes",
+      "tagAvgMood": "Ánimo promedio con esta etiqueta",
+      "correlationsTitle": "Ánimo y otras métricas",
+      "correlationsDescription": "Cómo se mueve tu ánimo con el sueño, la actividad y el pulso el mismo día.",
+      "correlation": {
+        "sleepTitle": "Ánimo vs. sueño",
+        "stepsTitle": "Ánimo vs. actividad",
+        "pulseTitle": "Ánimo vs. pulso",
+        "sleepAxis": "Sueño (min)",
+        "stepsAxis": "Pasos",
+        "pulseAxis": "Pulso (lpm)",
+        "strengthStrong": "Fuerte",
+        "strengthModerate": "Moderada",
+        "strengthWeak": "Débil",
+        "strengthNone": "Ninguna",
+        "source": "{n} días emparejados · r = {r}",
+        "emptyTitle": "Aún no hay suficientes datos emparejados",
+        "emptyDescription": "Registra el ánimo y esta métrica los mismos días para ver una correlación."
+      }
+    }
   },
   "thresholds": {
     "defaultLabel": "Por defecto",

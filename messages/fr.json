@@ -1346,7 +1346,16 @@
     "personalBaseline": "Ta moyenne",
     "deltaVsBaseline": "{delta} vs. ta moyenne",
     "deltaUnchanged": "correspond à ta moyenne",
-    "deltaVsTarget": "{delta} vs. cible"
+    "deltaVsTarget": "{delta} vs. cible",
+    "weekdaysFull": {
+      "mon": "Lundi",
+      "tue": "Mardi",
+      "wed": "Mercredi",
+      "thu": "Jeudi",
+      "fri": "Vendredi",
+      "sat": "Samedi",
+      "sun": "Dimanche"
+    }
   },
   "chart": {
     "overlay": {
@@ -2275,7 +2284,39 @@
         "description": "Les relevés apparaissent ici dès qu’Apple Health se synchronise."
       }
     },
-    "navWalkingSpeed": "Vitesse de marche"
+    "navWalkingSpeed": "Vitesse de marche",
+    "mood": {
+      "heatmapTitle": "Calendrier d'humeur",
+      "heatmapNoEntry": "Aucune entrée",
+      "legendGreat": "Excellent",
+      "legendGood": "Bien",
+      "legendOkay": "Correct",
+      "legendLow": "Bas",
+      "distributionTitle": "Répartition de l'humeur",
+      "distributionDaysUnit": "jours",
+      "weekdayTitle": "Moyenne par jour de la semaine",
+      "weekdayNoData": "Aucune donnée",
+      "weekdayBestWorst": "Meilleur jour : {best} · Jour le plus difficile : {worst}",
+      "tagsTitle": "Étiquettes et déclencheurs",
+      "tagAvgMood": "Humeur moyenne avec cette étiquette",
+      "correlationsTitle": "Humeur et autres mesures",
+      "correlationsDescription": "Comment votre humeur évolue avec le sommeil, l'activité et le pouls le même jour.",
+      "correlation": {
+        "sleepTitle": "Humeur vs. sommeil",
+        "stepsTitle": "Humeur vs. activité",
+        "pulseTitle": "Humeur vs. pouls",
+        "sleepAxis": "Sommeil (min)",
+        "stepsAxis": "Pas",
+        "pulseAxis": "Pouls (bpm)",
+        "strengthStrong": "Forte",
+        "strengthModerate": "Modérée",
+        "strengthWeak": "Faible",
+        "strengthNone": "Aucune",
+        "source": "{n} jours appariés · r = {r}",
+        "emptyTitle": "Pas encore assez de données appariées",
+        "emptyDescription": "Enregistrez l'humeur et cette mesure les mêmes jours pour voir une corrélation."
+      }
+    }
   },
   "thresholds": {
     "defaultLabel": "Par défaut",

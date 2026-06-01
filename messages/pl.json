@@ -1346,7 +1346,16 @@
     "personalBaseline": "Twoja średnia",
     "deltaVsBaseline": "{delta} vs. twoja średnia",
     "deltaUnchanged": "odpowiada twojej średniej",
-    "deltaVsTarget": "{delta} vs. cel"
+    "deltaVsTarget": "{delta} vs. cel",
+    "weekdaysFull": {
+      "mon": "Poniedziałek",
+      "tue": "Wtorek",
+      "wed": "Środa",
+      "thu": "Czwartek",
+      "fri": "Piątek",
+      "sat": "Sobota",
+      "sun": "Niedziela"
+    }
   },
   "chart": {
     "overlay": {
@@ -2275,7 +2284,39 @@
         "description": "Odczyty pojawią się tutaj po synchronizacji Apple Health."
       }
     },
-    "navWalkingSpeed": "Prędkość chodu"
+    "navWalkingSpeed": "Prędkość chodu",
+    "mood": {
+      "heatmapTitle": "Kalendarz nastroju",
+      "heatmapNoEntry": "Brak wpisu",
+      "legendGreat": "Świetnie",
+      "legendGood": "Dobrze",
+      "legendOkay": "W porządku",
+      "legendLow": "Nisko",
+      "distributionTitle": "Rozkład nastroju",
+      "distributionDaysUnit": "dni",
+      "weekdayTitle": "Średnia wg dnia tygodnia",
+      "weekdayNoData": "Brak danych",
+      "weekdayBestWorst": "Najlepszy dzień: {best} · Najtrudniejszy dzień: {worst}",
+      "tagsTitle": "Tagi i wyzwalacze",
+      "tagAvgMood": "Średni nastrój z tym tagiem",
+      "correlationsTitle": "Nastrój a inne wskaźniki",
+      "correlationsDescription": "Jak Twój nastrój zmienia się wraz ze snem, aktywnością i tętnem tego samego dnia.",
+      "correlation": {
+        "sleepTitle": "Nastrój a sen",
+        "stepsTitle": "Nastrój a aktywność",
+        "pulseTitle": "Nastrój a tętno",
+        "sleepAxis": "Sen (min)",
+        "stepsAxis": "Kroki",
+        "pulseAxis": "Tętno (bpm)",
+        "strengthStrong": "Silna",
+        "strengthModerate": "Umiarkowana",
+        "strengthWeak": "Słaba",
+        "strengthNone": "Brak",
+        "source": "{n} sparowanych dni · r = {r}",
+        "emptyTitle": "Za mało sparowanych danych",
+        "emptyDescription": "Rejestruj nastrój i ten wskaźnik w te same dni, aby zobaczyć korelację."
+      }
+    }
   },
   "thresholds": {
     "defaultLabel": "Domyślne",

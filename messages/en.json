@@ -1346,7 +1346,16 @@
     "personalBaseline": "Your normal",
     "deltaVsBaseline": "{delta} vs. your normal",
     "deltaUnchanged": "matches your normal",
-    "deltaVsTarget": "{delta} vs. target"
+    "deltaVsTarget": "{delta} vs. target",
+    "weekdaysFull": {
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday",
+      "sun": "Sunday"
+    }
   },
   "chart": {
     "overlay": {
@@ -2275,7 +2284,39 @@
         "description": "Walking-speed readings appear here once Apple Health syncs."
       }
     },
-    "navWalkingSpeed": "Walking Speed"
+    "navWalkingSpeed": "Walking Speed",
+    "mood": {
+      "heatmapTitle": "Mood calendar",
+      "heatmapNoEntry": "No entry",
+      "legendGreat": "Great",
+      "legendGood": "Good",
+      "legendOkay": "Okay",
+      "legendLow": "Low",
+      "distributionTitle": "Mood distribution",
+      "distributionDaysUnit": "days",
+      "weekdayTitle": "Average by weekday",
+      "weekdayNoData": "No data",
+      "weekdayBestWorst": "Best day: {best} · Toughest day: {worst}",
+      "tagsTitle": "Tags and triggers",
+      "tagAvgMood": "Average mood when tagged",
+      "correlationsTitle": "Mood and other metrics",
+      "correlationsDescription": "How your mood moves with sleep, activity, and pulse on the same day.",
+      "correlation": {
+        "sleepTitle": "Mood vs. sleep",
+        "stepsTitle": "Mood vs. activity",
+        "pulseTitle": "Mood vs. pulse",
+        "sleepAxis": "Sleep (min)",
+        "stepsAxis": "Steps",
+        "pulseAxis": "Pulse (bpm)",
+        "strengthStrong": "Strong",
+        "strengthModerate": "Moderate",
+        "strengthWeak": "Weak",
+        "strengthNone": "None",
+        "source": "{n} paired days · r = {r}",
+        "emptyTitle": "Not enough paired data yet",
+        "emptyDescription": "Log mood and this metric on the same days to see a correlation."
+      }
+    }
   },
   "thresholds": {
     "defaultLabel": "Default",
