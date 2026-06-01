@@ -113,11 +113,20 @@ export function MoodInsightsSections() {
   const hasTags = data.tags.length > 0;
   const hasStructuredTags = data.structuredTags.length > 0;
 
+  // The in-target tile is the canonical surface for the in-target share.
+  // When it renders (inTargetPct present) drop the same-number `in-target`
+  // takeaway from the feed so the percentage appears exactly once on the
+  // page. The narrative still rides the API/LLM payload unchanged.
+  const inTargetShown = data.summary.inTargetPct != null;
+  const narratives = inTargetShown
+    ? data.narratives.filter((item) => item.kind !== "in-target")
+    : data.narratives;
+
   return (
     <div className="space-y-4">
       <MoodInTargetTile pct={data.summary.inTargetPct} />
 
-      <MoodNarrativeFeed items={data.narratives} />
+      <MoodNarrativeFeed items={narratives} />
 
       <SectionCard title={t("insights.mood.heatmapTitle")}>
         <MoodHeatmap
