@@ -85,7 +85,15 @@ export function MoodDistributionChart({
               ] as [string, string]
             }
           />
-          <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+          <Bar
+            dataKey="count"
+            radius={[3, 3, 0, 0]}
+            // v1.8.5 — faint full-height track behind each bar so a
+            // zero-count level still reads as a present "0" bucket rather
+            // than a missing slot. The coloured bar paints over the track
+            // for non-empty levels.
+            background={{ fill: "var(--secondary)", opacity: 0.35, radius: 3 }}
+          >
             {data.map((row) => (
               <Cell
                 key={row.score}
