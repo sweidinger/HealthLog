@@ -187,6 +187,7 @@ export default function InsightsMedikamentePage() {
       title={t("insights.medicationCompliance")}
       description={t("insights.subPage.medikamenteDescription")}
       explainerMetric="medications"
+      coachLaunch
     >
       <div
         className={
@@ -290,8 +291,6 @@ export default function InsightsMedikamentePage() {
           without an active GLP-1 medication, so the page collapses
           back to the compliance grid for everyone else. */}
       <TherapyTimeline />
-
-      <CoachLaunchButton />
     </SubPageShell>
   );
 }

@@ -10,7 +10,6 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
-import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
@@ -101,6 +100,7 @@ export default function InsightsBlutdruckPage() {
       title={t("insights.bloodPressureSectionTitle")}
       description={t("insights.subPage.blutdruckDescription")}
       explainerMetric="bloodPressure"
+      coachLaunch
     >
       <HealthChartDynamic
         chartKey="bp"
@@ -126,8 +126,6 @@ export default function InsightsBlutdruckPage() {
         loading={isStatusLoading}
         preparing={status?.preparing ?? false}
       />
-
-      <CoachLaunchButton />
     </SubPageShell>
   );
 }

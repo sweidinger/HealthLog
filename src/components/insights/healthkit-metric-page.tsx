@@ -10,7 +10,6 @@ import { useTranslations } from "@/lib/i18n/context";
 import type { InsightMetric } from "@/lib/insights/metric-availability";
 import type { ChartOverlayKey } from "@/lib/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
@@ -33,8 +32,9 @@ import { SubPageShell } from "@/components/insights/sub-page-shell";
  *      pass `null` to render an onboarding hint without a dead link.
  *   3. `<HealthChartDynamic>` mounted on the canonical
  *      `ChartOverlayKey` so the chart-cog popover persists per metric.
- *   4. `<CoachLaunchButton>` at the foot — feature-flag gating runs
- *      inside the button so this scaffold stays agnostic.
+ *   4. A header-height Coach launch icon (`coachLaunch` on the shell) —
+ *      feature-flag gating runs inside the button so this scaffold stays
+ *      agnostic.
  *
  * Adding a new metric is a four-line page module that hands the right
  * Zod / MeasurementType + ChartOverlayKey + i18n-key prefix to this
@@ -181,6 +181,7 @@ export function HealthKitMetricPage({
           timeZone={user?.timezone ?? undefined}
         />
       }
+      coachLaunch
       showAllValuesType={measurementType}
     >
       <HealthChartDynamic
@@ -198,7 +199,6 @@ export function HealthKitMetricPage({
       {targetSummarySlug ? (
         <MetricTargetSummary slug={targetSummarySlug} />
       ) : null}
-      <CoachLaunchButton />
     </SubPageShell>
   );
 }
