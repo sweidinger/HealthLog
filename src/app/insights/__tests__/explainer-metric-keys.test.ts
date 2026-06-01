@@ -5,14 +5,20 @@ import { join } from "node:path";
 /**
  * v1.8.0 — explainer-metric key guard.
  *
- * `<MetricExplainer>` builds its i18n lookups from a template literal:
+ * The sub-page shell builds its i18n lookup from a template literal off
+ * the `explainerMetric` prop:
  *
- *   t(`insights.subPage.explainer.${metric}Title`)
- *   t(`insights.subPage.explainer.${metric}Body`)
+ *   t(`insights.subPage.explainer.${metric}Body`)   // inline definition
+ *
+ * v1.8.6 — the round `?` popover that also read the `<metric>Title` leaf
+ * is gone; the shell now renders only the inline `Body` caption. The
+ * `Title` leaf is still pinned here so the bundle keeps a stable, fully
+ * populated key pair per metric (the locale-integrity guard propagates
+ * it across the other five locales).
  *
  * The static `i18n-call-site-coverage.test.ts` only sees literal
  * `t("…")` calls, so a typo in an `explainerMetric=` prop would resolve
- * to a missing key and paint the raw key string into the popover — with
+ * to a missing key and paint the raw key string under the heading — with
  * no CI signal. This test closes that gap the same way the
  * Health-Score provenance key tests pin their dynamic keys: it walks
  * every `explainerMetric="…"` value used under `src/app/insights/**`
