@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.8.2] — 2026-06-01 — One intake row per dose slot
+
+A multi-time medication could end up with two entries for the same dose — one still open, one marked taken — for a dose the user had not taken. This release guarantees a single entry per scheduled dose.
+
+### Fixed
+
+- **A dose slot can no longer hold a duplicate entry.** Logging a dose now updates the slot's existing entry in place instead of inserting a second row, regardless of where the log came from, and the logged time is aligned to the scheduled dose rather than the exact moment of the tap. A twice-daily medication no longer shows the same time twice (once open, once taken), the daily count is no longer inflated, and the "due now" prompt is no longer suppressed for a dose that has not actually been taken.
+- **A recorded dose is never silently un-recorded.** A background re-sync that replays an open dose onto a slot already marked taken is now ignored rather than clearing the taken mark, so an offline sync can never flip a taken dose back to missed.
+- **Concurrent logs converge.** Two logs landing on the same dose at once resolve to one entry instead of failing or duplicating.
+- **Existing duplicates are cleaned up on startup.** A one-time pass collapses any duplicate dose entries already stored, keeping the recorded dose and correcting the affected compliance figures.
+
 ## [1.8.1] — 2026-06-01 — Multi-time medication compliance
 
 A follow-up to the multi-time compliance work in 1.7.3, closing the two surfaces it did not reach.
