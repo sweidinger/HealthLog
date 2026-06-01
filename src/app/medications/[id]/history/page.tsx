@@ -29,7 +29,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { DrugLevelChart } from "@/components/medications/DrugLevelChart";
-import { TitrationSection } from "@/components/medications/TitrationSection";
+import { DoseStrengthCurve } from "@/components/medications/dose-strength-curve";
 import { IntakeHistoryEditable } from "@/components/medications/intake-history-editable";
 import { IntakeImportDialog } from "@/components/medications/intake-import-dialog";
 import { useTranslations } from "@/lib/i18n/context";
@@ -129,10 +129,12 @@ export default function IntakeHistoryPage({
         />
       )}
 
-      {/* O-2 — estimated active-ingredient curve + titration ladder as a
-          default-CLOSED disclosure for GLP-1 medications. Genuine
-          context, but opt-in so the intake table stays the dominant
-          surface. The chart itself gates further on Research Mode. */}
+      {/* O-2 — dose-strength (titration) curve + estimated
+          active-ingredient curve as a default-CLOSED disclosure for
+          GLP-1 medications. Genuine context, but opt-in so the intake
+          table stays the dominant surface. The dose-strength curve plots
+          the user's own logged dose-change history; the drug-level chart
+          gates further on Research Mode. */}
       {medication && isGlp1 && (
         <details
           className="border-border/60 rounded-md border"
@@ -142,6 +144,7 @@ export default function IntakeHistoryPage({
             {t("medications.detail.history.drugLevelDisclosure")}
           </summary>
           <div className="border-border/60 space-y-6 border-t px-3 py-3">
+            <DoseStrengthCurve medicationId={id} />
             <DrugLevelChart
               medication={{
                 id: medication.id,
@@ -149,7 +152,6 @@ export default function IntakeHistoryPage({
                 dose: medication.dose,
               }}
             />
-            <TitrationSection medicationId={id} />
           </div>
         </details>
       )}

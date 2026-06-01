@@ -37,7 +37,7 @@ import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DrugLevelChart } from "@/components/medications/DrugLevelChart";
-import { TitrationSection } from "@/components/medications/TitrationSection";
+import { DoseStrengthCurve } from "@/components/medications/dose-strength-curve";
 import { MedicationDetailSummary } from "@/components/medications/medication-detail-summary";
 import { IntakeHistoryPreview } from "@/components/medications/sections/intake-history-preview";
 import { SideEffectsSection } from "@/components/medications/SideEffectsSection";
@@ -235,10 +235,11 @@ export default function MedicationDetailPage({
           (genuine history context). */}
       {isGlp1 && <SideEffectsSection medicationId={id} />}
 
-      {/* GLP-1 drug-level curve + titration ladder as a default-CLOSED
-          disclosure — genuine history context, opt-in so the intake
-          table stays the dominant surface. The chart gates further on
-          Research Mode. */}
+      {/* GLP-1 dose-strength (titration) curve + estimated drug-level
+          chart as a default-CLOSED disclosure — genuine history context,
+          opt-in so the intake table stays the dominant surface. The
+          dose-strength curve plots the user's own logged dose-change
+          history; the drug-level chart gates further on Research Mode. */}
       {isGlp1 && (
         <details
           className="border-border/60 rounded-md border"
@@ -248,6 +249,7 @@ export default function MedicationDetailPage({
             {t("medications.detail.history.drugLevelDisclosure")}
           </summary>
           <div className="border-border/60 space-y-6 border-t px-3 py-3">
+            <DoseStrengthCurve medicationId={id} />
             <DrugLevelChart
               medication={{
                 id: medication.id,
@@ -255,7 +257,6 @@ export default function MedicationDetailPage({
                 dose: medication.dose,
               }}
             />
-            <TitrationSection medicationId={id} />
           </div>
         </details>
       )}

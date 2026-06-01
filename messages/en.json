@@ -980,23 +980,13 @@
         "submitFailed": "Could not save the medication — please retry."
       }
     },
-    "titration": {
-      "section": "Titration ladder",
-      "loading": "Loading titration data",
-      "loadFailed": "Titration data failed to load.",
-      "drugLadderHeader": "Standard ladder (EMA reference)",
-      "typicalWeeksOnStep": "≥ {weeks} wks typical",
-      "youAreHere": "You are here",
-      "nextStepCaption": "Next step (typical): {dose} mg after ~{weeks} weeks on the current step.",
-      "ceilingMessage": "You are at the top of the standard ladder.",
-      "escalationDueHint": "You've been on this step for {weeks} weeks; the ladder typically steps up around {typical} weeks.",
-      "currentStepDwell": "On this step for {weeks} weeks",
-      "doseUnitMg": "mg",
-      "emptyState": "No dose history yet. Log a dose to see where you are on the ladder.",
-      "nonStandardDose": "Current dose is outside the standard ladder buckets.",
-      "disclaimer": "EMA reference values. Talk to your doctor before changing doses.",
-      "emaSourceCta": "EMA source",
-      "stepLabel": "Step {n}"
+    "doseStrength": {
+      "title": "Dose strength over time",
+      "axisLabel": "Recorded dose ({unit})",
+      "tooltipLabel": "Dose",
+      "currentDose": "Current dose: {dose} {unit}",
+      "noCurrentDose": "No dose recorded yet.",
+      "empty": "No titration history yet. Log a dose change to see the strength curve."
     },
     "injectionSiteBodyOutlineAriaLabel": "Body outline",
     "injectionSitePickerAriaLabel": "Injection site picker",

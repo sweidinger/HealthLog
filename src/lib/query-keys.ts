@@ -116,8 +116,6 @@ export const queryKeys = {
    */
   medicationCompliance: (medicationId: string) =>
     ["medications", medicationId, "compliance"] as const,
-  medicationTitration: (medicationId: string) =>
-    ["medications", medicationId, "titration"] as const,
   medicationCadence: (medicationId: string) =>
     ["medications", medicationId, "cadence"] as const,
   medicationGlp1Details: (medicationId: string) =>
