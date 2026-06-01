@@ -216,43 +216,45 @@ export default function TargetsPage() {
         <p className="mt-2 text-sm">{t("targets.introText")}</p>
       </div>
 
-      {/* v1.8.6 — deprecation banner. Target editing moved inline into
+      {/* v1.8.6 — single warning banner. Target editing moved inline into
           the Insights category pages; this page stays reachable but will
-          be removed in a future release. */}
+          be removed in a future release.
+
+          Design Low fix: the deprecation notice and the profile-incomplete
+          hint used to stack as two near-identical warning cards. They are
+          folded into one card now — the deprecation message stays the
+          headline, and the profile-incomplete detail (height / age missing)
+          renders as a secondary line beneath it only when relevant, so the
+          page never shows two warning banners. */}
       <Card className="border-warning border-l-4" data-slot="targets-deprecation">
         <CardContent className="flex gap-3 py-3">
           <AlertCircle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
-          <div>
-            <p className="text-sm font-medium">
-              {t("targets.deprecation.title")}
-            </p>
-            <p className="text-muted-foreground text-sm">
-              {t("targets.deprecation.body")}
-            </p>
+          <div className="space-y-2">
+            <div>
+              <p className="text-sm font-medium">
+                {t("targets.deprecation.title")}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {t("targets.deprecation.body")}
+              </p>
+            </div>
+            {profileIncomplete && (
+              <div data-slot="targets-profile-incomplete">
+                <p className="text-sm font-medium">
+                  {t("targets.profileIncomplete")}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  {!data.profile.heightCm && !data.profile.age
+                    ? t("targets.profileIncompleteHeightAge")
+                    : !data.profile.heightCm
+                      ? t("targets.profileIncompleteHeight")
+                      : t("targets.profileIncompleteAge")}
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
-
-      {/* Profile incomplete hint */}
-      {profileIncomplete && (
-        <Card className="border-warning border-l-4">
-          <CardContent className="flex gap-3 py-3">
-            <AlertCircle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
-            <div>
-              <p className="text-sm font-medium">
-                {t("targets.profileIncomplete")}
-              </p>
-              <p className="text-muted-foreground text-sm">
-                {!data.profile.heightCm && !data.profile.age
-                  ? t("targets.profileIncompleteHeightAge")
-                  : !data.profile.heightCm
-                    ? t("targets.profileIncompleteHeight")
-                    : t("targets.profileIncompleteAge")}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* v1.4.25 W3e — page-level summary line. Renders nothing when
           the API hasn't shipped pageSummary yet (older clients during
