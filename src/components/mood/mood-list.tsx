@@ -32,6 +32,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
@@ -416,12 +422,25 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                           )
                         </span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {entry.tags.length > 0 ? entry.tags.join(", ") : "-"}
+                      <TableCell className="text-muted-foreground max-w-[18rem] text-sm">
+                        <span className="block truncate">
+                          {entry.tags.length > 0 ? entry.tags.join(", ") : "-"}
+                        </span>
                         {entry.note && (
-                          <p className="text-muted-foreground/80 mt-0.5 line-clamp-2 text-xs italic">
-                            {entry.note}
-                          </p>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-muted-foreground/80 mt-0.5 line-clamp-2 cursor-default text-xs italic">
+                                  {entry.note}
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-xs whitespace-pre-wrap">
+                                  {entry.note}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
