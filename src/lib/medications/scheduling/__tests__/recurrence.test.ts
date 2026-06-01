@@ -279,9 +279,12 @@ describe("occurrencesBetween — rolling", () => {
     );
   });
 
-  it("rollingIntervalDays=7 + lastIntakeAt=null + startsOn=T-2d emits one at T+5d", () => {
+  it("rollingIntervalDays=7 + lastIntakeAt=null + future startsOn → first dose due AT startsOn (not startsOn+N)", () => {
+    // v1.8.5 — with no intake yet the FIRST rolling dose lands ON the
+    // start date, not start + N. A future startsOn therefore emits its
+    // slot at startsOn itself.
     const NOW = d("2026-06-10T12:00:00Z");
-    const startsOn = new Date(NOW.getTime() - 2 * 24 * 60 * 60 * 1000);
+    const startsOn = new Date(NOW.getTime() + 2 * 24 * 60 * 60 * 1000);
     const schedule = makeSchedule({
       rollingIntervalDays: 7,
       timesOfDay: ["08:00"],
@@ -294,7 +297,7 @@ describe("occurrencesBetween — rolling", () => {
     const to = new Date(NOW.getTime() + 14 * 24 * 60 * 60 * 1000);
     const slots = occurrencesBetween(schedule, from, to, ctx);
     expect(slots).toHaveLength(1);
-    const expectedDay = new Date(startsOn.getTime() + 7 * 24 * 60 * 60 * 1000);
+    // The slot is the start dose itself (startsOn), NOT startsOn + 7d.
     expect(
       new Intl.DateTimeFormat("en-CA", {
         timeZone: "Europe/Berlin",
@@ -308,8 +311,34 @@ describe("occurrencesBetween — rolling", () => {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
-      }).format(expectedDay),
+      }).format(startsOn),
     );
+  });
+
+  it("rollingIntervalDays=7 + lastIntakeAt=null + startsOn=today → first dose due today", () => {
+    // Fresh rolling course starting today: the start dose is due today,
+    // not seven days out.
+    const startsOn = d("2026-06-10T00:00:00Z");
+    const schedule = makeSchedule({
+      rollingIntervalDays: 7,
+      timesOfDay: ["08:00"],
+    });
+    const ctx = makeCtx({
+      lastIntakeAt: null,
+      medication: { startsOn },
+    });
+    const from = d("2026-06-10T00:00:00Z");
+    const to = d("2026-06-24T23:59:59Z");
+    const slots = occurrencesBetween(schedule, from, to, ctx);
+    expect(slots).toHaveLength(1);
+    expect(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(slots[0].at),
+    ).toBe("2026-06-10");
   });
 
   it("rolling terminates when endsOn falls before next-due", () => {
@@ -331,6 +360,84 @@ describe("occurrencesBetween — rolling", () => {
       ctx,
     );
     expect(slots).toHaveLength(0);
+  });
+
+  it("nextOccurrenceAfter surfaces an overdue first dose (past startsOn, no intake) as DUE today", () => {
+    // v1.8.5 — a rolling course whose startsOn is earlier today with no
+    // intake logged yet must surface the start dose as DUE/OVERDUE, not
+    // roll it forward by N. The strict `> now` filter previously dropped
+    // it; the rolling branch now floors to the start of the user's day.
+    const startsOn = d("2026-06-10T06:00:00Z"); // 08:00 Berlin slot is past
+    const NOW = d("2026-06-10T12:00:00Z"); // noon — after the 08:00 slot
+    const schedule = makeSchedule({
+      rollingIntervalDays: 7,
+      timesOfDay: ["08:00"],
+    });
+    const ctx = makeCtx({
+      lastIntakeAt: null,
+      medication: { startsOn },
+    });
+    const next = nextOccurrenceAfter(schedule, NOW, ctx);
+    expect(next).not.toBeNull();
+    // The surfaced slot is today's start dose (08:00 Berlin), already in
+    // the past relative to NOW — i.e. overdue, "take now".
+    expect(next!.at.getTime()).toBeLessThan(NOW.getTime());
+    expect(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(next!.at),
+    ).toBe("2026-06-10");
+  });
+
+  it("nextOccurrenceAfter returns the future first dose AT startsOn (no intake) without adding N", () => {
+    const NOW = d("2026-06-10T12:00:00Z");
+    const startsOn = d("2026-06-12T00:00:00Z"); // 2 days out
+    const schedule = makeSchedule({
+      rollingIntervalDays: 7,
+      timesOfDay: ["08:00"],
+    });
+    const ctx = makeCtx({
+      lastIntakeAt: null,
+      medication: { startsOn },
+    });
+    const next = nextOccurrenceAfter(schedule, NOW, ctx);
+    expect(next).not.toBeNull();
+    expect(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(next!.at),
+    ).toBe("2026-06-12");
+  });
+
+  it("nextOccurrenceAfter re-anchors on lastIntakeAt + N after an intake", () => {
+    // The v1.8.4 re-anchor must stay: once an intake exists, the next
+    // slot is lastIntakeAt + N, NOT the start date.
+    const NOW = d("2026-06-10T12:00:00Z");
+    const lastIntake = d("2026-06-09T08:00:00Z");
+    const schedule = makeSchedule({
+      rollingIntervalDays: 7,
+      timesOfDay: ["08:00"],
+    });
+    const ctx = makeCtx({
+      lastIntakeAt: lastIntake,
+      medication: { startsOn: d("2026-06-01T00:00:00Z") },
+    });
+    const next = nextOccurrenceAfter(schedule, NOW, ctx);
+    expect(next).not.toBeNull();
+    expect(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(next!.at),
+    ).toBe("2026-06-16"); // 2026-06-09 + 7d
   });
 });
 
