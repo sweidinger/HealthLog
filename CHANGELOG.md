@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.8.6] — 2026-06-01 — Compliance two-row return, insights polish, targets deprecation
+
+### Added
+
+- **Mood narrative takeaways above the charts** — a ranked feed of plain-language findings (the weekday your mood dips, the overall trend, the tags that lift or lower it, your in-target share, your logging streak, the weekend effect), now drawing on the structured tags as well as free-text ones.
+- **A GLP-1 dose-strength curve** that plots the titration history (2.5 → 5 → 7.5 mg …) in place of the previous empty therapy-course block.
+- **A FHIR `Coverage` resource in the health-record export**, with an optional insurer institution number (IKNR) captured on the profile — making the insurer machine-resolvable for German systems.
+- **An optional `source` on the measurements batch endpoint**, so a client backfilling manually-entered history can tag it correctly instead of defaulting to Apple Health.
+
+### Changed
+
+- **Medication compliance returns to two rows for every medication.** The cadence-aware timeline is gone; the two windows now scale to how often a medication is due — a daily medication keeps 7-day and 30-day, a rarely-taken one steps up to longer windows (up to twelve months) so both rows stay meaningful and the layout stays steady.
+- **The medication advanced settings are a single, calmer column** with a symmetric danger zone (matched delete-history / delete-medication actions), replacing the cramped two-column layout.
+- **The medication wizard uses a jumpable dot stepper** with a "next step" hint; in edit mode every step is reachable in one tap.
+- **Insights category headers are quieter.** The question-mark circle is gone (the metric definition stays inline beneath the heading), the measurement-diversity hint moved to a heading lightbulb with the explanation on hover, the assessment border is de-emphasised, and "Coach fragen" moved to the header as an icon.
+- **Target ranges are now edited inline from Insights.** The Targets page is deprecated — it carries a notice, is removed from the menu, and will be retired in a future release; editing happens where you read the trend.
+
+### Fixed
+
+- **Every briefing-driven Trend card now shows its caption** — additive metrics no longer render a chart with empty space below it.
+- **A long mood note no longer stretches the entries table** — it truncates with the full text on hover.
+- **The mood in-target share is shown once**, not duplicated between the headline tile and the takeaway feed.
+- **Medication compliance no longer counts days before a medication existed**, so a newly-added medication's expected-dose figures reflect its real age.
+
 ## [1.8.5] — 2026-06-01 — Insights reference panels, mood depth, injection tracking
 
 ### Added
