@@ -106,6 +106,27 @@ export interface FhirDiagnosticReport {
   result?: FhirReference[];
 }
 
+export interface FhirOrganization {
+  resourceType: "Organization";
+  id: string;
+  identifier?: FhirIdentifier[];
+  name?: string;
+}
+
+export interface FhirCoverage {
+  resourceType: "Coverage";
+  id: string;
+  status: "active" | "cancelled" | "draft" | "entered-in-error";
+  /** Inline payor Organization, referenced from `payor` via a local `#`-ref. */
+  contained?: FhirOrganization[];
+  /** The covered party — Reference(Patient). */
+  beneficiary: FhirReference;
+  /** German KVNR (the subscriber's member id), when present. */
+  subscriberId?: string;
+  /** Insurer(s) — Reference to the contained Organization. */
+  payor?: FhirReference[];
+}
+
 export interface FhirCompositionSection {
   title: string;
   code?: FhirCodeableConcept;
@@ -128,6 +149,7 @@ export interface FhirComposition {
 export type FhirResource =
   | FhirComposition
   | FhirPatient
+  | FhirCoverage
   | FhirObservation
   | FhirMedicationStatement
   | FhirDiagnosticReport;

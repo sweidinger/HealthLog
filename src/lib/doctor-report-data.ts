@@ -67,6 +67,10 @@ export interface DoctorReportData {
     // renderer treats absent and null identically.
     fullName?: string | null;
     insurerName?: string | null;
+    // v1.8.6 — German insurer institution number (IKNR), plaintext. Carried
+    // here for the FHIR `Coverage` payor Organization identifier. Optional
+    // so pre-v1.8.6 fixtures still typecheck.
+    insurerIkNumber?: string | null;
   };
   /**
    * Free-text practice / clinic name printed on the cover. `null` omits the
@@ -334,6 +338,7 @@ export async function collectDoctorReportData(
           // decrypts it and hands it to the builders.
           fullName: true,
           insurerName: true,
+          insurerIkNumber: true,
         },
       }),
     ]);
@@ -575,6 +580,7 @@ export async function collectDoctorReportData(
       heightCm: userProfile?.heightCm ?? null,
       fullName: userProfile?.fullName ?? null,
       insurerName: userProfile?.insurerName ?? null,
+      insurerIkNumber: userProfile?.insurerIkNumber ?? null,
     },
     practiceName,
     measurements: filteredByType,

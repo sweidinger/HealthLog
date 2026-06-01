@@ -40,6 +40,8 @@ import type {
   FhirObservation,
   FhirMedicationStatement,
   FhirPatient,
+  FhirCoverage,
+  FhirOrganization,
   FhirComposition,
   FhirDiagnosticReport,
   FhirReference,
@@ -54,6 +56,9 @@ export interface FhirPatientIdentity {
 
 /** KVNR identifier namespace per the gematik SID. */
 const KVNR_SYSTEM = "http://fhir.de/sid/gkv/kvid-10";
+
+/** German insurer institution-number (IKNR) identifier namespace. */
+const IKNR_SYSTEM = "http://fhir.de/sid/arge-ik/iknr";
 
 /** Escape the five XML-significant characters for the xhtml narrative. */
 function escapeXml(value: string): string {
@@ -139,6 +144,43 @@ export function buildFhirDocumentBundle(
     ];
   }
   entries.push({ fullUrl: `urn:uuid:${patientId}`, resource: patient });
+
+  // --- Coverage (insurer; sits right after the Patient) ------------------
+  // Emitted whenever ANY payor info is present (insurer name and/or IKNR).
+  // The payor is a CONTAINED Organization referenced by a local `#`-ref.
+  // The KVNR stays on `Patient.identifier`; here it doubles as the
+  // Coverage `subscriberId` (the member id) when present. When neither an
+  // insurer name nor an IKNR is known, omit Coverage entirely rather than
+  // emit an empty payor.
+  const insurerName = data.patient.insurerName ?? null;
+  const insurerIkNumber = data.patient.insurerIkNumber ?? null;
+  if (insurerName || insurerIkNumber) {
+    const orgId = "insurer-org-1";
+    const payorOrg: FhirOrganization = {
+      resourceType: "Organization",
+      id: orgId,
+    };
+    if (insurerIkNumber) {
+      payorOrg.identifier = [{ system: IKNR_SYSTEM, value: insurerIkNumber }];
+    }
+    if (insurerName) payorOrg.name = insurerName;
+
+    const coverage: FhirCoverage = {
+      resourceType: "Coverage",
+      id: "coverage-1",
+      status: "active",
+      contained: [payorOrg],
+      beneficiary: patientRef,
+      payor: [{ reference: `#${orgId}` }],
+    };
+    if (identity.insuranceNumber) {
+      coverage.subscriberId = identity.insuranceNumber;
+    }
+    entries.push({
+      fullUrl: `urn:uuid:${coverage.id}`,
+      resource: coverage,
+    });
+  }
 
   let obsSeq = 0;
   const pushObservation = (obs: FhirObservation) => {
