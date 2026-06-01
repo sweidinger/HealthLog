@@ -39,6 +39,7 @@ export const GET = apiHandler(async () => {
       moodReminderEnabled: true,
       fullName: true,
       insurerName: true,
+      insurerIkNumber: true,
       insuranceNumberEncrypted: true,
     },
   });
@@ -66,6 +67,7 @@ export const GET = apiHandler(async () => {
     moodReminderEnabled: dbUser?.moodReminderEnabled ?? false,
     fullName: dbUser?.fullName ?? null,
     insurerName: dbUser?.insurerName ?? null,
+    insurerIkNumber: dbUser?.insurerIkNumber ?? null,
     insuranceNumber,
   });
 });
@@ -95,6 +97,7 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
     moodReminderEnabled: result.user.moodReminderEnabled,
     fullName: result.user.fullName,
     insurerName: result.user.insurerName,
+    insurerIkNumber: result.user.insurerIkNumber,
     hasInsuranceNumber: result.user.hasInsuranceNumber,
   });
 });

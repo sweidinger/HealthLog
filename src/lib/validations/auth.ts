@@ -58,6 +58,24 @@ export const profileSchema = z.object({
     .refine((v) => v === null || v === undefined || isValidKvnr(v), {
       message: "Invalid insurance number (KVNR)",
     }),
+  // v1.8.6 — German insurer institution number (IKNR). Optional;
+  // empty string / null clears it. A non-empty value is trimmed and
+  // must be exactly 9 digits (no checksum — the IKNR carries a mod-10
+  // check digit but we deliberately do not enforce it here, mirroring
+  // the iOS client contract). Surfaced on the FHIR `Coverage` payor.
+  insurerIkNumber: z
+    .string()
+    .max(32)
+    .nullable()
+    .optional()
+    .transform((v) => {
+      if (v === null || v === undefined) return v;
+      const trimmed = v.trim();
+      return trimmed.length === 0 ? null : trimmed;
+    })
+    .refine((v) => v === null || v === undefined || /^[0-9]{9}$/.test(v), {
+      message: "Invalid insurer IK number (expected 9 digits)",
+    }),
 });
 
 export const changePasswordSchema = z

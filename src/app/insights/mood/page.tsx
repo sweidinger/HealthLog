@@ -12,7 +12,6 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { Button } from "@/components/ui/button";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
-import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
@@ -99,6 +98,7 @@ export default function InsightsStimmungPage() {
       title={t("insights.moodSectionTitle")}
       description={t("insights.subPage.stimmungDescription")}
       explainerMetric="mood"
+      coachLaunch
     >
       <MoodChart
         chartKey="mood"
@@ -120,8 +120,6 @@ export default function InsightsStimmungPage() {
         loading={isStatusLoading}
         preparing={status?.preparing ?? false}
       />
-
-      <CoachLaunchButton />
     </SubPageShell>
   );
 }

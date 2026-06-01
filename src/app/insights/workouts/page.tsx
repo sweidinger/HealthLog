@@ -4,7 +4,6 @@ import { Activity } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { useWorkouts } from "@/hooks/use-workouts";
-import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { WorkoutList } from "@/components/insights/workout-list";
@@ -36,6 +35,7 @@ export default function InsightsWorkoutsPage() {
       title={t("insights.workouts.title")}
       description={t("insights.workouts.description")}
       explainerMetric="workouts"
+      coachLaunch
     >
       {isLoading ? (
         <div data-slot="workouts-loading" className="space-y-2">
@@ -52,10 +52,7 @@ export default function InsightsWorkoutsPage() {
           coachPrefill="I haven't logged any workouts yet — why does tracking them matter, and what should I focus on first?"
         />
       ) : data ? (
-        <>
-          <WorkoutList workouts={data.workouts} />
-          <CoachLaunchButton />
-        </>
+        <WorkoutList workouts={data.workouts} />
       ) : null}
     </SubPageShell>
   );

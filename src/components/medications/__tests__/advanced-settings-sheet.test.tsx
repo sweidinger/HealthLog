@@ -1,14 +1,14 @@
 /**
  * v1.7.0 — AdvancedSettingsSheet composition contract.
  *
- * The sheet hosts four labelled groups — Data → Reminders → Lifecycle →
- * Danger zone — composed from bare section bodies. `<ResponsiveSheet>`
+ * The sheet hosts four blocks — Reminders → Lifecycle → Data → Danger
+ * zone — composed from bare section bodies. `<ResponsiveSheet>`
  * wraps Radix portals that `renderToStaticMarkup` does not materialise,
  * so we mock it to a passthrough that renders children only when `open`
  * and echoes `contentWidth`. The bodies are mocked to ordered markers.
  * The test pins:
- *   - the four groups render in the documented order;
- *   - the sheet opens at the `4xl` width token;
+ *   - the four blocks render in the documented order;
+ *   - the sheet opens at the `2xl` width token;
  *   - `onRequestPhaseSheet` threads through to the phases row;
  *   - `onOpenImport` wires the import button (co-located with export);
  *   - the export control sits beside the import control;
@@ -107,27 +107,27 @@ function baseProps(
 }
 
 describe("AdvancedSettingsSheet (v1.7.0)", () => {
-  it("renders the four groups in Data → Reminders → Lifecycle → Danger order", () => {
+  it("renders the four blocks in Reminders → Lifecycle → Data → Danger order", () => {
     const html = renderToStaticMarkup(
       <AdvancedSettingsSheet
         {...baseProps(true, { onRequestPhaseSheet: () => {} })}
       />,
     );
-    const data = html.indexOf("advanced-group-data");
     const reminders = html.indexOf("advanced-group-reminders");
     const lifecycle = html.indexOf("advanced-group-lifecycle");
-    const danger = html.indexOf("advanced-group-danger");
-    expect(data).toBeGreaterThan(-1);
-    expect(reminders).toBeGreaterThan(data);
+    const data = html.indexOf("advanced-group-data");
+    const danger = html.indexOf("mock-danger");
+    expect(reminders).toBeGreaterThan(-1);
     expect(lifecycle).toBeGreaterThan(reminders);
-    expect(danger).toBeGreaterThan(lifecycle);
+    expect(data).toBeGreaterThan(lifecycle);
+    expect(danger).toBeGreaterThan(data);
   });
 
-  it("opens at the 4xl width token", () => {
+  it("opens at the 2xl width token", () => {
     const html = renderToStaticMarkup(
       <AdvancedSettingsSheet {...baseProps(true)} />,
     );
-    expect(html).toContain('data-content-width="4xl"');
+    expect(html).toContain('data-content-width="2xl"');
   });
 
   it("threads onRequestPhaseSheet through to the phases row", () => {

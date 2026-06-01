@@ -586,16 +586,10 @@
     "veryOverdue": "Very overdue",
     "compliance7d": "7-day compliance",
     "compliance30d": "30-day compliance",
+    "complianceWindow": "{days}-day compliance",
     "lastIntake": "Last intake:",
     "nextIntake": "Next intake:",
     "dayStreak": "day streak",
-    "lastNDoses": "Last {total} doses: {taken} of {total}",
-    "doseStreak": "{count} in a row",
-    "doseTimelineAriaLabel": "Recent dose adherence",
-    "doseTaken": "Taken",
-    "doseMissed": "Missed",
-    "doseSkipped": "Skipped",
-    "doseUpcoming": "Upcoming",
     "taken": "Taken",
     "skipped": "Skipped",
     "intakeToastTaken": "{name} recorded as taken",
@@ -810,7 +804,11 @@
         "back": "Back",
         "next": "Next",
         "save": "Save",
-        "saveEdit": "Save changes"
+        "saveEdit": "Save changes",
+        "nextHint": "Next: {step}",
+        "reviewHint": "Next: Save",
+        "jumpFirst": "Jump to the first step",
+        "jumpLast": "Jump to review and save"
       },
       "nl": {
         "button": "Describe"
@@ -820,11 +818,13 @@
           "title": "What's the medication called?",
           "subline": "Exactly as it appears on the box.",
           "label": "Name",
-          "placeholder": "e.g. Ramipril"
+          "placeholder": "e.g. Ramipril",
+          "short": "Name"
         },
         "step2": {
           "title": "What kind of medication is it?",
-          "subline": "We use this for the right templates and analytics."
+          "subline": "We use this for the right templates and analytics.",
+          "short": "Type"
         },
         "step3": {
           "title": "What's the dose?",
@@ -856,15 +856,18 @@
           "dosesPerUnitPlaceholder": "e.g. 4",
           "dosesPerUnitHint": "Doses per pen / vial — leave empty for no inventory tracking.",
           "injectionSiteToggle": "Injection-site rotation",
-          "injectionSiteHint": "Optional rotation guide. The site for each dose is recorded when you log the intake."
+          "injectionSiteHint": "Optional rotation guide. The site for each dose is recorded when you log the intake.",
+          "short": "Dose"
         },
         "step4": {
           "title": "Over what period are you taking it?",
-          "subline": "A start date is enough for today. You can add an end date later."
+          "subline": "A start date is enough for today. You can add an end date later.",
+          "short": "When"
         },
         "step5": {
           "title": "How often do you take it?",
-          "subline": "Pick the cadence — the details follow on the next step."
+          "subline": "Pick the cadence — the details follow on the next step.",
+          "short": "Cadence"
         },
         "step6": {
           "title": "What does that look like in detail?",
@@ -880,7 +883,8 @@
           "rollingDays": {
             "label": "Every",
             "suffix": "days from the last intake"
-          }
+          },
+          "short": "Detail"
         },
         "step7": {
           "title": "When do you take it?",
@@ -891,14 +895,16 @@
             "noon": "Noon",
             "evening": "Evening",
             "night": "Night"
-          }
+          },
+          "short": "Times"
         },
         "step8": {
           "title": "All done — should HealthLog remind you?",
           "subline": "Review everything below before you save.",
           "remindersLabel": "Reminders on",
           "remindersDescription": "Push, Telegram or ntfy — based on your settings.",
-          "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release."
+          "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release.",
+          "short": "Done"
         }
       },
       "classRow": {
@@ -974,23 +980,13 @@
         "submitFailed": "Could not save the medication — please retry."
       }
     },
-    "titration": {
-      "section": "Titration ladder",
-      "loading": "Loading titration data",
-      "loadFailed": "Titration data failed to load.",
-      "drugLadderHeader": "Standard ladder (EMA reference)",
-      "typicalWeeksOnStep": "≥ {weeks} wks typical",
-      "youAreHere": "You are here",
-      "nextStepCaption": "Next step (typical): {dose} mg after ~{weeks} weeks on the current step.",
-      "ceilingMessage": "You are at the top of the standard ladder.",
-      "escalationDueHint": "You've been on this step for {weeks} weeks; the ladder typically steps up around {typical} weeks.",
-      "currentStepDwell": "On this step for {weeks} weeks",
-      "doseUnitMg": "mg",
-      "emptyState": "No dose history yet. Log a dose to see where you are on the ladder.",
-      "nonStandardDose": "Current dose is outside the standard ladder buckets.",
-      "disclaimer": "EMA reference values. Talk to your doctor before changing doses.",
-      "emaSourceCta": "EMA source",
-      "stepLabel": "Step {n}"
+    "doseStrength": {
+      "title": "Dose strength over time",
+      "axisLabel": "Recorded dose ({unit})",
+      "tooltipLabel": "Dose",
+      "currentDose": "Current dose: {dose} {unit}",
+      "noCurrentDose": "No dose recorded yet.",
+      "empty": "No titration history yet. Log a dose change to see the strength curve."
     },
     "injectionSiteBodyOutlineAriaLabel": "Body outline",
     "injectionSitePickerAriaLabel": "Injection site picker",
@@ -1287,8 +1283,7 @@
         "group": {
           "data": "Data",
           "reminders": "Reminders",
-          "lifecycle": "Lifecycle",
-          "danger": "Danger zone"
+          "lifecycle": "Lifecycle"
         },
         "dataPortability": {
           "import": {
@@ -1578,7 +1573,22 @@
     },
     "trendsRow": {
       "title": "Trends",
-      "subtitle": "Last 30 days at a glance"
+      "subtitle": "Last 30 days at a glance",
+      "caption": {
+        "bp": "Systolic and diastolic readings over the last 30 days.",
+        "weight": "Body-weight trend over the last 30 days.",
+        "pulse": "Resting pulse over the last 30 days.",
+        "mood": "Daily mood score over the last 30 days.",
+        "sleep": "Nightly sleep duration over the last 30 days.",
+        "steps": "Daily step count over the last 30 days.",
+        "hrv": "Heart-rate variability over the last 30 days.",
+        "resting_hr": "Resting heart rate over the last 30 days.",
+        "active_energy": "Active energy burned over the last 30 days.",
+        "flights": "Flights of stairs climbed over the last 30 days.",
+        "distance": "Walking and running distance over the last 30 days.",
+        "vo2_max": "VO₂ max over the last 30 days.",
+        "body_temp": "Body temperature over the last 30 days."
+      }
     },
     "vo2Max": {
       "statLatest": "Latest",
@@ -1975,6 +1985,7 @@
       "valuesPageTitle": "{metric} — all readings",
       "valuesPageDescription": "Every reading behind this metric. Edit or remove an entry directly.",
       "diversity": {
+        "trigger": "Measurement tip",
         "weekday": "Most of your {metric} readings land on one weekday. Logging on other days gives a fuller picture.",
         "timeOfDay": "Most of your {metric} readings land at a similar time of day. Varying the time gives a fuller picture."
       },
@@ -2392,7 +2403,21 @@
         "emptyDescription": "Log mood and this metric on the same days to see a correlation."
       },
       "structuredTagsTitle": "Tag breakdown",
-      "notesTimelineTitle": "Notes"
+      "inTargetValue": "{pct}%",
+      "inTargetCaption": "of recent days in your good-mood range",
+      "narrative": {
+        "title": "What stands out",
+        "weekdayDip": "Your mood dips most on {weekday} — {delta} below your week.",
+        "weekdayPeak": "{weekday} is consistently your best day, averaging {value}.",
+        "trendUp": "Your mood is trending up over the last {days} days (+{delta} vs the prior period).",
+        "trendDown": "Your mood is trending down over the last {days} days (-{delta} vs the prior period).",
+        "weekendUp": "You feel better on weekends (+{delta} vs weekdays).",
+        "weekendDown": "Your mood runs lower on weekends (-{delta} vs weekdays).",
+        "tagLift": "Days tagged \"{tag}\" average {delta} above your overall mood.",
+        "tagDrop": "Days tagged \"{tag}\" run {delta} below your average.",
+        "inTarget": "You've been in your good-mood range {pct}% of the last 30 days.",
+        "streak": "You've logged your mood {days} days in a row — keep it up."
+      }
     }
   },
   "thresholds": {
@@ -3976,6 +4001,10 @@
   "targets": {
     "title": "Targets",
     "introText": "Your current values compared to recommended target ranges. Guideline sources are linked on each card.",
+    "deprecation": {
+      "title": "This page is being retired",
+      "body": "Target ranges are now edited directly from the Insights pages, on each metric's reference panel. This page stays available for now and will be removed in a future release."
+    },
     "bmi": "BMI",
     "average30d": "30-day average:",
     "consistency": {

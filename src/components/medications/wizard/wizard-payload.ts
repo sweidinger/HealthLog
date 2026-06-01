@@ -466,6 +466,36 @@ export function validateStep(payload: WizardPayload, step: number): boolean {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// firstInvalidIndex — multi-step forward lookahead
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Walks `stepList` from `fromIndex` (inclusive) and returns the index of
+ * the first slot whose `validateStep` gate fails, or `stepList.length`
+ * when every slot from `fromIndex` onward validates.
+ *
+ * This generalises the single-step `canContinue` gate
+ * (`validateStep(payload, step)`) into the forward-jump lookahead the
+ * dot stepper uses: a forward jump to path-index `j` is allowed iff
+ * `firstInvalidIndex(payload, stepList, i) >= j` — i.e. every gate
+ * between the current slot `i` and the target `j` passes. The dot
+ * stepper reuses the same value as its `reachableUntil` ceiling so the
+ * gate and the visual reachability never drift.
+ *
+ * Pure: reuses `validateStep` verbatim, no new validation logic.
+ */
+export function firstInvalidIndex(
+  payload: WizardPayload,
+  stepList: readonly number[],
+  fromIndex: number,
+): number {
+  for (let k = Math.max(0, fromIndex); k < stepList.length; k++) {
+    if (!validateStep(payload, stepList[k])) return k;
+  }
+  return stepList.length;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // buildCreateBody — POST /api/medications request body
 // ────────────────────────────────────────────────────────────────────
 
@@ -682,10 +712,6 @@ function summaryKeyForDraft(
   }
 }
 
-function summaryKeyForCadence(payload: WizardPayload): string {
-  return summaryKeyForDraft(payload.mode, payload.cadence, payload.subControls);
-}
-
 function weekdaysDetail(
   tokens: readonly string[],
   t: (key: string, params?: Record<string, string | number>) => string,
@@ -702,23 +728,69 @@ function weekdaysDetail(
   });
 }
 
+/**
+ * The cadence-bearing slice both {@link WizardPayload} and
+ * {@link ScheduleDraft} share. Summary helpers only ever read these three
+ * fields, so the cadence-line builder below stays draft/payload-agnostic.
+ */
+type CadenceShape = Pick<ScheduleDraft, "mode" | "cadence" | "subControls">;
+
+/**
+ * The interpolation count the cadence summary keys read. `everyNWeeks`
+ * surfaces the week interval; `rolling` the day interval; everything else
+ * leaves it at zero. Extracted so the medication-wide and per-schedule
+ * summaries can't drift apart.
+ */
+function cadenceInterpolationN(shape: CadenceShape): number {
+  if (shape.cadence.kind === "everyNWeeks") return shape.subControls.intervalWeeks;
+  if (shape.cadence.kind === "rolling")
+    return shape.cadence.rollingIntervalDays ?? 0;
+  return 0;
+}
+
+/**
+ * The trailing detail clause appended to a cadence phrase (the weekday
+ * list or the day-of-month). Empty for one-shot doses and for cadences
+ * that carry no extra detail.
+ */
 function cadenceDetailPhrase(
-  payload: WizardPayload,
+  shape: CadenceShape,
   t: (key: string, params?: Record<string, string | number>) => string,
 ): string {
-  if (payload.mode === "oneShot") return "";
-  switch (payload.cadence.kind) {
+  if (shape.mode === "oneShot") return "";
+  switch (shape.cadence.kind) {
     case "weekdays":
-      return weekdaysDetail(payload.subControls.weekdays, t);
+      return weekdaysDetail(shape.subControls.weekdays, t);
     case "everyNWeeks":
-      return weekdaysDetail(payload.subControls.weekdays, t);
+      return weekdaysDetail(shape.subControls.weekdays, t);
     case "monthly":
       return t("medications.wizard.summary.dayOfMonthDetail", {
-        day: payload.subControls.dayOfMonth,
+        day: shape.subControls.dayOfMonth,
       });
     default:
       return "";
   }
+}
+
+/**
+ * The full cadence line — phrase (`every N weeks`, `daily`, …) plus its
+ * detail clause. Both {@link summariseCadence} and
+ * {@link summariseScheduleDraft} build their first segment from this so
+ * the two summaries render byte-identical cadence text.
+ */
+function cadenceLineFor(
+  shape: CadenceShape,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  const cadenceKey = summaryKeyForDraft(
+    shape.mode,
+    shape.cadence,
+    shape.subControls,
+  );
+  const cadencePhrase = t(`medications.wizard.summary.cadence.${cadenceKey}`, {
+    n: cadenceInterpolationN(shape),
+  });
+  return cadencePhrase + cadenceDetailPhrase(shape, t);
 }
 
 /**
@@ -730,20 +802,7 @@ export function summariseCadence(
   payload: WizardPayload,
   t: (key: string, params?: Record<string, string | number>) => string,
 ): string {
-  const cadenceKey = summaryKeyForCadence(payload);
-  const cadencePhrase = t(
-    `medications.wizard.summary.cadence.${cadenceKey}`,
-    {
-      n:
-        payload.cadence.kind === "everyNWeeks"
-          ? payload.subControls.intervalWeeks
-          : payload.cadence.kind === "rolling"
-            ? (payload.cadence.rollingIntervalDays ?? 0)
-            : 0,
-    },
-  );
-  const cadenceDetail = cadenceDetailPhrase(payload, t);
-  const cadenceLine = cadencePhrase + cadenceDetail;
+  const cadenceLine = cadenceLineFor(payload, t);
   const timesPhrase =
     payload.mode !== "oneShot" && payload.timesOfDay.length > 0
       ? t("medications.wizard.summary.times", {
@@ -777,36 +836,7 @@ export function summariseScheduleDraft(
   draft: ScheduleDraft,
   t: (key: string, params?: Record<string, string | number>) => string,
 ): string {
-  const cadenceKey = summaryKeyForDraft(
-    draft.mode,
-    draft.cadence,
-    draft.subControls,
-  );
-  const cadencePhrase = t(
-    `medications.wizard.summary.cadence.${cadenceKey}`,
-    {
-      n:
-        draft.cadence.kind === "everyNWeeks"
-          ? draft.subControls.intervalWeeks
-          : draft.cadence.kind === "rolling"
-            ? (draft.cadence.rollingIntervalDays ?? 0)
-            : 0,
-    },
-  );
-  let cadenceDetail = "";
-  if (draft.mode !== "oneShot") {
-    if (
-      draft.cadence.kind === "weekdays" ||
-      draft.cadence.kind === "everyNWeeks"
-    ) {
-      cadenceDetail = weekdaysDetail(draft.subControls.weekdays, t);
-    } else if (draft.cadence.kind === "monthly") {
-      cadenceDetail = t("medications.wizard.summary.dayOfMonthDetail", {
-        day: draft.subControls.dayOfMonth,
-      });
-    }
-  }
-  const cadenceLine = cadencePhrase + cadenceDetail;
+  const cadenceLine = cadenceLineFor(draft, t);
   const timesPhrase =
     draft.mode !== "oneShot" && draft.timesOfDay.length > 0
       ? t("medications.wizard.summary.times", {

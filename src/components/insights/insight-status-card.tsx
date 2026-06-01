@@ -163,7 +163,12 @@ export function InsightStatusCard({
       // shell padding to `py-4 md:py-5` so the assessment block reads tight
       // in the denser sub-page rhythm. The same override lands on every
       // status variant below so the gap is consistent across states.
-      className="animate-insight-in border-l-dracula-purple gap-2 border-l-2 py-4 md:gap-3 md:py-5"
+      //
+      // v1.8.6 — drop the purple left accent (`border-l-dracula-purple
+      // border-l-2`). The coloured rule made the assessment card read as
+      // restless against the calmer surrounding cards; the plain card
+      // border carries enough separation on its own.
+      className="animate-insight-in gap-2 py-4 md:gap-3 md:py-5"
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">

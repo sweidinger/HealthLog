@@ -213,11 +213,40 @@ describe("<TrendsRow>", () => {
     expect(html).toMatch(/data-metric="mood"/);
   });
 
-  it("renders additive metrics chart-only (no annotation slot)", () => {
+  it("captions an additive metric with its standard description (no advisor annotation slot)", () => {
+    // v1.8.6 W8 — additive metrics carry no advisor annotation, so the
+    // tile must fall back to the metric's standard one-line caption
+    // rather than painting empty space below the chart. The
+    // `<TrendAnnotation>` slot is reserved for the legacy triple.
     const html = render(<TrendsRow briefing={briefing(["pulse"])} />);
     expect(html).toMatch(/data-metric="pulse"/);
-    // No TrendAnnotation empty/pending slot for a chart-only tile.
     expect(html).not.toMatch(/data-slot="trend-annotation-empty"/);
+    // The standard caption renders in its place.
+    expect(html).toMatch(/data-slot="trends-row-caption"[^>]*data-metric="pulse"/);
+    expect(html).toContain("Resting pulse over the last 30 days.");
+  });
+
+  it("never renders a caption-less card — every briefing-driven tile carries a caption", () => {
+    // Regression guard for the v1.8.5 caption-drop: a briefing that
+    // flags additive metrics with no advisor annotation used to paint
+    // the chart with empty space underneath. Every tile must surface
+    // either a `<TrendAnnotation>` slot (legacy triple) or the
+    // standard `trends-row-caption` description (additive metrics).
+    const html = render(
+      <TrendsRow briefing={briefing(["hrv", "steps", "distance"])} />,
+    );
+    const cards = html.match(/data-slot="trends-row-card"/g) ?? [];
+    expect(cards.length).toBe(3);
+    // None of these additive metrics carries an advisor annotation, so
+    // all three captions come through the standard description slot.
+    const captions =
+      html.match(/data-slot="trends-row-caption"/g) ?? [];
+    expect(captions.length).toBe(3);
+    expect(html).toContain("Heart-rate variability over the last 30 days.");
+    expect(html).toContain("Daily step count over the last 30 days.");
+    expect(html).toContain(
+      "Walking and running distance over the last 30 days.",
+    );
   });
 
   it("propagates per-metric confidence chips", () => {

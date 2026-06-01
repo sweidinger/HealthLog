@@ -5,6 +5,7 @@ import {
   buildCreateBody,
   commitActiveDraft,
   emptyWizardPayload,
+  firstInvalidIndex,
   hydrateWizardPayload,
   landingStepForEdit,
   type MedicationPayload,
@@ -13,6 +14,7 @@ import {
   rowFromTreatment,
   setActiveSchedule,
   summariseCadence,
+  summariseScheduleDraft,
   validateStep,
   type WizardPayload,
   WIZARD_TREATMENT_MAPPING,
@@ -190,6 +192,102 @@ describe("validateStep", () => {
     expect(
       validateStep({ ...base, startsOn: start, endsOn: null }, 8),
     ).toBe(true);
+  });
+});
+
+/**
+ * v1.8.6 W4b — `firstInvalidIndex` is the multi-step forward lookahead
+ * that powers the dot stepper's jump gate (`goToStep`) and its
+ * `reachableUntil` ceiling. The dialog's rule:
+ *   - backward jumps are always allowed;
+ *   - a forward jump to path-index `j` is allowed iff every gate from
+ *     the active slot up to (but not including) `j` validates, which is
+ *     exactly `firstInvalidIndex(payload, stepList, from) >= j`.
+ */
+describe("firstInvalidIndex — forward-jump lookahead", () => {
+  /** A daily-path payload with every gate satisfied. */
+  function completeDaily(): WizardPayload {
+    return {
+      ...withCadence("daily"),
+      startsOn: new Date(Date.UTC(2026, 5, 1)),
+      endsOn: null,
+      timesOfDay: ["08:00"],
+    };
+  }
+
+  it("returns stepList.length when every slot from the index validates", () => {
+    const payload = completeDaily();
+    const list = progressIndices(payload.mode, payload.cadence.kind);
+    expect(firstInvalidIndex(payload, list, 0)).toBe(list.length);
+  });
+
+  it("stops at the first failing slot — blank name gates the path at 0", () => {
+    const payload = { ...completeDaily(), name: "   " };
+    const list = progressIndices(payload.mode, payload.cadence.kind);
+    // Step 1 (index 0) fails its gate, so no forward jump is allowed.
+    expect(firstInvalidIndex(payload, list, 0)).toBe(0);
+  });
+
+  it("a missing dose gates the path at Step 3 (path-index 2)", () => {
+    const payload = { ...completeDaily(), doseAmount: "" };
+    const list = progressIndices(payload.mode, payload.cadence.kind);
+    // [1,2,3,...] — Step 3 sits at index 2; it's the first to fail.
+    expect(firstInvalidIndex(payload, list, 0)).toBe(2);
+  });
+
+  it("blocks a forward jump past an invalid intervening step", () => {
+    // Missing times (Step 7) — daily path is [1,2,3,4,5,7,8]; Step 7
+    // sits at index 5. A jump from Step 1 (index 0) to the review slot
+    // (Step 8, index 6) must be refused because index 5 fails.
+    const payload = { ...completeDaily(), timesOfDay: [] };
+    const list = progressIndices(payload.mode, payload.cadence.kind);
+    const firstInvalid = firstInvalidIndex(payload, list, 0);
+    expect(firstInvalid).toBe(5);
+    const targetIndex = list.indexOf(8);
+    // Gate rule: forward jump allowed iff firstInvalid >= targetIndex.
+    expect(firstInvalid >= targetIndex).toBe(false);
+  });
+
+  it("allows a forward jump when all intervening gates pass", () => {
+    const payload = completeDaily();
+    const list = progressIndices(payload.mode, payload.cadence.kind);
+    const fromIndex = 0;
+    const targetIndex = list.indexOf(8);
+    expect(firstInvalidIndex(payload, list, fromIndex) >= targetIndex).toBe(
+      true,
+    );
+  });
+
+  it("a fully-hydrated edit payload makes jump-to-last (review) reachable", () => {
+    // Edit hydration populates every field, so on the recurring path
+    // every gate validates and the whole path is reachable — including
+    // the final review slot, so jump-to-last is one tap.
+    const initial: MedicationPayload = {
+      id: "med-1",
+      name: "Ramipril",
+      dose: "5 mg",
+      category: "BLOOD_PRESSURE",
+      treatmentClass: "GENERIC",
+      deliveryForm: "ORAL",
+      notificationsEnabled: true,
+      startsOn: new Date(Date.UTC(2026, 5, 1)),
+      endsOn: null,
+      oneShot: false,
+      schedules: [
+        {
+          windowStart: "06:00",
+          windowEnd: "22:00",
+          timesOfDay: ["08:00"],
+          rrule: "FREQ=DAILY",
+          rollingIntervalDays: null,
+        },
+      ],
+    };
+    const payload = hydrateWizardPayload(initial);
+    const list = progressIndices(payload.mode, payload.cadence.kind);
+    expect(firstInvalidIndex(payload, list, 0)).toBe(list.length);
+    // Whole-path validity → jump-to-last enabled.
+    expect(firstInvalidIndex(payload, list, 0) >= list.length).toBe(true);
   });
 });
 
@@ -459,6 +557,49 @@ describe("summariseCadence", () => {
     const out = summariseCadence(p, t);
     expect(out).toContain("medications.wizard.summary.dayOfMonthDetail");
     expect(out).toMatch(/dayOfMonthDetail[^|]*"day":15/);
+  });
+});
+
+describe("summariseScheduleDraft — shared cadence-line helper", () => {
+  const t = makeStubT();
+
+  // The per-schedule summary and the medication-wide summary build their
+  // cadence segment from the same extracted helper, so for an equivalent
+  // cadence shape the draft summary equals the leading segment of the
+  // full summary (which trails the times / course-window phrases).
+  it("matches summariseCadence's leading cadence segment", () => {
+    const cases: WizardPayload[] = [
+      withCadence("daily"),
+      withCadence("everyNWeeks", { intervalWeeks: 2, weekdays: ["MO"] }),
+      withCadence("rolling", { rollingDays: 14 }),
+      withCadence("weekdays", { weekdays: ["MO", "WE", "FR"] }),
+      withCadence("monthly", { dayOfMonth: 15 }),
+    ];
+    for (const base of cases) {
+      // `withCadence` only sets the flat mirror fields; commit them onto
+      // the active schedule draft so the draft carries the same cadence.
+      const p = commitActiveDraft(base);
+      const draft = p.schedules[p.activeScheduleIndex];
+      const draftLine = summariseScheduleDraft(draft, t);
+      const fullSummary = summariseCadence(p, t);
+      // The draft line's cadence segment is the leading " · " segment of
+      // the full summary (which trails times / course-window phrases).
+      const firstSegment = fullSummary.split(" · ")[0];
+      expect(draftLine.split(" · ")[0]).toBe(firstSegment);
+    }
+  });
+
+  it("threads the everyNWeeks interval into the cadence key", () => {
+    const p = commitActiveDraft(withCadence("everyNWeeks", { intervalWeeks: 3 }));
+    const out = summariseScheduleDraft(p.schedules[p.activeScheduleIndex], t);
+    expect(out).toMatch(/cadence\.everyNWeeks[^|]*"n":3/);
+  });
+
+  it("omits the cadence detail for a one-shot draft", () => {
+    const p = commitActiveDraft(withCadence("oneShot"));
+    const out = summariseScheduleDraft(p.schedules[p.activeScheduleIndex], t);
+    expect(out).not.toContain("weekdaysDetail");
+    expect(out).not.toContain("dayOfMonthDetail");
   });
 });
 

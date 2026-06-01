@@ -22,6 +22,9 @@ regexes = [
   '''idempotency-key''',
   # Allow the placeholder prefix used in OpenAPI examples + docs.
   '''hlk_example''',
+  # i18n caption keys for the briefing-driven trend charts are dotted message
+  # keys, not secrets — one trips the generic-api-key entropy heuristic.
+  '''insights\.trendsRow\.caption''',
 ]
 
 # Specific commit fingerprints from prior false-positive findings (kept for reproducibility).

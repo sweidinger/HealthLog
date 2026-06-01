@@ -1027,7 +1027,13 @@ describe("classifyIntakeTiming", () => {
 // `buildComplianceDisplay` decides whether the card keeps the 7-/30-day
 // percentage bars (dense cadences) or swaps to a per-dose timeline
 // (sparse cadences). The 30-day window is the density yardstick.
-describe("buildComplianceDisplay — density rule + dose timeline", () => {
+// v1.8.6 — the compliance display is always two percentage rows; only the
+// window day-counts scale with the dosing cadence. `selectComplianceWindows`
+// walks a `[7,30] → [30,90] → [90,365]` ladder and returns the densest rung
+// whose BOTH windows clear `MIN_STABLE_DOSES` realised expected doses, so a
+// daily med stays on 7 / 30, a weekly med steps up, and a rare injection
+// lands on the widest rung. The timeline rendering is gone.
+describe("buildComplianceDisplay — two rows, cadence-scaled windows", () => {
   const NOW = new Date("2025-06-15T12:00:00Z");
 
   beforeEach(() => {
@@ -1054,17 +1060,25 @@ describe("buildComplianceDisplay — density rule + dose timeline", () => {
     );
   }
 
-  it("echoes the threshold so a client can re-derive the mode", () => {
+  it("echoes the density floor so a client can re-derive the rung", () => {
     const display = buildComplianceDisplay(
       [],
-      [{ windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null, rrule: "FREQ=DAILY", timesOfDay: ["08:00"] }],
+      [
+        {
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          daysOfWeek: null,
+          rrule: "FREQ=DAILY",
+          timesOfDay: ["08:00"],
+        },
+      ],
       ctx(),
       { now: NOW },
     );
     expect(display.minStableDoses).toBe(MIN_STABLE_DOSES);
   });
 
-  it("daily med → percent mode (30-day window clears the 4-dose floor)", () => {
+  it("daily med → 7 / 30-day windows (the densest rung clears the floor)", () => {
     const schedules: ComplianceSchedule[] = [
       {
         windowStart: "08:00",
@@ -1075,13 +1089,37 @@ describe("buildComplianceDisplay — density rule + dose timeline", () => {
       },
     ];
     const display = buildComplianceDisplay([], schedules, ctx(), { now: NOW });
-    expect(display.mode).toBe("percent");
-    expect(display.expected30).toBeGreaterThanOrEqual(MIN_STABLE_DOSES);
+    expect(display.shortDays).toBe(7);
+    expect(display.longDays).toBe(30);
+    // Both windows hold ≥ 4 expected doses.
+    expect(display.expectedShort).toBeGreaterThanOrEqual(MIN_STABLE_DOSES);
+    expect(display.expectedLong).toBeGreaterThanOrEqual(MIN_STABLE_DOSES);
   });
 
-  it("35-day-interval med → timeline mode (sparse: <4 doses in 30 days)", () => {
-    // A monthly injection: one dose every 5 weeks. Anchored on a recent
-    // start so the engine emits at most one slot inside the 30-day window.
+  it("weekly med → steps up to 30 / 90-day windows", () => {
+    // Weekly Mondays-only: the 7-day window holds at most one Monday (< 4),
+    // so the ladder steps up. The 30-day window holds ~4 Mondays and the
+    // 90-day window ~13 — the [30, 90] rung is the densest that clears the
+    // floor on both rows.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=WEEKLY;BYDAY=MO",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const display = buildComplianceDisplay([], schedules, ctx(), { now: NOW });
+    expect(display.shortDays).toBe(30);
+    expect(display.longDays).toBe(90);
+    expect(display.expectedShort).toBeGreaterThanOrEqual(MIN_STABLE_DOSES);
+    expect(display.expectedLong).toBeGreaterThanOrEqual(MIN_STABLE_DOSES);
+  });
+
+  it("35-day rolling injection → widest 90 / 365-day windows", () => {
+    // One dose every five weeks: the 30-day window never holds ≥ 4, so the
+    // ladder climbs to the top rung where a full year holds ~10 doses.
     const schedules: ComplianceSchedule[] = [
       {
         windowStart: "10:00",
@@ -1095,129 +1133,79 @@ describe("buildComplianceDisplay — density rule + dose timeline", () => {
       [],
       schedules,
       ctx({
-        startsOn: new Date("2025-05-01T00:00:00Z"),
-        // Rolling cadences re-anchor on the last non-skipped intake.
+        startsOn: new Date("2024-06-01T00:00:00Z"),
         lastIntakeAt: new Date("2025-05-20T10:00:00Z"),
       }),
       { now: NOW },
     );
-    expect(display.mode).toBe("timeline");
-    expect(display.expected30).toBeLessThan(MIN_STABLE_DOSES);
+    expect(display.shortDays).toBe(90);
+    expect(display.longDays).toBe(365);
   });
 
-  it("weekly med → timeline mode (≥4 needs ~28 days; 30d holds ~4 but <4 when phased)", () => {
-    // Weekly Mondays-only: across a 30-day trailing window this yields ~4
-    // Mondays. With a start mid-window the realised count drops below 4 →
-    // timeline. Pin the realised count rather than asserting a fixed mode
-    // independent of phase.
+  it("a brand-new sparse med still returns two rows on the widest rung", () => {
+    // Started two days ago: no rung clears the floor. The selection falls
+    // back to the widest rung so the card still shows two honest rows.
     const schedules: ComplianceSchedule[] = [
       {
         windowStart: "08:00",
         windowEnd: "09:00",
         daysOfWeek: null,
-        rrule: "FREQ=WEEKLY;BYDAY=MO",
+        rollingIntervalDays: 35,
         timesOfDay: ["08:00"],
       },
     ];
     const display = buildComplianceDisplay(
       [],
       schedules,
-      ctx({ startsOn: new Date("2025-05-26T00:00:00Z") }),
+      ctx({ startsOn: new Date("2025-06-13T00:00:00Z") }),
       { now: NOW },
     );
-    // 2025-05-26 .. 2025-06-15 → Mondays 5/26, 6/2, 6/9 → 3 expected < 4.
-    expect(display.expected30).toBeLessThan(MIN_STABLE_DOSES);
-    expect(display.mode).toBe("timeline");
+    expect(display.shortDays).toBe(90);
+    expect(display.longDays).toBe(365);
   });
 
-  it("builds taken / missed / skipped cells from the paired engine timeline", () => {
-    // Weekly Mondays, three past Mondays inside the window: one taken on
-    // time, one skipped, one missed (no intake). The strip mirrors that.
+  it("the row rates match calculateCompliance over the chosen windows", () => {
+    // Daily med, perfect adherence over the trailing two weeks → 100% both
+    // rows. Pins that the display rate equals the cadence-aware calculator.
     const schedules: ComplianceSchedule[] = [
       {
         windowStart: "08:00",
         windowEnd: "09:00",
         daysOfWeek: null,
-        rrule: "FREQ=WEEKLY;BYDAY=MO",
+        rrule: "FREQ=DAILY",
         timesOfDay: ["08:00"],
       },
     ];
-    const events = [
-      // 2025-06-09 Monday — taken on time.
-      {
-        scheduledFor: new Date("2025-06-09T08:00:00Z"),
-        takenAt: new Date("2025-06-09T08:10:00Z"),
-        skipped: false,
-      },
-      // 2025-06-02 Monday — skipped.
-      {
-        scheduledFor: new Date("2025-06-02T08:00:00Z"),
-        takenAt: null,
-        skipped: true,
-      },
-      // 2025-05-26 Monday — no event → missed.
-    ];
-    const display = buildComplianceDisplay(
+    const events = [];
+    for (let d = 1; d <= 30; d++) {
+      const at = new Date(NOW.getTime() - d * DAY_MS);
+      at.setUTCHours(8, 10, 0, 0);
+      events.push({ scheduledFor: at, takenAt: at, skipped: false });
+    }
+    const context = ctx();
+    const display = buildComplianceDisplay(events, schedules, context, {
+      now: NOW,
+    });
+    const short = calculateCompliance(
       events,
       schedules,
-      ctx({ startsOn: new Date("2025-05-26T00:00:00Z") }),
-      { now: NOW },
+      display.shortDays,
+      context.createdAt,
+      { now: NOW, medicationContext: context },
     );
-    const past = display.doseTimeline.filter((c) => c.status !== "upcoming");
-    const statuses = past.map((c) => c.status);
-    expect(statuses).toContain("taken");
-    expect(statuses).toContain("skipped");
-    expect(statuses).toContain("missed");
-
-    const takenCell = past.find((c) => c.status === "taken")!;
-    expect(takenCell.takenAt).not.toBeNull();
-    expect(takenCell.timing).toBe("on_time");
-
-    const skippedCell = past.find((c) => c.status === "skipped")!;
-    expect(skippedCell.takenAt).toBeNull();
-    expect(skippedCell.timing).toBeNull();
-
-    // Summary: taken counts in numerator + denominator; skipped excluded
-    // from both; missed in denominator only.
-    expect(display.recentDoseSummary.taken).toBe(1);
-    expect(display.recentDoseSummary.total).toBe(2); // taken + missed
-  });
-
-  it("dose-streak: counts consecutive taken-or-skipped back from the newest, breaks on a miss", () => {
-    // Weekly Mondays: 5/26 missed, 6/2 taken, 6/9 taken → newest-back
-    // streak = 2 (stops at the 5/26 miss).
-    const schedules: ComplianceSchedule[] = [
-      {
-        windowStart: "08:00",
-        windowEnd: "09:00",
-        daysOfWeek: null,
-        rrule: "FREQ=WEEKLY;BYDAY=MO",
-        timesOfDay: ["08:00"],
-      },
-    ];
-    const events = [
-      {
-        scheduledFor: new Date("2025-06-09T08:00:00Z"),
-        takenAt: new Date("2025-06-09T08:05:00Z"),
-        skipped: false,
-      },
-      {
-        scheduledFor: new Date("2025-06-02T08:00:00Z"),
-        takenAt: new Date("2025-06-02T08:05:00Z"),
-        skipped: false,
-      },
-      // 5/26 missed.
-    ];
-    const display = buildComplianceDisplay(
+    const long = calculateCompliance(
       events,
       schedules,
-      ctx({ startsOn: new Date("2025-05-26T00:00:00Z") }),
-      { now: NOW },
+      display.longDays,
+      context.createdAt,
+      { now: NOW, medicationContext: context },
     );
-    expect(display.recentDoseSummary.doseStreak).toBe(2);
+    expect(display.short.rate).toBe(short.rate);
+    expect(display.long.rate).toBe(long.rate);
+    expect(display.short.streak).toBe(short.streak);
   });
 
-  it("caps the past strip at 12 cells for a dense daily med", () => {
+  it("never reports a timeline mode field — the display is two rows only", () => {
     const schedules: ComplianceSchedule[] = [
       {
         windowStart: "08:00",
@@ -1228,8 +1216,37 @@ describe("buildComplianceDisplay — density rule + dose timeline", () => {
       },
     ];
     const display = buildComplianceDisplay([], schedules, ctx(), { now: NOW });
-    const past = display.doseTimeline.filter((c) => c.status !== "upcoming");
-    expect(past.length).toBeLessThanOrEqual(12);
+    expect(display).not.toHaveProperty("mode");
+    expect(display).not.toHaveProperty("doseTimeline");
+    expect(display.short).toBeDefined();
+    expect(display.long).toBeDefined();
+  });
+
+  it("a 2-day-old daily med's expected counts reflect its real age", () => {
+    // Created two days ago: the expected-dose counts must reflect ~2 days
+    // of daily doses, not the 7 / 30 a full-window walk would report. No
+    // rung clears the floor, so the selection falls back to the widest
+    // rung while keeping the counts age-accurate.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const createdAt = new Date(NOW.getTime() - 2 * DAY_MS);
+    const display = buildComplianceDisplay([], schedules, ctx({ createdAt }), {
+      now: NOW,
+    });
+    // ~2 days of daily doses — nowhere near the 7 a 7-day window or the 30
+    // a 30-day window would report before the createdAt clamp.
+    expect(display.expectedShort).toBeLessThanOrEqual(3);
+    expect(display.expectedLong).toBeLessThanOrEqual(3);
+    // No rung clears the floor → widest windows still render two rows.
+    expect(display.shortDays).toBe(90);
+    expect(display.longDays).toBe(365);
   });
 });
 
@@ -1292,5 +1309,58 @@ describe("expectedSlotsBetween", () => {
       ctx(),
     );
     expect(slots.length).toBe(0);
+  });
+
+  it("clamps the window lower bound to createdAt for a young med", () => {
+    // A daily med created two days before the window's upper bound: the
+    // legacy weekday walker floors on `startsOn` (none here) but not on
+    // `createdAt`, so without the clamp this 30-day window would count
+    // ~30 days of pre-creation slots. With the clamp only the ~2 days the
+    // med actually existed emit a slot.
+    const to = new Date("2025-06-15T00:00:00Z");
+    const from = new Date(to.getTime() - 30 * DAY_MS);
+    const createdAt = new Date(to.getTime() - 2 * DAY_MS);
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const slots = expectedSlotsBetween(schedules, from, to, ctx({ createdAt }));
+    // Daily cadence over ~2 days → at most 3 slots, never the ~30 a full
+    // 30-day window would otherwise emit.
+    expect(slots.length).toBeLessThanOrEqual(3);
+    expect(slots.length).toBeGreaterThanOrEqual(1);
+    // Every emitted slot lands at or after the creation instant.
+    for (const s of slots) {
+      expect(s.at.getTime()).toBeGreaterThanOrEqual(createdAt.getTime());
+    }
+  });
+
+  it("leaves the window untouched when createdAt predates it", () => {
+    // createdAt well before `from` → the clamp is a no-op and the full
+    // window's slots survive.
+    const to = new Date("2025-06-15T00:00:00Z");
+    const from = new Date(to.getTime() - 7 * DAY_MS);
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const slots = expectedSlotsBetween(
+      schedules,
+      from,
+      to,
+      ctx({ createdAt: new Date("2025-01-01T00:00:00Z") }),
+    );
+    // A full week of daily doses → ~7 slots.
+    expect(slots.length).toBeGreaterThanOrEqual(7);
   });
 });

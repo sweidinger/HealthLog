@@ -5,9 +5,12 @@
  *   - exactly five primary links + one "More" button render in the strip
  *   - the More button is keyboard-reachable as a `<button>` with
  *     `aria-haspopup="dialog"`
- *   - Targets + Achievements live in the More sheet (closed by default
- *     under SSR), not in the always-visible strip
+ *   - Achievements lives in the More sheet (closed by default under SSR),
+ *     not in the always-visible strip
  *   - WCAG 2.5.5 floor: every entry is `min-h-11 min-w-11`
+ *
+ * v1.8.6 — the Targets (Zielwerte) page is deprecated and dropped from
+ * the menu, so it no longer appears in the strip or the overflow set.
  */
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -58,6 +61,15 @@ describe("<BottomNav> 5+More layout", () => {
     // future entry would also satisfy the contract.
     const matches = html.match(/min-h-11 min-w-11/g) ?? [];
     expect(matches.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("no longer lists the deprecated /targets entry (v1.8.6)", () => {
+    // Targets was dropped from the OVERFLOW set; the strip never carried
+    // it. The closed-sheet SSR render must therefore contain no /targets
+    // link — a regression net against the entry creeping back into the
+    // primary strip or the overflow set.
+    const html = render();
+    expect(html).not.toContain('href="/targets"');
   });
 
   it("More button carries an accessible label", () => {

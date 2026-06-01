@@ -50,6 +50,7 @@ function buildUser(unitPreference: "metric" | "imperial"): AuthUser {
     disableCoach: false,
     fullName: null,
     insurerName: null,
+    insurerIkNumber: null,
     insuranceNumber: null,
   };
 }

@@ -1,5 +1,21 @@
 "use client";
 
+// DEPRECATED since v1.8.6. Target-range editing moved inline into the
+// Insights category pages (the per-metric reference panel now mounts the
+// same <TargetEditSheet>), so this standalone page no longer appears in
+// the navigation. It stays routable behind the `/zielwerte`→`/targets`
+// proxy redirect and is a remove candidate after ~10 releases.
+//
+// What stays in place because Insights consumes the same API:
+//   • GET /api/insights/targets — the read powering this page is the
+//     same payload the Insights panel reads (`queryKeys.insightsTargets()`).
+//   • PUT/DELETE /api/user/thresholds — the threshold override write the
+//     inline <TargetEditSheet> calls.
+//   • src/components/targets/* — TargetCard, TargetEditSheet, RangeBar,
+//     ConsistencyStrip, TargetStatusPill, source-link helper are all
+//     reused by the inline Insights panel.
+// Removing the page later is a UI-only change; no data or API moves.
+
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -200,26 +216,45 @@ export default function TargetsPage() {
         <p className="mt-2 text-sm">{t("targets.introText")}</p>
       </div>
 
-      {/* Profile incomplete hint */}
-      {profileIncomplete && (
-        <Card className="border-warning border-l-4">
-          <CardContent className="flex gap-3 py-3">
-            <AlertCircle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+      {/* v1.8.6 — single warning banner. Target editing moved inline into
+          the Insights category pages; this page stays reachable but will
+          be removed in a future release.
+
+          Design Low fix: the deprecation notice and the profile-incomplete
+          hint used to stack as two near-identical warning cards. They are
+          folded into one card now — the deprecation message stays the
+          headline, and the profile-incomplete detail (height / age missing)
+          renders as a secondary line beneath it only when relevant, so the
+          page never shows two warning banners. */}
+      <Card className="border-warning border-l-4" data-slot="targets-deprecation">
+        <CardContent className="flex gap-3 py-3">
+          <AlertCircle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+          <div className="space-y-2">
             <div>
               <p className="text-sm font-medium">
-                {t("targets.profileIncomplete")}
+                {t("targets.deprecation.title")}
               </p>
               <p className="text-muted-foreground text-sm">
-                {!data.profile.heightCm && !data.profile.age
-                  ? t("targets.profileIncompleteHeightAge")
-                  : !data.profile.heightCm
-                    ? t("targets.profileIncompleteHeight")
-                    : t("targets.profileIncompleteAge")}
+                {t("targets.deprecation.body")}
               </p>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            {profileIncomplete && (
+              <div data-slot="targets-profile-incomplete">
+                <p className="text-sm font-medium">
+                  {t("targets.profileIncomplete")}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  {!data.profile.heightCm && !data.profile.age
+                    ? t("targets.profileIncompleteHeightAge")
+                    : !data.profile.heightCm
+                      ? t("targets.profileIncompleteHeight")
+                      : t("targets.profileIncompleteAge")}
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* v1.4.25 W3e — page-level summary line. Renders nothing when
           the API hasn't shipped pageSummary yet (older clients during

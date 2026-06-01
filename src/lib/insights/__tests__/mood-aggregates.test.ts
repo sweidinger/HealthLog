@@ -6,7 +6,6 @@ import {
   computeInTargetPct,
   computeMoodAggregates,
   computeMoodMetricCorrelation,
-  computeNotesTimeline,
   computeStructuredTagSummary,
   computeTagSummary,
   computeWeekdayAverages,
@@ -133,24 +132,6 @@ describe("computeStructuredTagSummary", () => {
     ];
     const rows = computeStructuredTagSummary(entries, NOW, 90);
     expect(rows.map((r) => r.key)).toEqual(["happy"]);
-  });
-});
-
-describe("computeNotesTimeline", () => {
-  it("returns noted entries newest-first, skips empty notes, and caps at the limit", () => {
-    const entries: MoodAggregateEntry[] = [
-      { ...entry(5, 2, ["x"]), note: "oldest", mood: "SCHLECHT" },
-      { ...entry(3, 4, null), note: "   ", mood: "GUT" }, // blank → skipped
-      { ...entry(2, 5, null), note: "middle", mood: "SUPER_GUT" },
-      { ...entry(1, 3, null), note: "newest", mood: "OKAY" },
-    ];
-    const timeline = computeNotesTimeline(entries, 2);
-    expect(timeline.map((n) => n.note)).toEqual(["newest", "middle"]);
-    expect(timeline[0]).toMatchObject({ score: 3, mood: "OKAY", note: "newest" });
-  });
-
-  it("returns an empty array when no entry carries a note", () => {
-    expect(computeNotesTimeline([entry(1, 4, ["x"])])).toEqual([]);
   });
 });
 
@@ -297,6 +278,14 @@ describe("computeMoodAggregates", () => {
     // No sleep / steps rows supplied → empty correlation.
     expect(agg.correlations.sleep.n).toBe(0);
     expect(agg.correlations.sleep.result).toBeNull();
+    // v1.8.6 — the narrative feed rides on the same aggregates and is
+    // ranked strongest-first.
+    expect(Array.isArray(agg.narratives)).toBe(true);
+    for (let i = 1; i < agg.narratives.length; i++) {
+      expect(agg.narratives[i - 1].strength).toBeGreaterThanOrEqual(
+        agg.narratives[i].strength,
+      );
+    }
   });
 
   it("handles an empty entry set without throwing", () => {

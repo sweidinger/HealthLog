@@ -217,10 +217,16 @@ export async function expectStep(
   displayIndex: number,
   totalSteps?: number,
 ): Promise<void> {
-  const pattern = totalSteps
-    ? new RegExp(`Schritt ${displayIndex} von ${totalSteps}`, "i")
-    : new RegExp(`Schritt ${displayIndex} von \\d+`, "i");
-  await expect(page.getByText(pattern)).toBeVisible({ timeout: 5_000 });
+  // The "Schritt X von Y" caption is mobile-only (`sm:hidden`) since the dot
+  // stepper landed, so it is hidden on the desktop e2e viewport. Assert the
+  // viewport-independent root data-attributes the dialog always carries.
+  const root = page.locator('[data-slot="medication-wizard-dialog"]');
+  await expect(root).toHaveAttribute("data-display-step", String(displayIndex), {
+    timeout: 5_000,
+  });
+  if (totalSteps != null) {
+    await expect(root).toHaveAttribute("data-total-steps", String(totalSteps));
+  }
 }
 
 /**

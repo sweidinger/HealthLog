@@ -69,6 +69,7 @@ interface BatchEntryFixture {
   externalId: string;
   externalSourceVersion?: string;
   sleepStage?: number;
+  source?: string;
 }
 
 function makeRequest(
@@ -696,6 +697,142 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
         where: { userId: TEST_USER_ID, externalId: stepsExternalId },
       });
       expect(stepsRow?.value).toBeCloseTo(8400, 5);
+    });
+  });
+
+  // v1.8.6 W6 — optional per-entry `source`. The standalone iOS client
+  // tags adopt-on-pair backfill rows it knows were entered by hand as
+  // `MANUAL`; every other caller (web + current iOS) omits the field and
+  // must keep storing rows as `APPLE_HEALTH`. `source` is part of the
+  // `(userId, type, source, externalId)` dedup key.
+  describe("optional source field (W6)", () => {
+    it("persists a row as APPLE_HEALTH when source is absent (backward-compat)", async () => {
+      const { POST } = await import("@/app/api/measurements/batch/route");
+
+      const response = await POST(
+        makeRequest({
+          entries: [
+            {
+              hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
+              value: 80.2,
+              unit: "kg",
+              startDate: "2026-05-09T07:30:00.000Z",
+              endDate: "2026-05-09T07:30:00.000Z",
+              externalId: "uuid-source-absent-001",
+            },
+          ],
+        }),
+      );
+      expect(response.status).toBe(200);
+
+      const stored = await getPrismaClient().measurement.findMany({
+        where: { userId: TEST_USER_ID, externalId: "uuid-source-absent-001" },
+      });
+      expect(stored).toHaveLength(1);
+      expect(stored[0]!.source).toBe("APPLE_HEALTH");
+    });
+
+    it("persists a row as MANUAL when source is explicitly MANUAL", async () => {
+      const { POST } = await import("@/app/api/measurements/batch/route");
+
+      const response = await POST(
+        makeRequest({
+          entries: [
+            {
+              hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
+              value: 79.8,
+              unit: "kg",
+              startDate: "2026-05-09T07:30:00.000Z",
+              endDate: "2026-05-09T07:30:00.000Z",
+              externalId: "uuid-source-manual-001",
+              source: "MANUAL",
+            },
+          ],
+        }),
+      );
+      expect(response.status).toBe(200);
+      const json = (await response.json()) as { data: { inserted: number } };
+      expect(json.data.inserted).toBe(1);
+
+      const stored = await getPrismaClient().measurement.findMany({
+        where: { userId: TEST_USER_ID, externalId: "uuid-source-manual-001" },
+      });
+      expect(stored).toHaveLength(1);
+      expect(stored[0]!.source).toBe("MANUAL");
+    });
+
+    it("treats the same externalId under different sources as two distinct rows", async () => {
+      const { POST } = await import("@/app/api/measurements/batch/route");
+
+      const sharedExternalId = "uuid-source-collision-001";
+      const response = await POST(
+        makeRequest({
+          entries: [
+            {
+              hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
+              value: 81.0,
+              unit: "kg",
+              startDate: "2026-05-09T07:30:00.000Z",
+              endDate: "2026-05-09T07:30:00.000Z",
+              externalId: sharedExternalId,
+              source: "APPLE_HEALTH",
+            },
+            {
+              hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
+              value: 81.0,
+              unit: "kg",
+              startDate: "2026-05-09T07:30:00.000Z",
+              endDate: "2026-05-09T07:30:00.000Z",
+              externalId: sharedExternalId,
+              source: "MANUAL",
+            },
+          ],
+        }),
+      );
+      expect(response.status).toBe(200);
+      const json = (await response.json()) as {
+        data: { inserted: number; duplicates: number };
+      };
+      // Distinct dedup keys — both insert, neither is a duplicate.
+      expect(json.data.inserted).toBe(2);
+      expect(json.data.duplicates).toBe(0);
+
+      const stored = await getPrismaClient().measurement.findMany({
+        where: { userId: TEST_USER_ID, externalId: sharedExternalId },
+      });
+      expect(stored).toHaveLength(2);
+      expect(new Set(stored.map((r) => r.source))).toEqual(
+        new Set(["APPLE_HEALTH", "MANUAL"]),
+      );
+    });
+
+    it("rejects an out-of-range source value with 422", async () => {
+      const { POST } = await import("@/app/api/measurements/batch/route");
+
+      const response = await POST(
+        makeRequest({
+          entries: [
+            {
+              hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
+              value: 80.5,
+              unit: "kg",
+              startDate: "2026-05-09T07:30:00.000Z",
+              endDate: "2026-05-09T07:30:00.000Z",
+              externalId: "uuid-source-bad-001",
+              // WITHINGS is server-owned and not accepted on this
+              // client-facing route — must surface as a 422, not silently
+              // mint a forged Withings-attributed row.
+              source: "WITHINGS",
+            },
+          ],
+        }),
+      );
+      expect(response.status).toBe(422);
+
+      const stored = await getPrismaClient().measurement.findMany({
+        where: { userId: TEST_USER_ID, externalId: "uuid-source-bad-001" },
+      });
+      expect(stored).toHaveLength(0);
     });
   });
 });

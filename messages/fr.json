@@ -586,16 +586,10 @@
     "veryOverdue": "Très en retard",
     "compliance7d": "Observance 7 jours",
     "compliance30d": "Observance 30 jours",
+    "complianceWindow": "Observance {days} jours",
     "lastIntake": "Dernière prise :",
     "nextIntake": "Prochaine prise :",
     "dayStreak": "jours de série",
-    "lastNDoses": "{total} dernières doses : {taken} sur {total}",
-    "doseStreak": "{count} d'affilée",
-    "doseTimelineAriaLabel": "Observance récente des doses",
-    "doseTaken": "Pris",
-    "doseMissed": "Manqué",
-    "doseSkipped": "Ignoré",
-    "doseUpcoming": "À venir",
     "taken": "Pris",
     "skipped": "Sauté",
     "intakeToastTaken": "{name} enregistré comme pris",
@@ -810,7 +804,11 @@
         "back": "Back",
         "next": "Next",
         "save": "Save",
-        "saveEdit": "Save changes"
+        "saveEdit": "Save changes",
+        "nextHint": "Suivant : {step}",
+        "reviewHint": "Suivant : Enregistrer",
+        "jumpFirst": "Aller à la première étape",
+        "jumpLast": "Aller à la vérification et à l’enregistrement"
       },
       "nl": {
         "button": "Describe"
@@ -820,11 +818,13 @@
           "title": "What's the medication called?",
           "subline": "Exactly as it appears on the box.",
           "label": "Name",
-          "placeholder": "e.g. Ramipril"
+          "placeholder": "e.g. Ramipril",
+          "short": "Nom"
         },
         "step2": {
           "title": "What kind of medication is it?",
-          "subline": "We use this for the right templates and analytics."
+          "subline": "We use this for the right templates and analytics.",
+          "short": "Type"
         },
         "step3": {
           "title": "What's the dose?",
@@ -856,15 +856,18 @@
           "dosesPerUnitPlaceholder": "p. ex. 4",
           "dosesPerUnitHint": "Doses par stylo / flacon — laisser vide pour ne pas suivre le stock.",
           "injectionSiteToggle": "Rotation des sites d'injection",
-          "injectionSiteHint": "Guide de rotation facultatif. Le site de chaque dose est enregistré lors de la saisie de la prise."
+          "injectionSiteHint": "Guide de rotation facultatif. Le site de chaque dose est enregistré lors de la saisie de la prise.",
+          "short": "Dose"
         },
         "step4": {
           "title": "Over what period are you taking it?",
-          "subline": "A start date is enough for today. You can add an end date later."
+          "subline": "A start date is enough for today. You can add an end date later.",
+          "short": "Quand"
         },
         "step5": {
           "title": "How often do you take it?",
-          "subline": "Pick the cadence — the details follow on the next step."
+          "subline": "Pick the cadence — the details follow on the next step.",
+          "short": "Fréquence"
         },
         "step6": {
           "title": "What does that look like in detail?",
@@ -880,7 +883,8 @@
           "rollingDays": {
             "label": "Every",
             "suffix": "days from the last intake"
-          }
+          },
+          "short": "Détail"
         },
         "step7": {
           "title": "When do you take it?",
@@ -891,14 +895,16 @@
             "noon": "Noon",
             "evening": "Evening",
             "night": "Night"
-          }
+          },
+          "short": "Heures"
         },
         "step8": {
           "title": "All done — should HealthLog remind you?",
           "subline": "Review everything below before you save.",
           "remindersLabel": "Reminders on",
           "remindersDescription": "Push, Telegram or ntfy — based on your settings.",
-          "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release."
+          "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release.",
+          "short": "Fini"
         }
       },
       "classRow": {
@@ -974,23 +980,13 @@
         "submitFailed": "Could not save the medication — please retry."
       }
     },
-    "titration": {
-      "section": "Paliers de titration",
-      "loading": "Chargement des données de titration",
-      "loadFailed": "Échec du chargement des données de titration.",
-      "drugLadderHeader": "Paliers standard (référence EMA)",
-      "typicalWeeksOnStep": "≥ {weeks} sem. typique",
-      "youAreHere": "Vous êtes ici",
-      "nextStepCaption": "Palier suivant (typique) : {dose} mg après ~{weeks} semaines au palier actuel.",
-      "ceilingMessage": "Vous êtes au sommet du palier standard.",
-      "escalationDueHint": "Vous êtes à ce palier depuis {weeks} semaines ; le schéma prévoit une progression typique après ~{typical} semaines.",
-      "currentStepDwell": "À ce palier depuis {weeks} semaines",
-      "doseUnitMg": "mg",
-      "emptyState": "Aucun historique de dose. Enregistrez une dose pour voir votre position dans le schéma.",
-      "nonStandardDose": "La dose actuelle est en dehors des paliers standard.",
-      "disclaimer": "Valeurs de référence EMA. Consultez votre médecin avant toute modification de dose.",
-      "emaSourceCta": "Source EMA",
-      "stepLabel": "Palier {n}"
+    "doseStrength": {
+      "title": "Dose au fil du temps",
+      "axisLabel": "Dose enregistrée ({unit})",
+      "tooltipLabel": "Dose",
+      "currentDose": "Dose actuelle : {dose} {unit}",
+      "noCurrentDose": "Aucune dose enregistrée pour l'instant.",
+      "empty": "Aucun historique de titration. Enregistrez un changement de dose pour voir la courbe de dose."
     },
     "injectionSiteBodyOutlineAriaLabel": "Silhouette du corps",
     "injectionSitePickerAriaLabel": "Sélecteur de site d'injection",
@@ -1287,8 +1283,7 @@
         "group": {
           "data": "Données",
           "reminders": "Rappels",
-          "lifecycle": "Cycle de vie",
-          "danger": "Zone de danger"
+          "lifecycle": "Cycle de vie"
         },
         "dataPortability": {
           "import": {
@@ -1578,7 +1573,22 @@
     },
     "trendsRow": {
       "title": "Tendances",
-      "subtitle": "Les 30 derniers jours en un coup d’œil"
+      "subtitle": "Les 30 derniers jours en un coup d’œil",
+      "caption": {
+        "bp": "Valeurs systoliques et diastoliques des 30 derniers jours.",
+        "weight": "Évolution du poids corporel sur les 30 derniers jours.",
+        "pulse": "Pouls au repos des 30 derniers jours.",
+        "mood": "Score d'humeur quotidien des 30 derniers jours.",
+        "sleep": "Durée du sommeil nocturne des 30 derniers jours.",
+        "steps": "Nombre de pas quotidiens des 30 derniers jours.",
+        "hrv": "Variabilité de la fréquence cardiaque des 30 derniers jours.",
+        "resting_hr": "Fréquence cardiaque au repos des 30 derniers jours.",
+        "active_energy": "Énergie active dépensée sur les 30 derniers jours.",
+        "flights": "Étages gravis sur les 30 derniers jours.",
+        "distance": "Distance de marche et de course des 30 derniers jours.",
+        "vo2_max": "VO₂ max des 30 derniers jours.",
+        "body_temp": "Température corporelle des 30 derniers jours."
+      }
     },
     "vo2Max": {
       "statLatest": "Actuel",
@@ -1975,6 +1985,7 @@
       "valuesPageTitle": "{metric} — toutes les mesures",
       "valuesPageDescription": "Chaque mesure derrière cette métrique. Modifiez ou supprimez une entrée directement.",
       "diversity": {
+        "trigger": "Conseil de mesure",
         "weekday": "La plupart de vos mesures de {metric} tombent le même jour de la semaine. Enregistrer d'autres jours donne une image plus complète.",
         "timeOfDay": "La plupart de vos mesures de {metric} tombent à une heure similaire de la journée. Varier l'heure donne une image plus complète."
       },
@@ -2392,7 +2403,21 @@
         "emptyDescription": "Enregistrez l'humeur et cette mesure les mêmes jours pour voir une corrélation."
       },
       "structuredTagsTitle": "Répartition des étiquettes",
-      "notesTimelineTitle": "Notes"
+      "inTargetValue": "{pct} %",
+      "inTargetCaption": "des derniers jours dans votre plage de bonne humeur",
+      "narrative": {
+        "title": "Ce qui ressort",
+        "weekdayDip": "Votre humeur baisse surtout le {weekday} — {delta} sous votre semaine.",
+        "weekdayPeak": "Le {weekday} est toujours votre meilleur jour, avec une moyenne de {value}.",
+        "trendUp": "Votre humeur progresse sur les {days} derniers jours (+{delta} par rapport à la période précédente).",
+        "trendDown": "Votre humeur recule sur les {days} derniers jours (-{delta} par rapport à la période précédente).",
+        "weekendUp": "Vous vous sentez mieux le week-end (+{delta} par rapport à la semaine).",
+        "weekendDown": "Votre humeur est plus basse le week-end (-{delta} par rapport à la semaine).",
+        "tagLift": "Les jours marqués « {tag} » dépassent votre humeur générale de {delta} en moyenne.",
+        "tagDrop": "Les jours marqués « {tag} » sont {delta} sous votre moyenne.",
+        "inTarget": "Vous avez été dans votre plage de bonne humeur {pct} % des 30 derniers jours.",
+        "streak": "Vous avez noté votre humeur {days} jours d'affilée — continuez."
+      }
     }
   },
   "thresholds": {
@@ -3976,6 +4001,10 @@
   "targets": {
     "title": "Valeurs cibles",
     "introText": "Tes valeurs actuelles face aux plages cibles recommandées. Les sources des recommandations sont liées sur chaque carte.",
+    "deprecation": {
+      "title": "Cette page va être retirée",
+      "body": "Les plages cibles se modifient désormais directement depuis les pages Insights, sur le panneau de référence de chaque métrique. Cette page reste accessible pour l'instant et sera supprimée dans une prochaine version."
+    },
     "bmi": "IMC",
     "average30d": "Moy. 30 jours :",
     "consistency": {

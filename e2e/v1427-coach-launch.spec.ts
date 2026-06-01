@@ -8,13 +8,13 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  *
  * Two contracts under test:
  *
- *   1. Every routed Insights sub-page mounts a `<CoachLaunchButton>`.
- *      The component renders BOTH a sticky-bottom FAB
- *      (`data-slot="coach-launch-fab"`, visible on `<lg`) and an
- *      inline action (`data-slot="coach-launch-inline"`, visible on
- *      `lg+`). The DOM carries both nodes; CSS picks the visible one.
- *      The spec asserts the FAB renders on Pixel-5 and the inline
- *      action renders on Desktop Chrome.
+ *   1. Every routed Insights sub-page mounts a Coach launch surface.
+ *      The layout renders a sticky-bottom FAB
+ *      (`data-slot="coach-launch-fab"`, visible on `<lg`); v1.8.6 moved
+ *      the per-page action into the sub-page header as an icon-only
+ *      button (`data-slot="coach-launch-icon"`, mounted by the shell at
+ *      heading height across breakpoints). The spec asserts the FAB
+ *      renders on Pixel-5 and the header icon renders on Desktop Chrome.
  *
  *   2. Opening the Coach drawer on `<sm` mounts it as a bottom-sheet
  *      (`data-variant="bottom-sheet"`). On `>=sm` it mounts as a
@@ -121,28 +121,23 @@ test.describe("v1.4.27 — Coach reachability on insights sub-pages", () => {
         .locator('[data-slot="coach-launch-fab"]')
         .first();
       await expect(fab).toBeVisible({ timeout: 10_000 });
-
-      // The inline branch is in the DOM but hidden via `hidden lg:inline-flex`.
-      const inline = page.locator('[data-slot="coach-launch-inline"]').first();
-      await expect(inline).toBeHidden();
     });
 
-    test(`/insights/${slug} mounts the Coach launch button on Desktop Chrome (inline branch)`, async ({
+    test(`/insights/${slug} mounts the header Coach icon on Desktop Chrome`, async ({
       page,
     }, testInfo) => {
       // Desktop Chrome viewport is 1280 — `lg` (1024) is matched so the
-      // inline branch wins; the FAB is hidden by `lg:hidden`.
+      // layout FAB is hidden by `lg:hidden`; the header icon the shell
+      // mounts is the Coach entry on the page itself.
       test.skip(
         testInfo.project.name !== "chromium-desktop",
-        "desktop inline branch",
+        "desktop header-icon branch",
       );
 
       await page.goto(`/insights/${slug}`, { waitUntil: "domcontentloaded" });
 
-      const inline = page
-        .locator('[data-slot="coach-launch-inline"]')
-        .first();
-      await expect(inline).toBeVisible({ timeout: 10_000 });
+      const icon = page.locator('[data-slot="coach-launch-icon"]').first();
+      await expect(icon).toBeVisible({ timeout: 10_000 });
 
       const fab = page.locator('[data-slot="coach-launch-fab"]').first();
       await expect(fab).toBeHidden();
@@ -168,7 +163,7 @@ test.describe("v1.4.27 — Coach reachability on insights sub-pages", () => {
     await expect(drawer).toHaveAttribute("data-variant", "bottom-sheet");
   });
 
-  test("clicking the inline action opens the Coach drawer as a side-sheet on Desktop Chrome", async ({
+  test("clicking the header Coach icon opens the Coach drawer as a side-sheet on Desktop Chrome", async ({
     page,
   }, testInfo) => {
     test.skip(
@@ -178,11 +173,9 @@ test.describe("v1.4.27 — Coach reachability on insights sub-pages", () => {
 
     await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
 
-    const inline = page
-      .locator('[data-slot="coach-launch-inline"]')
-      .first();
-    await expect(inline).toBeVisible({ timeout: 10_000 });
-    await inline.click();
+    const icon = page.locator('[data-slot="coach-launch-icon"]').first();
+    await expect(icon).toBeVisible({ timeout: 10_000 });
+    await icon.click();
 
     const drawer = page.locator('[data-slot="coach-drawer"]');
     await expect(drawer).toBeVisible({ timeout: 10_000 });

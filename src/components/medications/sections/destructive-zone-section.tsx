@@ -318,10 +318,12 @@ export function DangerZoneBody({
 
   return (
     <Card
-      className="border-destructive/40 space-y-4 p-4"
+      className="border-destructive/40 bg-destructive/5 divide-destructive/20 gap-0 divide-y px-4 py-1"
       data-slot="destructive-zone-card-b"
     >
-      <div className="flex items-center justify-between gap-3">
+      {/* Tier 3a — Verlauf löschen. Matched pair with the delete row
+          below: identical `py-3` spacing, identical destructive button. */}
+      <div className="flex items-center justify-between gap-3 py-3">
         <div className="space-y-1">
           <p className="text-foreground text-sm font-medium">
             {t("medications.detail.zone.purge.title")}
@@ -343,9 +345,8 @@ export function DangerZoneBody({
         </Button>
       </div>
 
-      <Separator />
-
-      <div className="flex items-center justify-between gap-3">
+      {/* Tier 3b — Medikament löschen */}
+      <div className="flex items-center justify-between gap-3 py-3">
         <div className="space-y-1">
           <p className="text-foreground text-sm font-medium">
             {t("medications.detail.zone.delete.title")}

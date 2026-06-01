@@ -1,0 +1,284 @@
+"use client";
+
+/**
+ * v1.8.6 W4c — GLP-1 dose-strength (titration) curve.
+ *
+ * Replaces the EMA *reference*-ladder block that showed no values when
+ * the medication's brand fell outside the catalog. This surface plots
+ * the user's OWN dose-strength history — the `MedicationDoseChange`
+ * stream (`effectiveFrom` + `doseValue` + `doseUnit`) returned by
+ * `GET /api/medications/[id]/glp1` — as a step curve over time, so a
+ * 2.5 → 5 → 7.5 → 10 mg escalation reads at a glance.
+ *
+ * Honest data contract:
+ *   - 2+ dose-change rows → step curve, the latest dose carried forward
+ *     to "now" so the current strength stays visible at the right edge.
+ *   - exactly 1 row → no escalation to draw; surface the single current
+ *     dose plainly with a "no titration history yet" caption rather than
+ *     a flat single-point chart.
+ *   - 0 rows → empty state with the same caption. The
+ *     `MedicationDoseChange` table is the history of record; when it is
+ *     empty there is genuinely no time series to plot.
+ *
+ * No Research-Mode gate — unlike the estimated-PK `DrugLevelChart`, this
+ * curve plots only logged facts (the user's recorded dose strengths), so
+ * it carries no pharmacokinetic estimate and needs no disclaimer gate.
+ *
+ * Dracula purple tokens + the shared `<MedicationDetailSection>` chrome
+ * so the GLP-1 disclosure reads as one visual group with the drug-level
+ * chart that sits beside it.
+ */
+
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, TrendingUp } from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
+import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
+import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
+
+const CURVE_COLOR = "var(--dracula-purple)";
+
+interface DoseChange {
+  id: string;
+  effectiveFrom: string;
+  doseValue: number;
+  doseUnit: string;
+  note?: string | null;
+}
+
+interface Glp1DetailsResponse {
+  doseChanges: DoseChange[];
+}
+
+export interface DoseStrengthCurveProps {
+  medicationId: string;
+  /** Override "now" for deterministic snapshot tests. */
+  asOf?: Date;
+}
+
+interface CurvePoint {
+  t: number;
+  dose: number;
+  unit: string;
+}
+
+/**
+ * Build the step-curve points from the dose-change stream. The series is
+ * sorted by `effectiveFrom`, finite-guarded, and the latest dose is
+ * carried forward to `asOf` so the current strength anchors the right
+ * edge. Exported for the unit test.
+ */
+export function buildCurvePoints(
+  doseChanges: readonly DoseChange[],
+  asOf: Date,
+): CurvePoint[] {
+  const sorted = doseChanges
+    .map((dc) => ({
+      t: Date.parse(dc.effectiveFrom),
+      dose: dc.doseValue,
+      unit: dc.doseUnit,
+    }))
+    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.dose))
+    .sort((a, b) => a.t - b.t);
+
+  if (sorted.length < 2) return sorted;
+
+  // Carry the latest dose forward to "now" so the most-recent strength
+  // reads as a flat segment up to the right edge rather than ending at
+  // the last change date.
+  const last = sorted[sorted.length - 1];
+  const nowMs = asOf.getTime();
+  if (nowMs > last.t) {
+    sorted.push({ t: nowMs, dose: last.dose, unit: last.unit });
+  }
+  return sorted;
+}
+
+export function DoseStrengthCurve({
+  medicationId,
+  asOf,
+}: DoseStrengthCurveProps) {
+  const { t } = useTranslations();
+  const fmt = useFormatters();
+
+  const { data: details, isLoading } = useQuery<Glp1DetailsResponse | null>({
+    queryKey: queryKeys.medicationGlp1Details(medicationId),
+    queryFn: async () => {
+      const res = await fetch(`/api/medications/${medicationId}/glp1`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.data as Glp1DetailsResponse;
+    },
+    staleTime: 60 * 1000,
+  });
+
+  const now = useMemo(() => asOf ?? new Date(), [asOf]);
+  const doseChanges = useMemo(
+    () => details?.doseChanges ?? [],
+    [details],
+  );
+  const points = useMemo(
+    () => buildCurvePoints(doseChanges, now),
+    [doseChanges, now],
+  );
+  const animationsEnabled = !prefersReducedMotion();
+
+  // The latest logged dose — surfaced in the single-row / empty states so
+  // the user always sees their current strength even without a curve.
+  const latest = useMemo(() => {
+    if (doseChanges.length === 0) return null;
+    const sorted = [...doseChanges].sort(
+      (a, b) => Date.parse(a.effectiveFrom) - Date.parse(b.effectiveFrom),
+    );
+    return sorted[sorted.length - 1];
+  }, [doseChanges]);
+
+  const hasCurve = points.length >= 2;
+
+  const chartData = useMemo(
+    () =>
+      points.map((p) => ({
+        t: p.t,
+        dose: p.dose,
+      })),
+    [points],
+  );
+
+  // Four evenly-spaced date ticks across the plotted span so the strip
+  // reads start → … → now without crowding.
+  const ticks = useMemo(() => {
+    if (chartData.length < 2) return [];
+    const first = chartData[0].t;
+    const last = chartData[chartData.length - 1].t;
+    const span = last - first;
+    if (span <= 0) return [first];
+    return [0, 0.33, 0.66, 1].map((f) => Math.round(first + span * f));
+  }, [chartData]);
+
+  const unit = latest?.doseUnit ?? "mg";
+
+  const body = isLoading ? (
+    <div
+      className="flex h-[200px] min-h-[200px] items-center justify-center"
+      data-slot="dose-strength-curve-loading"
+    >
+      <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+    </div>
+  ) : !hasCurve ? (
+    <div
+      className="text-muted-foreground bg-muted/40 flex flex-col items-start gap-2 rounded-md p-4 text-sm"
+      data-slot="dose-strength-curve-empty"
+    >
+      <div className="flex items-center gap-2">
+        <TrendingUp className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {latest ? (
+          <p>
+            {t("medications.doseStrength.currentDose", {
+              dose: fmt.number(latest.doseValue),
+              unit: latest.doseUnit,
+            })}
+          </p>
+        ) : (
+          <p>{t("medications.doseStrength.noCurrentDose")}</p>
+        )}
+      </div>
+      <p className="text-xs italic">{t("medications.doseStrength.empty")}</p>
+    </div>
+  ) : (
+    <div
+      className="touch-pan-y"
+      style={{ height: "200px" }}
+      data-slot="dose-strength-curve-area"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart
+          data={chartData}
+          margin={{ top: 10, right: 14, bottom: 16, left: 4 }}
+        >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="var(--border)"
+            opacity={0.5}
+          />
+          <XAxis
+            dataKey="t"
+            type="number"
+            scale="time"
+            domain={["dataMin", "dataMax"]}
+            ticks={ticks}
+            tickFormatter={(v) => fmt.dateShort(new Date(v as number))}
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis
+            domain={[0, "auto"]}
+            width={34}
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(v) => fmt.number(v as number)}
+          />
+          <Tooltip
+            cursor={{
+              stroke: "var(--muted-foreground)",
+              strokeOpacity: 0.3,
+              strokeDasharray: "3 3",
+            }}
+            labelFormatter={(v) => fmt.dateShort(new Date(v as number))}
+            formatter={(value) => [
+              `${fmt.number(value as number)} ${unit}`,
+              t("medications.doseStrength.tooltipLabel"),
+            ]}
+            contentStyle={{
+              backgroundColor: "var(--popover)",
+              border: "1px solid var(--border)",
+              borderRadius: "0.375rem",
+              fontSize: "0.75rem",
+            }}
+          />
+          <Line
+            type="stepAfter"
+            dataKey="dose"
+            stroke={CURVE_COLOR}
+            strokeWidth={2}
+            dot={{ r: 3, fill: CURVE_COLOR, strokeWidth: 0 }}
+            activeDot={{ r: 4 }}
+            isAnimationActive={animationsEnabled}
+            animationDuration={animationsEnabled ? 600 : 0}
+            animationEasing="ease-out"
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+
+  return (
+    <MedicationDetailSection
+      titleId="dose-strength-curve-title"
+      title={t("medications.doseStrength.title")}
+      dataSlot="dose-strength-curve"
+    >
+      {hasCurve && (
+        <p
+          className="text-muted-foreground mb-2 text-xs"
+          data-slot="dose-strength-curve-caption"
+        >
+          {t("medications.doseStrength.axisLabel", { unit })}
+        </p>
+      )}
+      {body}
+    </MedicationDetailSection>
+  );
+}

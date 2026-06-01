@@ -74,3 +74,79 @@ describe("applyProfileUpdate timezone validation", () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });
+
+describe("applyProfileUpdate insurer IK number", () => {
+  it("accepts a valid 9-digit IKNR and writes it field-by-field", async () => {
+    const result = await applyProfileUpdate(USER_ID, {
+      insurerIkNumber: "101234567",
+    });
+    expect(result.ok).toBe(true);
+    expect(prisma.user.update).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(prisma.user.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(arg.data.insurerIkNumber).toBe("101234567");
+  });
+
+  it("trims surrounding whitespace before validating", async () => {
+    const result = await applyProfileUpdate(USER_ID, {
+      insurerIkNumber: "  101234567  ",
+    });
+    expect(result.ok).toBe(true);
+    const arg = vi.mocked(prisma.user.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(arg.data.insurerIkNumber).toBe("101234567");
+  });
+
+  it("maps an empty string to null (clears the field)", async () => {
+    const result = await applyProfileUpdate(USER_ID, { insurerIkNumber: "" });
+    expect(result.ok).toBe(true);
+    const arg = vi.mocked(prisma.user.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(arg.data.insurerIkNumber).toBeNull();
+  });
+
+  it("maps an explicit null to null", async () => {
+    const result = await applyProfileUpdate(USER_ID, { insurerIkNumber: null });
+    expect(result.ok).toBe(true);
+    const arg = vi.mocked(prisma.user.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(arg.data.insurerIkNumber).toBeNull();
+  });
+
+  it("leaves the field untouched when omitted", async () => {
+    const result = await applyProfileUpdate(USER_ID, { fullName: "Someone" });
+    expect(result.ok).toBe(true);
+    const arg = vi.mocked(prisma.user.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect("insurerIkNumber" in arg.data).toBe(false);
+  });
+
+  it("rejects a non-numeric IKNR with 422", async () => {
+    const result = await applyProfileUpdate(USER_ID, {
+      insurerIkNumber: "12345678X",
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(422);
+      expect(result.message).toMatch(/IK number/i);
+    }
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects an IKNR that is not exactly 9 digits with 422", async () => {
+    for (const bad of ["1234567", "1234567890"]) {
+      vi.mocked(prisma.user.update).mockClear();
+      const result = await applyProfileUpdate(USER_ID, {
+        insurerIkNumber: bad,
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.status).toBe(422);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    }
+  });
+});

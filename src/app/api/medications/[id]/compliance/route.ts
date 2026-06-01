@@ -142,12 +142,12 @@ export const GET = apiHandler(
       { medicationContext },
     );
 
-    // v1.8.5 — the additive display block. `mode` is server-decided from
-    // expected-dose density: dense cadences keep the 7-/30-day percentage
-    // bars (`"percent"`), sparse cadences (weekly, bi-/tri-weekly, rolling
-    // 35-day injections) swap to the per-dose uptime strip (`"timeline"`).
-    // `compliance7` / `compliance30` above are untouched — iOS + the Health
-    // Score read them verbatim.
+    // v1.8.6 — the two-row compliance display. The card always shows two
+    // percentage rows; the server scales the two windows to the dosing
+    // cadence (dense meds keep 7 / 30 days, sparse meds step both windows
+    // up) and computes each row's rate over the chosen span. `compliance7`
+    // / `compliance30` above are untouched — iOS + the Health Score read
+    // them verbatim.
     const complianceDisplay = buildComplianceDisplay(
       mapped,
       medication.schedules,
@@ -289,7 +289,8 @@ export const GET = apiHandler(
       meta: {
         compliance7: compliance7.rate,
         compliance30: compliance30.rate,
-        displayMode: complianceDisplay.mode,
+        complianceShortDays: complianceDisplay.shortDays,
+        complianceLongDays: complianceDisplay.longDays,
       },
     });
 

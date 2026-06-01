@@ -1,0 +1,32 @@
+-- v1.8.6 — optional German insurer institution number (IKNR) on the user
+-- profile.
+--
+-- The IKNR ("Institutionskennzeichen", 9 digits) identifies the statutory
+-- or private health insurer. It sits next to the existing plaintext
+-- `insurer_name` and the encrypted `insurance_number_encrypted` (KVNR).
+-- Unlike the KVNR — a per-person quasi-identifier kept AES-256-GCM
+-- encrypted at rest — the IKNR is a public registry number for the
+-- institution, so it is stored plaintext, matching `insurer_name`.
+--
+-- Surfaced on the health-record FHIR export as the contained payor
+-- `Organization` identifier (system `http://fhir.de/sid/arge-ik/iknr`)
+-- inside the new `Coverage` resource.
+--
+-- Single additive, nullable, NULL-defaulted column on `users`. No
+-- backfill — pre-v1.8.6 rows read NULL (no IKNR captured yet), which the
+-- exporter treats identically to an absent value.
+--
+-- Idempotent guard (`IF NOT EXISTS`) makes reruns safe. Forward-only.
+--
+-- Reversibility:
+--   ALTER TABLE "users" DROP COLUMN IF EXISTS "insurer_ik_number";
+-- A roll-back loses the captured IKNR; the FHIR export simply emits the
+-- payor `Organization` with a name only (no identifier), and the
+-- application reads tolerate a missing column / NULL value.
+--
+-- No index — reads are per-user at request time (`WHERE id = $1`),
+-- matching `insurer_name` and the other display-identity columns on the
+-- same table.
+
+ALTER TABLE "users"
+    ADD COLUMN IF NOT EXISTS "insurer_ik_number" TEXT;

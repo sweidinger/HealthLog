@@ -5,8 +5,17 @@ import type {
   FhirObservation,
   FhirMedicationStatement,
   FhirPatient,
+  FhirCoverage,
   FhirDiagnosticReport,
 } from "../types";
+
+function coverageOf(
+  bundle: ReturnType<typeof buildFhirDocumentBundle>,
+): FhirCoverage | undefined {
+  return bundle.entry
+    .map((e) => e.resource)
+    .find((r): r is FhirCoverage => r.resourceType === "Coverage");
+}
 
 function observationsOf(bundle: ReturnType<typeof buildFhirDocumentBundle>) {
   return bundle.entry
@@ -115,6 +124,132 @@ describe("buildFhirDocumentBundle", () => {
       (e) => e.resource.resourceType === "Patient",
     )?.resource as FhirPatient;
     expect(patient.identifier).toBeUndefined();
+  });
+
+  it("emits a Coverage with a contained Organization carrying the IKNR + subscriberId KVNR", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        patient: {
+          username: "sample-user",
+          dateOfBirth: "1985-06-15T00:00:00.000Z",
+          gender: "MALE",
+          heightCm: 182,
+          fullName: "Sample Patient",
+          insurerName: "Example Insurer",
+          insurerIkNumber: "101234567",
+        },
+      }),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
+    const coverage = coverageOf(bundle);
+    expect(coverage).toBeDefined();
+    expect(coverage?.status).toBe("active");
+    expect(coverage?.beneficiary.reference).toBe("Patient/patient-1");
+    expect(coverage?.subscriberId).toBe("A123456780");
+    // Payor references the contained Organization via a local #-ref.
+    const payorRef = coverage?.payor?.[0].reference;
+    expect(payorRef?.startsWith("#")).toBe(true);
+    const org = coverage?.contained?.[0];
+    expect(org?.resourceType).toBe("Organization");
+    expect(`#${org?.id}`).toBe(payorRef);
+    expect(org?.name).toBe("Example Insurer");
+    expect(org?.identifier?.[0].system).toBe(
+      "http://fhir.de/sid/arge-ik/iknr",
+    );
+    expect(org?.identifier?.[0].value).toBe("101234567");
+  });
+
+  it("places the Coverage right after the Patient in the bundle", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        patient: {
+          username: "sample-user",
+          dateOfBirth: null,
+          gender: null,
+          heightCm: null,
+          fullName: "Sample Patient",
+          insurerName: "Example Insurer",
+          insurerIkNumber: "101234567",
+        },
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const types = bundle.entry.map((e) => e.resource.resourceType);
+    const patientIdx = types.indexOf("Patient");
+    const coverageIdx = types.indexOf("Coverage");
+    expect(patientIdx).toBeGreaterThanOrEqual(0);
+    expect(coverageIdx).toBe(patientIdx + 1);
+  });
+
+  it("emits a name-only payor Organization when the IKNR is absent", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        patient: {
+          username: "sample-user",
+          dateOfBirth: null,
+          gender: null,
+          heightCm: null,
+          fullName: "Sample Patient",
+          insurerName: "Example Insurer",
+          // no insurerIkNumber
+        },
+      }),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
+    const coverage = coverageOf(bundle);
+    expect(coverage).toBeDefined();
+    expect(coverage?.subscriberId).toBe("A123456780");
+    const org = coverage?.contained?.[0];
+    expect(org?.name).toBe("Example Insurer");
+    expect(org?.identifier).toBeUndefined();
+  });
+
+  it("emits a Coverage with no subscriberId when the KVNR is absent", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        patient: {
+          username: "sample-user",
+          dateOfBirth: null,
+          gender: null,
+          heightCm: null,
+          fullName: "Sample Patient",
+          insurerName: "Example Insurer",
+          insurerIkNumber: "101234567",
+        },
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const coverage = coverageOf(bundle);
+    expect(coverage).toBeDefined();
+    expect(coverage?.subscriberId).toBeUndefined();
+    expect(coverage?.contained?.[0].identifier?.[0].value).toBe("101234567");
+  });
+
+  it("omits the Coverage entirely when neither insurer name nor IKNR is present", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        patient: {
+          username: "sample-user",
+          dateOfBirth: null,
+          gender: null,
+          heightCm: null,
+          fullName: "Sample Patient",
+          // neither insurerName nor insurerIkNumber
+        },
+      }),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
+    expect(coverageOf(bundle)).toBeUndefined();
+    // KVNR still rides on Patient.identifier.
+    const patient = bundle.entry.find(
+      (e) => e.resource.resourceType === "Patient",
+    )?.resource as FhirPatient;
+    expect(patient.identifier?.[0].value).toBe("A123456780");
   });
 
   it("maps weight to LOINC 29463-7 / UCUM kg with the latest reading", () => {

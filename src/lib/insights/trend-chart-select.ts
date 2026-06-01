@@ -60,9 +60,18 @@ export interface TrendChartConfig {
   /** i18n key for the chart title (`charts.*`). */
   titleKey: string;
   /**
+   * i18n key for the slot's standard one-line description
+   * (`insights.trendsRow.caption.*`). Every slot carries one so a card
+   * never paints caption-less. For the legacy triple it is the
+   * fallback the renderer shows when the advisor supplies no
+   * annotation; for additive metrics it is the only caption (those
+   * slots carry no advisor annotation).
+   */
+  captionKey: string;
+  /**
    * When set, the slot carries an advisor annotation under the chart
    * and uses the typed `<TrendAnnotation>` empty-state copy. Omitted
-   * for additive metrics that render chart-only.
+   * for additive metrics, which fall back to {@link captionKey}.
    */
   annotationKey?: TrendAnnotationKey;
 }
@@ -89,6 +98,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "mmHg",
     yAxisUnit: "mmHg",
     titleKey: "charts.bloodPressure",
+    captionKey: "insights.trendsRow.caption.bp",
     annotationKey: "bp",
   },
   weight: {
@@ -98,6 +108,7 @@ export const TREND_CHART_CONFIG: Record<
     colors: ["#bd93f9"],
     unit: "kg",
     titleKey: "charts.weight",
+    captionKey: "insights.trendsRow.caption.weight",
     annotationKey: "weight",
   },
   pulse: {
@@ -108,6 +119,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "bpm",
     yAxisUnit: "bpm",
     titleKey: "charts.pulse",
+    captionKey: "insights.trendsRow.caption.pulse",
   },
   mood: {
     metric: "mood",
@@ -115,6 +127,7 @@ export const TREND_CHART_CONFIG: Record<
     types: [],
     colors: [],
     titleKey: "charts.mood",
+    captionKey: "insights.trendsRow.caption.mood",
     annotationKey: "mood",
   },
   sleep: {
@@ -125,6 +138,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "h",
     yAxisUnit: "h",
     titleKey: "charts.sleep",
+    captionKey: "insights.trendsRow.caption.sleep",
   },
   steps: {
     metric: "steps",
@@ -134,6 +148,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "steps",
     yAxisUnit: "steps",
     titleKey: "charts.steps",
+    captionKey: "insights.trendsRow.caption.steps",
   },
   hrv: {
     metric: "hrv",
@@ -143,6 +158,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "ms",
     yAxisUnit: "ms",
     titleKey: "charts.hrv",
+    captionKey: "insights.trendsRow.caption.hrv",
   },
   resting_hr: {
     metric: "resting_hr",
@@ -152,6 +168,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "bpm",
     yAxisUnit: "bpm",
     titleKey: "charts.restingHeartRate",
+    captionKey: "insights.trendsRow.caption.resting_hr",
   },
   active_energy: {
     metric: "active_energy",
@@ -161,6 +178,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "kcal",
     yAxisUnit: "kcal",
     titleKey: "charts.activeEnergy",
+    captionKey: "insights.trendsRow.caption.active_energy",
   },
   flights: {
     metric: "flights",
@@ -170,6 +188,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "flights",
     yAxisUnit: "flights",
     titleKey: "charts.flights",
+    captionKey: "insights.trendsRow.caption.flights",
   },
   distance: {
     metric: "distance",
@@ -179,6 +198,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "km",
     yAxisUnit: "km",
     titleKey: "charts.distance",
+    captionKey: "insights.trendsRow.caption.distance",
   },
   vo2_max: {
     metric: "vo2_max",
@@ -188,6 +208,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "mL/kg·min",
     yAxisUnit: "mL/kg·min",
     titleKey: "charts.vo2Max",
+    captionKey: "insights.trendsRow.caption.vo2_max",
   },
   body_temp: {
     metric: "body_temp",
@@ -197,6 +218,7 @@ export const TREND_CHART_CONFIG: Record<
     unit: "°C",
     yAxisUnit: "°C",
     titleKey: "charts.bodyTemperature",
+    captionKey: "insights.trendsRow.caption.body_temp",
   },
   // Adherence-context findings — no single plottable trend series in
   // this row. A finding on one of these is skipped during selection so

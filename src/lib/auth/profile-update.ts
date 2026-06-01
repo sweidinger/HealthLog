@@ -43,6 +43,7 @@ export interface ApplyProfileResult {
     // boolean presence flag for the encrypted KVNR.
     fullName: string | null;
     insurerName: string | null;
+    insurerIkNumber: string | null;
     hasInsuranceNumber: boolean;
   };
 }
@@ -116,6 +117,11 @@ export async function applyProfileUpdate(
         ? null
         : data.insurerName;
   }
+  // v1.8.6 — IKNR plaintext (matches insurerName). The Zod transform
+  // already mapped empty → null, so a null here means "clear it".
+  if (data.insurerIkNumber !== undefined) {
+    updates.insurerIkNumber = data.insurerIkNumber ?? null;
+  }
   if (data.insuranceNumber !== undefined) {
     updates.insuranceNumberEncrypted =
       data.insuranceNumber === null || data.insuranceNumber === ""
@@ -172,6 +178,7 @@ export async function applyProfileUpdate(
       moodReminderEnabled: updatedUser.moodReminderEnabled,
       fullName: updatedUser.fullName,
       insurerName: updatedUser.insurerName,
+      insurerIkNumber: updatedUser.insurerIkNumber,
       hasInsuranceNumber: updatedUser.insuranceNumberEncrypted != null,
     },
   };

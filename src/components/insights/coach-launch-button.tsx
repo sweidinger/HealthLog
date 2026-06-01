@@ -33,12 +33,24 @@ export interface CoachLaunchButtonProps {
   prefill?: string;
   /** Optional className passthrough for inline overrides. */
   className?: string;
+  /**
+   * v1.8.6 — render the launch as an icon-only affordance instead of the
+   * labelled pill. The sub-page shell mounts this variant at heading
+   * height in the page header so "Coach fragen" sits top-right, aligned
+   * with the title, rather than at the foot of the page. The accessible
+   * label still resolves the shared CTA copy via `aria-label`. The icon
+   * variant stays visible across breakpoints — it is the header's own
+   * Coach entry, not the `lg+`-only inline pill the old foot placement
+   * used (the mobile FAB covers `<lg` for that legacy surface).
+   */
+  variant?: "inline" | "icon";
 }
 
 export function CoachLaunchButton({
   label,
   prefill,
   className,
+  variant = "inline",
 }: CoachLaunchButtonProps) {
   const { t } = useTranslations();
   const launch = useCoachLaunch();
@@ -58,6 +70,26 @@ export function CoachLaunchButton({
   if (disableCoach) return null;
 
   const accessibleLabel = label ?? t("insights.heroActionAskCoach");
+
+  if (variant === "icon") {
+    // v1.8.6 — heading-height icon button mounted by the sub-page shell.
+    // Icon-only so it reads as a compact action beside the title; the
+    // CTA copy moves to `aria-label` + a native tooltip.
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        data-slot="coach-launch-icon"
+        aria-label={accessibleLabel}
+        title={accessibleLabel}
+        onClick={() => launch.askCoach(prefill ?? null)}
+        className={cn("text-muted-foreground hover:text-foreground", className)}
+      >
+        <Sparkles className="size-4" aria-hidden="true" />
+      </Button>
+    );
+  }
 
   // Inline header-style action on `lg+`. Hidden below `lg` because the
   // layout-level FAB (`<LayoutCoachFab>`) covers that breakpoint —

@@ -110,6 +110,7 @@ export default function InsightsBmiPage() {
       title={t("insights.bmiSectionTitle")}
       description={t("insights.subPage.bmiDescription")}
       explainerMetric="bmi"
+      coachLaunch
     >
       <HealthChartDynamic
         chartKey="bmi"
@@ -135,8 +136,6 @@ export default function InsightsBmiPage() {
         loading={isStatusLoading}
         preparing={status?.preparing ?? false}
       />
-
-      <CoachLaunchButton />
     </SubPageShell>
   );
 }

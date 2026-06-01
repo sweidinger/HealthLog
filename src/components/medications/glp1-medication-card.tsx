@@ -10,10 +10,6 @@ import { MedicationCardMenu } from "@/components/medications/medication-card-men
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
-import {
-  DoseAdherenceTimeline,
-  type DoseAdherenceCell,
-} from "@/components/medications/card-parts/dose-adherence-timeline";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
@@ -33,6 +29,7 @@ import {
   reduceCurrentWindowStatus,
   toBerlinDate,
 } from "@/lib/medications/window-status";
+import type { ComplianceDisplay } from "@/lib/analytics/compliance";
 
 /**
  * v1.4.25 W4d — GLP-1 medication card variant.
@@ -103,22 +100,15 @@ export interface Glp1Medication {
   schedules: ScheduleLite[];
 }
 
-interface ComplianceDisplay {
-  mode: "percent" | "timeline";
-  expected7: number;
-  expected30: number;
-  minStableDoses: number;
-  doseTimeline: DoseAdherenceCell[];
-  recentDoseSummary: { taken: number; total: number; doseStreak: number };
-}
-
 interface ComplianceData {
   compliance7: { rate: number; streak: number };
   compliance30: { rate: number };
   /**
-   * v1.8.5 — server-decided render mode. GLP-1 injections are commonly
-   * weekly, so this card flips to the per-dose timeline more often than
-   * the generic one. Additive — older mocks omit it.
+   * v1.8.6 — the two compliance windows scaled to the dosing cadence. GLP-1
+   * injections are commonly weekly, so this card's windows step up to the
+   * 30-/90-day rung where the bars stay meaningful. Additive — older mocks
+   * omit it, in which case the card falls back to the static 7-/30-day
+   * fields.
    */
   complianceDisplay?: ComplianceDisplay;
 }
@@ -309,9 +299,15 @@ export function Glp1MedicationCard({
   const schedule = medication.schedules[0] ?? null;
   const now = new Date();
   const next = nextInjectionFromServer(medication.nextDueAt, now);
-  const rate7 = compliance?.compliance7?.rate ?? 0;
-  const rate30 = compliance?.compliance30?.rate ?? 0;
-  const streak = compliance?.compliance7?.streak ?? 0;
+  // v1.8.6 — the two compliance windows scale with the dosing cadence. When
+  // the server supplies `complianceDisplay` the card reads its cadence-scaled
+  // rows; otherwise it falls back to the static 7-/30-day fields.
+  const display = compliance?.complianceDisplay;
+  const shortDays = display?.shortDays ?? 7;
+  const longDays = display?.longDays ?? 30;
+  const rate7 = display?.short.rate ?? compliance?.compliance7?.rate ?? 0;
+  const rate30 = display?.long.rate ?? compliance?.compliance30?.rate ?? 0;
+  const streak = display?.short.streak ?? compliance?.compliance7?.streak ?? 0;
 
   // v1.4.37 W4b — symmetric take-now / overdue pill with the generic
   // card. Sort schedules by `windowStart` so the most-actionable
@@ -480,24 +476,19 @@ export function Glp1MedicationCard({
             Glp1InventoryDTO slot on /api/medications/[id]/glp1 stays
             in the response shape; only the web mounts are gone. */}
 
-        {/* Compliance region — shared decision with the generic card.
-            Dense cadences keep the bars; sparse cadences (most weekly
-            GLP-1 injections) swap to the per-dose uptime strip. Falls back
-            to the bars when the older payload omits `complianceDisplay`. */}
-        {medication.active &&
-          compliance &&
-          (compliance.complianceDisplay?.mode === "timeline" ? (
-            <DoseAdherenceTimeline
-              doses={compliance.complianceDisplay.doseTimeline}
-              summary={compliance.complianceDisplay.recentDoseSummary}
-            />
-          ) : (
-            <MedicationComplianceBars
-              rate7={rate7}
-              rate30={rate30}
-              streak={streak}
-            />
-          ))}
+        {/* Compliance bars — always two rows, shared with the generic
+            card so the page grid stays harmonious. The server scales the
+            two windows to the dosing cadence; most weekly GLP-1 injections
+            land on the 30-/90-day rung where the bars stay meaningful. */}
+        {medication.active && compliance && (
+          <MedicationComplianceBars
+            rate7={rate7}
+            rate30={rate30}
+            streak={streak}
+            shortDays={shortDays}
+            longDays={longDays}
+          />
+        )}
 
         {/* Primary actions row — shared with the generic medication
             card. The GLP-1-specific side-effect quick-log lives in the

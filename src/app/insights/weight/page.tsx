@@ -10,7 +10,6 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
-import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
@@ -86,6 +85,7 @@ export default function InsightsGewichtPage() {
           timeZone={user?.timezone ?? undefined}
         />
       }
+      coachLaunch
       showAllValuesType="WEIGHT"
     >
       <HealthChartDynamic
@@ -111,8 +111,6 @@ export default function InsightsGewichtPage() {
         loading={isStatusLoading}
         preparing={status?.preparing ?? false}
       />
-
-      <CoachLaunchButton />
     </SubPageShell>
   );
 }

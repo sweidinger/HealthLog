@@ -53,6 +53,11 @@ export interface AuthUser {
    */
   fullName: string | null;
   insurerName: string | null;
+  /**
+   * v1.8.6 — optional German insurer institution number (IKNR, 9 digits).
+   * Surfaced on the FHIR `Coverage` resource's payor Organization.
+   */
+  insurerIkNumber: string | null;
   insuranceNumber: string | null;
 }
 

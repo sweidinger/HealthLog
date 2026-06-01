@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Target } from "lucide-react";
 
@@ -11,6 +11,7 @@ import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import { RangeBar } from "@/components/targets/range-bar";
 import { ConsistencyStrip } from "@/components/targets/consistency-strip";
 import { TargetStatusPill } from "@/components/targets/target-status-pill";
+import { TargetEditSheet } from "@/components/targets/target-edit-sheet";
 import { getTargetSourceLink } from "@/lib/targets/source-link";
 
 /**
@@ -36,7 +37,9 @@ import { getTargetSourceLink } from "@/lib/targets/source-link";
  *            (the spatial answer). BP renders the second diastolic bar.
  *   • Row 3: in-target share % + the 30-day average.
  *   • Row 4: `<ConsistencyStrip>` — the last seven days at a glance.
- *   • Footer: the "Adjust target range" link to `/targets`.
+ *   • Footer: an "Adjust target range" button that opens the
+ *            `<TargetEditSheet>` inline (v1.8.6 — the `/targets` page is
+ *            deprecated, so the editor mounts here rather than routing).
  *
  * Each insights slug maps to one target `type`, except blood glucose
  * which maps to up to four per-context cards (fasting / postprandial /
@@ -169,9 +172,9 @@ export function MetricTargetSummary({ slug }: MetricTargetSummaryProps) {
 
     if (panels.length === 0) return null;
 
-    // Glucose fans out to up to four per-context panels. The
-    // "Adjust target range" link is identical on every one, so render
-    // it once for the whole group rather than repeating it per panel.
+    // Glucose fans out to up to four per-context panels. Each context
+    // maps to its own editable threshold, so every panel carries its own
+    // inline edit button rather than a single shared one.
     return (
       <div className="space-y-2" data-slot="metric-target-summary-group">
         {panels.map((panel) => (
@@ -179,12 +182,8 @@ export function MetricTargetSummary({ slug }: MetricTargetSummaryProps) {
             key={panel.type}
             target={panel}
             heading={panel.label}
-            hideAdjustLink
           />
         ))}
-        <div className="flex justify-end px-1">
-          <AdjustTargetLink />
-        </div>
       </div>
     );
   }
@@ -207,25 +206,6 @@ interface TargetReferencePanelProps {
   bpDiastolic?: TargetsResponse["bpDiastolic"];
   /** Optional sub-heading shown above the panel (used for glucose contexts). */
   heading?: string;
-  /**
-   * Suppress the per-panel "Adjust target range" link. Glucose stacks
-   * up to four panels and lifts a single link to the group wrapper, so
-   * each panel omits its own to avoid repeating the same link.
-   */
-  hideAdjustLink?: boolean;
-}
-
-/** The shared "Adjust target range" link to the `/targets` editing surface. */
-function AdjustTargetLink() {
-  const { t } = useTranslations();
-  return (
-    <Link
-      href="/targets"
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center rounded-sm px-1 text-xs font-medium underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:outline-none"
-    >
-      {t("insights.subPage.target.adjustLink")}
-    </Link>
-  );
 }
 
 /**
@@ -239,9 +219,16 @@ function TargetReferencePanel({
   target,
   bpDiastolic,
   heading,
-  hideAdjustLink,
 }: TargetReferencePanelProps) {
   const { t } = useTranslations();
+
+  // v1.8.6 — the `/targets` page is deprecated; the per-metric editor
+  // moved here. The button below opens the same self-contained
+  // `<TargetEditSheet>` the targets card mounts, seeded with this
+  // metric's type / unit / range (and the diastolic range for BP). The
+  // sheet writes `PUT /api/user/thresholds` and invalidates the
+  // `insightsTargets()` cache on save, so the panel repaints in place.
+  const [editOpen, setEditOpen] = useState(false);
 
   const { range, unit } = target;
   if (!range) return null;
@@ -378,7 +365,7 @@ function TargetReferencePanel({
         />
       ) : null}
 
-      {/* Footer: source link + adjust-target link. */}
+      {/* Footer: source link + inline adjust-target button. */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pt-0.5">
         {sourceLink ? (
           <a
@@ -395,8 +382,29 @@ function TargetReferencePanel({
             {t("targets.sourceLabel", { source: target.source })}
           </span>
         )}
-        {hideAdjustLink ? null : <AdjustTargetLink />}
+        <button
+          type="button"
+          onClick={() => setEditOpen(true)}
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center rounded-sm px-1 text-xs font-medium underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          data-slot="metric-target-adjust"
+        >
+          {t("insights.subPage.target.adjustLink")}
+        </button>
       </div>
+
+      {/* v1.8.6 — inline target editor, mounted alongside the panel and
+          portalled by the sheet primitive. The body only instantiates its
+          TanStack Query hooks once `editOpen` is true (lazy mount inside
+          the sheet), so closed panels stay cheap. */}
+      <TargetEditSheet
+        targetType={target.type}
+        targetLabel={heading ?? target.label}
+        unit={unit}
+        initialRange={range}
+        initialDiastolicRange={bpDiastolic?.range ?? null}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </div>
   );
 }

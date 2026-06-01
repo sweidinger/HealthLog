@@ -93,6 +93,7 @@ function buildUser(disableCoach: boolean): AuthUser {
     disableCoach,
     fullName: null,
     insurerName: null,
+    insurerIkNumber: null,
     insuranceNumber: null,
   };
 }

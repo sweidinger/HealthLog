@@ -3,24 +3,21 @@
 /**
  * v1.7.0 — Advanced settings sheet.
  * v1.7.2 — widened to `4xl` and re-laid into a responsive two-column
- * grid so a normal desktop viewport shows every group without forcing
- * a long single-column scroll.
+ * grid.
+ * v1.8.6 — rebuilt as a single column. The two-column data|reminders
+ * grid read as overloaded; the sheet now narrows to `2xl` (~672px) and
+ * stacks four bordered section cards in most-used-first order:
+ * Reminders → Lifecycle → Data → Danger. One spacing rule throughout —
+ * `space-y-4` between cards, `divide-y` + `py-3` rows inside each card
+ * (the `<SettingsGroup>` card owns the dividers).
  *
- * Four labelled groups under one consistent visual system (R-medui §5):
- *
- *   - Data: intake Import + medications CSV Export (co-located) +
- *     external-API endpoint / token.
  *   - Reminders: notifications switch + reminder window (grace).
  *   - Lifecycle: pause/resume + end course + phases.
- *   - Danger zone: purge intake history + delete medication.
- *
- * Layout: on `lg+` the first three groups flow into a two-column grid —
- * the Data group (tallest, with the export toggle + token snippets)
- * holds the left column; Reminders + Lifecycle stack down the right.
- * The Danger zone always spans the full width at the bottom, set off by
- * its own destructive-tinted card, so an irreversible action never
- * shares a column with a routine toggle. On `<lg` everything stacks in
- * the documented Data → Reminders → Lifecycle → Danger order.
+ *   - Data: intake Import + medications CSV Export (co-located) +
+ *     external-API endpoint / token.
+ *   - Danger zone: purge intake history + delete medication, set off by
+ *     its own destructive-tinted card so an irreversible action never
+ *     sits next to a routine toggle.
  *
  * Button styling is consistent: reversible / neutral actions are
  * `outline`, destructive actions are `destructive font-semibold`,
@@ -32,7 +29,6 @@
  * self-saves, so the footer slot stays empty.
  */
 
-import { Separator } from "@/components/ui/separator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { ApiTokensRow } from "@/components/medications/sections/api-tokens-row";
@@ -95,96 +91,86 @@ export function AdvancedSettingsSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={t("medications.detail.advanced.title")}
-      contentWidth="4xl"
-      bodyClassName="gap-6"
+      contentWidth="2xl"
+      bodyClassName="gap-4"
     >
-      <div className="space-y-6" data-slot="advanced-settings-sheet-body">
-        {/* Top region: Data + Reminders + Lifecycle in a two-column grid
-            on lg+, single column below. `items-start` keeps each group
-            top-aligned so the shorter right column never stretches. */}
-        <div className="grid items-start gap-6 lg:grid-cols-2">
-          {/* DATA — import + export + external API. Tallest group → left
-              column on lg+ so the right column's two shorter groups
-              balance against it. */}
-          <SettingsGroup
-            label={t("medications.detail.advanced.group.data")}
-            dataSlot="advanced-group-data"
-          >
+      <div className="space-y-4" data-slot="advanced-settings-sheet-body">
+        {/* REMINDERS — notifications + reminder window. Most-used group
+            first; each row is a padded `<div>` so the group card's
+            `divide-y` draws the hairline between them. */}
+        <SettingsGroup
+          label={t("medications.detail.advanced.group.reminders")}
+          dataSlot="advanced-group-reminders"
+        >
+          <div className="py-3">
+            <NotificationsBody
+              medicationId={medicationId}
+              notificationsEnabled={notificationsEnabled}
+            />
+          </div>
+          <div className="py-3">
+            <GraceRow
+              medicationId={medicationId}
+              reminderGraceMinutes={reminderGraceMinutes}
+            />
+          </div>
+        </SettingsGroup>
+
+        {/* LIFECYCLE — pause/resume + end course + phases */}
+        <SettingsGroup
+          label={t("medications.detail.advanced.group.lifecycle")}
+          dataSlot="advanced-group-lifecycle"
+        >
+          <div className="py-3">
+            <LifecycleManageBody
+              medicationId={medicationId}
+              medicationName={medicationName}
+              active={active}
+              onAfterAction={() => onOpenChange(false)}
+            />
+          </div>
+          {isGlp1 && (
+            <div className="py-3">
+              <PhasesRow
+                medicationId={medicationId}
+                treatmentClass={treatmentClass}
+                startsOn={startsOn}
+                endsOn={endsOn}
+                onRequestPhaseSheet={onRequestPhaseSheet}
+              />
+            </div>
+          )}
+        </SettingsGroup>
+
+        {/* DATA — import + export + external API */}
+        <SettingsGroup
+          label={t("medications.detail.advanced.group.data")}
+          dataSlot="advanced-group-data"
+        >
+          <div className="py-3">
             <DataPortabilityRow
               medicationId={medicationId}
               onOpenImport={onOpenImport}
             />
-
-            <Separator />
-
+          </div>
+          <div className="py-3">
             <ApiTokensRow
               medicationId={medicationId}
               medicationName={medicationName}
             />
-          </SettingsGroup>
-
-          {/* Right column: Reminders + Lifecycle stacked. */}
-          <div className="space-y-6">
-            {/* REMINDERS — notifications + reminder window */}
-            <SettingsGroup
-              label={t("medications.detail.advanced.group.reminders")}
-              dataSlot="advanced-group-reminders"
-            >
-              <NotificationsBody
-                medicationId={medicationId}
-                notificationsEnabled={notificationsEnabled}
-              />
-
-              <Separator />
-
-              <GraceRow
-                medicationId={medicationId}
-                reminderGraceMinutes={reminderGraceMinutes}
-              />
-            </SettingsGroup>
-
-            {/* LIFECYCLE — pause/resume + end course + phases */}
-            <SettingsGroup
-              label={t("medications.detail.advanced.group.lifecycle")}
-              dataSlot="advanced-group-lifecycle"
-            >
-              <LifecycleManageBody
-                medicationId={medicationId}
-                medicationName={medicationName}
-                active={active}
-                onAfterAction={() => onOpenChange(false)}
-              />
-
-              {isGlp1 && (
-                <>
-                  <Separator />
-                  <PhasesRow
-                    medicationId={medicationId}
-                    treatmentClass={treatmentClass}
-                    startsOn={startsOn}
-                    endsOn={endsOn}
-                    onRequestPhaseSheet={onRequestPhaseSheet}
-                  />
-                </>
-              )}
-            </SettingsGroup>
           </div>
-        </div>
-
-        {/* DANGER ZONE — purge + delete. Full-width at the bottom, set
-            off by the destructive-tinted card inside the body so an
-            irreversible action never shares a column with a toggle. */}
-        <SettingsGroup
-          label={t("medications.detail.advanced.group.danger")}
-          dataSlot="advanced-group-danger"
-        >
-          <DangerZoneBody
-            medicationId={medicationId}
-            medicationName={medicationName}
-            intakeCount={intakeCount}
-            onAfterAction={() => onOpenChange(false)}
-          />
         </SettingsGroup>
+
+        {/* DANGER ZONE — purge + delete. Set off by the destructive-
+            tinted card so an irreversible action never sits next to a
+            routine toggle. The body supplies its own matched-pair card,
+            so it slots in without the neutral group frame. */}
+        <DangerZoneBody
+          medicationId={medicationId}
+          medicationName={medicationName}
+          intakeCount={intakeCount}
+          onAfterAction={() => onOpenChange(false)}
+        />
       </div>
     </ResponsiveSheet>
   );

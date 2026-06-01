@@ -6,7 +6,6 @@ import { Moon } from "lucide-react";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
-import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
@@ -62,6 +61,7 @@ export default function InsightsSchlafPage() {
       title={t("insights.sleep.title")}
       description={t("insights.sleep.description")}
       explainerMetric="sleep"
+      coachLaunch
     >
       <SleepOverview />
 
@@ -78,8 +78,6 @@ export default function InsightsSchlafPage() {
         structural slot waits for v1.5 where the route + hook key will
         wire in.
       */}
-
-      <CoachLaunchButton />
     </SubPageShell>
   );
 }

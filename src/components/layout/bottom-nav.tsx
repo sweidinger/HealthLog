@@ -6,7 +6,6 @@ import {
   Lightbulb,
   MoreHorizontal,
   Pill,
-  Target,
   Trophy,
   Waves,
 } from "lucide-react";
@@ -35,10 +34,15 @@ interface NavLink {
 // just-pass on iPhone-13-mini-class screens. The mobile audit
 // recommended 5+More — so the four most-used surfaces stay in the
 // strip (Home, Measurements, Mood, Medications) plus Insights as
-// the fifth, and Targets + Achievements move into a "More" sheet.
+// the fifth, and Achievements moves into a "More" sheet.
 //
 // Order is preserved relative to the v1.4.15 bottom-nav so muscle
 // memory keeps working for the four core actions.
+//
+// v1.8.6 — the Targets (Zielwerte) page is deprecated: target editing
+// moved inline into Insights, so its overflow entry is gone. The page
+// stays routable (the `/zielwerte`→`/targets` proxy redirect remains)
+// but no longer appears in the menu.
 const PRIMARY: ReadonlyArray<NavLink> = [
   { href: "/", tKey: "nav.dashboard", icon: Home },
   { href: "/measurements", tKey: "nav.measurements", icon: Activity },
@@ -48,7 +52,6 @@ const PRIMARY: ReadonlyArray<NavLink> = [
 ];
 
 const OVERFLOW: ReadonlyArray<NavLink> = [
-  { href: "/targets", tKey: "nav.targets", icon: Target },
   { href: "/achievements", tKey: "nav.achievements", icon: Trophy },
 ];
 

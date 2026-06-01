@@ -131,11 +131,6 @@ describe("queryKeys factory", () => {
       "med1",
       "compliance",
     ]);
-    expect(queryKeys.medicationTitration("med1")).toEqual([
-      "medications",
-      "med1",
-      "titration",
-    ]);
     expect(queryKeys.medicationCadence("med1")).toEqual([
       "medications",
       "med1",

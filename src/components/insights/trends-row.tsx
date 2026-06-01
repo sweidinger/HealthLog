@@ -39,9 +39,16 @@ import {
  *
  * Annotations come from `trendAnnotations.{bp,weight,mood}` on the
  * Insights payload and only attach to those three slots (the advisor
- * authors annotations for the legacy triple). Additive metrics render
- * chart-only. When a slot's annotation is null, `<TrendAnnotation>`'s
- * empty state hints at the gap without breaking the row's rhythm.
+ * authors annotations for the legacy triple). When a slot's annotation
+ * is null, `<TrendAnnotation>`'s empty state hints at the gap without
+ * breaking the row's rhythm.
+ *
+ * v1.8.6 W8 — every card carries a caption. Additive metrics (the
+ * briefing-driven slots beyond the legacy triple) carry no advisor
+ * annotation, so they fall back to a standard one-line description
+ * (`config.captionKey`). Before this every additive card painted the
+ * chart with empty space underneath; now the row never shows a
+ * caption-less card.
  */
 
 const MoodChart = dynamic(
@@ -205,7 +212,18 @@ export function TrendsRow({
                   confidence={confidence?.[config.annotationKey]}
                   status={statusFor(annotationFor(config.annotationKey))}
                 />
-              ) : null}
+              ) : (
+                // v1.8.6 W8 — additive metrics carry no advisor
+                // annotation. Paint the metric's standard one-line
+                // description so the card is never caption-less.
+                <p
+                  data-slot="trends-row-caption"
+                  data-metric={config.metric}
+                  className="text-muted-foreground line-clamp-3 text-xs"
+                >
+                  {t(config.captionKey)}
+                </p>
+              )}
             </div>
           );
         })}

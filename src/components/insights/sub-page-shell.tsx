@@ -6,7 +6,7 @@ import { ListOrdered } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MetricExplainer } from "@/components/insights/metric-explainer";
+import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
@@ -40,18 +40,16 @@ export interface SubPageShellProps {
    */
   description?: string;
   /**
-   * v1.8.0 — when set, a `?` glyph next to the heading opens a static
-   * "What is X?" explainer (popover on desktop, bottom-sheet on phones).
-   * The value is the metric key feeding
-   * `insights.subPage.explainer.<metric>{Title,Body}`. Omitted on the
-   * mother page; every routed metric sub-page passes its key.
+   * v1.8.0 — when set, the metric's static "What is X?" definition
+   * renders as a muted caption directly beneath the heading. The value
+   * is the metric key feeding `insights.subPage.explainer.<metric>Body`.
+   * Omitted on the mother page; every routed metric sub-page passes its
+   * key.
    *
-   * v1.8.4 — the same explainer body also renders inline as a muted
-   * caption directly beneath the heading, so the one- to two-sentence
-   * definition is visible without opening the popover. The `?` glyph
-   * stays as the always-available pointer for the same copy. Both the
-   * inline caption and the popover read the identical
-   * `insights.subPage.explainer.<metric>Body` string — no duplicated copy.
+   * v1.8.6 — the round `?` popover affordance next to the heading is
+   * gone (it read as restless next to the title). The inline definition
+   * caption stays — it is the single always-visible source of the
+   * one- to two-sentence definition, no tap required.
    */
   explainerMetric?: string;
   /**
@@ -77,11 +75,27 @@ export interface SubPageShellProps {
    */
   statStrip?: ReactNode;
   /**
-   * v1.8.5 W4b — measurement-diversity nudge mounted just under the stat
-   * strip. A gentle hint when readings cluster on one weekday / time.
-   * Self-gating: renders nothing when the spread is healthy.
+   * v1.8.5 W4b — measurement-diversity nudge.
+   *
+   * v1.8.6 — relocated from an inline block under the stat strip to a
+   * `Lightbulb` glyph beside the heading (a hover / focus Tooltip carries
+   * the hint copy). The node is `<MeasurementDiversityNudge>`, which is
+   * self-gating: it renders the glyph only when readings cluster on one
+   * weekday / time, and nothing when the spread is healthy.
    */
   diversityNudge?: ReactNode;
+  /**
+   * v1.8.6 — opt-in Coach launch in the page header.
+   *
+   * When true, the shell mounts an icon-only `<CoachLaunchButton>` at
+   * the top-right of the header, vertically aligned with the heading, so
+   * "Coach fragen" reads as a header action rather than a foot-of-page
+   * button. Every routed category page passes it; the mother page and
+   * empty-state branches omit it. The button self-gates on the Coach
+   * feature flag + per-user opt-out, so a disabled-Coach tenant shows
+   * nothing.
+   */
+  coachLaunch?: boolean;
   /**
    * v1.8.5 W4b — a "show all readings" entry rendered at the foot of the
    * page, after the chart + cards. Sub-pages pass the metric's
@@ -100,6 +114,7 @@ export function SubPageShell({
   focusOnMount = false,
   statStrip,
   diversityNudge,
+  coachLaunch = false,
   showAllValuesType,
   children,
 }: SubPageShellProps) {
@@ -128,34 +143,60 @@ export function SubPageShell({
   return (
     <div data-slot="insights-subpage" className="space-y-4 md:space-y-5">
       <header className="space-y-1.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1
-            ref={headingRef}
-            id="insights-subpage-title"
-            tabIndex={-1}
-            className={cn(
-              "text-xl font-semibold sm:text-2xl",
-              // a11y: sighted-keyboard users (e.g. "Skip to content")
-              // need a visible focus indicator on the programmatic
-              // `headingRef.focus()` call below. Match the focus ring
-              // vocabulary used on insights pills + Coach affordances.
-              "rounded-sm focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
-            )}
-          >
-            {title}
-          </h1>
-          {explainerMetric ? (
-            <MetricExplainer metric={explainerMetric} />
-          ) : null}
-          {badge ? (
-            <Badge variant="outline" className="border text-xs">
-              {badge}
-            </Badge>
+        {/* v1.8.6 — the heading row pins the Coach icon top-right while the
+            title / nudge / badge wrap together on the left.
+
+            Design M2 fix: the Coach icon is a `shrink-0` sibling of the
+            left group (not an `ml-auto` member of a single flex-wrap row),
+            so a long or wrapped title can never isolate it or crowd it on a
+            375 px screen — it stays cleanly top-right and the title text
+            reflows in the space that remains.
+
+            Design M1 fix: the row reserves a constant `min-h-10` so the
+            baseline holds whether or not the self-gating diversity-nudge
+            glyph (a 44 px-tall touch target) is present — category pages
+            with and without a nudge now align. `items-start` keeps the
+            Coach icon at the top of the row when the title wraps to two
+            lines. */}
+        <div className="flex min-h-10 items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h1
+              ref={headingRef}
+              id="insights-subpage-title"
+              tabIndex={-1}
+              className={cn(
+                "text-xl font-semibold sm:text-2xl",
+                // a11y: sighted-keyboard users (e.g. "Skip to content")
+                // need a visible focus indicator on the programmatic
+                // `headingRef.focus()` call below. Match the focus ring
+                // vocabulary used on insights pills + Coach affordances.
+                "rounded-sm focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+              )}
+            >
+              {title}
+            </h1>
+            {/* v1.8.6 — the diversity nudge rides the heading as a
+                `Lightbulb` glyph (the node self-gates to nothing when the
+                spread is healthy), replacing the old inline block. */}
+            {diversityNudge}
+            {badge ? (
+              <Badge variant="outline" className="border text-xs">
+                {badge}
+              </Badge>
+            ) : null}
+          </div>
+          {/* v1.8.6 — Coach launch sits top-right at heading height as an
+              icon, pinned by the row's `justify-between` so it aligns with
+              the title regardless of badge / glyph presence or a wrapped
+              title. The button self-gates on the Coach flag + per-user
+              opt-out. */}
+          {coachLaunch ? (
+            <CoachLaunchButton variant="icon" className="shrink-0" />
           ) : null}
         </div>
         {explainerMetric ? (
-          // v1.8.4 — surface the explainer definition inline, reusing the
-          // exact body string the `?` popover reads.
+          // v1.8.4 — surface the metric's static definition inline,
+          // directly beneath the heading.
           //
           // v1.8.5 W4a — render the explainer body as the *single* caption
           // under the heading. Pre-v1.8.5 both this paragraph and the
@@ -165,6 +206,10 @@ export function SubPageShell({
           // explainer body is the definition, so it wins; the description
           // only renders when no explainer is set (the mother page and any
           // future explainer-less sub-page).
+          //
+          // v1.8.6 — this caption is now the only surface for the
+          // definition; the round `?` popover that used to read the same
+          // string was removed.
           <p
             data-slot="metric-explainer-inline"
             className="text-muted-foreground text-sm leading-relaxed"
@@ -176,23 +221,26 @@ export function SubPageShell({
           <p className="text-muted-foreground text-sm">{description}</p>
         ) : null}
       </header>
-      {/* v1.8.5 W4b — numbers-first stat strip + diversity nudge sit
-          between the header and the chart so the page leads with data,
-          mirroring the Apple Health / Withings detail layout. Both are
-          self-gating (render nothing without data), so the spacing
-          rhythm holds on the empty-state and brand-new-metric paths. */}
+      {/* v1.8.5 W4b — numbers-first stat strip sits between the header
+          and the chart so the page leads with data, mirroring the Apple
+          Health / Withings detail layout. Self-gating (renders nothing
+          without data), so the spacing rhythm holds on the empty-state
+          and brand-new-metric paths.
+          v1.8.6 — the diversity nudge moved up to the heading row. */}
       {statStrip}
-      {diversityNudge}
       {children}
       {/* v1.8.5 W4b — "show all readings" entry at the foot, linking to
-          the dedicated per-metric values subpage. */}
+          the dedicated per-metric values subpage.
+          v1.8.6 — normalised to the `h-10` secondary-button height so it
+          reads as a consistent control now that the foot-of-page Coach
+          button (which set the old visual baseline) has moved to the
+          header. */}
       {showAllValuesType ? (
         <Button
           asChild
           variant="outline"
-          size="sm"
           data-slot="metric-show-all-values"
-          className="w-full sm:w-auto"
+          className="h-10 w-full sm:w-auto"
         >
           <Link href={`/insights/values/${showAllValuesType}`}>
             <ListOrdered className="mr-1.5 size-4" aria-hidden="true" />

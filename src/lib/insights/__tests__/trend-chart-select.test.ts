@@ -126,6 +126,19 @@ describe("selectTrendCharts", () => {
     expect(charts[0].types).toEqual([]);
   });
 
+  it("every chart-bearing sourceMetric carries a standard caption key", () => {
+    // v1.8.6 W8 — a tile without an advisor annotation used to paint
+    // empty space below the chart. Every chart config now carries a
+    // `captionKey` so the renderer can always surface a caption. This
+    // guard keeps a future metric addition from re-opening the gap.
+    for (const [metric, config] of Object.entries(TREND_CHART_CONFIG)) {
+      if (!config) continue;
+      expect(config.captionKey, `${metric} captionKey`).toMatch(
+        /^insights\.trendsRow\.caption\./,
+      );
+    }
+  });
+
   it("every chart-bearing sourceMetric resolves to a non-empty health-chart series", () => {
     for (const [metric, config] of Object.entries(TREND_CHART_CONFIG)) {
       if (!config) continue;
