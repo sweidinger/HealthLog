@@ -97,6 +97,18 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+
+  /*
+   * Status-pill text tokens. The target status pill paints coloured text
+   * on a 10% same-hue tint; the raw Dracula green/orange/red would fail
+   * WCAG AA (4.5:1) for the "out" tone on the muted reference panel in
+   * dark mode and for every tone on a white card in light mode. These
+   * theme-aware tokens land each tone at or above AA on both `bg-card`
+   * and `bg-muted/30` in both themes while keeping the Dracula feel.
+   */
+  --color-status-pill-in: var(--status-pill-in);
+  --color-status-pill-near: var(--status-pill-near);
+  --color-status-pill-out: var(--status-pill-out);
 }
 
 /*
@@ -167,6 +179,16 @@
   --sidebar-border: #44475a;
   --sidebar-ring: #bd93f9;
 
+  /*
+   * Status-pill text in dark mode. "in" / "near" keep the Dracula
+   * green / orange (both clear AA on the muted panel); "out" lifts off
+   * the raw `#ff5555`, which lands at 3.99:1 on `bg-muted/30`, to a
+   * lighter Dracula red that clears 4.5:1 on both card and panel.
+   */
+  --status-pill-in: #50fa7b;
+  --status-pill-near: #ffb86c;
+  --status-pill-out: #ff8a8a;
+
   color-scheme: dark;
 }
 
@@ -211,6 +233,17 @@
   --sidebar-accent-foreground: #1f1f1f;
   --sidebar-border: #cfcfde;
   --sidebar-ring: #644ac9;
+
+  /*
+   * Status-pill text in light mode (Alucard). The bright Dracula
+   * green / orange / red read 1.2–2.7:1 on a near-white tint; these
+   * darker tones — the same family already used for `--success` /
+   * `--warning` / the light-mode reds — clear AA on both the white card
+   * and the muted reference panel.
+   */
+  --status-pill-in: #14720a;
+  --status-pill-near: #a34d14;
+  --status-pill-out: #b32d1e;
 
   color-scheme: light;
 }

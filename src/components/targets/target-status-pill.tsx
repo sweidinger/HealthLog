@@ -148,6 +148,14 @@ export function statusGroupForCategory(
   return "near";
 }
 
+// Coloured text on a 10% same-hue tint with a 30% ring. The tint and
+// text share one theme-aware token per tone (`--status-pill-{in,near,
+// out}` in globals.css) so the pill clears WCAG AA (4.5:1) on both the
+// Targets card (`bg-card`) and the W5 insights reference panel
+// (`bg-muted/30`) in both dark and light themes — the raw Dracula
+// green/orange/red failed AA for the "out" tone on the muted panel in
+// dark mode and for every tone on a white card in light mode.
+//
 // Use the Tailwind v4 parenthesised CSS-variable shorthand
 // (bg-VAR-PAREN-FORM-/N) instead of the legacy bracketed VAR-form. The
 // bracketed form combined with an opacity modifier emits an escaped
@@ -158,9 +166,9 @@ export function statusGroupForCategory(
 // that parses cleanly. See the Tailwind v4 upgrade guide for the
 // migration from bracket-form to paren-form for CSS-variable values.
 export const STATUS_PILL_STYLES: Record<"in" | "near" | "out", string> = {
-  in: "bg-(--dracula-green)/12 text-(--dracula-green) ring-(--dracula-green)/30",
-  near: "bg-(--dracula-orange)/14 text-(--dracula-orange) ring-(--dracula-orange)/30",
-  out: "bg-(--dracula-red)/12 text-(--dracula-red) ring-(--dracula-red)/30",
+  in: "bg-(--status-pill-in)/10 text-(--status-pill-in) ring-(--status-pill-in)/30",
+  near: "bg-(--status-pill-near)/10 text-(--status-pill-near) ring-(--status-pill-near)/30",
+  out: "bg-(--status-pill-out)/10 text-(--status-pill-out) ring-(--status-pill-out)/30",
 };
 
 export interface TargetStatusPillProps {
