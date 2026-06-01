@@ -1969,6 +1969,7 @@
       "valuesPageTitle": "{metric} — all readings",
       "valuesPageDescription": "Every reading behind this metric. Edit or remove an entry directly.",
       "diversity": {
+        "trigger": "Measurement tip",
         "weekday": "Most of your {metric} readings land on one weekday. Logging on other days gives a fuller picture.",
         "timeOfDay": "Most of your {metric} readings land at a similar time of day. Varying the time gives a fuller picture."
       },

@@ -3,6 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Lightbulb } from "lucide-react";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -17,6 +23,14 @@ import { detectMeasurementDiversity } from "@/lib/insights/measurement-diversity
  * metric, runs the pure `detectMeasurementDiversity` check, and — only
  * when the spread is genuinely lopsided — surfaces a gentle hint to
  * measure on other days / times.
+ *
+ * v1.8.6 — the hint moved off the page body and onto the heading. The
+ * inline `role="note"` block confused on the category pages (it read
+ * like a data finding rather than a tip), so the nudge now renders as a
+ * small `Lightbulb` glyph beside the page title. The hint text the block
+ * used to show inline lives in a hover / focus Tooltip; the glyph mounts
+ * only when the spread is actually lopsided, so a healthy metric shows
+ * no extra affordance at all.
  *
  * v1.8.3 anti-freeze posture: the read is a bounded `limit`-capped query
  * with a 5-minute `staleTime`, fires only after the page has mounted
@@ -75,18 +89,29 @@ export function MeasurementDiversityNudge({
   const message = t(`insights.subPage.diversity.${signal.kind}`, {
     metric: metricLabel,
   });
+  const triggerLabel = t("insights.subPage.diversity.trigger");
 
   return (
-    <div
-      data-slot="measurement-diversity-nudge"
-      role="note"
-      className="bg-muted/40 text-muted-foreground flex items-start gap-2.5 rounded-lg px-3 py-2.5 text-sm"
-    >
-      <Lightbulb
-        className="text-dracula-yellow mt-0.5 size-4 shrink-0"
-        aria-hidden="true"
-      />
-      <p className="leading-relaxed">{message}</p>
-    </div>
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            data-slot="measurement-diversity-nudge"
+            aria-label={triggerLabel}
+            className="text-dracula-yellow hover:text-dracula-yellow/80 focus-visible:ring-ring/50 -my-3 -mx-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <Lightbulb className="size-4" aria-hidden="true" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          data-slot="measurement-diversity-nudge-body"
+          align="start"
+          className="max-w-xs leading-relaxed"
+        >
+          {message}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

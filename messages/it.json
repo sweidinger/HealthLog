@@ -1969,6 +1969,7 @@
       "valuesPageTitle": "{metric} — tutte le misurazioni",
       "valuesPageDescription": "Ogni misurazione dietro questa metrica. Modifica o rimuovi una voce direttamente.",
       "diversity": {
+        "trigger": "Suggerimento di misurazione",
         "weekday": "La maggior parte delle tue misurazioni di {metric} cade in un solo giorno della settimana. Registrare in altri giorni offre un quadro più completo.",
         "timeOfDay": "La maggior parte delle tue misurazioni di {metric} cade in un orario simile della giornata. Variare l'orario offre un quadro più completo."
       },

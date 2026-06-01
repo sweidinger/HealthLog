@@ -1969,6 +1969,7 @@
       "valuesPageTitle": "{metric} — todas las mediciones",
       "valuesPageDescription": "Cada medición detrás de esta métrica. Edita o elimina una entrada directamente.",
       "diversity": {
+        "trigger": "Consejo de medición",
         "weekday": "La mayoría de tus mediciones de {metric} caen en un mismo día de la semana. Registrar en otros días ofrece una imagen más completa.",
         "timeOfDay": "La mayoría de tus mediciones de {metric} caen a una hora similar del día. Variar la hora ofrece una imagen más completa."
       },

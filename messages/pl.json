@@ -1969,6 +1969,7 @@
       "valuesPageTitle": "{metric} — wszystkie pomiary",
       "valuesPageDescription": "Każdy pomiar stojący za tą metryką. Edytuj lub usuń wpis bezpośrednio.",
       "diversity": {
+        "trigger": "Wskazówka pomiarowa",
         "weekday": "Większość Twoich pomiarów {metric} przypada na jeden dzień tygodnia. Pomiary w inne dni dają pełniejszy obraz.",
         "timeOfDay": "Większość Twoich pomiarów {metric} przypada o podobnej porze dnia. Różne pory dają pełniejszy obraz."
       },

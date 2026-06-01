@@ -64,13 +64,42 @@ describe("<SubPageShell>", () => {
     );
   });
 
-  it("keeps the explainer trigger glyph when explainerMetric is set", () => {
+  it("no longer paints the round `?` explainer trigger next to the heading", () => {
     const html = render(
       <SubPageShell title="Blood pressure" explainerMetric="bloodPressure">
         <span />
       </SubPageShell>,
     );
-    // The `?` glyph stays available alongside the inline caption.
-    expect(html).toMatch(/data-slot="metric-explainer-trigger"/);
+    // v1.8.6 — the `?` popover affordance was dropped; only the inline
+    // definition caption remains.
+    expect(html).not.toMatch(/data-slot="metric-explainer-trigger"/);
+  });
+
+  it("renders the diversity nudge node inside the heading row", () => {
+    const html = render(
+      <SubPageShell
+        title="Weight"
+        diversityNudge={<span data-slot="diversity-probe" />}
+      >
+        <span />
+      </SubPageShell>,
+    );
+    // v1.8.6 — the nudge moved up to the heading row (a `Lightbulb`
+    // glyph), no longer an inline block beneath the stat strip.
+    const headerEnd = html.indexOf("</header>");
+    const probeIdx = html.indexOf('data-slot="diversity-probe"');
+    expect(probeIdx).toBeGreaterThan(-1);
+    expect(probeIdx).toBeLessThan(headerEnd);
+  });
+
+  it("mounts no coach launch surface when coachLaunch is omitted", () => {
+    const html = render(
+      <SubPageShell title="Pulse">
+        <span />
+      </SubPageShell>,
+    );
+    // The coach icon only renders under the launch provider + flags; the
+    // shell renders nothing for it on the default path.
+    expect(html).not.toContain('data-slot="coach-launch-icon"');
   });
 });

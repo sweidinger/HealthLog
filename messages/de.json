@@ -1969,6 +1969,7 @@
       "valuesPageTitle": "{metric} — alle Werte",
       "valuesPageDescription": "Jeder einzelne Wert hinter dieser Kennzahl. Einträge lassen sich direkt bearbeiten oder entfernen.",
       "diversity": {
+        "trigger": "Messhinweis",
         "weekday": "Die meisten deiner {metric}-Werte fallen auf einen Wochentag. Messungen an anderen Tagen ergeben ein vollständigeres Bild.",
         "timeOfDay": "Die meisten deiner {metric}-Werte fallen auf eine ähnliche Tageszeit. Unterschiedliche Zeiten ergeben ein vollständigeres Bild."
       },
