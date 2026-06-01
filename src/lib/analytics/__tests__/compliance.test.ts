@@ -125,6 +125,81 @@ describe("calculateCompliance — cadence-aware adapter", () => {
     expect(result.missed).toBe(3);
   });
 
+  it("daily 2×/day on ONE schedule row (timesOfDay), all taken → 100%", () => {
+    // Production shape: the wizard stores a twice-daily med as a single
+    // MedicationSchedule row carrying `timesOfDay = ["07:00","19:00"]`,
+    // NOT two rows. Pre-fix the legacy cadence walker only emitted the
+    // `windowStart` slot, so the denominator was one dose/day and a
+    // perfectly-adherent user could read 50% once a second dose was
+    // logged. Pin the single-row twice-daily case at 100%.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "07:00",
+        windowEnd: "07:30",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+      },
+    ];
+    // Log both doses for every day in (and just past) the 7-day window
+    // so no emitted slot is left unpaired at the window boundary. NOW is
+    // 12:00 UTC, so today's 19:00 slot is still `upcoming` (excluded).
+    const events = [];
+    for (let d = 0; d <= 8; d++) {
+      const day = new Date(NOW);
+      day.setUTCDate(day.getUTCDate() - d);
+      const morning = new Date(day);
+      morning.setUTCHours(7, 5, 0, 0);
+      const evening = new Date(day);
+      evening.setUTCHours(19, 5, 0, 0);
+      events.push(eventAt(morning, true));
+      if (d > 0) events.push(eventAt(evening, true));
+    }
+
+    const result = calculateCompliance(events, schedules, 7);
+    expect(result.rate).toBe(100);
+    expect(result.missed).toBe(0);
+    // The window covers ~7 days × 2 doses, so the denominator is well
+    // above the 7-or-so a one-slot-per-day walker would produce. The
+    // load-bearing assertion is that BOTH daily doses are counted (the
+    // fan-out) and every one pairs to a taken event → 100%.
+    expect(result.totalExpected).toBeGreaterThanOrEqual(12);
+    expect(result.taken).toBe(result.totalExpected);
+  });
+
+  it("2×/day, delete the evening dose then re-add it → still 100% / 2 of 2", () => {
+    // The live regression: a user on a 07:00 + 19:00 schedule deletes
+    // the evening intake and re-adds it. The compliance must read the
+    // re-added dose dynamically — 2 expected, 2 taken — not collapse to
+    // 50%. Modelled here on a single calendar day with both slots in the
+    // past so neither is `upcoming`.
+    const lateNow = new Date("2025-01-15T22:00:00Z");
+    vi.setSystemTime(lateNow);
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "07:00",
+        windowEnd: "07:30",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+      },
+    ];
+    // Morning taken once; the evening dose was deleted (its tombstoned
+    // row is excluded from the events array by the route's
+    // `deletedAt: null` filter) and re-added as a fresh taken event.
+    const morning = new Date("2025-01-15T07:05:00Z");
+    const eveningReAdded = new Date("2025-01-15T19:10:00Z");
+    const events = [
+      eventAt(morning, true),
+      eventAt(eveningReAdded, true),
+    ];
+    const result = calculateCompliance(events, schedules, 1, undefined, {
+      now: lateNow,
+    });
+    expect(result.taken).toBe(2);
+    expect(result.totalExpected).toBe(2);
+    expect(result.missed).toBe(0);
+    expect(result.rate).toBe(100);
+  });
+
   it("weekly Mondays, all Mondays taken in a 30-day window → 100% (the #214 bug case)", () => {
     // Pre-v1.5.0 this returned ~13% (taken / (schedules × 30) = 4/30).
     // The fix is to honour `daysOfWeek` so the denominator is the

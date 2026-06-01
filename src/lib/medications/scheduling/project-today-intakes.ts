@@ -127,12 +127,29 @@ export async function projectTodayIntakesAndRecompute(input: {
       if (!scheduleEmitsInWindow(canonical, ctx, todayStart, todayEnd)) {
         continue;
       }
-      const [h, m] = schedule.windowStart.split(":").map(Number);
-      if (!Number.isFinite(h) || !Number.isFinite(m)) continue;
-      projected.push({
-        medicationId: schedule.medicationId,
-        scheduledFor: localHmAsUtc(now, userTz, h, m),
-      });
+      // Multi-time-of-day fan-out — mirror the reminder worker's
+      // per-slot mint. A schedule with `timesOfDay = ["07:00","19:00"]`
+      // is two distinct dose slots; projecting only `windowStart`
+      // minted a single pending row, so a twice-daily med's second
+      // dose never appeared in the today-tile and the event-count
+      // compliance rollup read half the expected doses (a 2×/day med
+      // showed 50% even when both doses were logged). Absent
+      // first-class `timesOfDay` the projector emits one slot at
+      // `windowStart`, byte-stable against the worker's legacy single-
+      // window row and the `(userId, medicationId, scheduledFor,
+      // source)` unique index.
+      const slotTimes =
+        schedule.timesOfDay && schedule.timesOfDay.length > 0
+          ? schedule.timesOfDay
+          : [schedule.windowStart];
+      for (const slotTime of slotTimes) {
+        const [h, m] = slotTime.split(":").map(Number);
+        if (!Number.isFinite(h) || !Number.isFinite(m)) continue;
+        projected.push({
+          medicationId: schedule.medicationId,
+          scheduledFor: localHmAsUtc(now, userTz, h, m),
+        });
+      }
     }
   }
 
