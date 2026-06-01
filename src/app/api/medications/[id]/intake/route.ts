@@ -19,7 +19,10 @@ import { reconcileOneShotState } from "@/lib/medications/lifecycle";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
-import { resolveSlotInstantForWrite } from "@/lib/medications/scheduling/slot-upsert";
+import {
+  applyCanonicalSlotWrite,
+  resolveSlotInstantForWrite,
+} from "@/lib/medications/scheduling/slot-upsert";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -77,6 +80,15 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
 
   const resolvedTakenAt = skipped ? null : (takenAt ?? new Date());
   const incomingScheduledFor = scheduledFor ?? takenAt ?? new Date();
+  // C2 — the per-med route only ever carries an explicit user gesture:
+  // `resolvedTakenAt` is `now()` for any non-skip POST (there is no
+  // "mark pending" write on this route), so a non-skip is an explicit
+  // taken and a `skipped:true` body is an explicit skip. Neither is a
+  // pending projection echo, so the no-downgrade guard never trips here —
+  // it is the bulk/sync route that replays pending echoes. The flags are
+  // threaded through so the shared upsert applies last-write-wins.
+  const isExplicitTaken = !skipped;
+  const isExplicitSkip = skipped === true;
 
   // v1.8.2 — source-agnostic slot snap. A twice-daily med carries a
   // pending REMINDER row the projector/worker minted at the canonical
@@ -129,62 +141,38 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
   }
 
   let event;
+  // v1.8.2 reconcile — whether this write moved the slot pending→taken.
+  // Only that transition decrements pen inventory (M2). For the
+  // unscheduled/PRN branch a non-skip write always records a fresh dose,
+  // so it consumes when not skipped.
+  let consumedTransition = !skipped;
   if (canonicalSlot) {
-    // Scheduled dose — find the slot row regardless of `source` (the
-    // pending REMINDER row, or any prior row for this slot) and update
-    // it in place; mirrors the status-toggle route. Falls through to a
-    // create when the slot has no row yet.
-    const existingSlotRow = await prisma.medicationIntakeEvent.findFirst({
-      where: {
-        userId: user.id,
-        medicationId: id,
-        scheduledFor: canonicalSlot,
-        deletedAt: null,
-      },
+    // Scheduled dose — converge onto the one canonical slot row regardless
+    // of `source` (the pending REMINDER row, or any prior row for this
+    // slot) through the shared upsert: H1 deterministic selection, C2
+    // no-downgrade guard, and a C1 race-safe create that re-finds + updates
+    // on a P2002 collision rather than 500-ing or duplicating.
+    const applied = await applyCanonicalSlotWrite({
+      client: prisma,
+      userId: user.id,
+      medicationId: id,
+      canonicalSlot,
+      takenAt: resolvedTakenAt,
+      skipped,
+      isExplicitTaken,
+      isExplicitSkip,
+      idempotencyKey: idempotencyKey ?? null,
+      createSource: "WEB",
     });
-    if (existingSlotRow) {
-      [event] = await prisma.$transaction([
-        prisma.medicationIntakeEvent.update({
-          where: { id: existingSlotRow.id },
-          data: {
-            takenAt: resolvedTakenAt,
-            skipped,
-            syncVersion: { increment: 1 },
-            idempotencyKey:
-              idempotencyKey ?? existingSlotRow.idempotencyKey ?? null,
-          },
-        }),
-        ...(!skipped
-          ? [
-              prisma.medication.update({
-                where: { id },
-                data: { snoozedUntil: null },
-              }),
-            ]
-          : []),
-      ]);
-    } else {
-      [event] = await prisma.$transaction([
-        prisma.medicationIntakeEvent.create({
-          data: {
-            userId: user.id,
-            medicationId: id,
-            scheduledFor: canonicalSlot,
-            takenAt: resolvedTakenAt,
-            skipped,
-            source: "WEB",
-            idempotencyKey: idempotencyKey ?? null,
-          },
-        }),
-        ...(!skipped
-          ? [
-              prisma.medication.update({
-                where: { id },
-                data: { snoozedUntil: null },
-              }),
-            ]
-          : []),
-      ]);
+    event = applied.row;
+    consumedTransition = applied.consumedTransition;
+    // Reset the snooze when a dose is actually recorded (not on a
+    // no-downgrade no-op, which left the prior taken row untouched).
+    if (!skipped && !applied.noDowngradeNoOp) {
+      await prisma.medication.update({
+        where: { id },
+        data: { snoozedUntil: null },
+      });
     }
   } else {
     // Unscheduled / PRN / off-slot — keep the original insert behaviour.
@@ -218,8 +206,14 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
   // meds). Failures here must never block the intake write, so
   // errors are swallowed and logged — the intake is the source of
   // truth, the inventory is an opt-in companion.
+  //
+  // v1.8.2 M2 — gate on an ACTUAL pending→taken transition. An idempotent
+  // re-post of an already-taken slot updates the row in place but must NOT
+  // decrement again, else a repeated iOS sync drifts the GLP-1 pen count
+  // down on every replay. `consumedTransition` is false when the slot was
+  // already taken (or on a no-downgrade no-op).
   let inventoryOutcome: Awaited<ReturnType<typeof consumeOneDose>> = null;
-  if (!skipped) {
+  if (!skipped && consumedTransition) {
     try {
       inventoryOutcome = await consumeOneDose({
         userId: user.id,

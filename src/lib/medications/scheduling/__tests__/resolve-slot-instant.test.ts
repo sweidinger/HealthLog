@@ -144,3 +144,41 @@ describe("resolveCanonicalSlotInstant — DST spring-forward", () => {
     expect(result?.toISOString()).toBe(canonical.toISOString());
   });
 });
+
+describe("resolveCanonicalSlotInstant — DST robustness vs projector mint", () => {
+  // v1.8.2 reconcile — the snapped instant MUST be byte-identical to the
+  // projector/reminder-worker mint, which both use
+  // `localHmAsUtc(<the day>, tz, h, m)`. The resolver re-mints via
+  // `localHmAsUtc` from the occurrence's local day + time-of-day rather
+  // than passing the recurrence engine's `wallClockInTz`-derived `at`
+  // through, so the two agree even inside a DST transition window.
+
+  it("matches the projector mint on the 2026-10-25 fall-back day", () => {
+    // 2026-10-25 is the CEST→CET transition (the 02:00→03:00 hour repeats).
+    // An 08:00 slot is unambiguous, but the date-arithmetic offset shifts
+    // across the day; the resolver must still equal the projector's
+    // localHmAsUtc(day, tz, 8, 0) mint.
+    const med = makeMedication([
+      makeSchedule({ timesOfDay: ["08:00"], windowStart: "08:00", windowEnd: "09:00" }),
+    ]);
+    const incoming = new Date("2026-10-25T07:10:00.000Z"); // 08:10 CET
+    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    // The projector mints with `localHmAsUtc(now, tz, h, m)` where `now`
+    // lands on the same local day — assert byte-identity to that mint.
+    const projectorMint = localHmAsUtc(incoming, TZ, 8, 0);
+    expect(result?.toISOString()).toBe(projectorMint.toISOString());
+  });
+
+  it("snaps an early-morning slot near local midnight on a fall-back day to the projector mint", () => {
+    // 06:00 slot on the fall-back day — close enough to the local-midnight
+    // boundary that a naive same-UTC-day window could miss it, exercising
+    // the resolver's padded-window + same-local-day filter.
+    const med = makeMedication([
+      makeSchedule({ timesOfDay: ["06:00"], windowStart: "06:00", windowEnd: "07:00" }),
+    ]);
+    const incoming = new Date("2026-10-25T05:02:00.000Z"); // 06:02 CET
+    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const projectorMint = localHmAsUtc(incoming, TZ, 6, 0);
+    expect(result?.toISOString()).toBe(projectorMint.toISOString());
+  });
+});

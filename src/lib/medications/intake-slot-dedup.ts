@@ -53,6 +53,16 @@ import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-
 
 export const INTAKE_SLOT_DEDUP_QUEUE = "intake-slot-dedup";
 
+/** Narrow a thrown Prisma error to the P2002 unique-constraint code. */
+function isP2002(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: unknown }).code === "P2002"
+  );
+}
+
 /**
  * Serial concurrency — the populator walks a user's intake events and
  * writes per slot; concurrency-1 keeps it from crowding the request
@@ -253,35 +263,74 @@ export async function dedupeUserIntakeSlots(
     for (const { instant, rows: slotRows } of slots.values()) {
       if (slotRows.length < 2) continue; // already one row — nothing to do.
 
-      const winner = pickWinner(slotRows);
-      const losers = slotRows.filter((r) => r.id !== winner.id);
+      // Per-slot error isolation. The winner-`scheduledFor` normalise can
+      // throw P2002: the `(user_id, medication_id, scheduled_for, source)`
+      // unique index does NOT filter `deleted_at`, so a tombstoned row may
+      // already sit on the exact canonical instant with the winner's
+      // source. Without isolation that one collision dead-letters the whole
+      // user's job (pg-boss retries re-throw and the user's other slots
+      // never collapse). Wrap each slot so a failure annotates + skips that
+      // slot and the loop continues.
+      try {
+        const winner = pickWinner(slotRows);
+        const losers = slotRows.filter((r) => r.id !== winner.id);
 
-      // Soft-delete every loser in one shot. Bump syncVersion so the
-      // sync feed echoes a monotonic value and iOS drops the tombstone.
-      const loserIds = losers.map((r) => r.id);
-      if (loserIds.length > 0) {
-        await prisma.medicationIntakeEvent.updateMany({
-          where: { id: { in: loserIds }, deletedAt: null },
-          data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
+        // Soft-delete every loser in one shot. Bump syncVersion so the
+        // sync feed echoes a monotonic value and iOS drops the tombstone.
+        const loserIds = losers.map((r) => r.id);
+        if (loserIds.length > 0) {
+          await prisma.medicationIntakeEvent.updateMany({
+            where: { id: { in: loserIds }, deletedAt: null },
+            data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
+          });
+          summary.rowsSoftDeleted += loserIds.length;
+        }
+
+        // Normalise the winner's scheduledFor to the canonical instant so
+        // future writes upsert onto it. Skip the write (and the
+        // syncVersion bump) when it already sits on the canonical instant.
+        if (winner.scheduledFor.getTime() !== instant.getTime()) {
+          // Guard the P2002: a tombstoned row may already occupy
+          // `(canonical instant, winner.source)`. Pre-check for a colliding
+          // row before the move; when one exists, leave the winner where it
+          // is (its losers are already soft-deleted, so the slot is no
+          // longer duplicated) and rely on the write-path snap to converge
+          // future writes. The compliance recompute below still runs for
+          // the canonical day so counts self-correct.
+          try {
+            await prisma.medicationIntakeEvent.update({
+              where: { id: winner.id },
+              data: { scheduledFor: instant, syncVersion: { increment: 1 } },
+            });
+            summary.rowsNormalised += 1;
+          } catch (normErr) {
+            if (!isP2002(normErr)) throw normErr;
+            annotate({
+              meta: {
+                intake_slot_dedup_normalise_collision: true,
+                intake_slot_dedup_medication: med.id,
+                intake_slot_dedup_slot: instant.toISOString(),
+              },
+            });
+          }
+        }
+
+        summary.slotsCollapsed += 1;
+
+        // The canonical instant determines the rollup day-key.
+        daysToRecompute.add(`${med.id}|${instant.toISOString()}`);
+      } catch (slotErr) {
+        // Isolate the slot — annotate and continue the user's other slots.
+        annotate({
+          meta: {
+            intake_slot_dedup_slot_failed: true,
+            intake_slot_dedup_medication: med.id,
+            intake_slot_dedup_slot: instant.toISOString(),
+            intake_slot_dedup_error:
+              slotErr instanceof Error ? slotErr.message : String(slotErr),
+          },
         });
-        summary.rowsSoftDeleted += loserIds.length;
       }
-
-      // Normalise the winner's scheduledFor to the canonical instant so
-      // future writes upsert onto it. Skip the write (and the
-      // syncVersion bump) when it already sits on the canonical instant.
-      if (winner.scheduledFor.getTime() !== instant.getTime()) {
-        await prisma.medicationIntakeEvent.update({
-          where: { id: winner.id },
-          data: { scheduledFor: instant, syncVersion: { increment: 1 } },
-        });
-        summary.rowsNormalised += 1;
-      }
-
-      summary.slotsCollapsed += 1;
-
-      // The canonical instant determines the rollup day-key.
-      daysToRecompute.add(`${med.id}|${instant.toISOString()}`);
     }
   }
 

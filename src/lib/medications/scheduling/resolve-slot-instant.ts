@@ -132,15 +132,50 @@ export function resolveCanonicalSlotInstant(
         continue;
       }
 
-      const deltaMs = Math.abs(occ.at.getTime() - incoming.getTime());
+      // v1.8.2 DST-robustness — re-mint the snapped instant via
+      // `localHmAsUtc` from the occurrence's local day + time-of-day rather
+      // than passing `occ.at` through. The recurrence engine derives
+      // `occ.at` from `wallClockInTz`, while the projector
+      // (`project-today-intakes.ts`) and the reminder worker mint their
+      // pending rows with `localHmAsUtc(day, tz, h, m)`. The two agree on
+      // ordinary days but can diverge by an hour inside a DST gap /
+      // ambiguity window. The intake write must collapse onto the row the
+      // projector/worker actually minted, so use `localHmAsUtc` for the
+      // final instant — byte-identical to those mints by construction —
+      // and keep the canonical engine only for DECIDING which slots exist
+      // (PRN / cyclic / rrule / rolling gating).
+      const slotInstant = canonicalSlotInstant(occ.at, occ.timeOfDay, userTz);
+      const deltaMs = Math.abs(slotInstant.getTime() - incoming.getTime());
       if (deltaMs > tolerance) continue;
       if (best === null || deltaMs < best.deltaMs) {
-        best = { at: occ.at, toleranceMs: tolerance, deltaMs };
+        best = { at: slotInstant, toleranceMs: tolerance, deltaMs };
       }
     }
   }
 
   return best ? best.at : null;
+}
+
+/**
+ * Re-mint an occurrence's instant via `localHmAsUtc` so it is
+ * byte-identical to the projector / reminder-worker mint. Falls back to
+ * the engine's `occ.at` when the occurrence's `timeOfDay` is not a
+ * parseable `HH:mm` (defensive — the engine always sets it, but a
+ * malformed value must never crash the write path).
+ */
+function canonicalSlotInstant(
+  occAt: Date,
+  timeOfDay: string,
+  userTz: string,
+): Date {
+  const minutes = hhmmToMinutes(timeOfDay);
+  if (minutes === null) return occAt;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  // `localHmAsUtc` keys off the LOCAL calendar day of its first argument;
+  // `occ.at` is the engine's instant for this slot, so its local day is
+  // the day the slot belongs to (even across the local-midnight boundary).
+  return localHmAsUtc(occAt, userTz, h, m);
 }
 
 /**

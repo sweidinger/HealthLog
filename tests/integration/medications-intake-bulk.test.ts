@@ -277,6 +277,61 @@ describe("POST /api/medications/intake/bulk (real Postgres)", () => {
       expect(rows[0]?.scheduledFor.toISOString()).toBe(slot.toISOString());
     });
 
+    it("C2 — a pending echo onto an already-TAKEN slot does NOT clear takenAt", async () => {
+      // Medical-safety invariant: an iOS offline re-sync replays a PENDING
+      // projection (no takenAt, skipped=false) for a slot the user already
+      // marked TAKEN. That echo must NOT downgrade the recorded dose.
+      const prisma = getPrismaClient();
+      const medId = await makeScheduledMed(["07:00"]);
+      const slot = localHmAsUtc(new Date(), TZ, 7, 0);
+      const takenAt = new Date(slot.getTime() + 90_000); // taken 1.5 min late
+      const taken = await prisma.medicationIntakeEvent.create({
+        data: {
+          userId: TEST_USER_ID,
+          medicationId: medId,
+          scheduledFor: slot,
+          takenAt,
+          skipped: false,
+          source: "WEB",
+        },
+      });
+
+      const { POST } = await import("@/app/api/medications/intake/bulk/route");
+      const res = await POST(
+        makeRequest({
+          entries: [
+            {
+              medicationId: medId,
+              scheduledFor: slot.toISOString(),
+              // no takenAt, skipped omitted → pending projection echo
+            },
+          ],
+        }),
+      );
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as {
+        data: {
+          inserted: number;
+          updated: number;
+          duplicates: number;
+          entries: Array<{ status: string }>;
+        };
+      };
+      // Reported as duplicate so the iOS cursor advances WITHOUT downgrading.
+      expect(json.data.duplicates).toBe(1);
+      expect(json.data.updated).toBe(0);
+      expect(json.data.inserted).toBe(0);
+      expect(json.data.entries[0]?.status).toBe("duplicate");
+
+      const rows = await prisma.medicationIntakeEvent.findMany({
+        where: { userId: TEST_USER_ID, medicationId: medId, deletedAt: null },
+      });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.id).toBe(taken.id);
+      // The recorded dose is intact — takenAt was NOT cleared.
+      expect(rows[0]?.takenAt?.toISOString()).toBe(takenAt.toISOString());
+    });
+
     it("does NOT collapse PRN doses — two as-needed logs keep two rows", async () => {
       const prisma = getPrismaClient();
       const med = await prisma.medication.create({

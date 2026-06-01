@@ -47,7 +47,10 @@ import {
   recomputeMedicationComplianceForDay,
   dayKeyForScheduledFor,
 } from "@/lib/rollups/medication-compliance-rollups";
-import { resolveSlotInstantForWrite } from "@/lib/medications/scheduling/slot-upsert";
+import {
+  applyCanonicalSlotWrite,
+  resolveSlotInstantForWrite,
+} from "@/lib/medications/scheduling/slot-upsert";
 
 const MAX_ENTRIES_PER_BATCH = 500;
 const BATCH_RATE_LIMIT_MAX = 60;
@@ -198,38 +201,49 @@ async function postBulk(request: NextRequest): Promise<Response> {
 
       const scheduledFor = canonicalSlot ?? incomingScheduledFor;
 
-      const existingSlotRow = canonicalSlot
-        ? await prisma.medicationIntakeEvent.findFirst({
-            where: {
-              userId: user.id,
-              medicationId: entry.medicationId,
-              scheduledFor: canonicalSlot,
-              deletedAt: null,
-            },
-            select: { id: true, idempotencyKey: true },
-          })
-        : null;
+      // C2 — classify the incoming write. An offline-sync replay echoes a
+      // PENDING projection (no `takenAt`, `skipped:false`) for a slot the
+      // user may already have actioned; that echo must NEVER clear a
+      // recorded `takenAt`. An explicit `takenAt` or `skipped:true` is a
+      // real user action and applies last-write-wins.
+      const isExplicitTaken = !entry.skipped && entry.takenAt !== undefined;
+      const isExplicitSkip = entry.skipped === true;
 
-      if (existingSlotRow) {
-        // Scheduled dose with an existing slot row — update in place
-        // (keep the row's original `source`), report "updated".
-        const row = await prisma.medicationIntakeEvent.update({
-          where: { id: existingSlotRow.id },
-          data: {
-            takenAt: entry.takenAt ?? null,
-            skipped: entry.skipped,
-            syncVersion: { increment: 1 },
-            idempotencyKey:
-              entry.idempotencyKey ?? existingSlotRow.idempotencyKey ?? null,
-          },
+      if (canonicalSlot) {
+        // Scheduled dose — converge onto the one canonical slot row through
+        // the shared upsert: H1 deterministic selection, C2 no-downgrade
+        // guard, and a C1 race-safe create that re-finds + updates on a
+        // P2002 collision rather than misclassifying it as a duplicate and
+        // dropping the dose.
+        const applied = await applyCanonicalSlotWrite({
+          client: prisma,
+          userId: user.id,
+          medicationId: entry.medicationId,
+          canonicalSlot,
+          takenAt: entry.takenAt ?? null,
+          skipped: entry.skipped,
+          isExplicitTaken,
+          isExplicitSkip,
+          idempotencyKey: entry.idempotencyKey ?? null,
+          createSource: "API",
         });
-        updated += 1;
-        results.push({ index: i, status: "updated", id: row.id });
+        if (applied.noDowngradeNoOp) {
+          // C2 — pending echo onto an already-actioned slot. Report it as a
+          // duplicate so the iOS cursor advances WITHOUT downgrading the
+          // recorded dose.
+          duplicates += 1;
+          results.push({ index: i, status: "duplicate", id: applied.row.id });
+        } else if (applied.outcome === "updated") {
+          updated += 1;
+          results.push({ index: i, status: "updated", id: applied.row.id });
+        } else {
+          inserted += 1;
+          results.push({ index: i, status: "inserted", id: applied.row.id });
+        }
       } else {
-        // No existing slot row (fresh scheduled dose, or unscheduled /
-        // PRN) — insert. The idempotencyKey, when supplied, has a UNIQUE
-        // index; a re-submission returns the existing row via P2002 →
-        // status: "duplicate".
+        // Unscheduled / PRN — insert. The idempotencyKey, when supplied,
+        // has a UNIQUE index; a re-submission returns the existing row via
+        // P2002 → status: "duplicate".
         const row = await prisma.medicationIntakeEvent.create({
           data: {
             userId: user.id,
@@ -250,8 +264,12 @@ async function postBulk(request: NextRequest): Promise<Response> {
         dayKey,
       });
     } catch (err: unknown) {
-      // P2002 = unique-constraint violation; the idempotencyKey
-      // already exists → "duplicate", not an error.
+      // P2002 = unique-constraint violation. Two shapes reach here:
+      //   1. an idempotencyKey collision on the unscheduled/PRN insert →
+      //      "duplicate" (the canonical-slot path already absorbs its own
+      //      same-slot P2002 race inside `applyCanonicalSlotWrite`);
+      //   2. a same-slot collision on the unscheduled insert. In both
+      //      cases we surface the existing row id so the cursor advances.
       if (
         typeof err === "object" &&
         err !== null &&
