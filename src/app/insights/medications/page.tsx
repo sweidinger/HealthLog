@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Loader2, Pill } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { nextStatusPollInterval } from "@/hooks/use-insight-status";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/badge";
@@ -64,11 +65,11 @@ interface MedicationComplianceStatusData {
   preparing?: boolean;
 }
 
-// v1.8.3 — client ceiling + preparing-poll cadence, mirroring the shared
+// v1.8.3 — client ceiling on the round-trip, mirroring the shared
 // `use-insight-status` hook so the medication-compliance card never awaits
-// an uncapped LLM round-trip on navigation.
+// an uncapped LLM round-trip on navigation. The preparing-poll cadence and
+// its attempt ceiling come from the shared `nextStatusPollInterval` helper.
 const MED_STATUS_TIMEOUT_MS = 8_000;
-const MED_STATUS_POLL_MS = 4_000;
 
 interface MedicationDailyData {
   expected: number;
@@ -121,8 +122,14 @@ export default function InsightsMedikamentePage() {
     enabled: isAuthenticated,
     staleTime: 60 * 1000,
     retry: 0,
+    // v1.8.4 — bounded preparing poll: stop after the shared attempt
+    // ceiling so a persistently failing generation can't poll an open
+    // page forever.
     refetchInterval: (query) =>
-      query.state.data?.preparing ? MED_STATUS_POLL_MS : false,
+      nextStatusPollInterval(
+        query.state.data?.preparing,
+        query.state.dataUpdateCount,
+      ),
   });
 
   const medications = comprehensive?.medications ?? [];

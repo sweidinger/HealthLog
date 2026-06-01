@@ -50,6 +50,35 @@ const STATUS_TIMEOUT_MS = 8_000;
 const STATUS_POLL_MS = 4_000;
 
 /**
+ * v1.8.4 — hard ceiling on the preparing poll. The route is read-only and
+ * a worker warms the cache out of band; a healthy generation lands within
+ * a couple of intervals. If a provider is configured but generation
+ * persistently fails, `preparing` stays true forever and the open page
+ * would otherwise poll indefinitely (battery / network waste). Cap the
+ * poll at ~12 attempts (≈ 48 s at the 4 s cadence) and then fall back to
+ * the static empty / "no analysis yet" state. `dataUpdateCount` counts
+ * every settled fetch — initial load plus each poll round — so once it
+ * crosses the cap we stop scheduling the next interval.
+ */
+export const STATUS_POLL_MAX_ATTEMPTS = 12;
+
+/**
+ * Decide whether a `preparing` card should schedule its next poll.
+ * Pure and shared between the `useInsightStatus` hook and the inline
+ * medication-compliance query so both sites enforce the identical
+ * ceiling. Returns the interval in ms while polling is warranted, or
+ * `false` once the payload is terminal OR the attempt cap is reached.
+ */
+export function nextStatusPollInterval(
+  preparing: boolean | undefined,
+  dataUpdateCount: number,
+): number | false {
+  if (!preparing) return false;
+  if (dataUpdateCount >= STATUS_POLL_MAX_ATTEMPTS) return false;
+  return STATUS_POLL_MS;
+}
+
+/**
  * Metric slugs the sub-pages render. Each slug is paired with the
  * Insights-status endpoint and the matching `queryKeys.*` factory so
  * the cache keys stay aligned across the whole app — a hard-coded
@@ -124,8 +153,13 @@ export function useInsightStatus(metric: InsightStatusMetric) {
     retry: 0,
     // v1.8.3 — poll only while the worker is preparing the assessment.
     // Returns false (no timer) for any terminal payload so a settled card
-    // never re-fetches on an interval.
+    // never re-fetches on an interval. v1.8.4 — also stop after the
+    // attempt ceiling so a persistently failing generation can't poll an
+    // open page forever.
     refetchInterval: (query) =>
-      query.state.data?.preparing ? STATUS_POLL_MS : false,
+      nextStatusPollInterval(
+        query.state.data?.preparing,
+        query.state.dataUpdateCount,
+      ),
   });
 }
