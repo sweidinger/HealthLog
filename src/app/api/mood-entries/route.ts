@@ -172,29 +172,42 @@ async function postMoodEntry(request: NextRequest) {
     // tag-link failure must roll the entry back too — otherwise a client
     // retry on the 5xx mints a duplicate entry. The tx client is threaded
     // through the helper so both writes commit (or abort) together.
-    const entry = await prisma.$transaction(async (tx) => {
-      const created = await tx.moodEntry.create({
-        data: {
-          userId: user.id,
-          date,
-          tz,
-          mood,
-          score,
-          tags: tags ? JSON.stringify(tags) : null,
-          note: note ?? null,
-          source: source ?? "MANUAL",
-          moodLoggedAt,
-        },
-      });
+    const { entry, persistedTagKeys } = await prisma.$transaction(
+      async (tx) => {
+        const created = await tx.moodEntry.create({
+          data: {
+            userId: user.id,
+            date,
+            tz,
+            mood,
+            score,
+            tags: tags ? JSON.stringify(tags) : null,
+            note: note ?? null,
+            source: source ?? "MANUAL",
+            moodLoggedAt,
+          },
+        });
 
-      if (tagKeys && tagKeys.length > 0) {
-        // Unknown keys are dropped inside the helper (the catalog is the
-        // source of truth).
-        await createTagLinks(created.id, tagKeys, tx);
-      }
+        if (tagKeys && tagKeys.length > 0) {
+          // Unknown keys are dropped inside the helper (the catalog is the
+          // source of truth).
+          await createTagLinks(created.id, tagKeys, tx);
+        }
 
-      return created;
-    });
+        // v1.8.5 — read the persisted link keys back so the create
+        // response mirrors the list GET shape exactly (unknown keys
+        // already filtered out).
+        const links = await tx.moodEntryTagLink.findMany({
+          where: { moodEntryId: created.id },
+          select: { moodTag: { select: { key: true } } },
+        });
+
+        return {
+          entry: created,
+          persistedTagKeys: links.map((link) => link.moodTag.key),
+        };
+      },
+    );
 
     await auditLog("moodEntry.create", {
       userId: user.id,
@@ -250,7 +263,17 @@ async function postMoodEntry(request: NextRequest) {
       // rejection in the Next.js runtime.
     });
 
-    return apiSuccess({ ...entry, tags: parseTags(entry.tags) }, 201);
+    return apiSuccess(
+      {
+        ...entry,
+        tags: parseTags(entry.tags),
+        // v1.8.5 — surface the persisted structured-tag keys so a client
+        // hydrating from the create response renders the tag set without a
+        // refetch (shape-matches the list GET).
+        tagKeys: persistedTagKeys,
+      },
+      201,
+    );
   } catch (err) {
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&

@@ -243,6 +243,30 @@ describe("POST /api/mood-entries — entry + tag-links transaction (v1.8.5)", ()
     expect(createTagLinks).toHaveBeenCalledWith("mood-1", ["happy"], txClient);
   });
 
+  it("returns the persisted tagKeys in the create response", async () => {
+    txClient.moodEntry.create.mockResolvedValue({
+      id: "mood-1",
+      tags: null,
+      moodLoggedAt: new Date(VALID_BODY.moodLoggedAt),
+      mood: "GUT",
+      note: null,
+      source: "MANUAL",
+      date: "2026-06-01",
+    });
+    txClient.moodEntryTagLink.findMany.mockResolvedValue([
+      { moodTag: { key: "happy" } },
+    ]);
+
+    const res = await POST(postReq(VALID_BODY));
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      data: { id: string; tagKeys: string[] };
+    };
+    // Read-after-write parity: the create response carries the same
+    // `tagKeys` the list GET surfaces.
+    expect(body.data.tagKeys).toEqual(["happy"]);
+  });
+
   it("rolls the entry back when the tag-link write fails (no commit)", async () => {
     txClient.moodEntry.create.mockResolvedValue({
       id: "mood-2",
