@@ -143,8 +143,8 @@ describe("<IntakeHistoryListV2> — populated rows", () => {
     const html = render(<IntakeHistoryListV2 medicationId="med-1" />, client);
     expect(html).toContain("Taken");
     expect(html).toContain("Skipped");
-    expect(html).toContain("Website");
-    expect(html).toContain("Telegram / Reminder");
+    expect(html).toContain("via Web");
+    expect(html).toContain("via Reminder");
   });
 
   it("renders the taken row with a green Check chip and the skipped row with an outline SkipForward chip", () => {

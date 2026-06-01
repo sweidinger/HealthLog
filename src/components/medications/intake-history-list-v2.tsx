@@ -65,8 +65,11 @@ import {
  *  - Status chip: green Check + "Eingenommen" for taken rows,
  *    outline SkipForward + "Übersprungen" for skipped rows. The
  *    component never labels a row both at once.
- *  - Source badge surfaces WEB / API / REMINDER / IMPORT using the
- *    existing `medications.source*` keys.
+ *  - Source badge surfaces where the intake was logged — WEB → "Web",
+ *    API → "iOS App", REMINDER → "Reminder", IMPORT → "Import" — wrapped
+ *    in a muted "via {origin}" caption next to the status. The labels map
+ *    the coarse `IntakeSource` enum to the practical client per the
+ *    existing `medications.source*` keys; there is no finer client field.
  *  - Empty state copy + CTA back to the daily intake page.
  *  - No edit-in-row, no delete buttons.
  */
@@ -377,8 +380,13 @@ export function IntakeHistoryListV2({
                         ) : null}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {sourceLabels[event.source] ?? event.source}
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground text-xs font-normal"
+                        >
+                          {t("medications.intakeSourceVia", {
+                            origin: sourceLabels[event.source] ?? event.source,
+                          })}
                         </Badge>
                       </TableCell>
                       {showRowActions && (
