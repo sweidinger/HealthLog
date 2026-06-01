@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.8.3] — 2026-06-01 — Insights no longer block the interface
+
+Opening an Insights category and switching between them could freeze the whole interface for several seconds while the per-category assessment was generated. The interface now stays responsive throughout.
+
+### Fixed
+
+- **Switching Insights categories no longer freezes the interface.** Each category's short assessment is now served from cache as an immediate, read-only response; when it is not yet ready the page shows a brief preparing state and the assessment is generated in the background, so navigation and taps stay responsive. The client request is capped, so a slow or unreachable model can never block the interface — the worst case is a preparing state, never a frozen screen.
+- **The overnight pre-generation warms the assessment actually shown.** The nightly warm pass keyed its cache differently from what the page requests, so a returning visit often fell back to an on-demand generation; it now warms the languages the interface uses and runs even when the daily summary was already cached, so a returning visit lands on a ready assessment.
+- **A stalled model no longer re-blocks every visit.** A generation timeout is briefly remembered so the next visits return immediately instead of retrying the slow path each time.
+- **Streamed loading states.** Insights and the dashboard now render a skeleton while their first segment loads, rather than waiting on a blank transition.
+
 ## [1.8.2] — 2026-06-01 — One intake row per dose slot
 
 A multi-time medication could end up with two entries for the same dose — one still open, one marked taken — for a dose the user had not taken. This release guarantees a single entry per scheduled dose.
