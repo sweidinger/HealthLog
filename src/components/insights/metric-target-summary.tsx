@@ -7,7 +7,6 @@ import { Target } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
-import { Card, CardContent } from "@/components/ui/card";
 
 /**
  * v1.8.0 — surface the numeric target range + in-target share on each
@@ -143,31 +142,39 @@ export function MetricTargetSummary({ slug }: MetricTargetSummaryProps) {
     : null;
 
   return (
-    <Card data-slot="metric-target-summary">
-      <CardContent className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
-        <div className="flex items-center gap-2.5">
-          <Target
-            className="text-dracula-green size-4 shrink-0"
-            aria-hidden="true"
-          />
-          <div className="space-y-0.5">
-            <p className="text-sm font-medium">{rangeLabel}</p>
-            {sharePct != null ? (
-              <p className="text-muted-foreground text-xs">
-                {t("insights.subPage.target.inTargetShare", {
-                  pct: sharePct,
-                })}
-              </p>
-            ) : null}
-          </div>
+    // v1.8.5 W4a — demote the target summary from a full bordered `Card`
+    // (which carried the primitive's `py-4 md:py-6` shell padding around a
+    // `py-3` content block — far too much vertical reserve for one line of
+    // range text) to a compact inline band. The green target glyph, the
+    // range string, the in-target share, and the "adjust" link all stay;
+    // only the wrapper shell changes so the block reads as a strip, not a
+    // card, in the tightened sub-page rhythm.
+    <div
+      data-slot="metric-target-summary"
+      className="bg-muted/30 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg px-3 py-2"
+    >
+      <div className="flex items-center gap-2.5">
+        <Target
+          className="text-dracula-green size-4 shrink-0"
+          aria-hidden="true"
+        />
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium">{rangeLabel}</p>
+          {sharePct != null ? (
+            <p className="text-muted-foreground text-xs">
+              {t("insights.subPage.target.inTargetShare", {
+                pct: sharePct,
+              })}
+            </p>
+          ) : null}
         </div>
-        <Link
-          href="/targets"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center rounded-sm px-1 text-xs font-medium underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:outline-none"
-        >
-          {t("insights.subPage.target.adjustLink")}
-        </Link>
-      </CardContent>
-    </Card>
+      </div>
+      <Link
+        href="/targets"
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex min-h-11 items-center rounded-sm px-1 text-xs font-medium underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:outline-none"
+      >
+        {t("insights.subPage.target.adjustLink")}
+      </Link>
+    </div>
   );
 }

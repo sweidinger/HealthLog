@@ -100,8 +100,8 @@ export function SubPageShell({
   }, [focusOnMount]);
 
   return (
-    <div data-slot="insights-subpage" className="space-y-6">
-      <header className="space-y-2">
+    <div data-slot="insights-subpage" className="space-y-4 md:space-y-5">
+      <header className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <h1
             ref={headingRef}
@@ -129,9 +129,16 @@ export function SubPageShell({
         </div>
         {explainerMetric ? (
           // v1.8.4 — surface the explainer definition inline, reusing the
-          // exact body string the `?` popover reads. Muted caption styling
-          // matches the description paragraph below so the under-heading
-          // band reads as one calm block.
+          // exact body string the `?` popover reads.
+          //
+          // v1.8.5 W4a — render the explainer body as the *single* caption
+          // under the heading. Pre-v1.8.5 both this paragraph and the
+          // `description` below it stacked, so every metric page opened
+          // with two near-duplicative muted captions before any data — the
+          // root of the "airy / static under the heading" feel. The
+          // explainer body is the definition, so it wins; the description
+          // only renders when no explainer is set (the mother page and any
+          // future explainer-less sub-page).
           <p
             data-slot="metric-explainer-inline"
             className="text-muted-foreground text-sm leading-relaxed"
@@ -139,7 +146,7 @@ export function SubPageShell({
             {t(`insights.subPage.explainer.${explainerMetric}Body`)}
           </p>
         ) : null}
-        {description ? (
+        {description && !explainerMetric ? (
           <p className="text-muted-foreground text-sm">{description}</p>
         ) : null}
       </header>

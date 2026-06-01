@@ -265,7 +265,7 @@ export function HealthScoreCard({
           the bottom, and the card fills the row down to the
           "Wirkt mein Medikament?" chip — closing Marc's "Karte hört
           bei der Trennlinie auf" report against v1.4.36. */}
-      <div className="grid flex-1 grid-rows-[auto_auto_auto_auto_auto_1fr_auto] gap-3">
+      <div className="grid flex-1 grid-rows-[auto_auto_auto_auto_auto_1fr_auto] gap-3.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <p
@@ -382,14 +382,20 @@ export function HealthScoreCard({
 
         <ul
           data-slot="health-score-card-components"
-          className="space-y-1.5 border-t pt-3"
+          // v1.8.5 W4a — the always-visible "Zusammensetzung" breakdown is
+          // the natural place to add weight to the Health-Score card so it
+          // fills the hero-row height instead of leaving the right column
+          // short and bottom-empty. Loosen the row rhythm (`space-y-2.5` vs
+          // `space-y-1.5`) and the divider stride (`pt-3.5`) so the four
+          // component bars read as a richer block; no new data, no new row.
+          className="space-y-2.5 border-t pt-3.5"
         >
           {componentEntries.map(({ key, label, value }) => (
             <li
               key={key}
               data-slot="health-score-card-component-row"
               data-component={key}
-              className="flex items-center gap-2 text-[11px]"
+              className="flex items-center gap-2 text-xs"
             >
               {/* v1.4.25 W3 — widened label column from w-16 (64px) to
                   w-24 (96px) so the longest German label
@@ -399,7 +405,7 @@ export function HealthScoreCard({
                 {label}
               </span>
               <div
-                className="bg-muted/50 h-1 flex-1 overflow-hidden rounded-full"
+                className="bg-muted/50 h-1.5 flex-1 overflow-hidden rounded-full"
                 aria-hidden="true"
               >
                 <div
