@@ -25,6 +25,7 @@ export default function InsightsBlutzuckerPage() {
       yAxisUnit="mg/dL"
       emptyStateIcon={<Droplet className="size-6" />}
       emptyStateCtaType={null}
+      targetSummarySlug="blood-glucose"
       coachPrefill="I haven't logged any blood glucose yet — what does this metric tell me about my health, and how do I improve it?"
     />
   );

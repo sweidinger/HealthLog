@@ -14,6 +14,7 @@ import {
   type TargetCardData,
 } from "@/components/targets/target-card";
 import { TargetsSummaryHeader } from "@/components/targets/targets-summary-header";
+import { getTargetSourceLink } from "@/lib/targets/source-link";
 import { CoachDrawer } from "@/components/insights/coach-panel/coach-drawer";
 import { useCoachHandoff } from "@/hooks/use-coach-handoff";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
@@ -90,41 +91,6 @@ const FIXED_TARGET_ORDER: Record<string, number> = {
 
 function sortKey(target: TargetData): number {
   return FIXED_TARGET_ORDER[target.type] ?? 100;
-}
-
-/**
- * Source-citation URL for each target type. Kept on the page (rather
- * than the card) so the card stays presentational and the routing
- * stays declarative.
- */
-function getTargetSourceLink(target: TargetData): string | null {
-  if (target.type === "WEIGHT" || target.type === "BMI") {
-    return "https://www.who.int/news-room/fact-sheets/detail/obesity-and-overweight";
-  }
-  if (
-    target.type === "BLOOD_PRESSURE" ||
-    target.type === "BLOOD_PRESSURE_IN_TARGET"
-  ) {
-    return "https://academic.oup.com/eurheartj/article/39/33/3021/5079119";
-  }
-  if (target.type === "PULSE") {
-    if (target.source.includes("CDC/NCHS")) {
-      return "https://www.cdc.gov/nchs/data/nhsr/nhsr041.pdf";
-    }
-    if (target.source.includes("AHA")) {
-      return "https://www.heart.org/en/health-topics/high-blood-pressure/the-facts-about-high-blood-pressure/all-about-heart-rate-pulse";
-    }
-  }
-  if (target.type === "SLEEP_DURATION") {
-    return "https://aasm.org/seven-or-more-hours-of-sleep-per-night-a-health-necessity-for-adults/";
-  }
-  if (target.type === "BODY_FAT") {
-    return "https://www.acefitness.org/resources/everyone/blog/6596/what-are-the-guidelines-for-percentage-of-body-fat-loss/";
-  }
-  if (target.type === "ACTIVITY_STEPS") {
-    return "https://www.who.int/publications/i/item/9789240015128";
-  }
-  return null;
 }
 
 export default function TargetsPage() {

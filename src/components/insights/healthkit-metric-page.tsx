@@ -15,6 +15,7 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
+import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -88,6 +89,13 @@ export interface HealthKitMetricPageProps {
    * Resolves `insights.subPage.explainer.<explainerMetric>{Title,Body}`.
    */
   explainerMetric?: string;
+  /**
+   * v1.8.5 W5 — when set, renders `<MetricTargetSummary slug=…>` beneath
+   * the chart. Used by blood glucose, whose per-context ADA / DDG bands
+   * live on the targets wire but whose page rides this generic scaffold
+   * rather than a bespoke module. Omit it for metrics without a target.
+   */
+  targetSummarySlug?: string;
 }
 
 export function HealthKitMetricPage({
@@ -104,6 +112,7 @@ export function HealthKitMetricPage({
   coachPrefill,
   valueScale,
   explainerMetric,
+  targetSummarySlug,
 }: HealthKitMetricPageProps) {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -186,6 +195,9 @@ export function HealthKitMetricPage({
         userTimezone={user?.timezone}
         valueScale={valueScale}
       />
+      {targetSummarySlug ? (
+        <MetricTargetSummary slug={targetSummarySlug} />
+      ) : null}
       <CoachLaunchButton />
     </SubPageShell>
   );
