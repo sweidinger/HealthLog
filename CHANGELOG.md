@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.8.4] — 2026-06-01 — Medication card accuracy + Insights polish
+
+### Fixed
+
+- **The medication card shows the correct next intake for every schedule.** Flexible "interval after the last dose" and one-time medications previously showed a next-intake derived from a simplified day-of-week rule that ignored the interval and the last logged dose — so a medication taken every few weeks proposed tomorrow and never moved after a dose was logged. Both the standard and the injection card now read the schedule engine's computed next-due, so the next intake is right on creation and advances the moment a dose is recorded.
+- **Insights status polling is bounded.** When a model is configured but generation stalls, the per-category assessment card no longer polls indefinitely on an open page — it stops after a fixed ceiling and shows its static state.
+- **Clean deploys no longer hit a missing settings column.** Four `app_settings` columns existed in the schema but had only ever been applied ad-hoc, so a migrations-only deploy could fail on first read; an idempotent migration now adds them (a no-op on instances that already have them).
+
+### Changed
+
+- **Logging a dose confirms itself.** Marking a medication taken or skipped now shows a brief confirmation, and the card's next-intake updates immediately.
+- **Each Insights category explains itself inline.** The short metric definition now also appears as a caption under the category heading, alongside the existing question-mark tooltip.
+- **Medication history shows where each dose was logged** — web, the iOS app, a reminder, or an import — as a small origin label on each entry.
+
 ## [1.8.3] — 2026-06-01 — Insights no longer block the interface
 
 Opening an Insights category and switching between them could freeze the whole interface for several seconds while the per-category assessment was generated. The interface now stays responsive throughout.
