@@ -4,12 +4,15 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
  * Provider-timeout fallback for the pulse-status route. When the
  * provider chain does not resolve inside `STATUS_PROVIDER_TIMEOUT_MS`
  * the route returns the deterministic no-key fallback so the
- * InsightStatusCard renders instead of spinning — but it must NOT
- * persist the fallback. The earlier behaviour cached a `timeout-stub`
- * row keyed to today; that stub stuck until midnight and hid the real
- * data-driven assessment. The fix treats a timeout as a transient miss:
- * serve the fallback for this render, write nothing, re-attempt next
- * mount.
+ * InsightStatusCard renders instead of spinning. It must NOT persist the
+ * fallback AS AN ASSESSMENT (the pre-v1.4.28 stick-until-midnight bug);
+ * `updatedAt` stays null and the served text is never a real assessment.
+ *
+ * v1.8.3 — the timeout path now writes a *short-TTL negative stub*
+ * (`{ timeout:true, model:"timeout-stub", retryAt }`). It is explicitly
+ * rejected by `readFreshStatusText`, so it can never hide the real
+ * assessment; its sole purpose is to stop the read-only route re-enqueuing
+ * generation on every navigation while a provider is degraded.
  */
 
 vi.mock("@/lib/db", () => ({
@@ -64,8 +67,23 @@ describe("generatePulseStatusForUser — provider timeout fallback", () => {
     expect(result.cached).toBe(true);
     expect(typeof result.text).toBe("string");
     expect(result.text?.length ?? 0).toBeGreaterThan(0);
-    // No persisted row — the sticky-stub bug is gone.
+    // No real assessment persisted — `updatedAt` stays null so the card
+    // never mislabels the fallback as a fresh assessment.
     expect(result.updatedAt).toBeNull();
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+
+    // v1.8.3 — a short-TTL negative stub IS persisted (fire-and-forget) so
+    // the read-only route doesn't re-enqueue on every navigation while the
+    // provider is degraded. It is marked as a timeout stub, which
+    // `readFreshStatusText` rejects, so it never hides the real assessment.
+    // The write is fire-and-forget (`void`), so flush the microtask queue.
+    await Promise.resolve();
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+    const persisted = vi.mocked(prisma.auditLog.create).mock.calls[0][0] as {
+      data: { details: string };
+    };
+    const stub = JSON.parse(persisted.data.details);
+    expect(stub.timeout).toBe(true);
+    expect(stub.model).toBe("timeout-stub");
+    expect(typeof stub.retryAt).toBe("string");
   });
 });

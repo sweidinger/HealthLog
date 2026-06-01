@@ -156,12 +156,20 @@ const DEFAULT_STATUS_GENERATORS: ReadonlyArray<StatusGenerator> = [
  */
 async function warmPerStatusCaches(
   userId: string,
-  locale: "de" | "en",
+  locales: ReadonlyArray<"de" | "en">,
   generators: ReadonlyArray<StatusGenerator>,
 ): Promise<number> {
   const limit = pLimit(WARM_PASS_CONCURRENCY);
-  const results = await Promise.all(
-    generators.map((generate) =>
+  // v1.8.3 — warm every locale the user might request, not just the
+  // User.locale. The per-status cache key is
+  // `insights.<metric>-status.<locale>`, but the client sends the active
+  // UI-cookie / Accept-Language locale (narrowed to de|en), which can
+  // differ from the persisted User.locale (e.g. null → "de" in the cron
+  // while the browser cookie is "en"). Warming only the User.locale left
+  // the locale the client actually reads cold, so the first visit still
+  // ran a live generation per card — the exact freeze this release closes.
+  const tasks = generators.flatMap((generate) =>
+    locales.map((locale) =>
       limit(async () => {
         try {
           const outcome = await generate(userId, { locale, force: true });
@@ -174,6 +182,7 @@ async function warmPerStatusCaches(
       }),
     ),
   );
+  const results = await Promise.all(tasks);
   return results.reduce((sum: number, n) => sum + n, 0);
 }
 
@@ -301,18 +310,23 @@ export async function runInsightPregenerate(
     }
 
     // Warm the per-metric assessment caches the comprehensive generator
-    // evicts (`evictPerStatusInsightCache`) but does not re-fill. Only
-    // do this when the comprehensive pass actually produced an insight:
-    // a `skipped` (no-provider) user has nothing to warm, and a `failed`
-    // pass means the provider chain is unhealthy this run — re-running
-    // it seven more times would only multiply the failure. A `cached`
-    // outcome can't happen here (we always force), but if a future
-    // change reintroduces it the per-metric caches were not evicted, so
-    // there is nothing to warm.
-    if (outcome.status === "generated") {
+    // evicts (`evictPerStatusInsightCache`) but does not re-fill.
+    //
+    // v1.8.3 — warm on `generated` OR `cached`. A `cached` outcome means
+    // the comprehensive insight is fresh-enough that its write already
+    // evicted the per-status caches, so they are cold and need re-filling
+    // exactly as on a fresh `generated`. The pre-v1.8.3 `=== "generated"`
+    // gate left those caches cold whenever the comprehensive pass short-
+    // circuited to `cached`, so the morning visit still ran a live
+    // generation per card. `skipped` (no provider) has nothing to warm and
+    // `failed` means the chain is unhealthy this run — re-running it seven
+    // more times would only multiply the failure.
+    if (outcome.status === "generated" || outcome.status === "cached") {
       result.assessmentsWarmed += await warmPerStatusCaches(
         candidate.id,
-        locale,
+        // Warm both supported locales — the client reads against the active
+        // UI locale, which can differ from the persisted User.locale.
+        ["de", "en"],
         statusGenerators,
       );
     }

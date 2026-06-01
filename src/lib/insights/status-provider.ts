@@ -65,6 +65,22 @@ async function resolveStatusChain(
 }
 
 /**
+ * Cheap provider-availability probe for the read-only status path.
+ *
+ * v1.8.3 — when a status route runs in read-only mode (serve cache, never
+ * block on the LLM) it still has to tell the difference between "no
+ * provider — show the no-key fallback" and "provider configured but the
+ * assessment isn't warm yet — show preparing + enqueue a generation". This
+ * resolves the same chain `runStatusCompletion` would, but does NOT run a
+ * completion, so the navigation request never awaits an LLM round-trip.
+ */
+export async function hasUsableStatusProvider(
+  userId: string,
+): Promise<boolean> {
+  return (await resolveStatusChain(userId)) !== null;
+}
+
+/**
  * Run a status generation across the user's provider chain, bounded by
  * `STATUS_PROVIDER_TIMEOUT_MS`. The result discriminates between
  * no-provider / timeout / provider-error / success so the caller can

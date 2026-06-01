@@ -115,6 +115,7 @@ export default function InsightsStimmungPage() {
         cached={status?.cached ?? false}
         updatedAt={status?.updatedAt ?? null}
         loading={isStatusLoading}
+        preparing={status?.preparing ?? false}
       />
 
       <CoachLaunchButton />

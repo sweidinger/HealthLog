@@ -1376,6 +1376,7 @@
   },
   "insights": {
     "noAnalysisYet": "Pas encore d’analyse.",
+    "assessmentPreparing": "Préparation de votre évaluation…",
     "emptyTitle": "Pas encore assez de données",
     "emptyDescription": "Les insights apparaissent dès que tu auras saisi quelques mesures. Commence par le poids ou la tension.",
     "emptyAddMeasurement": "Saisir une mesure",

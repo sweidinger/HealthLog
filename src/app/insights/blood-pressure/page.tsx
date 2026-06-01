@@ -124,6 +124,7 @@ export default function InsightsBlutdruckPage() {
         cached={status?.cached ?? false}
         updatedAt={status?.updatedAt ?? null}
         loading={isStatusLoading}
+        preparing={status?.preparing ?? false}
       />
 
       <CoachLaunchButton />

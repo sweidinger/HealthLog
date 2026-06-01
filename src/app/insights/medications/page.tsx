@@ -58,7 +58,17 @@ interface MedicationComplianceStatusData {
   medications: Array<{ medicationId: string; text: string }>;
   cached: boolean;
   updatedAt: string | null;
+  // v1.8.3 — read-only route returns preparing:true with summary:null on a
+  // cache miss while the worker warms the assessment; the card polls until
+  // it lands. See `use-insight-status.ts` for the shared rationale.
+  preparing?: boolean;
 }
+
+// v1.8.3 — client ceiling + preparing-poll cadence, mirroring the shared
+// `use-insight-status` hook so the medication-compliance card never awaits
+// an uncapped LLM round-trip on navigation.
+const MED_STATUS_TIMEOUT_MS = 8_000;
+const MED_STATUS_POLL_MS = 4_000;
 
 interface MedicationDailyData {
   expected: number;
@@ -91,15 +101,28 @@ export default function InsightsMedikamentePage() {
   const { data: status, isLoading: isStatusLoading } = useQuery({
     queryKey: queryKeys.insightsMedicationComplianceStatus(locale),
     queryFn: async () => {
-      const res = await fetch(
-        `/api/insights/medication-compliance-status?locale=${locale}`,
+      const controller = new AbortController();
+      const timeoutHandle = setTimeout(
+        () => controller.abort(),
+        MED_STATUS_TIMEOUT_MS,
       );
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as MedicationComplianceStatusData;
+      try {
+        const res = await fetch(
+          `/api/insights/medication-compliance-status?locale=${locale}`,
+          { signal: controller.signal },
+        );
+        if (!res.ok) throw new Error("Failed");
+        const json = await res.json();
+        return json.data as MedicationComplianceStatusData;
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
     },
     enabled: isAuthenticated,
     staleTime: 60 * 1000,
+    retry: 0,
+    refetchInterval: (query) =>
+      query.state.data?.preparing ? MED_STATUS_POLL_MS : false,
   });
 
   const medications = comprehensive?.medications ?? [];
@@ -253,6 +276,7 @@ export default function InsightsMedikamentePage() {
         cached={status?.cached ?? false}
         updatedAt={status?.updatedAt ?? null}
         loading={isStatusLoading}
+        preparing={status?.preparing ?? false}
       />
 
       {/* v1.4.25 W4d — GLP-1 therapy timeline. Self-hides for users

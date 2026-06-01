@@ -136,6 +136,7 @@ export default function InsightsPulsPage() {
         cached={status?.cached ?? false}
         updatedAt={status?.updatedAt ?? null}
         loading={isStatusLoading}
+        preparing={status?.preparing ?? false}
       />
 
       {/* v1.4.25 W16a — VO2 max sits on the cardio sub-page because it

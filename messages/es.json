@@ -1376,6 +1376,7 @@
   },
   "insights": {
     "noAnalysisYet": "Aún no hay análisis.",
+    "assessmentPreparing": "Preparando tu evaluación…",
     "emptyTitle": "Aún no hay datos suficientes",
     "emptyDescription": "Los insights aparecen en cuanto registres algunas mediciones. Empieza por peso o tensión arterial.",
     "emptyAddMeasurement": "Registrar medición",

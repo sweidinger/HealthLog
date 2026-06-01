@@ -1376,6 +1376,7 @@
   },
   "insights": {
     "noAnalysisYet": "No analysis yet.",
+    "assessmentPreparing": "Preparing your assessment…",
     "emptyTitle": "Not enough data yet",
     "emptyDescription": "Insights light up once you've logged a handful of measurements. Start with weight or blood pressure.",
     "emptyAddMeasurement": "Add a measurement",

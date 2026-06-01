@@ -209,7 +209,7 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     return vi.fn().mockResolvedValue(result);
   }
 
-  it("forces all seven status generators after a successful comprehensive generation", async () => {
+  it("forces all seven status generators in BOTH locales after a successful comprehensive generation", async () => {
     const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
     const generate = vi
       .fn()
@@ -223,13 +223,34 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
       statusGenerators,
     });
 
-    // Every status generator forced with the resolved locale.
+    // v1.8.3 — each generator is forced once per supported locale (de + en)
+    // so the cache the client reads against (active UI locale, not the
+    // persisted User.locale) is always warm.
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledTimes(2);
       expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: true });
+      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: true });
     }
-    // Seven fresh, provider-backed assessments warmed.
-    expect(result.assessmentsWarmed).toBe(7);
+    // Seven generators × two locales = 14 fresh, provider-backed assessments.
+    expect(result.assessmentsWarmed).toBe(14);
+  });
+
+  it("warms when the comprehensive pass returned `cached` (its write still evicted the per-status caches)", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    const generate = vi.fn().mockResolvedValue({ status: "cached" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      warmGen({ hasProvider: true, cached: false }),
+    );
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+    });
+
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(2);
+    }
+    expect(result.assessmentsWarmed).toBe(14);
   });
 
   it("does NOT warm when the comprehensive pass skipped (no provider)", async () => {
@@ -290,11 +311,13 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
       statusGenerators,
     });
 
-    // The throw must not abort the loop — every generator was attempted.
+    // The throw must not abort the loop — every generator was attempted
+    // once per supported locale (de + en).
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledTimes(2);
     }
-    expect(result.assessmentsWarmed).toBe(2);
+    // Two counting generators × two locales = 4 fresh assessments.
+    expect(result.assessmentsWarmed).toBe(4);
   });
 });
 

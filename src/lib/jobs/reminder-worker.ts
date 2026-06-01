@@ -68,6 +68,12 @@ import {
   type InsightPregeneratePayload,
 } from "@/lib/jobs/insight-pregenerate";
 import {
+  INSIGHT_STATUS_GENERATE_QUEUE,
+  INSIGHT_STATUS_GENERATE_CONCURRENCY,
+  runInsightStatusGenerate,
+  type InsightStatusGeneratePayload,
+} from "@/lib/jobs/insight-status-generate";
+import {
   INTAKE_AUTO_SKIP_QUEUE,
   INTAKE_AUTO_SKIP_CRON,
   runIntakeAutoSkipPass,
@@ -1701,6 +1707,32 @@ async function handleInsightPregenerateJob(
 }
 
 /**
+ * v1.8.3 — on-demand per-metric status generation. The read-only status
+ * route enqueues one job per cold card; this handler runs the matching
+ * generator with `force: true` so the assessment cache row lands and the
+ * polling client picks it up. Each job carries `{ userId, metric, locale }`.
+ */
+async function handleInsightStatusGenerate(
+  jobs: Job<InsightStatusGeneratePayload>[],
+) {
+  await withBackgroundEvent("job.insight_status_generate", async (evt) => {
+    for (const job of jobs) {
+      if (!job.data?.userId || !job.data?.metric) continue;
+      try {
+        await runInsightStatusGenerate(job.data);
+        evt.addMeta("status_generated", `${job.data.metric}:${job.data.locale}`);
+      } catch (err) {
+        evt.addWarning(
+          `insight-status-generate failed for ${job.data.metric}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+  });
+}
+
+/**
  * v1.4.46 — hourly auto-skip for stale unmarked medication intakes.
  *
  * Flips `MedicationIntakeEvent.skipped` to `true` for every event the
@@ -2055,6 +2087,12 @@ export async function startReminderWorker() {
     // this entry the 04:30 schedule silently no-ops and every briefing
     // falls back to the lazy on-demand generation it was meant to retire.
     INSIGHT_PREGENERATE_QUEUE,
+    // v1.8.3 — on-demand per-metric status generation. The read-only
+    // status route enqueues here on a cold card; without this entry
+    // pg-boss never provisions the queue and the enqueue silently drops,
+    // leaving every status card stuck on "preparing". No cron schedule —
+    // it is a send-only queue driven by navigation.
+    INSIGHT_STATUS_GENERATE_QUEUE,
     // v1.7.0 — soft-deleted measurement tombstone prune. Same createQueue
     // contract as the other cleanup jobs; without this entry the daily
     // schedule silently no-ops and pruned-past-retention tombstones pile
@@ -2305,6 +2343,15 @@ export async function startReminderWorker() {
     INSIGHT_PREGENERATE_QUEUE,
     { localConcurrency: 1 },
     handleInsightPregenerateJob,
+  );
+  // v1.8.3 — on-demand per-metric status generation enqueued by the
+  // read-only status route on a cold card. Low concurrency so a first
+  // visit that cold-misses several cards can't saturate the Prisma pool
+  // or fan out an unbounded number of concurrent provider calls.
+  await boss.work<InsightStatusGeneratePayload>(
+    INSIGHT_STATUS_GENERATE_QUEUE,
+    { localConcurrency: INSIGHT_STATUS_GENERATE_CONCURRENCY },
+    handleInsightStatusGenerate,
   );
   // v1.4.46 — hourly auto-skip for stale unmarked intakes.
   // Single-flight: two ticks racing against the same row pile is wasted

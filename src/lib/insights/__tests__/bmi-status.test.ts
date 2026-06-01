@@ -121,7 +121,19 @@ describe("generateBmiStatusForUser — timeout/error never persists", () => {
     expect(result.text).toBeTruthy();
     expect(result.cached).toBe(true);
     expect(result.updatedAt).toBeNull();
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    // v1.8.3 — no real assessment persisted (updatedAt stays null above),
+    // but a short-TTL negative stub IS written so the read-only route does
+    // not re-enqueue on every navigation while the provider is degraded.
+    // The stub is a timeout marker that `readFreshStatusText` rejects.
+    await Promise.resolve();
+    for (const call of vi.mocked(prisma.auditLog.create).mock.calls) {
+      const details = JSON.parse(
+        (call[0] as { data: { details: string } }).data.details,
+      );
+      expect(details.timeout === true || details.model === "timeout-stub").toBe(
+        true,
+      );
+    }
   });
 
   it("serves the fallback without writing a cache row on provider error", async () => {
@@ -140,7 +152,19 @@ describe("generateBmiStatusForUser — timeout/error never persists", () => {
     const result = await generateBmiStatusForUser("user-1", { locale: "en" });
     expect(result.text).toBeTruthy();
     expect(result.updatedAt).toBeNull();
-    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    // v1.8.3 — no real assessment persisted (updatedAt stays null above),
+    // but a short-TTL negative stub IS written so the read-only route does
+    // not re-enqueue on every navigation while the provider is degraded.
+    // The stub is a timeout marker that `readFreshStatusText` rejects.
+    await Promise.resolve();
+    for (const call of vi.mocked(prisma.auditLog.create).mock.calls) {
+      const details = JSON.parse(
+        (call[0] as { data: { details: string } }).data.details,
+      );
+      expect(details.timeout === true || details.model === "timeout-stub").toBe(
+        true,
+      );
+    }
   });
 });
 

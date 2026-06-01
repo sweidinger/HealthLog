@@ -27,7 +27,10 @@ import {
   round,
 } from "@/lib/insights/status-shared";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
-import { isTimeoutStub } from "@/lib/insights/status-cache";
+import {
+  isTimeoutStub,
+  resolveReadOnlyStatusMiss,
+} from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
@@ -46,6 +49,8 @@ export async function generateMedicationComplianceStatusForUser(
   options?: {
     locale?: string | null;
     force?: boolean;
+    /** v1.8.3 — read-only navigation path; see weight-status for the rationale. */
+    readOnly?: boolean;
   },
 ): Promise<{
   hasProvider: boolean;
@@ -53,9 +58,11 @@ export async function generateMedicationComplianceStatusForUser(
   medications: MedicationSummaryItem[];
   cached: boolean;
   updatedAt: string | null;
+  preparing?: boolean;
 }> {
   const locale = normalizeLocale(options?.locale);
   const force = options?.force === true;
+  const readOnly = options?.readOnly === true;
   const cacheAction = `insights.medication-compliance-status.${locale}`;
   const todayKey = toBerlinDayKey(new Date());
 
@@ -104,6 +111,33 @@ export async function generateMedicationComplianceStatusForUser(
         // ignore invalid cache payload
       }
     }
+  }
+
+  // v1.8.3 — read-only navigation path: never block on the provider.
+  // Enqueue generation out of band and return preparing / no-provider.
+  if (readOnly) {
+    const outcome = await resolveReadOnlyStatusMiss({
+      userId,
+      metric: "medication-compliance",
+      locale,
+    });
+    if (outcome === "no-provider") {
+      return {
+        hasProvider: false,
+        summary: getNoKeyMedicationComplianceStatusText(locale),
+        medications: [],
+        cached: true,
+        updatedAt: null,
+      };
+    }
+    return {
+      hasProvider: true,
+      summary: null,
+      medications: [],
+      cached: false,
+      updatedAt: null,
+      preparing: true,
+    };
   }
 
   const medications = await prisma.medication.findMany({
@@ -338,6 +372,8 @@ export async function generateMedicationComplianceStatusForUser(
     returnTimeoutFallback({
       cacheAction,
       reason: outcome.kind,
+      userId,
+      todayKey,
       stubText: getNoKeyMedicationComplianceStatusText(locale),
     });
     return {

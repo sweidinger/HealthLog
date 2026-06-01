@@ -1376,6 +1376,7 @@
   },
   "insights": {
     "noAnalysisYet": "Brak analizy.",
+    "assessmentPreparing": "Przygotowywanie oceny…",
     "emptyTitle": "Jeszcze za mało danych",
     "emptyDescription": "Insights pojawią się, gdy zarejestrujesz kilka pomiarów. Zacznij od wagi lub ciśnienia.",
     "emptyAddMeasurement": "Zarejestruj pomiar",

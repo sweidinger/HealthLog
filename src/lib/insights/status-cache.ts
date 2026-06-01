@@ -1,4 +1,10 @@
 import { prisma } from "@/lib/db";
+import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
+import {
+  enqueueStatusGeneration,
+  type InsightStatusMetric,
+} from "@/lib/jobs/insight-status-generate-shared";
+import { annotate } from "@/lib/logging/context";
 
 /**
  * Shared cache-read for the seven `*-status.ts` insight generators.
@@ -31,6 +37,8 @@ interface ParsedStatusCache {
   model?: string;
   tokensUsed?: number | null;
   timeout?: boolean;
+  /** v1.8.3 — ISO timestamp before which a timeout stub suppresses re-enqueue. */
+  retryAt?: string;
 }
 
 /**
@@ -90,5 +98,93 @@ export async function readFreshStatusText(args: {
   } catch {
     // Malformed cache payload — treat as a miss and regenerate.
     return null;
+  }
+}
+
+/**
+ * Outcome of the read-only cache-miss resolution. The generators map this
+ * onto their public return shape:
+ *   - `no-provider` → `{ hasProvider: false, text: <no-key fallback> }`
+ *   - `preparing`   → `{ hasProvider: true, text: null, preparing: true }`
+ */
+export type ReadOnlyMissOutcome = "no-provider" | "preparing";
+
+/**
+ * v1.8.3 — resolve what a read-only status generation should return on a
+ * cache miss WITHOUT running the heavy SQL gather or the blocking LLM
+ * round-trip. This is the core of the holistic freeze fix: a navigation
+ * request must never await an uncapped provider call.
+ *
+ * On a miss the route either:
+ *   - finds no usable provider → returns `no-provider` (the card shows the
+ *     no-key fallback; nothing to generate), or
+ *   - finds a provider → fire-and-forget enqueues a generation job and
+ *     returns `preparing` (the card shows a preparing state and the client
+ *     polls until the worker warms the cache).
+ *
+ * The provider probe is a cheap chain-resolve (no completion), so the GET
+ * stays sub-second even on a cold cache.
+ */
+export async function resolveReadOnlyStatusMiss(args: {
+  userId: string;
+  metric: InsightStatusMetric;
+  locale: "de" | "en";
+}): Promise<ReadOnlyMissOutcome> {
+  const hasProvider = await hasUsableStatusProvider(args.userId);
+  if (!hasProvider) return "no-provider";
+
+  const cacheAction = `insights.${args.metric}-status.${args.locale}`;
+
+  // v1.8.3 — honour the short-TTL negative cache. If the worker recently
+  // hit a provider stall it wrote a `retryAt` stub; re-enqueuing on every
+  // navigation while the provider is still degraded would be a storm. While
+  // the stub is fresh, stay in `preparing` without enqueuing; once it goes
+  // stale (or never existed) enqueue a fresh generation.
+  if (await hasFreshTimeoutStub({ userId: args.userId, cacheAction })) {
+    annotate({
+      action: { name: "insights.status.preparing" },
+      meta: { metric: args.metric, suppressed_enqueue: true },
+    });
+    return "preparing";
+  }
+
+  // Enqueue out of band — do NOT await an LLM here. The enqueue itself is
+  // best-effort and de-duped per (user, metric, locale).
+  await enqueueStatusGeneration({
+    userId: args.userId,
+    metric: args.metric,
+    locale: args.locale,
+  });
+  annotate({
+    action: { name: "insights.status.preparing" },
+    meta: { metric: args.metric },
+  });
+  return "preparing";
+}
+
+/**
+ * True when the most recent cache row for `(userId, cacheAction)` is a
+ * timeout stub whose `retryAt` is still in the future. Used by the
+ * read-only resolver to suppress a re-enqueue storm while a provider is
+ * degraded. A stub without `retryAt` (legacy) is treated as stale so the
+ * resolver retries, matching the pre-v1.8.3 "transient miss" behaviour.
+ */
+async function hasFreshTimeoutStub(args: {
+  userId: string;
+  cacheAction: string;
+}): Promise<boolean> {
+  const latest = await prisma.auditLog.findFirst({
+    where: { userId: args.userId, action: args.cacheAction },
+    orderBy: { createdAt: "desc" },
+    select: { details: true },
+  });
+  if (!latest?.details) return false;
+  try {
+    const parsed = JSON.parse(latest.details) as ParsedStatusCache;
+    if (!isTimeoutStub(parsed)) return false;
+    if (typeof parsed.retryAt !== "string") return false;
+    return new Date(parsed.retryAt).getTime() > Date.now();
+  } catch {
+    return false;
   }
 }

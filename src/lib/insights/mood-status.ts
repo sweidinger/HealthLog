@@ -28,7 +28,10 @@ import {
   summarizeSeries,
 } from "@/lib/insights/status-shared";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
-import { readFreshStatusText } from "@/lib/insights/status-cache";
+import {
+  readFreshStatusText,
+  resolveReadOnlyStatusMiss,
+} from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
@@ -70,15 +73,19 @@ export async function generateMoodStatusForUser(
   options?: {
     locale?: string | null;
     force?: boolean;
+    /** v1.8.3 — read-only navigation path; see weight-status for the rationale. */
+    readOnly?: boolean;
   },
 ): Promise<{
   hasProvider: boolean;
   text: string | null;
   cached: boolean;
   updatedAt: string | null;
+  preparing?: boolean;
 }> {
   const locale = normalizeLocale(options?.locale);
   const force = options?.force === true;
+  const readOnly = options?.readOnly === true;
   const cacheAction = `insights.mood-status.${locale}`;
   const todayKey = toBerlinDayKey(new Date());
 
@@ -94,6 +101,29 @@ export async function generateMoodStatusForUser(
       text: cached.text,
       cached: true,
       updatedAt: cached.updatedAt,
+    };
+  }
+
+  if (readOnly) {
+    const outcome = await resolveReadOnlyStatusMiss({
+      userId,
+      metric: "mood",
+      locale,
+    });
+    if (outcome === "no-provider") {
+      return {
+        hasProvider: false,
+        text: getNoKeyMoodStatusText(locale),
+        cached: true,
+        updatedAt: null,
+      };
+    }
+    return {
+      hasProvider: true,
+      text: null,
+      cached: false,
+      updatedAt: null,
+      preparing: true,
     };
   }
 
@@ -382,6 +412,8 @@ export async function generateMoodStatusForUser(
     return returnTimeoutFallback({
       cacheAction,
       reason: outcome.kind,
+      userId,
+      todayKey,
       stubText: getNoKeyMoodStatusText(locale),
     });
   }
