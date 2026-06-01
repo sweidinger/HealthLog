@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.8.5] — 2026-06-01 — Insights reference panels, mood depth, injection tracking
+
+### Added
+
+- **A target reference panel on every Insights category page.** Each metric now shows the target band, where the latest reading sits inside it, a plain-language status, the guideline source behind the range, the 30-day average and a seven-day consistency strip — the same reference the Targets page carries, now on the page where you read the trend. Blood glucose surfaces one panel per context (fasting, post-meal, random, bedtime).
+- **A statistics strip per metric** — minimum, maximum, median and mean — plus a dedicated page that lists every underlying reading with edit and delete, reachable from each Insights category.
+- **Injection-site tracking and rotation.** Opt-in per medication (injections only): record the site after a dose, see the history on a body map, and get a rotation suggestion. Sites can be restricted per medication, and an account-level exclusion always wins.
+- **Structured mood tags and a per-entry note**, with a notes timeline so the context behind a mood is kept alongside the score.
+- **A richer mood page** — calendar heatmap, score distribution, weekday pattern, and correlations with sleep and activity.
+- **A measurement-diversity nudge** that suggests logging at other times or days when readings cluster, for a fuller picture.
+
+### Changed
+
+- **The medication compliance display adapts to how often a dose is due** — a percentage for frequent schedules, a dose-by-dose adherence timeline for sparse ones, so an every-few-weeks medication reads sensibly.
+- **The Trends section now follows the daily briefing**, charting the metrics the briefing actually flags rather than a fixed set.
+- **Tightened the Insights category pages and rebalanced the overview** for a denser, calmer layout.
+- **Gait and mobility metrics from Apple Health are consolidated to a daily mean overnight**, while discrete clinical readings (weight, blood pressure, glucose, mood, pulse) stay raw.
+- **The health-record FHIR export codes HealthKit-only metrics under a dedicated code system** instead of the LOINC namespace, for FHIR R4 conformance and alignment with the native client.
+
+### Fixed
+
+- **A rolling-interval medication now surfaces its first dose at the start date** — including when that date is already in the past — so the dashboard and reminders no longer skip the opening dose.
+- **The medication wizard no longer shows each time-of-day suggestion twice.**
+- **Deleting a medication no longer hangs on a spinner.**
+- **Mood entries with tags save atomically** — the entry and its tags commit together, and create and update return the saved tags immediately rather than after a refresh.
+- **Accessibility:** the injection-site picker has a visible focus state and screen-reader labels; mood tag chips and the status pill meet the contrast and minimum tap-target guidelines.
+
 ## [1.8.4] — 2026-06-01 — Medication card accuracy + Insights polish
 
 ### Fixed
