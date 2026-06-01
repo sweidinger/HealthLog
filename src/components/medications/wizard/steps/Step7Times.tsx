@@ -77,6 +77,10 @@ export function Step7Times({ payload, applyPartial }: StepProps) {
         value={payload.timesOfDay}
         onChange={(timesOfDay) => applyPartial({ timesOfDay })}
         maxChips={8}
+        // The icon-based preset row above already offers the four
+        // suggested times; suppress the chips' own labelled preset row so
+        // each suggestion isn't shown twice.
+        showPresets={false}
       />
     </div>
   );

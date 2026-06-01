@@ -46,6 +46,13 @@ export interface TimesOfDayChipsProps {
   disabled?: boolean;
   /** Translation namespace prefix. */
   i18nPrefix?: string;
+  /**
+   * Render the built-in Morning / Noon / Evening / Night preset row.
+   * Default `true`. The wizard's Step 7 supplies its own icon-based
+   * preset row, so it passes `false` to avoid showing each suggested
+   * time twice (the icon chip from Step 7 and the labelled chip here).
+   */
+  showPresets?: boolean;
 }
 
 /** Preset table — wall-clock HH:mm and i18n suffix key. */
@@ -106,6 +113,7 @@ export function TimesOfDayChips({
   maxChips = 8,
   disabled = false,
   i18nPrefix = "medications.scheduling.timesOfDay",
+  showPresets = true,
 }: TimesOfDayChipsProps) {
   const { t } = useTranslations();
   const inputId = useId();
@@ -165,38 +173,40 @@ export function TimesOfDayChips({
       aria-label={t(`${i18nPrefix}.label`)}
     >
       {/* Preset row */}
-      <div
-        role="group"
-        aria-label={t(`${i18nPrefix}.label`)}
-        className="flex flex-wrap gap-1.5"
-        data-slot="times-of-day-presets"
-      >
-        {PRESETS.map(({ key, value: preset }) => {
-          const isOn = sortedValue.includes(preset);
-          const label = `${t(`${i18nPrefix}.presets.${key}`)} ${preset}`;
-          return (
-            <button
-              key={key}
-              type="button"
-              disabled={disabled || (!isOn && atCap)}
-              aria-pressed={isOn}
-              aria-label={label}
-              data-slot="times-of-day-preset"
-              data-preset={key}
-              data-active={isOn ? "true" : "false"}
-              onClick={() => onPresetToggle(preset)}
-              className={[
-                "focus-visible:ring-ring inline-flex h-11 items-center gap-1 rounded-md border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50",
-                isOn
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border bg-background text-foreground hover:bg-muted",
-              ].join(" ")}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      {showPresets && (
+        <div
+          role="group"
+          aria-label={t(`${i18nPrefix}.label`)}
+          className="flex flex-wrap gap-1.5"
+          data-slot="times-of-day-presets"
+        >
+          {PRESETS.map(({ key, value: preset }) => {
+            const isOn = sortedValue.includes(preset);
+            const label = `${t(`${i18nPrefix}.presets.${key}`)} ${preset}`;
+            return (
+              <button
+                key={key}
+                type="button"
+                disabled={disabled || (!isOn && atCap)}
+                aria-pressed={isOn}
+                aria-label={label}
+                data-slot="times-of-day-preset"
+                data-preset={key}
+                data-active={isOn ? "true" : "false"}
+                onClick={() => onPresetToggle(preset)}
+                className={[
+                  "focus-visible:ring-ring inline-flex h-11 items-center gap-1 rounded-md border px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50",
+                  isOn
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border bg-background text-foreground hover:bg-muted",
+                ].join(" ")}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Chip list */}
       {sortedValue.length === 0 ? (
@@ -225,7 +235,7 @@ export function TimesOfDayChips({
                 disabled={disabled}
                 aria-label={`${t(`${i18nPrefix}.remove`)} ${time}`}
                 onClick={() => onRemove(time)}
-                className="focus-visible:ring-ring inline-flex h-7 w-7 items-center justify-center rounded-sm hover:bg-background focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
+                className="focus-visible:ring-ring hover:bg-background inline-flex h-7 w-7 items-center justify-center rounded-sm focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
                 data-slot="times-of-day-chip-remove"
               >
                 <X className="h-3.5 w-3.5" aria-hidden="true" />

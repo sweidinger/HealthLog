@@ -143,4 +143,22 @@ describe("<TimesOfDayChips> — SSR render", () => {
     expect(html).not.toContain('data-slot="times-of-day-presets"');
     expect(html).toMatch(/value="09:30"/);
   });
+
+  it("suppresses the built-in preset row when showPresets is false", () => {
+    // The wizard's Step 7 supplies its own icon-based preset row; passing
+    // showPresets={false} keeps each suggested time from rendering twice.
+    const html = render(
+      <TimesOfDayChips value={["08:00"]} showPresets={false} onChange={NOOP} />,
+    );
+    expect(html).not.toContain('data-slot="times-of-day-presets"');
+    // The chip list (the actual selected values) still renders.
+    expect(html).toContain('data-slot="times-of-day-list"');
+  });
+
+  it("renders the preset row by default (showPresets defaults true)", () => {
+    const html = render(
+      <TimesOfDayChips value={["08:00"]} onChange={NOOP} />,
+    );
+    expect(html).toContain('data-slot="times-of-day-presets"');
+  });
 });
