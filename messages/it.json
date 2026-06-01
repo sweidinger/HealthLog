@@ -994,6 +994,7 @@
     },
     "injectionSiteBodyOutlineAriaLabel": "Sagoma del corpo",
     "injectionSitePickerAriaLabel": "Selettore del sito di iniezione",
+    "injectionSiteRecommendedAriaLabel": "{site} — prossimo sito consigliato",
     "siteAbdomenLeft": "Addome, basso a sinistra",
     "siteAbdomenRight": "Addome, basso a destra",
     "siteAbdomenUpperLeft": "Addome, alto a sinistra",

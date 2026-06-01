@@ -994,6 +994,7 @@
     },
     "injectionSiteBodyOutlineAriaLabel": "Sylwetka ciała",
     "injectionSitePickerAriaLabel": "Wybór miejsca iniekcji",
+    "injectionSiteRecommendedAriaLabel": "{site} — zalecane następne miejsce",
     "siteAbdomenLeft": "Brzuch, dolny lewy",
     "siteAbdomenRight": "Brzuch, dolny prawy",
     "siteAbdomenUpperLeft": "Brzuch, górny lewy",

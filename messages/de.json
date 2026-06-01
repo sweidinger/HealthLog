@@ -994,6 +994,7 @@
     },
     "injectionSiteBodyOutlineAriaLabel": "Körperumriss",
     "injectionSitePickerAriaLabel": "Injektionsstelle auswählen",
+    "injectionSiteRecommendedAriaLabel": "{site} – empfohlene nächste Stelle",
     "siteAbdomenLeft": "Bauch, unten links",
     "siteAbdomenRight": "Bauch, unten rechts",
     "siteAbdomenUpperLeft": "Bauch, oben links",

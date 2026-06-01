@@ -90,6 +90,25 @@ describe("<InjectionSitePicker>", () => {
     expect(html).toContain("Recommended next:");
   });
 
+  it("folds the recommendation into the recommended site's aria-label (SR parity)", () => {
+    // The "recommended next site" cue must not be purely visual (the
+    // dashed ring). The recommended site's interactive circle carries an
+    // aria-label that includes the recommendation, while every other
+    // site keeps its plain site name.
+    const html = render(
+      <InjectionSitePicker
+        value={null}
+        history={["ABDOMEN_LEFT", "ABDOMEN_UPPER_LEFT"]}
+        onChange={() => {}}
+      />,
+    );
+
+    // Exactly one site is recommended → exactly one composed label.
+    const composed =
+      html.match(/aria-label="[^"]*— recommended next site"/g) ?? [];
+    expect(composed.length).toBe(1);
+  });
+
   it("fires onChange(site) when the click handler is invoked", () => {
     // SSR can't dispatch DOM events; smoke-check the contract by
     // invoking the supplied handler with each enum value. The picker
@@ -130,8 +149,12 @@ describe("<InjectionSitePicker>", () => {
     );
 
     // The full set of EN labels must appear in the SSR string —
-    // verifies the t() lookup matches each enum value's i18n key.
-    expect(html).toContain('aria-label="Abdomen, lower left"');
+    // verifies the t() lookup matches each enum value's i18n key. With
+    // empty history the recommender lands on ABDOMEN_LEFT, so its label
+    // folds in the "recommended next site" cue.
+    expect(html).toContain(
+      'aria-label="Abdomen, lower left — recommended next site"',
+    );
     expect(html).toContain('aria-label="Abdomen, lower right"');
     expect(html).toContain('aria-label="Abdomen, upper left"');
     expect(html).toContain('aria-label="Abdomen, upper right"');
@@ -149,7 +172,9 @@ describe("<InjectionSitePicker>", () => {
       "de",
     );
 
-    expect(html).toContain('aria-label="Bauch, unten links"');
+    expect(html).toContain(
+      'aria-label="Bauch, unten links – empfohlene nächste Stelle"',
+    );
     expect(html).toContain('aria-label="Bauch, unten rechts"');
     expect(html).toContain('aria-label="Bauch, oben links"');
     expect(html).toContain('aria-label="Bauch, oben rechts"');

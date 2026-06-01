@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useTranslations } from "@/lib/i18n/context";
 import {
   INJECTION_SITE_KEYS,
@@ -59,6 +61,21 @@ export function InjectionSitePicker({
   const allowedSet = allowed ? new Set(allowed) : null;
   const isAllowed = (site: InjectionSiteKey) =>
     allowedSet === null || allowedSet.has(site);
+  // Track which site currently holds keyboard focus so we can paint a
+  // high-contrast focus halo on the filled dot itself — a transparent
+  // hit-target stroke alone is effectively invisible on the muted body
+  // map (WCAG 2.4.7).
+  const [focusedSite, setFocusedSite] = useState<InjectionSiteKey | null>(null);
+
+  // Accessible name: fold the rotation recommendation into the label so a
+  // screen-reader user gets the "recommended next site" cue that is
+  // otherwise conveyed only by the dashed ring.
+  const siteLabel = (site: InjectionSiteKey): string => {
+    const name = t(describeInjectionSite(site));
+    return site === recommended
+      ? t("medications.injectionSiteRecommendedAriaLabel", { site: name })
+      : name;
+  };
 
   return (
     <div
@@ -155,8 +172,22 @@ export function InjectionSitePicker({
           // disabled (dimmed, non-interactive) so the user cannot pick a
           // site the server would reject.
           const disabled = !isAllowed(site);
+          const isFocused = site === focusedSite;
           return (
             <g key={site}>
+              {/* Keyboard focus halo — a contrasting ring on the filled dot
+                  that only shows while this site holds focus. Painted under
+                  the recommendation ring and the dot so both stay legible. */}
+              {isFocused && !disabled && (
+                <circle
+                  cx={coord.x}
+                  cy={coord.y}
+                  r="10.5"
+                  fill="none"
+                  className="stroke-ring"
+                  strokeWidth="2.5"
+                />
+              )}
               {isRecommended && !isActive && !disabled && (
                 <circle
                   cx={coord.x}
@@ -197,8 +228,17 @@ export function InjectionSitePicker({
                 tabIndex={disabled ? -1 : 0}
                 aria-pressed={isActive}
                 aria-disabled={disabled}
-                aria-label={t(describeInjectionSite(site))}
+                aria-label={siteLabel(site)}
                 onClick={disabled ? undefined : () => onChange(site)}
+                onFocus={disabled ? undefined : () => setFocusedSite(site)}
+                onBlur={
+                  disabled
+                    ? undefined
+                    : () =>
+                        setFocusedSite((current) =>
+                          current === site ? null : current,
+                        )
+                }
                 onKeyDown={
                   disabled
                     ? undefined
@@ -212,7 +252,7 @@ export function InjectionSitePicker({
                 className={
                   disabled
                     ? "cursor-not-allowed focus:outline-none"
-                    : "cursor-pointer focus:outline-none focus-visible:stroke-current focus-visible:stroke-2"
+                    : "cursor-pointer focus:outline-none"
                 }
               />
             </g>

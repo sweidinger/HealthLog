@@ -994,6 +994,7 @@
     },
     "injectionSiteBodyOutlineAriaLabel": "Silhouette du corps",
     "injectionSitePickerAriaLabel": "Sélecteur de site d'injection",
+    "injectionSiteRecommendedAriaLabel": "{site} — prochain site recommandé",
     "siteAbdomenLeft": "Abdomen, en bas à gauche",
     "siteAbdomenRight": "Abdomen, en bas à droite",
     "siteAbdomenUpperLeft": "Abdomen, en haut à gauche",
