@@ -23,12 +23,15 @@ import {
   buildCadenceTimeline,
   type CadenceEngineContext,
   type IntakeEventLike,
+  type PairedDose,
   type ScheduleLike,
 } from "@/lib/medications/scheduling/cadence";
 import {
   occurrencesBetween,
+  type Occurrence,
   type ScheduleType,
 } from "@/lib/medications/scheduling/recurrence";
+import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
 interface IntakeEvent {
   takenAt: Date | null;
@@ -300,6 +303,287 @@ export function expectedSlotCountForDay(
     ).length;
   }
   return count;
+}
+
+/**
+ * v1.8.5 — the sibling of {@link expectedSlotCountForDay} that returns the
+ * expected-dose occurrences *themselves* (ascending by instant) over an
+ * arbitrary window, rather than just the per-day count. Same loop, same
+ * canonical-engine delegation; we keep the slots so the dose-adherence
+ * timeline can pair each expected slot to its intake.
+ *
+ * Used by {@link buildComplianceDisplay} to decide the card's render mode
+ * (percent bars vs an uptime-style per-dose strip) and to build the strip.
+ * `occurrencesBetween` is inclusive of both ends; the caller passes a
+ * `[from, to]` window and we sort the union of every schedule's slots so
+ * a multi-schedule medication interleaves its slots in time order.
+ */
+export function expectedSlotsBetween(
+  schedules: ComplianceSchedule[],
+  from: Date,
+  to: Date,
+  ctx: ComplianceMedicationContext,
+): Occurrence[] {
+  const recurrenceCtx = {
+    medication: {
+      id: "compliance-slots",
+      startsOn: ctx.startsOn,
+      endsOn: ctx.endsOn,
+      oneShot: ctx.oneShot,
+      createdAt: ctx.createdAt,
+    },
+    timeZone: ctx.timeZone,
+    lastIntakeAt: ctx.lastIntakeAt,
+  };
+  const all: Occurrence[] = [];
+  for (let i = 0; i < schedules.length; i++) {
+    const s = schedules[i];
+    const canonical = {
+      id: `compliance-slots-${i}`,
+      rrule: s.rrule ?? null,
+      rollingIntervalDays: s.rollingIntervalDays ?? null,
+      timesOfDay: s.timesOfDay ?? [],
+      daysOfWeek: s.daysOfWeek ?? null,
+      windowStart: s.windowStart,
+      windowEnd: s.windowEnd,
+      reminderGraceMinutes: s.reminderGraceMinutes ?? null,
+      scheduleType: s.scheduleType ?? ("SCHEDULED" as const),
+      cyclicOnWeeks: s.cyclicOnWeeks ?? null,
+      cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+    };
+    all.push(...occurrencesBetween(canonical, from, to, recurrenceCtx));
+  }
+  return all.sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
+/**
+ * v1.8.5 — render mode for the per-medication compliance display. A
+ * window's percentage is only meaningful once the denominator is large
+ * enough that a single miss moves the rate by a small amount; below that
+ * the bar swings violently and tells the user nothing. So:
+ *
+ * - `"percent"`: keep the 7-/30-day percentage bars (dense cadences:
+ *   daily, multi-daily, weekday meds). The window holds ≥
+ *   `MIN_STABLE_DOSES` expected doses.
+ * - `"timeline"`: swap to an uptime-style per-dose strip (sparse cadences:
+ *   weekly, bi-/tri-weekly, rolling 35-day injections) where each cell is
+ *   one expected dose, taken=green / missed=red / skipped=grey.
+ */
+export type ComplianceDisplayMode = "percent" | "timeline";
+
+/**
+ * v1.8.5 — one cell of the dose-adherence timeline. A projection of the
+ * canonical engine's expected-dose slots paired with the recorded intake,
+ * oldest → newest. `site` is reserved for injection meds so the strip can
+ * dual-encode rotation; it is `null` until the per-dose injection-site
+ * write path lands.
+ */
+export interface DoseTimelineCell {
+  /** ISO instant of the expected dose slot. */
+  scheduledFor: string;
+  status: "taken" | "missed" | "skipped" | "upcoming";
+  /** ISO instant the dose was logged, or null when not taken. */
+  takenAt: string | null;
+  /** Punctuality bucket for a taken dose; null when not taken. */
+  timing: IntakeTimingClass | null;
+  /** Injection zone for injection meds; null otherwise / when unrecorded. */
+  site: InjectionSiteKey | null;
+}
+
+/**
+ * v1.8.5 — the additive compliance-display block returned alongside the
+ * existing `compliance7` / `compliance30` fields (which iOS + the Health
+ * Score still read verbatim). The server decides `mode` from the density
+ * rule so the client stays dumb.
+ */
+export interface ComplianceDisplay {
+  mode: ComplianceDisplayMode;
+  /** Realised expected dose count over the 7-day window. */
+  expected7: number;
+  /** Realised expected dose count over the 30-day window. */
+  expected30: number;
+  /** Echo of the density threshold so a client can re-derive the mode. */
+  minStableDoses: number;
+  /** Uptime strip — last N expected dose slots, oldest → newest. */
+  doseTimeline: DoseTimelineCell[];
+  /** Compact summary for the "last N doses" line. */
+  recentDoseSummary: { taken: number; total: number; doseStreak: number };
+}
+
+/**
+ * v1.8.5 — the floor at which a window's percentage is stable. Four
+ * expected doses is the point where a single miss moves the rate by ≤25%
+ * rather than ±50–100%. A daily med clears it in 4 days; a weekly med
+ * needs ~28 days; a tri-weekly / 35-day-rolling med never clears it in a
+ * 30-day window — which is exactly the signal to show the timeline.
+ */
+export const MIN_STABLE_DOSES = 4;
+
+/** Number of past dose cells the card strip carries. */
+const TIMELINE_PAST_DOSES = 12;
+/** Number of upcoming dose cells appended so the strip shows what's next. */
+const TIMELINE_UPCOMING_DOSES = 2;
+
+/** A single paired dose, distilled into a timeline cell. */
+function toTimelineCell(dose: PairedDose): DoseTimelineCell {
+  const takenAt = dose.match?.takenAt ?? null;
+  return {
+    scheduledFor: dose.windowStart.toISOString(),
+    status: dose.status,
+    takenAt: takenAt ? takenAt.toISOString() : null,
+    // Punctuality is computed against the slot window the engine already
+    // emitted. `windowStart` / `windowEnd` are full instants here; reuse
+    // the HH:mm classifier by formatting them back to wall-clock on the
+    // slot's own day so an early / late dose reads correctly.
+    timing:
+      dose.status === "taken" && takenAt
+        ? classifyIntakeTiming(
+            takenAt,
+            hhmmOf(dose.windowStart),
+            hhmmOf(dose.windowEnd),
+            dose.windowStart,
+          )
+        : null,
+    // Injection-site dual-encoding is reserved for the per-dose write
+    // path; the compliance read does not yet carry it.
+    site: null,
+  };
+}
+
+/** Format a Date's UTC wall-clock as "HH:mm" for the punctuality classifier. */
+function hhmmOf(d: Date): string {
+  const h = String(d.getUTCHours()).padStart(2, "0");
+  const m = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+/**
+ * v1.8.5 — compute the additive {@link ComplianceDisplay} block.
+ *
+ * The mode is decided purely by density: when the 30-day window holds at
+ * least {@link MIN_STABLE_DOSES} expected doses the percentage bars stay
+ * (`"percent"`); otherwise the per-dose timeline takes over (`"timeline"`).
+ * The 30-day window is the honest denominator — a weekly med clears the
+ * floor there, a sparse injection never does.
+ *
+ * The timeline itself is a projection of {@link buildCadenceTimeline}: the
+ * engine already pairs each expected slot to its closest intake, so we
+ * take the last {@link TIMELINE_PAST_DOSES} past slots plus a couple of
+ * upcoming ones and distil each into a cell. `doseStreak` counts
+ * consecutive taken-or-skipped doses back from the newest non-upcoming
+ * dose — dose-indexed, unlike the day-indexed `streak` on
+ * {@link ComplianceResult} which inflates on off-cadence days.
+ */
+export function buildComplianceDisplay(
+  events: IntakeEvent[],
+  schedules: ComplianceSchedule[],
+  ctx: ComplianceMedicationContext,
+  options?: { now?: Date },
+): ComplianceDisplay {
+  const now = options?.now ?? new Date();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  // Realised expected counts over each window. `expectedSlotsBetween`
+  // already excludes PRN / off-cadence days through the canonical engine.
+  const from7 = new Date(now.getTime() - 7 * DAY_MS);
+  const from30 = new Date(now.getTime() - 30 * DAY_MS);
+  const expected7 = expectedSlotsBetween(schedules, from7, now, ctx).length;
+  const expected30 = expectedSlotsBetween(schedules, from30, now, ctx).length;
+
+  const mode: ComplianceDisplayMode =
+    expected30 >= MIN_STABLE_DOSES ? "percent" : "timeline";
+
+  // Build the per-dose strip from the same engine the cadence chart uses.
+  // Pull a generous past window (90 days) so even a 35-day-rolling med
+  // surfaces a few cells, then keep the last N plus a short look-ahead.
+  const engineCtx: CadenceEngineContext = {
+    startsOn: ctx.startsOn,
+    endsOn: ctx.endsOn,
+    oneShot: ctx.oneShot,
+    createdAt: ctx.createdAt,
+    lastIntakeAt: ctx.lastIntakeAt,
+    timeZone: ctx.timeZone,
+  };
+  const normalisedSchedules: ScheduleLike[] = schedules.map((s, i) => ({
+    id: `display-${i}`,
+    windowStart: s.windowStart,
+    windowEnd: s.windowEnd,
+    daysOfWeek: s.daysOfWeek ?? null,
+    rrule: s.rrule ?? null,
+    rollingIntervalDays: s.rollingIntervalDays ?? null,
+    timesOfDay: s.timesOfDay,
+    reminderGraceMinutes: s.reminderGraceMinutes ?? null,
+    scheduleType: s.scheduleType ?? null,
+    cyclicOnWeeks: s.cyclicOnWeeks ?? null,
+    cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+  }));
+  const normalisedEvents: IntakeEventLike[] = events.map((e) => ({
+    scheduledFor: e.scheduledFor,
+    takenAt: e.takenAt,
+    skipped: e.skipped,
+  }));
+
+  // Past window for the strip — bounded so a daily med doesn't return
+  // hundreds of cells. `buildCadenceTimeline` anchors on `now - windowDays`
+  // and projects forward; a small look-ahead is added below.
+  const STRIP_PAST_DAYS = 90;
+  const past = buildCadenceTimeline(
+    normalisedSchedules,
+    normalisedEvents,
+    now,
+    STRIP_PAST_DAYS,
+    ctx.createdAt,
+    engineCtx.timeZone,
+    engineCtx,
+  )
+    .filter((d) => d.status !== "upcoming")
+    .sort((a, b) => a.windowStart.getTime() - b.windowStart.getTime());
+
+  // Upcoming slots — expand a short forward window and keep the soonest.
+  const lookahead = new Date(now.getTime() + 60 * DAY_MS);
+  const upcoming = buildCadenceTimeline(
+    normalisedSchedules,
+    normalisedEvents,
+    lookahead,
+    60,
+    ctx.createdAt,
+    engineCtx.timeZone,
+    engineCtx,
+  )
+    .filter((d) => d.status === "upcoming" && d.windowStart.getTime() > now.getTime())
+    .sort((a, b) => a.windowStart.getTime() - b.windowStart.getTime())
+    .slice(0, TIMELINE_UPCOMING_DOSES);
+
+  const recentPast = past.slice(-TIMELINE_PAST_DOSES);
+  const doseTimeline = [...recentPast, ...upcoming].map(toTimelineCell);
+
+  // Summary over the past cells the strip shows.
+  const summaryTaken = recentPast.filter((d) => d.status === "taken").length;
+  const summaryTotal = recentPast.filter(
+    (d) => d.status === "taken" || d.status === "missed",
+  ).length;
+
+  // Dose-streak: consecutive taken-or-skipped doses, newest → oldest, from
+  // the newest non-upcoming dose. A miss breaks it; a skip does not.
+  let doseStreak = 0;
+  for (let i = recentPast.length - 1; i >= 0; i--) {
+    const s = recentPast[i].status;
+    if (s === "missed") break;
+    if (s === "taken" || s === "skipped") doseStreak++;
+  }
+
+  return {
+    mode,
+    expected7,
+    expected30,
+    minStableDoses: MIN_STABLE_DOSES,
+    doseTimeline,
+    recentDoseSummary: {
+      taken: summaryTaken,
+      total: summaryTotal,
+      doseStreak,
+    },
+  };
 }
 
 /**

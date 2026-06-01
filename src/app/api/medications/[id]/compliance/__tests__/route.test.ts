@@ -115,6 +115,13 @@ async function callRoute(): Promise<Record<string, unknown>> {
   return body.data.dailyCompliance as Record<string, unknown>;
 }
 
+async function callRouteData(): Promise<Record<string, unknown>> {
+  const res = await GET(new Request("http://localhost"), ROUTE_PARAMS);
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  return body.data as Record<string, unknown>;
+}
+
 describe("GET /api/medications/[id]/compliance — per-slot timing", () => {
   it("classifies both doses of a single-row twice-daily schedule as on_time (green cell)", async () => {
     const { start: dayStart } = dayBoundsForOffset(DAY_OFFSET);
@@ -237,5 +244,93 @@ describe("GET /api/medications/[id]/compliance — per-slot timing", () => {
     expect(entry!.veryLate).toBe(0);
     expect(entry!.late).toBe(0);
     expect(entry!.onTime).toBe(1);
+  });
+});
+
+// v1.8.5 — the additive `complianceDisplay` block. The server decides the
+// render mode from expected-dose density: a daily med keeps the percentage
+// bars (`"percent"`), a sparse rolling/long-interval med swaps to the
+// per-dose timeline (`"timeline"`). The existing `compliance7` /
+// `compliance30` fields stay untouched.
+describe("GET /api/medications/[id]/compliance — complianceDisplay", () => {
+  it("daily med → mode: percent", async () => {
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue(
+      medication([
+        {
+          id: "sched-1",
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          timesOfDay: ["08:00"],
+          daysOfWeek: null,
+          rrule: "FREQ=DAILY",
+          rollingIntervalDays: null,
+          reminderGraceMinutes: null,
+          scheduleType: "SCHEDULED",
+          cyclicOnWeeks: null,
+          cyclicOffWeeks: null,
+        },
+      ]) as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+
+    const data = await callRouteData();
+    const display = data.complianceDisplay as {
+      mode: string;
+      expected30: number;
+      minStableDoses: number;
+    };
+    expect(display.mode).toBe("percent");
+    expect(display.expected30).toBeGreaterThanOrEqual(display.minStableDoses);
+    // The legacy fields stay on the wire.
+    expect(data.compliance7).toBeDefined();
+    expect(data.compliance30).toBeDefined();
+  });
+
+  it("35-day-interval med → mode: timeline", async () => {
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue(
+      {
+        id: "med-1",
+        userId: "user-1",
+        createdAt: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000),
+        startsOn: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+        endsOn: null,
+        oneShot: false,
+        schedules: [
+          {
+            id: "sched-1",
+            windowStart: "10:00",
+            windowEnd: "11:00",
+            timesOfDay: ["10:00"],
+            daysOfWeek: null,
+            rrule: null,
+            rollingIntervalDays: 35,
+            reminderGraceMinutes: null,
+            scheduleType: "SCHEDULED",
+            cyclicOnWeeks: null,
+            cyclicOffWeeks: null,
+          },
+        ],
+      } as never,
+    );
+    // One past intake re-anchors the rolling cadence ~25 days ago, so the
+    // next slot lands beyond the 30-day window → <4 expected → timeline.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      {
+        takenAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+        skipped: false,
+        scheduledFor: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000),
+      },
+    ] as never);
+
+    const data = await callRouteData();
+    const display = data.complianceDisplay as {
+      mode: string;
+      expected30: number;
+      minStableDoses: number;
+    };
+    expect(display.mode).toBe("timeline");
+    expect(display.expected30).toBeLessThan(display.minStableDoses);
   });
 });

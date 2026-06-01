@@ -9,6 +9,10 @@ import { MedicationCardMenu } from "@/components/medications/medication-card-men
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
+import {
+  DoseAdherenceTimeline,
+  type DoseAdherenceCell,
+} from "@/components/medications/card-parts/dose-adherence-timeline";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { formatDateTime, formatTime } from "@/lib/format";
@@ -62,6 +66,15 @@ interface Medication {
   schedules: Schedule[];
 }
 
+interface ComplianceDisplay {
+  mode: "percent" | "timeline";
+  expected7: number;
+  expected30: number;
+  minStableDoses: number;
+  doseTimeline: DoseAdherenceCell[];
+  recentDoseSummary: { taken: number; total: number; doseStreak: number };
+}
+
 interface ComplianceData {
   compliance7: {
     totalExpected: number;
@@ -74,6 +87,12 @@ interface ComplianceData {
   compliance30: {
     rate: number;
   };
+  /**
+   * v1.8.5 — server-decided render mode for the compliance region. Dense
+   * cadences keep the 7-/30-day bars (`"percent"`); sparse cadences swap to
+   * the per-dose uptime strip (`"timeline"`). Additive — older mocks omit it.
+   */
+  complianceDisplay?: ComplianceDisplay;
 }
 
 interface MedicationCardProps {
@@ -327,14 +346,24 @@ export function MedicationCard({
           </p>
         )}
 
-        {/* Compliance bar */}
-        {medication.active && compliance && (
-          <MedicationComplianceBars
-            rate7={rate7}
-            rate30={rate30}
-            streak={streak}
-          />
-        )}
+        {/* Compliance region — the server decides whether the percentage
+            bars stay (dense cadences) or the per-dose uptime strip takes
+            over (sparse cadences). Falls back to the bars when the older
+            payload omits `complianceDisplay`. */}
+        {medication.active &&
+          compliance &&
+          (compliance.complianceDisplay?.mode === "timeline" ? (
+            <DoseAdherenceTimeline
+              doses={compliance.complianceDisplay.doseTimeline}
+              summary={compliance.complianceDisplay.recentDoseSummary}
+            />
+          ) : (
+            <MedicationComplianceBars
+              rate7={rate7}
+              rate30={rate30}
+              streak={streak}
+            />
+          ))}
 
         {/* Quick actions — primary buttons of the medication card. */}
         {medication.active && (
