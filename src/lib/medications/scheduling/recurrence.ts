@@ -259,9 +259,21 @@ export function nextOccurrenceAfter(
   // of its due day instead of silently rolling it forward by N.
   if (schedule.rollingIntervalDays !== null) {
     const dayFloor = startOfDayInTz(after, ctx.timeZone);
-    const slots = expandRolling(schedule, ctx, dayFloor, limit);
+    // With no intake logged the first dose anchors at `startsOn ?? createdAt`.
+    // When that anchor is on a PRIOR calendar day the dose is overdue by ≥1
+    // day and must still surface ("take now"); flooring only to the start of
+    // the user's current day dropped it out of existence (null next-due AND
+    // no reminder). Reach the floor back to the first-dose instant in that
+    // case so a multi-day-overdue start dose is returned. After an intake the
+    // re-anchor (`lastIntakeAt + N`) is always in the future, so the dayFloor
+    // is the correct, tighter bound there.
+    const floor =
+      ctx.lastIntakeAt === null
+        ? new Date(Math.min(dayFloor.getTime(), firstRollingDoseDayFloor(ctx)))
+        : dayFloor;
+    const slots = expandRolling(schedule, ctx, floor, limit);
     for (const s of slots) {
-      if (s.at.getTime() < dayFloor.getTime()) continue;
+      if (s.at.getTime() < floor.getTime()) continue;
       if (cyclic && !isInCyclicOnWeek(s.at, schedule, ctx)) continue;
       return s;
     }
@@ -367,6 +379,19 @@ function expandOneShot(
  * historical intake events, not "expected slots" the schedule
  * predicts forward.
  */
+/**
+ * Start-of-day (in the user's timezone) of the no-intake first rolling dose
+ * anchor — `startsOn ?? createdAt`. Used by `nextOccurrenceAfter` to clamp the
+ * search floor so a multi-day-overdue first dose still surfaces. Mirrors the
+ * anchor `expandRolling` emits in the `lastIntakeAt === null` branch; flooring
+ * to the anchor's start-of-day keeps the time-of-day slot (e.g. 08:00) within
+ * the window rather than ahead of a raw-instant floor.
+ */
+function firstRollingDoseDayFloor(ctx: RecurrenceContext): number {
+  const anchor = ctx.medication.startsOn ?? ctx.medication.createdAt;
+  return startOfDayInTz(anchor, ctx.timeZone).getTime();
+}
+
 function expandRolling(
   schedule: CanonicalSchedule,
   ctx: RecurrenceContext,

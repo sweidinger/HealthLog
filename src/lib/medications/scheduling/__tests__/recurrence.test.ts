@@ -392,6 +392,38 @@ describe("occurrencesBetween — rolling", () => {
     ).toBe("2026-06-10");
   });
 
+  it("nextOccurrenceAfter surfaces a multi-day-overdue first dose (startsOn days ago, no intake)", () => {
+    // v1.8.5 — a rolling course whose startsOn is several calendar days in
+    // the past with no intake logged must still surface the start dose as
+    // OVERDUE ("take now"). Flooring the search window only to the start of
+    // the user's current day dropped the dose out of existence, returning
+    // null — no next-due AND no reminder. The floor must reach back to the
+    // first-dose instant in the no-intake case.
+    const startsOn = d("2026-06-07T06:00:00Z"); // 3 days before NOW
+    const NOW = d("2026-06-10T12:00:00Z");
+    const schedule = makeSchedule({
+      rollingIntervalDays: 7,
+      timesOfDay: ["08:00"],
+    });
+    const ctx = makeCtx({
+      lastIntakeAt: null,
+      medication: { startsOn },
+    });
+    const next = nextOccurrenceAfter(schedule, NOW, ctx);
+    expect(next).not.toBeNull();
+    // The surfaced slot is the start dose (08:00 Berlin on the startsOn day),
+    // overdue by ~3 days relative to NOW.
+    expect(next!.at.getTime()).toBeLessThan(NOW.getTime());
+    expect(
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(next!.at),
+    ).toBe("2026-06-07");
+  });
+
   it("nextOccurrenceAfter returns the future first dose AT startsOn (no intake) without adding N", () => {
     const NOW = d("2026-06-10T12:00:00Z");
     const startsOn = d("2026-06-12T00:00:00Z"); // 2 days out
