@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "Delete entry?",
     "deleteConfirmDescription": "This mood entry will be permanently deleted.",
     "pageInfo": "Page {page} of {total}",
-    "loginRequired": "Please sign in to view mood entries."
+    "loginRequired": "Please sign in to view mood entries.",
+    "note": "Note",
+    "notePlaceholder": "Add a note about how you're feeling…",
+    "tagPicker": "Tags",
+    "tagCategory": {
+      "feelings": "Feelings",
+      "sleep": "Sleep",
+      "health": "Health",
+      "social": "Social",
+      "work": "Work"
+    },
+    "tag": {
+      "happy": "happy",
+      "excited": "excited",
+      "grateful": "grateful",
+      "relaxed": "relaxed",
+      "content": "content",
+      "tired": "tired",
+      "unsure": "unsure",
+      "bored": "bored",
+      "tense": "tense",
+      "angry": "angry",
+      "stressed": "stressed",
+      "sad": "sad",
+      "sleptWell": "slept well",
+      "sleptOk": "slept okay",
+      "sleptPoorly": "slept poorly",
+      "earlyNight": "early night",
+      "workedOut": "worked out",
+      "ateWell": "ate well",
+      "hydrated": "hydrated",
+      "walked": "walked",
+      "alcohol": "alcohol",
+      "family": "family",
+      "friends": "friends",
+      "party": "party",
+      "alone": "alone",
+      "productive": "productive",
+      "overtime": "overtime",
+      "dayOff": "day off",
+      "travel": "travel",
+      "sickDay": "sick day"
+    }
   },
   "medications": {
     "title": "Medications",
@@ -2326,7 +2368,9 @@
         "source": "{n} paired days · r = {r}",
         "emptyTitle": "Not enough paired data yet",
         "emptyDescription": "Log mood and this metric on the same days to see a correlation."
-      }
+      },
+      "structuredTagsTitle": "Tag breakdown",
+      "notesTimelineTitle": "Notes"
     }
   },
   "thresholds": {

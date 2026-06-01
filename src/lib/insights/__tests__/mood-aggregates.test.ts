@@ -6,11 +6,14 @@ import {
   computeInTargetPct,
   computeMoodAggregates,
   computeMoodMetricCorrelation,
+  computeNotesTimeline,
+  computeStructuredTagSummary,
   computeTagSummary,
   computeWeekdayAverages,
   selectHeatmapWindow,
   type CrossMetricMeasurement,
   type MoodAggregateEntry,
+  type StructuredTagRef,
 } from "../mood-aggregates";
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -75,6 +78,79 @@ describe("computeTagSummary", () => {
     ];
     const tags = computeTagSummary(entries, NOW, 90);
     expect(tags.map((t) => t.tag)).toEqual(["recent"]);
+  });
+});
+
+describe("computeStructuredTagSummary", () => {
+  function entryWithStructured(
+    offset: number,
+    score: number,
+    structuredTags: StructuredTagRef[],
+  ): MoodAggregateEntry {
+    return { ...entry(offset, score, null), structuredTags };
+  }
+
+  it("ranks structured tags by frequency, keeps singletons, and groups by category", () => {
+    const entries: MoodAggregateEntry[] = [
+      entryWithStructured(1, 5, [
+        { key: "happy", categoryKey: "feelings", labelKey: "mood.tag.happy", icon: "Smile" },
+        { key: "worked_out", categoryKey: "health", labelKey: "mood.tag.workedOut", icon: "Dumbbell" },
+      ]),
+      entryWithStructured(2, 3, [
+        { key: "happy", categoryKey: "feelings", labelKey: "mood.tag.happy", icon: "Smile" },
+      ]),
+      entryWithStructured(3, 1, [
+        { key: "stressed", categoryKey: "feelings", labelKey: "mood.tag.stressed", icon: "Brain" },
+      ]),
+    ];
+    const rows = computeStructuredTagSummary(entries, NOW);
+    const happy = rows.find((r) => r.key === "happy");
+    expect(happy).toEqual({
+      key: "happy",
+      categoryKey: "feelings",
+      labelKey: "mood.tag.happy",
+      icon: "Smile",
+      count: 2,
+      avgScore: 4,
+    });
+    // singletons are kept for the structured breakdown (curated catalog,
+    // not noisy free text).
+    expect(rows.find((r) => r.key === "stressed")?.count).toBe(1);
+    expect(rows.find((r) => r.key === "worked_out")?.categoryKey).toBe("health");
+    // ranked by frequency desc.
+    expect(rows[0].key).toBe("happy");
+  });
+
+  it("excludes entries older than the window and ignores entries without structured tags", () => {
+    const entries: MoodAggregateEntry[] = [
+      entryWithStructured(1, 5, [
+        { key: "happy", categoryKey: "feelings", labelKey: "mood.tag.happy", icon: "Smile" },
+      ]),
+      entryWithStructured(200, 5, [
+        { key: "sad", categoryKey: "feelings", labelKey: "mood.tag.sad", icon: "Frown" },
+      ]),
+      entry(2, 4, ["flat-only"]), // no structuredTags → ignored here
+    ];
+    const rows = computeStructuredTagSummary(entries, NOW, 90);
+    expect(rows.map((r) => r.key)).toEqual(["happy"]);
+  });
+});
+
+describe("computeNotesTimeline", () => {
+  it("returns noted entries newest-first, skips empty notes, and caps at the limit", () => {
+    const entries: MoodAggregateEntry[] = [
+      { ...entry(5, 2, ["x"]), note: "oldest", mood: "SCHLECHT" },
+      { ...entry(3, 4, null), note: "   ", mood: "GUT" }, // blank → skipped
+      { ...entry(2, 5, null), note: "middle", mood: "SUPER_GUT" },
+      { ...entry(1, 3, null), note: "newest", mood: "OKAY" },
+    ];
+    const timeline = computeNotesTimeline(entries, 2);
+    expect(timeline.map((n) => n.note)).toEqual(["newest", "middle"]);
+    expect(timeline[0]).toMatchObject({ score: 3, mood: "OKAY", note: "newest" });
+  });
+
+  it("returns an empty array when no entry carries a note", () => {
+    expect(computeNotesTimeline([entry(1, 4, ["x"])])).toEqual([]);
   });
 });
 

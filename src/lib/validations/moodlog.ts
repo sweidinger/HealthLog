@@ -78,9 +78,19 @@ export function getScoreForMood(mood: string): number {
   return MOOD_SCORE_MAP[mood] ?? 3;
 }
 
+// v1.8.5 — structured-tag keys picked from the catalog (`mood_tags.key`).
+// Additive alongside the flat free-text `tags`: an entry can carry both.
+// Bounded so a single create can't fan out an unbounded link set.
+const structuredTagKeys = z.array(z.string().max(60)).max(30);
+
 export const createMoodEntrySchema = z.object({
   mood: moodLevelEnum,
   tags: z.array(z.string().max(50)).max(20).optional(),
+  // v1.8.5 — structured-tag keys from the taxonomy. Server resolves each
+  // key to a `MoodTag` row and writes the `MoodEntryTagLink` join;
+  // unknown keys are dropped silently (the catalog is the source of
+  // truth, a stale client can't mint a tag).
+  tagKeys: structuredTagKeys.optional(),
   // v1.4.30 H-5 — first-class free-text note. Replaces the
   // `tags: ["note:<text>"]` workaround. Capped at 500 chars so the
   // Coach evidence shelf renders cleanly without truncating chips.
@@ -92,6 +102,9 @@ export const createMoodEntrySchema = z.object({
 export const updateMoodEntrySchema = z.object({
   mood: moodLevelEnum.optional(),
   tags: z.array(z.string().max(50)).max(20).nullable().optional(),
+  // v1.8.5 — full replacement of the structured-tag set when present.
+  // `null` clears every link; omit to leave links untouched.
+  tagKeys: structuredTagKeys.nullable().optional(),
   note: z.string().max(500).nullable().optional(),
   moodLoggedAt: z.iso
     .datetime({ offset: true })

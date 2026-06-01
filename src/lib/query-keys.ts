@@ -60,6 +60,14 @@ export const queryKeys = {
    * `moodDependentKeys` fan-out below.
    */
   moodInsights: () => ["mood-insights"] as const,
+  /**
+   * v1.8.5 — structured mood-tag taxonomy catalog (global reference
+   * data, identical for every user). Read by the mood-logging form's
+   * tag-category capture surface. Not invalidated on a mood write — the
+   * catalog only changes on a migration / admin edit, so a long
+   * `staleTime` is fine.
+   */
+  moodTagCatalog: () => ["mood-tag-catalog"] as const,
 
   /**
    * v1.7.0 W6 — unified dashboard first-paint snapshot. One client cell

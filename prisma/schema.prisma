@@ -1560,12 +1560,92 @@ model MoodEntry {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // v1.8.5 — structured-tag links. Additive alongside the legacy flat
+  // `tags` JSON string: an entry can carry both (a free-text tag the user
+  // typed AND a structured tag they picked from the taxonomy). The
+  // aggregates read whichever is present; existing rows keep their flat
+  // `tags` untouched.
+  tagLinks MoodEntryTagLink[]
+
   @@unique([userId, date, moodLoggedAt])
   @@index([userId, date])
   // v1.7.0 sync — keyset support for the `/api/sync/changes` mood feed
   // (`where userId` ordered by `(updatedAt asc, id asc)`).
   @@index([userId, updatedAt, id])
   @@map("mood_entries")
+}
+
+// ─── Mood Tag Taxonomy (v1.8.5 W6-tax) ────────────────────────
+//
+// Structured, icon-bearing tag catalog modelled on the standalone mood
+// diary's Category → TagItem shape. Global reference data (one shared
+// catalog for the deployment, not per-user): a self-hoster's account
+// inherits the seeded categories the same way the metric-type enum is
+// shared. `MoodEntryTagLink` is the per-entry join.
+//
+// Backward-compat: this is purely ADDITIVE. The legacy flat
+// `MoodEntry.tags` (a JSON string array of free-text keys) keeps working
+// unchanged — the GLP-1 quick-tag chips, the Telegram/MoodLog sync, and
+// every existing row stay on the flat axis. The structured taxonomy is a
+// second, richer capture surface that the tag-frequency / lift breakdown
+// folds in next to the flat tags (`mood-aggregates.ts`).
+//
+// `labelKey` carries an i18n key (resolved client-side against all six
+// locales) rather than a hard-coded German label, so the seeded catalog
+// renders localised everywhere. `icon` is a Lucide icon name rendered by
+// the capture UI + breakdown.
+model MoodTagCategory {
+  id        String  @id @default(cuid())
+  /// Stable machine key (e.g. `feelings`). Unique across the catalog so
+  /// the seed migration can upsert idempotently.
+  key       String  @unique
+  /// i18n message key for the category label (`mood.tagCategory.<key>`).
+  labelKey  String  @map("label_key")
+  /// Lucide icon name for the category header.
+  icon      String?
+  sortOrder Int     @default(0) @map("sort_order")
+  /// Soft-hide a category without deleting its historical links.
+  isActive  Boolean @default(true) @map("is_active")
+
+  tags MoodTag[]
+
+  @@map("mood_tag_categories")
+}
+
+model MoodTag {
+  id         String  @id @default(cuid())
+  categoryId String  @map("category_id")
+  /// Stable machine key (e.g. `happy`). Unique across the catalog.
+  key        String  @unique
+  /// i18n message key for the tag label (`mood.tag.<key>`).
+  labelKey   String  @map("label_key")
+  /// Lucide icon name for the tag chip.
+  icon       String?
+  sortOrder  Int     @default(0) @map("sort_order")
+  isActive   Boolean @default(true) @map("is_active")
+
+  category MoodTagCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  links    MoodEntryTagLink[]
+
+  @@index([categoryId, sortOrder])
+  @@map("mood_tags")
+}
+
+// Join: which structured tags a mood entry carries. Composite PK keeps
+// the pairing unique; cascade on both sides so deleting an entry (or a
+// catalog tag) cleans up its links. Distinct from the flat `tags` JSON
+// column on `MoodEntry`.
+model MoodEntryTagLink {
+  moodEntryId String   @map("mood_entry_id")
+  moodTagId   String   @map("mood_tag_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  moodEntry MoodEntry @relation(fields: [moodEntryId], references: [id], onDelete: Cascade)
+  moodTag   MoodTag   @relation(fields: [moodTagId], references: [id], onDelete: Cascade)
+
+  @@id([moodEntryId, moodTagId])
+  @@index([moodTagId])
+  @@map("mood_entry_tag_links")
 }
 
 // ─── Mood Reminder Dispatch Ledger (v0.5.4 ios-coord) ─────

@@ -24,6 +24,14 @@ import {
   MoodCorrelationCards,
   type MoodMetricCorrelationData,
 } from "./mood-correlation-cards";
+import {
+  MoodStructuredTagBreakdown,
+  type MoodStructuredTagRow,
+} from "./mood-structured-tag-breakdown";
+import {
+  MoodNotesTimeline,
+  type MoodNoteEntry,
+} from "./mood-notes-timeline";
 
 /**
  * v1.8.5 — additional Mood Insights sections.
@@ -46,6 +54,8 @@ interface MoodInsightsResponse {
   distribution: MoodDistributionRow[];
   weekday: MoodWeekdayRow[];
   tags: MoodTagRow[];
+  structuredTags: MoodStructuredTagRow[];
+  notesTimeline: MoodNoteEntry[];
   correlations: {
     sleep: MoodMetricCorrelationData;
     steps: MoodMetricCorrelationData;
@@ -99,6 +109,8 @@ export function MoodInsightsSections() {
   );
 
   const hasTags = data.tags.length > 0;
+  const hasStructuredTags = data.structuredTags.length > 0;
+  const hasNotes = data.notesTimeline.length > 0;
 
   return (
     <div className="space-y-4">
@@ -119,6 +131,12 @@ export function MoodInsightsSections() {
         </SectionCard>
       </div>
 
+      {hasStructuredTags && (
+        <SectionCard title={t("insights.mood.structuredTagsTitle")}>
+          <MoodStructuredTagBreakdown tags={data.structuredTags} />
+        </SectionCard>
+      )}
+
       {hasTags && (
         <SectionCard title={t("insights.mood.tagsTitle")}>
           <MoodTagBreakdown tags={data.tags} />
@@ -138,6 +156,12 @@ export function MoodInsightsSections() {
           pulse={data.correlations.pulse}
         />
       </div>
+
+      {hasNotes && (
+        <SectionCard title={t("insights.mood.notesTimelineTitle")}>
+          <MoodNotesTimeline notes={data.notesTimeline} />
+        </SectionCard>
+      )}
     </div>
   );
 }

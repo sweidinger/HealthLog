@@ -1,0 +1,83 @@
+import {
+  AlertTriangle,
+  Apple,
+  BedDouble,
+  Brain,
+  Briefcase,
+  CheckCircle,
+  Clock,
+  CloudMoon,
+  CloudSun,
+  Dumbbell,
+  Flame,
+  Footprints,
+  Frown,
+  GlassWater,
+  HandHeart,
+  Heart,
+  HeartPulse,
+  HelpCircle,
+  Home,
+  LogOut,
+  Meh,
+  Moon,
+  MoonStar,
+  PartyPopper,
+  Plane,
+  Smile,
+  Tag,
+  Thermometer,
+  ThumbsUp,
+  User,
+  Users,
+  Wine,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+
+/**
+ * v1.8.5 — icon-name → Lucide component map for the structured mood-tag
+ * taxonomy. The catalog stores Lucide icon names as strings (so the
+ * server stays icon-library-agnostic); this map resolves them on the
+ * client. Mirrors the static-map convention used by the workout / sport
+ * icon lookups. `Tag` is the fallback for an unmapped name.
+ */
+const MOOD_TAG_ICONS: Record<string, LucideIcon> = {
+  AlertTriangle,
+  Apple,
+  BedDouble,
+  Brain,
+  Briefcase,
+  CheckCircle,
+  Clock,
+  CloudMoon,
+  CloudSun,
+  Dumbbell,
+  Flame,
+  Footprints,
+  Frown,
+  GlassWater,
+  HandHeart,
+  Heart,
+  HeartPulse,
+  HelpCircle,
+  Home,
+  LogOut,
+  Meh,
+  Moon,
+  MoonStar,
+  PartyPopper,
+  Plane,
+  Smile,
+  Thermometer,
+  ThumbsUp,
+  User,
+  Users,
+  Wine,
+  Zap,
+};
+
+export function moodTagIcon(name: string | null | undefined): LucideIcon {
+  if (!name) return Tag;
+  return MOOD_TAG_ICONS[name] ?? Tag;
+}

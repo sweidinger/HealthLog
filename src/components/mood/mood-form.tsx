@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Loader2, MoreHorizontal, Plus, RotateCcw } from "lucide-react";
@@ -18,6 +19,7 @@ import { toast } from "sonner";
 import { useTranslations } from "@/lib/i18n/context";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
 import { invalidateKeys, moodDependentKeys } from "@/lib/query-keys";
+import { MoodTagPicker } from "./mood-tag-picker";
 
 const MOOD_LEVELS = [
   { value: "SUPER_GUT", score: 5, labelKey: "mood.levelSuperGut" },
@@ -77,9 +79,21 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
     onSelect: (index) => setMood(MOOD_LEVELS[index]!.value),
   });
   const [tagsInput, setTagsInput] = useState("");
+  // v1.8.5 — structured-tag keys picked from the taxonomy catalog.
+  const [tagKeys, setTagKeys] = useState<string[]>([]);
+  // v1.8.5 (C1) — first-class free-text note. The model + API already
+  // accepted `note`; the web form was the only surface that couldn't
+  // write it.
+  const [note, setNote] = useState("");
   const [moodLoggedAt, setMoodLoggedAt] = useState(getDefaultMoodLoggedAtValue);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function toggleTagKey(key: string) {
+    setTagKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
+  }
 
   // v1.4.27 MB3 — error banner descriptor for the timestamp input.
   const errorId = useId();
@@ -93,6 +107,8 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
   function resetForm() {
     setMood("");
     setTagsInput("");
+    setTagKeys([]);
+    setNote("");
     setMoodLoggedAt(getDefaultMoodLoggedAtValue());
     setError(null);
   }
@@ -110,12 +126,16 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
         .map((t) => t.trim())
         .filter(Boolean);
 
+      const trimmedNote = note.trim();
+
       const res = await fetch("/api/mood-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mood,
           tags: tags.length > 0 ? tags : undefined,
+          tagKeys: tagKeys.length > 0 ? tagKeys : undefined,
+          note: trimmedNote.length > 0 ? trimmedNote : undefined,
           moodLoggedAt: timestamp,
         }),
       });
@@ -306,6 +326,36 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
             })}
           </div>
         </div>
+      </div>
+
+      {/* v1.8.5 — structured-tag taxonomy picker. Additive next to the
+          free-text input above; an entry can carry both axes. */}
+      <div className="space-y-2">
+        <Label>
+          {t("mood.tagPicker")}{" "}
+          <span className="text-muted-foreground font-normal">
+            ({t("common.optional")})
+          </span>
+        </Label>
+        <MoodTagPicker selected={tagKeys} onToggle={toggleTagKey} />
+      </div>
+
+      {/* v1.8.5 (C1) — free-text note. */}
+      <div className="space-y-2">
+        <Label htmlFor="mood-note">
+          {t("mood.note")}{" "}
+          <span className="text-muted-foreground font-normal">
+            ({t("common.optional")})
+          </span>
+        </Label>
+        <Textarea
+          id="mood-note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={t("mood.notePlaceholder")}
+          maxLength={500}
+          rows={3}
+        />
       </div>
 
       {error && (

@@ -18,6 +18,7 @@ import { annotate } from "@/lib/logging/context";
 import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
+import { replaceTagLinks } from "@/lib/mood/tag-links";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -137,6 +138,13 @@ export const PUT = apiHandler(
       where: { id },
       data: updateData,
     });
+
+    // v1.8.5 — full replacement of the structured-tag link set when
+    // `tagKeys` is present in the body. `null` clears every link; an
+    // omitted field leaves the links untouched.
+    if (data.tagKeys !== undefined) {
+      await replaceTagLinks(id, data.tagKeys ?? []);
+    }
 
     await auditLog("moodEntry.update", {
       userId: user.id,

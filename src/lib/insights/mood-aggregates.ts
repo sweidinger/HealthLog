@@ -29,12 +29,47 @@ import { round, summarizeSeries } from "@/lib/insights/status-shared";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
+ * Parse the flat `MoodEntry.tags` JSON string into a string array. The
+ * column stores a JSON-encoded array (or null); the read path must
+ * decode it before `computeTagSummary`'s `Array.isArray` check, otherwise
+ * the flat-tag axis silently collapses to empty (the raw string is never
+ * an array). Defensive against malformed JSON — returns `[]` on a parse
+ * failure rather than throwing.
+ */
+function parseTags(tags: string | null): string[] {
+  if (!tags) return [];
+  try {
+    const parsed = JSON.parse(tags);
+    return Array.isArray(parsed) ? (parsed as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Minimal daily-bucket shape the aggregates read. `DailyBucket` (from
  * `bucket-series`) carries an extra `n` field; the helpers only ever
  * touch `dayOffset` + `value`, so accepting the narrow shape keeps them
  * trivially testable without synthesising the unused field.
  */
 type DailyPoint = Pick<DailyBucket, "dayOffset" | "value">;
+
+/**
+ * A structured tag attached to a mood entry, resolved from the catalog
+ * (`mood_tags` + its parent `mood_tag_categories`) via the
+ * `mood_entry_tag_links` join. Carried alongside the legacy flat `tags`
+ * string so the breakdown can surface both axes.
+ */
+export interface StructuredTagRef {
+  /** Stable tag key (e.g. `happy`). */
+  key: string;
+  /** Parent category key (e.g. `feelings`). */
+  categoryKey: string;
+  /** i18n message key for the tag label. */
+  labelKey: string;
+  /** Lucide icon name, or null. */
+  icon: string | null;
+}
 
 /** Raw mood row shape the aggregates operate on. */
 export interface MoodAggregateEntry {
@@ -46,6 +81,59 @@ export interface MoodAggregateEntry {
   tags: unknown;
   /** Exact log timestamp — carries time-of-day. */
   moodLoggedAt: Date;
+  /**
+   * v1.8.5 — structured tags from the taxonomy join. Additive next to
+   * the flat `tags`: an entry can carry both. Optional so the legacy
+   * aggregate tests (flat tags only) keep their narrow fixtures.
+   */
+  structuredTags?: StructuredTagRef[];
+  /** v1.8.5 — free-text note (C1). */
+  note?: string | null;
+  /** Mood enum (for the notes timeline label / colour). */
+  mood?: string;
+}
+
+// --- Notes timeline (v1.8.5 C1 — qualitative reflection feed) ---
+
+export interface NoteTimelineEntry {
+  /** TZ-anchored day key. */
+  date: string;
+  /** ISO timestamp of the log. */
+  loggedAt: string;
+  score: number;
+  mood: string | null;
+  note: string;
+  /** Flat free-text tags on the entry. */
+  tags: string[];
+  /** Structured-tag labels (i18n keys) on the entry. */
+  structuredTagLabelKeys: string[];
+}
+
+/**
+ * Recent entries that carry a free-text note, newest first. Bounded to
+ * `limit` so the cached aggregate payload stays small. Entries without a
+ * note are skipped — the timeline is the qualitative-reflection feed.
+ */
+export function computeNotesTimeline(
+  entries: MoodAggregateEntry[],
+  limit = 20,
+): NoteTimelineEntry[] {
+  return entries
+    .filter((entry) => typeof entry.note === "string" && entry.note.trim())
+    .slice()
+    .reverse() // entries arrive oldest-first; show newest first
+    .slice(0, limit)
+    .map((entry) => ({
+      date: entry.date,
+      loggedAt: entry.moodLoggedAt.toISOString(),
+      score: entry.score,
+      mood: entry.mood ?? null,
+      note: entry.note!.trim(),
+      tags: Array.isArray(entry.tags) ? (entry.tags as string[]) : [],
+      structuredTagLabelKeys: (entry.structuredTags ?? []).map(
+        (tag) => tag.labelKey,
+      ),
+    }));
 }
 
 /** Cross-metric row shape (WEIGHT / BLOOD_PRESSURE_SYS / PULSE / …). */
@@ -145,6 +233,71 @@ export function computeTagSummary(
       count: stats.count,
       avgScore: round(stats.scoreSum / stats.count, 2),
     }));
+}
+
+// --- Structured-tag frequency + per-tag avg score (v1.8.5 taxonomy) ---
+
+export interface StructuredTagRow {
+  key: string;
+  categoryKey: string;
+  labelKey: string;
+  icon: string | null;
+  count: number;
+  avgScore: number;
+}
+
+/**
+ * Frequency + per-tag average mood for the structured taxonomy tags,
+ * over the same recency window as the flat-tag summary.
+ *
+ * Unlike `computeTagSummary` (flat free text), singletons are KEPT — a
+ * structured tag comes from a curated catalog the user deliberately
+ * picked, so a single occurrence is signal, not noise. Ranked by
+ * frequency desc, then label key for a stable order. The category key
+ * rides along so the UI can group the bars by category with icons.
+ */
+export function computeStructuredTagSummary(
+  entries: MoodAggregateEntry[],
+  now: Date,
+  windowDays = 90,
+): StructuredTagRow[] {
+  const cutoff = now.getTime() - windowDays * MS_PER_DAY;
+  const byKey = new Map<
+    string,
+    {
+      categoryKey: string;
+      labelKey: string;
+      icon: string | null;
+      count: number;
+      scoreSum: number;
+    }
+  >();
+  for (const entry of entries) {
+    if (entry.moodLoggedAt.getTime() < cutoff) continue;
+    if (!entry.structuredTags) continue;
+    for (const tag of entry.structuredTags) {
+      const current = byKey.get(tag.key) ?? {
+        categoryKey: tag.categoryKey,
+        labelKey: tag.labelKey,
+        icon: tag.icon,
+        count: 0,
+        scoreSum: 0,
+      };
+      current.count += 1;
+      current.scoreSum += entry.score;
+      byKey.set(tag.key, current);
+    }
+  }
+  return Array.from(byKey.entries())
+    .map(([key, stats]) => ({
+      key,
+      categoryKey: stats.categoryKey,
+      labelKey: stats.labelKey,
+      icon: stats.icon,
+      count: stats.count,
+      avgScore: round(stats.scoreSum / stats.count, 2),
+    }))
+    .sort((a, b) => b.count - a.count || a.labelKey.localeCompare(b.labelKey));
 }
 
 // --- In-target % over the last 30 daily points (lifted from mood-status) ---
@@ -346,6 +499,10 @@ export interface MoodAggregates {
   distribution: DistributionRow[];
   weekday: WeekdayRow[];
   tags: TagSummaryRow[];
+  /** v1.8.5 — structured-tag breakdown from the taxonomy join. */
+  structuredTags: StructuredTagRow[];
+  /** v1.8.5 — recent notes timeline (qualitative-reflection feed). */
+  notesTimeline: NoteTimelineEntry[];
   correlations: {
     sleep: MoodMetricCorrelation;
     steps: MoodMetricCorrelation;
@@ -424,6 +581,8 @@ export function computeMoodAggregates(args: {
     distribution: computeDistribution(moodDaily),
     weekday: computeWeekdayAverages(moodDaily, now),
     tags: computeTagSummary(entries, now),
+    structuredTags: computeStructuredTagSummary(entries, now),
+    notesTimeline: computeNotesTimeline(entries),
     correlations: {
       sleep: computeMoodMetricCorrelation(
         moodDaily,
@@ -473,9 +632,45 @@ export async function fetchMoodAggregates(
       where: { userId, deletedAt: null, moodLoggedAt: { gte: windowCutoff } },
       orderBy: { moodLoggedAt: "desc" },
       take: 2000,
-      select: { date: true, score: true, tags: true, moodLoggedAt: true },
+      select: {
+        date: true,
+        score: true,
+        tags: true,
+        moodLoggedAt: true,
+        mood: true,
+        note: true,
+        // v1.8.5 — pull the structured-tag links + their catalog rows so
+        // the breakdown can fold structured tags next to the flat ones.
+        tagLinks: {
+          select: {
+            moodTag: {
+              select: {
+                key: true,
+                labelKey: true,
+                icon: true,
+                category: { select: { key: true } },
+              },
+            },
+          },
+        },
+      },
     })
-    .then((rows) => rows.reverse());
+    .then((rows) =>
+      rows.reverse().map((row) => ({
+        date: row.date,
+        score: row.score,
+        tags: parseTags(row.tags),
+        moodLoggedAt: row.moodLoggedAt,
+        mood: row.mood,
+        note: row.note,
+        structuredTags: row.tagLinks.map((link) => ({
+          key: link.moodTag.key,
+          categoryKey: link.moodTag.category.key,
+          labelKey: link.moodTag.labelKey,
+          icon: link.moodTag.icon,
+        })),
+      })),
+    );
 
   const measurements = await prisma.measurement
     .findMany({

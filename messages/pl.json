@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "Usunąć wpis?",
     "deleteConfirmDescription": "Ten wpis nastroju zostanie nieodwracalnie usunięty.",
     "pageInfo": "Strona {page} z {total}",
-    "loginRequired": "Zaloguj się, aby zobaczyć wpisy nastroju."
+    "loginRequired": "Zaloguj się, aby zobaczyć wpisy nastroju.",
+    "note": "Notatka",
+    "notePlaceholder": "Dodaj notatkę o swoim samopoczuciu…",
+    "tagPicker": "Tagi",
+    "tagCategory": {
+      "feelings": "Uczucia",
+      "sleep": "Sen",
+      "health": "Zdrowie",
+      "social": "Społeczne",
+      "work": "Praca"
+    },
+    "tag": {
+      "happy": "szczęśliwy",
+      "excited": "podekscytowany",
+      "grateful": "wdzięczny",
+      "relaxed": "zrelaksowany",
+      "content": "zadowolony",
+      "tired": "zmęczony",
+      "unsure": "niepewny",
+      "bored": "znudzony",
+      "tense": "spięty",
+      "angry": "zły",
+      "stressed": "zestresowany",
+      "sad": "smutny",
+      "sleptWell": "dobrze spałem",
+      "sleptOk": "sen średni",
+      "sleptPoorly": "źle spałem",
+      "earlyNight": "wcześnie spać",
+      "workedOut": "trening",
+      "ateWell": "zdrowo zjadłem",
+      "hydrated": "piłem wodę",
+      "walked": "spacer",
+      "alcohol": "alkohol",
+      "family": "rodzina",
+      "friends": "znajomi",
+      "party": "impreza",
+      "alone": "sam",
+      "productive": "produktywny",
+      "overtime": "nadgodziny",
+      "dayOff": "dzień wolny",
+      "travel": "podróż",
+      "sickDay": "dzień chorobowy"
+    }
   },
   "medications": {
     "title": "Leki",
@@ -2326,7 +2368,9 @@
         "source": "{n} sparowanych dni · r = {r}",
         "emptyTitle": "Za mało sparowanych danych",
         "emptyDescription": "Rejestruj nastrój i ten wskaźnik w te same dni, aby zobaczyć korelację."
-      }
+      },
+      "structuredTagsTitle": "Podział tagów",
+      "notesTimelineTitle": "Notatki"
     }
   },
   "thresholds": {

@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "Eliminare la voce?",
     "deleteConfirmDescription": "Questa voce dell’umore sarà eliminata in modo definitivo.",
     "pageInfo": "Pagina {page} di {total}",
-    "loginRequired": "Accedi per vedere le voci dell’umore."
+    "loginRequired": "Accedi per vedere le voci dell’umore.",
+    "note": "Nota",
+    "notePlaceholder": "Aggiungi una nota su come ti senti…",
+    "tagPicker": "Etichette",
+    "tagCategory": {
+      "feelings": "Emozioni",
+      "sleep": "Sonno",
+      "health": "Salute",
+      "social": "Sociale",
+      "work": "Lavoro"
+    },
+    "tag": {
+      "happy": "felice",
+      "excited": "entusiasta",
+      "grateful": "grato",
+      "relaxed": "rilassato",
+      "content": "soddisfatto",
+      "tired": "stanco",
+      "unsure": "incerto",
+      "bored": "annoiato",
+      "tense": "teso",
+      "angry": "arrabbiato",
+      "stressed": "stressato",
+      "sad": "triste",
+      "sleptWell": "dormito bene",
+      "sleptOk": "dormito così così",
+      "sleptPoorly": "dormito male",
+      "earlyNight": "a letto presto",
+      "workedOut": "allenato",
+      "ateWell": "mangiato bene",
+      "hydrated": "bevuto acqua",
+      "walked": "camminato",
+      "alcohol": "alcol",
+      "family": "famiglia",
+      "friends": "amici",
+      "party": "festa",
+      "alone": "da solo",
+      "productive": "produttivo",
+      "overtime": "straordinari",
+      "dayOff": "giorno libero",
+      "travel": "viaggio",
+      "sickDay": "giorno di malattia"
+    }
   },
   "medications": {
     "title": "Farmaci",
@@ -2326,7 +2368,9 @@
         "source": "{n} giorni appaiati · r = {r}",
         "emptyTitle": "Non ci sono ancora abbastanza dati appaiati",
         "emptyDescription": "Registra umore e questa metrica negli stessi giorni per vedere una correlazione."
-      }
+      },
+      "structuredTagsTitle": "Analisi etichette",
+      "notesTimelineTitle": "Note"
     }
   },
   "thresholds": {

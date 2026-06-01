@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "Supprimer l’entrée ?",
     "deleteConfirmDescription": "Cette entrée d’humeur sera supprimée définitivement.",
     "pageInfo": "Page {page} sur {total}",
-    "loginRequired": "Connecte-toi pour voir tes entrées d’humeur."
+    "loginRequired": "Connecte-toi pour voir tes entrées d’humeur.",
+    "note": "Note",
+    "notePlaceholder": "Ajoutez une note sur votre ressenti…",
+    "tagPicker": "Étiquettes",
+    "tagCategory": {
+      "feelings": "Émotions",
+      "sleep": "Sommeil",
+      "health": "Santé",
+      "social": "Social",
+      "work": "Travail"
+    },
+    "tag": {
+      "happy": "heureux",
+      "excited": "enthousiaste",
+      "grateful": "reconnaissant",
+      "relaxed": "détendu",
+      "content": "satisfait",
+      "tired": "fatigué",
+      "unsure": "incertain",
+      "bored": "ennuyé",
+      "tense": "tendu",
+      "angry": "en colère",
+      "stressed": "stressé",
+      "sad": "triste",
+      "sleptWell": "bien dormi",
+      "sleptOk": "sommeil moyen",
+      "sleptPoorly": "mal dormi",
+      "earlyNight": "couché tôt",
+      "workedOut": "fait du sport",
+      "ateWell": "bien mangé",
+      "hydrated": "bu de l'eau",
+      "walked": "marché",
+      "alcohol": "alcool",
+      "family": "famille",
+      "friends": "amis",
+      "party": "fête",
+      "alone": "seul",
+      "productive": "productif",
+      "overtime": "heures sup",
+      "dayOff": "jour de repos",
+      "travel": "voyage",
+      "sickDay": "jour de maladie"
+    }
   },
   "medications": {
     "title": "Médicaments",
@@ -2326,7 +2368,9 @@
         "source": "{n} jours appariés · r = {r}",
         "emptyTitle": "Pas encore assez de données appariées",
         "emptyDescription": "Enregistrez l'humeur et cette mesure les mêmes jours pour voir une corrélation."
-      }
+      },
+      "structuredTagsTitle": "Répartition des étiquettes",
+      "notesTimelineTitle": "Notes"
     }
   },
   "thresholds": {

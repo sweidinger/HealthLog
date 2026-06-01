@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "¿Eliminar entrada?",
     "deleteConfirmDescription": "Esta entrada de estado de ánimo se eliminará de forma permanente.",
     "pageInfo": "Página {page} de {total}",
-    "loginRequired": "Inicia sesión para ver tus estados de ánimo."
+    "loginRequired": "Inicia sesión para ver tus estados de ánimo.",
+    "note": "Nota",
+    "notePlaceholder": "Añade una nota sobre cómo te sientes…",
+    "tagPicker": "Etiquetas",
+    "tagCategory": {
+      "feelings": "Sentimientos",
+      "sleep": "Sueño",
+      "health": "Salud",
+      "social": "Social",
+      "work": "Trabajo"
+    },
+    "tag": {
+      "happy": "feliz",
+      "excited": "emocionado",
+      "grateful": "agradecido",
+      "relaxed": "relajado",
+      "content": "satisfecho",
+      "tired": "cansado",
+      "unsure": "inseguro",
+      "bored": "aburrido",
+      "tense": "tenso",
+      "angry": "enfadado",
+      "stressed": "estresado",
+      "sad": "triste",
+      "sleptWell": "dormí bien",
+      "sleptOk": "dormí regular",
+      "sleptPoorly": "dormí mal",
+      "earlyNight": "me acosté pronto",
+      "workedOut": "entrené",
+      "ateWell": "comí bien",
+      "hydrated": "bebí agua",
+      "walked": "caminé",
+      "alcohol": "alcohol",
+      "family": "familia",
+      "friends": "amigos",
+      "party": "fiesta",
+      "alone": "solo",
+      "productive": "productivo",
+      "overtime": "horas extra",
+      "dayOff": "día libre",
+      "travel": "viaje",
+      "sickDay": "día de baja"
+    }
   },
   "medications": {
     "title": "Medicamentos",
@@ -2326,7 +2368,9 @@
         "source": "{n} días emparejados · r = {r}",
         "emptyTitle": "Aún no hay suficientes datos emparejados",
         "emptyDescription": "Registra el ánimo y esta métrica los mismos días para ver una correlación."
-      }
+      },
+      "structuredTagsTitle": "Desglose de etiquetas",
+      "notesTimelineTitle": "Notas"
     }
   },
   "thresholds": {

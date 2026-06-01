@@ -461,7 +461,49 @@
     "deleteConfirmTitle": "Eintrag löschen?",
     "deleteConfirmDescription": "Dieser Stimmungseintrag wird unwiderruflich gelöscht.",
     "pageInfo": "Seite {page} von {total}",
-    "loginRequired": "Bitte anmelden, um Stimmungseinträge zu sehen."
+    "loginRequired": "Bitte anmelden, um Stimmungseinträge zu sehen.",
+    "note": "Notiz",
+    "notePlaceholder": "Notiz dazu, wie du dich fühlst…",
+    "tagPicker": "Tags",
+    "tagCategory": {
+      "feelings": "Gefühle",
+      "sleep": "Schlaf",
+      "health": "Gesundheit",
+      "social": "Soziales",
+      "work": "Arbeit"
+    },
+    "tag": {
+      "happy": "glücklich",
+      "excited": "aufgeregt",
+      "grateful": "dankbar",
+      "relaxed": "entspannt",
+      "content": "zufrieden",
+      "tired": "müde",
+      "unsure": "unsicher",
+      "bored": "gelangweilt",
+      "tense": "angespannt",
+      "angry": "wütend",
+      "stressed": "gestresst",
+      "sad": "traurig",
+      "sleptWell": "gut geschlafen",
+      "sleptOk": "mäßig geschlafen",
+      "sleptPoorly": "schlecht geschlafen",
+      "earlyNight": "früh im Bett",
+      "workedOut": "trainiert",
+      "ateWell": "gesund gegessen",
+      "hydrated": "Wasser getrunken",
+      "walked": "spazieren",
+      "alcohol": "Alkohol",
+      "family": "Familie",
+      "friends": "Freunde",
+      "party": "Party",
+      "alone": "allein",
+      "productive": "produktiv",
+      "overtime": "Überstunden",
+      "dayOff": "Feierabend",
+      "travel": "Reise",
+      "sickDay": "Krankheitstag"
+    }
   },
   "medications": {
     "title": "Medikamente",
@@ -2326,7 +2368,9 @@
         "source": "{n} gepaarte Tage · r = {r}",
         "emptyTitle": "Noch nicht genug gepaarte Daten",
         "emptyDescription": "Erfasse Stimmung und diesen Wert an denselben Tagen, um einen Zusammenhang zu sehen."
-      }
+      },
+      "structuredTagsTitle": "Tag-Auswertung",
+      "notesTimelineTitle": "Notizen"
     }
   },
   "thresholds": {

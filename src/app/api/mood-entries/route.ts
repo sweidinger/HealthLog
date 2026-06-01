@@ -22,6 +22,7 @@ import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
 import { pushMoodEntriesToMoodLog } from "@/lib/moodlog/push";
+import { createTagLinks } from "@/lib/mood/tag-links";
 
 function parseTags(tags: string | null): string[] {
   if (!tags) return [];
@@ -90,6 +91,13 @@ export const GET = apiHandler(async (request: NextRequest) => {
       orderBy: { [sortBy]: sortDir },
       take: limit,
       skip: offset,
+      // v1.8.5 — include the structured-tag link keys so the edit form
+      // can pre-populate the taxonomy picker.
+      include: {
+        tagLinks: {
+          select: { moodTag: { select: { key: true } } },
+        },
+      },
     }),
     prisma.moodEntry.count({ where }),
   ]);
@@ -99,9 +107,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
     meta: { total, limit, offset },
   });
 
-  const entriesWithParsedTags = entries.map((e) => ({
+  const entriesWithParsedTags = entries.map(({ tagLinks, ...e }) => ({
     ...e,
     tags: parseTags(e.tags),
+    // v1.8.5 — flat list of structured-tag keys attached to the entry.
+    tagKeys: tagLinks.map((link) => link.moodTag.key),
   }));
 
   return apiSuccess({
@@ -147,7 +157,7 @@ async function postMoodEntry(request: NextRequest) {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { mood, tags, note, moodLoggedAt, source } = parsed.data;
+  const { mood, tags, tagKeys, note, moodLoggedAt, source } = parsed.data;
   // v1.4.25 W7b (Decision A) — anchor the `date` string to the user's
   // current displayTimezone and store the resolved zone on the row.
   // Legacy rows with `tz IS NULL` continue to read as Europe/Berlin
@@ -170,6 +180,14 @@ async function postMoodEntry(request: NextRequest) {
         moodLoggedAt,
       },
     });
+
+    // v1.8.5 — write the structured-tag links. Unknown keys are dropped
+    // inside the helper (the catalog is the source of truth). Best-effort
+    // is wrong here — the links are user-intended content, not a cache —
+    // so a failure surfaces as a 5xx via the outer try/catch.
+    if (tagKeys && tagKeys.length > 0) {
+      await createTagLinks(entry.id, tagKeys);
+    }
 
     await auditLog("moodEntry.create", {
       userId: user.id,
