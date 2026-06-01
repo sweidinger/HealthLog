@@ -313,7 +313,7 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
                       setTagsInput(next);
                     }
                   }}
-                  className={`min-h-8 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                  className={`inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs transition-colors ${
                     isActive
                       ? "border-primary bg-primary/15 text-primary"
                       : "border-border/70 bg-muted text-foreground/75 hover:bg-accent hover:text-foreground"
