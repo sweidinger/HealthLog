@@ -804,7 +804,11 @@
         "back": "Zurück",
         "next": "Weiter",
         "save": "Speichern",
-        "saveEdit": "Änderungen speichern"
+        "saveEdit": "Änderungen speichern",
+        "nextHint": "Weiter: {step}",
+        "reviewHint": "Weiter: Speichern",
+        "jumpFirst": "Zum ersten Schritt springen",
+        "jumpLast": "Zur Übersicht und zum Speichern springen"
       },
       "nl": {
         "button": "Beschreiben"
@@ -814,11 +818,13 @@
           "title": "Wie heißt das Medikament?",
           "subline": "Genau so wie es auf der Packung steht.",
           "label": "Name",
-          "placeholder": "z. B. Ramipril"
+          "placeholder": "z. B. Ramipril",
+          "short": "Name"
         },
         "step2": {
           "title": "Was für ein Medikament ist das?",
-          "subline": "Wir nutzen das für passende Vorlagen und Auswertungen."
+          "subline": "Wir nutzen das für passende Vorlagen und Auswertungen.",
+          "short": "Art"
         },
         "step3": {
           "title": "Wie hoch ist die Dosis?",
@@ -850,15 +856,18 @@
           "dosesPerUnitPlaceholder": "z. B. 4",
           "dosesPerUnitHint": "Dosen pro Pen / Ampulle — leer lassen, wenn kein Bestand getrackt wird.",
           "injectionSiteToggle": "Injektionsstellen-Rotation",
-          "injectionSiteHint": "Optionaler Rotationshelfer. Die Stelle jeder Dosis wird beim Eintragen der Einnahme erfasst."
+          "injectionSiteHint": "Optionaler Rotationshelfer. Die Stelle jeder Dosis wird beim Eintragen der Einnahme erfasst.",
+          "short": "Dosis"
         },
         "step4": {
           "title": "Über welchen Zeitraum nimmst du es?",
-          "subline": "Heute reicht ein Startdatum. Ein Ende kannst du später setzen."
+          "subline": "Heute reicht ein Startdatum. Ein Ende kannst du später setzen.",
+          "short": "Zeitraum"
         },
         "step5": {
           "title": "Wie oft nimmst du es?",
-          "subline": "Wähle die Regelmäßigkeit — die Details kommen im nächsten Schritt."
+          "subline": "Wähle die Regelmäßigkeit — die Details kommen im nächsten Schritt.",
+          "short": "Takt"
         },
         "step6": {
           "title": "Wie sieht das im Detail aus?",
@@ -874,7 +883,8 @@
           "rollingDays": {
             "label": "Alle",
             "suffix": "Tage ab der letzten Einnahme"
-          }
+          },
+          "short": "Details"
         },
         "step7": {
           "title": "Wann nimmst du es?",
@@ -885,14 +895,16 @@
             "noon": "Mittags",
             "evening": "Abends",
             "night": "Nachts"
-          }
+          },
+          "short": "Zeiten"
         },
         "step8": {
           "title": "Fertig — soll HealthLog dich erinnern?",
           "subline": "Du kannst alles unten nochmal prüfen, bevor du speicherst.",
           "remindersLabel": "Erinnerungen aktiv",
           "remindersDescription": "Push, Telegram oder ntfy — je nach deinen Einstellungen.",
-          "multiScheduleNote": "Dieses Medikament hat mehrere Zeitpläne. Den Detail-Editor öffnen wir in einer späteren Version."
+          "multiScheduleNote": "Dieses Medikament hat mehrere Zeitpläne. Den Detail-Editor öffnen wir in einer späteren Version.",
+          "short": "Fertig"
         }
       },
       "classRow": {

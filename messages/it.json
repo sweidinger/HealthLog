@@ -804,7 +804,11 @@
         "back": "Back",
         "next": "Next",
         "save": "Save",
-        "saveEdit": "Save changes"
+        "saveEdit": "Save changes",
+        "nextHint": "Avanti: {step}",
+        "reviewHint": "Avanti: Salva",
+        "jumpFirst": "Vai al primo passaggio",
+        "jumpLast": "Vai a revisione e salvataggio"
       },
       "nl": {
         "button": "Describe"
@@ -814,11 +818,13 @@
           "title": "What's the medication called?",
           "subline": "Exactly as it appears on the box.",
           "label": "Name",
-          "placeholder": "e.g. Ramipril"
+          "placeholder": "e.g. Ramipril",
+          "short": "Nome"
         },
         "step2": {
           "title": "What kind of medication is it?",
-          "subline": "We use this for the right templates and analytics."
+          "subline": "We use this for the right templates and analytics.",
+          "short": "Tipo"
         },
         "step3": {
           "title": "What's the dose?",
@@ -850,15 +856,18 @@
           "dosesPerUnitPlaceholder": "es. 4",
           "dosesPerUnitHint": "Dosi per penna / fiala — lascia vuoto per non tracciare le scorte.",
           "injectionSiteToggle": "Rotazione del sito di iniezione",
-          "injectionSiteHint": "Guida alla rotazione facoltativa. Il sito di ogni dose viene registrato al momento della registrazione dell'assunzione."
+          "injectionSiteHint": "Guida alla rotazione facoltativa. Il sito di ogni dose viene registrato al momento della registrazione dell'assunzione.",
+          "short": "Dose"
         },
         "step4": {
           "title": "Over what period are you taking it?",
-          "subline": "A start date is enough for today. You can add an end date later."
+          "subline": "A start date is enough for today. You can add an end date later.",
+          "short": "Quando"
         },
         "step5": {
           "title": "How often do you take it?",
-          "subline": "Pick the cadence — the details follow on the next step."
+          "subline": "Pick the cadence — the details follow on the next step.",
+          "short": "Frequenza"
         },
         "step6": {
           "title": "What does that look like in detail?",
@@ -874,7 +883,8 @@
           "rollingDays": {
             "label": "Every",
             "suffix": "days from the last intake"
-          }
+          },
+          "short": "Dettaglio"
         },
         "step7": {
           "title": "When do you take it?",
@@ -885,14 +895,16 @@
             "noon": "Noon",
             "evening": "Evening",
             "night": "Night"
-          }
+          },
+          "short": "Orari"
         },
         "step8": {
           "title": "All done — should HealthLog remind you?",
           "subline": "Review everything below before you save.",
           "remindersLabel": "Reminders on",
           "remindersDescription": "Push, Telegram or ntfy — based on your settings.",
-          "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release."
+          "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release.",
+          "short": "Fatto"
         }
       },
       "classRow": {
