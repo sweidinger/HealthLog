@@ -28,7 +28,9 @@ import {
 } from "@/lib/medications/scheduling/cadence";
 import {
   occurrencesBetween,
+  type CanonicalSchedule,
   type Occurrence,
+  type RecurrenceContext,
   type ScheduleType,
 } from "@/lib/medications/scheduling/recurrence";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
@@ -253,6 +255,53 @@ export function lastNonSkippedTakenAt(
 }
 
 /**
+ * v1.8.5 — adapt a compliance medication context to the canonical engine's
+ * {@link RecurrenceContext}. The synthetic medication `id` only labels the
+ * row for the engine's internal logging; the `idTag` keeps the two callers'
+ * historical prefixes (`compliance-daily` vs `compliance-slots`) distinct.
+ */
+function toRecurrenceCtx(
+  ctx: ComplianceMedicationContext,
+  idTag: string,
+): RecurrenceContext {
+  return {
+    medication: {
+      id: idTag,
+      startsOn: ctx.startsOn,
+      endsOn: ctx.endsOn,
+      oneShot: ctx.oneShot,
+      createdAt: ctx.createdAt,
+    },
+    timeZone: ctx.timeZone,
+    lastIntakeAt: ctx.lastIntakeAt,
+  };
+}
+
+/**
+ * v1.8.5 — adapt a {@link ComplianceSchedule} to the canonical engine's
+ * {@link CanonicalSchedule}, defaulting the optional fields the compliance
+ * payload may omit. `id` is engine-internal labelling only.
+ */
+function toCanonicalSchedule(
+  s: ComplianceSchedule,
+  id: string,
+): CanonicalSchedule {
+  return {
+    id,
+    rrule: s.rrule ?? null,
+    rollingIntervalDays: s.rollingIntervalDays ?? null,
+    timesOfDay: s.timesOfDay ?? [],
+    daysOfWeek: s.daysOfWeek ?? null,
+    windowStart: s.windowStart,
+    windowEnd: s.windowEnd,
+    reminderGraceMinutes: s.reminderGraceMinutes ?? null,
+    scheduleType: s.scheduleType ?? "SCHEDULED",
+    cyclicOnWeeks: s.cyclicOnWeeks ?? null,
+    cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+  };
+}
+
+/**
  * v1.7.0 item 5 — count the expected dose slots a medication's schedules
  * emit inside `[dayStart, dayEnd)`, routed through the canonical engine.
  * Powers the per-day `due` / `expectedCount` fields on the per-med
@@ -267,34 +316,10 @@ export function expectedSlotCountForDay(
   ctx: ComplianceMedicationContext,
 ): number {
   let count = 0;
-  const recurrenceCtx = {
-    medication: {
-      id: "compliance-daily",
-      startsOn: ctx.startsOn,
-      endsOn: ctx.endsOn,
-      oneShot: ctx.oneShot,
-      createdAt: ctx.createdAt,
-    },
-    timeZone: ctx.timeZone,
-    lastIntakeAt: ctx.lastIntakeAt,
-  };
+  const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-daily");
   for (let i = 0; i < schedules.length; i++) {
-    const s = schedules[i];
-    const canonical = {
-      id: `compliance-daily-${i}`,
-      rrule: s.rrule ?? null,
-      rollingIntervalDays: s.rollingIntervalDays ?? null,
-      timesOfDay: s.timesOfDay ?? [],
-      daysOfWeek: s.daysOfWeek ?? null,
-      windowStart: s.windowStart,
-      windowEnd: s.windowEnd,
-      reminderGraceMinutes: s.reminderGraceMinutes ?? null,
-      scheduleType: s.scheduleType ?? ("SCHEDULED" as const),
-      cyclicOnWeeks: s.cyclicOnWeeks ?? null,
-      cyclicOffWeeks: s.cyclicOffWeeks ?? null,
-    };
     count += occurrencesBetween(
-      canonical,
+      toCanonicalSchedule(schedules[i], `compliance-daily-${i}`),
       dayStart,
       // occurrencesBetween is inclusive of both ends; subtract 1 ms so a
       // slot exactly at the next day's midnight doesn't double-count.
@@ -324,34 +349,17 @@ export function expectedSlotsBetween(
   to: Date,
   ctx: ComplianceMedicationContext,
 ): Occurrence[] {
-  const recurrenceCtx = {
-    medication: {
-      id: "compliance-slots",
-      startsOn: ctx.startsOn,
-      endsOn: ctx.endsOn,
-      oneShot: ctx.oneShot,
-      createdAt: ctx.createdAt,
-    },
-    timeZone: ctx.timeZone,
-    lastIntakeAt: ctx.lastIntakeAt,
-  };
+  const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-slots");
   const all: Occurrence[] = [];
   for (let i = 0; i < schedules.length; i++) {
-    const s = schedules[i];
-    const canonical = {
-      id: `compliance-slots-${i}`,
-      rrule: s.rrule ?? null,
-      rollingIntervalDays: s.rollingIntervalDays ?? null,
-      timesOfDay: s.timesOfDay ?? [],
-      daysOfWeek: s.daysOfWeek ?? null,
-      windowStart: s.windowStart,
-      windowEnd: s.windowEnd,
-      reminderGraceMinutes: s.reminderGraceMinutes ?? null,
-      scheduleType: s.scheduleType ?? ("SCHEDULED" as const),
-      cyclicOnWeeks: s.cyclicOnWeeks ?? null,
-      cyclicOffWeeks: s.cyclicOffWeeks ?? null,
-    };
-    all.push(...occurrencesBetween(canonical, from, to, recurrenceCtx));
+    all.push(
+      ...occurrencesBetween(
+        toCanonicalSchedule(schedules[i], `compliance-slots-${i}`),
+        from,
+        to,
+        recurrenceCtx,
+      ),
+    );
   }
   return all.sort((a, b) => a.at.getTime() - b.at.getTime());
 }
