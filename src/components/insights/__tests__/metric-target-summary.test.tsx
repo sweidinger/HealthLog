@@ -23,8 +23,13 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 const useQueryMock = vi.fn();
+// The inline <TargetEditSheet> (mounted by the panel once the
+// adjust-target button is clicked) also pulls `useMutation` +
+// `useQueryClient`, so stub those alongside `useQuery`.
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (opts: unknown) => useQueryMock(opts),
+  useMutation: () => ({ mutate: vi.fn(), isPending: false }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
 
 const { MetricTargetSummary } = await import("../metric-target-summary");
@@ -188,10 +193,41 @@ describe("<MetricTargetSummary>", () => {
     expect(html).toContain("30-day average: 122/76 mmHg");
   });
 
-  it("renders the adjust-target link to /targets", () => {
+  it("renders the inline adjust-target button instead of a /targets link", () => {
     const html = renderWith("weight", WEIGHT_DATA);
-    expect(html).toContain('href="/targets"');
+    // v1.8.6 — the /targets page is deprecated; the editor moved inline,
+    // so the footer is a button that opens the sheet, not a route link.
+    expect(html).toContain('data-slot="metric-target-adjust"');
     expect(html).toContain("Adjust target range");
+    expect(html).not.toContain('href="/targets"');
+  });
+
+  it("keeps the inline editor lazy-mounted while the panel is closed", () => {
+    // The panel mounts <TargetEditSheet open={false}> alongside itself;
+    // the sheet body (and its TanStack Query hooks) only instantiate once
+    // the button flips the open flag, so a closed panel paints no editor.
+    const html = renderWith("weight", WEIGHT_DATA);
+    expect(html).not.toContain('data-slot="target-edit-sheet"');
+  });
+
+  it("renders the adjust-target affordance as a button, not a navigation link", () => {
+    // The migration's load-bearing change: the affordance is a local
+    // button (opens the inline sheet) rather than an <a>/<Link> routing to
+    // the deprecated /targets page.
+    const html = renderWith("weight", WEIGHT_DATA);
+    const button = html.match(/<button[^>]*data-slot="metric-target-adjust"[^>]*/)?.[0] ?? "";
+    expect(button).toContain('type="button"');
+    expect(html).not.toContain('href="/targets"');
+  });
+
+  it("threads the diastolic range into the editor for blood pressure", () => {
+    // The panel passes `bpDiastolic.range` as the sheet's
+    // `initialDiastolicRange`. Render the panel for BP and confirm the
+    // adjust button is present so the BP editor is reachable inline (the
+    // sheet body itself portals, so it isn't part of the static markup).
+    const html = renderWith("blood-pressure", BP_DATA);
+    expect(html).toContain('data-slot="metric-target-adjust"');
+    expect(html).not.toContain('href="/targets"');
   });
 
   it("suppresses the share + strip when the route flags insufficient data", () => {

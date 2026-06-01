@@ -216,7 +216,7 @@ function TargetEditSheetBody({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", "thresholds"] });
-      queryClient.invalidateQueries({ queryKey: ["insights", "targets"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.insightsTargets() });
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics() });
       queryClient.invalidateQueries({ queryKey: ["insights"] });
       toast.success(t("targets.edit.saveSuccess"));
@@ -248,7 +248,7 @@ function TargetEditSheetBody({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", "thresholds"] });
-      queryClient.invalidateQueries({ queryKey: ["insights", "targets"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.insightsTargets() });
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics() });
       queryClient.invalidateQueries({ queryKey: ["insights"] });
       toast.success(t("targets.edit.resetSuccess"));
