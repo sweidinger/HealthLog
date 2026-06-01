@@ -247,14 +247,14 @@ async function seed() {
         const takenTime = new Date(date);
         takenTime.setHours(8, Math.floor(Math.random() * 45), 0);
         await client.query(
-          `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
-           VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5)`,
+          `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
           [cuid(), userId, med1Id, date, takenTime],
         );
       } else {
         await client.query(
-          `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
-           VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4)`,
+          `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4, $4)`,
           [cuid(), userId, med1Id, date],
         );
       }
@@ -265,14 +265,14 @@ async function seed() {
         const takenTime = new Date(date);
         takenTime.setHours(8, Math.floor(5 + Math.random() * 50), 0);
         await client.query(
-          `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
-           VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5)`,
+          `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
           [cuid(), userId, med2Id, date, takenTime],
         );
       } else {
         await client.query(
-          `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
-           VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4)`,
+          `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4, $4)`,
           [cuid(), userId, med2Id, date],
         );
       }
@@ -284,14 +284,14 @@ async function seed() {
           const takenTime = new Date(date);
           takenTime.setHours(20, Math.floor(Math.random() * 60), 0);
           await client.query(
-            `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
-             VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5)`,
+            `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, false, 'WEB', $5, $5)`,
             [cuid(), userId, med3Id, date, takenTime],
           );
         } else {
           await client.query(
-            `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at)
-             VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4)`,
+            `INSERT INTO medication_intake_events (id, user_id, medication_id, scheduled_for, taken_at, skipped, source, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, NULL, true, 'WEB', $4, $4)`,
             [cuid(), userId, med3Id, date],
           );
         }
