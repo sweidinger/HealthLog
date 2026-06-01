@@ -151,6 +151,101 @@ const disableCoachFlag = z
       "Per-account Coach opt-out toggle (v1.4.47 W3). `true` hides the Coach FAB and short-circuits its API gates.",
   });
 
+// v1.8.6 — profile read/write surface for the native client. The
+// runtime validation lives in `src/lib/validations/auth.ts`
+// (`profileSchema`, whose transforms normalise empty → null and run the
+// KVNR/IKNR refines); the OpenAPI shapes below mirror the wire contract
+// without those transforms so the spec stays a clean nullable-field
+// document. `insurerIkNumber` is the new v1.8.6 field: optional, 9-digit
+// German IKNR, surfaced on the FHIR `Coverage` payor.
+const profileUpdateRequest = z
+  .object({
+    email: z.email().nullable().optional(),
+    heightCm: z.number().min(50).max(300).nullable().optional(),
+    dateOfBirth: z.string().nullable().optional(),
+    gender: z.enum(["MALE", "FEMALE"]).nullable().optional(),
+    displayName: z.string().min(1).max(80).nullable().optional(),
+    locale: z.enum(["de", "en"]).nullable().optional(),
+    timezone: z.string().min(1).max(64).optional(),
+    moodReminderEnabled: z.boolean().optional(),
+    fullName: z.string().max(120).nullable().optional(),
+    insurerName: z.string().max(120).nullable().optional(),
+    insuranceNumber: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("German KVNR. Empty/null clears it; mod-10 check enforced."),
+    insurerIkNumber: z
+      .string()
+      .nullable()
+      .optional()
+      .describe(
+        "German insurer institution number (IKNR). Optional; empty/null clears it. A non-empty value must be exactly 9 digits (no checksum enforced).",
+      ),
+  })
+  .meta({
+    id: "ProfileUpdateRequest",
+    description:
+      "Partial profile update. Every field is optional; an omitted field is left untouched, an explicit null (or empty string) clears it. `userId` is never accepted — it is narrowed from the session/token.",
+  });
+
+const profileResponse = z
+  .object({
+    username: z.string(),
+    displayName: z.string().nullable().optional(),
+    email: z.string().nullable(),
+    dateOfBirth: z.iso.datetime({ offset: true }).nullable(),
+    gender: z.enum(["MALE", "FEMALE"]).nullable(),
+    heightCm: z.number().nullable(),
+    locale: z.string().nullable(),
+    timezone: z.string(),
+    moodReminderEnabled: z.boolean(),
+    fullName: z.string().nullable(),
+    insurerName: z.string().nullable(),
+    insurerIkNumber: z
+      .string()
+      .nullable()
+      .describe("German insurer institution number (IKNR), 9 digits."),
+    insuranceNumber: z
+      .string()
+      .nullable()
+      .describe("German KVNR, decrypted for the form prefill."),
+  })
+  .meta({
+    id: "ProfileResponse",
+    description:
+      "Flattened profile fields for the native client (GET). The KVNR is decrypted server-side; the IKNR (v1.8.6) is plaintext at rest.",
+  });
+
+// The PATCH echo mirrors GET but reports KVNR presence as a boolean
+// (`hasInsuranceNumber`) rather than re-emitting the decrypted value.
+const profileUpdateResponse = z
+  .object({
+    username: z.string(),
+    displayName: z.string().nullable().optional(),
+    email: z.string().nullable(),
+    dateOfBirth: z.iso.datetime({ offset: true }).nullable(),
+    gender: z.enum(["MALE", "FEMALE"]).nullable(),
+    heightCm: z.number().nullable(),
+    locale: z.string().nullable(),
+    timezone: z.string(),
+    moodReminderEnabled: z.boolean(),
+    fullName: z.string().nullable(),
+    insurerName: z.string().nullable(),
+    insurerIkNumber: z
+      .string()
+      .nullable()
+      .describe("German insurer institution number (IKNR), 9 digits."),
+    hasInsuranceNumber: z
+      .boolean()
+      .describe("Whether a KVNR is on file (the value itself is not echoed)."),
+  })
+  .meta({
+    id: "ProfileUpdateResponse",
+    description:
+      "Profile echo returned by the PATCH/PUT update path. Reports KVNR presence as a boolean rather than re-emitting the decrypted value.",
+  });
+
 // ── Sub-schemas owned here (route-specific shapes) ───────────────────
 
 const passkeyLoginVerifyRequest = z
@@ -2035,6 +2130,49 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         "404": {
           description: "The user has no uploaded avatar.",
           content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/user/profile": {
+    get: {
+      tags: ["Auth"],
+      summary: "Read the calling user's profile",
+      description:
+        "Flattened profile fields for the native client. Aliased over the same data exposed by /api/auth/me. The KVNR is decrypted server-side; the IKNR (v1.8.6) is returned plaintext.",
+      responses: {
+        "200": {
+          description: "The calling user's profile.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(profileResponse, "GetProfileResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    patch: {
+      tags: ["Auth"],
+      summary: "Update the calling user's profile",
+      description:
+        "Partial profile update — every field is optional. An explicit null (or empty string) clears a field. A non-empty `insurerIkNumber` must be exactly 9 digits (422 otherwise); a non-empty `insuranceNumber` (KVNR) must pass the mod-10 check. `userId` is never accepted from the body.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: profileUpdateRequest } },
+      },
+      responses: {
+        "200": {
+          description: "Saved profile echoed back.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                profileUpdateResponse,
+                "PatchProfileResponse",
+              ),
+            },
+          },
         },
         ...stdResponses,
       },

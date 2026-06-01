@@ -418,6 +418,16 @@ model User {
   insurerName              String? @map("insurer_name")
   insuranceNumberEncrypted String? @map("insurance_number_encrypted")
 
+  // v1.8.6 profile — optional German insurer institution number (IKNR,
+  // 9 digits). Surfaced on the FHIR `Coverage` resource's contained
+  // payor `Organization` (system `http://fhir.de/sid/arge-ik/iknr`).
+  // Stored plaintext, matching `insurerName` — the IKNR is a public
+  // registry identifier, not a quasi-identifier like the KVNR, so it
+  // does not warrant the encrypted column treatment. Optional; an unset
+  // field collapses the Coverage payor identifier exactly like an
+  // unset `insurerName` collapses its name.
+  insurerIkNumber          String? @map("insurer_ik_number")
+
   @@map("users")
 }
 

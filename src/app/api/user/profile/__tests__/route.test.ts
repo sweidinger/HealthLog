@@ -81,6 +81,33 @@ describe("GET /api/user/profile", () => {
     expect(body.data.heightCm).toBe(180);
     expect(body.data.locale).toBe("de");
   });
+
+  it("echoes the insurer IK number on GET", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      username: "marc",
+      displayName: null,
+      email: null,
+      dateOfBirth: null,
+      gender: null,
+      heightCm: null,
+      locale: null,
+      timezone: "Europe/Berlin",
+      moodReminderEnabled: false,
+      fullName: null,
+      insurerName: "Example Insurer",
+      insurerIkNumber: "101234567",
+      insuranceNumberEncrypted: null,
+    } as never);
+
+    const res = await callGet(makeGetReq());
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { insurerIkNumber: string | null; insurerName: string | null };
+    };
+    expect(body.data.insurerIkNumber).toBe("101234567");
+    expect(body.data.insurerName).toBe("Example Insurer");
+  });
 });
 
 describe("PATCH /api/user/profile", () => {
@@ -131,5 +158,46 @@ describe("PATCH /api/user/profile", () => {
         }),
       }),
     );
+  });
+
+  it("accepts a valid IKNR and echoes it back", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.update).mockResolvedValue({
+      id: "user-1",
+      username: "marc",
+      displayName: null,
+      email: null,
+      role: "USER",
+      heightCm: null,
+      dateOfBirth: null,
+      gender: null,
+      timezone: "Europe/Berlin",
+      locale: null,
+      moodReminderEnabled: false,
+      fullName: null,
+      insurerName: null,
+      insurerIkNumber: "101234567",
+      insuranceNumberEncrypted: null,
+    } as never);
+
+    const res = await PATCH(req({ insurerIkNumber: "101234567" }));
+    expect(res.status).toBe(200);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ insurerIkNumber: "101234567" }),
+      }),
+    );
+    const body = (await res.json()) as {
+      data: { insurerIkNumber: string | null };
+    };
+    expect(body.data.insurerIkNumber).toBe("101234567");
+  });
+
+  it("returns 422 for a malformed IKNR", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await PATCH(req({ insurerIkNumber: "abc" }));
+    expect(res.status).toBe(422);
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

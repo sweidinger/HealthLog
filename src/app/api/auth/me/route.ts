@@ -66,6 +66,7 @@ export const GET = apiHandler(async () => {
     // v1.7.0 — health-record export identity fields. All optional.
     fullName: user.fullName ?? null,
     insurerName: user.insurerName ?? null,
+    insurerIkNumber: user.insurerIkNumber ?? null,
     insuranceNumber,
   });
 });

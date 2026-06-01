@@ -33,6 +33,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     timezone: result.user.timezone,
     fullName: result.user.fullName,
     insurerName: result.user.insurerName,
+    insurerIkNumber: result.user.insurerIkNumber,
     hasInsuranceNumber: result.user.hasInsuranceNumber,
   });
 });

@@ -1738,6 +1738,46 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a2
         "429": *a3
+  /api/user/profile:
+    get:
+      tags:
+        - Auth
+      summary: Read the calling user's profile
+      description: Flattened profile fields for the native client. Aliased over the same data exposed by /api/auth/me. The
+        KVNR is decrypted server-side; the IKNR (v1.8.6) is returned plaintext.
+      responses:
+        "200":
+          description: The calling user's profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProfileResponse"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+    patch:
+      tags:
+        - Auth
+      summary: Update the calling user's profile
+      description: Partial profile update — every field is optional. An explicit null (or empty string) clears a field. A
+        non-empty `insurerIkNumber` must be exactly 9 digits (422 otherwise); a non-empty `insuranceNumber` (KVNR) must
+        pass the mod-10 check. `userId` is never accepted from the body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdateRequest"
+      responses:
+        "200":
+          description: Saved profile echoed back.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatchProfileResponse"
+        "401": *a1
+        "422": *a2
+        "429": *a3
   /api/insights/layout:
     get:
       tags:
@@ -2489,6 +2529,74 @@ components:
       required:
         - disableCoach
       description: Per-account Coach opt-out toggle (v1.4.47 W3). `true` hides the Coach FAB and short-circuits its API gates.
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        email:
+          anyOf:
+            - type: string
+              format: email
+              pattern: ^(?!\.)(?!.*\.\.)([A-Za-z0-9_'+\-\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$
+            - type: "null"
+        heightCm:
+          anyOf:
+            - type: number
+              minimum: 50
+              maximum: 300
+            - type: "null"
+        dateOfBirth:
+          anyOf:
+            - type: string
+            - type: "null"
+        gender:
+          anyOf:
+            - type: string
+              enum:
+                - MALE
+                - FEMALE
+            - type: "null"
+        displayName:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 80
+            - type: "null"
+        locale:
+          anyOf:
+            - type: string
+              enum:
+                - de
+                - en
+            - type: "null"
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 64
+        moodReminderEnabled:
+          type: boolean
+        fullName:
+          anyOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        insurerName:
+          anyOf:
+            - type: string
+              maxLength: 120
+            - type: "null"
+        insuranceNumber:
+          description: German KVNR. Empty/null clears it; mod-10 check enforced.
+          anyOf:
+            - type: string
+            - type: "null"
+        insurerIkNumber:
+          description: German insurer institution number (IKNR). Optional; empty/null clears it. A non-empty value must be exactly
+            9 digits (no checksum enforced).
+          anyOf:
+            - type: string
+            - type: "null"
+      description: Partial profile update. Every field is optional; an omitted field is left untouched, an explicit null (or
+        empty string) clears it. `userId` is never accepted — it is narrowed from the session/token.
     InsightsLayoutBody:
       type: object
       properties:
@@ -5370,6 +5478,182 @@ components:
         - data
         - error
       additionalProperties: false
+    GetProfileResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ProfileResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ProfileResponse:
+      type: object
+      properties:
+        username:
+          type: string
+        displayName:
+          anyOf:
+            - type: string
+            - type: "null"
+        email:
+          anyOf:
+            - type: string
+            - type: "null"
+        dateOfBirth:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        gender:
+          anyOf:
+            - type: string
+              enum:
+                - MALE
+                - FEMALE
+            - type: "null"
+        heightCm:
+          anyOf:
+            - type: number
+            - type: "null"
+        locale:
+          anyOf:
+            - type: string
+            - type: "null"
+        timezone:
+          type: string
+        moodReminderEnabled:
+          type: boolean
+        fullName:
+          anyOf:
+            - type: string
+            - type: "null"
+        insurerName:
+          anyOf:
+            - type: string
+            - type: "null"
+        insurerIkNumber:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: German insurer institution number (IKNR), 9 digits.
+        insuranceNumber:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: German KVNR, decrypted for the form prefill.
+      required:
+        - username
+        - email
+        - dateOfBirth
+        - gender
+        - heightCm
+        - locale
+        - timezone
+        - moodReminderEnabled
+        - fullName
+        - insurerName
+        - insurerIkNumber
+        - insuranceNumber
+      additionalProperties: false
+      description: Flattened profile fields for the native client (GET). The KVNR is decrypted server-side; the IKNR (v1.8.6)
+        is plaintext at rest.
+    PatchProfileResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ProfileUpdateResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ProfileUpdateResponse:
+      type: object
+      properties:
+        username:
+          type: string
+        displayName:
+          anyOf:
+            - type: string
+            - type: "null"
+        email:
+          anyOf:
+            - type: string
+            - type: "null"
+        dateOfBirth:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        gender:
+          anyOf:
+            - type: string
+              enum:
+                - MALE
+                - FEMALE
+            - type: "null"
+        heightCm:
+          anyOf:
+            - type: number
+            - type: "null"
+        locale:
+          anyOf:
+            - type: string
+            - type: "null"
+        timezone:
+          type: string
+        moodReminderEnabled:
+          type: boolean
+        fullName:
+          anyOf:
+            - type: string
+            - type: "null"
+        insurerName:
+          anyOf:
+            - type: string
+            - type: "null"
+        insurerIkNumber:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: German insurer institution number (IKNR), 9 digits.
+        hasInsuranceNumber:
+          type: boolean
+          description: Whether a KVNR is on file (the value itself is not echoed).
+      required:
+        - username
+        - email
+        - dateOfBirth
+        - gender
+        - heightCm
+        - locale
+        - timezone
+        - moodReminderEnabled
+        - fullName
+        - insurerName
+        - insurerIkNumber
+        - hasInsuranceNumber
+      additionalProperties: false
+      description: Profile echo returned by the PATCH/PUT update path. Reports KVNR presence as a boolean rather than
+        re-emitting the decrypted value.
     InsightsLayout:
       type: object
       properties:
