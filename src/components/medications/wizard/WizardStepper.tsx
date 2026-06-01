@@ -72,13 +72,18 @@ export function WizardStepper({
       ? currentIndex
       : steps.reduce((acc, n, i) => (n <= current ? i : acc), 0);
 
+  const activeStepNumber = steps[activeIndex];
+  const activeLabel =
+    labels[activeStepNumber] ?? String(activeStepNumber ?? current);
+
   return (
     <div
-      className="flex items-center gap-1"
+      className="flex flex-col gap-1.5"
       data-slot="wizard-stepper"
       role="group"
       aria-label={srLabel}
     >
+      <div className="flex items-center gap-1">
       <Button
         type="button"
         variant="ghost"
@@ -161,10 +166,10 @@ export function WizardStepper({
                     isActive
                       ? "text-foreground font-medium"
                       : "text-muted-foreground",
-                    // Crowding guard: on narrow viewports only the
-                    // active dot shows its label; from `sm+` every dot
-                    // is labelled.
-                    isActive ? "inline" : "hidden sm:inline",
+                    // Crowding guard: narrow viewports drop the per-dot
+                    // labels entirely (the caption below names the active
+                    // step instead); from `sm+` every dot is labelled.
+                    "hidden sm:inline",
                   )}
                 >
                   {label}
@@ -187,6 +192,20 @@ export function WizardStepper({
       >
         <SkipForward className="h-4 w-4" aria-hidden="true" />
       </Button>
+      </div>
+
+      {/* Compact caption — on narrow viewports the per-dot labels collapse
+          to the active dot only, so this line names where the user stands
+          ("Step 4 of 8 · How often") instead of leaving bare dots. Hidden
+          from `sm+` where every dot carries its own label, and aria-hidden
+          because the group already announces `srLabel`. */}
+      <p
+        className="text-muted-foreground truncate text-xs sm:hidden"
+        aria-hidden="true"
+        data-slot="wizard-stepper-caption"
+      >
+        {srLabel} · {activeLabel}
+      </p>
     </div>
   );
 }
