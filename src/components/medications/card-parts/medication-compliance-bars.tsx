@@ -64,14 +64,16 @@ export function MedicationComplianceBars({
         <Progress value={rate30} className="h-2" aria-label={longLabel} />
       </div>
 
-      <div className="flex items-center gap-4 text-xs">
-        {streak > 0 && (
+      {/* Streak flame — only mounted when there's a streak so an empty
+          row doesn't leave a residual gap below the bars. */}
+      {streak > 0 && (
+        <div className="flex items-center gap-4 text-xs">
           <span className="text-dracula-orange flex items-center gap-1 font-medium">
             <Flame className="h-3.5 w-3.5" />
             {streak} {t("medications.dayStreak")}
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
