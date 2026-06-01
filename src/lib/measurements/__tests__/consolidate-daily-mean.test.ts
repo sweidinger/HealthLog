@@ -1,4 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const { recomputeBucketsForMeasurement } = vi.hoisted(() => ({
+  recomputeBucketsForMeasurement: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/rollups/measurement-rollups", () => ({
+  recomputeBucketsForMeasurement,
+}));
 
 import {
   bucketMeanRows,
@@ -6,7 +13,7 @@ import {
   meanBucketValue,
 } from "../consolidate-daily-mean";
 import type { PerSampleRow } from "../drain-per-sample-cumulative";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
 
 function row(
   id: string,
@@ -14,16 +21,21 @@ function row(
   iso: string,
   externalId: string | null = null,
   unit = "m/s",
+  type: MeasurementType = "WALKING_SPEED",
 ): PerSampleRow {
   return {
     id,
-    type: "WALKING_SPEED",
+    type,
     value,
     measuredAt: new Date(iso),
     externalId,
     unit,
   };
 }
+
+beforeEach(() => {
+  recomputeBucketsForMeasurement.mockClear();
+});
 
 describe("consolidate-daily-mean — reducer + bucketing", () => {
   it("computes the arithmetic mean of a per-day bucket", () => {
@@ -141,6 +153,80 @@ describe("consolidateDailyMean — drain flow (mocked Prisma)", () => {
     };
     expect(updArg.data.deletedAt).toBeInstanceOf(Date);
     expect(summary.totals.daysConsolidated).toBe(1);
+
+    // T3 — the rollup DAY bucket must be recomputed for the touched
+    // (user, type, day) so a rollup-covered read does not serve a
+    // pre-drain mean derived from the now soft-deleted samples.
+    expect(recomputeBucketsForMeasurement).toHaveBeenCalledTimes(1);
+    const [uid, type, measuredAt] =
+      recomputeBucketsForMeasurement.mock.calls[0];
+    expect(uid).toBe("user-1");
+    expect(type).toBe("WALKING_SPEED");
+    expect(measuredAt).toBeInstanceOf(Date);
+  });
+
+  it("routes the v1.8.5 gait/mobility types through the drain", async () => {
+    const { mock, upsert } = buildPrismaMock({
+      WALKING_ASYMMETRY: [
+        row("a", 2.0, "2026-05-01T08:00:00.000Z", null, "%", "WALKING_ASYMMETRY"),
+        row("b", 4.0, "2026-05-01T09:00:00.000Z", null, "%", "WALKING_ASYMMETRY"),
+      ],
+      WALKING_HEART_RATE_AVERAGE: [
+        row(
+          "c",
+          90,
+          "2026-05-01T08:00:00.000Z",
+          null,
+          "count/min",
+          "WALKING_HEART_RATE_AVERAGE",
+        ),
+        row(
+          "d",
+          110,
+          "2026-05-01T09:00:00.000Z",
+          null,
+          "count/min",
+          "WALKING_HEART_RATE_AVERAGE",
+        ),
+      ],
+    });
+
+    const summary = await consolidateDailyMean(mock, { log: () => {} });
+
+    // One consolidated daily row per type — the day's MEAN, not the sum.
+    const byType = new Map(
+      upsert.mock.calls.map((c) => {
+        const arg = c[0] as {
+          where: { userId_type_source_externalId: { type: string } };
+          create: { value: number };
+        };
+        return [arg.where.userId_type_source_externalId.type, arg.create.value];
+      }),
+    );
+    expect(byType.get("WALKING_ASYMMETRY")).toBeCloseTo(3.0, 6);
+    expect(byType.get("WALKING_HEART_RATE_AVERAGE")).toBeCloseTo(100, 6);
+    expect(summary.totals.daysConsolidated).toBe(2);
+    // Recompute fires once per consolidated (type, day).
+    expect(recomputeBucketsForMeasurement).toHaveBeenCalledTimes(2);
+  });
+
+  it("never scans PULSE even alongside the gait types", async () => {
+    const { mock, findManyMeasurement } = buildPrismaMock({});
+    await consolidateDailyMean(mock, { log: () => {} });
+    const scannedTypes = findManyMeasurement.mock.calls.map(
+      (c) => (c[0] as { where: { type: string } }).where.type,
+    );
+    expect(scannedTypes).toContain("WALKING_ASYMMETRY");
+    expect(scannedTypes).toContain("WALKING_STEADINESS");
+    expect(scannedTypes).not.toContain("PULSE");
+  });
+
+  it("does not recompute on a dry-run", async () => {
+    const { mock } = buildPrismaMock({
+      WALKING_SPEED: [row("a", 1.0, "2026-05-01T08:00:00.000Z")],
+    });
+    await consolidateDailyMean(mock, { dryRun: true, log: () => {} });
+    expect(recomputeBucketsForMeasurement).not.toHaveBeenCalled();
   });
 
   it("passes the grace cutoff into the scan when cutoffHours is set", async () => {

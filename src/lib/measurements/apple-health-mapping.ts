@@ -527,6 +527,17 @@ export const HIGH_FREQUENCY_MEAN_TYPES: ReadonlySet<MeasurementType> = new Set<M
   "AUDIO_EXPOSURE_HEADPHONE",
   "WALKING_SPEED",
   "WALKING_STEP_LENGTH",
+  // v1.8.5 — the gait/mobility metrics Apple Health emits at sampling
+  // granularity (asymmetry/double-support per walk, walking heart-rate
+  // average per walk, steadiness as a near-daily rollup). They previously
+  // mapped to `latest` and belonged to no consolidation set, so every
+  // sample piled up raw. MEAN is the correct daily reduction and matches
+  // the Health-app display; all four stay disjoint from
+  // `CUMULATIVE_HK_TYPES`.
+  "WALKING_ASYMMETRY",
+  "WALKING_DOUBLE_SUPPORT",
+  "WALKING_STEADINESS",
+  "WALKING_HEART_RATE_AVERAGE",
 ]);
 
 /**

@@ -119,6 +119,10 @@ import {
   DRAIN_CUMULATIVE_CUTOFF_HOURS,
 } from "@/lib/measurements/drain-per-sample-cumulative";
 import {
+  consolidateDailyMean,
+  MEAN_CONSOLIDATION_CUTOFF_HOURS,
+} from "@/lib/measurements/consolidate-daily-mean";
+import {
   STEP_CONSOLIDATION_QUEUE,
   STEP_CONSOLIDATION_CONCURRENCY,
   runStepConsolidationForUser,
@@ -2600,6 +2604,32 @@ export async function startReminderWorker() {
         } catch (err) {
           recordError();
           workerLog("error", "[drain-cumulative] run failed", err);
+        }
+
+        // v1.8.5 — fold the daily-MEAN drain onto the same nightly tick as
+        // the cumulative (SUM) drain. The mean drain was previously
+        // boot-discovery only, so between worker reboots new high-frequency
+        // spot samples (walking speed, respiratory rate, gait/mobility,
+        // audio exposure) accumulated raw. Running both passes on one
+        // concurrency-1 cron keeps the maintenance window a single
+        // sequential walk and never crowds the request pool. The global
+        // (no `userId`) signature drains every user; the 36-hour grace
+        // cutoff keeps today's in-flight watch syncs raw. Boot discovery
+        // stays as the back-fill for accounts that accumulated raw rows
+        // before this cron shipped.
+        try {
+          const meanSummary = await consolidateDailyMean(getWorkerPrisma(), {
+            dryRun: false,
+            cutoffHours: MEAN_CONSOLIDATION_CUTOFF_HOURS,
+            log: (line) => workerLog("info", line),
+          });
+          workerLog(
+            "info",
+            `[mean-consolidation] triggeredAt=${job.data.triggeredAt} usersScanned=${meanSummary.totals.usersScanned} daysConsolidated=${meanSummary.totals.daysConsolidated} perSampleRowsSoftDeleted=${meanSummary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${meanSummary.totals.dailyRowsUpserted}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog("error", "[mean-consolidation] nightly run failed", err);
         }
       }
     },
