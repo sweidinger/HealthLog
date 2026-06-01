@@ -1315,17 +1315,15 @@
         "drugLevelDisclosure": "Pokaż szacowaną krzywą stężenia leku"
       }
     },
-    "logInjectionSiteTitle": "Log injection site",
-    "logInjectionSiteDescription": "Where did you inject {name}? Optional — you can skip this.",
-    "logInjectionSiteSkip": "Skip",
-    "logInjectionSiteConfirm": "Save site",
-    "logInjectionSiteNoneAvailable": "No injection site is available — every site is excluded in your settings.",
-    "trackInjectionSitesToggle": "Track injection sites",
-    "trackInjectionSitesHint": "After a dose is taken, ask which site was used and suggest the next rotation.",
-    "allowedSitesLabel": "Allowed sites",
-    "allowedSitesHint": "Leave all selected for no restriction. Sites you excluded globally are never offered.",
-    "injectionRotationOverviewTitle": "Site rotation",
-    "injectionRotationNextSuggested": "Suggested next: {site}"
+    "logInjectionSiteTitle": "Zarejestruj miejsce iniekcji",
+    "logInjectionSiteDescription": "Gdzie wstrzyknięto {name}? Opcjonalnie — możesz to pominąć.",
+    "logInjectionSiteSkip": "Pomiń",
+    "logInjectionSiteConfirm": "Zapisz miejsce",
+    "logInjectionSiteNoneAvailable": "Brak dostępnego miejsca iniekcji — wszystkie miejsca są wykluczone w Twoich ustawieniach.",
+    "trackInjectionSitesToggle": "Rejestruj miejsca iniekcji",
+    "trackInjectionSitesHint": "Po przyjęciu dawki zapytaj, którego miejsca użyto, i zaproponuj kolejną rotację.",
+    "allowedSitesLabel": "Dozwolone miejsca",
+    "allowedSitesHint": "Pozostaw wszystkie zaznaczone, aby nie stosować ograniczeń. Miejsca wykluczone globalnie nigdy nie są proponowane."
   },
   "charts": {
     "loadingLabel": "Ładowanie wykresu…",
@@ -3154,8 +3152,8 @@
       "generate": "Generuj",
       "error": "Eksport nie powiódł się ({code})."
     },
-    "globalExcludedInjectionSitesLabel": "Globally excluded injection sites",
-    "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them."
+    "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
+    "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje."
   },
   "admin": {
     "title": "Administration",
