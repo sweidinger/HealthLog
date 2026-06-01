@@ -1992,6 +1992,15 @@ components:
           type: string
           minLength: 1
           maxLength: 120
+        source:
+          description: Source attribution for the row. Defaults to `APPLE_HEALTH` when omitted. Send `MANUAL` to tag rows the user
+            entered by hand on-device (e.g. the standalone adopt-on-pair backfill). Part of the `(userId, type, source,
+            externalId)` dedup key, so the same externalId under a different source is a distinct row. `WITHINGS` /
+            `IMPORT` are not accepted here.
+          type: string
+          enum:
+            - APPLE_HEALTH
+            - MANUAL
         deviceType:
           description: Device class mapped from `HKDevice.model`. Used by the analytics aggregator to break ties when the same
             source contributed multiple devices for the same day. Omit (or send null) on legacy clients — the server

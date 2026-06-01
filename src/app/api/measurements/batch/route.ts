@@ -72,6 +72,17 @@ const MAX_BATCH_ENTRIES = 500;
 const BATCH_RATE_LIMIT_MAX = 60;
 const BATCH_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
+// v1.8.6 W6 — the set of `source` values this client-facing ingest
+// route accepts. Deliberately narrower than the full `MeasurementSource`
+// enum: `WITHINGS` and `IMPORT` are server-owned (the Withings webhook
+// and the CSV importer mint those rows respectively), so letting an iOS
+// client forge rows attributed to them would let an authenticated client
+// pollute the per-source canonical picker with rows the server never saw
+// from those integrations. The standalone iOS client only needs to tag
+// its own adopt-on-pair backfill as `MANUAL` vs the default
+// `APPLE_HEALTH` passthrough, so we accept exactly that pair.
+const batchSourceEnum = z.enum(["APPLE_HEALTH", "MANUAL"]);
+
 const batchEntrySchema = z.object({
   hkIdentifier: z.string().min(1).max(120),
   value: z.number().finite(),
@@ -81,6 +92,14 @@ const batchEntrySchema = z.object({
   sleepStage: z.number().int().min(0).max(20).optional(),
   externalId: z.string().min(1).max(120),
   externalSourceVersion: z.string().min(1).max(120).optional(),
+  // v1.8.6 W6 — optional per-entry source tag. Defaults to
+  // `APPLE_HEALTH` so every pre-W6 caller (web + current iOS) stays
+  // byte-for-byte unchanged. The iOS standalone adopt-on-pair backfill
+  // sends `MANUAL` for rows the user entered by hand on-device so they
+  // are not mis-attributed to HealthKit. `source` is part of the
+  // `(userId, type, source, externalId)` dedup key, so a `MANUAL` row
+  // and an `APPLE_HEALTH` row sharing an externalId are distinct rows.
+  source: batchSourceEnum.optional(),
   // v1.4.25 W8c — optional device-type tag. The iOS client maps the
   // `HKDevice.model` of each sample to one of the canonical device
   // classes (watch | band | ring | phone | scale | other | unknown).
@@ -228,7 +247,9 @@ async function postBatch(request: NextRequest): Promise<Response> {
         type: mapped.type,
         value: mapped.value,
         unit: mapped.unit,
-        source: "APPLE_HEALTH",
+        // v1.8.6 W6 — honour the per-entry source tag, defaulting to
+        // `APPLE_HEALTH` when absent so legacy callers are unchanged.
+        source: entry.source ?? "APPLE_HEALTH",
         measuredAt: mapped.takenAt,
         externalId: entry.externalId,
         externalSourceVersion: entry.externalSourceVersion ?? null,
@@ -251,31 +272,37 @@ async function postBatch(request: NextRequest): Promise<Response> {
     // (createMany with skipDuplicates does the dedup but doesn't tell
     // us *which* rows it skipped). We look up existing rows under the
     // composite unique key first, then createMany the survivors.
+    // v1.8.6 W6 — `source` is now part of the dedup key, so the lookup
+    // matches on (type, source, externalId) per incoming row rather than
+    // a single hardcoded `APPLE_HEALTH`. A `MANUAL` row and an
+    // `APPLE_HEALTH` row sharing an externalId are distinct, so each must
+    // carry its source through the existence probe and the composite key.
     const incomingKeys = prepared.map((p) => ({
       type: p.row.type as Prisma.MeasurementCreateManyInput["type"],
+      source: p.row.source as Prisma.MeasurementCreateManyInput["source"],
       externalId: p.row.externalId as string,
     }));
 
     const existing = await prisma.measurement.findMany({
       where: {
         userId: user.id,
-        source: "APPLE_HEALTH",
         OR: incomingKeys.map((k) => ({
           type: k.type,
+          source: k.source,
           externalId: k.externalId,
         })),
       },
-      select: { type: true, externalId: true },
+      select: { type: true, source: true, externalId: true },
     });
 
     const existingSet = new Set(
-      existing.map((row) => `${row.type}::${row.externalId}`),
+      existing.map((row) => `${row.type}::${row.source}::${row.externalId}`),
     );
 
     const toInsert: Prisma.MeasurementCreateManyInput[] = [];
     const toOverwrite: Prepared[] = [];
     for (const p of prepared) {
-      const key = `${p.row.type}::${p.row.externalId}`;
+      const key = `${p.row.type}::${p.row.source}::${p.row.externalId}`;
       if (existingSet.has(key)) {
         // v1.5.0 issue #213 — per-day cumulative `stats:*` rows are
         // intentionally overwritten on a re-post so today's tile reflects
@@ -300,7 +327,10 @@ async function postBatch(request: NextRequest): Promise<Response> {
           await tx.measurement.updateMany({
             where: {
               userId: user.id,
-              source: "APPLE_HEALTH",
+              // v1.8.6 W6 — scope the overwrite to the row's own source
+              // so a `stats:*` re-post only touches the matching
+              // (type, source, externalId) row.
+              source: p.row.source as Prisma.MeasurementCreateManyInput["source"],
               type: p.row.type as MeasurementType,
               externalId: p.row.externalId as string,
             },

@@ -283,6 +283,17 @@ const batchEntrySchema = z
       .max(120)
       .describe("HKSample.uuid string — the dedup key."),
     externalSourceVersion: z.string().min(1).max(120).optional(),
+    // v1.8.6 W6 — optional per-entry source tag. Defaults to
+    // `APPLE_HEALTH` server-side when omitted, so legacy clients are
+    // unchanged. Restricted to the `{APPLE_HEALTH, MANUAL}` subset of
+    // `MeasurementSource`: `WITHINGS` / `IMPORT` are server-owned and
+    // rejected on this client-facing route.
+    source: z
+      .enum(["APPLE_HEALTH", "MANUAL"])
+      .optional()
+      .describe(
+        "Source attribution for the row. Defaults to `APPLE_HEALTH` when omitted. Send `MANUAL` to tag rows the user entered by hand on-device (e.g. the standalone adopt-on-pair backfill). Part of the `(userId, type, source, externalId)` dedup key, so the same externalId under a different source is a distinct row. `WITHINGS` / `IMPORT` are not accepted here.",
+      ),
     // v1.4.25 W8c — optional device-type tag fed into the canonical
     // source picker's second axis. NULL is treated as `unknown`;
     // legacy iOS builds that don't ship the field continue to work.
