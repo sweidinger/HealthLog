@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -8,7 +8,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
- * v1.8.7.1 — on-demand full assessment warm.
+ * On-demand full assessment warm.
  *
  * POSTs `/api/insights/pregenerate`, which enqueues a forced warm of every
  * AI assessment (comprehensive insight + the seven specialised status cards
@@ -16,17 +16,12 @@ import { useTranslations } from "@/lib/i18n/context";
  * the worker and returns immediately. The cards then fill via their existing
  * stale-while-revalidate GETs — there is nothing to invalidate here.
  *
- * Two entry points share the one mutation:
- *   - `warm()` — the manual "prepare assessments" button. Shows a toast.
- *   - `autoWarmOnce(enabled)` — a fire-and-forget background warm fired ONCE
- *     per browser session (sessionStorage-gated) when the Insights overview
- *     mounts with data, so a returning user lands on warm caches without
- *     tapping anything. The auto path is silent (no toast) and tolerates a
- *     blocked/failed request — the server-side anti-spam bucket and the
- *     nightly cron are the catch-net.
+ * This is the explicit "prepare assessments" button only. There is no
+ * warm-on-mount: the nightly cron (04:30 Europe/Berlin) keeps every user's
+ * caches warm, and the per-metric status GETs revalidate gently on their
+ * own — so a page visit reads cached text instead of fanning out a full
+ * provider warm that would contend with foreground requests.
  */
-
-const AUTO_WARM_SESSION_KEY = "healthlog:insights:auto-warm";
 
 async function postWarm(): Promise<void> {
   // Same-origin relative-path fetch — exempt from the safe-fetch rule by
@@ -47,12 +42,6 @@ export interface UseInsightsWarmResult {
   warm: () => void;
   /** True while the warm POST is in flight. */
   isWarming: boolean;
-  /**
-   * Fire the background warm once per session. Pass `enabled` (e.g.
-   * authenticated AND the user has data) — the warm only fires on the
-   * first call where `enabled` is true, and never again this session.
-   */
-  autoWarmOnce: (enabled: boolean) => void;
 }
 
 export function useInsightsWarm(): UseInsightsWarmResult {
@@ -71,31 +60,8 @@ export function useInsightsWarm(): UseInsightsWarmResult {
     });
   }, [mutate, t]);
 
-  // The auto-trigger must fire at most once per session even across the
-  // remounts a route navigation causes. A ref guards within the mount;
-  // sessionStorage guards across mounts / navigations.
-  const firedThisMount = useRef(false);
-  const autoWarmOnce = useCallback(
-    (enabled: boolean) => {
-      if (!enabled || firedThisMount.current) return;
-      firedThisMount.current = true;
-      try {
-        if (window.sessionStorage.getItem(AUTO_WARM_SESSION_KEY)) return;
-        window.sessionStorage.setItem(AUTO_WARM_SESSION_KEY, String(Date.now()));
-      } catch {
-        // sessionStorage can throw under strict-privacy modes — fall
-        // through and fire the warm anyway; the server bucket de-dupes.
-      }
-      // Silent background warm — no toast, errors swallowed by the
-      // mutation's default (no onError handler surfaces it).
-      mutate();
-    },
-    [mutate],
-  );
-
   return {
     warm,
     isWarming: mutation.isPending,
-    autoWarmOnce,
   };
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -152,16 +151,12 @@ export default function InsightsPage() {
   const analyticsQuery = useAnalyticsQuery();
   const analytics = analyticsQuery.data as AnalyticsData | undefined;
 
-  // v1.8.7.1 — on-demand full assessment warm. The auto-trigger fires once
-  // per session as soon as the overview confirms the user has data, so the
-  // status cards (and the iOS client, which reads the same routes) land on
-  // warm caches without the user waiting. The manual button below re-warms
-  // everything on demand.
-  const { warm, isWarming, autoWarmOnce } = useInsightsWarm();
-  const hasData = !!data && data.totalMeasurements > 0;
-  useEffect(() => {
-    autoWarmOnce(isAuthenticated && hasData);
-  }, [autoWarmOnce, isAuthenticated, hasData]);
+  // The "prepare assessments" button below re-warms every assessment on
+  // demand. There is no warm-on-mount: the nightly cron (04:30) keeps the
+  // caches warm and the per-metric status GETs revalidate gently on their
+  // own (stale-while-revalidate), so opening the overview only reads cached
+  // text — it never fans out a full provider warm on a page visit.
+  const { warm, isWarming } = useInsightsWarm();
 
   // Empty-state shortcut — only paint once the comprehensive query has
   // resolved AND reported zero measurements. While it's in-flight we
