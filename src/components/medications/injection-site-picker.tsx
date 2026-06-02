@@ -1,12 +1,13 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import {
   INJECTION_SITE_KEYS,
   SITE_COORDS,
   describeInjectionSite,
+  nearestSiteAt,
   nextInjectionSite,
   type InjectionSiteKey,
 } from "@/lib/medications/injection-sites";
@@ -31,11 +32,19 @@ import {
  * Existing intake flows keep working without it (the row's
  * `injectionSite` stays NULL).
  *
- * Touch: each visible dot is wrapped in an invisible hit-target circle.
- * The SVG renders at ≈320px tall over a 200-unit viewBox (≈1.6× scale),
- * so the r=14 transparent circle gives ≈45 CSS px — clearing the WCAG
- * 2.5.8 / 2.5.5 44px floor without the abdomen pair (Δx=13 units ≈21px)
- * colliding visually, since only the painted r=4.5 dot is opaque.
+ * Pointer routing: a single transparent overlay rectangle spans the
+ * whole SVG and resolves every tap to the NEAREST site centre via
+ * {@link nearestSiteAt} (the overlay projects the client point into
+ * viewBox space through the live `getScreenCTM()`). This replaces the
+ * old per-dot r=14 hit-circles, whose Ø=28u targets overlapped the
+ * Δy=14u-apart abdomen quadrants by ~14u — SVG hit-testing resolves to
+ * the topmost-painted element, not the nearest centre, so taps in that
+ * band logged the WRONG quadrant. The overlay makes "nearest-centre
+ * wins" actually true and keeps full-area (≥44px-equivalent) routing
+ * since every pixel maps to its closest site; the visible dots stay
+ * small (r=4.5). Keyboard / assistive-tech users get a per-site
+ * focusable r=6 circle (non-overlapping at this spacing) carrying the
+ * `role="button"` + `aria-label` + Space/Enter handler.
  */
 
 interface InjectionSitePickerProps {
@@ -84,6 +93,22 @@ export function InjectionSitePicker({
   const uid = useId().replace(/[:]/g, "");
   const bodyFillId = `inj-body-${uid}`;
 
+  // The overlay maps a pointer event to viewBox space through the live
+  // CTM, then resolves the nearest allowed site centre and selects it.
+  const svgRef = useRef<SVGSVGElement>(null);
+  const handleOverlayPick = (clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    const local = point.matrixTransform(ctm.inverse());
+    const site = nearestSiteAt(local.x, local.y, allowed);
+    if (site) onChange(site);
+  };
+
   // Accessible name: fold the rotation recommendation into the label so a
   // screen-reader user gets the "recommended next site" cue that is
   // otherwise conveyed only by the dashed ring.
@@ -101,6 +126,7 @@ export function InjectionSitePicker({
       aria-label={t("medications.injectionSitePickerAriaLabel")}
     >
       <svg
+        ref={svgRef}
         viewBox="0 0 100 200"
         className="text-foreground/45 h-[320px] w-auto max-w-full"
         role="img"
@@ -260,23 +286,22 @@ export function InjectionSitePicker({
                 }
                 strokeWidth="1.1"
               />
-              {/* Invisible hit-target for touch. r=14 on the 200-unit
-                  viewBox rendered at ≈320px tall (≈1.6× scale) gives
-                  ≈45 CSS px diameter — clearing the WCAG 2.5.8 / 2.5.5
-                  44px floor. The abdomen quadrants sit Δx=13 / Δy=14
-                  units apart; the transparent targets touch but the
-                  pointer always resolves to the nearest centre. */}
+              {/* Per-site focusable target for keyboard + assistive tech.
+                  r=6 (Ø=12u) keeps it well inside the Δy=14u abdomen
+                  spacing so adjacent targets never overlap — pointer
+                  routing is owned by the single nearest-centre overlay
+                  below, so this circle no longer needs to be a 44px tap
+                  target. Keyboard activation (Space/Enter) stays here. */}
               <circle
                 cx={coord.x}
                 cy={coord.y}
-                r="14"
+                r="6"
                 fill="transparent"
                 role="button"
                 tabIndex={disabled ? -1 : 0}
                 aria-pressed={isActive}
                 aria-disabled={disabled}
                 aria-label={siteLabel(site)}
-                onClick={disabled ? undefined : () => onChange(site)}
                 onFocus={disabled ? undefined : () => setFocusedSite(site)}
                 onBlur={
                   disabled
@@ -305,6 +330,26 @@ export function InjectionSitePicker({
             </g>
           );
         })}
+
+        {/* Single transparent pointer overlay — topmost in paint order so
+            it catches every tap/click, projects it into viewBox space via
+            the live CTM, and routes to the NEAREST site centre. This is
+            the correctness fix for the overlapping abdomen quadrants: a
+            tap in the former Δy=14u overlap band now deterministically
+            picks the nearer quadrant rather than the last-painted dot.
+            Full-area routing also means there are no sub-44px dead zones.
+            `aria-hidden` keeps it out of the AT tree — the per-site
+            focusable circles above own keyboard + screen-reader access. */}
+        <rect
+          x="0"
+          y="0"
+          width="100"
+          height="200"
+          fill="transparent"
+          aria-hidden="true"
+          className="cursor-pointer focus:outline-none"
+          onClick={(e) => handleOverlayPick(e.clientX, e.clientY)}
+        />
       </svg>
 
       <div className="text-center text-xs">

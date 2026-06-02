@@ -57,6 +57,44 @@ export const SITE_COORDS: Record<InjectionSiteKey, { x: number; y: number }> = {
 };
 
 /**
+ * v1.9.0 — resolve the injection site whose `SITE_COORDS` centre is
+ * nearest to a point `(x, y)` expressed in the picker's `100 x 200`
+ * viewBox space. This is the deterministic "nearest-centre wins" rule
+ * the picker overlay relies on: a single transparent overlay catches
+ * the pointer, projects the tap into viewBox space, and resolves it to
+ * the closest site — so two visually-stacked dots (the abdomen
+ * quadrants sit only Δy=14u apart) can never mis-route to the wrong
+ * quadrant the way overlapping per-dot hit-circles did.
+ *
+ * `allowed` constrains the candidate pool exactly like
+ * {@link nextInjectionSite}: `undefined` considers all eight sites; a
+ * non-empty array restricts to those sites; an explicitly-empty array
+ * yields `null` (nothing selectable). Ties (equidistant centres) break
+ * toward the earlier site in canonical `INJECTION_SITE_KEYS` order.
+ */
+export function nearestSiteAt(
+  x: number,
+  y: number,
+  allowed?: ReadonlyArray<InjectionSiteKey>,
+): InjectionSiteKey | null {
+  const allowedSet = allowed ? new Set(allowed) : null;
+  let best: InjectionSiteKey | null = null;
+  let bestDistSq = Infinity;
+  for (const site of INJECTION_SITE_KEYS) {
+    if (allowedSet !== null && !allowedSet.has(site)) continue;
+    const coord = SITE_COORDS[site];
+    const dx = coord.x - x;
+    const dy = coord.y - y;
+    const distSq = dx * dx + dy * dy;
+    if (distSq < bestDistSq) {
+      bestDistSq = distSq;
+      best = site;
+    }
+  }
+  return best;
+}
+
+/**
  * v1.8.5 — resolve the effective allowed set for a medication given the
  * per-medication preference and the user-level global exclusion. The
  * global exclusion is a deny-list and ALWAYS wins: a site the user has
