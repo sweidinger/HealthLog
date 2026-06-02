@@ -29,18 +29,28 @@
  * placement helper is exported pure for the unit tests.
  */
 import type { MeasurementType } from "@/generated/prisma/client";
-import type { RollupCoverageMap } from "@/lib/rollups/measurement-coverage";
+import {
+  probeRollupCoverage,
+  type RollupCoverageMap,
+} from "@/lib/rollups/measurement-coverage";
 import {
   buildInsufficient,
   buildOk,
   deriveCoverage,
   nowProvenanceTimestamp,
 } from "./coverage";
-import { computeVitalsBaseline, type BaselineProfile } from "./baseline";
+import {
+  computeVitalsBaseline,
+  readDayMeanSeries,
+  type BaselineProfile,
+} from "./baseline";
 import { isDerivedOk } from "./types";
 import type { Derived } from "./types";
 
 const HRV_TYPE: MeasurementType = "HEART_RATE_VARIABILITY";
+
+/** The recent trend rides the last ≤ this many DAY means. */
+const RECENT_TREND_DAYS = 7;
 
 /** Personal-trend balance placement. */
 export type HrvBalanceBand = "balanced" | "unbalanced" | "low";
@@ -89,12 +99,16 @@ export async function computeHrvBalance(
 ): Promise<Derived<HrvBalanceValue>> {
   const now = opts?.now ?? new Date();
   const computedAt = nowProvenanceTimestamp(now);
+  // One coverage probe shared between the baseline read below and the
+  // recent-trend read (the pool-contention mitigation; the route passes a
+  // pre-probed map).
+  const coverageMap = opts?.coverage ?? (await probeRollupCoverage(userId));
 
   const baseline = await computeVitalsBaseline(userId, profile, {
     type: HRV_TYPE,
     windowDays: opts?.windowDays,
     now,
-    coverage: opts?.coverage,
+    coverage: coverageMap,
   });
 
   // Below the band floor (or no data) — surface the baseline engine's gated
@@ -107,11 +121,28 @@ export async function computeHrvBalance(
     });
   }
 
-  // The baseline already computed the robust center+band over DAY means; the
-  // recent average rides the same center for a stable, sparse-cadence-safe
-  // placement (per-day SDNN is noisy; the median center is the honest
-  // "recent typical").
-  const recentAvg = baseline.value.center;
+  // The recent average is the mean of the last ≤ 7 DAY means — the RECENT
+  // TREND, placed against the longer-window personal band. Reading the band
+  // center here (the previous behaviour) made `recentAvg` identical to the
+  // band midpoint by construction, so it could never fall outside the band:
+  // the "low" / "unbalanced" arms were dead and the card always read
+  // "balanced". The recent-trend mean can drift below the band's low edge
+  // (suppressed HRV) or above its high edge, which is the whole point of a
+  // trend-vs-baseline placement. Falls back to the band center only when the
+  // recent series is somehow empty (the baseline being `ok` already implies
+  // ≥ 7 backing days, so this is defensive).
+  const recent = await readDayMeanSeries(
+    userId,
+    HRV_TYPE,
+    baseline.provenance.windowDays,
+    now,
+    coverageMap,
+  );
+  const recentPoints = recent.points.slice(-RECENT_TREND_DAYS);
+  const recentAvg =
+    recentPoints.length > 0
+      ? recentPoints.reduce((s, p) => s + p.mean, 0) / recentPoints.length
+      : baseline.value.center;
   const band = placeHrvBalance(
     recentAvg,
     baseline.value.low,
