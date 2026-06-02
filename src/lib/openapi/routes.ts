@@ -47,6 +47,10 @@ import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-pr
 import { ACCEPTED_INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { METRIC_STATUS_IDS } from "@/lib/insights/metric-status-registry";
+import {
+  DERIVED_METRIC_IDS,
+  VITALS_BASELINE_TYPES,
+} from "@/lib/insights/derived/registry";
 import { ANALYTICS_RANGES } from "@/lib/analytics/range-delta";
 
 /**
@@ -1276,6 +1280,109 @@ const metricStatusResponse = z
     id: "MetricStatusResponse",
     description:
       "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
+  });
+
+// v1.10.0 — generic derived-wellness-metric route. The query enum is
+// derived from the same registry the route validates against, so spec +
+// route + cache scope cannot drift. `type` sub-targets the single vital
+// a baseline metric (VITALS_BASELINE) bands over.
+const derivedMetricQuery = z
+  .object({
+    metric: z
+      .enum(DERIVED_METRIC_IDS as [string, ...string[]])
+      .describe(
+        "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, READINESS). Closed enum: an unknown id 422s. Wave 1 implements VITALS_BASELINE end-to-end; not-yet-implemented metrics return an `insufficient` value with reason `not_implemented`.",
+      ),
+    type: z
+      .enum(VITALS_BASELINE_TYPES as [string, ...string[]])
+      .optional()
+      .describe(
+        "For VITALS_BASELINE only — the single vital to band (defaults to RESTING_HEART_RATE). Ignored by composites. An unsupported value yields an `insufficient` value rather than a 422 so iOS metric combinations stay forgiving.",
+      ),
+  })
+  .meta({ id: "DerivedMetricQuery" });
+
+const derivedCoverage = z
+  .object({
+    requiredInputs: z
+      .number()
+      .int()
+      .describe("Inputs the metric wants (its full input set)."),
+    presentInputs: z
+      .number()
+      .int()
+      .describe("Inputs actually present in the user's data."),
+    historyDays: z
+      .number()
+      .int()
+      .describe("Distinct days of history backing the value (the gating floor)."),
+    missing: z
+      .array(z.string())
+      .describe("Named inputs still missing — drives the 'track N more' nudge."),
+  })
+  .meta({ id: "DerivedCoverage" });
+
+const derivedConfidence = z
+  .object({
+    score: z
+      .number()
+      .describe("0..100 confidence; feeds the shared coverage meter unchanged."),
+    band: z
+      .enum(["high", "medium", "low", "draft"])
+      .describe("Confidence band the meter renders."),
+  })
+  .meta({ id: "DerivedConfidence" });
+
+const derivedProvenance = z
+  .object({
+    inputs: z
+      .array(z.string())
+      .describe("Named inputs that actually backed the value."),
+    source: z
+      .enum(["DAY", "WEEK", "MONTH", "YEAR", "live", "none"])
+      .describe(
+        "Granularity the dominant read resolved against. 'live' = a coverage-miss live-SQL fallback; 'none' = no data backed the value.",
+      ),
+    windowDays: z
+      .number()
+      .int()
+      .describe("Trailing window the value summarises, in days."),
+    computedAt: z.iso
+      .datetime({ offset: true })
+      .describe("Compute time (for cache-staleness + the 'as of' chip)."),
+  })
+  .meta({ id: "DerivedProvenance" });
+
+const derivedMetricResponse = z
+  .object({
+    metric: z
+      .enum(DERIVED_METRIC_IDS as [string, ...string[]])
+      .describe("Echoes the requested derived-metric id (tags the union)."),
+    status: z
+      .enum(["ok", "insufficient"])
+      .describe(
+        "'ok' carries `value` + `confidence`; 'insufficient' carries `reason` and no value, but still carries `coverage` + `provenance` so the surface renders the same gating UI.",
+      ),
+    value: z
+      .record(z.string(), z.unknown())
+      .nullable()
+      .describe(
+        "Metric-specific value object when status is 'ok' (e.g. { type, center, low, high, spread, sampleDays, k } for VITALS_BASELINE); null when 'insufficient'.",
+      ),
+    coverage: derivedCoverage,
+    confidence: derivedConfidence
+      .nullable()
+      .describe("Present when status is 'ok'; null when 'insufficient'."),
+    provenance: derivedProvenance,
+    reason: z
+      .string()
+      .nullable()
+      .describe("Why the value could not be produced; null when status is 'ok'."),
+  })
+  .meta({
+    id: "DerivedMetricResponse",
+    description:
+      "Flat `Derived<T>` envelope for one derived wellness metric. Pure compute over the rollup tier (no LLM, no narrative). iOS decodes one stable shape and combines values across metrics; coverage/confidence/provenance let it render the same honesty chips.",
   });
 
 // The seven specialised `*-status` routes accept an optional locale
@@ -2988,6 +3095,31 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 metricStatusResponse,
                 "MetricStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/derived": {
+    get: {
+      tags: ["Insights"],
+      summary: "Derived wellness metric (compute-once)",
+      description:
+        "v1.10.0 — the compute-once `Derived<T>` value for any registered derived wellness metric (personal typical-range vitals baseline, cardio-fitness band, vascular-age delta, sleep score, readiness, coincident-deviation flag). One generic route over a closed registry enum; an unknown `metric` 422s. Pure compute over the rollup tier with a per-type live fallback on a coverage miss — no LLM call, no narrative, no cache table. Returns the flat `Derived<T>` union so the native client can decode one stable shape and combine values across metrics. Auth via cookie or Bearer.",
+      requestParams: {
+        query: derivedMetricQuery,
+      },
+      responses: {
+        "200": {
+          description: "The flat derived-metric value (ok or insufficient).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                derivedMetricResponse,
+                "DerivedMetricResponseEnvelope",
               ),
             },
           },

@@ -39,6 +39,10 @@ const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   "src/app/api/insights/bmi-status/route.ts",
   "src/app/api/insights/cards/route.ts",
   "src/app/api/insights/correlations/route.ts",
+  // v1.10.0 — generic derived-wellness-metric route. Pure compute over
+  // the rollup tier; gates on the same `insightStatus` sub-flag as the
+  // assessment routes (no Coach prose).
+  "src/app/api/insights/derived/route.ts",
   "src/app/api/insights/medication-compliance-status/route.ts",
   // v1.8.7.1 — generic per-HealthKit-metric assessment. Gated on the
   // same `insightStatus` sub-flag as the seven specialised status routes.

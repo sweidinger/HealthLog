@@ -2307,6 +2307,68 @@ paths:
         "401": *a1
         "422": *a2
         "429": *a3
+  /api/insights/derived:
+    get:
+      tags:
+        - Insights
+      summary: Derived wellness metric (compute-once)
+      description: v1.10.0 — the compute-once `Derived<T>` value for any registered derived wellness metric (personal
+        typical-range vitals baseline, cardio-fitness band, vascular-age delta, sleep score, readiness,
+        coincident-deviation flag). One generic route over a closed registry enum; an unknown `metric` 422s. Pure
+        compute over the rollup tier with a per-type live fallback on a coverage miss — no LLM call, no narrative, no
+        cache table. Returns the flat `Derived<T>` union so the native client can decode one stable shape and combine
+        values across metrics. Auth via cookie or Bearer.
+      parameters:
+        - in: query
+          name: metric
+          schema:
+            type: string
+            enum:
+              - VITALS_BASELINE
+              - FITNESS_AGE
+              - VASCULAR_AGE_DELTA
+              - SLEEP_SCORE
+              - READINESS
+              - COINCIDENT_DEVIATION
+            description: "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, READINESS). Closed enum: an unknown id
+              422s. Wave 1 implements VITALS_BASELINE end-to-end; not-yet-implemented metrics return an `insufficient`
+              value with reason `not_implemented`."
+          required: true
+          description: "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, READINESS). Closed enum: an unknown id
+            422s. Wave 1 implements VITALS_BASELINE end-to-end; not-yet-implemented metrics return an `insufficient`
+            value with reason `not_implemented`."
+        - in: query
+          name: type
+          schema:
+            description: For VITALS_BASELINE only — the single vital to band (defaults to RESTING_HEART_RATE). Ignored by
+              composites. An unsupported value yields an `insufficient` value rather than a 422 so iOS metric
+              combinations stay forgiving.
+            type: string
+            enum:
+              - RESTING_HEART_RATE
+              - HEART_RATE_VARIABILITY
+              - RESPIRATORY_RATE
+              - OXYGEN_SATURATION
+              - BODY_TEMPERATURE
+              - SKIN_TEMPERATURE
+              - BLOOD_PRESSURE_SYS
+              - BLOOD_PRESSURE_DIA
+              - BLOOD_GLUCOSE
+              - PULSE
+              - WEIGHT
+          description: For VITALS_BASELINE only — the single vital to band (defaults to RESTING_HEART_RATE). Ignored by
+            composites. An unsupported value yields an `insufficient` value rather than a 422 so iOS metric combinations
+            stay forgiving.
+      responses:
+        "200":
+          description: The flat derived-metric value (ok or insufficient).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DerivedMetricResponseEnvelope"
+        "401": *a1
+        "422": *a2
+        "429": *a3
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -7241,6 +7303,160 @@ components:
       description: "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the
         `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation
         out of band and serves the last-good text meanwhile."
+    DerivedMetricResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DerivedMetricResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DerivedMetricResponse:
+      type: object
+      properties:
+        metric:
+          type: string
+          enum:
+            - VITALS_BASELINE
+            - FITNESS_AGE
+            - VASCULAR_AGE_DELTA
+            - SLEEP_SCORE
+            - READINESS
+            - COINCIDENT_DEVIATION
+          description: Echoes the requested derived-metric id (tags the union).
+        status:
+          type: string
+          enum:
+            - ok
+            - insufficient
+          description: "'ok' carries `value` + `confidence`; 'insufficient' carries `reason` and no value, but still carries
+            `coverage` + `provenance` so the surface renders the same gating UI."
+        value:
+          anyOf:
+            - type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+            - type: "null"
+          description: Metric-specific value object when status is 'ok' (e.g. { type, center, low, high, spread, sampleDays, k }
+            for VITALS_BASELINE); null when 'insufficient'.
+        coverage:
+          $ref: "#/components/schemas/DerivedCoverage"
+        confidence:
+          anyOf:
+            - $ref: "#/components/schemas/DerivedConfidence"
+            - type: "null"
+          description: Present when status is 'ok'; null when 'insufficient'.
+        provenance:
+          $ref: "#/components/schemas/DerivedProvenance"
+        reason:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: Why the value could not be produced; null when status is 'ok'.
+      required:
+        - metric
+        - status
+        - value
+        - coverage
+        - confidence
+        - provenance
+        - reason
+      additionalProperties: false
+      description: Flat `Derived<T>` envelope for one derived wellness metric. Pure compute over the rollup tier (no LLM, no
+        narrative). iOS decodes one stable shape and combines values across metrics; coverage/confidence/provenance let
+        it render the same honesty chips.
+    DerivedCoverage:
+      type: object
+      properties:
+        requiredInputs:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Inputs the metric wants (its full input set).
+        presentInputs:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Inputs actually present in the user's data.
+        historyDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Distinct days of history backing the value (the gating floor).
+        missing:
+          type: array
+          items:
+            type: string
+          description: Named inputs still missing — drives the 'track N more' nudge.
+      required:
+        - requiredInputs
+        - presentInputs
+        - historyDays
+        - missing
+      additionalProperties: false
+    DerivedConfidence:
+      type: object
+      properties:
+        score:
+          type: number
+          description: 0..100 confidence; feeds the shared coverage meter unchanged.
+        band:
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+            - draft
+          description: Confidence band the meter renders.
+      required:
+        - score
+        - band
+      additionalProperties: false
+    DerivedProvenance:
+      type: object
+      properties:
+        inputs:
+          type: array
+          items:
+            type: string
+          description: Named inputs that actually backed the value.
+        source:
+          type: string
+          enum:
+            - DAY
+            - WEEK
+            - MONTH
+            - YEAR
+            - live
+            - none
+          description: Granularity the dominant read resolved against. 'live' = a coverage-miss live-SQL fallback; 'none' = no
+            data backed the value.
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Trailing window the value summarises, in days.
+        computedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: Compute time (for cache-staleness + the 'as of' chip).
+      required:
+        - inputs
+        - source
+        - windowDays
+        - computedAt
+      additionalProperties: false
     MedicationScheduleOutput:
       type: object
       properties:
