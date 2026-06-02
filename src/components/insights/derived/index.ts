@@ -27,3 +27,11 @@ export {
   BAND_VAR,
   type ScoreBand,
 } from "./band-tokens";
+
+// ── W2b vitals dashboard surface + query hook ────────────────────────
+export { VitalsDashboard } from "./vitals-dashboard";
+export {
+  useDerivedMetric,
+  type DerivedMetricResponse,
+  type UseDerivedMetricOptions,
+} from "./use-derived-metric";

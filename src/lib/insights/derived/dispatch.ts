@@ -22,6 +22,10 @@ import {
   computeVitalsBaseline,
   type BaselineProfile,
 } from "./baseline";
+import { computeFitnessAge } from "./fitness-age";
+import { computeVascularAgeDelta } from "./vascular-age";
+import { computeHrvBalance } from "./hrv-balance";
+import { computeBmi } from "./bmi";
 import type { Derived } from "./types";
 
 export interface DerivedComputeArgs {
@@ -100,6 +104,26 @@ export async function computeDerivedMetric(
         now,
       }) as Promise<Derived<unknown>>;
     }
+    case "FITNESS_AGE":
+      return computeFitnessAge(args.userId, args.profile, {
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
+    case "VASCULAR_AGE_DELTA":
+      return computeVascularAgeDelta(args.userId, args.profile, {
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
+    case "HRV_BALANCE":
+      return computeHrvBalance(args.userId, args.profile, {
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
+    case "BMI":
+      return computeBmi(args.userId, args.profile, {
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
     default:
       // Registered + implemented but no dispatch arm — treat as a stub.
       return notImplemented(meta.inputs.map(String), now);

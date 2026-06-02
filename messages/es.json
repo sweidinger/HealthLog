@@ -2487,6 +2487,30 @@
         "window": "De tus últimos {days} días · datos de {source}",
         "asOf": "a fecha de {date}",
         "standardLink": "Estándar: {name}"
+      },
+      "vitals": {
+        "sectionTitle": "Tus constantes",
+        "building": "Creando tu rango habitual — {count} de {target} días",
+        "typicalRange": "Habitual para ti: {low}–{high}",
+        "fitnessYounger": "Forma cardiovascular de alguien ~{years} años más joven",
+        "fitnessOlder": "Forma cardiovascular ~{years} años por encima de tu edad",
+        "fitnessTypical": "Forma cardiovascular típica para tu edad",
+        "fitnessNoNorm": "Añade tu edad y sexo para enmarcar esto",
+        "vascularBelow": "{years} años por debajo de tu edad",
+        "vascularAbove": "{years} años por encima de tu edad",
+        "vascularMatch": "Acorde con tu edad",
+        "vascularNoAge": "Añade tu fecha de nacimiento para enmarcar esto",
+        "hrvBand": {
+          "balanced": "Equilibrado para ti",
+          "unbalanced": "Por encima de tu rango habitual",
+          "low": "Por debajo de tu rango habitual"
+        },
+        "bmiCategory": {
+          "underweight": "Bajo peso (OMS)",
+          "normal": "Rango normal (OMS)",
+          "overweight": "Sobrepeso (OMS)",
+          "obese": "Obesidad (OMS)"
+        }
       }
     }
   },

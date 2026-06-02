@@ -2487,6 +2487,30 @@
         "window": "Sur tes {days} derniers jours · données {source}",
         "asOf": "au {date}",
         "standardLink": "Norme : {name}"
+      },
+      "vitals": {
+        "sectionTitle": "Vos constantes",
+        "building": "Construction de votre plage habituelle — {count} sur {target} jours",
+        "typicalRange": "Habituel pour vous : {low}–{high}",
+        "fitnessYounger": "Forme cardio d'une personne ~{years} ans plus jeune",
+        "fitnessOlder": "Forme cardio ~{years} ans au-dessus de votre âge",
+        "fitnessTypical": "Forme cardio typique pour votre âge",
+        "fitnessNoNorm": "Ajoutez votre âge et votre sexe pour situer cela",
+        "vascularBelow": "{years} ans en dessous de votre âge",
+        "vascularAbove": "{years} ans au-dessus de votre âge",
+        "vascularMatch": "En phase avec votre âge",
+        "vascularNoAge": "Ajoutez votre date de naissance pour situer cela",
+        "hrvBand": {
+          "balanced": "Équilibré pour vous",
+          "unbalanced": "Au-dessus de votre plage habituelle",
+          "low": "En dessous de votre plage habituelle"
+        },
+        "bmiCategory": {
+          "underweight": "Insuffisance pondérale (OMS)",
+          "normal": "Plage normale (OMS)",
+          "overweight": "Surpoids (OMS)",
+          "obese": "Obésité (OMS)"
+        }
       }
     }
   },

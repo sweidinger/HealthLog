@@ -2330,13 +2330,15 @@ paths:
               - SLEEP_SCORE
               - READINESS
               - COINCIDENT_DEVIATION
-            description: "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, READINESS). Closed enum: an unknown id
-              422s. Wave 1 implements VITALS_BASELINE end-to-end; not-yet-implemented metrics return an `insufficient`
-              value with reason `not_implemented`."
+              - HRV_BALANCE
+              - BMI
+            description: "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, VASCULAR_AGE_DELTA, HRV_BALANCE, BMI,
+              READINESS). Closed enum: an unknown id 422s. Metrics whose compute has not yet landed return an
+              `insufficient` value with reason `not_implemented`."
           required: true
-          description: "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, READINESS). Closed enum: an unknown id
-            422s. Wave 1 implements VITALS_BASELINE end-to-end; not-yet-implemented metrics return an `insufficient`
-            value with reason `not_implemented`."
+          description: "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, VASCULAR_AGE_DELTA, HRV_BALANCE, BMI,
+            READINESS). Closed enum: an unknown id 422s. Metrics whose compute has not yet landed return an
+            `insufficient` value with reason `not_implemented`."
         - in: query
           name: type
           schema:
@@ -7332,6 +7334,8 @@ components:
             - SLEEP_SCORE
             - READINESS
             - COINCIDENT_DEVIATION
+            - HRV_BALANCE
+            - BMI
           description: Echoes the requested derived-metric id (tags the union).
         status:
           type: string

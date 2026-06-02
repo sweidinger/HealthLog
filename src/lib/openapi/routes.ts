@@ -1291,7 +1291,7 @@ const derivedMetricQuery = z
     metric: z
       .enum(DERIVED_METRIC_IDS as [string, ...string[]])
       .describe(
-        "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, READINESS). Closed enum: an unknown id 422s. Wave 1 implements VITALS_BASELINE end-to-end; not-yet-implemented metrics return an `insufficient` value with reason `not_implemented`.",
+        "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, VASCULAR_AGE_DELTA, HRV_BALANCE, BMI, READINESS). Closed enum: an unknown id 422s. Metrics whose compute has not yet landed return an `insufficient` value with reason `not_implemented`.",
       ),
     type: z
       .enum(VITALS_BASELINE_TYPES as [string, ...string[]])

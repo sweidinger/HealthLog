@@ -36,7 +36,11 @@ export type DerivedMetricId =
   /** W3: wellness/readiness index (extends the health-score blend). */
   | "READINESS"
   /** W3: multi-signal coincident-deviation early-strain flag. */
-  | "COINCIDENT_DEVIATION";
+  | "COINCIDENT_DEVIATION"
+  /** W2: HRV (SDNN) personal-trend balance band (reuses the baseline engine). */
+  | "HRV_BALANCE"
+  /** W2: BMI from weight + height (fallback when no device BMI). */
+  | "BMI";
 
 /** Archetype of a derived metric — drives shaping + the QA inventory. */
 export type DerivedArchetype =
@@ -111,7 +115,7 @@ const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
     inputs: ["VO2_MAX"],
     minHistoryDays: 1,
     minInputs: 1,
-    implemented: false,
+    implemented: true,
   },
   VASCULAR_AGE_DELTA: {
     id: "VASCULAR_AGE_DELTA",
@@ -120,7 +124,7 @@ const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
     inputs: ["VASCULAR_AGE", "PULSE_WAVE_VELOCITY"],
     minHistoryDays: 1,
     minInputs: 1,
-    implemented: false,
+    implemented: true,
   },
   SLEEP_SCORE: {
     id: "SLEEP_SCORE",
@@ -154,6 +158,24 @@ const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
     minHistoryDays: 7,
     minInputs: 2,
     implemented: false,
+  },
+  HRV_BALANCE: {
+    id: "HRV_BALANCE",
+    displayName: "HRV (SDNN) balance",
+    archetype: "any-user-baseline",
+    inputs: ["HEART_RATE_VARIABILITY"],
+    minHistoryDays: 7,
+    minInputs: 1,
+    implemented: true,
+  },
+  BMI: {
+    id: "BMI",
+    displayName: "Body-mass index",
+    archetype: "any-user-baseline",
+    inputs: ["WEIGHT", "HEIGHT"],
+    minHistoryDays: 1,
+    minInputs: 2,
+    implemented: true,
   },
 };
 

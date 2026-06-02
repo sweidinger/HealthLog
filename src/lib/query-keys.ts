@@ -132,6 +132,17 @@ export const queryKeys = {
    * own stale-while-revalidate.
    */
   insightsPregenerate: () => ["insights", "pregenerate"] as const,
+  /**
+   * v1.10.0 — derived-wellness metrics. One generic route
+   * (`/api/insights/derived?metric=…[&type=…]`) backs the vitals
+   * dashboard tiles + per-metric detail cards, so the key is
+   * parameterised by the derived-metric id and the optional sub-type
+   * (the chosen vital for `VITALS_BASELINE`). Pure compute, locale-free
+   * (numbers + bands; surfaces localise their own prose), so no locale
+   * segment — unlike the narrative `*-status` keys above.
+   */
+  insightsDerived: (metric: string, type?: string | null) =>
+    ["insights", "derived", metric, type ?? null] as const,
 
   medications: () => ["medications"] as const,
   medicationDetail: (id: string) => ["medications", id] as const,

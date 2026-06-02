@@ -2487,6 +2487,30 @@
         "window": "Z ostatnich {days} dni · dane {source}",
         "asOf": "na dzień {date}",
         "standardLink": "Standard: {name}"
+      },
+      "vitals": {
+        "sectionTitle": "Twoje parametry życiowe",
+        "building": "Budowanie Twojego typowego zakresu — {count} z {target} dni",
+        "typicalRange": "Typowe dla Ciebie: {low}–{high}",
+        "fitnessYounger": "Kondycja jak u osoby ~{years} lat młodszej",
+        "fitnessOlder": "Kondycja ~{years} lat powyżej Twojego wieku",
+        "fitnessTypical": "Kondycja typowa dla Twojego wieku",
+        "fitnessNoNorm": "Dodaj wiek i płeć, aby to ująć w kontekście",
+        "vascularBelow": "{years} lat poniżej Twojego wieku",
+        "vascularAbove": "{years} lat powyżej Twojego wieku",
+        "vascularMatch": "Zgodnie z Twoim wiekiem",
+        "vascularNoAge": "Dodaj datę urodzenia, aby to ująć w kontekście",
+        "hrvBand": {
+          "balanced": "Zrównoważone dla Ciebie",
+          "unbalanced": "Powyżej Twojego zwykłego zakresu",
+          "low": "Poniżej Twojego zwykłego zakresu"
+        },
+        "bmiCategory": {
+          "underweight": "Niedowaga (WHO)",
+          "normal": "Zakres prawidłowy (WHO)",
+          "overweight": "Nadwaga (WHO)",
+          "obese": "Otyłość (WHO)"
+        }
       }
     }
   },

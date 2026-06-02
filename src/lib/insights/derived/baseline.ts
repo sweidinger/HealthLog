@@ -72,6 +72,11 @@ export interface VitalsBaselineValue {
 export interface BaselineProfile {
   ageYears: number | null;
   sex: "MALE" | "FEMALE" | null;
+  /**
+   * Height in cm from `User.heightCm`, when set. Consumed by the BMI
+   * metric (weight ÷ height²); `null` when the profile has no height.
+   */
+  heightCm?: number | null;
 }
 
 export interface VitalsBaselineOpts {

@@ -67,3 +67,20 @@ export type {
 
 export { computeDerivedMetric } from "./dispatch";
 export type { DerivedComputeArgs } from "./dispatch";
+
+// ── W2b vitals tier: passthrough re-frames + derived bands ───────────
+export {
+  computeFitnessAge,
+  placeVo2Band,
+  fitnessAgeDeltaYears,
+} from "./fitness-age";
+export type { FitnessAgeValue, FitnessBand } from "./fitness-age";
+
+export { computeVascularAgeDelta, placeVascularBand } from "./vascular-age";
+export type { VascularAgeDeltaValue, VascularBand } from "./vascular-age";
+
+export { computeHrvBalance, placeHrvBalance } from "./hrv-balance";
+export type { HrvBalanceValue, HrvBalanceBand } from "./hrv-balance";
+
+export { computeBmi, classifyBmi } from "./bmi";
+export type { BmiValue, BmiBand, BmiCategory } from "./bmi";

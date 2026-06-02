@@ -2487,6 +2487,30 @@
         "window": "From your last {days} days · {source} data",
         "asOf": "as of {date}",
         "standardLink": "Standard: {name}"
+      },
+      "vitals": {
+        "sectionTitle": "Your vitals",
+        "building": "Building your typical range — {count} of {target} days",
+        "typicalRange": "Typical for you: {low}–{high}",
+        "fitnessYounger": "Cardio fitness of someone ~{years} yr younger",
+        "fitnessOlder": "Cardio fitness ~{years} yr above your age",
+        "fitnessTypical": "Cardio fitness typical for your age",
+        "fitnessNoNorm": "Add your age and sex to frame this",
+        "vascularBelow": "{years} yr below your age",
+        "vascularAbove": "{years} yr above your age",
+        "vascularMatch": "In line with your age",
+        "vascularNoAge": "Add your date of birth to frame this",
+        "hrvBand": {
+          "balanced": "Balanced for you",
+          "unbalanced": "Above your usual range",
+          "low": "Below your usual range"
+        },
+        "bmiCategory": {
+          "underweight": "Underweight (WHO)",
+          "normal": "Normal range (WHO)",
+          "overweight": "Overweight (WHO)",
+          "obese": "Obese (WHO)"
+        }
       }
     }
   },

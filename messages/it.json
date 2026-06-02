@@ -2487,6 +2487,30 @@
         "window": "Dai tuoi ultimi {days} giorni · dati {source}",
         "asOf": "al {date}",
         "standardLink": "Standard: {name}"
+      },
+      "vitals": {
+        "sectionTitle": "I tuoi parametri vitali",
+        "building": "Creazione del tuo intervallo abituale — {count} di {target} giorni",
+        "typicalRange": "Abituale per te: {low}–{high}",
+        "fitnessYounger": "Forma cardio di chi ha ~{years} anni in meno",
+        "fitnessOlder": "Forma cardio ~{years} anni oltre la tua età",
+        "fitnessTypical": "Forma cardio tipica per la tua età",
+        "fitnessNoNorm": "Aggiungi età e sesso per inquadrare questo dato",
+        "vascularBelow": "{years} anni sotto la tua età",
+        "vascularAbove": "{years} anni sopra la tua età",
+        "vascularMatch": "In linea con la tua età",
+        "vascularNoAge": "Aggiungi la data di nascita per inquadrare questo dato",
+        "hrvBand": {
+          "balanced": "Equilibrato per te",
+          "unbalanced": "Sopra il tuo intervallo abituale",
+          "low": "Sotto il tuo intervallo abituale"
+        },
+        "bmiCategory": {
+          "underweight": "Sottopeso (OMS)",
+          "normal": "Intervallo normale (OMS)",
+          "overweight": "Sovrappeso (OMS)",
+          "obese": "Obesità (OMS)"
+        }
       }
     }
   },

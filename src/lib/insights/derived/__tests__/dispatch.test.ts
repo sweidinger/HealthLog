@@ -24,10 +24,15 @@ const NOW = new Date("2026-06-02T07:00:00Z");
 beforeEach(() => vi.clearAllMocks());
 
 describe("registry", () => {
-  it("exposes the flagship as implemented and the rest as stubs", () => {
+  it("exposes the implemented vitals-tier metrics and the composite stubs", () => {
     expect(getDerivedMetricMeta("VITALS_BASELINE")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("FITNESS_AGE")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("VASCULAR_AGE_DELTA")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("HRV_BALANCE")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("BMI")?.implemented).toBe(true);
+    // Composites still land in W3.
     expect(getDerivedMetricMeta("READINESS")?.implemented).toBe(false);
-    expect(getDerivedMetricMeta("FITNESS_AGE")?.implemented).toBe(false);
+    expect(getDerivedMetricMeta("COINCIDENT_DEVIATION")?.implemented).toBe(false);
   });
 
   it("isDerivedMetricId rejects unknown ids", () => {
@@ -43,7 +48,9 @@ describe("registry", () => {
   it("DERIVED_METRIC_IDS is the full closed enum", () => {
     expect(DERIVED_METRIC_IDS).toContain("VITALS_BASELINE");
     expect(DERIVED_METRIC_IDS).toContain("READINESS");
-    expect(DERIVED_METRIC_IDS.length).toBe(6);
+    expect(DERIVED_METRIC_IDS).toContain("HRV_BALANCE");
+    expect(DERIVED_METRIC_IDS).toContain("BMI");
+    expect(DERIVED_METRIC_IDS.length).toBe(8);
   });
 });
 

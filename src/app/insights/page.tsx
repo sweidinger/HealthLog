@@ -69,6 +69,22 @@ const TrendsRow = dynamic(
     ),
   },
 );
+// v1.10.0 — the Vitals dashboard (Apple-Health-Highlights grid of
+// personal-typical-range + passthrough-reframe tiles). Deferred behind
+// `next/dynamic` like the other below-the-fold blocks; each tile owns its
+// own derived-metric query and un-mounts when its vital is absent.
+const VitalsDashboard = dynamic(
+  () =>
+    import("@/components/insights/derived").then((mod) => ({
+      default: mod.VitalsDashboard,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-card border-border h-[20rem] animate-pulse rounded-xl border motion-reduce:animate-none" />
+    ),
+  },
+);
 
 /**
  * v1.4.25 W4d — Insights mother page.
@@ -229,6 +245,8 @@ export default function InsightsPage() {
           {t("insights.warmAssessments")}
         </Button>
       </div>
+
+      <VitalsDashboard enabled={isAuthenticated} />
 
       {flags.briefing && (
         <DailyBriefing

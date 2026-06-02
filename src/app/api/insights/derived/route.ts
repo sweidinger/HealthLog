@@ -67,7 +67,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // re-fetched per metric — the pool-contention mitigation).
   const profile = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { dateOfBirth: true, gender: true },
+    select: { dateOfBirth: true, gender: true, heightCm: true },
   });
   const sex =
     profile?.gender === "MALE" || profile?.gender === "FEMALE"
@@ -80,6 +80,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     profile: {
       ageYears: getAgeFromDateOfBirth(profile?.dateOfBirth ?? null),
       sex,
+      heightCm: profile?.heightCm ?? null,
     },
     type: parsed.data.type ?? null,
   });
