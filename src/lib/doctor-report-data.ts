@@ -130,8 +130,9 @@ export interface DoctorReportData {
     deliveryForm: string | null;
   }>;
   /**
-   * v1.9.0 — set when {@link MAX_MEDICATION_ADMINISTRATIONS} trimmed the
-   * administration set. `total` is the full acted-intake count over the
+   * v1.9.0 — set when the administration cap (see
+   * {@link resolveMaxMedicationAdministrations}) trimmed the administration
+   * set. `total` is the full acted-intake count over the
    * window; `included` is how many (the most-recent) survived the cap.
    * Null/absent when nothing was trimmed. The FHIR builder discloses
    * this in the document narrative so the export is honest about the
@@ -264,17 +265,6 @@ export function resolveMaxMedicationAdministrations(
     ? parsed
     : DEFAULT_MAX_MEDICATION_ADMINISTRATIONS;
 }
-
-/**
- * The cap is a coarse safety ceiling resolved once at module load, not a
- * per-request knob — the report window is the natural bound; this only
- * guards a pathological multi-year, many-medication export. When it trims
- * rows the aggregator flags it so the FHIR narrative discloses the
- * truncation rather than silently dropping history.
- */
-const MAX_MEDICATION_ADMINISTRATIONS = resolveMaxMedicationAdministrations(
-  process.env.FHIR_MAX_MEDICATION_ADMINISTRATIONS,
-);
 
 export interface DoctorReportRange {
   /** Start of the reporting window (UTC, inclusive). */
@@ -594,13 +584,20 @@ export async function collectDoctorReportData(
   // `scheduledFor: asc`, so the most-recent acted rows are at the tail;
   // keep the last N and flag the trim so the FHIR narrative can disclose
   // it. The omitted rows are the OLDEST in the window — recent adherence
-  // is preserved intact.
+  // is preserved intact. The cap is a coarse safety ceiling (the report
+  // window is the natural bound; this only guards a pathological
+  // multi-year, many-medication export) — resolved per call from
+  // `FHIR_MAX_MEDICATION_ADMINISTRATIONS` so an operator override takes
+  // effect without a code change.
+  const maxMedicationAdministrations = resolveMaxMedicationAdministrations(
+    process.env.FHIR_MAX_MEDICATION_ADMINISTRATIONS,
+  );
   const totalAdministrations = medicationAdministrations.length;
   const medicationAdministrationsTruncated =
-    totalAdministrations > MAX_MEDICATION_ADMINISTRATIONS;
+    totalAdministrations > maxMedicationAdministrations;
   const cappedAdministrations = medicationAdministrationsTruncated
     ? medicationAdministrations.slice(
-        totalAdministrations - MAX_MEDICATION_ADMINISTRATIONS,
+        totalAdministrations - maxMedicationAdministrations,
       )
     : medicationAdministrations;
 
