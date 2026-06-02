@@ -196,7 +196,12 @@ async function scoreVitalDeviation(
   windowDays: number,
   now: Date,
   coverage: RollupCoverageMap,
-): Promise<{ value: number | null; source: DerivedProvenanceSource }> {
+): Promise<{
+  value: number | null;
+  source: DerivedProvenanceSource;
+  /** Distinct history days backing this component's baseline (0 when gated). */
+  historyDays: number;
+}> {
   const baseline = await computeVitalsBaseline(userId, profile, {
     type,
     windowDays,
@@ -204,11 +209,19 @@ async function scoreVitalDeviation(
     coverage,
   });
   if (baseline.status !== "ok") {
-    return { value: null, source: baseline.provenance.source };
+    return {
+      value: null,
+      source: baseline.provenance.source,
+      historyDays: baseline.coverage.historyDays,
+    };
   }
   const today = await readLatestDayMean(userId, type, windowDays, now);
   if (today == null) {
-    return { value: null, source: baseline.provenance.source };
+    return {
+      value: null,
+      source: baseline.provenance.source,
+      historyDays: baseline.coverage.historyDays,
+    };
   }
   const value = scoreDeviation(
     today,
@@ -216,7 +229,11 @@ async function scoreVitalDeviation(
     baseline.value.spread,
     direction,
   );
-  return { value, source: baseline.provenance.source };
+  return {
+    value,
+    source: baseline.provenance.source,
+    historyDays: baseline.coverage.historyDays,
+  };
 }
 
 // ── compute ─────────────────────────────────────────────────────────────
@@ -285,10 +302,13 @@ export async function computeReadiness(
   // null when there is no scorable night, dropping the component).
   const sleep = await computeSleepScore(userId, profile, { windowDays, now });
   const sleepValue = sleep.status === "ok" ? sleep.value.score : null;
+  const sleepHistoryDays =
+    sleep.status === "ok" ? sleep.coverage.historyDays : 0;
 
   // Mood stability — reuse the shipped mood-aggregate stability score over
   // the window's daily means.
-  const moodValue = await readMoodStability(userId, windowDays, now);
+  const mood = await readMoodStability(userId, windowDays, now);
+  const moodValue = mood.value;
 
   const raw: Record<ReadinessComponentKey, number | null> = {
     rhr: rhr.value,
@@ -304,10 +324,41 @@ export async function computeReadiness(
     .filter((c) => c.value === null)
     .map((c) => c.key);
 
-  // Provenance source: DAY when any vital read the rollup tier, else live.
-  const anyDay = [rhr.source, hrv.source, resp.source].includes("DAY");
+  // The REAL history depth backing the composite. v1.10.0 QA: this used to be
+  // pinned to `windowDays` (the constant), so `historyFraction` was always 1
+  // and a 7-day blend reported the same confidence as a 30-day one. Take the
+  // history of the deepest PRESENT component — the blend is at least as
+  // well-backed as its best-supported contributor — so confidence reflects
+  // actual depth.
+  const presentHistories: number[] = [];
+  if (rhr.value !== null) presentHistories.push(rhr.historyDays);
+  if (hrv.value !== null) presentHistories.push(hrv.historyDays);
+  if (resp.value !== null) presentHistories.push(resp.historyDays);
+  if (sleepValue !== null) presentHistories.push(sleepHistoryDays);
+  if (moodValue !== null) presentHistories.push(mood.historyDays);
+  const compositeHistoryDays =
+    presentHistories.length > 0 ? Math.max(...presentHistories) : 0;
+
+  // Provenance source (#6): DAY when any PRESENT input read the rollup tier,
+  // else live. The previous form looked only at RHR/HRV/resp; a blend backed
+  // solely by sleep + mood (both live reads) mislabelled as DAY whenever one
+  // of the three gated vitals happened to resolve to DAY despite contributing
+  // nothing. Fold sleep + mood provenance in so the chip matches what
+  // actually backed the headline.
+  const presentSources: DerivedProvenanceSource[] = [];
+  if (rhr.value !== null) presentSources.push(rhr.source);
+  if (hrv.value !== null) presentSources.push(hrv.source);
+  if (resp.value !== null) presentSources.push(resp.source);
+  // Sleep + mood are live-SQL reads (no rollup tier for per-stage sleep rows
+  // or mood entries), so a present sleep/mood component contributes "live".
+  if (sleepValue !== null) presentSources.push(sleep.provenance.source);
+  if (moodValue !== null) presentSources.push("live");
   const source: DerivedProvenanceSource =
-    presentCount === 0 ? "none" : anyDay ? "DAY" : "live";
+    presentCount === 0
+      ? "none"
+      : presentSources.includes("DAY")
+        ? "DAY"
+        : "live";
 
   if (presentCount < READINESS_MIN_COMPONENTS) {
     const { coverage: cov } = deriveCoverage({
@@ -327,7 +378,7 @@ export async function computeReadiness(
   const { coverage: cov, confidence } = deriveCoverage({
     requiredInputs: components.length,
     presentInputs: presentCount,
-    historyDays: windowDays,
+    historyDays: compositeHistoryDays,
     missing,
     fullHistoryDays: windowDays,
   });
@@ -361,7 +412,7 @@ async function readMoodStability(
   userId: string,
   windowDays: number,
   now: Date,
-): Promise<number | null> {
+): Promise<{ value: number | null; historyDays: number }> {
   const since = new Date(now.getTime() - windowDays * MS_PER_DAY);
   const rows = await prisma.moodEntry.findMany({
     where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
@@ -369,7 +420,7 @@ async function readMoodStability(
     take: 2000,
     select: { score: true, moodLoggedAt: true },
   });
-  if (rows.length === 0) return null;
+  if (rows.length === 0) return { value: null, historyDays: 0 };
   // Collapse to daily means keyed by dayOffset (newest = 0), matching the
   // mood-aggregate DailyPoint shape.
   const byDay = new Map<number, { sum: number; count: number }>();
@@ -387,5 +438,8 @@ async function readMoodStability(
     value: acc.sum / acc.count,
   }));
   const stability = computeMoodStability(daily);
-  return stability ? stability.score : null;
+  return {
+    value: stability ? stability.score : null,
+    historyDays: daily.length,
+  };
 }

@@ -114,4 +114,88 @@ describe("computeReadiness gating", () => {
       expect(result.value.score).toBeLessThanOrEqual(100);
     }
   });
+
+  it("reports confidence reflecting REAL history depth, not the constant window", async () => {
+    // 10 distinct backing days on a 30-day window. Pre-fix `historyDays` was
+    // pinned to `windowDays` so `historyFraction` was always 1 and confidence
+    // hit the ceiling; post-fix it reflects the 10/30 depth and lands below a
+    // full-history blend.
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const days = (type: string, base: number, count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        value: base,
+        // i+1 days before NOW so each row lands on a distinct prior UTC day
+        // inside the 30-day window (valid calendar dates across the month).
+        measuredAt: new Date(NOW.getTime() - (i + 1) * DAY_MS),
+        type,
+      }));
+    measurementFindMany.mockImplementation(
+      async (args: { where: { type: string } }) => {
+        const type = args.where.type;
+        if (type === "RESTING_HEART_RATE") return days(type, 58, 10);
+        if (type === "HEART_RATE_VARIABILITY") return days(type, 65, 10);
+        return [];
+      },
+    );
+    const shallow = await computeReadiness("u1", PROFILE, {
+      now: NOW,
+      windowDays: 30,
+    });
+
+    measurementFindMany.mockImplementation(
+      async (args: { where: { type: string } }) => {
+        const type = args.where.type;
+        if (type === "RESTING_HEART_RATE") return days(type, 58, 30);
+        if (type === "HEART_RATE_VARIABILITY") return days(type, 65, 30);
+        return [];
+      },
+    );
+    const deep = await computeReadiness("u1", PROFILE, {
+      now: NOW,
+      windowDays: 30,
+    });
+
+    expect(shallow.status).toBe("ok");
+    expect(deep.status).toBe("ok");
+    if (shallow.status === "ok" && deep.status === "ok") {
+      expect(shallow.coverage.historyDays).toBe(10);
+      expect(deep.coverage.historyDays).toBe(30);
+      // A 10-day blend must report lower confidence than a 30-day one.
+      expect(shallow.confidence.score).toBeLessThan(deep.confidence.score);
+    }
+  });
+
+  it("provenance source is 'live' for a blend backed only by sleep + mood", async () => {
+    // No vital readings (RHR/HRV/resp all gate). Mood entries present + a
+    // scorable sleep night → the two present components are both live reads,
+    // so the source chip must read 'live', never DAY.
+    moodFindMany.mockResolvedValue(
+      Array.from({ length: 8 }, (_, i) => ({
+        score: 4,
+        moodLoggedAt: new Date(`2026-05-${String(20 + i).padStart(2, "0")}T20:00:00Z`),
+      })),
+    );
+    measurementFindMany.mockImplementation(
+      async (args: { where: { type: string } }) => {
+        const type = args.where.type;
+        if (type === "SLEEP_DURATION") {
+          // Three scorable nights so the sleep score lights up.
+          return [
+            { value: 420, measuredAt: new Date("2026-05-31T06:00:00Z"), sleepStage: "ASLEEP" },
+            { value: 430, measuredAt: new Date("2026-06-01T06:10:00Z"), sleepStage: "ASLEEP" },
+            { value: 410, measuredAt: new Date("2026-06-02T06:05:00Z"), sleepStage: "ASLEEP" },
+          ];
+        }
+        return [];
+      },
+    );
+    const result = await computeReadiness("u1", PROFILE, { now: NOW });
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") {
+      const present = result.value.components.filter((c) => c.value !== null);
+      const keys = present.map((c) => c.key).sort();
+      expect(keys).toEqual(["mood", "sleep"]);
+      expect(result.provenance.source).toBe("live");
+    }
+  });
 });

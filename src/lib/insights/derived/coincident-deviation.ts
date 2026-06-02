@@ -152,6 +152,7 @@ export async function computeCoincidentDeviation(
   const vitals: VitalDeviation[] = [];
   let latestDay = "";
   let anyDaySource = false;
+  let maxHistoryDays = 0;
 
   // Fan the baseline engine across the supported vitals. Each baseline read
   // shares the one coverage probe (no per-vital re-probe).
@@ -167,6 +168,9 @@ export async function computeCoincidentDeviation(
     const latest = await readLatestDayMean(userId, type, windowDays, now);
     if (!latest) continue;
     if (latest.day > latestDay) latestDay = latest.day;
+    if (baseline.coverage.historyDays > maxHistoryDays) {
+      maxHistoryDays = baseline.coverage.historyDays;
+    }
     vitals.push(
       classifyDeviation(
         type,
@@ -209,7 +213,12 @@ export async function computeCoincidentDeviation(
     // The coverage axis is "how many vitals could have coincided".
     requiredInputs: vitals.length,
     presentInputs: vitals.length,
-    historyDays: windowDays,
+    // v1.10.0 QA: the REAL distinct-history-days backing the deepest
+    // contributing vital, not the constant `windowDays` (which pinned
+    // `historyFraction` to 1 so a 7-day and a 30-day blend reported the same
+    // confidence). The composite is at least as well-backed as its
+    // best-supported vital.
+    historyDays: maxHistoryDays,
     missing: [],
     fullHistoryDays: windowDays,
   });
