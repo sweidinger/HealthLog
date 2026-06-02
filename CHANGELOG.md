@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.9.0] — 2026-06-02 — Insights time-ranges, deeper mood, medication coding, stability
+
+### Added
+
+- **A time range you can choose on the Insights pages.** Each metric now carries range pills (week, month, quarter, year) and shows how the period compares with the one before it — the change in your average, stated plainly with its direction — so a trend reads at a glance instead of by eye.
+- **Deeper mood insights.** The mood page now surfaces your time-of-day pattern (when your mood tends to sit highest and lowest), a stability read, and correlation cards that line mood up against weight and blood pressure — each shown only when there are enough paired days to mean something.
+- **Standard drug codes on a medication.** A medication can carry an ATC and an RxNorm code (entered, never guessed). These flow into the health-record export: the exported `MedicationStatement` now codes the drug with the WHO ATC system and RxNorm alongside the plain name, and the export adds a `MedicationAdministration` for every dose you actually took or skipped, so a clinician's system can read the record without relying on free text.
+- **A deploy-verification script** (`scripts/assert-deploy.ts`) that checks a target reports the expected version after a release.
+
+### Changed
+
+- **The medication advanced-settings page is rebuilt.** Import, intake-import and export sit in their own group, the external-API endpoints are listed one by one with collapsible request examples, and the layout is tidied so the technical settings read clearly instead of crowding together.
+- **Targets are edited inline where they belong.** The separate `/targets` page is retired — you set a metric's target range from the metric itself, with no detour to a standalone editor.
+- **The health-record export emits insurer coverage from a bare insurance number**, not only when a full insurer organisation is present, and carries a top-level narrative summary.
+- **Notification settings wording** is tightened for clarity.
+
+### Fixed
+
+- **The app stays responsive under load.** The database connection pool was sized far too small by default and could starve while a background insight warm and a foreground request competed, which showed up as the occasional "server not responding" that recovered on its own; the pool is now sized for real concurrency and tunable for larger self-hosts.
+- **A background insight warm no longer blocks a page**, and a burst of Apple Health / Withings sync no longer triggers a storm of regenerations — the warm is decoupled and the invalidation is debounced.
+- **The medication card rows stay aligned.** "Last dose" and "next dose" could break onto different heights and look misaligned; the rows now hold an equal height.
+- **Glucose entered in mmol/L converts correctly** in the editor instead of being stored against the wrong unit.
+- **The admin and global layout no longer shifts** when a scrollbar appears, by reserving the gutter.
+- **The legacy status endpoints are documented** — six older `*-status` routes were missing from the API contract and are now included.
+
 ## [1.8.7.1] — 2026-06-02 — Assessments for every HealthKit metric, one-tap pre-generation
 
 ### Added
