@@ -140,6 +140,19 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   ["STAIR_DESCENT_SPEED", "activity"],
   // Breathing disturbances is a per-night sleep-breathing index.
   ["BREATHING_DISTURBANCES", "sleep"],
+
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // Device-flagged EVENT rows slot into the category their signal
+  // belongs to: the rhythm + heart-rate notifications join the
+  // cardiovascular surface, the walking-steadiness alert joins the
+  // activity/mobility cluster, and the breathing-disturbance flag joins
+  // sleep (it fires during sleep). They never participate in
+  // trend/rollup analytics — the category is only for list grouping.
+  ["IRREGULAR_RHYTHM_NOTIFICATION", "cardiovascular"],
+  ["HIGH_HEART_RATE_EVENT", "cardiovascular"],
+  ["LOW_HEART_RATE_EVENT", "cardiovascular"],
+  ["WALKING_STEADINESS_EVENT", "activity"],
+  ["BREATHING_DISTURBANCE_EVENT", "sleep"],
 ]);
 
 /**

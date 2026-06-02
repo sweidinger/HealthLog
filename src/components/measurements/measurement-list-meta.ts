@@ -90,6 +90,12 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   STAIR_ASCENT_SPEED: "measurements.typeStairAscentSpeed",
   STAIR_DESCENT_SPEED: "measurements.typeStairDescentSpeed",
   BREATHING_DISTURBANCES: "measurements.typeBreathingDisturbances",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  IRREGULAR_RHYTHM_NOTIFICATION: "measurements.typeIrregularRhythmNotification",
+  HIGH_HEART_RATE_EVENT: "measurements.typeHighHeartRateEvent",
+  LOW_HEART_RATE_EVENT: "measurements.typeLowHeartRateEvent",
+  WALKING_STEADINESS_EVENT: "measurements.typeWalkingSteadinessEvent",
+  BREATHING_DISTURBANCE_EVENT: "measurements.typeBreathingDisturbanceEvent",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -167,6 +173,15 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   STAIR_ASCENT_SPEED: Gauge,
   STAIR_DESCENT_SPEED: Gauge,
   BREATHING_DISTURBANCES: Wind,
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // Activity carries the irregular-rhythm trace shape; HeartPulse the
+  // high/low-HR cardio pair; Footprints the steadiness/mobility family;
+  // Wind the breathing family (SpO2 + respiratory rate already use it).
+  IRREGULAR_RHYTHM_NOTIFICATION: Activity,
+  HIGH_HEART_RATE_EVENT: HeartPulse,
+  LOW_HEART_RATE_EVENT: HeartPulse,
+  WALKING_STEADINESS_EVENT: Footprints,
+  BREATHING_DISTURBANCE_EVENT: Wind,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -235,4 +250,13 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   STAIR_ASCENT_SPEED: "bg-chart-2/20 text-chart-2",
   STAIR_DESCENT_SPEED: "bg-chart-2/20 text-chart-2",
   BREATHING_DISTURBANCES: "bg-chart-5/20 text-chart-5",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // chart-3 (cardio family) carries the rhythm + heart-rate events;
+  // chart-2 (activity/mobility) carries the steadiness event; chart-5
+  // (respiratory/pulse family) carries the breathing event.
+  IRREGULAR_RHYTHM_NOTIFICATION: "bg-chart-3/20 text-chart-3",
+  HIGH_HEART_RATE_EVENT: "bg-chart-3/20 text-chart-3",
+  LOW_HEART_RATE_EVENT: "bg-chart-3/20 text-chart-3",
+  WALKING_STEADINESS_EVENT: "bg-chart-2/20 text-chart-2",
+  BREATHING_DISTURBANCE_EVENT: "bg-chart-5/20 text-chart-5",
 };

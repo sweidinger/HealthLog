@@ -544,8 +544,50 @@ enum MeasurementType {
   STAIR_ASCENT_SPEED // metres per second — HealthKit `stairAscentSpeed`. Mobility section gait metric measured while climbing stairs, higher-better.
   STAIR_DESCENT_SPEED // metres per second — HealthKit `stairDescentSpeed`. Mobility section gait metric measured while descending stairs, higher-better.
   BREATHING_DISTURBANCES // count — HealthKit `appleSleepingBreathingDisturbances` (iOS 18+). Per-night sleep-breathing-disturbance index Apple classifies as NotElevated / Elevated; lower-better.
+  // v1.10.0 — categorical events (WX-B)
+  // Device-flagged EVENT rows. These are NOT continuous measurements —
+  // each row records a discrete on-device notification the user's wearable
+  // produced (Apple Watch / Withings ScanWatch). `value` is always 1 (one
+  // fired event); the device's verdict / severity lands in the
+  // `rhythmClassification` column (see the `RhythmClassification` enum and
+  // the CHECK constraint in migration 0105). HealthLog never re-derives or
+  // re-classifies the underlying signal — it only stores and surfaces the
+  // result the device's own certified algorithm already emitted.
+  IRREGULAR_RHYTHM_NOTIFICATION // HealthKit `HKCategoryTypeIdentifierIrregularHeartRhythmEvent` + ScanWatch AFib screening. The certified on-device algorithm flagged a possible irregular rhythm. AWARENESS ONLY — never a HealthLog diagnosis.
+  HIGH_HEART_RATE_EVENT // HealthKit `HKCategoryTypeIdentifierHighHeartRateEvent`. The watch detected a sustained high heart rate above the user's configured threshold while apparently inactive.
+  LOW_HEART_RATE_EVENT // HealthKit `HKCategoryTypeIdentifierLowHeartRateEvent`. The watch detected a sustained low heart rate below the user's configured threshold.
+  WALKING_STEADINESS_EVENT // HealthKit `HKCategoryTypeIdentifierAppleWalkingSteadinessEvent`. The device flagged low / very-low walking steadiness (a falls-risk mobility signal); the severity rides in `rhythmClassification`.
+  BREATHING_DISTURBANCE_EVENT // HealthKit `HKCategoryTypeIdentifierSleepApneaEvent` + `AppleSleepingBreathingDisturbances`. The device flagged an elevated breathing-disturbance / possible sleep-apnea signal during sleep. SCREENING SIGNAL ONLY — never a HealthLog diagnosis.
 
   @@map("measurement_type")
+}
+
+/// v1.10.0 — categorical events (WX-B)
+/// The device's own classification RESULT / severity for an EVENT row.
+/// Non-NULL only for the categorical EVENT `MeasurementType`s
+/// (IRREGULAR_RHYTHM_NOTIFICATION, HIGH/LOW_HEART_RATE_EVENT,
+/// WALKING_STEADINESS_EVENT, BREATHING_DISTURBANCE_EVENT), NULL for every
+/// continuous measurement — mirroring the `GlucoseContext` / `SleepStage`
+/// nullable-context precedent.
+///
+/// HealthLog stores ONLY the verdict the device's FDA-cleared / CE-marked
+/// on-device algorithm already produced. It never re-classifies a raw
+/// signal and never emits a diagnosis of its own. `IRREGULAR` means the
+/// device flagged a possible irregular rhythm; `NOT_DETECTED` /
+/// `INCONCLUSIVE` carry the device's own non-positive verdicts so the
+/// awareness timeline can be honest rather than only ever showing alarms.
+/// `LOW` / `VERY_LOW` carry the walking-steadiness severity; `FIRED` is the
+/// neutral "this event occurred" verdict for the high/low-HR + breathing
+/// events that have no finer device-side grading.
+enum RhythmClassification {
+  IRREGULAR // device flagged a possible irregular rhythm (AFib screening)
+  NOT_DETECTED // device's algorithm ran and did not flag an irregular rhythm
+  INCONCLUSIVE // device could not classify (poor signal / out-of-range HR)
+  LOW // walking-steadiness: low
+  VERY_LOW // walking-steadiness: very low
+  FIRED // neutral "event occurred" verdict (high/low-HR, breathing disturbance)
+
+  @@map("rhythm_classification")
 }
 
 /// Context for glucose measurements — affects which target range applies.
@@ -608,6 +650,15 @@ model Measurement {
   // only for `type = SLEEP_DURATION`. Mirrors the glucoseContext
   // pattern. A single night produces ~5 rows (one per stage).
   sleepStage            SleepStage?       @map("sleep_stage")
+  // v1.10.0 — categorical events (WX-B). The device's own classification
+  // verdict / severity for an EVENT row. NULL for every continuous
+  // measurement; non-NULL only for the categorical EVENT `MeasurementType`s.
+  // Mirrors the `sleepStage` / `glucoseContext` nullable-context columns. A
+  // CHECK constraint (migration 0105) enforces the type pairing so a
+  // continuous row can never carry a classification. NOT part of any unique
+  // index — dedup stays on `(userId, type, source, externalId)` keyed by the
+  // device's `HKSample.uuid`, so a re-posted event collapses to a duplicate.
+  rhythmClassification  RhythmClassification? @map("rhythm_classification")
   // v1.4.25 W8c — device-type tag for the cross-source canonical
   // picker. Stored as a free-text string (kept simple — Prisma enum
   // would require coordinated client + server bumps every time we

@@ -135,6 +135,15 @@ export function getPRDirection(
     // a baseline deviation, not a goal axis; neither a higher nor a
     // lower reading is an achievement. Defer to a null PR direction.
     case "WRIST_TEMPERATURE":
+    // v1.10.0 — categorical events (WX-B). Device-flagged EVENT rows are
+    // discrete occurrences (value is always 1), never a goal axis. A
+    // "personal record" for a health-notification event would be both
+    // meaningless and alarming, so they explicitly have no PR direction.
+    case "IRREGULAR_RHYTHM_NOTIFICATION":
+    case "HIGH_HEART_RATE_EVENT":
+    case "LOW_HEART_RATE_EVENT":
+    case "WALKING_STEADINESS_EVENT":
+    case "BREATHING_DISTURBANCE_EVENT":
       return null;
   }
 }

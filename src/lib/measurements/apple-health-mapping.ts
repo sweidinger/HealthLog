@@ -23,7 +23,11 @@
  * unit, conversion, and aggregation columns are HealthLog-specific
  * decisions checked against Apple's HKUnit documentation.
  */
-import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
+import type {
+  MeasurementType,
+  SleepStage,
+  RhythmClassification,
+} from "@/generated/prisma/client";
 
 /**
  * How a batch of HealthKit samples for the same identifier should be
@@ -67,7 +71,53 @@ export interface AppleHealthMapping {
    * sample and look up the DB-side stage here.
    */
   sleepStageMap?: Record<number, SleepStage>;
+  /**
+   * v1.10.0 — categorical events (WX-B). For the EVENT-class HealthKit
+   * category identifiers (irregular-rhythm / high-HR / low-HR /
+   * walking-steadiness / breathing-disturbance), maps the inbound
+   * `HKCategoryValue` integer codepoint to the device's verdict /
+   * severity (`RhythmClassification`).
+   *
+   * HealthLog NEVER re-derives this — the value is the result the
+   * device's own certified on-device algorithm already produced. When a
+   * mapping carries an `eventClassificationMap`, `mapAppleHealthEntry`
+   * resolves the codepoint to a `RhythmClassification`, forcing the
+   * stored `value` to 1 (one fired event) regardless of the inbound
+   * number. A codepoint absent from the map falls back to the entry's
+   * `fallbackClassification` so an unseen Apple codepoint is recorded as
+   * a (gracefully degraded) event rather than dropped.
+   */
+  eventClassificationMap?: Record<number, RhythmClassification>;
+  /**
+   * v1.10.0 — fallback verdict for an EVENT identifier whose inbound
+   * codepoint is missing / unknown. Only set alongside
+   * `eventClassificationMap`. The high/low-HR + breathing events have a
+   * single neutral `FIRED` verdict and a `notApplicable` (0) codepoint;
+   * they rely on this fallback rather than enumerating the codepoint.
+   */
+  fallbackClassification?: RhythmClassification;
 }
+
+/**
+ * v1.10.0 — categorical events (WX-B).
+ *
+ * `HKCategoryValueAppleWalkingSteadinessEvent` codepoints → the device's
+ * own severity verdict. Apple grades the falls-risk mobility flag as
+ * initial/repeat × low/very-low; HealthLog collapses the initial/repeat
+ * distinction (it is a re-notification of the same severity) into the two
+ * severity bands the awareness timeline surfaces.
+ *
+ * Source: Apple's `HKCategoryValueAppleWalkingSteadinessEvent` enum.
+ */
+export const APPLE_HEALTH_WALKING_STEADINESS_EVENT_MAP: Record<
+  number,
+  RhythmClassification
+> = {
+  1: "LOW", // initialLow
+  2: "LOW", // repeatLow
+  3: "VERY_LOW", // initialVeryLow
+  4: "VERY_LOW", // repeatVeryLow
+};
 
 /**
  * Numeric values of `HKCategoryValueSleepAnalysis`. Apple's enum is
@@ -368,6 +418,82 @@ export const APPLE_HEALTH_TYPE_MAP: Record<string, AppleHealthMapping> = {
     dbUnit: "count",
     convertToDbUnit: () => 1,
     aggregation: "sum",
+  },
+
+  // ── v1.10.0 — categorical events (WX-B) ──────────────────────
+  // Device-flagged EVENT classes. Each is a discrete on-device
+  // notification, NOT a continuous reading. HealthLog ingests ONLY the
+  // classification RESULT the device's own certified algorithm produced
+  // — it never sees a raw ECG waveform, never re-classifies, never emits
+  // a diagnosis. The stored `value` is always 1 (one fired event); the
+  // device verdict / severity lands in `rhythmClassification`.
+  //
+  // Irregular-rhythm notification — Apple Watch's FDA-cleared / CE-marked
+  // irregular-rhythm-notification feature (and ScanWatch's certified AFib
+  // screening, which the iOS bridge maps onto this same identifier). The
+  // sample firing IS the device's "possible irregular rhythm" verdict;
+  // there is no finer HK gradation, so it resolves to `IRREGULAR`.
+  HKCategoryTypeIdentifierIrregularHeartRhythmEvent: {
+    hkIdentifier: "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
+    measurementType: "IRREGULAR_RHYTHM_NOTIFICATION",
+    hkUnit: "event",
+    dbUnit: "event",
+    convertToDbUnit: () => 1,
+    aggregation: "sum",
+    isPrivacySensitive: true,
+    eventClassificationMap: { 0: "IRREGULAR" },
+    fallbackClassification: "IRREGULAR",
+  },
+  // High-HR event — sustained high heart rate above the user-configured
+  // threshold while apparently inactive. Single neutral `FIRED` verdict.
+  HKCategoryTypeIdentifierHighHeartRateEvent: {
+    hkIdentifier: "HKCategoryTypeIdentifierHighHeartRateEvent",
+    measurementType: "HIGH_HEART_RATE_EVENT",
+    hkUnit: "event",
+    dbUnit: "event",
+    convertToDbUnit: () => 1,
+    aggregation: "sum",
+    isPrivacySensitive: true,
+    fallbackClassification: "FIRED",
+  },
+  // Low-HR event — sustained low heart rate below the user-configured
+  // threshold. Single neutral `FIRED` verdict.
+  HKCategoryTypeIdentifierLowHeartRateEvent: {
+    hkIdentifier: "HKCategoryTypeIdentifierLowHeartRateEvent",
+    measurementType: "LOW_HEART_RATE_EVENT",
+    hkUnit: "event",
+    dbUnit: "event",
+    convertToDbUnit: () => 1,
+    aggregation: "sum",
+    isPrivacySensitive: true,
+    fallbackClassification: "FIRED",
+  },
+  // Walking-steadiness event — the falls-risk mobility flag. Apple grades
+  // it low / very-low (initial + repeat); the severity rides in
+  // `rhythmClassification` via `APPLE_HEALTH_WALKING_STEADINESS_EVENT_MAP`.
+  HKCategoryTypeIdentifierAppleWalkingSteadinessEvent: {
+    hkIdentifier: "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+    measurementType: "WALKING_STEADINESS_EVENT",
+    hkUnit: "event",
+    dbUnit: "event",
+    convertToDbUnit: () => 1,
+    aggregation: "sum",
+    isPrivacySensitive: true,
+    eventClassificationMap: APPLE_HEALTH_WALKING_STEADINESS_EVENT_MAP,
+    fallbackClassification: "LOW",
+  },
+  // Breathing-disturbance / sleep-apnea event — the device flagged an
+  // elevated breathing-disturbance signal during sleep. Screening signal
+  // only; single neutral `FIRED` verdict.
+  HKCategoryTypeIdentifierSleepApneaEvent: {
+    hkIdentifier: "HKCategoryTypeIdentifierSleepApneaEvent",
+    measurementType: "BREATHING_DISTURBANCE_EVENT",
+    hkUnit: "event",
+    dbUnit: "event",
+    convertToDbUnit: () => 1,
+    aggregation: "sum",
+    isPrivacySensitive: true,
+    fallbackClassification: "FIRED",
   },
 
   // ── v1.5.5 iOS-coord — six previously-deferred identifiers ───
@@ -747,11 +873,10 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   "HKQuantityTypeIdentifierWorkoutEffortScore",
   "HKQuantityTypeIdentifierPhysicalEffort",
   // Sleep apnea + breathing (iOS 18) — v1.5+
-  // v1.10.0 — `AppleSleepingBreathingDisturbances` moved into the
-  // mapping table (BREATHING_DISTURBANCES). The category-type sleep-apnea
-  // EVENT stays deferred — it belongs in the event class, not the
-  // quantity map.
-  "HKCategoryTypeIdentifierSleepApneaEvent",
+  // v1.10.0 — both signals now mapped, so neither stays deferred:
+  // `AppleSleepingBreathingDisturbances` (the per-night quantity) →
+  // BREATHING_DISTURBANCES, and `HKCategoryTypeIdentifierSleepApneaEvent`
+  // (the fired screening event) → BREATHING_DISTURBANCE_EVENT.
   // Nutrition — Marc directive, indefinite hold
   "HKQuantityTypeIdentifierDietaryWater",
   "HKQuantityTypeIdentifierDietaryCaffeine",
@@ -792,11 +917,11 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   "HKQuantityTypeIdentifierAtrialFibrillationBurden",
   "HKQuantityTypeIdentifierPeripheralPerfusionIndex",
   // Mobility (iOS 15+) — `AppleWalkingSteadiness` moved into the
-  // mapping table in v1.4.30 (R-F T1.5); `NumberOfTimesFallen` moved
-  // into the mapping table in v1.10.0 (FALL_COUNT). The walking-
-  // steadiness EVENT stays deferred — it is a category-type event, not
-  // a quantity, so it belongs in the event class rather than this map.
-  "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+  // mapping table in v1.4.30 (R-F T1.5). In v1.10.0 both remaining
+  // signals moved in too, so neither stays deferred: `NumberOfTimesFallen`
+  // → FALL_COUNT (the continuous count), and
+  // `AppleWalkingSteadinessEvent` → WALKING_STEADINESS_EVENT (the fired
+  // severity event).
   // Respiratory / pulmonary clinical (iOS 17) — pair with FHIR clinical
   // bucket; no Measurement enum mapping today.
   "HKQuantityTypeIdentifierForcedExpiratoryVolume1",
@@ -810,11 +935,11 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   "HKQuantityTypeIdentifierBloodAlcoholContent",
   "HKQuantityTypeIdentifierNikeFuel", // legacy Nike+iPod fitness points
   // Heart-rhythm event flags (iOS 9+ but watch-detected; iOS 18
-  // refreshed surfaces) — would land as Measurement annotations rather
-  // than rows; defer until the annotation column lands.
-  "HKCategoryTypeIdentifierLowHeartRateEvent",
-  "HKCategoryTypeIdentifierHighHeartRateEvent",
-  "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
+  // refreshed surfaces). v1.10.0 — `LowHeartRateEvent`,
+  // `HighHeartRateEvent` + `IrregularHeartRhythmEvent` moved into the
+  // mapping table as the LOW/HIGH_HEART_RATE_EVENT +
+  // IRREGULAR_RHYTHM_NOTIFICATION categorical events.
+  // `LowCardioFitnessEvent` stays deferred (no awareness surface yet).
   "HKCategoryTypeIdentifierLowCardioFitnessEvent",
   // Audio-exposure events (iOS 13+) — Environmental + Headphone
   // moved into the mapping table in v1.4.30 (R-F T1.4) as
@@ -857,6 +982,17 @@ export interface AppleHealthEntryInput {
    * types.
    */
   sleepStage?: number;
+  /**
+   * v1.10.0 — categorical events (WX-B). The integer `HKCategoryValue`
+   * codepoint for an EVENT-class category sample (irregular-rhythm,
+   * high/low-HR, walking-steadiness, breathing-disturbance). The device
+   * already classified the signal; this is the codepoint of that
+   * verdict, looked up via the mapping's `eventClassificationMap`.
+   * Ignored for every non-event identifier. Falls back to the wire
+   * `sleepStage` field when omitted so an iOS build that reuses the
+   * existing category-value slot still round-trips.
+   */
+  categoryValue?: number;
 }
 
 /** Output of `mapAppleHealthEntry()`. */
@@ -867,6 +1003,12 @@ export interface AppleHealthEntryOutput {
   takenAt: Date;
   /** Set only for sleep entries. */
   sleepStage?: SleepStage;
+  /**
+   * v1.10.0 — set only for the categorical EVENT classes. The device's
+   * own verdict / severity for the fired event. NULL/undefined for every
+   * continuous measurement.
+   */
+  rhythmClassification?: RhythmClassification;
 }
 
 /**
@@ -906,6 +1048,22 @@ export function mapAppleHealthEntry(
     const stage = mapping.sleepStageMap[input.sleepStage];
     if (!stage) return null;
     out.sleepStage = stage;
+  }
+
+  // v1.10.0 — categorical events (WX-B). Resolve the device's verdict
+  // from the inbound codepoint. The `value` is already pinned to 1 by the
+  // mapping's `convertToDbUnit: () => 1`. We accept the codepoint from
+  // `categoryValue`, falling back to the legacy `sleepStage` category slot
+  // so an iOS build reusing that wire field still resolves. An unknown
+  // codepoint degrades to the mapping's `fallbackClassification` rather
+  // than dropping the event — the device fired it, so it happened.
+  if (mapping.fallbackClassification) {
+    const codepoint = input.categoryValue ?? input.sleepStage;
+    const fromMap =
+      codepoint !== undefined && mapping.eventClassificationMap
+        ? mapping.eventClassificationMap[codepoint]
+        : undefined;
+    out.rhythmClassification = fromMap ?? mapping.fallbackClassification;
   }
 
   return out;

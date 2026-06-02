@@ -58,6 +58,38 @@ export const measurementTypeEnum = z.enum([
   "STAIR_ASCENT_SPEED",
   "STAIR_DESCENT_SPEED",
   "BREATHING_DISTURBANCES",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // Discrete device-flagged EVENT rows (value is always 1). The device's
+  // own verdict / severity rides in the `rhythmClassification` column.
+  "IRREGULAR_RHYTHM_NOTIFICATION",
+  "HIGH_HEART_RATE_EVENT",
+  "LOW_HEART_RATE_EVENT",
+  "WALKING_STEADINESS_EVENT",
+  "BREATHING_DISTURBANCE_EVENT",
+]);
+
+/**
+ * v1.10.0 — categorical events (WX-B). The closed set of EVENT-class
+ * MeasurementTypes. An EVENT row carries `value = 1`, an optional
+ * `rhythmClassification` verdict, and never participates in trend / rollup
+ * analytics (it is a discrete occurrence, not a continuous reading). Kept
+ * as a `Set` so ingest + read paths can branch on "is this an event row?".
+ */
+export const EVENT_MEASUREMENT_TYPES: ReadonlySet<string> = new Set<string>([
+  "IRREGULAR_RHYTHM_NOTIFICATION",
+  "HIGH_HEART_RATE_EVENT",
+  "LOW_HEART_RATE_EVENT",
+  "WALKING_STEADINESS_EVENT",
+  "BREATHING_DISTURBANCE_EVENT",
+]);
+
+export const rhythmClassificationEnum = z.enum([
+  "IRREGULAR",
+  "NOT_DETECTED",
+  "INCONCLUSIVE",
+  "LOW",
+  "VERY_LOW",
+  "FIRED",
 ]);
 
 export const glucoseContextEnum = z.enum([
@@ -159,6 +191,15 @@ const unitMap: Record<string, string> = {
   // Per-night breathing-disturbance index — a unitless count Apple
   // classifies as NotElevated / Elevated.
   BREATHING_DISTURBANCES: "count",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // EVENT rows are dimensionless occurrences (value is always 1). The
+  // canonical unit is the bare "event" so any accidental numeric surfacing
+  // reads sensibly; the awareness timeline never displays the value.
+  IRREGULAR_RHYTHM_NOTIFICATION: "event",
+  HIGH_HEART_RATE_EVENT: "event",
+  LOW_HEART_RATE_EVENT: "event",
+  WALKING_STEADINESS_EVENT: "event",
+  BREATHING_DISTURBANCE_EVENT: "event",
 };
 
 export function getUnitForType(type: string): string {
@@ -293,6 +334,15 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // undisturbed night and the 1000 ceiling is generous headroom over
   // any plausible severe-apnea night.
   BREATHING_DISTURBANCES: { min: 0, max: 1000 },
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // EVENT rows carry a fixed `value = 1` (one fired event). The range pins
+  // the value so a malformed ingest (value 0, or a stray sensor number)
+  // is rejected rather than stored as a phantom event.
+  IRREGULAR_RHYTHM_NOTIFICATION: { min: 1, max: 1 },
+  HIGH_HEART_RATE_EVENT: { min: 1, max: 1 },
+  LOW_HEART_RATE_EVENT: { min: 1, max: 1 },
+  WALKING_STEADINESS_EVENT: { min: 1, max: 1 },
+  BREATHING_DISTURBANCE_EVENT: { min: 1, max: 1 },
 };
 
 export function validateMeasurementRange(
