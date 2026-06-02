@@ -21,6 +21,9 @@ vi.mock("@/lib/db", () => ({
     workoutRoute: {
       createMany: vi.fn(),
     },
+    workoutSamples: {
+      createMany: vi.fn(),
+    },
     user: {
       findUnique: vi.fn(),
     },
@@ -123,6 +126,7 @@ beforeEach(() => {
   vi.mocked(prisma.workout.createMany).mockResolvedValue({ count: 0 });
   vi.mocked(prisma.workout.findFirst).mockResolvedValue(null);
   vi.mocked(prisma.workoutRoute.createMany).mockResolvedValue({ count: 0 });
+  vi.mocked(prisma.workoutSamples.createMany).mockResolvedValue({ count: 0 });
   // v1.4.43 W9 — default to no per-user source-priority override so
   // the write-time picker walks the canonical default ladder. Tests
   // that exercise a custom ladder override this in-line.
@@ -383,6 +387,122 @@ describe("POST /api/workouts/batch — nested route attachment", () => {
     const call = vi.mocked(prisma.workoutRoute.createMany).mock.calls[0]?.[0];
     const rows = (call as { data: Array<{ workoutId: string }> }).data;
     expect(rows[0]?.workoutId).toBe("wkt-fresh-id");
+  });
+});
+
+describe("POST /api/workouts/batch — per-workout HR series (v1.10.0)", () => {
+  it("creates a WorkoutSamples row for an indoor workout (samples, no route)", async () => {
+    vi.mocked(prisma.workout.createMany).mockResolvedValue({ count: 1 });
+    vi.mocked(prisma.workout.findMany).mockImplementation((async (args: {
+      select?: { id?: true };
+    }) => {
+      if (args.select?.id) {
+        return [
+          {
+            id: "wkt-indoor-id",
+            source: "APPLE_HEALTH",
+            externalId: "uuid-indoor",
+          },
+        ];
+      }
+      return [];
+    }) as never);
+
+    const res = await POST(
+      makeRequest({
+        workouts: [
+          validWorkout("uuid-indoor", {
+            sportType: "strength",
+            samples: [
+              { t: "2026-05-14T06:30:00.000Z", hr: 110 },
+              { t: "2026-05-14T06:30:05.000Z", hr: 118 },
+              { t: "2026-05-14T06:30:10.000Z", hr: 124, power: 0, cadence: 0 },
+            ],
+          }),
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    // The route table is untouched — an indoor workout has no GPS route.
+    expect(prisma.workoutRoute.createMany).not.toHaveBeenCalled();
+    // The HR series lands in the dedicated child table by FK.
+    expect(prisma.workoutSamples.createMany).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(prisma.workoutSamples.createMany).mock.calls[0]?.[0];
+    const rows = (
+      call as {
+        data: Array<{
+          workoutId: string;
+          sampleCount: number;
+          samples: unknown;
+        }>;
+      }
+    ).data;
+    expect(rows[0]?.workoutId).toBe("wkt-indoor-id");
+    // `sampleCount` is the denormalised series length.
+    expect(rows[0]?.sampleCount).toBe(3);
+    expect((rows[0]?.samples as unknown[]).length).toBe(3);
+  });
+
+  it("attaches both a route and an HR series on one workout", async () => {
+    vi.mocked(prisma.workout.createMany).mockResolvedValue({ count: 1 });
+    vi.mocked(prisma.workout.findMany).mockImplementation((async (args: {
+      select?: { id?: true };
+    }) => {
+      if (args.select?.id) {
+        return [
+          {
+            id: "wkt-both-id",
+            source: "APPLE_HEALTH",
+            externalId: "uuid-both",
+          },
+        ];
+      }
+      return [];
+    }) as never);
+
+    const res = await POST(
+      makeRequest({
+        workouts: [
+          validWorkout("uuid-both", {
+            route: {
+              geometry: {
+                type: "LineString",
+                coordinates: [
+                  [11.077, 49.452],
+                  [11.078, 49.453],
+                ],
+              },
+            },
+            samples: [{ t: "2026-05-14T06:30:00.000Z", hr: 142 }],
+          }),
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.workoutRoute.createMany).toHaveBeenCalledTimes(1);
+    expect(prisma.workoutSamples.createMany).toHaveBeenCalledTimes(1);
+    const routeRows = (
+      vi.mocked(prisma.workoutRoute.createMany).mock.calls[0]?.[0] as {
+        data: Array<{ workoutId: string }>;
+      }
+    ).data;
+    const sampleRows = (
+      vi.mocked(prisma.workoutSamples.createMany).mock.calls[0]?.[0] as {
+        data: Array<{ workoutId: string }>;
+      }
+    ).data;
+    // Both children attach to the SAME freshly-inserted workout id.
+    expect(routeRows[0]?.workoutId).toBe("wkt-both-id");
+    expect(sampleRows[0]?.workoutId).toBe("wkt-both-id");
+  });
+
+  it("does not touch the samples table when no workout ships a series", async () => {
+    vi.mocked(prisma.workout.createMany).mockResolvedValue({ count: 1 });
+    const res = await POST(
+      makeRequest({ workouts: [validWorkout("uuid-no-series")] }),
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.workoutSamples.createMany).not.toHaveBeenCalled();
   });
 });
 

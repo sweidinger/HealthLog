@@ -4,7 +4,9 @@ import {
   createWorkoutSchema,
   geoJsonLineStringSchema,
   MAX_ROUTE_POINTS,
+  MAX_WORKOUT_HR_SAMPLES,
   MAX_WORKOUTS_PER_BATCH,
+  workoutHrSamplesSchema,
   workoutRouteSamplesSchema,
   workoutSportTypeEnum,
   type CreateWorkoutInput,
@@ -108,6 +110,61 @@ describe("workoutRouteSamplesSchema", () => {
         { t: "2026-05-14T07:00:00.000Z", speedMs: -1 },
       ]),
     ).toThrow();
+  });
+});
+
+describe("workoutHrSamplesSchema", () => {
+  it("accepts a route-independent HR series with optional channels", () => {
+    const parsed = workoutHrSamplesSchema.parse([
+      { t: "2026-05-14T07:00:00.000Z", hr: 142 },
+      { t: "2026-05-14T07:00:05.000Z", hr: 145, speedMs: 3.1 },
+      { t: "2026-05-14T07:00:10.000Z", hr: 150, power: 220, cadence: 88 },
+    ]);
+    expect(parsed).toHaveLength(3);
+  });
+
+  it("accepts a bare-timestamp entry (sparse series)", () => {
+    expect(
+      workoutHrSamplesSchema.parse([{ t: "2026-05-14T07:00:00.000Z" }]),
+    ).toHaveLength(1);
+  });
+
+  it("rejects an empty series", () => {
+    expect(() => workoutHrSamplesSchema.parse([])).toThrow();
+  });
+
+  it("rejects an out-of-range heart rate", () => {
+    expect(() =>
+      workoutHrSamplesSchema.parse([
+        { t: "2026-05-14T07:00:00.000Z", hr: 5 },
+      ]),
+    ).toThrow();
+  });
+
+  it("rejects a series above the per-workout sample cap", () => {
+    const oversized = Array.from(
+      { length: MAX_WORKOUT_HR_SAMPLES + 1 },
+      (_v, i) => ({
+        t: new Date(Date.UTC(2026, 4, 14, 7, 0, 0) + i * 1000).toISOString(),
+        hr: 140,
+      }),
+    );
+    expect(() => workoutHrSamplesSchema.parse(oversized)).toThrow(
+      /sample.*cap/i,
+    );
+  });
+
+  it("accepts a series exactly at the cap", () => {
+    const atCap = Array.from(
+      { length: MAX_WORKOUT_HR_SAMPLES },
+      (_v, i) => ({
+        t: new Date(Date.UTC(2026, 4, 14, 7, 0, 0) + i * 1000).toISOString(),
+        hr: 140,
+      }),
+    );
+    expect(workoutHrSamplesSchema.parse(atCap)).toHaveLength(
+      MAX_WORKOUT_HR_SAMPLES,
+    );
   });
 });
 
@@ -260,6 +317,40 @@ describe("createWorkoutSchema", () => {
       },
     });
     expect(parsed.route?.sampleTimestamps).toHaveLength(2);
+  });
+
+  it("accepts a route-independent HR series on an indoor workout (no route)", () => {
+    const parsed = createWorkoutSchema.parse({
+      sportType: "strength",
+      startedAt: "2026-05-14T06:30:00.000Z",
+      endedAt: "2026-05-14T07:15:00.000Z",
+      source: "APPLE_HEALTH",
+      externalId: "indoor-1",
+      samples: [
+        { t: "2026-05-14T06:30:00.000Z", hr: 110 },
+        { t: "2026-05-14T06:30:05.000Z", hr: 118 },
+      ],
+    });
+    expect(parsed.route).toBeUndefined();
+    expect(parsed.samples).toHaveLength(2);
+  });
+
+  it("accepts both a GPS route and a canonical HR series on one workout", () => {
+    const parsed = createWorkoutSchema.parse({
+      ...minimalRun,
+      route: {
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [11.077, 49.452],
+            [11.078, 49.453],
+          ],
+        },
+      },
+      samples: [{ t: "2026-05-14T06:30:00.000Z", hr: 142 }],
+    });
+    expect(parsed.route?.geometry.coordinates).toHaveLength(2);
+    expect(parsed.samples).toHaveLength(1);
   });
 });
 

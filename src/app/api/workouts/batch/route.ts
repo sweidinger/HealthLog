@@ -218,6 +218,13 @@ async function postBatch(request: NextRequest): Promise<Response> {
       geometry: unknown;
       sampleTimestamps: unknown;
     } | null;
+    /** Route-independent per-workout HR series. NULL when the entry
+     *  ships no `samples` array. Persisted to the `WorkoutSamples`
+     *  child by FK after the workout row lands. */
+    samples: {
+      samples: unknown;
+      sampleCount: number;
+    } | null;
     /** Composite-key probe for the pre-flight findMany. NULL when
      *  the entry has no externalId — those rows always pass through
      *  as "inserted" because the NULL-distinct unique index can never
@@ -235,6 +242,12 @@ async function postBatch(request: NextRequest): Promise<Response> {
       ? {
           geometry: w.route.geometry as unknown,
           sampleTimestamps: (w.route.sampleTimestamps ?? null) as unknown,
+        }
+      : null;
+    const samples = w.samples
+      ? {
+          samples: w.samples as unknown,
+          sampleCount: w.samples.length,
         }
       : null;
     const row: Prisma.WorkoutCreateManyInput = {
@@ -262,6 +275,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
       index,
       row,
       route,
+      samples,
       dedupKey: w.externalId
         ? { source: w.source, externalId: w.externalId }
         : null,
@@ -372,19 +386,27 @@ async function postBatch(request: NextRequest): Promise<Response> {
         }
 
         // Look up the workouts we just wrote (or that the racing batch
-        // wrote) so we can attach routes by FK. We probe by the
+        // wrote) so we can attach their child rows (route geometry +
+        // the route-independent HR series) by FK. We probe by the
         // composite unique key for entries that have one, and by the
         // `(userId, source, startedAt, sportType)` tuple as a fallback
         // for manual entries (where externalId is null). The fallback
         // is best-effort — manual entries from the iOS client always
         // carry an HK uuid, so the null-externalId case is exercised
         // only by future surface (manual workout entry).
-        const routeAttachable = toInsert.filter((p) => p.route !== null);
-        if (routeAttachable.length > 0) {
-          const withExternal = routeAttachable.filter(
+        //
+        // v1.10.0 — `samples` (the per-workout HR series) rides the
+        // SAME id lookup as `route`: an indoor workout carries samples
+        // with no route, so the lookup runs whenever EITHER child is
+        // present on a to-insert entry.
+        const childAttachable = toInsert.filter(
+          (p) => p.route !== null || p.samples !== null,
+        );
+        if (childAttachable.length > 0) {
+          const withExternal = childAttachable.filter(
             (p) => p.dedupKey !== null,
           );
-          const withoutExternal = routeAttachable.filter(
+          const withoutExternal = childAttachable.filter(
             (p) => p.dedupKey === null,
           );
 
@@ -463,13 +485,30 @@ async function postBatch(request: NextRequest): Promise<Response> {
             return match ? { id: match.id } : null;
           });
 
+          // Resolve the freshly-written workout id for a prepared
+          // entry — by composite key for externalId-bearing rows, by
+          // the deterministic (source, startedAt, sportType) tuple for
+          // manual rows. Shared by both child tables (route + samples)
+          // so the HR series and the route attach to the same row.
+          const resolveId = (
+            p: Prepared,
+            manualIndex: number,
+          ): string | undefined => {
+            if (p.dedupKey !== null) {
+              return idBySourceExt.get(
+                `${p.dedupKey.source}::${p.dedupKey.externalId}`,
+              );
+            }
+            return manualMatches[manualIndex]?.id ?? undefined;
+          };
+
           const routesToInsert: Prisma.WorkoutRouteCreateManyInput[] = [];
+          const samplesToInsert: Prisma.WorkoutSamplesCreateManyInput[] = [];
           for (let i = 0; i < withExternal.length; i++) {
             const p = withExternal[i];
-            const id = idBySourceExt.get(
-              `${p.dedupKey!.source}::${p.dedupKey!.externalId}`,
-            );
-            if (id && p.route) {
+            const id = resolveId(p, -1);
+            if (!id) continue;
+            if (p.route) {
               routesToInsert.push({
                 workoutId: id,
                 geometry: p.route.geometry as Prisma.InputJsonValue,
@@ -479,18 +518,33 @@ async function postBatch(request: NextRequest): Promise<Response> {
                     : (p.route.sampleTimestamps as Prisma.InputJsonValue),
               });
             }
+            if (p.samples) {
+              samplesToInsert.push({
+                workoutId: id,
+                samples: p.samples.samples as Prisma.InputJsonValue,
+                sampleCount: p.samples.sampleCount,
+              });
+            }
           }
           for (let i = 0; i < withoutExternal.length; i++) {
             const p = withoutExternal[i];
-            const match = manualMatches[i];
-            if (match?.id && p.route) {
+            const id = resolveId(p, i);
+            if (!id) continue;
+            if (p.route) {
               routesToInsert.push({
-                workoutId: match.id,
+                workoutId: id,
                 geometry: p.route.geometry as Prisma.InputJsonValue,
                 sampleTimestamps:
                   p.route.sampleTimestamps === null
                     ? Prisma.JsonNull
                     : (p.route.sampleTimestamps as Prisma.InputJsonValue),
+              });
+            }
+            if (p.samples) {
+              samplesToInsert.push({
+                workoutId: id,
+                samples: p.samples.samples as Prisma.InputJsonValue,
+                sampleCount: p.samples.sampleCount,
               });
             }
           }
@@ -504,6 +558,19 @@ async function postBatch(request: NextRequest): Promise<Response> {
                 // means a re-submitted batch that wins the race on the
                 // workout row but loses on the route is a no-op rather
                 // than a hard error.
+                skipDuplicates: true,
+              });
+            }
+          }
+
+          if (samplesToInsert.length > 0) {
+            for (let i = 0; i < samplesToInsert.length; i += CHUNK) {
+              await tx.workoutSamples.createMany({
+                data: samplesToInsert.slice(i, i + CHUNK),
+                // 1:1 FK on `workoutId` (UNIQUE), same idempotency as
+                // the route child: a re-submitted batch that wins the
+                // workout-row race but loses the sample-row race is a
+                // no-op, not a hard error.
                 skipDuplicates: true,
               });
             }

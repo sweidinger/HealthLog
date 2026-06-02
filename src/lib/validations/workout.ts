@@ -92,6 +92,51 @@ export const workoutRouteSamplesSchema = z.array(
 export type WorkoutRouteSamples = z.infer<typeof workoutRouteSamplesSchema>;
 
 /**
+ * Upper bound on per-workout heart-rate samples. HealthKit emits a HR
+ * sample roughly every 5 s during a workout — a 6-hour ultra at that
+ * cadence lands at ~4 320 points, and even a 1 Hz reconstruction of
+ * that session is ~21 600. 30 000 covers any realistic single session
+ * (including long endurance events sampled at 1 Hz) while still
+ * rejecting pathological payloads. The series is the largest new
+ * workout-side write stream, so the cap keeps each workout's payload —
+ * and the total request body — bounded the same way `MAX_ROUTE_POINTS`
+ * bounds the route geometry. iOS should downsample to ≤ this many
+ * points (e.g. 1-min buckets for very long sessions) before posting.
+ */
+export const MAX_WORKOUT_HR_SAMPLES = 30_000;
+
+/**
+ * Route-INDEPENDENT per-workout heart-rate series — the
+ * `WorkoutSamples.samples` shape. Mirrors `workoutRouteSamplesSchema`
+ * but carries no geometry coupling, so an indoor workout (no GPS) can
+ * still ship its HR signal for the training-strain engine.
+ *
+ * `t` is the per-sample ISO timestamp; `hr` beats/min. `speedMs` /
+ * `power` / `cadence` are optional companion channels HealthKit may
+ * report (cycling power meters, running cadence). Every channel is
+ * optional EXCEPT `t` so a sparse series (HR only) is valid; an entry
+ * with no signal channel at all is still permitted (a bare timestamp)
+ * but carries no analytical value.
+ */
+export const workoutHrSamplesSchema = z
+  .array(
+    z.object({
+      t: z.iso.datetime({ offset: true }),
+      hr: z.number().int().min(20).max(300).optional(),
+      speedMs: z.number().min(0).max(50).optional(),
+      power: z.number().min(0).max(3000).optional(),
+      cadence: z.number().min(0).max(400).optional(),
+    }),
+  )
+  .min(1, "samples requires at least 1 point")
+  .max(
+    MAX_WORKOUT_HR_SAMPLES,
+    `samples exceeds the ${MAX_WORKOUT_HR_SAMPLES}-point cap`,
+  );
+
+export type WorkoutHrSamples = z.infer<typeof workoutHrSamplesSchema>;
+
+/**
  * Workout insert payload — the shape `POST /api/workouts/batch` accepts.
  * Defined here so the iOS Swift session can generate its DTO against the
  * locked contract and the v1.4.26 XML import worker has the same target.
@@ -131,6 +176,15 @@ export const createWorkoutSchema = z
         sampleTimestamps: workoutRouteSamplesSchema.optional(),
       })
       .optional(),
+    /**
+     * Route-independent per-workout heart-rate series. Persisted to the
+     * `WorkoutSamples` child so an indoor workout (no GPS route) still
+     * yields a strain-relevant HR signal. Independent of `route` — a
+     * GPS workout MAY carry both (`route.sampleTimestamps` for the
+     * geometry-aligned series, `samples` for the canonical HR series);
+     * an indoor workout carries only `samples`.
+     */
+    samples: workoutHrSamplesSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (value.endedAt.getTime() <= value.startedAt.getTime()) {

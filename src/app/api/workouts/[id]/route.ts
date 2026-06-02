@@ -50,6 +50,12 @@ export const GET = apiHandler(
             createdAt: true,
           },
         },
+        samples: {
+          select: {
+            samples: true,
+            sampleCount: true,
+          },
+        },
       },
     });
 
@@ -108,6 +114,16 @@ export const GET = apiHandler(
         }
       : null;
 
+    // v1.10.0 — route-independent per-workout HR series. Present for
+    // both indoor (no route) and outdoor workouts that shipped a
+    // `samples` array on ingest; null otherwise.
+    const samples = row.samples
+      ? {
+          sampleCount: row.samples.sampleCount,
+          samples: row.samples.samples,
+        }
+      : null;
+
     return apiSuccess({
       id: row.id,
       sportType: row.sportType,
@@ -126,6 +142,7 @@ export const GET = apiHandler(
       externalId: row.externalId,
       metadata: row.metadata,
       route,
+      samples,
       // v1.4.32 — when the requested id is a non-canonical twin the
       // caller can redirect to `canonicalId` to land on the cluster
       // winner. `canonicalId === id` when the requested row already

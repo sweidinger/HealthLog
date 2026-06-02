@@ -125,7 +125,7 @@ coachPrefsSchema.meta({
 createBatchWorkoutSchema.meta({
   id: "CreateBatchWorkoutRequest",
   description:
-    "v1.4.25 W16b — typed workout batch ingest. Each entry is an HKWorkout-aligned record with an optional nested GeoJSON LineString route. Up to 100 workouts per call; nested route geometry capped at 20 000 points. Withings server-to-server callers pass source: WITHINGS and ship no route (Withings reports aggregates only).",
+    "Typed workout batch ingest. Each entry is an HKWorkout-aligned record with an optional nested GeoJSON LineString route AND an optional route-independent per-workout heart-rate series (`samples`: `[{ t, hr?, speedMs?, power?, cadence? }]`, up to 30 000 points). The `samples` series is the strain-engine input for indoor workouts that have no GPS route. Up to 100 workouts per call; nested route geometry capped at 20 000 points. Withings server-to-server callers pass source: WITHINGS and ship no route (Withings reports aggregates only).",
 });
 
 const coachMessageFeedbackBody = z
@@ -501,6 +501,17 @@ const workoutRouteGeometry = z
   })
   .meta({ id: "WorkoutRouteGeometry" });
 
+// v1.10.0 — route-independent per-workout heart-rate series. Present
+// for indoor and outdoor workouts that shipped a `samples` array on
+// ingest. `samples` mirrors the ingest shape `[{ t, hr?, speedMs?,
+// power?, cadence? }]`; `sampleCount` is the denormalised length.
+const workoutHrSeries = z
+  .object({
+    sampleCount: z.number().int().nonnegative(),
+    samples: z.unknown(),
+  })
+  .meta({ id: "WorkoutHrSeries" });
+
 const workoutDetailResponse = z
   .object({
     id: z.string(),
@@ -520,6 +531,7 @@ const workoutDetailResponse = z
     externalId: z.string().nullable(),
     metadata: z.unknown().nullable(),
     route: workoutRouteGeometry.nullable(),
+    samples: workoutHrSeries.nullable(),
     canonicalId: z.string(),
   })
   .meta({ id: "WorkoutDetailResponse" });
