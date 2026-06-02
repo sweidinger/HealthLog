@@ -12,7 +12,7 @@ import {
 import {
   ANALYTICS_RANGES,
   type AnalyticsRange,
-} from "@/lib/analytics/range-delta";
+} from "@/lib/analytics/range-shared";
 
 const RANGE_STORAGE_KEY = "healthlog.insights.range";
 const DEFAULT_RANGE: AnalyticsRange = "30d";

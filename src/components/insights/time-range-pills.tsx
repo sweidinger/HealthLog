@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   ANALYTICS_RANGES,
   type AnalyticsRange,
-} from "@/lib/analytics/range-delta";
+} from "@/lib/analytics/range-shared";
 
 /**
  * v1.9.0 — `7d / 30d / 90d / 1y` segmented control for the Insights metric

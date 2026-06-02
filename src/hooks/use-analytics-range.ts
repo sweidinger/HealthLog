@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
-import type { AnalyticsRange } from "@/lib/analytics/range-delta";
+import type { AnalyticsRange } from "@/lib/analytics/range-shared";
 
 /**
  * v1.9.0 — client reader for the single-metric period-over-period range

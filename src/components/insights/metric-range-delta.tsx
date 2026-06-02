@@ -10,7 +10,7 @@ import {
   type TrendDirectionSentiment,
 } from "@/lib/insights/trend-sentiment";
 import type { AnalyticsRangeData } from "@/hooks/use-analytics-range";
-import type { AnalyticsRange } from "@/lib/analytics/range-delta";
+import type { AnalyticsRange } from "@/lib/analytics/range-shared";
 
 /**
  * v1.9.0 — period-over-period delta caption beside the time-range pills.
