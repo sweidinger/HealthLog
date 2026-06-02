@@ -79,6 +79,16 @@ export const ALLOWED_CHART_TOKENS = [
   // ride the existing card-shelf renderer.
   "metric:WALKING_STEP_LENGTH",
   "metric:WALKING_SPEED",
+  // v1.10.0 — additive HealthKit signals (WX-A). Same posture: the LLM
+  // can reference these in prose; the chart components ride the existing
+  // sub-page scaffold.
+  "metric:CARDIO_RECOVERY",
+  "metric:WRIST_TEMPERATURE",
+  "metric:FALL_COUNT",
+  "metric:SIX_MINUTE_WALK_DISTANCE",
+  "metric:STAIR_ASCENT_SPEED",
+  "metric:STAIR_DESCENT_SPEED",
+  "metric:BREATHING_DISTURBANCES",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
@@ -166,6 +176,14 @@ const ORPHAN_ENUMS = [
   // v1.5.5 iOS-coord follow-up — raw-SI gait pair, same shape.
   "WALKING_STEP_LENGTH",
   "WALKING_SPEED",
+  // v1.10.0 — additive HealthKit signals (WX-A), same shape.
+  "CARDIO_RECOVERY",
+  "WRIST_TEMPERATURE",
+  "FALL_COUNT",
+  "SIX_MINUTE_WALK_DISTANCE",
+  "STAIR_ASCENT_SPEED",
+  "STAIR_DESCENT_SPEED",
+  "BREATHING_DISTURBANCES",
 ] as const;
 
 // `\b` boundaries keep ordinary English prose untouched — "weight"

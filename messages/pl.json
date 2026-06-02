@@ -425,7 +425,14 @@
     "dailyTotalCaption": "({count} pomiarów)",
     "expandDay": "Pokaż pomiary z tego dnia",
     "collapseDay": "Ukryj pomiary z tego dnia",
-    "loadError": "Nie udało się załadować pomiarów."
+    "loadError": "Nie udało się załadować pomiarów.",
+    "typeCardioRecovery": "Regeneracja serca",
+    "typeWristTemperature": "Temperatura nadgarstka",
+    "typeFallCount": "Upadki",
+    "typeSixMinuteWalkDistance": "Dystans marszu 6-minutowego",
+    "typeStairAscentSpeed": "Prędkość wchodzenia po schodach",
+    "typeStairDescentSpeed": "Prędkość schodzenia po schodach",
+    "typeBreathingDisturbances": "Zaburzenia oddychania we śnie"
   },
   "mood": {
     "title": "Nastrój",
@@ -1994,7 +2001,23 @@
         "bloodGlucoseTitle": "Poziom glukozy we krwi",
         "bloodGlucoseBody": "Poziom glukozy we krwi to ilość cukru we krwi, głównego źródła energii organizmu. Rośnie po jedzeniu i ustala się między posiłkami; wartości utrzymujące się wysoko mogą sygnalizować cukrzycę lub stan przedcukrzycowy.",
         "skinTemperatureTitle": "Temperatura skóry",
-        "skinTemperatureBody": "Temperatura skóry to tutaj niewielka nocna zmiana temperatury nadgarstka względem twojej własnej wartości bazowej, a nie bezwzględny pomiar gorączki. Zmiany mogą odzwierciedlać sen, otoczenie, chorobę lub fazę cyklu menstruacyjnego."
+        "skinTemperatureBody": "Temperatura skóry to tutaj niewielka nocna zmiana temperatury nadgarstka względem twojej własnej wartości bazowej, a nie bezwzględny pomiar gorączki. Zmiany mogą odzwierciedlać sen, otoczenie, chorobę lub fazę cyklu menstruacyjnego.",
+        "cardioFitnessTitle": "Wydolność krążeniowa (VO₂ max)",
+        "cardioFitnessBody": "VO₂ max to ilość tlenu, jaką organizm potrafi wykorzystać przy maksymalnym wysiłku. To najlepszy laboratoryjny wskaźnik wydolności tlenowej, a wyższa lub rosnąca wartość świadczy o dobrym zdrowiu układu krążenia.",
+        "cardioRecoveryTitle": "Regeneracja serca",
+        "cardioRecoveryBody": "Regeneracja serca to liczba uderzeń na minutę, o jaką spada tętno w pierwszej minucie po zakończeniu intensywnego wysiłku. Większy spadek oznacza, że serce szybciej się uspokaja, co świadczy o dobrej kondycji.",
+        "wristTemperatureTitle": "Temperatura nadgarstka",
+        "wristTemperatureBody": "Temperatura nadgarstka jest mierzona podczas snu. Apple pokazuje ją jako różnicę względem Twojej wartości bazowej; stabilny odczyt jest normalny, a utrzymujący się wzrost może wskazywać na chorobę, intensywny trening lub zmianę cyklu.",
+        "fallsTitle": "Upadki",
+        "fallsBody": "Tutaj liczone są poważne upadki wykryte przez Apple Watch. Celem jest zero; rosnąca liczba to sygnał ryzyka związanego z mobilnością, który warto omówić z lekarzem, zwłaszcza u osób starszych.",
+        "sixMinuteWalkTitle": "Dystans marszu 6-minutowego",
+        "sixMinuteWalkBody": "To szacunek Apple, jak daleko mógłbyś przejść w sześć minut — klasyczny test kliniczny mobilności i wydolności krążeniowo-oddechowej. Stały lub rosnący dystans to dobry znak.",
+        "stairAscentSpeedTitle": "Prędkość wchodzenia po schodach",
+        "stairAscentSpeedBody": "To prędkość, z jaką pokonujesz bieg schodów. To czuły wskaźnik siły nóg i mobilności — stałe lub rosnące tempo to dobry znak, a spadające warto obserwować.",
+        "stairDescentSpeedTitle": "Prędkość schodzenia po schodach",
+        "stairDescentSpeedBody": "To prędkość, z jaką schodzisz bieg schodów. Razem z prędkością wchodzenia odzwierciedla kontrolę nóg i równowagę — stałe tempo to dobry znak, a spadające warto obserwować.",
+        "breathingDisturbancesTitle": "Zaburzenia oddychania we śnie",
+        "breathingDisturbancesBody": "Twój Apple Watch potrafi oszacować, jak często Twój oddech był przerywany podczas snu. Niższy wskaźnik jest lepszy; poziom, który Apple oznacza jako podwyższony — zwłaszcza przez wiele nocy — warto omówić z lekarzem."
       },
       "stats": {
         "label": "Statystyki podsumowujące",
@@ -2546,7 +2569,87 @@
           }
         }
       }
-    }
+    },
+    "cardioFitness": {
+      "title": "Wydolność",
+      "description": "Twoje VO₂ max w czasie — główna miara wydolności tlenowej.",
+      "chartTitle": "VO₂ max (mL/(kg·min))",
+      "emptyState": {
+        "title": "Brak danych o wydolności",
+        "description": "Wartości VO₂ max pojawią się tutaj, gdy Apple Health zsynchronizuje je z Twoich treningów."
+      }
+    },
+    "navCardioFitness": "Wydolność",
+    "cardioRecovery": {
+      "title": "Regeneracja serca",
+      "description": "O ile spada tętno minutę po szczytowym wysiłku.",
+      "chartTitle": "Regeneracja serca (bpm)",
+      "emptyState": {
+        "title": "Brak danych o regeneracji serca",
+        "description": "Wartości regeneracji serca pojawią się tutaj, gdy Apple Health zsynchronizuje je z treningu."
+      }
+    },
+    "navCardioRecovery": "Regeneracja serca",
+    "wristTemperature": {
+      "title": "Temperatura nadgarstka",
+      "description": "Nocna temperatura nadgarstka, odniesiona do Twojej wartości bazowej.",
+      "chartTitle": "Temperatura nadgarstka (°C)",
+      "emptyState": {
+        "title": "Brak danych o temperaturze nadgarstka",
+        "description": "Wartości pojawią się tutaj, gdy Apple Health zsynchronizuje nocne noszenie."
+      }
+    },
+    "navWristTemperature": "Temp. nadgarstka",
+    "falls": {
+      "title": "Upadki",
+      "description": "Poważne upadki wykryte przez Apple Watch, liczone na dzień.",
+      "chartTitle": "Upadki na dzień",
+      "emptyState": {
+        "title": "Brak danych o upadkach",
+        "description": "Wykryte upadki pojawią się tutaj, gdy Apple Health się zsynchronizuje. Celem jest brak upadków."
+      }
+    },
+    "navFalls": "Upadki",
+    "sixMinuteWalk": {
+      "title": "Marsz 6-minutowy",
+      "description": "Szacunek Apple, jak daleko możesz przejść w sześć minut.",
+      "chartTitle": "Dystans w 6 minut (m)",
+      "emptyState": {
+        "title": "Brak danych o marszu 6-minutowym",
+        "description": "Szacunki pojawią się tutaj, gdy Apple Health się zsynchronizuje."
+      }
+    },
+    "navSixMinuteWalk": "Marsz 6 min",
+    "stairAscentSpeed": {
+      "title": "Prędkość wchodzenia po schodach",
+      "description": "Jak szybko wchodzisz po schodach, mierzone przez iPhone'a lub Watch.",
+      "chartTitle": "Prędkość wchodzenia (m/s)",
+      "emptyState": {
+        "title": "Brak danych o wchodzeniu po schodach",
+        "description": "Wartości pojawią się tutaj, gdy Apple Health się zsynchronizuje."
+      }
+    },
+    "navStairAscentSpeed": "Wchodzenie",
+    "stairDescentSpeed": {
+      "title": "Prędkość schodzenia po schodach",
+      "description": "Jak szybko schodzisz po schodach, mierzone przez iPhone'a lub Watch.",
+      "chartTitle": "Prędkość schodzenia (m/s)",
+      "emptyState": {
+        "title": "Brak danych o schodzeniu po schodach",
+        "description": "Wartości pojawią się tutaj, gdy Apple Health się zsynchronizuje."
+      }
+    },
+    "navStairDescentSpeed": "Schodzenie",
+    "breathingDisturbances": {
+      "title": "Zaburzenia oddychania",
+      "description": "Jak często Twój oddech był zakłócany podczas snu.",
+      "chartTitle": "Zaburzenia oddychania we śnie",
+      "emptyState": {
+        "title": "Brak danych o zaburzeniach oddychania",
+        "description": "Wartości pojawią się tutaj, gdy Apple Health zsynchronizuje je z obsługiwanego Apple Watch."
+      }
+    },
+    "navBreathingDisturbances": "Oddychanie"
   },
   "thresholds": {
     "defaultLabel": "Domyślne",

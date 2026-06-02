@@ -124,6 +124,22 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   // ── Metabolic ──
   ["BLOOD_GLUCOSE", "metabolic"],
   ["SKIN_TEMPERATURE", "metabolic"],
+  // v1.10.0 — wrist temperature is an overnight skin-side reading;
+  // it sits with skin temperature in the metabolic cluster.
+  ["WRIST_TEMPERATURE", "metabolic"],
+
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // Cardio recovery is the post-exercise HR-drop autonomic-fitness
+  // marker — it joins the derived cardiovascular surface.
+  ["CARDIO_RECOVERY", "cardiovascular"],
+  // Fall count, six-minute-walk distance, and the stair gait speeds are
+  // Apple-Health Mobility-section signals alongside walking steadiness.
+  ["FALL_COUNT", "activity"],
+  ["SIX_MINUTE_WALK_DISTANCE", "activity"],
+  ["STAIR_ASCENT_SPEED", "activity"],
+  ["STAIR_DESCENT_SPEED", "activity"],
+  // Breathing disturbances is a per-night sleep-breathing index.
+  ["BREATHING_DISTURBANCES", "sleep"],
 ]);
 
 /**

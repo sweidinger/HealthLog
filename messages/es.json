@@ -425,7 +425,14 @@
     "dailyTotalCaption": "({count} muestras)",
     "expandDay": "Mostrar las muestras de este día",
     "collapseDay": "Ocultar las muestras de este día",
-    "loadError": "No se pudieron cargar las mediciones."
+    "loadError": "No se pudieron cargar las mediciones.",
+    "typeCardioRecovery": "Recuperación cardiaca",
+    "typeWristTemperature": "Temperatura de muñeca",
+    "typeFallCount": "Caídas",
+    "typeSixMinuteWalkDistance": "Distancia en marcha de 6 minutos",
+    "typeStairAscentSpeed": "Velocidad subiendo escaleras",
+    "typeStairDescentSpeed": "Velocidad bajando escaleras",
+    "typeBreathingDisturbances": "Alteraciones respiratorias del sueño"
   },
   "mood": {
     "title": "Estado de ánimo",
@@ -1994,7 +2001,23 @@
         "bloodGlucoseTitle": "Glucosa en sangre",
         "bloodGlucoseBody": "La glucosa en sangre es la cantidad de azúcar en tu sangre, la principal fuente de energía del cuerpo. Sube tras comer y se estabiliza entre comidas; valores que se mantienen altos con el tiempo pueden indicar diabetes o prediabetes.",
         "skinTemperatureTitle": "Temperatura de la piel",
-        "skinTemperatureBody": "La temperatura de la piel aquí es el pequeño cambio nocturno de la temperatura de tu muñeca respecto a tu propio valor de referencia, no una medición absoluta de fiebre. Las variaciones pueden seguir el sueño, el entorno, una enfermedad o la fase del ciclo menstrual."
+        "skinTemperatureBody": "La temperatura de la piel aquí es el pequeño cambio nocturno de la temperatura de tu muñeca respecto a tu propio valor de referencia, no una medición absoluta de fiebre. Las variaciones pueden seguir el sueño, el entorno, una enfermedad o la fase del ciclo menstrual.",
+        "cardioFitnessTitle": "Condición cardiovascular (VO₂ máx)",
+        "cardioFitnessBody": "El VO₂ máx es la cantidad de oxígeno que tu cuerpo puede usar al máximo esfuerzo. Es el mejor marcador de laboratorio de la forma aeróbica, y un valor más alto o en aumento es una buena señal de salud cardiovascular.",
+        "cardioRecoveryTitle": "Recuperación cardiaca",
+        "cardioRecoveryBody": "La recuperación cardiaca es cuántas pulsaciones por minuto baja tu frecuencia cardiaca en el primer minuto tras parar un ejercicio intenso. Una caída mayor significa que tu corazón se calma más rápido, señal de buena forma física.",
+        "wristTemperatureTitle": "Temperatura de muñeca",
+        "wristTemperatureBody": "La temperatura de muñeca se mide mientras duermes. Apple la muestra como la diferencia respecto a tu valor de referencia; un valor estable es normal, mientras que una subida sostenida puede indicar enfermedad, entrenamiento intenso o un cambio del ciclo.",
+        "fallsTitle": "Caídas",
+        "fallsBody": "Esto cuenta las caídas fuertes que detecta tu Apple Watch. El objetivo es cero; un número creciente es una señal de riesgo de movilidad que conviene comentar con un profesional, sobre todo en personas mayores.",
+        "sixMinuteWalkTitle": "Distancia en marcha de 6 minutos",
+        "sixMinuteWalkBody": "Es la estimación de Apple de cuánto podrías caminar en seis minutos, una prueba clínica clásica de movilidad y resistencia cardiopulmonar. Una distancia estable o en aumento es una buena señal.",
+        "stairAscentSpeedTitle": "Velocidad subiendo escaleras",
+        "stairAscentSpeedBody": "Es lo rápido que subes un tramo de escaleras. Es un marcador sensible de fuerza de piernas y movilidad: un ritmo estable o en aumento es buena señal y uno que baja conviene vigilar.",
+        "stairDescentSpeedTitle": "Velocidad bajando escaleras",
+        "stairDescentSpeedBody": "Es lo rápido que bajas un tramo de escaleras. Junto con la velocidad de subida refleja el control de piernas y el equilibrio: un ritmo estable es buena señal y uno que baja conviene vigilar.",
+        "breathingDisturbancesTitle": "Alteraciones respiratorias del sueño",
+        "breathingDisturbancesBody": "Tu Apple Watch puede estimar con qué frecuencia se interrumpió tu respiración mientras dormías. Un índice más bajo es mejor; un nivel que Apple marca como elevado, sobre todo durante muchas noches, conviene comentarlo con un profesional."
       },
       "stats": {
         "label": "Estadísticas resumidas",
@@ -2546,7 +2569,87 @@
           }
         }
       }
-    }
+    },
+    "cardioFitness": {
+      "title": "Condición física",
+      "description": "Tu VO₂ máx a lo largo del tiempo, la medida principal de la forma aeróbica.",
+      "chartTitle": "VO₂ máx (mL/(kg·min))",
+      "emptyState": {
+        "title": "Aún no hay datos de condición física",
+        "description": "Los valores de VO₂ máx aparecen aquí cuando Apple Health los sincroniza desde tus entrenamientos."
+      }
+    },
+    "navCardioFitness": "Condición física",
+    "cardioRecovery": {
+      "title": "Recuperación cardiaca",
+      "description": "Cuánto baja tu frecuencia cardiaca un minuto después del esfuerzo máximo.",
+      "chartTitle": "Recuperación cardiaca (lpm)",
+      "emptyState": {
+        "title": "Aún no hay datos de recuperación cardiaca",
+        "description": "Los valores de recuperación cardiaca aparecen aquí cuando Apple Health los sincroniza desde un entrenamiento."
+      }
+    },
+    "navCardioRecovery": "Recuperación cardiaca",
+    "wristTemperature": {
+      "title": "Temperatura de muñeca",
+      "description": "Tu temperatura de muñeca durante la noche, comparada con tu valor de referencia.",
+      "chartTitle": "Temperatura de muñeca (°C)",
+      "emptyState": {
+        "title": "Aún no hay datos de temperatura de muñeca",
+        "description": "Los valores aparecen aquí cuando Apple Health sincroniza el uso nocturno."
+      }
+    },
+    "navWristTemperature": "Temp. muñeca",
+    "falls": {
+      "title": "Caídas",
+      "description": "Caídas fuertes que detectó tu Apple Watch, contadas por día.",
+      "chartTitle": "Caídas por día",
+      "emptyState": {
+        "title": "Aún no hay datos de caídas",
+        "description": "Las caídas detectadas aparecen aquí cuando Apple Health se sincroniza. Cero caídas es el objetivo."
+      }
+    },
+    "navFalls": "Caídas",
+    "sixMinuteWalk": {
+      "title": "Marcha de 6 minutos",
+      "description": "La estimación de Apple de cuánto podrías caminar en seis minutos.",
+      "chartTitle": "Distancia en 6 minutos (m)",
+      "emptyState": {
+        "title": "Aún no hay datos de marcha de 6 minutos",
+        "description": "Las estimaciones aparecen aquí cuando Apple Health se sincroniza."
+      }
+    },
+    "navSixMinuteWalk": "Marcha 6 min",
+    "stairAscentSpeed": {
+      "title": "Velocidad subiendo escaleras",
+      "description": "Lo rápido que subes escaleras, medido por tu iPhone o Watch.",
+      "chartTitle": "Velocidad de subida (m/s)",
+      "emptyState": {
+        "title": "Aún no hay datos de subida de escaleras",
+        "description": "Los valores aparecen aquí cuando Apple Health se sincroniza."
+      }
+    },
+    "navStairAscentSpeed": "Subir escaleras",
+    "stairDescentSpeed": {
+      "title": "Velocidad bajando escaleras",
+      "description": "Lo rápido que bajas escaleras, medido por tu iPhone o Watch.",
+      "chartTitle": "Velocidad de bajada (m/s)",
+      "emptyState": {
+        "title": "Aún no hay datos de bajada de escaleras",
+        "description": "Los valores aparecen aquí cuando Apple Health se sincroniza."
+      }
+    },
+    "navStairDescentSpeed": "Bajar escaleras",
+    "breathingDisturbances": {
+      "title": "Alteraciones respiratorias",
+      "description": "Con qué frecuencia se alteró tu respiración durante el sueño.",
+      "chartTitle": "Alteraciones respiratorias del sueño",
+      "emptyState": {
+        "title": "Aún no hay datos de alteraciones respiratorias",
+        "description": "Los valores aparecen aquí cuando Apple Health los sincroniza desde un Apple Watch compatible."
+      }
+    },
+    "navBreathingDisturbances": "Respiración"
   },
   "thresholds": {
     "defaultLabel": "Por defecto",

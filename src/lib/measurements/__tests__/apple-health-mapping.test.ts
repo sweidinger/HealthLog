@@ -61,6 +61,11 @@ describe("APPLE_HEALTH_TYPE_MAP", () => {
         "HKCategoryTypeIdentifierSleepAnalysis",
         "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
         "HKQuantityTypeIdentifierVO2Max",
+        // v1.10.0 — overnight wrist temperature + the sleep-breathing
+        // index ride behind an explicit Health-share consent, same as
+        // HRV / VO2 max / sleep analysis.
+        "HKQuantityTypeIdentifierAppleSleepingWristTemperature",
+        "HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances",
       ].sort(),
     );
     // Audio exposure + time-in-daylight are environment / lifestyle
@@ -134,8 +139,9 @@ describe("HK_QUANTITY_TYPE_DEFERRED", () => {
       "HKQuantityTypeIdentifierAtrialFibrillationBurden",
       "HKQuantityTypeIdentifierPeripheralPerfusionIndex",
       // Mobility — `AppleWalkingSteadiness` moved into the mapped
-      // set in v1.4.30. The remaining identifiers stay deferred.
-      "HKQuantityTypeIdentifierNumberOfTimesFallen",
+      // set in v1.4.30; `NumberOfTimesFallen` moved into the mapped set
+      // in v1.10.0 (FALL_COUNT). The walking-steadiness EVENT stays
+      // deferred (a category-type event, not a quantity).
       "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
       // Respiratory / pulmonary
       "HKQuantityTypeIdentifierForcedExpiratoryVolume1",
@@ -619,6 +625,8 @@ describe("dailyStatsExternalId (v1.4.30 — R-A Option A handoff lock)", () => {
         "HKQuantityTypeIdentifierFlightsClimbed",
         "HKQuantityTypeIdentifierDistanceWalkingRunning",
         "HKQuantityTypeIdentifierTimeInDaylight",
+        // v1.10.0 — hard-fall detections accumulate across the day.
+        "HKQuantityTypeIdentifierNumberOfTimesFallen",
       ].sort(),
     );
   });
@@ -654,6 +662,10 @@ describe("HIGH_FREQUENCY_MEAN_TYPES (v1.7.0)", () => {
         "WALKING_DOUBLE_SUPPORT",
         "WALKING_STEADINESS",
         "WALKING_HEART_RATE_AVERAGE",
+        // v1.10.0 — stair gait speeds arrive per-climb at sampling
+        // granularity; the per-day mean is the right consolidation.
+        "STAIR_ASCENT_SPEED",
+        "STAIR_DESCENT_SPEED",
       ].sort(),
     );
   });
@@ -673,5 +685,75 @@ describe("HIGH_FREQUENCY_MEAN_TYPES (v1.7.0)", () => {
     for (const type of HIGH_FREQUENCY_MEAN_TYPES) {
       expect(hkIdentifierForType(type)).not.toBeNull();
     }
+  });
+});
+
+describe("v1.10.0 additive HealthKit signals (WX-A)", () => {
+  const WXA = {
+    HKQuantityTypeIdentifierHeartRateRecoveryOneMinute: {
+      type: "CARDIO_RECOVERY",
+      dbUnit: "bpm",
+    },
+    HKQuantityTypeIdentifierAppleSleepingWristTemperature: {
+      type: "WRIST_TEMPERATURE",
+      dbUnit: "celsius",
+    },
+    HKQuantityTypeIdentifierNumberOfTimesFallen: {
+      type: "FALL_COUNT",
+      dbUnit: "count",
+    },
+    HKQuantityTypeIdentifierSixMinuteWalkTestDistance: {
+      type: "SIX_MINUTE_WALK_DISTANCE",
+      dbUnit: "m",
+    },
+    HKQuantityTypeIdentifierStairAscentSpeed: {
+      type: "STAIR_ASCENT_SPEED",
+      dbUnit: "m/s",
+    },
+    HKQuantityTypeIdentifierStairDescentSpeed: {
+      type: "STAIR_DESCENT_SPEED",
+      dbUnit: "m/s",
+    },
+    HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances: {
+      type: "BREATHING_DISTURBANCES",
+      dbUnit: "count",
+    },
+  } as const;
+
+  it("maps each new identifier to its canonical type + unit with identity conversion", () => {
+    for (const [hk, expected] of Object.entries(WXA)) {
+      const mapping = APPLE_HEALTH_TYPE_MAP[hk];
+      expect(mapping, `${hk} mapping missing`).toBeDefined();
+      expect(mapping!.measurementType).toBe(expected.type);
+      expect(mapping!.dbUnit).toBe(expected.dbUnit);
+      // None of the WX-A signals ships a 0..1 fraction — every one
+      // passes through `convertToDbUnit` as identity.
+      expect(mapping!.convertToDbUnit(42)).toBe(42);
+    }
+  });
+
+  it("removes each wired identifier from the deferred set", () => {
+    for (const hk of Object.keys(WXA)) {
+      expect(
+        HK_QUANTITY_TYPE_DEFERRED.has(hk),
+        `${hk} should no longer be deferred`,
+      ).toBe(false);
+    }
+  });
+
+  it("round-trips a cardio-recovery sample through mapAppleHealthEntry", () => {
+    const out = mapAppleHealthEntry({
+      hkIdentifier: "HKQuantityTypeIdentifierHeartRateRecoveryOneMinute",
+      value: 35,
+      unit: "count/min",
+      startDate: "2026-06-02T08:00:00.000Z",
+      endDate: "2026-06-02T08:01:00.000Z",
+    });
+    expect(out).toEqual({
+      type: "CARDIO_RECOVERY",
+      value: 35,
+      unit: "bpm",
+      takenAt: new Date("2026-06-02T08:01:00.000Z"),
+    });
   });
 });

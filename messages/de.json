@@ -425,7 +425,14 @@
     "dailyTotalCaption": "({count} Einzelwerte)",
     "expandDay": "Einzelwerte dieses Tages anzeigen",
     "collapseDay": "Einzelwerte dieses Tages ausblenden",
-    "loadError": "Messwerte konnten nicht geladen werden."
+    "loadError": "Messwerte konnten nicht geladen werden.",
+    "typeCardioRecovery": "Erholungspuls",
+    "typeWristTemperature": "Handgelenktemperatur",
+    "typeFallCount": "Stürze",
+    "typeSixMinuteWalkDistance": "6-Minuten-Gehstrecke",
+    "typeStairAscentSpeed": "Treppensteig-Tempo",
+    "typeStairDescentSpeed": "Treppab-Tempo",
+    "typeBreathingDisturbances": "Atemaussetzer im Schlaf"
   },
   "mood": {
     "title": "Stimmung",
@@ -1994,7 +2001,23 @@
         "bloodGlucoseTitle": "Blutzucker",
         "bloodGlucoseBody": "Der Blutzucker ist die Zuckermenge in deinem Blut, die wichtigste Energiequelle des Körpers. Er steigt nach dem Essen und pendelt sich zwischen den Mahlzeiten ein; dauerhaft hohe Werte können auf Diabetes oder Prädiabetes hinweisen.",
         "skinTemperatureTitle": "Hauttemperatur",
-        "skinTemperatureBody": "Die Hauttemperatur ist hier die kleine nächtliche Abweichung deiner Handgelenkstemperatur von deinem eigenen Ausgangswert, keine absolute Fiebermessung. Veränderungen können Schlaf, Umgebung, Krankheit oder Zyklusphase widerspiegeln."
+        "skinTemperatureBody": "Die Hauttemperatur ist hier die kleine nächtliche Abweichung deiner Handgelenkstemperatur von deinem eigenen Ausgangswert, keine absolute Fiebermessung. Veränderungen können Schlaf, Umgebung, Krankheit oder Zyklusphase widerspiegeln.",
+        "cardioFitnessTitle": "Cardiofitness (VO₂max)",
+        "cardioFitnessBody": "VO₂max gibt an, wie viel Sauerstoff dein Körper bei maximaler Anstrengung verwerten kann. Es ist der aussagekräftigste Laborwert für die Ausdauerfitness; ein höherer oder steigender Wert spricht für eine gute Herz-Kreislauf-Gesundheit.",
+        "cardioRecoveryTitle": "Erholungspuls",
+        "cardioRecoveryBody": "Der Erholungspuls gibt an, um wie viele Schläge pro Minute dein Puls in der ersten Minute nach dem Ende einer anstrengenden Belastung fällt. Ein größerer Abfall bedeutet, dass sich dein Herz schneller beruhigt — ein Zeichen guter Fitness.",
+        "wristTemperatureTitle": "Handgelenktemperatur",
+        "wristTemperatureBody": "Die Handgelenktemperatur wird im Schlaf gemessen. Apple zeigt sie als Abweichung von deinem persönlichen Ausgangswert; ein gleichmäßiger Wert ist normal, ein anhaltender Anstieg kann auf Krankheit, intensives Training oder eine Zyklusveränderung hindeuten.",
+        "fallsTitle": "Stürze",
+        "fallsBody": "Hier werden die von deiner Apple Watch erkannten schweren Stürze gezählt. Null ist das Ziel; eine steigende Zahl ist ein Hinweis auf ein erhöhtes Sturzrisiko, das du — besonders im höheren Alter — mit einer Ärztin oder einem Arzt besprechen solltest.",
+        "sixMinuteWalkTitle": "6-Minuten-Gehstrecke",
+        "sixMinuteWalkBody": "Dies ist Apples Schätzung, wie weit du in sechs Minuten gehen könntest — ein etablierter klinischer Test für Mobilität und kardiopulmonale Ausdauer. Eine gleichbleibende oder steigende Strecke ist ein gutes Zeichen.",
+        "stairAscentSpeedTitle": "Treppensteig-Tempo",
+        "stairAscentSpeedBody": "Dies gibt an, wie schnell du eine Treppe hinaufgehst. Es ist ein empfindlicher Marker für Beinkraft und Mobilität — ein gleichbleibendes oder steigendes Tempo ist gut, ein sinkendes solltest du im Blick behalten.",
+        "stairDescentSpeedTitle": "Treppab-Tempo",
+        "stairDescentSpeedBody": "Dies gibt an, wie schnell du eine Treppe hinabgehst. Zusammen mit dem Steig-Tempo zeigt es Beinkontrolle und Gleichgewicht — ein gleichmäßiges Tempo ist gut, ein sinkendes solltest du im Blick behalten.",
+        "breathingDisturbancesTitle": "Atemaussetzer im Schlaf",
+        "breathingDisturbancesBody": "Deine Apple Watch kann schätzen, wie oft deine Atmung im Schlaf unterbrochen war. Ein niedriger Index ist besser; ein von Apple als erhöht eingestufter Wert — vor allem über viele Nächte — sollte mit einer Ärztin oder einem Arzt besprochen werden."
       },
       "stats": {
         "label": "Zusammenfassende Statistik",
@@ -2546,7 +2569,87 @@
           }
         }
       }
-    }
+    },
+    "cardioFitness": {
+      "title": "Fitness",
+      "description": "Deine VO₂max im Zeitverlauf — das wichtigste Maß für die Ausdauerfitness.",
+      "chartTitle": "VO₂max (mL/(kg·min))",
+      "emptyState": {
+        "title": "Noch keine Fitnessdaten",
+        "description": "VO₂max-Werte erscheinen hier, sobald Apple Health sie aus deinen Workouts synchronisiert."
+      }
+    },
+    "navCardioFitness": "Fitness",
+    "cardioRecovery": {
+      "title": "Erholungspuls",
+      "description": "Wie stark dein Puls eine Minute nach maximaler Belastung abfällt.",
+      "chartTitle": "Erholungspuls (bpm)",
+      "emptyState": {
+        "title": "Noch keine Erholungspuls-Daten",
+        "description": "Erholungspuls-Werte erscheinen hier, sobald Apple Health sie aus einem Workout synchronisiert."
+      }
+    },
+    "navCardioRecovery": "Erholungspuls",
+    "wristTemperature": {
+      "title": "Handgelenktemperatur",
+      "description": "Deine nächtliche Handgelenktemperatur, gemessen an deinem eigenen Ausgangswert.",
+      "chartTitle": "Handgelenktemperatur (°C)",
+      "emptyState": {
+        "title": "Noch keine Handgelenktemperatur-Daten",
+        "description": "Werte erscheinen hier, sobald Apple Health das nächtliche Tragen synchronisiert."
+      }
+    },
+    "navWristTemperature": "Handgelenk-Temp.",
+    "falls": {
+      "title": "Stürze",
+      "description": "Von deiner Apple Watch erkannte schwere Stürze, pro Tag gezählt.",
+      "chartTitle": "Stürze pro Tag",
+      "emptyState": {
+        "title": "Noch keine Sturzdaten",
+        "description": "Erkannte Stürze erscheinen hier, sobald Apple Health synchronisiert. Keine Stürze ist das Ziel."
+      }
+    },
+    "navFalls": "Stürze",
+    "sixMinuteWalk": {
+      "title": "6-Minuten-Gehtest",
+      "description": "Apples Schätzung, wie weit du in sechs Minuten gehen könntest.",
+      "chartTitle": "6-Minuten-Gehstrecke (m)",
+      "emptyState": {
+        "title": "Noch keine 6-Minuten-Gehtest-Daten",
+        "description": "Schätzwerte erscheinen hier, sobald Apple Health synchronisiert."
+      }
+    },
+    "navSixMinuteWalk": "6-Min-Gehtest",
+    "stairAscentSpeed": {
+      "title": "Treppensteig-Tempo",
+      "description": "Wie schnell du Treppen hinaufgehst, gemessen von iPhone oder Watch.",
+      "chartTitle": "Treppensteig-Tempo (m/s)",
+      "emptyState": {
+        "title": "Noch keine Daten zum Treppensteig-Tempo",
+        "description": "Werte erscheinen hier, sobald Apple Health synchronisiert."
+      }
+    },
+    "navStairAscentSpeed": "Treppe hoch",
+    "stairDescentSpeed": {
+      "title": "Treppab-Tempo",
+      "description": "Wie schnell du Treppen hinabgehst, gemessen von iPhone oder Watch.",
+      "chartTitle": "Treppab-Tempo (m/s)",
+      "emptyState": {
+        "title": "Noch keine Daten zum Treppab-Tempo",
+        "description": "Werte erscheinen hier, sobald Apple Health synchronisiert."
+      }
+    },
+    "navStairDescentSpeed": "Treppe runter",
+    "breathingDisturbances": {
+      "title": "Atemaussetzer",
+      "description": "Wie oft deine Atmung im Schlaf gestört war.",
+      "chartTitle": "Atemaussetzer im Schlaf",
+      "emptyState": {
+        "title": "Noch keine Daten zu Atemaussetzern",
+        "description": "Werte erscheinen hier, sobald Apple Health sie von einer unterstützten Apple Watch synchronisiert."
+      }
+    },
+    "navBreathingDisturbances": "Atmung"
   },
   "thresholds": {
     "defaultLabel": "Default",

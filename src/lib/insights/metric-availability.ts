@@ -89,7 +89,17 @@ export type InsightMetric =
   | "WALKING_ASYMMETRY"
   | "WALKING_DOUBLE_SUPPORT"
   | "WALKING_STEP_LENGTH"
-  | "WALKING_SPEED";
+  | "WALKING_SPEED"
+  // v1.10.0 — additive HealthKit signals (WX-A). Each key equals its
+  // MeasurementType string so the generic `hasMetricData` fallback gates
+  // it on `summaries[metric].count > 0` (auto-light-up on first reading).
+  | "CARDIO_RECOVERY"
+  | "WRIST_TEMPERATURE"
+  | "FALL_COUNT"
+  | "SIX_MINUTE_WALK_DISTANCE"
+  | "STAIR_ASCENT_SPEED"
+  | "STAIR_DESCENT_SPEED"
+  | "BREATHING_DISTURBANCES";
 
 /**
  * Inputs the gating helper consumes. The `summaries` shape mirrors

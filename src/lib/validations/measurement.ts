@@ -47,6 +47,17 @@ export const measurementTypeEnum = z.enum([
   // the convention block in `apple-health-mapping.ts`.
   "WALKING_STEP_LENGTH",
   "WALKING_SPEED",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // Seven previously-deferred quantity identifiers; each ships raw on
+  // the wire (identity conversion). See the convention block in
+  // `apple-health-mapping.ts`.
+  "CARDIO_RECOVERY",
+  "WRIST_TEMPERATURE",
+  "FALL_COUNT",
+  "SIX_MINUTE_WALK_DISTANCE",
+  "STAIR_ASCENT_SPEED",
+  "STAIR_DESCENT_SPEED",
+  "BREATHING_DISTURBANCES",
 ]);
 
 export const glucoseContextEnum = z.enum([
@@ -132,6 +143,22 @@ const unitMap: Record<string, string> = {
   // match HealthKit's `m` / `m/s` defaults.
   WALKING_STEP_LENGTH: "m",
   WALKING_SPEED: "m/s",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // Cardio recovery is the bpm drop one minute after peak exercise.
+  CARDIO_RECOVERY: "bpm",
+  // Overnight wrist temperature in °C (absolute reading; Apple's own
+  // display frames it as a baseline deviation, we store the reading).
+  WRIST_TEMPERATURE: "celsius",
+  // Hard-fall detections — a plain count.
+  FALL_COUNT: "count",
+  // Apple's estimated six-minute-walk-test distance in metres.
+  SIX_MINUTE_WALK_DISTANCE: "m",
+  // Stair gait speeds — raw metres-per-second (no scaling).
+  STAIR_ASCENT_SPEED: "m/s",
+  STAIR_DESCENT_SPEED: "m/s",
+  // Per-night breathing-disturbance index — a unitless count Apple
+  // classifies as NotElevated / Elevated.
+  BREATHING_DISTURBANCES: "count",
 };
 
 export function getUnitForType(type: string): string {
@@ -239,6 +266,33 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // run. The 0.1 floor captures a very slow shuffle; 3.0 covers
   // race-walking record territory.
   WALKING_SPEED: { min: 0.1, max: 3.0 },
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // Cardio recovery (bpm) — the one-minute HR drop after peak exertion.
+  // Trained athletes can drop 50+ bpm; an unfit or autonomically
+  // impaired recovery sits in the single digits. 0 is a flat (poor)
+  // recovery; 100 is a generous ceiling beyond any plausible reading.
+  CARDIO_RECOVERY: { min: 0, max: 100 },
+  // Wrist temperature (°C) — overnight skin-side reading. Runs cooler
+  // than core; the 30–42 band covers the plausible nighttime range and
+  // rejects obvious sensor glitches. Same shape as SKIN_TEMPERATURE.
+  WRIST_TEMPERATURE: { min: 30, max: 42 },
+  // Fall count — a daily tally. A handful in a bad day is plausible;
+  // 50 is a generous ceiling that still catches a runaway sensor.
+  FALL_COUNT: { min: 0, max: 50 },
+  // Six-minute-walk distance (metres). Healthy adults walk ~400–700 m;
+  // the 50 m floor captures severe impairment and the 1000 m ceiling
+  // covers an unusually fit reading without admitting sensor noise.
+  SIX_MINUTE_WALK_DISTANCE: { min: 50, max: 1000 },
+  // Stair gait speed (m/s) — slower than level walking. Adult stair
+  // ascent sits around 0.4–0.7 m/s, descent slightly faster. The 0.05
+  // floor captures a very slow climb; 2.0 is well above any sustained
+  // stair pace and rejects a free-fall artefact.
+  STAIR_ASCENT_SPEED: { min: 0.05, max: 2.0 },
+  STAIR_DESCENT_SPEED: { min: 0.05, max: 2.0 },
+  // Breathing-disturbance index (count). A per-night index; 0 is an
+  // undisturbed night and the 1000 ceiling is generous headroom over
+  // any plausible severe-apnea night.
+  BREATHING_DISTURBANCES: { min: 0, max: 1000 },
 };
 
 export function validateMeasurementRange(

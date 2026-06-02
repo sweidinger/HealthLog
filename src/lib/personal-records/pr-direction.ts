@@ -69,6 +69,14 @@ export function getPRDirection(
     // overall mobility resilience. MAX direction matches Apple's
     // own Mobility-section framing.
     case "WALKING_SPEED":
+    // v1.10.0 — cardio recovery (a larger one-minute HR drop is the
+    // fitter result), six-minute-walk distance (the classic endurance
+    // achievement), and the stair gait speeds (faster climb/descent =
+    // more leg strength + mobility) all read MAX.
+    case "CARDIO_RECOVERY":
+    case "SIX_MINUTE_WALK_DISTANCE":
+    case "STAIR_ASCENT_SPEED":
+    case "STAIR_DESCENT_SPEED":
       return PersonalRecordDirection.MAX;
 
     // MIN direction — lower value is the record.
@@ -85,6 +93,11 @@ export function getPRDirection(
     // symmetric gait + shorter double-support fraction = healthier).
     case "WALKING_ASYMMETRY":
     case "WALKING_DOUBLE_SUPPORT":
+    // v1.10.0 — fall count and the sleep-breathing-disturbance index
+    // both read MIN: the "record" is the day/night with the fewest
+    // events, and fewer is unambiguously the goal.
+    case "FALL_COUNT":
+    case "BREATHING_DISTURBANCES":
       return PersonalRecordDirection.MIN;
 
     // Explicitly no PersonalRecord — see comment block above.
@@ -118,6 +131,10 @@ export function getPRDirection(
     // direction; the future worker can still surface trend deltas
     // without claiming a record direction.
     case "WALKING_STEP_LENGTH":
+    // v1.10.0 — wrist temperature is homeostatic and Apple frames it as
+    // a baseline deviation, not a goal axis; neither a higher nor a
+    // lower reading is an achievement. Defer to a null PR direction.
+    case "WRIST_TEMPERATURE":
       return null;
   }
 }

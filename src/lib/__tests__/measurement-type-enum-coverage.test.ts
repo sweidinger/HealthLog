@@ -59,10 +59,18 @@ const EXPECTED_TYPES = [
   // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
   "WALKING_STEP_LENGTH",
   "WALKING_SPEED",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  "CARDIO_RECOVERY",
+  "WRIST_TEMPERATURE",
+  "FALL_COUNT",
+  "SIX_MINUTE_WALK_DISTANCE",
+  "STAIR_ASCENT_SPEED",
+  "STAIR_DESCENT_SPEED",
+  "BREATHING_DISTURBANCES",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 38 canonical measurement types", () => {
+  it("exposes the 45 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -130,6 +138,19 @@ describe("measurementTypeEnum coverage", () => {
     // same clinical-layout deferral as the rest of the Mobility set.
     "WALKING_STEP_LENGTH",
     "WALKING_SPEED",
+    // v1.10.0 — additive HealthKit signals (WX-A) held under the same
+    // v1.5+ clinical-layout PDF gate as the rest of the Apple-Health
+    // additions. Cardio recovery, wrist temperature, falls, six-minute
+    // walk, the stair gait speeds, and the sleep-breathing index each
+    // surface on their Insights sub-page; the doctor PDF picks them up
+    // once a clinical layout + reference ranges land.
+    "CARDIO_RECOVERY",
+    "WRIST_TEMPERATURE",
+    "FALL_COUNT",
+    "SIX_MINUTE_WALK_DISTANCE",
+    "STAIR_ASCENT_SPEED",
+    "STAIR_DESCENT_SPEED",
+    "BREATHING_DISTURBANCES",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

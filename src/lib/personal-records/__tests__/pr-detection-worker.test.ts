@@ -18,7 +18,7 @@ import {
   __test__,
   detectPersonalRecordsForUser,
 } from "../pr-detection-worker";
-import { isPRTrackable } from "../pr-direction";
+import { getPRDirection, isPRTrackable } from "../pr-direction";
 import { CUMULATIVE_HK_TYPES } from "@/lib/measurements/apple-health-mapping";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import {
@@ -891,7 +891,14 @@ describe("detectPersonalRecordsForUser — REG-9 cumulative day-sum (v1.4.46)", 
         (r) => r.metricType === type && r.metricSlot === null,
       );
       expect(pr, `expected PR for ${type}`).toBeDefined();
-      expect(pr?.value, `${type} day-sum`).toBe(500);
+      // The PR is the winning day's SUM. For a MAX-direction cumulative
+      // type (steps, energy, …) the record is the biggest day (500). For
+      // a MIN-direction cumulative type (v1.10.0 FALL_COUNT — fewest
+      // falls is the record) the winning day is the smallest day-sum, so
+      // the seed days at 100 hold the record over the 500 day.
+      const expectedValue =
+        getPRDirection(type) === PersonalRecordDirection.MIN ? 100 : 500;
+      expect(pr?.value, `${type} day-sum`).toBe(expectedValue);
     }
   });
 });

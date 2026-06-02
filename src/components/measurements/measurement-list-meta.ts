@@ -33,6 +33,7 @@ import {
   Volume2,
   Headphones,
   Sun,
+  PersonStanding,
   type LucideIcon,
 } from "lucide-react";
 
@@ -81,6 +82,14 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
   WALKING_STEP_LENGTH: "measurements.typeWalkingStepLength",
   WALKING_SPEED: "measurements.typeWalkingSpeed",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  CARDIO_RECOVERY: "measurements.typeCardioRecovery",
+  WRIST_TEMPERATURE: "measurements.typeWristTemperature",
+  FALL_COUNT: "measurements.typeFallCount",
+  SIX_MINUTE_WALK_DISTANCE: "measurements.typeSixMinuteWalkDistance",
+  STAIR_ASCENT_SPEED: "measurements.typeStairAscentSpeed",
+  STAIR_DESCENT_SPEED: "measurements.typeStairDescentSpeed",
+  BREATHING_DISTURBANCES: "measurements.typeBreathingDisturbances",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -145,6 +154,19 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   // WALKING_STEADINESS).
   WALKING_STEP_LENGTH: Footprints,
   WALKING_SPEED: Gauge,
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // HeartPulse carries the post-exercise cardiac-recovery signal;
+  // Thermometer the overnight wrist reading; PersonStanding the
+  // fall-detection tally; Gauge the gait-speed family (stairs + 6MWT);
+  // Wind rounds out the sleep-breathing signal (SpO2 + resp rate
+  // already use it).
+  CARDIO_RECOVERY: HeartPulse,
+  WRIST_TEMPERATURE: Thermometer,
+  FALL_COUNT: PersonStanding,
+  SIX_MINUTE_WALK_DISTANCE: Footprints,
+  STAIR_ASCENT_SPEED: Gauge,
+  STAIR_DESCENT_SPEED: Gauge,
+  BREATHING_DISTURBANCES: Wind,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -203,4 +225,14 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   // visual group on Insights.
   WALKING_STEP_LENGTH: "bg-chart-2/20 text-chart-2",
   WALKING_SPEED: "bg-chart-2/20 text-chart-2",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // chart-3 (cardio), chart-4 (temp), chart-2 (activity/gait family),
+  // chart-5 (sleep-breathing, shares the SpO2 family).
+  CARDIO_RECOVERY: "bg-chart-3/20 text-chart-3",
+  WRIST_TEMPERATURE: "bg-chart-4/20 text-chart-4",
+  FALL_COUNT: "bg-chart-2/20 text-chart-2",
+  SIX_MINUTE_WALK_DISTANCE: "bg-chart-2/20 text-chart-2",
+  STAIR_ASCENT_SPEED: "bg-chart-2/20 text-chart-2",
+  STAIR_DESCENT_SPEED: "bg-chart-2/20 text-chart-2",
+  BREATHING_DISTURBANCES: "bg-chart-5/20 text-chart-5",
 };

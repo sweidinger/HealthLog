@@ -470,6 +470,88 @@ export const APPLE_HEALTH_TYPE_MAP: Record<string, AppleHealthMapping> = {
     convertToDbUnit: (v) => v,
     aggregation: "mean",
   },
+
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ─────────────
+  // Seven previously-deferred quantity identifiers wired end-to-end.
+  // Each one ships raw on the wire (no 0..1 fraction), so every entry
+  // takes the identity `convertToDbUnit` path — the ×100 percent
+  // scaling the gait-percent metrics use does not apply here.
+
+  // Cardio recovery — the heart-rate drop one minute after peak
+  // exercise. iOS 16+. A larger drop is the fitter signal; we store
+  // the raw bpm delta. One sample per qualifying workout.
+  HKQuantityTypeIdentifierHeartRateRecoveryOneMinute: {
+    hkIdentifier: "HKQuantityTypeIdentifierHeartRateRecoveryOneMinute",
+    measurementType: "CARDIO_RECOVERY",
+    hkUnit: "count/min",
+    dbUnit: "bpm",
+    convertToDbUnit: (v) => v,
+    aggregation: "latest",
+  },
+  // Sleeping wrist temperature — iOS 16+ overnight reading. Apple's
+  // Health app frames it as a deviation from a personal baseline; we
+  // store the absolute °C reading and let the user's own series carry
+  // the baseline. One sample per night.
+  HKQuantityTypeIdentifierAppleSleepingWristTemperature: {
+    hkIdentifier: "HKQuantityTypeIdentifierAppleSleepingWristTemperature",
+    measurementType: "WRIST_TEMPERATURE",
+    hkUnit: "degC",
+    dbUnit: "celsius",
+    convertToDbUnit: (v) => v,
+    aggregation: "latest",
+    isPrivacySensitive: true,
+  },
+  // Fall count — hard-fall detections. Cumulative daily tally; the
+  // drain treats it like the other cumulative HK counts.
+  HKQuantityTypeIdentifierNumberOfTimesFallen: {
+    hkIdentifier: "HKQuantityTypeIdentifierNumberOfTimesFallen",
+    measurementType: "FALL_COUNT",
+    hkUnit: "count",
+    dbUnit: "count",
+    convertToDbUnit: (v) => v,
+    aggregation: "sum",
+  },
+  // Six-minute-walk-test distance — Apple's estimated 6MWT distance in
+  // metres. Mobility + cardiopulmonary endurance signal. Near-daily
+  // rollup; latest reading leads.
+  HKQuantityTypeIdentifierSixMinuteWalkTestDistance: {
+    hkIdentifier: "HKQuantityTypeIdentifierSixMinuteWalkTestDistance",
+    measurementType: "SIX_MINUTE_WALK_DISTANCE",
+    hkUnit: "m",
+    dbUnit: "m",
+    convertToDbUnit: (v) => v,
+    aggregation: "latest",
+  },
+  // Stair ascent speed — raw metres-per-second measured while climbing.
+  HKQuantityTypeIdentifierStairAscentSpeed: {
+    hkIdentifier: "HKQuantityTypeIdentifierStairAscentSpeed",
+    measurementType: "STAIR_ASCENT_SPEED",
+    hkUnit: "m/s",
+    dbUnit: "m/s",
+    convertToDbUnit: (v) => v,
+    aggregation: "mean",
+  },
+  // Stair descent speed — gait companion to ascent speed.
+  HKQuantityTypeIdentifierStairDescentSpeed: {
+    hkIdentifier: "HKQuantityTypeIdentifierStairDescentSpeed",
+    measurementType: "STAIR_DESCENT_SPEED",
+    hkUnit: "m/s",
+    dbUnit: "m/s",
+    convertToDbUnit: (v) => v,
+    aggregation: "mean",
+  },
+  // Breathing disturbances — iOS 18+ per-night sleep-breathing index
+  // Apple classifies as NotElevated / Elevated. Stored as the raw
+  // unitless count; one sample per night.
+  HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances: {
+    hkIdentifier: "HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances",
+    measurementType: "BREATHING_DISTURBANCES",
+    hkUnit: "count",
+    dbUnit: "count",
+    convertToDbUnit: (v) => v,
+    aggregation: "latest",
+    isPrivacySensitive: true,
+  },
 };
 
 /**
@@ -493,6 +575,10 @@ export const CUMULATIVE_HK_TYPES: ReadonlySet<MeasurementType> = new Set<Measure
   "FLIGHTS_CLIMBED",
   "WALKING_RUNNING_DISTANCE",
   "TIME_IN_DAYLIGHT",
+  // v1.10.0 — hard-fall detections accumulate across the day; the
+  // daily total is the meaningful reduction (SUM), matching the other
+  // cumulative HK counts.
+  "FALL_COUNT",
 ]);
 
 /**
@@ -538,6 +624,12 @@ export const HIGH_FREQUENCY_MEAN_TYPES: ReadonlySet<MeasurementType> = new Set<M
   "WALKING_DOUBLE_SUPPORT",
   "WALKING_STEADINESS",
   "WALKING_HEART_RATE_AVERAGE",
+  // v1.10.0 — stair gait speeds arrive per-climb at sampling
+  // granularity; the per-day MEAN is the right consolidation (same
+  // posture as WALKING_SPEED / WALKING_STEP_LENGTH). Disjoint from
+  // CUMULATIVE_HK_TYPES by construction.
+  "STAIR_ASCENT_SPEED",
+  "STAIR_DESCENT_SPEED",
 ]);
 
 /**
@@ -617,8 +709,8 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   // The remaining identifiers below stay deferred until a sibling
   // MeasurementType lands.
   "HKQuantityTypeIdentifierHeight", // already on User.heightCm
-  "HKQuantityTypeIdentifierHeartRateRecoveryOneMinute",
-  "HKQuantityTypeIdentifierAppleSleepingWristTemperature",
+  // v1.10.0 — `HeartRateRecoveryOneMinute` + `AppleSleepingWristTemperature`
+  // moved into the mapping table (CARDIO_RECOVERY + WRIST_TEMPERATURE).
   "HKQuantityTypeIdentifierBasalEnergyBurned",
   "HKQuantityTypeIdentifierAppleExerciseTime", // implied by Workout rows
   "HKQuantityTypeIdentifierAppleStandTime", // implied by Workout rows
@@ -626,9 +718,9 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   // Running / walking form — v1.5+
   // v1.5.5 — `WalkingStepLength` + `WalkingSpeed` moved into the
   // mapping table (raw SI on the wire — metres and m/s respectively).
-  "HKQuantityTypeIdentifierStairAscentSpeed",
-  "HKQuantityTypeIdentifierStairDescentSpeed",
-  "HKQuantityTypeIdentifierSixMinuteWalkTestDistance",
+  // v1.10.0 — `StairAscentSpeed`, `StairDescentSpeed`, and
+  // `SixMinuteWalkTestDistance` moved into the mapping table
+  // (STAIR_ASCENT_SPEED / STAIR_DESCENT_SPEED / SIX_MINUTE_WALK_DISTANCE).
   "HKQuantityTypeIdentifierRunningSpeed",
   "HKQuantityTypeIdentifierRunningPower",
   "HKQuantityTypeIdentifierRunningStrideLength",
@@ -655,7 +747,10 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   "HKQuantityTypeIdentifierWorkoutEffortScore",
   "HKQuantityTypeIdentifierPhysicalEffort",
   // Sleep apnea + breathing (iOS 18) — v1.5+
-  "HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances",
+  // v1.10.0 — `AppleSleepingBreathingDisturbances` moved into the
+  // mapping table (BREATHING_DISTURBANCES). The category-type sleep-apnea
+  // EVENT stays deferred — it belongs in the event class, not the
+  // quantity map.
   "HKCategoryTypeIdentifierSleepApneaEvent",
   // Nutrition — Marc directive, indefinite hold
   "HKQuantityTypeIdentifierDietaryWater",
@@ -697,9 +792,10 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   "HKQuantityTypeIdentifierAtrialFibrillationBurden",
   "HKQuantityTypeIdentifierPeripheralPerfusionIndex",
   // Mobility (iOS 15+) — `AppleWalkingSteadiness` moved into the
-  // mapping table in v1.4.30 (R-F T1.5). The remaining identifiers
-  // stay deferred until a wellness sub-page surface lands.
-  "HKQuantityTypeIdentifierNumberOfTimesFallen",
+  // mapping table in v1.4.30 (R-F T1.5); `NumberOfTimesFallen` moved
+  // into the mapping table in v1.10.0 (FALL_COUNT). The walking-
+  // steadiness EVENT stays deferred — it is a category-type event, not
+  // a quantity, so it belongs in the event class rather than this map.
   "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
   // Respiratory / pulmonary clinical (iOS 17) — pair with FHIR clinical
   // bucket; no Measurement enum mapping today.

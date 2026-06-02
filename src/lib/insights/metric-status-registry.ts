@@ -109,7 +109,15 @@ export type MetricStatusMetricId =
   | "AUDIO_EXPOSURE_ENV"
   | "AUDIO_EXPOSURE_HEADPHONE"
   | "AUDIO_EXPOSURE_EVENT"
-  | "SLEEP_DURATION";
+  | "SLEEP_DURATION"
+  // v1.10.0 — additive HealthKit signals (WX-A).
+  | "CARDIO_RECOVERY"
+  | "WRIST_TEMPERATURE"
+  | "FALL_COUNT"
+  | "SIX_MINUTE_WALK_DISTANCE"
+  | "STAIR_ASCENT_SPEED"
+  | "STAIR_DESCENT_SPEED"
+  | "BREATHING_DISTURBANCES";
 
 /**
  * The registry. Keyed by the HealthKit metric id. Each entry's
@@ -398,6 +406,93 @@ const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
     unit: "min",
     direction: "target-band",
     normalRange: { low: 420, high: 540 },
+    archetype: "sleep",
+  },
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // Cardio recovery — bpm drop one minute after peak exercise. A larger
+  // drop is the fitter, healthier signal (higher-better). No fixed band:
+  // recovery scales with the peak HR + fitness, so the user's own
+  // baseline leads. A blunted HRR1 (the long-cited Cole et al. NEJM 1999
+  // ≤12 bpm marker) is a mortality predictor, but the absolute placement
+  // depends on the workout intensity HealthLog does not capture here, so
+  // we defer wholly to the user's trend rather than anchor a band.
+  CARDIO_RECOVERY: {
+    id: "CARDIO_RECOVERY",
+    measurementType: "CARDIO_RECOVERY",
+    displayName: "Cardio recovery",
+    unit: "bpm",
+    direction: "higher-better",
+    archetype: "physiological-vital",
+  },
+  // Wrist temperature — overnight skin-side reading. Apple frames it as a
+  // baseline deviation; we store the absolute °C and treat it as a
+  // target-band metric whose anchor is the user's own nightly baseline.
+  // No fixed population band: wrist (skin) temperature runs cooler than
+  // core and varies by room temperature + bedding, so a hard band would
+  // misplace it. The user's own series leads (same posture as
+  // SKIN_TEMPERATURE).
+  WRIST_TEMPERATURE: {
+    id: "WRIST_TEMPERATURE",
+    measurementType: "WRIST_TEMPERATURE",
+    displayName: "Wrist temperature",
+    unit: "°C",
+    direction: "target-band",
+    archetype: "physiological-vital",
+  },
+  // Fall count — fewer is better. Zero is the target; any sustained
+  // non-zero count is a mobility-risk signal Apple surfaces prominently.
+  FALL_COUNT: {
+    id: "FALL_COUNT",
+    measurementType: "FALL_COUNT",
+    displayName: "Falls",
+    unit: "falls/day",
+    direction: "lower-better",
+    archetype: "mobility-gait",
+  },
+  // Six-minute-walk distance — population reference for healthy adults is
+  // ~400–700 m (ATS 2002 guideline + general-population reference
+  // standards, Casanova et al. ERJ 2011 / population samples). The band
+  // is a coarse placement aid; age, height, and sex shift it, so the
+  // user's own baseline still leads.
+  SIX_MINUTE_WALK_DISTANCE: {
+    id: "SIX_MINUTE_WALK_DISTANCE",
+    measurementType: "SIX_MINUTE_WALK_DISTANCE",
+    displayName: "Six-minute walk distance",
+    unit: "m",
+    direction: "higher-better",
+    normalRange: { low: 400, high: 700 },
+    archetype: "mobility-gait",
+  },
+  // Stair ascent speed — faster is the fitter signal. No fixed band:
+  // stair pace depends on stair geometry + leg length; the user's own
+  // trend leads (same posture as WALKING_STEP_LENGTH).
+  STAIR_ASCENT_SPEED: {
+    id: "STAIR_ASCENT_SPEED",
+    measurementType: "STAIR_ASCENT_SPEED",
+    displayName: "Stair ascent speed",
+    unit: "m/s",
+    direction: "higher-better",
+    archetype: "mobility-gait",
+  },
+  // Stair descent speed — gait companion to ascent speed.
+  STAIR_DESCENT_SPEED: {
+    id: "STAIR_DESCENT_SPEED",
+    measurementType: "STAIR_DESCENT_SPEED",
+    displayName: "Stair descent speed",
+    unit: "m/s",
+    direction: "higher-better",
+    archetype: "mobility-gait",
+  },
+  // Breathing disturbances — per-night sleep-breathing index. Fewer is
+  // better. Apple classifies the index as NotElevated / Elevated rather
+  // than publishing a numeric cutoff, so no fixed band is encoded; the
+  // direction + the user's own baseline carry the placement.
+  BREATHING_DISTURBANCES: {
+    id: "BREATHING_DISTURBANCES",
+    measurementType: "BREATHING_DISTURBANCES",
+    displayName: "Sleep breathing disturbances",
+    unit: "count",
+    direction: "lower-better",
     archetype: "sleep",
   },
 };

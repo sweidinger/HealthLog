@@ -216,6 +216,15 @@ export const CHART_OVERLAY_KEYS = [
   "walkingDoubleSupport",
   "walkingStepLength",
   "walkingSpeed",
+  // v1.10.0 — additive HealthKit signals (WX-A). One overlay-prefs slot
+  // per new chart surface; camel-case keys mirror the existing convention.
+  "cardioRecovery",
+  "wristTemperature",
+  "fallCount",
+  "sixMinuteWalkDistance",
+  "stairAscentSpeed",
+  "stairDescentSpeed",
+  "breathingDisturbances",
 ] as const;
 export type ChartOverlayKey = (typeof CHART_OVERLAY_KEYS)[number];
 

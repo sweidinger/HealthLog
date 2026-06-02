@@ -425,7 +425,14 @@
     "dailyTotalCaption": "({count} échantillons)",
     "expandDay": "Afficher les échantillons de ce jour",
     "collapseDay": "Masquer les échantillons de ce jour",
-    "loadError": "Impossible de charger les mesures."
+    "loadError": "Impossible de charger les mesures.",
+    "typeCardioRecovery": "Récupération cardiaque",
+    "typeWristTemperature": "Température du poignet",
+    "typeFallCount": "Chutes",
+    "typeSixMinuteWalkDistance": "Distance de marche de 6 minutes",
+    "typeStairAscentSpeed": "Vitesse en montée d'escaliers",
+    "typeStairDescentSpeed": "Vitesse en descente d'escaliers",
+    "typeBreathingDisturbances": "Troubles respiratoires du sommeil"
   },
   "mood": {
     "title": "Humeur",
@@ -1994,7 +2001,23 @@
         "bloodGlucoseTitle": "Glycémie",
         "bloodGlucoseBody": "La glycémie est la quantité de sucre dans votre sang, principale source d'énergie de l'organisme. Elle augmente après les repas et se stabilise entre eux ; des valeurs durablement élevées peuvent signaler un diabète ou un prédiabète.",
         "skinTemperatureTitle": "Température cutanée",
-        "skinTemperatureBody": "La température cutanée correspond ici à la petite variation nocturne de la température de votre poignet par rapport à votre propre référence, et non à une mesure absolue de fièvre. Les variations peuvent suivre le sommeil, l'environnement, une maladie ou la phase du cycle menstruel."
+        "skinTemperatureBody": "La température cutanée correspond ici à la petite variation nocturne de la température de votre poignet par rapport à votre propre référence, et non à une mesure absolue de fièvre. Les variations peuvent suivre le sommeil, l'environnement, une maladie ou la phase du cycle menstruel.",
+        "cardioFitnessTitle": "Capacité cardio (VO₂ max)",
+        "cardioFitnessBody": "Le VO₂ max correspond à la quantité d'oxygène que votre corps peut utiliser à l'effort maximal. C'est le meilleur marqueur de laboratoire de la forme aérobie, et une valeur plus élevée ou en hausse est un bon signe de santé cardiovasculaire.",
+        "cardioRecoveryTitle": "Récupération cardiaque",
+        "cardioRecoveryBody": "La récupération cardiaque correspond au nombre de battements par minute dont votre fréquence cardiaque diminue dans la première minute après l'arrêt d'un effort intense. Une baisse plus forte signifie que votre cœur se calme plus vite, signe d'une bonne condition physique.",
+        "wristTemperatureTitle": "Température du poignet",
+        "wristTemperatureBody": "La température du poignet est mesurée pendant votre sommeil. Apple l'affiche comme l'écart par rapport à votre valeur de référence ; une valeur stable est normale, tandis qu'une hausse durable peut signaler une maladie, un entraînement intense ou un changement de cycle.",
+        "fallsTitle": "Chutes",
+        "fallsBody": "Ceci compte les chutes lourdes détectées par votre Apple Watch. L'objectif est zéro ; un nombre en hausse est un signal de risque de mobilité à évoquer avec un professionnel, surtout pour les personnes âgées.",
+        "sixMinuteWalkTitle": "Distance de marche de 6 minutes",
+        "sixMinuteWalkBody": "C'est l'estimation d'Apple de la distance que vous pourriez parcourir en six minutes, un test clinique classique de mobilité et d'endurance cardiopulmonaire. Une distance stable ou en hausse est un bon signe.",
+        "stairAscentSpeedTitle": "Vitesse en montée d'escaliers",
+        "stairAscentSpeedBody": "C'est la vitesse à laquelle vous montez une volée de marches. C'est un marqueur sensible de la force des jambes et de la mobilité : un rythme stable ou en hausse est bon signe, un rythme en baisse mérite attention.",
+        "stairDescentSpeedTitle": "Vitesse en descente d'escaliers",
+        "stairDescentSpeedBody": "C'est la vitesse à laquelle vous descendez une volée de marches. Avec la vitesse de montée, elle reflète le contrôle des jambes et l'équilibre : un rythme stable est bon signe, un rythme en baisse mérite attention.",
+        "breathingDisturbancesTitle": "Troubles respiratoires du sommeil",
+        "breathingDisturbancesBody": "Votre Apple Watch peut estimer à quelle fréquence votre respiration a été interrompue pendant le sommeil. Un indice plus bas est préférable ; un niveau qu'Apple signale comme élevé, surtout sur plusieurs nuits, mérite d'être évoqué avec un professionnel."
       },
       "stats": {
         "label": "Statistiques récapitulatives",
@@ -2546,7 +2569,87 @@
           }
         }
       }
-    }
+    },
+    "cardioFitness": {
+      "title": "Condition physique",
+      "description": "Votre VO₂ max au fil du temps — la principale mesure de la forme aérobie.",
+      "chartTitle": "VO₂ max (mL/(kg·min))",
+      "emptyState": {
+        "title": "Pas encore de données de condition physique",
+        "description": "Les valeurs de VO₂ max apparaissent ici dès qu'Apple Santé les synchronise depuis vos entraînements."
+      }
+    },
+    "navCardioFitness": "Condition physique",
+    "cardioRecovery": {
+      "title": "Récupération cardiaque",
+      "description": "De combien votre fréquence cardiaque baisse une minute après l'effort maximal.",
+      "chartTitle": "Récupération cardiaque (bpm)",
+      "emptyState": {
+        "title": "Pas encore de données de récupération cardiaque",
+        "description": "Les valeurs de récupération cardiaque apparaissent ici dès qu'Apple Santé les synchronise depuis un entraînement."
+      }
+    },
+    "navCardioRecovery": "Récupération cardiaque",
+    "wristTemperature": {
+      "title": "Température du poignet",
+      "description": "Votre température du poignet pendant la nuit, comparée à votre valeur de référence.",
+      "chartTitle": "Température du poignet (°C)",
+      "emptyState": {
+        "title": "Pas encore de données de température du poignet",
+        "description": "Les valeurs apparaissent ici dès qu'Apple Santé synchronise le port nocturne."
+      }
+    },
+    "navWristTemperature": "Temp. poignet",
+    "falls": {
+      "title": "Chutes",
+      "description": "Chutes lourdes détectées par votre Apple Watch, comptées par jour.",
+      "chartTitle": "Chutes par jour",
+      "emptyState": {
+        "title": "Pas encore de données de chutes",
+        "description": "Les chutes détectées apparaissent ici dès qu'Apple Santé se synchronise. L'objectif est zéro chute."
+      }
+    },
+    "navFalls": "Chutes",
+    "sixMinuteWalk": {
+      "title": "Marche de 6 minutes",
+      "description": "L'estimation d'Apple de la distance que vous pourriez parcourir en six minutes.",
+      "chartTitle": "Distance sur 6 minutes (m)",
+      "emptyState": {
+        "title": "Pas encore de données de marche de 6 minutes",
+        "description": "Les estimations apparaissent ici dès qu'Apple Santé se synchronise."
+      }
+    },
+    "navSixMinuteWalk": "Marche 6 min",
+    "stairAscentSpeed": {
+      "title": "Vitesse en montée d'escaliers",
+      "description": "À quelle vitesse vous montez les escaliers, mesurée par votre iPhone ou Watch.",
+      "chartTitle": "Vitesse de montée (m/s)",
+      "emptyState": {
+        "title": "Pas encore de données de montée d'escaliers",
+        "description": "Les valeurs apparaissent ici dès qu'Apple Santé se synchronise."
+      }
+    },
+    "navStairAscentSpeed": "Montée escaliers",
+    "stairDescentSpeed": {
+      "title": "Vitesse en descente d'escaliers",
+      "description": "À quelle vitesse vous descendez les escaliers, mesurée par votre iPhone ou Watch.",
+      "chartTitle": "Vitesse de descente (m/s)",
+      "emptyState": {
+        "title": "Pas encore de données de descente d'escaliers",
+        "description": "Les valeurs apparaissent ici dès qu'Apple Santé se synchronise."
+      }
+    },
+    "navStairDescentSpeed": "Descente escaliers",
+    "breathingDisturbances": {
+      "title": "Troubles respiratoires",
+      "description": "À quelle fréquence votre respiration a été perturbée pendant le sommeil.",
+      "chartTitle": "Troubles respiratoires du sommeil",
+      "emptyState": {
+        "title": "Pas encore de données de troubles respiratoires",
+        "description": "Les valeurs apparaissent ici dès qu'Apple Santé les synchronise depuis une Apple Watch compatible."
+      }
+    },
+    "navBreathingDisturbances": "Respiration"
   },
   "thresholds": {
     "defaultLabel": "Par défaut",

@@ -196,8 +196,28 @@ const SUB_PAGE_TABS: Record<
     labelKey: "insights.navWalkingSpeed",
     metric: "WALKING_SPEED",
   },
+  // v1.10.0 — cardio fitness (VO2 max) + Apple-Health Mobility additions.
+  "cardio-fitness": { labelKey: "insights.navCardioFitness", metric: "VO2_MAX" },
+  falls: { labelKey: "insights.navFalls", metric: "FALL_COUNT" },
+  "six-minute-walk": {
+    labelKey: "insights.navSixMinuteWalk",
+    metric: "SIX_MINUTE_WALK_DISTANCE",
+  },
+  "stair-ascent-speed": {
+    labelKey: "insights.navStairAscentSpeed",
+    metric: "STAIR_ASCENT_SPEED",
+  },
+  "stair-descent-speed": {
+    labelKey: "insights.navStairDescentSpeed",
+    metric: "STAIR_DESCENT_SPEED",
+  },
   // ── sleep ──
   sleep: { labelKey: "insights.navSleep", metric: "SLEEP_DURATION" },
+  // v1.10.0 — sleep breathing-disturbance index.
+  "breathing-disturbances": {
+    labelKey: "insights.navBreathingDisturbances",
+    metric: "BREATHING_DISTURBANCES",
+  },
   // ── cardiovascular ──
   "resting-pulse": {
     labelKey: "insights.navRestingHr",
@@ -211,6 +231,11 @@ const SUB_PAGE_TABS: Record<
   "vascular-age": {
     labelKey: "insights.navVascularAge",
     metric: "VASCULAR_AGE",
+  },
+  // v1.10.0 — cardio recovery (post-exercise HR drop).
+  "cardio-recovery": {
+    labelKey: "insights.navCardioRecovery",
+    metric: "CARDIO_RECOVERY",
   },
   // ── hearing ──
   "environmental-audio": {
@@ -238,6 +263,11 @@ const SUB_PAGE_TABS: Record<
   "skin-temperature": {
     labelKey: "insights.navSkinTemperature",
     metric: "SKIN_TEMPERATURE",
+  },
+  // v1.10.0 — overnight wrist temperature.
+  "wrist-temperature": {
+    labelKey: "insights.navWristTemperature",
+    metric: "WRIST_TEMPERATURE",
   },
   // ── mood ──
   mood: { labelKey: "insights.navMood", metric: "MOOD" },

@@ -93,6 +93,31 @@ describe("metric-status registry", () => {
       "ACTIVE_ENERGY_BURNED",
     );
   });
+
+  it("registers the v1.10.0 additive HealthKit signals with the expected direction", () => {
+    const cases = [
+      ["CARDIO_RECOVERY", "higher-better"],
+      ["WRIST_TEMPERATURE", "target-band"],
+      ["FALL_COUNT", "lower-better"],
+      ["SIX_MINUTE_WALK_DISTANCE", "higher-better"],
+      ["STAIR_ASCENT_SPEED", "higher-better"],
+      ["STAIR_DESCENT_SPEED", "higher-better"],
+      ["BREATHING_DISTURBANCES", "lower-better"],
+    ] as const;
+    for (const [id, direction] of cases) {
+      const meta = getMetricStatusMeta(id);
+      expect(meta, `${id} missing from registry`).not.toBeNull();
+      expect(meta!.measurementType).toBe(id);
+      expect(meta!.direction).toBe(direction);
+      expect(METRIC_STATUS_IDS).toContain(id);
+    }
+  });
+
+  it("anchors a six-minute-walk normal range from the population reference", () => {
+    expect(getMetricStatusMeta("SIX_MINUTE_WALK_DISTANCE")?.normalRange).toEqual(
+      { low: 400, high: 700 },
+    );
+  });
 });
 
 describe("archetype prompt templates", () => {

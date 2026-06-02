@@ -226,6 +226,53 @@ export const MEASUREMENT_LOINC: Record<string, LoincMapping> = {
     unit: "1",
     category: "vital-signs",
   },
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // No stable LOINC term for these Apple-specific quantities, so each
+  // routes through the shared HEALTHKIT_CODESYSTEM with the raw
+  // HKQuantityTypeIdentifier… string as the code (a non-LOINC code under
+  // the LOINC namespace would fail FHIR conformance).
+  CARDIO_RECOVERY: {
+    loinc: "HKQuantityTypeIdentifierHeartRateRecoveryOneMinute",
+    display: "Cardio recovery (1-minute heart-rate recovery)",
+    unit: "/min",
+    category: "vital-signs",
+  },
+  WRIST_TEMPERATURE: {
+    loinc: "HKQuantityTypeIdentifierAppleSleepingWristTemperature",
+    display: "Sleeping wrist temperature",
+    unit: "Cel",
+    category: "vital-signs",
+  },
+  FALL_COUNT: {
+    loinc: "HKQuantityTypeIdentifierNumberOfTimesFallen",
+    display: "Number of times fallen",
+    unit: "{falls}",
+    category: "activity",
+  },
+  SIX_MINUTE_WALK_DISTANCE: {
+    loinc: "HKQuantityTypeIdentifierSixMinuteWalkTestDistance",
+    display: "Six-minute walk test distance",
+    unit: "m",
+    category: "activity",
+  },
+  STAIR_ASCENT_SPEED: {
+    loinc: "HKQuantityTypeIdentifierStairAscentSpeed",
+    display: "Stair ascent speed",
+    unit: "m/s",
+    category: "vital-signs",
+  },
+  STAIR_DESCENT_SPEED: {
+    loinc: "HKQuantityTypeIdentifierStairDescentSpeed",
+    display: "Stair descent speed",
+    unit: "m/s",
+    category: "vital-signs",
+  },
+  BREATHING_DISTURBANCES: {
+    loinc: "HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances",
+    display: "Sleeping breathing disturbances",
+    unit: "{count}",
+    category: "vital-signs",
+  },
 };
 
 /** BP panel + component LOINC codes. */

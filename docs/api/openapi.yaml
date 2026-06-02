@@ -376,6 +376,13 @@ paths:
               - WALKING_DOUBLE_SUPPORT
               - WALKING_STEP_LENGTH
               - WALKING_SPEED
+              - CARDIO_RECOVERY
+              - WRIST_TEMPERATURE
+              - FALL_COUNT
+              - SIX_MINUTE_WALK_DISTANCE
+              - STAIR_ASCENT_SPEED
+              - STAIR_DESCENT_SPEED
+              - BREATHING_DISTURBANCES
         - in: query
           name: from
           schema:
@@ -509,6 +516,13 @@ paths:
                     - WALKING_DOUBLE_SUPPORT
                     - WALKING_STEP_LENGTH
                     - WALKING_SPEED
+                    - CARDIO_RECOVERY
+                    - WRIST_TEMPERATURE
+                    - FALL_COUNT
+                    - SIX_MINUTE_WALK_DISTANCE
+                    - STAIR_ASCENT_SPEED
+                    - STAIR_DESCENT_SPEED
+                    - BREATHING_DISTURBANCES
                 value:
                   type: number
                 measuredAt:
@@ -2069,6 +2083,13 @@ paths:
               - WALKING_DOUBLE_SUPPORT
               - WALKING_STEP_LENGTH
               - WALKING_SPEED
+              - CARDIO_RECOVERY
+              - WRIST_TEMPERATURE
+              - FALL_COUNT
+              - SIX_MINUTE_WALK_DISTANCE
+              - STAIR_ASCENT_SPEED
+              - STAIR_DESCENT_SPEED
+              - BREATHING_DISTURBANCES
             description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
           required: true
           description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
@@ -2312,6 +2333,13 @@ paths:
               - AUDIO_EXPOSURE_HEADPHONE
               - AUDIO_EXPOSURE_EVENT
               - SLEEP_DURATION
+              - CARDIO_RECOVERY
+              - WRIST_TEMPERATURE
+              - FALL_COUNT
+              - SIX_MINUTE_WALK_DISTANCE
+              - STAIR_ASCENT_SPEED
+              - STAIR_DESCENT_SPEED
+              - BREATHING_DISTURBANCES
             description: "HealthKit metric id to assess (e.g. RESTING_HEART_RATE, SLEEP_DURATION). Closed enum: an unknown id 422s.
               The seven specialised metrics are served by their own routes and are not accepted here."
           required: true
@@ -3165,17 +3193,25 @@ components:
                   - double-support-time
                   - step-length
                   - walking-speed
+                  - cardio-fitness
+                  - falls
+                  - six-minute-walk
+                  - stair-ascent-speed
+                  - stair-descent-speed
                   - sleep
+                  - breathing-disturbances
                   - resting-pulse
                   - hrv
                   - pulse-wave-velocity
                   - vascular-age
+                  - cardio-recovery
                   - environmental-audio
                   - headphone-audio
                   - audio-events
                   - daylight
                   - blood-glucose
                   - skin-temperature
+                  - wrist-temperature
                   - mood
                   - medications
                   - blutdruck
@@ -3715,6 +3751,13 @@ components:
             - WALKING_DOUBLE_SUPPORT
             - WALKING_STEP_LENGTH
             - WALKING_SPEED
+            - CARDIO_RECOVERY
+            - WRIST_TEMPERATURE
+            - FALL_COUNT
+            - SIX_MINUTE_WALK_DISTANCE
+            - STAIR_ASCENT_SPEED
+            - STAIR_DESCENT_SPEED
+            - BREATHING_DISTURBANCES
         value:
           type: number
         unit:
@@ -4005,6 +4048,13 @@ components:
             - WALKING_DOUBLE_SUPPORT
             - WALKING_STEP_LENGTH
             - WALKING_SPEED
+            - CARDIO_RECOVERY
+            - WRIST_TEMPERATURE
+            - FALL_COUNT
+            - SIX_MINUTE_WALK_DISTANCE
+            - STAIR_ASCENT_SPEED
+            - STAIR_DESCENT_SPEED
+            - BREATHING_DISTURBANCES
         value:
           type: number
         unit:
@@ -7766,17 +7816,25 @@ components:
                   - double-support-time
                   - step-length
                   - walking-speed
+                  - cardio-fitness
+                  - falls
+                  - six-minute-walk
+                  - stair-ascent-speed
+                  - stair-descent-speed
                   - sleep
+                  - breathing-disturbances
                   - resting-pulse
                   - hrv
                   - pulse-wave-velocity
                   - vascular-age
+                  - cardio-recovery
                   - environmental-audio
                   - headphone-audio
                   - audio-events
                   - daylight
                   - blood-glucose
                   - skin-temperature
+                  - wrist-temperature
                   - mood
                   - medications
                   - blutdruck
