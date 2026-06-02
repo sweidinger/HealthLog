@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  STABILITY_MIN_DAYS,
+  STABILITY_SD_FULL_SCALE,
+  TIME_OF_DAY_MIN_BUCKET_SAMPLES,
+  bucketForHour,
   computeDistribution,
   computeHeatmapCells,
   computeInTargetPct,
   computeMoodAggregates,
   computeMoodMetricCorrelation,
+  computeMoodStability,
   computeStructuredTagSummary,
   computeTagSummary,
+  computeTimeOfDayAverages,
   computeWeekdayAverages,
   selectHeatmapWindow,
   type CrossMetricMeasurement,
@@ -299,5 +305,160 @@ describe("computeMoodAggregates", () => {
     expect(agg.heatmap.windowDays).toBe(30);
     expect(agg.heatmap.cells).toEqual([]);
     expect(agg.distribution.every((d) => d.count === 0)).toBe(true);
+  });
+
+  it("carries the time-of-day pattern and stability fields", () => {
+    const agg = computeMoodAggregates({
+      entries: [],
+      measurements: [],
+      now: NOW,
+    });
+    expect(agg.timeOfDay.reliable).toBe(false);
+    expect(agg.timeOfDay.buckets.map((b) => b.bucket)).toEqual([
+      "morning",
+      "afternoon",
+      "evening",
+      "night",
+    ]);
+    expect(agg.stability).toBeNull();
+  });
+});
+
+describe("bucketForHour", () => {
+  it("maps each hour to its part of day with night wrapping midnight", () => {
+    expect(bucketForHour(0)).toBe("night");
+    expect(bucketForHour(4)).toBe("night");
+    expect(bucketForHour(5)).toBe("morning");
+    expect(bucketForHour(11)).toBe("morning");
+    expect(bucketForHour(12)).toBe("afternoon");
+    expect(bucketForHour(16)).toBe("afternoon");
+    expect(bucketForHour(17)).toBe("evening");
+    expect(bucketForHour(20)).toBe("evening");
+    expect(bucketForHour(21)).toBe("night");
+    expect(bucketForHour(23)).toBe("night");
+  });
+});
+
+describe("computeTimeOfDayAverages", () => {
+  /** Build an entry at a fixed UTC instant + hour, in a given tz. */
+  function tzEntry(
+    daysAgo: number,
+    utcHour: number,
+    score: number,
+    tz: string | null = "UTC",
+  ): MoodAggregateEntry {
+    const base = new Date(NOW.getTime() - daysAgo * dayMs);
+    base.setUTCHours(utcHour, 0, 0, 0);
+    return { date: dayKey(daysAgo), score, tags: null, moodLoggedAt: base, tz };
+  }
+
+  it("buckets entries by part of day and averages per bucket", () => {
+    const entries: MoodAggregateEntry[] = [
+      tzEntry(1, 8, 5),
+      tzEntry(2, 9, 3),
+      tzEntry(3, 14, 4),
+      tzEntry(4, 14, 2),
+    ];
+    const pattern = computeTimeOfDayAverages(entries);
+    const morning = pattern.buckets.find((b) => b.bucket === "morning");
+    const afternoon = pattern.buckets.find((b) => b.bucket === "afternoon");
+    expect(morning).toEqual({ bucket: "morning", avgScore: 4, count: 2 });
+    expect(afternoon).toEqual({ bucket: "afternoon", avgScore: 3, count: 2 });
+  });
+
+  it("honours the per-row timezone when bucketing the local hour", () => {
+    // 06:00 UTC is 08:00 in Berlin (summer, UTC+2) → morning, but stays
+    // in the night bucket (00:00–04:59) under a UTC-6 zone.
+    const berlin = computeTimeOfDayAverages([
+      tzEntry(1, 6, 5, "Europe/Berlin"),
+    ]);
+    expect(berlin.buckets.find((b) => b.bucket === "morning")?.count).toBe(1);
+
+    const chicago = computeTimeOfDayAverages([
+      tzEntry(1, 6, 5, "America/Chicago"),
+    ]);
+    expect(chicago.buckets.find((b) => b.bucket === "night")?.count).toBe(1);
+  });
+
+  it("falls back to UTC for legacy rows without a tz", () => {
+    const pattern = computeTimeOfDayAverages([tzEntry(1, 14, 5, null)]);
+    expect(pattern.buckets.find((b) => b.bucket === "afternoon")?.count).toBe(1);
+  });
+
+  it("is unreliable for a once-a-day logger clustered in one bucket", () => {
+    // Ten nightly logs, all in the evening bucket → single-bucket spread.
+    const entries = Array.from({ length: 10 }, (_, i) => tzEntry(i, 19, 4));
+    const pattern = computeTimeOfDayAverages(entries);
+    expect(pattern.reliable).toBe(false);
+    expect(pattern.best).toBeNull();
+    expect(pattern.worst).toBeNull();
+  });
+
+  it("is unreliable when a second bucket is below the sample floor", () => {
+    const entries = [
+      ...Array.from({ length: 5 }, (_, i) => tzEntry(i, 8, 5)), // morning ≥ floor
+      tzEntry(5, 14, 3), // a single afternoon log, below the floor
+    ];
+    expect(TIME_OF_DAY_MIN_BUCKET_SAMPLES).toBeGreaterThan(1);
+    const pattern = computeTimeOfDayAverages(entries);
+    expect(pattern.reliable).toBe(false);
+  });
+
+  it("surfaces best/worst once two buckets clear the sample floor", () => {
+    const entries = [
+      ...Array.from({ length: 4 }, (_, i) => tzEntry(i, 8, 5)), // morning avg 5
+      ...Array.from({ length: 4 }, (_, i) => tzEntry(i + 4, 22, 2)), // night avg 2
+    ];
+    const pattern = computeTimeOfDayAverages(entries);
+    expect(pattern.reliable).toBe(true);
+    expect(pattern.best).toBe("morning");
+    expect(pattern.worst).toBe("night");
+  });
+});
+
+describe("computeMoodStability", () => {
+  function points(values: number[]) {
+    return values.map((value, i) => ({ dayOffset: i, value }));
+  }
+
+  it("returns null below the minimum-days floor", () => {
+    const sparse = points(Array(STABILITY_MIN_DAYS - 1).fill(3));
+    expect(computeMoodStability(sparse)).toBeNull();
+  });
+
+  it("scores a perfectly flat mood at 100 (very steady)", () => {
+    const flat = points(Array(STABILITY_MIN_DAYS).fill(3));
+    const stability = computeMoodStability(flat);
+    expect(stability).not.toBeNull();
+    expect(stability?.score).toBe(100);
+    expect(stability?.stdDev).toBe(0);
+    expect(stability?.band).toBe("verySteady");
+    expect(stability?.days).toBe(STABILITY_MIN_DAYS);
+  });
+
+  it("scores an sd at or beyond the full-scale cap at 0 (very variable)", () => {
+    // Alternating 1 / 5 → sd 2.0 > FULL_SCALE → clamped to 0.
+    const swing = points(
+      Array.from({ length: 10 }, (_, i) => (i % 2 === 0 ? 1 : 5)),
+    );
+    const stability = computeMoodStability(swing);
+    expect(stability?.score).toBe(0);
+    expect(stability?.band).toBe("veryVariable");
+    expect(stability?.stdDev).toBeGreaterThanOrEqual(STABILITY_SD_FULL_SCALE);
+  });
+
+  it("scales linearly between the bounds", () => {
+    // A balanced series alternating ±halfFull around its mean has a
+    // population sd of exactly halfFull → score 50.
+    const halfFull = STABILITY_SD_FULL_SCALE / 2;
+    const balanced = points(
+      Array.from({ length: 8 }, (_, i) =>
+        i % 2 === 0 ? 3 - halfFull : 3 + halfFull,
+      ),
+    );
+    const stability = computeMoodStability(balanced);
+    expect(stability?.stdDev).toBe(halfFull);
+    expect(stability?.score).toBe(50);
+    expect(stability?.band).toBe("variable");
   });
 });

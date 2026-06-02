@@ -13,8 +13,10 @@ import {
   MOOD_ORANGE_MAX,
   MOOD_ORANGE_MIN,
   computeInTargetPct,
+  computeMoodStability,
   computeStructuredTagSummary,
   computeTagSummary,
+  computeTimeOfDayAverages,
   computeWeekdayAverages,
   pairDailyBuckets,
 } from "@/lib/insights/mood-aggregates";
@@ -122,6 +124,9 @@ export async function generateMoodStatusForUser(
         score: true,
         tags: true,
         moodLoggedAt: true,
+        // v1.9.0 — per-row tz anchors the part-of-day bucketing so the
+        // snapshot's time-of-day signal matches the visible mood page.
+        tz: true,
         // v1.8.6 — pull the structured-tag links so the snapshot feeds
         // `computeMoodNarratives` the same structured-tag pool the visible
         // mood page does (shown == sent for the tag→mood takeaways).
@@ -145,6 +150,7 @@ export async function generateMoodStatusForUser(
         score: row.score,
         tags: row.tags,
         moodLoggedAt: row.moodLoggedAt,
+        tz: row.tz,
         structuredTags: (row.tagLinks ?? []).map((link) => ({
           key: link.moodTag.key,
           categoryKey: link.moodTag.category.key,
@@ -266,9 +272,16 @@ export async function generateMoodStatusForUser(
   // model writes never contradicts the takeaways on screen (shown ==
   // sent). Both the flat free-text tags and the structured taxonomy tags
   // feed the tag→mood pool, matching the visible feed exactly.
+  // v1.9.0 — tz-aware part-of-day pattern + day-to-day stability. Computed
+  // here so the snapshot carries the same signals the visible mood page
+  // surfaces (shown == sent), and the narrative feed can cite the daypart.
+  const timeOfDay = computeTimeOfDayAverages(entries);
+  const stability = computeMoodStability(moodSeries.daily);
+
   const narratives = computeMoodNarratives({
     daily: moodSeries.daily,
     weekday: computeWeekdayAverages(moodSeries.daily, now),
+    timeOfDay,
     tags: tagSummary,
     structuredTags: structuredTagSummary,
     inTargetPct: inTargetPctLast30DailyPoints,
@@ -307,6 +320,17 @@ export async function generateMoodStatusForUser(
       },
       tags: tagSummary.length > 0 ? tagSummary : null,
       narratives: narratives.length > 0 ? narratives : null,
+      // v1.9.0 — only emit the daypart pattern when it cleared its
+      // spread/sample floors, so the model never reasons over a once-a-day
+      // logger's single-bucket artefact.
+      timeOfDay: timeOfDay.reliable
+        ? {
+            buckets: timeOfDay.buckets,
+            best: timeOfDay.best,
+            worst: timeOfDay.worst,
+          }
+        : null,
+      stability,
     },
     crossMetricContext:
       weightSeries.daily.length >= 3 ||
