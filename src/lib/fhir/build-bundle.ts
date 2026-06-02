@@ -243,6 +243,14 @@ function codeableFromMapping(m: LoincMapping): FhirCodeableConcept {
   return { text: m.display };
 }
 
+/** v1.10.0 — English display per persisted wellness-score type (FHIR
+ *  text-only concept; the score has no published LOINC term). */
+const WELLNESS_SCORE_DISPLAY: Record<string, string> = {
+  RECOVERY_SCORE: "Recovery score",
+  STRESS_SCORE: "Stress score",
+  STRAIN_SCORE: "Strain score",
+};
+
 function categoryConcept(category: string): FhirCodeableConcept {
   return {
     coding: [
@@ -538,6 +546,39 @@ export function buildFhirDocumentBundle(
         code: "{score}",
       },
     });
+  }
+
+  // --- Wellness-score Observations (descriptive composites) --------------
+  // v1.10.0 — the server-derived nightly scores (recovery / stress /
+  // strain). They have no published LOINC term and are NOT clinical
+  // findings, so each is emitted under the `survey` category with a
+  // text-only concept and an explicit "descriptive, not a clinical
+  // assessment" note — a physician's FHIR viewer never mistakes a band for
+  // a diagnosis. Absent when the aggregator emitted no scores.
+  if (data.wellnessScores && data.wellnessScores.length > 0) {
+    for (const s of data.wellnessScores) {
+      obsSeq += 1;
+      pushObservation({
+        resourceType: "Observation",
+        id: `obs-${obsSeq}`,
+        status: "final",
+        category: [categoryConcept("survey")],
+        code: { text: WELLNESS_SCORE_DISPLAY[s.type] ?? "Wellness score" },
+        subject: patientRef,
+        effectiveDateTime: s.latestAt,
+        valueQuantity: {
+          value: s.latest,
+          unit: "{score}",
+          system: UCUM_SYSTEM,
+          code: "{score}",
+        },
+        note: [
+          {
+            text: "Descriptive wellness score (0–100) computed from tracked signals; not a clinical assessment or diagnosis.",
+          },
+        ],
+      });
+    }
   }
 
   // --- MedicationStatement per active medication -------------------------

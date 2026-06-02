@@ -63,6 +63,11 @@ export interface FhirPatient {
   birthDate?: string; // YYYY-MM-DD
 }
 
+/** R4 `Annotation` — a free-text note attached to a resource. */
+export interface FhirAnnotation {
+  text: string;
+}
+
 export interface FhirObservation {
   resourceType: "Observation";
   id: string;
@@ -75,6 +80,8 @@ export interface FhirObservation {
   valueInteger?: number;
   valueString?: string;
   component?: FhirObservationComponent[];
+  /** v1.10.0 — descriptive note (e.g. the wellness-score disclaimer). */
+  note?: FhirAnnotation[];
 }
 
 export interface FhirDosage {

@@ -158,7 +158,12 @@
     "chartsTitle": "Wykresy trendów",
     "aiSummaryTitle": "Podsumowanie AI — niezweryfikowane klinicznie",
     "aiSummaryDisclaimer": "Ta sekcja została wygenerowana automatycznie przez model AI i nie jest zweryfikowana klinicznie. Nie zastępuje oceny lekarskiej.",
-    "packageReadme": "Dokumentacja zdrowotna HealthLog\n\nTen pakiet zawiera:\n- report.pdf: raport zdrowotny dla lekarza.\n- bundle.json: te same dane jako dokument HL7 FHIR R4 (Bundle), zgodny z ePA.\n\nWygenerowano w HealthLog."
+    "packageReadme": "Dokumentacja zdrowotna HealthLog\n\nTen pakiet zawiera:\n- report.pdf: raport zdrowotny dla lekarza.\n- bundle.json: te same dane jako dokument HL7 FHIR R4 (Bundle), zgodny z ePA.\n\nWygenerowano w HealthLog.",
+    "wellnessTitle": "Podsumowanie dobrostanu",
+    "wellnessDisclaimer": "To opisowe wyniki dobrostanu obliczone na podstawie śledzonych sygnałów (0–100). Nie są to oceny kliniczne ani diagnozy.",
+    "wellnessRecovery": "Regeneracja",
+    "wellnessStress": "Stres",
+    "wellnessStrain": "Obciążenie"
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",

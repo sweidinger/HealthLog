@@ -158,7 +158,12 @@
     "chartsTitle": "Grafici di tendenza",
     "aiSummaryTitle": "Riepilogo IA — non validato clinicamente",
     "aiSummaryDisclaimer": "Questa sezione è stata generata automaticamente da un modello di IA e non è validata clinicamente. Non sostituisce una valutazione medica.",
-    "packageReadme": "Cartella clinica HealthLog\n\nQuesto pacchetto contiene:\n- report.pdf: il referto sanitario per il medico.\n- bundle.json: gli stessi dati come Bundle documento HL7 FHIR R4, compatibile ePA.\n\nGenerato con HealthLog."
+    "packageReadme": "Cartella clinica HealthLog\n\nQuesto pacchetto contiene:\n- report.pdf: il referto sanitario per il medico.\n- bundle.json: gli stessi dati come Bundle documento HL7 FHIR R4, compatibile ePA.\n\nGenerato con HealthLog.",
+    "wellnessTitle": "Riepilogo del benessere",
+    "wellnessDisclaimer": "Sono punteggi di benessere descrittivi calcolati dai tuoi segnali registrati (0–100). Non sono valutazioni cliniche né diagnosi.",
+    "wellnessRecovery": "Recupero",
+    "wellnessStress": "Stress",
+    "wellnessStrain": "Sforzo"
   },
   "errorBoundary": {
     "title": "Qualcosa è andato storto",

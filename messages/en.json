@@ -158,7 +158,12 @@
     "chartsTitle": "Trend charts",
     "aiSummaryTitle": "AI summary — not clinically validated",
     "aiSummaryDisclaimer": "This section was generated automatically by an AI model and is not clinically validated. It does not replace a medical assessment.",
-    "packageReadme": "HealthLog health record\n\nThis package contains:\n- report.pdf: the health report for your doctor.\n- bundle.json: the same data as an HL7 FHIR R4 document Bundle, ePA-compatible.\n\nGenerated with HealthLog."
+    "packageReadme": "HealthLog health record\n\nThis package contains:\n- report.pdf: the health report for your doctor.\n- bundle.json: the same data as an HL7 FHIR R4 document Bundle, ePA-compatible.\n\nGenerated with HealthLog.",
+    "wellnessTitle": "Wellness summary",
+    "wellnessDisclaimer": "These are descriptive wellness scores computed from your tracked signals (0–100). They are not clinical assessments or diagnoses.",
+    "wellnessRecovery": "Recovery",
+    "wellnessStress": "Stress",
+    "wellnessStrain": "Strain"
   },
   "errorBoundary": {
     "title": "Something went wrong",

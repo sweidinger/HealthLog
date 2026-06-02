@@ -158,7 +158,12 @@
     "chartsTitle": "Gráficos de tendencia",
     "aiSummaryTitle": "Resumen de IA — no validado clínicamente",
     "aiSummaryDisclaimer": "Esta sección fue generada automáticamente por un modelo de IA y no está validada clínicamente. No sustituye una evaluación médica.",
-    "packageReadme": "Historial de salud de HealthLog\n\nEste paquete contiene:\n- report.pdf: el informe de salud para su médico.\n- bundle.json: los mismos datos como Bundle de documento HL7 FHIR R4, compatible con ePA.\n\nGenerado con HealthLog."
+    "packageReadme": "Historial de salud de HealthLog\n\nEste paquete contiene:\n- report.pdf: el informe de salud para su médico.\n- bundle.json: los mismos datos como Bundle de documento HL7 FHIR R4, compatible con ePA.\n\nGenerado con HealthLog.",
+    "wellnessTitle": "Resumen de bienestar",
+    "wellnessDisclaimer": "Son puntuaciones de bienestar descriptivas calculadas a partir de tus señales registradas (0–100). No son evaluaciones clínicas ni diagnósticos.",
+    "wellnessRecovery": "Recuperación",
+    "wellnessStress": "Estrés",
+    "wellnessStrain": "Esfuerzo"
   },
   "errorBoundary": {
     "title": "Algo ha salido mal",

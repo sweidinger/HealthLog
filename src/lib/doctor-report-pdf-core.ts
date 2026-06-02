@@ -208,6 +208,13 @@ const MOOD_LABEL_KEYS: Record<number, string> = {
   5: "doctorReport.moodGreat",
 };
 
+/** v1.10.0 — display-label key per persisted wellness-score type. */
+const WELLNESS_SCORE_LABEL_KEYS: Record<string, string> = {
+  RECOVERY_SCORE: "doctorReport.wellnessRecovery",
+  STRESS_SCORE: "doctorReport.wellnessStress",
+  STRAIN_SCORE: "doctorReport.wellnessStrain",
+};
+
 const GLUCOSE_LABEL_KEYS = {
   FASTING: "doctorReport.typeGlucoseFasting",
   POSTPRANDIAL: "doctorReport.typeGlucosePostprandial",
@@ -1115,6 +1122,81 @@ export function buildDoctorReportPdfDocument(
         ],
       ],
       body: distRows,
+      theme: "grid",
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        textColor: [30, 30, 30],
+        lineColor: [200, 200, 200],
+        lineWidth: 0.3,
+      },
+      headStyles: {
+        fillColor: [245, 245, 245],
+        textColor: [30, 30, 30],
+        fontStyle: "bold",
+      },
+      margin: {
+        left: margin,
+        right: margin,
+        top: margin,
+        bottom: tableBottomMargin,
+      },
+    });
+    y =
+      (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+        .finalY + 8;
+  }
+
+  // v1.10.0 — wellness summary. The server-derived nightly scores
+  // (recovery / stress / strain) are 0–100 DESCRIPTIVE composites, NOT
+  // clinical vitals — they render in their own clearly-labelled section,
+  // separate from the vitals table, with a "descriptive, not a clinical
+  // assessment" disclaimer so a physician never mistakes a band for a
+  // finding. Skipped entirely when the aggregator emitted no scores.
+  if (data.wellnessScores && data.wellnessScores.length > 0) {
+    const scoreRows = data.wellnessScores.map((s) => [
+      t(WELLNESS_SCORE_LABEL_KEYS[s.type] ?? "doctorReport.wellnessTitle"),
+      String(s.latest),
+      String(s.avg),
+      String(s.min),
+      String(s.max),
+      String(s.count),
+    ]);
+
+    // Keep the heading + disclaimer with the first table row.
+    y = ensureSpace(y, 6 + 6 + 6 + estimateTableHeight(1));
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(t("doctorReport.wellnessTitle"), margin, y);
+    y += 6;
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "italic");
+    const wellnessDisclaimer = doc.splitTextToSize(
+      t("doctorReport.wellnessDisclaimer"),
+      pageWidth - margin * 2,
+    );
+    for (const line of wellnessDisclaimer) {
+      doc.text(line, margin, y);
+      y += 4;
+    }
+    y += 2;
+    doc.setFont("helvetica", "normal");
+
+    autoTable(doc, {
+      startY: y,
+      head: [
+        [
+          t("doctorReport.colParameter"),
+          t("doctorReport.colCurrent"),
+          t("doctorReport.colAvgPeriod"),
+          t("doctorReport.colMin"),
+          t("doctorReport.colMax"),
+          t("doctorReport.colN"),
+        ],
+      ],
+      body: scoreRows,
       theme: "grid",
       styles: {
         fontSize: 9,

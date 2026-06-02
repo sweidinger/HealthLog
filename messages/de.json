@@ -158,7 +158,12 @@
     "chartsTitle": "Trend-Diagramme",
     "aiSummaryTitle": "KI-Zusammenfassung — nicht klinisch validiert",
     "aiSummaryDisclaimer": "Dieser Abschnitt wurde automatisch von einem KI-Modell erzeugt und ist nicht klinisch validiert. Er ersetzt keine ärztliche Beurteilung.",
-    "packageReadme": "HealthLog Gesundheitsakte\n\nDieses Paket enthält:\n- report.pdf: den Gesundheitsbericht für die ärztliche Vorlage.\n- bundle.json: dieselben Daten als HL7-FHIR-R4-Dokument (Bundle), ePA-kompatibel.\n\nErstellt mit HealthLog."
+    "packageReadme": "HealthLog Gesundheitsakte\n\nDieses Paket enthält:\n- report.pdf: den Gesundheitsbericht für die ärztliche Vorlage.\n- bundle.json: dieselben Daten als HL7-FHIR-R4-Dokument (Bundle), ePA-kompatibel.\n\nErstellt mit HealthLog.",
+    "wellnessTitle": "Wellness-Zusammenfassung",
+    "wellnessDisclaimer": "Dies sind beschreibende Wellness-Werte, die aus deinen erfassten Signalen berechnet werden (0–100). Sie sind keine klinischen Beurteilungen oder Diagnosen.",
+    "wellnessRecovery": "Erholung",
+    "wellnessStress": "Stress",
+    "wellnessStrain": "Belastung"
   },
   "errorBoundary": {
     "title": "Da ist etwas schiefgelaufen",

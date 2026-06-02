@@ -170,7 +170,35 @@ export interface DoctorReportData {
     weightEndKg: number | null;
     sideEffects: Array<{ tag: string; count: number }>;
   } | null;
+  /**
+   * v1.10.0 — the server-derived nightly wellness scores
+   * (RECOVERY_SCORE / STRESS_SCORE / STRAIN_SCORE), summarised over the
+   * report window. These are 0–100 DESCRIPTIVE composites, NOT clinical
+   * vitals — they are rendered in a clearly-labelled "Wellness summary"
+   * section separate from the clinical vitals table, each with a
+   * "descriptive, not a clinical assessment" note. Null/absent when the
+   * user has no computed scores in the window (the renderer + FHIR builder
+   * then skip the section). Optional so pre-v1.10 fixtures still typecheck.
+   */
+  wellnessScores?: Array<{
+    /** The score MeasurementType (RECOVERY_SCORE / STRESS_SCORE / STRAIN_SCORE). */
+    type: string;
+    latest: number;
+    avg: number;
+    min: number;
+    max: number;
+    count: number;
+    /** ISO timestamp of the latest score. */
+    latestAt: string;
+  }> | null;
 }
+
+/** The three persisted score types surfaced in the wellness summary. */
+export const WELLNESS_SCORE_REPORT_TYPES = [
+  "RECOVERY_SCORE",
+  "STRESS_SCORE",
+  "STRAIN_SCORE",
+] as const;
 
 const GLUCOSE_CONTEXTS: GlucoseContext[] = [
   "FASTING",
@@ -752,6 +780,30 @@ export async function collectDoctorReportData(
     };
   }
 
+  // v1.10.0 — wellness-score summary. The persisted COMPUTED `*_SCORE`
+  // rows are already in `byType`/`stats` (they're only filtered out of the
+  // clinical vitals table). Summarise each present score type for the
+  // separate "Wellness summary" section. Empty array → null so the renderer
+  // + FHIR builder skip the section entirely.
+  const wellnessScoreSummaries = WELLNESS_SCORE_REPORT_TYPES.flatMap((type) => {
+    const s = stats[type];
+    const rows = byType[type];
+    if (!s || !rows || rows.length === 0) return [];
+    return [
+      {
+        type,
+        latest: Math.round(s.latest),
+        avg: Math.round(s.avg),
+        min: Math.round(s.min),
+        max: Math.round(s.max),
+        count: s.count,
+        latestAt: rows[rows.length - 1].measuredAt,
+      },
+    ];
+  });
+  const wellnessScores =
+    wellnessScoreSummaries.length > 0 ? wellnessScoreSummaries : null;
+
   return {
     period: {
       days,
@@ -798,6 +850,7 @@ export async function collectDoctorReportData(
       : null,
     mood,
     glp1,
+    wellnessScores,
   };
 }
 
