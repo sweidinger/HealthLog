@@ -1175,6 +1175,119 @@ const metricStatusResponse = z
       "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
   });
 
+// The seven specialised `*-status` routes accept an optional locale
+// override (the metric is fixed by the route path, unlike the generic
+// metric-status route which carries it as a query field).
+const insightStatusQuery = z
+  .object({
+    locale: z
+      .enum(["de", "en"])
+      .optional()
+      .describe("Optional UI-locale override; defaults to the session locale."),
+  })
+  .meta({ id: "InsightStatusQuery" });
+
+// Shared response shape for the five text-bearing specialised status
+// routes (blood-pressure, pulse, weight, bmi, mood). Same envelope as
+// the generic metric-status card minus the `insufficient` flag, which is
+// metric-status-only. Read-only + stale-while-revalidate.
+const insightStatusResponse = z
+  .object({
+    hasProvider: z
+      .boolean()
+      .describe(
+        "False when the user has no usable AI provider — `text` then carries the generic no-key guidance.",
+      ),
+    text: z
+      .string()
+      .nullable()
+      .describe(
+        "The assessment narrative (plain text, rendered as React text children). Null while a first generation is preparing.",
+      ),
+    cached: z
+      .boolean()
+      .describe("True when `text` is served from cache (incl. last-good)."),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("When the served assessment was generated; null when none."),
+    preparing: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when a first assessment is being generated out of band and no prior text exists yet — the client polls until it lands.",
+      ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The client keeps polling on `preparing || revalidating` (bounded) so the open card upgrades to the warmed assessment without a remount.",
+      ),
+  })
+  .meta({
+    id: "InsightStatusResponse",
+    description:
+      "Specialised per-metric assessment envelope (blood-pressure, pulse, weight, bmi, mood). Identical shape to the generic metric-status card so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
+  });
+
+// The medication-compliance route carries a richer envelope than the
+// other six: a `summary` narrative plus a per-medication `text` array,
+// instead of a single `text` field.
+const medicationComplianceStatusResponse = z
+  .object({
+    hasProvider: z
+      .boolean()
+      .describe(
+        "False when the user has no usable AI provider — `summary` then carries the generic no-key guidance.",
+      ),
+    summary: z
+      .string()
+      .nullable()
+      .describe(
+        "The overall compliance narrative (plain text). Null while a first generation is preparing.",
+      ),
+    medications: z
+      .array(
+        z
+          .object({
+            medicationId: z
+              .string()
+              .describe("The medication this note belongs to."),
+            text: z
+              .string()
+              .describe("Per-medication compliance note (plain text)."),
+          })
+          .meta({ id: "MedicationComplianceStatusItem" }),
+      )
+      .describe(
+        "Per-medication compliance notes. Empty while preparing or when no medication qualifies.",
+      ),
+    cached: z
+      .boolean()
+      .describe("True when the envelope is served from cache (incl. last-good)."),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("When the served assessment was generated; null when none."),
+    preparing: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when a first assessment is being generated out of band and no prior summary exists yet — the client polls until it lands.",
+      ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when the envelope is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The client keeps polling on `preparing || revalidating` (bounded).",
+      ),
+  })
+  .meta({
+    id: "MedicationComplianceStatusResponse",
+    description:
+      "Medication-compliance assessment envelope. Unlike the other six specialised cards it carries a `summary` plus a per-medication `text` array rather than a single `text` field. Read-only + stale-while-revalidate.",
+  });
+
 const analyticsRangeQuery = z
   .object({
     type: measurementTypeEnum.describe(
@@ -2567,6 +2680,157 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 analyticsRangeResponse,
                 "AnalyticsRangeResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/blood-pressure-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Blood-pressure assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent blood-pressure readings. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "BloodPressureStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/pulse-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Pulse assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent resting-pulse readings. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "PulseStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/weight-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Weight assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent weight trend. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "WeightStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/bmi-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "BMI assessment",
+      description:
+        "Data-driven plain-language assessment of the user's body-mass index. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "BmiStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/mood-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Mood assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent mood entries. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "MoodStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/medication-compliance-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Medication-compliance assessment",
+      description:
+        "Data-driven plain-language assessment of the user's medication compliance — an overall `summary` plus a per-medication note array. Read-only: a cache miss warms a generation out of band and serves the last-good envelope meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description:
+            "Compliance assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationComplianceStatusResponse,
+                "MedicationComplianceStatusResponseEnvelope",
               ),
             },
           },
