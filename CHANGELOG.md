@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.8.7] — 2026-06-02 — Instant insight assessments, GLP-1 blood-level chart, tile + caption polish
+
+### Fixed
+
+- **Insight assessments are instant again.** A category's assessment was being re-prepared on almost every visit: the constant Apple Health / Withings sync kept evicting the cached text, and a miss only ever deleted-and-waited. Assessments now serve the last good text immediately (stale-while-revalidate) and refresh in the background — "preparing" shows only when an assessment has genuinely never been generated. The background refresh is also debounced per metric, so a sync burst no longer triggers a storm of regenerations, and it warms only the active language (halving the work).
+- **The dashboard tiles never truncate the value.** In a dense tile strip the number could clip or wrap mid-value (e.g. "130 mmHg" showing as "13"); the value now always renders in full and the unit yields the space instead.
+- **GLP-1 medications show the drug-level-in-blood estimate by default.** The estimated concentration curve was hidden behind the Research-Mode opt-in and below the dose-strength curve; for GLP-1 medications it now shows by default, above the dose-strength curve, with the "educational estimate, not a measurement" disclaimer kept clearly attached.
+- **The Trends captions read consistently.** Metrics without an advisor note previously rendered their caption in a different, plainer style that broke the row; every Trends caption now uses the same treatment.
+
+### Changed
+
+- **The mood assessment sits directly under the first chart** on the mood insights page.
+
 ## [1.8.6] — 2026-06-01 — Compliance two-row return, insights polish, targets deprecation
 
 ### Added
