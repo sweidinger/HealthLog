@@ -287,34 +287,49 @@ describe("measurement validation", () => {
       expect(validateMeasurementRange("RECOVERY_SCORE", 101)).not.toBeNull();
     });
 
-    it("rejects the server-owned COMPUTED source on a client write", () => {
-      const parsed = createMeasurementSchema.safeParse({
-        type: "RECOVERY_SCORE",
-        value: 72,
-        measuredAt: "2026-06-02T12:00:00Z",
-        source: "COMPUTED",
-      });
-      expect(parsed.success).toBe(false);
-      if (!parsed.success) {
-        const issue = parsed.error.issues.find((i) =>
-          i.path.includes("source"),
-        );
-        expect(issue, "expected a source-path rejection").toBeDefined();
-        expect(issue!.message).toMatch(/server-owned/i);
+    it("rejects every non-writable source on a client write", () => {
+      // v1.10.0 QA — the single-POST validates `source` against the
+      // client-writable subset {MANUAL, APPLE_HEALTH}. COMPUTED (server
+      // scores), WITHINGS (the Withings webhook), and IMPORT (the CSV
+      // importer) are all server-owned and must be rejected so a client
+      // cannot forge a row attributed to a source it does not own.
+      for (const source of ["COMPUTED", "WITHINGS", "IMPORT"]) {
+        const parsed = createMeasurementSchema.safeParse({
+          type: "WEIGHT",
+          value: 80,
+          measuredAt: "2026-06-02T12:00:00Z",
+          source,
+        });
+        expect(parsed.success, `expected ${source} to be rejected`).toBe(false);
+        if (!parsed.success) {
+          const issue = parsed.error.issues.find((i) =>
+            i.path.includes("source"),
+          );
+          expect(issue, `expected a source-path rejection for ${source}`).toBeDefined();
+        }
       }
     });
 
-    it("still accepts a client-writable source for a score-typed manual row", () => {
-      // The COMPUTED source is the only one this refine blocks; a MANUAL
-      // write of any type stays valid (the source guard is orthogonal to
-      // whether a UI ever offers manual score entry).
+    it("accepts the client-writable sources MANUAL and APPLE_HEALTH", () => {
+      for (const source of ["MANUAL", "APPLE_HEALTH"]) {
+        const parsed = createMeasurementSchema.safeParse({
+          type: "WEIGHT",
+          value: 80,
+          measuredAt: "2026-06-02T12:00:00Z",
+          source,
+        });
+        expect(parsed.success, `expected ${source} to be accepted`).toBe(true);
+      }
+    });
+
+    it("defaults source to MANUAL when omitted", () => {
       const parsed = createMeasurementSchema.safeParse({
-        type: "RECOVERY_SCORE",
-        value: 72,
+        type: "WEIGHT",
+        value: 80,
         measuredAt: "2026-06-02T12:00:00Z",
-        source: "MANUAL",
       });
       expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.source).toBe("MANUAL");
     });
   });
 });

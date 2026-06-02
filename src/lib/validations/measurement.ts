@@ -147,10 +147,23 @@ export const measurementSourceEnum = z.enum([
  */
 export const WRITABLE_MEASUREMENT_SOURCES = [
   "MANUAL",
-  "WITHINGS",
-  "IMPORT",
   "APPLE_HEALTH",
 ] as const;
+
+/**
+ * v1.10.0 QA — the Zod enum the single-entry POST validates `source` against.
+ * Built from `WRITABLE_MEASUREMENT_SOURCES` so the allowlist has one source of
+ * truth. A client may only attribute a row it actually owns: `MANUAL` (a
+ * hand-entered reading) or `APPLE_HEALTH` (the HealthKit batch's per-row
+ * source). `WITHINGS` is owned by the Withings webhook, `IMPORT` by the CSV
+ * importer, and `COMPUTED` by the nightly score engines — letting a client
+ * forge any of those would pollute the per-source canonical picker with rows
+ * the server never produced. The batch route mirrors the same exclusion with
+ * its own narrower `{APPLE_HEALTH, MANUAL}` `batchSourceEnum`.
+ */
+export const writableMeasurementSourceEnum = z.enum(
+  WRITABLE_MEASUREMENT_SOURCES,
+);
 
 const unitMap: Record<string, string> = {
   WEIGHT: "kg",
@@ -428,7 +441,11 @@ export const createMeasurementSchema = z
     value: z.number(),
     measuredAt: z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
     notes: z.string().max(MEASUREMENT_NOTES_MAX_LENGTH).optional(),
-    source: measurementSourceEnum.optional().default("MANUAL"),
+    // v1.10.0 QA — validate against the client-writable subset, not the full
+    // `MeasurementSource` enum. A client may attribute only `MANUAL` or
+    // `APPLE_HEALTH`; `WITHINGS` / `IMPORT` / `COMPUTED` are server-owned and
+    // forging them would pollute the per-source canonical picker.
+    source: writableMeasurementSourceEnum.optional().default("MANUAL"),
     // Only applies when type === BLOOD_GLUCOSE. Mirrored by a CHECK
     // constraint in Postgres (see migration 0021).
     glucoseContext: glucoseContextEnum.optional(),
@@ -453,16 +470,7 @@ export const createMeasurementSchema = z
         "Blood glucose measurements require a context (fasting/postprandial/random/bedtime); other types must not set one.",
       path: ["glucoseContext"],
     },
-  )
-  // v1.10.0 — computed scores (WX-C). The `COMPUTED` source is server-owned:
-  // a nightly engine mints those rows, a client never does. Reject it here
-  // so the single-entry POST cannot forge a server-derived row (the batch
-  // route enforces the same exclusion through its `{APPLE_HEALTH, MANUAL}`
-  // allowlist).
-  .refine((data) => data.source !== "COMPUTED", {
-    message: "The COMPUTED source is server-owned and cannot be set by a client.",
-    path: ["source"],
-  });
+  );
 
 export const updateMeasurementSchema = z.object({
   value: z.number().min(0).max(500000).optional(),

@@ -555,10 +555,7 @@ paths:
                   type: string
                   enum:
                     - MANUAL
-                    - WITHINGS
-                    - IMPORT
                     - APPLE_HEALTH
-                    - COMPUTED
                 glucoseContext:
                   type: string
                   enum:
