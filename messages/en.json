@@ -2638,7 +2638,6 @@
       "sources": {
         "title": "Sources",
         "description": "Pick which ingest source wins when more than one records the same metric for the same day.",
-        "redirectNotice": "Sources are now part of “Targets & Sources”.",
         "cardTitle": "Source priority by metric",
         "help": "When more than one source delivers the same value on the same day (e.g. Withings and Apple Health both report 1,200 steps), the top source counts as the canonical reading. Other sources stay stored for the audit trail.",
         "resetDefaults": "Reset to defaults",
