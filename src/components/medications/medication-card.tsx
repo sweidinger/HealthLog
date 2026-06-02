@@ -311,7 +311,7 @@ export function MedicationCard({
         linkLabel={t("medications.openDetailPage")}
       />
 
-      <CardContent className="flex flex-1 flex-col space-y-3.5">
+      <CardContent className="space-y-3.5">
         {/* Status, last & next intake info */}
         {currentWindowStatus.status && (
           <MedicationStatusPill
@@ -323,9 +323,8 @@ export function MedicationCard({
 
         {/* Next / last intake — wrapped in a fixed min-height slot so a
             card missing its last-dose line keeps the same vertical
-            footprint as a sibling that renders both lines. Without the
-            reserved height the compliance bars and action row below would
-            start at a different Y card-to-card across the 2-col grid. */}
+            footprint as a sibling that renders both lines, so the dose rows
+            line up across the 2-col grid. */}
         <div className="min-h-[2.75rem] space-y-3.5">
           {nextSchedule &&
             currentWindowStatus.status !== "in_window" &&
@@ -409,17 +408,15 @@ export function MedicationCard({
           />
         )}
 
-        {/* Quick actions — primary buttons of the medication card.
-            Pinned to the bottom with `mt-auto` so the action baseline is
-            shared across every card in the grid row regardless of how many
-            optional rows above it rendered. */}
+        {/* Quick actions — primary buttons of the medication card. They sit
+            directly after the content (the card still fills the grid cell via
+            h-full, but the actions are not pushed to the bottom — that left a
+            void between the content and the buttons on shorter cards). */}
         {medication.active && (
-          <div className="mt-auto pt-3.5">
-            <MedicationIntakeActions
-              intakeLoading={intakeLoading}
-              onRecordIntake={recordIntake}
-            />
-          </div>
+          <MedicationIntakeActions
+            intakeLoading={intakeLoading}
+            onRecordIntake={recordIntake}
+          />
         )}
       </CardContent>
 
