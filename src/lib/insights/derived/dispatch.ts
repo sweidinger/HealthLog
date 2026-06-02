@@ -29,6 +29,10 @@ import { computeBmi } from "./bmi";
 import { computeSleepScore } from "./sleep-score";
 import { computeReadiness } from "./readiness";
 import { computeCoincidentDeviation } from "./coincident-deviation";
+import {
+  computeWellnessScore,
+  type WellnessScoreType,
+} from "./wellness-scores";
 import type { Derived } from "./types";
 
 export interface DerivedComputeArgs {
@@ -142,6 +146,17 @@ export async function computeDerivedMetric(
         windowDays: args.windowDays,
         now,
       }) as Promise<Derived<unknown>>;
+    case "RECOVERY_SCORE":
+    case "STRESS_SCORE":
+    case "STRAIN_SCORE":
+      // Passthrough read of the nightly-persisted COMPUTED rows — never a
+      // recompute. The same `Derived<T>` contract carries the scores.
+      return computeWellnessScore(
+        args.metric as WellnessScoreType,
+        args.userId,
+        args.profile,
+        { windowDays: args.windowDays, now },
+      ) as Promise<Derived<unknown>>;
     default:
       // Registered + implemented but no dispatch arm — treat as a stub.
       return notImplemented(meta.inputs.map(String), now);

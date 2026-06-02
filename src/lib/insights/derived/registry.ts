@@ -40,7 +40,13 @@ export type DerivedMetricId =
   /** W2: HRV (SDNN) personal-trend balance band (reuses the baseline engine). */
   | "HRV_BALANCE"
   /** W2: BMI from weight + height (fallback when no device BMI). */
-  | "BMI";
+  | "BMI"
+  /** Persisted nightly recovery composite (passthrough read of COMPUTED rows). */
+  | "RECOVERY_SCORE"
+  /** Persisted nightly stress composite (passthrough read of COMPUTED rows). */
+  | "STRESS_SCORE"
+  /** Persisted nightly strain composite (passthrough read of COMPUTED rows). */
+  | "STRAIN_SCORE";
 
 /** Archetype of a derived metric — drives shaping + the QA inventory. */
 export type DerivedArchetype =
@@ -175,6 +181,33 @@ const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
     inputs: ["WEIGHT", "HEIGHT"],
     minHistoryDays: 1,
     minInputs: 2,
+    implemented: true,
+  },
+  RECOVERY_SCORE: {
+    id: "RECOVERY_SCORE",
+    displayName: "Recovery score",
+    archetype: "passthrough-reframe",
+    inputs: ["RECOVERY_SCORE"],
+    minHistoryDays: 1,
+    minInputs: 1,
+    implemented: true,
+  },
+  STRESS_SCORE: {
+    id: "STRESS_SCORE",
+    displayName: "Stress score",
+    archetype: "passthrough-reframe",
+    inputs: ["STRESS_SCORE"],
+    minHistoryDays: 1,
+    minInputs: 1,
+    implemented: true,
+  },
+  STRAIN_SCORE: {
+    id: "STRAIN_SCORE",
+    displayName: "Strain score",
+    archetype: "passthrough-reframe",
+    inputs: ["STRAIN_SCORE"],
+    minHistoryDays: 1,
+    minInputs: 1,
     implemented: true,
   },
 };

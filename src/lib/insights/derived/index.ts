@@ -130,3 +130,16 @@ export type {
   CoincidentDeviationOpts,
   VitalDeviation,
 } from "./coincident-deviation";
+
+// ── persisted nightly wellness scores (passthrough read) ─────────────
+export {
+  computeWellnessScore,
+  bandWellnessScore,
+  WELLNESS_SCORE_TYPES,
+} from "./wellness-scores";
+export type {
+  WellnessScoreValue,
+  WellnessScoreBand,
+  WellnessScoreType,
+  WellnessScoreOpts,
+} from "./wellness-scores";

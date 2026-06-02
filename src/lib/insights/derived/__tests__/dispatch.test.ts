@@ -36,6 +36,9 @@ describe("registry", () => {
     expect(getDerivedMetricMeta("SLEEP_SCORE")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("READINESS")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("COINCIDENT_DEVIATION")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("RECOVERY_SCORE")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("STRESS_SCORE")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("STRAIN_SCORE")?.implemented).toBe(true);
   });
 
   it("isDerivedMetricId rejects unknown ids", () => {
@@ -53,7 +56,10 @@ describe("registry", () => {
     expect(DERIVED_METRIC_IDS).toContain("READINESS");
     expect(DERIVED_METRIC_IDS).toContain("HRV_BALANCE");
     expect(DERIVED_METRIC_IDS).toContain("BMI");
-    expect(DERIVED_METRIC_IDS.length).toBe(8);
+    expect(DERIVED_METRIC_IDS).toContain("RECOVERY_SCORE");
+    expect(DERIVED_METRIC_IDS).toContain("STRESS_SCORE");
+    expect(DERIVED_METRIC_IDS).toContain("STRAIN_SCORE");
+    expect(DERIVED_METRIC_IDS.length).toBe(11);
   });
 });
 
