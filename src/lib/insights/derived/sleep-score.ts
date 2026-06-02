@@ -121,9 +121,20 @@ export function scoreSufficiency(
 }
 
 /**
- * Efficiency: asleep ÷ in-bed, rescaled so the AASM 85 % "good" floor
- * maps to ~85 and 100 % maps to 100. Null when in-bed is unknown (legacy
- * nights with only asleep stages and no IN_BED row).
+ * Efficiency: asleep ÷ in-bed (AASM convention; ≥ 85 % is the clinical
+ * "good" floor). Null when in-bed is unknown (legacy nights with only asleep
+ * stages and no IN_BED row).
+ *
+ * Overlap handling: HealthKit can report ASLEEP-class stages whose summed
+ * minutes exceed the explicit IN_BED total when stages overlap (the watch
+ * writes per-sample stage rows and an IN_BED block that don't tile cleanly).
+ * Treating that as a real ratio yields efficiency > 100 %, which a blind
+ * `clamp(…, 100)` would silently swallow as a perfect night and hide the
+ * data problem. Instead, treat asleep > in-bed as the impossible-overlap case
+ * it is: cap efficiency at 100 % (asleep cannot exceed time in bed) but only
+ * when the overshoot is within a small tolerance — a gross overshoot signals
+ * a malformed night with no trustworthy in-bed denominator, so we drop the
+ * sub-score (null) rather than report a fabricated 100.
  */
 export function scoreEfficiency(
   asleepMinutes: number,
@@ -131,6 +142,14 @@ export function scoreEfficiency(
 ): number | null {
   if (inBedMinutes == null || inBedMinutes <= 0) return null;
   const pct = (asleepMinutes / inBedMinutes) * 100;
+  if (pct > 100) {
+    // A small overshoot (≤ 5 %) is rounding / stage-boundary noise — asleep
+    // cannot truly exceed in-bed, so cap at the AASM ceiling of 100. A larger
+    // overshoot means the in-bed total is not a usable denominator; the night
+    // has no honest efficiency, so it drops from the blend.
+    const EFFICIENCY_OVERSHOOT_TOLERANCE = 105;
+    return pct <= EFFICIENCY_OVERSHOOT_TOLERANCE ? 100 : null;
+  }
   return clamp100(pct);
 }
 
@@ -158,27 +177,67 @@ export function scoreComposition(
   return clamp100(100 * (1 - dist / halfWidth));
 }
 
+const MINUTES_PER_DAY = 1440;
+
 /**
- * Consistency: lower SD of the sleep midpoint (minutes-of-day) across the
- * window → higher score. A 90-min SD maps to 0, a 0-min SD to 100. Null
- * below 3 nights (no variance signal).
+ * Shortest distance between two minutes-of-day on the 24-hour clock, treating
+ * the day as circular (mod 1440). A midpoint at 23:50 (1430) and one at 00:10
+ * (10) are 20 minutes apart, NOT 1420 — the linear difference inflates timing
+ * SD and distance for sleepers whose midpoint straddles midnight (and on a DST
+ * shift). Pure.
+ */
+export function circularMinuteDistance(a: number, b: number): number {
+  const raw = Math.abs(a - b) % MINUTES_PER_DAY;
+  return Math.min(raw, MINUTES_PER_DAY - raw);
+}
+
+/**
+ * Circular mean of minutes-of-day via the mean resultant vector (the standard
+ * directional-statistics circular mean) — averaging clock minutes linearly
+ * collapses a midnight-straddling cluster to noon. Returns null on an empty
+ * input or a near-zero resultant (no defined mean direction). Pure.
+ */
+export function circularMeanMinutes(minutes: number[]): number | null {
+  if (minutes.length === 0) return null;
+  let sumSin = 0;
+  let sumCos = 0;
+  for (const m of minutes) {
+    const angle = (m / MINUTES_PER_DAY) * 2 * Math.PI;
+    sumSin += Math.sin(angle);
+    sumCos += Math.cos(angle);
+  }
+  if (Math.abs(sumSin) < 1e-9 && Math.abs(sumCos) < 1e-9) return null;
+  let meanAngle = Math.atan2(sumSin, sumCos);
+  if (meanAngle < 0) meanAngle += 2 * Math.PI;
+  return (meanAngle / (2 * Math.PI)) * MINUTES_PER_DAY;
+}
+
+/**
+ * Consistency: lower circular SD of the sleep midpoint (minutes-of-day)
+ * across the window → higher score. A 90-min SD maps to 0, a 0-min SD to 100.
+ * Null below 3 nights (no variance signal). The SD is computed against the
+ * CIRCULAR mean using circular distance so a midnight-straddling sleeper is
+ * not penalised for a spurious ~24-hour spread.
  */
 export function scoreConsistency(midpointMinutes: number[]): number | null {
   if (midpointMinutes.length < 3) return null;
-  const mean =
-    midpointMinutes.reduce((s, v) => s + v, 0) / midpointMinutes.length;
+  const mean = circularMeanMinutes(midpointMinutes);
+  if (mean == null) return null;
   const variance =
-    midpointMinutes.reduce((s, v) => s + (v - mean) ** 2, 0) /
-    midpointMinutes.length;
+    midpointMinutes.reduce(
+      (s, v) => s + circularMinuteDistance(v, mean) ** 2,
+      0,
+    ) / midpointMinutes.length;
   const sd = Math.sqrt(variance);
   const FULL_SCALE = 90; // minutes — beyond this the rhythm reads erratic.
   return clamp100(100 * (1 - Math.min(sd, FULL_SCALE) / FULL_SCALE));
 }
 
 /**
- * Timing: this night's midpoint vs the user's habitual midpoint (the
- * window mean). On-target → 100; 90 min off → 0. Null when the habitual
- * window is not yet established (< 3 nights).
+ * Timing: this night's midpoint vs the user's habitual midpoint (the window
+ * circular mean). On-target → 100; 90 min off → 0. Null when the habitual
+ * window is not yet established (< 3 nights). Uses circular distance so a
+ * midnight-straddling night is measured by its true clock offset.
  */
 export function scoreTiming(
   nightMidpoint: number | null,
@@ -189,7 +248,7 @@ export function scoreTiming(
     return null;
   }
   const FULL_SCALE = 90;
-  const dist = Math.abs(nightMidpoint - habitualMidpoint);
+  const dist = circularMinuteDistance(nightMidpoint, habitualMidpoint);
   return clamp100(100 * (1 - Math.min(dist, FULL_SCALE) / FULL_SCALE));
 }
 
@@ -406,10 +465,9 @@ export async function computeSleepScore(
   const midpoints = scorableNights
     .map((n) => n.midpoint)
     .filter((m): m is number => m != null);
-  const habitualMidpoint =
-    midpoints.length > 0
-      ? midpoints.reduce((s, v) => s + v, 0) / midpoints.length
-      : null;
+  // Circular mean (mod 1440) so a midnight-straddling sleeper's habitual
+  // midpoint is not dragged to noon by a linear average.
+  const habitualMidpoint = circularMeanMinutes(midpoints);
 
   const needMinutes = sleepNeedMinutes(profile.ageYears);
 

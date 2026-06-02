@@ -15,6 +15,8 @@ import {
   scoreComposition,
   scoreConsistency,
   scoreTiming,
+  circularMinuteDistance,
+  circularMeanMinutes,
   type SleepSubScoreKey,
 } from "../sleep-score";
 
@@ -51,6 +53,15 @@ describe("pure sleep scorers", () => {
     expect(scoreEfficiency(420, 480)).toBe(88);
   });
 
+  it("efficiency handles asleep > in-bed overlap explicitly, not via a blind clamp", () => {
+    // A small overshoot (≤ 5 %, overlapping HK stages) caps at the AASM
+    // ceiling of 100 rather than reporting > 100 %.
+    expect(scoreEfficiency(485, 480)).toBe(100); // ~101 % → 100
+    // A gross overshoot means the in-bed denominator is not usable — drop the
+    // sub-score (null) rather than masking the data problem with a fake 100.
+    expect(scoreEfficiency(600, 480)).toBeNull(); // 125 % → unusable
+  });
+
   it("composition is null without a stage breakdown, 100 inside the band", () => {
     expect(scoreComposition(0, 0, 420, false)).toBeNull();
     // REM 90 + Deep 60 = 150 of 420 ≈ 0.357 — inside [0.33, 0.48].
@@ -65,6 +76,39 @@ describe("pure sleep scorers", () => {
   it("timing is null without a habitual window", () => {
     expect(scoreTiming(180, null, 1)).toBeNull();
     expect(scoreTiming(180, 180, 5)).toBe(100);
+  });
+
+  it("circular distance wraps across midnight (mod 1440)", () => {
+    // 23:50 (1430) and 00:10 (10) are 20 min apart, not 1420.
+    expect(circularMinuteDistance(1430, 10)).toBe(20);
+    expect(circularMinuteDistance(10, 1430)).toBe(20);
+    // Within-day distance unchanged.
+    expect(circularMinuteDistance(100, 160)).toBe(60);
+  });
+
+  it("circular mean of midnight-straddling midpoints stays near midnight", () => {
+    // 23:50, 00:10, 00:00 cluster around midnight; a linear mean would
+    // collapse to ~08:00 (480). The circular mean stays near 0/1440.
+    const mean = circularMeanMinutes([1430, 10, 0])!;
+    const distFromMidnight = Math.min(mean, 1440 - mean);
+    expect(distFromMidnight).toBeLessThan(20);
+  });
+
+  it("consistency does NOT penalise a midnight-straddling sleeper", () => {
+    // Tight cluster around midnight: circular SD is small → high score. A
+    // linear SD would read a spurious ~24-h spread → 0.
+    const score = scoreConsistency([1430, 10, 0, 1435, 5])!;
+    expect(score).toBeGreaterThan(80);
+  });
+
+  it("timing uses circular distance across the wrap", () => {
+    // Night midpoint 00:05 (5) vs habitual 23:55 (1435) is 10 min off (NOT
+    // 1430), so the score stays high. A linear distance would read ~1430 →
+    // clamp to 0.
+    const wrapped = scoreTiming(5, 1435, 5)!;
+    expect(wrapped).toBeGreaterThan(85);
+    // 10 min off the habitual midpoint within the day scores identically.
+    expect(scoreTiming(100, 110, 5)).toBe(wrapped);
   });
 });
 
