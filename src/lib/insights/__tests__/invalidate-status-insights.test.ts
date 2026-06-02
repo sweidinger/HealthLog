@@ -12,10 +12,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const deleteMany = vi.fn();
 const enqueueStatusGeneration = vi.fn();
+const userFindUnique = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     auditLog: { deleteMany: (...a: unknown[]) => deleteMany(...a) },
+    user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
   },
 }));
 
@@ -29,6 +31,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   deleteMany.mockResolvedValue({ count: 0 });
   enqueueStatusGeneration.mockResolvedValue(undefined);
+  userFindUnique.mockResolvedValue({ locale: "de" });
 });
 
 /** Distinct scopes the invalidator enqueued a regenerate for. */
@@ -100,17 +103,29 @@ describe("invalidateStatusInsightsForTypes", () => {
     expect(enqueueStatusGeneration).not.toHaveBeenCalled();
   });
 
-  it("enqueues a debounced regenerate for every dirtied scope, both locales", async () => {
+  it("enqueues a debounced regenerate for every dirtied scope, the user's locale only", async () => {
+    userFindUnique.mockResolvedValue({ locale: "de" });
     await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
-    // weight + bmi + general, each warmed for de + en.
+    // weight + bmi + general, each warmed once for the user's resolved locale.
     expect(enqueuedScopes()).toEqual(["bmi", "general", "weight"]);
-    expect(enqueueStatusGeneration).toHaveBeenCalledTimes(6);
+    expect(enqueueStatusGeneration).toHaveBeenCalledTimes(3);
     const locales = new Set(
       enqueueStatusGeneration.mock.calls.map(
         (c) => (c[0] as { locale: string }).locale,
       ),
     );
-    expect([...locales].sort()).toEqual(["de", "en"]);
+    expect([...locales]).toEqual(["de"]);
+  });
+
+  it("resolves the user's locale (en) for the regenerate, never the unused one", async () => {
+    userFindUnique.mockResolvedValue({ locale: "en" });
+    await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
+    const locales = new Set(
+      enqueueStatusGeneration.mock.calls.map(
+        (c) => (c[0] as { locale: string }).locale,
+      ),
+    );
+    expect([...locales]).toEqual(["en"]);
   });
 
   it("does not blanket-evict general for an unrelated synced type", async () => {
