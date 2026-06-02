@@ -106,10 +106,9 @@ export default function InsightsStimmungPage() {
         userTimezone={user?.timezone}
       />
 
-      <MetricTargetSummary slug="mood" />
-
-      <MoodInsightsSections />
-
+      {/* v1.8.7 — the AI assessment reads best directly under the first
+          chart: the reader sees the trend, then the narration of it,
+          before the calendar / distribution / correlation breakdowns. */}
       <InsightStatusCard
         title={t("insights.assessmentTitle")}
         icon={<Smile className="h-5 w-5" />}
@@ -120,6 +119,10 @@ export default function InsightsStimmungPage() {
         loading={isStatusLoading}
         preparing={status?.preparing ?? false}
       />
+
+      <MetricTargetSummary slug="mood" />
+
+      <MoodInsightsSections />
     </SubPageShell>
   );
 }
