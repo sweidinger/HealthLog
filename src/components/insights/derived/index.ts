@@ -35,6 +35,7 @@ export {
 
 // ── W2b vitals dashboard surface + query hook ────────────────────────
 export { VitalsDashboard } from "./vitals-dashboard";
+export { WellnessScores } from "./wellness-scores";
 export {
   useDerivedMetric,
   type DerivedMetricResponse,

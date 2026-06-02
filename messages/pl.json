@@ -2576,6 +2576,12 @@
             "mood": "Stabilność nastroju"
           }
         }
+      },
+      "scores": {
+        "sectionTitle": "Wyniki dobrostanu",
+        "recovery": "Regeneracja",
+        "stress": "Stres",
+        "strain": "Obciążenie"
       }
     },
     "cardioFitness": {

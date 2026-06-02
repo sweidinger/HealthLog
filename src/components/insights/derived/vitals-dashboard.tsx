@@ -11,6 +11,7 @@ import {
 } from "@/components/measurements/measurement-list-meta";
 import { SparklineDeltaTile } from "./sparkline-delta-tile";
 import { CoverageMeter } from "./coverage-meter";
+import { WellnessScores } from "./wellness-scores";
 import { useDerivedMetric } from "./use-derived-metric";
 import type { TrendDirectionSentiment } from "@/lib/insights/trend-sentiment";
 // Type-only — the compute payloads never drag the server graph into the bundle.
@@ -286,28 +287,31 @@ export function VitalsDashboard({ enabled = true, className }: DashboardProps) {
   const vitals = useMemo(() => SECTION_VITALS, []);
 
   return (
-    <section
-      data-slot="vitals-dashboard"
-      aria-label={t("insights.derived.vitals.sectionTitle")}
-      className={cn("space-y-3", className)}
-    >
-      <h2 className="text-foreground text-sm font-semibold tracking-tight">
-        {t("insights.derived.vitals.sectionTitle")}
-      </h2>
-      <div
-        data-slot="vitals-dashboard-grid"
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+    <div data-slot="vitals-dashboard-wrap" className={cn("space-y-6", className)}>
+      <WellnessScores enabled={enabled} />
+      <section
+        data-slot="vitals-dashboard"
+        aria-label={t("insights.derived.vitals.sectionTitle")}
+        className="space-y-3"
       >
-        <FitnessAgeTile enabled={enabled} />
-        <VascularAgeTile enabled={enabled} />
-        <HrvBalanceTile enabled={enabled} />
-        <BmiTile enabled={enabled} />
-        {vitals
-          .filter((type) => type !== "HEART_RATE_VARIABILITY")
-          .map((type) => (
-            <BaselineTile key={type} type={type} enabled={enabled} />
-          ))}
-      </div>
-    </section>
+        <h2 className="text-foreground text-sm font-semibold tracking-tight">
+          {t("insights.derived.vitals.sectionTitle")}
+        </h2>
+        <div
+          data-slot="vitals-dashboard-grid"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          <FitnessAgeTile enabled={enabled} />
+          <VascularAgeTile enabled={enabled} />
+          <HrvBalanceTile enabled={enabled} />
+          <BmiTile enabled={enabled} />
+          {vitals
+            .filter((type) => type !== "HEART_RATE_VARIABILITY")
+            .map((type) => (
+              <BaselineTile key={type} type={type} enabled={enabled} />
+            ))}
+        </div>
+      </section>
+    </div>
   );
 }

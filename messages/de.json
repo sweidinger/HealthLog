@@ -2576,6 +2576,12 @@
             "mood": "Stimmungsstabilität"
           }
         }
+      },
+      "scores": {
+        "sectionTitle": "Wellness-Werte",
+        "recovery": "Erholung",
+        "stress": "Stress",
+        "strain": "Belastung"
       }
     },
     "cardioFitness": {

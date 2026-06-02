@@ -2576,6 +2576,12 @@
             "mood": "Stabilità dell’umore"
           }
         }
+      },
+      "scores": {
+        "sectionTitle": "Punteggi di benessere",
+        "recovery": "Recupero",
+        "stress": "Stress",
+        "strain": "Sforzo"
       }
     },
     "cardioFitness": {

@@ -2576,6 +2576,12 @@
             "mood": "Stabilité de l’humeur"
           }
         }
+      },
+      "scores": {
+        "sectionTitle": "Scores de bien-être",
+        "recovery": "Récupération",
+        "stress": "Stress",
+        "strain": "Effort"
       }
     },
     "cardioFitness": {

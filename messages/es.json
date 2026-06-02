@@ -2576,6 +2576,12 @@
             "mood": "Estabilidad del ánimo"
           }
         }
+      },
+      "scores": {
+        "sectionTitle": "Puntuaciones de bienestar",
+        "recovery": "Recuperación",
+        "stress": "Estrés",
+        "strain": "Esfuerzo"
       }
     },
     "cardioFitness": {

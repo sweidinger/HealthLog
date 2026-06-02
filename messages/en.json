@@ -2576,6 +2576,12 @@
             "mood": "Mood stability"
           }
         }
+      },
+      "scores": {
+        "sectionTitle": "Wellness scores",
+        "recovery": "Recovery",
+        "stress": "Stress",
+        "strain": "Strain"
       }
     },
     "cardioFitness": {
