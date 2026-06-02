@@ -225,6 +225,11 @@ export const TREND_CHART_CONFIG: Record<
   // the next finding (or the default fallback) takes the slot.
   compliance: null,
   glp1_plateau: null,
+  // ── v1.10.0 derived-wellness additive ──
+  // The wellness scores are 0–100 composites whose deeper view is the
+  // score-anatomy page, not a single plottable trend series in this row.
+  readiness: null,
+  recovery: null,
 };
 
 /**

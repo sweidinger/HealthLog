@@ -277,6 +277,13 @@ export const dailyBriefingKeyFindingSchema = z.object({
     // user's clinician (no dose recommendation); the enum value
     // exists so the UI can pin the right icon + filter.
     "glp1_plateau",
+    // ── v1.10.0 derived-wellness additive ──
+    // Findings emitted when a notable derived signal (a readiness /
+    // recovery shift gated on confidence) crosses the briefing's
+    // notability gate. Descriptive, never a clinical attribution; the
+    // enum value lets the UI pin the right icon + filter.
+    "readiness",
+    "recovery",
   ]),
 });
 

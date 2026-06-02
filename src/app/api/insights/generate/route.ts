@@ -12,6 +12,11 @@ import {
   buildGlp1PlateauPrompt,
 } from "@/lib/insights/glp1-plateau";
 import {
+  detectDerivedBriefingSignals,
+  buildDerivedBriefingPrompt,
+} from "@/lib/insights/derived-briefing";
+import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
+import {
   buildUserPrompt,
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
@@ -199,6 +204,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
       // LLM never sees the excluded blocks.
       insightsExcludeMetrics: true,
       locale: true,
+      // v1.10.0 — profile for the derived-signal briefing detector.
+      dateOfBirth: true,
+      gender: true,
+      heightCm: true,
     },
   });
 
@@ -396,6 +405,21 @@ export const POST = apiHandler(async (request: NextRequest) => {
   );
   if (plateauContext) {
     userPrompt += buildGlp1PlateauPrompt(plateauContext, locale);
+  }
+  // v1.10.0 — fold a notable derived wellness signal (readiness / recovery
+  // shift, confidence-gated) into the briefing as a SYSTEM CONTEXT block.
+  // Reads the one derived contract; null (the common case) costs nothing.
+  const derivedSex =
+    dbUser?.gender === "MALE" || dbUser?.gender === "FEMALE"
+      ? (dbUser.gender as "MALE" | "FEMALE")
+      : null;
+  const derivedBriefing = await detectDerivedBriefingSignals(userId, {
+    ageYears: getAgeFromDateOfBirth(dbUser?.dateOfBirth ?? null),
+    sex: derivedSex,
+    heightCm: dbUser?.heightCm ?? null,
+  });
+  if (derivedBriefing) {
+    userPrompt += buildDerivedBriefingPrompt(derivedBriefing, locale);
   }
 
   let result;
