@@ -251,13 +251,18 @@ export async function expectMedicationOnList(
   page: Page,
   { name, withNextDueChip }: { name: string; withNextDueChip: boolean },
 ): Promise<void> {
+  // Pin the clock to a fixed afternoon before rendering the list. The
+  // recurring stub schedules an 08:00–09:00 window; the card derives its
+  // header from the real clock, so when CI happens to run inside that
+  // window the card shows the "take now" (in_window) pill and the
+  // "Nächste Einnahme:" next-due line is correctly suppressed — making the
+  // chip assertion below depend on the wall-clock. A fixed afternoon puts
+  // the morning window in the past so the next-due line always renders.
+  await page.clock.setFixedTime(new Date("2026-06-04T13:00:00Z"));
   await page.goto("/medications", { waitUntil: "domcontentloaded" });
   const main = page.locator("main");
   await expect(main.getByText(name).first()).toBeVisible({ timeout: 10_000 });
   if (withNextDueChip) {
-    // The next-due line is computed client-side from the schedule after
-    // hydration, so it can land a beat after the name on a loaded runner;
-    // match the name assertion's 10s budget rather than the default 5s.
     await expect(main.getByText(/Nächste Einnahme:/i).first()).toBeVisible({
       timeout: 10_000,
     });
