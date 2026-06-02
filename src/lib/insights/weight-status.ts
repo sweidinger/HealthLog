@@ -35,6 +35,7 @@ import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   readFreshStatusText,
   resolveReadOnlyStatusMiss,
+  statusCacheAction,
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
@@ -105,7 +106,7 @@ export async function generateWeightStatusForUser(
   const locale = normalizeLocale(options?.locale);
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
-  const cacheAction = `insights.weight-status.${locale}`;
+  const cacheAction = statusCacheAction("weight", locale);
   const todayKey = toBerlinDayKey(new Date());
 
   // Serve today's real assessment when present. The shared reader

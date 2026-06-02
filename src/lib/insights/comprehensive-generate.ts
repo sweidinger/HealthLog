@@ -52,7 +52,11 @@ import {
   type InsightStatusScope,
 } from "@/lib/jobs/insight-status-generate-shared";
 import { normalizeLocale } from "@/lib/insights/status-shared";
-import { isTimeoutStub } from "@/lib/insights/status-cache";
+import {
+  isTimeoutStub,
+  statusCacheAction,
+  statusCacheActionPrefix,
+} from "@/lib/insights/status-cache";
 import {
   metricIdForMeasurementType,
   metricStatusScope,
@@ -309,7 +313,7 @@ export async function invalidateStatusInsightsForTypes(
     where: {
       userId,
       OR: staleScopes.map((scope) => ({
-        action: { startsWith: `insights.${scope}-status.` },
+        action: { startsWith: statusCacheActionPrefix(scope) },
       })),
     },
   });
@@ -352,13 +356,12 @@ async function findRecentlyWarmedScopes(
 ): Promise<Set<InsightStatusScope>> {
   const cutoff = new Date(Date.now() - INGEST_INVALIDATE_DEBOUNCE_MS);
   // Match exactly the cache actions for the candidate scopes in this locale.
-  const candidateActions = Array.from(
-    scopes,
-    (scope) => `insights.${scope}-status.${locale}`,
+  const candidateActions = Array.from(scopes, (scope) =>
+    statusCacheAction(scope, locale),
   );
   const actionToScope = new Map<string, InsightStatusScope>();
   for (const scope of scopes) {
-    actionToScope.set(`insights.${scope}-status.${locale}`, scope);
+    actionToScope.set(statusCacheAction(scope, locale), scope);
   }
 
   const rows = await prisma.auditLog.findMany({
@@ -401,6 +404,17 @@ interface GenerateOptions {
   locale: "de" | "en";
   /** Skip the 24 h cache short-circuit and force a fresh generation. */
   force?: boolean;
+  /**
+   * v1.9.0 — abort the generation when the caller has given up on it.
+   *
+   * The on-demand `forceWarmUser` path bounds the comprehensive step with a
+   * timeout and then proceeds to warm the per-status caches itself. Without
+   * this signal a comprehensive that resolves AFTER the timeout would still
+   * reach `evictPerStatusInsightCache` and delete the rows the warm passes
+   * had just written — undoing its own work. The signal lets the caller cut
+   * the generation off before the eviction so the warmed rows survive.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -420,6 +434,7 @@ export async function generateComprehensiveInsight(
 ): Promise<GenerateOutcome> {
   const { locale } = options;
   const force = options.force === true;
+  const signal = options.signal;
 
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
@@ -525,6 +540,15 @@ export async function generateComprehensiveInsight(
     insights = validated.success ? validated.data : parsed;
   } catch {
     return { status: "failed", reason: "invalid-json" };
+  }
+
+  // v1.9.0 — the caller abandoned this generation (its bounded timeout
+  // fired and it has moved on to warm the per-status caches itself). Bail
+  // out before the write + evict so a late-resolving comprehensive can never
+  // delete the rows the warm passes have since written. The provider call
+  // already cost what it cost; what we must NOT do now is touch the cache.
+  if (signal?.aborted) {
+    return { status: "failed", reason: "aborted" };
   }
 
   await prisma.user.update({

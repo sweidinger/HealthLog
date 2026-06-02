@@ -534,7 +534,7 @@ export async function forceWarmUser(
   options: {
     generate?: (
       userId: string,
-      opts: { locale: "de" | "en"; force?: boolean },
+      opts: { locale: "de" | "en"; force?: boolean; signal?: AbortSignal },
     ) => Promise<GenerateOutcome>;
     statusGenerators?: ReadonlyArray<StatusGenerator>;
     warmGenericMetrics?: (
@@ -557,10 +557,17 @@ export async function forceWarmUser(
     metricAssessmentsWarmed: 0,
   };
 
-  // Master kill-switch — when the operator disabled the briefing surface
-  // globally there is nothing to warm, on demand or otherwise.
+  // v1.9.0 — gate each section on the flag for the surface it actually
+  // warms, matching the route. The HTTP route admits this job on the per-user
+  // `insightStatus` surface, so warming the per-status + generic-metric cards
+  // must run whenever `insightStatus` is enabled. Only the comprehensive
+  // briefing belongs to the `briefing` surface — gating the whole warm on
+  // `briefing` (the previous behaviour) let an operator's global `briefing`
+  // kill-switch silently suppress the assessment cards the user has enabled.
+  // When the master assistant switch is off both flags resolve false, so the
+  // whole thing still no-ops.
   const flags = await getAssistantFlags();
-  if (!flags.briefing) return result;
+  if (!flags.briefing && !flags.insightStatus) return result;
 
   const locales: ReadonlyArray<"de" | "en"> = [locale];
 
@@ -571,32 +578,45 @@ export async function forceWarmUser(
   // comprehensive insight (each generator resolves its own provider chain
   // and writes its own cache row). A timeout / error / skipped comprehensive
   // now falls through to the warm passes instead of aborting the whole job.
-  const comprehensive = await withTimeout(
-    () => generate(userId, { locale, force: true }),
-    FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS,
-    null,
-  );
-  if (comprehensive.timedOut) {
-    result.comprehensive = "timeout";
-  } else if (comprehensive.errored || comprehensive.value === null) {
-    result.comprehensive = "failed";
-  } else {
-    result.comprehensive = comprehensive.value.status;
+  //
+  // On a timeout `withTimeout` cannot cancel the detached generation; without
+  // a cut-off a late-resolving comprehensive would reach its own
+  // `evictPerStatusInsightCache` and delete the rows the warm passes write
+  // below. Thread an AbortController so the timeout aborts the generation
+  // before it can touch the cache.
+  if (flags.briefing) {
+    const controller = new AbortController();
+    const comprehensive = await withTimeout(
+      () => generate(userId, { locale, force: true, signal: controller.signal }),
+      FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS,
+      null,
+      () => controller.abort(),
+    );
+    if (comprehensive.timedOut) {
+      result.comprehensive = "timeout";
+    } else if (comprehensive.errored || comprehensive.value === null) {
+      result.comprehensive = "failed";
+    } else {
+      result.comprehensive = comprehensive.value.status;
+    }
   }
 
-  // Always run the per-status + generic-metric warm passes, regardless of
-  // the comprehensive outcome. Each generator independently no-ops to its
-  // no-key fallback when no provider is configured (no LLM call) and serves
-  // its fallback without persisting on a per-card timeout, so running them
-  // after a failed comprehensive is safe and bounded by their own per-card
-  // budgets. The only outcome that has nothing to warm is a missing provider,
-  // and the generators detect that themselves at near-zero cost.
-  result.assessmentsWarmed = await warmPerStatusCaches(
-    userId,
-    locales,
-    statusGenerators,
-  );
-  result.metricAssessmentsWarmed = await warmGenericMetrics(userId, locales);
+  // Run the per-status + generic-metric warm passes whenever the
+  // `insightStatus` surface is enabled, regardless of the comprehensive
+  // outcome. Each generator independently no-ops to its no-key fallback when
+  // no provider is configured (no LLM call) and serves its fallback without
+  // persisting on a per-card timeout, so running them after a failed
+  // comprehensive is safe and bounded by their own per-card budgets. The only
+  // outcome that has nothing to warm is a missing provider, and the
+  // generators detect that themselves at near-zero cost.
+  if (flags.insightStatus) {
+    result.assessmentsWarmed = await warmPerStatusCaches(
+      userId,
+      locales,
+      statusGenerators,
+    );
+    result.metricAssessmentsWarmed = await warmGenericMetrics(userId, locales);
+  }
 
   annotate({
     action: { name: "insights.pregenerate.force" },

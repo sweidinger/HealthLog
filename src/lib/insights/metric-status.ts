@@ -55,6 +55,7 @@ import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   readFreshStatusText,
   resolveReadOnlyStatusMiss,
+  statusCacheAction,
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
@@ -124,7 +125,7 @@ export async function generateMetricStatus(args: {
   const force = args.force === true;
   const readOnly = args.readOnly === true;
   const scope = metricStatusScope(meta.id);
-  const cacheAction = `insights.${scope}-status.${locale}`;
+  const cacheAction = statusCacheAction(scope, locale);
   const todayKey = toBerlinDayKey(new Date());
 
   const cached = await readFreshStatusText({

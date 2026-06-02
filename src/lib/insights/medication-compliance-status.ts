@@ -30,6 +30,7 @@ import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   isTimeoutStub,
   resolveReadOnlyStatusMiss,
+  statusCacheAction,
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
@@ -65,7 +66,7 @@ export async function generateMedicationComplianceStatusForUser(
   const locale = normalizeLocale(options?.locale);
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
-  const cacheAction = `insights.medication-compliance-status.${locale}`;
+  const cacheAction = statusCacheAction("medication-compliance", locale);
   const todayKey = toBerlinDayKey(new Date());
 
   // This route carries a richer cached envelope (`summary` +
