@@ -20,6 +20,9 @@ describe("nextStatusPollInterval — v1.8.4 poll ceiling", () => {
     // A terminal `no-provider` / settled payload never carries preparing,
     // so it stops immediately regardless of attempt count.
     expect(nextStatusPollInterval(false, 0)).toBe(false);
+    // A settled payload with neither preparing nor revalidating is terminal.
+    expect(nextStatusPollInterval(false, 0, false)).toBe(false);
+    expect(nextStatusPollInterval(undefined, 0, undefined)).toBe(false);
   });
 
   it("keeps polling while preparing and below the cap", () => {
@@ -41,5 +44,25 @@ describe("nextStatusPollInterval — v1.8.4 poll ceiling", () => {
     const interval = nextStatusPollInterval(true, 0);
     expect(interval).not.toBe(false);
     expect(interval as number).toBeGreaterThan(0);
+  });
+
+  // v1.9.0 — stale-while-revalidate: a terminal payload that serves last-good
+  // text sets `revalidating` so the open card keeps polling until the
+  // freshly-warmed assessment lands, without a remount.
+  it("keeps polling on revalidating even when not preparing", () => {
+    expect(nextStatusPollInterval(false, 0, true)).toBeTypeOf("number");
+    expect(nextStatusPollInterval(undefined, 1, true)).toBeTypeOf("number");
+    expect(
+      nextStatusPollInterval(false, STATUS_POLL_MAX_ATTEMPTS - 1, true),
+    ).toBeTypeOf("number");
+  });
+
+  it("honours the same attempt cap for revalidating", () => {
+    expect(
+      nextStatusPollInterval(false, STATUS_POLL_MAX_ATTEMPTS, true),
+    ).toBe(false);
+    expect(
+      nextStatusPollInterval(false, STATUS_POLL_MAX_ATTEMPTS + 5, true),
+    ).toBe(false);
   });
 });

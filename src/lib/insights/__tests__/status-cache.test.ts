@@ -163,7 +163,13 @@ describe("resolveReadOnlyStatusMiss", () => {
       locale: "de",
     });
     expect(outcome.kind).toBe("preparing");
-    expect(outcome).toEqual({ kind: "preparing", lastGood: null });
+    // No last-good text to show, so nothing to revalidate against — the card
+    // polls on `preparing` alone.
+    expect(outcome).toEqual({
+      kind: "preparing",
+      lastGood: null,
+      revalidating: false,
+    });
     expect(enqueueStatusGeneration).toHaveBeenCalledWith({
       userId: "u1",
       metric: "pulse",
@@ -189,6 +195,9 @@ describe("resolveReadOnlyStatusMiss", () => {
     expect(outcome.kind).toBe("preparing");
     if (outcome.kind !== "preparing") throw new Error("expected preparing");
     expect(outcome.lastGood?.text).toBe("Steady upward trend.");
+    // v1.9.0 — stale text served AND a refresh enqueued → revalidating so the
+    // open card keeps polling until the fresh assessment lands.
+    expect(outcome.revalidating).toBe(true);
     // A refresh is still enqueued behind the stale serve.
     expect(enqueueStatusGeneration).toHaveBeenCalledTimes(1);
   });
@@ -209,6 +218,9 @@ describe("resolveReadOnlyStatusMiss", () => {
       locale: "en",
     });
     expect(outcome.kind).toBe("preparing");
+    if (outcome.kind !== "preparing") throw new Error("expected preparing");
+    // No enqueue on the suppressed branch → nothing in flight to revalidate.
+    expect(outcome.revalidating).toBe(false);
     expect(enqueueStatusGeneration).not.toHaveBeenCalled();
   });
 

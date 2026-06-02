@@ -1144,6 +1144,12 @@ const metricStatusResponse = z
       .describe(
         "True when a first assessment is being generated out of band and no prior text exists yet — the client polls until it lands.",
       ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The payload is otherwise terminal; the client keeps polling on `preparing || revalidating` (bounded) so the open card upgrades to the warmed assessment without a remount.",
+      ),
     insufficient: z
       .boolean()
       .optional()

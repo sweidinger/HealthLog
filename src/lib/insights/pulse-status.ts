@@ -50,6 +50,8 @@ export async function generatePulseStatusForUser(
   cached: boolean;
   updatedAt: string | null;
   preparing?: boolean;
+  /** v1.9.0 — last-good text served while a refresh is in flight; keep polling. */
+  revalidating?: boolean;
 }> {
   const locale = normalizeLocale(options?.locale);
   const force = options?.force === true;
@@ -95,6 +97,7 @@ export async function generatePulseStatusForUser(
       cached: outcome.lastGood !== null,
       updatedAt: outcome.lastGood?.updatedAt ?? null,
       preparing: outcome.lastGood === null,
+      revalidating: outcome.revalidating,
     };
   }
 

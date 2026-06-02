@@ -67,6 +67,12 @@ export interface MetricStatusResult {
   updatedAt: string | null;
   preparing?: boolean;
   /**
+   * v1.9.0 — true when last-good text is served while a fresh generation is
+   * in flight. The card keeps polling (bounded) so the open page upgrades to
+   * the warmed assessment without a remount.
+   */
+  revalidating?: boolean;
+  /**
    * v1.8.7.1 — true when the metric has no data at all. The route maps
    * this onto the card's insufficient-data state; no LLM was called.
    */
@@ -178,6 +184,7 @@ export async function generateMetricStatus(args: {
       cached: outcome.lastGood !== null,
       updatedAt: outcome.lastGood?.updatedAt ?? null,
       preparing: outcome.lastGood === null,
+      revalidating: outcome.revalidating,
     };
   }
 

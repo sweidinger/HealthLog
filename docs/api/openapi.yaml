@@ -6559,6 +6559,11 @@ components:
           description: True when a first assessment is being generated out of band and no prior text exists yet — the client polls
             until it lands.
           type: boolean
+        revalidating:
+          description: True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in
+            flight. The payload is otherwise terminal; the client keeps polling on `preparing || revalidating` (bounded)
+            so the open card upgrades to the warmed assessment without a remount.
+          type: boolean
         insufficient:
           description: True when the metric has no readings; no assessment is generated (no LLM call). The card shows its
             insufficient-data state.

@@ -153,10 +153,22 @@ export async function readLastGoodStatusText(args: {
  * v1.8.7 — `preparing` now carries the last good assessment (if any) so
  * the card renders the previous text immediately (stale-while-revalidate)
  * instead of a skeleton while the worker re-warms the cache.
+ *
+ * v1.9.0 — `revalidating` is true only when last-good text is served AND a
+ * fresh generation was actually enqueued (the open-card refresh case). When
+ * the served text is terminal the card otherwise stops polling and never
+ * sees the freshly-warmed assessment until a remount; the flag keeps the
+ * bounded poll alive until the new row lands. It is false on the
+ * suppressed-stub branch (no enqueue, so nothing is in flight) and whenever
+ * there is no last-good text (that path already polls via `preparing`).
  */
 export type ReadOnlyMissOutcome =
   | { kind: "no-provider" }
-  | { kind: "preparing"; lastGood: LastGoodStatusHit | null };
+  | {
+      kind: "preparing";
+      lastGood: LastGoodStatusHit | null;
+      revalidating: boolean;
+    };
 
 /**
  * v1.8.3 — resolve what a read-only status generation should return on a
@@ -204,7 +216,10 @@ export async function resolveReadOnlyStatusMiss(args: {
       action: { name: "insights.status.preparing" },
       meta: { metric: args.metric, suppressed_enqueue: true },
     });
-    return { kind: "preparing", lastGood };
+    // No enqueue on this branch — nothing is in flight, so the open card has
+    // nothing to revalidate against. It still polls via `preparing` when
+    // there is no last-good text to show.
+    return { kind: "preparing", lastGood, revalidating: false };
   }
 
   // Enqueue out of band — do NOT await an LLM here. The enqueue itself is
@@ -218,7 +233,11 @@ export async function resolveReadOnlyStatusMiss(args: {
     action: { name: "insights.status.preparing" },
     meta: { metric: args.metric, stale_served: lastGood !== null },
   });
-  return { kind: "preparing", lastGood };
+  // A fresh generation is now in flight. When last-good text is served the
+  // payload is otherwise terminal (`preparing` is false), so the open card
+  // would stop polling and never pick up the warmed assessment. Signal
+  // `revalidating` so the bounded poll stays alive until the new row lands.
+  return { kind: "preparing", lastGood, revalidating: lastGood !== null };
 }
 
 /**
