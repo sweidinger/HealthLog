@@ -558,6 +558,16 @@ enum MeasurementType {
   LOW_HEART_RATE_EVENT // HealthKit `HKCategoryTypeIdentifierLowHeartRateEvent`. The watch detected a sustained low heart rate below the user's configured threshold.
   WALKING_STEADINESS_EVENT // HealthKit `HKCategoryTypeIdentifierAppleWalkingSteadinessEvent`. The device flagged low / very-low walking steadiness (a falls-risk mobility signal); the severity rides in `rhythmClassification`.
   BREATHING_DISTURBANCE_EVENT // HealthKit `HKCategoryTypeIdentifierSleepApneaEvent` + `AppleSleepingBreathingDisturbances`. The device flagged an elevated breathing-disturbance / possible sleep-apnea signal during sleep. SCREENING SIGNAL ONLY — never a HealthLog diagnosis.
+  // v1.10.0 — computed scores (WX-C)
+  // Server-derived wellness scores (0–100, unit `score`). Each is minted by a
+  // nightly engine from the user's already-stored signals and persisted as a
+  // `COMPUTED`-source Measurement row — never ingested from a client. Only
+  // RECOVERY_SCORE is computed in v1.10.0; STRESS_SCORE + STRAIN_SCORE are
+  // defined now so the later engines that compute them need no schema change.
+  // These are NOT clinical vitals — they never appear in the doctor-report PDF.
+  RECOVERY_SCORE // Daily recovery / readiness proxy. Higher = more recovered. Blends RHR + HRV (SDNN) + sleep + respiratory-rate deviation from the personal baseline (Plews 2013 / Buchheit 2014 lineage). Descriptive, not a clinical or training-recovery assessment.
+  STRESS_SCORE // Reserved for the later strain/stress engine. Higher = more physiological stress. No engine computes it in v1.10.0.
+  STRAIN_SCORE // Reserved for the later strain/stress engine. Higher = more cardiovascular strain (workout-load lineage). No engine computes it in v1.10.0.
 
   @@map("measurement_type")
 }
@@ -606,6 +616,14 @@ enum MeasurementSource {
   WITHINGS
   IMPORT
   APPLE_HEALTH // v1.4.23 — HealthKit batch ingest. iOS DTO mirrors this exact spelling (not "HEALTHKIT").
+  // v1.10.0 — computed scores (WX-C)
+  // Server-derived rows. A `COMPUTED` measurement is minted by a nightly
+  // engine from the user's already-stored signals (the Recovery score is the
+  // first); it is NEVER ingested from a client. Server-owned / read-only:
+  // the client-facing batch + single-POST write surfaces reject it exactly
+  // like WITHINGS / IMPORT, but it is part of the read enum so iOS can decode
+  // the rows it queries / charts.
+  COMPUTED
 
   @@map("measurement_source")
 }

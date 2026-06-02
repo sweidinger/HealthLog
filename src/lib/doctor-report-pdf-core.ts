@@ -181,6 +181,13 @@ export const DOCTOR_REPORT_TYPE_UNIT_KEYS: Record<string, string | null> = {
  * table for clinical readability. Glucose ships separately via
  * per-context `glucoseStats`. Sleep + activity are intentionally
  * excluded from a clinical-focused report.
+ *
+ * v1.10.0 — computed scores (WX-C). The server-derived `*_SCORE` types
+ * (RECOVERY_SCORE / STRESS_SCORE / STRAIN_SCORE) are NOT clinical vitals:
+ * they are 0–100 composites recomputed nightly from the underlying signals
+ * and carry a "descriptive, not a clinical assessment" disclaimer. They stay
+ * out of this table by design (paired with `PDF_VITAL_EXCLUSIONS` in
+ * `measurement-type-enum-coverage.test.ts`).
  */
 export const DOCTOR_REPORT_VITAL_TYPES = [
   "WEIGHT",

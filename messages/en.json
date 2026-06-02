@@ -437,7 +437,10 @@
     "typeHighHeartRateEvent": "High heart rate notification",
     "typeLowHeartRateEvent": "Low heart rate notification",
     "typeWalkingSteadinessEvent": "Walking steadiness alert",
-    "typeBreathingDisturbanceEvent": "Breathing disturbance"
+    "typeBreathingDisturbanceEvent": "Breathing disturbance",
+    "typeRecoveryScore": "Recovery score",
+    "typeStressScore": "Stress score",
+    "typeStrainScore": "Strain score"
   },
   "mood": {
     "title": "Mood",

@@ -390,6 +390,9 @@ paths:
               - LOW_HEART_RATE_EVENT
               - WALKING_STEADINESS_EVENT
               - BREATHING_DISTURBANCE_EVENT
+              - RECOVERY_SCORE
+              - STRESS_SCORE
+              - STRAIN_SCORE
         - in: query
           name: from
           schema:
@@ -535,6 +538,9 @@ paths:
                     - LOW_HEART_RATE_EVENT
                     - WALKING_STEADINESS_EVENT
                     - BREATHING_DISTURBANCE_EVENT
+                    - RECOVERY_SCORE
+                    - STRESS_SCORE
+                    - STRAIN_SCORE
                 value:
                   type: number
                 measuredAt:
@@ -552,6 +558,7 @@ paths:
                     - WITHINGS
                     - IMPORT
                     - APPLE_HEALTH
+                    - COMPUTED
                 glucoseContext:
                   type: string
                   enum:
@@ -801,6 +808,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                       externalId:
                         type: string
                         maxLength: 128
@@ -1411,6 +1419,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -1421,6 +1430,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -1431,6 +1441,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -1441,6 +1452,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 sleep:
                   maxItems: 8
                   type: array
@@ -1451,6 +1463,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 weight:
                   maxItems: 8
                   type: array
@@ -1461,6 +1474,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -1471,6 +1485,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 pulse:
                   maxItems: 8
                   type: array
@@ -1481,6 +1496,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -1491,6 +1507,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -1501,6 +1518,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 spo2:
                   maxItems: 8
                   type: array
@@ -1511,6 +1529,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 hrv:
                   maxItems: 8
                   type: array
@@ -1521,6 +1540,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -1531,6 +1551,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -1541,6 +1562,7 @@ paths:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 metricPriority:
                   type: object
                   properties:
@@ -1554,6 +1576,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     activeEnergy:
                       maxItems: 8
                       type: array
@@ -1564,6 +1587,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     walkingRunningDistance:
                       maxItems: 8
                       type: array
@@ -1574,6 +1598,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     flightsClimbed:
                       maxItems: 8
                       type: array
@@ -1584,6 +1609,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     sleep:
                       maxItems: 8
                       type: array
@@ -1594,6 +1620,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     weight:
                       maxItems: 8
                       type: array
@@ -1604,6 +1631,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     bloodPressure:
                       maxItems: 8
                       type: array
@@ -1614,6 +1642,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     pulse:
                       maxItems: 8
                       type: array
@@ -1624,6 +1653,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     bodyFat:
                       maxItems: 8
                       type: array
@@ -1634,6 +1664,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     bodyTemperature:
                       maxItems: 8
                       type: array
@@ -1644,6 +1675,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     spo2:
                       maxItems: 8
                       type: array
@@ -1654,6 +1686,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     hrv:
                       maxItems: 8
                       type: array
@@ -1664,6 +1697,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     restingHeartRate:
                       maxItems: 8
                       type: array
@@ -1674,6 +1708,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                     vo2Max:
                       maxItems: 8
                       type: array
@@ -1684,6 +1719,7 @@ paths:
                           - WITHINGS
                           - IMPORT
                           - APPLE_HEALTH
+                          - COMPUTED
                 deviceTypePriority:
                   type: object
                   properties:
@@ -2107,6 +2143,9 @@ paths:
               - LOW_HEART_RATE_EVENT
               - WALKING_STEADINESS_EVENT
               - BREATHING_DISTURBANCE_EVENT
+              - RECOVERY_SCORE
+              - STRESS_SCORE
+              - STRAIN_SCORE
             description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
           required: true
           description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
@@ -3788,6 +3827,9 @@ components:
             - LOW_HEART_RATE_EVENT
             - WALKING_STEADINESS_EVENT
             - BREATHING_DISTURBANCE_EVENT
+            - RECOVERY_SCORE
+            - STRESS_SCORE
+            - STRAIN_SCORE
         value:
           type: number
         unit:
@@ -3803,6 +3845,7 @@ components:
             - WITHINGS
             - IMPORT
             - APPLE_HEALTH
+            - COMPUTED
         notes:
           anyOf:
             - type: string
@@ -4090,6 +4133,9 @@ components:
             - LOW_HEART_RATE_EVENT
             - WALKING_STEADINESS_EVENT
             - BREATHING_DISTURBANCE_EVENT
+            - RECOVERY_SCORE
+            - STRESS_SCORE
+            - STRAIN_SCORE
         value:
           type: number
         unit:
@@ -4105,6 +4151,7 @@ components:
             - WITHINGS
             - IMPORT
             - APPLE_HEALTH
+            - COMPUTED
         notes:
           anyOf:
             - type: string
@@ -4322,6 +4369,7 @@ components:
             - WITHINGS
             - IMPORT
             - APPLE_HEALTH
+            - COMPUTED
         externalId:
           anyOf:
             - type: string
@@ -4424,6 +4472,7 @@ components:
             - WITHINGS
             - IMPORT
             - APPLE_HEALTH
+            - COMPUTED
         externalId:
           anyOf:
             - type: string
@@ -5685,6 +5734,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             activeEnergy:
               maxItems: 8
               type: array
@@ -5695,6 +5745,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -5705,6 +5756,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             flightsClimbed:
               maxItems: 8
               type: array
@@ -5715,6 +5767,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             sleep:
               maxItems: 8
               type: array
@@ -5725,6 +5778,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             weight:
               maxItems: 8
               type: array
@@ -5735,6 +5789,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             bloodPressure:
               maxItems: 8
               type: array
@@ -5745,6 +5800,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             pulse:
               maxItems: 8
               type: array
@@ -5755,6 +5811,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             bodyFat:
               maxItems: 8
               type: array
@@ -5765,6 +5822,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             bodyTemperature:
               maxItems: 8
               type: array
@@ -5775,6 +5833,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             spo2:
               maxItems: 8
               type: array
@@ -5785,6 +5844,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             hrv:
               maxItems: 8
               type: array
@@ -5795,6 +5855,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             restingHeartRate:
               maxItems: 8
               type: array
@@ -5805,6 +5866,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             vo2Max:
               maxItems: 8
               type: array
@@ -5815,6 +5877,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             metricPriority:
               type: object
               properties:
@@ -5828,6 +5891,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -5838,6 +5902,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -5848,6 +5913,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -5858,6 +5924,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 sleep:
                   maxItems: 8
                   type: array
@@ -5868,6 +5935,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 weight:
                   maxItems: 8
                   type: array
@@ -5878,6 +5946,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -5888,6 +5957,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 pulse:
                   maxItems: 8
                   type: array
@@ -5898,6 +5968,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -5908,6 +5979,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -5918,6 +5990,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 spo2:
                   maxItems: 8
                   type: array
@@ -5928,6 +6001,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 hrv:
                   maxItems: 8
                   type: array
@@ -5938,6 +6012,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -5948,6 +6023,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -5958,6 +6034,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
               additionalProperties: false
             deviceTypePriority:
               type: object
@@ -6017,6 +6094,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             activeEnergy:
               maxItems: 8
               type: array
@@ -6027,6 +6105,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -6037,6 +6116,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             flightsClimbed:
               maxItems: 8
               type: array
@@ -6047,6 +6127,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             sleep:
               maxItems: 8
               type: array
@@ -6057,6 +6138,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             weight:
               maxItems: 8
               type: array
@@ -6067,6 +6149,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             bloodPressure:
               maxItems: 8
               type: array
@@ -6077,6 +6160,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             pulse:
               maxItems: 8
               type: array
@@ -6087,6 +6171,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             bodyFat:
               maxItems: 8
               type: array
@@ -6097,6 +6182,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             bodyTemperature:
               maxItems: 8
               type: array
@@ -6107,6 +6193,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             spo2:
               maxItems: 8
               type: array
@@ -6117,6 +6204,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             hrv:
               maxItems: 8
               type: array
@@ -6127,6 +6215,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             restingHeartRate:
               maxItems: 8
               type: array
@@ -6137,6 +6226,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             vo2Max:
               maxItems: 8
               type: array
@@ -6147,6 +6237,7 @@ components:
                   - WITHINGS
                   - IMPORT
                   - APPLE_HEALTH
+                  - COMPUTED
             metricPriority:
               type: object
               properties:
@@ -6160,6 +6251,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -6170,6 +6262,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -6180,6 +6273,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -6190,6 +6284,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 sleep:
                   maxItems: 8
                   type: array
@@ -6200,6 +6295,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 weight:
                   maxItems: 8
                   type: array
@@ -6210,6 +6306,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -6220,6 +6317,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 pulse:
                   maxItems: 8
                   type: array
@@ -6230,6 +6328,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -6240,6 +6339,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -6250,6 +6350,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 spo2:
                   maxItems: 8
                   type: array
@@ -6260,6 +6361,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 hrv:
                   maxItems: 8
                   type: array
@@ -6270,6 +6372,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -6280,6 +6383,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -6290,6 +6394,7 @@ components:
                       - WITHINGS
                       - IMPORT
                       - APPLE_HEALTH
+                      - COMPUTED
               additionalProperties: false
             deviceTypePriority:
               type: object

@@ -96,6 +96,10 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   LOW_HEART_RATE_EVENT: "measurements.typeLowHeartRateEvent",
   WALKING_STEADINESS_EVENT: "measurements.typeWalkingSteadinessEvent",
   BREATHING_DISTURBANCE_EVENT: "measurements.typeBreathingDisturbanceEvent",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  RECOVERY_SCORE: "measurements.typeRecoveryScore",
+  STRESS_SCORE: "measurements.typeStressScore",
+  STRAIN_SCORE: "measurements.typeStrainScore",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -182,6 +186,11 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   LOW_HEART_RATE_EVENT: HeartPulse,
   WALKING_STEADINESS_EVENT: Footprints,
   BREATHING_DISTURBANCE_EVENT: Wind,
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Gauge reads as a composite "index / score" dial for all three.
+  RECOVERY_SCORE: Gauge,
+  STRESS_SCORE: Gauge,
+  STRAIN_SCORE: Gauge,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -259,4 +268,10 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   LOW_HEART_RATE_EVENT: "bg-chart-3/20 text-chart-3",
   WALKING_STEADINESS_EVENT: "bg-chart-2/20 text-chart-2",
   BREATHING_DISTURBANCE_EVENT: "bg-chart-5/20 text-chart-5",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // chart-1 (Dracula purple) marks the server-derived composites as their
+  // own visual group, distinct from the raw-signal families above.
+  RECOVERY_SCORE: "bg-chart-1/20 text-chart-1",
+  STRESS_SCORE: "bg-chart-1/20 text-chart-1",
+  STRAIN_SCORE: "bg-chart-1/20 text-chart-1",
 };

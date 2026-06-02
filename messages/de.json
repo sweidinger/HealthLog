@@ -437,7 +437,10 @@
     "typeHighHeartRateEvent": "Hinweis auf hohe Herzfrequenz",
     "typeLowHeartRateEvent": "Hinweis auf niedrige Herzfrequenz",
     "typeWalkingSteadinessEvent": "Hinweis zur Gehstabilität",
-    "typeBreathingDisturbanceEvent": "Atemstörung"
+    "typeBreathingDisturbanceEvent": "Atemstörung",
+    "typeRecoveryScore": "Erholungs-Score",
+    "typeStressScore": "Stress-Score",
+    "typeStrainScore": "Belastungs-Score"
   },
   "mood": {
     "title": "Stimmung",

@@ -42,7 +42,11 @@ export type MeasurementCategory =
   | "hearing"
   | "environment"
   | "cardiovascular"
-  | "metabolic";
+  | "metabolic"
+  // v1.10.0 — computed scores (WX-C). Server-derived wellness scores
+  // (Recovery / Stress / Strain). Their own presentation cluster — they are
+  // composite indices, not a raw signal in any of the above buckets.
+  | "scores";
 
 /**
  * Per-MeasurementType → category mapping. The map is exhaustive over
@@ -153,6 +157,14 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   ["LOW_HEART_RATE_EVENT", "cardiovascular"],
   ["WALKING_STEADINESS_EVENT", "activity"],
   ["BREATHING_DISTURBANCE_EVENT", "sleep"],
+
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Server-derived wellness scores share their own presentation cluster.
+  // The category is only for list grouping — scores never participate in
+  // trend/rollup analytics (they ARE a nightly-computed composite).
+  ["RECOVERY_SCORE", "scores"],
+  ["STRESS_SCORE", "scores"],
+  ["STRAIN_SCORE", "scores"],
 ]);
 
 /**

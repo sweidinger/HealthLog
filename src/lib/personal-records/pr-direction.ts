@@ -144,6 +144,14 @@ export function getPRDirection(
     case "LOW_HEART_RATE_EVENT":
     case "WALKING_STEADINESS_EVENT":
     case "BREATHING_DISTURBANCE_EVENT":
+    // v1.10.0 — computed scores (WX-C). The server-derived wellness scores
+    // are themselves derived composites recomputed nightly from the
+    // underlying signals; a "personal record" on a derived score would
+    // double-count the PRs of its own inputs and read as noise. They
+    // explicitly have no PR direction, like the categorical events above.
+    case "RECOVERY_SCORE":
+    case "STRESS_SCORE":
+    case "STRAIN_SCORE":
       return null;
   }
 }

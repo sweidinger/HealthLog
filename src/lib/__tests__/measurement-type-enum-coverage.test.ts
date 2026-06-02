@@ -73,10 +73,14 @@ const EXPECTED_TYPES = [
   "LOW_HEART_RATE_EVENT",
   "WALKING_STEADINESS_EVENT",
   "BREATHING_DISTURBANCE_EVENT",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  "RECOVERY_SCORE",
+  "STRESS_SCORE",
+  "STRAIN_SCORE",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 50 canonical measurement types", () => {
+  it("exposes the 53 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -168,6 +172,14 @@ describe("measurementTypeEnum coverage", () => {
     "LOW_HEART_RATE_EVENT",
     "WALKING_STEADINESS_EVENT",
     "BREATHING_DISTURBANCE_EVENT",
+    // v1.10.0 — computed scores (WX-C). Server-derived wellness scores
+    // (Recovery / Stress / Strain) are 0–100 composites recomputed nightly,
+    // not measured clinical vitals. They surface on their own Insights
+    // cluster with a "descriptive, not clinical" disclaimer and never belong
+    // in the clinical vitals PDF. See doctor-report-pdf-core.ts.
+    "RECOVERY_SCORE",
+    "STRESS_SCORE",
+    "STRAIN_SCORE",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

@@ -66,6 +66,29 @@ export const measurementTypeEnum = z.enum([
   "LOW_HEART_RATE_EVENT",
   "WALKING_STEADINESS_EVENT",
   "BREATHING_DISTURBANCE_EVENT",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Server-derived wellness scores (0–100, unit `score`). Minted by a
+  // nightly engine from the user's already-stored signals and persisted as a
+  // `COMPUTED`-source row — never ingested from a client (the batch +
+  // single-POST write surfaces reject the COMPUTED source). Only
+  // RECOVERY_SCORE is computed in v1.10.0; the other two are defined now so
+  // the later engines that compute them need no schema change.
+  "RECOVERY_SCORE",
+  "STRESS_SCORE",
+  "STRAIN_SCORE",
+]);
+
+/**
+ * v1.10.0 — computed scores (WX-C). The closed set of server-derived
+ * `*_SCORE` MeasurementTypes. Each is a 0–100 wellness score persisted with
+ * `source = COMPUTED` by a nightly engine — never ingested from a client.
+ * Kept as a `Set` so read/write paths can branch on "is this a computed
+ * score?" the same way `EVENT_MEASUREMENT_TYPES` gates the event rows.
+ */
+export const SCORE_MEASUREMENT_TYPES: ReadonlySet<string> = new Set<string>([
+  "RECOVERY_SCORE",
+  "STRESS_SCORE",
+  "STRAIN_SCORE",
 ]);
 
 /**
@@ -104,7 +127,30 @@ export const measurementSourceEnum = z.enum([
   "WITHINGS",
   "IMPORT",
   "APPLE_HEALTH",
+  // v1.10.0 — computed scores (WX-C). Server-owned / read-only: a `COMPUTED`
+  // row is minted by a nightly engine, never written by a client. It is part
+  // of this enum so the read/response shapes (and the iOS decoder) can decode
+  // the rows it surfaces; the client-facing write surfaces reject it — see
+  // `WRITABLE_MEASUREMENT_SOURCES` and the batch route's `batchSourceEnum`.
+  "COMPUTED",
 ]);
+
+/**
+ * v1.10.0 — computed scores (WX-C). The subset of `MeasurementSource` a
+ * client may attribute on a write. `COMPUTED` is server-owned (a nightly
+ * engine mints it) and `WITHINGS` / `IMPORT` are owned by the Withings
+ * webhook + CSV importer respectively, so all three are excluded — letting a
+ * client forge a row attributed to them would pollute the per-source
+ * canonical picker with rows the server never produced. The single-entry
+ * POST validates `source` against this set; the batch route mirrors the same
+ * exclusion with its own narrower `{APPLE_HEALTH, MANUAL}` allowlist.
+ */
+export const WRITABLE_MEASUREMENT_SOURCES = [
+  "MANUAL",
+  "WITHINGS",
+  "IMPORT",
+  "APPLE_HEALTH",
+] as const;
 
 const unitMap: Record<string, string> = {
   WEIGHT: "kg",
@@ -200,6 +246,12 @@ const unitMap: Record<string, string> = {
   LOW_HEART_RATE_EVENT: "event",
   WALKING_STEADINESS_EVENT: "event",
   BREATHING_DISTURBANCE_EVENT: "event",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Server-derived 0–100 wellness scores. The canonical unit is the bare
+  // "score" so the value reads sensibly anywhere it surfaces.
+  RECOVERY_SCORE: "score",
+  STRESS_SCORE: "score",
+  STRAIN_SCORE: "score",
 };
 
 export function getUnitForType(type: string): string {
@@ -343,6 +395,12 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   LOW_HEART_RATE_EVENT: { min: 1, max: 1 },
   WALKING_STEADINESS_EVENT: { min: 1, max: 1 },
   BREATHING_DISTURBANCE_EVENT: { min: 1, max: 1 },
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Server-derived 0–100 scores. The plausibility band pins them to the
+  // score range so a malformed store (a stray negative or > 100) is rejected.
+  RECOVERY_SCORE: { min: 0, max: 100 },
+  STRESS_SCORE: { min: 0, max: 100 },
+  STRAIN_SCORE: { min: 0, max: 100 },
 };
 
 export function validateMeasurementRange(
@@ -395,7 +453,16 @@ export const createMeasurementSchema = z
         "Blood glucose measurements require a context (fasting/postprandial/random/bedtime); other types must not set one.",
       path: ["glucoseContext"],
     },
-  );
+  )
+  // v1.10.0 — computed scores (WX-C). The `COMPUTED` source is server-owned:
+  // a nightly engine mints those rows, a client never does. Reject it here
+  // so the single-entry POST cannot forge a server-derived row (the batch
+  // route enforces the same exclusion through its `{APPLE_HEALTH, MANUAL}`
+  // allowlist).
+  .refine((data) => data.source !== "COMPUTED", {
+    message: "The COMPUTED source is server-owned and cannot be set by a client.",
+    path: ["source"],
+  });
 
 export const updateMeasurementSchema = z.object({
   value: z.number().min(0).max(500000).optional(),

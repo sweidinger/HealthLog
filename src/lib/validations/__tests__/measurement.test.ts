@@ -271,4 +271,50 @@ describe("measurement validation", () => {
       expect(parsed.success).toBe(true);
     });
   });
+
+  // v1.10.0 — computed scores (WX-C).
+  describe("computed scores", () => {
+    it("canonical unit is 'score' for each computed-score type", () => {
+      expect(getUnitForType("RECOVERY_SCORE")).toBe("score");
+      expect(getUnitForType("STRESS_SCORE")).toBe("score");
+      expect(getUnitForType("STRAIN_SCORE")).toBe("score");
+    });
+
+    it("plausibility range is 0..100 for a computed score", () => {
+      expect(validateMeasurementRange("RECOVERY_SCORE", 0)).toBeNull();
+      expect(validateMeasurementRange("RECOVERY_SCORE", 100)).toBeNull();
+      expect(validateMeasurementRange("RECOVERY_SCORE", -1)).not.toBeNull();
+      expect(validateMeasurementRange("RECOVERY_SCORE", 101)).not.toBeNull();
+    });
+
+    it("rejects the server-owned COMPUTED source on a client write", () => {
+      const parsed = createMeasurementSchema.safeParse({
+        type: "RECOVERY_SCORE",
+        value: 72,
+        measuredAt: "2026-06-02T12:00:00Z",
+        source: "COMPUTED",
+      });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        const issue = parsed.error.issues.find((i) =>
+          i.path.includes("source"),
+        );
+        expect(issue, "expected a source-path rejection").toBeDefined();
+        expect(issue!.message).toMatch(/server-owned/i);
+      }
+    });
+
+    it("still accepts a client-writable source for a score-typed manual row", () => {
+      // The COMPUTED source is the only one this refine blocks; a MANUAL
+      // write of any type stays valid (the source guard is orthogonal to
+      // whether a UI ever offers manual score entry).
+      const parsed = createMeasurementSchema.safeParse({
+        type: "RECOVERY_SCORE",
+        value: 72,
+        measuredAt: "2026-06-02T12:00:00Z",
+        source: "MANUAL",
+      });
+      expect(parsed.success).toBe(true);
+    });
+  });
 });

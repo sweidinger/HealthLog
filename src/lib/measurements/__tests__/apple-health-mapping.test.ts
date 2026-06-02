@@ -32,6 +32,13 @@ const MEASUREMENT_TYPES_WITHOUT_HK_COUNTERPART = new Set<MeasurementType>([
   "PULSE_WAVE_VELOCITY",
   "VASCULAR_AGE",
   "VISCERAL_FAT",
+  // v1.10.0 — computed scores (WX-C). Server-derived wellness scores
+  // (Recovery / Stress / Strain) are minted by a nightly engine from the
+  // user's already-stored signals; HealthKit ships no identifier for them
+  // and they are never ingested, so they have no HK mapping by design.
+  "RECOVERY_SCORE",
+  "STRESS_SCORE",
+  "STRAIN_SCORE",
 ]);
 
 describe("APPLE_HEALTH_TYPE_MAP", () => {

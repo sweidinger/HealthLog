@@ -89,6 +89,14 @@ export const ALLOWED_CHART_TOKENS = [
   "metric:STAIR_ASCENT_SPEED",
   "metric:STAIR_DESCENT_SPEED",
   "metric:BREATHING_DISTURBANCES",
+  // v1.10.0 — computed scores (WX-C). Server-derived 0–100 wellness scores.
+  // Unlike the categorical EVENT classes they ARE a continuous daily series,
+  // so they carry a `metric:<TYPE>` token and render through the generic
+  // chart renderer. Only RECOVERY_SCORE is computed in v1.10.0; the other
+  // two tokens are reserved for the later engines.
+  "metric:RECOVERY_SCORE",
+  "metric:STRESS_SCORE",
+  "metric:STRAIN_SCORE",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
@@ -184,6 +192,11 @@ const ORPHAN_ENUMS = [
   "STAIR_ASCENT_SPEED",
   "STAIR_DESCENT_SPEED",
   "BREATHING_DISTURBANCES",
+  // v1.10.0 — computed scores (WX-C), same shape. Strip the bare enum name
+  // if the model drops it into prose (mirrors the MOOD_SCORE precedent).
+  "RECOVERY_SCORE",
+  "STRESS_SCORE",
+  "STRAIN_SCORE",
 ] as const;
 
 // `\b` boundaries keep ordinary English prose untouched — "weight"
