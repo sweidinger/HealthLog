@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const deleteMany = vi.fn();
+const enqueueStatusGeneration = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -18,12 +19,28 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+vi.mock("@/lib/jobs/insight-status-generate-shared", () => ({
+  enqueueStatusGeneration: (...a: unknown[]) => enqueueStatusGeneration(...a),
+}));
+
 import { invalidateStatusInsightsForTypes } from "../comprehensive-generate";
 
 beforeEach(() => {
   vi.clearAllMocks();
   deleteMany.mockResolvedValue({ count: 0 });
+  enqueueStatusGeneration.mockResolvedValue(undefined);
 });
+
+/** Distinct scopes the invalidator enqueued a regenerate for. */
+function enqueuedScopes(): string[] {
+  return [
+    ...new Set(
+      enqueueStatusGeneration.mock.calls.map(
+        (c) => (c[0] as { metric: string }).metric,
+      ),
+    ),
+  ].sort();
+}
 
 function deletedScopes(): string[] {
   const arg = deleteMany.mock.calls[0][0];
@@ -80,5 +97,28 @@ describe("invalidateStatusInsightsForTypes", () => {
   it("is a no-op for an empty type set (no DB call)", async () => {
     await invalidateStatusInsightsForTypes("u1", []);
     expect(deleteMany).not.toHaveBeenCalled();
+    expect(enqueueStatusGeneration).not.toHaveBeenCalled();
+  });
+
+  it("enqueues a debounced regenerate for every dirtied scope, both locales", async () => {
+    await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
+    // weight + bmi + general, each warmed for de + en.
+    expect(enqueuedScopes()).toEqual(["bmi", "general", "weight"]);
+    expect(enqueueStatusGeneration).toHaveBeenCalledTimes(6);
+    const locales = new Set(
+      enqueueStatusGeneration.mock.calls.map(
+        (c) => (c[0] as { locale: string }).locale,
+      ),
+    );
+    expect([...locales].sort()).toEqual(["de", "en"]);
+  });
+
+  it("does not blanket-evict general for an unrelated synced type", async () => {
+    // A steps sample touches only the general overview, never the weight /
+    // pulse / bp scopes — the constant Apple-Health sync must not thrash
+    // every card's cache.
+    await invalidateStatusInsightsForTypes("u1", ["ACTIVITY_STEPS"]);
+    expect(deletedScopes()).toEqual(["general"]);
+    expect(enqueuedScopes()).toEqual(["general"]);
   });
 });

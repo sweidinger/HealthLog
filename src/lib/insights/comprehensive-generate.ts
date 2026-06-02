@@ -47,6 +47,7 @@ import {
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
 import { invalidateUserInsights } from "@/lib/cache/invalidate";
+import { enqueueStatusGeneration } from "@/lib/jobs/insight-status-generate-shared";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -231,6 +232,22 @@ export async function invalidateStatusInsightsForTypes(
       })),
     },
   });
+
+  // v1.8.7 — regenerate-on-invalidate. Deleting the today-row alone left
+  // the card to re-warm only on the user's next category open (a miss → a
+  // worker round-trip while they wait) or the nightly cron. Instead,
+  // proactively enqueue a debounced regenerate for each dirtied scope so
+  // the cache is re-warmed in the background. The enqueue is coalesced per
+  // `(user, metric, locale)` via the queue's `singletonKey` (120 s window),
+  // so the constant Apple-Health sync cannot fan out a storm of jobs — a
+  // burst of samples collapses into one regenerate per scope per locale.
+  // The stale-while-revalidate read keeps the previous assessment visible
+  // until the fresh one lands, so the user never waits on a card.
+  for (const scope of scopes) {
+    for (const locale of ["de", "en"] as const) {
+      void enqueueStatusGeneration({ userId, metric: scope, locale });
+    }
+  }
 }
 
 interface GenerateOptions {
