@@ -415,15 +415,22 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
     });
   });
 
-  it("does NOT warm the per-status or generic caches when the comprehensive pass skipped (no provider)", async () => {
+  it("still runs the per-status + generic warm even when the comprehensive pass skipped (no provider)", async () => {
+    // v1.9.0 — the three sections are decoupled. A skipped comprehensive
+    // (no provider) must NOT short-circuit the per-status + generic passes:
+    // each generator resolves its own provider chain and no-ops cheaply when
+    // none is configured, so running them is safe and is what warms the cards
+    // when the comprehensive briefing is the only thing missing a provider.
     const { prisma } = makePrisma([]);
     const generate = vi
       .fn()
       .mockResolvedValue({ status: "skipped", reason: "no-provider" });
+    // Each generator independently reports no-provider — nothing warmed, but
+    // it WAS invoked (it is the generator, not the caller, that decides).
     const statusGenerators = Array.from({ length: 7 }, () =>
       vi.fn().mockResolvedValue({ hasProvider: false, cached: true }),
     );
-    const warmGenericMetrics = vi.fn().mockResolvedValue(5);
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
 
     const result = await forceWarmUser(prisma as never, "u1", "de", {
       generate,
@@ -432,14 +439,93 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
     });
 
     for (const g of statusGenerators) {
-      expect(g).not.toHaveBeenCalled();
+      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: true });
     }
-    expect(warmGenericMetrics).not.toHaveBeenCalled();
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
     expect(result).toMatchObject({
       comprehensive: "skipped",
       assessmentsWarmed: 0,
       metricAssessmentsWarmed: 0,
     });
+  });
+
+  it("warms the per-status + generic caches even when the comprehensive pass fails", async () => {
+    // v1.9.0 — a failed comprehensive (provider chain unhealthy this run)
+    // is non-fatal: the cheaper per-status (7) + generic (~30) cards still
+    // warm so the user's first click is a cache read, not a 30–60 s lazy
+    // generation. This is the prod regression the stability wave closes.
+    const { prisma } = makePrisma([]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "failed", reason: "all-providers-failed" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: false }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(4);
+
+    const result = await forceWarmUser(prisma as never, "u1", "de", {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(1);
+    }
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
+    expect(result).toMatchObject({
+      comprehensive: "failed",
+      assessmentsWarmed: 7,
+      metricAssessmentsWarmed: 4,
+    });
+  });
+
+  it("reports a timed-out comprehensive distinctly and still warms the rest", async () => {
+    // A comprehensive generation that exceeds its bounded budget is
+    // abandoned and reported as `timeout`, but the per-status + generic
+    // passes run regardless. The prod incident was a 102 s comprehensive
+    // that aborted the whole warm with `assessments_warmed: 0`.
+    const { prisma } = makePrisma([]);
+    const generate = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          // Never settles within the bounded budget; the fake timers below
+          // advance past it so the warm continues.
+          setTimeout(
+            () => resolve({ status: "generated", providerType: "x" }),
+            120_000,
+          );
+        }),
+    );
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: false }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(3);
+
+    vi.useFakeTimers();
+    try {
+      const promise = forceWarmUser(prisma as never, "u1", "de", {
+        generate,
+        statusGenerators,
+        warmGenericMetrics,
+      });
+      // Advance past the comprehensive budget so withTimeout fires.
+      await vi.advanceTimersByTimeAsync(60_000);
+      const result = await promise;
+
+      for (const g of statusGenerators) {
+        expect(g).toHaveBeenCalledTimes(1);
+      }
+      expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
+      expect(result).toMatchObject({
+        comprehensive: "timeout",
+        assessmentsWarmed: 7,
+        metricAssessmentsWarmed: 3,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("short-circuits to a no-op when the briefing surface is disabled globally", async () => {

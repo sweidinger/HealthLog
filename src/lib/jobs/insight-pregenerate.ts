@@ -68,6 +68,7 @@ import {
   getMetricStatusMeta,
   type MetricStatusMetricId,
 } from "@/lib/insights/metric-status-registry";
+import { withTimeout } from "@/lib/insights/with-timeout";
 import {
   INSIGHT_PREGENERATE_QUEUE,
   enqueueForceWarm,
@@ -109,10 +110,28 @@ const PREGENERATE_BUDGET_WINDOW_MS = 20 * 60 * 60 * 1000;
  */
 const WARM_PASS_CONCURRENCY = 3;
 
+/**
+ * Bounded budget for the comprehensive step of a forced full warm. The
+ * comprehensive insight is the single heaviest generation (full feature
+ * extraction + a 1500-token completion) and a slow or stalled provider
+ * could pin the whole warm for a minute-plus, after which the entire job
+ * aborted with the per-status + generic-metric passes never run. Capping
+ * it lets the forced path abandon a slow comprehensive and still warm the
+ * cheaper per-status (7) + generic-metric (~30) assessments, so the user's
+ * cards are warm even when the briefing generation stalls. Set a hair
+ * below the queue's own retry horizon so a single tick stays bounded.
+ */
+const FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS = 45_000;
+
 /** Per-user result of one forced full warm. */
 export interface ForceWarmResult {
-  /** Outcome of the comprehensive-insight generation. */
-  comprehensive: GenerateOutcome["status"];
+  /**
+   * Outcome of the comprehensive-insight generation. `"timeout"` is
+   * distinct from `"failed"`: the comprehensive step exceeded its own
+   * bounded budget (see `FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS`) and was
+   * abandoned so the per-status + generic-metric passes could still run.
+   */
+  comprehensive: GenerateOutcome["status"] | "timeout";
   /** Count of specialised per-status assessments written warm. */
   assessmentsWarmed: number;
   /** Count of generic per-HealthKit-metric assessments written warm. */
@@ -493,11 +512,20 @@ export async function runInsightPregenerate(
  *     the queue `singletonKey`.
  *
  * Unlike the nightly cron (de+en), the forced path warms only the caller's
- * active `locale` so a single-locale user pays half the provider cost. A
- * `failed`/`skipped` comprehensive outcome short-circuits the per-status
- * warm exactly as the cron does — re-running seven (then ~30) generators
- * against an unhealthy or provider-less chain would only multiply the
- * failure.
+ * active `locale` so a single-locale user pays half the provider cost.
+ *
+ * The three sections are decoupled: the comprehensive step runs under its
+ * own bounded budget (`FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS`) and its
+ * failure / timeout / skip is non-fatal — the per-status (7) and
+ * generic-metric (~30) warm passes ALWAYS run afterwards. The earlier
+ * design short-circuited both passes on a non-`generated`/`cached`
+ * comprehensive, so a single slow briefing generation left every card cold
+ * and the user back on the lazy 30–60 s on-first-click path. The per-card
+ * generators each resolve their own provider chain and bound their own
+ * provider call, so a missing provider costs a cheap chain-resolve and a
+ * degraded one is capped per card — running them after a failed
+ * comprehensive can never multiply a stall. The result reports each
+ * section's outcome independently so a partial warm is observable.
  */
 export async function forceWarmUser(
   prisma: PrismaClient,
@@ -536,17 +564,39 @@ export async function forceWarmUser(
 
   const locales: ReadonlyArray<"de" | "en"> = [locale];
 
-  const outcome = await generate(userId, { locale, force: true });
-  result.comprehensive = outcome.status;
-
-  if (outcome.status === "generated" || outcome.status === "cached") {
-    result.assessmentsWarmed = await warmPerStatusCaches(
-      userId,
-      locales,
-      statusGenerators,
-    );
-    result.metricAssessmentsWarmed = await warmGenericMetrics(userId, locales);
+  // The comprehensive step gets its own bounded budget and its failure is
+  // non-fatal. A slow or stalled briefing generation must not short-circuit
+  // the per-status + generic-metric passes — those are the ~37 cards the
+  // user actually clicks first, and warming them is independent of the
+  // comprehensive insight (each generator resolves its own provider chain
+  // and writes its own cache row). A timeout / error / skipped comprehensive
+  // now falls through to the warm passes instead of aborting the whole job.
+  const comprehensive = await withTimeout(
+    () => generate(userId, { locale, force: true }),
+    FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS,
+    null,
+  );
+  if (comprehensive.timedOut) {
+    result.comprehensive = "timeout";
+  } else if (comprehensive.errored || comprehensive.value === null) {
+    result.comprehensive = "failed";
+  } else {
+    result.comprehensive = comprehensive.value.status;
   }
+
+  // Always run the per-status + generic-metric warm passes, regardless of
+  // the comprehensive outcome. Each generator independently no-ops to its
+  // no-key fallback when no provider is configured (no LLM call) and serves
+  // its fallback without persisting on a per-card timeout, so running them
+  // after a failed comprehensive is safe and bounded by their own per-card
+  // budgets. The only outcome that has nothing to warm is a missing provider,
+  // and the generators detect that themselves at near-zero cost.
+  result.assessmentsWarmed = await warmPerStatusCaches(
+    userId,
+    locales,
+    statusGenerators,
+  );
+  result.metricAssessmentsWarmed = await warmGenericMetrics(userId, locales);
 
   annotate({
     action: { name: "insights.pregenerate.force" },
