@@ -406,7 +406,7 @@ export function Glp1MedicationCard({
         linkLabel={t("medications.openDetailPage")}
       />
 
-      <CardContent className="flex flex-1 flex-col space-y-3.5">
+      <CardContent className="space-y-3.5">
         {/* Take-now / overdue / very-overdue pill, shared with the
             generic medication card. The GLP-1 card historically
             omitted this row, which made Mounjaro feel different from
@@ -423,13 +423,8 @@ export function Glp1MedicationCard({
         {/* Injection state — last + next. The reserved min-height keeps a
             card whose last-injection line is absent the same vertical
             footprint as one that renders both lines, matching the generic
-            medication card's reserved last/next slot. This — together with
-            `h-full` + `mt-auto` — equalises the card height and pins a
-            shared bottom action baseline across the grid row. Note it does
-            NOT align the compliance bars row-for-row with a generic
-            sibling: the GLP-1-only rotation-hint block below pushes the
-            bars down by its own height, so only the header, the reserved
-            slot, and the pinned action row share a Y. */}
+            medication card's reserved last/next slot, so the dose rows line
+            up across the grid. */}
         <div className="min-h-[2.75rem] space-y-1 text-sm">
           {medication.lastTakenAt && (
             <p className="text-muted-foreground">
@@ -503,17 +498,15 @@ export function Glp1MedicationCard({
         {/* Primary actions row — shared with the generic medication
             card. The GLP-1-specific side-effect quick-log lives in the
             header-actions overflow (kebab), not this row, so Mounjaro
-            and Ramipril share the canonical two-button primary row.
-            Pinned to the bottom with `mt-auto` so the action baseline is
-            shared across every card in the grid row, identical to the
-            generic medication card. */}
+            and Ramipril share the canonical two-button primary row. The
+            row sits directly after the content (the card still fills the
+            grid cell via h-full, but the actions are not pushed to the
+            bottom — that left a void between the content and the buttons). */}
         {medication.active && (
-          <div className="mt-auto pt-3.5">
-            <MedicationIntakeActions
-              intakeLoading={intakeLoading}
-              onRecordIntake={recordIntake}
-            />
-          </div>
+          <MedicationIntakeActions
+            intakeLoading={intakeLoading}
+            onRecordIntake={recordIntake}
+          />
         )}
       </CardContent>
 
