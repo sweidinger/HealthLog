@@ -378,6 +378,15 @@ const batchEntrySchema = z
       .describe(
         "HKCategoryValueSleepAnalysis codepoint; only for sleep samples.",
       ),
+    categoryValue: z
+      .number()
+      .int()
+      .min(0)
+      .max(20)
+      .optional()
+      .describe(
+        "v1.10.0 — `HKCategoryValue` codepoint for an EVENT-class category sample (irregular-rhythm, high/low-HR, walking-steadiness, breathing-disturbance). Carries the device's own classification verdict / severity, which the server resolves to a stored `rhythmClassification`. HealthLog stores ONLY the device's result — it never re-classifies. Ignored for non-event identifiers.",
+      ),
     externalId: z
       .string()
       .min(1)

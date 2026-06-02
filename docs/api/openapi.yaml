@@ -383,6 +383,11 @@ paths:
               - STAIR_ASCENT_SPEED
               - STAIR_DESCENT_SPEED
               - BREATHING_DISTURBANCES
+              - IRREGULAR_RHYTHM_NOTIFICATION
+              - HIGH_HEART_RATE_EVENT
+              - LOW_HEART_RATE_EVENT
+              - WALKING_STEADINESS_EVENT
+              - BREATHING_DISTURBANCE_EVENT
         - in: query
           name: from
           schema:
@@ -523,6 +528,11 @@ paths:
                     - STAIR_ASCENT_SPEED
                     - STAIR_DESCENT_SPEED
                     - BREATHING_DISTURBANCES
+                    - IRREGULAR_RHYTHM_NOTIFICATION
+                    - HIGH_HEART_RATE_EVENT
+                    - LOW_HEART_RATE_EVENT
+                    - WALKING_STEADINESS_EVENT
+                    - BREATHING_DISTURBANCE_EVENT
                 value:
                   type: number
                 measuredAt:
@@ -2090,6 +2100,11 @@ paths:
               - STAIR_ASCENT_SPEED
               - STAIR_DESCENT_SPEED
               - BREATHING_DISTURBANCES
+              - IRREGULAR_RHYTHM_NOTIFICATION
+              - HIGH_HEART_RATE_EVENT
+              - LOW_HEART_RATE_EVENT
+              - WALKING_STEADINESS_EVENT
+              - BREATHING_DISTURBANCE_EVENT
             description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
           required: true
           description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
@@ -2541,6 +2556,14 @@ components:
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
         sleepStage:
           description: HKCategoryValueSleepAnalysis codepoint; only for sleep samples.
+          type: integer
+          minimum: 0
+          maximum: 20
+        categoryValue:
+          description: v1.10.0 — `HKCategoryValue` codepoint for an EVENT-class category sample (irregular-rhythm, high/low-HR,
+            walking-steadiness, breathing-disturbance). Carries the device's own classification verdict / severity,
+            which the server resolves to a stored `rhythmClassification`. HealthLog stores ONLY the device's result — it
+            never re-classifies. Ignored for non-event identifiers.
           type: integer
           minimum: 0
           maximum: 20
@@ -3758,6 +3781,11 @@ components:
             - STAIR_ASCENT_SPEED
             - STAIR_DESCENT_SPEED
             - BREATHING_DISTURBANCES
+            - IRREGULAR_RHYTHM_NOTIFICATION
+            - HIGH_HEART_RATE_EVENT
+            - LOW_HEART_RATE_EVENT
+            - WALKING_STEADINESS_EVENT
+            - BREATHING_DISTURBANCE_EVENT
         value:
           type: number
         unit:
@@ -4055,6 +4083,11 @@ components:
             - STAIR_ASCENT_SPEED
             - STAIR_DESCENT_SPEED
             - BREATHING_DISTURBANCES
+            - IRREGULAR_RHYTHM_NOTIFICATION
+            - HIGH_HEART_RATE_EVENT
+            - LOW_HEART_RATE_EVENT
+            - WALKING_STEADINESS_EVENT
+            - BREATHING_DISTURBANCE_EVENT
         value:
           type: number
         unit:
