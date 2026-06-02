@@ -43,6 +43,9 @@ const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   // the rollup tier; gates on the same `insightStatus` sub-flag as the
   // assessment routes (no Coach prose).
   "src/app/api/insights/derived/route.ts",
+  // v1.10.0 — batched derived-metric route (the dashboard fan-out fix).
+  // Same pure compute + `insightStatus` sub-flag as the single route.
+  "src/app/api/insights/derived/batch/route.ts",
   "src/app/api/insights/medication-compliance-status/route.ts",
   // v1.8.7.1 — generic per-HealthKit-metric assessment. Gated on the
   // same `insightStatus` sub-flag as the seven specialised status routes.
