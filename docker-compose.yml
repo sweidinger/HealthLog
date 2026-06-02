@@ -50,6 +50,11 @@ services:
       BACKUP_S3_SECRET_KEY: "${BACKUP_S3_SECRET_KEY:-}"
       BACKUP_S3_REGION: "${BACKUP_S3_REGION:-auto}"
       BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-30}"
+      # Per-export ceiling on MedicationAdministration rows in the FHIR
+      # health-record Bundle. Bounded 1..50000, default 5000. Listed here so
+      # an operator override in .env actually reaches the container (the
+      # `environment:` block is a whitelist).
+      FHIR_MAX_MEDICATION_ADMINISTRATIONS: "${FHIR_MAX_MEDICATION_ADMINISTRATIONS:-}"
     depends_on:
       db:
         condition: service_healthy

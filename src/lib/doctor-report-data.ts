@@ -207,19 +207,46 @@ const MAX_RANGE_DAYS = 730;
 const DEFAULT_RANGE_DAYS = 90;
 
 /**
- * v1.9.0 — hard ceiling on the number of `MedicationAdministration`
- * source rows materialised per export. The report window is already
- * bounded at {@link MAX_RANGE_DAYS} (730 days), but a chronic medication
- * dosed several times a day across that window — multiplied by several
- * such medications — can still produce thousands of administration
- * resources in a single Bundle (e.g. 4×/day × 730 days ≈ 2 920 per med).
- * Cap at the MOST-RECENT 1 000 acted intakes overall: that preserves the
- * recent-adherence picture a clinician cares about while bounding the
- * in-memory array and the serialised Bundle. When the cap trims rows the
- * aggregator flags it so the FHIR narrative can disclose the truncation
- * rather than silently dropping history.
+ * Default ceiling on the number of `MedicationAdministration` source rows
+ * materialised per export, and the bounds an operator override is clamped
+ * to. The report window is already bounded at {@link MAX_RANGE_DAYS}
+ * (730 days), but a chronic medication dosed several times a day across
+ * that window — multiplied by several such medications — can still produce
+ * thousands of administration resources in a single Bundle. The default of
+ * 5 000 covers ~3.5 years at four doses a day, so it effectively never bites
+ * on a realistic report period while still bounding a pathological export.
  */
-const MAX_MEDICATION_ADMINISTRATIONS = 1000;
+const DEFAULT_MAX_MEDICATION_ADMINISTRATIONS = 5000;
+const MIN_MEDICATION_ADMINISTRATIONS = 1;
+const MAX_MEDICATION_ADMINISTRATIONS_CEILING = 50000;
+
+/**
+ * Resolve the administration ceiling from `FHIR_MAX_MEDICATION_ADMINISTRATIONS`.
+ * Accepts a positive integer within `[1, 50000]`; any unset / non-integer /
+ * out-of-range value falls back to the default. Exported as a pure function so
+ * the resolution can be tested without import-time env coupling.
+ */
+export function resolveMaxMedicationAdministrations(
+  raw: string | undefined,
+): number {
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) &&
+    parsed >= MIN_MEDICATION_ADMINISTRATIONS &&
+    parsed <= MAX_MEDICATION_ADMINISTRATIONS_CEILING
+    ? parsed
+    : DEFAULT_MAX_MEDICATION_ADMINISTRATIONS;
+}
+
+/**
+ * The cap is a coarse safety ceiling resolved once at module load, not a
+ * per-request knob — the report window is the natural bound; this only
+ * guards a pathological multi-year, many-medication export. When it trims
+ * rows the aggregator flags it so the FHIR narrative discloses the
+ * truncation rather than silently dropping history.
+ */
+const MAX_MEDICATION_ADMINISTRATIONS = resolveMaxMedicationAdministrations(
+  process.env.FHIR_MAX_MEDICATION_ADMINISTRATIONS,
+);
 
 export interface DoctorReportRange {
   /** Start of the reporting window (UTC, inclusive). */
