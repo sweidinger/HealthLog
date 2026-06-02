@@ -47,14 +47,41 @@ import {
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
 import { invalidateUserInsights } from "@/lib/cache/invalidate";
-import { enqueueStatusGeneration } from "@/lib/jobs/insight-status-generate-shared";
+import {
+  enqueueStatusGeneration,
+  type InsightStatusScope,
+} from "@/lib/jobs/insight-status-generate-shared";
 import { normalizeLocale } from "@/lib/insights/status-shared";
+import { isTimeoutStub } from "@/lib/insights/status-cache";
 import {
   metricIdForMeasurementType,
   metricStatusScope,
 } from "@/lib/insights/metric-status-registry";
+import { annotate } from "@/lib/logging/context";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Debounce window for ingest-driven status invalidation. A scope whose
+ * cached assessment was (re)generated within this window is left intact on
+ * a fresh measurement ingest — neither evicted nor re-enqueued.
+ *
+ * A constantly-syncing client (Apple Health drips batches every few
+ * minutes) used to delete + re-enqueue every dirtied scope on every batch,
+ * and because each delete dropped the cache row the per-(user,scope,locale)
+ * enqueue singleton (120 s) could not coalesce across batches that arrive
+ * minutes apart — so STEPS / general / a metric card regenerated several
+ * times an hour and the assessment felt "regenerated on every visit". This
+ * window coalesces the storm: a genuinely stale scope (no fresh assessment)
+ * still refreshes immediately, but a scope refreshed inside the window is
+ * skipped, so a fresh assessment survives the day's sync drip and a burst
+ * of batches costs at most one regeneration per scope per window.
+ *
+ * 30 min is comfortably longer than a typical sync cadence yet far shorter
+ * than the 24 h assessment TTL, so a card still tracks new data within the
+ * same session without thrashing the provider.
+ */
+const INGEST_INVALIDATE_DEBOUNCE_MS = 30 * 60 * 1000;
 
 const MAX_DOWNGRADE_TOKENS: ReadonlyArray<string> = [
   "anthropometrics",
@@ -221,52 +248,26 @@ export async function invalidateStatusInsightsForTypes(
   userId: string,
   types: Iterable<MeasurementType>,
 ): Promise<void> {
-  const scopes = new Set<PerStatusScope>();
-  // v1.8.7.1 — a fresh measurement of a type that backs a generic
-  // HealthKit assessment card (the ~30 registry metrics) also dirties that
-  // card's `metric:<ID>` scope. Collect those alongside the seven
-  // specialised scopes so the generic tier is invalidated + re-warmed on
-  // ingest with the same debounced enqueue, rather than lagging until the
-  // nightly cron. Only registered, data-bearing types map here; the seven
-  // specialised metrics and any unregistered type resolve to null and are
-  // skipped, so the constant sync cannot fan out to unwanted scopes.
-  const metricScopes = new Set<`metric:${string}`>();
+  // One ordered set of every scope the batch dirties. The seven specialised
+  // scopes are bare slugs (`weight`, `general`, …); the generic HealthKit
+  // cards (v1.8.7.1) carry a `metric:<ID>` prefix. Both share the cache-key
+  // shape `insights.<scope>-status.<locale>`, so a single set covers the
+  // eviction + the debounce filter + the enqueue uniformly. Only registered,
+  // data-bearing types contribute a generic scope; the seven specialised
+  // metrics and any unregistered type resolve to null and are skipped, so
+  // the constant sync cannot fan out to unwanted scopes.
+  const scopes = new Set<InsightStatusScope>();
   for (const type of types) {
     for (const scope of statusScopesForMeasurementType(type)) {
       scopes.add(scope);
     }
     const metricId = metricIdForMeasurementType(type);
     if (metricId) {
-      metricScopes.add(metricStatusScope(metricId));
+      scopes.add(metricStatusScope(metricId));
     }
   }
-  if (scopes.size === 0 && metricScopes.size === 0) return;
+  if (scopes.size === 0) return;
 
-  await prisma.auditLog.deleteMany({
-    where: {
-      userId,
-      OR: [
-        ...Array.from(scopes, (scope) => ({
-          action: { startsWith: `insights.${scope}-status.` },
-        })),
-        ...Array.from(metricScopes, (scope) => ({
-          action: { startsWith: `insights.${scope}-status.` },
-        })),
-      ],
-    },
-  });
-
-  // v1.8.7 — regenerate-on-invalidate. Deleting the today-row alone left
-  // the card to re-warm only on the user's next category open (a miss → a
-  // worker round-trip while they wait) or the nightly cron. Instead,
-  // proactively enqueue a debounced regenerate for each dirtied scope so
-  // the cache is re-warmed in the background. The enqueue is coalesced per
-  // `(user, metric, locale)` via the queue's `singletonKey` (120 s window),
-  // so the constant Apple-Health sync cannot fan out a storm of jobs — a
-  // burst of samples collapses into one regenerate per scope.
-  // The stale-while-revalidate read keeps the previous assessment visible
-  // until the fresh one lands, so the user never waits on a card.
-  //
   // v1.8.7 — regenerate only the user's resolved locale, matching the
   // read-path (every `*-status` GET serves `normalizeLocale(user.locale)`).
   // Warming both locales doubled provider spend on every sync, half of it
@@ -277,16 +278,122 @@ export async function invalidateStatusInsightsForTypes(
     select: { locale: true },
   });
   const locale = normalizeLocale(localeRow?.locale);
+
+  // v1.9.0 — debounce the ingest-invalidation storm. A constantly-syncing
+  // client drips batches every few minutes; deleting + re-enqueuing every
+  // dirtied scope on every batch regenerated the same card several times an
+  // hour (the per-(user,scope,locale) enqueue singleton is only 120 s, so it
+  // could not coalesce across batches arriving minutes apart, and each
+  // delete dropped the row a fresh enqueue would otherwise have found warm).
+  // Skip any scope whose cached assessment was (re)generated within the
+  // debounce window — leave its row intact and do NOT re-enqueue. A
+  // genuinely stale or missing scope still refreshes immediately, so
+  // correctness holds; only the redundant churn is removed.
+  const freshScopes = await findRecentlyWarmedScopes(userId, locale, scopes);
+  const staleScopes = Array.from(scopes).filter(
+    (scope) => !freshScopes.has(scope),
+  );
+  if (staleScopes.length === 0) {
+    annotate({
+      action: { name: "insights.status.invalidate.debounced" },
+      meta: { skipped: scopes.size, refreshed: 0 },
+    });
+    return;
+  }
+
+  // Drop the cached per-metric assessment rows that are actually stale, so
+  // the next mount / nightly warm pass regenerates them against the new
+  // data. The `-status.` substring guard keeps the sweep off the
+  // comprehensive cache and any unrelated `insights.*` audit row.
+  await prisma.auditLog.deleteMany({
+    where: {
+      userId,
+      OR: staleScopes.map((scope) => ({
+        action: { startsWith: `insights.${scope}-status.` },
+      })),
+    },
+  });
+
+  // v1.8.7 — regenerate-on-invalidate. Deleting the today-row alone left
+  // the card to re-warm only on the user's next category open (a miss → a
+  // worker round-trip while they wait) or the nightly cron. Instead,
+  // proactively enqueue a debounced regenerate for each dirtied scope so
+  // the cache is re-warmed in the background. The enqueue is coalesced per
+  // `(user, metric, locale)` via the queue's `singletonKey` (120 s window);
+  // the debounce above is the second, wider coalescing layer that survives
+  // across the sync drip. The stale-while-revalidate read keeps the
+  // previous assessment visible until the fresh one lands.
+  for (const scope of staleScopes) {
+    void enqueueStatusGeneration({ userId, metric: scope, locale });
+  }
+
+  annotate({
+    action: { name: "insights.status.invalidate.debounced" },
+    meta: { skipped: freshScopes.size, refreshed: staleScopes.length },
+  });
+}
+
+/**
+ * v1.9.0 — return the subset of `scopes` whose cached assessment for
+ * `locale` was generated within `INGEST_INVALIDATE_DEBOUNCE_MS` and is a
+ * real (non-stub) assessment. Those scopes are skipped by the ingest
+ * invalidator so a fresh assessment survives the sync drip.
+ *
+ * One indexed read per user (a single `findMany` over this user's recent
+ * status-cache rows, newest-first) answers it for every candidate scope at
+ * once — cheaper than a per-scope probe and bounded by `take`. A timeout
+ * stub never counts as fresh (it carries no real assessment), so a scope
+ * that recently stalled still gets a retry enqueued.
+ */
+async function findRecentlyWarmedScopes(
+  userId: string,
+  locale: "de" | "en",
+  scopes: ReadonlySet<InsightStatusScope>,
+): Promise<Set<InsightStatusScope>> {
+  const cutoff = new Date(Date.now() - INGEST_INVALIDATE_DEBOUNCE_MS);
+  // Match exactly the cache actions for the candidate scopes in this locale.
+  const candidateActions = Array.from(
+    scopes,
+    (scope) => `insights.${scope}-status.${locale}`,
+  );
+  const actionToScope = new Map<string, InsightStatusScope>();
   for (const scope of scopes) {
-    void enqueueStatusGeneration({ userId, metric: scope, locale });
+    actionToScope.set(`insights.${scope}-status.${locale}`, scope);
   }
-  // v1.8.7.1 — re-warm the matching generic metric scopes the same way, so
-  // a freshly-synced HealthKit metric's assessment card refreshes in the
-  // background instead of lagging until the nightly warm pass. Same
-  // single-locale, singleton-debounced enqueue as the seven scopes above.
-  for (const scope of metricScopes) {
-    void enqueueStatusGeneration({ userId, metric: scope, locale });
+
+  const rows = await prisma.auditLog.findMany({
+    where: {
+      userId,
+      action: { in: candidateActions },
+      createdAt: { gte: cutoff },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { action: true, details: true },
+  });
+
+  const fresh = new Set<InsightStatusScope>();
+  for (const row of rows) {
+    const scope = actionToScope.get(row.action);
+    if (!scope || fresh.has(scope)) continue;
+    if (!row.details) continue;
+    try {
+      const parsed = JSON.parse(row.details) as {
+        model?: string;
+        timeout?: boolean;
+        text?: string;
+      };
+      // A stub is not a real assessment — let a stalled scope retry.
+      if (isTimeoutStub(parsed)) continue;
+      if (typeof parsed.text !== "string" || parsed.text.trim().length === 0) {
+        continue;
+      }
+      fresh.add(scope);
+    } catch {
+      // Malformed payload — treat as not-fresh so the scope refreshes.
+      continue;
+    }
   }
+  return fresh;
 }
 
 interface GenerateOptions {
