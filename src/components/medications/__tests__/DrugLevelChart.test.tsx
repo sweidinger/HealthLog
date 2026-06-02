@@ -1,15 +1,16 @@
 /**
- * v1.4.25 W19c-Frontend — Drug-level chart tests.
+ * Drug-level chart tests.
  *
- * Pins the gating decision tree (research §2.3 + §12.4 + W19c-Backend
- * phase report). The chart MUST hide until:
- *   - the medication's brand resolves to a Glp1DrugId, AND
- *   - `enabled === true` AND
- *   - `acknowledgedVersion === currentDisclaimerVersion`.
+ * The estimated drug-level curve is visible by default for any
+ * recognised GLP-1 brand — it does NOT require Research Mode. The
+ * decision tree is now:
+ *   - the medication's brand resolves to a Glp1DrugId → render, ELSE
+ *     the unknown-drug placeholder.
+ *   - no intake events → empty state.
+ *   - otherwise → the AreaChart, always with the pharmacokinetic
+ *     estimate disclaimer attached.
  *
- * Each gate failure renders a distinct placeholder so the SSR markup
- * carries an unambiguous data-slot for assertion. Recharts in
- * `renderToStaticMarkup` only paints the static frame (the
+ * Recharts in `renderToStaticMarkup` only paints the static frame (the
  * `<ResponsiveContainer>` mounts but doesn't measure), so we assert on
  * `data-slot="drug-level-chart-area"` presence + the gradient
  * definition + the y-axis having no `<text>` tick labels.
@@ -25,8 +26,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "@/lib/i18n/context";
 
 // Capture queryKey routing so different tests can stub different
-// query results. The component reads three queries:
-//   - ["research-mode"]
+// query results. The component reads two queries:
 //   - ["medications", id, "glp1-details"]
 //   - ["medications", id, "intake", "drug-level-chart"]
 const queryResults: Record<string, unknown> = {};
@@ -109,15 +109,8 @@ beforeEach(() => {
   pkCalls.length = 0;
 });
 
-describe("<DrugLevelChart> — gating decision tree", () => {
+describe("<DrugLevelChart> — default-on decision tree", () => {
   it("renders the unknown-drug placeholder for a non-GLP-1 brand", () => {
-    setQueryResult("research-mode", {
-      enabled: true,
-      acknowledgedAt: "2026-05-14T00:00:00Z",
-      acknowledgedVersion: "2026-05-14.1",
-      currentDisclaimerVersion: "2026-05-14.1",
-    });
-
     const html = render(<DrugLevelChart medication={ramipril} />);
 
     expect(html).toContain('data-slot="drug-level-chart-unknown-drug"');
@@ -128,48 +121,46 @@ describe("<DrugLevelChart> — gating decision tree", () => {
     expect(pkCalls).toHaveLength(0);
   });
 
-  it("renders the gated placeholder when Research Mode is OFF", () => {
-    setQueryResult("research-mode", {
-      enabled: false,
-      acknowledgedAt: null,
-      acknowledgedVersion: null,
-      currentDisclaimerVersion: "2026-05-14.1",
+  it("renders the chart for a GLP-1 med WITHOUT any Research Mode opt-in", () => {
+    // No research-mode query is stubbed at all — the chart must still
+    // render the curve for a recognised GLP-1 brand.
+    setQueryResult("medications/med-1/glp1-details", {
+      doseChanges: [
+        {
+          id: "dc-1",
+          effectiveFrom: "2026-04-01T00:00:00Z",
+          doseValue: 7.5,
+          doseUnit: "mg",
+        },
+      ],
+    });
+    setQueryResult("medications/med-1/intake/drug-level-chart", {
+      events: [
+        {
+          id: "ev-1",
+          takenAt: "2026-05-13T08:00:00Z",
+          skipped: false,
+          scheduledFor: "2026-05-13T08:00:00Z",
+        },
+      ],
     });
 
-    const html = render(<DrugLevelChart medication={mounjaro} />);
+    const html = render(
+      <DrugLevelChart
+        medication={mounjaro}
+        asOf={new Date("2026-05-14T12:00:00Z")}
+      />,
+    );
 
-    expect(html).toContain('data-slot="drug-level-chart-gated"');
-    expect(html).toContain('data-stale="false"');
-    expect(html).toContain("Research Mode is off");
-    expect(html).toContain("Open Research Mode");
-    expect(html).not.toContain('data-slot="drug-level-chart-area"');
-    expect(pkCalls).toHaveLength(0);
+    expect(html).toContain('data-slot="drug-level-chart-area"');
+    // The gated placeholder must never appear now.
+    expect(html).not.toContain('data-slot="drug-level-chart-gated"');
+    // The estimate disclaimer is always attached.
+    expect(html).toContain('data-slot="drug-level-chart-disclaimer"');
+    expect(pkCalls).toHaveLength(1);
   });
 
-  it("renders the stale-disclaimer placeholder when versions differ", () => {
-    setQueryResult("research-mode", {
-      enabled: true,
-      acknowledgedAt: "2026-04-01T00:00:00Z",
-      acknowledgedVersion: "2026-04-01.1",
-      currentDisclaimerVersion: "2026-05-14.1",
-    });
-
-    const html = render(<DrugLevelChart medication={mounjaro} />);
-
-    expect(html).toContain('data-slot="drug-level-chart-gated"');
-    expect(html).toContain('data-stale="true"');
-    expect(html).toContain("re-acknowledgment");
-    expect(html).not.toContain('data-slot="drug-level-chart-area"');
-    expect(pkCalls).toHaveLength(0);
-  });
-
-  it("renders the empty state when gate is open but no intake events exist", () => {
-    setQueryResult("research-mode", {
-      enabled: true,
-      acknowledgedAt: "2026-05-14T00:00:00Z",
-      acknowledgedVersion: "2026-05-14.1",
-      currentDisclaimerVersion: "2026-05-14.1",
-    });
+  it("renders the empty state when no intake events exist", () => {
     setQueryResult("medications/med-1/glp1-details", { doseChanges: [] });
     setQueryResult("medications/med-1/intake/drug-level-chart", {
       events: [],
@@ -180,16 +171,41 @@ describe("<DrugLevelChart> — gating decision tree", () => {
     expect(html).toContain('data-slot="drug-level-chart-empty"');
     expect(html).toContain("No intake events yet");
     expect(html).not.toContain('data-slot="drug-level-chart-area"');
+    // The estimate disclaimer stays attached even without data.
+    expect(html).toContain('data-slot="drug-level-chart-disclaimer"');
     expect(pkCalls).toHaveLength(0);
   });
 
-  it("renders the chart when gate is open AND intake events exist", () => {
-    setQueryResult("research-mode", {
-      enabled: true,
-      acknowledgedAt: "2026-05-14T00:00:00Z",
-      acknowledgedVersion: "2026-05-14.1",
-      currentDisclaimerVersion: "2026-05-14.1",
+  it("falls back to the headline dose when no dose-change rows exist", () => {
+    // No doseChanges rows — every intake resolves to the headline
+    // "7.5 mg" dose so the curve still renders for a typical med.
+    setQueryResult("medications/med-1/glp1-details", { doseChanges: [] });
+    setQueryResult("medications/med-1/intake/drug-level-chart", {
+      events: [
+        {
+          id: "ev-1",
+          takenAt: "2026-05-13T08:00:00Z",
+          skipped: false,
+          scheduledFor: "2026-05-13T08:00:00Z",
+        },
+      ],
     });
+
+    const html = render(
+      <DrugLevelChart
+        medication={mounjaro}
+        asOf={new Date("2026-05-14T12:00:00Z")}
+      />,
+    );
+
+    expect(html).toContain('data-slot="drug-level-chart-area"');
+    expect(pkCalls).toHaveLength(1);
+    const [call] = pkCalls;
+    expect(call.doses).toHaveLength(1);
+    expect(call.doses.every((d) => d.doseMg === 7.5)).toBe(true);
+  });
+
+  it("renders the chart when intake events exist", () => {
     setQueryResult("medications/med-1/glp1-details", {
       doseChanges: [
         {
@@ -245,18 +261,11 @@ describe("<DrugLevelChart> — gating decision tree", () => {
   });
 
   it("wraps the chart inside the canonical MedicationDetailSection chrome (UI-H1)", () => {
-    // v1.4.28 — the dashboard tile retired and the standalone
-    // mount on `/medications/[id]/history` lifts onto the shared
-    // `<MedicationDetailSection>` chrome alongside Titration /
+    // The standalone mount on `/medications/[id]/history` lifts onto the
+    // shared `<MedicationDetailSection>` chrome alongside Titration /
     // Scheduling / SideEffects. The aria-labelledby thread + the
     // `border-border/60 rounded-md border` shell are the
     // load-bearing seams.
-    setQueryResult("research-mode", {
-      enabled: true,
-      acknowledgedAt: "2026-05-14T00:00:00Z",
-      acknowledgedVersion: "2026-05-14.1",
-      currentDisclaimerVersion: "2026-05-14.1",
-    });
     const html = render(<DrugLevelChart medication={mounjaro} />);
     expect(html).toContain('data-slot="drug-level-chart"');
     expect(html).toContain('aria-labelledby="drug-level-chart-title"');
@@ -268,12 +277,6 @@ describe("<DrugLevelChart> — gating decision tree", () => {
   });
 
   it("hides the y-axis tick labels (research §2.3, unit-less)", () => {
-    setQueryResult("research-mode", {
-      enabled: true,
-      acknowledgedAt: "2026-05-14T00:00:00Z",
-      acknowledgedVersion: "2026-05-14.1",
-      currentDisclaimerVersion: "2026-05-14.1",
-    });
     setQueryResult("medications/med-1/glp1-details", { doseChanges: [] });
     setQueryResult("medications/med-1/intake/drug-level-chart", {
       events: [
