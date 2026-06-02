@@ -113,6 +113,15 @@ export const queryKeys = {
    */
   insightsMetricStatus: (metric: string, locale: string) =>
     ["insights", "metric-status", metric, locale] as const,
+  /**
+   * v1.8.7.1 — mutationKey for the on-demand full-warm POST
+   * (`/api/insights/pregenerate`). Lives in the factory so the bare-array
+   * ESLint rule stays satisfied; the warm enqueues every assessment
+   * generation on the worker, so there is no read cache to invalidate
+   * here — the existing status queries pick up the warmed text via their
+   * own stale-while-revalidate.
+   */
+  insightsPregenerate: () => ["insights", "pregenerate"] as const,
 
   medications: () => ["medications"] as const,
   medicationDetail: (id: string) => ["medications", id] as const,

@@ -1501,6 +1501,8 @@
     "heroRegenerating": "Regenerating",
     "regenerateAnalysis": "Re-run analysis",
     "regenerateSuccess": "Analysis refreshed",
+    "warmAssessments": "Prepare assessments",
+    "warmStarted": "Assessments are being prepared in the background",
     "heroFallbackSubtitle": "A daily read of your trends, drawn straight from the numbers you've logged.",
     "heroGreetingMorning": "Good morning",
     "heroGreetingAfternoon": "Good afternoon",

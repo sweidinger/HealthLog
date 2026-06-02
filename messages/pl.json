@@ -1501,6 +1501,8 @@
     "heroRegenerating": "Generowanie",
     "regenerateAnalysis": "Uruchom analizę ponownie",
     "regenerateSuccess": "Analiza wygenerowana ponownie",
+    "warmAssessments": "Przygotuj analizy",
+    "warmStarted": "Analizy są przygotowywane w tle",
     "heroFallbackSubtitle": "Codzienne spojrzenie na twoje trendy — prosto z liczb, które rejestrujesz.",
     "heroGreetingMorning": "Dzień dobry",
     "heroGreetingAfternoon": "Dzień dobry",
