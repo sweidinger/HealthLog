@@ -123,6 +123,93 @@ describe("<TrendCard> directionSentiment", () => {
   });
 });
 
+describe("<TrendCard> value is never truncated", () => {
+  // v1.8.7 — the maintainer is emphatic: the numeric value must always
+  // render in full at any tile width (dense strip → narrowest column).
+  // The value span keeps its full intrinsic width (`shrink-0
+  // whitespace-nowrap`) and never carries `truncate`/`min-w-0`; when
+  // space is tight the UNIT yields instead. These guards pin the
+  // contract so a future layout churn can't reintroduce the clip.
+  function valueSpan(html: string): string {
+    const marker = 'data-slot="trend-card-value"';
+    const idx = html.indexOf(marker);
+    expect(idx).toBeGreaterThan(-1);
+    // Walk back to the opening "<span" of the value node.
+    const open = html.lastIndexOf("<span", idx);
+    const close = html.indexOf("</span>", idx);
+    return html.slice(open, close);
+  }
+
+  it("renders the full BP value (130) — never clipped to '13'", () => {
+    const html = render(
+      <TrendCard
+        label="BP systolic"
+        latest={130}
+        unit="mmHg"
+        avg7={128}
+        avg30={129}
+        slope30={null}
+        icon={Activity}
+      />,
+    );
+    // Value span renders the full reading (formatter adds one decimal).
+    expect(valueSpan(html)).toContain("130.0");
+  });
+
+  it("renders the full paired BP value (131/85)", () => {
+    const html = render(
+      <TrendCard
+        label="BP"
+        latest={131}
+        unit="mmHg"
+        avg7={130}
+        avg30={130}
+        slope30={null}
+        icon={Activity}
+        secondary={{ latest: 85, avg7: 84, avg30: 84 }}
+      />,
+    );
+    expect(valueSpan(html)).toContain("131.0/85.0");
+  });
+
+  it("does not put truncate or min-w-0 on the value node", () => {
+    const html = render(
+      <TrendCard
+        label="Weight"
+        latest={80.4}
+        unit="kg"
+        avg7={80}
+        avg30={80}
+        slope30={null}
+        icon={Activity}
+      />,
+    );
+    const value = valueSpan(html);
+    expect(value).not.toContain("truncate");
+    expect(value).not.toContain("min-w-0");
+    // The value holds its width and the number stays on one line.
+    expect(value).toContain("shrink-0");
+    expect(value).toContain("whitespace-nowrap");
+  });
+
+  it("lets the unit yield (min-w-0 truncate) instead of the value", () => {
+    const html = render(
+      <TrendCard
+        label="VO2"
+        latest={42}
+        unit="mL/(kg·min)"
+        avg7={42}
+        avg30={42}
+        slope30={null}
+        icon={Activity}
+      />,
+    );
+    // The unit text renders in full in the markup; the truncate is a
+    // density safeguard that only engages when the column is too narrow.
+    expect(html).toContain("mL/(kg·min)");
+  });
+});
+
 describe("<TrendCard> responsive layout", () => {
   it("keeps long BP target tile content wrappable inside the card", () => {
     // v1.4.28 FB-C2 — the BD-Zielbereich tile dropped `avgAllTime`

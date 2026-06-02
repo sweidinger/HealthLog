@@ -121,7 +121,7 @@ export async function generateMedicationComplianceStatusForUser(
       metric: "medication-compliance",
       locale,
     });
-    if (outcome === "no-provider") {
+    if (outcome.kind === "no-provider") {
       return {
         hasProvider: false,
         summary: getNoKeyMedicationComplianceStatusText(locale),
@@ -130,13 +130,16 @@ export async function generateMedicationComplianceStatusForUser(
         updatedAt: null,
       };
     }
+    // v1.8.7 — stale-while-revalidate: serve the last good narrative (if
+    // any) while the worker re-warms; only show the empty preparing
+    // skeleton when none was ever produced.
     return {
       hasProvider: true,
-      summary: null,
+      summary: outcome.lastGood?.text ?? null,
       medications: [],
-      cached: false,
-      updatedAt: null,
-      preparing: true,
+      cached: outcome.lastGood !== null,
+      updatedAt: outcome.lastGood?.updatedAt ?? null,
+      preparing: outcome.lastGood === null,
     };
   }
 

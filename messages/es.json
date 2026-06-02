@@ -1127,11 +1127,6 @@
         "emptyState": "Sin tomas registradas todavía.",
         "emptyStateCta": "Registra una dosis para ver la curva estimada cobrar forma.",
         "estimateNote": "Estimación educativa a partir de la farmacocinética poblacional publicada por la EMA. No es una medición.",
-        "gatedTitle": "Modo Investigación desactivado",
-        "gatedBody": "Activa el modo Investigación en los ajustes para ver la curva estimada del nivel de fármaco. La curva es de inclusión voluntaria porque es una ayuda de aprendizaje, no una medición clínica.",
-        "gatedStaleTitle": "El disclaimer requiere reconfirmación",
-        "gatedStaleBody": "El disclaimer del modo Investigación se actualizó desde tu última confirmación. Relelo en los ajustes y confirma de nuevo para volver a ver la curva.",
-        "gatedCta": "Abrir el modo Investigación en los ajustes",
         "unknownDrug": "{name} no está en el catálogo de GLP-1 aprobado por la EMA, por lo que HealthLog no puede trazar una curva de farmacocinética poblacional."
       }
     },
@@ -1306,8 +1301,7 @@
       "history": {
         "back": "Volver al medicamento",
         "subtitle": "Historial completo de tomas",
-        "plannedSuffix": "planificado",
-        "drugLevelDisclosure": "Mostrar curva estimada del principio activo"
+        "plannedSuffix": "planificado"
       }
     },
     "logInjectionSiteTitle": "Registrar sitio de inyección",

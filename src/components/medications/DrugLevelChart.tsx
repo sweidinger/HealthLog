@@ -1,11 +1,13 @@
 "use client";
 
 /**
- * v1.4.25 W19c-Frontend — Estimated drug-level chart for GLP-1
- * medications. Opt-in behind Research Mode (the acknowledgment dialog
- * in this directory gates entry); even when enabled the chart paints
- * "Estimated level (relative)" on the y-axis without tick labels —
- * research §2.3 + W19c-Backend round report carry the rationale.
+ * Estimated drug-level chart for GLP-1 medications. Visible by default
+ * for any recognised GLP-1 drug — the curve is the modelled
+ * active-ingredient level the medication concerns. The y-axis paints
+ * "Estimated level (relative)" without tick labels and the persistent
+ * estimate disclaimer makes the pharmacokinetic-ESTIMATE framing
+ * explicit: this is a modelled value, not a measured blood
+ * concentration.
  *
  * Inputs (read-only):
  *   - Drug id resolved from the medication name (catalog lookup via
@@ -18,10 +20,6 @@
  *     applicable dose by walking the dose-change timeline; intakes
  *     that pre-date every dose-change row fall back to the
  *     medication's headline dose string.
- *   - Research-mode state from `GET /api/auth/me/research-mode`. The
- *     chart gates on `enabled === true && acknowledgedVersion ===
- *     currentDisclaimerVersion` — defence-in-depth alongside the
- *     server-side 400 the POST returns for stale versions.
  *
  * Pure math: `computeOneCompartment(drug, doses, asOf)` from
  * `glp1-pk.ts`. The chart renders a 21-day window so three weekly
@@ -38,8 +36,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { AlertTriangle, Loader2, Syringe } from "lucide-react";
+import { Loader2, Syringe } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -50,7 +47,6 @@ import {
   YAxis,
 } from "recharts";
 
-import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -62,7 +58,6 @@ import {
   type Glp1DrugId,
 } from "@/lib/medications/glp1-knowledge";
 import { parseDoseMg } from "@/lib/medications/dose-string";
-import type { ResearchModeStatus } from "@/lib/medications/research-mode-types";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 
@@ -128,23 +123,6 @@ export function DrugLevelChart({ medication, asOf }: DrugLevelChartProps) {
     [medication.name],
   );
 
-  const { data: researchMode, isLoading: rmLoading } =
-    useQuery<ResearchModeStatus | null>({
-      queryKey: queryKeys.researchMode(),
-      queryFn: async () => {
-        const res = await fetch("/api/auth/me/research-mode");
-        if (!res.ok) return null;
-        const json = await res.json();
-        return json.data as ResearchModeStatus;
-      },
-      staleTime: 60 * 1000,
-    });
-
-  const versionsAligned =
-    !!researchMode &&
-    researchMode.acknowledgedVersion === researchMode.currentDisclaimerVersion;
-  const gateOpen = !!researchMode?.enabled && versionsAligned;
-
   const { data: details, isLoading: detailsLoading } =
     useQuery<Glp1DetailsResponse | null>({
       queryKey: queryKeys.medicationGlp1Details(medication.id),
@@ -154,9 +132,7 @@ export function DrugLevelChart({ medication, asOf }: DrugLevelChartProps) {
         const json = await res.json();
         return json.data as Glp1DetailsResponse;
       },
-      // Only fetch when the user has opted in; saves a round-trip for
-      // anyone who hasn't enabled Research Mode.
-      enabled: gateOpen && !!drugId,
+      enabled: !!drugId,
       staleTime: 60 * 1000,
     });
 
@@ -170,7 +146,7 @@ export function DrugLevelChart({ medication, asOf }: DrugLevelChartProps) {
       const json = await res.json();
       return json.data as { events: IntakeEvent[] };
     },
-    enabled: gateOpen && !!drugId,
+    enabled: !!drugId,
     staleTime: 60 * 1000,
   });
 
@@ -194,7 +170,7 @@ export function DrugLevelChart({ medication, asOf }: DrugLevelChartProps) {
   // ── Section header always renders so the parent's "Estimated drug
   //    level" anchor stays stable; the body switches between gated /
   //    loading / empty / chart states.
-  const isLoading = rmLoading || (gateOpen && (detailsLoading || intakeLoading));
+  const isLoading = !!drugId && (detailsLoading || intakeLoading);
   const hasDoses = doses.length > 0;
   const animationsEnabled = !prefersReducedMotion();
   // Single-window contract — three weekly cycles with the sample step
@@ -214,19 +190,12 @@ export function DrugLevelChart({ medication, asOf }: DrugLevelChartProps) {
   ) : null;
 
   // Decision tree:
-  //   1. drug not in catalog       → gated-unknown-drug placeholder
-  //   2. !researchMode.enabled OR  → gated placeholder + Settings CTA
-  //      versions !== aligned         (the defence-in-depth rule)
-  //   3. loading                   → skeleton
-  //   4. no intake events          → empty-state with log CTA
-  //   5. otherwise                 → AreaChart
+  //   1. drug not in catalog       → unknown-drug placeholder
+  //   2. loading                   → skeleton
+  //   3. no intake events          → empty-state with log CTA
+  //   4. otherwise                 → AreaChart
   const body = !drugId ? (
     <GatedUnknownDrug medicationName={medication.name} />
-  ) : !gateOpen ? (
-    <GatedPlaceholder
-      versionsAligned={versionsAligned}
-      knownState={researchMode}
-    />
   ) : isLoading ? (
     // v1.4.43 W11-L6 — match the loaded chart height (240 px) so the
     // dashboard tile doesn't reflow when the levels render.
@@ -257,9 +226,12 @@ export function DrugLevelChart({ medication, asOf }: DrugLevelChartProps) {
       dataSlot="drug-level-chart"
     >
       {body}
-      {gateOpen && hasDoses && (
+      {/* The pharmacokinetic-ESTIMATE disclaimer stays attached whenever
+          a recognised GLP-1 drug renders the chart — the curve is a
+          modelled value, never a measured blood concentration. */}
+      {!!drugId && (
         <p
-          className="text-muted-foreground mt-2 text-xs italic"
+          className="text-foreground/80 border-border bg-muted/40 mt-3 rounded-md border-l-2 px-3 py-2 text-xs font-medium"
           data-slot="drug-level-chart-disclaimer"
         >
           {t("medications.researchMode.chart.estimateNote")}
@@ -306,52 +278,6 @@ function GatedUnknownDrug({ medicationName }: { medicationName: string }) {
   );
 }
 
-function GatedPlaceholder({
-  versionsAligned,
-  knownState,
-}: {
-  versionsAligned: boolean;
-  knownState: ResearchModeStatus | null | undefined;
-}) {
-  const { t } = useTranslations();
-  // Three distinguishable states:
-  //   - Research Mode is off entirely.
-  //   - Research Mode is on but the acknowledged version is stale.
-  //   - We don't know yet (server returned null) — still render the
-  //     opt-in CTA so the user has a path forward.
-  const stale = !!knownState?.enabled && !versionsAligned;
-  return (
-    <div
-      className="bg-muted/40 border-border space-y-3 rounded-md border p-4 text-sm"
-      data-slot="drug-level-chart-gated"
-      data-stale={stale ? "true" : "false"}
-    >
-      <div className="flex items-start gap-2">
-        <AlertTriangle
-          className="text-warning mt-0.5 h-4 w-4 shrink-0"
-          aria-hidden="true"
-        />
-        <div className="space-y-1">
-          <p className="text-foreground font-medium">
-            {stale
-              ? t("medications.researchMode.chart.gatedStaleTitle")
-              : t("medications.researchMode.chart.gatedTitle")}
-          </p>
-          <p className="text-muted-foreground">
-            {stale
-              ? t("medications.researchMode.chart.gatedStaleBody")
-              : t("medications.researchMode.chart.gatedBody")}
-          </p>
-        </div>
-      </div>
-      <Button asChild variant="outline" size="sm">
-        <Link href="/settings/advanced">
-          {t("medications.researchMode.chart.gatedCta")}
-        </Link>
-      </Button>
-    </div>
-  );
-}
 
 function EmptyState() {
   const { t } = useTranslations();
