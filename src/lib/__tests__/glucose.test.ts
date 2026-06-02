@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   mgdlToMmol,
+  mmolToMgdl,
   convertGlucose,
+  toCanonicalMgdl,
   resolveGlucoseUnit,
   thresholdMetricForContext,
 } from "../glucose";
@@ -49,5 +51,26 @@ describe("glucose conversion", () => {
     expect(convertGlucose(fastingMin, "mmol/L")).toBe(3.9);
     expect(convertGlucose(fastingMax, "mmol/L")).toBe(5.5);
     expect(convertGlucose(ada126, "mmol/L")).toBe(7);
+  });
+
+  // The target-editor write path: a value the user typed in their
+  // display unit must persist as canonical mg/dL. Before the fix the
+  // editor saved the mmol/L number verbatim (a 5.5 mmol/L target stored
+  // as 5.5 mg/dL, or rejected outright by the 40–400 mg/dL bounds).
+  it("converts a display-unit value back to canonical mg/dL", () => {
+    expect(mmolToMgdl(5.5)).toBe(99);
+    expect(mmolToMgdl(7.0)).toBe(126); // ADA diabetes threshold
+    expect(mmolToMgdl(3.9)).toBe(70); // hypoglycemia threshold
+  });
+
+  it("toCanonicalMgdl is the inverse of convertGlucose at the editor boundary", () => {
+    // mg/dL display unit is already canonical — only rounds.
+    expect(toCanonicalMgdl(126, "mg/dL")).toBe(126);
+    expect(toCanonicalMgdl(99.4, "mg/dL")).toBe(99);
+    // mmol/L display unit converts back; the round-trip is stable to the
+    // 1-decimal mmol/L the UI shows (≤1 mg/dL drift is unavoidable).
+    expect(toCanonicalMgdl(7.0, "mmol/L")).toBe(126);
+    expect(toCanonicalMgdl(mgdlToMmol(126), "mmol/L")).toBeCloseTo(126, -0.5);
+    expect(toCanonicalMgdl(mgdlToMmol(70), "mmol/L")).toBe(70);
   });
 });

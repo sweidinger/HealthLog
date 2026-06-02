@@ -16,6 +16,7 @@ import {
   type ThresholdMetric,
   type EffectiveRange,
 } from "@/lib/analytics/effective-range";
+import { convertGlucose, toCanonicalMgdl } from "@/lib/glucose";
 
 /**
  * Per-metric target editor, mounted inline on the Insights metric
@@ -120,6 +121,24 @@ function TargetEditSheetBody({
   const metric = TARGET_TYPE_TO_METRIC[targetType] ?? null;
   const isDerivedMetric = !isBp && metric == null;
 
+  // Glucose is the one metric whose display unit can differ from the
+  // canonical storage unit: HealthLog stores mg/dL, but a user on the
+  // mmol/L preference sees — and types — mmol/L. The parent already
+  // hands us `unit="mmol/L"` and a `initialRange` pre-converted to that
+  // unit. We must therefore (a) seed the mg/dL persisted override into
+  // the display unit, (b) validate the typed value against bounds
+  // expressed in the display unit, and (c) convert the typed value back
+  // to canonical mg/dL before the PUT — otherwise a `5.5 mmol/L` target
+  // is rejected by the 40–400 mg/dL bounds or stored verbatim as 5.5.
+  const isGlucoseMmol =
+    metric != null &&
+    metric.startsWith("BLOOD_GLUCOSE") &&
+    unit === "mmol/L";
+  const toDisplay = (mgdl: number) =>
+    isGlucoseMmol ? convertGlucose(mgdl, "mmol/L") : mgdl;
+  const toCanonical = (displayValue: number) =>
+    isGlucoseMmol ? toCanonicalMgdl(displayValue, "mmol/L") : displayValue;
+
   // Lazy-load the thresholds payload so the dialog also catches any
   // already-persisted override even when the seeded `initialRange`
   // came from the targets API (which can paint a different in-band
@@ -142,13 +161,18 @@ function TargetEditSheetBody({
     m: ThresholdMetric | null,
     fallback: CurrentRange | null,
   ) => {
+    // The persisted override is canonical (mg/dL for glucose); the
+    // parent-provided `fallback` (initialRange) is already in the
+    // display unit. Convert the override into the display unit so the
+    // seeded inputs always read in the unit the label announces.
     if (m && thresholdsData?.overrides?.[m]) {
-      return thresholdsData.overrides[m]!;
+      const override = thresholdsData.overrides[m]!;
+      return { min: toDisplay(override.min), max: toDisplay(override.max) };
     }
     if (fallback) return fallback;
     if (m) {
       const bounds = METRIC_BOUNDS[m];
-      return { min: bounds.min, max: bounds.max };
+      return { min: toDisplay(bounds.min), max: toDisplay(bounds.max) };
     }
     return { min: 0, max: 100 };
   };
@@ -260,12 +284,23 @@ function TargetEditSheetBody({
   const diaMinNum = parseFloat(displayDiaMin);
   const diaMaxNum = parseFloat(displayDiaMax);
 
-  const primaryBounds = isBp
+  const canonicalPrimaryBounds = isBp
     ? METRIC_BOUNDS.BLOOD_PRESSURE_SYS
     : metric
       ? METRIC_BOUNDS[metric]
       : null;
   const secondaryBounds = isBp ? METRIC_BOUNDS.BLOOD_PRESSURE_DIA : null;
+
+  // Bounds the user is validated/clamped against — expressed in the
+  // display unit so a mmol/L glucose entry is checked against the
+  // mmol/L-projected 40–400 mg/dL window, not the raw mg/dL numbers.
+  const primaryBounds = canonicalPrimaryBounds
+    ? {
+        min: toDisplay(canonicalPrimaryBounds.min),
+        max: toDisplay(canonicalPrimaryBounds.max),
+        unit,
+      }
+    : null;
 
   const primaryValid =
     primaryBounds != null &&
@@ -296,7 +331,11 @@ function TargetEditSheetBody({
       return;
     }
     if (!metric) return;
-    updateMutation.mutate({ [metric]: { min: minNum, max: maxNum } });
+    // Convert the typed display-unit value back to canonical mg/dL for
+    // glucose on the mmol/L preference; a no-op for every other metric.
+    updateMutation.mutate({
+      [metric]: { min: toCanonical(minNum), max: toCanonical(maxNum) },
+    });
   };
 
   const hasOverride = isBp

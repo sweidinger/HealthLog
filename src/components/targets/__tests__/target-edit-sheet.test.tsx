@@ -96,6 +96,26 @@ describe("<TargetEditSheet>", () => {
     ).not.toThrow();
   });
 
+  it("mounts a glucose target seeded in mmol/L without throwing", () => {
+    // The parent hands a mmol/L-converted range + unit="mmol/L"; the
+    // sheet now seeds/validates in mmol/L and converts back to mg/dL on
+    // save. Smoke-check the new conversion path mounts cleanly.
+    expect(() =>
+      renderToStaticMarkup(
+        withProviders(
+          <TargetEditSheet
+            targetType="BLOOD_GLUCOSE_FASTING"
+            targetLabel="Fasting glucose"
+            unit="mmol/L"
+            initialRange={{ min: 3.9, max: 5.5 }}
+            open={true}
+            onOpenChange={vi.fn()}
+          />,
+        ),
+      ),
+    ).not.toThrow();
+  });
+
   it("mounts the body without throwing for a derived metric (BMI)", () => {
     // BMI is derived from weight + height — the body shows the
     // explanatory hint instead of the editable inputs.

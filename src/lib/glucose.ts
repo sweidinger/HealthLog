@@ -15,8 +15,23 @@ export function mgdlToMmol(mgdl: number): number {
   return Math.round((mgdl / MGDL_PER_MMOL) * 10) / 10;
 }
 
+export function mmolToMgdl(mmol: number): number {
+  return Math.round(mmol * MGDL_PER_MMOL);
+}
+
 export function convertGlucose(value: number, to: GlucoseUnit): number {
   return to === "mmol/L" ? mgdlToMmol(value) : Math.round(value);
+}
+
+/**
+ * Convert a value the user typed in their display unit back to the
+ * canonical mg/dL HealthLog stores. The inverse of {@link convertGlucose}
+ * for the editor write path: a `5.5 mmol/L` target the user enters must
+ * persist as `99 mg/dL`, not as the literal `5.5`. A `mg/dL` display unit
+ * is already canonical, so it only rounds.
+ */
+export function toCanonicalMgdl(value: number, from: GlucoseUnit): number {
+  return from === "mmol/L" ? mmolToMgdl(value) : Math.round(value);
 }
 
 export function resolveGlucoseUnit(
