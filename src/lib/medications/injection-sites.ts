@@ -22,24 +22,38 @@ export const INJECTION_SITE_KEYS = [
 export type InjectionSiteKey = (typeof INJECTION_SITE_KEYS)[number];
 
 /**
- * Stylized SVG position for each site (front-of-body view, ~120x300
- * viewBox). Used by `injection-site-picker.tsx` to render the clickable
- * dots; tuned to read clearly on a 320px mobile viewport.
+ * SVG position for each site on the anatomical front-of-body silhouette
+ * (`100 x 200` viewBox, aspect ≈0.5). Used by `injection-site-picker.tsx`
+ * to render the clickable dots AND by {@link nextInjectionSite} as the
+ * Euclidean-distance basis for the rotation recommendation, so the two
+ * always agree on where a site "is".
  *
- * The body outline is a rounded humanoid: head (y≈20), shoulders
- * (y≈60), torso (y≈70-180), thighs (y≈180-260). Sites sit on the
- * dominant injection zones — abdomen quadrants centred on (60, 130),
- * thighs at (40, 215) / (80, 215), upper arms at (20, 80) / (100, 80).
+ * Calibrated against the iOS client's hands-on tune (see
+ * `.planning/ios-coord/v0.12-ios-to-server-injection-bodymap-coords.md`):
+ * fractional coords (0–1, x across width / y down height) multiplied by
+ * the viewBox `width=100` / `height=200`, so both apps land their dots on
+ * the same anatomy. Screen-left (`*_LEFT`) sits at the viewer's left,
+ * matching the long-standing "links == screen-left" convention.
+ *
+ *   site (iOS naming)   fraction (x, y)   →  viewBox (x, y)
+ *   armLeft             0.262, 0.360         26.2, 72
+ *   armRight            0.738, 0.360         73.8, 72
+ *   abdomenLeftUpper    0.435, 0.405         43.5, 81
+ *   abdomenRightUpper   0.565, 0.405         56.5, 81
+ *   abdomenLeftLower    0.435, 0.475         43.5, 95
+ *   abdomenRightLower   0.565, 0.475         56.5, 95
+ *   thighLeft           0.430, 0.700         43,   140
+ *   thighRight          0.570, 0.700         57,   140
  */
 export const SITE_COORDS: Record<InjectionSiteKey, { x: number; y: number }> = {
-  ABDOMEN_UPPER_LEFT: { x: 48, y: 110 },
-  ABDOMEN_UPPER_RIGHT: { x: 72, y: 110 },
-  ABDOMEN_LEFT: { x: 48, y: 140 },
-  ABDOMEN_RIGHT: { x: 72, y: 140 },
-  THIGH_LEFT: { x: 42, y: 215 },
-  THIGH_RIGHT: { x: 78, y: 215 },
-  UPPER_ARM_LEFT: { x: 18, y: 82 },
-  UPPER_ARM_RIGHT: { x: 102, y: 82 },
+  ABDOMEN_UPPER_LEFT: { x: 43.5, y: 81 },
+  ABDOMEN_UPPER_RIGHT: { x: 56.5, y: 81 },
+  ABDOMEN_LEFT: { x: 43.5, y: 95 },
+  ABDOMEN_RIGHT: { x: 56.5, y: 95 },
+  THIGH_LEFT: { x: 43, y: 140 },
+  THIGH_RIGHT: { x: 57, y: 140 },
+  UPPER_ARM_LEFT: { x: 26.2, y: 72 },
+  UPPER_ARM_RIGHT: { x: 73.8, y: 72 },
 };
 
 /**
