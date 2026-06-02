@@ -69,6 +69,11 @@ import {
   type InsightPregeneratePayload,
 } from "@/lib/jobs/insight-pregenerate";
 import {
+  RECOVERY_SCORE_QUEUE,
+  RECOVERY_SCORE_CRON,
+  runRecoveryScore,
+} from "@/lib/jobs/recovery-score";
+import {
   INSIGHT_STATUS_GENERATE_QUEUE,
   INSIGHT_STATUS_GENERATE_CONCURRENCY,
   runInsightStatusGenerate,
@@ -2128,6 +2133,11 @@ export async function startReminderWorker() {
     // schedule silently no-ops and pruned-past-retention tombstones pile
     // up forever.
     MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE,
+    // v1.10.0 — computed scores (WX-C). Nightly Recovery-score compute +
+    // store. The cron tick fans out one stored `COMPUTED RECOVERY_SCORE` row
+    // per eligible user. The queue MUST be registered here or pg-boss never
+    // provisions it and the 04:45 schedule silently never fires.
+    RECOVERY_SCORE_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -2218,6 +2228,10 @@ export async function startReminderWorker() {
     // v1.7.0 — daily 03:40 Europe/Berlin prune for expired measurement
     // tombstones.
     [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
+    // v1.10.0 — computed scores (WX-C). Nightly 04:45 Europe/Berlin
+    // Recovery-score compute + store, after the rollup-feeding consolidation
+    // + drain so the signals it reads are already folded.
+    [RECOVERY_SCORE_QUEUE, RECOVERY_SCORE_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -2373,6 +2387,28 @@ export async function startReminderWorker() {
     INSIGHT_PREGENERATE_QUEUE,
     { localConcurrency: 1 },
     handleInsightPregenerateJob,
+  );
+  // v1.10.0 — computed scores (WX-C). Nightly Recovery-score compute +
+  // store. The cron tick carries an empty payload; the runner iterates every
+  // eligible user and upserts one `COMPUTED RECOVERY_SCORE` row per scored
+  // day (idempotent — a re-fire overwrites in place). Single-flight so two
+  // ticks never double-walk the cohort.
+  await boss.work(
+    RECOVERY_SCORE_QUEUE,
+    { localConcurrency: 1 },
+    async () => {
+      try {
+        const summary = await runRecoveryScore(getWorkerPrisma());
+        workerLog(
+          "info",
+          `[recovery-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
+        );
+      } catch (err) {
+        recordError();
+        workerLog("error", "[recovery-score] pass failed", err);
+        throw err;
+      }
+    },
   );
   // v1.8.3 — on-demand per-metric status generation enqueued by the
   // read-only status route on a cold card. Low concurrency so a first
