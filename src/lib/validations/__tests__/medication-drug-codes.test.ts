@@ -71,6 +71,24 @@ describe("medication drug-code validation", () => {
           .success,
       ).toBe(false);
     });
+
+    it("rejects an over-long RxNorm code (defence-in-depth length bound)", () => {
+      // The `^\d+$` regex alone is unbounded; the `.max(20)` ceiling
+      // rejects an absurd digit string while still admitting real RxCUIs.
+      expect(
+        createMedicationSchema.safeParse({
+          ...baseCreate,
+          rxNormCode: "1".repeat(21),
+        }).success,
+      ).toBe(false);
+      // 20 digits is the boundary and stays valid.
+      expect(
+        createMedicationSchema.safeParse({
+          ...baseCreate,
+          rxNormCode: "1".repeat(20),
+        }).success,
+      ).toBe(true);
+    });
   });
 
   describe("updateMedicationSchema", () => {

@@ -51,6 +51,11 @@ const atcCodeField = z
 const rxNormCodeField = z
   .string()
   .regex(RXCUI_REGEX, "Invalid RxNorm code (expected a numeric RxCUI)")
+  // Defence-in-depth: the `^\d+$` regex is otherwise unbounded. Real
+  // RxCUIs are at most 7 digits today; 20 is a generous ceiling that
+  // still bounds the column write tightly. (`atcCode` needs no max —
+  // its regex already fixes the length at 7.)
+  .max(20, "RxNorm code is too long")
   .nullable()
   .optional()
   .describe(

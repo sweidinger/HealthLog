@@ -2564,6 +2564,7 @@ components:
             NULL clears it; absent leaves it untouched.
           anyOf:
             - type: string
+              maxLength: 20
               pattern: ^\d+$
             - type: "null"
         startsOn:
@@ -2782,6 +2783,7 @@ components:
             NULL clears it; absent leaves it untouched.
           anyOf:
             - type: string
+              maxLength: 20
               pattern: ^\d+$
             - type: "null"
         startsOn:
