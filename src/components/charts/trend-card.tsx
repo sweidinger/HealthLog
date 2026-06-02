@@ -238,7 +238,7 @@ export function TrendCard({
   };
 
   return (
-    <div className="bg-card border-border flex h-full w-full min-w-0 flex-col rounded-xl border p-4 md:p-6">
+    <div className="bg-card border-border flex h-full w-full min-w-0 flex-col overflow-hidden rounded-xl border p-4 md:p-6">
       {/* v1.4.25 W20a — single-line discipline + deterministic height for
           the heading row so the value row below sits at the same baseline
           across every tile. The label is locale-abbreviated upstream (see
