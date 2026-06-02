@@ -336,6 +336,83 @@ describe("buildFhirDocumentBundle", () => {
     expect(meds[0].dosage?.[0].text).toBe("5mg");
   });
 
+  it("keeps a text-only medicationCodeableConcept when no codes are stored", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData(),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const stmt = bundle.entry
+      .map((e) => e.resource)
+      .find(
+        (r): r is FhirMedicationStatement =>
+          r.resourceType === "MedicationStatement",
+      );
+    // Pre-v1.9.0 shape: text anchor, no coding[].
+    expect(stmt?.medicationCodeableConcept.text).toBe("Example Drug");
+    expect(stmt?.medicationCodeableConcept.coding).toBeUndefined();
+  });
+
+  it("emits ATC (primary) + RxNorm (secondary) codings when both are stored", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medications: [
+          {
+            name: "Mounjaro",
+            dose: "10mg",
+            atcCode: "A10BX10",
+            rxNormCode: "2601723",
+            schedules: [],
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const stmt = bundle.entry
+      .map((e) => e.resource)
+      .find(
+        (r): r is FhirMedicationStatement =>
+          r.resourceType === "MedicationStatement",
+      );
+    const coding = stmt?.medicationCodeableConcept.coding;
+    expect(stmt?.medicationCodeableConcept.text).toBe("Mounjaro");
+    expect(coding).toHaveLength(2);
+    // ATC is primary (first), with the name as display.
+    expect(coding?.[0]).toEqual({
+      system: "http://www.whocc.no/atc",
+      code: "A10BX10",
+      display: "Mounjaro",
+    });
+    // RxNorm is secondary, no display.
+    expect(coding?.[1]).toEqual({
+      system: "http://www.nlm.nih.gov/research/umls/rxnorm",
+      code: "2601723",
+    });
+  });
+
+  it("emits only the ATC coding when RxNorm is absent", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medications: [
+          { name: "Ramipril", dose: "5mg", atcCode: "C09AA05", schedules: [] },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const stmt = bundle.entry
+      .map((e) => e.resource)
+      .find(
+        (r): r is FhirMedicationStatement =>
+          r.resourceType === "MedicationStatement",
+      );
+    const coding = stmt?.medicationCodeableConcept.coding;
+    expect(coding).toHaveLength(1);
+    expect(coding?.[0].system).toBe("http://www.whocc.no/atc");
+    expect(coding?.[0].code).toBe("C09AA05");
+  });
+
   it("omits the mood Observation when mood is null (privacy default)", () => {
     const bundle = buildFhirDocumentBundle(
       makeData({ mood: null }),

@@ -60,6 +60,36 @@ const KVNR_SYSTEM = "http://fhir.de/sid/gkv/kvid-10";
 /** German insurer institution-number (IKNR) identifier namespace. */
 const IKNR_SYSTEM = "http://fhir.de/sid/arge-ik/iknr";
 
+/**
+ * v1.9.0 — drug-coding system URIs. ATC is the portable WHO default
+ * (the iOS export emits the identical URI); RxNorm is the secondary US
+ * coding. Both are additive `coding[]` entries on the same concept; the
+ * free-text `.text` (the user's medication name) stays the anchor.
+ */
+const ATC_SYSTEM = "http://www.whocc.no/atc";
+const RXNORM_SYSTEM = "http://www.nlm.nih.gov/research/umls/rxnorm";
+
+/**
+ * Build a `medicationCodeableConcept` from a medication's free-text name
+ * plus its optional user-asserted codes. ATC is emitted first (primary),
+ * RxNorm second (secondary); both are omitted when NULL, collapsing to
+ * exactly the pre-v1.9.0 `{ text }` shape. Never machine-guesses a code.
+ */
+function medicationConcept(
+  name: string,
+  atcCode: string | null | undefined,
+  rxNormCode: string | null | undefined,
+): FhirCodeableConcept {
+  const coding: NonNullable<FhirCodeableConcept["coding"]> = [];
+  if (atcCode) {
+    coding.push({ system: ATC_SYSTEM, code: atcCode, display: name });
+  }
+  if (rxNormCode) {
+    coding.push({ system: RXNORM_SYSTEM, code: rxNormCode });
+  }
+  return coding.length > 0 ? { coding, text: name } : { text: name };
+}
+
 /** Escape the five XML-significant characters for the xhtml narrative. */
 function escapeXml(value: string): string {
   return value
@@ -389,7 +419,14 @@ export function buildFhirDocumentBundle(
       resourceType: "MedicationStatement",
       id,
       status: "active",
-      medicationCodeableConcept: { text: med.name },
+      // v1.9.0 — additive ATC (primary) / RxNorm (secondary) codings when
+      // the user stored them; falls back to the text-only concept when
+      // neither code is present (the pre-v1.9.0 shape).
+      medicationCodeableConcept: medicationConcept(
+        med.name,
+        med.atcCode,
+        med.rxNormCode,
+      ),
       subject: patientRef,
     };
     if (med.dose) stmt.dosage = [{ text: med.dose }];
