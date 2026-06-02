@@ -48,10 +48,18 @@
  * `src/lib/jobs/stress-score.ts`.
  */
 import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
-import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
-import { computeVitalsBaseline } from "@/lib/insights/derived/baseline";
+import {
+  computeVitalsBaseline,
+  loadBaselineProfile,
+} from "@/lib/insights/derived/baseline";
 import { scoreDeviation } from "@/lib/insights/derived/readiness";
 import type { BaselineProfile } from "@/lib/insights/derived/baseline";
+import {
+  scoreDayKey,
+  scoreExternalId,
+  scoreMeasuredAt,
+  upsertScoreRow,
+} from "@/lib/insights/score-row";
 
 /** The per-day idempotency-key prefix for a stored Stress score row. */
 export const STRESS_SCORE_EXTERNAL_ID_PREFIX = "stress:";
@@ -68,23 +76,24 @@ export const STRESS_MIN_INTRADAY_SAMPLES = 3;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/** The UTC calendar day a `now` falls in, as `YYYY-MM-DD`. */
-export function stressDayKey(now: Date): string {
-  return now.toISOString().slice(0, 10);
-}
-
-/** The full `externalId` for a given day's Stress score row. */
-export function stressExternalId(now: Date): string {
-  return `${STRESS_SCORE_EXTERNAL_ID_PREFIX}${stressDayKey(now)}`;
-}
-
 /**
- * The canonical timestamp a stored Stress row carries: noon UTC on the
- * scored day — same day-keying convention as the Recovery score so the
- * series lines up with the buckets it summarises.
+ * The UTC calendar day a Stress run scores — the PREVIOUS day relative to
+ * `now`. The cron fires in the small hours; scoring the just-ended day is what
+ * gives the intra-day SDNN set a full day of samples instead of a near-empty
+ * few hours. Delegates to the shared `scoreDayKey` so all three engines agree.
  */
+export function stressDayKey(now: Date): string {
+  return scoreDayKey(now);
+}
+
+/** The full `externalId` for a given run's Stress score row. */
+export function stressExternalId(now: Date): string {
+  return scoreExternalId(STRESS_SCORE_EXTERNAL_ID_PREFIX, now);
+}
+
+/** The canonical timestamp a stored Stress row carries (noon UTC, scored day). */
 export function stressMeasuredAt(now: Date): Date {
-  return new Date(`${stressDayKey(now)}T12:00:00.000Z`);
+  return scoreMeasuredAt(now);
 }
 
 /**
@@ -198,24 +207,15 @@ export async function computeStressScore(
 }
 
 /**
- * Build the `BaselineProfile` the SDNN baseline needs from the user row —
- * the same shape the live `/api/insights/derived` route builds.
+ * Build the `BaselineProfile` the SDNN baseline needs from the user row. Thin
+ * alias over the shared `loadBaselineProfile` so callers / tests keep the
+ * name.
  */
 export async function loadStressProfile(
   prisma: PrismaClient,
   userId: string,
 ): Promise<BaselineProfile> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { dateOfBirth: true, gender: true, heightCm: true },
-  });
-  const sex =
-    user?.gender === "MALE" || user?.gender === "FEMALE" ? user.gender : null;
-  return {
-    ageYears: getAgeFromDateOfBirth(user?.dateOfBirth ?? null),
-    sex,
-    heightCm: user?.heightCm ?? null,
-  };
+  return loadBaselineProfile(prisma, userId);
 }
 
 export interface PersistStressResult {
@@ -252,31 +252,12 @@ export async function persistStressScore(
     return { outcome: "insufficient", score: null, reason };
   }
 
-  const externalId = stressExternalId(now);
-  const measuredAt = stressMeasuredAt(now);
-
-  await prisma.measurement.upsert({
-    where: {
-      userId_type_source_externalId: {
-        userId,
-        type: "STRESS_SCORE",
-        source: "COMPUTED",
-        externalId,
-      },
-    },
-    create: {
-      userId,
-      type: "STRESS_SCORE",
-      source: "COMPUTED",
-      value: score,
-      unit: "score",
-      measuredAt,
-      externalId,
-    },
-    update: {
-      value: score,
-      measuredAt,
-    },
+  await upsertScoreRow(prisma, {
+    userId,
+    type: "STRESS_SCORE",
+    externalIdPrefix: STRESS_SCORE_EXTERNAL_ID_PREFIX,
+    score,
+    now,
   });
 
   return { outcome: "stored", score, reason };

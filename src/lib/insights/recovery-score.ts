@@ -36,40 +36,43 @@
  * pg-boss job in `src/lib/jobs/recovery-score.ts`.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
-import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 import {
   computeReadiness,
   type ReadinessValue,
 } from "@/lib/insights/derived/readiness";
-import type { BaselineProfile } from "@/lib/insights/derived/baseline";
+import {
+  loadBaselineProfile,
+  type BaselineProfile,
+} from "@/lib/insights/derived/baseline";
+import {
+  scoreDayKey,
+  scoreExternalId,
+  scoreMeasuredAt,
+  upsertScoreRow,
+} from "@/lib/insights/score-row";
 import type { Derived } from "@/lib/insights/derived/types";
 
 /** The per-day idempotency-key prefix for a stored Recovery score row. */
 export const RECOVERY_SCORE_EXTERNAL_ID_PREFIX = "recovery:";
 
 /**
- * The UTC calendar day a `now` falls in, as `YYYY-MM-DD`. The Recovery
- * series is one row per UTC day — the same day-keying the rollup tier and
- * the daily-mean consolidation use, so the score lines up with the buckets
- * it summarises.
+ * The UTC calendar day a Recovery run scores — the PREVIOUS day relative to
+ * `now` (the cron fires in the small hours; the just-completed day is the one
+ * with a full signal set). Delegates to the shared `scoreDayKey` so all three
+ * score engines agree on the day stamp.
  */
 export function recoveryDayKey(now: Date): string {
-  return now.toISOString().slice(0, 10);
+  return scoreDayKey(now);
 }
 
-/** The full `externalId` for a given day's Recovery score row. */
+/** The full `externalId` for a given run's Recovery score row. */
 export function recoveryExternalId(now: Date): string {
-  return `${RECOVERY_SCORE_EXTERNAL_ID_PREFIX}${recoveryDayKey(now)}`;
+  return scoreExternalId(RECOVERY_SCORE_EXTERNAL_ID_PREFIX, now);
 }
 
-/**
- * The canonical timestamp a stored Recovery row carries: noon UTC on the
- * scored day. Noon (not midnight) keeps the row inside its own UTC day under
- * any reasonable display-timezone offset, mirroring the daily-stats
- * convention so a chart never mis-buckets the point at a day boundary.
- */
+/** The canonical timestamp a stored Recovery row carries (noon UTC, scored day). */
 export function recoveryMeasuredAt(now: Date): Date {
-  return new Date(`${recoveryDayKey(now)}T12:00:00.000Z`);
+  return scoreMeasuredAt(now);
 }
 
 export interface RecoveryComputeResult {
@@ -101,25 +104,16 @@ export async function computeRecoveryScore(
 }
 
 /**
- * Build the `BaselineProfile` the readiness blend needs from the user row —
- * the same shape the live `/api/insights/derived` route builds. `prisma` is
- * the (worker) client so the job shares one connection.
+ * Build the `BaselineProfile` the readiness blend needs from the user row.
+ * Thin alias over the shared `loadBaselineProfile` so the existing callers /
+ * tests keep their name; `prisma` is the (worker) client so the job shares one
+ * connection.
  */
 export async function loadRecoveryProfile(
   prisma: PrismaClient,
   userId: string,
 ): Promise<BaselineProfile> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { dateOfBirth: true, gender: true, heightCm: true },
-  });
-  const sex =
-    user?.gender === "MALE" || user?.gender === "FEMALE" ? user.gender : null;
-  return {
-    ageYears: getAgeFromDateOfBirth(user?.dateOfBirth ?? null),
-    sex,
-    heightCm: user?.heightCm ?? null,
-  };
+  return loadBaselineProfile(prisma, userId);
 }
 
 export interface PersistRecoveryResult {
@@ -147,31 +141,12 @@ export async function persistRecoveryScore(
     return { outcome: "insufficient", score: null };
   }
 
-  const externalId = recoveryExternalId(now);
-  const measuredAt = recoveryMeasuredAt(now);
-
-  await prisma.measurement.upsert({
-    where: {
-      userId_type_source_externalId: {
-        userId,
-        type: "RECOVERY_SCORE",
-        source: "COMPUTED",
-        externalId,
-      },
-    },
-    create: {
-      userId,
-      type: "RECOVERY_SCORE",
-      source: "COMPUTED",
-      value: score,
-      unit: "score",
-      measuredAt,
-      externalId,
-    },
-    update: {
-      value: score,
-      measuredAt,
-    },
+  await upsertScoreRow(prisma, {
+    userId,
+    type: "RECOVERY_SCORE",
+    externalIdPrefix: RECOVERY_SCORE_EXTERNAL_ID_PREFIX,
+    score,
+    now,
   });
 
   return { outcome: "stored", score };

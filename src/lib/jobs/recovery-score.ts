@@ -21,8 +21,8 @@
  * comment guards against).
  */
 import type { PrismaClient } from "@/generated/prisma/client";
-import { annotate } from "@/lib/logging/context";
 import { persistRecoveryScore } from "@/lib/insights/recovery-score";
+import { runScoreBatch } from "@/lib/insights/score-row";
 
 export const RECOVERY_SCORE_QUEUE = "recovery-score-compute";
 
@@ -101,30 +101,10 @@ export async function runRecoveryScore(
 
   const userIds = await findRecoveryScoreCandidates(prisma, now, cap);
 
-  let stored = 0;
-  let insufficient = 0;
-  let errored = 0;
-  for (const userId of userIds) {
-    try {
-      const result = await persistRecoveryScore(prisma, userId, now);
-      if (result.outcome === "stored") stored += 1;
-      else insufficient += 1;
-    } catch {
-      errored += 1;
-    }
-  }
-
-  annotate({
-    action: {
-      name: "insights.recovery.compute",
-      details: {
-        considered: userIds.length,
-        stored,
-        insufficient,
-        errored,
-      },
-    },
-  });
-
-  return { considered: userIds.length, stored, insufficient, errored };
+  return runScoreBatch(
+    userIds,
+    now,
+    (userId, runNow) => persistRecoveryScore(prisma, userId, runNow),
+    "insights.recovery.compute",
+  );
 }

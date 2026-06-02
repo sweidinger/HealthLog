@@ -28,8 +28,9 @@
  * statistics helpers below are exported so the unit test can assert the
  * composed-bucket baseline matches the raw-DAY baseline within tolerance.
  */
-import type { MeasurementType } from "@/generated/prisma/client";
+import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 import {
   probeRollupCoverage,
   type RollupCoverageMap,
@@ -77,6 +78,33 @@ export interface BaselineProfile {
    * metric (weight ÷ height²); `null` when the profile has no height.
    */
   heightCm?: number | null;
+}
+
+/**
+ * Build the `BaselineProfile` the baseline engine + readiness blend need from
+ * the `User` row. This is the one loader the persisting score engines and the
+ * live `/api/insights/derived` route share — previously each inlined a
+ * byte-identical `findUnique` + gender-narrow + `getAgeFromDateOfBirth`. The
+ * `prisma` arg is the caller's client (the nightly worker passes its shared
+ * connection; the route passes the request client) so both reads hit one
+ * pool. `now` is unused here but accepted so a future age-as-of-date refinement
+ * is a one-line change in this single place.
+ */
+export async function loadBaselineProfile(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<BaselineProfile> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { dateOfBirth: true, gender: true, heightCm: true },
+  });
+  const sex =
+    user?.gender === "MALE" || user?.gender === "FEMALE" ? user.gender : null;
+  return {
+    ageYears: getAgeFromDateOfBirth(user?.dateOfBirth ?? null),
+    sex,
+    heightCm: user?.heightCm ?? null,
+  };
 }
 
 export interface VitalsBaselineOpts {
@@ -155,7 +183,7 @@ export function buildBaselineBand(
  * live-SQL fallback on a coverage miss. Returns the series plus the
  * provenance source the read resolved against.
  */
-async function readDayMeanSeries(
+export async function readDayMeanSeries(
   userId: string,
   type: MeasurementType,
   windowDays: number,

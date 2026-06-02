@@ -68,16 +68,17 @@ beforeEach(() => {
 });
 
 describe("recovery-score helpers", () => {
-  it("keys the day + externalId by the UTC calendar day", () => {
-    expect(recoveryDayKey(NOW)).toBe("2026-06-02");
+  it("scores the PREVIOUS UTC day (cron fires in the small hours)", () => {
+    // NOW is 2026-06-02 → the scored day is the just-completed 2026-06-01.
+    expect(recoveryDayKey(NOW)).toBe("2026-06-01");
     expect(recoveryExternalId(NOW)).toBe(
-      `${RECOVERY_SCORE_EXTERNAL_ID_PREFIX}2026-06-02`,
+      `${RECOVERY_SCORE_EXTERNAL_ID_PREFIX}2026-06-01`,
     );
   });
 
-  it("anchors the canonical timestamp at noon UTC on the scored day", () => {
+  it("anchors the canonical timestamp at noon UTC on the scored (previous) day", () => {
     expect(recoveryMeasuredAt(NOW).toISOString()).toBe(
-      "2026-06-02T12:00:00.000Z",
+      "2026-06-01T12:00:00.000Z",
     );
   });
 });
@@ -96,7 +97,7 @@ describe("persistRecoveryScore", () => {
       userId: "user-1",
       type: "RECOVERY_SCORE",
       source: "COMPUTED",
-      externalId: "recovery:2026-06-02",
+      externalId: "recovery:2026-06-01",
     });
     expect(arg.create).toMatchObject({
       userId: "user-1",
@@ -104,7 +105,7 @@ describe("persistRecoveryScore", () => {
       source: "COMPUTED",
       value: 72,
       unit: "score",
-      externalId: "recovery:2026-06-02",
+      externalId: "recovery:2026-06-01",
     });
     expect(arg.update).toMatchObject({ value: 72 });
   });

@@ -19,8 +19,8 @@
  * unregistered queue silently never drains.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
-import { annotate } from "@/lib/logging/context";
 import { persistStressScore } from "@/lib/insights/stress-score";
+import { runScoreBatch } from "@/lib/insights/score-row";
 
 export const STRESS_SCORE_QUEUE = "stress-score-compute";
 
@@ -85,25 +85,10 @@ export async function runStressScore(
 
   const userIds = await findStressScoreCandidates(prisma, now, cap);
 
-  let stored = 0;
-  let insufficient = 0;
-  let errored = 0;
-  for (const userId of userIds) {
-    try {
-      const result = await persistStressScore(prisma, userId, now);
-      if (result.outcome === "stored") stored += 1;
-      else insufficient += 1;
-    } catch {
-      errored += 1;
-    }
-  }
-
-  annotate({
-    action: {
-      name: "insights.stress.compute",
-      details: { considered: userIds.length, stored, insufficient, errored },
-    },
-  });
-
-  return { considered: userIds.length, stored, insufficient, errored };
+  return runScoreBatch(
+    userIds,
+    now,
+    (userId, runNow) => persistStressScore(prisma, userId, runNow),
+    "insights.stress.compute",
+  );
 }

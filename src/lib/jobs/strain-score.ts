@@ -18,8 +18,8 @@
  * unregistered queue silently never drains.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
-import { annotate } from "@/lib/logging/context";
 import { persistStrainScore } from "@/lib/insights/strain-score";
+import { runScoreBatch } from "@/lib/insights/score-row";
 
 export const STRAIN_SCORE_QUEUE = "strain-score-compute";
 
@@ -95,25 +95,10 @@ export async function runStrainScore(
 
   const userIds = await findStrainScoreCandidates(prisma, now, cap);
 
-  let stored = 0;
-  let insufficient = 0;
-  let errored = 0;
-  for (const userId of userIds) {
-    try {
-      const result = await persistStrainScore(prisma, userId, now);
-      if (result.outcome === "stored") stored += 1;
-      else insufficient += 1;
-    } catch {
-      errored += 1;
-    }
-  }
-
-  annotate({
-    action: {
-      name: "insights.strain.compute",
-      details: { considered: userIds.length, stored, insufficient, errored },
-    },
-  });
-
-  return { considered: userIds.length, stored, insufficient, errored };
+  return runScoreBatch(
+    userIds,
+    now,
+    (userId, runNow) => persistStrainScore(prisma, userId, runNow),
+    "insights.strain.compute",
+  );
 }

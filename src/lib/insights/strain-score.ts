@@ -47,7 +47,13 @@
  * from the nightly pg-boss job in `src/lib/jobs/strain-score.ts`.
  */
 import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
-import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
+import { loadBaselineProfile } from "@/lib/insights/derived/baseline";
+import {
+  scoreDayKey,
+  scoreExternalId,
+  scoreMeasuredAt,
+  upsertScoreRow,
+} from "@/lib/insights/score-row";
 
 /** The per-day idempotency-key prefix for a stored Strain score row. */
 export const STRAIN_SCORE_EXTERNAL_ID_PREFIX = "strain:";
@@ -70,19 +76,25 @@ export const STRAIN_TRIMP_REFERENCE = 150;
  */
 export const STRAIN_ACTIVE_ENERGY_REFERENCE = 600;
 
-/** The UTC calendar day a `now` falls in, as `YYYY-MM-DD`. */
+/**
+ * The UTC calendar day a Strain run scores — the PREVIOUS day relative to
+ * `now`. The cron fires in the small hours; scoring the just-ended day is what
+ * lets the engine see that day's completed workouts + active-energy total
+ * rather than a few hours of the current day. Delegates to the shared
+ * `scoreDayKey` so all three engines agree.
+ */
 export function strainDayKey(now: Date): string {
-  return now.toISOString().slice(0, 10);
+  return scoreDayKey(now);
 }
 
-/** The full `externalId` for a given day's Strain score row. */
+/** The full `externalId` for a given run's Strain score row. */
 export function strainExternalId(now: Date): string {
-  return `${STRAIN_SCORE_EXTERNAL_ID_PREFIX}${strainDayKey(now)}`;
+  return scoreExternalId(STRAIN_SCORE_EXTERNAL_ID_PREFIX, now);
 }
 
-/** Noon UTC on the scored day — same convention as the other scores. */
+/** Noon UTC on the scored (previous) day — same convention as the other scores. */
 export function strainMeasuredAt(now: Date): Date {
-  return new Date(`${strainDayKey(now)}T12:00:00.000Z`);
+  return scoreMeasuredAt(now);
 }
 
 /** Tanaka 2001 age-predicted maximum heart rate. */
@@ -274,15 +286,13 @@ export async function loadStrainInputs(
   userId: string,
   now: Date,
 ): Promise<{ profile: StrainProfile; hrRest: number | null }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { dateOfBirth: true, gender: true },
-  });
-  const sex =
-    user?.gender === "MALE" || user?.gender === "FEMALE" ? user.gender : null;
+  // Reuse the shared profile loader, then narrow to the Strain profile
+  // (age + sex; height is not a TRIMP input). One loader for all three
+  // engines + the derived route.
+  const base = await loadBaselineProfile(prisma, userId);
   const profile: StrainProfile = {
-    ageYears: getAgeFromDateOfBirth(user?.dateOfBirth ?? null),
-    sex,
+    ageYears: base.ageYears,
+    sex: base.sex,
   };
 
   // Most recent resting-HR reading within a 30-day window — the HRrest input
@@ -330,31 +340,12 @@ export async function persistStrainScore(
     return { outcome: "insufficient", score: null, reason };
   }
 
-  const externalId = strainExternalId(now);
-  const measuredAt = strainMeasuredAt(now);
-
-  await prisma.measurement.upsert({
-    where: {
-      userId_type_source_externalId: {
-        userId,
-        type: "STRAIN_SCORE",
-        source: "COMPUTED",
-        externalId,
-      },
-    },
-    create: {
-      userId,
-      type: "STRAIN_SCORE",
-      source: "COMPUTED",
-      value: score,
-      unit: "score",
-      measuredAt,
-      externalId,
-    },
-    update: {
-      value: score,
-      measuredAt,
-    },
+  await upsertScoreRow(prisma, {
+    userId,
+    type: "STRAIN_SCORE",
+    externalIdPrefix: STRAIN_SCORE_EXTERNAL_ID_PREFIX,
+    score,
+    now,
   });
 
   return { outcome: "stored", score, reason };
