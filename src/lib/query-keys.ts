@@ -133,6 +133,15 @@ export const queryKeys = {
    */
   insightsPregenerate: () => ["insights", "pregenerate"] as const,
   /**
+   * v1.10.0 — categorical events (WX-B). The device-flagged event
+   * awareness timeline (`/api/insights/rhythm-events`). No locale segment
+   * — the payload is verdicts + timestamps; the surface localises its own
+   * prose. The `["insights"]` prefix keeps it in the standard insights
+   * invalidation fan-out (an Apple Health batch write that lands an event
+   * row busts it via the prefix).
+   */
+  insightsRhythmEvents: () => ["insights", "rhythm-events"] as const,
+  /**
    * v1.10.0 — derived-wellness metrics. One generic route
    * (`/api/insights/derived?metric=…[&type=…]`) backs the vitals
    * dashboard tiles + per-metric detail cards, so the key is

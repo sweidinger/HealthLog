@@ -432,7 +432,12 @@
     "typeSixMinuteWalkDistance": "6-Minuten-Gehstrecke",
     "typeStairAscentSpeed": "Treppensteig-Tempo",
     "typeStairDescentSpeed": "Treppab-Tempo",
-    "typeBreathingDisturbances": "Atemaussetzer im Schlaf"
+    "typeBreathingDisturbances": "Atemaussetzer im Schlaf",
+    "typeIrregularRhythmNotification": "Hinweis auf unregelmäßigen Rhythmus",
+    "typeHighHeartRateEvent": "Hinweis auf hohe Herzfrequenz",
+    "typeLowHeartRateEvent": "Hinweis auf niedrige Herzfrequenz",
+    "typeWalkingSteadinessEvent": "Hinweis zur Gehstabilität",
+    "typeBreathingDisturbanceEvent": "Atemstörung"
   },
   "mood": {
     "title": "Stimmung",
@@ -2649,7 +2654,28 @@
         "description": "Werte erscheinen hier, sobald Apple Health sie von einer unterstützten Apple Watch synchronisiert."
       }
     },
-    "navBreathingDisturbances": "Atmung"
+    "navBreathingDisturbances": "Atmung",
+    "rhythmEvents": {
+      "sectionTitle": "Gesundheitshinweise des Geräts",
+      "sectionIntro": "Hinweise, die deine Uhr eigenständig gesendet hat. HealthLog zeigt diese nur an — es erkennt, bestätigt oder interpretiert sie nicht.",
+      "loadError": "Die Gerätehinweise konnten nicht geladen werden.",
+      "disclaimer": "Dies sind Hinweise, die dein Gerät mit seiner eigenen integrierten Erkennung erzeugt hat. Sie werden hier nur zu deiner Information angezeigt. Dies ist keine medizinische Bewertung durch HealthLog, und HealthLog stellt keine Diagnose. Wenn dich ein Hinweis beunruhigt, sprich mit deiner Ärztin oder deinem Arzt.",
+      "event": {
+        "irregularRhythm": "Hinweis auf unregelmäßigen Rhythmus",
+        "highHeartRate": "Hinweis auf hohe Herzfrequenz",
+        "lowHeartRate": "Hinweis auf niedrige Herzfrequenz",
+        "walkingSteadiness": "Hinweis zur Gehstabilität",
+        "breathingDisturbance": "Atemstörung während des Schlafs"
+      },
+      "verdict": {
+        "irregular": "Dein Gerät hat einen möglichen unregelmäßigen Rhythmus erkannt.",
+        "notDetected": "Dein Gerät hat keinen unregelmäßigen Rhythmus erkannt.",
+        "inconclusive": "Dein Gerät konnte keine Messung vornehmen.",
+        "low": "Dein Gerät hat eine niedrige Gehstabilität erkannt.",
+        "veryLow": "Dein Gerät hat eine sehr niedrige Gehstabilität erkannt.",
+        "fired": "Dein Gerät hat dieses Ereignis erkannt."
+      }
+    }
   },
   "thresholds": {
     "defaultLabel": "Default",

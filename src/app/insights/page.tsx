@@ -85,6 +85,18 @@ const VitalsDashboard = dynamic(
     ),
   },
 );
+// v1.10.0 — categorical events (WX-B). The device-flagged event awareness
+// timeline. Deferred like the other below-the-fold blocks; the card
+// un-mounts itself when the user has no such events (no skeleton-then-empty
+// flash — `ssr: false` + the card's own data gate), so it carries no
+// loading placeholder of its own.
+const RhythmEventsCard = dynamic(
+  () =>
+    import("@/components/insights/rhythm-events-card").then((mod) => ({
+      default: mod.RhythmEventsCard,
+    })),
+  { ssr: false },
+);
 
 /**
  * v1.4.25 W4d — Insights mother page.
@@ -247,6 +259,8 @@ export default function InsightsPage() {
       </div>
 
       <VitalsDashboard enabled={isAuthenticated} />
+
+      <RhythmEventsCard enabled={isAuthenticated} />
 
       {flags.briefing && (
         <DailyBriefing

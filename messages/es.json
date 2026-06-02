@@ -432,7 +432,12 @@
     "typeSixMinuteWalkDistance": "Distancia en marcha de 6 minutos",
     "typeStairAscentSpeed": "Velocidad subiendo escaleras",
     "typeStairDescentSpeed": "Velocidad bajando escaleras",
-    "typeBreathingDisturbances": "Alteraciones respiratorias del sueño"
+    "typeBreathingDisturbances": "Alteraciones respiratorias del sueño",
+    "typeIrregularRhythmNotification": "Irregular rhythm notification",
+    "typeHighHeartRateEvent": "High heart rate notification",
+    "typeLowHeartRateEvent": "Low heart rate notification",
+    "typeWalkingSteadinessEvent": "Walking steadiness alert",
+    "typeBreathingDisturbanceEvent": "Breathing disturbance"
   },
   "mood": {
     "title": "Estado de ánimo",
@@ -2649,7 +2654,28 @@
         "description": "Los valores aparecen aquí cuando Apple Health los sincroniza desde un Apple Watch compatible."
       }
     },
-    "navBreathingDisturbances": "Respiración"
+    "navBreathingDisturbances": "Respiración",
+    "rhythmEvents": {
+      "sectionTitle": "Device health notifications",
+      "sectionIntro": "Notifications your watch sent on its own. HealthLog only shows these — it does not detect, confirm, or interpret them.",
+      "loadError": "Could not load your device notifications.",
+      "disclaimer": "These are alerts your device produced using its own built-in detection. They are shown here for your awareness only. This is not a medical assessment by HealthLog, and HealthLog does not diagnose any condition. If a notification concerns you, talk to your doctor.",
+      "event": {
+        "irregularRhythm": "Irregular rhythm notification",
+        "highHeartRate": "High heart rate notification",
+        "lowHeartRate": "Low heart rate notification",
+        "walkingSteadiness": "Walking steadiness alert",
+        "breathingDisturbance": "Breathing disturbance during sleep"
+      },
+      "verdict": {
+        "irregular": "Your device flagged a possible irregular rhythm.",
+        "notDetected": "Your device did not flag an irregular rhythm.",
+        "inconclusive": "Your device could not make a reading.",
+        "low": "Your device flagged low walking steadiness.",
+        "veryLow": "Your device flagged very low walking steadiness.",
+        "fired": "Your device flagged this event."
+      }
+    }
   },
   "thresholds": {
     "defaultLabel": "Por defecto",
