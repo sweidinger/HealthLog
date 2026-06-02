@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.2] — 2026-06-02 — Document the medication compliance endpoint
+
+### Changed
+
+- **The medication compliance endpoint is now in the public API contract.** `GET /api/medications/{id}/compliance` was missing from the OpenAPI document, so a client generating its types from the contract could mistake the separate cadence endpoint (a different shape) for it. The route is now documented with its exact response — the 7- and 30-day adherence summaries, the per-day compliance grid, and the two-row display block — with the field a client should read for the headline 30-day rate and how to draw the per-day history. No behaviour change; the handler was already correct.
+
 ## [1.9.1] — 2026-06-02 — No assessment warm on a page visit
 
 ### Fixed
