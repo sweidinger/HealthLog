@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -153,10 +153,20 @@ describe("<MedicationCard> — next-due reads from server nextDueAt", () => {
     // A daily / weekly medication whose server next-due is tomorrow
     // still renders the relative "tomorrow" label — proving the ordinary
     // single-time path keeps working.
+    //
+    // Pin the clock to a midday UTC instant and express `due` as a fixed
+    // UTC instant ~20h later: it lands on the next calendar day in every
+    // timezone the card might label in (UTC and the Berlin default alike),
+    // so the relative label is deterministic regardless of the CI host
+    // clock / timezone (the late-UTC run made an unpinned "tomorrow" read
+    // as "today" in the Berlin frame).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+    vi.setSystemTime(new Date("2026-06-02T12:00:00Z"));
     const now = new Date();
     const due = new Date(now);
-    due.setDate(due.getDate() + 1);
-    due.setHours(8, 0, 0, 0);
+    due.setUTCDate(due.getUTCDate() + 1);
+    due.setUTCHours(8, 0, 0, 0);
 
     const med = {
       id: "med-daily-1",
@@ -198,5 +208,8 @@ describe("<MedicationCard> — next-due reads from server nextDueAt", () => {
     expect(html).toContain("Next intake:");
     // Relative day label from the server instant (capitalised "Tomorrow").
     expect(html).toContain("Tomorrow,");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
