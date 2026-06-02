@@ -16,6 +16,7 @@ export default function InsightsLaermbelastungPage() {
   return (
     <HealthKitMetricPage
       measurementType="AUDIO_EXPOSURE_ENV"
+      statusMetric="AUDIO_EXPOSURE_ENV"
       insightMetric="AUDIO_EXPOSURE_ENV"
       chartKey="audioExposureEnv"
       i18nPrefix="insights.audioExposureEnv"

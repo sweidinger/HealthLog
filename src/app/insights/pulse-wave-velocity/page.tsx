@@ -16,6 +16,7 @@ export default function InsightsPulswellengeschwindigkeitPage() {
   return (
     <HealthKitMetricPage
       measurementType="PULSE_WAVE_VELOCITY"
+      statusMetric="PULSE_WAVE_VELOCITY"
       insightMetric="PULSE_WAVE_VELOCITY"
       chartKey="pulseWaveVelocity"
       i18nPrefix="insights.pulseWaveVelocity"

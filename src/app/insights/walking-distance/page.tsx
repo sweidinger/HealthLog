@@ -16,6 +16,7 @@ export default function InsightsGehstreckePage() {
   return (
     <HealthKitMetricPage
       measurementType="WALKING_RUNNING_DISTANCE"
+      statusMetric="WALKING_RUNNING_DISTANCE"
       insightMetric="WALKING_RUNNING_DISTANCE"
       chartKey="walkingRunningDistance"
       i18nPrefix="insights.walkingRunningDistance"

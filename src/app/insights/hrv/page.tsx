@@ -17,6 +17,7 @@ export default function InsightsHrvPage() {
   return (
     <HealthKitMetricPage
       measurementType="HEART_RATE_VARIABILITY"
+      statusMetric="HEART_RATE_VARIABILITY"
       insightMetric="HEART_RATE_VARIABILITY"
       chartKey="hrv"
       i18nPrefix="insights.hrv"

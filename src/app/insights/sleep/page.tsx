@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { Moon } from "lucide-react";
 
+import { useInsightMetricStatus } from "@/hooks/use-insight-status";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
+import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
@@ -31,6 +33,16 @@ export default function InsightsSchlafPage() {
   const { t } = useTranslations();
 
   const { isEmpty } = useInsightsAnalytics("SLEEP_DURATION");
+
+  // v1.8.7.1 — the per-section sleep assessment now rides the generic
+  // metric-status route, keyed by `SLEEP_DURATION`. The hook runs on every
+  // render but only fetches once the page has data (the empty branch below
+  // short-circuits before the card mounts), so a source-less account never
+  // fires an assessment round-trip.
+  const { data: status, isLoading: isStatusLoading } = useInsightMetricStatus(
+    "SLEEP_DURATION",
+    !isEmpty,
+  );
 
   if (isEmpty) {
     return (
@@ -68,16 +80,21 @@ export default function InsightsSchlafPage() {
       <MetricTargetSummary slug="sleep" />
 
       {/*
-        v1.4.28 (BK-UI-StatusSchlaf) — the six sibling sub-pages all
-        mount `<InsightStatusCard>` underneath the chart so the user
-        sees a written per-section assessment. Sleep has no
-        `/api/insights/sleep-status` route yet (the v1.4.23 schema
-        landed the data but the assessment-generation pass was deferred
-        to the v1.5 iOS sprint where the Apple-Health sleep snapshot
-        will inform the prompt). No per-section assessment yet; the
-        structural slot waits for v1.5 where the route + hook key will
-        wire in.
+        v1.8.7.1 — the per-section sleep assessment lands via the generic
+        metric-status route (`?metric=SLEEP_DURATION`), closing the slot
+        the v1.4.28 deferral left open. The card consumes the same
+        `InsightStatusData` envelope every sibling sub-page reads.
       */}
+      <InsightStatusCard
+        title={t("insights.assessmentTitle")}
+        icon={<Moon className="h-5 w-5" />}
+        text={status?.text ?? null}
+        hasProvider={status?.hasProvider ?? false}
+        cached={status?.cached ?? false}
+        updatedAt={status?.updatedAt ?? null}
+        loading={isStatusLoading}
+        preparing={status?.preparing ?? false}
+      />
     </SubPageShell>
   );
 }

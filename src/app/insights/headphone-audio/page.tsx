@@ -16,6 +16,7 @@ export default function InsightsKopfhoererpegelPage() {
   return (
     <HealthKitMetricPage
       measurementType="AUDIO_EXPOSURE_HEADPHONE"
+      statusMetric="AUDIO_EXPOSURE_HEADPHONE"
       insightMetric="AUDIO_EXPOSURE_HEADPHONE"
       chartKey="audioExposureHeadphone"
       i18nPrefix="insights.audioExposureHeadphone"

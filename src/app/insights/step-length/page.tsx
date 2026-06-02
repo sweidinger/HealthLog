@@ -16,6 +16,7 @@ export default function InsightsSchrittlaengePage() {
   return (
     <HealthKitMetricPage
       measurementType="WALKING_STEP_LENGTH"
+      statusMetric="WALKING_STEP_LENGTH"
       insightMetric="WALKING_STEP_LENGTH"
       chartKey="walkingStepLength"
       i18nPrefix="insights.walkingStepLength"

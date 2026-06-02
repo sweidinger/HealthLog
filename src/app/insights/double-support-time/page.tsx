@@ -16,6 +16,7 @@ export default function InsightsDoppelstandphasePage() {
   return (
     <HealthKitMetricPage
       measurementType="WALKING_DOUBLE_SUPPORT"
+      statusMetric="WALKING_DOUBLE_SUPPORT"
       insightMetric="WALKING_DOUBLE_SUPPORT"
       chartKey="walkingDoubleSupport"
       i18nPrefix="insights.walkingDoubleSupport"

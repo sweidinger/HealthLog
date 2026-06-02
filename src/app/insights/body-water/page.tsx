@@ -16,6 +16,7 @@ export default function InsightsKoerperwasserPage() {
   return (
     <HealthKitMetricPage
       measurementType="TOTAL_BODY_WATER"
+      statusMetric="TOTAL_BODY_WATER"
       insightMetric="TOTAL_BODY_WATER"
       chartKey="totalBodyWater"
       i18nPrefix="insights.totalBodyWater"

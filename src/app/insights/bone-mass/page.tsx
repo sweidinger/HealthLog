@@ -16,6 +16,7 @@ export default function InsightsKnochenmassePage() {
   return (
     <HealthKitMetricPage
       measurementType="BONE_MASS"
+      statusMetric="BONE_MASS"
       insightMetric="BONE_MASS"
       chartKey="boneMass"
       i18nPrefix="insights.boneMass"

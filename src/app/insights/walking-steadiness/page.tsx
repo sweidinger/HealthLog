@@ -16,6 +16,7 @@ export default function InsightsGangstabilitaetPage() {
   return (
     <HealthKitMetricPage
       measurementType="WALKING_STEADINESS"
+      statusMetric="WALKING_STEADINESS"
       insightMetric="WALKING_STEADINESS"
       chartKey="walkingSteadiness"
       i18nPrefix="insights.walkingSteadiness"

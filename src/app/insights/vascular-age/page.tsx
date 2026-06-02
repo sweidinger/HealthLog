@@ -16,6 +16,7 @@ export default function InsightsGefaessalterPage() {
   return (
     <HealthKitMetricPage
       measurementType="VASCULAR_AGE"
+      statusMetric="VASCULAR_AGE"
       insightMetric="VASCULAR_AGE"
       chartKey="vascularAge"
       i18nPrefix="insights.vascularAge"

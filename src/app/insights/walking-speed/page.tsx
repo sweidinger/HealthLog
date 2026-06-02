@@ -16,6 +16,7 @@ export default function InsightsGehgeschwindigkeitPage() {
   return (
     <HealthKitMetricPage
       measurementType="WALKING_SPEED"
+      statusMetric="WALKING_SPEED"
       insightMetric="WALKING_SPEED"
       chartKey="walkingSpeed"
       i18nPrefix="insights.walkingSpeed"
