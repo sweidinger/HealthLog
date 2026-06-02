@@ -2460,6 +2460,34 @@
         "bandVariable": "Twój nastrój był zauważalnie zmienny",
         "bandVeryVariable": "Twój nastrój ostatnio mocno się wahał"
       }
+    },
+    "derived": {
+      "coverage": {
+        "summary": "{present} z {required} danych · {percent}%",
+        "ratioLabel": "{present}/{required}",
+        "historyDays": "Na podstawie {count} dni historii",
+        "missing": "Zapisuj te dane, aby uściślić wartość: {list}"
+      },
+      "scoreRing": {
+        "aria": "Wynik {score} na 100, {band}",
+        "ariaProvisional": "Wynik jeszcze niedostępny — za mało danych",
+        "provisionalCaption": "Wciąż za mało danych",
+        "band": {
+          "green": "dobry",
+          "yellow": "średni",
+          "red": "niski"
+        }
+      },
+      "provenance": {
+        "title": "Jak to jest obliczane",
+        "trigger": "Jak to jest obliczane",
+        "inputsLabel": "Dane wejściowe",
+        "noInputs": "Żadne dane nie potwierdzają jeszcze tej wartości.",
+        "methodLabel": "Metoda",
+        "window": "Z ostatnich {days} dni · dane {source}",
+        "asOf": "na dzień {date}",
+        "standardLink": "Standard: {name}"
+      }
     }
   },
   "thresholds": {

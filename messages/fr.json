@@ -2460,6 +2460,34 @@
         "bandVariable": "Votre humeur a été nettement variable",
         "bandVeryVariable": "Votre humeur a beaucoup fluctué récemment"
       }
+    },
+    "derived": {
+      "coverage": {
+        "summary": "{present} entrées sur {required} · {percent}%",
+        "ratioLabel": "{present}/{required}",
+        "historyDays": "Basé sur {count} jours d'historique",
+        "missing": "Enregistre ceci pour affiner la valeur : {list}"
+      },
+      "scoreRing": {
+        "aria": "Score {score} sur 100, {band}",
+        "ariaProvisional": "Score pas encore disponible — données insuffisantes",
+        "provisionalCaption": "Données encore insuffisantes",
+        "band": {
+          "green": "bon",
+          "yellow": "moyen",
+          "red": "faible"
+        }
+      },
+      "provenance": {
+        "title": "Comment c'est calculé",
+        "trigger": "Comment c'est calculé",
+        "inputsLabel": "Entrées",
+        "noInputs": "Aucune entrée ne soutient encore cette valeur.",
+        "methodLabel": "Méthode",
+        "window": "Sur tes {days} derniers jours · données {source}",
+        "asOf": "au {date}",
+        "standardLink": "Norme : {name}"
+      }
     }
   },
   "thresholds": {

@@ -2460,6 +2460,34 @@
         "bandVariable": "Deine Stimmung war merklich schwankend",
         "bandVeryVariable": "Deine Stimmung hat zuletzt stark geschwankt"
       }
+    },
+    "derived": {
+      "coverage": {
+        "summary": "{present} von {required} Eingaben · {percent}%",
+        "ratioLabel": "{present}/{required}",
+        "historyDays": "Basiert auf {count} Tagen Verlauf",
+        "missing": "Erfasse diese, um den Wert zu schärfen: {list}"
+      },
+      "scoreRing": {
+        "aria": "Wert {score} von 100, {band}",
+        "ariaProvisional": "Wert noch nicht verfügbar — zu wenig Daten",
+        "provisionalCaption": "Noch zu wenig Daten",
+        "band": {
+          "green": "gut",
+          "yellow": "mittel",
+          "red": "niedrig"
+        }
+      },
+      "provenance": {
+        "title": "So wird das berechnet",
+        "trigger": "So wird das berechnet",
+        "inputsLabel": "Eingaben",
+        "noInputs": "Noch keine Eingaben für diesen Wert vorhanden.",
+        "methodLabel": "Methode",
+        "window": "Aus deinen letzten {days} Tagen · {source}-Daten",
+        "asOf": "Stand {date}",
+        "standardLink": "Standard: {name}"
+      }
     }
   },
   "thresholds": {

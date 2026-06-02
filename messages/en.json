@@ -2460,6 +2460,34 @@
         "bandVariable": "Your mood has been noticeably variable",
         "bandVeryVariable": "Your mood has swung a lot lately"
       }
+    },
+    "derived": {
+      "coverage": {
+        "summary": "{present} of {required} inputs · {percent}%",
+        "ratioLabel": "{present}/{required}",
+        "historyDays": "Based on {count} days of history",
+        "missing": "Track these to sharpen this: {list}"
+      },
+      "scoreRing": {
+        "aria": "Score {score} out of 100, {band}",
+        "ariaProvisional": "Score not available yet — not enough data",
+        "provisionalCaption": "Not enough data yet",
+        "band": {
+          "green": "good",
+          "yellow": "fair",
+          "red": "low"
+        }
+      },
+      "provenance": {
+        "title": "How this is computed",
+        "trigger": "How this is computed",
+        "inputsLabel": "Inputs",
+        "noInputs": "No inputs backed this value yet.",
+        "methodLabel": "Method",
+        "window": "From your last {days} days · {source} data",
+        "asOf": "as of {date}",
+        "standardLink": "Standard: {name}"
+      }
     }
   },
   "thresholds": {

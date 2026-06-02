@@ -2460,6 +2460,34 @@
         "bandVariable": "Tu estado de ánimo ha sido notablemente variable",
         "bandVeryVariable": "Tu estado de ánimo ha fluctuado mucho últimamente"
       }
+    },
+    "derived": {
+      "coverage": {
+        "summary": "{present} de {required} entradas · {percent}%",
+        "ratioLabel": "{present}/{required}",
+        "historyDays": "Basado en {count} días de historial",
+        "missing": "Registra estos para afinar el valor: {list}"
+      },
+      "scoreRing": {
+        "aria": "Puntuación {score} de 100, {band}",
+        "ariaProvisional": "Puntuación aún no disponible — datos insuficientes",
+        "provisionalCaption": "Datos aún insuficientes",
+        "band": {
+          "green": "bueno",
+          "yellow": "medio",
+          "red": "bajo"
+        }
+      },
+      "provenance": {
+        "title": "Cómo se calcula esto",
+        "trigger": "Cómo se calcula esto",
+        "inputsLabel": "Entradas",
+        "noInputs": "Aún no hay entradas que respalden este valor.",
+        "methodLabel": "Método",
+        "window": "De tus últimos {days} días · datos de {source}",
+        "asOf": "a fecha de {date}",
+        "standardLink": "Estándar: {name}"
+      }
     }
   },
   "thresholds": {
