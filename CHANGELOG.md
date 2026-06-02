@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.1] — 2026-06-02 — No assessment warm on a page visit
+
+### Fixed
+
+- **Opening the Insights overview no longer regenerates every assessment.** A returning visit fired a one-per-session background warm that asked the provider to regenerate the comprehensive briefing and every category and metric assessment at once — a burst that could run for minutes and make the whole app feel unresponsive while it ran, recovering on its own once it finished. Assessments are kept fresh by the nightly pass, and each metric's text refreshes gently on its own when you open it; the "prepare assessments" button still regenerates everything on demand. A page visit now only reads the cached text.
+
 ## [1.9.0] — 2026-06-02 — Insights time-ranges, deeper mood, medication coding, stability
 
 ### Added
