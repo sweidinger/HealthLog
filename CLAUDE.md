@@ -18,11 +18,13 @@ If a draft commit message or release note would violate one of the three, rewrit
 
 ## Branch and release model
 
-- `main` is release-only. Every commit on `main` is either a release commit (`chore(release): vX.Y.Z`), the matching tag push, or a maintenance commit (docs, gitignore, audit findings) that the maintainer chose to apply directly.
-- Feature work targets the `develop` branch via topic branches (`fix/X`, `feat/X`), merged into `develop` through PRs with green CI.
-- Releases merge `develop` → `main` (squash or merge-commit, document each), then a tag push (`v1.X.Y`) triggers the `docker-publish.yml` workflow.
-- Hotfixes branch from `main`, merge back into both `main` and `develop`.
-- Never force-push `main`. Never skip hooks (`--no-verify`). Never `--no-gpg-sign` unless explicitly asked.
+`main` is the single trunk and is always releasable. There is no long-lived `develop` branch — the former one was retired and archived as the tag `archive/develop-pre-v1.5` (it carried no work absent from `main`; a long-lived integration branch has no role in a single-maintainer shop and only accrued back-merge debt). This is trunk-based development with release tags: short-lived branches off `main`, work always converges back onto `main`, and the immutable `vX.Y.Z` image built from a tag on `main` is the one source of truth — including for the OpenAPI contract the iOS client consumes.
+
+- **Trunk.** `main` always builds, passes CI, and is deployable. Every commit on it is a release commit (`chore(release): vX.Y.Z`), a release-branch merge, or a maintenance commit (docs, gitignore, audit findings) applied directly.
+- **A release** is built on a short-lived `release/vX.Y.Z` branch cut off `main` — built wave-by-wave, then opened as a PR `release/vX.Y.Z` → `main` with green CI, merged (merge-commit), and tagged `vX.Y.Z`. The tag push triggers `docker-publish.yml` (GHCR multi-arch + `:latest`). Deploy is manual (see `docs/ops/deploy.md`); after a deploy, verify `/api/version` (it returns `version` + `buildSha` + `builtAt`) on every target, since the `:latest` pull is the source of truth, not the queued deploy status. Delete the release branch after merge.
+- **Small standalone changes** (a single fix, a docs touch) can go through a short-lived `fix/X` / `feat/X` branch + PR, or directly onto `main` when the maintainer chooses — `main` is the target either way.
+- **Hotfixes** branch from `main` and merge straight back to `main`. There is no second long-lived line to forward-port to, so the old back-merge debt cannot recur by construction.
+- Never force-push `main` or any release branch. Never skip hooks (`--no-verify`). Never `--no-gpg-sign` unless explicitly asked.
 
 ## Semver
 
