@@ -38,9 +38,10 @@ const WARM_WINDOW_MS = 3 * 60 * 1000;
 
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
-  // Same surface gate as the read-only status routes — when the operator
-  // disables the assistant surface there is nothing to warm.
-  await requireAssistantSurface("coach");
+  // Gate on the same surface as the read-only status routes: this warms
+  // the assessment cards (the `insightStatus` surface), not the Coach.
+  // A user with assessments enabled but Coach disabled can still warm.
+  await requireAssistantSurface("insightStatus");
   const userId = user.id;
 
   // Short per-user bucket so the bypassed nightly budget can't be abused
