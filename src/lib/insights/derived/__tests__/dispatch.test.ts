@@ -27,22 +27,15 @@ const NOW = new Date("2026-06-02T07:00:00Z");
 beforeEach(() => vi.clearAllMocks());
 
 describe("registry", () => {
-  it("exposes the implemented vitals-tier metrics and the composite stubs", () => {
+  it("exposes every derived metric as implemented", () => {
     expect(getDerivedMetricMeta("VITALS_BASELINE")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("FITNESS_AGE")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("VASCULAR_AGE_DELTA")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("HRV_BALANCE")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("BMI")?.implemented).toBe(true);
-    // Composites still land in W3.
-    expect(getDerivedMetricMeta("READINESS")?.implemented).toBe(false);
-    expect(getDerivedMetricMeta("COINCIDENT_DEVIATION")?.implemented).toBe(false);
-  it("exposes the flagship + W3 composites as implemented; the passthroughs stay stubs", () => {
-    expect(getDerivedMetricMeta("VITALS_BASELINE")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("SLEEP_SCORE")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("READINESS")?.implemented).toBe(true);
     expect(getDerivedMetricMeta("COINCIDENT_DEVIATION")?.implemented).toBe(true);
-    // FITNESS_AGE + VASCULAR_AGE_DELTA land in a sibling wave.
-    expect(getDerivedMetricMeta("FITNESS_AGE")?.implemented).toBe(false);
   });
 
   it("isDerivedMetricId rejects unknown ids", () => {
@@ -76,7 +69,7 @@ describe("computeDerivedMetric dispatch", () => {
     expect(result.status).toBe("insufficient");
   });
 
-  it("returns not_implemented for a stubbed metric (never a 500)", async () => {
+  it("routes FITNESS_AGE to its engine (no data → insufficient, not not_implemented)", async () => {
     const result = await computeDerivedMetric({
       metric: "FITNESS_AGE",
       userId: "u1",
@@ -85,7 +78,7 @@ describe("computeDerivedMetric dispatch", () => {
     });
     expect(result.status).toBe("insufficient");
     if (result.status === "insufficient") {
-      expect(result.reason).toBe("not_implemented");
+      expect(result.reason).not.toBe("not_implemented");
     }
   });
 

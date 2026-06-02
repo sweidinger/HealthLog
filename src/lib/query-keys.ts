@@ -143,6 +143,7 @@ export const queryKeys = {
    */
   insightsDerived: (metric: string, type?: string | null) =>
     ["insights", "derived", metric, type ?? null] as const,
+  /**
    * v1.10.0 — a derived wellness metric (`/api/insights/derived?metric=…`).
    * One generic route backs every derived composite (sleep score,
    * readiness, coincident-deviation, vitals baseline, …) so the key is

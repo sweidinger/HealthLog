@@ -124,6 +124,9 @@ export async function computeDerivedMetric(
       }) as Promise<Derived<unknown>>;
     case "BMI":
       return computeBmi(args.userId, args.profile, {
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
     case "SLEEP_SCORE":
       return computeSleepScore(args.userId, args.profile, {
         windowDays: args.windowDays,
