@@ -5,44 +5,54 @@
  * exact same band colour grammar the shipped `health-score-card` already
  * uses, without each component redeclaring the map (concept cohesion).
  *
- * No new tokens — these point at the existing `--dracula-*` variables in
- * `globals.css`. A green/yellow/red band is the one semantic the whole
- * v1.10 score language extends.
+ * These point at the *semantic* feedback tokens (`--success` / `--warning`
+ * / `--destructive`), NOT the raw `--dracula-*` primitives. That matters
+ * for contrast: `:root.light` (Alucard) overrides the semantic tokens to
+ * AA-safe darker tones (`--success: #14720a`, `--warning: #a34d14`,
+ * `--destructive: #cb3a2a`) precisely because straight Dracula
+ * green/orange on a white `--card` clears only ~1.1–1.5:1 — under AA.
+ * Painting the band off the semantic token means every score surface
+ * tracks that light-mode correction automatically, in both themes; the
+ * raw `--dracula-*` primitives do NOT carry a light override. A
+ * green/yellow/red band is the one semantic the whole v1.10 score
+ * language extends.
  */
 
 export type ScoreBand = "green" | "yellow" | "red";
 
 /** Tailwind text-colour class per band (the headline number colour). */
 export const BAND_NUMBER_CLASS: Record<ScoreBand, string> = {
-  green: "text-dracula-green",
-  yellow: "text-dracula-orange",
-  red: "text-dracula-red",
+  green: "text-success",
+  yellow: "text-warning",
+  red: "text-destructive",
 };
 
 /** Tailwind background class per band (progress/fill bars). */
 export const BAND_PROGRESS_CLASS: Record<ScoreBand, string> = {
-  green: "bg-dracula-green",
-  yellow: "bg-dracula-orange",
-  red: "bg-dracula-red",
+  green: "bg-success",
+  yellow: "bg-warning",
+  red: "bg-destructive",
 };
 
 /** Tailwind border-colour class per band (card / chip outlines). */
 export const BAND_BORDER_CLASS: Record<ScoreBand, string> = {
-  green: "border-dracula-green/40",
-  yellow: "border-dracula-orange/40",
-  red: "border-dracula-red/40",
+  green: "border-success/40",
+  yellow: "border-warning/40",
+  red: "border-destructive/40",
 };
 
 /**
  * The raw CSS variable per band — used where a Recharts `fill` needs an
  * actual colour string rather than a Tailwind class (the score ring's
- * `<RadialBar fill>`). Reads the same `--dracula-*` tokens so dark and
- * Alucard light modes track automatically.
+ * `<RadialBar fill>`). Reads the semantic tokens so dark and Alucard light
+ * modes track the AA-safe light overrides automatically (the
+ * `--dracula-*` primitives carry no light override and would fail AA on
+ * the white card).
  */
 export const BAND_VAR: Record<ScoreBand, string> = {
-  green: "var(--dracula-green)",
-  yellow: "var(--dracula-orange)",
-  red: "var(--dracula-red)",
+  green: "var(--success)",
+  yellow: "var(--warning)",
+  red: "var(--destructive)",
 };
 
 /**

@@ -44,8 +44,12 @@ export function getTrendSentiment(
 export function sentimentColorClass(
   direction: TrendSentimentDirection,
 ): string {
-  if (direction === "positive") return "text-dracula-green";
-  if (direction === "negative") return "text-dracula-orange";
+  // Semantic tokens, not raw --dracula-*: `--success` / `--warning` alias
+  // the same Dracula green/orange in dark mode (pixel-identical there) but
+  // carry the AA-safe `:root.light` overrides, so the trend arrow + delta
+  // clear AA on the white card instead of the ~1.2:1 the raw primitives hit.
+  if (direction === "positive") return "text-success";
+  if (direction === "negative") return "text-warning";
   return "text-muted-foreground";
 }
 

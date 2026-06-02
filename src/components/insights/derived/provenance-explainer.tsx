@@ -100,7 +100,7 @@ export function ProvenanceExplainer({
               <li
                 key={input}
                 data-slot="provenance-explainer-input-chip"
-                className="border-dracula-cyan/30 text-dracula-cyan/90 inline-flex items-center rounded-full border bg-transparent px-1.5 py-0.5 text-[10px] leading-none"
+                className="border-info/40 text-info inline-flex items-center rounded-full border bg-transparent px-1.5 py-0.5 text-[10px] leading-none"
               >
                 {input}
               </li>
@@ -141,7 +141,7 @@ export function ProvenanceExplainer({
           href={standard.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-dracula-cyan hover:text-dracula-cyan/80 focus-visible:ring-ring/50 inline-flex items-center gap-1 rounded text-[11px] font-medium focus-visible:ring-2 focus-visible:outline-none"
+          className="text-info hover:text-info/80 focus-visible:ring-ring/50 inline-flex items-center gap-1 rounded text-[11px] font-medium focus-visible:ring-2 focus-visible:outline-none"
         >
           {t("insights.derived.provenance.standardLink", {
             name: standard.name,

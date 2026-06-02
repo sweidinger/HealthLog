@@ -94,11 +94,13 @@ export function SparklineDeltaTile({
 
   // The sparkline tints with the trend sentiment so it reads "same signal"
   // as the arrow; neutral metrics ride the muted-foreground line.
+  // Semantic tokens, not raw --dracula-*, so the sparkline tint tracks the
+  // AA-safe :root.light overrides on the white card (the band-token fix).
   const strokeVar =
     arrowSentiment === "positive"
-      ? "var(--dracula-green)"
+      ? "var(--success)"
       : arrowSentiment === "negative"
-        ? "var(--dracula-orange)"
+        ? "var(--warning)"
         : "var(--muted-foreground)";
   const fillId = `spark-${label.replace(/[^a-zA-Z0-9]/g, "")}`;
 

@@ -188,7 +188,7 @@ export function ScoreRing({
       {!hasScore && (
         <span
           data-slot="score-ring-provisional"
-          className="text-muted-foreground absolute inset-x-0 bottom-0 text-center text-[10px] leading-tight"
+          className="text-muted-foreground absolute inset-x-0 bottom-0 line-clamp-1 px-1 text-center text-[10px] leading-tight"
         >
           {t("insights.derived.scoreRing.provisionalCaption")}
         </span>
