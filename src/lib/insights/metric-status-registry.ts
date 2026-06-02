@@ -422,6 +422,36 @@ export function getMetricStatusMeta(
 }
 
 /**
+ * Reverse index: the DB `MeasurementType` → the generic metric id it backs
+ * (built once at module load). A handful of types map under a different id
+ * than their literal name (`ACTIVITY_STEPS` → `STEPS`,
+ * `ACTIVE_ENERGY_BURNED` → `ACTIVE_ENERGY`); every other registered type
+ * is its own id. Types with no registry entry (the seven specialised
+ * metrics, WORKOUTS, …) are simply absent.
+ */
+const MEASUREMENT_TYPE_TO_METRIC_ID = new Map<
+  MeasurementType,
+  MetricStatusMetricId
+>(
+  (Object.values(REGISTRY) as MetricStatusMeta[]).map((meta) => [
+    meta.measurementType,
+    meta.id,
+  ]),
+);
+
+/**
+ * Resolve the generic metric id a `MeasurementType` feeds, or null when
+ * the type carries no generic assessment card. Used by the ingest
+ * invalidation path to re-warm the matching `metric:<ID>` scope when a
+ * fresh measurement of a data-bearing type lands.
+ */
+export function metricIdForMeasurementType(
+  type: MeasurementType,
+): MetricStatusMetricId | null {
+  return MEASUREMENT_TYPE_TO_METRIC_ID.get(type) ?? null;
+}
+
+/**
  * The cache/scope id for a metric assessment. The `metric:` prefix keeps
  * the generic scopes disjoint from the seven bare specialised scope
  * slugs while the trailing `-status.` substring (appended at cache-key
