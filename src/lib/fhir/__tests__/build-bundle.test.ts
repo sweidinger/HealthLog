@@ -304,6 +304,47 @@ describe("buildFhirDocumentBundle", () => {
     }
   });
 
+  it("discloses an administration truncation in the Composition narrative", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medicationAdministrations: [
+          {
+            medicationName: "Mounjaro",
+            effectiveAt: "2026-04-30T08:00:00.000Z",
+            status: "completed",
+            doseText: "10mg",
+            dose: { value: 10, unit: "mg" },
+            injectionSite: null,
+            atcCode: null,
+            rxNormCode: null,
+            deliveryForm: "INJECTION",
+          },
+        ],
+        medicationAdministrationsTruncation: { total: 2920, included: 1000 },
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const composition = bundle.entry[0].resource;
+    if (composition.resourceType === "Composition") {
+      expect(composition.text?.div).toContain(
+        "Medication administrations truncated: showing the most recent 1000 of 2920",
+      );
+    }
+  });
+
+  it("omits the truncation sentence when nothing was capped", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({ medicationAdministrationsTruncation: null }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const composition = bundle.entry[0].resource;
+    if (composition.resourceType === "Composition") {
+      expect(composition.text?.div).not.toContain("truncated");
+    }
+  });
+
   it("maps weight to LOINC 29463-7 / UCUM kg with the latest reading", () => {
     const bundle = buildFhirDocumentBundle(
       makeData(),

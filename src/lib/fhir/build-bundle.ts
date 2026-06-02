@@ -534,10 +534,19 @@ export function buildFhirDocumentBundle(
   }
 
   // --- Composition (leading "cover" resource) ----------------------------
+  // v1.9.0 — when the aggregator capped the administration set, disclose
+  // it in the narrative so the export is honest: it carries the
+  // most-recent N of M acted intakes, the oldest having been omitted.
+  const truncation = data.medicationAdministrationsTruncation;
   const narrativeText = [
     `Health record for ${escapeXml(displayName ?? "patient")}.`,
     `Reporting period ${data.period.start.slice(0, 10)} to ${data.period.end.slice(0, 10)}.`,
     `${observationRefs.length} observation(s), ${medicationRefs.length} medication(s), ${administrationRefs.length} administration(s).`,
+    ...(truncation
+      ? [
+          `Medication administrations truncated: showing the most recent ${truncation.included} of ${truncation.total} recorded; older entries omitted.`,
+        ]
+      : []),
   ].join(" ");
 
   const composition: FhirComposition = {

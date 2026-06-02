@@ -239,3 +239,59 @@ describe("doctor-report — per-section toggles", () => {
     expect(Object.keys(data.compliance).length).toBeGreaterThan(0);
   });
 });
+
+describe("doctor-report — MedicationAdministration export cap", () => {
+  it("caps the administration set at 1000 most-recent rows and flags the truncation", async () => {
+    const prisma = getPrismaClient();
+    const user = await prisma.user.create({
+      data: {
+        username: "dr-admin-cap",
+        email: "dr-admin-cap@example.test",
+        heightCm: 180,
+      },
+    });
+    const med = await prisma.medication.create({
+      data: { userId: user.id, name: "Metformin", dose: "500 mg", active: true },
+    });
+
+    // 1001 acted (taken) intakes spread across the window so the cap
+    // must trim exactly one — the OLDEST — keeping the most-recent 1000.
+    const rangeMs = RANGE.end.getTime() - RANGE.start.getTime();
+    const rows = Array.from({ length: 1001 }, (_, i) => {
+      const at = new Date(
+        RANGE.start.getTime() + Math.floor((rangeMs * i) / 1001),
+      );
+      return {
+        userId: user.id,
+        medicationId: med.id,
+        scheduledFor: at,
+        takenAt: at,
+      };
+    });
+    await prisma.medicationIntakeEvent.createMany({ data: rows });
+
+    const data = await collectDoctorReportData(user.id, RANGE);
+
+    expect(data.medicationAdministrations).toBeDefined();
+    expect(data.medicationAdministrations?.length).toBe(1000);
+    expect(data.medicationAdministrationsTruncation).toEqual({
+      total: 1001,
+      included: 1000,
+    });
+    // The OLDEST row was dropped — the earliest surviving administration
+    // is strictly after the window start.
+    const first = data.medicationAdministrations?.[0];
+    expect(new Date(first!.effectiveAt).getTime()).toBeGreaterThan(
+      RANGE.start.getTime(),
+    );
+  });
+
+  it("leaves the set untouched (no truncation flag) below the cap", async () => {
+    const userId = await seedUserWithEveryDataType("dr-admin-no-cap");
+
+    const data = await collectDoctorReportData(userId, RANGE);
+
+    expect(data.medicationAdministrations?.length).toBe(1);
+    expect(data.medicationAdministrationsTruncation ?? null).toBeNull();
+  });
+});

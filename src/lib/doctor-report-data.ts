@@ -129,6 +129,18 @@ export interface DoctorReportData {
     /** Delivery form — ORAL / INJECTION / OTHER — for the route mapping. */
     deliveryForm: string | null;
   }>;
+  /**
+   * v1.9.0 — set when {@link MAX_MEDICATION_ADMINISTRATIONS} trimmed the
+   * administration set. `total` is the full acted-intake count over the
+   * window; `included` is how many (the most-recent) survived the cap.
+   * Null/absent when nothing was trimmed. The FHIR builder discloses
+   * this in the document narrative so the export is honest about the
+   * omitted (oldest) rows. Optional so pre-v1.9.0 fixtures still typecheck.
+   */
+  medicationAdministrationsTruncation?: {
+    total: number;
+    included: number;
+  } | null;
   mood: DoctorReportMood | null;
   /**
    * v1.4.25 W4d — GLP-1 therapy section. Populated when the user has at
@@ -193,6 +205,21 @@ const MIN_RANGE_DAYS = 1;
  */
 const MAX_RANGE_DAYS = 730;
 const DEFAULT_RANGE_DAYS = 90;
+
+/**
+ * v1.9.0 — hard ceiling on the number of `MedicationAdministration`
+ * source rows materialised per export. The report window is already
+ * bounded at {@link MAX_RANGE_DAYS} (730 days), but a chronic medication
+ * dosed several times a day across that window — multiplied by several
+ * such medications — can still produce thousands of administration
+ * resources in a single Bundle (e.g. 4×/day × 730 days ≈ 2 920 per med).
+ * Cap at the MOST-RECENT 1 000 acted intakes overall: that preserves the
+ * recent-adherence picture a clinician cares about while bounding the
+ * in-memory array and the serialised Bundle. When the cap trims rows the
+ * aggregator flags it so the FHIR narrative can disclose the truncation
+ * rather than silently dropping history.
+ */
+const MAX_MEDICATION_ADMINISTRATIONS = 1000;
 
 export interface DoctorReportRange {
   /** Start of the reporting window (UTC, inclusive). */
@@ -508,6 +535,20 @@ export async function collectDoctorReportData(
     });
   }
 
+  // v1.9.0 — bound the administration set. `intakeEvents` is ordered
+  // `scheduledFor: asc`, so the most-recent acted rows are at the tail;
+  // keep the last N and flag the trim so the FHIR narrative can disclose
+  // it. The omitted rows are the OLDEST in the window — recent adherence
+  // is preserved intact.
+  const totalAdministrations = medicationAdministrations.length;
+  const medicationAdministrationsTruncated =
+    totalAdministrations > MAX_MEDICATION_ADMINISTRATIONS;
+  const cappedAdministrations = medicationAdministrationsTruncated
+    ? medicationAdministrations.slice(
+        totalAdministrations - MAX_MEDICATION_ADMINISTRATIONS,
+      )
+    : medicationAdministrations;
+
   // Mood summary.
   const moodScores = moodEntries.map((e) => e.score);
   const mood: DoctorReportMood | null =
@@ -724,7 +765,10 @@ export async function collectDoctorReportData(
         label: s.label,
       })),
     })),
-    medicationAdministrations,
+    medicationAdministrations: cappedAdministrations,
+    medicationAdministrationsTruncation: medicationAdministrationsTruncated
+      ? { total: totalAdministrations, included: cappedAdministrations.length }
+      : null,
     mood,
     glp1,
   };
