@@ -43,6 +43,55 @@ export type TrendAnnotationConfidenceBand = "low" | "moderate" | "high";
 
 export type TrendAnnotationStatus = "pending" | "needs_data" | "generated";
 
+/**
+ * Shared presentational shell for a filled trend caption — the bordered
+ * card + Sparkles affordance + `text-foreground` prose treatment. Both
+ * the advisor-authored annotation (the legacy triple) and the additive
+ * metric's standard description (`captionKey`) render through this shell
+ * so the Trends row reads with a single typographic rhythm and the two
+ * paths can't drift apart. `children` carries the line(s) below the
+ * caption prose (e.g. a confidence chip). `slot` / `metric` pass through
+ * to the wrapper's `data-*` hooks so each call site keeps its own
+ * test-stable selector.
+ */
+export function TrendCaptionCard({
+  text,
+  slot,
+  metric,
+  children,
+}: {
+  text: string;
+  slot: string;
+  metric: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div
+      data-slot={slot}
+      data-metric={metric}
+      className="border-border/60 bg-card/40 flex items-start gap-2 rounded-md border p-3"
+    >
+      <Sparkles
+        className="text-dracula-purple mt-0.5 h-3.5 w-3.5 shrink-0"
+        aria-hidden="true"
+      />
+      <div className="min-w-0 flex-1 space-y-1">
+        {/* v1.4.28 R3c-Insights — `line-clamp-3` bounds caption
+            variance (FB-K2). A 1-sentence BP annotation paints
+            ~3 lines wrapped; a 4-line mood annotation used to push
+            the cell taller, which `auto-rows-fr` propagated to
+            every neighbour cell. With the clamp the longest
+            annotation ends with an ellipsis at 3 lines and the
+            row stays at a single visual rhythm. */}
+        <p className="text-foreground line-clamp-3 text-xs leading-snug">
+          {text}
+        </p>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 interface TrendAnnotationProps {
   /** The metric this annotation describes. Drives the empty-state copy. */
   metric: "bp" | "weight" | "mood";
@@ -122,36 +171,20 @@ export function TrendAnnotation({
   }
 
   return (
-    <div
-      data-slot="trend-annotation"
-      data-metric={metric}
-      className="border-border/60 bg-card/40 flex items-start gap-2 rounded-md border p-3"
+    <TrendCaptionCard
+      slot="trend-annotation"
+      metric={metric}
+      text={stripChartTokens(annotation)}
     >
-      <Sparkles
-        className="text-dracula-purple mt-0.5 h-3.5 w-3.5 shrink-0"
-        aria-hidden="true"
-      />
-      <div className="min-w-0 flex-1 space-y-1">
-        {/* v1.4.28 R3c-Insights — `line-clamp-3` bounds caption
-            variance (FB-K2). A 1-sentence BP annotation paints
-            ~3 lines wrapped; a 4-line mood annotation used to push
-            the cell taller, which `auto-rows-fr` propagated to
-            every neighbour cell. With the clamp the longest
-            annotation ends with an ellipsis at 3 lines and the
-            row stays at a single visual rhythm. */}
-        <p className="text-foreground line-clamp-3 text-xs leading-snug">
-          {stripChartTokens(annotation)}
-        </p>
-        {confidence ? (
-          <Badge
-            data-slot="trend-annotation-confidence"
-            variant="outline"
-            className={cn("text-[10px]", CONFIDENCE_BADGE_CLASS[confidence])}
-          >
-            {t(CONFIDENCE_LABEL_KEY[confidence])}
-          </Badge>
-        ) : null}
-      </div>
-    </div>
+      {confidence ? (
+        <Badge
+          data-slot="trend-annotation-confidence"
+          variant="outline"
+          className={cn("text-[10px]", CONFIDENCE_BADGE_CLASS[confidence])}
+        >
+          {t(CONFIDENCE_LABEL_KEY[confidence])}
+        </Badge>
+      ) : null}
+    </TrendCaptionCard>
   );
 }

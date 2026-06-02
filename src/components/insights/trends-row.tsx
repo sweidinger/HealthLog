@@ -13,6 +13,7 @@ import {
 } from "@/lib/insights/trend-chart-select";
 import {
   TrendAnnotation,
+  TrendCaptionCard,
   type TrendAnnotationConfidenceBand,
   type TrendAnnotationStatus,
 } from "./trend-annotation";
@@ -216,13 +217,16 @@ export function TrendsRow({
                 // v1.8.6 W8 — additive metrics carry no advisor
                 // annotation. Paint the metric's standard one-line
                 // description so the card is never caption-less.
-                <p
-                  data-slot="trends-row-caption"
-                  data-metric={config.metric}
-                  className="text-muted-foreground line-clamp-3 text-xs"
-                >
-                  {t(config.captionKey)}
-                </p>
+                // v1.8.7 W-E — render that description through the same
+                // `<TrendCaptionCard>` shell the advisor caption uses, so
+                // the fallback caption shares the bordered card, Sparkles
+                // affordance, and `text-foreground` typography rather than
+                // standing out as a plain muted line.
+                <TrendCaptionCard
+                  slot="trends-row-caption"
+                  metric={config.metric}
+                  text={t(config.captionKey)}
+                />
               )}
             </div>
           );
