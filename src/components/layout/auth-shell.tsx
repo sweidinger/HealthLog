@@ -47,6 +47,26 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   const isOnboardingPage = pathname === "/onboarding";
   const showUnlockNotifier = isAuthenticated && !isPublicPage && !!user?.id;
 
+  // v1.9.0 — the document-level scrollbar-gutter (globals.css) is reserved
+  // only for the body-scrolled shells (login / register / onboarding /
+  // standalone legal pages). The authenticated branch is height-locked and
+  // scrolls inside its own `<main>`, which reserves its own gutter; applying
+  // the document gutter there too produced a second, never-painted gutter on
+  // classic-scrollbar platforms. Flag the body-scrolled branches on `<html>`
+  // so the CSS rule scopes to them.
+  const isBodyScrolled = isPublicPage || isOnboardingPage;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isBodyScrolled) {
+      root.setAttribute("data-scroll", "body");
+    } else {
+      root.removeAttribute("data-scroll");
+    }
+    return () => {
+      root.removeAttribute("data-scroll");
+    };
+  }, [isBodyScrolled]);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isPublicPage) {
       router.replace("/auth/login");

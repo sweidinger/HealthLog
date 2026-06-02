@@ -1624,7 +1624,8 @@
         "30d": "ggü. vorherigen 30T",
         "90d": "ggü. vorherigen 90T",
         "1y": "ggü. Vorjahr"
-      }
+      },
+      "noChange": "keine Änderung"
     },
     "correlationRow": {
       "title": "Zusammenhänge",

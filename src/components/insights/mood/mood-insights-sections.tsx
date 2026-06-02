@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { MoodHeatmap } from "@/components/charts/mood-heatmap";
 import {
@@ -140,9 +141,20 @@ export function MoodInsightsSections() {
   return (
     <div className="space-y-4">
       {(hasInTargetTile || hasStabilityTile) && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <MoodInTargetTile pct={data.summary.inTargetPct} />
-          <MoodStabilityTile stability={data.stability} />
+        // Two-up only when BOTH tiles render; a lone tile spans full width so
+        // it never leaves a half-width orphan with dead space beside it.
+        <div
+          className={cn(
+            "grid gap-4",
+            hasInTargetTile && hasStabilityTile && "sm:grid-cols-2",
+          )}
+        >
+          {hasInTargetTile && (
+            <MoodInTargetTile pct={data.summary.inTargetPct} />
+          )}
+          {hasStabilityTile && (
+            <MoodStabilityTile stability={data.stability} />
+          )}
         </div>
       )}
 

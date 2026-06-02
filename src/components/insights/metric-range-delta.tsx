@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
@@ -62,8 +62,28 @@ export function MetricRangeDelta({
 
   const direction = getTrendSentiment(data.delta, directionSentiment);
   const colorClass = sentimentColorClass(direction);
-  const isUp = data.delta > 0;
   const pct = Math.round(Math.abs(data.deltaPct) * 100);
+
+  // A perfectly stable metric (current mean == prior mean, or a rounded
+  // delta of 0 %) reads neutral — a flat dash and "no change", never a
+  // down-arrow with "−0%". The direction arrow is decoupled from the raw
+  // sign so a zero delta never paints a misleading decrease.
+  if (data.delta === 0 || pct === 0) {
+    return (
+      <span
+        data-slot="metric-range-delta"
+        data-direction="neutral"
+        className="text-muted-foreground inline-flex items-center gap-1 text-xs"
+      >
+        <Minus className="h-3 w-3" aria-hidden="true" />
+        <span>
+          {t("insights.range.noChange")} {priorLabel}
+        </span>
+      </span>
+    );
+  }
+
+  const isUp = data.delta > 0;
   const sign = isUp ? "+" : "−";
 
   return (

@@ -1624,7 +1624,8 @@
         "30d": "vs 30d anteriores",
         "90d": "vs 90d anteriores",
         "1y": "vs año anterior"
-      }
+      },
+      "noChange": "sin cambios"
     },
     "correlationRow": {
       "title": "Correlaciones",
