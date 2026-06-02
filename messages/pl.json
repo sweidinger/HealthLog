@@ -2670,10 +2670,10 @@
     },
     "navBreathingDisturbances": "Oddychanie",
     "rhythmEvents": {
-      "sectionTitle": "Device health notifications",
-      "sectionIntro": "Notifications your watch sent on its own. HealthLog only shows these — it does not detect, confirm, or interpret them.",
-      "loadError": "Could not load your device notifications.",
-      "disclaimer": "These are alerts your device produced using its own built-in detection. They are shown here for your awareness only. This is not a medical assessment by HealthLog, and HealthLog does not diagnose any condition. If a notification concerns you, talk to your doctor.",
+      "sectionTitle": "Powiadomienia zdrowotne urządzenia",
+      "sectionIntro": "Powiadomienia, które zegarek wysłał samodzielnie. HealthLog jedynie je wyświetla — nie wykrywa ich, nie potwierdza ani nie interpretuje.",
+      "loadError": "Nie udało się wczytać powiadomień urządzenia.",
+      "disclaimer": "To alerty wygenerowane przez Twoje urządzenie za pomocą jego wbudowanego wykrywania. Są tu pokazywane wyłącznie dla Twojej informacji. To nie jest ocena medyczna wykonana przez HealthLog, a HealthLog nie diagnozuje żadnych schorzeń. Jeśli powiadomienie Cię niepokoi, skontaktuj się z lekarzem.",
       "event": {
         "irregularRhythm": "Irregular rhythm notification",
         "highHeartRate": "High heart rate notification",
