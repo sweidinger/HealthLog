@@ -90,6 +90,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
       request.headers.get("accept-language") ?? "",
     );
 
+  // BfArM ATC: an explicit selection flag wins; otherwise derive it from a
+  // German-region locale. The WHO ATC coding is unaffected either way.
+  const germanAtc = selection.germanAtc ?? locale === "de";
+
   const [data, userTz, userRow] = await Promise.all([
     collectDoctorReportData(user.id, range, { practiceName, sections }),
     resolveUserTimezone(user.id),
@@ -136,7 +140,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   if (selection.format === "fhir") {
-    const bundle = buildFhirDocumentBundle(data, { insuranceNumber });
+    const bundle = buildFhirDocumentBundle(
+      data,
+      { insuranceNumber },
+      undefined,
+      { germanAtc },
+    );
     const json = JSON.stringify(bundle);
     annotate({
       meta: { format: "fhir", bytes: json.length, days: range.days },
@@ -178,7 +187,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
 
   // format === "package": one zip holding the PDF + FHIR Bundle + a README.
-  const bundle = buildFhirDocumentBundle(data, { insuranceNumber });
+  const bundle = buildFhirDocumentBundle(
+    data,
+    { insuranceNumber },
+    undefined,
+    { germanAtc },
+  );
   const readme = t("doctorReport.packageReadme");
   const zipped = zipSync(
     {

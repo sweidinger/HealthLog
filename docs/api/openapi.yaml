@@ -148,6 +148,8 @@ paths:
                   type: boolean
                 includeAiSummary:
                   type: boolean
+                germanAtc:
+                  type: boolean
               required:
                 - format
               additionalProperties: false
