@@ -226,33 +226,36 @@ export function buildFhirDocumentBundle(
   entries.push({ fullUrl: `urn:uuid:${patientId}`, resource: patient });
 
   // --- Coverage (insurer; sits right after the Patient) ------------------
-  // Emitted whenever ANY payor info is present (insurer name and/or IKNR).
-  // The payor is a CONTAINED Organization referenced by a local `#`-ref.
-  // The KVNR stays on `Patient.identifier`; here it doubles as the
-  // Coverage `subscriberId` (the member id) when present. When neither an
-  // insurer name nor an IKNR is known, omit Coverage entirely rather than
-  // emit an empty payor.
+  // v1.9.0 — emitted whenever ANY payor signal is present: an insurer
+  // name, an IKNR, OR a bare KVNR. The KVNR-only case aligns the server
+  // with the iOS exporter (which emits a Coverage on a bare member id);
+  // it carries the `subscriberId` with no contained payor Organization.
+  // When an insurer name and/or IKNR is known, the payor is a CONTAINED
+  // Organization referenced by a local `#`-ref. The KVNR stays on
+  // `Patient.identifier` and doubles as the `subscriberId` (member id).
   const insurerName = data.patient.insurerName ?? null;
   const insurerIkNumber = data.patient.insurerIkNumber ?? null;
-  if (insurerName || insurerIkNumber) {
-    const orgId = "insurer-org-1";
-    const payorOrg: FhirOrganization = {
-      resourceType: "Organization",
-      id: orgId,
-    };
-    if (insurerIkNumber) {
-      payorOrg.identifier = [{ system: IKNR_SYSTEM, value: insurerIkNumber }];
-    }
-    if (insurerName) payorOrg.name = insurerName;
-
+  const hasPayorOrg = Boolean(insurerName || insurerIkNumber);
+  if (hasPayorOrg || identity.insuranceNumber) {
     const coverage: FhirCoverage = {
       resourceType: "Coverage",
       id: "coverage-1",
       status: "active",
-      contained: [payorOrg],
       beneficiary: patientRef,
-      payor: [{ reference: `#${orgId}` }],
     };
+    if (hasPayorOrg) {
+      const orgId = "insurer-org-1";
+      const payorOrg: FhirOrganization = {
+        resourceType: "Organization",
+        id: orgId,
+      };
+      if (insurerIkNumber) {
+        payorOrg.identifier = [{ system: IKNR_SYSTEM, value: insurerIkNumber }];
+      }
+      if (insurerName) payorOrg.name = insurerName;
+      coverage.contained = [payorOrg];
+      coverage.payor = [{ reference: `#${orgId}` }];
+    }
     if (identity.insuranceNumber) {
       coverage.subscriberId = identity.insuranceNumber;
     }
@@ -555,6 +558,13 @@ export function buildFhirDocumentBundle(
     date: now.toISOString(),
     author: [{ reference: "Device/healthlog", display: "HealthLog" }],
     title: "Health Record",
+    // v1.9.0 — top-level document narrative (Coverage nit 2). Reuses the
+    // same escaped plain-text summary the Vital-signs section carries, so
+    // a strict US-Core-style validator sees a `Composition.text`.
+    text: {
+      status: "generated",
+      div: `<div xmlns="http://www.w3.org/1999/xhtml">${escapeXml(narrativeText)}</div>`,
+    },
     section: [
       {
         // Vital-signs section carries the narrative + every Observation ref,

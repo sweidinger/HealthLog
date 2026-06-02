@@ -175,6 +175,12 @@ export interface FhirComposition {
   date: string;
   author: FhirReference[];
   title: string;
+  /**
+   * v1.9.0 — top-level document narrative. Section narrative is already
+   * present; a strict US-Core-style validator additionally expects a
+   * `Composition.text`. Reuses the same escaped plain-text summary.
+   */
+  text?: FhirNarrative;
   section?: FhirCompositionSection[];
 }
 

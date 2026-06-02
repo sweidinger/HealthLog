@@ -241,7 +241,7 @@ describe("buildFhirDocumentBundle", () => {
     expect(coverage?.contained?.[0].identifier?.[0].value).toBe("101234567");
   });
 
-  it("omits the Coverage entirely when neither insurer name nor IKNR is present", () => {
+  it("omits the Coverage entirely when there is no payor signal at all", () => {
     const bundle = buildFhirDocumentBundle(
       makeData({
         patient: {
@@ -253,15 +253,55 @@ describe("buildFhirDocumentBundle", () => {
           // neither insurerName nor insurerIkNumber
         },
       }),
-      { insuranceNumber: "A123456780" },
+      // ...and no KVNR.
+      { insuranceNumber: null },
       FIXED_NOW,
     );
     expect(coverageOf(bundle)).toBeUndefined();
-    // KVNR still rides on Patient.identifier.
+  });
+
+  it("emits a KVNR-only Coverage (no insurer) to align with the iOS exporter", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        patient: {
+          username: "sample-user",
+          dateOfBirth: null,
+          gender: null,
+          heightCm: null,
+          fullName: "Sample Patient",
+          // neither insurerName nor insurerIkNumber — just a bare KVNR.
+        },
+      }),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
+    const coverage = coverageOf(bundle);
+    expect(coverage).toBeDefined();
+    expect(coverage?.status).toBe("active");
+    expect(coverage?.beneficiary.reference).toBe("Patient/patient-1");
+    expect(coverage?.subscriberId).toBe("A123456780");
+    // No insurer known → no contained payor Organization, no payor[].
+    expect(coverage?.contained).toBeUndefined();
+    expect(coverage?.payor).toBeUndefined();
+    // KVNR still rides on Patient.identifier too.
     const patient = bundle.entry.find(
       (e) => e.resource.resourceType === "Patient",
     )?.resource as FhirPatient;
     expect(patient.identifier?.[0].value).toBe("A123456780");
+  });
+
+  it("emits a top-level Composition.text narrative", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData(),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const composition = bundle.entry[0].resource;
+    expect(composition.resourceType).toBe("Composition");
+    if (composition.resourceType === "Composition") {
+      expect(composition.text?.status).toBe("generated");
+      expect(composition.text?.div).toContain("Health record for");
+    }
   });
 
   it("maps weight to LOINC 29463-7 / UCUM kg with the latest reading", () => {
