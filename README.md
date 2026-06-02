@@ -38,7 +38,7 @@
 
 HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESH 2023, ADA 2024, and NICE NG115. Withings devices sync automatically; an `export.zip` import folds your full Apple Health history into the same timeline; a native SwiftUI iOS client (public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa)) streams HealthKit live; multi-provider AI Insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. AGPL-3.0.
 
-> **Status**: active. New releases roughly weekly -- see [CHANGELOG](CHANGELOG.md). Current line: v1.7 — health-record export (PDF + FHIR R4), flexible medication schedules, full HealthKit metric coverage, and a first-paint dashboard snapshot. The native iOS client is public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa).
+> **Status**: active. New releases roughly weekly -- see [CHANGELOG](CHANGELOG.md). Current line: v1.10 — a derived-metrics tier (fitness-age, vascular-age delta, HRV balance, sleep score, readiness and recovery scores, an early-strain flag), each computed from your own measurements and citing its inputs, on top of the v1.7 health-record export (PDF + FHIR R4), flexible medication schedules, and full HealthKit metric coverage. The native iOS client is public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa).
 
 > **Heavily developed.** HealthLog ships multiple releases per week. Behaviour, API shapes, and database schema can change between minor versions; migrations are forward-only and not all are rehearsed against every legacy fixture. If you self-host, pin a tag, take a backup before every upgrade, and read the [CHANGELOG](CHANGELOG.md) before pulling `latest`. Issue reports and PRs welcome — this is the rough edge where the project gets sharper.
 
@@ -60,11 +60,25 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 | Open source              | AGPL-3.0             | No              | No            | No          | n/a         |
 | Withings device sync     | Yes (OAuth2)         | Yes (native)    | Via shortcut  | No          | No          |
 | Apple Health import      | Yes (`export.zip`)   | No              | Native        | No          | Manual      |
+| Blood pressure + glucose | First-class          | BP only         | Manual        | No          | Manual      |
+| Medication compliance    | Cadence-aware        | No              | No            | No          | Manual      |
+| Derived wellness metrics | Yes (transparent)    | Limited         | Limited       | Yes (closed)| No          |
 | Custom clinician targets | Yes (audit-logged)   | Limited         | No            | No          | n/a         |
-| Doctor-report PDF        | Yes (client-side)    | No              | No            | No          | n/a         |
+| Doctor-report PDF + FHIR | Yes (client-side)    | No              | No            | No          | n/a         |
 | AI Insights              | Multi-provider BYOK  | No              | Limited       | Subscription| n/a         |
 | Subscription required    | No                   | For some metrics| No            | Yes         | No          |
 | Your data leaves device  | Never                | Withings cloud  | Apple cloud   | Oura cloud  | Depends     |
+
+### Versus WHOOP / Oura / Fitbit ecosystems
+
+The wrist-band ecosystems are good at what their hardware measures, and HealthLog does not try to be a ring or a strap. It does not ship a sensor, and it does not claim to match one. What it does is take the readings those devices already collect — plus the ones they don't hold, like cuff blood pressure, finger-stick or CGM glucose, and medication intake — and keep them on a server you run.
+
+- **You own the data and the host.** No vendor account, no cloud round-trip, no subscription tier gating a metric you already recorded. AGPL-3.0, single `docker compose up`, encrypted at rest, on your NAS / homelab / VPS.
+- **It aggregates across providers instead of locking you to one.** Withings devices sync over OAuth2, an Apple Health `export.zip` folds your full history in, and the native iOS client streams HealthKit live — so a Withings scale, an Apple Watch, and a glucometer land on one timeline instead of three apps.
+- **It carries context the wrist bands don't.** Blood pressure, blood glucose, body composition, and cadence-aware medication compliance sit next to the wearable signals, so a trend reads against the whole picture rather than activity and sleep alone.
+- **The derived metrics are transparent, not a black box.** HealthLog computes a fitness-age and vascular-age delta, an HRV-balance and sleep-score band, a daily readiness and recovery score, and a coincident-deviation early-strain flag — each from your own measurements, each citing the inputs and the published method behind it, each degrading honestly to "not enough data" rather than fabricating a number. These are descriptive wellness framings, not clinical or training-grade assessments, and a score is only stored once its minimum inputs are present.
+
+HealthLog is the right fit when you want your wearable and clinical numbers in one place that you control, with explainable analytics on top — not when you want a closed device that scores you and keeps the data.
 
 ---
 
@@ -85,6 +99,8 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 **Apple Health import** -- Drop your iOS `export.zip` on the import page. A streaming parser handles multi-gigabyte archives (Zip64), folds every `<Record>`, `<Workout>`, `<Correlation>`, and `<ClinicalRecord>` into the same timeline as your other metrics, and stays idempotent on re-upload. Per-type ingestion stats plus a live status endpoint so you can watch the progress on a long historical drain.
 
 **AI Coach + Insights** -- A conversational Coach grounded in your own data, a daily briefing, a weekly report, and a Health Score tile on the dashboard. Pick OpenAI, Anthropic Claude, ChatGPT via Codex device-OAuth (no API key needed), or any OpenAI-compatible local endpoint (Ollama, LM Studio, vLLM). BYOK or admin-shared. Feed the Coach a chosen set of data clusters (cardiovascular, body composition, activity, workouts, sleep, mood, glucose, medication, mobility, environment) with a soft budget cap that degrades the lowest-signal clusters first. Every claim links back to the measurements that produced it. Local endpoints keep all data on your network.
+
+**Derived wellness metrics** -- A transparent metrics tier computed from your own measurements: a fitness-age band from VO₂max, a vascular-age delta, an HRV-balance band, a sleep score, a daily readiness and a stored recovery score, plus a coincident-deviation early-strain flag. Each one re-frames or blends signals you already recorded against age/sex norms or your personal baseline, cites the inputs and the published method behind it, and returns "not enough data" rather than a fabricated value when its minimum inputs are missing. The recovery score persists as a daily 0–100 series the dashboard, charts, and native client read without recomputing. These are descriptive wellness framings — not clinical or training-grade assessments.
 
 **Doctor Report PDF Export** -- Generate professional medical reports client-side. Locale-aware (English/German), with vital sign summaries, BP/BMI/glucose classification, compliance rates, custom-threshold badges, and optional AI analysis.
 
@@ -488,7 +504,8 @@ For a single-process default the same container hosts both the web and worker (`
 | ------------ | ----- |
 | **v1.4.x** | Web maturity — Apple Health import, AI Coach, persistent rollup tier, multi-provider AI, doctor PDF, encryption-key rotation, Coolify autodeploy. Roughly weekly cadence. |
 | **v1.5** | Native iOS client (SwiftUI) in public beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa). Backend contract locked in [`docs/api/openapi.yaml`](docs/api/openapi.yaml); the iOS app lives in a separate repository and ingests via the same `/api/measurements/batch` and `/api/auth/refresh` surfaces the web uses. |
-| **v1.6 – v1.7** (current) | Medication editor overhaul + route of administration (v1.6), then health-record export (PDF + HL7 FHIR R4), flexible schedules (RRULE / rolling / interval-weeks / one-time / PRN / cyclic) with cadence-canonical compliance, full HealthKit metric coverage, a metric/imperial display preference, a first-paint dashboard snapshot, and a sync delta feed for offline clients (v1.7). |
+| **v1.6 – v1.7** | Medication editor overhaul + route of administration (v1.6), then health-record export (PDF + HL7 FHIR R4), flexible schedules (RRULE / rolling / interval-weeks / one-time / PRN / cyclic) with cadence-canonical compliance, full HealthKit metric coverage, a metric/imperial display preference, a first-paint dashboard snapshot, and a sync delta feed for offline clients (v1.7). |
+| **v1.8 – v1.10** (current) | Insights redesign with selectable time ranges (v1.8 – v1.9), then a derived-metrics tier (v1.10): fitness-age, vascular-age delta, HRV balance, sleep score, readiness and recovery scores, and a coincident-deviation early-strain flag — each computed from your own measurements, each citing its inputs and degrading to "not enough data" rather than fabricating a value. |
 | **v2.x** (planned) | Multi-tenant hardening, expanded device passthrough (Garmin / Polar), opt-in cross-user aggregate research mode (off by default; never enabled without explicit consent). |
 
 The detailed changelog lives in [`CHANGELOG.md`](CHANGELOG.md).
