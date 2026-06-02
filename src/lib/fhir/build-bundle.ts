@@ -39,6 +39,8 @@ import type {
   FhirCodeableConcept,
   FhirObservation,
   FhirMedicationStatement,
+  FhirMedicationAdministration,
+  FhirDosage,
   FhirPatient,
   FhirCoverage,
   FhirOrganization,
@@ -59,6 +61,84 @@ const KVNR_SYSTEM = "http://fhir.de/sid/gkv/kvid-10";
 
 /** German insurer institution-number (IKNR) identifier namespace. */
 const IKNR_SYSTEM = "http://fhir.de/sid/arge-ik/iknr";
+
+/**
+ * v1.9.0 — drug-coding system URIs. ATC is the portable WHO default
+ * (the iOS export emits the identical URI); RxNorm is the secondary US
+ * coding. Both are additive `coding[]` entries on the same concept; the
+ * free-text `.text` (the user's medication name) stays the anchor.
+ */
+const ATC_SYSTEM = "http://www.whocc.no/atc";
+const RXNORM_SYSTEM = "http://www.nlm.nih.gov/research/umls/rxnorm";
+
+/**
+ * Build a `medicationCodeableConcept` from a medication's free-text name
+ * plus its optional user-asserted codes. ATC is emitted first (primary),
+ * RxNorm second (secondary); both are omitted when NULL, collapsing to
+ * exactly the pre-v1.9.0 `{ text }` shape. Never machine-guesses a code.
+ */
+function medicationConcept(
+  name: string,
+  atcCode: string | null | undefined,
+  rxNormCode: string | null | undefined,
+): FhirCodeableConcept {
+  const coding: NonNullable<FhirCodeableConcept["coding"]> = [];
+  if (atcCode) {
+    coding.push({ system: ATC_SYSTEM, code: atcCode, display: name });
+  }
+  if (rxNormCode) {
+    coding.push({ system: RXNORM_SYSTEM, code: rxNormCode });
+  }
+  return coding.length > 0 ? { coding, text: name } : { text: name };
+}
+
+/**
+ * v1.9.0 — UCUM codes for the dose units HealthLog stores. The display
+ * `unit` is always the user's original string; the UCUM `code` is set
+ * only for an unambiguous mapping so a consumer that resolves UCUM never
+ * sees a guessed code. An unmapped unit drops `code` (and `system`) and
+ * keeps just the human-readable `unit` — conformant, just not coded.
+ */
+const UCUM_DOSE_CODES: Record<string, string> = {
+  mg: "mg",
+  g: "g",
+  mcg: "ug",
+  µg: "ug",
+  ug: "ug",
+  ml: "mL",
+  mL: "mL",
+};
+
+function doseQuantity(value: number, unit: string): {
+  value: number;
+  unit: string;
+  system?: string;
+  code?: string;
+} {
+  const ucum = UCUM_DOSE_CODES[unit];
+  return ucum
+    ? { value, unit, system: UCUM_SYSTEM, code: ucum }
+    : { value, unit };
+}
+
+/**
+ * v1.9.0 — text-only route of administration derived from the
+ * medication's delivery form. Text-only (no SNOMED licence concern); the
+ * design doc upgrades to coded routes jointly with iOS later. Returns
+ * `undefined` for an unknown / absent form so no empty route is emitted.
+ */
+function routeConcept(
+  deliveryForm: string | null,
+): FhirCodeableConcept | undefined {
+  switch (deliveryForm) {
+    case "ORAL":
+      return { text: "Oral" };
+    case "INJECTION":
+      return { text: "Injection" };
+    default:
+      return undefined;
+  }
+}
 
 /** Escape the five XML-significant characters for the xhtml narrative. */
 function escapeXml(value: string): string {
@@ -146,33 +226,36 @@ export function buildFhirDocumentBundle(
   entries.push({ fullUrl: `urn:uuid:${patientId}`, resource: patient });
 
   // --- Coverage (insurer; sits right after the Patient) ------------------
-  // Emitted whenever ANY payor info is present (insurer name and/or IKNR).
-  // The payor is a CONTAINED Organization referenced by a local `#`-ref.
-  // The KVNR stays on `Patient.identifier`; here it doubles as the
-  // Coverage `subscriberId` (the member id) when present. When neither an
-  // insurer name nor an IKNR is known, omit Coverage entirely rather than
-  // emit an empty payor.
+  // v1.9.0 — emitted whenever ANY payor signal is present: an insurer
+  // name, an IKNR, OR a bare KVNR. The KVNR-only case aligns the server
+  // with the iOS exporter (which emits a Coverage on a bare member id);
+  // it carries the `subscriberId` with no contained payor Organization.
+  // When an insurer name and/or IKNR is known, the payor is a CONTAINED
+  // Organization referenced by a local `#`-ref. The KVNR stays on
+  // `Patient.identifier` and doubles as the `subscriberId` (member id).
   const insurerName = data.patient.insurerName ?? null;
   const insurerIkNumber = data.patient.insurerIkNumber ?? null;
-  if (insurerName || insurerIkNumber) {
-    const orgId = "insurer-org-1";
-    const payorOrg: FhirOrganization = {
-      resourceType: "Organization",
-      id: orgId,
-    };
-    if (insurerIkNumber) {
-      payorOrg.identifier = [{ system: IKNR_SYSTEM, value: insurerIkNumber }];
-    }
-    if (insurerName) payorOrg.name = insurerName;
-
+  const hasPayorOrg = Boolean(insurerName || insurerIkNumber);
+  if (hasPayorOrg || identity.insuranceNumber) {
     const coverage: FhirCoverage = {
       resourceType: "Coverage",
       id: "coverage-1",
       status: "active",
-      contained: [payorOrg],
       beneficiary: patientRef,
-      payor: [{ reference: `#${orgId}` }],
     };
+    if (hasPayorOrg) {
+      const orgId = "insurer-org-1";
+      const payorOrg: FhirOrganization = {
+        resourceType: "Organization",
+        id: orgId,
+      };
+      if (insurerIkNumber) {
+        payorOrg.identifier = [{ system: IKNR_SYSTEM, value: insurerIkNumber }];
+      }
+      if (insurerName) payorOrg.name = insurerName;
+      coverage.contained = [payorOrg];
+      coverage.payor = [{ reference: `#${orgId}` }];
+    }
     if (identity.insuranceNumber) {
       coverage.subscriberId = identity.insuranceNumber;
     }
@@ -389,7 +472,14 @@ export function buildFhirDocumentBundle(
       resourceType: "MedicationStatement",
       id,
       status: "active",
-      medicationCodeableConcept: { text: med.name },
+      // v1.9.0 — additive ATC (primary) / RxNorm (secondary) codings when
+      // the user stored them; falls back to the text-only concept when
+      // neither code is present (the pre-v1.9.0 shape).
+      medicationCodeableConcept: medicationConcept(
+        med.name,
+        med.atcCode,
+        med.rxNormCode,
+      ),
       subject: patientRef,
     };
     if (med.dose) stmt.dosage = [{ text: med.dose }];
@@ -397,11 +487,66 @@ export function buildFhirDocumentBundle(
     medicationRefs.push({ reference: `MedicationStatement/${id}` });
   }
 
+  // --- MedicationAdministration per acted intake -------------------------
+  // One resource per intake the user actually actioned: `completed`
+  // (taken) or `not-done` (explicitly skipped). Pending / missed slots and
+  // soft-deleted tombstones are excluded upstream by the aggregator. The
+  // concept reuses the same ATC/RxNorm coding as the statement so each
+  // administration is self-describing without resolving a reference (no
+  // `partOf` / `request` coupling — see the v1.9.0 design doc). A `dosage`
+  // is emitted ONLY when a structured `dose` Quantity is available; a
+  // dosage with only `.text` would violate the R4 dose-or-rate invariant.
+  const administrationRefs: FhirReference[] = [];
+  let adminSeq = 0;
+  for (const admin of data.medicationAdministrations ?? []) {
+    adminSeq += 1;
+    const id = `medadmin-${adminSeq}`;
+    const resource: FhirMedicationAdministration = {
+      resourceType: "MedicationAdministration",
+      id,
+      status: admin.status,
+      medicationCodeableConcept: medicationConcept(
+        admin.medicationName,
+        admin.atcCode,
+        admin.rxNormCode,
+      ),
+      subject: patientRef,
+      effectiveDateTime: admin.effectiveAt,
+    };
+
+    // Dosage: only when a structured dose Quantity exists. Carry the
+    // free-text dose + route + site alongside it. Text-only route/site
+    // (no SNOMED licence concern); the design doc upgrades to coded
+    // routes jointly with iOS later.
+    if (admin.dose) {
+      const dosage: FhirDosage = {
+        dose: doseQuantity(admin.dose.value, admin.dose.unit),
+      };
+      if (admin.doseText) dosage.text = admin.doseText;
+      const route = routeConcept(admin.deliveryForm);
+      if (route) dosage.route = route;
+      if (admin.injectionSite) dosage.site = { text: admin.injectionSite };
+      resource.dosage = dosage;
+    }
+
+    entries.push({ fullUrl: `urn:uuid:${id}`, resource });
+    administrationRefs.push({ reference: `MedicationAdministration/${id}` });
+  }
+
   // --- Composition (leading "cover" resource) ----------------------------
+  // v1.9.0 — when the aggregator capped the administration set, disclose
+  // it in the narrative so the export is honest: it carries the
+  // most-recent N of M acted intakes, the oldest having been omitted.
+  const truncation = data.medicationAdministrationsTruncation;
   const narrativeText = [
     `Health record for ${escapeXml(displayName ?? "patient")}.`,
     `Reporting period ${data.period.start.slice(0, 10)} to ${data.period.end.slice(0, 10)}.`,
-    `${observationRefs.length} observation(s), ${medicationRefs.length} medication(s).`,
+    `${observationRefs.length} observation(s), ${medicationRefs.length} medication(s), ${administrationRefs.length} administration(s).`,
+    ...(truncation
+      ? [
+          `Medication administrations truncated: showing the most recent ${truncation.included} of ${truncation.total} recorded; older entries omitted.`,
+        ]
+      : []),
   ].join(" ");
 
   const composition: FhirComposition = {
@@ -422,6 +567,13 @@ export function buildFhirDocumentBundle(
     date: now.toISOString(),
     author: [{ reference: "Device/healthlog", display: "HealthLog" }],
     title: "Health Record",
+    // v1.9.0 — top-level document narrative (Coverage nit 2). Reuses the
+    // same escaped plain-text summary the Vital-signs section carries, so
+    // a strict US-Core-style validator sees a `Composition.text`.
+    text: {
+      status: "generated",
+      div: `<div xmlns="http://www.w3.org/1999/xhtml">${escapeXml(narrativeText)}</div>`,
+    },
     section: [
       {
         // Vital-signs section carries the narrative + every Observation ref,
@@ -430,8 +582,17 @@ export function buildFhirDocumentBundle(
         text: { status: "generated", div: `<div xmlns="http://www.w3.org/1999/xhtml">${escapeXml(narrativeText)}</div>` },
         entry: [patientRef, ...observationRefs],
       },
-      ...(medicationRefs.length > 0
-        ? [{ title: "Medications", entry: medicationRefs }]
+      // Medications section carries both the active-medication
+      // statements and the per-dose administration records (v1.9.0), so
+      // the iOS two-section graph ("Vital signs" + "Medications") is
+      // preserved without adding a third section.
+      ...(medicationRefs.length > 0 || administrationRefs.length > 0
+        ? [
+            {
+              title: "Medications",
+              entry: [...medicationRefs, ...administrationRefs],
+            },
+          ]
         : []),
     ],
   };

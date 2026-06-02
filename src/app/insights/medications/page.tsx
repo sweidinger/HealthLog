@@ -63,6 +63,9 @@ interface MedicationComplianceStatusData {
   // cache miss while the worker warms the assessment; the card polls until
   // it lands. See `use-insight-status.ts` for the shared rationale.
   preparing?: boolean;
+  // v1.9.0 — last-good narrative served while a refresh is in flight; the
+  // card keeps polling (bounded) so the open page upgrades in-session.
+  revalidating?: boolean;
 }
 
 // v1.8.3 — client ceiling on the round-trip, mirroring the shared
@@ -129,6 +132,7 @@ export default function InsightsMedikamentePage() {
       nextStatusPollInterval(
         query.state.data?.preparing,
         query.state.dataUpdateCount,
+        query.state.data?.revalidating,
       ),
   });
 

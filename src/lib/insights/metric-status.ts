@@ -55,6 +55,7 @@ import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   readFreshStatusText,
   resolveReadOnlyStatusMiss,
+  statusCacheAction,
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
@@ -66,6 +67,12 @@ export interface MetricStatusResult {
   cached: boolean;
   updatedAt: string | null;
   preparing?: boolean;
+  /**
+   * v1.9.0 — true when last-good text is served while a fresh generation is
+   * in flight. The card keeps polling (bounded) so the open page upgrades to
+   * the warmed assessment without a remount.
+   */
+  revalidating?: boolean;
   /**
    * v1.8.7.1 — true when the metric has no data at all. The route maps
    * this onto the card's insufficient-data state; no LLM was called.
@@ -118,7 +125,7 @@ export async function generateMetricStatus(args: {
   const force = args.force === true;
   const readOnly = args.readOnly === true;
   const scope = metricStatusScope(meta.id);
-  const cacheAction = `insights.${scope}-status.${locale}`;
+  const cacheAction = statusCacheAction(scope, locale);
   const todayKey = toBerlinDayKey(new Date());
 
   const cached = await readFreshStatusText({
@@ -178,6 +185,7 @@ export async function generateMetricStatus(args: {
       cached: outcome.lastGood !== null,
       updatedAt: outcome.lastGood?.updatedAt ?? null,
       preparing: outcome.lastGood === null,
+      revalidating: outcome.revalidating,
     };
   }
 

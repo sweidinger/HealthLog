@@ -136,6 +136,8 @@ export const PUT = apiHandler(
       notificationsEnabled,
       liveActivityEnabled,
       criticalAlarmEnabled,
+      atcCode,
+      rxNormCode,
       schedules,
       startsOn,
       endsOn,
@@ -234,6 +236,10 @@ export const PUT = apiHandler(
       // v1.7.0 — iOS reminder flags, field-by-field.
       ...(liveActivityEnabled !== undefined && { liveActivityEnabled }),
       ...(criticalAlarmEnabled !== undefined && { criticalAlarmEnabled }),
+      // v1.9.0 — optional drug-classification codes (ATC / RxNorm).
+      // Field-by-field; `null` is a valid explicit value (clears the code).
+      ...(atcCode !== undefined && { atcCode }),
+      ...(rxNormCode !== undefined && { rxNormCode }),
       // v1.5 scheduling primitives — pass-through when supplied.
       // `startsOn` / `endsOn` are `Date | null | undefined` (the
       // schema lets the user clear them explicitly with null).

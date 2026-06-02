@@ -6,15 +6,21 @@
  * grid.
  * v1.8.6 — rebuilt as a single column. The two-column data|reminders
  * grid read as overloaded; the sheet now narrows to `2xl` (~672px) and
- * stacks four bordered section cards in most-used-first order:
- * Reminders → Lifecycle → Data → Danger. One spacing rule throughout —
- * `space-y-4` between cards, `divide-y` + `py-3` rows inside each card
- * (the `<SettingsGroup>` card owns the dividers).
+ * stacks bordered section cards in most-used-first order. One spacing
+ * rule throughout — `space-y-4` between cards, `divide-y` + `py-3` rows
+ * inside each card (the `<SettingsGroup>` card owns the dividers).
+ *
+ * v1.9.0 — the Data group split. It had carried both operator data
+ * portability and the developer-facing external API in one frame; the
+ * API endpoint now sits in its own `Externe API` group so the two
+ * audiences no longer share a card. Order: Reminders → Lifecycle →
+ * Data → Externe API → Danger.
  *
  *   - Reminders: notifications switch + reminder window (grace).
  *   - Lifecycle: pause/resume + end course + phases.
- *   - Data: intake Import + medications CSV Export (co-located) +
- *     external-API endpoint / token.
+ *   - Data: intake Import + medications CSV Export (co-located).
+ *   - Externe API: the per-medication ingest endpoint + token, with the
+ *     request examples collapsed by default.
  *   - Danger zone: purge intake history + delete medication, set off by
  *     its own destructive-tinted card so an irreversible action never
  *     sits next to a routine toggle.
@@ -35,6 +41,7 @@ import { ApiTokensRow } from "@/components/medications/sections/api-tokens-row";
 import { DataPortabilityRow } from "@/components/medications/sections/data-portability-row";
 import { NotificationsBody } from "@/components/medications/sections/notifications-section";
 import {
+  DrugCodingRow,
   GraceRow,
   PhasesRow,
 } from "@/components/medications/sections/settings-section";
@@ -56,6 +63,9 @@ export interface AdvancedSettingsSheetProps {
   notificationsEnabled: boolean;
   reminderGraceMinutes: number | null;
   intakeCount: number;
+  /** v1.9.0 — optional drug-classification codes for the FHIR export. */
+  atcCode?: string | null;
+  rxNormCode?: string | null;
   /**
    * Sibling-swap the phase sheet: the parent closes this sheet and
    * opens `<PhaseConfigSheet>` so the two never stack (G-1 §5).
@@ -80,6 +90,8 @@ export function AdvancedSettingsSheet({
   notificationsEnabled,
   reminderGraceMinutes,
   intakeCount,
+  atcCode,
+  rxNormCode,
   onRequestPhaseSheet,
   onOpenImport,
 }: AdvancedSettingsSheetProps) {
@@ -142,7 +154,9 @@ export function AdvancedSettingsSheet({
           )}
         </SettingsGroup>
 
-        {/* DATA — import + export + external API */}
+        {/* DATA — import + export. The external API lives in its own
+            group below; this group stays scoped to operator data
+            portability so the two audiences don't share one frame. */}
         <SettingsGroup
           label={t("medications.detail.advanced.group.data")}
           dataSlot="advanced-group-data"
@@ -153,10 +167,27 @@ export function AdvancedSettingsSheet({
               onOpenImport={onOpenImport}
             />
           </div>
+        </SettingsGroup>
+
+        {/* EXTERNAL API — the per-medication ingest endpoint + token.
+            Pulled out of the Data group into its own frame so the
+            developer/integration surface reads as a distinct, lowest-
+            frequency block right before the danger zone. */}
+        <SettingsGroup
+          label={t("medications.detail.advanced.group.externalApi")}
+          dataSlot="advanced-group-external-api"
+        >
           <div className="py-3">
             <ApiTokensRow
               medicationId={medicationId}
               medicationName={medicationName}
+            />
+          </div>
+          <div className="py-3">
+            <DrugCodingRow
+              medicationId={medicationId}
+              atcCode={atcCode}
+              rxNormCode={rxNormCode}
             />
           </div>
         </SettingsGroup>

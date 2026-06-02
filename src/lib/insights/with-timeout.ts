@@ -32,6 +32,14 @@ export function withTimeout<T>(
   start: () => Promise<T>,
   ms: number,
   fallback: T,
+  /**
+   * v1.9.0 — fired once when the budget expires before the upstream settles.
+   * `withTimeout` cannot cancel the underlying promise, so a caller that owns
+   * a cancellation handle (e.g. an `AbortController`) passes it here to cut
+   * the detached work off — preventing a late-resolving promise from running
+   * side effects the caller has already moved past.
+   */
+  onTimeout?: () => void,
 ): Promise<TimeoutEnvelope<T>> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let settled = false;
@@ -44,6 +52,7 @@ export function withTimeout<T>(
         action: { name: "insights.status.provider_timeout" },
         meta: { timeout_ms: ms },
       });
+      onTimeout?.();
       resolve({ timedOut: true, errored: false, value: fallback });
     }, ms);
 

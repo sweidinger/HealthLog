@@ -45,6 +45,7 @@ import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   readFreshStatusText,
   resolveReadOnlyStatusMiss,
+  statusCacheAction,
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
@@ -106,11 +107,13 @@ export async function generateBloodPressureStatusForUser(
   cached: boolean;
   updatedAt: string | null;
   preparing?: boolean;
+  /** v1.9.0 — last-good text served while a refresh is in flight; keep polling. */
+  revalidating?: boolean;
 }> {
   const locale = normalizeLocale(options?.locale);
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
-  const cacheAction = `insights.blood-pressure-status.${locale}`;
+  const cacheAction = statusCacheAction("blood-pressure", locale);
   const todayKey = toBerlinDayKey(new Date());
 
   const cached = await readFreshStatusText({
@@ -151,6 +154,7 @@ export async function generateBloodPressureStatusForUser(
       cached: outcome.lastGood !== null,
       updatedAt: outcome.lastGood?.updatedAt ?? null,
       preparing: outcome.lastGood === null,
+      revalidating: outcome.revalidating,
     };
   }
 

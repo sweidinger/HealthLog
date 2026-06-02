@@ -258,12 +258,9 @@ describe("Coach disable cascade invariant", () => {
   // call site in the codebase.
   //
   // The fixture-count check below pins the surfaces the fixture mounts
-  // directly. Cross-cut gates on sub-pages (`/targets` page drawer,
-  // `<TargetCard>` per-card CTA) sit OUTSIDE the fixture and are owned
-  // by sibling invariants. A future contributor who lands a new Coach
-  // mount on (e.g.) `/insights/blood-pressure/page.tsx` would not trip the
-  // surface-count check at all — the new site is on a sub-page and
-  // would silently leak.
+  // directly. A future contributor who lands a new Coach mount on (e.g.)
+  // `/insights/blood-pressure/page.tsx` would not trip the surface-count
+  // check at all — the new site is on a sub-page and would silently leak.
   //
   // The walk below scans `src/` for every `flags.coach` occurrence and
   // requires each path to appear in the explicit `KNOWN_COACH_GATE_SITES`
@@ -286,10 +283,6 @@ describe("Coach disable cascade invariant", () => {
     "src/components/insights/layout-coach-fab.tsx",
     "src/components/insights/layout-coach-mount.tsx",
     "src/components/insights/suggested-prompts.tsx",
-    // Cross-cut gates owned by sibling invariants
-    // (`targets-coach-mount.test.tsx`, `target-card.test.tsx`).
-    "src/app/targets/page.tsx",
-    "src/components/targets/target-card.tsx",
   ];
 
   /**
@@ -389,11 +382,8 @@ describe("Coach disable cascade invariant", () => {
     // contributor adds a new `useFeatureFlags()` + `flags.coach` gate
     // to a render path, the count below must move and this assertion
     // forces them to revisit the fixture. The number tracks the
-    // surfaces the fixture mounts directly; cross-cut gates on
-    // sub-pages (target-card, /targets page) are owned by other
-    // invariants (`targets-coach-mount.test.tsx`,
-    // `target-card.test.tsx`) and by the grep-based discovery test
-    // above.
+    // surfaces the fixture mounts directly; the grep-based discovery
+    // test above pins every other `flags.coach` call site.
     expect(COACH_SURFACES.length).toBe(6);
   });
 });

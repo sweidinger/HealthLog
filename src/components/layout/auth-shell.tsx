@@ -47,6 +47,26 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   const isOnboardingPage = pathname === "/onboarding";
   const showUnlockNotifier = isAuthenticated && !isPublicPage && !!user?.id;
 
+  // v1.9.0 — the document-level scrollbar-gutter (globals.css) is reserved
+  // only for the body-scrolled shells (login / register / onboarding /
+  // standalone legal pages). The authenticated branch is height-locked and
+  // scrolls inside its own `<main>`, which reserves its own gutter; applying
+  // the document gutter there too produced a second, never-painted gutter on
+  // classic-scrollbar platforms. Flag the body-scrolled branches on `<html>`
+  // so the CSS rule scopes to them.
+  const isBodyScrolled = isPublicPage || isOnboardingPage;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isBodyScrolled) {
+      root.setAttribute("data-scroll", "body");
+    } else {
+      root.removeAttribute("data-scroll");
+    }
+    return () => {
+      root.removeAttribute("data-scroll");
+    };
+  }, [isBodyScrolled]);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isPublicPage) {
       router.replace("/auth/login");
@@ -172,7 +192,16 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           <TopBar />
           <main
             id="main-content"
-            className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0"
+            // `scrollbar-gutter: stable` keeps the scroll viewport's content
+            // box a fixed width whether or not the vertical scrollbar is
+            // painted. Without it a route / sub-tab whose body overflows
+            // (e.g. the admin "Insights Quality" section) shows the bar and
+            // narrows the content box, while a shorter one (e.g.
+            // "Integrations") hides it and widens the box — the `mx-auto`
+            // wrapper then recentres and the whole column, including the
+            // admin/settings sidebar, shifts a few px sideways on every
+            // toggle. Reserving the gutter holds the layout still.
+            className="flex-1 overflow-y-auto [scrollbar-gutter:stable] pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0"
           >
             {/*
               v1.4.33 IW9 — container normalised on `max-w-screen-xl`

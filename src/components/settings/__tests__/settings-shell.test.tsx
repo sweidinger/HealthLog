@@ -145,10 +145,10 @@ describe("<SettingsShell>", () => {
     const html = renderShell({ active: "account", locale: "en" });
     expect(html).toContain("Account");
     expect(html).toContain("Integrations");
-    // v1.4.33 IW7 — section renamed from "Notifications" to
-    // "Notification channels" so it doesn't collide with the inbox at
-    // `/notifications` ("Notification Center").
-    expect(html).toContain("Notification channels");
+    // v1.9.0 — the section label is back to the shorter "Notifications"
+    // (single-line; the longer "Notification channels" wrapped). The
+    // `/notifications` inbox is still "Notification Center" — distinct enough.
+    expect(html).toContain("Notifications");
     expect(html).toContain("Dashboard");
     expect(html).toContain("Insights");
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
@@ -173,10 +173,10 @@ describe("<SettingsShell>", () => {
     const html = renderShell({ active: "account", locale: "de" });
     expect(html).toContain("Konto");
     expect(html).toContain("Integrationen");
-    // v1.4.33 IW7 — section renamed from "Benachrichtigungen" to
-    // "Benachrichtigungs-Kanäle" so it doesn't collide with the inbox at
-    // `/notifications` ("Benachrichtigungs-Center").
-    expect(html).toContain("Benachrichtigungs-Kanäle");
+    // v1.9.0 — back to the shorter "Benachrichtigungen" (single-line; the
+    // compound "Benachrichtigungs-Kanäle" wrapped). The `/notifications`
+    // inbox stays "Benachrichtigungs-Center" — distinct enough.
+    expect(html).toContain("Benachrichtigungen");
     // v1.4.3: the Settings sub-section formerly labelled "Übersicht" is now
     // "Dashboard" (matching the term users see in the main nav). The
     // per-metric overrides moved out into their own "Persönliche Zielwerte"

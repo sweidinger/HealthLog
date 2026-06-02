@@ -19,9 +19,6 @@ import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
 import { LayoutCoachMount } from "@/components/insights/layout-coach-mount";
 import { SuggestedPrompts } from "@/components/insights/suggested-prompts";
 import { HeroStrip } from "@/components/insights/hero-strip";
-import { TargetCard, type TargetCardData } from "@/components/targets/target-card";
-import { useFeatureFlags } from "@/hooks/use-feature-flags";
-import { useDisableCoach } from "@/hooks/use-disable-coach";
 
 /**
  * v1.4.47 W3 — per-user "Hide Coach" opt-out invariant.
@@ -182,60 +179,7 @@ const DISABLE_COACH_SURFACES: DisableCoachSurface[] = [
     ),
     proofWhenVisible: 'data-slot="insights-hero-strip-action-coach"',
   },
-  {
-    // v1.4.48 L2 — `<TargetCard>` carries the per-card "Ask the coach"
-    // CTA on the targets page. The card itself only consults
-    // `flags.coach`; the per-user disable gate is computed by the parent
-    // (`src/app/targets/page.tsx`) which does
-    // `aiEnabled = flags.coach && !user?.disableCoach && providerActive`.
-    // The driver below mirrors that wiring so the negative assertion
-    // (CTA absent when `disableCoach` is true) pins the chain end-to-end
-    // and trips a regression in either the card-level gate or the
-    // page-level computation.
-    name: "TargetCard per-card 'Ask the coach' CTA",
-    mount: () => <TargetCardDriver />,
-    proofWhenVisible: 'data-slot="target-coach-cta"',
-  },
 ];
-
-/**
- * Inline driver that mirrors the `src/app/targets/page.tsx` wiring of
- * `aiEnabled` to the per-card CTA. Reads the same hooks the page does,
- * threads the resolved boolean into `<TargetCard>`. Keeps the user-
- * disable fixture honest about the cascade — a future contributor who
- * "simplifies" the page's `coachEnabled` computation and drops the
- * `user?.disableCoach` branch fails this surface's negative assertion.
- */
-const TARGET_CARD_FIXTURE: TargetCardData = {
-  type: "WEIGHT",
-  label: "Weight",
-  current: 78.2,
-  average30: 79.1,
-  trend: "down",
-  unit: "kg",
-  range: { min: 60, max: 80 },
-  classification: { category: "Normal", color: "#50fa7b" },
-  source: "WHO BMI",
-  daysInRange7d: 5,
-  daysLogged7d: 7,
-  lastMetGoalAt: "2026-05-10",
-  streakDays: 4,
-  insufficientData: false,
-  consistency7d: ["in", "in", "near", "in", "out", "in", "in"],
-};
-
-function TargetCardDriver() {
-  const flags = useFeatureFlags();
-  const disableCoach = useDisableCoach();
-  const aiEnabled = flags.coach && !disableCoach;
-  return (
-    <TargetCard
-      target={TARGET_CARD_FIXTURE}
-      aiEnabled={aiEnabled}
-      onAskCoach={() => undefined}
-    />
-  );
-}
 
 describe("Coach per-user disableCoach invariant", () => {
   beforeEach(() => {
@@ -307,10 +251,9 @@ describe("Coach per-user disableCoach invariant", () => {
   //
   // Mirrors the `flags.coach` discovery walk in `coach-cascade.test.tsx`:
   // the surface fixture above pins the surfaces this file mounts
-  // directly. Cross-cut gates on sub-pages (`/targets` page parent
-  // computation, Settings → Insights toggle, `/api/auth/me` response
-  // shape, the disable-coach PATCH route) sit OUTSIDE the fixture and
-  // are owned by sibling invariants or by route-level tests.
+  // directly. Cross-cut gates (Settings → Insights toggle, `/api/auth/me`
+  // response shape, the disable-coach PATCH route) sit OUTSIDE the
+  // fixture and are owned by sibling invariants or by route-level tests.
   //
   // The walk below scans `src/` for every `useDisableCoach` /
   // `user.disableCoach` / `user?.disableCoach` occurrence and requires
@@ -346,11 +289,6 @@ describe("Coach per-user disableCoach invariant", () => {
     //   writes the flag does NOT read `user.disableCoach` (it reads
     //   `body.disableCoach`) and is intentionally not listed here.
     "src/app/api/auth/me/route.ts",
-    // - The targets page's parent-level cascade: computes
-    //   `coachEnabled = flags.coach && !user?.disableCoach` and threads
-    //   `aiEnabled` down to `<TargetCard>`. The disable-cascade fixture
-    //   covers the end-to-end chain via `<TargetCardDriver>`.
-    "src/app/targets/page.tsx",
     // - Settings → Insights toggle reads + writes the flag.
     "src/components/settings/ai-section.tsx",
     // v1.7.0 W6 — the unified dashboard snapshot builder reads

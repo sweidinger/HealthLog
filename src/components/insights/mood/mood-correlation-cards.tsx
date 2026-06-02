@@ -45,24 +45,30 @@ export interface MoodMetricCorrelationData {
   n: number;
 }
 
-type MetricKind = "sleep" | "steps" | "pulse";
+type MetricKind = "sleep" | "steps" | "pulse" | "weight" | "bloodPressure";
 
 const TITLE_KEY: Record<MetricKind, string> = {
   sleep: "insights.mood.correlation.sleepTitle",
   steps: "insights.mood.correlation.stepsTitle",
   pulse: "insights.mood.correlation.pulseTitle",
+  weight: "insights.mood.correlation.weightTitle",
+  bloodPressure: "insights.mood.correlation.bloodPressureTitle",
 };
 
 const Y_LABEL_KEY: Record<MetricKind, string> = {
   sleep: "insights.mood.correlation.sleepAxis",
   steps: "insights.mood.correlation.stepsAxis",
   pulse: "insights.mood.correlation.pulseAxis",
+  weight: "insights.mood.correlation.weightAxis",
+  bloodPressure: "insights.mood.correlation.bloodPressureAxis",
 };
 
 const FILL_BY_KIND: Record<MetricKind, string> = {
   sleep: "var(--dracula-purple)",
   steps: "var(--dracula-cyan)",
   pulse: "var(--dracula-pink)",
+  weight: "var(--dracula-green)",
+  bloodPressure: "var(--dracula-orange)",
 };
 
 const STRENGTH_KEY: Record<CorrelationResult["strength"], string> = {
@@ -136,16 +142,22 @@ export function MoodCorrelationCards({
   sleep,
   steps,
   pulse,
+  weight,
+  bloodPressureSystolic,
 }: {
   sleep: MoodMetricCorrelationData;
   steps: MoodMetricCorrelationData;
   pulse: MoodMetricCorrelationData;
+  weight: MoodMetricCorrelationData;
+  bloodPressureSystolic: MoodMetricCorrelationData;
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <MoodCorrelationCard kind="sleep" data={sleep} />
       <MoodCorrelationCard kind="steps" data={steps} />
       <MoodCorrelationCard kind="pulse" data={pulse} />
+      <MoodCorrelationCard kind="weight" data={weight} />
+      <MoodCorrelationCard kind="bloodPressure" data={bloodPressureSystolic} />
     </div>
   );
 }

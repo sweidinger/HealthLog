@@ -1,12 +1,8 @@
 /**
- * v1.8.5 W5 — `getTargetSourceLink` extracted from
- * `src/app/targets/page.tsx`.
- *
  * Resolves the guideline-source citation URL for a target, keyed off
  * the target `type` and (for pulse) substrings of the `source` label.
- * Pure function with no React / page coupling so both the Targets page
- * and the Insights per-category reference panel resolve the identical
- * URL — the citation link can never drift between the two surfaces.
+ * Pure function with no React coupling so every surface that shows a
+ * target citation resolves the identical URL — the link can never drift.
  */
 export interface TargetSourceLinkInput {
   type: string;

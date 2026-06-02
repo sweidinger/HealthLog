@@ -47,6 +47,7 @@ import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-pr
 import { ACCEPTED_INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { METRIC_STATUS_IDS } from "@/lib/insights/metric-status-registry";
+import { ANALYTICS_RANGES } from "@/lib/analytics/range-delta";
 
 /**
  * Common envelopes — every HealthLog API response wraps payload in
@@ -944,6 +945,18 @@ const medicationResource = z
       .describe(
         "v1.7.0 iOS 26 AlarmKit critical-reminder opt-in. Default false. Critical alarms bypass the device mute switch / Focus; the server stores the preference only.",
       ),
+    atcCode: z
+      .string()
+      .nullable()
+      .describe(
+        "v1.9.0 optional WHO ATC classification code (active-substance class, e.g. `A10BX10`). User/clinician-asserted; never machine-guessed. Emitted on the FHIR `medicationCodeableConcept` under `http://www.whocc.no/atc`. NULL = no code captured.",
+      ),
+    rxNormCode: z
+      .string()
+      .nullable()
+      .describe(
+        "v1.9.0 optional RxNorm RxCUI (numeric, US identifier, e.g. `2601723`). Secondary FHIR coding under `http://www.nlm.nih.gov/research/umls/rxnorm`, alongside any ATC code. NULL = no code captured.",
+      ),
     pausedAt: z.iso.datetime({ offset: true }).nullable(),
     snoozedUntil: z.iso.datetime({ offset: true }).nullable(),
     nextDueAt: z.iso
@@ -1143,6 +1156,12 @@ const metricStatusResponse = z
       .describe(
         "True when a first assessment is being generated out of band and no prior text exists yet — the client polls until it lands.",
       ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The payload is otherwise terminal; the client keeps polling on `preparing || revalidating` (bounded) so the open card upgrades to the warmed assessment without a remount.",
+      ),
     insufficient: z
       .boolean()
       .optional()
@@ -1154,6 +1173,189 @@ const metricStatusResponse = z
     id: "MetricStatusResponse",
     description:
       "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
+  });
+
+// The seven specialised `*-status` routes accept an optional locale
+// override (the metric is fixed by the route path, unlike the generic
+// metric-status route which carries it as a query field).
+const insightStatusQuery = z
+  .object({
+    locale: z
+      .enum(["de", "en"])
+      .optional()
+      .describe("Optional UI-locale override; defaults to the session locale."),
+  })
+  .meta({ id: "InsightStatusQuery" });
+
+// Shared response shape for the five text-bearing specialised status
+// routes (blood-pressure, pulse, weight, bmi, mood). Same envelope as
+// the generic metric-status card minus the `insufficient` flag, which is
+// metric-status-only. Read-only + stale-while-revalidate.
+const insightStatusResponse = z
+  .object({
+    hasProvider: z
+      .boolean()
+      .describe(
+        "False when the user has no usable AI provider — `text` then carries the generic no-key guidance.",
+      ),
+    text: z
+      .string()
+      .nullable()
+      .describe(
+        "The assessment narrative (plain text, rendered as React text children). Null while a first generation is preparing.",
+      ),
+    cached: z
+      .boolean()
+      .describe("True when `text` is served from cache (incl. last-good)."),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("When the served assessment was generated; null when none."),
+    preparing: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when a first assessment is being generated out of band and no prior text exists yet — the client polls until it lands.",
+      ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The client keeps polling on `preparing || revalidating` (bounded) so the open card upgrades to the warmed assessment without a remount.",
+      ),
+  })
+  .meta({
+    id: "InsightStatusResponse",
+    description:
+      "Specialised per-metric assessment envelope (blood-pressure, pulse, weight, bmi, mood). Identical shape to the generic metric-status card so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
+  });
+
+// The medication-compliance route carries a richer envelope than the
+// other six: a `summary` narrative plus a per-medication `text` array,
+// instead of a single `text` field.
+const medicationComplianceStatusResponse = z
+  .object({
+    hasProvider: z
+      .boolean()
+      .describe(
+        "False when the user has no usable AI provider — `summary` then carries the generic no-key guidance.",
+      ),
+    summary: z
+      .string()
+      .nullable()
+      .describe(
+        "The overall compliance narrative (plain text). Null while a first generation is preparing.",
+      ),
+    medications: z
+      .array(
+        z
+          .object({
+            medicationId: z
+              .string()
+              .describe("The medication this note belongs to."),
+            text: z
+              .string()
+              .describe("Per-medication compliance note (plain text)."),
+          })
+          .meta({ id: "MedicationComplianceStatusItem" }),
+      )
+      .describe(
+        "Per-medication compliance notes. Empty while preparing or when no medication qualifies.",
+      ),
+    cached: z
+      .boolean()
+      .describe("True when the envelope is served from cache (incl. last-good)."),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("When the served assessment was generated; null when none."),
+    preparing: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when a first assessment is being generated out of band and no prior summary exists yet — the client polls until it lands.",
+      ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when the envelope is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The client keeps polling on `preparing || revalidating` (bounded).",
+      ),
+  })
+  .meta({
+    id: "MedicationComplianceStatusResponse",
+    description:
+      "Medication-compliance assessment envelope. Unlike the other six specialised cards it carries a `summary` plus a per-medication `text` array rather than a single `text` field. Read-only + stale-while-revalidate.",
+  });
+
+const analyticsRangeQuery = z
+  .object({
+    type: measurementTypeEnum.describe(
+      "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s.",
+    ),
+    range: z
+      .enum(ANALYTICS_RANGES)
+      .describe(
+        "Trailing window: `7d` / `30d` / `90d` / `1y`. The previous comparable window is the equally-sized span immediately before it.",
+      ),
+  })
+  .meta({ id: "AnalyticsRangeQuery" });
+
+const analyticsWindowAggregate = z
+  .object({
+    count: z.number().int().describe("Reading count composed across buckets."),
+    min: z.number().nullable().describe("Window minimum; null when empty."),
+    max: z.number().nullable().describe("Window maximum; null when empty."),
+    mean: z
+      .number()
+      .nullable()
+      .describe("Count-weighted mean across buckets; null when empty."),
+    sum: z
+      .number()
+      .nullable()
+      .describe(
+        "Cumulative total for cumulative metrics (steps, energy, distance); null when no bucket carries a sum.",
+      ),
+  })
+  .meta({ id: "AnalyticsWindowAggregate" });
+
+const analyticsRangeResponse = z
+  .object({
+    range: z
+      .enum(ANALYTICS_RANGES)
+      .describe("The range that was read (echoes the request)."),
+    windowDays: z
+      .number()
+      .int()
+      .describe("Trailing-window length in days for the chosen range."),
+    granularity: z
+      .string()
+      .describe(
+        "Rollup granularity the read resolved against (`DAY` / `WEEK` / `MONTH` / `YEAR`, or `none` on a coverage miss).",
+      ),
+    current: analyticsWindowAggregate.describe(
+      "Aggregate over the current window `[now-N, now)`.",
+    ),
+    previous: analyticsWindowAggregate.describe(
+      "Aggregate over the previous comparable window `[now-2N, now-N)`.",
+    ),
+    delta: z
+      .number()
+      .nullable()
+      .describe(
+        "`current.mean - previous.mean`; null when either window has no data (never a misleading 0).",
+      ),
+    deltaPct: z
+      .number()
+      .nullable()
+      .describe(
+        "`delta / previous.mean` as a fraction (0.03 = +3 %); null when the prior window has no / zero mean (no divide-by-zero). The client shows 'no prior-period data' in that case.",
+      ),
+  })
+  .meta({
+    id: "AnalyticsRangeResponse",
+    description:
+      "Single-metric period-over-period aggregate. Reads the current and previous comparable windows from the WMY rollup tier and composes a count-weighted-mean delta. `count/min/max/mean/sum` are linearly composable across buckets; SD/slope/r² are intentionally excluded (not composable).",
   });
 
 const insightsPregenerateRequest = z
@@ -2453,6 +2655,182 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 insightsPregenerateResponse,
                 "InsightsPregenerateResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/analytics/range": {
+    get: {
+      tags: ["Analytics"],
+      summary: "Single-metric period-over-period range delta",
+      description:
+        "v1.9.0 — returns the current-window aggregate, the previous comparable window, and the composed delta for ONE metric type over a `7d` / `30d` / `90d` / `1y` range. Single-type by construction (the metric page is single-metric), so the read is one rollup-tier call covering the trailing 2N days sliced into the two halves — no per-type fan-out. Additive route; the `/api/analytics` envelope is unchanged. Auth via cookie or Bearer.",
+      requestParams: {
+        query: analyticsRangeQuery,
+      },
+      responses: {
+        "200": {
+          description: "Current + previous window aggregates and the delta.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                analyticsRangeResponse,
+                "AnalyticsRangeResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/blood-pressure-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Blood-pressure assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent blood-pressure readings. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "BloodPressureStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/pulse-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Pulse assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent resting-pulse readings. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "PulseStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/weight-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Weight assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent weight trend. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "WeightStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/bmi-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "BMI assessment",
+      description:
+        "Data-driven plain-language assessment of the user's body-mass index. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "BmiStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/mood-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Mood assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent mood entries. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "MoodStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/medication-compliance-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Medication-compliance assessment",
+      description:
+        "Data-driven plain-language assessment of the user's medication compliance — an overall `summary` plus a per-medication note array. Read-only: a cache miss warms a generation out of band and serves the last-good envelope meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description:
+            "Compliance assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationComplianceStatusResponse,
+                "MedicationComplianceStatusResponseEnvelope",
               ),
             },
           },

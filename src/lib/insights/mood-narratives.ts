@@ -19,6 +19,7 @@ import { round } from "@/lib/insights/status-shared";
 import type {
   StructuredTagRow,
   TagSummaryRow,
+  TimeOfDayPattern,
   WeekdayRow,
 } from "@/lib/insights/mood-aggregates";
 
@@ -49,7 +50,8 @@ export type MoodNarrativeKind =
   | "tag-lift"
   | "tag-drop"
   | "in-target"
-  | "streak";
+  | "streak"
+  | "time-of-day";
 
 /**
  * A single takeaway. `messageKey` resolves to an i18n template; `vars`
@@ -70,6 +72,8 @@ type DailyPoint = { dayOffset: number; value: number };
 export interface MoodNarrativeInput {
   daily: DailyPoint[];
   weekday: WeekdayRow[];
+  /** v1.9.0 — tz-aware part-of-day pattern (gated on its own spread floor). */
+  timeOfDay: TimeOfDayPattern;
   tags: TagSummaryRow[];
   structuredTags: StructuredTagRow[];
   inTargetPct: number | null;
@@ -77,6 +81,14 @@ export interface MoodNarrativeInput {
   loggedDayKeys: string[];
   now: Date;
 }
+
+/** i18n label keys for each part-of-day bucket. */
+const TIME_OF_DAY_LABEL_KEYS = {
+  morning: "insights.mood.timeOfDay.morning",
+  afternoon: "insights.mood.timeOfDay.afternoon",
+  evening: "insights.mood.timeOfDay.evening",
+  night: "insights.mood.timeOfDay.night",
+} as const;
 
 const WEEKDAY_LABEL_KEYS = [
   "charts.weekdaysFull.mon",
@@ -365,6 +377,38 @@ function streakNarrative(input: MoodNarrativeInput): MoodNarrative | null {
 }
 
 /**
+ * Time-of-day takeaway: the part of day the user feels best.
+ *
+ * Rides the `TimeOfDayPattern.reliable` flag — already the once-a-day-
+ * logger guard (≥2 buckets with ≥3 entries each) — so this builder adds
+ * only the effect-magnitude gate on top: the best bucket must clear
+ * `MOOD_NARRATIVE_MIN_EFFECT` over the worst before it counts as a
+ * pattern rather than noise.
+ */
+function timeOfDayNarrative(input: MoodNarrativeInput): MoodNarrative | null {
+  const { reliable, best, worst, buckets } = input.timeOfDay;
+  if (!reliable || best == null || worst == null) return null;
+
+  const byBucket = new Map(buckets.map((row) => [row.bucket, row]));
+  const bestRow = byBucket.get(best);
+  const worstRow = byBucket.get(worst);
+  if (bestRow?.avgScore == null || worstRow?.avgScore == null) return null;
+
+  const delta = round(bestRow.avgScore - worstRow.avgScore, 2);
+  if (delta < MOOD_NARRATIVE_MIN_EFFECT) return null;
+
+  return {
+    kind: "time-of-day",
+    messageKey: "insights.mood.narrative.timeOfDay",
+    vars: {
+      bucketKey: TIME_OF_DAY_LABEL_KEYS[best],
+      value: bestRow.avgScore.toFixed(1),
+    },
+    strength: delta,
+  };
+}
+
+/**
  * Build the ranked, threshold-gated narrative feed. Pure over the
  * supplied aggregates; emits only takeaways whose named thresholds are
  * cleared, sorted strongest-first, capped at `MOOD_NARRATIVE_MAX_ITEMS`.
@@ -382,6 +426,9 @@ export function computeMoodNarratives(
 
   const weekend = weekendNarrative(input);
   if (weekend) all.push(weekend);
+
+  const timeOfDay = timeOfDayNarrative(input);
+  if (timeOfDay) all.push(timeOfDay);
 
   const inTarget = inTargetNarrative(input);
   if (inTarget) all.push(inTarget);

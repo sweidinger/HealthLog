@@ -11,12 +11,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const deleteMany = vi.fn();
+const auditFindMany = vi.fn();
 const enqueueStatusGeneration = vi.fn();
 const userFindUnique = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    auditLog: { deleteMany: (...a: unknown[]) => deleteMany(...a) },
+    auditLog: {
+      deleteMany: (...a: unknown[]) => deleteMany(...a),
+      findMany: (...a: unknown[]) => auditFindMany(...a),
+    },
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
   },
 }));
@@ -30,6 +34,9 @@ import { invalidateStatusInsightsForTypes } from "../comprehensive-generate";
 beforeEach(() => {
   vi.clearAllMocks();
   deleteMany.mockResolvedValue({ count: 0 });
+  // Default: no recently-warmed cache rows, so every dirtied scope is stale
+  // and refreshes — the pre-debounce contract the bulk of these tests pin.
+  auditFindMany.mockResolvedValue([]);
   enqueueStatusGeneration.mockResolvedValue(undefined);
   userFindUnique.mockResolvedValue({ locale: "de" });
 });
@@ -175,5 +182,67 @@ describe("invalidateStatusInsightsForTypes", () => {
     expect(
       enqueuedScopes().some((s) => s.startsWith("metric:")),
     ).toBe(false);
+  });
+
+  describe("ingest-invalidation debounce (v1.9.0)", () => {
+    /** Build a recent (within-window) real assessment cache row. */
+    function freshRow(scope: string, locale = "de") {
+      return {
+        action: `insights.${scope}-status.${locale}`,
+        details: JSON.stringify({ text: "fresh assessment", model: "gpt" }),
+      };
+    }
+
+    it("skips a scope whose assessment was warmed within the window", async () => {
+      // `general` was regenerated minutes ago; a fresh WEIGHT sample must not
+      // delete or re-enqueue it. weight + bmi are still stale, so they refresh.
+      auditFindMany.mockResolvedValue([freshRow("general")]);
+      await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
+      expect(deletedScopes()).toEqual(["bmi", "weight"]);
+      expect(enqueuedScopes()).toEqual(["bmi", "weight"]);
+    });
+
+    it("is a complete no-op (no delete, no enqueue) when every scope is fresh", async () => {
+      auditFindMany.mockResolvedValue([
+        freshRow("weight"),
+        freshRow("bmi"),
+        freshRow("general"),
+      ]);
+      await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
+      expect(deleteMany).not.toHaveBeenCalled();
+      expect(enqueueStatusGeneration).not.toHaveBeenCalled();
+    });
+
+    it("treats a recent timeout stub as not-fresh and still refreshes the scope", async () => {
+      // A stub carries no real assessment, so a scope that recently stalled
+      // must retry rather than be debounced into staying cold.
+      auditFindMany.mockResolvedValue([
+        {
+          action: "insights.general-status.de",
+          details: JSON.stringify({ model: "timeout-stub", text: "stub" }),
+        },
+      ]);
+      await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
+      expect(deletedScopes()).toEqual(["bmi", "general", "weight"]);
+      expect(enqueuedScopes()).toEqual(["bmi", "general", "weight"]);
+    });
+
+    it("scopes the freshness probe to the user's resolved locale and the window cutoff", async () => {
+      userFindUnique.mockResolvedValue({ locale: "en" });
+      await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
+      const where = auditFindMany.mock.calls[0][0].where;
+      expect(where.userId).toBe("u1");
+      // Only the en cache actions for the dirtied scopes are probed.
+      expect(new Set(where.action.in)).toEqual(
+        new Set([
+          "insights.weight-status.en",
+          "insights.bmi-status.en",
+          "insights.general-status.en",
+        ]),
+      );
+      // A recency floor is applied (createdAt >= cutoff in the past).
+      expect(where.createdAt.gte).toBeInstanceOf(Date);
+      expect(where.createdAt.gte.getTime()).toBeLessThan(Date.now());
+    });
   });
 });

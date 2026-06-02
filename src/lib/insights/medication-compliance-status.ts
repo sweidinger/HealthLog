@@ -30,6 +30,7 @@ import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   isTimeoutStub,
   resolveReadOnlyStatusMiss,
+  statusCacheAction,
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
@@ -59,11 +60,13 @@ export async function generateMedicationComplianceStatusForUser(
   cached: boolean;
   updatedAt: string | null;
   preparing?: boolean;
+  /** v1.9.0 — last-good text served while a refresh is in flight; keep polling. */
+  revalidating?: boolean;
 }> {
   const locale = normalizeLocale(options?.locale);
   const force = options?.force === true;
   const readOnly = options?.readOnly === true;
-  const cacheAction = `insights.medication-compliance-status.${locale}`;
+  const cacheAction = statusCacheAction("medication-compliance", locale);
   const todayKey = toBerlinDayKey(new Date());
 
   // This route carries a richer cached envelope (`summary` +
@@ -140,6 +143,7 @@ export async function generateMedicationComplianceStatusForUser(
       cached: outcome.lastGood !== null,
       updatedAt: outcome.lastGood?.updatedAt ?? null,
       preparing: outcome.lastGood === null,
+      revalidating: outcome.revalidating,
     };
   }
 

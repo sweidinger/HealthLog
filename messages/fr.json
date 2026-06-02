@@ -1214,6 +1214,14 @@
           "unit": "minutes",
           "saved": "Reminder window saved",
           "failed": "Could not save the reminder window."
+        },
+        "codes": {
+          "label": "Codes cliniques (ATC / RxNorm)",
+          "note": "Facultatif. Utilisés lors de l'export FHIR du dossier de santé. Les codes sont repris tels qu'ils sont saisis — jamais devinés.",
+          "atcLabel": "ATC",
+          "rxNormLabel": "RxNorm",
+          "saved": "Codes cliniques enregistrés",
+          "failed": "Impossible d'enregistrer les codes cliniques."
         }
       },
       "zone": {
@@ -1278,7 +1286,8 @@
         "group": {
           "data": "Données",
           "reminders": "Rappels",
-          "lifecycle": "Cycle de vie"
+          "lifecycle": "Cycle de vie",
+          "externalApi": "API externe"
         },
         "dataPortability": {
           "import": {
@@ -1600,6 +1609,23 @@
       "confidenceModerate": "Confiance moyenne",
       "confidenceLow": "Confiance faible",
       "pendingLabel": "Commentaire de tendance en cours de génération"
+    },
+    "range": {
+      "label": "Période",
+      "noPriorData": "aucune donnée sur la période précédente",
+      "option": {
+        "7d": "7j",
+        "30d": "30j",
+        "90d": "90j",
+        "1y": "1an"
+      },
+      "priorLabel": {
+        "7d": "vs 7j précédents",
+        "30d": "vs 30j précédents",
+        "90d": "vs 90j précédents",
+        "1y": "vs année précédente"
+      },
+      "noChange": "aucun changement"
     },
     "correlationRow": {
       "title": "Corrélations",
@@ -2396,7 +2422,11 @@
         "strengthNone": "Aucune",
         "source": "{n} jours appariés · r = {r}",
         "emptyTitle": "Pas encore assez de données appariées",
-        "emptyDescription": "Enregistrez l'humeur et cette mesure les mêmes jours pour voir une corrélation."
+        "emptyDescription": "Enregistrez l'humeur et cette mesure les mêmes jours pour voir une corrélation.",
+        "weightTitle": "Humeur vs. poids",
+        "bloodPressureTitle": "Humeur vs. tension artérielle",
+        "weightAxis": "Poids",
+        "bloodPressureAxis": "Systolique (mmHg)"
       },
       "structuredTagsTitle": "Répartition des étiquettes",
       "inTargetValue": "{pct} %",
@@ -2412,7 +2442,23 @@
         "tagLift": "Les jours marqués « {tag} » dépassent votre humeur générale de {delta} en moyenne.",
         "tagDrop": "Les jours marqués « {tag} » sont {delta} sous votre moyenne.",
         "inTarget": "Vous avez été dans votre plage de bonne humeur {pct} % des 30 derniers jours.",
-        "streak": "Vous avez noté votre humeur {days} jours d'affilée — continuez."
+        "streak": "Vous avez noté votre humeur {days} jours d'affilée — continuez.",
+        "timeOfDay": "Vous vous sentez mieux le {bucket}, en moyenne {value}."
+      },
+      "timeOfDay": {
+        "title": "Humeur selon l'heure de la journée",
+        "morning": "Matin",
+        "afternoon": "Après-midi",
+        "evening": "Soir",
+        "night": "Nuit",
+        "bestCaption": "Vous vous sentez généralement mieux le {bucket}."
+      },
+      "stability": {
+        "value": "{score}/100",
+        "bandVerySteady": "Votre humeur a été très stable",
+        "bandSteady": "Votre humeur a été plutôt stable",
+        "bandVariable": "Votre humeur a été nettement variable",
+        "bandVeryVariable": "Votre humeur a beaucoup fluctué récemment"
       }
     }
   },
@@ -2626,7 +2672,7 @@
         "description": "Withings, moodLog, and other connected services."
       },
       "notifications": {
-        "title": "Canaux de notification",
+        "title": "Notifications",
         "description": "Live overview of every configured channel."
       },
       "dashboard": {
@@ -3994,12 +4040,6 @@
     }
   },
   "targets": {
-    "title": "Valeurs cibles",
-    "introText": "Tes valeurs actuelles face aux plages cibles recommandées. Les sources des recommandations sont liées sur chaque carte.",
-    "deprecation": {
-      "title": "Cette page va être retirée",
-      "body": "Les plages cibles se modifient désormais directement depuis les pages Insights, sur le panneau de référence de chaque métrique. Cette page reste accessible pour l'instant et sera supprimée dans une prochaine version."
-    },
     "bmi": "IMC",
     "average30d": "Moy. 30 jours :",
     "consistency": {
@@ -4021,22 +4061,10 @@
         "sixDaysAgo": "il y a 6 jours"
       }
     },
-    "card": {
-      "lastMet": "Dernier objectif atteint : {when}",
-      "streak": "{count} jours d’affilée"
-    },
     "relativeDay": {
       "today": "Aujourd'hui",
       "yesterday": "Hier",
       "daysAgo": "il y a {count} jours"
-    },
-    "summary": {
-      "weekTitle": "{met} cibles sur {total} atteintes cette semaine",
-      "weekTitleAll": "Tout{total} targets met this week",
-      "streakHighlight": "{count} jours d’affilée : {metric}"
-    },
-    "coach": {
-      "cta": "Demander au coach"
     },
     "edit": {
       "openLabel": "Modifier la plage cible de {metric}",
@@ -4069,31 +4097,10 @@
     "aboveTarget": "{delta} {unit} au-dessus de la plage",
     "belowTarget": "{delta} {unit} en dessous de la plage",
     "diastolic": "Diastolique",
-    "noMeasurementYet": "Pas encore de mesures",
-    "noMeasurementData": "Pas de données de mesure. Ajoute des mesures pour voir tes objectifs.",
-    "profileIncomplete": "Profil incomplet",
-    "profileIncompleteHeight": "Renseigne ta taille dans le profil pour activer les objectifs IMC.",
-    "profileIncompleteAge": "Renseigne ta date de naissance dans le profil pour activer les objectifs liés à l’âge.",
-    "profileIncompleteHeightAge": "Renseigne taille et date de naissance dans le profil pour voir des objectifs personnalisés.",
-    "compliancePerMedication": "Observance par médicament",
     "glucoseFasting": "Glycémie — à jeun",
     "glucosePostprandial": "Glycémie — postprandiale",
     "glucoseRandom": "Glycémie — indifférente",
     "glucoseBedtime": "Glycémie — avant le coucher",
-    "loadError": "Impossible de charger les valeurs cibles",
-    "label": {
-      "WEIGHT": "Poids",
-      "BLOOD_PRESSURE": "Tension artérielle",
-      "BLOOD_PRESSURE_IN_TARGET": "Tension dans la cible",
-      "PULSE": "Pouls au repos",
-      "SLEEP_DURATION": "Durée du sommeil",
-      "BMI": "IMC",
-      "BODY_FAT": "Masse grasse",
-      "ACTIVITY_STEPS": "Pas/jour",
-      "MEDICATION_COMPLIANCE": "Observance",
-      "MOOD_SCORE": "Humeur",
-      "MOOD_STABILITY": "Stabilité de l’humeur"
-    },
     "status": {
       "underweight": "Insuffisance pondérale",
       "normal": "Normal",

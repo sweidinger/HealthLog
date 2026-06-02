@@ -1214,6 +1214,14 @@
           "unit": "Minuten",
           "saved": "Erinnerungsfenster gespeichert",
           "failed": "Erinnerungsfenster konnte nicht gespeichert werden."
+        },
+        "codes": {
+          "label": "Klinische Codes (ATC / RxNorm)",
+          "note": "Optional. Werden beim FHIR-Export der Gesundheitsakte verwendet. Codes werden genau wie eingegeben übernommen — nie geraten.",
+          "atcLabel": "ATC",
+          "rxNormLabel": "RxNorm",
+          "saved": "Klinische Codes gespeichert",
+          "failed": "Klinische Codes konnten nicht gespeichert werden."
         }
       },
       "zone": {
@@ -1278,7 +1286,8 @@
         "group": {
           "data": "Daten",
           "reminders": "Erinnerungen",
-          "lifecycle": "Lebenszyklus"
+          "lifecycle": "Lebenszyklus",
+          "externalApi": "Externe API"
         },
         "dataPortability": {
           "import": {
@@ -1600,6 +1609,23 @@
       "confidenceModerate": "Mittlere Konfidenz",
       "confidenceLow": "Geringe Konfidenz",
       "pendingLabel": "Trend-Kommentar wird generiert"
+    },
+    "range": {
+      "label": "Zeitraum",
+      "noPriorData": "keine Daten im Vorzeitraum",
+      "option": {
+        "7d": "7T",
+        "30d": "30T",
+        "90d": "90T",
+        "1y": "1J"
+      },
+      "priorLabel": {
+        "7d": "ggü. vorherigen 7T",
+        "30d": "ggü. vorherigen 30T",
+        "90d": "ggü. vorherigen 90T",
+        "1y": "ggü. Vorjahr"
+      },
+      "noChange": "keine Änderung"
     },
     "correlationRow": {
       "title": "Zusammenhänge",
@@ -2396,7 +2422,11 @@
         "strengthNone": "Keine",
         "source": "{n} gepaarte Tage · r = {r}",
         "emptyTitle": "Noch nicht genug gepaarte Daten",
-        "emptyDescription": "Erfasse Stimmung und diesen Wert an denselben Tagen, um einen Zusammenhang zu sehen."
+        "emptyDescription": "Erfasse Stimmung und diesen Wert an denselben Tagen, um einen Zusammenhang zu sehen.",
+        "weightTitle": "Stimmung vs. Gewicht",
+        "bloodPressureTitle": "Stimmung vs. Blutdruck",
+        "weightAxis": "Gewicht",
+        "bloodPressureAxis": "Systolisch (mmHg)"
       },
       "structuredTagsTitle": "Tag-Auswertung",
       "inTargetValue": "{pct} %",
@@ -2412,7 +2442,23 @@
         "tagLift": "Tage mit „{tag}“ liegen im Schnitt {delta} über deiner allgemeinen Stimmung.",
         "tagDrop": "Tage mit „{tag}“ liegen {delta} unter deinem Durchschnitt.",
         "inTarget": "Du warst an {pct} % der letzten 30 Tage in deinem guten Stimmungsbereich.",
-        "streak": "Du hast deine Stimmung {days} Tage in Folge erfasst – weiter so."
+        "streak": "Du hast deine Stimmung {days} Tage in Folge erfasst – weiter so.",
+        "timeOfDay": "Am {bucket} fühlst du dich am besten, im Schnitt {value}."
+      },
+      "timeOfDay": {
+        "title": "Stimmung nach Tageszeit",
+        "morning": "Morgen",
+        "afternoon": "Nachmittag",
+        "evening": "Abend",
+        "night": "Nacht",
+        "bestCaption": "Am {bucket} fühlst du dich tendenziell am besten."
+      },
+      "stability": {
+        "value": "{score}/100",
+        "bandVerySteady": "Deine Stimmung war sehr gleichmäßig",
+        "bandSteady": "Deine Stimmung war recht gleichmäßig",
+        "bandVariable": "Deine Stimmung war merklich schwankend",
+        "bandVeryVariable": "Deine Stimmung hat zuletzt stark geschwankt"
       }
     }
   },
@@ -2626,7 +2672,7 @@
         "description": "Withings, moodLog und weitere verbundene Dienste."
       },
       "notifications": {
-        "title": "Benachrichtigungs-Kanäle",
+        "title": "Benachrichtigungen",
         "description": "Live-Übersicht aller konfigurierten Kanäle."
       },
       "dashboard": {
@@ -3994,12 +4040,6 @@
     }
   },
   "targets": {
-    "title": "Zielwerte",
-    "introText": "Deine aktuellen Werte im Vergleich zu empfohlenen Zielbereichen. Quellen der Leitlinien sind auf jeder Karte verlinkt.",
-    "deprecation": {
-      "title": "Diese Seite wird eingestellt",
-      "body": "Zielbereiche werden jetzt direkt in den Insights bearbeitet, im Referenzbereich jeder Metrik. Diese Seite bleibt vorerst erreichbar und wird in einem künftigen Release entfernt."
-    },
     "bmi": "BMI",
     "average30d": "30-Tage-Schnitt:",
     "consistency": {
@@ -4021,22 +4061,10 @@
         "sixDaysAgo": "vor 6 Tagen"
       }
     },
-    "card": {
-      "lastMet": "Zuletzt im Ziel: {when}",
-      "streak": "{count} Tage in Folge"
-    },
     "relativeDay": {
       "today": "heute",
       "yesterday": "gestern",
       "daysAgo": "vor {count} Tagen"
-    },
-    "summary": {
-      "weekTitle": "{met} von {total} Zielwerten diese Woche erreicht",
-      "weekTitleAll": "Alle {total} Zielwerte diese Woche erreicht",
-      "streakHighlight": "{count} Tage in Folge: {metric}"
-    },
-    "coach": {
-      "cta": "Coach fragen"
     },
     "edit": {
       "openLabel": "Zielbereich für {metric} bearbeiten",
@@ -4069,31 +4097,10 @@
     "aboveTarget": "{delta} {unit} über Zielbereich",
     "belowTarget": "{delta} {unit} unter Zielbereich",
     "diastolic": "Diastolisch",
-    "noMeasurementYet": "Noch keine Messungen",
-    "noMeasurementData": "Keine Messdaten verfügbar. Füge Messwerte hinzu, um deine Ziele zu sehen.",
-    "profileIncomplete": "Profil unvollständig",
-    "profileIncompleteHeight": "Trage deine Körpergröße im Profil ein, um BMI-Ziele zu aktivieren.",
-    "profileIncompleteAge": "Trage dein Geburtsdatum im Profil ein, um altersspezifische Ziele zu aktivieren.",
-    "profileIncompleteHeightAge": "Trage Körpergröße und Geburtsdatum im Profil ein, um personalisierte Ziele zu sehen.",
-    "compliancePerMedication": "Einnahmetreue pro Medikament",
     "glucoseFasting": "Glukose — nüchtern",
     "glucosePostprandial": "Glukose — postprandial",
     "glucoseRandom": "Glukose — beliebig",
     "glucoseBedtime": "Glukose — vor dem Schlafen",
-    "loadError": "Zielwerte konnten nicht geladen werden",
-    "label": {
-      "WEIGHT": "Gewicht",
-      "BLOOD_PRESSURE": "Blutdruck",
-      "BLOOD_PRESSURE_IN_TARGET": "Blutdruck im Zielbereich",
-      "PULSE": "Ruhepuls",
-      "SLEEP_DURATION": "Schlafdauer",
-      "BMI": "BMI",
-      "BODY_FAT": "Körperfett",
-      "ACTIVITY_STEPS": "Schritte/Tag",
-      "MEDICATION_COMPLIANCE": "Einnahmetreue",
-      "MOOD_SCORE": "Stimmung",
-      "MOOD_STABILITY": "Stimmungsstabilität"
-    },
     "status": {
       "underweight": "Untergewicht",
       "normal": "Normal",

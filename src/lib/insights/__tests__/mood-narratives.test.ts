@@ -25,6 +25,7 @@ function emptyInput(): MoodNarrativeInput {
   return {
     daily: [],
     weekday: [],
+    timeOfDay: { buckets: [], reliable: false, best: null, worst: null },
     tags: [],
     structuredTags: [],
     inTargetPct: null,
@@ -355,6 +356,7 @@ describe("computeMoodNarratives — ranking and capping", () => {
     const input: MoodNarrativeInput = {
       daily: [...recent, ...prior],
       weekday,
+      timeOfDay: { buckets: [], reliable: false, best: null, worst: null },
       tags: [
         { tag: "great", count: 10, avgScore: 5 },
         { tag: "bad", count: 10, avgScore: 1 },
@@ -375,5 +377,70 @@ describe("computeMoodNarratives — ranking and capping", () => {
 
   it("exposes a stable minimum-days constant", () => {
     expect(MOOD_NARRATIVE_MIN_DAYS).toBeGreaterThan(0);
+  });
+
+  it("stays silent on time-of-day when the pattern is unreliable", () => {
+    const input: MoodNarrativeInput = {
+      ...emptyInput(),
+      timeOfDay: {
+        // Spread is fine but the effect is computed from best/worst below.
+        buckets: [
+          { bucket: "morning", avgScore: 4, count: 5 },
+          { bucket: "afternoon", avgScore: 4, count: 5 },
+          { bucket: "evening", avgScore: null, count: 0 },
+          { bucket: "night", avgScore: null, count: 0 },
+        ],
+        reliable: false,
+        best: null,
+        worst: null,
+      },
+    };
+    expect(
+      computeMoodNarratives(input).find((n) => n.kind === "time-of-day"),
+    ).toBeUndefined();
+  });
+
+  it("fires the time-of-day takeaway when reliable and the effect clears the bar", () => {
+    const input: MoodNarrativeInput = {
+      ...emptyInput(),
+      timeOfDay: {
+        buckets: [
+          { bucket: "morning", avgScore: 4.5, count: 6 },
+          { bucket: "afternoon", avgScore: 3.0, count: 6 },
+          { bucket: "evening", avgScore: null, count: 0 },
+          { bucket: "night", avgScore: null, count: 0 },
+        ],
+        reliable: true,
+        best: "morning",
+        worst: "afternoon",
+      },
+    };
+    const item = computeMoodNarratives(input).find(
+      (n) => n.kind === "time-of-day",
+    );
+    expect(item).toBeDefined();
+    expect(item?.messageKey).toBe("insights.mood.narrative.timeOfDay");
+    expect(item?.vars.bucketKey).toBe("insights.mood.timeOfDay.morning");
+    expect(item?.vars.value).toBe("4.5");
+  });
+
+  it("stays silent on time-of-day when best/worst are within the effect threshold", () => {
+    const input: MoodNarrativeInput = {
+      ...emptyInput(),
+      timeOfDay: {
+        buckets: [
+          { bucket: "morning", avgScore: 3.6, count: 6 },
+          { bucket: "afternoon", avgScore: 3.5, count: 6 },
+          { bucket: "evening", avgScore: null, count: 0 },
+          { bucket: "night", avgScore: null, count: 0 },
+        ],
+        reliable: true,
+        best: "morning",
+        worst: "afternoon",
+      },
+    };
+    expect(
+      computeMoodNarratives(input).find((n) => n.kind === "time-of-day"),
+    ).toBeUndefined();
   });
 });

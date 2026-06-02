@@ -957,6 +957,18 @@ model Medication {
   /// stores the preference only — it does not itself authorise anything
   /// server-side.
   criticalAlarmEnabled Boolean            @default(false) @map("critical_alarm_enabled")
+  /// v1.9.0 — optional ATC classification code (active-substance class,
+  /// e.g. `A10BX10`). User/clinician-asserted; never machine-guessed on
+  /// the export path. NULL = no code (the FHIR exporter emits a text-only
+  /// `medicationCodeableConcept`, the pre-v1.9.0 behaviour). The WHO URI
+  /// `http://www.whocc.no/atc` is the emitted system. Validated on write
+  /// against `^[A-Z]\d{2}[A-Z]{2}\d{2}$`.
+  atcCode              String?            @map("atc_code")
+  /// v1.9.0 — optional RxNorm RxCUI (US; secondary coding). Same NULL
+  /// semantics as `atcCode`. Validated on write against `^\d+$`. Emitted
+  /// under `http://www.nlm.nih.gov/research/umls/rxnorm` alongside any
+  /// ATC code, never instead of the free-text `.text` anchor.
+  rxNormCode           String?            @map("rxnorm_code")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 

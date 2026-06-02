@@ -4,6 +4,7 @@ import { useState, useEffect, useReducer } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
 import { MedicationCardMenu } from "@/components/medications/medication-card-menu";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
@@ -299,7 +300,7 @@ export function MedicationCard({
   );
 
   return (
-    <Card className={medication.active ? "" : "opacity-60"}>
+    <Card className={cn("h-full", medication.active ? "" : "opacity-60")}>
       <MedicationCardHeader
         name={medication.name}
         dose={medication.dose}
@@ -310,7 +311,7 @@ export function MedicationCard({
         linkLabel={t("medications.openDetailPage")}
       />
 
-      <CardContent className="space-y-3.5">
+      <CardContent className="flex flex-1 flex-col space-y-3.5">
         {/* Status, last & next intake info */}
         {currentWindowStatus.status && (
           <MedicationStatusPill
@@ -320,72 +321,79 @@ export function MedicationCard({
           />
         )}
 
-        {nextSchedule &&
-          currentWindowStatus.status !== "in_window" &&
-          (() => {
-            const s = nextSchedule;
+        {/* Next / last intake — wrapped in a fixed min-height slot so a
+            card missing its last-dose line keeps the same vertical
+            footprint as a sibling that renders both lines. Without the
+            reserved height the compliance bars and action row below would
+            start at a different Y card-to-card across the 2-col grid. */}
+        <div className="min-h-[2.75rem] space-y-3.5">
+          {nextSchedule &&
+            currentWindowStatus.status !== "in_window" &&
+            (() => {
+              const s = nextSchedule;
 
-            // Format day label relative to today
-            let dayLabel = "";
-            if (nextAt) {
-              const nextDate = toBerlinDate(new Date(nextAt));
-              const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
-              const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
-              const tomorrow = new Date(nowBerlin);
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
+              // Format day label relative to today
+              let dayLabel = "";
+              if (nextAt) {
+                const nextDate = toBerlinDate(new Date(nextAt));
+                const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
+                const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
+                const tomorrow = new Date(nowBerlin);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
 
-              const diffDays = Math.round(
-                (nextDate.getTime() - nowBerlin.getTime()) /
-                  (24 * 60 * 60 * 1000),
-              );
+                const diffDays = Math.round(
+                  (nextDate.getTime() - nowBerlin.getTime()) /
+                    (24 * 60 * 60 * 1000),
+                );
 
-              if (nextStr === todayStr) {
-                dayLabel = t("medications.today");
-              } else if (nextStr === tomorrowStr) {
-                dayLabel = t("medications.tomorrow");
-              } else if (diffDays <= 5) {
-                const weekdayLabels = [
-                  t("medications.weekdaySunday"),
-                  t("medications.weekdayMonday"),
-                  t("medications.weekdayTuesday"),
-                  t("medications.weekdayWednesday"),
-                  t("medications.weekdayThursday"),
-                  t("medications.weekdayFriday"),
-                  t("medications.weekdaySaturday"),
-                ];
-                dayLabel = weekdayLabels[nextDate.getDay()];
-              } else {
-                dayLabel = fmt.dateWithWeekday(nextDate);
+                if (nextStr === todayStr) {
+                  dayLabel = t("medications.today");
+                } else if (nextStr === tomorrowStr) {
+                  dayLabel = t("medications.tomorrow");
+                } else if (diffDays <= 5) {
+                  const weekdayLabels = [
+                    t("medications.weekdaySunday"),
+                    t("medications.weekdayMonday"),
+                    t("medications.weekdayTuesday"),
+                    t("medications.weekdayWednesday"),
+                    t("medications.weekdayThursday"),
+                    t("medications.weekdayFriday"),
+                    t("medications.weekdaySaturday"),
+                  ];
+                  dayLabel = weekdayLabels[nextDate.getDay()];
+                } else {
+                  dayLabel = fmt.dateWithWeekday(nextDate);
+                }
               }
-            }
 
-            return (
-              <p className="text-muted-foreground text-sm">
-                <span className="font-medium">
-                  {t("medications.nextIntake")}
-                </span>{" "}
-                {dayLabel && `${dayLabel}, `}
-                {formatTimeWindowRange(s.windowStart, s.windowEnd, locale)}
-                {s.label && (
-                  <span className="hidden sm:inline"> ({s.label})</span>
-                )}
-                {s.dose && (
-                  <span className="hidden font-medium text-purple-400 sm:inline">
-                    {" "}
-                    — {s.dose}
-                  </span>
-                )}
-              </p>
-            );
-          })()}
+              return (
+                <p className="text-muted-foreground text-sm">
+                  <span className="font-medium">
+                    {t("medications.nextIntake")}
+                  </span>{" "}
+                  {dayLabel && `${dayLabel}, `}
+                  {formatTimeWindowRange(s.windowStart, s.windowEnd, locale)}
+                  {s.label && (
+                    <span className="hidden sm:inline"> ({s.label})</span>
+                  )}
+                  {s.dose && (
+                    <span className="hidden font-medium text-purple-400 sm:inline">
+                      {" "}
+                      — {s.dose}
+                    </span>
+                  )}
+                </p>
+              );
+            })()}
 
-        {medication.lastTakenAt && (
-          <p className="text-muted-foreground text-sm">
-            <span className="font-medium">{t("medications.lastIntake")}</span>{" "}
-            {formatLastTakenAt(medication.lastTakenAt)}
-          </p>
-        )}
+          {medication.lastTakenAt && (
+            <p className="text-muted-foreground text-sm">
+              <span className="font-medium">{t("medications.lastIntake")}</span>{" "}
+              {formatLastTakenAt(medication.lastTakenAt)}
+            </p>
+          )}
+        </div>
 
         {/* Compliance bars — always two rows. The server scales the two
             windows to the dosing cadence (7 / 30 days for dense meds,
@@ -401,12 +409,17 @@ export function MedicationCard({
           />
         )}
 
-        {/* Quick actions — primary buttons of the medication card. */}
+        {/* Quick actions — primary buttons of the medication card.
+            Pinned to the bottom with `mt-auto` so the action baseline is
+            shared across every card in the grid row regardless of how many
+            optional rows above it rendered. */}
         {medication.active && (
-          <MedicationIntakeActions
-            intakeLoading={intakeLoading}
-            onRecordIntake={recordIntake}
-          />
+          <div className="mt-auto pt-3.5">
+            <MedicationIntakeActions
+              intakeLoading={intakeLoading}
+              onRecordIntake={recordIntake}
+            />
+          </div>
         )}
       </CardContent>
 

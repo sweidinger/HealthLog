@@ -60,6 +60,7 @@ const openApiBase: Pick<
     { name: "Measurements" },
     { name: "Medications" },
     { name: "Mood" },
+    { name: "Analytics" },
     { name: "Insights" },
     { name: "Dashboard" },
     { name: "Notifications" },

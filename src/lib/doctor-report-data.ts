@@ -88,12 +88,59 @@ export interface DoctorReportData {
   medications: Array<{
     name: string;
     dose: string;
+    // v1.9.0 — optional user/clinician-asserted drug-classification
+    // codes. Carried here so the FHIR exporter can emit a coded
+    // `medicationCodeableConcept` (ATC primary, RxNorm secondary). NULL
+    // when no code was captured — the exporter then emits the pre-v1.9.0
+    // text-only concept. Optional in the type so pre-v1.9.0 fixtures
+    // still typecheck.
+    atcCode?: string | null;
+    rxNormCode?: string | null;
     schedules: Array<{
       windowStart: string;
       windowEnd: string;
       label: string | null;
     }>;
   }>;
+  /**
+   * v1.9.0 — acted medication-intake events over the report window, fed
+   * to the FHIR `MedicationAdministration` builder. One entry per intake
+   * row the user actually actioned (taken OR explicitly skipped);
+   * pending / missed / soft-deleted rows are excluded upstream so the
+   * exporter never asserts an administration that did not happen. The
+   * `dose` is the medication's structured dose-in-effect at
+   * `effectiveAt` (from `MedicationDoseChange`) when one exists, else
+   * NULL. Optional so pre-v1.9.0 fixtures still typecheck.
+   */
+  medicationAdministrations?: Array<{
+    medicationName: string;
+    /** ISO timestamp: `takenAt` for a taken dose, `scheduledFor` for a skip. */
+    effectiveAt: string;
+    status: "completed" | "not-done";
+    /** Free-text dose label (the medication's `dose`), mirrors the statement. */
+    doseText: string | null;
+    /** Structured dose-in-effect at `effectiveAt`, when a dose-change history exists. */
+    dose: { value: number; unit: string } | null;
+    /** Injection site, when the row recorded one. */
+    injectionSite: string | null;
+    /** ATC / RxNorm codes, mirrored from the medication for the self-describing concept. */
+    atcCode: string | null;
+    rxNormCode: string | null;
+    /** Delivery form — ORAL / INJECTION / OTHER — for the route mapping. */
+    deliveryForm: string | null;
+  }>;
+  /**
+   * v1.9.0 — set when {@link MAX_MEDICATION_ADMINISTRATIONS} trimmed the
+   * administration set. `total` is the full acted-intake count over the
+   * window; `included` is how many (the most-recent) survived the cap.
+   * Null/absent when nothing was trimmed. The FHIR builder discloses
+   * this in the document narrative so the export is honest about the
+   * omitted (oldest) rows. Optional so pre-v1.9.0 fixtures still typecheck.
+   */
+  medicationAdministrationsTruncation?: {
+    total: number;
+    included: number;
+  } | null;
   mood: DoctorReportMood | null;
   /**
    * v1.4.25 W4d — GLP-1 therapy section. Populated when the user has at
@@ -158,6 +205,21 @@ const MIN_RANGE_DAYS = 1;
  */
 const MAX_RANGE_DAYS = 730;
 const DEFAULT_RANGE_DAYS = 90;
+
+/**
+ * v1.9.0 — hard ceiling on the number of `MedicationAdministration`
+ * source rows materialised per export. The report window is already
+ * bounded at {@link MAX_RANGE_DAYS} (730 days), but a chronic medication
+ * dosed several times a day across that window — multiplied by several
+ * such medications — can still produce thousands of administration
+ * resources in a single Bundle (e.g. 4×/day × 730 days ≈ 2 920 per med).
+ * Cap at the MOST-RECENT 1 000 acted intakes overall: that preserves the
+ * recent-adherence picture a clinician cares about while bounding the
+ * in-memory array and the serialised Bundle. When the cap trims rows the
+ * aggregator flags it so the FHIR narrative can disclose the truncation
+ * rather than silently dropping history.
+ */
+const MAX_MEDICATION_ADMINISTRATIONS = 1000;
 
 export interface DoctorReportRange {
   /** Start of the reporting window (UTC, inclusive). */
@@ -310,7 +372,21 @@ export async function collectDoctorReportData(
       prisma.medicationIntakeEvent.findMany({
         // v1.7.0 sync — exclude tombstoned rows from the doctor report.
         where: { userId, deletedAt: null, scheduledFor: { gte: start, lte: end } },
-        include: { medication: { select: { name: true } } },
+        include: {
+          // v1.9.0 — carry the medication identity + codes + delivery
+          // form so the FHIR MedicationAdministration builder can emit a
+          // self-describing `medicationCodeableConcept` and a route.
+          medication: {
+            select: {
+              id: true,
+              name: true,
+              dose: true,
+              atcCode: true,
+              rxNormCode: true,
+              deliveryForm: true,
+            },
+          },
+        },
         orderBy: { scheduledFor: "asc" },
       }),
       // Mood data: zero DB read when the user opted out. This is the
@@ -385,6 +461,93 @@ export async function collectDoctorReportData(
       compliance[name].missed++;
     }
   }
+
+  // v1.9.0 — MedicationAdministration source rows. One entry per acted
+  // intake (taken OR explicitly skipped); pending / missed rows are
+  // dropped so the FHIR export never asserts an administration that did
+  // not happen, and tombstoned rows are already excluded by the query
+  // `deletedAt: null` predicate. The structured `dose` is resolved from
+  // the medication's `MedicationDoseChange` history — the latest change
+  // effective at or before the administration instant — when one exists.
+  //
+  // Dose-change history is loaded on the `medications` array (active
+  // meds only); a per-medicationId index lets the resolver run in O(1)
+  // lookups + a short linear scan over the (typically small) change list.
+  const doseChangesByMedId = new Map<
+    string,
+    Array<{ effectiveFrom: Date; doseValue: number; doseUnit: string }>
+  >();
+  for (const m of medications) {
+    doseChangesByMedId.set(
+      m.id,
+      m.doseChanges.map((dc) => ({
+        effectiveFrom: dc.effectiveFrom,
+        doseValue: dc.doseValue,
+        doseUnit: dc.doseUnit,
+      })),
+    );
+  }
+  const resolveDoseInEffect = (
+    medicationId: string,
+    at: Date,
+  ): { value: number; unit: string } | null => {
+    const changes = doseChangesByMedId.get(medicationId);
+    if (!changes || changes.length === 0) return null;
+    // `doseChanges` are loaded ordered by `effectiveFrom asc`; take the
+    // last one whose effectiveFrom is <= the administration instant.
+    let inEffect: { value: number; unit: string } | null = null;
+    for (const c of changes) {
+      if (c.effectiveFrom.getTime() <= at.getTime()) {
+        inEffect = { value: c.doseValue, unit: c.doseUnit };
+      } else {
+        break;
+      }
+    }
+    return inEffect;
+  };
+
+  const medicationAdministrations: NonNullable<
+    DoctorReportData["medicationAdministrations"]
+  > = [];
+  for (const event of intakeEvents) {
+    // Only acted rows: a taken dose (completed) or an explicit skip
+    // (not-done). A scheduled-but-unconfirmed ("missed") slot is not an
+    // administration event and is omitted entirely.
+    const isTaken = event.takenAt !== null;
+    if (!isTaken && !event.skipped) continue;
+    const effectiveAt = isTaken
+      ? (event.takenAt as Date)
+      : event.scheduledFor;
+    medicationAdministrations.push({
+      medicationName: event.medication.name,
+      effectiveAt: effectiveAt.toISOString(),
+      status: isTaken ? "completed" : "not-done",
+      doseText: event.medication.dose || null,
+      // Structured dose only meaningful for a taken dose with a
+      // dose-change history; a skip records no dose consumed.
+      dose: isTaken
+        ? resolveDoseInEffect(event.medication.id, effectiveAt)
+        : null,
+      injectionSite: event.injectionSite ?? null,
+      atcCode: event.medication.atcCode ?? null,
+      rxNormCode: event.medication.rxNormCode ?? null,
+      deliveryForm: event.medication.deliveryForm ?? null,
+    });
+  }
+
+  // v1.9.0 — bound the administration set. `intakeEvents` is ordered
+  // `scheduledFor: asc`, so the most-recent acted rows are at the tail;
+  // keep the last N and flag the trim so the FHIR narrative can disclose
+  // it. The omitted rows are the OLDEST in the window — recent adherence
+  // is preserved intact.
+  const totalAdministrations = medicationAdministrations.length;
+  const medicationAdministrationsTruncated =
+    totalAdministrations > MAX_MEDICATION_ADMINISTRATIONS;
+  const cappedAdministrations = medicationAdministrationsTruncated
+    ? medicationAdministrations.slice(
+        totalAdministrations - MAX_MEDICATION_ADMINISTRATIONS,
+      )
+    : medicationAdministrations;
 
   // Mood summary.
   const moodScores = moodEntries.map((e) => e.score);
@@ -593,12 +756,19 @@ export async function collectDoctorReportData(
     medications: medications.map((m) => ({
       name: m.name,
       dose: m.dose,
+      // v1.9.0 — drug-classification codes for the coded FHIR concept.
+      atcCode: m.atcCode,
+      rxNormCode: m.rxNormCode,
       schedules: m.schedules.map((s) => ({
         windowStart: s.windowStart,
         windowEnd: s.windowEnd,
         label: s.label,
       })),
     })),
+    medicationAdministrations: cappedAdministrations,
+    medicationAdministrationsTruncation: medicationAdministrationsTruncated
+      ? { total: totalAdministrations, included: cappedAdministrations.length }
+      : null,
     mood,
     glp1,
   };

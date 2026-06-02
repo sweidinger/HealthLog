@@ -6,6 +6,7 @@ import {
   describeInjectionSite,
   effectiveAllowedSites,
   isSiteAllowed,
+  nearestSiteAt,
   nextInjectionSite,
 } from "@/lib/medications/injection-sites";
 
@@ -139,6 +140,54 @@ describe("injection-sites", () => {
     it("falls back to first allowed candidate for empty history", () => {
       const rec = nextInjectionSite([], 4, ["THIGH_LEFT", "THIGH_RIGHT"]);
       expect(rec).toBe("THIGH_LEFT");
+    });
+  });
+
+  describe("nearestSiteAt() — pointer overlay nearest-centre routing", () => {
+    it("resolves a tap exactly on a site centre to that site", () => {
+      for (const site of INJECTION_SITE_KEYS) {
+        const { x, y } = SITE_COORDS[site];
+        expect(nearestSiteAt(x, y)).toBe(site);
+      }
+    });
+
+    it("maps a tap in the former abdomen overlap band to the NEARER quadrant", () => {
+      // ABDOMEN_UPPER_LEFT y=81, ABDOMEN_LEFT (lower) y=95 → midpoint 88.
+      // The old r=14 hit-circles overlapped ~14u here and mis-routed to
+      // the last-painted dot (the lower quadrant). Nearest-centre must
+      // route a tap above the midpoint to the upper quadrant and below
+      // it to the lower one.
+      expect(nearestSiteAt(43.5, 84)).toBe("ABDOMEN_UPPER_LEFT");
+      expect(nearestSiteAt(43.5, 92)).toBe("ABDOMEN_LEFT");
+      // Same on the right column.
+      expect(nearestSiteAt(56.5, 84)).toBe("ABDOMEN_UPPER_RIGHT");
+      expect(nearestSiteAt(56.5, 92)).toBe("ABDOMEN_RIGHT");
+    });
+
+    it("routes a tap left of centre to a *_LEFT site (screen-left == links)", () => {
+      // A point in the abdomen row but left of the body midline resolves
+      // to a left-column quadrant, never a right one.
+      const site = nearestSiteAt(40, 88);
+      expect(site).toMatch(/_LEFT$/);
+    });
+
+    it("constrains routing to the allowed set (skips disabled sites)", () => {
+      // A tap right on the upper-left abdomen centre, but that quadrant is
+      // not allowed → the nearest ALLOWED site wins instead.
+      const allowed = ["ABDOMEN_LEFT", "THIGH_LEFT"] as const;
+      const { x, y } = SITE_COORDS.ABDOMEN_UPPER_LEFT;
+      expect(nearestSiteAt(x, y, allowed)).toBe("ABDOMEN_LEFT");
+    });
+
+    it("returns null when the allowed set is empty", () => {
+      expect(nearestSiteAt(50, 88, [])).toBeNull();
+    });
+
+    it("breaks ties toward the earlier site in canonical order", () => {
+      // Equidistant between the two upper-abdomen quadrants (x midline,
+      // y=81) → ABDOMEN_UPPER_LEFT precedes ABDOMEN_UPPER_RIGHT in
+      // INJECTION_SITE_KEYS, so it wins the tie.
+      expect(nearestSiteAt(50, 81)).toBe("ABDOMEN_UPPER_LEFT");
     });
   });
 

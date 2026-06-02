@@ -7,11 +7,21 @@ import { Sparkles } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
-import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
+import {
+  useInsightsLayoutPrefs,
+  useInsightsRangePref,
+} from "@/hooks/use-insights-layout-prefs";
+import { useAnalyticsRange } from "@/hooks/use-analytics-range";
 import { useTranslations } from "@/lib/i18n/context";
 import type { InsightMetric } from "@/lib/insights/metric-availability";
+import {
+  getMetricStatusMeta,
+  metricIdForMeasurementType,
+} from "@/lib/insights/metric-status-registry";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
+import { sentimentFromMetricDirection } from "@/lib/insights/trend-sentiment";
 import type { ChartOverlayKey } from "@/lib/dashboard-layout";
+import type { MeasurementType } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { MetricStatusCard } from "@/components/insights/metric-status-card";
@@ -19,6 +29,8 @@ import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
+import { TimeRangePills } from "@/components/insights/time-range-pills";
+import { MetricRangeDelta } from "@/components/insights/metric-range-delta";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -139,8 +151,29 @@ export function HealthKitMetricPage({
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
+  const { range, setRange } = useInsightsRangePref();
 
   const { data: analytics, isEmpty } = useInsightsAnalytics(insightMetric);
+
+  // v1.9.0 — period-over-period range read. Single-metric, additive route;
+  // gated off the empty-data branch so a brand-new metric never fires it.
+  const { data: rangeData, isLoading: isRangeLoading } = useAnalyticsRange(
+    measurementType,
+    range,
+    !isEmpty,
+  );
+
+  // The delta's sentiment colour follows the metric's "good direction" from
+  // the metric-status registry (higher-better → up-good, lower-better →
+  // up-bad, target-band → neutral). Every HealthKit metric page is backed by
+  // a registry entry; a metric absent from the registry falls back to neutral.
+  const registryMeta = (() => {
+    const id = metricIdForMeasurementType(measurementType as MeasurementType);
+    return id ? getMetricStatusMeta(id) : null;
+  })();
+  const directionSentiment = registryMeta
+    ? sentimentFromMetricDirection(registryMeta.direction)
+    : "neutral";
 
   const rawSummary = analytics?.summaries?.[measurementType] ?? null;
   // The stat strip renders display-unit values. The summary holds stored
@@ -207,6 +240,21 @@ export function HealthKitMetricPage({
       coachLaunch
       showAllValuesType={measurementType}
     >
+      {/* v1.9.0 — time-range pills + period-over-period delta, between the
+          stat strip and the chart. The selected range persists across metrics
+          via `useInsightsRangePref`. */}
+      <div
+        data-slot="metric-range-controls"
+        className="flex flex-wrap items-center justify-between gap-2"
+      >
+        <TimeRangePills value={range} onChange={setRange} />
+        <MetricRangeDelta
+          data={rangeData}
+          range={range}
+          directionSentiment={directionSentiment}
+          isLoading={isRangeLoading}
+        />
+      </div>
       <HealthChartDynamic
         chartKey={chartKey}
         types={[measurementType]}

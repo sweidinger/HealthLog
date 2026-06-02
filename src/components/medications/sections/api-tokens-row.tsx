@@ -19,7 +19,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Copy, KeyRound } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, KeyRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -58,6 +58,11 @@ export function ApiTokensRow({
   const [mintedToken, setMintedToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [exampleType, setExampleType] = useState<ExampleType>("curl");
+  // The request examples are the tallest, lowest-frequency content in
+  // the sheet — collapsed by default so the verbose `<pre>` snippets stay
+  // out of the default viewport (and the live-interpolated bearer token
+  // stays out of the default-visible DOM until the user opts in).
+  const [examplesOpen, setExamplesOpen] = useState(false);
 
   // v1.5.5 F-1 H-2 — single source of truth for the per-medication
   // api-endpoint key. The earlier inline `useMemo` minted the same
@@ -198,8 +203,12 @@ export function ApiTokensRow({
       <p className="text-muted-foreground text-xs">
         {t("medications.detail.api.caption", { name: medicationName })}
       </p>
+      {/* The raw endpoint URL is redundant with the copy button below, so
+          it is rendered muted + single-line-truncated rather than as a
+          full-width block — the long absolute URL was pure visual noise. */}
       <code
-        className="bg-muted block rounded px-3 py-2 font-mono text-xs break-all"
+        className="text-muted-foreground bg-muted/60 block truncate rounded px-2 py-1 font-mono text-xs"
+        title={endpoint}
         data-slot="api-endpoint-url"
       >
         POST {endpoint}
@@ -259,43 +268,69 @@ export function ApiTokensRow({
 
       {/* v1.6.0 — multi-language request snippets (restored from the
           v1.5.4 endpoint dialog). The minted token is interpolated
-          live; until then the snippet carries a `YOUR_TOKEN` stand-in. */}
-      <div className="space-y-1.5 pt-1" data-slot="api-tokens-examples">
-        <div className="flex items-center justify-between gap-2">
-          <Label className="text-xs font-medium">
+          live; until then the snippet carries a `YOUR_TOKEN` stand-in.
+          v1.9.0 — collapsed by default. The 4–9-line `<pre>` snippets are
+          the biggest vertical offender in the sheet, and the language
+          `Select` + the live-interpolated bearer token only render once
+          the user opts in. */}
+      <div className="pt-1" data-slot="api-tokens-examples">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-9 w-full justify-between px-2"
+          aria-expanded={examplesOpen}
+          onClick={() => setExamplesOpen((prev) => !prev)}
+          data-slot="api-tokens-examples-toggle"
+        >
+          <span className="text-xs font-medium">
             {t("medications.requestExample")}
-          </Label>
-          <Select
-            value={exampleType}
-            onValueChange={(value) => setExampleType(value as ExampleType)}
-          >
-            <SelectTrigger size="sm" className="w-[170px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectItem value="curl">cURL</SelectItem>
-              <SelectItem value="wget">wget</SelectItem>
-              <SelectItem value="fetch">JavaScript fetch</SelectItem>
-              <SelectItem value="powershell">PowerShell</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="relative">
-          <pre className="bg-muted rounded-lg p-3 pr-10 font-mono text-xs break-all whitespace-pre-wrap">
-            {selectedExample.value}
-          </pre>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-1 right-1 h-7 w-7"
-            onClick={() =>
-              void copy(selectedExample.value, t("common.copied"))
-            }
-            aria-label={t("common.copy")}
-          >
-            <Copy aria-hidden="true" className="h-3 w-3" />
-          </Button>
-        </div>
+          </span>
+          {examplesOpen ? (
+            <ChevronUp aria-hidden="true" className="h-4 w-4" />
+          ) : (
+            <ChevronDown aria-hidden="true" className="h-4 w-4" />
+          )}
+        </Button>
+        {examplesOpen && (
+          <div className="mt-2 space-y-1.5" data-slot="api-tokens-examples-body">
+            <div className="flex items-center justify-end gap-2">
+              <Label className="sr-only">
+                {t("medications.requestExample")}
+              </Label>
+              <Select
+                value={exampleType}
+                onValueChange={(value) => setExampleType(value as ExampleType)}
+              >
+                <SelectTrigger size="sm" className="w-[170px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value="curl">cURL</SelectItem>
+                  <SelectItem value="wget">wget</SelectItem>
+                  <SelectItem value="fetch">JavaScript fetch</SelectItem>
+                  <SelectItem value="powershell">PowerShell</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="relative">
+              <pre className="bg-muted rounded-lg p-3 pr-10 font-mono text-xs break-all whitespace-pre-wrap">
+                {selectedExample.value}
+              </pre>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-1 right-1 h-7 w-7"
+                onClick={() =>
+                  void copy(selectedExample.value, t("common.copied"))
+                }
+                aria-label={t("common.copy")}
+              >
+                <Copy aria-hidden="true" className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

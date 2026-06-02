@@ -31,6 +31,15 @@ export interface InsightStatusData {
    * warms the cache. Absent / false means the payload is terminal.
    */
   preparing?: boolean;
+  /**
+   * v1.9.0 — true when the route serves last-good (stale) text AND a fresh
+   * generation is in flight. The served payload would otherwise be terminal
+   * (`preparing` false), so the open card would stop polling and never pick
+   * up the warmed assessment until a remount. The hook keeps polling on
+   * `preparing || revalidating` (bounded by the same attempt ceiling) so the
+   * card upgrades to the fresh text in the same session.
+   */
+  revalidating?: boolean;
 }
 
 /**
@@ -64,17 +73,24 @@ const STATUS_POLL_MS = 4_000;
 export const STATUS_POLL_MAX_ATTEMPTS = 12;
 
 /**
- * Decide whether a `preparing` card should schedule its next poll.
- * Pure and shared between the `useInsightStatus` hook and the inline
- * medication-compliance query so both sites enforce the identical
- * ceiling. Returns the interval in ms while polling is warranted, or
- * `false` once the payload is terminal OR the attempt cap is reached.
+ * Decide whether a card should schedule its next poll. Pure and shared
+ * between the `useInsightStatus` hook and the inline medication-compliance
+ * query so both sites enforce the identical ceiling. Returns the interval
+ * in ms while polling is warranted, or `false` once the payload is terminal
+ * OR the attempt cap is reached.
+ *
+ * v1.9.0 — `revalidating` joins `preparing` as a "keep polling" signal: when
+ * the route serves last-good (stale) text it would otherwise be terminal and
+ * stop the poll, so the freshly-warmed assessment never reaches the open card
+ * until a remount. The attempt ceiling bounds both signals identically, so a
+ * persistently failing generation still cannot poll an open page forever.
  */
 export function nextStatusPollInterval(
   preparing: boolean | undefined,
   dataUpdateCount: number,
+  revalidating?: boolean | undefined,
 ): number | false {
-  if (!preparing) return false;
+  if (!preparing && !revalidating) return false;
   if (dataUpdateCount >= STATUS_POLL_MAX_ATTEMPTS) return false;
   return STATUS_POLL_MS;
 }
@@ -161,6 +177,7 @@ export function useInsightStatus(metric: InsightStatusMetric) {
       nextStatusPollInterval(
         query.state.data?.preparing,
         query.state.dataUpdateCount,
+        query.state.data?.revalidating,
       ),
   });
 }
@@ -225,6 +242,7 @@ export function useInsightMetricStatus(
       nextStatusPollInterval(
         query.state.data?.preparing,
         query.state.dataUpdateCount,
+        query.state.data?.revalidating,
       ),
   });
 }

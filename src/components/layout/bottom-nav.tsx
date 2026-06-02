@@ -39,10 +39,9 @@ interface NavLink {
 // Order is preserved relative to the v1.4.15 bottom-nav so muscle
 // memory keeps working for the four core actions.
 //
-// v1.8.6 — the Targets (Zielwerte) page is deprecated: target editing
-// moved inline into Insights, so its overflow entry is gone. The page
-// stays routable (the `/zielwerte`→`/targets` proxy redirect remains)
-// but no longer appears in the menu.
+// v1.9.0 — the standalone Targets (Zielwerte) page is retired. Target
+// editing lives inline on the Insights metric pages (the per-metric
+// reference panel mounts the target editor), so there is no nav entry.
 const PRIMARY: ReadonlyArray<NavLink> = [
   { href: "/", tKey: "nav.dashboard", icon: Home },
   { href: "/measurements", tKey: "nav.measurements", icon: Activity },

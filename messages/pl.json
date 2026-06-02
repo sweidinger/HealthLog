@@ -1214,6 +1214,14 @@
           "unit": "minutes",
           "saved": "Reminder window saved",
           "failed": "Could not save the reminder window."
+        },
+        "codes": {
+          "label": "Kody kliniczne (ATC / RxNorm)",
+          "note": "Opcjonalne. Używane w eksporcie FHIR dokumentacji zdrowotnej. Kody są zapisywane dokładnie tak, jak wprowadzone — nigdy nie są zgadywane.",
+          "atcLabel": "ATC",
+          "rxNormLabel": "RxNorm",
+          "saved": "Kody kliniczne zapisane",
+          "failed": "Nie udało się zapisać kodów klinicznych."
         }
       },
       "zone": {
@@ -1278,7 +1286,8 @@
         "group": {
           "data": "Dane",
           "reminders": "Przypomnienia",
-          "lifecycle": "Cykl życia"
+          "lifecycle": "Cykl życia",
+          "externalApi": "Zewnętrzne API"
         },
         "dataPortability": {
           "import": {
@@ -1600,6 +1609,23 @@
       "confidenceModerate": "Średnia pewność",
       "confidenceLow": "Niska pewność",
       "pendingLabel": "Komentarz trendu jest generowany"
+    },
+    "range": {
+      "label": "Okres",
+      "noPriorData": "brak danych z poprzedniego okresu",
+      "option": {
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d",
+        "1y": "1r"
+      },
+      "priorLabel": {
+        "7d": "vs poprzednie 7d",
+        "30d": "vs poprzednie 30d",
+        "90d": "vs poprzednie 90d",
+        "1y": "vs poprzedni rok"
+      },
+      "noChange": "bez zmian"
     },
     "correlationRow": {
       "title": "Korelacje",
@@ -2396,7 +2422,11 @@
         "strengthNone": "Brak",
         "source": "{n} sparowanych dni · r = {r}",
         "emptyTitle": "Za mało sparowanych danych",
-        "emptyDescription": "Rejestruj nastrój i ten wskaźnik w te same dni, aby zobaczyć korelację."
+        "emptyDescription": "Rejestruj nastrój i ten wskaźnik w te same dni, aby zobaczyć korelację.",
+        "weightTitle": "Nastrój vs. waga",
+        "bloodPressureTitle": "Nastrój vs. ciśnienie krwi",
+        "weightAxis": "Waga",
+        "bloodPressureAxis": "Skurczowe (mmHg)"
       },
       "structuredTagsTitle": "Podział tagów",
       "inTargetValue": "{pct}%",
@@ -2412,7 +2442,23 @@
         "tagLift": "Dni z tagiem „{tag}” są średnio o {delta} powyżej twojego ogólnego nastroju.",
         "tagDrop": "Dni z tagiem „{tag}” są o {delta} poniżej twojej średniej.",
         "inTarget": "Przez {pct}% ostatnich 30 dni byłeś w zakresie dobrego nastroju.",
-        "streak": "Rejestrujesz nastrój od {days} dni z rzędu — tak trzymaj."
+        "streak": "Rejestrujesz nastrój od {days} dni z rzędu — tak trzymaj.",
+        "timeOfDay": "Najlepiej czujesz się {bucket}, średnio {value}."
+      },
+      "timeOfDay": {
+        "title": "Nastrój według pory dnia",
+        "morning": "Rano",
+        "afternoon": "Popołudnie",
+        "evening": "Wieczór",
+        "night": "Noc",
+        "bestCaption": "Zwykle najlepiej czujesz się {bucket}."
+      },
+      "stability": {
+        "value": "{score}/100",
+        "bandVerySteady": "Twój nastrój był bardzo stabilny",
+        "bandSteady": "Twój nastrój był dość stabilny",
+        "bandVariable": "Twój nastrój był zauważalnie zmienny",
+        "bandVeryVariable": "Twój nastrój ostatnio mocno się wahał"
       }
     }
   },
@@ -2626,7 +2672,7 @@
         "description": "Withings, moodLog, and other connected services."
       },
       "notifications": {
-        "title": "Kanały powiadomień",
+        "title": "Powiadomienia",
         "description": "Live overview of every configured channel."
       },
       "dashboard": {
@@ -3994,12 +4040,6 @@
     }
   },
   "targets": {
-    "title": "Wartości docelowe",
-    "introText": "Twoje aktualne wartości na tle zalecanych zakresów docelowych. Źródła wytycznych podlinkowane na każdej karcie.",
-    "deprecation": {
-      "title": "Ta strona zostanie wycofana",
-      "body": "Zakresy docelowe edytuje się teraz bezpośrednio na stronach Insights, w panelu referencyjnym każdej metryki. Ta strona pozostaje na razie dostępna i zostanie usunięta w przyszłej wersji."
-    },
     "bmi": "BMI",
     "average30d": "Średnia 30-dniowa:",
     "consistency": {
@@ -4021,22 +4061,10 @@
         "sixDaysAgo": "6 dni temu"
       }
     },
-    "card": {
-      "lastMet": "Ostatnio w celu: {when}",
-      "streak": "{count} dni z rzędu"
-    },
     "relativeDay": {
       "today": "Dzisiaj",
       "yesterday": "Wczoraj",
       "daysAgo": "{count} dni temu"
-    },
-    "summary": {
-      "weekTitle": "{met} z {total} celów osiągniętych w tym tygodniu",
-      "weekTitleAll": "Wszystko{total} targets met this week",
-      "streakHighlight": "{count} dni z rzędu: {metric}"
-    },
-    "coach": {
-      "cta": "Zapytaj coacha"
     },
     "edit": {
       "openLabel": "Edytuj zakres docelowy dla {metric}",
@@ -4069,31 +4097,10 @@
     "aboveTarget": "{delta} {unit} powyżej zakresu",
     "belowTarget": "{delta} {unit} poniżej zakresu",
     "diastolic": "Rozkurczowe",
-    "noMeasurementYet": "Brak pomiarów",
-    "noMeasurementData": "Brak danych pomiarowych. Dodaj pomiary, aby zobaczyć cele.",
-    "profileIncomplete": "Profil niekompletny",
-    "profileIncompleteHeight": "Wpisz swój wzrost w profilu, aby aktywować cele BMI.",
-    "profileIncompleteAge": "Wpisz datę urodzenia w profilu, aby aktywować cele zależne od wieku.",
-    "profileIncompleteHeightAge": "Wpisz wzrost i datę urodzenia w profilu, aby zobaczyć spersonalizowane cele.",
-    "compliancePerMedication": "Przestrzeganie według leku",
     "glucoseFasting": "Glikemia — na czczo",
     "glucosePostprandial": "Glikemia — po posiłku",
     "glucoseRandom": "Glikemia — dowolna",
     "glucoseBedtime": "Glikemia — przed snem",
-    "loadError": "Nie udało się załadować wartości docelowych",
-    "label": {
-      "WEIGHT": "Waga",
-      "BLOOD_PRESSURE": "Ciśnienie krwi",
-      "BLOOD_PRESSURE_IN_TARGET": "Ciśnienie w zakresie",
-      "PULSE": "Tętno spoczynkowe",
-      "SLEEP_DURATION": "Czas snu",
-      "BMI": "BMI",
-      "BODY_FAT": "Tkanka tłuszczowa",
-      "ACTIVITY_STEPS": "Kroki/dzień",
-      "MEDICATION_COMPLIANCE": "Przestrzeganie",
-      "MOOD_SCORE": "Nastrój",
-      "MOOD_STABILITY": "Stabilność nastroju"
-    },
     "status": {
       "underweight": "Niedowaga",
       "normal": "Normal",

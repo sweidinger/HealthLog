@@ -11,76 +11,23 @@ import {
 } from "@/components/ui/tooltip";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import type { ComparisonBaseline } from "@/lib/dashboard-layout";
+import {
+  getTrendSentiment,
+  sentimentColorClass,
+  type TrendDirectionSentiment,
+  type TrendSentimentDirection,
+} from "@/lib/insights/trend-sentiment";
+
+// v1.9.0 — the metric-aware sentiment mapping moved to a shared module so the
+// range-delta caption paints the same colour for the same signal. Re-exported
+// here so existing `@/components/charts/trend-card` importers keep the type.
+export type { TrendDirectionSentiment, TrendSentimentDirection };
 
 interface SecondaryMetric {
   /** Sub-value latest reading (e.g. diastolic when latest is systolic). */
   latest: number | null;
   avg7: number | null;
   avg30: number | null;
-}
-
-/**
- * Maps a metric's "up means" direction to colour sentiment for the small
- * trend arrow on each tile. v1.4.6 P4 stripped the colour entirely after
- * the original up=red / down=green mapping was wrong for half the metrics
- * (mood up = good, BP up = bad, pulse up = neutral). v1.5 phase-5 restores
- * the colour but per-metric:
- *
- *   - `up-good`   — higher value is better (mood, sleep hours, steps).
- *                   ↑ green, ↓ orange.
- *   - `up-bad`    — higher value is worse (BP, weight, body fat).
- *                   ↑ orange, ↓ green.
- *   - `neutral`   — direction doesn't carry a value judgement (pulse,
- *                   "BP in target %" — those have their own range
- *                   colouring on the avg7/avg30 numbers already).
- *
- * Strictly affects the ↑/↓/→ arrow next to the latest reading. Chart
- * lines, axes, and the avg7/avg30 colour classes are untouched.
- */
-export type TrendDirectionSentiment = "up-good" | "up-bad" | "neutral";
-
-/**
- * v1.4.33 F5 — single sentiment helper so the headline arrow, the 7-day
- * delta value, and the comparison-overlay caption all paint the same
- * colour for the same signal. Before this helper each consumer ran its
- * own branch — the arrow read `slope30.direction`, the delta value read
- * `trend7Delta > 0`, and the comparison caption read `compareDelta > 0`.
- * When the 30-day regression and the 7-day delta disagreed (weight down
- * over a month, up over a week) the tile painted a green arrow next to
- * an orange value, which read as "two metrics in one tile".
- *
- * `change` is a signed magnitude of the movement under inspection (the
- * 7-day delta in units, or the slope-projected-over-7-days for tiles
- * with only `slope30`). `sentiment` is the metric's improvement
- * direction.
- *
- *  - `'positive'` — the change moves the metric toward its goal
- *    (e.g. weight on `up-bad` going down, mood on `up-good` going up).
- *    Renders green.
- *  - `'negative'` — the change moves away from the goal. Renders orange.
- *  - `'neutral'` — either the sentiment is neutral (pulse, BP-in-target),
- *    or the change is below the noise floor (|change| < 0.05). Renders
- *    muted.
- */
-export type TrendSentimentDirection = "positive" | "negative" | "neutral";
-
-function getTrendSentiment(
-  change: number | null | undefined,
-  sentiment: TrendDirectionSentiment,
-): TrendSentimentDirection {
-  if (change == null || Math.abs(change) < 0.05) return "neutral";
-  if (sentiment === "neutral") return "neutral";
-  const isUp = change > 0;
-  const isGood =
-    (sentiment === "up-good" && isUp) ||
-    (sentiment === "up-bad" && !isUp);
-  return isGood ? "positive" : "negative";
-}
-
-function sentimentColorClass(direction: TrendSentimentDirection): string {
-  if (direction === "positive") return "text-dracula-green";
-  if (direction === "negative") return "text-dracula-orange";
-  return "text-muted-foreground";
 }
 
 interface TrendCardProps {
@@ -476,8 +423,8 @@ export function TrendCard({
           {/* v1.4.28 FB-C2 — the all-time third sub-value retired
               alongside the `avgAllTime*` props. The BD-Zielbereich
               tile was the only consumer; the same number stays
-              visible on the `/targets` Blutdruck card with full
-              context. Every dashboard tile now ships the same two
+              visible on the Insights blood-pressure target panel with
+              full context. Every dashboard tile now ships the same two
               sub-rows. */}
         </div>
       </TooltipProvider>

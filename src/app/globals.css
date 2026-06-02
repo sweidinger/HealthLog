@@ -252,6 +252,24 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /*
+   * Reserve the scrollbar gutter on the document root ONLY for the
+   * body-scrolled shells (login / register / onboarding / standalone legal
+   * pages), where the document itself overflows. Those keep a fixed content
+   * width whether or not the page paints the bar, so any `mx-auto` content
+   * does not recentre a few px sideways on navigation. `AuthShell` sets
+   * `data-scroll="body"` on `<html>` for exactly those branches.
+   *
+   * The authenticated app shell is height-locked (`flex h-dvh`) and scrolls
+   * inside its own `<main>`, which reserves its own gutter. Applying this
+   * rule globally there reserved a SECOND, never-painted gutter on classic
+   * (non-overlay) scrollbar platforms (Windows / Linux) — a ~15px dead band.
+   * Scoping it to the body-scrolled branch leaves exactly one gutter per
+   * branch.
+   */
+  html[data-scroll="body"] {
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground;
   }

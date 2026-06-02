@@ -4,6 +4,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CalendarDays,
+  Clock,
   Flame,
   Tag,
   Target,
@@ -42,6 +43,7 @@ const ICONS: Record<string, ComponentType<{ className?: string }>> = {
   "tag-drop": ArrowDownRight,
   "in-target": Target,
   streak: Flame,
+  "time-of-day": Clock,
 };
 
 function pickIcon(item: MoodNarrativeItem): ComponentType<{
@@ -76,6 +78,7 @@ export function MoodNarrativeFeed({ items }: { items: MoodNarrativeItem[] }) {
         const vars: Record<string, string> = { ...item.vars };
         if (vars.weekdayKey) vars.weekday = t(vars.weekdayKey);
         if (vars.tagKey) vars.tag = t(vars.tagKey);
+        if (vars.bucketKey) vars.bucket = t(vars.bucketKey);
         return (
           <li
             key={`${item.kind}-${index}`}

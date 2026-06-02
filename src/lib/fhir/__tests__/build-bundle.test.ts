@@ -4,10 +4,22 @@ import type { DoctorReportData } from "@/lib/doctor-report-data";
 import type {
   FhirObservation,
   FhirMedicationStatement,
+  FhirMedicationAdministration,
   FhirPatient,
   FhirCoverage,
   FhirDiagnosticReport,
 } from "../types";
+
+function administrationsOf(
+  bundle: ReturnType<typeof buildFhirDocumentBundle>,
+): FhirMedicationAdministration[] {
+  return bundle.entry
+    .map((e) => e.resource)
+    .filter(
+      (r): r is FhirMedicationAdministration =>
+        r.resourceType === "MedicationAdministration",
+    );
+}
 
 function coverageOf(
   bundle: ReturnType<typeof buildFhirDocumentBundle>,
@@ -229,7 +241,7 @@ describe("buildFhirDocumentBundle", () => {
     expect(coverage?.contained?.[0].identifier?.[0].value).toBe("101234567");
   });
 
-  it("omits the Coverage entirely when neither insurer name nor IKNR is present", () => {
+  it("omits the Coverage entirely when there is no payor signal at all", () => {
     const bundle = buildFhirDocumentBundle(
       makeData({
         patient: {
@@ -241,15 +253,96 @@ describe("buildFhirDocumentBundle", () => {
           // neither insurerName nor insurerIkNumber
         },
       }),
-      { insuranceNumber: "A123456780" },
+      // ...and no KVNR.
+      { insuranceNumber: null },
       FIXED_NOW,
     );
     expect(coverageOf(bundle)).toBeUndefined();
-    // KVNR still rides on Patient.identifier.
+  });
+
+  it("emits a KVNR-only Coverage (no insurer) to align with the iOS exporter", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        patient: {
+          username: "sample-user",
+          dateOfBirth: null,
+          gender: null,
+          heightCm: null,
+          fullName: "Sample Patient",
+          // neither insurerName nor insurerIkNumber — just a bare KVNR.
+        },
+      }),
+      { insuranceNumber: "A123456780" },
+      FIXED_NOW,
+    );
+    const coverage = coverageOf(bundle);
+    expect(coverage).toBeDefined();
+    expect(coverage?.status).toBe("active");
+    expect(coverage?.beneficiary.reference).toBe("Patient/patient-1");
+    expect(coverage?.subscriberId).toBe("A123456780");
+    // No insurer known → no contained payor Organization, no payor[].
+    expect(coverage?.contained).toBeUndefined();
+    expect(coverage?.payor).toBeUndefined();
+    // KVNR still rides on Patient.identifier too.
     const patient = bundle.entry.find(
       (e) => e.resource.resourceType === "Patient",
     )?.resource as FhirPatient;
     expect(patient.identifier?.[0].value).toBe("A123456780");
+  });
+
+  it("emits a top-level Composition.text narrative", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData(),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const composition = bundle.entry[0].resource;
+    expect(composition.resourceType).toBe("Composition");
+    if (composition.resourceType === "Composition") {
+      expect(composition.text?.status).toBe("generated");
+      expect(composition.text?.div).toContain("Health record for");
+    }
+  });
+
+  it("discloses an administration truncation in the Composition narrative", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medicationAdministrations: [
+          {
+            medicationName: "Mounjaro",
+            effectiveAt: "2026-04-30T08:00:00.000Z",
+            status: "completed",
+            doseText: "10mg",
+            dose: { value: 10, unit: "mg" },
+            injectionSite: null,
+            atcCode: null,
+            rxNormCode: null,
+            deliveryForm: "INJECTION",
+          },
+        ],
+        medicationAdministrationsTruncation: { total: 2920, included: 1000 },
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const composition = bundle.entry[0].resource;
+    if (composition.resourceType === "Composition") {
+      expect(composition.text?.div).toContain(
+        "Medication administrations truncated: showing the most recent 1000 of 2920",
+      );
+    }
+  });
+
+  it("omits the truncation sentence when nothing was capped", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({ medicationAdministrationsTruncation: null }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const composition = bundle.entry[0].resource;
+    if (composition.resourceType === "Composition") {
+      expect(composition.text?.div).not.toContain("truncated");
+    }
   });
 
   it("maps weight to LOINC 29463-7 / UCUM kg with the latest reading", () => {
@@ -334,6 +427,220 @@ describe("buildFhirDocumentBundle", () => {
     expect(meds).toHaveLength(1);
     expect(meds[0].medicationCodeableConcept.text).toBe("Example Drug");
     expect(meds[0].dosage?.[0].text).toBe("5mg");
+  });
+
+  it("keeps a text-only medicationCodeableConcept when no codes are stored", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData(),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const stmt = bundle.entry
+      .map((e) => e.resource)
+      .find(
+        (r): r is FhirMedicationStatement =>
+          r.resourceType === "MedicationStatement",
+      );
+    // Pre-v1.9.0 shape: text anchor, no coding[].
+    expect(stmt?.medicationCodeableConcept.text).toBe("Example Drug");
+    expect(stmt?.medicationCodeableConcept.coding).toBeUndefined();
+  });
+
+  it("emits ATC (primary) + RxNorm (secondary) codings when both are stored", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medications: [
+          {
+            name: "Mounjaro",
+            dose: "10mg",
+            atcCode: "A10BX10",
+            rxNormCode: "2601723",
+            schedules: [],
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const stmt = bundle.entry
+      .map((e) => e.resource)
+      .find(
+        (r): r is FhirMedicationStatement =>
+          r.resourceType === "MedicationStatement",
+      );
+    const coding = stmt?.medicationCodeableConcept.coding;
+    expect(stmt?.medicationCodeableConcept.text).toBe("Mounjaro");
+    expect(coding).toHaveLength(2);
+    // ATC is primary (first), with the name as display.
+    expect(coding?.[0]).toEqual({
+      system: "http://www.whocc.no/atc",
+      code: "A10BX10",
+      display: "Mounjaro",
+    });
+    // RxNorm is secondary, no display.
+    expect(coding?.[1]).toEqual({
+      system: "http://www.nlm.nih.gov/research/umls/rxnorm",
+      code: "2601723",
+    });
+  });
+
+  it("emits only the ATC coding when RxNorm is absent", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medications: [
+          { name: "Ramipril", dose: "5mg", atcCode: "C09AA05", schedules: [] },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const stmt = bundle.entry
+      .map((e) => e.resource)
+      .find(
+        (r): r is FhirMedicationStatement =>
+          r.resourceType === "MedicationStatement",
+      );
+    const coding = stmt?.medicationCodeableConcept.coding;
+    expect(coding).toHaveLength(1);
+    expect(coding?.[0].system).toBe("http://www.whocc.no/atc");
+    expect(coding?.[0].code).toBe("C09AA05");
+  });
+
+  it("maps a taken intake to a completed MedicationAdministration with a structured dose", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medicationAdministrations: [
+          {
+            medicationName: "Mounjaro",
+            effectiveAt: "2026-04-30T08:12:00.000Z",
+            status: "completed",
+            doseText: "10mg",
+            dose: { value: 10, unit: "mg" },
+            injectionSite: "abdomen-left",
+            atcCode: "A10BX10",
+            rxNormCode: "2601723",
+            deliveryForm: "INJECTION",
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const admins = administrationsOf(bundle);
+    expect(admins).toHaveLength(1);
+    const a = admins[0];
+    expect(a.status).toBe("completed");
+    expect(a.effectiveDateTime).toBe("2026-04-30T08:12:00.000Z");
+    // Self-describing concept reuses the ATC/RxNorm coding + text anchor.
+    expect(a.medicationCodeableConcept.text).toBe("Mounjaro");
+    expect(a.medicationCodeableConcept.coding?.[0].code).toBe("A10BX10");
+    // Structured dose satisfies the R4 dose-or-rate invariant.
+    expect(a.dosage?.dose).toEqual({
+      value: 10,
+      unit: "mg",
+      system: "http://unitsofmeasure.org",
+      code: "mg",
+    });
+    expect(a.dosage?.text).toBe("10mg");
+    expect(a.dosage?.route?.text).toBe("Injection");
+    expect(a.dosage?.site?.text).toBe("abdomen-left");
+  });
+
+  it("maps a skipped intake to a not-done administration with no dosage", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medicationAdministrations: [
+          {
+            medicationName: "Ramipril",
+            effectiveAt: "2026-04-29T08:00:00.000Z",
+            status: "not-done",
+            doseText: "5mg",
+            dose: null,
+            injectionSite: null,
+            atcCode: null,
+            rxNormCode: null,
+            deliveryForm: "ORAL",
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const admins = administrationsOf(bundle);
+    expect(admins).toHaveLength(1);
+    expect(admins[0].status).toBe("not-done");
+    expect(admins[0].effectiveDateTime).toBe("2026-04-29T08:00:00.000Z");
+    // No structured dose → no dosage block (R4 dose-or-rate invariant).
+    expect(admins[0].dosage).toBeUndefined();
+    // Text-only concept when the medication has no codes.
+    expect(admins[0].medicationCodeableConcept.coding).toBeUndefined();
+    expect(admins[0].medicationCodeableConcept.text).toBe("Ramipril");
+  });
+
+  it("omits the dosage when a taken dose has no structured dose Quantity", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medicationAdministrations: [
+          {
+            medicationName: "Vitamin D3",
+            effectiveAt: "2026-04-30T20:00:00.000Z",
+            status: "completed",
+            doseText: "1000 IU",
+            dose: null,
+            injectionSite: null,
+            atcCode: null,
+            rxNormCode: null,
+            deliveryForm: "ORAL",
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const a = administrationsOf(bundle)[0];
+    expect(a.status).toBe("completed");
+    // A dosage with only `.text` would violate the dose-or-rate
+    // invariant; the builder omits the dosage entirely instead.
+    expect(a.dosage).toBeUndefined();
+  });
+
+  it("emits no MedicationAdministration when there are no acted intakes", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({ medicationAdministrations: [] }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    expect(administrationsOf(bundle)).toHaveLength(0);
+  });
+
+  it("references the administrations from the Medications composition section", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medicationAdministrations: [
+          {
+            medicationName: "Mounjaro",
+            effectiveAt: "2026-04-30T08:12:00.000Z",
+            status: "completed",
+            doseText: "10mg",
+            dose: { value: 10, unit: "mg" },
+            injectionSite: null,
+            atcCode: null,
+            rxNormCode: null,
+            deliveryForm: "INJECTION",
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const composition = bundle.entry[0].resource;
+    expect(composition.resourceType).toBe("Composition");
+    const medSection =
+      composition.resourceType === "Composition"
+        ? composition.section?.find((s) => s.title === "Medications")
+        : undefined;
+    const refs = medSection?.entry?.map((e) => e.reference) ?? [];
+    expect(refs).toContain("MedicationAdministration/medadmin-1");
   });
 
   it("omits the mood Observation when mood is null (privacy default)", () => {

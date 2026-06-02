@@ -16,6 +16,51 @@ export type InjectionSiteValue = (typeof INJECTION_SITE_VALUES)[number];
 export const injectionSiteEnum = z.enum(INJECTION_SITE_VALUES);
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/**
+ * v1.9.0 — drug-classification code formats.
+ *
+ * `ATC_CODE_REGEX` — the 7-character WHO ATC code (one letter, two
+ * digits, two letters, two digits, e.g. `A10BX10`). This is the
+ * full leaf-level substance class; the shorter anatomical-group
+ * prefixes (`A`, `A10`, `A10B`) are deliberately NOT accepted — the
+ * exporter emits a substance-class coding, not a group.
+ *
+ * `RXCUI_REGEX` — the RxNorm RxCUI is a bare positive integer string
+ * (e.g. `2601723`).
+ *
+ * Both fields are user/clinician-asserted and never machine-guessed;
+ * a malformed value is rejected with 422 rather than silently stored.
+ */
+const ATC_CODE_REGEX = /^[A-Z]\d{2}[A-Z]{2}\d{2}$/;
+const RXCUI_REGEX = /^\d+$/;
+
+/**
+ * v1.9.0 — reusable nullable/optional code-field validators shared by
+ * the create + update medication schemas. `null` clears the column;
+ * `undefined` leaves it untouched on update.
+ */
+const atcCodeField = z
+  .string()
+  .regex(ATC_CODE_REGEX, "Invalid ATC code (expected e.g. A10BX10)")
+  .nullable()
+  .optional()
+  .describe(
+    "Optional WHO ATC classification code (active-substance class, 7 chars, e.g. `A10BX10`). User/clinician-asserted; never machine-guessed. Emitted on the FHIR `medicationCodeableConcept` under `http://www.whocc.no/atc`. NULL clears it; absent leaves it untouched.",
+  );
+const rxNormCodeField = z
+  .string()
+  .regex(RXCUI_REGEX, "Invalid RxNorm code (expected a numeric RxCUI)")
+  // Defence-in-depth: the `^\d+$` regex is otherwise unbounded. Real
+  // RxCUIs are at most 7 digits today; 20 is a generous ceiling that
+  // still bounds the column write tightly. (`atcCode` needs no max —
+  // its regex already fixes the length at 7.)
+  .max(20, "RxNorm code is too long")
+  .nullable()
+  .optional()
+  .describe(
+    "Optional RxNorm RxCUI (numeric, US identifier, e.g. `2601723`). Secondary coding emitted under `http://www.nlm.nih.gov/research/umls/rxnorm` alongside any ATC code, never instead of the free-text name. NULL clears it; absent leaves it untouched.",
+  );
 /**
  * Clinical-category values stored in the `medication_categories` side-
  * table (TEXT column). v1.5.4 adds `DIABETES` and `ANTIBIOTIC` so the
@@ -344,6 +389,10 @@ export const createMedicationSchema = z
       .describe(
         "iOS 26 AlarmKit critical-reminder opt-in. Default false. Critical alarms bypass the device mute switch / Focus; the server stores the preference only and hangs no server-side behaviour off it.",
       ),
+    /** v1.9.0 — optional WHO ATC classification code. */
+    atcCode: atcCodeField,
+    /** v1.9.0 — optional RxNorm RxCUI (secondary, US). */
+    rxNormCode: rxNormCodeField,
     ...courseWindowFields,
     schedules: z.array(scheduleSchema).min(1, "Mindestens ein Zeitfenster"),
   })
@@ -405,6 +454,10 @@ export const updateMedicationSchema = z
       .describe(
         "iOS 26 AlarmKit critical-reminder opt-in. Critical alarms bypass the device mute switch / Focus; the server stores the preference only.",
       ),
+    /** v1.9.0 — optional WHO ATC classification code. */
+    atcCode: atcCodeField,
+    /** v1.9.0 — optional RxNorm RxCUI (secondary, US). */
+    rxNormCode: rxNormCodeField,
     ...courseWindowFields,
     schedules: z.array(scheduleSchema).optional(),
     /**

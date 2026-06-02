@@ -16,18 +16,15 @@ import {
   type ThresholdMetric,
   type EffectiveRange,
 } from "@/lib/analytics/effective-range";
+import { convertGlucose, toCanonicalMgdl } from "@/lib/glucose";
 
 /**
- * v1.4.25 W3f — per-card edit affordance for the Zielwerte cards.
- *
- * Marc directive 2026-05-14: the per-card cog pattern (Dashboard charts →
- * Insights sub-pages → now Zielwerte) must be consistent. After the W3e
- * redesign the target cards lost their edit entry point — this dialog
- * closes that gap. Tapping the cog top-right of any TargetCard opens
- * this sheet; the user adjusts the min/max for the underlying threshold
- * metric, hits Save, and every surface that consumes
- * `getEffectiveRange()` (dashboard bands, doctor-report, /targets
- * itself) updates on the next query refetch.
+ * Per-metric target editor, mounted inline on the Insights metric
+ * reference panel (`<MetricTargetSummary>`). The user adjusts the
+ * min/max for the underlying threshold metric, hits Save, and every
+ * surface that consumes `getEffectiveRange()` (dashboard bands,
+ * doctor-report, the Insights panels themselves) updates on the next
+ * query refetch.
  *
  * Server contract: PUT /api/user/thresholds with a partial map
  * `{ [metric]: { min, max } }`. The endpoint validates the values
@@ -95,11 +92,11 @@ export interface TargetEditSheetProps {
 }
 
 export function TargetEditSheet(props: TargetEditSheetProps) {
-  // v1.4.25 W3f — only mount the body (and its TanStack Query hooks)
-  // when the dialog is open. This keeps the parent <TargetCard>
-  // test-friendly: existing tests can render the card without
-  // standing up a QueryClientProvider, and the hooks only execute
-  // once the user actually clicks the cog.
+  // Only mount the body (and its TanStack Query hooks) when the dialog
+  // is open. This keeps the parent reference panel test-friendly:
+  // callers can render the panel without standing up a
+  // QueryClientProvider, and the hooks only execute once the user
+  // actually opens the editor.
   //
   // v1.4.27 R4 RC2 — migrated raw <Dialog> → <ResponsiveSheet> so the
   // bottom-sheet branch sticky-pins reset + cancel + save above the
@@ -124,6 +121,24 @@ function TargetEditSheetBody({
   const metric = TARGET_TYPE_TO_METRIC[targetType] ?? null;
   const isDerivedMetric = !isBp && metric == null;
 
+  // Glucose is the one metric whose display unit can differ from the
+  // canonical storage unit: HealthLog stores mg/dL, but a user on the
+  // mmol/L preference sees — and types — mmol/L. The parent already
+  // hands us `unit="mmol/L"` and a `initialRange` pre-converted to that
+  // unit. We must therefore (a) seed the mg/dL persisted override into
+  // the display unit, (b) validate the typed value against bounds
+  // expressed in the display unit, and (c) convert the typed value back
+  // to canonical mg/dL before the PUT — otherwise a `5.5 mmol/L` target
+  // is rejected by the 40–400 mg/dL bounds or stored verbatim as 5.5.
+  const isGlucoseMmol =
+    metric != null &&
+    metric.startsWith("BLOOD_GLUCOSE") &&
+    unit === "mmol/L";
+  const toDisplay = (mgdl: number) =>
+    isGlucoseMmol ? convertGlucose(mgdl, "mmol/L") : mgdl;
+  const toCanonical = (displayValue: number) =>
+    isGlucoseMmol ? toCanonicalMgdl(displayValue, "mmol/L") : displayValue;
+
   // Lazy-load the thresholds payload so the dialog also catches any
   // already-persisted override even when the seeded `initialRange`
   // came from the targets API (which can paint a different in-band
@@ -146,13 +161,18 @@ function TargetEditSheetBody({
     m: ThresholdMetric | null,
     fallback: CurrentRange | null,
   ) => {
+    // The persisted override is canonical (mg/dL for glucose); the
+    // parent-provided `fallback` (initialRange) is already in the
+    // display unit. Convert the override into the display unit so the
+    // seeded inputs always read in the unit the label announces.
     if (m && thresholdsData?.overrides?.[m]) {
-      return thresholdsData.overrides[m]!;
+      const override = thresholdsData.overrides[m]!;
+      return { min: toDisplay(override.min), max: toDisplay(override.max) };
     }
     if (fallback) return fallback;
     if (m) {
       const bounds = METRIC_BOUNDS[m];
-      return { min: bounds.min, max: bounds.max };
+      return { min: toDisplay(bounds.min), max: toDisplay(bounds.max) };
     }
     return { min: 0, max: 100 };
   };
@@ -264,12 +284,23 @@ function TargetEditSheetBody({
   const diaMinNum = parseFloat(displayDiaMin);
   const diaMaxNum = parseFloat(displayDiaMax);
 
-  const primaryBounds = isBp
+  const canonicalPrimaryBounds = isBp
     ? METRIC_BOUNDS.BLOOD_PRESSURE_SYS
     : metric
       ? METRIC_BOUNDS[metric]
       : null;
   const secondaryBounds = isBp ? METRIC_BOUNDS.BLOOD_PRESSURE_DIA : null;
+
+  // Bounds the user is validated/clamped against — expressed in the
+  // display unit so a mmol/L glucose entry is checked against the
+  // mmol/L-projected 40–400 mg/dL window, not the raw mg/dL numbers.
+  const primaryBounds = canonicalPrimaryBounds
+    ? {
+        min: toDisplay(canonicalPrimaryBounds.min),
+        max: toDisplay(canonicalPrimaryBounds.max),
+        unit,
+      }
+    : null;
 
   const primaryValid =
     primaryBounds != null &&
@@ -300,7 +331,11 @@ function TargetEditSheetBody({
       return;
     }
     if (!metric) return;
-    updateMutation.mutate({ [metric]: { min: minNum, max: maxNum } });
+    // Convert the typed display-unit value back to canonical mg/dL for
+    // glucose on the mmol/L preference; a no-op for every other metric.
+    updateMutation.mutate({
+      [metric]: { min: toCanonical(minNum), max: toCanonical(maxNum) },
+    });
   };
 
   const hasOverride = isBp

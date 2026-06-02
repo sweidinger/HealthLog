@@ -83,7 +83,6 @@ const DEMO_MUTATION_ALLOWLIST = [
 // Legacy route redirects (German → English)
 const LEGACY_REDIRECTS: Record<string, string> = {
   "/stimmung": "/mood",
-  "/zielwerte": "/targets",
 };
 
 /**

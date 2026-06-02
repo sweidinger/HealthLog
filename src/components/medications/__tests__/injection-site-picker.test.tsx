@@ -247,13 +247,14 @@ describe("<InjectionSitePicker>", () => {
   });
 
   it("uses the SVG body outline as the picker surface", () => {
-    // Sanity check the body outline renders — head circle + torso
-    // path are the load-bearing visual anchors for the click targets.
+    // Sanity check the body outline renders — the silhouette path is the
+    // load-bearing visual anchor for the click targets, drawn on the
+    // 100x200 viewBox the iOS reference coords are calibrated against.
     const html = render(
       <InjectionSitePicker value={null} onChange={() => {}} />,
     );
 
-    expect(html).toMatch(/<svg[^>]*viewBox="0 0 120 300"/);
+    expect(html).toMatch(/<svg[^>]*viewBox="0 0 100 200"/);
     expect(html).toContain('aria-label="Body outline"');
     // The outer group has the localised "Once weekly on …" picker
     // label so the wrapper announces its role properly.
