@@ -231,7 +231,7 @@ export function DrugLevelChart({ medication, asOf }: DrugLevelChartProps) {
           modelled value, never a measured blood concentration. */}
       {!!drugId && (
         <p
-          className="text-muted-foreground mt-2 text-xs italic"
+          className="text-foreground/80 border-border bg-muted/40 mt-3 rounded-md border-l-2 px-3 py-2 text-xs font-medium"
           data-slot="drug-level-chart-disclaimer"
         >
           {t("medications.researchMode.chart.estimateNote")}
