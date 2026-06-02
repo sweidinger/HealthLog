@@ -79,19 +79,6 @@ export const measurementTypeEnum = z.enum([
 ]);
 
 /**
- * v1.10.0 — computed scores (WX-C). The closed set of server-derived
- * `*_SCORE` MeasurementTypes. Each is a 0–100 wellness score persisted with
- * `source = COMPUTED` by a nightly engine — never ingested from a client.
- * Kept as a `Set` so read/write paths can branch on "is this a computed
- * score?" the same way `EVENT_MEASUREMENT_TYPES` gates the event rows.
- */
-export const SCORE_MEASUREMENT_TYPES: ReadonlySet<string> = new Set<string>([
-  "RECOVERY_SCORE",
-  "STRESS_SCORE",
-  "STRAIN_SCORE",
-]);
-
-/**
  * v1.10.0 — categorical events (WX-B). The closed set of EVENT-class
  * MeasurementTypes. An EVENT row carries `value = 1`, an optional
  * `rhythmClassification` verdict, and never participates in trend / rollup
@@ -104,15 +91,6 @@ export const EVENT_MEASUREMENT_TYPES: ReadonlySet<string> = new Set<string>([
   "LOW_HEART_RATE_EVENT",
   "WALKING_STEADINESS_EVENT",
   "BREATHING_DISTURBANCE_EVENT",
-]);
-
-export const rhythmClassificationEnum = z.enum([
-  "IRREGULAR",
-  "NOT_DETECTED",
-  "INCONCLUSIVE",
-  "LOW",
-  "VERY_LOW",
-  "FIRED",
 ]);
 
 export const glucoseContextEnum = z.enum([
