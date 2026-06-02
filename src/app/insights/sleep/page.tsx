@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { Moon } from "lucide-react";
 
-import { useInsightMetricStatus } from "@/hooks/use-insight-status";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
-import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { MetricStatusCard } from "@/components/insights/metric-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
@@ -33,16 +32,6 @@ export default function InsightsSchlafPage() {
   const { t } = useTranslations();
 
   const { isEmpty } = useInsightsAnalytics("SLEEP_DURATION");
-
-  // v1.8.7.1 — the per-section sleep assessment now rides the generic
-  // metric-status route, keyed by `SLEEP_DURATION`. The hook runs on every
-  // render but only fetches once the page has data (the empty branch below
-  // short-circuits before the card mounts), so a source-less account never
-  // fires an assessment round-trip.
-  const { data: status, isLoading: isStatusLoading } = useInsightMetricStatus(
-    "SLEEP_DURATION",
-    !isEmpty,
-  );
 
   if (isEmpty) {
     return (
@@ -82,18 +71,15 @@ export default function InsightsSchlafPage() {
       {/*
         v1.8.7.1 — the per-section sleep assessment lands via the generic
         metric-status route (`?metric=SLEEP_DURATION`), closing the slot
-        the v1.4.28 deferral left open. The card consumes the same
-        `InsightStatusData` envelope every sibling sub-page reads.
+        the v1.4.28 deferral left open. The shared `<MetricStatusCard>`
+        owns the hook + card; only the icon differs from the HealthKit
+        scaffold (Moon vs Sparkles). The card mounts only on this
+        data-bearing branch, so a source-less account never fetches.
       */}
-      <InsightStatusCard
-        title={t("insights.assessmentTitle")}
+      <MetricStatusCard
+        metric="SLEEP_DURATION"
         icon={<Moon className="h-5 w-5" />}
-        text={status?.text ?? null}
-        hasProvider={status?.hasProvider ?? false}
-        cached={status?.cached ?? false}
-        updatedAt={status?.updatedAt ?? null}
-        loading={isStatusLoading}
-        preparing={status?.preparing ?? false}
+        enabled={!isEmpty}
       />
     </SubPageShell>
   );

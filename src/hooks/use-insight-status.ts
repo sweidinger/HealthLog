@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import { queryKeys } from "@/lib/query-keys";
 
 /**
@@ -183,7 +184,15 @@ export function useInsightStatus(metric: InsightStatusMetric) {
  * no data (the page renders the insufficient-data empty state instead of
  * the card), so a brand-new account never fires an assessment round-trip.
  */
-export function useInsightMetricStatus(metric: string, enabled = true) {
+export function useInsightMetricStatus(
+  // The closed registry-id union (the route's Zod enum vocabulary). `""`
+  // is the disabled-fetch placeholder the `HealthKitMetricPage` passes when
+  // no `statusMetric` is wired (the hook must still run per the rules of
+  // hooks); `enabled` is false on that branch so the empty id never reaches
+  // a round-trip. A typo'd metric id is therefore a compile error.
+  metric: MetricStatusMetricId | "",
+  enabled = true,
+) {
   const { isAuthenticated } = useAuth();
   const { locale } = useTranslations();
 

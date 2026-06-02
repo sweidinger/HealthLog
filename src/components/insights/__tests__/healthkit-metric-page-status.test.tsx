@@ -50,6 +50,8 @@ vi.mock("@/hooks/use-insight-status", async (importOriginal) => {
 });
 
 import { HealthKitMetricPage } from "../healthkit-metric-page";
+import { METRIC_STATUS_IDS } from "@/lib/insights/metric-status-registry";
+import InsightsActiveEnergyPage from "@/app/insights/active-energy/page";
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
   const queryClient = new QueryClient({
@@ -116,9 +118,10 @@ describe("<HealthKitMetricPage> status mount", () => {
 
     const html = render(<HealthKitMetricPage {...baseProps} />);
 
-    // No assessment heading, and the generic fetch is disabled.
+    // No assessment heading, and the card (which owns the hook) never
+    // mounts, so the generic fetch is never wired.
     expect(html).not.toContain("Assessment");
-    expect(metricStatusMock).toHaveBeenCalledWith("", false);
+    expect(metricStatusMock).not.toHaveBeenCalled();
   });
 
   it("renders the insufficient-data empty state (no card) when the metric has no data", () => {
@@ -132,9 +135,30 @@ describe("<HealthKitMetricPage> status mount", () => {
       />,
     );
 
-    // Empty branch: no settled assessment text, and the status fetch is
-    // disabled so a source-less account never fires the round-trip.
+    // Empty branch: the page short-circuits to the empty state before the
+    // card JSX, so no settled assessment text and the card (and its fetch)
+    // never mounts — a source-less account never fires the round-trip.
     expect(html).not.toContain("Your HRV has trended upward");
-    expect(metricStatusMock).toHaveBeenCalledWith("HEART_RATE_VARIABILITY", false);
+    expect(metricStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("wires the active-energy page to an accepted registry id (not the MeasurementType remap)", () => {
+    // v1.8.7.1 (Design H1) — the active-energy page formerly passed
+    // `ACTIVE_ENERGY_BURNED` (the DB MeasurementType), which the route's
+    // closed enum rejects with 422; the registry id is `ACTIVE_ENERGY`.
+    // Render the real page module and assert the hook receives a metric id
+    // the route accepts.
+    analyticsMock.mockReturnValue({
+      data: { summaries: { ACTIVE_ENERGY_BURNED: { count: 30 } } },
+      isEmpty: false,
+    });
+    metricStatusMock.mockReturnValue({ data: undefined, isLoading: false });
+
+    render(<InsightsActiveEnergyPage />);
+
+    expect(metricStatusMock).toHaveBeenCalled();
+    const passedMetric = metricStatusMock.mock.calls[0][0] as string;
+    expect(passedMetric).toBe("ACTIVE_ENERGY");
+    expect(METRIC_STATUS_IDS).toContain(passedMetric);
   });
 });

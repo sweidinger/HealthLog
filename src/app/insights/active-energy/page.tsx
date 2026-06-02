@@ -17,7 +17,7 @@ export default function InsightsActiveEnergyPage() {
   return (
     <HealthKitMetricPage
       measurementType="ACTIVE_ENERGY_BURNED"
-      statusMetric="ACTIVE_ENERGY_BURNED"
+      statusMetric="ACTIVE_ENERGY"
       insightMetric="ACTIVE_ENERGY_BURNED"
       chartKey="activeEnergy"
       i18nPrefix="insights.activeEnergy"

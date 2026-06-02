@@ -6,15 +6,15 @@ import type { ComponentProps, ReactNode } from "react";
 import { Sparkles } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useInsightMetricStatus } from "@/hooks/use-insight-status";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { useTranslations } from "@/lib/i18n/context";
 import type { InsightMetric } from "@/lib/insights/metric-availability";
+import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import type { ChartOverlayKey } from "@/lib/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
-import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { MetricStatusCard } from "@/components/insights/metric-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
@@ -109,8 +109,14 @@ export interface HealthKitMetricPageProps {
    * data-bearing branch; the empty (insufficient-data) branch keeps the
    * existing `<MetricEmptyState>` note and never fires an assessment
    * fetch. Omit it for metrics that should not carry an assessment.
+   *
+   * Typed to the closed `MetricStatusMetricId` union (the registry-id
+   * vocabulary the route's Zod enum accepts) rather than a bare string,
+   * so a page that passes a MeasurementType remap (e.g.
+   * `ACTIVE_ENERGY_BURNED` instead of the `ACTIVE_ENERGY` registry id)
+   * is a compile error, not a silent 422.
    */
-  statusMetric?: string;
+  statusMetric?: MetricStatusMetricId;
 }
 
 export function HealthKitMetricPage({
@@ -136,14 +142,6 @@ export function HealthKitMetricPage({
 
   const { data: analytics, isEmpty } = useInsightsAnalytics(insightMetric);
 
-  // v1.8.7.1 — generic per-metric assessment. The hook must run on every
-  // render (rules of hooks), so it is always called; `enabled` gates the
-  // actual fetch on a configured `statusMetric` AND the presence of data
-  // so an insufficient-data page never fires an assessment round-trip.
-  const { data: status, isLoading: isStatusLoading } = useInsightMetricStatus(
-    statusMetric ?? "",
-    Boolean(statusMetric) && !isEmpty,
-  );
   const rawSummary = analytics?.summaries?.[measurementType] ?? null;
   // The stat strip renders display-unit values. The summary holds stored
   // values, so when the page renders a scaled unit (e.g. WALKING_SPEED
@@ -225,15 +223,10 @@ export function HealthKitMetricPage({
         <MetricTargetSummary slug={targetSummarySlug} />
       ) : null}
       {statusMetric ? (
-        <InsightStatusCard
-          title={t("insights.assessmentTitle")}
+        <MetricStatusCard
+          metric={statusMetric}
           icon={<Sparkles className="h-5 w-5" />}
-          text={status?.text ?? null}
-          hasProvider={status?.hasProvider ?? false}
-          cached={status?.cached ?? false}
-          updatedAt={status?.updatedAt ?? null}
-          loading={isStatusLoading}
-          preparing={status?.preparing ?? false}
+          enabled={!isEmpty}
         />
       ) : null}
     </SubPageShell>
