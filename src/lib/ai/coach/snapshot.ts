@@ -26,6 +26,8 @@ import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import { annotate } from "@/lib/logging/context";
 import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
+import { buildDerivedSnapshotBlock } from "./derived-snapshot";
+import type { BaselineProfile } from "@/lib/insights/derived";
 import {
   CLUSTER_PRIORITY,
   clusterSourcesFromPrefs,
@@ -1182,6 +1184,45 @@ async function buildCoachSnapshotImpl(
         ageYears: ctx.ageYears,
         gender: ctx.gender,
       };
+    }
+  }
+
+  // ── v1.10.0 — derived wellness layer (compact summaries) ─────────────
+  //
+  // The composites + persisted scores the dashboard rings render, folded
+  // in as one tiny object per metric (value + band + coverage), NOT the
+  // raw series. So the Coach can say "your readiness is 64, low band" and
+  // ground it in the same number the user sees. Insufficient metrics are
+  // omitted (no "no data" noise). Reads the same `computeDerivedMetric`
+  // contract every surface uses — no recompute. Gated on at least one of
+  // the signals the composites are built from staying in-scope (HRV /
+  // resting HR / sleep / VO₂max), so a user who excludes those doesn't see
+  // the block.
+  const derivedSources: CoachScopeSource[] = [
+    "hrv",
+    "resting_hr",
+    "sleep",
+    "vo2_max",
+  ];
+  if (derivedSources.some((s) => sources.has(s))) {
+    const ctx = features.context;
+    const derivedProfile: BaselineProfile = {
+      ageYears: ctx?.ageYears ?? null,
+      sex:
+        ctx?.gender === "MALE" || ctx?.gender === "FEMALE"
+          ? (ctx.gender as "MALE" | "FEMALE")
+          : null,
+      heightCm: ctx?.heightCm ?? null,
+    };
+    const derivedBlock = await buildDerivedSnapshotBlock(
+      userId,
+      derivedProfile,
+      now,
+    );
+    if (derivedBlock) {
+      snapshot.derived = derivedBlock;
+      metrics.add("hrv");
+      registerBlock("derived", "hrv");
     }
   }
 
