@@ -48,7 +48,8 @@ describe("<CoverageMeter>", () => {
     const html = render(<CoverageMeter coverage={FULL} confidence={HIGH} />);
     const lit = (html.match(/data-dot-state="lit"/g) ?? []).length;
     expect(lit).toBe(5);
-    expect(html).toContain("bg-dracula-green");
+    // Semantic --success token — AA-safe on the white card in light mode.
+    expect(html).toContain("bg-success");
   });
 
   it("lights a partial number of dots and tints by band (provisional)", () => {
@@ -56,7 +57,10 @@ describe("<CoverageMeter>", () => {
     const lit = (html.match(/data-dot-state="lit"/g) ?? []).length;
     expect(lit).toBeGreaterThan(0);
     expect(lit).toBeLessThan(5);
-    expect(html).toContain("bg-dracula-orange");
+    // The four confidence bands collapse onto three semantic severities;
+    // low rides the caution --warning (medium↔low told apart by lit-dot
+    // count + percent, never colour alone).
+    expect(html).toContain("bg-warning");
     expect(html).toContain('data-percent="35"');
   });
 

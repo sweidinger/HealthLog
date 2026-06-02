@@ -47,23 +47,44 @@ describe("<SparklineDeltaTile>", () => {
       />,
     );
     expect(html).toContain('data-slot="sparkline-delta-tile-delta"');
-    expect(html).toContain("text-dracula-green");
+    // Semantic --success token (AA-safe in light mode, identical in dark).
+    expect(html).toContain("text-success");
   });
 
-  it("renders the empty state for a null value (no value, dashed sparkline slot)", () => {
+  it("renders the empty state for a null value with no sparkline slot", () => {
     const html = render(<SparklineDeltaTile {...base} value={null} />);
     expect(html).toContain('data-slot="sparkline-delta-tile-value"');
     expect(html).toContain("—");
-    // No series → dashed placeholder, not an SVG.
-    expect(html).toContain("border-dashed");
+    // No series → the sparkline row collapses entirely (no reserved empty
+    // dashed placeholder, which read as visual dead space across the grid).
+    expect(html).not.toContain('data-slot="sparkline-delta-tile-spark"');
+    expect(html).not.toContain("border-dashed");
   });
 
-  it("reserves the sparkline slot but omits the chart when series < 2 points", () => {
+  it("omits the sparkline row when series < 2 points", () => {
     const html = render(
       <SparklineDeltaTile {...base} value={58} series={[58]} />,
     );
+    expect(html).not.toContain('data-slot="sparkline-delta-tile-spark"');
+  });
+
+  it("renders the sparkline chart when a series of >= 2 points is passed", () => {
+    const html = render(
+      <SparklineDeltaTile {...base} value={58} series={[60, 59, 58]} />,
+    );
     expect(html).toContain('data-slot="sparkline-delta-tile-spark"');
-    expect(html).toContain("border-dashed");
+  });
+
+  it("renders the provenance affordance in the label row when passed", () => {
+    const html = render(
+      <SparklineDeltaTile
+        {...base}
+        value={58}
+        provenance={<button data-slot="test-prov">i</button>}
+      />,
+    );
+    expect(html).toContain('data-slot="sparkline-delta-tile-provenance"');
+    expect(html).toContain('data-slot="test-prov"');
   });
 
   it("surfaces the stale caption when staleDays > 7", () => {

@@ -6,44 +6,48 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type {
   ReadinessValue,
   SleepScoreValue,
+  WellnessScoreValue,
 } from "@/lib/insights/derived";
 import {
   ScoreAnatomyView,
   type AnatomyContributor,
 } from "./score-anatomy-view";
-import type { ProvenanceStandard } from "./provenance-explainer";
+import { METRIC_PROVENANCE } from "./standards";
 
 /**
- * v1.10.0 — the data-bound wrapper that fetches a composite derived metric
- * and renders the reusable `ScoreAnatomyView`. It owns the per-metric
+ * v1.10.0 — the data-bound wrapper that fetches a composite/persisted derived
+ * score and renders the reusable `ScoreAnatomyView`. It owns the per-metric
  * presentation map (title, contributor labels, the cited standard, the
- * plain-language method) so the anatomy view itself stays metric-agnostic.
+ * plain-language method + honesty caveat) so the anatomy view itself stays
+ * metric-agnostic.
  *
- * Supports the W3 composites: `SLEEP_SCORE` and `READINESS`. Each maps its
- * `value` (sub-scores / components) onto the normalised `AnatomyContributor`
- * list and supplies its cited standard + method copy from the i18n bundle.
+ * Supports the two decomposable W3 composites (`SLEEP_SCORE`, `READINESS` —
+ * each maps its sub-scores onto ranked `AnatomyContributor` rows) AND the
+ * three persisted nightly scores (`RECOVERY_SCORE`, `STRESS_SCORE`,
+ * `STRAIN_SCORE`). The persisted scores carry no sub-decomposition, so they
+ * render the ring + coverage + the provenance surface (method + cited
+ * standard + caveat) with no contributor rows — the acceptance-criterion fix
+ * that gives every wellness ring a provenance surface instead of a read-only
+ * dead-end. STRESS surfaces its "HRV-derived proxy, not an EDA/galvanic
+ * measurement" caveat via the standards map.
+ *
+ * The standard + method/caveat keys come from the single `METRIC_PROVENANCE`
+ * source map so the citation a metric exposes never drifts across surfaces.
  *
  * Client-only: `import type` for the value shapes (no server graph leaks);
  * the fetch rides the same `/api/insights/derived` route + 8 s client
  * ceiling as the rest of the surface.
  */
 
-export type CompositeMetricId = "SLEEP_SCORE" | "READINESS";
-
-/** The cited standard per composite (the explainer's external link). */
-const STANDARDS: Record<CompositeMetricId, ProvenanceStandard> = {
-  SLEEP_SCORE: {
-    name: "Hirshkowitz et al. 2015, Sleep Health",
-    url: "https://doi.org/10.1016/j.sleh.2014.12.010",
-  },
-  READINESS: {
-    name: "Plews et al. 2013, Sports Medicine",
-    url: "https://doi.org/10.1007/s40279-013-0071-8",
-  },
-};
+export type AnatomyMetricId =
+  | "SLEEP_SCORE"
+  | "READINESS"
+  | "RECOVERY_SCORE"
+  | "STRESS_SCORE"
+  | "STRAIN_SCORE";
 
 export interface CompositeScoreAnatomyProps {
-  metric: CompositeMetricId;
+  metric: AnatomyMetricId;
   className?: string;
 }
 
@@ -53,14 +57,9 @@ export function CompositeScoreAnatomy({
 }: CompositeScoreAnatomyProps) {
   const { t } = useTranslations();
 
-  const sleep = useDerivedMetric<SleepScoreValue>("SLEEP_SCORE", {
-    enabled: metric === "SLEEP_SCORE",
-  });
-  const readiness = useDerivedMetric<ReadinessValue>("READINESS", {
-    enabled: metric === "READINESS",
-  });
-
-  const query = metric === "SLEEP_SCORE" ? sleep : readiness;
+  const query = useDerivedMetric<
+    SleepScoreValue | ReadinessValue | WellnessScoreValue
+  >(metric);
 
   if (query.isLoading) {
     return (
@@ -71,8 +70,22 @@ export function CompositeScoreAnatomy({
   }
 
   const data = query.data;
-  const title = t(`insights.derived.composite.${metric}.title`);
-  const standard = STANDARDS[metric];
+  const meta = METRIC_PROVENANCE[metric];
+  const standard = meta.standard;
+  const title = titleFor(metric, t);
+  // Method copy carries an optional honesty caveat above it (STRESS proxy,
+  // descriptive-not-clinical, …) so the caveat reaches the user, not just
+  // the engine header.
+  const method = (
+    <>
+      {meta.caveatKey ? (
+        <span className="text-warning block font-medium">
+          {t(meta.caveatKey)}
+        </span>
+      ) : null}
+      {t(meta.methodKey)}
+    </>
+  );
 
   if (!data) {
     // Network/abort fallback — render the insufficient state honestly.
@@ -94,7 +107,7 @@ export function CompositeScoreAnatomy({
           windowDays: 0,
           computedAt: new Date().toISOString(),
         }}
-        method={t(`insights.derived.composite.${metric}.method`)}
+        method={method}
         standard={standard}
         insufficient
         className={className}
@@ -120,7 +133,7 @@ export function CompositeScoreAnatomy({
           weight: s.weight,
         }))
         .sort(rankByImpact);
-    } else {
+    } else if (metric === "READINESS") {
       const v = data.value as ReadinessValue;
       score = v.score;
       caption = t(`insights.derived.scoreRing.band.${v.band}`);
@@ -132,6 +145,11 @@ export function CompositeScoreAnatomy({
           weight: c.weight,
         }))
         .sort(rankByImpact);
+    } else {
+      // Persisted nightly score — no sub-decomposition; ring + provenance.
+      const v = data.value as WellnessScoreValue;
+      score = v.score;
+      caption = t(`insights.derived.scoreRing.band.${v.band}`);
     }
   }
 
@@ -144,12 +162,31 @@ export function CompositeScoreAnatomy({
       coverage={data.coverage}
       confidence={data.confidence}
       provenance={data.provenance}
-      method={t(`insights.derived.composite.${metric}.method`)}
+      method={method}
       standard={standard}
       insufficient={insufficient}
       className={className}
     />
   );
+}
+
+/** Localised title per metric — composites use their existing copy keys;
+ *  the persisted scores reuse the wellness-strip labels. */
+function titleFor(
+  metric: AnatomyMetricId,
+  t: (key: string) => string,
+): string {
+  switch (metric) {
+    case "SLEEP_SCORE":
+    case "READINESS":
+      return t(`insights.derived.composite.${metric}.title`);
+    case "RECOVERY_SCORE":
+      return t("insights.derived.scores.recovery");
+    case "STRESS_SCORE":
+      return t("insights.derived.scores.stress");
+    case "STRAIN_SCORE":
+      return t("insights.derived.scores.strain");
+  }
 }
 
 /** Rank contributors by impact: present-and-higher-weight first. */

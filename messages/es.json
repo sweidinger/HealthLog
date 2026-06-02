@@ -2579,7 +2579,44 @@
             "sleep": "Sueño",
             "respiratory": "Frecuencia respiratoria",
             "mood": "Estabilidad del ánimo"
-          }
+          },
+          "caveat": "Un indicador de bienestar, no una puntuación de recuperación ni clínica."
+        },
+        "VITALS_BASELINE": {
+          "method": "Tu rango típico personal es la mediana de tus valores diarios en el periodo, ± una dispersión robusta (desviación absoluta mediana, escalada). Sigue TUS lecturas, no una norma poblacional, así que un valor dentro de la banda es típico para ti."
+        },
+        "HRV_BALANCE": {
+          "method": "Tu media reciente de VFC (SDNN) frente a tu propia línea base móvil (mediana ± dispersión robusta). Equilibrada significa que está dentro de tu rango personal; la banda se construye con tus datos, nunca con un umbral poblacional."
+        },
+        "BMI": {
+          "method": "Peso ÷ altura², clasificado según las categorías de la OMS para adultos (bajo peso / normal / sobrepeso / obesidad). Solo es una proporción de cribado: no distingue músculo de grasa."
+        },
+        "FITNESS_AGE": {
+          "method": "Tu VO₂máx situado frente a percentiles de forma cardiorrespiratoria por edad y sexo, expresado como una diferencia de edad de forma física. El VO₂máx es la estimación de tu dispositivo, nunca se recalcula aquí."
+        },
+        "VASCULAR_AGE_DELTA": {
+          "method": "La estimación de edad vascular / velocidad de onda de pulso de tu dispositivo comparada con tu edad cronológica, expresada como una diferencia en años. La estimación es del dispositivo; HealthLog solo la reinterpreta.",
+          "caveat": "La propia estimación de tu dispositivo, solo reinterpretada: descriptiva, no una evaluación vascular clínica.",
+          "description": "Cómo se sitúa la estimación de edad vascular de tu dispositivo frente a tu edad cronológica."
+        },
+        "COINCIDENT_DEVIATION": {
+          "method": "Un aviso que aparece cuando dos o más de tus constantes quedan fuera de su rango típico personal el mismo día. Cada banda es la mediana robusta ± k·MAD de tu propio historial, así que se adapta a ti y no a un umbral poblacional.",
+          "caveat": "Un aviso a partir de tus propias líneas base: descriptivo, no un diagnóstico ni una alerta clínica."
+        },
+        "RECOVERY_SCORE": {
+          "method": "Un indicador nocturno de recuperación de 0 a 100 que combina tu VFC, frecuencia cardíaca en reposo y sueño frente a tu línea base. Más alto significa mejor recuperado. Se calcula una vez por noche y aquí solo se lee, nunca se recalcula al vuelo.",
+          "caveat": "Un indicador de bienestar descriptivo, no una medida de recuperación clínica ni de nivel de entrenamiento.",
+          "description": "Un indicador nocturno de recuperación a partir de tu VFC, frecuencia en reposo y sueño."
+        },
+        "STRESS_SCORE": {
+          "method": "Un indicador nocturno de estrés de 0 a 100 a partir de la forma de tu VFC a lo largo del día frente a tu línea base. Más alto significa más carga fisiológica.",
+          "caveat": "Un indicador derivado de la VFC, NO una medición de estrés por EDA / actividad electrodérmica: tu reloj no tiene sensor EDA. Descriptivo, no clínico.",
+          "description": "Un indicador nocturno de estrés a partir de la forma de tu VFC durante el día."
+        },
+        "STRAIN_SCORE": {
+          "method": "Un indicador nocturno de esfuerzo de 0 a 100 a partir de tu carga de actividad ponderada por frecuencia cardíaca (un modelo de impulso de entrenamiento tipo TRIMP). Más alto significa un día más exigente.",
+          "caveat": "Un indicador descriptivo de carga de actividad, no una medida de carga clínica ni de nivel de entrenamiento.",
+          "description": "Un indicador nocturno de carga de actividad a partir de tu esfuerzo ponderado por frecuencia cardíaca."
         }
       },
       "scores": {
@@ -2587,6 +2624,11 @@
         "recovery": "Recuperación",
         "stress": "Estrés",
         "strain": "Esfuerzo"
+      },
+      "coincident": {
+        "label": "Varias constantes fuera de la base",
+        "summary": "Hoy, {count} de tus constantes quedaron fuera de su rango personal.",
+        "vitals": "Fuera de rango: {list}"
       }
     },
     "cardioFitness": {

@@ -2579,7 +2579,44 @@
             "sleep": "Sleep",
             "respiratory": "Respiratory rate",
             "mood": "Mood stability"
-          }
+          },
+          "caveat": "A wellness proxy, not a recovery or clinical score."
+        },
+        "VITALS_BASELINE": {
+          "method": "Your personal typical range is the median of your daily values over the window, ± a robust spread (median absolute deviation, scaled). It tracks YOUR readings, not a population norm — so a value inside the band is typical for you."
+        },
+        "HRV_BALANCE": {
+          "method": "Your recent HRV (SDNN) average placed against your own rolling baseline (median ± a robust spread). Balanced means it sits inside your personal range; the band is built from your data, never a population cut-off."
+        },
+        "BMI": {
+          "method": "Weight ÷ height², classified against the WHO adult categories (underweight / normal / overweight / obese). A screening ratio only — it does not distinguish muscle from fat."
+        },
+        "FITNESS_AGE": {
+          "method": "Your VO₂max placed against age- and sex-referenced cardiorespiratory-fitness percentiles, expressed as a fitness-age delta. The VO₂max is your device's estimate — never recomputed here."
+        },
+        "VASCULAR_AGE_DELTA": {
+          "method": "Your device's vascular-age / pulse-wave-velocity estimate compared with your chronological age, expressed as a delta in years. The estimate is the device's; HealthLog only re-frames it.",
+          "caveat": "Your device's own estimate, re-framed — descriptive, not a clinical vascular assessment.",
+          "description": "How your device's vascular-age estimate sits against your chronological age."
+        },
+        "COINCIDENT_DEVIATION": {
+          "method": "A flag raised when two or more of your vitals sit outside their personal typical range on the same day. Each band is the robust median ± k·MAD of your own history, so it adapts to you rather than to a population cut-off.",
+          "caveat": "An awareness flag from your own baselines — descriptive, not a diagnosis or a clinical alert."
+        },
+        "RECOVERY_SCORE": {
+          "method": "A nightly 0–100 recovery proxy blended from your HRV, resting heart rate and sleep against your own baseline. Higher means better-recovered. Computed once each night and read back here — never recomputed on the fly.",
+          "caveat": "A descriptive wellness proxy, not a training-grade or clinical recovery measure.",
+          "description": "A nightly recovery proxy from your HRV, resting heart rate and sleep."
+        },
+        "STRESS_SCORE": {
+          "method": "A nightly 0–100 stress proxy from the shape of your intra-day HRV against your baseline. Higher means more physiological load.",
+          "caveat": "An HRV-derived proxy, NOT an EDA / galvanic-skin stress measurement — your watch has no EDA sensor. Descriptive, not clinical.",
+          "description": "A nightly stress proxy from the shape of your intra-day HRV."
+        },
+        "STRAIN_SCORE": {
+          "method": "A nightly 0–100 strain proxy from your heart-rate-weighted activity load (a TRIMP-style training-impulse model). Higher means a harder day.",
+          "caveat": "A descriptive activity-load proxy, not a clinical or training-grade load measure.",
+          "description": "A nightly activity-load proxy from your heart-rate-weighted effort."
         }
       },
       "scores": {
@@ -2587,6 +2624,11 @@
         "recovery": "Recovery",
         "stress": "Stress",
         "strain": "Strain"
+      },
+      "coincident": {
+        "label": "Several vitals off baseline",
+        "summary": "{count} of your vitals sat outside their personal range today.",
+        "vitals": "Outside range: {list}"
       }
     },
     "cardioFitness": {

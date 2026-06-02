@@ -53,6 +53,14 @@ export interface SparklineDeltaTileProps {
   staleDays?: number | null;
   /** Decimal places for the value + delta. Defaults to 1. */
   precision?: number;
+  /**
+   * Optional provenance affordance — the `ProvenanceExplainer` ⓘ trigger
+   * rendered in the label row so the method + cited standard reach the user
+   * on a tile that has no detail page (vitals baseline, HRV, BMI,
+   * fitness/vascular age). Plain element children — the caller wires the
+   * explainer; the tile just gives it a slot.
+   */
+  provenance?: React.ReactNode;
   className?: string;
 }
 
@@ -67,6 +75,7 @@ export function SparklineDeltaTile({
   framing,
   staleDays = null,
   precision = 1,
+  provenance,
   className,
 }: SparklineDeltaTileProps) {
   const { t } = useTranslations();
@@ -119,6 +128,14 @@ export function SparklineDeltaTile({
         >
           {label}
         </span>
+        {provenance ? (
+          <span
+            data-slot="sparkline-delta-tile-provenance"
+            className="shrink-0"
+          >
+            {provenance}
+          </span>
+        ) : null}
         <Icon className="text-muted-foreground h-4 w-4 shrink-0" />
       </div>
 
@@ -149,9 +166,11 @@ export function SparklineDeltaTile({
       </div>
 
       {/* Inline sparkline — fixed 40px height so the tile never reflows.
-          Suppressed (with the height reserved) when there is no series. */}
-      <div className="mt-3 h-10 w-full" data-slot="sparkline-delta-tile-spark">
-        {sparkData ? (
+          When there is no trailing series the row collapses entirely rather
+          than reserving an empty dashed placeholder (which read as visual
+          dead space across the whole grid). */}
+      {sparkData ? (
+        <div className="mt-3 h-10 w-full" data-slot="sparkline-delta-tile-spark">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={sparkData}
@@ -175,13 +194,8 @@ export function SparklineDeltaTile({
               />
             </AreaChart>
           </ResponsiveContainer>
-        ) : (
-          <div
-            className="border-border/40 h-full w-full rounded border border-dashed"
-            aria-hidden="true"
-          />
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {/* Framing + delta caption row. */}
       <div className="mt-2 flex min-h-[18px] items-baseline justify-between gap-2">

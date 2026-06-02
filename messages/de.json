@@ -2579,7 +2579,44 @@
             "sleep": "Schlaf",
             "respiratory": "Atemfrequenz",
             "mood": "Stimmungsstabilität"
-          }
+          },
+          "caveat": "Ein Wellness-Proxy, kein Erholungs- oder klinischer Wert."
+        },
+        "VITALS_BASELINE": {
+          "method": "Dein persönlicher Normalbereich ist der Median deiner Tageswerte über den Zeitraum, ± eine robuste Streuung (skalierte mittlere absolute Abweichung). Er folgt DEINEN Werten, keiner Bevölkerungsnorm — ein Wert im Band ist also typisch für dich."
+        },
+        "HRV_BALANCE": {
+          "method": "Dein jüngster HRV-(SDNN-)Durchschnitt im Vergleich zu deiner eigenen gleitenden Baseline (Median ± robuste Streuung). Ausgeglichen heißt: er liegt in deinem persönlichen Bereich; das Band stammt aus deinen Daten, nie aus einem Bevölkerungswert."
+        },
+        "BMI": {
+          "method": "Gewicht ÷ Größe², eingeordnet nach den WHO-Kategorien für Erwachsene (Untergewicht / Normal / Übergewicht / Adipositas). Nur ein Screening-Verhältnis — es unterscheidet nicht Muskel von Fett."
+        },
+        "FITNESS_AGE": {
+          "method": "Dein VO₂max im Vergleich zu alters- und geschlechtsbezogenen Perzentilen der kardiorespiratorischen Fitness, als Fitnessalter-Differenz. Das VO₂max ist die Schätzung deines Geräts — hier nie neu berechnet."
+        },
+        "VASCULAR_AGE_DELTA": {
+          "method": "Die Gefäßalter- bzw. Pulswellengeschwindigkeits-Schätzung deines Geräts im Vergleich zu deinem chronologischen Alter, als Differenz in Jahren. Die Schätzung stammt vom Gerät; HealthLog ordnet sie nur ein.",
+          "caveat": "Die eigene Schätzung deines Geräts, nur eingeordnet — beschreibend, keine klinische Gefäßbewertung.",
+          "description": "Wie die Gefäßalter-Schätzung deines Geräts zu deinem chronologischen Alter steht."
+        },
+        "COINCIDENT_DEVIATION": {
+          "method": "Ein Hinweis, wenn zwei oder mehr deiner Vitalwerte am selben Tag außerhalb ihres persönlichen Normalbereichs liegen. Jedes Band ist der robuste Median ± k·MAD deiner eigenen Verlaufsdaten und passt sich an dich an, nicht an einen Bevölkerungswert.",
+          "caveat": "Ein Hinweis aus deinen eigenen Baselines — beschreibend, keine Diagnose und kein klinischer Alarm."
+        },
+        "RECOVERY_SCORE": {
+          "method": "Ein nächtlicher 0–100-Erholungs-Proxy aus HRV, Ruhepuls und Schlaf gegenüber deiner Baseline. Höher heißt besser erholt. Einmal pro Nacht berechnet und hier nur ausgelesen — nie spontan neu berechnet.",
+          "caveat": "Ein beschreibender Wellness-Proxy, kein trainings- oder klinikgerechtes Erholungsmaß.",
+          "description": "Ein nächtlicher Erholungs-Proxy aus HRV, Ruhepuls und Schlaf."
+        },
+        "STRESS_SCORE": {
+          "method": "Ein nächtlicher 0–100-Stress-Proxy aus dem Verlauf deiner HRV über den Tag gegenüber deiner Baseline. Höher heißt mehr physiologische Belastung.",
+          "caveat": "Ein aus der HRV abgeleiteter Proxy, KEINE EDA-/Hautleitwert-Stressmessung — deine Uhr hat keinen EDA-Sensor. Beschreibend, nicht klinisch.",
+          "description": "Ein nächtlicher Stress-Proxy aus dem Tagesverlauf deiner HRV."
+        },
+        "STRAIN_SCORE": {
+          "method": "Ein nächtlicher 0–100-Belastungs-Proxy aus deiner herzfrequenzgewichteten Aktivitätslast (ein TRIMP-ähnliches Trainingsimpuls-Modell). Höher heißt ein anstrengenderer Tag.",
+          "caveat": "Ein beschreibender Aktivitätslast-Proxy, kein klinisches oder trainingsgerechtes Lastmaß.",
+          "description": "Ein nächtlicher Aktivitätslast-Proxy aus deiner herzfrequenzgewichteten Anstrengung."
         }
       },
       "scores": {
@@ -2587,6 +2624,11 @@
         "recovery": "Erholung",
         "stress": "Stress",
         "strain": "Belastung"
+      },
+      "coincident": {
+        "label": "Mehrere Vitalwerte außerhalb der Baseline",
+        "summary": "{count} deiner Vitalwerte lagen heute außerhalb ihres persönlichen Bereichs.",
+        "vitals": "Außerhalb des Bereichs: {list}"
       }
     },
     "cardioFitness": {

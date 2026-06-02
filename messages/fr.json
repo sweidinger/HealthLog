@@ -2579,7 +2579,44 @@
             "sleep": "Sommeil",
             "respiratory": "Fréquence respiratoire",
             "mood": "Stabilité de l’humeur"
-          }
+          },
+          "caveat": "Un indicateur de bien-être, pas un score de récupération ni clinique."
+        },
+        "VITALS_BASELINE": {
+          "method": "Votre plage typique personnelle est la médiane de vos valeurs quotidiennes sur la période, ± une dispersion robuste (écart absolu médian, mis à l’échelle). Elle suit VOS mesures, pas une norme de population : une valeur dans la bande est donc typique pour vous."
+        },
+        "HRV_BALANCE": {
+          "method": "Votre moyenne récente de VFC (SDNN) comparée à votre propre référence glissante (médiane ± dispersion robuste). Équilibrée signifie qu’elle se situe dans votre plage personnelle ; la bande est construite à partir de vos données, jamais d’un seuil de population."
+        },
+        "BMI": {
+          "method": "Poids ÷ taille², classé selon les catégories adultes de l’OMS (maigreur / normal / surpoids / obésité). Un simple ratio de dépistage : il ne distingue pas le muscle de la graisse."
+        },
+        "FITNESS_AGE": {
+          "method": "Votre VO₂max situé par rapport aux percentiles de condition cardiorespiratoire selon l’âge et le sexe, exprimé comme un écart d’âge de forme. Le VO₂max est l’estimation de votre appareil, jamais recalculée ici."
+        },
+        "VASCULAR_AGE_DELTA": {
+          "method": "L’estimation d’âge vasculaire / vitesse de l’onde de pouls de votre appareil comparée à votre âge chronologique, exprimée comme un écart en années. L’estimation vient de l’appareil ; HealthLog ne fait que la reformuler.",
+          "caveat": "La propre estimation de votre appareil, simplement reformulée : descriptive, pas une évaluation vasculaire clinique.",
+          "description": "Comment l’estimation d’âge vasculaire de votre appareil se situe par rapport à votre âge chronologique."
+        },
+        "COINCIDENT_DEVIATION": {
+          "method": "Un indicateur qui se déclenche lorsque deux de vos constantes ou plus sortent de leur plage typique personnelle le même jour. Chaque bande est la médiane robuste ± k·MAD de votre propre historique : elle s’adapte à vous et non à un seuil de population.",
+          "caveat": "Un indicateur issu de vos propres références : descriptif, ni un diagnostic ni une alerte clinique."
+        },
+        "RECOVERY_SCORE": {
+          "method": "Un indice de récupération nocturne de 0 à 100 combinant votre VFC, votre fréquence cardiaque au repos et votre sommeil par rapport à votre référence. Plus élevé signifie mieux récupéré. Calculé une fois par nuit et seulement relu ici, jamais recalculé à la volée.",
+          "caveat": "Un indicateur de bien-être descriptif, pas une mesure de récupération clinique ou de niveau d’entraînement.",
+          "description": "Un indice de récupération nocturne à partir de votre VFC, fréquence au repos et sommeil."
+        },
+        "STRESS_SCORE": {
+          "method": "Un indice de stress nocturne de 0 à 100 à partir de la forme de votre VFC au cours de la journée par rapport à votre référence. Plus élevé signifie une charge physiologique plus forte.",
+          "caveat": "Un indicateur dérivé de la VFC, PAS une mesure de stress par EDA / activité électrodermale : votre montre n’a pas de capteur EDA. Descriptif, non clinique.",
+          "description": "Un indice de stress nocturne à partir de la forme de votre VFC sur la journée."
+        },
+        "STRAIN_SCORE": {
+          "method": "Un indice d’effort nocturne de 0 à 100 à partir de votre charge d’activité pondérée par la fréquence cardiaque (un modèle d’impulsion d’entraînement de type TRIMP). Plus élevé signifie une journée plus exigeante.",
+          "caveat": "Un indicateur descriptif de charge d’activité, pas une mesure de charge clinique ou de niveau d’entraînement.",
+          "description": "Un indice de charge d’activité nocturne à partir de votre effort pondéré par la fréquence cardiaque."
         }
       },
       "scores": {
@@ -2587,6 +2624,11 @@
         "recovery": "Récupération",
         "stress": "Stress",
         "strain": "Effort"
+      },
+      "coincident": {
+        "label": "Plusieurs constantes hors référence",
+        "summary": "Aujourd’hui, {count} de vos constantes sont sorties de leur plage personnelle.",
+        "vitals": "Hors plage : {list}"
       }
     },
     "cardioFitness": {
