@@ -103,6 +103,16 @@ export const queryKeys = {
     ["insights", "mood-status", locale] as const,
   insightsMedicationComplianceStatus: (locale: string) =>
     ["insights", "medication-compliance-status", locale] as const,
+  /**
+   * v1.8.7.1 — per-metric insight assessment for the HealthKit metric
+   * sub-pages. One generic route (`/api/insights/metric-status?metric=…`)
+   * backs every HealthKit metric, so the key is parameterised by the
+   * metric id alongside the locale rather than minting a bespoke factory
+   * entry per metric. The seven bespoke `*-status` routes above keep
+   * their own keys; this one covers the ~29 generic HealthKit pages.
+   */
+  insightsMetricStatus: (metric: string, locale: string) =>
+    ["insights", "metric-status", metric, locale] as const,
 
   medications: () => ["medications"] as const,
   medicationDetail: (id: string) => ["medications", id] as const,
