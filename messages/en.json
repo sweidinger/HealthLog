@@ -158,7 +158,12 @@
     "chartsTitle": "Trend charts",
     "aiSummaryTitle": "AI summary — not clinically validated",
     "aiSummaryDisclaimer": "This section was generated automatically by an AI model and is not clinically validated. It does not replace a medical assessment.",
-    "packageReadme": "HealthLog health record\n\nThis package contains:\n- report.pdf: the health report for your doctor.\n- bundle.json: the same data as an HL7 FHIR R4 document Bundle, ePA-compatible.\n\nGenerated with HealthLog."
+    "packageReadme": "HealthLog health record\n\nThis package contains:\n- report.pdf: the health report for your doctor.\n- bundle.json: the same data as an HL7 FHIR R4 document Bundle, ePA-compatible.\n\nGenerated with HealthLog.",
+    "wellnessTitle": "Wellness summary",
+    "wellnessDisclaimer": "These are descriptive wellness scores computed from your tracked signals (0–100). They are not clinical assessments or diagnoses.",
+    "wellnessRecovery": "Recovery",
+    "wellnessStress": "Stress",
+    "wellnessStrain": "Strain"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -425,7 +430,22 @@
     "dailyTotalCaption": "({count} samples)",
     "expandDay": "Show samples for this day",
     "collapseDay": "Hide samples for this day",
-    "loadError": "Could not load measurements."
+    "loadError": "Could not load measurements.",
+    "typeCardioRecovery": "Cardio recovery",
+    "typeWristTemperature": "Wrist temperature",
+    "typeFallCount": "Falls",
+    "typeSixMinuteWalkDistance": "Six-minute walk distance",
+    "typeStairAscentSpeed": "Stair ascent speed",
+    "typeStairDescentSpeed": "Stair descent speed",
+    "typeBreathingDisturbances": "Sleep breathing disturbances",
+    "typeIrregularRhythmNotification": "Irregular rhythm notification",
+    "typeHighHeartRateEvent": "High heart rate notification",
+    "typeLowHeartRateEvent": "Low heart rate notification",
+    "typeWalkingSteadinessEvent": "Walking steadiness alert",
+    "typeBreathingDisturbanceEvent": "Breathing disturbance",
+    "typeRecoveryScore": "Recovery score",
+    "typeStressScore": "Stress score",
+    "typeStrainScore": "Strain score"
   },
   "mood": {
     "title": "Mood",
@@ -1994,7 +2014,23 @@
         "bloodGlucoseTitle": "Blood glucose",
         "bloodGlucoseBody": "Blood glucose is the amount of sugar in your blood, the body's main energy source. It rises after eating and settles between meals; readings that stay high over time can signal diabetes or prediabetes.",
         "skinTemperatureTitle": "Skin temperature",
-        "skinTemperatureBody": "Skin temperature here is the small nightly change in your wrist temperature from your own baseline, not an absolute fever reading. Shifts can track sleep, environment, illness, or menstrual-cycle phase."
+        "skinTemperatureBody": "Skin temperature here is the small nightly change in your wrist temperature from your own baseline, not an absolute fever reading. Shifts can track sleep, environment, illness, or menstrual-cycle phase.",
+        "cardioFitnessTitle": "Cardio fitness (VO₂ max)",
+        "cardioFitnessBody": "VO₂ max is how much oxygen your body can use at peak effort. It is the single best lab marker of aerobic fitness, and a higher or rising value is a strong sign of cardiovascular health.",
+        "cardioRecoveryTitle": "Cardio recovery",
+        "cardioRecoveryBody": "Cardio recovery is how many beats per minute your heart rate falls in the first minute after you stop hard exercise. A bigger drop means your heart settles down faster, which is a sign of good fitness.",
+        "wristTemperatureTitle": "Wrist temperature",
+        "wristTemperatureBody": "Wrist temperature is measured while you sleep. Apple shows it as the difference from your personal baseline; a steady reading is normal, while a sustained rise can hint at illness, intense training, or a cycle change.",
+        "fallsTitle": "Falls",
+        "fallsBody": "This counts the hard falls your Apple Watch detects. Zero is the goal; a rising count is a mobility-risk signal worth raising with a clinician, especially for older adults.",
+        "sixMinuteWalkTitle": "Six-minute walk distance",
+        "sixMinuteWalkBody": "This is Apple's estimate of how far you could walk in six minutes — a long-standing clinical test of mobility and cardiopulmonary endurance. A steady or rising distance is a good sign.",
+        "stairAscentSpeedTitle": "Stair ascent speed",
+        "stairAscentSpeedBody": "This is how fast you climb a flight of stairs. It is a sensitive marker of leg strength and mobility — a steady or rising pace is a good sign, and a falling one is worth watching.",
+        "stairDescentSpeedTitle": "Stair descent speed",
+        "stairDescentSpeedBody": "This is how fast you go down a flight of stairs. Together with ascent speed it tracks leg control and balance — a steady pace is a good sign, and a falling one is worth watching.",
+        "breathingDisturbancesTitle": "Sleep breathing disturbances",
+        "breathingDisturbancesBody": "Your Apple Watch can estimate how often your breathing was interrupted during sleep. A lower index is better; a level Apple flags as elevated, especially over many nights, is worth raising with a clinician."
       },
       "stats": {
         "label": "Summary statistics",
@@ -2459,6 +2495,241 @@
         "bandSteady": "Your mood has been fairly steady",
         "bandVariable": "Your mood has been noticeably variable",
         "bandVeryVariable": "Your mood has swung a lot lately"
+      }
+    },
+    "derived": {
+      "coverage": {
+        "summary": "{present} of {required} inputs · {percent}%",
+        "ratioLabel": "{present}/{required}",
+        "historyDays": "Based on {count} days of history",
+        "missing": "Track these to sharpen this: {list}"
+      },
+      "scoreRing": {
+        "aria": "Score {score} out of 100, {band}",
+        "ariaProvisional": "Score not available yet — not enough data",
+        "provisionalCaption": "Not enough data yet",
+        "band": {
+          "green": "good",
+          "yellow": "fair",
+          "red": "low"
+        }
+      },
+      "provenance": {
+        "title": "How this is computed",
+        "trigger": "How this is computed",
+        "inputsLabel": "Inputs",
+        "noInputs": "No inputs backed this value yet.",
+        "methodLabel": "Method",
+        "window": "From your last {days} days · {source} data",
+        "asOf": "as of {date}",
+        "standardLink": "Standard: {name}"
+      },
+      "vitals": {
+        "sectionTitle": "Your vitals",
+        "building": "Building your typical range — {count} of {target} days",
+        "typicalRange": "Typical for you: {low}–{high}",
+        "fitnessYounger": "Cardio fitness of someone ~{years} yr younger",
+        "fitnessOlder": "Cardio fitness ~{years} yr above your age",
+        "fitnessTypical": "Cardio fitness typical for your age",
+        "fitnessNoNorm": "Add your age and sex to frame this",
+        "vascularBelow": "{years} yr below your age",
+        "vascularAbove": "{years} yr above your age",
+        "vascularMatch": "In line with your age",
+        "vascularNoAge": "Add your date of birth to frame this",
+        "hrvBand": {
+          "balanced": "Balanced for you",
+          "unbalanced": "Above your usual range",
+          "low": "Below your usual range"
+        },
+        "bmiCategory": {
+          "underweight": "Underweight (WHO)",
+          "normal": "Normal range (WHO)",
+          "overweight": "Overweight (WHO)",
+          "obese": "Obese (WHO)"
+        }
+      },
+      "anatomy": {
+        "outOf": "/100",
+        "contributorsLabel": "Contributors",
+        "contributorValue": "{value} · {weight}% weight",
+        "contributorMissing": "no data",
+        "disclaimer": "Indicative — not a clinical assessment.",
+        "insufficient": "Not enough data yet to score this. Keep tracking and it will appear here."
+      },
+      "composite": {
+        "SLEEP_SCORE": {
+          "title": "Sleep score",
+          "description": "A transparent sleep-quality score with every sub-score shown.",
+          "method": "A 0–100 blend of sufficiency (asleep vs your age-based need), efficiency (asleep ÷ in-bed), consistency (how steady your sleep midpoint is), timing (vs your habitual midpoint) and composition (REM + deep share). Sub-scores reweight around any that your data cannot support; nothing is fabricated.",
+          "sub": {
+            "sufficiency": "Sufficiency",
+            "efficiency": "Efficiency",
+            "consistency": "Consistency",
+            "timing": "Timing",
+            "composition": "Composition"
+          }
+        },
+        "READINESS": {
+          "title": "Readiness",
+          "description": "A daily wellness proxy from how your signals sit against your own baseline.",
+          "method": "A 0–100 blend of resting-HR deviation, HRV (SDNN) deviation, sleep adequacy, respiratory-rate stability and mood stability — each measured against your personal baseline. Weights renormalise over the components your data supports. A wellness proxy, not a recovery or clinical score.",
+          "component": {
+            "rhr": "Resting heart rate",
+            "hrv": "HRV (SDNN)",
+            "sleep": "Sleep",
+            "respiratory": "Respiratory rate",
+            "mood": "Mood stability"
+          },
+          "caveat": "A wellness proxy, not a recovery or clinical score."
+        },
+        "VITALS_BASELINE": {
+          "method": "Your personal typical range is the median of your daily values over the window, ± a robust spread (median absolute deviation, scaled). It tracks YOUR readings, not a population norm — so a value inside the band is typical for you."
+        },
+        "HRV_BALANCE": {
+          "method": "Your recent HRV (SDNN) average placed against your own rolling baseline (median ± a robust spread). Balanced means it sits inside your personal range; the band is built from your data, never a population cut-off."
+        },
+        "BMI": {
+          "method": "Weight ÷ height², classified against the WHO adult categories (underweight / normal / overweight / obese). A screening ratio only — it does not distinguish muscle from fat."
+        },
+        "FITNESS_AGE": {
+          "method": "Your VO₂max placed against age- and sex-referenced cardiorespiratory-fitness percentiles, expressed as a fitness-age delta. The VO₂max is your device's estimate — never recomputed here."
+        },
+        "VASCULAR_AGE_DELTA": {
+          "method": "Your device's vascular-age / pulse-wave-velocity estimate compared with your chronological age, expressed as a delta in years. The estimate is the device's; HealthLog only re-frames it.",
+          "caveat": "Your device's own estimate, re-framed — descriptive, not a clinical vascular assessment.",
+          "description": "How your device's vascular-age estimate sits against your chronological age."
+        },
+        "COINCIDENT_DEVIATION": {
+          "method": "A flag raised when two or more of your vitals sit outside their personal typical range on the same day. Each band is the robust median ± k·MAD of your own history, so it adapts to you rather than to a population cut-off.",
+          "caveat": "An awareness flag from your own baselines — descriptive, not a diagnosis or a clinical alert."
+        },
+        "RECOVERY_SCORE": {
+          "method": "A nightly 0–100 recovery proxy blended from your HRV, resting heart rate and sleep against your own baseline. Higher means better-recovered. Computed once each night and read back here — never recomputed on the fly.",
+          "caveat": "A descriptive wellness proxy, not a training-grade or clinical recovery measure.",
+          "description": "A nightly recovery proxy from your HRV, resting heart rate and sleep."
+        },
+        "STRESS_SCORE": {
+          "method": "A nightly 0–100 stress proxy from the shape of your intra-day HRV against your baseline. Higher means more physiological load.",
+          "caveat": "An HRV-derived proxy, NOT an EDA / galvanic-skin stress measurement — your watch has no EDA sensor. Descriptive, not clinical.",
+          "description": "A nightly stress proxy from the shape of your intra-day HRV."
+        },
+        "STRAIN_SCORE": {
+          "method": "A nightly 0–100 strain proxy from your heart-rate-weighted activity load (a TRIMP-style training-impulse model). Higher means a harder day.",
+          "caveat": "A descriptive activity-load proxy, not a clinical or training-grade load measure.",
+          "description": "A nightly activity-load proxy from your heart-rate-weighted effort."
+        }
+      },
+      "scores": {
+        "sectionTitle": "Wellness scores",
+        "recovery": "Recovery",
+        "stress": "Stress",
+        "strain": "Strain"
+      },
+      "coincident": {
+        "label": "Several vitals off baseline",
+        "summary": "{count} of your vitals sat outside their personal range today.",
+        "vitals": "Outside range: {list}"
+      }
+    },
+    "cardioFitness": {
+      "title": "Cardio Fitness",
+      "description": "Your VO₂ max over time — the headline measure of aerobic fitness.",
+      "chartTitle": "VO₂ max (mL/(kg·min))",
+      "emptyState": {
+        "title": "No cardio-fitness data yet",
+        "description": "VO₂ max readings appear here once Apple Health syncs from your workouts."
+      }
+    },
+    "navCardioFitness": "Cardio Fitness",
+    "cardioRecovery": {
+      "title": "Cardio Recovery",
+      "description": "How far your heart rate drops one minute after peak exercise.",
+      "chartTitle": "Cardio recovery (bpm)",
+      "emptyState": {
+        "title": "No cardio-recovery data yet",
+        "description": "Cardio-recovery readings appear here once Apple Health syncs from a workout."
+      }
+    },
+    "navCardioRecovery": "Cardio Recovery",
+    "wristTemperature": {
+      "title": "Wrist Temperature",
+      "description": "Your overnight wrist temperature, tracked against your own baseline.",
+      "chartTitle": "Wrist temperature (°C)",
+      "emptyState": {
+        "title": "No wrist-temperature data yet",
+        "description": "Wrist-temperature readings appear here once Apple Health syncs overnight wear."
+      }
+    },
+    "navWristTemperature": "Wrist Temp",
+    "falls": {
+      "title": "Falls",
+      "description": "Hard falls your Apple Watch detected, counted per day.",
+      "chartTitle": "Falls per day",
+      "emptyState": {
+        "title": "No fall data yet",
+        "description": "Detected falls appear here once Apple Health syncs. No falls is the goal."
+      }
+    },
+    "navFalls": "Falls",
+    "sixMinuteWalk": {
+      "title": "Six-Minute Walk",
+      "description": "Apple's estimate of how far you could walk in six minutes.",
+      "chartTitle": "Six-minute walk distance (m)",
+      "emptyState": {
+        "title": "No six-minute-walk data yet",
+        "description": "Six-minute-walk estimates appear here once Apple Health syncs."
+      }
+    },
+    "navSixMinuteWalk": "6-Min Walk",
+    "stairAscentSpeed": {
+      "title": "Stair Ascent Speed",
+      "description": "How fast you climb stairs, measured by your iPhone or Watch.",
+      "chartTitle": "Stair ascent speed (m/s)",
+      "emptyState": {
+        "title": "No stair-ascent-speed data yet",
+        "description": "Stair-ascent-speed readings appear here once Apple Health syncs."
+      }
+    },
+    "navStairAscentSpeed": "Stair Ascent",
+    "stairDescentSpeed": {
+      "title": "Stair Descent Speed",
+      "description": "How fast you go down stairs, measured by your iPhone or Watch.",
+      "chartTitle": "Stair descent speed (m/s)",
+      "emptyState": {
+        "title": "No stair-descent-speed data yet",
+        "description": "Stair-descent-speed readings appear here once Apple Health syncs."
+      }
+    },
+    "navStairDescentSpeed": "Stair Descent",
+    "breathingDisturbances": {
+      "title": "Breathing Disturbances",
+      "description": "How often your breathing was disturbed during sleep.",
+      "chartTitle": "Sleep breathing disturbances",
+      "emptyState": {
+        "title": "No breathing-disturbance data yet",
+        "description": "Sleep-breathing readings appear here once Apple Health syncs from a supported Apple Watch."
+      }
+    },
+    "navBreathingDisturbances": "Breathing",
+    "rhythmEvents": {
+      "sectionTitle": "Device health notifications",
+      "sectionIntro": "Notifications your watch sent on its own. HealthLog only shows these — it does not detect, confirm, or interpret them.",
+      "loadError": "Could not load your device notifications.",
+      "disclaimer": "These are alerts your device produced using its own built-in detection. They are shown here for your awareness only. This is not a medical assessment by HealthLog, and HealthLog does not diagnose any condition. If a notification concerns you, talk to your doctor.",
+      "event": {
+        "irregularRhythm": "Irregular rhythm notification",
+        "highHeartRate": "High heart rate notification",
+        "lowHeartRate": "Low heart rate notification",
+        "walkingSteadiness": "Walking steadiness alert",
+        "breathingDisturbance": "Breathing disturbance during sleep"
+      },
+      "verdict": {
+        "irregular": "Your device flagged a possible irregular rhythm.",
+        "notDetected": "Your device did not flag an irregular rhythm.",
+        "inconclusive": "Your device could not make a reading.",
+        "low": "Your device flagged low walking steadiness.",
+        "veryLow": "Your device flagged very low walking steadiness.",
+        "fired": "Your device flagged this event."
       }
     }
   },

@@ -97,6 +97,10 @@ export const exportSelectionSchema = z
     practiceName: z.string().max(120).optional(),
     includeCharts: z.boolean().optional(),
     includeAiSummary: z.boolean().optional(),
+    // FHIR only: additionally emit the German BfArM ATC URI alongside the WHO
+    // entry on each medication concept (WHO stays first, byte-identical). When
+    // omitted, the route derives it from a German-region locale.
+    germanAtc: z.boolean().optional(),
   })
   .strict();
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { MeasurementType } from "@/generated/prisma/client";
+import { EVENT_MEASUREMENT_TYPES } from "@/lib/validations/measurement";
 import {
   ALLOWED_CHART_TOKENS,
   parseChartTokens,
@@ -214,12 +215,20 @@ describe("ALLOWED_CHART_TOKENS — drift guard", () => {
     );
   });
 
-  it("covers every MeasurementType enum value", () => {
+  it("covers every chartable MeasurementType enum value", () => {
     // If a future schema migration adds a new MeasurementType, this test
     // fails until the new `metric:<TYPE>` is also added to the allowlist.
     // (`NOTE` is excluded if it ever appears — currently the schema has none.)
+    //
+    // v1.10.0 — the categorical EVENT classes (irregular-rhythm /
+    // high-low-HR / walking-steadiness / breathing-disturbance) are
+    // deliberately NOT chartable: they are discrete device-flagged
+    // occurrences with no continuous series, surfaced on the awareness
+    // timeline rather than the inline chart renderer. They carry no
+    // `metric:<TYPE>` token by design.
     const enumTokens = (Object.values(MeasurementType) as string[])
       .filter((value) => value !== "NOTE")
+      .filter((value) => !EVENT_MEASUREMENT_TYPES.has(value))
       .map((value) => `metric:${value}`);
 
     for (const token of enumTokens) {

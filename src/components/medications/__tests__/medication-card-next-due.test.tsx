@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -51,6 +51,20 @@ const pastWindow = {
   daysOfWeek: null,
   dose: null,
 };
+
+// Pin the clock to a fixed mid-day instant so window-status ("take now"
+// vs "next intake") and relative day labels are deterministic regardless
+// of the CI host clock + timezone. The 01:00–02:00 windows below read as
+// inactive at noon in every timezone; an unpinned run that happened to
+// fall inside that window (e.g. 01:01 CEST) flipped the card to the
+// take-now pill and broke these assertions.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-06-02T12:00:00Z"));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("<MedicationCard> — next-due reads from server nextDueAt", () => {
   it("renders the server nextDueAt date for a rolling medication, not a today/tomorrow walker value", () => {
@@ -152,11 +166,13 @@ describe("<MedicationCard> — next-due reads from server nextDueAt", () => {
   it("renders the day label for a single-time daysOfWeek medication due tomorrow", () => {
     // A daily / weekly medication whose server next-due is tomorrow
     // still renders the relative "tomorrow" label — proving the ordinary
-    // single-time path keeps working.
+    // single-time path keeps working. `due` is a fixed UTC instant ~20h
+    // after the pinned clock, so it lands on the next calendar day in both
+    // UTC and the Berlin default — the relative label is deterministic.
     const now = new Date();
     const due = new Date(now);
-    due.setDate(due.getDate() + 1);
-    due.setHours(8, 0, 0, 0);
+    due.setUTCDate(due.getUTCDate() + 1);
+    due.setUTCHours(8, 0, 0, 0);
 
     const med = {
       id: "med-daily-1",

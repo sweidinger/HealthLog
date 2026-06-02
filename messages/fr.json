@@ -158,7 +158,12 @@
     "chartsTitle": "Graphiques de tendance",
     "aiSummaryTitle": "Résumé IA — non validé cliniquement",
     "aiSummaryDisclaimer": "Cette section a été générée automatiquement par un modèle d’IA et n’est pas validée cliniquement. Elle ne remplace pas une évaluation médicale.",
-    "packageReadme": "Dossier de santé HealthLog\n\nCe paquet contient :\n- report.pdf : le rapport de santé pour votre médecin.\n- bundle.json : les mêmes données sous forme de Bundle document HL7 FHIR R4, compatible ePA.\n\nGénéré avec HealthLog."
+    "packageReadme": "Dossier de santé HealthLog\n\nCe paquet contient :\n- report.pdf : le rapport de santé pour votre médecin.\n- bundle.json : les mêmes données sous forme de Bundle document HL7 FHIR R4, compatible ePA.\n\nGénéré avec HealthLog.",
+    "wellnessTitle": "Résumé de bien-être",
+    "wellnessDisclaimer": "Ce sont des scores de bien-être descriptifs calculés à partir de vos signaux suivis (0–100). Ce ne sont pas des évaluations cliniques ni des diagnostics.",
+    "wellnessRecovery": "Récupération",
+    "wellnessStress": "Stress",
+    "wellnessStrain": "Effort"
   },
   "errorBoundary": {
     "title": "Une erreur est survenue",
@@ -425,7 +430,22 @@
     "dailyTotalCaption": "({count} échantillons)",
     "expandDay": "Afficher les échantillons de ce jour",
     "collapseDay": "Masquer les échantillons de ce jour",
-    "loadError": "Impossible de charger les mesures."
+    "loadError": "Impossible de charger les mesures.",
+    "typeCardioRecovery": "Récupération cardiaque",
+    "typeWristTemperature": "Température du poignet",
+    "typeFallCount": "Chutes",
+    "typeSixMinuteWalkDistance": "Distance de marche de 6 minutes",
+    "typeStairAscentSpeed": "Vitesse en montée d'escaliers",
+    "typeStairDescentSpeed": "Vitesse en descente d'escaliers",
+    "typeBreathingDisturbances": "Troubles respiratoires du sommeil",
+    "typeIrregularRhythmNotification": "Irregular rhythm notification",
+    "typeHighHeartRateEvent": "High heart rate notification",
+    "typeLowHeartRateEvent": "Low heart rate notification",
+    "typeWalkingSteadinessEvent": "Walking steadiness alert",
+    "typeBreathingDisturbanceEvent": "Breathing disturbance",
+    "typeRecoveryScore": "Recovery score",
+    "typeStressScore": "Stress score",
+    "typeStrainScore": "Strain score"
   },
   "mood": {
     "title": "Humeur",
@@ -1994,7 +2014,23 @@
         "bloodGlucoseTitle": "Glycémie",
         "bloodGlucoseBody": "La glycémie est la quantité de sucre dans votre sang, principale source d'énergie de l'organisme. Elle augmente après les repas et se stabilise entre eux ; des valeurs durablement élevées peuvent signaler un diabète ou un prédiabète.",
         "skinTemperatureTitle": "Température cutanée",
-        "skinTemperatureBody": "La température cutanée correspond ici à la petite variation nocturne de la température de votre poignet par rapport à votre propre référence, et non à une mesure absolue de fièvre. Les variations peuvent suivre le sommeil, l'environnement, une maladie ou la phase du cycle menstruel."
+        "skinTemperatureBody": "La température cutanée correspond ici à la petite variation nocturne de la température de votre poignet par rapport à votre propre référence, et non à une mesure absolue de fièvre. Les variations peuvent suivre le sommeil, l'environnement, une maladie ou la phase du cycle menstruel.",
+        "cardioFitnessTitle": "Capacité cardio (VO₂ max)",
+        "cardioFitnessBody": "Le VO₂ max correspond à la quantité d'oxygène que votre corps peut utiliser à l'effort maximal. C'est le meilleur marqueur de laboratoire de la forme aérobie, et une valeur plus élevée ou en hausse est un bon signe de santé cardiovasculaire.",
+        "cardioRecoveryTitle": "Récupération cardiaque",
+        "cardioRecoveryBody": "La récupération cardiaque correspond au nombre de battements par minute dont votre fréquence cardiaque diminue dans la première minute après l'arrêt d'un effort intense. Une baisse plus forte signifie que votre cœur se calme plus vite, signe d'une bonne condition physique.",
+        "wristTemperatureTitle": "Température du poignet",
+        "wristTemperatureBody": "La température du poignet est mesurée pendant votre sommeil. Apple l'affiche comme l'écart par rapport à votre valeur de référence ; une valeur stable est normale, tandis qu'une hausse durable peut signaler une maladie, un entraînement intense ou un changement de cycle.",
+        "fallsTitle": "Chutes",
+        "fallsBody": "Ceci compte les chutes lourdes détectées par votre Apple Watch. L'objectif est zéro ; un nombre en hausse est un signal de risque de mobilité à évoquer avec un professionnel, surtout pour les personnes âgées.",
+        "sixMinuteWalkTitle": "Distance de marche de 6 minutes",
+        "sixMinuteWalkBody": "C'est l'estimation d'Apple de la distance que vous pourriez parcourir en six minutes, un test clinique classique de mobilité et d'endurance cardiopulmonaire. Une distance stable ou en hausse est un bon signe.",
+        "stairAscentSpeedTitle": "Vitesse en montée d'escaliers",
+        "stairAscentSpeedBody": "C'est la vitesse à laquelle vous montez une volée de marches. C'est un marqueur sensible de la force des jambes et de la mobilité : un rythme stable ou en hausse est bon signe, un rythme en baisse mérite attention.",
+        "stairDescentSpeedTitle": "Vitesse en descente d'escaliers",
+        "stairDescentSpeedBody": "C'est la vitesse à laquelle vous descendez une volée de marches. Avec la vitesse de montée, elle reflète le contrôle des jambes et l'équilibre : un rythme stable est bon signe, un rythme en baisse mérite attention.",
+        "breathingDisturbancesTitle": "Troubles respiratoires du sommeil",
+        "breathingDisturbancesBody": "Votre Apple Watch peut estimer à quelle fréquence votre respiration a été interrompue pendant le sommeil. Un indice plus bas est préférable ; un niveau qu'Apple signale comme élevé, surtout sur plusieurs nuits, mérite d'être évoqué avec un professionnel."
       },
       "stats": {
         "label": "Statistiques récapitulatives",
@@ -2459,6 +2495,241 @@
         "bandSteady": "Votre humeur a été plutôt stable",
         "bandVariable": "Votre humeur a été nettement variable",
         "bandVeryVariable": "Votre humeur a beaucoup fluctué récemment"
+      }
+    },
+    "derived": {
+      "coverage": {
+        "summary": "{present} entrées sur {required} · {percent}%",
+        "ratioLabel": "{present}/{required}",
+        "historyDays": "Basé sur {count} jours d'historique",
+        "missing": "Enregistre ceci pour affiner la valeur : {list}"
+      },
+      "scoreRing": {
+        "aria": "Score {score} sur 100, {band}",
+        "ariaProvisional": "Score pas encore disponible — données insuffisantes",
+        "provisionalCaption": "Données encore insuffisantes",
+        "band": {
+          "green": "bon",
+          "yellow": "moyen",
+          "red": "faible"
+        }
+      },
+      "provenance": {
+        "title": "Comment c'est calculé",
+        "trigger": "Comment c'est calculé",
+        "inputsLabel": "Entrées",
+        "noInputs": "Aucune entrée ne soutient encore cette valeur.",
+        "methodLabel": "Méthode",
+        "window": "Sur tes {days} derniers jours · données {source}",
+        "asOf": "au {date}",
+        "standardLink": "Norme : {name}"
+      },
+      "vitals": {
+        "sectionTitle": "Vos constantes",
+        "building": "Construction de votre plage habituelle — {count} sur {target} jours",
+        "typicalRange": "Habituel pour vous : {low}–{high}",
+        "fitnessYounger": "Forme cardio d'une personne ~{years} ans plus jeune",
+        "fitnessOlder": "Forme cardio ~{years} ans au-dessus de votre âge",
+        "fitnessTypical": "Forme cardio typique pour votre âge",
+        "fitnessNoNorm": "Ajoutez votre âge et votre sexe pour situer cela",
+        "vascularBelow": "{years} ans en dessous de votre âge",
+        "vascularAbove": "{years} ans au-dessus de votre âge",
+        "vascularMatch": "En phase avec votre âge",
+        "vascularNoAge": "Ajoutez votre date de naissance pour situer cela",
+        "hrvBand": {
+          "balanced": "Équilibré pour vous",
+          "unbalanced": "Au-dessus de votre plage habituelle",
+          "low": "En dessous de votre plage habituelle"
+        },
+        "bmiCategory": {
+          "underweight": "Insuffisance pondérale (OMS)",
+          "normal": "Plage normale (OMS)",
+          "overweight": "Surpoids (OMS)",
+          "obese": "Obésité (OMS)"
+        }
+      },
+      "anatomy": {
+        "outOf": "/100",
+        "contributorsLabel": "Facteurs",
+        "contributorValue": "{value} · {weight}% du poids",
+        "contributorMissing": "aucune donnée",
+        "disclaimer": "Indicatif — pas une évaluation clinique.",
+        "insufficient": "Pas encore assez de données pour l’évaluer. Continuez à enregistrer et cela apparaîtra ici."
+      },
+      "composite": {
+        "SLEEP_SCORE": {
+          "title": "Score de sommeil",
+          "description": "Un score de qualité du sommeil transparent avec chaque sous-score affiché.",
+          "method": "Un mélange de 0–100 entre suffisance (sommeil vs votre besoin selon l’âge), efficacité (sommeil ÷ temps au lit), régularité (stabilité de votre milieu de sommeil), timing (vs votre milieu habituel) et composition (part de REM + sommeil profond). Les sous-scores sont repondérés autour de ceux que vos données ne peuvent pas étayer ; rien n’est inventé.",
+          "sub": {
+            "sufficiency": "Suffisance",
+            "efficiency": "Efficacité",
+            "consistency": "Régularité",
+            "timing": "Timing",
+            "composition": "Composition"
+          }
+        },
+        "READINESS": {
+          "title": "Disponibilité",
+          "description": "Un indicateur quotidien de bien-être selon la position de vos signaux par rapport à votre propre référence.",
+          "method": "Un mélange de 0–100 entre l’écart de la fréquence cardiaque au repos, l’écart de la VFC (SDNN), la qualité du sommeil, la stabilité de la fréquence respiratoire et la stabilité de l’humeur — chacun mesuré par rapport à votre référence personnelle. Les poids sont renormalisés sur les composantes que vos données étayent. Un indicateur de bien-être, pas un score de récupération ni clinique.",
+          "component": {
+            "rhr": "Fréquence cardiaque au repos",
+            "hrv": "VFC (SDNN)",
+            "sleep": "Sommeil",
+            "respiratory": "Fréquence respiratoire",
+            "mood": "Stabilité de l’humeur"
+          },
+          "caveat": "Un indicateur de bien-être, pas un score de récupération ni clinique."
+        },
+        "VITALS_BASELINE": {
+          "method": "Votre plage typique personnelle est la médiane de vos valeurs quotidiennes sur la période, ± une dispersion robuste (écart absolu médian, mis à l’échelle). Elle suit VOS mesures, pas une norme de population : une valeur dans la bande est donc typique pour vous."
+        },
+        "HRV_BALANCE": {
+          "method": "Votre moyenne récente de VFC (SDNN) comparée à votre propre référence glissante (médiane ± dispersion robuste). Équilibrée signifie qu’elle se situe dans votre plage personnelle ; la bande est construite à partir de vos données, jamais d’un seuil de population."
+        },
+        "BMI": {
+          "method": "Poids ÷ taille², classé selon les catégories adultes de l’OMS (maigreur / normal / surpoids / obésité). Un simple ratio de dépistage : il ne distingue pas le muscle de la graisse."
+        },
+        "FITNESS_AGE": {
+          "method": "Votre VO₂max situé par rapport aux percentiles de condition cardiorespiratoire selon l’âge et le sexe, exprimé comme un écart d’âge de forme. Le VO₂max est l’estimation de votre appareil, jamais recalculée ici."
+        },
+        "VASCULAR_AGE_DELTA": {
+          "method": "L’estimation d’âge vasculaire / vitesse de l’onde de pouls de votre appareil comparée à votre âge chronologique, exprimée comme un écart en années. L’estimation vient de l’appareil ; HealthLog ne fait que la reformuler.",
+          "caveat": "La propre estimation de votre appareil, simplement reformulée : descriptive, pas une évaluation vasculaire clinique.",
+          "description": "Comment l’estimation d’âge vasculaire de votre appareil se situe par rapport à votre âge chronologique."
+        },
+        "COINCIDENT_DEVIATION": {
+          "method": "Un indicateur qui se déclenche lorsque deux de vos constantes ou plus sortent de leur plage typique personnelle le même jour. Chaque bande est la médiane robuste ± k·MAD de votre propre historique : elle s’adapte à vous et non à un seuil de population.",
+          "caveat": "Un indicateur issu de vos propres références : descriptif, ni un diagnostic ni une alerte clinique."
+        },
+        "RECOVERY_SCORE": {
+          "method": "Un indice de récupération nocturne de 0 à 100 combinant votre VFC, votre fréquence cardiaque au repos et votre sommeil par rapport à votre référence. Plus élevé signifie mieux récupéré. Calculé une fois par nuit et seulement relu ici, jamais recalculé à la volée.",
+          "caveat": "Un indicateur de bien-être descriptif, pas une mesure de récupération clinique ou de niveau d’entraînement.",
+          "description": "Un indice de récupération nocturne à partir de votre VFC, fréquence au repos et sommeil."
+        },
+        "STRESS_SCORE": {
+          "method": "Un indice de stress nocturne de 0 à 100 à partir de la forme de votre VFC au cours de la journée par rapport à votre référence. Plus élevé signifie une charge physiologique plus forte.",
+          "caveat": "Un indicateur dérivé de la VFC, PAS une mesure de stress par EDA / activité électrodermale : votre montre n’a pas de capteur EDA. Descriptif, non clinique.",
+          "description": "Un indice de stress nocturne à partir de la forme de votre VFC sur la journée."
+        },
+        "STRAIN_SCORE": {
+          "method": "Un indice d’effort nocturne de 0 à 100 à partir de votre charge d’activité pondérée par la fréquence cardiaque (un modèle d’impulsion d’entraînement de type TRIMP). Plus élevé signifie une journée plus exigeante.",
+          "caveat": "Un indicateur descriptif de charge d’activité, pas une mesure de charge clinique ou de niveau d’entraînement.",
+          "description": "Un indice de charge d’activité nocturne à partir de votre effort pondéré par la fréquence cardiaque."
+        }
+      },
+      "scores": {
+        "sectionTitle": "Scores de bien-être",
+        "recovery": "Récupération",
+        "stress": "Stress",
+        "strain": "Effort"
+      },
+      "coincident": {
+        "label": "Plusieurs constantes hors référence",
+        "summary": "Aujourd’hui, {count} de vos constantes sont sorties de leur plage personnelle.",
+        "vitals": "Hors plage : {list}"
+      }
+    },
+    "cardioFitness": {
+      "title": "Condition physique",
+      "description": "Votre VO₂ max au fil du temps — la principale mesure de la forme aérobie.",
+      "chartTitle": "VO₂ max (mL/(kg·min))",
+      "emptyState": {
+        "title": "Pas encore de données de condition physique",
+        "description": "Les valeurs de VO₂ max apparaissent ici dès qu'Apple Santé les synchronise depuis vos entraînements."
+      }
+    },
+    "navCardioFitness": "Condition physique",
+    "cardioRecovery": {
+      "title": "Récupération cardiaque",
+      "description": "De combien votre fréquence cardiaque baisse une minute après l'effort maximal.",
+      "chartTitle": "Récupération cardiaque (bpm)",
+      "emptyState": {
+        "title": "Pas encore de données de récupération cardiaque",
+        "description": "Les valeurs de récupération cardiaque apparaissent ici dès qu'Apple Santé les synchronise depuis un entraînement."
+      }
+    },
+    "navCardioRecovery": "Récupération cardiaque",
+    "wristTemperature": {
+      "title": "Température du poignet",
+      "description": "Votre température du poignet pendant la nuit, comparée à votre valeur de référence.",
+      "chartTitle": "Température du poignet (°C)",
+      "emptyState": {
+        "title": "Pas encore de données de température du poignet",
+        "description": "Les valeurs apparaissent ici dès qu'Apple Santé synchronise le port nocturne."
+      }
+    },
+    "navWristTemperature": "Temp. poignet",
+    "falls": {
+      "title": "Chutes",
+      "description": "Chutes lourdes détectées par votre Apple Watch, comptées par jour.",
+      "chartTitle": "Chutes par jour",
+      "emptyState": {
+        "title": "Pas encore de données de chutes",
+        "description": "Les chutes détectées apparaissent ici dès qu'Apple Santé se synchronise. L'objectif est zéro chute."
+      }
+    },
+    "navFalls": "Chutes",
+    "sixMinuteWalk": {
+      "title": "Marche de 6 minutes",
+      "description": "L'estimation d'Apple de la distance que vous pourriez parcourir en six minutes.",
+      "chartTitle": "Distance sur 6 minutes (m)",
+      "emptyState": {
+        "title": "Pas encore de données de marche de 6 minutes",
+        "description": "Les estimations apparaissent ici dès qu'Apple Santé se synchronise."
+      }
+    },
+    "navSixMinuteWalk": "Marche 6 min",
+    "stairAscentSpeed": {
+      "title": "Vitesse en montée d'escaliers",
+      "description": "À quelle vitesse vous montez les escaliers, mesurée par votre iPhone ou Watch.",
+      "chartTitle": "Vitesse de montée (m/s)",
+      "emptyState": {
+        "title": "Pas encore de données de montée d'escaliers",
+        "description": "Les valeurs apparaissent ici dès qu'Apple Santé se synchronise."
+      }
+    },
+    "navStairAscentSpeed": "Montée escaliers",
+    "stairDescentSpeed": {
+      "title": "Vitesse en descente d'escaliers",
+      "description": "À quelle vitesse vous descendez les escaliers, mesurée par votre iPhone ou Watch.",
+      "chartTitle": "Vitesse de descente (m/s)",
+      "emptyState": {
+        "title": "Pas encore de données de descente d'escaliers",
+        "description": "Les valeurs apparaissent ici dès qu'Apple Santé se synchronise."
+      }
+    },
+    "navStairDescentSpeed": "Descente escaliers",
+    "breathingDisturbances": {
+      "title": "Troubles respiratoires",
+      "description": "À quelle fréquence votre respiration a été perturbée pendant le sommeil.",
+      "chartTitle": "Troubles respiratoires du sommeil",
+      "emptyState": {
+        "title": "Pas encore de données de troubles respiratoires",
+        "description": "Les valeurs apparaissent ici dès qu'Apple Santé les synchronise depuis une Apple Watch compatible."
+      }
+    },
+    "navBreathingDisturbances": "Respiration",
+    "rhythmEvents": {
+      "sectionTitle": "Notifications de santé de l’appareil",
+      "sectionIntro": "Notifications que votre montre a envoyées d’elle-même. HealthLog se contente de les afficher — il ne les détecte, ne les confirme ni ne les interprète.",
+      "loadError": "Impossible de charger les notifications de votre appareil.",
+      "disclaimer": "Ce sont des alertes que votre appareil a produites avec sa propre détection intégrée. Elles sont affichées ici uniquement à titre informatif. Il ne s’agit pas d’une évaluation médicale de HealthLog, et HealthLog ne pose aucun diagnostic. Si une notification vous inquiète, parlez-en à votre médecin.",
+      "event": {
+        "irregularRhythm": "Irregular rhythm notification",
+        "highHeartRate": "High heart rate notification",
+        "lowHeartRate": "Low heart rate notification",
+        "walkingSteadiness": "Walking steadiness alert",
+        "breathingDisturbance": "Breathing disturbance during sleep"
+      },
+      "verdict": {
+        "irregular": "Your device flagged a possible irregular rhythm.",
+        "notDetected": "Your device did not flag an irregular rhythm.",
+        "inconclusive": "Your device could not make a reading.",
+        "low": "Your device flagged low walking steadiness.",
+        "veryLow": "Your device flagged very low walking steadiness.",
+        "fired": "Your device flagged this event."
       }
     }
   },

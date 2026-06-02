@@ -516,7 +516,7 @@ describe("buildFhirDocumentBundle", () => {
             status: "completed",
             doseText: "10mg",
             dose: { value: 10, unit: "mg" },
-            injectionSite: "abdomen-left",
+            injectionSite: "ABDOMEN_LEFT",
             atcCode: "A10BX10",
             rxNormCode: "2601723",
             deliveryForm: "INJECTION",
@@ -542,8 +542,22 @@ describe("buildFhirDocumentBundle", () => {
       code: "mg",
     });
     expect(a.dosage?.text).toBe("10mg");
+    // Route carries an additive SNOMED coding (INJECTION → subcutaneous) plus
+    // the unchanged `.text` anchor.
     expect(a.dosage?.route?.text).toBe("Injection");
-    expect(a.dosage?.site?.text).toBe("abdomen-left");
+    expect(a.dosage?.route?.coding?.[0]).toEqual({
+      system: "http://snomed.info/sct",
+      code: "34206005",
+      display: "Subcutaneous route",
+    });
+    // Site `.text` is the raw enum value (laterality preserved); the SNOMED
+    // coding collapses to the gross body region.
+    expect(a.dosage?.site?.text).toBe("ABDOMEN_LEFT");
+    expect(a.dosage?.site?.coding?.[0]).toEqual({
+      system: "http://snomed.info/sct",
+      code: "818983003",
+      display: "Abdomen structure",
+    });
   });
 
   it("maps a skipped intake to a not-done administration with no dosage", () => {
@@ -641,6 +655,202 @@ describe("buildFhirDocumentBundle", () => {
         : undefined;
     const refs = medSection?.entry?.map((e) => e.reference) ?? [];
     expect(refs).toContain("MedicationAdministration/medadmin-1");
+  });
+
+  it("emits the oral SNOMED route coding alongside the unchanged `.text`", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medicationAdministrations: [
+          {
+            medicationName: "Metformin",
+            effectiveAt: "2026-04-30T08:00:00.000Z",
+            status: "completed",
+            doseText: "500mg",
+            dose: { value: 500, unit: "mg" },
+            injectionSite: null,
+            atcCode: null,
+            rxNormCode: null,
+            deliveryForm: "ORAL",
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const route = administrationsOf(bundle)[0].dosage?.route;
+    expect(route?.text).toBe("Oral");
+    expect(route?.coding?.[0]).toEqual({
+      system: "http://snomed.info/sct",
+      code: "26643006",
+      display: "Oral route",
+    });
+  });
+
+  it("maps every InjectionSite enum value to its body-region SNOMED concept, preserving laterality in `.text`", () => {
+    const cases: Array<[string, string, string]> = [
+      ["ABDOMEN_LEFT", "818983003", "Abdomen structure"],
+      ["ABDOMEN_RIGHT", "818983003", "Abdomen structure"],
+      ["ABDOMEN_UPPER_LEFT", "818983003", "Abdomen structure"],
+      ["ABDOMEN_UPPER_RIGHT", "818983003", "Abdomen structure"],
+      ["THIGH_LEFT", "68367000", "Thigh structure"],
+      ["THIGH_RIGHT", "68367000", "Thigh structure"],
+      ["UPPER_ARM_LEFT", "40983000", "Structure of upper arm"],
+      ["UPPER_ARM_RIGHT", "40983000", "Structure of upper arm"],
+    ];
+    for (const [site, code, display] of cases) {
+      const bundle = buildFhirDocumentBundle(
+        makeData({
+          medicationAdministrations: [
+            {
+              medicationName: "Mounjaro",
+              effectiveAt: "2026-04-30T08:12:00.000Z",
+              status: "completed",
+              doseText: "10mg",
+              dose: { value: 10, unit: "mg" },
+              injectionSite: site,
+              atcCode: null,
+              rxNormCode: null,
+              deliveryForm: "INJECTION",
+            },
+          ],
+        }),
+        { insuranceNumber: null },
+        FIXED_NOW,
+      );
+      const fhirSite = administrationsOf(bundle)[0].dosage?.site;
+      // Laterality / quadrant survives verbatim on the `.text` anchor.
+      expect(fhirSite?.text).toBe(site);
+      expect(fhirSite?.coding?.[0]).toEqual({
+        system: "http://snomed.info/sct",
+        code,
+        display,
+      });
+    }
+  });
+
+  it("emits no route for an unknown delivery form and no site when absent", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medicationAdministrations: [
+          {
+            medicationName: "Mystery",
+            effectiveAt: "2026-04-30T08:00:00.000Z",
+            status: "completed",
+            doseText: "1 unit",
+            dose: { value: 1, unit: "unit" },
+            injectionSite: null,
+            atcCode: null,
+            rxNormCode: null,
+            deliveryForm: "TOPICAL",
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const dosage = administrationsOf(bundle)[0].dosage;
+    expect(dosage?.route).toBeUndefined();
+    expect(dosage?.site).toBeUndefined();
+  });
+
+  it("emits exactly the WHO ATC coding by default (no BfArM appended)", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medications: [
+          { name: "Empagliflozin", dose: "10mg", atcCode: "A10BK03", schedules: [] },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+    );
+    const stmt = bundle.entry
+      .map((e) => e.resource)
+      .find(
+        (r): r is FhirMedicationStatement =>
+          r.resourceType === "MedicationStatement",
+      );
+    const coding = stmt?.medicationCodeableConcept.coding;
+    expect(coding).toHaveLength(1);
+    expect(coding?.[0].system).toBe("http://www.whocc.no/atc");
+    expect(
+      coding?.some((c) => c.system === "http://fhir.de/CodeSystem/bfarm/atc"),
+    ).toBe(false);
+  });
+
+  it("appends the BfArM ATC coding AFTER the WHO entry when germanAtc is on", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medications: [
+          { name: "Empagliflozin", dose: "10mg", atcCode: "A10BK03", schedules: [] },
+        ],
+        medicationAdministrations: [
+          {
+            medicationName: "Empagliflozin",
+            effectiveAt: "2026-04-30T08:00:00.000Z",
+            status: "completed",
+            doseText: "10mg",
+            dose: { value: 10, unit: "mg" },
+            injectionSite: null,
+            atcCode: "A10BK03",
+            rxNormCode: "1545150",
+            deliveryForm: "ORAL",
+          },
+        ],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+      { germanAtc: true },
+    );
+    const stmt = bundle.entry
+      .map((e) => e.resource)
+      .find(
+        (r): r is FhirMedicationStatement =>
+          r.resourceType === "MedicationStatement",
+      );
+    const stmtCoding = stmt?.medicationCodeableConcept.coding;
+    // WHO stays coding[0], byte-identical.
+    expect(stmtCoding?.[0]).toEqual({
+      system: "http://www.whocc.no/atc",
+      code: "A10BK03",
+      display: "Empagliflozin",
+    });
+    expect(stmtCoding?.[1]).toEqual({
+      system: "http://fhir.de/CodeSystem/bfarm/atc",
+      code: "A10BK03",
+      display: "Empagliflozin",
+    });
+
+    // The administration concept reflects the flag identically; RxNorm follows.
+    const adminCoding =
+      administrationsOf(bundle)[0].medicationCodeableConcept.coding;
+    expect(adminCoding?.[0].system).toBe("http://www.whocc.no/atc");
+    expect(adminCoding?.[1].system).toBe(
+      "http://fhir.de/CodeSystem/bfarm/atc",
+    );
+    expect(adminCoding?.[2]).toEqual({
+      system: "http://www.nlm.nih.gov/research/umls/rxnorm",
+      code: "1545150",
+    });
+  });
+
+  it("never invents a BfArM coding when no ATC code is stored, even with germanAtc on", () => {
+    const bundle = buildFhirDocumentBundle(
+      makeData({
+        medications: [{ name: "Herbal mix", dose: "1 tab", schedules: [] }],
+      }),
+      { insuranceNumber: null },
+      FIXED_NOW,
+      { germanAtc: true },
+    );
+    const stmt = bundle.entry
+      .map((e) => e.resource)
+      .find(
+        (r): r is FhirMedicationStatement =>
+          r.resourceType === "MedicationStatement",
+      );
+    // Collapses to the text-only concept exactly as before.
+    expect(stmt?.medicationCodeableConcept.coding).toBeUndefined();
+    expect(stmt?.medicationCodeableConcept.text).toBe("Herbal mix");
   });
 
   it("omits the mood Observation when mood is null (privacy default)", () => {

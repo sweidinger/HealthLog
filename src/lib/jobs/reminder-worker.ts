@@ -69,6 +69,29 @@ import {
   type InsightPregeneratePayload,
 } from "@/lib/jobs/insight-pregenerate";
 import {
+  RECOVERY_SCORE_QUEUE,
+  RECOVERY_SCORE_CRON,
+  runRecoveryScore,
+} from "@/lib/jobs/recovery-score";
+import {
+  STRESS_SCORE_QUEUE,
+  STRESS_SCORE_CRON,
+  runStressScore,
+} from "@/lib/jobs/stress-score";
+import {
+  STRAIN_SCORE_QUEUE,
+  STRAIN_SCORE_CRON,
+  runStrainScore,
+} from "@/lib/jobs/strain-score";
+import {
+  DENSE_INTRADAY_RETENTION_QUEUE,
+  DENSE_INTRADAY_RETENTION_CONCURRENCY,
+  runDenseIntradayRetentionForUser,
+  enqueueBootTimeDenseIntradayRetention,
+  type DenseIntradayRetentionPayload,
+} from "@/lib/jobs/dense-intraday-retention";
+import { runDenseIntradayRetention } from "@/lib/measurements/dense-intraday-retention";
+import {
   INSIGHT_STATUS_GENERATE_QUEUE,
   INSIGHT_STATUS_GENERATE_CONCURRENCY,
   runInsightStatusGenerate,
@@ -2128,6 +2151,25 @@ export async function startReminderWorker() {
     // schedule silently no-ops and pruned-past-retention tombstones pile
     // up forever.
     MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE,
+    // v1.10.0 — computed scores (WX-C). Nightly Recovery-score compute +
+    // store. The cron tick fans out one stored `COMPUTED RECOVERY_SCORE` row
+    // per eligible user. The queue MUST be registered here or pg-boss never
+    // provisions it and the 04:45 schedule silently never fires.
+    RECOVERY_SCORE_QUEUE,
+    // v1.10.0 — computed scores (WX-E). Nightly Stress-score (HRV-derived
+    // proxy) compute + store. Same createQueue contract as the recovery
+    // score; without this entry the 04:50 schedule silently never fires.
+    STRESS_SCORE_QUEUE,
+    // v1.10.0 — computed scores (WX-E). Nightly Strain-score (Banister TRIMP
+    // cardio-load) compute + store. Same createQueue contract; without this
+    // entry the 04:55 schedule silently never fires.
+    STRAIN_SCORE_QUEUE,
+    // v1.10.0 — computed scores (WX-E). Dense intra-day retention drain of
+    // daytime HRV / HR samples (per-user backfill queue, boot-discovery
+    // driven like mean-consolidation; the steady-state nightly walk folds
+    // onto the drain-cumulative tick). The queue MUST be registered here or
+    // the boot enqueue silently never drains.
+    DENSE_INTRADAY_RETENTION_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -2218,6 +2260,18 @@ export async function startReminderWorker() {
     // v1.7.0 — daily 03:40 Europe/Berlin prune for expired measurement
     // tombstones.
     [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
+    // v1.10.0 — computed scores (WX-C). Nightly 04:45 Europe/Berlin
+    // Recovery-score compute + store, after the rollup-feeding consolidation
+    // + drain so the signals it reads are already folded.
+    [RECOVERY_SCORE_QUEUE, RECOVERY_SCORE_CRON],
+    // v1.10.0 — computed scores (WX-E). Nightly 04:50 Europe/Berlin
+    // Stress-score compute + store, after the dense intra-day retention
+    // drain so the HRV inputs it reads are settled.
+    [STRESS_SCORE_QUEUE, STRESS_SCORE_CRON],
+    // v1.10.0 — computed scores (WX-E). Nightly 04:55 Europe/Berlin
+    // Strain-score compute + store, after the recovery + stress passes so
+    // the nightly score writes stay ordered.
+    [STRAIN_SCORE_QUEUE, STRAIN_SCORE_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -2374,6 +2428,70 @@ export async function startReminderWorker() {
     { localConcurrency: 1 },
     handleInsightPregenerateJob,
   );
+  // v1.10.0 — computed scores (WX-C). Nightly Recovery-score compute +
+  // store. The cron tick carries an empty payload; the runner iterates every
+  // eligible user and upserts one `COMPUTED RECOVERY_SCORE` row per scored
+  // day (idempotent — a re-fire overwrites in place). Single-flight so two
+  // ticks never double-walk the cohort.
+  await boss.work(
+    RECOVERY_SCORE_QUEUE,
+    { localConcurrency: 1 },
+    async () => {
+      try {
+        const summary = await runRecoveryScore(getWorkerPrisma());
+        workerLog(
+          "info",
+          `[recovery-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
+        );
+      } catch (err) {
+        recordError();
+        workerLog("error", "[recovery-score] pass failed", err);
+        throw err;
+      }
+    },
+  );
+  // v1.10.0 — computed scores (WX-E). Nightly Stress-score (HRV-derived
+  // proxy) compute + store. Single-flight so two ticks never double-walk
+  // the cohort. The runner iterates every eligible user and upserts one
+  // `COMPUTED STRESS_SCORE` row per scored day (idempotent — a re-fire
+  // overwrites in place).
+  await boss.work(
+    STRESS_SCORE_QUEUE,
+    { localConcurrency: 1 },
+    async () => {
+      try {
+        const summary = await runStressScore(getWorkerPrisma());
+        workerLog(
+          "info",
+          `[stress-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
+        );
+      } catch (err) {
+        recordError();
+        workerLog("error", "[stress-score] pass failed", err);
+        throw err;
+      }
+    },
+  );
+  // v1.10.0 — computed scores (WX-E). Nightly Strain-score (Banister TRIMP
+  // cardio-load) compute + store. Single-flight; upserts one `COMPUTED
+  // STRAIN_SCORE` row per scored day (idempotent).
+  await boss.work(
+    STRAIN_SCORE_QUEUE,
+    { localConcurrency: 1 },
+    async () => {
+      try {
+        const summary = await runStrainScore(getWorkerPrisma());
+        workerLog(
+          "info",
+          `[strain-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
+        );
+      } catch (err) {
+        recordError();
+        workerLog("error", "[strain-score] pass failed", err);
+        throw err;
+      }
+    },
+  );
   // v1.8.3 — on-demand per-metric status generation enqueued by the
   // read-only status route on a cold card. Low concurrency so a first
   // visit that cold-misses several cards can't saturate the Prisma pool
@@ -2487,6 +2605,38 @@ export async function startReminderWorker() {
           "info",
           `[mean-consolidation] user=${userId} days=${daysConsolidated} perSampleRowsSoftDeleted=${perSampleRowsSoftDeleted}`,
         );
+      }
+    },
+  );
+
+  // v1.10.0 WX-E — dense intra-day retention per-user backfill worker. The
+  // boot enqueue helper below sends one job per user holding live per-sample
+  // dense-tier (HRV / HR) rows older than the retention window; this handler
+  // folds those out-of-window samples to a daily mean and soft-deletes the
+  // originals, keeping the in-window intra-day shape intact for the Stress
+  // engine. Serial concurrency so the backfill never crowds the request pool.
+  await boss.work<DenseIntradayRetentionPayload>(
+    DENSE_INTRADAY_RETENTION_QUEUE,
+    { localConcurrency: DENSE_INTRADAY_RETENTION_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        try {
+          const { daysConsolidated, perSampleRowsSoftDeleted } =
+            await runDenseIntradayRetentionForUser(userId);
+          workerLog(
+            "info",
+            `[dense-intraday-retention] user=${userId} days=${daysConsolidated} perSampleRowsSoftDeleted=${perSampleRowsSoftDeleted}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            `[dense-intraday-retention] user=${userId} failed`,
+            err,
+          );
+          throw err;
+        }
       }
     },
   );
@@ -2657,6 +2807,38 @@ export async function startReminderWorker() {
           recordError();
           workerLog("error", "[mean-consolidation] nightly run failed", err);
         }
+
+        // v1.10.0 WX-E — fold the dense intra-day retention drain onto the
+        // same nightly tick. Unlike the daily-mean drain, this scopes to the
+        // dense-tier types (HEART_RATE_VARIABILITY, PULSE) and keeps the last
+        // DENSE_INTRADAY_RETENTION_DAYS of raw per-sample rows so the Stress
+        // engine still sees the intra-day SDNN shape; only out-of-window
+        // samples fold to a daily mean. These two types are NEVER in the
+        // destructive HIGH_FREQUENCY_MEAN_TYPES allowlist — the drain
+        // exemption the intra-day shape depends on. The global (no `userId`)
+        // signature drains every user. Boot discovery (below) back-fills
+        // accounts that accumulated out-of-window raw rows before this
+        // shipped.
+        try {
+          const denseSummary = await runDenseIntradayRetention(
+            getWorkerPrisma(),
+            {
+              dryRun: false,
+              log: (line) => workerLog("info", line),
+            },
+          );
+          workerLog(
+            "info",
+            `[dense-intraday-retention] triggeredAt=${job.data.triggeredAt} usersScanned=${denseSummary.totals.usersScanned} daysConsolidated=${denseSummary.totals.daysConsolidated} perSampleRowsSoftDeleted=${denseSummary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${denseSummary.totals.dailyRowsUpserted}`,
+          );
+        } catch (err) {
+          recordError();
+          workerLog(
+            "error",
+            "[dense-intraday-retention] nightly run failed",
+            err,
+          );
+        }
       }
     },
   );
@@ -2749,6 +2931,34 @@ export async function startReminderWorker() {
     workerLog(
       "error",
       "[mean-consolidation] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.10.0 WX-E — fire-and-forget boot discovery for the dense intra-day
+  // retention drain. Finds every user holding live per-sample dense-tier
+  // (HRV / HR) rows OLDER than the retention window and enqueues one job per
+  // account. Idempotent across reboots: folded rows are soft-deleted, so the
+  // discovery predicate drops them. Errors are returned through the helper's
+  // result value — the worker boot never fails on a miss.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeDenseIntradayRetention();
+    if (error) {
+      workerLog(
+        "error",
+        `[dense-intraday-retention] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[dense-intraday-retention] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[dense-intraday-retention] boot discovery threw an unexpected error",
       err,
     );
   }

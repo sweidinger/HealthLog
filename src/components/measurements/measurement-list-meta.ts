@@ -33,6 +33,7 @@ import {
   Volume2,
   Headphones,
   Sun,
+  PersonStanding,
   type LucideIcon,
 } from "lucide-react";
 
@@ -81,6 +82,24 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
   WALKING_STEP_LENGTH: "measurements.typeWalkingStepLength",
   WALKING_SPEED: "measurements.typeWalkingSpeed",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  CARDIO_RECOVERY: "measurements.typeCardioRecovery",
+  WRIST_TEMPERATURE: "measurements.typeWristTemperature",
+  FALL_COUNT: "measurements.typeFallCount",
+  SIX_MINUTE_WALK_DISTANCE: "measurements.typeSixMinuteWalkDistance",
+  STAIR_ASCENT_SPEED: "measurements.typeStairAscentSpeed",
+  STAIR_DESCENT_SPEED: "measurements.typeStairDescentSpeed",
+  BREATHING_DISTURBANCES: "measurements.typeBreathingDisturbances",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  IRREGULAR_RHYTHM_NOTIFICATION: "measurements.typeIrregularRhythmNotification",
+  HIGH_HEART_RATE_EVENT: "measurements.typeHighHeartRateEvent",
+  LOW_HEART_RATE_EVENT: "measurements.typeLowHeartRateEvent",
+  WALKING_STEADINESS_EVENT: "measurements.typeWalkingSteadinessEvent",
+  BREATHING_DISTURBANCE_EVENT: "measurements.typeBreathingDisturbanceEvent",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  RECOVERY_SCORE: "measurements.typeRecoveryScore",
+  STRESS_SCORE: "measurements.typeStressScore",
+  STRAIN_SCORE: "measurements.typeStrainScore",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -145,6 +164,33 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   // WALKING_STEADINESS).
   WALKING_STEP_LENGTH: Footprints,
   WALKING_SPEED: Gauge,
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // HeartPulse carries the post-exercise cardiac-recovery signal;
+  // Thermometer the overnight wrist reading; PersonStanding the
+  // fall-detection tally; Gauge the gait-speed family (stairs + 6MWT);
+  // Wind rounds out the sleep-breathing signal (SpO2 + resp rate
+  // already use it).
+  CARDIO_RECOVERY: HeartPulse,
+  WRIST_TEMPERATURE: Thermometer,
+  FALL_COUNT: PersonStanding,
+  SIX_MINUTE_WALK_DISTANCE: Footprints,
+  STAIR_ASCENT_SPEED: Gauge,
+  STAIR_DESCENT_SPEED: Gauge,
+  BREATHING_DISTURBANCES: Wind,
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // Activity carries the irregular-rhythm trace shape; HeartPulse the
+  // high/low-HR cardio pair; Footprints the steadiness/mobility family;
+  // Wind the breathing family (SpO2 + respiratory rate already use it).
+  IRREGULAR_RHYTHM_NOTIFICATION: Activity,
+  HIGH_HEART_RATE_EVENT: HeartPulse,
+  LOW_HEART_RATE_EVENT: HeartPulse,
+  WALKING_STEADINESS_EVENT: Footprints,
+  BREATHING_DISTURBANCE_EVENT: Wind,
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Gauge reads as a composite "index / score" dial for all three.
+  RECOVERY_SCORE: Gauge,
+  STRESS_SCORE: Gauge,
+  STRAIN_SCORE: Gauge,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -203,4 +249,29 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   // visual group on Insights.
   WALKING_STEP_LENGTH: "bg-chart-2/20 text-chart-2",
   WALKING_SPEED: "bg-chart-2/20 text-chart-2",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // chart-3 (cardio), chart-4 (temp), chart-2 (activity/gait family),
+  // chart-5 (sleep-breathing, shares the SpO2 family).
+  CARDIO_RECOVERY: "bg-chart-3/20 text-chart-3",
+  WRIST_TEMPERATURE: "bg-chart-4/20 text-chart-4",
+  FALL_COUNT: "bg-chart-2/20 text-chart-2",
+  SIX_MINUTE_WALK_DISTANCE: "bg-chart-2/20 text-chart-2",
+  STAIR_ASCENT_SPEED: "bg-chart-2/20 text-chart-2",
+  STAIR_DESCENT_SPEED: "bg-chart-2/20 text-chart-2",
+  BREATHING_DISTURBANCES: "bg-chart-5/20 text-chart-5",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // chart-3 (cardio family) carries the rhythm + heart-rate events;
+  // chart-2 (activity/mobility) carries the steadiness event; chart-5
+  // (respiratory/pulse family) carries the breathing event.
+  IRREGULAR_RHYTHM_NOTIFICATION: "bg-chart-3/20 text-chart-3",
+  HIGH_HEART_RATE_EVENT: "bg-chart-3/20 text-chart-3",
+  LOW_HEART_RATE_EVENT: "bg-chart-3/20 text-chart-3",
+  WALKING_STEADINESS_EVENT: "bg-chart-2/20 text-chart-2",
+  BREATHING_DISTURBANCE_EVENT: "bg-chart-5/20 text-chart-5",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // chart-1 (Dracula purple) marks the server-derived composites as their
+  // own visual group, distinct from the raw-signal families above.
+  RECOVERY_SCORE: "bg-chart-1/20 text-chart-1",
+  STRESS_SCORE: "bg-chart-1/20 text-chart-1",
+  STRAIN_SCORE: "bg-chart-1/20 text-chart-1",
 };

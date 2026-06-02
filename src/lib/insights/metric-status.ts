@@ -37,6 +37,7 @@ import {
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
 import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
+import { lookupNormalRange } from "@/lib/insights/derived/norms";
 import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
@@ -239,6 +240,19 @@ export async function generateMetricStatus(args: {
     ? Math.round((Date.now() - newest.getTime()) / (24 * 60 * 60 * 1000))
     : null;
 
+  const ageYears = getAgeFromDateOfBirth(user?.dateOfBirth ?? null);
+  const sex =
+    user?.gender === "MALE" || user?.gender === "FEMALE"
+      ? user.gender
+      : null;
+
+  // v1.10.0 F1 — sharpen the coarse registry `normalRange` with the
+  // age/sex reference-range enabler when one is available for this
+  // metric + profile; otherwise keep the existing flat anchor (strictly
+  // additive, never a regression). Age + sex only — no ancestry/region.
+  const sharpenedRange = lookupNormalRange(meta.id, ageYears, sex);
+  const normalRange = sharpenedRange ?? meta.normalRange;
+
   const snapshot = {
     locale,
     generatedForDay: todayKey,
@@ -248,14 +262,15 @@ export async function generateMetricStatus(args: {
       displayName: meta.displayName,
       unit: meta.unit,
       direction: meta.direction,
-      ...(meta.normalRange ? { normalRange: meta.normalRange } : {}),
+      ...(normalRange ? { normalRange } : {}),
+      ...(sharpenedRange ? { normalRangeSource: "age-sex-adjusted" } : {}),
     },
     // Profile context for placement only when stored — the medical note
     // limits population ranges to age + sex (NO ancestry/region). Omitted
     // when the profile leaves them blank, so the model leans on baseline.
     profile: {
-      ageYears: getAgeFromDateOfBirth(user?.dateOfBirth ?? null),
-      sex: user?.gender ?? null,
+      ageYears,
+      sex,
     },
     dataCoverage: {
       totalMeasurements: measurements.length,

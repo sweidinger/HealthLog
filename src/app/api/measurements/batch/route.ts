@@ -90,6 +90,12 @@ const batchEntrySchema = z.object({
   startDate: z.iso.datetime({ offset: true }),
   endDate: z.iso.datetime({ offset: true }),
   sleepStage: z.number().int().min(0).max(20).optional(),
+  // v1.10.0 — categorical events (WX-B). The integer `HKCategoryValue`
+  // codepoint for an EVENT-class category sample (irregular-rhythm,
+  // high/low-HR, walking-steadiness, breathing-disturbance). Carries the
+  // device's own verdict / severity; resolved to a `rhythmClassification`
+  // by `mapAppleHealthEntry`. Ignored for every non-event identifier.
+  categoryValue: z.number().int().min(0).max(20).optional(),
   externalId: z.string().min(1).max(120),
   externalSourceVersion: z.string().min(1).max(120).optional(),
   // v1.8.6 W6 — optional per-entry source tag. Defaults to
@@ -215,6 +221,7 @@ async function postBatch(request: NextRequest): Promise<Response> {
       startDate: entry.startDate,
       endDate: entry.endDate,
       sleepStage: entry.sleepStage,
+      categoryValue: entry.categoryValue,
     });
 
     if (!mapped) {
@@ -254,6 +261,9 @@ async function postBatch(request: NextRequest): Promise<Response> {
         externalId: entry.externalId,
         externalSourceVersion: entry.externalSourceVersion ?? null,
         sleepStage: mapped.sleepStage ?? null,
+        // v1.10.0 — categorical events (WX-B). The device's own verdict /
+        // severity for an EVENT row; null for every continuous reading.
+        rhythmClassification: mapped.rhythmClassification ?? null,
         // v1.4.25 W8c — pass the iOS-supplied device-type through to
         // the row. Stays null for pre-W8c iOS builds; the canonical
         // picker treats null as `unknown` so legacy ingest keeps

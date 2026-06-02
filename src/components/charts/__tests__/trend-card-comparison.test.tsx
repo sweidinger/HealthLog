@@ -79,7 +79,7 @@ describe("<TrendCard compareBaseline=...>", () => {
       </I18nProvider>,
     );
     // Down-trend on an up-bad metric is "improvement" → green.
-    expect(html).toMatch(/text-dracula-green/);
+    expect(html).toMatch(/text-success/);
   });
 
   it("paints an up-good metric worsening (negative delta) with the orange sentiment class", () => {
@@ -99,7 +99,7 @@ describe("<TrendCard compareBaseline=...>", () => {
         />
       </I18nProvider>,
     );
-    expect(html).toMatch(/text-dracula-orange/);
+    expect(html).toMatch(/text-warning/);
   });
 
   it("renders muted color when delta is exactly zero (stable)", () => {
@@ -122,8 +122,8 @@ describe("<TrendCard compareBaseline=...>", () => {
     // Stable + neutral both push to muted-foreground.
     expect(html).toMatch(/text-muted-foreground/);
     // Sentiment colour classes must not appear for a stable delta.
-    expect(html).not.toMatch(/text-dracula-green.*tile-compare-delta/);
-    expect(html).not.toMatch(/text-dracula-orange.*tile-compare-delta/);
+    expect(html).not.toMatch(/text-success.*tile-compare-delta/);
+    expect(html).not.toMatch(/text-warning.*tile-compare-delta/);
   });
 
   it("suppresses the callout when compareDelta is null (insufficient prior-period data)", () => {

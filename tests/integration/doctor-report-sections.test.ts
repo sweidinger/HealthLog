@@ -55,6 +55,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 const RANGE = {
@@ -241,7 +242,11 @@ describe("doctor-report — per-section toggles", () => {
 });
 
 describe("doctor-report — MedicationAdministration export cap", () => {
-  it("caps the administration set at 1000 most-recent rows and flags the truncation", async () => {
+  it("caps the administration set at the configured ceiling and flags the truncation", async () => {
+    // The default ceiling is 5000; pin the operator-configurable
+    // `FHIR_MAX_MEDICATION_ADMINISTRATIONS` to 1000 so the cap is exercised
+    // with a tractable row count (the cap is resolved per call).
+    vi.stubEnv("FHIR_MAX_MEDICATION_ADMINISTRATIONS", "1000");
     const prisma = getPrismaClient();
     const user = await prisma.user.create({
       data: {

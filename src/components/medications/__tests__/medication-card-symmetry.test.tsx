@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -126,6 +126,20 @@ const mounjaro: Glp1Medication = {
     },
   ],
 };
+
+// Pin the clock to a fixed mid-day instant so window-status is
+// deterministic: the all-day window (00:00–23:59) reads active (the
+// take-now pill) and the 01:00–02:00 window reads inactive (the upcoming
+// "next intake" line that carries the purple dose accent), in every
+// timezone. An unpinned run that fell inside 01:00–02:00 (e.g. 01:01 CEST)
+// flipped the accent test's card to the take-now pill.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-06-02T12:00:00Z"));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("medication card symmetry — Ramipril vs Mounjaro", () => {
   it("both cards collapse the header actions into a single kebab + navigable header link", () => {

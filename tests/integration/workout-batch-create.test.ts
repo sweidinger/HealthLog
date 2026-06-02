@@ -97,6 +97,13 @@ interface WorkoutFixture {
     geometry: { type: "LineString"; coordinates: [number, number][] };
     sampleTimestamps?: Array<{ t: string; speedMs?: number; hr?: number }>;
   };
+  samples?: Array<{
+    t: string;
+    hr?: number;
+    speedMs?: number;
+    power?: number;
+    cadence?: number;
+  }>;
 }
 
 function makeRequest(
@@ -187,6 +194,42 @@ describe("POST /api/workouts/batch (real Postgres)", () => {
     expect(workouts[0]?.totalDistanceM).toBe(7800);
     expect(workouts[0]?.route).not.toBeNull();
     expect(workouts[0]?.durationSec).toBe(45 * 60);
+  });
+
+  it("persists a route-independent HR series for an indoor workout (v1.10.0)", async () => {
+    const { POST } = await import("@/app/api/workouts/batch/route");
+
+    const body = {
+      workouts: [
+        baseWorkout("hk-uuid-indoor-001", {
+          sportType: "strength",
+          // No route — an indoor session has no GPS geometry.
+          samples: [
+            { t: "2026-05-14T06:30:00.000Z", hr: 110 },
+            { t: "2026-05-14T06:30:05.000Z", hr: 118, power: 0, cadence: 0 },
+            { t: "2026-05-14T06:30:10.000Z", hr: 124 },
+          ],
+        }),
+      ],
+    };
+
+    const res = await POST(makeRequest(body));
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: { inserted: number };
+    };
+    expect(json.data.inserted).toBe(1);
+
+    const workouts = await getPrismaClient().workout.findMany({
+      where: { userId: TEST_USER_ID, externalId: "hk-uuid-indoor-001" },
+      include: { route: true, samples: true },
+    });
+    expect(workouts).toHaveLength(1);
+    // No route row — the series lives in the dedicated child table.
+    expect(workouts[0]?.route).toBeNull();
+    expect(workouts[0]?.samples).not.toBeNull();
+    expect(workouts[0]?.samples?.sampleCount).toBe(3);
+    expect((workouts[0]?.samples?.samples as unknown[]).length).toBe(3);
   });
 
   it("inserts a 100-workout batch with a mix of routed and routeless entries", async () => {

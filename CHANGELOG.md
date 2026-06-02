@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.10.0] — 2026-06-03 — Derived wellness metrics, device-event awareness, deeper ingestion
+
+### Added
+
+- **Derived wellness metrics, each shown with how it is worked out.** From data you already sync, the Insights surface now derives a personal typical range for a vital, a cardio-fitness band, a vascular-age delta, an HRV (SDNN) balance read, body-mass index, a sleep score, a readiness index, and a coincident-deviation flag that notices when several vitals sit off their personal range at once. Every metric states its inputs, its method in plain language, and the published standard it is grounded in, with an honest read of how much data backs it — never a bare number. A metric appears only when there is enough history to mean something.
+- **Recovery, Stress, and Strain scores, computed each night.** Recovery blends your resting-heart-rate, HRV, sleep and respiratory trends against your own baseline; Strain reads the heart-rate load of your workouts; Stress is an HRV-derived proxy and is labelled as exactly that — not a sensor-measured stress reading. Each is stored as a first-class value you can chart, and each opens to a breakdown of its contributors and its cited basis.
+- **More of what your watch already measures.** Cardio recovery, overnight wrist temperature, fall count, six-minute-walk distance, stair ascent and descent speed, and the sleep breathing-disturbance index are now ingested and surfaced.
+- **An awareness timeline for device-flagged events.** Irregular-rhythm, high- and low-heart-rate, walking-steadiness, and breathing-disturbance notifications your device produced are shown as a timeline — strictly as awareness of your own device's certified result, never re-assessed and never a HealthLog diagnosis, with a permanent disclaimer to that effect. The section stays hidden until there is something to show.
+- **A per-workout heart-rate series**, so an indoor workout with no GPS still yields a training-load signal.
+- **A wellness summary in the doctor report.** The derived scores and metrics appear in their own section, kept out of the clinical vitals table, labelled descriptive rather than clinical, and exported to FHIR as `survey`-category observations with the same note — so a clinician's system never mistakes them for a vital sign or a diagnosis.
+
+### Changed
+
+- **The health-record export carries richer medication codings.** A `MedicationAdministration` now adds a SNOMED route and injection-site coding alongside the existing plain text, a German-locale export can append the German BfArM ATC coding next to the unchanged WHO ATC entry, and the number of administrations an export can carry is raised and made configurable by the operator.
+- **The Insights overview reads its metrics through a single request** instead of one per tile, so opening the page no longer fans out into a burst of concurrent reads.
+- **Score-band colours meet contrast on the light theme**, and the device-notification copy — including its medical disclaimer — is translated across every supported language.
+
 ## [1.9.3] — 2026-06-02 — Medication card layout polish
 
 ### Fixed

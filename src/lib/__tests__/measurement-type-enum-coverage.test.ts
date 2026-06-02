@@ -59,10 +59,28 @@ const EXPECTED_TYPES = [
   // ── v1.5.5 iOS-coord follow-up — raw-SI gait pair ──
   "WALKING_STEP_LENGTH",
   "WALKING_SPEED",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  "CARDIO_RECOVERY",
+  "WRIST_TEMPERATURE",
+  "FALL_COUNT",
+  "SIX_MINUTE_WALK_DISTANCE",
+  "STAIR_ASCENT_SPEED",
+  "STAIR_DESCENT_SPEED",
+  "BREATHING_DISTURBANCES",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  "IRREGULAR_RHYTHM_NOTIFICATION",
+  "HIGH_HEART_RATE_EVENT",
+  "LOW_HEART_RATE_EVENT",
+  "WALKING_STEADINESS_EVENT",
+  "BREATHING_DISTURBANCE_EVENT",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  "RECOVERY_SCORE",
+  "STRESS_SCORE",
+  "STRAIN_SCORE",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 38 canonical measurement types", () => {
+  it("exposes the 53 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -130,6 +148,38 @@ describe("measurementTypeEnum coverage", () => {
     // same clinical-layout deferral as the rest of the Mobility set.
     "WALKING_STEP_LENGTH",
     "WALKING_SPEED",
+    // v1.10.0 — additive HealthKit signals (WX-A) held under the same
+    // v1.5+ clinical-layout PDF gate as the rest of the Apple-Health
+    // additions. Cardio recovery, wrist temperature, falls, six-minute
+    // walk, the stair gait speeds, and the sleep-breathing index each
+    // surface on their Insights sub-page; the doctor PDF picks them up
+    // once a clinical layout + reference ranges land.
+    "CARDIO_RECOVERY",
+    "WRIST_TEMPERATURE",
+    "FALL_COUNT",
+    "SIX_MINUTE_WALK_DISTANCE",
+    "STAIR_ASCENT_SPEED",
+    "STAIR_DESCENT_SPEED",
+    "BREATHING_DISTURBANCES",
+    // v1.10.0 — categorical events (WX-B). Device-flagged EVENT rows are
+    // discrete on-device notifications, not vital-sign readings. They are
+    // surfaced on the Insights awareness timeline with their own regulatory
+    // disclaimer, never in the clinical vitals PDF (their value is always 1
+    // and they carry the device's verdict, not a measured quantity). See
+    // doctor-report-pdf-core.ts for the matching exclusion rationale.
+    "IRREGULAR_RHYTHM_NOTIFICATION",
+    "HIGH_HEART_RATE_EVENT",
+    "LOW_HEART_RATE_EVENT",
+    "WALKING_STEADINESS_EVENT",
+    "BREATHING_DISTURBANCE_EVENT",
+    // v1.10.0 — computed scores (WX-C). Server-derived wellness scores
+    // (Recovery / Stress / Strain) are 0–100 composites recomputed nightly,
+    // not measured clinical vitals. They surface on their own Insights
+    // cluster with a "descriptive, not clinical" disclaimer and never belong
+    // in the clinical vitals PDF. See doctor-report-pdf-core.ts.
+    "RECOVERY_SCORE",
+    "STRESS_SCORE",
+    "STRAIN_SCORE",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

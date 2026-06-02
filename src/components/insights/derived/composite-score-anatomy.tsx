@@ -1,0 +1,198 @@
+"use client";
+
+import { useTranslations } from "@/lib/i18n/context";
+import { useDerivedMetric } from "./use-derived-metric";
+import { Skeleton } from "@/components/ui/skeleton";
+import type {
+  ReadinessValue,
+  SleepScoreValue,
+  WellnessScoreValue,
+} from "@/lib/insights/derived";
+import {
+  ScoreAnatomyView,
+  type AnatomyContributor,
+} from "./score-anatomy-view";
+import { METRIC_PROVENANCE } from "./standards";
+
+/**
+ * v1.10.0 — the data-bound wrapper that fetches a composite/persisted derived
+ * score and renders the reusable `ScoreAnatomyView`. It owns the per-metric
+ * presentation map (title, contributor labels, the cited standard, the
+ * plain-language method + honesty caveat) so the anatomy view itself stays
+ * metric-agnostic.
+ *
+ * Supports the two decomposable W3 composites (`SLEEP_SCORE`, `READINESS` —
+ * each maps its sub-scores onto ranked `AnatomyContributor` rows) AND the
+ * three persisted nightly scores (`RECOVERY_SCORE`, `STRESS_SCORE`,
+ * `STRAIN_SCORE`). The persisted scores carry no sub-decomposition, so they
+ * render the ring + coverage + the provenance surface (method + cited
+ * standard + caveat) with no contributor rows — the acceptance-criterion fix
+ * that gives every wellness ring a provenance surface instead of a read-only
+ * dead-end. STRESS surfaces its "HRV-derived proxy, not an EDA/galvanic
+ * measurement" caveat via the standards map.
+ *
+ * The standard + method/caveat keys come from the single `METRIC_PROVENANCE`
+ * source map so the citation a metric exposes never drifts across surfaces.
+ *
+ * Client-only: `import type` for the value shapes (no server graph leaks);
+ * the fetch rides the same `/api/insights/derived` route + 8 s client
+ * ceiling as the rest of the surface.
+ */
+
+export type AnatomyMetricId =
+  | "SLEEP_SCORE"
+  | "READINESS"
+  | "RECOVERY_SCORE"
+  | "STRESS_SCORE"
+  | "STRAIN_SCORE";
+
+export interface CompositeScoreAnatomyProps {
+  metric: AnatomyMetricId;
+  className?: string;
+}
+
+export function CompositeScoreAnatomy({
+  metric,
+  className,
+}: CompositeScoreAnatomyProps) {
+  const { t } = useTranslations();
+
+  const query = useDerivedMetric<
+    SleepScoreValue | ReadinessValue | WellnessScoreValue
+  >(metric);
+
+  if (query.isLoading) {
+    return (
+      <div data-slot="composite-anatomy-loading" className={className}>
+        <Skeleton className="h-[28rem] w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  const data = query.data;
+  const meta = METRIC_PROVENANCE[metric];
+  const standard = meta.standard;
+  const title = titleFor(metric, t);
+  // Method copy carries an optional honesty caveat above it (STRESS proxy,
+  // descriptive-not-clinical, …) so the caveat reaches the user, not just
+  // the engine header.
+  const method = (
+    <>
+      {meta.caveatKey ? (
+        <span className="text-warning block font-medium">
+          {t(meta.caveatKey)}
+        </span>
+      ) : null}
+      {t(meta.methodKey)}
+    </>
+  );
+
+  if (!data) {
+    // Network/abort fallback — render the insufficient state honestly.
+    return (
+      <ScoreAnatomyView
+        title={title}
+        score={null}
+        contributors={[]}
+        coverage={{
+          requiredInputs: 1,
+          presentInputs: 0,
+          historyDays: 0,
+          missing: [],
+        }}
+        confidence={null}
+        provenance={{
+          inputs: [],
+          source: "none",
+          windowDays: 0,
+          computedAt: new Date().toISOString(),
+        }}
+        method={method}
+        standard={standard}
+        insufficient
+        className={className}
+      />
+    );
+  }
+
+  const insufficient = data.status !== "ok";
+  let score: number | null = null;
+  let contributors: AnatomyContributor[] = [];
+  let caption: string | undefined;
+
+  if (data.status === "ok" && data.value) {
+    if (metric === "SLEEP_SCORE") {
+      const v = data.value as SleepScoreValue;
+      score = v.score;
+      caption = t(`insights.derived.scoreRing.band.${v.band}`);
+      contributors = v.subScores
+        .map((s) => ({
+          key: s.key,
+          label: t(`insights.derived.composite.SLEEP_SCORE.sub.${s.key}`),
+          value: s.value,
+          weight: s.weight,
+        }))
+        .sort(rankByImpact);
+    } else if (metric === "READINESS") {
+      const v = data.value as ReadinessValue;
+      score = v.score;
+      caption = t(`insights.derived.scoreRing.band.${v.band}`);
+      contributors = v.components
+        .map((c) => ({
+          key: c.key,
+          label: t(`insights.derived.composite.READINESS.component.${c.key}`),
+          value: c.value,
+          weight: c.weight,
+        }))
+        .sort(rankByImpact);
+    } else {
+      // Persisted nightly score — no sub-decomposition; ring + provenance.
+      const v = data.value as WellnessScoreValue;
+      score = v.score;
+      caption = t(`insights.derived.scoreRing.band.${v.band}`);
+    }
+  }
+
+  return (
+    <ScoreAnatomyView
+      title={title}
+      score={score}
+      caption={caption}
+      contributors={contributors}
+      coverage={data.coverage}
+      confidence={data.confidence}
+      provenance={data.provenance}
+      method={method}
+      standard={standard}
+      insufficient={insufficient}
+      className={className}
+    />
+  );
+}
+
+/** Localised title per metric — composites use their existing copy keys;
+ *  the persisted scores reuse the wellness-strip labels. */
+function titleFor(
+  metric: AnatomyMetricId,
+  t: (key: string) => string,
+): string {
+  switch (metric) {
+    case "SLEEP_SCORE":
+    case "READINESS":
+      return t(`insights.derived.composite.${metric}.title`);
+    case "RECOVERY_SCORE":
+      return t("insights.derived.scores.recovery");
+    case "STRESS_SCORE":
+      return t("insights.derived.scores.stress");
+    case "STRAIN_SCORE":
+      return t("insights.derived.scores.strain");
+  }
+}
+
+/** Rank contributors by impact: present-and-higher-weight first. */
+function rankByImpact(a: AnatomyContributor, b: AnatomyContributor): number {
+  const aPresent = a.value != null ? 1 : 0;
+  const bPresent = b.value != null ? 1 : 0;
+  if (aPresent !== bPresent) return bPresent - aPresent;
+  return b.weight - a.weight;
+}

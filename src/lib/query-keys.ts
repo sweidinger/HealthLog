@@ -132,6 +132,48 @@ export const queryKeys = {
    * own stale-while-revalidate.
    */
   insightsPregenerate: () => ["insights", "pregenerate"] as const,
+  /**
+   * v1.10.0 — categorical events (WX-B). The device-flagged event
+   * awareness timeline (`/api/insights/rhythm-events`). No locale segment
+   * — the payload is verdicts + timestamps; the surface localises its own
+   * prose. The `["insights"]` prefix keeps it in the standard insights
+   * invalidation fan-out (an Apple Health batch write that lands an event
+   * row busts it via the prefix).
+   */
+  insightsRhythmEvents: () => ["insights", "rhythm-events"] as const,
+  /**
+   * v1.10.0 — derived-wellness metrics. One generic route
+   * (`/api/insights/derived?metric=…[&type=…]`) backs the vitals
+   * dashboard tiles, the composite score-anatomy view, and the home
+   * wellness strip — all through the one `useDerivedMetric` hook.
+   *
+   * One generic route backs every derived metric (sleep score, readiness,
+   * coincident-deviation, vitals baseline, …); the optional sub-type is the
+   * chosen vital for `VITALS_BASELINE`. The fourth tuple slot is always
+   * present (`null` when no sub-type) so the cache never poisons between a
+   * 3-element and a 4-element shape for the same metric prefix. Pure compute
+   * over the rollup tier — a measurement write keeps it fresh by construction
+   * (next read sees new buckets), so the `["insights"]` prefix carries the
+   * invalidation fan-out.
+   */
+  insightsDerived: (metric: string, type?: string | null) =>
+    ["insights", "derived", metric, type ?? null] as const,
+  /**
+   * v1.10.0 — batched derived-metric read (`/api/insights/derived/batch`).
+   * One request resolves the whole dashboard grid server-side instead of N
+   * concurrent single-metric reads sharing the Prisma pool. Keyed by the
+   * sorted token list so the same grid always hits one cache entry; sits
+   * under the `["insights", "derived"]` prefix so a measurement-write
+   * invalidation fan-out reaches it exactly like the single-metric reads.
+   */
+  insightsDerivedBatch: (tokens: readonly string[]) =>
+    ["insights", "derived", "batch", [...tokens].sort().join(",")] as const,
+  /**
+   * v1.10.0 — FDR-controlled correlation discovery
+   * (`/api/insights/correlations`). Read-only descriptive surface; the
+   * `["insights"]` prefix keeps it in the existing invalidation fan-out.
+   */
+  insightsCorrelations: () => ["insights", "correlations"] as const,
 
   medications: () => ["medications"] as const,
   medicationDetail: (id: string) => ["medications", id] as const,

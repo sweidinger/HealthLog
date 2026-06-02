@@ -42,7 +42,7 @@ describe("<TrendCard> directionSentiment", () => {
     const html = render(
       <TrendCard {...baseProps} slope30={RISING} directionSentiment="up-bad" />,
     );
-    expect(html).toContain("text-dracula-orange");
+    expect(html).toContain("text-warning");
   });
 
   it("paints up-bad metric ↓ as green (improvement)", () => {
@@ -53,7 +53,7 @@ describe("<TrendCard> directionSentiment", () => {
         directionSentiment="up-bad"
       />,
     );
-    expect(html).toContain("text-dracula-green");
+    expect(html).toContain("text-success");
   });
 
   it("paints up-good metric ↑ as green", () => {
@@ -64,7 +64,7 @@ describe("<TrendCard> directionSentiment", () => {
         directionSentiment="up-good"
       />,
     );
-    expect(html).toContain("text-dracula-green");
+    expect(html).toContain("text-success");
   });
 
   it("paints up-good metric ↓ as orange", () => {
@@ -75,7 +75,7 @@ describe("<TrendCard> directionSentiment", () => {
         directionSentiment="up-good"
       />,
     );
-    expect(html).toContain("text-dracula-orange");
+    expect(html).toContain("text-warning");
   });
 
   it("keeps neutral metric arrows muted regardless of direction", () => {
@@ -94,11 +94,11 @@ describe("<TrendCard> directionSentiment", () => {
       />,
     );
     expect(up).toContain("text-muted-foreground");
-    expect(up).not.toContain("text-dracula-green");
-    expect(up).not.toContain("text-dracula-orange");
+    expect(up).not.toContain("text-success");
+    expect(up).not.toContain("text-warning");
     expect(down).toContain("text-muted-foreground");
-    expect(down).not.toContain("text-dracula-green");
-    expect(down).not.toContain("text-dracula-orange");
+    expect(down).not.toContain("text-success");
+    expect(down).not.toContain("text-warning");
   });
 
   it("keeps stable-trend arrows muted even when sentiment is set", () => {
@@ -111,15 +111,15 @@ describe("<TrendCard> directionSentiment", () => {
     );
     // Stable slope = no value judgement; the arrow points sideways.
     expect(html).toContain("text-muted-foreground");
-    expect(html).not.toContain("text-dracula-green");
-    expect(html).not.toContain("text-dracula-orange");
+    expect(html).not.toContain("text-success");
+    expect(html).not.toContain("text-warning");
   });
 
   it("defaults to neutral when sentiment is omitted (back-compat)", () => {
     const html = render(<TrendCard {...baseProps} slope30={RISING} />);
     expect(html).toContain("text-muted-foreground");
-    expect(html).not.toContain("text-dracula-green");
-    expect(html).not.toContain("text-dracula-orange");
+    expect(html).not.toContain("text-success");
+    expect(html).not.toContain("text-warning");
   });
 });
 

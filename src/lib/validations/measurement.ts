@@ -47,6 +47,50 @@ export const measurementTypeEnum = z.enum([
   // the convention block in `apple-health-mapping.ts`.
   "WALKING_STEP_LENGTH",
   "WALKING_SPEED",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // Seven previously-deferred quantity identifiers; each ships raw on
+  // the wire (identity conversion). See the convention block in
+  // `apple-health-mapping.ts`.
+  "CARDIO_RECOVERY",
+  "WRIST_TEMPERATURE",
+  "FALL_COUNT",
+  "SIX_MINUTE_WALK_DISTANCE",
+  "STAIR_ASCENT_SPEED",
+  "STAIR_DESCENT_SPEED",
+  "BREATHING_DISTURBANCES",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // Discrete device-flagged EVENT rows (value is always 1). The device's
+  // own verdict / severity rides in the `rhythmClassification` column.
+  "IRREGULAR_RHYTHM_NOTIFICATION",
+  "HIGH_HEART_RATE_EVENT",
+  "LOW_HEART_RATE_EVENT",
+  "WALKING_STEADINESS_EVENT",
+  "BREATHING_DISTURBANCE_EVENT",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Server-derived wellness scores (0–100, unit `score`). Minted by a
+  // nightly engine from the user's already-stored signals and persisted as a
+  // `COMPUTED`-source row — never ingested from a client (the batch +
+  // single-POST write surfaces reject the COMPUTED source). Only
+  // RECOVERY_SCORE is computed in v1.10.0; the other two are defined now so
+  // the later engines that compute them need no schema change.
+  "RECOVERY_SCORE",
+  "STRESS_SCORE",
+  "STRAIN_SCORE",
+]);
+
+/**
+ * v1.10.0 — categorical events (WX-B). The closed set of EVENT-class
+ * MeasurementTypes. An EVENT row carries `value = 1`, an optional
+ * `rhythmClassification` verdict, and never participates in trend / rollup
+ * analytics (it is a discrete occurrence, not a continuous reading). Kept
+ * as a `Set` so ingest + read paths can branch on "is this an event row?".
+ */
+export const EVENT_MEASUREMENT_TYPES: ReadonlySet<string> = new Set<string>([
+  "IRREGULAR_RHYTHM_NOTIFICATION",
+  "HIGH_HEART_RATE_EVENT",
+  "LOW_HEART_RATE_EVENT",
+  "WALKING_STEADINESS_EVENT",
+  "BREATHING_DISTURBANCE_EVENT",
 ]);
 
 export const glucoseContextEnum = z.enum([
@@ -61,7 +105,43 @@ export const measurementSourceEnum = z.enum([
   "WITHINGS",
   "IMPORT",
   "APPLE_HEALTH",
+  // v1.10.0 — computed scores (WX-C). Server-owned / read-only: a `COMPUTED`
+  // row is minted by a nightly engine, never written by a client. It is part
+  // of this enum so the read/response shapes (and the iOS decoder) can decode
+  // the rows it surfaces; the client-facing write surfaces reject it — see
+  // `WRITABLE_MEASUREMENT_SOURCES` and the batch route's `batchSourceEnum`.
+  "COMPUTED",
 ]);
+
+/**
+ * v1.10.0 — computed scores (WX-C). The subset of `MeasurementSource` a
+ * client may attribute on a write. `COMPUTED` is server-owned (a nightly
+ * engine mints it) and `WITHINGS` / `IMPORT` are owned by the Withings
+ * webhook + CSV importer respectively, so all three are excluded — letting a
+ * client forge a row attributed to them would pollute the per-source
+ * canonical picker with rows the server never produced. The single-entry
+ * POST validates `source` against this set; the batch route mirrors the same
+ * exclusion with its own narrower `{APPLE_HEALTH, MANUAL}` allowlist.
+ */
+export const WRITABLE_MEASUREMENT_SOURCES = [
+  "MANUAL",
+  "APPLE_HEALTH",
+] as const;
+
+/**
+ * v1.10.0 QA — the Zod enum the single-entry POST validates `source` against.
+ * Built from `WRITABLE_MEASUREMENT_SOURCES` so the allowlist has one source of
+ * truth. A client may only attribute a row it actually owns: `MANUAL` (a
+ * hand-entered reading) or `APPLE_HEALTH` (the HealthKit batch's per-row
+ * source). `WITHINGS` is owned by the Withings webhook, `IMPORT` by the CSV
+ * importer, and `COMPUTED` by the nightly score engines — letting a client
+ * forge any of those would pollute the per-source canonical picker with rows
+ * the server never produced. The batch route mirrors the same exclusion with
+ * its own narrower `{APPLE_HEALTH, MANUAL}` `batchSourceEnum`.
+ */
+export const writableMeasurementSourceEnum = z.enum(
+  WRITABLE_MEASUREMENT_SOURCES,
+);
 
 const unitMap: Record<string, string> = {
   WEIGHT: "kg",
@@ -132,6 +212,37 @@ const unitMap: Record<string, string> = {
   // match HealthKit's `m` / `m/s` defaults.
   WALKING_STEP_LENGTH: "m",
   WALKING_SPEED: "m/s",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // Cardio recovery is the bpm drop one minute after peak exercise.
+  CARDIO_RECOVERY: "bpm",
+  // Overnight wrist temperature in °C (absolute reading; Apple's own
+  // display frames it as a baseline deviation, we store the reading).
+  WRIST_TEMPERATURE: "celsius",
+  // Hard-fall detections — a plain count.
+  FALL_COUNT: "count",
+  // Apple's estimated six-minute-walk-test distance in metres.
+  SIX_MINUTE_WALK_DISTANCE: "m",
+  // Stair gait speeds — raw metres-per-second (no scaling).
+  STAIR_ASCENT_SPEED: "m/s",
+  STAIR_DESCENT_SPEED: "m/s",
+  // Per-night breathing-disturbance index — a unitless count Apple
+  // classifies as NotElevated / Elevated.
+  BREATHING_DISTURBANCES: "count",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // EVENT rows are dimensionless occurrences (value is always 1). The
+  // canonical unit is the bare "event" so any accidental numeric surfacing
+  // reads sensibly; the awareness timeline never displays the value.
+  IRREGULAR_RHYTHM_NOTIFICATION: "event",
+  HIGH_HEART_RATE_EVENT: "event",
+  LOW_HEART_RATE_EVENT: "event",
+  WALKING_STEADINESS_EVENT: "event",
+  BREATHING_DISTURBANCE_EVENT: "event",
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Server-derived 0–100 wellness scores. The canonical unit is the bare
+  // "score" so the value reads sensibly anywhere it surfaces.
+  RECOVERY_SCORE: "score",
+  STRESS_SCORE: "score",
+  STRAIN_SCORE: "score",
 };
 
 export function getUnitForType(type: string): string {
@@ -239,6 +350,48 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // run. The 0.1 floor captures a very slow shuffle; 3.0 covers
   // race-walking record territory.
   WALKING_SPEED: { min: 0.1, max: 3.0 },
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // Cardio recovery (bpm) — the one-minute HR drop after peak exertion.
+  // Trained athletes can drop 50+ bpm; an unfit or autonomically
+  // impaired recovery sits in the single digits. 0 is a flat (poor)
+  // recovery; 100 is a generous ceiling beyond any plausible reading.
+  CARDIO_RECOVERY: { min: 0, max: 100 },
+  // Wrist temperature (°C) — overnight skin-side reading. Runs cooler
+  // than core; the 30–42 band covers the plausible nighttime range and
+  // rejects obvious sensor glitches. Same shape as SKIN_TEMPERATURE.
+  WRIST_TEMPERATURE: { min: 30, max: 42 },
+  // Fall count — a daily tally. A handful in a bad day is plausible;
+  // 50 is a generous ceiling that still catches a runaway sensor.
+  FALL_COUNT: { min: 0, max: 50 },
+  // Six-minute-walk distance (metres). Healthy adults walk ~400–700 m;
+  // the 50 m floor captures severe impairment and the 1000 m ceiling
+  // covers an unusually fit reading without admitting sensor noise.
+  SIX_MINUTE_WALK_DISTANCE: { min: 50, max: 1000 },
+  // Stair gait speed (m/s) — slower than level walking. Adult stair
+  // ascent sits around 0.4–0.7 m/s, descent slightly faster. The 0.05
+  // floor captures a very slow climb; 2.0 is well above any sustained
+  // stair pace and rejects a free-fall artefact.
+  STAIR_ASCENT_SPEED: { min: 0.05, max: 2.0 },
+  STAIR_DESCENT_SPEED: { min: 0.05, max: 2.0 },
+  // Breathing-disturbance index (count). A per-night index; 0 is an
+  // undisturbed night and the 1000 ceiling is generous headroom over
+  // any plausible severe-apnea night.
+  BREATHING_DISTURBANCES: { min: 0, max: 1000 },
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // EVENT rows carry a fixed `value = 1` (one fired event). The range pins
+  // the value so a malformed ingest (value 0, or a stray sensor number)
+  // is rejected rather than stored as a phantom event.
+  IRREGULAR_RHYTHM_NOTIFICATION: { min: 1, max: 1 },
+  HIGH_HEART_RATE_EVENT: { min: 1, max: 1 },
+  LOW_HEART_RATE_EVENT: { min: 1, max: 1 },
+  WALKING_STEADINESS_EVENT: { min: 1, max: 1 },
+  BREATHING_DISTURBANCE_EVENT: { min: 1, max: 1 },
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Server-derived 0–100 scores. The plausibility band pins them to the
+  // score range so a malformed store (a stray negative or > 100) is rejected.
+  RECOVERY_SCORE: { min: 0, max: 100 },
+  STRESS_SCORE: { min: 0, max: 100 },
+  STRAIN_SCORE: { min: 0, max: 100 },
 };
 
 export function validateMeasurementRange(
@@ -266,7 +419,11 @@ export const createMeasurementSchema = z
     value: z.number(),
     measuredAt: z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
     notes: z.string().max(MEASUREMENT_NOTES_MAX_LENGTH).optional(),
-    source: measurementSourceEnum.optional().default("MANUAL"),
+    // v1.10.0 QA — validate against the client-writable subset, not the full
+    // `MeasurementSource` enum. A client may attribute only `MANUAL` or
+    // `APPLE_HEALTH`; `WITHINGS` / `IMPORT` / `COMPUTED` are server-owned and
+    // forging them would pollute the per-source canonical picker.
+    source: writableMeasurementSourceEnum.optional().default("MANUAL"),
     // Only applies when type === BLOOD_GLUCOSE. Mirrored by a CHECK
     // constraint in Postgres (see migration 0021).
     glucoseContext: glucoseContextEnum.optional(),

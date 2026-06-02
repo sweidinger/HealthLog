@@ -112,8 +112,8 @@ describe("<TrendCard> 7-day trend label", () => {
     expect(html).toContain("±0");
     // Tiny absolute deltas never paint sentiment colour — they read
     // as "no movement" regardless of metric type.
-    expect(html).not.toContain("text-dracula-green");
-    expect(html).not.toContain("text-dracula-orange");
+    expect(html).not.toContain("text-success");
+    expect(html).not.toContain("text-warning");
   });
 
   it("colors a +delta orange on an up-bad metric (weight rising = bad)", () => {
@@ -129,7 +129,7 @@ describe("<TrendCard> 7-day trend label", () => {
     // HTML, so we assert orange is present in a delta-bearing render.
     // (Tile arrow is muted for stable slope or omitted icon — but the
     // delta paints regardless, so orange must appear.)
-    expect(html).toContain("text-dracula-orange");
+    expect(html).toContain("text-warning");
   });
 
   it("colors a +delta green on an up-good metric (mood rising = good)", () => {
@@ -146,7 +146,7 @@ describe("<TrendCard> 7-day trend label", () => {
         trend7Delta={0.5}
       />,
     );
-    expect(html).toContain("text-dracula-green");
+    expect(html).toContain("text-success");
   });
 
   it("paints neutral metrics muted regardless of delta direction", () => {
@@ -159,7 +159,7 @@ describe("<TrendCard> 7-day trend label", () => {
     );
     expect(html).toContain('data-slot="trend7-delta"');
     expect(html).toContain("text-muted-foreground");
-    expect(html).not.toContain("text-dracula-green");
-    expect(html).not.toContain("text-dracula-orange");
+    expect(html).not.toContain("text-success");
+    expect(html).not.toContain("text-warning");
   });
 });

@@ -42,7 +42,11 @@ export type MeasurementCategory =
   | "hearing"
   | "environment"
   | "cardiovascular"
-  | "metabolic";
+  | "metabolic"
+  // v1.10.0 — computed scores (WX-C). Server-derived wellness scores
+  // (Recovery / Stress / Strain). Their own presentation cluster — they are
+  // composite indices, not a raw signal in any of the above buckets.
+  | "scores";
 
 /**
  * Per-MeasurementType → category mapping. The map is exhaustive over
@@ -124,6 +128,43 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   // ── Metabolic ──
   ["BLOOD_GLUCOSE", "metabolic"],
   ["SKIN_TEMPERATURE", "metabolic"],
+  // v1.10.0 — wrist temperature is an overnight skin-side reading;
+  // it sits with skin temperature in the metabolic cluster.
+  ["WRIST_TEMPERATURE", "metabolic"],
+
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // Cardio recovery is the post-exercise HR-drop autonomic-fitness
+  // marker — it joins the derived cardiovascular surface.
+  ["CARDIO_RECOVERY", "cardiovascular"],
+  // Fall count, six-minute-walk distance, and the stair gait speeds are
+  // Apple-Health Mobility-section signals alongside walking steadiness.
+  ["FALL_COUNT", "activity"],
+  ["SIX_MINUTE_WALK_DISTANCE", "activity"],
+  ["STAIR_ASCENT_SPEED", "activity"],
+  ["STAIR_DESCENT_SPEED", "activity"],
+  // Breathing disturbances is a per-night sleep-breathing index.
+  ["BREATHING_DISTURBANCES", "sleep"],
+
+  // ── v1.10.0 — categorical events (WX-B) ──
+  // Device-flagged EVENT rows slot into the category their signal
+  // belongs to: the rhythm + heart-rate notifications join the
+  // cardiovascular surface, the walking-steadiness alert joins the
+  // activity/mobility cluster, and the breathing-disturbance flag joins
+  // sleep (it fires during sleep). They never participate in
+  // trend/rollup analytics — the category is only for list grouping.
+  ["IRREGULAR_RHYTHM_NOTIFICATION", "cardiovascular"],
+  ["HIGH_HEART_RATE_EVENT", "cardiovascular"],
+  ["LOW_HEART_RATE_EVENT", "cardiovascular"],
+  ["WALKING_STEADINESS_EVENT", "activity"],
+  ["BREATHING_DISTURBANCE_EVENT", "sleep"],
+
+  // ── v1.10.0 — computed scores (WX-C) ──
+  // Server-derived wellness scores share their own presentation cluster.
+  // The category is only for list grouping — scores never participate in
+  // trend/rollup analytics (they ARE a nightly-computed composite).
+  ["RECOVERY_SCORE", "scores"],
+  ["STRESS_SCORE", "scores"],
+  ["STRAIN_SCORE", "scores"],
 ]);
 
 /**

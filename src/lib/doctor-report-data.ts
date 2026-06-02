@@ -130,8 +130,9 @@ export interface DoctorReportData {
     deliveryForm: string | null;
   }>;
   /**
-   * v1.9.0 — set when {@link MAX_MEDICATION_ADMINISTRATIONS} trimmed the
-   * administration set. `total` is the full acted-intake count over the
+   * v1.9.0 — set when the administration cap (see
+   * {@link resolveMaxMedicationAdministrations}) trimmed the administration
+   * set. `total` is the full acted-intake count over the
    * window; `included` is how many (the most-recent) survived the cap.
    * Null/absent when nothing was trimmed. The FHIR builder discloses
    * this in the document narrative so the export is honest about the
@@ -170,7 +171,35 @@ export interface DoctorReportData {
     weightEndKg: number | null;
     sideEffects: Array<{ tag: string; count: number }>;
   } | null;
+  /**
+   * v1.10.0 — the server-derived nightly wellness scores
+   * (RECOVERY_SCORE / STRESS_SCORE / STRAIN_SCORE), summarised over the
+   * report window. These are 0–100 DESCRIPTIVE composites, NOT clinical
+   * vitals — they are rendered in a clearly-labelled "Wellness summary"
+   * section separate from the clinical vitals table, each with a
+   * "descriptive, not a clinical assessment" note. Null/absent when the
+   * user has no computed scores in the window (the renderer + FHIR builder
+   * then skip the section). Optional so pre-v1.10 fixtures still typecheck.
+   */
+  wellnessScores?: Array<{
+    /** The score MeasurementType (RECOVERY_SCORE / STRESS_SCORE / STRAIN_SCORE). */
+    type: string;
+    latest: number;
+    avg: number;
+    min: number;
+    max: number;
+    count: number;
+    /** ISO timestamp of the latest score. */
+    latestAt: string;
+  }> | null;
 }
+
+/** The three persisted score types surfaced in the wellness summary. */
+export const WELLNESS_SCORE_REPORT_TYPES = [
+  "RECOVERY_SCORE",
+  "STRESS_SCORE",
+  "STRAIN_SCORE",
+] as const;
 
 const GLUCOSE_CONTEXTS: GlucoseContext[] = [
   "FASTING",
@@ -207,19 +236,35 @@ const MAX_RANGE_DAYS = 730;
 const DEFAULT_RANGE_DAYS = 90;
 
 /**
- * v1.9.0 — hard ceiling on the number of `MedicationAdministration`
- * source rows materialised per export. The report window is already
- * bounded at {@link MAX_RANGE_DAYS} (730 days), but a chronic medication
- * dosed several times a day across that window — multiplied by several
- * such medications — can still produce thousands of administration
- * resources in a single Bundle (e.g. 4×/day × 730 days ≈ 2 920 per med).
- * Cap at the MOST-RECENT 1 000 acted intakes overall: that preserves the
- * recent-adherence picture a clinician cares about while bounding the
- * in-memory array and the serialised Bundle. When the cap trims rows the
- * aggregator flags it so the FHIR narrative can disclose the truncation
- * rather than silently dropping history.
+ * Default ceiling on the number of `MedicationAdministration` source rows
+ * materialised per export, and the bounds an operator override is clamped
+ * to. The report window is already bounded at {@link MAX_RANGE_DAYS}
+ * (730 days), but a chronic medication dosed several times a day across
+ * that window — multiplied by several such medications — can still produce
+ * thousands of administration resources in a single Bundle. The default of
+ * 5 000 covers ~3.5 years at four doses a day, so it effectively never bites
+ * on a realistic report period while still bounding a pathological export.
  */
-const MAX_MEDICATION_ADMINISTRATIONS = 1000;
+const DEFAULT_MAX_MEDICATION_ADMINISTRATIONS = 5000;
+const MIN_MEDICATION_ADMINISTRATIONS = 1;
+const MAX_MEDICATION_ADMINISTRATIONS_CEILING = 50000;
+
+/**
+ * Resolve the administration ceiling from `FHIR_MAX_MEDICATION_ADMINISTRATIONS`.
+ * Accepts a positive integer within `[1, 50000]`; any unset / non-integer /
+ * out-of-range value falls back to the default. Exported as a pure function so
+ * the resolution can be tested without import-time env coupling.
+ */
+export function resolveMaxMedicationAdministrations(
+  raw: string | undefined,
+): number {
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) &&
+    parsed >= MIN_MEDICATION_ADMINISTRATIONS &&
+    parsed <= MAX_MEDICATION_ADMINISTRATIONS_CEILING
+    ? parsed
+    : DEFAULT_MAX_MEDICATION_ADMINISTRATIONS;
+}
 
 export interface DoctorReportRange {
   /** Start of the reporting window (UTC, inclusive). */
@@ -539,13 +584,20 @@ export async function collectDoctorReportData(
   // `scheduledFor: asc`, so the most-recent acted rows are at the tail;
   // keep the last N and flag the trim so the FHIR narrative can disclose
   // it. The omitted rows are the OLDEST in the window — recent adherence
-  // is preserved intact.
+  // is preserved intact. The cap is a coarse safety ceiling (the report
+  // window is the natural bound; this only guards a pathological
+  // multi-year, many-medication export) — resolved per call from
+  // `FHIR_MAX_MEDICATION_ADMINISTRATIONS` so an operator override takes
+  // effect without a code change.
+  const maxMedicationAdministrations = resolveMaxMedicationAdministrations(
+    process.env.FHIR_MAX_MEDICATION_ADMINISTRATIONS,
+  );
   const totalAdministrations = medicationAdministrations.length;
   const medicationAdministrationsTruncated =
-    totalAdministrations > MAX_MEDICATION_ADMINISTRATIONS;
+    totalAdministrations > maxMedicationAdministrations;
   const cappedAdministrations = medicationAdministrationsTruncated
     ? medicationAdministrations.slice(
-        totalAdministrations - MAX_MEDICATION_ADMINISTRATIONS,
+        totalAdministrations - maxMedicationAdministrations,
       )
     : medicationAdministrations;
 
@@ -725,6 +777,30 @@ export async function collectDoctorReportData(
     };
   }
 
+  // v1.10.0 — wellness-score summary. The persisted COMPUTED `*_SCORE`
+  // rows are already in `byType`/`stats` (they're only filtered out of the
+  // clinical vitals table). Summarise each present score type for the
+  // separate "Wellness summary" section. Empty array → null so the renderer
+  // + FHIR builder skip the section entirely.
+  const wellnessScoreSummaries = WELLNESS_SCORE_REPORT_TYPES.flatMap((type) => {
+    const s = stats[type];
+    const rows = byType[type];
+    if (!s || !rows || rows.length === 0) return [];
+    return [
+      {
+        type,
+        latest: Math.round(s.latest),
+        avg: Math.round(s.avg),
+        min: Math.round(s.min),
+        max: Math.round(s.max),
+        count: s.count,
+        latestAt: rows[rows.length - 1].measuredAt,
+      },
+    ];
+  });
+  const wellnessScores =
+    wellnessScoreSummaries.length > 0 ? wellnessScoreSummaries : null;
+
   return {
     period: {
       days,
@@ -771,6 +847,7 @@ export async function collectDoctorReportData(
       : null,
     mood,
     glp1,
+    wellnessScores,
   };
 }
 

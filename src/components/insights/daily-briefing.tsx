@@ -56,6 +56,11 @@ const METRIC_HREF: Record<DailyBriefingKeyFinding["sourceMetric"], string | null
   vo2_max: "/insights/pulse",
   body_temp: null,
   glp1_plateau: "/insights/medications",
+  // ── v1.10.0 derived-wellness additive ──
+  // Readiness has a score-anatomy detail page; recovery is a read-only
+  // ring with no dedicated sub-page yet (renders as a static row).
+  readiness: "/insights/scores/readiness",
+  recovery: null,
 };
 
 /**
@@ -119,6 +124,9 @@ const METRIC_ICON: Record<
   // adherence-context observation about the user's GLP-1 therapy.
   // Non-GLP-1 accounts never see this finding type.
   glp1_plateau: Pill,
+  // ── v1.10.0 derived-wellness additive ──
+  readiness: Sparkles,
+  recovery: HeartPulse,
 };
 
 const TONE_BAR_CLASSNAME: Record<DailyBriefingKeyFinding["tone"], string> = {

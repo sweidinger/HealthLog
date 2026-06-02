@@ -158,7 +158,12 @@
     "chartsTitle": "Trend-Diagramme",
     "aiSummaryTitle": "KI-Zusammenfassung — nicht klinisch validiert",
     "aiSummaryDisclaimer": "Dieser Abschnitt wurde automatisch von einem KI-Modell erzeugt und ist nicht klinisch validiert. Er ersetzt keine ärztliche Beurteilung.",
-    "packageReadme": "HealthLog Gesundheitsakte\n\nDieses Paket enthält:\n- report.pdf: den Gesundheitsbericht für die ärztliche Vorlage.\n- bundle.json: dieselben Daten als HL7-FHIR-R4-Dokument (Bundle), ePA-kompatibel.\n\nErstellt mit HealthLog."
+    "packageReadme": "HealthLog Gesundheitsakte\n\nDieses Paket enthält:\n- report.pdf: den Gesundheitsbericht für die ärztliche Vorlage.\n- bundle.json: dieselben Daten als HL7-FHIR-R4-Dokument (Bundle), ePA-kompatibel.\n\nErstellt mit HealthLog.",
+    "wellnessTitle": "Wellness-Zusammenfassung",
+    "wellnessDisclaimer": "Dies sind beschreibende Wellness-Werte, die aus deinen erfassten Signalen berechnet werden (0–100). Sie sind keine klinischen Beurteilungen oder Diagnosen.",
+    "wellnessRecovery": "Erholung",
+    "wellnessStress": "Stress",
+    "wellnessStrain": "Belastung"
   },
   "errorBoundary": {
     "title": "Da ist etwas schiefgelaufen",
@@ -425,7 +430,22 @@
     "dailyTotalCaption": "({count} Einzelwerte)",
     "expandDay": "Einzelwerte dieses Tages anzeigen",
     "collapseDay": "Einzelwerte dieses Tages ausblenden",
-    "loadError": "Messwerte konnten nicht geladen werden."
+    "loadError": "Messwerte konnten nicht geladen werden.",
+    "typeCardioRecovery": "Erholungspuls",
+    "typeWristTemperature": "Handgelenktemperatur",
+    "typeFallCount": "Stürze",
+    "typeSixMinuteWalkDistance": "6-Minuten-Gehstrecke",
+    "typeStairAscentSpeed": "Treppensteig-Tempo",
+    "typeStairDescentSpeed": "Treppab-Tempo",
+    "typeBreathingDisturbances": "Atemaussetzer im Schlaf",
+    "typeIrregularRhythmNotification": "Hinweis auf unregelmäßigen Rhythmus",
+    "typeHighHeartRateEvent": "Hinweis auf hohe Herzfrequenz",
+    "typeLowHeartRateEvent": "Hinweis auf niedrige Herzfrequenz",
+    "typeWalkingSteadinessEvent": "Hinweis zur Gehstabilität",
+    "typeBreathingDisturbanceEvent": "Atemstörung",
+    "typeRecoveryScore": "Erholungs-Score",
+    "typeStressScore": "Stress-Score",
+    "typeStrainScore": "Belastungs-Score"
   },
   "mood": {
     "title": "Stimmung",
@@ -1994,7 +2014,23 @@
         "bloodGlucoseTitle": "Blutzucker",
         "bloodGlucoseBody": "Der Blutzucker ist die Zuckermenge in deinem Blut, die wichtigste Energiequelle des Körpers. Er steigt nach dem Essen und pendelt sich zwischen den Mahlzeiten ein; dauerhaft hohe Werte können auf Diabetes oder Prädiabetes hinweisen.",
         "skinTemperatureTitle": "Hauttemperatur",
-        "skinTemperatureBody": "Die Hauttemperatur ist hier die kleine nächtliche Abweichung deiner Handgelenkstemperatur von deinem eigenen Ausgangswert, keine absolute Fiebermessung. Veränderungen können Schlaf, Umgebung, Krankheit oder Zyklusphase widerspiegeln."
+        "skinTemperatureBody": "Die Hauttemperatur ist hier die kleine nächtliche Abweichung deiner Handgelenkstemperatur von deinem eigenen Ausgangswert, keine absolute Fiebermessung. Veränderungen können Schlaf, Umgebung, Krankheit oder Zyklusphase widerspiegeln.",
+        "cardioFitnessTitle": "Cardiofitness (VO₂max)",
+        "cardioFitnessBody": "VO₂max gibt an, wie viel Sauerstoff dein Körper bei maximaler Anstrengung verwerten kann. Es ist der aussagekräftigste Laborwert für die Ausdauerfitness; ein höherer oder steigender Wert spricht für eine gute Herz-Kreislauf-Gesundheit.",
+        "cardioRecoveryTitle": "Erholungspuls",
+        "cardioRecoveryBody": "Der Erholungspuls gibt an, um wie viele Schläge pro Minute dein Puls in der ersten Minute nach dem Ende einer anstrengenden Belastung fällt. Ein größerer Abfall bedeutet, dass sich dein Herz schneller beruhigt — ein Zeichen guter Fitness.",
+        "wristTemperatureTitle": "Handgelenktemperatur",
+        "wristTemperatureBody": "Die Handgelenktemperatur wird im Schlaf gemessen. Apple zeigt sie als Abweichung von deinem persönlichen Ausgangswert; ein gleichmäßiger Wert ist normal, ein anhaltender Anstieg kann auf Krankheit, intensives Training oder eine Zyklusveränderung hindeuten.",
+        "fallsTitle": "Stürze",
+        "fallsBody": "Hier werden die von deiner Apple Watch erkannten schweren Stürze gezählt. Null ist das Ziel; eine steigende Zahl ist ein Hinweis auf ein erhöhtes Sturzrisiko, das du — besonders im höheren Alter — mit einer Ärztin oder einem Arzt besprechen solltest.",
+        "sixMinuteWalkTitle": "6-Minuten-Gehstrecke",
+        "sixMinuteWalkBody": "Dies ist Apples Schätzung, wie weit du in sechs Minuten gehen könntest — ein etablierter klinischer Test für Mobilität und kardiopulmonale Ausdauer. Eine gleichbleibende oder steigende Strecke ist ein gutes Zeichen.",
+        "stairAscentSpeedTitle": "Treppensteig-Tempo",
+        "stairAscentSpeedBody": "Dies gibt an, wie schnell du eine Treppe hinaufgehst. Es ist ein empfindlicher Marker für Beinkraft und Mobilität — ein gleichbleibendes oder steigendes Tempo ist gut, ein sinkendes solltest du im Blick behalten.",
+        "stairDescentSpeedTitle": "Treppab-Tempo",
+        "stairDescentSpeedBody": "Dies gibt an, wie schnell du eine Treppe hinabgehst. Zusammen mit dem Steig-Tempo zeigt es Beinkontrolle und Gleichgewicht — ein gleichmäßiges Tempo ist gut, ein sinkendes solltest du im Blick behalten.",
+        "breathingDisturbancesTitle": "Atemaussetzer im Schlaf",
+        "breathingDisturbancesBody": "Deine Apple Watch kann schätzen, wie oft deine Atmung im Schlaf unterbrochen war. Ein niedriger Index ist besser; ein von Apple als erhöht eingestufter Wert — vor allem über viele Nächte — sollte mit einer Ärztin oder einem Arzt besprochen werden."
       },
       "stats": {
         "label": "Zusammenfassende Statistik",
@@ -2459,6 +2495,241 @@
         "bandSteady": "Deine Stimmung war recht gleichmäßig",
         "bandVariable": "Deine Stimmung war merklich schwankend",
         "bandVeryVariable": "Deine Stimmung hat zuletzt stark geschwankt"
+      }
+    },
+    "derived": {
+      "coverage": {
+        "summary": "{present} von {required} Eingaben · {percent}%",
+        "ratioLabel": "{present}/{required}",
+        "historyDays": "Basiert auf {count} Tagen Verlauf",
+        "missing": "Erfasse diese, um den Wert zu schärfen: {list}"
+      },
+      "scoreRing": {
+        "aria": "Wert {score} von 100, {band}",
+        "ariaProvisional": "Wert noch nicht verfügbar — zu wenig Daten",
+        "provisionalCaption": "Noch zu wenig Daten",
+        "band": {
+          "green": "gut",
+          "yellow": "mittel",
+          "red": "niedrig"
+        }
+      },
+      "provenance": {
+        "title": "So wird das berechnet",
+        "trigger": "So wird das berechnet",
+        "inputsLabel": "Eingaben",
+        "noInputs": "Noch keine Eingaben für diesen Wert vorhanden.",
+        "methodLabel": "Methode",
+        "window": "Aus deinen letzten {days} Tagen · {source}-Daten",
+        "asOf": "Stand {date}",
+        "standardLink": "Standard: {name}"
+      },
+      "vitals": {
+        "sectionTitle": "Deine Vitalwerte",
+        "building": "Typischer Bereich entsteht — {count} von {target} Tagen",
+        "typicalRange": "Typisch für dich: {low}–{high}",
+        "fitnessYounger": "Ausdauer wie ~{years} J. jünger",
+        "fitnessOlder": "Ausdauer ~{years} J. über deinem Alter",
+        "fitnessTypical": "Ausdauer typisch für dein Alter",
+        "fitnessNoNorm": "Alter und Geschlecht ergänzen, um dies einzuordnen",
+        "vascularBelow": "{years} J. unter deinem Alter",
+        "vascularAbove": "{years} J. über deinem Alter",
+        "vascularMatch": "Im Einklang mit deinem Alter",
+        "vascularNoAge": "Geburtsdatum ergänzen, um dies einzuordnen",
+        "hrvBand": {
+          "balanced": "Für dich ausgewogen",
+          "unbalanced": "Über deinem üblichen Bereich",
+          "low": "Unter deinem üblichen Bereich"
+        },
+        "bmiCategory": {
+          "underweight": "Untergewicht (WHO)",
+          "normal": "Normalbereich (WHO)",
+          "overweight": "Übergewicht (WHO)",
+          "obese": "Adipositas (WHO)"
+        }
+      },
+      "anatomy": {
+        "outOf": "/100",
+        "contributorsLabel": "Faktoren",
+        "contributorValue": "{value} · {weight}% Gewicht",
+        "contributorMissing": "keine Daten",
+        "disclaimer": "Richtwert — keine klinische Bewertung.",
+        "insufficient": "Noch nicht genug Daten für eine Bewertung. Tracke weiter, dann erscheint sie hier."
+      },
+      "composite": {
+        "SLEEP_SCORE": {
+          "title": "Schlaf-Score",
+          "description": "Ein transparenter Schlafqualitäts-Score mit allen Teilwerten.",
+          "method": "Eine 0–100-Mischung aus Schlafmenge (Schlaf vs. altersbasierter Bedarf), Effizienz (Schlaf ÷ Bettzeit), Konstanz (wie stabil deine Schlafmitte ist), Timing (vs. deine gewohnte Schlafmitte) und Zusammensetzung (REM- + Tiefschlafanteil). Teilwerte werden umgewichtet, wenn deine Daten einen nicht stützen; nichts wird erfunden.",
+          "sub": {
+            "sufficiency": "Schlafmenge",
+            "efficiency": "Effizienz",
+            "consistency": "Konstanz",
+            "timing": "Timing",
+            "composition": "Zusammensetzung"
+          }
+        },
+        "READINESS": {
+          "title": "Bereitschaft",
+          "description": "Ein täglicher Wohlbefindens-Indikator daraus, wie deine Werte zu deiner eigenen Baseline stehen.",
+          "method": "Eine 0–100-Mischung aus Ruhepuls-Abweichung, HRV-(SDNN-)Abweichung, Schlaf, Atemfrequenz-Stabilität und Stimmungsstabilität — jeweils gegen deine persönliche Baseline gemessen. Gewichte werden über die von deinen Daten gestützten Komponenten neu verteilt. Ein Wohlbefindens-Indikator, kein Erholungs- oder klinischer Score.",
+          "component": {
+            "rhr": "Ruhepuls",
+            "hrv": "HRV (SDNN)",
+            "sleep": "Schlaf",
+            "respiratory": "Atemfrequenz",
+            "mood": "Stimmungsstabilität"
+          },
+          "caveat": "Ein Wellness-Proxy, kein Erholungs- oder klinischer Wert."
+        },
+        "VITALS_BASELINE": {
+          "method": "Dein persönlicher Normalbereich ist der Median deiner Tageswerte über den Zeitraum, ± eine robuste Streuung (skalierte mittlere absolute Abweichung). Er folgt DEINEN Werten, keiner Bevölkerungsnorm — ein Wert im Band ist also typisch für dich."
+        },
+        "HRV_BALANCE": {
+          "method": "Dein jüngster HRV-(SDNN-)Durchschnitt im Vergleich zu deiner eigenen gleitenden Baseline (Median ± robuste Streuung). Ausgeglichen heißt: er liegt in deinem persönlichen Bereich; das Band stammt aus deinen Daten, nie aus einem Bevölkerungswert."
+        },
+        "BMI": {
+          "method": "Gewicht ÷ Größe², eingeordnet nach den WHO-Kategorien für Erwachsene (Untergewicht / Normal / Übergewicht / Adipositas). Nur ein Screening-Verhältnis — es unterscheidet nicht Muskel von Fett."
+        },
+        "FITNESS_AGE": {
+          "method": "Dein VO₂max im Vergleich zu alters- und geschlechtsbezogenen Perzentilen der kardiorespiratorischen Fitness, als Fitnessalter-Differenz. Das VO₂max ist die Schätzung deines Geräts — hier nie neu berechnet."
+        },
+        "VASCULAR_AGE_DELTA": {
+          "method": "Die Gefäßalter- bzw. Pulswellengeschwindigkeits-Schätzung deines Geräts im Vergleich zu deinem chronologischen Alter, als Differenz in Jahren. Die Schätzung stammt vom Gerät; HealthLog ordnet sie nur ein.",
+          "caveat": "Die eigene Schätzung deines Geräts, nur eingeordnet — beschreibend, keine klinische Gefäßbewertung.",
+          "description": "Wie die Gefäßalter-Schätzung deines Geräts zu deinem chronologischen Alter steht."
+        },
+        "COINCIDENT_DEVIATION": {
+          "method": "Ein Hinweis, wenn zwei oder mehr deiner Vitalwerte am selben Tag außerhalb ihres persönlichen Normalbereichs liegen. Jedes Band ist der robuste Median ± k·MAD deiner eigenen Verlaufsdaten und passt sich an dich an, nicht an einen Bevölkerungswert.",
+          "caveat": "Ein Hinweis aus deinen eigenen Baselines — beschreibend, keine Diagnose und kein klinischer Alarm."
+        },
+        "RECOVERY_SCORE": {
+          "method": "Ein nächtlicher 0–100-Erholungs-Proxy aus HRV, Ruhepuls und Schlaf gegenüber deiner Baseline. Höher heißt besser erholt. Einmal pro Nacht berechnet und hier nur ausgelesen — nie spontan neu berechnet.",
+          "caveat": "Ein beschreibender Wellness-Proxy, kein trainings- oder klinikgerechtes Erholungsmaß.",
+          "description": "Ein nächtlicher Erholungs-Proxy aus HRV, Ruhepuls und Schlaf."
+        },
+        "STRESS_SCORE": {
+          "method": "Ein nächtlicher 0–100-Stress-Proxy aus dem Verlauf deiner HRV über den Tag gegenüber deiner Baseline. Höher heißt mehr physiologische Belastung.",
+          "caveat": "Ein aus der HRV abgeleiteter Proxy, KEINE EDA-/Hautleitwert-Stressmessung — deine Uhr hat keinen EDA-Sensor. Beschreibend, nicht klinisch.",
+          "description": "Ein nächtlicher Stress-Proxy aus dem Tagesverlauf deiner HRV."
+        },
+        "STRAIN_SCORE": {
+          "method": "Ein nächtlicher 0–100-Belastungs-Proxy aus deiner herzfrequenzgewichteten Aktivitätslast (ein TRIMP-ähnliches Trainingsimpuls-Modell). Höher heißt ein anstrengenderer Tag.",
+          "caveat": "Ein beschreibender Aktivitätslast-Proxy, kein klinisches oder trainingsgerechtes Lastmaß.",
+          "description": "Ein nächtlicher Aktivitätslast-Proxy aus deiner herzfrequenzgewichteten Anstrengung."
+        }
+      },
+      "scores": {
+        "sectionTitle": "Wellness-Werte",
+        "recovery": "Erholung",
+        "stress": "Stress",
+        "strain": "Belastung"
+      },
+      "coincident": {
+        "label": "Mehrere Vitalwerte außerhalb der Baseline",
+        "summary": "{count} deiner Vitalwerte lagen heute außerhalb ihres persönlichen Bereichs.",
+        "vitals": "Außerhalb des Bereichs: {list}"
+      }
+    },
+    "cardioFitness": {
+      "title": "Fitness",
+      "description": "Deine VO₂max im Zeitverlauf — das wichtigste Maß für die Ausdauerfitness.",
+      "chartTitle": "VO₂max (mL/(kg·min))",
+      "emptyState": {
+        "title": "Noch keine Fitnessdaten",
+        "description": "VO₂max-Werte erscheinen hier, sobald Apple Health sie aus deinen Workouts synchronisiert."
+      }
+    },
+    "navCardioFitness": "Fitness",
+    "cardioRecovery": {
+      "title": "Erholungspuls",
+      "description": "Wie stark dein Puls eine Minute nach maximaler Belastung abfällt.",
+      "chartTitle": "Erholungspuls (bpm)",
+      "emptyState": {
+        "title": "Noch keine Erholungspuls-Daten",
+        "description": "Erholungspuls-Werte erscheinen hier, sobald Apple Health sie aus einem Workout synchronisiert."
+      }
+    },
+    "navCardioRecovery": "Erholungspuls",
+    "wristTemperature": {
+      "title": "Handgelenktemperatur",
+      "description": "Deine nächtliche Handgelenktemperatur, gemessen an deinem eigenen Ausgangswert.",
+      "chartTitle": "Handgelenktemperatur (°C)",
+      "emptyState": {
+        "title": "Noch keine Handgelenktemperatur-Daten",
+        "description": "Werte erscheinen hier, sobald Apple Health das nächtliche Tragen synchronisiert."
+      }
+    },
+    "navWristTemperature": "Handgelenk-Temp.",
+    "falls": {
+      "title": "Stürze",
+      "description": "Von deiner Apple Watch erkannte schwere Stürze, pro Tag gezählt.",
+      "chartTitle": "Stürze pro Tag",
+      "emptyState": {
+        "title": "Noch keine Sturzdaten",
+        "description": "Erkannte Stürze erscheinen hier, sobald Apple Health synchronisiert. Keine Stürze ist das Ziel."
+      }
+    },
+    "navFalls": "Stürze",
+    "sixMinuteWalk": {
+      "title": "6-Minuten-Gehtest",
+      "description": "Apples Schätzung, wie weit du in sechs Minuten gehen könntest.",
+      "chartTitle": "6-Minuten-Gehstrecke (m)",
+      "emptyState": {
+        "title": "Noch keine 6-Minuten-Gehtest-Daten",
+        "description": "Schätzwerte erscheinen hier, sobald Apple Health synchronisiert."
+      }
+    },
+    "navSixMinuteWalk": "6-Min-Gehtest",
+    "stairAscentSpeed": {
+      "title": "Treppensteig-Tempo",
+      "description": "Wie schnell du Treppen hinaufgehst, gemessen von iPhone oder Watch.",
+      "chartTitle": "Treppensteig-Tempo (m/s)",
+      "emptyState": {
+        "title": "Noch keine Daten zum Treppensteig-Tempo",
+        "description": "Werte erscheinen hier, sobald Apple Health synchronisiert."
+      }
+    },
+    "navStairAscentSpeed": "Treppe hoch",
+    "stairDescentSpeed": {
+      "title": "Treppab-Tempo",
+      "description": "Wie schnell du Treppen hinabgehst, gemessen von iPhone oder Watch.",
+      "chartTitle": "Treppab-Tempo (m/s)",
+      "emptyState": {
+        "title": "Noch keine Daten zum Treppab-Tempo",
+        "description": "Werte erscheinen hier, sobald Apple Health synchronisiert."
+      }
+    },
+    "navStairDescentSpeed": "Treppe runter",
+    "breathingDisturbances": {
+      "title": "Atemaussetzer",
+      "description": "Wie oft deine Atmung im Schlaf gestört war.",
+      "chartTitle": "Atemaussetzer im Schlaf",
+      "emptyState": {
+        "title": "Noch keine Daten zu Atemaussetzern",
+        "description": "Werte erscheinen hier, sobald Apple Health sie von einer unterstützten Apple Watch synchronisiert."
+      }
+    },
+    "navBreathingDisturbances": "Atmung",
+    "rhythmEvents": {
+      "sectionTitle": "Gesundheitshinweise des Geräts",
+      "sectionIntro": "Hinweise, die deine Uhr eigenständig gesendet hat. HealthLog zeigt diese nur an — es erkennt, bestätigt oder interpretiert sie nicht.",
+      "loadError": "Die Gerätehinweise konnten nicht geladen werden.",
+      "disclaimer": "Dies sind Hinweise, die dein Gerät mit seiner eigenen integrierten Erkennung erzeugt hat. Sie werden hier nur zu deiner Information angezeigt. Dies ist keine medizinische Bewertung durch HealthLog, und HealthLog stellt keine Diagnose. Wenn dich ein Hinweis beunruhigt, sprich mit deiner Ärztin oder deinem Arzt.",
+      "event": {
+        "irregularRhythm": "Hinweis auf unregelmäßigen Rhythmus",
+        "highHeartRate": "Hinweis auf hohe Herzfrequenz",
+        "lowHeartRate": "Hinweis auf niedrige Herzfrequenz",
+        "walkingSteadiness": "Hinweis zur Gehstabilität",
+        "breathingDisturbance": "Atemstörung während des Schlafs"
+      },
+      "verdict": {
+        "irregular": "Dein Gerät hat einen möglichen unregelmäßigen Rhythmus erkannt.",
+        "notDetected": "Dein Gerät hat keinen unregelmäßigen Rhythmus erkannt.",
+        "inconclusive": "Dein Gerät konnte keine Messung vornehmen.",
+        "low": "Dein Gerät hat eine niedrige Gehstabilität erkannt.",
+        "veryLow": "Dein Gerät hat eine sehr niedrige Gehstabilität erkannt.",
+        "fired": "Dein Gerät hat dieses Ereignis erkannt."
       }
     }
   },

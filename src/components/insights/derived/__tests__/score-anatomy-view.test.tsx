@@ -1,0 +1,88 @@
+import { describe, it, expect } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { ScoreAnatomyView, type AnatomyContributor } from "../score-anatomy-view";
+import { I18nProvider } from "@/lib/i18n/context";
+
+function render(node: React.ReactNode, locale: "en" | "de" = "en") {
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale={locale}>{node}</I18nProvider>,
+  );
+}
+
+const COVERAGE = {
+  requiredInputs: 5,
+  presentInputs: 4,
+  historyDays: 21,
+  missing: ["respiratory"],
+};
+const CONFIDENCE = { score: 72, band: "medium" as const };
+const PROVENANCE = {
+  inputs: ["RESTING_HEART_RATE", "HEART_RATE_VARIABILITY"],
+  source: "DAY" as const,
+  windowDays: 30,
+  computedAt: "2026-06-02T07:00:00+02:00",
+};
+const CONTRIBUTORS: AnatomyContributor[] = [
+  { key: "rhr", label: "Resting heart rate", value: 80, weight: 0.3 },
+  { key: "hrv", label: "HRV (SDNN)", value: 60, weight: 0.3 },
+  { key: "respiratory", label: "Respiratory rate", value: null, weight: 0 },
+];
+
+describe("<ScoreAnatomyView>", () => {
+  it("renders the ok state: ring + contributor rows + provenance", () => {
+    const html = render(
+      <ScoreAnatomyView
+        title="Readiness"
+        score={74}
+        contributors={CONTRIBUTORS}
+        coverage={COVERAGE}
+        confidence={CONFIDENCE}
+        provenance={PROVENANCE}
+        method="A blend of deviation components."
+        standard={{ name: "Plews 2013", url: "https://example.org" }}
+      />,
+    );
+    expect(html).toContain('data-slot="score-anatomy-view"');
+    expect(html).toContain('data-status="ok"');
+    expect(html).toContain('data-slot="score-ring"');
+    // Each contributor renders a row with its stable key attr.
+    expect(html).toContain('data-contributor="rhr"');
+    expect(html).toContain('data-contributor="hrv"');
+    // The missing contributor renders present=false (dropped, not blank).
+    expect(html).toContain('data-contributor="respiratory"');
+    expect(html).toContain('data-present="false"');
+    expect(html).toContain('data-slot="provenance-explainer-trigger"');
+    expect(html).toContain('data-slot="score-anatomy-disclaimer"');
+  });
+
+  it("renders the insufficient state with the provisional ring + nudge", () => {
+    const html = render(
+      <ScoreAnatomyView
+        title="Sleep score"
+        score={null}
+        contributors={[]}
+        coverage={{
+          requiredInputs: 1,
+          presentInputs: 0,
+          historyDays: 0,
+          missing: [],
+        }}
+        confidence={null}
+        provenance={{
+          inputs: [],
+          source: "none",
+          windowDays: 0,
+          computedAt: "2026-06-02T07:00:00+02:00",
+        }}
+        method="A transparent blend."
+        insufficient
+      />,
+    );
+    expect(html).toContain('data-status="insufficient"');
+    expect(html).toContain('data-provisional="true"'); // the ring's empty state
+    expect(html).toContain('data-slot="score-anatomy-insufficient"');
+    // No contributor rows in the insufficient state.
+    expect(html).not.toContain('data-slot="anatomy-contributor-row"');
+  });
+});

@@ -63,6 +63,11 @@ export interface FhirPatient {
   birthDate?: string; // YYYY-MM-DD
 }
 
+/** R4 `Annotation` — a free-text note attached to a resource. */
+export interface FhirAnnotation {
+  text: string;
+}
+
 export interface FhirObservation {
   resourceType: "Observation";
   id: string;
@@ -75,6 +80,8 @@ export interface FhirObservation {
   valueInteger?: number;
   valueString?: string;
   component?: FhirObservationComponent[];
+  /** v1.10.0 — descriptive note (e.g. the wellness-score disclaimer). */
+  note?: FhirAnnotation[];
 }
 
 export interface FhirDosage {
@@ -86,9 +93,9 @@ export interface FhirDosage {
    * is available; a text-only dose stays on the `MedicationStatement`.
    */
   dose?: FhirQuantity;
-  /** v1.9.0 — route of administration. Text-only by default (no SNOMED licence concern). */
+  /** Route of administration: an additive SNOMED `coding` plus the `.text` anchor. */
   route?: FhirCodeableConcept;
-  /** v1.9.0 — administration body-site (e.g. injection site). Text-only by default. */
+  /** Administration body-site (e.g. injection site): additive SNOMED `coding` plus `.text`. */
   site?: FhirCodeableConcept;
 }
 

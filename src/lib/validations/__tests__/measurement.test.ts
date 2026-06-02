@@ -271,4 +271,65 @@ describe("measurement validation", () => {
       expect(parsed.success).toBe(true);
     });
   });
+
+  // v1.10.0 — computed scores (WX-C).
+  describe("computed scores", () => {
+    it("canonical unit is 'score' for each computed-score type", () => {
+      expect(getUnitForType("RECOVERY_SCORE")).toBe("score");
+      expect(getUnitForType("STRESS_SCORE")).toBe("score");
+      expect(getUnitForType("STRAIN_SCORE")).toBe("score");
+    });
+
+    it("plausibility range is 0..100 for a computed score", () => {
+      expect(validateMeasurementRange("RECOVERY_SCORE", 0)).toBeNull();
+      expect(validateMeasurementRange("RECOVERY_SCORE", 100)).toBeNull();
+      expect(validateMeasurementRange("RECOVERY_SCORE", -1)).not.toBeNull();
+      expect(validateMeasurementRange("RECOVERY_SCORE", 101)).not.toBeNull();
+    });
+
+    it("rejects every non-writable source on a client write", () => {
+      // v1.10.0 QA — the single-POST validates `source` against the
+      // client-writable subset {MANUAL, APPLE_HEALTH}. COMPUTED (server
+      // scores), WITHINGS (the Withings webhook), and IMPORT (the CSV
+      // importer) are all server-owned and must be rejected so a client
+      // cannot forge a row attributed to a source it does not own.
+      for (const source of ["COMPUTED", "WITHINGS", "IMPORT"]) {
+        const parsed = createMeasurementSchema.safeParse({
+          type: "WEIGHT",
+          value: 80,
+          measuredAt: "2026-06-02T12:00:00Z",
+          source,
+        });
+        expect(parsed.success, `expected ${source} to be rejected`).toBe(false);
+        if (!parsed.success) {
+          const issue = parsed.error.issues.find((i) =>
+            i.path.includes("source"),
+          );
+          expect(issue, `expected a source-path rejection for ${source}`).toBeDefined();
+        }
+      }
+    });
+
+    it("accepts the client-writable sources MANUAL and APPLE_HEALTH", () => {
+      for (const source of ["MANUAL", "APPLE_HEALTH"]) {
+        const parsed = createMeasurementSchema.safeParse({
+          type: "WEIGHT",
+          value: 80,
+          measuredAt: "2026-06-02T12:00:00Z",
+          source,
+        });
+        expect(parsed.success, `expected ${source} to be accepted`).toBe(true);
+      }
+    });
+
+    it("defaults source to MANUAL when omitted", () => {
+      const parsed = createMeasurementSchema.safeParse({
+        type: "WEIGHT",
+        value: 80,
+        measuredAt: "2026-06-02T12:00:00Z",
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) expect(parsed.data.source).toBe("MANUAL");
+    });
+  });
 });

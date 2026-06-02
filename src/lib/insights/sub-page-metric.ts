@@ -80,14 +80,28 @@ const SUB_PAGE_METRIC = {
   "double-support-time": ["WALKING_DOUBLE_SUPPORT"],
   "step-length": ["WALKING_STEP_LENGTH"],
   "walking-speed": ["WALKING_SPEED"],
+  // v1.10.0 — VO2 max (cardio fitness) gains a dedicated sub-page so it
+  // carries the generic metric-status assessment instead of riding as a
+  // bare chart-row on the pulse page.
+  "cardio-fitness": ["VO2_MAX"],
+  // v1.10.0 — Apple-Health Mobility additions.
+  falls: ["FALL_COUNT"],
+  "six-minute-walk": ["SIX_MINUTE_WALK_DISTANCE"],
+  "stair-ascent-speed": ["STAIR_ASCENT_SPEED"],
+  "stair-descent-speed": ["STAIR_DESCENT_SPEED"],
   // ── sleep ──
   sleep: ["SLEEP_DURATION"],
+  // v1.10.0 — sleep breathing-disturbance index joins the sleep cluster.
+  "breathing-disturbances": ["BREATHING_DISTURBANCES"],
   // ── cardiovascular ──
   "resting-pulse": ["RESTING_HEART_RATE"],
   hrv: ["HEART_RATE_VARIABILITY"],
   // v1.7.0 — Withings cardiovascular risk markers.
   "pulse-wave-velocity": ["PULSE_WAVE_VELOCITY"],
   "vascular-age": ["VASCULAR_AGE"],
+  // v1.10.0 — cardio recovery (post-exercise HR drop) joins the
+  // cardiovascular cluster.
+  "cardio-recovery": ["CARDIO_RECOVERY"],
   // ── hearing (v1.7.0) — audio-exposure cluster ──
   "environmental-audio": ["AUDIO_EXPOSURE_ENV"],
   "headphone-audio": ["AUDIO_EXPOSURE_HEADPHONE"],
@@ -97,6 +111,8 @@ const SUB_PAGE_METRIC = {
   // ── metabolic (v1.7.0) ──
   "blood-glucose": ["BLOOD_GLUCOSE"],
   "skin-temperature": ["SKIN_TEMPERATURE"],
+  // v1.10.0 — overnight wrist temperature joins the metabolic cluster.
+  "wrist-temperature": ["WRIST_TEMPERATURE"],
   // ── mood ──
   mood: ["MOOD"],
   // ── events (medication adherence is event-driven; no measurement series) ──
@@ -165,6 +181,19 @@ export const SUB_PAGE_GROUP: Partial<Record<SubPageSlug, SubPageGroup>> = {
   // metabolic (v1.7.0)
   "blood-glucose": "metabolic",
   "skin-temperature": "metabolic",
+  // ── v1.10.0 — additive HealthKit signals (WX-A) ──
+  // activity / mobility cluster
+  "cardio-fitness": "activity",
+  falls: "activity",
+  "six-minute-walk": "activity",
+  "stair-ascent-speed": "activity",
+  "stair-descent-speed": "activity",
+  // vitals cluster (breathing sits with respiratory rate)
+  "breathing-disturbances": "vitals",
+  // cardiovascular cluster
+  "cardio-recovery": "cardiovascular",
+  // metabolic cluster (overnight wrist reading)
+  "wrist-temperature": "metabolic",
 };
 
 /**

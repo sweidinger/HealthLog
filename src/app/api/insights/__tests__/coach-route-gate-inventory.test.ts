@@ -39,6 +39,13 @@ const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   "src/app/api/insights/bmi-status/route.ts",
   "src/app/api/insights/cards/route.ts",
   "src/app/api/insights/correlations/route.ts",
+  // v1.10.0 — generic derived-wellness-metric route. Pure compute over
+  // the rollup tier; gates on the same `insightStatus` sub-flag as the
+  // assessment routes (no Coach prose).
+  "src/app/api/insights/derived/route.ts",
+  // v1.10.0 — batched derived-metric route (the dashboard fan-out fix).
+  // Same pure compute + `insightStatus` sub-flag as the single route.
+  "src/app/api/insights/derived/batch/route.ts",
   "src/app/api/insights/medication-compliance-status/route.ts",
   // v1.8.7.1 — generic per-HealthKit-metric assessment. Gated on the
   // same `insightStatus` sub-flag as the seven specialised status routes.
@@ -49,6 +56,11 @@ const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   // `coach`: a user with assessments enabled but Coach disabled can warm.
   "src/app/api/insights/pregenerate/route.ts",
   "src/app/api/insights/pulse-status/route.ts",
+  // v1.10.0 — device-flagged event awareness timeline (categorical
+  // events, WX-B). Pure DB read of the device's own verdicts; gates on
+  // the same `insightStatus` sub-flag as the assessment routes (no Coach
+  // prose).
+  "src/app/api/insights/rhythm-events/route.ts",
   "src/app/api/insights/weight-status/route.ts",
 ];
 

@@ -1,0 +1,227 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+import { useTranslations } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
+import type {
+  DerivedConfidence,
+  DerivedCoverage,
+  DerivedProvenance,
+} from "@/lib/insights/derived/types";
+import { ScoreRing } from "./score-ring";
+import { CoverageMeter } from "./coverage-meter";
+import {
+  ProvenanceExplainer,
+  type ProvenanceStandard,
+} from "./provenance-explainer";
+import {
+  bandForScore,
+  BAND_PROGRESS_CLASS,
+  clampScore,
+  type ScoreBand,
+} from "./band-tokens";
+
+/**
+ * v1.10.0 — the Oura-style score-anatomy detail view (the Hybrid
+ * direction's "reinhauen" surface).
+ *
+ * A full-bleed `ScoreRing` + ranked contributor rows + a cited-standard
+ * `ProvenanceExplainer`. Each contributor row is one input's push/pull on
+ * the score: a label, an impact bar (band-coloured, width = the
+ * contributor's 0..100 value), and the contributor's own mini coverage
+ * (its effective weight share). Reused by every composite (sleep score,
+ * readiness, …) — the caller normalises its `value` into the
+ * `contributors` list, so this component stays metric-agnostic.
+ *
+ * Renders the same three states the rest of the design system speaks:
+ *   - ok          → ring + contributors + coverage + provenance
+ *   - insufficient → the ring's provisional state + the coverage "track N"
+ *                    nudge (never a blank, never a fabricated number)
+ *
+ * Mobile-first (the ring is large where there is room), dark-first, a11y:
+ * the ring restates the number in its aria-label; contributor bars carry a
+ * text value (never colour-only); the provenance explainer threads
+ * aria-describedby. Plain React text children only — no markdown library.
+ */
+
+/** One normalised contributor the view ranks by impact. */
+export interface AnatomyContributor {
+  /** Stable key (drives the data-attr + the localised label lookup by caller). */
+  key: string;
+  /** Localised display label. */
+  label: ReactNode;
+  /** 0..100 contribution score, or null when the input was missing (dropped). */
+  value: number | null;
+  /** Effective weight share after null-redistribution, 0..1. */
+  weight: number;
+}
+
+export interface ScoreAnatomyViewProps {
+  /** Localised metric title (e.g. "Readiness", "Sleep score"). */
+  title: ReactNode;
+  /** The composite 0..100 score, or null for the insufficient/empty state. */
+  score: number | null;
+  /** Band override; derived from the score when omitted. */
+  band?: ScoreBand;
+  /** Short caption under the ring (e.g. a band word or a one-line summary). */
+  caption?: ReactNode;
+  /** Ranked contributors (the caller pre-ranks; the view renders in order). */
+  contributors: AnatomyContributor[];
+  coverage: DerivedCoverage;
+  confidence?: DerivedConfidence | null;
+  provenance: DerivedProvenance;
+  /** Plain-language method shown in the provenance explainer. */
+  method: ReactNode;
+  /** Cited standard rendered as an external link in the explainer footer. */
+  standard?: ProvenanceStandard;
+  /** When true the score is unavailable — render the provisional state. */
+  insufficient?: boolean;
+  /** Localised "not enough data" nudge for the insufficient state. */
+  insufficientNote?: ReactNode;
+  className?: string;
+}
+
+export function ScoreAnatomyView({
+  title,
+  score,
+  band,
+  caption,
+  contributors,
+  coverage,
+  confidence,
+  provenance,
+  method,
+  standard,
+  insufficient = false,
+  insufficientNote,
+  className,
+}: ScoreAnatomyViewProps) {
+  const { t } = useTranslations();
+  const effectiveScore = insufficient ? null : score;
+
+  return (
+    <section
+      data-slot="score-anatomy-view"
+      data-status={insufficient ? "insufficient" : "ok"}
+      className={cn(
+        "border-border bg-card flex flex-col gap-5 rounded-xl border p-5",
+        className,
+      )}
+      aria-label={typeof title === "string" ? title : undefined}
+    >
+      {/* Hero: title + ring + caption */}
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h2
+          data-slot="score-anatomy-title"
+          className="text-foreground text-sm font-semibold tracking-wide uppercase"
+        >
+          {title}
+        </h2>
+        <ScoreRing
+          score={effectiveScore}
+          band={band}
+          label={t("insights.derived.anatomy.outOf")}
+          size="lg"
+        />
+        {caption && !insufficient ? (
+          <p
+            data-slot="score-anatomy-caption"
+            className="text-muted-foreground text-xs"
+          >
+            {caption}
+          </p>
+        ) : null}
+        <CoverageMeter
+          coverage={coverage}
+          confidence={confidence ?? undefined}
+          size="md"
+        />
+      </div>
+
+      {insufficient ? (
+        <p
+          data-slot="score-anatomy-insufficient"
+          className="text-muted-foreground rounded-lg border border-dashed px-4 py-6 text-center text-xs"
+        >
+          {insufficientNote ??
+            t("insights.derived.anatomy.insufficient")}
+        </p>
+      ) : (
+        <div data-slot="score-anatomy-contributors" className="space-y-3">
+          <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+            {t("insights.derived.anatomy.contributorsLabel")}
+          </p>
+          <ul className="space-y-2.5">
+            {contributors.map((c) => (
+              <ContributorRow key={c.key} contributor={c} />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Provenance + cited standard + the non-clinical disclaimer */}
+      <div className="flex items-center justify-between gap-2 border-t pt-3">
+        <p
+          data-slot="score-anatomy-disclaimer"
+          className="text-muted-foreground text-[10px] leading-snug"
+        >
+          {t("insights.derived.anatomy.disclaimer")}
+        </p>
+        <ProvenanceExplainer
+          provenance={provenance}
+          method={method}
+          standard={standard}
+        />
+      </div>
+    </section>
+  );
+}
+
+/** One ranked contributor row — label + impact bar + value + weight share. */
+function ContributorRow({ contributor }: { contributor: AnatomyContributor }) {
+  const { t } = useTranslations();
+  const present = contributor.value != null && Number.isFinite(contributor.value);
+  const clamped = present ? clampScore(contributor.value as number) : 0;
+  const rowBand: ScoreBand = bandForScore(clamped);
+  const weightPct = Math.round(contributor.weight * 100);
+
+  return (
+    <li
+      data-slot="anatomy-contributor-row"
+      data-contributor={contributor.key}
+      data-present={present ? "true" : "false"}
+      className="space-y-1"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-foreground text-xs font-medium">
+          {contributor.label}
+        </span>
+        <span
+          data-slot="anatomy-contributor-value"
+          className="text-muted-foreground text-[11px] tabular-nums"
+        >
+          {present
+            ? t("insights.derived.anatomy.contributorValue", {
+                value: Math.round(clamped),
+                weight: weightPct,
+              })
+            : t("insights.derived.anatomy.contributorMissing")}
+        </span>
+      </div>
+      <div
+        className="bg-muted/40 h-1.5 w-full overflow-hidden rounded-full"
+        role="presentation"
+      >
+        <div
+          data-slot="anatomy-contributor-bar"
+          className={cn(
+            "h-full rounded-full transition-all",
+            present ? BAND_PROGRESS_CLASS[rowBand] : "bg-muted",
+          )}
+          style={{ width: present ? `${clamped}%` : "0%" }}
+        />
+      </div>
+    </li>
+  );
+}

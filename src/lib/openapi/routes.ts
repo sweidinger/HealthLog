@@ -47,6 +47,10 @@ import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-pr
 import { ACCEPTED_INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { METRIC_STATUS_IDS } from "@/lib/insights/metric-status-registry";
+import {
+  DERIVED_METRIC_IDS,
+  VITALS_BASELINE_TYPES,
+} from "@/lib/insights/derived/registry";
 import { ANALYTICS_RANGES } from "@/lib/analytics/range-delta";
 
 /**
@@ -121,7 +125,7 @@ coachPrefsSchema.meta({
 createBatchWorkoutSchema.meta({
   id: "CreateBatchWorkoutRequest",
   description:
-    "v1.4.25 W16b — typed workout batch ingest. Each entry is an HKWorkout-aligned record with an optional nested GeoJSON LineString route. Up to 100 workouts per call; nested route geometry capped at 20 000 points. Withings server-to-server callers pass source: WITHINGS and ship no route (Withings reports aggregates only).",
+    "Typed workout batch ingest. Each entry is an HKWorkout-aligned record with an optional nested GeoJSON LineString route AND an optional route-independent per-workout heart-rate series (`samples`: `[{ t, hr?, speedMs?, power?, cadence? }]`, up to 30 000 points). The `samples` series is the strain-engine input for indoor workouts that have no GPS route. Up to 100 workouts per call; nested route geometry capped at 20 000 points. Withings server-to-server callers pass source: WITHINGS and ship no route (Withings reports aggregates only).",
 });
 
 const coachMessageFeedbackBody = z
@@ -374,6 +378,15 @@ const batchEntrySchema = z
       .describe(
         "HKCategoryValueSleepAnalysis codepoint; only for sleep samples.",
       ),
+    categoryValue: z
+      .number()
+      .int()
+      .min(0)
+      .max(20)
+      .optional()
+      .describe(
+        "v1.10.0 — `HKCategoryValue` codepoint for an EVENT-class category sample (irregular-rhythm, high/low-HR, walking-steadiness, breathing-disturbance). Carries the device's own classification verdict / severity, which the server resolves to a stored `rhythmClassification`. HealthLog stores ONLY the device's result — it never re-classifies. Ignored for non-event identifiers.",
+      ),
     externalId: z
       .string()
       .min(1)
@@ -497,6 +510,17 @@ const workoutRouteGeometry = z
   })
   .meta({ id: "WorkoutRouteGeometry" });
 
+// v1.10.0 — route-independent per-workout heart-rate series. Present
+// for indoor and outdoor workouts that shipped a `samples` array on
+// ingest. `samples` mirrors the ingest shape `[{ t, hr?, speedMs?,
+// power?, cadence? }]`; `sampleCount` is the denormalised length.
+const workoutHrSeries = z
+  .object({
+    sampleCount: z.number().int().nonnegative(),
+    samples: z.unknown(),
+  })
+  .meta({ id: "WorkoutHrSeries" });
+
 const workoutDetailResponse = z
   .object({
     id: z.string(),
@@ -516,6 +540,7 @@ const workoutDetailResponse = z
     externalId: z.string().nullable(),
     metadata: z.unknown().nullable(),
     route: workoutRouteGeometry.nullable(),
+    samples: workoutHrSeries.nullable(),
     canonicalId: z.string(),
   })
   .meta({ id: "WorkoutDetailResponse" });
@@ -1276,6 +1301,180 @@ const metricStatusResponse = z
     id: "MetricStatusResponse",
     description:
       "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
+  });
+
+// v1.10.0 — generic derived-wellness-metric route. The query enum is
+// derived from the same registry the route validates against, so spec +
+// route + cache scope cannot drift. `type` sub-targets the single vital
+// a baseline metric (VITALS_BASELINE) bands over.
+const derivedMetricQuery = z
+  .object({
+    metric: z
+      .enum(DERIVED_METRIC_IDS as [string, ...string[]])
+      .describe(
+        "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, VASCULAR_AGE_DELTA, HRV_BALANCE, BMI, READINESS). Closed enum: an unknown id 422s. Metrics whose compute has not yet landed return an `insufficient` value with reason `not_implemented`.",
+      ),
+    type: z
+      .enum(VITALS_BASELINE_TYPES as [string, ...string[]])
+      .optional()
+      .describe(
+        "For VITALS_BASELINE only — the single vital to band (defaults to RESTING_HEART_RATE). Ignored by composites. An unsupported value yields an `insufficient` value rather than a 422 so iOS metric combinations stay forgiving.",
+      ),
+  })
+  .meta({ id: "DerivedMetricQuery" });
+
+const derivedCoverage = z
+  .object({
+    requiredInputs: z
+      .number()
+      .int()
+      .describe("Inputs the metric wants (its full input set)."),
+    presentInputs: z
+      .number()
+      .int()
+      .describe("Inputs actually present in the user's data."),
+    historyDays: z
+      .number()
+      .int()
+      .describe("Distinct days of history backing the value (the gating floor)."),
+    missing: z
+      .array(z.string())
+      .describe("Named inputs still missing — drives the 'track N more' nudge."),
+  })
+  .meta({ id: "DerivedCoverage" });
+
+const derivedConfidence = z
+  .object({
+    score: z
+      .number()
+      .describe("0..100 confidence; feeds the shared coverage meter unchanged."),
+    band: z
+      .enum(["high", "medium", "low", "draft"])
+      .describe("Confidence band the meter renders."),
+  })
+  .meta({ id: "DerivedConfidence" });
+
+const derivedProvenance = z
+  .object({
+    inputs: z
+      .array(z.string())
+      .describe("Named inputs that actually backed the value."),
+    source: z
+      .enum(["DAY", "WEEK", "MONTH", "YEAR", "live", "none"])
+      .describe(
+        "Granularity the dominant read resolved against. 'live' = a coverage-miss live-SQL fallback; 'none' = no data backed the value.",
+      ),
+    windowDays: z
+      .number()
+      .int()
+      .describe("Trailing window the value summarises, in days."),
+    computedAt: z.iso
+      .datetime({ offset: true })
+      .describe("Compute time (for cache-staleness + the 'as of' chip)."),
+  })
+  .meta({ id: "DerivedProvenance" });
+
+const derivedMetricResponse = z
+  .object({
+    metric: z
+      .enum(DERIVED_METRIC_IDS as [string, ...string[]])
+      .describe("Echoes the requested derived-metric id (tags the union)."),
+    status: z
+      .enum(["ok", "insufficient"])
+      .describe(
+        "'ok' carries `value` + `confidence`; 'insufficient' carries `reason` and no value, but still carries `coverage` + `provenance` so the surface renders the same gating UI.",
+      ),
+    value: z
+      .record(z.string(), z.unknown())
+      .nullable()
+      .describe(
+        "Metric-specific value object when status is 'ok' (e.g. { type, center, low, high, spread, sampleDays, k } for VITALS_BASELINE); null when 'insufficient'.",
+      ),
+    coverage: derivedCoverage,
+    confidence: derivedConfidence
+      .nullable()
+      .describe("Present when status is 'ok'; null when 'insufficient'."),
+    provenance: derivedProvenance,
+    reason: z
+      .string()
+      .nullable()
+      .describe("Why the value could not be produced; null when status is 'ok'."),
+  })
+  .meta({
+    id: "DerivedMetricResponse",
+    description:
+      "Flat `Derived<T>` envelope for one derived wellness metric. Pure compute over the rollup tier (no LLM, no narrative). iOS decodes one stable shape and combines values across metrics; coverage/confidence/provenance let it render the same honesty chips.",
+  });
+
+// v1.10.0 — batched derived-metric query. The `metrics` CSV carries one
+// or more `metric` / `metric:type` tokens; the route fans out server-side
+// under a bounded limiter with the profile loaded once, collapsing the
+// dashboard's cold-mount fan-out of N single-metric requests into one.
+const derivedBatchQuery = z
+  .object({
+    metrics: z
+      .string()
+      .min(1)
+      .max(1024)
+      .describe(
+        "Comma-separated derived-metric tokens. Each is a `<DERIVED_METRIC_ID>` or `<DERIVED_METRIC_ID>:<MeasurementType>` (the colon sub-targets a VITALS_BASELINE vital). An unknown id 422s; at most 24 tokens; duplicates collapse.",
+      ),
+  })
+  .meta({ id: "DerivedBatchQuery" });
+
+const derivedBatchResponse = z
+  .object({
+    metrics: z
+      .record(z.string(), derivedMetricResponse)
+      .describe(
+        "Map keyed by the per-request token (`<metric>` or `<metric>:<type>`). Each value is the same flat `Derived<T>` envelope the single-metric route returns, so a client decodes one shape and reads back exactly the tokens it asked for.",
+      ),
+  })
+  .meta({
+    id: "DerivedBatchResponse",
+    description:
+      "Batched derived-metric values. One request resolves the whole dashboard grid (the wellness scores + the derived re-frames + one baseline per vital) instead of N concurrent single-metric requests sharing the Prisma pool. Pure compute over the rollup tier — no LLM, no narrative, no cache table.",
+  });
+
+// v1.10.0 — FDR-controlled correlation discovery result. One discovered,
+// statistically-defensible behaviour → next-day-outcome pair.
+const discoveredCorrelation = z
+  .object({
+    behaviour: z
+      .string()
+      .describe("Behaviour channel (lag source), e.g. TIME_IN_DAYLIGHT, MOOD."),
+    outcome: z
+      .string()
+      .describe("Outcome channel (lag target), e.g. SLEEP_DURATION, HEART_RATE_VARIABILITY."),
+    n: z.number().int().describe("Paired-day count after the day+1 lag join (≥ 20)."),
+    r: z.number().describe("Pearson r over the lag-joined daily series."),
+    pValue: z.number().describe("Two-sided exact Student-t p-value (< 0.05)."),
+    qValue: z
+      .number()
+      .describe("Benjamini-Hochberg FDR-adjusted q-value (≤ the surface threshold)."),
+    interpretation: z
+      .string()
+      .describe("Conservative, descriptive interpretation — never causal."),
+    lagDays: z.number().int().describe("Lag in days applied (1)."),
+  })
+  .meta({ id: "DiscoveredCorrelation" });
+
+const correlationDiscoveryResponse = z
+  .object({
+    discovered: z
+      .array(discoveredCorrelation)
+      .describe("Pairs surviving n ≥ 20, p < 0.05, AND the BH-FDR control."),
+    pairsTested: z
+      .number()
+      .int()
+      .describe("Behaviour × outcome pairs assessed (for the honest footer)."),
+    fdrQ: z.number().describe("The FDR target the surface used."),
+    minPairs: z.number().int().describe("Minimum paired-day count enforced per pair."),
+  })
+  .meta({
+    id: "CorrelationDiscoveryResponse",
+    description:
+      "v1.10.0 — FDR-controlled correlation discovery over a curated behaviour × outcome matrix, lagged behaviour → next-day outcome. Only statistically-defensible pairs surface; descriptive, never causal.",
   });
 
 // The seven specialised `*-status` routes accept an optional locale
@@ -2988,6 +3187,78 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 metricStatusResponse,
                 "MetricStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/derived": {
+    get: {
+      tags: ["Insights"],
+      summary: "Derived wellness metric (compute-once)",
+      description:
+        "v1.10.0 — the compute-once `Derived<T>` value for any registered derived wellness metric (personal typical-range vitals baseline, cardio-fitness band, vascular-age delta, sleep score, readiness, coincident-deviation flag). One generic route over a closed registry enum; an unknown `metric` 422s. Pure compute over the rollup tier with a per-type live fallback on a coverage miss — no LLM call, no narrative, no cache table. Returns the flat `Derived<T>` union so the native client can decode one stable shape and combine values across metrics. Auth via cookie or Bearer.",
+      requestParams: {
+        query: derivedMetricQuery,
+      },
+      responses: {
+        "200": {
+          description: "The flat derived-metric value (ok or insufficient).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                derivedMetricResponse,
+                "DerivedMetricResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/derived/batch": {
+    get: {
+      tags: ["Insights"],
+      summary: "Derived wellness metrics (batched compute-once)",
+      description:
+        "v1.10.0 — resolve several derived wellness metrics in ONE request. The `metrics` CSV names the metrics (a `metric:type` token sub-targets a VITALS_BASELINE vital); the server fans out under a bounded limiter with the profile loaded once and returns a map keyed by the per-request token. Collapses the Insights cold-mount fan-out of 14+ independent single-metric requests — the pool-starvation class that surfaces as a hang-then-recover. The single-metric route stays for the per-score detail pages. Auth via cookie or Bearer.",
+      requestParams: {
+        query: derivedBatchQuery,
+      },
+      responses: {
+        "200": {
+          description: "The map of derived-metric values, keyed by token.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                derivedBatchResponse,
+                "DerivedBatchResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/correlations": {
+    get: {
+      tags: ["Insights"],
+      summary: "Correlation discovery (FDR-controlled)",
+      description:
+        "v1.10.0 — scans a curated behaviour × outcome matrix (daylight / mood / glucose / BP / steps × sleep / HRV / resting HR / weight), lag-joins each behaviour day to the next day's outcome, runs Pearson with the exact Student-t p-value, and applies Benjamini-Hochberg FDR control across every tested pair. Only statistically-defensible pairs surface, each carrying n, r, p, and the BH-adjusted q. Descriptive, never causal. Gated by the operator `correlations` assistant surface. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description: "The discovered correlations + the tested-pair count.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                correlationDiscoveryResponse,
+                "CorrelationDiscoveryResponseEnvelope",
               ),
             },
           },
