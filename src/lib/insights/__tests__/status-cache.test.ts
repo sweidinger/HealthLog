@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    auditLog: { findFirst: vi.fn() },
+    auditLog: { findFirst: vi.fn(), findMany: vi.fn() },
   },
 }));
 
@@ -137,6 +137,11 @@ describe("readFreshStatusText", () => {
 });
 
 describe("resolveReadOnlyStatusMiss", () => {
+  beforeEach(() => {
+    // Default: no prior assessment to serve stale (readLastGoodStatusText).
+    vi.mocked(prisma.auditLog.findMany).mockResolvedValue([] as never);
+  });
+
   it("returns no-provider without enqueuing when the user has no provider", async () => {
     hasUsableStatusProvider.mockResolvedValue(false);
     const outcome = await resolveReadOnlyStatusMiss({
@@ -144,7 +149,7 @@ describe("resolveReadOnlyStatusMiss", () => {
       metric: "weight",
       locale: "en",
     });
-    expect(outcome).toBe("no-provider");
+    expect(outcome.kind).toBe("no-provider");
     expect(enqueueStatusGeneration).not.toHaveBeenCalled();
   });
 
@@ -157,12 +162,35 @@ describe("resolveReadOnlyStatusMiss", () => {
       metric: "pulse",
       locale: "de",
     });
-    expect(outcome).toBe("preparing");
+    expect(outcome.kind).toBe("preparing");
+    expect(outcome).toEqual({ kind: "preparing", lastGood: null });
     expect(enqueueStatusGeneration).toHaveBeenCalledWith({
       userId: "u1",
       metric: "pulse",
       locale: "de",
     });
+  });
+
+  it("serves the last good assessment stale-while-revalidate on a clean miss", async () => {
+    hasUsableStatusProvider.mockResolvedValue(true);
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null as never);
+    // A prior (e.g. yesterday's) real assessment is on record.
+    vi.mocked(prisma.auditLog.findMany).mockResolvedValue([
+      cacheRow(
+        { dateKey: "2026-05-30", text: "Steady upward trend.", model: "gpt-4o-mini" },
+        new Date("2026-05-30T04:30:00.000Z"),
+      ),
+    ] as never);
+    const outcome = await resolveReadOnlyStatusMiss({
+      userId: "u1",
+      metric: "weight",
+      locale: "en",
+    });
+    expect(outcome.kind).toBe("preparing");
+    if (outcome.kind !== "preparing") throw new Error("expected preparing");
+    expect(outcome.lastGood?.text).toBe("Steady upward trend.");
+    // A refresh is still enqueued behind the stale serve.
+    expect(enqueueStatusGeneration).toHaveBeenCalledTimes(1);
   });
 
   it("suppresses re-enqueue while a fresh timeout stub exists", async () => {
@@ -180,7 +208,7 @@ describe("resolveReadOnlyStatusMiss", () => {
       metric: "mood",
       locale: "en",
     });
-    expect(outcome).toBe("preparing");
+    expect(outcome.kind).toBe("preparing");
     expect(enqueueStatusGeneration).not.toHaveBeenCalled();
   });
 
@@ -199,7 +227,7 @@ describe("resolveReadOnlyStatusMiss", () => {
       metric: "bmi",
       locale: "de",
     });
-    expect(outcome).toBe("preparing");
+    expect(outcome.kind).toBe("preparing");
     expect(enqueueStatusGeneration).toHaveBeenCalledTimes(1);
   });
 });

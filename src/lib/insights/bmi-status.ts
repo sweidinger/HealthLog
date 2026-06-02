@@ -72,7 +72,7 @@ export async function generateBmiStatusForUser(
       metric: "bmi",
       locale,
     });
-    if (outcome === "no-provider") {
+    if (outcome.kind === "no-provider") {
       return {
         hasProvider: false,
         text: getNoKeyBmiStatusText(locale),
@@ -80,12 +80,15 @@ export async function generateBmiStatusForUser(
         updatedAt: null,
       };
     }
+    // v1.8.7 — stale-while-revalidate: serve the last good assessment
+    // (if any) instantly while the worker re-warms; only fall to the empty
+    // preparing skeleton when none was ever produced.
     return {
       hasProvider: true,
-      text: null,
-      cached: false,
-      updatedAt: null,
-      preparing: true,
+      text: outcome.lastGood?.text ?? null,
+      cached: outcome.lastGood !== null,
+      updatedAt: outcome.lastGood?.updatedAt ?? null,
+      preparing: outcome.lastGood === null,
     };
   }
 

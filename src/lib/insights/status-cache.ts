@@ -101,13 +101,62 @@ export async function readFreshStatusText(args: {
   }
 }
 
+export interface LastGoodStatusHit {
+  text: string;
+  updatedAt: string;
+}
+
+/**
+ * v1.8.7 — read the most recent NON-stub assessment for `(userId,
+ * cacheAction)` regardless of which day it was generated. This is the
+ * stale-while-revalidate source: when today's cache is a miss the
+ * read-only path can still serve yesterday's (or older) good text
+ * instantly while a fresh generation is warmed out of band, so opening a
+ * category never drops to the "preparing" skeleton if an assessment was
+ * ever produced. Returns `null` only when there is genuinely no prior
+ * assessment (or every prior row is a timeout stub / malformed).
+ */
+export async function readLastGoodStatusText(args: {
+  userId: string;
+  cacheAction: string;
+}): Promise<LastGoodStatusHit | null> {
+  const { userId, cacheAction } = args;
+  const rows = await prisma.auditLog.findMany({
+    where: { userId, action: cacheAction },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { createdAt: true, details: true },
+  });
+  for (const row of rows) {
+    if (!row.details) continue;
+    try {
+      const parsed = JSON.parse(row.details) as ParsedStatusCache;
+      if (isTimeoutStub(parsed)) continue;
+      if (typeof parsed.text !== "string" || parsed.text.trim().length === 0) {
+        continue;
+      }
+      return { text: parsed.text, updatedAt: row.createdAt.toISOString() };
+    } catch {
+      // Malformed payload — skip and look further back.
+      continue;
+    }
+  }
+  return null;
+}
+
 /**
  * Outcome of the read-only cache-miss resolution. The generators map this
  * onto their public return shape:
  *   - `no-provider` → `{ hasProvider: false, text: <no-key fallback> }`
- *   - `preparing`   → `{ hasProvider: true, text: null, preparing: true }`
+ *   - `preparing`   → `{ hasProvider: true, text: <last-good|null>, preparing: true }`
+ *
+ * v1.8.7 — `preparing` now carries the last good assessment (if any) so
+ * the card renders the previous text immediately (stale-while-revalidate)
+ * instead of a skeleton while the worker re-warms the cache.
  */
-export type ReadOnlyMissOutcome = "no-provider" | "preparing";
+export type ReadOnlyMissOutcome =
+  | { kind: "no-provider" }
+  | { kind: "preparing"; lastGood: LastGoodStatusHit | null };
 
 /**
  * v1.8.3 — resolve what a read-only status generation should return on a
@@ -131,9 +180,19 @@ export async function resolveReadOnlyStatusMiss(args: {
   locale: "de" | "en";
 }): Promise<ReadOnlyMissOutcome> {
   const hasProvider = await hasUsableStatusProvider(args.userId);
-  if (!hasProvider) return "no-provider";
+  if (!hasProvider) return { kind: "no-provider" };
 
   const cacheAction = `insights.${args.metric}-status.${args.locale}`;
+
+  // v1.8.7 — stale-while-revalidate. Surface the last good (non-stub)
+  // assessment for this scope so the card renders the previous text
+  // immediately instead of a skeleton while a refresh is warmed. Null when
+  // no assessment was ever produced — only then does the card show
+  // "preparing"/"no analysis yet".
+  const lastGood = await readLastGoodStatusText({
+    userId: args.userId,
+    cacheAction,
+  });
 
   // v1.8.3 — honour the short-TTL negative cache. If the worker recently
   // hit a provider stall it wrote a `retryAt` stub; re-enqueuing on every
@@ -145,7 +204,7 @@ export async function resolveReadOnlyStatusMiss(args: {
       action: { name: "insights.status.preparing" },
       meta: { metric: args.metric, suppressed_enqueue: true },
     });
-    return "preparing";
+    return { kind: "preparing", lastGood };
   }
 
   // Enqueue out of band — do NOT await an LLM here. The enqueue itself is
@@ -157,9 +216,9 @@ export async function resolveReadOnlyStatusMiss(args: {
   });
   annotate({
     action: { name: "insights.status.preparing" },
-    meta: { metric: args.metric },
+    meta: { metric: args.metric, stale_served: lastGood !== null },
   });
-  return "preparing";
+  return { kind: "preparing", lastGood };
 }
 
 /**
