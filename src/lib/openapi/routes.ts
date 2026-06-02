@@ -1092,6 +1092,109 @@ const medicationCadenceResponse = z
       "Cadence + compliance read for a single medication. `next` is the upcoming-dose envelope (null when the course has ended or the rolling clock has no pinning intake yet); `timeline` walks the requested `windowDays` worth of slots in ascending time order.",
   });
 
+const complianceResult = z
+  .object({
+    totalExpected: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("Full denominator over the window: `taken + skipped + missed`. Cadence-aware and clamped to the medication's `createdAt`."),
+    taken: z.number().int().nonnegative(),
+    skipped: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("Doses the user explicitly skipped — excluded from the `rate` denominator."),
+    missed: z.number().int().nonnegative(),
+    rate: z
+      .number()
+      .int()
+      .min(0)
+      .max(100)
+      .describe("Adherence percentage `round(taken / (taken + missed) * 100)` — `skipped` is excluded from the denominator."),
+    streak: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("Consecutive days with every due dose taken."),
+  })
+  .meta({
+    id: "ComplianceResult",
+    description:
+      "Rolling-window adherence summary. `compliance30` is the authoritative 'last 30 days, taken vs expected' read — clients should display `rate` and use `totalExpected` as the denominator rather than re-deriving it from the daily map.",
+  });
+
+const dailyComplianceEntry = z
+  .object({
+    expected: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("Engine-computed due-slot count for the day. Equals `expectedCount`; kept for existing consumers."),
+    expectedCount: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("True due-slot count for the day (additive field clients key off so they don't infer due-ness from `expected`)."),
+    due: z
+      .boolean()
+      .describe("`expectedCount > 0`. Paint a per-day glyph as expected/missed ONLY when `due === true`; off-cadence / pre-creation / PRN days are not misses."),
+    taken: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+    onTime: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe("Doses taken in the on-time band, including the `early` bucket (early counts as compliant)."),
+    late: z.number().int().nonnegative(),
+    veryLate: z.number().int().nonnegative(),
+    early: z
+      .number()
+      .int()
+      .nonnegative()
+      .optional()
+      .describe("Doses taken before the on-time band's grace start; already folded into `onTime`, surfaced separately for consumers that differentiate."),
+  })
+  .meta({
+    id: "DailyComplianceEntry",
+    description:
+      "Per-day compliance cell with the timing breakdown that drives the history glyph track.",
+  });
+
+const complianceDisplay = z
+  .object({
+    shortDays: z.number().int().positive(),
+    longDays: z.number().int().positive(),
+    expectedShort: z.number().int().nonnegative(),
+    expectedLong: z.number().int().nonnegative(),
+    minStableDoses: z.number().int().nonnegative(),
+    short: z.object({
+      rate: z.number().int().min(0).max(100),
+      streak: z.number().int().nonnegative(),
+    }),
+    long: z.object({ rate: z.number().int().min(0).max(100) }),
+  })
+  .meta({
+    id: "ComplianceDisplay",
+    description:
+      "The two-row card block whose windows scale with dosing cadence (dense meds keep 7 / 30 days, sparse meds step both windows up). NOT the 30-day denominator — read `compliance30.totalExpected` for that.",
+  });
+
+const medicationComplianceResponse = z
+  .object({
+    compliance7: complianceResult,
+    compliance30: complianceResult,
+    dailyCompliance: z
+      .record(z.string(), dailyComplianceEntry)
+      .describe("Flat per-day map keyed `YYYY-MM-DD` in the user timezone, one entry per day for up to 90 days back, clamped to the medication's `createdAt` (so a recently-created med has fewer entries). No weekly/monthly collapse — this is the raw daily grid."),
+    complianceDisplay,
+  })
+  .meta({
+    id: "MedicationComplianceResponse",
+    description:
+      "Adherence read for a single medication. `compliance30` is the authoritative 30-day taken-vs-expected summary; `dailyCompliance` is the per-day grid for the history glyph track. The graded raw→week→month→year series used elsewhere for AI prompts does NOT apply here — this response is never downsampled.",
+  });
+
 const insightsComprehensiveResponse = z
   .object({
     summary: z.string(),
@@ -2182,6 +2285,35 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 medicationCadenceResponse,
                 "GetMedicationCadenceResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/compliance": {
+    get: {
+      tags: ["Medications"],
+      summary: "Adherence read for a medication",
+      description:
+        "Returns the 7- and 30-day adherence summaries, the per-day compliance grid for the history glyph track, and the two-row display block. Pure computation — no writes. Day boundaries are resolved in the user's IANA timezone, and the expected-dose denominator is cadence-aware (RRULE / rolling / one-shot / PRN / cyclic) and clamped to the medication's `createdAt`. Read `compliance30` for the headline 30-day taken-vs-expected percentage; build the per-day glyph track from `dailyCompliance` (draw a cell only where `due === true`).",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      responses: {
+        "200": {
+          description: "Compliance response.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationComplianceResponse,
+                "GetMedicationComplianceResponse",
               ),
             },
           },
