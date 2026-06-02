@@ -49,7 +49,7 @@ export default function InsightsWorkoutDetailPage({
           className="-ml-2 w-fit"
         >
           <Link href="/insights/workouts">
-            <ArrowLeft className="mr-1 size-4" />
+            <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
             {t("insights.workouts.detail.backToList")}
           </Link>
         </Button>
