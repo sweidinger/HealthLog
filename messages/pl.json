@@ -1214,6 +1214,14 @@
           "unit": "minutes",
           "saved": "Reminder window saved",
           "failed": "Could not save the reminder window."
+        },
+        "codes": {
+          "label": "Kody kliniczne (ATC / RxNorm)",
+          "note": "Opcjonalne. Używane w eksporcie FHIR dokumentacji zdrowotnej. Kody są zapisywane dokładnie tak, jak wprowadzone — nigdy nie są zgadywane.",
+          "atcLabel": "ATC",
+          "rxNormLabel": "RxNorm",
+          "saved": "Kody kliniczne zapisane",
+          "failed": "Nie udało się zapisać kodów klinicznych."
         }
       },
       "zone": {

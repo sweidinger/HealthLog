@@ -1214,6 +1214,14 @@
           "unit": "minutes",
           "saved": "Reminder window saved",
           "failed": "Could not save the reminder window."
+        },
+        "codes": {
+          "label": "Codici clinici (ATC / RxNorm)",
+          "note": "Facoltativo. Usati nell'esportazione FHIR della cartella sanitaria. I codici vengono presi esattamente come inseriti — mai indovinati.",
+          "atcLabel": "ATC",
+          "rxNormLabel": "RxNorm",
+          "saved": "Codici clinici salvati",
+          "failed": "Impossibile salvare i codici clinici."
         }
       },
       "zone": {

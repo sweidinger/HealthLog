@@ -64,6 +64,10 @@ interface Medication {
   endsOn?: string | null;
   /** v1.5 — single-administration medication. */
   oneShot?: boolean;
+  /** v1.9.0 — optional WHO ATC classification code for the FHIR export. */
+  atcCode?: string | null;
+  /** v1.9.0 — optional RxNorm RxCUI (secondary FHIR coding). */
+  rxNormCode?: string | null;
   schedules: Schedule[];
 }
 
@@ -357,6 +361,8 @@ export default function MedicationsPage() {
             advancedMed.schedules[0]?.reminderGraceMinutes ?? null
           }
           intakeCount={advancedIntakeCount ?? 0}
+          atcCode={advancedMed.atcCode}
+          rxNormCode={advancedMed.rxNormCode}
         />
       )}
     </div>

@@ -132,6 +132,111 @@ export function GraceRow({
 }
 
 /**
+ * v1.9.0 — optional drug-classification codes (ATC / RxNorm) row.
+ * Self-saves via `PUT /api/medications/[id]` with the two top-level
+ * `atcCode` / `rxNormCode` fields. The codes are user/clinician-asserted
+ * and surface on the FHIR health-record export's
+ * `medicationCodeableConcept` (ATC primary, RxNorm secondary); the app
+ * never machine-guesses a code. An empty input clears the stored code.
+ */
+export function DrugCodingRow({
+  medicationId,
+  atcCode,
+  rxNormCode,
+}: {
+  medicationId: string;
+  atcCode?: string | null;
+  rxNormCode?: string | null;
+}) {
+  const { t } = useTranslations();
+  const queryClient = useQueryClient();
+  const [atcValue, setAtcValue] = useState(atcCode ?? "");
+  const [rxValue, setRxValue] = useState(rxNormCode ?? "");
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      // Empty input clears the column (null); a non-empty value is sent
+      // verbatim for the server to validate (422 on a malformed code).
+      const res = await fetch(`/api/medications/${medicationId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          atcCode: atcValue.trim() === "" ? null : atcValue.trim(),
+          rxNormCode: rxValue.trim() === "" ? null : rxValue.trim(),
+        }),
+      });
+      if (!res.ok) {
+        toast.error(t("medications.detail.settings.codes.failed"));
+        return;
+      }
+      await invalidateKeys(queryClient, medicationDependentKeys);
+      toast.success(t("medications.detail.settings.codes.saved"));
+    } catch {
+      toast.error(t("medications.detail.settings.codes.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2" data-slot="medication-detail-drug-coding-row">
+      <Label className="text-foreground text-sm font-medium">
+        {t("medications.detail.settings.codes.label")}
+      </Label>
+      <p className="text-muted-foreground text-xs">
+        {t("medications.detail.settings.codes.note")}
+      </p>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label
+            htmlFor="medication-detail-atc-input"
+            className="text-muted-foreground text-xs"
+          >
+            {t("medications.detail.settings.codes.atcLabel")}
+          </Label>
+          <Input
+            id="medication-detail-atc-input"
+            value={atcValue}
+            onChange={(e) => setAtcValue(e.target.value.toUpperCase())}
+            placeholder="A10BX10"
+            className="w-32"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label
+            htmlFor="medication-detail-rxnorm-input"
+            className="text-muted-foreground text-xs"
+          >
+            {t("medications.detail.settings.codes.rxNormLabel")}
+          </Label>
+          <Input
+            id="medication-detail-rxnorm-input"
+            inputMode="numeric"
+            value={rxValue}
+            onChange={(e) => setRxValue(e.target.value)}
+            placeholder="2601723"
+            className="w-32"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void save()}
+          disabled={busy}
+          aria-busy={busy || undefined}
+          className="min-h-11 sm:min-h-9"
+        >
+          {t("common.save")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * v1.7.0 — phases / course-window row. GLP-1 only; the button mounts
  * once a course window is set, otherwise an italic hint. When
  * `onRequestPhaseSheet` is provided the parent orchestrates the

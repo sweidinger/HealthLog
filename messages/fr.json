@@ -1214,6 +1214,14 @@
           "unit": "minutes",
           "saved": "Reminder window saved",
           "failed": "Could not save the reminder window."
+        },
+        "codes": {
+          "label": "Codes cliniques (ATC / RxNorm)",
+          "note": "Facultatif. Utilisés lors de l'export FHIR du dossier de santé. Les codes sont repris tels qu'ils sont saisis — jamais devinés.",
+          "atcLabel": "ATC",
+          "rxNormLabel": "RxNorm",
+          "saved": "Codes cliniques enregistrés",
+          "failed": "Impossible d'enregistrer les codes cliniques."
         }
       },
       "zone": {

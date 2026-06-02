@@ -1214,6 +1214,14 @@
           "unit": "Minuten",
           "saved": "Erinnerungsfenster gespeichert",
           "failed": "Erinnerungsfenster konnte nicht gespeichert werden."
+        },
+        "codes": {
+          "label": "Klinische Codes (ATC / RxNorm)",
+          "note": "Optional. Werden beim FHIR-Export der Gesundheitsakte verwendet. Codes werden genau wie eingegeben übernommen — nie geraten.",
+          "atcLabel": "ATC",
+          "rxNormLabel": "RxNorm",
+          "saved": "Klinische Codes gespeichert",
+          "failed": "Klinische Codes konnten nicht gespeichert werden."
         }
       },
       "zone": {

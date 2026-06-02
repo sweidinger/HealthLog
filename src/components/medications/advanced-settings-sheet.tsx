@@ -41,6 +41,7 @@ import { ApiTokensRow } from "@/components/medications/sections/api-tokens-row";
 import { DataPortabilityRow } from "@/components/medications/sections/data-portability-row";
 import { NotificationsBody } from "@/components/medications/sections/notifications-section";
 import {
+  DrugCodingRow,
   GraceRow,
   PhasesRow,
 } from "@/components/medications/sections/settings-section";
@@ -62,6 +63,9 @@ export interface AdvancedSettingsSheetProps {
   notificationsEnabled: boolean;
   reminderGraceMinutes: number | null;
   intakeCount: number;
+  /** v1.9.0 — optional drug-classification codes for the FHIR export. */
+  atcCode?: string | null;
+  rxNormCode?: string | null;
   /**
    * Sibling-swap the phase sheet: the parent closes this sheet and
    * opens `<PhaseConfigSheet>` so the two never stack (G-1 §5).
@@ -86,6 +90,8 @@ export function AdvancedSettingsSheet({
   notificationsEnabled,
   reminderGraceMinutes,
   intakeCount,
+  atcCode,
+  rxNormCode,
   onRequestPhaseSheet,
   onOpenImport,
 }: AdvancedSettingsSheetProps) {
@@ -175,6 +181,13 @@ export function AdvancedSettingsSheet({
             <ApiTokensRow
               medicationId={medicationId}
               medicationName={medicationName}
+            />
+          </div>
+          <div className="py-3">
+            <DrugCodingRow
+              medicationId={medicationId}
+              atcCode={atcCode}
+              rxNormCode={rxNormCode}
             />
           </div>
         </SettingsGroup>

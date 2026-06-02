@@ -2382,6 +2382,22 @@ components:
           description: iOS 26 AlarmKit critical-reminder opt-in. Default false. Critical alarms bypass the device mute switch /
             Focus; the server stores the preference only and hangs no server-side behaviour off it.
           type: boolean
+        atcCode:
+          description: Optional WHO ATC classification code (active-substance class, 7 chars, e.g. `A10BX10`).
+            User/clinician-asserted; never machine-guessed. Emitted on the FHIR `medicationCodeableConcept` under
+            `http://www.whocc.no/atc`. NULL clears it; absent leaves it untouched.
+          anyOf:
+            - type: string
+              pattern: ^[A-Z]\d{2}[A-Z]{2}\d{2}$
+            - type: "null"
+        rxNormCode:
+          description: Optional RxNorm RxCUI (numeric, US identifier, e.g. `2601723`). Secondary coding emitted under
+            `http://www.nlm.nih.gov/research/umls/rxnorm` alongside any ATC code, never instead of the free-text name.
+            NULL clears it; absent leaves it untouched.
+          anyOf:
+            - type: string
+              pattern: ^\d+$
+            - type: "null"
         startsOn:
           description: Date the medication course begins (ISO `YYYY-MM-DD`). Anchors RRULE BYDAY / BYMONTHDAY patterns and the
             rolling-interval countdown's first window. NULL = active from creation (the legacy implicit behaviour).
@@ -2584,6 +2600,22 @@ components:
           description: iOS 26 AlarmKit critical-reminder opt-in. Critical alarms bypass the device mute switch / Focus; the server
             stores the preference only.
           type: boolean
+        atcCode:
+          description: Optional WHO ATC classification code (active-substance class, 7 chars, e.g. `A10BX10`).
+            User/clinician-asserted; never machine-guessed. Emitted on the FHIR `medicationCodeableConcept` under
+            `http://www.whocc.no/atc`. NULL clears it; absent leaves it untouched.
+          anyOf:
+            - type: string
+              pattern: ^[A-Z]\d{2}[A-Z]{2}\d{2}$
+            - type: "null"
+        rxNormCode:
+          description: Optional RxNorm RxCUI (numeric, US identifier, e.g. `2601723`). Secondary coding emitted under
+            `http://www.nlm.nih.gov/research/umls/rxnorm` alongside any ATC code, never instead of the free-text name.
+            NULL clears it; absent leaves it untouched.
+          anyOf:
+            - type: string
+              pattern: ^\d+$
+            - type: "null"
         startsOn:
           description: Date the medication course begins (ISO `YYYY-MM-DD`). Anchors RRULE BYDAY / BYMONTHDAY patterns and the
             rolling-interval countdown's first window. NULL = active from creation (the legacy implicit behaviour).
@@ -4189,6 +4221,19 @@ components:
           type: boolean
           description: v1.7.0 iOS 26 AlarmKit critical-reminder opt-in. Default false. Critical alarms bypass the device mute
             switch / Focus; the server stores the preference only.
+        atcCode:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: v1.9.0 optional WHO ATC classification code (active-substance class, e.g. `A10BX10`).
+            User/clinician-asserted; never machine-guessed. Emitted on the FHIR `medicationCodeableConcept` under
+            `http://www.whocc.no/atc`. NULL = no code captured.
+        rxNormCode:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: v1.9.0 optional RxNorm RxCUI (numeric, US identifier, e.g. `2601723`). Secondary FHIR coding under
+            `http://www.nlm.nih.gov/research/umls/rxnorm`, alongside any ATC code. NULL = no code captured.
         pausedAt:
           anyOf:
             - type: string
@@ -4267,6 +4312,8 @@ components:
         - notificationsEnabled
         - liveActivityEnabled
         - criticalAlarmEnabled
+        - atcCode
+        - rxNormCode
         - pausedAt
         - snoozedUntil
         - nextDueAt
@@ -4349,6 +4396,19 @@ components:
           type: boolean
           description: v1.7.0 iOS 26 AlarmKit critical-reminder opt-in. Default false. Critical alarms bypass the device mute
             switch / Focus; the server stores the preference only.
+        atcCode:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: v1.9.0 optional WHO ATC classification code (active-substance class, e.g. `A10BX10`).
+            User/clinician-asserted; never machine-guessed. Emitted on the FHIR `medicationCodeableConcept` under
+            `http://www.whocc.no/atc`. NULL = no code captured.
+        rxNormCode:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: v1.9.0 optional RxNorm RxCUI (numeric, US identifier, e.g. `2601723`). Secondary FHIR coding under
+            `http://www.nlm.nih.gov/research/umls/rxnorm`, alongside any ATC code. NULL = no code captured.
         pausedAt:
           anyOf:
             - type: string
@@ -4414,6 +4474,8 @@ components:
         - notificationsEnabled
         - liveActivityEnabled
         - criticalAlarmEnabled
+        - atcCode
+        - rxNormCode
         - pausedAt
         - snoozedUntil
         - nextDueAt
@@ -6803,6 +6865,19 @@ components:
           type: boolean
           description: v1.7.0 iOS 26 AlarmKit critical-reminder opt-in. Default false. Critical alarms bypass the device mute
             switch / Focus; the server stores the preference only.
+        atcCode:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: v1.9.0 optional WHO ATC classification code (active-substance class, e.g. `A10BX10`).
+            User/clinician-asserted; never machine-guessed. Emitted on the FHIR `medicationCodeableConcept` under
+            `http://www.whocc.no/atc`. NULL = no code captured.
+        rxNormCode:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: v1.9.0 optional RxNorm RxCUI (numeric, US identifier, e.g. `2601723`). Secondary FHIR coding under
+            `http://www.nlm.nih.gov/research/umls/rxnorm`, alongside any ATC code. NULL = no code captured.
         pausedAt:
           anyOf:
             - type: string
@@ -6866,6 +6941,8 @@ components:
         - notificationsEnabled
         - liveActivityEnabled
         - criticalAlarmEnabled
+        - atcCode
+        - rxNormCode
         - pausedAt
         - snoozedUntil
         - nextDueAt

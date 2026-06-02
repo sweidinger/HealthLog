@@ -54,6 +54,7 @@ vi.mock("@/components/medications/sections/notifications-section", () => ({
 
 vi.mock("@/components/medications/sections/settings-section", () => ({
   GraceRow: () => <div data-slot="mock-grace" />,
+  DrugCodingRow: () => <div data-slot="mock-drug-coding" />,
   PhasesRow: ({
     onRequestPhaseSheet,
   }: {

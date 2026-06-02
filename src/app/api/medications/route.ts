@@ -160,6 +160,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
     notificationsEnabled,
     liveActivityEnabled,
     criticalAlarmEnabled,
+    atcCode,
+    rxNormCode,
     schedules,
     startsOn,
     endsOn,
@@ -228,6 +230,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
       // v1.7.0 — iOS reminder flags; Prisma defaults both to false.
       ...(liveActivityEnabled !== undefined && { liveActivityEnabled }),
       ...(criticalAlarmEnabled !== undefined && { criticalAlarmEnabled }),
+      // v1.9.0 — optional drug-classification codes (ATC / RxNorm).
+      // Validated for format by Zod; stored verbatim when present.
+      ...(atcCode !== undefined && { atcCode }),
+      ...(rxNormCode !== undefined && { rxNormCode }),
       // v1.5 — wizard's reminders toggle now ships through the create
       // payload (was orphaned in the initial diff). Prisma defaults to
       // true when omitted, matching the legacy form's behaviour.

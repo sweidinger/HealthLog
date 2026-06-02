@@ -945,6 +945,18 @@ const medicationResource = z
       .describe(
         "v1.7.0 iOS 26 AlarmKit critical-reminder opt-in. Default false. Critical alarms bypass the device mute switch / Focus; the server stores the preference only.",
       ),
+    atcCode: z
+      .string()
+      .nullable()
+      .describe(
+        "v1.9.0 optional WHO ATC classification code (active-substance class, e.g. `A10BX10`). User/clinician-asserted; never machine-guessed. Emitted on the FHIR `medicationCodeableConcept` under `http://www.whocc.no/atc`. NULL = no code captured.",
+      ),
+    rxNormCode: z
+      .string()
+      .nullable()
+      .describe(
+        "v1.9.0 optional RxNorm RxCUI (numeric, US identifier, e.g. `2601723`). Secondary FHIR coding under `http://www.nlm.nih.gov/research/umls/rxnorm`, alongside any ATC code. NULL = no code captured.",
+      ),
     pausedAt: z.iso.datetime({ offset: true }).nullable(),
     snoozedUntil: z.iso.datetime({ offset: true }).nullable(),
     nextDueAt: z.iso
