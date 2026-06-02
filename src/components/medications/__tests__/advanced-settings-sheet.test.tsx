@@ -1,13 +1,14 @@
 /**
  * v1.7.0 — AdvancedSettingsSheet composition contract.
  *
- * The sheet hosts four blocks — Reminders → Lifecycle → Data → Danger
- * zone — composed from bare section bodies. `<ResponsiveSheet>`
- * wraps Radix portals that `renderToStaticMarkup` does not materialise,
- * so we mock it to a passthrough that renders children only when `open`
- * and echoes `contentWidth`. The bodies are mocked to ordered markers.
- * The test pins:
- *   - the four blocks render in the documented order;
+ * The sheet hosts five blocks — Reminders → Lifecycle → Data →
+ * Externe API → Danger zone — composed from bare section bodies.
+ * `<ResponsiveSheet>` wraps Radix portals that `renderToStaticMarkup`
+ * does not materialise, so we mock it to a passthrough that renders
+ * children only when `open` and echoes `contentWidth`. The bodies are
+ * mocked to ordered markers. The test pins:
+ *   - the five blocks render in the documented order;
+ *   - the external-API row lives in its own group, not in Data;
  *   - the sheet opens at the `2xl` width token;
  *   - `onRequestPhaseSheet` threads through to the phases row;
  *   - `onOpenImport` wires the import button (co-located with export);
@@ -107,7 +108,7 @@ function baseProps(
 }
 
 describe("AdvancedSettingsSheet (v1.7.0)", () => {
-  it("renders the four blocks in Reminders → Lifecycle → Data → Danger order", () => {
+  it("renders the five blocks in Reminders → Lifecycle → Data → Externe API → Danger order", () => {
     const html = renderToStaticMarkup(
       <AdvancedSettingsSheet
         {...baseProps(true, { onRequestPhaseSheet: () => {} })}
@@ -116,11 +117,26 @@ describe("AdvancedSettingsSheet (v1.7.0)", () => {
     const reminders = html.indexOf("advanced-group-reminders");
     const lifecycle = html.indexOf("advanced-group-lifecycle");
     const data = html.indexOf("advanced-group-data");
+    const externalApi = html.indexOf("advanced-group-external-api");
     const danger = html.indexOf("mock-danger");
     expect(reminders).toBeGreaterThan(-1);
     expect(lifecycle).toBeGreaterThan(reminders);
     expect(data).toBeGreaterThan(lifecycle);
-    expect(danger).toBeGreaterThan(data);
+    expect(externalApi).toBeGreaterThan(data);
+    expect(danger).toBeGreaterThan(externalApi);
+  });
+
+  it("homes the external-API row in its own group, not in the Data group", () => {
+    const html = renderToStaticMarkup(
+      <AdvancedSettingsSheet {...baseProps(true)} />,
+    );
+    // The API row marker must sit after the external-API group opens,
+    // not inside the Data group it used to share.
+    const dataGroup = html.indexOf("advanced-group-data");
+    const externalApiGroup = html.indexOf("advanced-group-external-api");
+    const apiRow = html.indexOf("mock-api-tokens");
+    expect(apiRow).toBeGreaterThan(externalApiGroup);
+    expect(externalApiGroup).toBeGreaterThan(dataGroup);
   });
 
   it("opens at the 2xl width token", () => {

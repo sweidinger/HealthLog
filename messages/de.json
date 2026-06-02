@@ -1278,7 +1278,8 @@
         "group": {
           "data": "Daten",
           "reminders": "Erinnerungen",
-          "lifecycle": "Lebenszyklus"
+          "lifecycle": "Lebenszyklus",
+          "externalApi": "Externe API"
         },
         "dataPortability": {
           "import": {
