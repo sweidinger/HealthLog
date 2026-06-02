@@ -47,20 +47,21 @@ export default function InsightsMetricValuesPage({
     <SubPageShell
       title={t("insights.subPage.valuesPageTitle", { metric: metricLabel })}
       description={t("insights.subPage.valuesPageDescription")}
+      backLink={
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          data-slot="metric-values-back"
+          className="-ml-2 w-fit"
+        >
+          <Link href="/insights">
+            <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
+            {t("insights.subPage.valuesBack")}
+          </Link>
+        </Button>
+      }
     >
-      <Button
-        asChild
-        variant="ghost"
-        size="sm"
-        data-slot="metric-values-back"
-        className="-ml-2 w-fit"
-      >
-        <Link href="/insights">
-          <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
-          {t("insights.subPage.valuesBack")}
-        </Link>
-      </Button>
-
       <MeasurementList lockedType={type} />
     </SubPageShell>
   );

@@ -40,19 +40,21 @@ export default function InsightsWorkoutDetailPage({
     <SubPageShell
       title={t("insights.workouts.title")}
       description={t("insights.workouts.description")}
+      backLink={
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          data-slot="workout-detail-back"
+          className="-ml-2 w-fit"
+        >
+          <Link href="/insights/workouts">
+            <ArrowLeft className="mr-1 size-4" />
+            {t("insights.workouts.detail.backToList")}
+          </Link>
+        </Button>
+      }
     >
-      <Button
-        asChild
-        variant="ghost"
-        size="sm"
-        data-slot="workout-detail-back"
-      >
-        <Link href="/insights/workouts">
-          <ArrowLeft className="mr-1 size-4" />
-          {t("insights.workouts.detail.backToList")}
-        </Link>
-      </Button>
-
       {isLoading ? (
         <div data-slot="workout-detail-loading" className="space-y-3">
           <Skeleton className="h-20 w-full rounded-lg" />

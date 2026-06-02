@@ -92,6 +92,23 @@ describe("<SubPageShell>", () => {
     expect(probeIdx).toBeLessThan(headerEnd);
   });
 
+  it("renders the back link above the heading when supplied", () => {
+    const html = render(
+      <SubPageShell
+        title="Weight"
+        backLink={<a data-slot="back-probe">back</a>}
+      >
+        <span />
+      </SubPageShell>,
+    );
+    // v1.8.7.1 — the back-nav leads the page, above the heading.
+    const backIdx = html.indexOf('data-slot="back-probe"');
+    const headerIdx = html.indexOf("<header");
+    expect(backIdx).toBeGreaterThan(-1);
+    expect(headerIdx).toBeGreaterThan(-1);
+    expect(backIdx).toBeLessThan(headerIdx);
+  });
+
   it("mounts no coach launch surface when coachLaunch is omitted", () => {
     const html = render(
       <SubPageShell title="Pulse">

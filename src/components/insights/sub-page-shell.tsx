@@ -31,6 +31,15 @@ import { cn } from "@/lib/utils";
 
 export interface SubPageShellProps {
   title: string;
+  /**
+   * v1.8.7.1 — optional back-navigation control rendered ABOVE the page
+   * heading, the standard back-nav placement. Detail/values sub-pages
+   * (`/insights/values/[type]`, `/insights/workouts/[id]`) pass their
+   * "back to …" link here so it leads the page rather than trailing the
+   * content. Omitted on the mother page and category pages reached via the
+   * tab strip.
+   */
+  backLink?: ReactNode;
   /** Optional accent badge (status, dataset coverage, …). */
   badge?: ReactNode;
   /**
@@ -108,6 +117,7 @@ export interface SubPageShellProps {
 
 export function SubPageShell({
   title,
+  backLink,
   badge,
   description,
   explainerMetric,
@@ -142,6 +152,8 @@ export function SubPageShell({
 
   return (
     <div data-slot="insights-subpage" className="space-y-4 md:space-y-5">
+      {/* v1.8.7.1 — back-nav leads the page, above the heading. */}
+      {backLink}
       <header className="space-y-1.5">
         {/* v1.8.6 — the heading row pins the Coach icon top-right while the
             title / nudge / badge wrap together on the left.
