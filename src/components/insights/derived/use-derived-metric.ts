@@ -88,3 +88,87 @@ export function useDerivedMetric<T>(
     retry: 0,
   });
 }
+
+/**
+ * A batch request token: a metric id with an optional VITALS_BASELINE
+ * sub-target. Wire form is `metric` or `metric:type` inside the CSV.
+ */
+export interface DerivedBatchToken {
+  metric: string;
+  type?: string | null;
+}
+
+/** Build the `metric` / `metric:type` wire token for one batch item. */
+function tokenString(token: DerivedBatchToken): string {
+  return token.type ? `${token.metric}:${token.type}` : token.metric;
+}
+
+/** The batch route's `data` shape — a map keyed by the per-request token. */
+export interface DerivedBatchResponse {
+  metrics: Record<string, DerivedMetricResponse<unknown>>;
+}
+
+/**
+ * The typed `read` selector `useDerivedBatch` returns — a tile narrows its
+ * own metric value out of the resolved map exactly as it did per-metric.
+ */
+export type DerivedBatchRead = <T>(
+  token: DerivedBatchToken,
+) => DerivedMetricResponse<T> | null;
+
+/**
+ * v1.10.0 — ONE batched read for a set of derived metrics, the dashboard's
+ * cold-mount fan-out fix. Replaces N independent `useDerivedMetric` queries
+ * (each a separate request sharing the Prisma pool — the v1.9.1 "hangs then
+ * recovers" symptom) with a single `GET /api/insights/derived/batch`. The
+ * server fans out under a bounded limiter and loads the profile once.
+ *
+ * Returns a typed `read(token)` selector so a tile pulls its own
+ * `DerivedMetricResponse<T>` out of the map with the same narrowing it had
+ * per-metric. Same 8 s ceiling + `retry:0` + 60 s `staleTime` as the single
+ * hook; these reads never warm/generate on visit.
+ */
+export function useDerivedBatch(
+  tokens: DerivedBatchToken[],
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+  const { isAuthenticated } = useAuth();
+  const wireTokens = tokens.map(tokenString);
+  const gated = enabled && isAuthenticated && wireTokens.length > 0;
+
+  const query = useQuery({
+    queryKey: queryKeys.insightsDerivedBatch(wireTokens),
+    queryFn: async (): Promise<DerivedBatchResponse> => {
+      const controller = new AbortController();
+      const timeoutHandle = setTimeout(
+        () => controller.abort(),
+        DERIVED_TIMEOUT_MS,
+      );
+      try {
+        const params = new URLSearchParams({ metrics: wireTokens.join(",") });
+        const res = await fetch(
+          `/api/insights/derived/batch?${params.toString()}`,
+          { signal: controller.signal },
+        );
+        if (!res.ok) {
+          throw new Error(`derived batch request failed (${res.status})`);
+        }
+        return (await res.json()).data as DerivedBatchResponse;
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
+    },
+    enabled: gated,
+    staleTime: 60_000,
+    retry: 0,
+  });
+
+  /** Pull one metric's value out of the resolved map, narrowed to `T`. */
+  function read<T>(token: DerivedBatchToken): DerivedMetricResponse<T> | null {
+    const entry = query.data?.metrics[tokenString(token)];
+    return (entry as DerivedMetricResponse<T> | undefined) ?? null;
+  }
+
+  return { ...query, read };
+}

@@ -1406,6 +1406,36 @@ const derivedMetricResponse = z
       "Flat `Derived<T>` envelope for one derived wellness metric. Pure compute over the rollup tier (no LLM, no narrative). iOS decodes one stable shape and combines values across metrics; coverage/confidence/provenance let it render the same honesty chips.",
   });
 
+// v1.10.0 — batched derived-metric query. The `metrics` CSV carries one
+// or more `metric` / `metric:type` tokens; the route fans out server-side
+// under a bounded limiter with the profile loaded once, collapsing the
+// dashboard's cold-mount fan-out of N single-metric requests into one.
+const derivedBatchQuery = z
+  .object({
+    metrics: z
+      .string()
+      .min(1)
+      .max(1024)
+      .describe(
+        "Comma-separated derived-metric tokens. Each is a `<DERIVED_METRIC_ID>` or `<DERIVED_METRIC_ID>:<MeasurementType>` (the colon sub-targets a VITALS_BASELINE vital). An unknown id 422s; at most 24 tokens; duplicates collapse.",
+      ),
+  })
+  .meta({ id: "DerivedBatchQuery" });
+
+const derivedBatchResponse = z
+  .object({
+    metrics: z
+      .record(z.string(), derivedMetricResponse)
+      .describe(
+        "Map keyed by the per-request token (`<metric>` or `<metric>:<type>`). Each value is the same flat `Derived<T>` envelope the single-metric route returns, so a client decodes one shape and reads back exactly the tokens it asked for.",
+      ),
+  })
+  .meta({
+    id: "DerivedBatchResponse",
+    description:
+      "Batched derived-metric values. One request resolves the whole dashboard grid (the wellness scores + the derived re-frames + one baseline per vital) instead of N concurrent single-metric requests sharing the Prisma pool. Pure compute over the rollup tier — no LLM, no narrative, no cache table.",
+  });
+
 // v1.10.0 — FDR-controlled correlation discovery result. One discovered,
 // statistically-defensible behaviour → next-day-outcome pair.
 const discoveredCorrelation = z
@@ -3182,6 +3212,31 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 derivedMetricResponse,
                 "DerivedMetricResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/derived/batch": {
+    get: {
+      tags: ["Insights"],
+      summary: "Derived wellness metrics (batched compute-once)",
+      description:
+        "v1.10.0 — resolve several derived wellness metrics in ONE request. The `metrics` CSV names the metrics (a `metric:type` token sub-targets a VITALS_BASELINE vital); the server fans out under a bounded limiter with the profile loaded once and returns a map keyed by the per-request token. Collapses the Insights cold-mount fan-out of 14+ independent single-metric requests — the pool-starvation class that surfaces as a hang-then-recover. The single-metric route stays for the per-score detail pages. Auth via cookie or Bearer.",
+      requestParams: {
+        query: derivedBatchQuery,
+      },
+      responses: {
+        "200": {
+          description: "The map of derived-metric values, keyed by token.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                derivedBatchResponse,
+                "DerivedBatchResponseEnvelope",
               ),
             },
           },

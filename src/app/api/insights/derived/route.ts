@@ -25,9 +25,9 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
-import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 import {
   computeDerivedMetric,
+  loadBaselineProfile,
   DERIVED_METRIC_IDS,
   type DerivedMetricId,
 } from "@/lib/insights/derived";
@@ -63,25 +63,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
   }
   const metric = parsed.data.metric as DerivedMetricId;
 
-  // Profile read once, passed into the pure compute function (never
-  // re-fetched per metric — the pool-contention mitigation).
-  const profile = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { dateOfBirth: true, gender: true, heightCm: true },
-  });
-  const sex =
-    profile?.gender === "MALE" || profile?.gender === "FEMALE"
-      ? profile.gender
-      : null;
+  // Profile read once via the shared loader (the same one the batch route
+  // and the nightly score jobs use), passed into the pure compute function
+  // — never re-fetched per metric.
+  const profile = await loadBaselineProfile(prisma, user.id);
 
   const derived = await computeDerivedMetric({
     metric,
     userId: user.id,
-    profile: {
-      ageYears: getAgeFromDateOfBirth(profile?.dateOfBirth ?? null),
-      sex,
-      heightCm: profile?.heightCm ?? null,
-    },
+    profile,
     type: parsed.data.type ?? null,
   });
 

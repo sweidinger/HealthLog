@@ -55,6 +55,7 @@ export type { NormRange, NormSex } from "./norms";
 // ── server-only compute engines (do NOT value-import from a client component) ──
 export {
   computeVitalsBaseline,
+  loadBaselineProfile,
   buildBaselineBand,
   median,
   medianAbsoluteDeviation,

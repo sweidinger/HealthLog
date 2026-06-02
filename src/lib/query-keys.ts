@@ -159,6 +159,16 @@ export const queryKeys = {
   insightsDerived: (metric: string, type?: string | null) =>
     ["insights", "derived", metric, type ?? null] as const,
   /**
+   * v1.10.0 — batched derived-metric read (`/api/insights/derived/batch`).
+   * One request resolves the whole dashboard grid server-side instead of N
+   * concurrent single-metric reads sharing the Prisma pool. Keyed by the
+   * sorted token list so the same grid always hits one cache entry; sits
+   * under the `["insights", "derived"]` prefix so a measurement-write
+   * invalidation fan-out reaches it exactly like the single-metric reads.
+   */
+  insightsDerivedBatch: (tokens: readonly string[]) =>
+    ["insights", "derived", "batch", [...tokens].sort().join(",")] as const,
+  /**
    * v1.10.0 — FDR-controlled correlation discovery
    * (`/api/insights/correlations`). Read-only descriptive surface; the
    * `["insights"]` prefix keeps it in the existing invalidation fan-out.
