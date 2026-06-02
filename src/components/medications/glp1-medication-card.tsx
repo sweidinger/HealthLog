@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
 import { MedicationCardMenu } from "@/components/medications/medication-card-menu";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
@@ -394,7 +395,7 @@ export function Glp1MedicationCard({
   const categoryLabel = getMedicationCategoryLabel(medication.category, t);
 
   return (
-    <Card className={medication.active ? "" : "opacity-60"}>
+    <Card className={cn("h-full", medication.active ? "" : "opacity-60")}>
       <MedicationCardHeader
         name={medication.name}
         dose={medication.dose}
@@ -405,7 +406,7 @@ export function Glp1MedicationCard({
         linkLabel={t("medications.openDetailPage")}
       />
 
-      <CardContent className="space-y-3.5">
+      <CardContent className="flex flex-1 flex-col space-y-3.5">
         {/* Take-now / overdue / very-overdue pill, shared with the
             generic medication card. The GLP-1 card historically
             omitted this row, which made Mounjaro feel different from
@@ -419,8 +420,12 @@ export function Glp1MedicationCard({
           />
         )}
 
-        {/* Injection state — last + next */}
-        <div className="space-y-1 text-sm">
+        {/* Injection state — last + next. The reserved min-height keeps a
+            card whose last-injection line is absent the same vertical
+            footprint as one that renders both lines, so the compliance bars
+            and action row below align row-for-row across the grid — matching
+            the generic medication card's reserved last/next slot. */}
+        <div className="min-h-[2.75rem] space-y-1 text-sm">
           {medication.lastTakenAt && (
             <p className="text-muted-foreground">
               {lastSite
@@ -493,12 +498,17 @@ export function Glp1MedicationCard({
         {/* Primary actions row — shared with the generic medication
             card. The GLP-1-specific side-effect quick-log lives in the
             header-actions overflow (kebab), not this row, so Mounjaro
-            and Ramipril share the canonical two-button primary row. */}
+            and Ramipril share the canonical two-button primary row.
+            Pinned to the bottom with `mt-auto` so the action baseline is
+            shared across every card in the grid row, identical to the
+            generic medication card. */}
         {medication.active && (
-          <MedicationIntakeActions
-            intakeLoading={intakeLoading}
-            onRecordIntake={recordIntake}
-          />
+          <div className="mt-auto pt-3.5">
+            <MedicationIntakeActions
+              intakeLoading={intakeLoading}
+              onRecordIntake={recordIntake}
+            />
+          </div>
         )}
       </CardContent>
 
