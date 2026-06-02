@@ -13,10 +13,10 @@
 --
 --   2. Three new `measurement_type` values — the server-derived wellness
 --      scores `RECOVERY_SCORE`, `STRESS_SCORE`, `STRAIN_SCORE` (0–100, unit
---      `score`). Only RECOVERY_SCORE is computed in v1.10.0; STRESS_SCORE +
---      STRAIN_SCORE are defined now so the later engines that compute them
---      need no schema change. These are NOT clinical vitals — they never
---      appear in the doctor-report PDF.
+--      `score`), each minted nightly by its own engine. These are NOT
+--      clinical vitals: they stay out of the clinical vitals table and
+--      surface only in a clearly-labelled, descriptive-not-clinical wellness
+--      summary (and as FHIR `survey`-category observations).
 --
 -- Idempotent guards (`IF NOT EXISTS`) make reruns safe. Forward-only.
 --

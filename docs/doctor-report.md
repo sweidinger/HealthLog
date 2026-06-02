@@ -44,6 +44,25 @@ PDF in a new tab without preserving the filename or fails the blob save).
   `500` if rendering fails.
 - Audit action: `doctor-report.pdf.generate`.
 
+## Wellness summary (derived scores)
+
+Since v1.10.0 the report carries a **Wellness summary** section below the
+clinical content, holding the server-derived wellness scores (Recovery,
+Stress, Strain) and the other derived metrics where present. It is kept
+deliberately separate from the clinical vitals table:
+
+- Each entry is labelled **descriptive, not a clinical assessment**, and the
+  scores never enter the vitals table or the clinical aggregations.
+- The Stress score is shown as an HRV-derived proxy, not a sensor-measured
+  stress value.
+- In the FHIR export the same scores are emitted as `survey`-category
+  `Observation`s (text-only `code`, no fabricated LOINC) with a per-Observation
+  non-clinical note — so a downstream system never mistakes them for a vital
+  sign or a diagnosis.
+
+Each derived metric states its inputs, method, and the cited standard it is
+grounded in (the same provenance the in-app explainer shows).
+
 ## Implementation notes
 
 - `src/lib/doctor-report-pdf-core.ts` contains the isomorphic renderer.
