@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "@/lib/i18n/context";
-import { useDerivedMetric } from "@/hooks/use-derived-metric";
+import { useDerivedMetric } from "./use-derived-metric";
 import { Skeleton } from "@/components/ui/skeleton";
 import type {
   ReadinessValue,

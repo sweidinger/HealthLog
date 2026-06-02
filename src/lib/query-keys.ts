@@ -144,27 +144,20 @@ export const queryKeys = {
   /**
    * v1.10.0 — derived-wellness metrics. One generic route
    * (`/api/insights/derived?metric=…[&type=…]`) backs the vitals
-   * dashboard tiles + per-metric detail cards, so the key is
-   * parameterised by the derived-metric id and the optional sub-type
-   * (the chosen vital for `VITALS_BASELINE`). Pure compute, locale-free
-   * (numbers + bands; surfaces localise their own prose), so no locale
-   * segment — unlike the narrative `*-status` keys above.
+   * dashboard tiles, the composite score-anatomy view, and the home
+   * wellness strip — all through the one `useDerivedMetric` hook.
+   *
+   * One generic route backs every derived metric (sleep score, readiness,
+   * coincident-deviation, vitals baseline, …); the optional sub-type is the
+   * chosen vital for `VITALS_BASELINE`. The fourth tuple slot is always
+   * present (`null` when no sub-type) so the cache never poisons between a
+   * 3-element and a 4-element shape for the same metric prefix. Pure compute
+   * over the rollup tier — a measurement write keeps it fresh by construction
+   * (next read sees new buckets), so the `["insights"]` prefix carries the
+   * invalidation fan-out.
    */
   insightsDerived: (metric: string, type?: string | null) =>
     ["insights", "derived", metric, type ?? null] as const,
-  /**
-   * v1.10.0 — a derived wellness metric (`/api/insights/derived?metric=…`).
-   * One generic route backs every derived composite (sleep score,
-   * readiness, coincident-deviation, vitals baseline, …) so the key is
-   * parameterised by the metric id alongside the optional sub-type. Pure
-   * compute over the rollup tier — a measurement write keeps it fresh by
-   * construction (next read sees new buckets), so the `["insights"]` prefix
-   * is enough for invalidation fan-out.
-   */
-  insightsDerivedMetric: (metric: string, type?: string) =>
-    type
-      ? (["insights", "derived", metric, type] as const)
-      : (["insights", "derived", metric] as const),
   /**
    * v1.10.0 — FDR-controlled correlation discovery
    * (`/api/insights/correlations`). Read-only descriptive surface; the
