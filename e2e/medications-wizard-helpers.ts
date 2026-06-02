@@ -255,6 +255,11 @@ export async function expectMedicationOnList(
   const main = page.locator("main");
   await expect(main.getByText(name).first()).toBeVisible({ timeout: 10_000 });
   if (withNextDueChip) {
-    await expect(main.getByText(/Nächste Einnahme:/i).first()).toBeVisible();
+    // The next-due line is computed client-side from the schedule after
+    // hydration, so it can land a beat after the name on a loaded runner;
+    // match the name assertion's 10s budget rather than the default 5s.
+    await expect(main.getByText(/Nächste Einnahme:/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
   }
 }
