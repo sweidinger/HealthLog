@@ -2412,7 +2412,11 @@
         "strengthNone": "Ninguna",
         "source": "{n} días emparejados · r = {r}",
         "emptyTitle": "Aún no hay suficientes datos emparejados",
-        "emptyDescription": "Registra el ánimo y esta métrica los mismos días para ver una correlación."
+        "emptyDescription": "Registra el ánimo y esta métrica los mismos días para ver una correlación.",
+        "weightTitle": "Ánimo vs. peso",
+        "bloodPressureTitle": "Ánimo vs. presión arterial",
+        "weightAxis": "Peso",
+        "bloodPressureAxis": "Sistólica (mmHg)"
       },
       "structuredTagsTitle": "Desglose de etiquetas",
       "inTargetValue": "{pct} %",
@@ -2428,7 +2432,23 @@
         "tagLift": "Los días con la etiqueta «{tag}» promedian {delta} por encima de tu ánimo general.",
         "tagDrop": "Los días con la etiqueta «{tag}» quedan {delta} por debajo de tu media.",
         "inTarget": "Has estado en tu rango de buen ánimo el {pct} % de los últimos 30 días.",
-        "streak": "Has registrado tu ánimo {days} días seguidos: sigue así."
+        "streak": "Has registrado tu ánimo {days} días seguidos: sigue así.",
+        "timeOfDay": "Te sientes mejor por la {bucket}, con una media de {value}."
+      },
+      "timeOfDay": {
+        "title": "Estado de ánimo por hora del día",
+        "morning": "Mañana",
+        "afternoon": "Tarde",
+        "evening": "Noche",
+        "night": "Madrugada",
+        "bestCaption": "Sueles sentirte mejor por la {bucket}."
+      },
+      "stability": {
+        "value": "{score}/100",
+        "bandVerySteady": "Tu estado de ánimo ha sido muy estable",
+        "bandSteady": "Tu estado de ánimo ha sido bastante estable",
+        "bandVariable": "Tu estado de ánimo ha sido notablemente variable",
+        "bandVeryVariable": "Tu estado de ánimo ha fluctuado mucho últimamente"
       }
     }
   },

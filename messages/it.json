@@ -2412,7 +2412,11 @@
         "strengthNone": "Nessuna",
         "source": "{n} giorni appaiati · r = {r}",
         "emptyTitle": "Non ci sono ancora abbastanza dati appaiati",
-        "emptyDescription": "Registra umore e questa metrica negli stessi giorni per vedere una correlazione."
+        "emptyDescription": "Registra umore e questa metrica negli stessi giorni per vedere una correlazione.",
+        "weightTitle": "Umore vs. peso",
+        "bloodPressureTitle": "Umore vs. pressione sanguigna",
+        "weightAxis": "Peso",
+        "bloodPressureAxis": "Sistolica (mmHg)"
       },
       "structuredTagsTitle": "Analisi etichette",
       "inTargetValue": "{pct} %",
@@ -2428,7 +2432,23 @@
         "tagLift": "I giorni con l'etichetta «{tag}» superano in media il tuo umore generale di {delta}.",
         "tagDrop": "I giorni con l'etichetta «{tag}» restano {delta} sotto la tua media.",
         "inTarget": "Sei stato nel tuo intervallo di buon umore il {pct} % degli ultimi 30 giorni.",
-        "streak": "Hai registrato il tuo umore per {days} giorni di fila — continua così."
+        "streak": "Hai registrato il tuo umore per {days} giorni di fila — continua così.",
+        "timeOfDay": "Ti senti meglio di {bucket}, con una media di {value}."
+      },
+      "timeOfDay": {
+        "title": "Umore per fascia oraria",
+        "morning": "Mattina",
+        "afternoon": "Pomeriggio",
+        "evening": "Sera",
+        "night": "Notte",
+        "bestCaption": "Tendi a sentirti meglio di {bucket}."
+      },
+      "stability": {
+        "value": "{score}/100",
+        "bandVerySteady": "Il tuo umore è stato molto stabile",
+        "bandSteady": "Il tuo umore è stato abbastanza stabile",
+        "bandVariable": "Il tuo umore è stato notevolmente variabile",
+        "bandVeryVariable": "Il tuo umore ha oscillato molto di recente"
       }
     }
   },

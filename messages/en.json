@@ -2412,7 +2412,11 @@
         "strengthNone": "None",
         "source": "{n} paired days · r = {r}",
         "emptyTitle": "Not enough paired data yet",
-        "emptyDescription": "Log mood and this metric on the same days to see a correlation."
+        "emptyDescription": "Log mood and this metric on the same days to see a correlation.",
+        "weightTitle": "Mood vs. weight",
+        "bloodPressureTitle": "Mood vs. blood pressure",
+        "weightAxis": "Weight",
+        "bloodPressureAxis": "Systolic (mmHg)"
       },
       "structuredTagsTitle": "Tag breakdown",
       "inTargetValue": "{pct}%",
@@ -2428,7 +2432,23 @@
         "tagLift": "Days tagged \"{tag}\" average {delta} above your overall mood.",
         "tagDrop": "Days tagged \"{tag}\" run {delta} below your average.",
         "inTarget": "You've been in your good-mood range {pct}% of the last 30 days.",
-        "streak": "You've logged your mood {days} days in a row — keep it up."
+        "streak": "You've logged your mood {days} days in a row — keep it up.",
+        "timeOfDay": "You feel best in the {bucket}, averaging {value}."
+      },
+      "timeOfDay": {
+        "title": "Mood by time of day",
+        "morning": "Morning",
+        "afternoon": "Afternoon",
+        "evening": "Evening",
+        "night": "Night",
+        "bestCaption": "You tend to feel best in the {bucket}."
+      },
+      "stability": {
+        "value": "{score}/100",
+        "bandVerySteady": "Your mood has been very steady",
+        "bandSteady": "Your mood has been fairly steady",
+        "bandVariable": "Your mood has been noticeably variable",
+        "bandVeryVariable": "Your mood has swung a lot lately"
       }
     }
   },

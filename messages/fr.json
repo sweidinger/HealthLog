@@ -2412,7 +2412,11 @@
         "strengthNone": "Aucune",
         "source": "{n} jours appariés · r = {r}",
         "emptyTitle": "Pas encore assez de données appariées",
-        "emptyDescription": "Enregistrez l'humeur et cette mesure les mêmes jours pour voir une corrélation."
+        "emptyDescription": "Enregistrez l'humeur et cette mesure les mêmes jours pour voir une corrélation.",
+        "weightTitle": "Humeur vs. poids",
+        "bloodPressureTitle": "Humeur vs. tension artérielle",
+        "weightAxis": "Poids",
+        "bloodPressureAxis": "Systolique (mmHg)"
       },
       "structuredTagsTitle": "Répartition des étiquettes",
       "inTargetValue": "{pct} %",
@@ -2428,7 +2432,23 @@
         "tagLift": "Les jours marqués « {tag} » dépassent votre humeur générale de {delta} en moyenne.",
         "tagDrop": "Les jours marqués « {tag} » sont {delta} sous votre moyenne.",
         "inTarget": "Vous avez été dans votre plage de bonne humeur {pct} % des 30 derniers jours.",
-        "streak": "Vous avez noté votre humeur {days} jours d'affilée — continuez."
+        "streak": "Vous avez noté votre humeur {days} jours d'affilée — continuez.",
+        "timeOfDay": "Vous vous sentez mieux le {bucket}, en moyenne {value}."
+      },
+      "timeOfDay": {
+        "title": "Humeur selon l'heure de la journée",
+        "morning": "Matin",
+        "afternoon": "Après-midi",
+        "evening": "Soir",
+        "night": "Nuit",
+        "bestCaption": "Vous vous sentez généralement mieux le {bucket}."
+      },
+      "stability": {
+        "value": "{score}/100",
+        "bandVerySteady": "Votre humeur a été très stable",
+        "bandSteady": "Votre humeur a été plutôt stable",
+        "bandVariable": "Votre humeur a été nettement variable",
+        "bandVeryVariable": "Votre humeur a beaucoup fluctué récemment"
       }
     }
   },

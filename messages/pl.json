@@ -2412,7 +2412,11 @@
         "strengthNone": "Brak",
         "source": "{n} sparowanych dni · r = {r}",
         "emptyTitle": "Za mało sparowanych danych",
-        "emptyDescription": "Rejestruj nastrój i ten wskaźnik w te same dni, aby zobaczyć korelację."
+        "emptyDescription": "Rejestruj nastrój i ten wskaźnik w te same dni, aby zobaczyć korelację.",
+        "weightTitle": "Nastrój vs. waga",
+        "bloodPressureTitle": "Nastrój vs. ciśnienie krwi",
+        "weightAxis": "Waga",
+        "bloodPressureAxis": "Skurczowe (mmHg)"
       },
       "structuredTagsTitle": "Podział tagów",
       "inTargetValue": "{pct}%",
@@ -2428,7 +2432,23 @@
         "tagLift": "Dni z tagiem „{tag}” są średnio o {delta} powyżej twojego ogólnego nastroju.",
         "tagDrop": "Dni z tagiem „{tag}” są o {delta} poniżej twojej średniej.",
         "inTarget": "Przez {pct}% ostatnich 30 dni byłeś w zakresie dobrego nastroju.",
-        "streak": "Rejestrujesz nastrój od {days} dni z rzędu — tak trzymaj."
+        "streak": "Rejestrujesz nastrój od {days} dni z rzędu — tak trzymaj.",
+        "timeOfDay": "Najlepiej czujesz się {bucket}, średnio {value}."
+      },
+      "timeOfDay": {
+        "title": "Nastrój według pory dnia",
+        "morning": "Rano",
+        "afternoon": "Popołudnie",
+        "evening": "Wieczór",
+        "night": "Noc",
+        "bestCaption": "Zwykle najlepiej czujesz się {bucket}."
+      },
+      "stability": {
+        "value": "{score}/100",
+        "bandVerySteady": "Twój nastrój był bardzo stabilny",
+        "bandSteady": "Twój nastrój był dość stabilny",
+        "bandVariable": "Twój nastrój był zauważalnie zmienny",
+        "bandVeryVariable": "Twój nastrój ostatnio mocno się wahał"
       }
     }
   },

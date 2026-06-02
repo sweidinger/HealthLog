@@ -32,6 +32,13 @@ type Response = {
   heatmap: { windowDays: number; cells: [] };
   distribution: [];
   weekday: [];
+  timeOfDay: {
+    buckets: [];
+    reliable: boolean;
+    best: null;
+    worst: null;
+  };
+  stability: null;
   tags: [];
   structuredTags: [];
   narratives: Array<{
@@ -43,6 +50,8 @@ type Response = {
     sleep: EmptyCorrelation;
     steps: EmptyCorrelation;
     pulse: EmptyCorrelation;
+    weight: EmptyCorrelation;
+    bloodPressureSystolic: EmptyCorrelation;
   };
 };
 
@@ -70,6 +79,8 @@ function baseData(inTargetPct: number | null): Response {
     heatmap: { windowDays: 30, cells: [] },
     distribution: [],
     weekday: [],
+    timeOfDay: { buckets: [], reliable: false, best: null, worst: null },
+    stability: null,
     tags: [],
     structuredTags: [],
     narratives: [
@@ -88,6 +99,8 @@ function baseData(inTargetPct: number | null): Response {
       sleep: emptyCorrelation,
       steps: emptyCorrelation,
       pulse: emptyCorrelation,
+      weight: emptyCorrelation,
+      bloodPressureSystolic: emptyCorrelation,
     },
   };
 }

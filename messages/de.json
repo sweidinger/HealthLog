@@ -2412,7 +2412,11 @@
         "strengthNone": "Keine",
         "source": "{n} gepaarte Tage · r = {r}",
         "emptyTitle": "Noch nicht genug gepaarte Daten",
-        "emptyDescription": "Erfasse Stimmung und diesen Wert an denselben Tagen, um einen Zusammenhang zu sehen."
+        "emptyDescription": "Erfasse Stimmung und diesen Wert an denselben Tagen, um einen Zusammenhang zu sehen.",
+        "weightTitle": "Stimmung vs. Gewicht",
+        "bloodPressureTitle": "Stimmung vs. Blutdruck",
+        "weightAxis": "Gewicht",
+        "bloodPressureAxis": "Systolisch (mmHg)"
       },
       "structuredTagsTitle": "Tag-Auswertung",
       "inTargetValue": "{pct} %",
@@ -2428,7 +2432,23 @@
         "tagLift": "Tage mit „{tag}“ liegen im Schnitt {delta} über deiner allgemeinen Stimmung.",
         "tagDrop": "Tage mit „{tag}“ liegen {delta} unter deinem Durchschnitt.",
         "inTarget": "Du warst an {pct} % der letzten 30 Tage in deinem guten Stimmungsbereich.",
-        "streak": "Du hast deine Stimmung {days} Tage in Folge erfasst – weiter so."
+        "streak": "Du hast deine Stimmung {days} Tage in Folge erfasst – weiter so.",
+        "timeOfDay": "Am {bucket} fühlst du dich am besten, im Schnitt {value}."
+      },
+      "timeOfDay": {
+        "title": "Stimmung nach Tageszeit",
+        "morning": "Morgen",
+        "afternoon": "Nachmittag",
+        "evening": "Abend",
+        "night": "Nacht",
+        "bestCaption": "Am {bucket} fühlst du dich tendenziell am besten."
+      },
+      "stability": {
+        "value": "{score}/100",
+        "bandVerySteady": "Deine Stimmung war sehr gleichmäßig",
+        "bandSteady": "Deine Stimmung war recht gleichmäßig",
+        "bandVariable": "Deine Stimmung war merklich schwankend",
+        "bandVeryVariable": "Deine Stimmung hat zuletzt stark geschwankt"
       }
     }
   },

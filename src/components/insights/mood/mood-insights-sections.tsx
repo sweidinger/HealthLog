@@ -33,6 +33,14 @@ import {
   type MoodNarrativeItem,
 } from "./mood-narrative-feed";
 import { MoodInTargetTile } from "./mood-in-target-tile";
+import {
+  MoodTimeOfDayChart,
+  type MoodTimeOfDayPattern,
+} from "./mood-time-of-day-chart";
+import {
+  MoodStabilityTile,
+  type MoodStabilityData,
+} from "./mood-stability-tile";
 
 /**
  * v1.8.5 — additional Mood Insights sections.
@@ -55,6 +63,8 @@ interface MoodInsightsResponse {
   };
   distribution: MoodDistributionRow[];
   weekday: MoodWeekdayRow[];
+  timeOfDay: MoodTimeOfDayPattern;
+  stability: MoodStabilityData | null;
   tags: MoodTagRow[];
   structuredTags: MoodStructuredTagRow[];
   narratives: MoodNarrativeItem[];
@@ -62,6 +72,8 @@ interface MoodInsightsResponse {
     sleep: MoodMetricCorrelationData;
     steps: MoodMetricCorrelationData;
     pulse: MoodMetricCorrelationData;
+    weight: MoodMetricCorrelationData;
+    bloodPressureSystolic: MoodMetricCorrelationData;
   };
 }
 
@@ -122,9 +134,17 @@ export function MoodInsightsSections() {
     ? data.narratives.filter((item) => item.kind !== "in-target")
     : data.narratives;
 
+  const hasStabilityTile = data.stability != null;
+  const hasInTargetTile = data.summary.inTargetPct != null;
+
   return (
     <div className="space-y-4">
-      <MoodInTargetTile pct={data.summary.inTargetPct} />
+      {(hasInTargetTile || hasStabilityTile) && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <MoodInTargetTile pct={data.summary.inTargetPct} />
+          <MoodStabilityTile stability={data.stability} />
+        </div>
+      )}
 
       <MoodNarrativeFeed items={narratives} />
 
@@ -144,6 +164,12 @@ export function MoodInsightsSections() {
           <MoodWeekdayChart weekday={data.weekday} />
         </SectionCard>
       </div>
+
+      {data.timeOfDay.reliable && (
+        <SectionCard title={t("insights.mood.timeOfDay.title")}>
+          <MoodTimeOfDayChart pattern={data.timeOfDay} />
+        </SectionCard>
+      )}
 
       {hasStructuredTags && (
         <SectionCard title={t("insights.mood.structuredTagsTitle")}>
@@ -168,6 +194,8 @@ export function MoodInsightsSections() {
           sleep={data.correlations.sleep}
           steps={data.correlations.steps}
           pulse={data.correlations.pulse}
+          weight={data.correlations.weight}
+          bloodPressureSystolic={data.correlations.bloodPressureSystolic}
         />
       </div>
     </div>
