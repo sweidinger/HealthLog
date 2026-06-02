@@ -1601,6 +1601,22 @@
       "confidenceLow": "Confiance faible",
       "pendingLabel": "Commentaire de tendance en cours de génération"
     },
+    "range": {
+      "label": "Période",
+      "noPriorData": "aucune donnée sur la période précédente",
+      "option": {
+        "7d": "7j",
+        "30d": "30j",
+        "90d": "90j",
+        "1y": "1an"
+      },
+      "priorLabel": {
+        "7d": "vs 7j précédents",
+        "30d": "vs 30j précédents",
+        "90d": "vs 90j précédents",
+        "1y": "vs année précédente"
+      }
+    },
     "correlationRow": {
       "title": "Corrélations",
       "subtitle": "Hypothèses prédéfinies, validées si n ≥ 14 et p < 0,05",

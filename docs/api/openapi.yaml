@@ -30,6 +30,7 @@ tags:
   - name: Measurements
   - name: Medications
   - name: Mood
+  - name: Analytics
   - name: Insights
   - name: Dashboard
   - name: Notifications
@@ -1951,6 +1952,86 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InsightsPregenerateResponseEnvelope"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/analytics/range:
+    get:
+      tags:
+        - Analytics
+      summary: Single-metric period-over-period range delta
+      description: v1.9.0 — returns the current-window aggregate, the previous comparable window, and the composed delta for
+        ONE metric type over a `7d` / `30d` / `90d` / `1y` range. Single-type by construction (the metric page is
+        single-metric), so the read is one rollup-tier call covering the trailing 2N days sliced into the two halves —
+        no per-type fan-out. Additive route; the `/api/analytics` envelope is unchanged. Auth via cookie or Bearer.
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum:
+              - WEIGHT
+              - BLOOD_PRESSURE_SYS
+              - BLOOD_PRESSURE_DIA
+              - PULSE
+              - BODY_FAT
+              - SLEEP_DURATION
+              - ACTIVITY_STEPS
+              - BLOOD_GLUCOSE
+              - TOTAL_BODY_WATER
+              - BONE_MASS
+              - OXYGEN_SATURATION
+              - HEART_RATE_VARIABILITY
+              - RESTING_HEART_RATE
+              - ACTIVE_ENERGY_BURNED
+              - FLIGHTS_CLIMBED
+              - WALKING_RUNNING_DISTANCE
+              - VO2_MAX
+              - BODY_TEMPERATURE
+              - FAT_FREE_MASS
+              - FAT_MASS
+              - MUSCLE_MASS
+              - SKIN_TEMPERATURE
+              - PULSE_WAVE_VELOCITY
+              - VASCULAR_AGE
+              - VISCERAL_FAT
+              - AUDIO_EXPOSURE_ENV
+              - AUDIO_EXPOSURE_HEADPHONE
+              - TIME_IN_DAYLIGHT
+              - WALKING_STEADINESS
+              - AUDIO_EXPOSURE_EVENT
+              - RESPIRATORY_RATE
+              - BODY_MASS_INDEX
+              - LEAN_BODY_MASS
+              - WALKING_HEART_RATE_AVERAGE
+              - WALKING_ASYMMETRY
+              - WALKING_DOUBLE_SUPPORT
+              - WALKING_STEP_LENGTH
+              - WALKING_SPEED
+            description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
+          required: true
+          description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
+        - in: query
+          name: range
+          schema:
+            type: string
+            enum:
+              - 7d
+              - 30d
+              - 90d
+              - 1y
+            description: "Trailing window: `7d` / `30d` / `90d` / `1y`. The previous comparable window is the equally-sized span
+              immediately before it."
+          required: true
+          description: "Trailing window: `7d` / `30d` / `90d` / `1y`. The previous comparable window is the equally-sized span
+            immediately before it."
+      responses:
+        "200":
+          description: Current + previous window aggregates and the delta.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsRangeResponseEnvelope"
         "401": *a1
         "422": *a2
         "429": *a3
@@ -6334,6 +6415,107 @@ components:
       additionalProperties: false
       description: Acknowledgement that a full assessment warm was enqueued for the calling user. The generation runs out of
         band; the text lands in the read-only status routes.
+    AnalyticsRangeResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AnalyticsRangeResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    AnalyticsRangeResponse:
+      type: object
+      properties:
+        range:
+          type: string
+          enum:
+            - 7d
+            - 30d
+            - 90d
+            - 1y
+          description: The range that was read (echoes the request).
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Trailing-window length in days for the chosen range.
+        granularity:
+          type: string
+          description: Rollup granularity the read resolved against (`DAY` / `WEEK` / `MONTH` / `YEAR`, or `none` on a coverage
+            miss).
+        current:
+          description: Aggregate over the current window `[now-N, now)`.
+          $ref: "#/components/schemas/AnalyticsWindowAggregate"
+        previous:
+          description: Aggregate over the previous comparable window `[now-2N, now-N)`.
+          $ref: "#/components/schemas/AnalyticsWindowAggregate"
+        delta:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: "`current.mean - previous.mean`; null when either window has no data (never a misleading 0)."
+        deltaPct:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: "`delta / previous.mean` as a fraction (0.03 = +3 %); null when the prior window has no / zero mean (no
+            divide-by-zero). The client shows 'no prior-period data' in that case."
+      required:
+        - range
+        - windowDays
+        - granularity
+        - current
+        - previous
+        - delta
+        - deltaPct
+      additionalProperties: false
+      description: Single-metric period-over-period aggregate. Reads the current and previous comparable windows from the WMY
+        rollup tier and composes a count-weighted-mean delta. `count/min/max/mean/sum` are linearly composable across
+        buckets; SD/slope/r² are intentionally excluded (not composable).
+    AnalyticsWindowAggregate:
+      type: object
+      properties:
+        count:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Reading count composed across buckets.
+        min:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: Window minimum; null when empty.
+        max:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: Window maximum; null when empty.
+        mean:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: Count-weighted mean across buckets; null when empty.
+        sum:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: Cumulative total for cumulative metrics (steps, energy, distance); null when no bucket carries a sum.
+      required:
+        - count
+        - min
+        - max
+        - mean
+        - sum
+      additionalProperties: false
     MetricStatusResponseEnvelope:
       type: object
       properties:

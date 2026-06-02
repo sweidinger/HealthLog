@@ -1601,6 +1601,22 @@
       "confidenceLow": "Confianza baja",
       "pendingLabel": "Generando comentario de tendencia"
     },
+    "range": {
+      "label": "Período",
+      "noPriorData": "sin datos del período anterior",
+      "option": {
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d",
+        "1y": "1a"
+      },
+      "priorLabel": {
+        "7d": "vs 7d anteriores",
+        "30d": "vs 30d anteriores",
+        "90d": "vs 90d anteriores",
+        "1y": "vs año anterior"
+      }
+    },
     "correlationRow": {
       "title": "Correlaciones",
       "subtitle": "Hipótesis predefinidas, con umbral n ≥ 14 y p < 0,05",

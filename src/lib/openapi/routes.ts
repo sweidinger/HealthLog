@@ -47,6 +47,7 @@ import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-pr
 import { ACCEPTED_INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { METRIC_STATUS_IDS } from "@/lib/insights/metric-status-registry";
+import { ANALYTICS_RANGES } from "@/lib/analytics/range-delta";
 
 /**
  * Common envelopes — every HealthLog API response wraps payload in
@@ -1154,6 +1155,76 @@ const metricStatusResponse = z
     id: "MetricStatusResponse",
     description:
       "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
+  });
+
+const analyticsRangeQuery = z
+  .object({
+    type: measurementTypeEnum.describe(
+      "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s.",
+    ),
+    range: z
+      .enum(ANALYTICS_RANGES)
+      .describe(
+        "Trailing window: `7d` / `30d` / `90d` / `1y`. The previous comparable window is the equally-sized span immediately before it.",
+      ),
+  })
+  .meta({ id: "AnalyticsRangeQuery" });
+
+const analyticsWindowAggregate = z
+  .object({
+    count: z.number().int().describe("Reading count composed across buckets."),
+    min: z.number().nullable().describe("Window minimum; null when empty."),
+    max: z.number().nullable().describe("Window maximum; null when empty."),
+    mean: z
+      .number()
+      .nullable()
+      .describe("Count-weighted mean across buckets; null when empty."),
+    sum: z
+      .number()
+      .nullable()
+      .describe(
+        "Cumulative total for cumulative metrics (steps, energy, distance); null when no bucket carries a sum.",
+      ),
+  })
+  .meta({ id: "AnalyticsWindowAggregate" });
+
+const analyticsRangeResponse = z
+  .object({
+    range: z
+      .enum(ANALYTICS_RANGES)
+      .describe("The range that was read (echoes the request)."),
+    windowDays: z
+      .number()
+      .int()
+      .describe("Trailing-window length in days for the chosen range."),
+    granularity: z
+      .string()
+      .describe(
+        "Rollup granularity the read resolved against (`DAY` / `WEEK` / `MONTH` / `YEAR`, or `none` on a coverage miss).",
+      ),
+    current: analyticsWindowAggregate.describe(
+      "Aggregate over the current window `[now-N, now)`.",
+    ),
+    previous: analyticsWindowAggregate.describe(
+      "Aggregate over the previous comparable window `[now-2N, now-N)`.",
+    ),
+    delta: z
+      .number()
+      .nullable()
+      .describe(
+        "`current.mean - previous.mean`; null when either window has no data (never a misleading 0).",
+      ),
+    deltaPct: z
+      .number()
+      .nullable()
+      .describe(
+        "`delta / previous.mean` as a fraction (0.03 = +3 %); null when the prior window has no / zero mean (no divide-by-zero). The client shows 'no prior-period data' in that case.",
+      ),
+  })
+  .meta({
+    id: "AnalyticsRangeResponse",
+    description:
+      "Single-metric period-over-period aggregate. Reads the current and previous comparable windows from the WMY rollup tier and composes a count-weighted-mean delta. `count/min/max/mean/sum` are linearly composable across buckets; SD/slope/r² are intentionally excluded (not composable).",
   });
 
 const insightsPregenerateRequest = z
@@ -2453,6 +2524,31 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 insightsPregenerateResponse,
                 "InsightsPregenerateResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/analytics/range": {
+    get: {
+      tags: ["Analytics"],
+      summary: "Single-metric period-over-period range delta",
+      description:
+        "v1.9.0 — returns the current-window aggregate, the previous comparable window, and the composed delta for ONE metric type over a `7d` / `30d` / `90d` / `1y` range. Single-type by construction (the metric page is single-metric), so the read is one rollup-tier call covering the trailing 2N days sliced into the two halves — no per-type fan-out. Additive route; the `/api/analytics` envelope is unchanged. Auth via cookie or Bearer.",
+      requestParams: {
+        query: analyticsRangeQuery,
+      },
+      responses: {
+        "200": {
+          description: "Current + previous window aggregates and the delta.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                analyticsRangeResponse,
+                "AnalyticsRangeResponseEnvelope",
               ),
             },
           },

@@ -52,6 +52,16 @@ export const queryKeys = {
    */
   analytics: (slice?: "summaries") =>
     (slice ? (["analytics", slice] as const) : (["analytics"] as const)),
+  /**
+   * v1.9.0 — single-metric period-over-period range read
+   * (`GET /api/analytics/range`). A dedicated cache slot per `(type, range)`
+   * so switching the time-range pills is a cheap cache hit after the first
+   * fetch and never collides with the shared `["analytics", "summaries"]`
+   * slot the dashboard tile-strip subscribes to. `["analytics"]` is a prefix
+   * so a blanket `queryKeys.analytics()` invalidation still reaches it.
+   */
+  analyticsRange: (type: string, range: string) =>
+    ["analytics", "range", type, range] as const,
   moodAnalytics: () => ["mood-analytics"] as const,
   /**
    * v1.8.5 — pre-computed mood-insights aggregates (heatmap, distribution,

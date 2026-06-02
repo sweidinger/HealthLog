@@ -1601,6 +1601,22 @@
       "confidenceLow": "Niska pewność",
       "pendingLabel": "Komentarz trendu jest generowany"
     },
+    "range": {
+      "label": "Okres",
+      "noPriorData": "brak danych z poprzedniego okresu",
+      "option": {
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d",
+        "1y": "1r"
+      },
+      "priorLabel": {
+        "7d": "vs poprzednie 7d",
+        "30d": "vs poprzednie 30d",
+        "90d": "vs poprzednie 90d",
+        "1y": "vs poprzedni rok"
+      }
+    },
     "correlationRow": {
       "title": "Korelacje",
       "subtitle": "Hipotezy zdefiniowane wcześniej, z progiem n ≥ 14 i p < 0,05",

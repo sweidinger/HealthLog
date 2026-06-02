@@ -1601,6 +1601,22 @@
       "confidenceLow": "Low confidence",
       "pendingLabel": "Generating trend commentary"
     },
+    "range": {
+      "label": "Time range",
+      "noPriorData": "no prior-period data",
+      "option": {
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d",
+        "1y": "1y"
+      },
+      "priorLabel": {
+        "7d": "vs prior 7d",
+        "30d": "vs prior 30d",
+        "90d": "vs prior 90d",
+        "1y": "vs prior year"
+      }
+    },
     "correlationRow": {
       "title": "Relationships",
       "subtitle": "Pre-defined hypotheses, gated on n ≥ 14 and p < 0.05",

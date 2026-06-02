@@ -1601,6 +1601,22 @@
       "confidenceLow": "Confidenza bassa",
       "pendingLabel": "Commento di trend in generazione"
     },
+    "range": {
+      "label": "Periodo",
+      "noPriorData": "nessun dato nel periodo precedente",
+      "option": {
+        "7d": "7g",
+        "30d": "30g",
+        "90d": "90g",
+        "1y": "1a"
+      },
+      "priorLabel": {
+        "7d": "vs 7g precedenti",
+        "30d": "vs 30g precedenti",
+        "90d": "vs 90g precedenti",
+        "1y": "vs anno precedente"
+      }
+    },
     "correlationRow": {
       "title": "Correlazioni",
       "subtitle": "Ipotesi predefinite, vincolate a n ≥ 14 e p < 0,05",
