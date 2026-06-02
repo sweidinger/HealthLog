@@ -34,6 +34,8 @@ import { generatePulseStatusForUser } from "@/lib/insights/pulse-status";
 import { generateBmiStatusForUser } from "@/lib/insights/bmi-status";
 import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
 import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
+import { generateMetricStatus } from "@/lib/insights/metric-status";
+import { isMetricStatusId } from "@/lib/insights/metric-status-registry";
 import {
   INSIGHT_STATUS_GENERATE_QUEUE,
   INSIGHT_STATUS_GENERATE_CONCURRENCY,
@@ -80,7 +82,30 @@ export async function runInsightStatusGenerate(
   payload: InsightStatusGeneratePayload,
   generators: Record<InsightStatusMetric, StatusGenerator> = GENERATORS,
 ): Promise<void> {
-  const generate = generators[payload.metric];
+  // v1.8.7.1 — a `metric:<METRIC_ID>` scope routes to the generic
+  // HealthKit-metric generator rather than one of the seven specialised
+  // ones. The generic generator applies its own empty-data guard, so a
+  // job enqueued for a metric that has since lost its data costs only a
+  // cheap count, not an LLM call.
+  if (payload.metric.startsWith("metric:")) {
+    const metricId = payload.metric.slice("metric:".length);
+    if (!isMetricStatusId(metricId)) {
+      annotate({
+        action: { name: "insights.status.generate.unknown_metric" },
+        meta: { metric: payload.metric },
+      });
+      return;
+    }
+    await generateMetricStatus({
+      metric: metricId,
+      userId: payload.userId,
+      locale: payload.locale,
+      force: true,
+    });
+    return;
+  }
+
+  const generate = generators[payload.metric as InsightStatusMetric];
   if (!generate) {
     annotate({
       action: { name: "insights.status.generate.unknown_metric" },

@@ -40,6 +40,9 @@ const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   "src/app/api/insights/cards/route.ts",
   "src/app/api/insights/correlations/route.ts",
   "src/app/api/insights/medication-compliance-status/route.ts",
+  // v1.8.7.1 — generic per-HealthKit-metric assessment. Gated on the
+  // same `insightStatus` sub-flag as the seven specialised status routes.
+  "src/app/api/insights/metric-status/route.ts",
   "src/app/api/insights/mood-status/route.ts",
   "src/app/api/insights/pulse-status/route.ts",
   "src/app/api/insights/weight-status/route.ts",

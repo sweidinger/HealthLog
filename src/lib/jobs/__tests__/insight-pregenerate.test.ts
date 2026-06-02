@@ -51,6 +51,17 @@ vi.mock("@/lib/insights/medication-compliance-status", () => ({
 vi.mock("@/lib/insights/general-status", () => ({
   generateGeneralStatusForUser: vi.fn(),
 }));
+// v1.8.7.1 — the generic metric generator also imports the provider
+// chain transitively; stub it so the default generic warm pass never
+// touches a live provider when the test does not inject its own.
+vi.mock("@/lib/insights/metric-status", () => ({
+  generateMetricStatus: vi.fn(async () => ({
+    hasProvider: true,
+    text: "ok",
+    cached: false,
+    updatedAt: new Date().toISOString(),
+  })),
+}));
 
 import {
   runInsightPregenerate,
@@ -318,6 +329,51 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     }
     // Two counting generators × two locales = 4 fresh assessments.
     expect(result.assessmentsWarmed).toBe(4);
+  });
+});
+
+describe("runInsightPregenerate — generic metric warm pass (v1.8.7.1)", () => {
+  it("warms the generic metric caches after a successful comprehensive generation", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "generated", providerType: "x" });
+    // Stub the seven specialised generators so only the generic count
+    // is under test.
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(9);
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    expect(warmGenericMetrics).toHaveBeenCalledTimes(1);
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"]);
+    expect(result.metricAssessmentsWarmed).toBe(9);
+  });
+
+  it("does NOT warm the generic metric caches when the comprehensive pass skipped (no provider)", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "en" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "skipped", reason: "no-provider" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: false, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(9);
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    expect(warmGenericMetrics).not.toHaveBeenCalled();
+    expect(result.metricAssessmentsWarmed).toBe(0);
   });
 });
 

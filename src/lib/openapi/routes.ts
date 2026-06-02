@@ -46,6 +46,7 @@ import {
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
 import { ACCEPTED_INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
+import { METRIC_STATUS_IDS } from "@/lib/insights/metric-status-registry";
 
 /**
  * Common envelopes — every HealthLog API response wraps payload in
@@ -1095,6 +1096,64 @@ const insightsComprehensiveResponse = z
     id: "InsightsComprehensiveResponse",
     description:
       "AI-generated insights bundle. Strict-schema validated server-side; Coach-routed when the insight surface needs day-level grounding.",
+  });
+
+// v1.8.7.1 — generic per-HealthKit-metric assessment. The query enum is
+// derived from the same registry the route validates against, so the
+// spec, the route, and the cache scope cannot drift. The seven
+// specialised metrics (weight / blood-pressure / pulse / bmi / mood /
+// medication-compliance) keep their own routes and are NOT accepted here.
+const metricStatusQuery = z
+  .object({
+    metric: z
+      .enum(METRIC_STATUS_IDS as [string, ...string[]])
+      .describe(
+        "HealthKit metric id to assess (e.g. RESTING_HEART_RATE, SLEEP_DURATION). Closed enum: an unknown id 422s. The seven specialised metrics are served by their own routes and are not accepted here.",
+      ),
+    locale: z
+      .enum(["de", "en"])
+      .optional()
+      .describe("Optional UI-locale override; defaults to the session locale."),
+  })
+  .meta({ id: "MetricStatusQuery" });
+
+const metricStatusResponse = z
+  .object({
+    hasProvider: z
+      .boolean()
+      .describe(
+        "False when the user has no usable AI provider — `text` then carries the generic no-key guidance.",
+      ),
+    text: z
+      .string()
+      .nullable()
+      .describe(
+        "The assessment narrative (plain text, rendered as React text children). Null while a first generation is preparing, or when the metric has insufficient data.",
+      ),
+    cached: z
+      .boolean()
+      .describe("True when `text` is served from cache (incl. last-good)."),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("When the served assessment was generated; null when none."),
+    preparing: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when a first assessment is being generated out of band and no prior text exists yet — the client polls until it lands.",
+      ),
+    insufficient: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when the metric has no readings; no assessment is generated (no LLM call). The card shows its insufficient-data state.",
+      ),
+  })
+  .meta({
+    id: "MetricStatusResponse",
+    description:
+      "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
   });
 
 // v1.7.0 — unified dashboard first-paint snapshot. One GET that
@@ -2342,6 +2401,31 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 insightsComprehensiveResponse,
                 "InsightsComprehensiveResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/metric-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Generic per-HealthKit-metric assessment",
+      description:
+        "v1.8.7.1 — data-driven plain-language assessment for any registered HealthKit metric (resting heart rate, sleep, glucose, body composition, gait, audio exposure, …). One generic route covering ~30 metric pages via archetype prompt templates + per-metric metadata. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). An unknown `metric` 422s against the closed registry enum. Auth via cookie or Bearer.",
+      requestParams: {
+        query: metricStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                metricStatusResponse,
+                "MetricStatusResponseEnvelope",
               ),
             },
           },

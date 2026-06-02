@@ -62,6 +62,12 @@ import { generateBmiStatusForUser } from "@/lib/insights/bmi-status";
 import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
 import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
 import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
+import { generateMetricStatus } from "@/lib/insights/metric-status";
+import {
+  METRIC_STATUS_IDS,
+  getMetricStatusMeta,
+  type MetricStatusMetricId,
+} from "@/lib/insights/metric-status-registry";
 
 export const INSIGHT_PREGENERATE_QUEUE = "insight-pregenerate";
 
@@ -114,6 +120,14 @@ export interface PregenerateRunResult {
    * one live status generation per card. This counts the warm writes.
    */
   assessmentsWarmed: number;
+  /**
+   * v1.8.7.1 — count of generic per-HealthKit-metric assessment caches
+   * written warm across the run (the ~30 metric pages, data-bearing
+   * only). Tracked separately from `assessmentsWarmed` so the nightly
+   * dashboard can see the generic-tier coverage independently of the
+   * seven specialised cards.
+   */
+  metricAssessmentsWarmed: number;
 }
 
 /**
@@ -186,6 +200,76 @@ async function warmPerStatusCaches(
   return results.reduce((sum: number, n) => sum + n, 0);
 }
 
+/**
+ * v1.8.7.1 — warm the generic per-HealthKit-metric assessment caches for
+ * one user, but ONLY for metrics that have data. A single grouped count
+ * answers "which metric types does this user have readings for?" in one
+ * query, so the cron never burns a (cheap) per-metric count nor (costly)
+ * an LLM call on a metric the user has never logged. The generic
+ * generator's own empty-data guard is the second line of defence, but the
+ * up-front filter keeps the cron from forcing ~30 metric generators per
+ * user when most have no data.
+ *
+ * Returns the count of fresh provider-backed assessments written.
+ */
+async function warmGenericMetricCaches(
+  prisma: PrismaClient,
+  userId: string,
+  locales: ReadonlyArray<"de" | "en">,
+): Promise<number> {
+  // One distinct read: the set of MeasurementTypes the user has live
+  // rows for. Best-effort — a read failure (or a worker prisma surface
+  // without `measurement`) yields zero metrics rather than aborting the
+  // user's whole pre-generation loop.
+  let rows: Array<{ type: string }>;
+  try {
+    rows = await prisma.measurement.findMany({
+      where: { userId, deletedAt: null },
+      distinct: ["type"],
+      select: { type: true },
+    });
+  } catch {
+    return 0;
+  }
+  const typesWithData = new Set(rows.map((r) => r.type));
+
+  const metricsWithData = METRIC_STATUS_IDS.filter(
+    (id: MetricStatusMetricId) => {
+      const meta = getMetricStatusMeta(id);
+      return meta !== null && typesWithData.has(meta.measurementType);
+    },
+  );
+  if (metricsWithData.length === 0) return 0;
+
+  const limit = pLimit(WARM_PASS_CONCURRENCY);
+  const tasks = metricsWithData.flatMap((metric) =>
+    locales.map((locale) =>
+      limit(async () => {
+        try {
+          const outcome = await generateMetricStatus({
+            metric,
+            userId,
+            locale,
+            force: true,
+          });
+          // `insufficient` never reaches here (we pre-filtered to
+          // metrics with data), but guard anyway: count only a fresh
+          // provider-backed assessment.
+          return outcome.hasProvider &&
+            !outcome.cached &&
+            outcome.insufficient !== true
+            ? 1
+            : 0;
+        } catch {
+          return 0;
+        }
+      }),
+    ),
+  );
+  const results = await Promise.all(tasks);
+  return results.reduce((sum: number, n) => sum + n, 0);
+}
+
 interface PregenerateCandidate {
   id: string;
   locale: string | null;
@@ -242,6 +326,15 @@ export async function runInsightPregenerate(
     ) => Promise<GenerateOutcome>;
     /** Injected for the test — defaults to the seven real status generators. */
     statusGenerators?: ReadonlyArray<StatusGenerator>;
+    /**
+     * v1.8.7.1 — injected for the test. Defaults to the real generic
+     * metric warm pass; the test stubs it to assert it runs only for
+     * data-bearing metrics without a live LLM.
+     */
+    warmGenericMetrics?: (
+      userId: string,
+      locales: ReadonlyArray<"de" | "en">,
+    ) => Promise<number>;
   } = {},
 ): Promise<PregenerateRunResult> {
   const now = options.now ?? new Date();
@@ -249,6 +342,10 @@ export async function runInsightPregenerate(
   const generate = options.generate ?? generateComprehensiveInsight;
   const statusGenerators =
     options.statusGenerators ?? DEFAULT_STATUS_GENERATORS;
+  const warmGenericMetrics =
+    options.warmGenericMetrics ??
+    ((userId: string, locales: ReadonlyArray<"de" | "en">) =>
+      warmGenericMetricCaches(prisma, userId, locales));
 
   const result: PregenerateRunResult = {
     total: 0,
@@ -258,6 +355,7 @@ export async function runInsightPregenerate(
     failed: 0,
     budgetBlocked: 0,
     assessmentsWarmed: 0,
+    metricAssessmentsWarmed: 0,
   };
 
   // Master kill-switch — when the operator disabled the briefing
@@ -329,6 +427,13 @@ export async function runInsightPregenerate(
         ["de", "en"],
         statusGenerators,
       );
+      // v1.8.7.1 — warm the generic per-HealthKit-metric caches too, for
+      // the user's data-bearing metrics only (the helper filters via one
+      // grouped count, so an empty metric never reaches the provider).
+      result.metricAssessmentsWarmed += await warmGenericMetrics(
+        candidate.id,
+        ["de", "en"],
+      );
     }
   }
 
@@ -344,6 +449,7 @@ export async function runInsightPregenerate(
       failed: result.failed,
       budget_blocked: result.budgetBlocked,
       assessments_warmed: result.assessmentsWarmed,
+      metric_assessments_warmed: result.metricAssessmentsWarmed,
     },
   });
 

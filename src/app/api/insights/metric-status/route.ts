@@ -1,0 +1,86 @@
+/**
+ * v1.8.7.1 — generic per-HealthKit-metric assessment route.
+ *
+ * `GET /api/insights/metric-status?metric=<METRIC_ID>` serves the
+ * data-driven assessment for any metric registered in
+ * `metric-status-registry.ts` (RESTING_HEART_RATE, SLEEP_DURATION, …).
+ * The seven specialised metrics keep their own `*-status` routes; this
+ * single generic route covers the ~30 HealthKit pages without one route
+ * per metric.
+ *
+ * Read-only by construction (v1.8.3 freeze fix): a cache miss enqueues an
+ * out-of-band generation and serves the last-good (stale-while-revalidate)
+ * text, never blocking on the provider. An unknown `metric` 422s via the
+ * closed registry enum.
+ *
+ * Unlike the seven legacy `*-status` routes, this one carries OpenAPI
+ * coverage (the route schema lives in `src/lib/openapi/routes.ts`),
+ * establishing the pattern the legacy routes can be backfilled onto later.
+ */
+import { NextRequest } from "next/server";
+import { z } from "zod/v4";
+import {
+  apiSuccess,
+  returnAllZodIssues,
+} from "@/lib/api-response";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { requireAssistantSurface } from "@/lib/feature-flags";
+import {
+  generateMetricStatus,
+  resolveMetricStatusLocale,
+} from "@/lib/insights/metric-status";
+import {
+  METRIC_STATUS_IDS,
+  type MetricStatusMetricId,
+} from "@/lib/insights/metric-status-registry";
+
+export const dynamic = "force-dynamic";
+
+// Closed enum derived from the registry so the route + registry cannot
+// drift — an id added to the registry is accepted automatically, and an
+// unknown id 422s rather than silently resolving to no card.
+const metricQuerySchema = z.object({
+  metric: z.enum(METRIC_STATUS_IDS as [string, ...string[]]),
+});
+
+export const GET = apiHandler(async (request: NextRequest) => {
+  const { user } = await requireAuth();
+  await requireAssistantSurface("insightStatus");
+
+  const parsed = metricQuerySchema.safeParse({
+    metric: request.nextUrl.searchParams.get("metric"),
+  });
+  if (!parsed.success) {
+    annotate({
+      action: { name: "insights.metric-status.invalid-metric" },
+      meta: { issue_count: parsed.error.issues.length },
+    });
+    return returnAllZodIssues(parsed.error, 422);
+  }
+  const metric = parsed.data.metric as MetricStatusMetricId;
+
+  const localeParam = request.nextUrl.searchParams.get("locale");
+  const resolved = await resolveServerLocale({
+    request,
+    userLocale: user.locale ?? null,
+    override: localeParam,
+  });
+  const locale = resolveMetricStatusLocale(resolved);
+
+  const result = await generateMetricStatus({
+    metric,
+    userId: user.id,
+    locale,
+    force: false,
+    readOnly: true,
+  });
+
+  annotate({
+    action: { name: "insights.metric-status" },
+    meta: { metric },
+  });
+
+  return apiSuccess(result);
+});

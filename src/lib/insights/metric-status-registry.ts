@@ -1,0 +1,451 @@
+/**
+ * v1.8.7.1 — generic per-metric assessment registry.
+ *
+ * The seven specialised assessment scopes (blood-pressure / pulse /
+ * weight / bmi / mood / medication-compliance / general) each ship a
+ * bespoke generator + prompt. The ~30 HealthKit metric pages
+ * (`HealthKitMetricPage`) carried charts but no plain-language
+ * assessment, because hand-writing 30 more prompts is not viable.
+ *
+ * This registry is the data-driven alternative: each HealthKit metric is
+ * described by the small amount of metadata a generic generator needs to
+ * assess it — a display name, a unit, the direction a "good" value moves,
+ * an optional clinical/consumer normal range, and an archetype that
+ * selects one of six shared prompt templates. A metric with no entry here
+ * simply gets no assessment card (the safe default the spec calls for).
+ *
+ * Metric ids are the existing `InsightMetric` HealthKit identifiers
+ * (WEIGHT, RESTING_HEART_RATE, SLEEP_DURATION, …) so the UI contract,
+ * the route query param, and the cache scope all speak one vocabulary.
+ * Internally each id maps to the `MeasurementType` the rollup tier and
+ * the raw `Measurement` rows are keyed by (a handful differ — `STEPS`
+ * is stored as `ACTIVITY_STEPS`, `ACTIVE_ENERGY` as `ACTIVE_ENERGY_BURNED`).
+ *
+ * The seven specialised metrics (WEIGHT, BLOOD_PRESSURE_*, PULSE, BMI,
+ * MOOD, MEDICATION) are intentionally NOT registered here — they keep
+ * their existing dedicated scopes and are never routed through the
+ * generic path.
+ *
+ * Medical note (design §"Medical note"): normal ranges are population
+ * anchors a generic consumer/clinical guideline supports, used only as a
+ * coarse placement aid. The generator's primary signal is the user's OWN
+ * baseline (the graded series), and where the profile stores age + sex
+ * (`dateOfBirth` + `gender`) the generator threads them so the model can
+ * sanity-check the placement. NO ancestry/region-of-birth ranges — that
+ * is medically contentious and a data category HealthLog does not
+ * collect.
+ */
+import type { MeasurementType } from "@/generated/prisma/client";
+import type { InsightMetric } from "@/lib/insights/metric-availability";
+
+/** The five shared archetypes plus the dedicated sleep template. */
+export type MetricArchetype =
+  | "physiological-vital"
+  | "activity-fitness"
+  | "body-composition"
+  | "mobility-gait"
+  | "environmental-exposure"
+  | "sleep";
+
+/**
+ * Direction a favourable value moves. `target-band` means neither
+ * extreme is good — the value should sit inside `normalRange`.
+ */
+export type MetricDirection = "higher-better" | "lower-better" | "target-band";
+
+export interface MetricNormalRange {
+  low: number;
+  high: number;
+}
+
+export interface MetricStatusMeta {
+  /** The HealthKit metric id — the public route param + cache scope. */
+  id: MetricStatusMetricId;
+  /** The DB `MeasurementType` the rollup tier + raw reads are keyed by. */
+  measurementType: MeasurementType;
+  /** Stable English display name (the model localises its prose itself). */
+  displayName: string;
+  /** Canonical storage unit (matches the DB column semantics). */
+  unit: string;
+  direction: MetricDirection;
+  /** Coarse population placement anchor; the user's own baseline leads. */
+  normalRange?: MetricNormalRange;
+  archetype: MetricArchetype;
+}
+
+/**
+ * The metric ids the generic assessment path covers. A strict subset of
+ * `InsightMetric` — the seven specialised metrics and the event-driven
+ * MOOD / MEDICATION / WORKOUTS keys are excluded by construction.
+ */
+export type MetricStatusMetricId =
+  | "RESTING_HEART_RATE"
+  | "HEART_RATE_VARIABILITY"
+  | "OXYGEN_SATURATION"
+  | "RESPIRATORY_RATE"
+  | "BODY_TEMPERATURE"
+  | "SKIN_TEMPERATURE"
+  | "BLOOD_GLUCOSE"
+  | "WALKING_HEART_RATE_AVERAGE"
+  | "PULSE_WAVE_VELOCITY"
+  | "VASCULAR_AGE"
+  | "STEPS"
+  | "ACTIVE_ENERGY"
+  | "FLIGHTS_CLIMBED"
+  | "WALKING_RUNNING_DISTANCE"
+  | "TIME_IN_DAYLIGHT"
+  | "VO2_MAX"
+  | "TOTAL_BODY_WATER"
+  | "BONE_MASS"
+  | "FAT_FREE_MASS"
+  | "FAT_MASS"
+  | "MUSCLE_MASS"
+  | "LEAN_BODY_MASS"
+  | "VISCERAL_FAT"
+  | "WALKING_STEADINESS"
+  | "WALKING_ASYMMETRY"
+  | "WALKING_DOUBLE_SUPPORT"
+  | "WALKING_STEP_LENGTH"
+  | "WALKING_SPEED"
+  | "AUDIO_EXPOSURE_ENV"
+  | "AUDIO_EXPOSURE_HEADPHONE"
+  | "AUDIO_EXPOSURE_EVENT"
+  | "SLEEP_DURATION";
+
+/**
+ * The registry. Keyed by the HealthKit metric id. Each entry's
+ * `measurementType` is the DB enum the rollup tier reads against.
+ *
+ * Normal ranges are coarse consumer/clinical anchors (resting-pulse
+ * 60–100 bpm, SpO2 95–100 %, …) — present only where a broadly-accepted
+ * placement exists. Body-composition mass metrics carry no fixed band:
+ * a healthy fat-free mass depends entirely on body size, so the
+ * `target-band` direction defers wholly to the user's own baseline.
+ */
+const REGISTRY: Record<MetricStatusMetricId, MetricStatusMeta> = {
+  // ── physiological-vital ──
+  RESTING_HEART_RATE: {
+    id: "RESTING_HEART_RATE",
+    measurementType: "RESTING_HEART_RATE",
+    displayName: "Resting heart rate",
+    unit: "bpm",
+    direction: "lower-better",
+    normalRange: { low: 50, high: 100 },
+    archetype: "physiological-vital",
+  },
+  HEART_RATE_VARIABILITY: {
+    id: "HEART_RATE_VARIABILITY",
+    measurementType: "HEART_RATE_VARIABILITY",
+    displayName: "Heart-rate variability (SDNN)",
+    unit: "ms",
+    direction: "higher-better",
+    archetype: "physiological-vital",
+  },
+  OXYGEN_SATURATION: {
+    id: "OXYGEN_SATURATION",
+    measurementType: "OXYGEN_SATURATION",
+    displayName: "Blood oxygen (SpO₂)",
+    unit: "%",
+    direction: "higher-better",
+    normalRange: { low: 95, high: 100 },
+    archetype: "physiological-vital",
+  },
+  RESPIRATORY_RATE: {
+    id: "RESPIRATORY_RATE",
+    measurementType: "RESPIRATORY_RATE",
+    displayName: "Respiratory rate",
+    unit: "breaths/min",
+    direction: "target-band",
+    normalRange: { low: 12, high: 20 },
+    archetype: "physiological-vital",
+  },
+  BODY_TEMPERATURE: {
+    id: "BODY_TEMPERATURE",
+    measurementType: "BODY_TEMPERATURE",
+    displayName: "Body temperature",
+    unit: "°C",
+    direction: "target-band",
+    normalRange: { low: 36.1, high: 37.5 },
+    archetype: "physiological-vital",
+  },
+  SKIN_TEMPERATURE: {
+    id: "SKIN_TEMPERATURE",
+    measurementType: "SKIN_TEMPERATURE",
+    displayName: "Wrist skin temperature",
+    unit: "°C",
+    direction: "target-band",
+    archetype: "physiological-vital",
+  },
+  BLOOD_GLUCOSE: {
+    id: "BLOOD_GLUCOSE",
+    measurementType: "BLOOD_GLUCOSE",
+    displayName: "Blood glucose",
+    unit: "mg/dL",
+    direction: "target-band",
+    normalRange: { low: 70, high: 140 },
+    archetype: "physiological-vital",
+  },
+  WALKING_HEART_RATE_AVERAGE: {
+    id: "WALKING_HEART_RATE_AVERAGE",
+    measurementType: "WALKING_HEART_RATE_AVERAGE",
+    displayName: "Walking heart rate",
+    unit: "bpm",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+  },
+  PULSE_WAVE_VELOCITY: {
+    id: "PULSE_WAVE_VELOCITY",
+    measurementType: "PULSE_WAVE_VELOCITY",
+    displayName: "Pulse-wave velocity",
+    unit: "m/s",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+  },
+  VASCULAR_AGE: {
+    id: "VASCULAR_AGE",
+    measurementType: "VASCULAR_AGE",
+    displayName: "Vascular age",
+    unit: "years",
+    direction: "lower-better",
+    archetype: "physiological-vital",
+  },
+  // ── activity-fitness ──
+  STEPS: {
+    id: "STEPS",
+    measurementType: "ACTIVITY_STEPS",
+    displayName: "Steps",
+    unit: "steps/day",
+    direction: "higher-better",
+    normalRange: { low: 7000, high: 10000 },
+    archetype: "activity-fitness",
+  },
+  ACTIVE_ENERGY: {
+    id: "ACTIVE_ENERGY",
+    measurementType: "ACTIVE_ENERGY_BURNED",
+    displayName: "Active energy",
+    unit: "kcal/day",
+    direction: "higher-better",
+    archetype: "activity-fitness",
+  },
+  FLIGHTS_CLIMBED: {
+    id: "FLIGHTS_CLIMBED",
+    measurementType: "FLIGHTS_CLIMBED",
+    displayName: "Flights climbed",
+    unit: "flights/day",
+    direction: "higher-better",
+    archetype: "activity-fitness",
+  },
+  WALKING_RUNNING_DISTANCE: {
+    id: "WALKING_RUNNING_DISTANCE",
+    measurementType: "WALKING_RUNNING_DISTANCE",
+    displayName: "Walking + running distance",
+    unit: "m/day",
+    direction: "higher-better",
+    archetype: "activity-fitness",
+  },
+  TIME_IN_DAYLIGHT: {
+    id: "TIME_IN_DAYLIGHT",
+    measurementType: "TIME_IN_DAYLIGHT",
+    displayName: "Time in daylight",
+    unit: "min/day",
+    direction: "higher-better",
+    normalRange: { low: 30, high: 120 },
+    archetype: "activity-fitness",
+  },
+  VO2_MAX: {
+    id: "VO2_MAX",
+    measurementType: "VO2_MAX",
+    displayName: "VO₂ max (cardio fitness)",
+    unit: "mL/(kg·min)",
+    direction: "higher-better",
+    archetype: "activity-fitness",
+  },
+  // ── body-composition ──
+  TOTAL_BODY_WATER: {
+    id: "TOTAL_BODY_WATER",
+    measurementType: "TOTAL_BODY_WATER",
+    displayName: "Total body water",
+    unit: "kg",
+    direction: "target-band",
+    archetype: "body-composition",
+  },
+  BONE_MASS: {
+    id: "BONE_MASS",
+    measurementType: "BONE_MASS",
+    displayName: "Bone mass",
+    unit: "kg",
+    direction: "target-band",
+    archetype: "body-composition",
+  },
+  FAT_FREE_MASS: {
+    id: "FAT_FREE_MASS",
+    measurementType: "FAT_FREE_MASS",
+    displayName: "Fat-free mass",
+    unit: "kg",
+    direction: "target-band",
+    archetype: "body-composition",
+  },
+  FAT_MASS: {
+    id: "FAT_MASS",
+    measurementType: "FAT_MASS",
+    displayName: "Fat mass",
+    unit: "kg",
+    direction: "lower-better",
+    archetype: "body-composition",
+  },
+  MUSCLE_MASS: {
+    id: "MUSCLE_MASS",
+    measurementType: "MUSCLE_MASS",
+    displayName: "Muscle mass",
+    unit: "kg",
+    direction: "higher-better",
+    archetype: "body-composition",
+  },
+  LEAN_BODY_MASS: {
+    id: "LEAN_BODY_MASS",
+    measurementType: "LEAN_BODY_MASS",
+    displayName: "Lean body mass",
+    unit: "kg",
+    direction: "target-band",
+    archetype: "body-composition",
+  },
+  VISCERAL_FAT: {
+    id: "VISCERAL_FAT",
+    measurementType: "VISCERAL_FAT",
+    displayName: "Visceral fat rating",
+    unit: "rating",
+    direction: "lower-better",
+    normalRange: { low: 1, high: 12 },
+    archetype: "body-composition",
+  },
+  // ── mobility-gait ──
+  WALKING_STEADINESS: {
+    id: "WALKING_STEADINESS",
+    measurementType: "WALKING_STEADINESS",
+    displayName: "Walking steadiness",
+    unit: "%",
+    direction: "higher-better",
+    normalRange: { low: 50, high: 100 },
+    archetype: "mobility-gait",
+  },
+  WALKING_ASYMMETRY: {
+    id: "WALKING_ASYMMETRY",
+    measurementType: "WALKING_ASYMMETRY",
+    displayName: "Walking asymmetry",
+    unit: "%",
+    direction: "lower-better",
+    archetype: "mobility-gait",
+  },
+  WALKING_DOUBLE_SUPPORT: {
+    id: "WALKING_DOUBLE_SUPPORT",
+    measurementType: "WALKING_DOUBLE_SUPPORT",
+    displayName: "Double-support time",
+    unit: "%",
+    direction: "lower-better",
+    normalRange: { low: 20, high: 40 },
+    archetype: "mobility-gait",
+  },
+  WALKING_STEP_LENGTH: {
+    id: "WALKING_STEP_LENGTH",
+    measurementType: "WALKING_STEP_LENGTH",
+    displayName: "Step length",
+    unit: "m",
+    direction: "higher-better",
+    archetype: "mobility-gait",
+  },
+  WALKING_SPEED: {
+    id: "WALKING_SPEED",
+    measurementType: "WALKING_SPEED",
+    displayName: "Walking speed",
+    unit: "m/s",
+    direction: "higher-better",
+    normalRange: { low: 1.2, high: 1.4 },
+    archetype: "mobility-gait",
+  },
+  // ── environmental-exposure ──
+  AUDIO_EXPOSURE_ENV: {
+    id: "AUDIO_EXPOSURE_ENV",
+    measurementType: "AUDIO_EXPOSURE_ENV",
+    displayName: "Environmental sound exposure",
+    unit: "dBA",
+    direction: "lower-better",
+    normalRange: { low: 0, high: 80 },
+    archetype: "environmental-exposure",
+  },
+  AUDIO_EXPOSURE_HEADPHONE: {
+    id: "AUDIO_EXPOSURE_HEADPHONE",
+    measurementType: "AUDIO_EXPOSURE_HEADPHONE",
+    displayName: "Headphone audio exposure",
+    unit: "dBA",
+    direction: "lower-better",
+    normalRange: { low: 0, high: 80 },
+    archetype: "environmental-exposure",
+  },
+  AUDIO_EXPOSURE_EVENT: {
+    id: "AUDIO_EXPOSURE_EVENT",
+    measurementType: "AUDIO_EXPOSURE_EVENT",
+    displayName: "Loud-exposure events",
+    unit: "events",
+    direction: "lower-better",
+    archetype: "environmental-exposure",
+  },
+  // ── sleep (dedicated template) ──
+  SLEEP_DURATION: {
+    id: "SLEEP_DURATION",
+    measurementType: "SLEEP_DURATION",
+    // Stored in minutes (see schema MeasurementType.SLEEP_DURATION); the
+    // template surfaces hours for the model's prose.
+    displayName: "Sleep duration",
+    unit: "min",
+    direction: "target-band",
+    normalRange: { low: 420, high: 540 },
+    archetype: "sleep",
+  },
+};
+
+/** Closed set of ids the generic route accepts (Zod enum source). */
+export const METRIC_STATUS_IDS = Object.keys(
+  REGISTRY,
+) as MetricStatusMetricId[];
+
+/** Type guard narrowing an arbitrary string to a registered metric id. */
+export function isMetricStatusId(
+  value: string,
+): value is MetricStatusMetricId {
+  return Object.prototype.hasOwnProperty.call(REGISTRY, value);
+}
+
+/** Resolve the metadata for a metric id, or null when unregistered. */
+export function getMetricStatusMeta(
+  metric: string,
+): MetricStatusMeta | null {
+  return isMetricStatusId(metric) ? REGISTRY[metric] : null;
+}
+
+/**
+ * The cache/scope id for a metric assessment. The `metric:` prefix keeps
+ * the generic scopes disjoint from the seven bare specialised scope
+ * slugs while the trailing `-status.` substring (appended at cache-key
+ * time, like every other scope) keeps the eviction + invalidation
+ * sweeps matching. Example cache action:
+ * `insights.metric:RESTING_HEART_RATE-status.de`.
+ */
+export function metricStatusScope(
+  metric: MetricStatusMetricId,
+): `metric:${MetricStatusMetricId}` {
+  return `metric:${metric}`;
+}
+
+/**
+ * Map a generic metric id to its `InsightMetric` key so the shared
+ * `hasMetricData` gate can answer the data-availability question with no
+ * new branch. The two vocabularies line up one-to-one for every
+ * registered metric except `STEPS` / `ACTIVE_ENERGY`, whose
+ * `InsightMetric` keys match the id directly (the divergence is only at
+ * the `MeasurementType` layer, which `hasMetricData` does not consult).
+ */
+export function metricStatusInsightKey(
+  metric: MetricStatusMetricId,
+): InsightMetric {
+  return metric as InsightMetric;
+}
