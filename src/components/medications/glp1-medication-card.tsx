@@ -422,9 +422,14 @@ export function Glp1MedicationCard({
 
         {/* Injection state — last + next. The reserved min-height keeps a
             card whose last-injection line is absent the same vertical
-            footprint as one that renders both lines, so the compliance bars
-            and action row below align row-for-row across the grid — matching
-            the generic medication card's reserved last/next slot. */}
+            footprint as one that renders both lines, matching the generic
+            medication card's reserved last/next slot. This — together with
+            `h-full` + `mt-auto` — equalises the card height and pins a
+            shared bottom action baseline across the grid row. Note it does
+            NOT align the compliance bars row-for-row with a generic
+            sibling: the GLP-1-only rotation-hint block below pushes the
+            bars down by its own height, so only the header, the reserved
+            slot, and the pinned action row share a Y. */}
         <div className="min-h-[2.75rem] space-y-1 text-sm">
           {medication.lastTakenAt && (
             <p className="text-muted-foreground">
