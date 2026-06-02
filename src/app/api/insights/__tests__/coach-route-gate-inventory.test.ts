@@ -53,6 +53,11 @@ const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   // `coach`: a user with assessments enabled but Coach disabled can warm.
   "src/app/api/insights/pregenerate/route.ts",
   "src/app/api/insights/pulse-status/route.ts",
+  // v1.10.0 — device-flagged event awareness timeline (categorical
+  // events, WX-B). Pure DB read of the device's own verdicts; gates on
+  // the same `insightStatus` sub-flag as the assessment routes (no Coach
+  // prose).
+  "src/app/api/insights/rhythm-events/route.ts",
   "src/app/api/insights/weight-status/route.ts",
 ];
 

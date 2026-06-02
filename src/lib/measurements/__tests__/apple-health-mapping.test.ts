@@ -66,6 +66,15 @@ describe("APPLE_HEALTH_TYPE_MAP", () => {
         // HRV / VO2 max / sleep analysis.
         "HKQuantityTypeIdentifierAppleSleepingWristTemperature",
         "HKQuantityTypeIdentifierAppleSleepingBreathingDisturbances",
+        // v1.10.0 — the categorical EVENT classes carry health-screening
+        // verdicts (rhythm / heart-rate / mobility / breathing) the user
+        // explicitly enabled on-device; flagged privacy-sensitive so the
+        // server audit trail can distinguish them.
+        "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
+        "HKCategoryTypeIdentifierHighHeartRateEvent",
+        "HKCategoryTypeIdentifierLowHeartRateEvent",
+        "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+        "HKCategoryTypeIdentifierSleepApneaEvent",
       ].sort(),
     );
     // Audio exposure + time-in-daylight are environment / lifestyle
@@ -138,11 +147,10 @@ describe("HK_QUANTITY_TYPE_DEFERRED", () => {
       // Cardiovascular / clinical
       "HKQuantityTypeIdentifierAtrialFibrillationBurden",
       "HKQuantityTypeIdentifierPeripheralPerfusionIndex",
-      // Mobility — `AppleWalkingSteadiness` moved into the mapped
-      // set in v1.4.30; `NumberOfTimesFallen` moved into the mapped set
-      // in v1.10.0 (FALL_COUNT). The walking-steadiness EVENT stays
-      // deferred (a category-type event, not a quantity).
-      "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+      // Mobility — `AppleWalkingSteadiness` moved into the mapped set in
+      // v1.4.30. In v1.10.0 both remaining identifiers moved in too:
+      // `NumberOfTimesFallen` → FALL_COUNT and `AppleWalkingSteadinessEvent`
+      // → WALKING_STEADINESS_EVENT, so neither stays deferred.
       // Respiratory / pulmonary
       "HKQuantityTypeIdentifierForcedExpiratoryVolume1",
       "HKQuantityTypeIdentifierForcedVitalCapacity",
@@ -154,10 +162,10 @@ describe("HK_QUANTITY_TYPE_DEFERRED", () => {
       "HKQuantityTypeIdentifierElectrodermalActivity",
       "HKQuantityTypeIdentifierBloodAlcoholContent",
       "HKQuantityTypeIdentifierNikeFuel",
-      // Heart-rhythm event flags
-      "HKCategoryTypeIdentifierLowHeartRateEvent",
-      "HKCategoryTypeIdentifierHighHeartRateEvent",
-      "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
+      // Heart-rhythm event flags — `LowHeartRateEvent`,
+      // `HighHeartRateEvent` + `IrregularHeartRhythmEvent` moved into the
+      // mapped set in v1.10.0 as categorical events. `LowCardioFitnessEvent`
+      // stays deferred (no awareness surface yet).
       "HKCategoryTypeIdentifierLowCardioFitnessEvent",
       // Audio-exposure events — environmental + headphone moved into
       // the mapped set in v1.4.30 (AUDIO_EXPOSURE_EVENT). The general
@@ -755,5 +763,120 @@ describe("v1.10.0 additive HealthKit signals (WX-A)", () => {
       unit: "bpm",
       takenAt: new Date("2026-06-02T08:01:00.000Z"),
     });
+  });
+});
+
+describe("v1.10.0 categorical events (WX-B)", () => {
+  const ts = "2026-06-02T07:30:00.000Z";
+
+  it("maps every event identifier to its EVENT MeasurementType", () => {
+    const expected: Array<[string, string]> = [
+      [
+        "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
+        "IRREGULAR_RHYTHM_NOTIFICATION",
+      ],
+      ["HKCategoryTypeIdentifierHighHeartRateEvent", "HIGH_HEART_RATE_EVENT"],
+      ["HKCategoryTypeIdentifierLowHeartRateEvent", "LOW_HEART_RATE_EVENT"],
+      [
+        "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+        "WALKING_STEADINESS_EVENT",
+      ],
+      [
+        "HKCategoryTypeIdentifierSleepApneaEvent",
+        "BREATHING_DISTURBANCE_EVENT",
+      ],
+    ];
+    for (const [hkId, type] of expected) {
+      const mapping = APPLE_HEALTH_TYPE_MAP[hkId];
+      expect(mapping, `${hkId} should be mapped`).toBeDefined();
+      expect(mapping.measurementType).toBe(type);
+      // EVENT rows are always a single fired occurrence regardless of the
+      // inbound number — the device fired it once.
+      expect(mapping.convertToDbUnit(999)).toBe(1);
+      expect(mapping.dbUnit).toBe("event");
+    }
+  });
+
+  it("resolves the irregular-rhythm event to the device's IRREGULAR verdict", () => {
+    const out = mapAppleHealthEntry({
+      hkIdentifier: "HKCategoryTypeIdentifierIrregularHeartRhythmEvent",
+      value: 0,
+      unit: "event",
+      startDate: ts,
+      endDate: ts,
+      categoryValue: 0,
+    });
+    expect(out).toEqual({
+      type: "IRREGULAR_RHYTHM_NOTIFICATION",
+      value: 1,
+      unit: "event",
+      takenAt: new Date(ts),
+      rhythmClassification: "IRREGULAR",
+    });
+  });
+
+  it("grades the walking-steadiness event severity from the codepoint", () => {
+    const low = mapAppleHealthEntry({
+      hkIdentifier: "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+      value: 0,
+      unit: "event",
+      startDate: ts,
+      endDate: ts,
+      categoryValue: 1, // initialLow
+    });
+    expect(low!.rhythmClassification).toBe("LOW");
+
+    const veryLow = mapAppleHealthEntry({
+      hkIdentifier: "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+      value: 0,
+      unit: "event",
+      startDate: ts,
+      endDate: ts,
+      categoryValue: 3, // initialVeryLow
+    });
+    expect(veryLow!.rhythmClassification).toBe("VERY_LOW");
+  });
+
+  it("falls back to FIRED for the neutral high/low-HR + breathing events", () => {
+    for (const hkId of [
+      "HKCategoryTypeIdentifierHighHeartRateEvent",
+      "HKCategoryTypeIdentifierLowHeartRateEvent",
+      "HKCategoryTypeIdentifierSleepApneaEvent",
+    ]) {
+      const out = mapAppleHealthEntry({
+        hkIdentifier: hkId,
+        value: 0,
+        unit: "event",
+        startDate: ts,
+        endDate: ts,
+      });
+      expect(out!.value).toBe(1);
+      expect(out!.rhythmClassification).toBe("FIRED");
+    }
+  });
+
+  it("degrades an unknown steadiness codepoint to the fallback rather than dropping it", () => {
+    const out = mapAppleHealthEntry({
+      hkIdentifier: "HKCategoryTypeIdentifierAppleWalkingSteadinessEvent",
+      value: 0,
+      unit: "event",
+      startDate: ts,
+      endDate: ts,
+      categoryValue: 99, // Apple introduced a codepoint we don't enumerate
+    });
+    expect(out).not.toBeNull();
+    expect(out!.rhythmClassification).toBe("LOW");
+  });
+
+  it("never sets rhythmClassification on a continuous measurement", () => {
+    const out = mapAppleHealthEntry({
+      hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
+      value: 80,
+      unit: "kg",
+      startDate: ts,
+      endDate: ts,
+      categoryValue: 1,
+    });
+    expect(out!.rhythmClassification).toBeUndefined();
   });
 });

@@ -67,10 +67,16 @@ const EXPECTED_TYPES = [
   "STAIR_ASCENT_SPEED",
   "STAIR_DESCENT_SPEED",
   "BREATHING_DISTURBANCES",
+  // ── v1.10.0 — categorical events (WX-B) ──
+  "IRREGULAR_RHYTHM_NOTIFICATION",
+  "HIGH_HEART_RATE_EVENT",
+  "LOW_HEART_RATE_EVENT",
+  "WALKING_STEADINESS_EVENT",
+  "BREATHING_DISTURBANCE_EVENT",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 45 canonical measurement types", () => {
+  it("exposes the 50 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -151,6 +157,17 @@ describe("measurementTypeEnum coverage", () => {
     "STAIR_ASCENT_SPEED",
     "STAIR_DESCENT_SPEED",
     "BREATHING_DISTURBANCES",
+    // v1.10.0 — categorical events (WX-B). Device-flagged EVENT rows are
+    // discrete on-device notifications, not vital-sign readings. They are
+    // surfaced on the Insights awareness timeline with their own regulatory
+    // disclaimer, never in the clinical vitals PDF (their value is always 1
+    // and they carry the device's verdict, not a measured quantity). See
+    // doctor-report-pdf-core.ts for the matching exclusion rationale.
+    "IRREGULAR_RHYTHM_NOTIFICATION",
+    "HIGH_HEART_RATE_EVENT",
+    "LOW_HEART_RATE_EVENT",
+    "WALKING_STEADINESS_EVENT",
+    "BREATHING_DISTURBANCE_EVENT",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {
