@@ -68,8 +68,17 @@ import {
   getMetricStatusMeta,
   type MetricStatusMetricId,
 } from "@/lib/insights/metric-status-registry";
+import {
+  INSIGHT_PREGENERATE_QUEUE,
+  enqueueForceWarm,
+  type InsightPregeneratePayload,
+} from "@/lib/jobs/insight-pregenerate-shared";
 
-export const INSIGHT_PREGENERATE_QUEUE = "insight-pregenerate";
+export {
+  INSIGHT_PREGENERATE_QUEUE,
+  enqueueForceWarm,
+};
+export type { InsightPregeneratePayload };
 
 /**
  * 04:30 Europe/Berlin. Slots between the cumulative drain (03:30) and
@@ -100,8 +109,14 @@ const PREGENERATE_BUDGET_WINDOW_MS = 20 * 60 * 60 * 1000;
  */
 const WARM_PASS_CONCURRENCY = 3;
 
-export interface InsightPregeneratePayload {
-  triggeredAt: string;
+/** Per-user result of one forced full warm. */
+export interface ForceWarmResult {
+  /** Outcome of the comprehensive-insight generation. */
+  comprehensive: GenerateOutcome["status"];
+  /** Count of specialised per-status assessments written warm. */
+  assessmentsWarmed: number;
+  /** Count of generic per-HealthKit-metric assessments written warm. */
+  metricAssessmentsWarmed: number;
 }
 
 export interface PregenerateRunResult {
@@ -448,6 +463,96 @@ export async function runInsightPregenerate(
       skipped: result.skipped,
       failed: result.failed,
       budget_blocked: result.budgetBlocked,
+      assessments_warmed: result.assessmentsWarmed,
+      metric_assessments_warmed: result.metricAssessmentsWarmed,
+    },
+  });
+
+  return result;
+}
+
+/**
+ * v1.8.7.1 — forced full warm for ONE user, on demand.
+ *
+ * Runs the same pipeline the nightly tick runs per candidate — the
+ * comprehensive insight (which carries the daily briefing), the seven
+ * specialised `*-status` assessments, and every data-bearing generic
+ * `metric:<ID>` assessment — but for a single explicit `userId` and
+ * WITHOUT the per-user 20 h budget bucket. The endpoint that enqueues this
+ * job carries its own short anti-spam rate-limit (one warm per few
+ * minutes), so the forced path can skip the nightly budget while staying
+ * bounded against abuse.
+ *
+ * Safety is preserved by the helpers it reuses, not by a budget gate:
+ *   - The comprehensive generator no-ops to `{ status: "skipped" }` when
+ *     no provider is configured (no LLM call).
+ *   - `warmGenericMetricCaches` filters to metrics the user has rows for
+ *     via one grouped read, so an empty metric never reaches the provider.
+ *   - Each generator forces a fresh write but is idempotent — re-running
+ *     it just rewrites the same cache row; concurrent enqueues collapse via
+ *     the queue `singletonKey`.
+ *
+ * Unlike the nightly cron (de+en), the forced path warms only the caller's
+ * active `locale` so a single-locale user pays half the provider cost. A
+ * `failed`/`skipped` comprehensive outcome short-circuits the per-status
+ * warm exactly as the cron does — re-running seven (then ~30) generators
+ * against an unhealthy or provider-less chain would only multiply the
+ * failure.
+ */
+export async function forceWarmUser(
+  prisma: PrismaClient,
+  userId: string,
+  locale: "de" | "en",
+  options: {
+    generate?: (
+      userId: string,
+      opts: { locale: "de" | "en"; force?: boolean },
+    ) => Promise<GenerateOutcome>;
+    statusGenerators?: ReadonlyArray<StatusGenerator>;
+    warmGenericMetrics?: (
+      userId: string,
+      locales: ReadonlyArray<"de" | "en">,
+    ) => Promise<number>;
+  } = {},
+): Promise<ForceWarmResult> {
+  const generate = options.generate ?? generateComprehensiveInsight;
+  const statusGenerators =
+    options.statusGenerators ?? DEFAULT_STATUS_GENERATORS;
+  const warmGenericMetrics =
+    options.warmGenericMetrics ??
+    ((id: string, locales: ReadonlyArray<"de" | "en">) =>
+      warmGenericMetricCaches(prisma, id, locales));
+
+  const result: ForceWarmResult = {
+    comprehensive: "skipped",
+    assessmentsWarmed: 0,
+    metricAssessmentsWarmed: 0,
+  };
+
+  // Master kill-switch — when the operator disabled the briefing surface
+  // globally there is nothing to warm, on demand or otherwise.
+  const flags = await getAssistantFlags();
+  if (!flags.briefing) return result;
+
+  const locales: ReadonlyArray<"de" | "en"> = [locale];
+
+  const outcome = await generate(userId, { locale, force: true });
+  result.comprehensive = outcome.status;
+
+  if (outcome.status === "generated" || outcome.status === "cached") {
+    result.assessmentsWarmed = await warmPerStatusCaches(
+      userId,
+      locales,
+      statusGenerators,
+    );
+    result.metricAssessmentsWarmed = await warmGenericMetrics(userId, locales);
+  }
+
+  annotate({
+    action: { name: "insights.pregenerate.force" },
+    meta: {
+      locale,
+      comprehensive: result.comprehensive,
       assessments_warmed: result.assessmentsWarmed,
       metric_assessments_warmed: result.metricAssessmentsWarmed,
     },

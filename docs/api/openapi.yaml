@@ -1927,6 +1927,33 @@ paths:
         "401": *a1
         "422": *a2
         "429": *a3
+  /api/insights/pregenerate:
+    post:
+      tags:
+        - Insights
+      summary: Warm all AI assessments for the calling user
+      description: v1.8.7.1 — enqueue a full warm of every AI assessment for the authenticated user (comprehensive insight +
+        the seven specialised status cards + every data-bearing generic metric assessment) in the active locale, so the
+        read-only status GETs serve cached text instantly. Returns immediately; the generation runs out of band on the
+        worker. Empty metrics and provider-less accounts never trigger an LLM call. Short anti-spam bucket
+        (`insights-warm:<userId>`, one warm per 3 minutes) → 429 on a tight loop. Auth via cookie or Bearer; `userId` is
+        taken from the session, never the body.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InsightsPregenerateRequest"
+      responses:
+        "200":
+          description: Warm accepted and enqueued. The work runs on the worker; poll the read-only status routes for the text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsPregenerateResponseEnvelope"
+        "401": *a1
+        "422": *a2
+        "429": *a3
   /api/insights/metric-status:
     get:
       tags:
@@ -2767,6 +2794,11 @@ components:
       required:
         - rating
       description: Per-message helpful/unhelpful feedback (v1.4.23 H7). Optional `reason` is free-form prose, capped at 200 chars.
+    InsightsPregenerateRequest:
+      type: object
+      properties: {}
+      description: No body fields. The user is taken from the session / Bearer and the locale from the session; the warm
+        covers every assessment for that user.
     MedicationTreatmentClass:
       type: string
       enum:
@@ -6267,6 +6299,41 @@ components:
       additionalProperties: false
       description: AI-generated insights bundle. Strict-schema validated server-side; Coach-routed when the insight surface
         needs day-level grounding.
+    InsightsPregenerateResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsPregenerateResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsPregenerateResponse:
+      type: object
+      properties:
+        queued:
+          type: boolean
+          description: True when the full warm was accepted and enqueued.
+        locale:
+          type: string
+          enum:
+            - de
+            - en
+          description: The locale the assessments are being warmed in.
+      required:
+        - queued
+        - locale
+      additionalProperties: false
+      description: Acknowledgement that a full assessment warm was enqueued for the calling user. The generation runs out of
+        band; the text lands in the read-only status routes.
     MetricStatusResponseEnvelope:
       type: object
       properties:

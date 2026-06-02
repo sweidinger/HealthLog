@@ -1156,6 +1156,29 @@ const metricStatusResponse = z
       "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
   });
 
+const insightsPregenerateRequest = z
+  .object({})
+  .meta({
+    id: "InsightsPregenerateRequest",
+    description:
+      "No body fields. The user is taken from the session / Bearer and the locale from the session; the warm covers every assessment for that user.",
+  });
+
+const insightsPregenerateResponse = z
+  .object({
+    queued: z
+      .boolean()
+      .describe("True when the full warm was accepted and enqueued."),
+    locale: z
+      .enum(["de", "en"])
+      .describe("The locale the assessments are being warmed in."),
+  })
+  .meta({
+    id: "InsightsPregenerateResponse",
+    description:
+      "Acknowledgement that a full assessment warm was enqueued for the calling user. The generation runs out of band; the text lands in the read-only status routes.",
+  });
+
 // v1.7.0 — unified dashboard first-paint snapshot. One GET that
 // assembles every above-the-fold tile field in a single round-trip.
 // Two-phase shape: `tiles` (fast, always present) + `extras` (thick,
@@ -2401,6 +2424,35 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 insightsComprehensiveResponse,
                 "InsightsComprehensiveResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/pregenerate": {
+    post: {
+      tags: ["Insights"],
+      summary: "Warm all AI assessments for the calling user",
+      description:
+        "v1.8.7.1 — enqueue a full warm of every AI assessment for the authenticated user (comprehensive insight + the seven specialised status cards + every data-bearing generic metric assessment) in the active locale, so the read-only status GETs serve cached text instantly. Returns immediately; the generation runs out of band on the worker. Empty metrics and provider-less accounts never trigger an LLM call. Short anti-spam bucket (`insights-warm:<userId>`, one warm per 3 minutes) → 429 on a tight loop. Auth via cookie or Bearer; `userId` is taken from the session, never the body.",
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": { schema: insightsPregenerateRequest },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Warm accepted and enqueued. The work runs on the worker; poll the read-only status routes for the text.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightsPregenerateResponse,
+                "InsightsPregenerateResponseEnvelope",
               ),
             },
           },

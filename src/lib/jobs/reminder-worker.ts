@@ -65,6 +65,7 @@ import {
   INSIGHT_PREGENERATE_QUEUE,
   INSIGHT_PREGENERATE_CRON,
   runInsightPregenerate,
+  forceWarmUser,
   type InsightPregeneratePayload,
 } from "@/lib/jobs/insight-pregenerate";
 import {
@@ -1692,8 +1693,33 @@ async function handleMedicationInventoryExpire(
 async function handleInsightPregenerateJob(
   jobs: Job<InsightPregeneratePayload>[],
 ) {
-  void jobs;
   await withBackgroundEvent("job.insight_pregenerate", async (evt) => {
+    // v1.8.7.1 — a forced single-user warm carries `{ userId, force }`;
+    // the scheduled tick carries neither. Route each job individually so a
+    // batch that mixes a cron tick with on-demand warms (it never does in
+    // practice, but the contract is per-job) stays correct.
+    const forced = jobs.filter((j) => j.data?.force && j.data?.userId);
+    const scheduled = jobs.filter((j) => !(j.data?.force && j.data?.userId));
+
+    for (const job of forced) {
+      const userId = job.data.userId as string;
+      const locale = job.data.locale === "en" ? "en" : "de";
+      try {
+        const summary = await forceWarmUser(getWorkerPrisma(), userId, locale);
+        evt.addMeta(
+          "force_warm",
+          `${summary.comprehensive}:${summary.assessmentsWarmed}+${summary.metricAssessmentsWarmed}`,
+        );
+      } catch (err) {
+        evt.addWarning(
+          `insight-pregenerate force-warm failed: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+
+    if (scheduled.length === 0) return;
     try {
       const summary = await runInsightPregenerate(getWorkerPrisma());
       evt.setBackground({
