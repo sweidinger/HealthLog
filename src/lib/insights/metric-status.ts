@@ -280,8 +280,10 @@ export async function generateMetricStatus(args: {
     args.userId,
     // memory.ts keys previous context by the `insights.<scope>.<locale>`
     // action; the generic scope (`metric:<ID>-status`) carries the same
-    // `-status` suffix so the comparison row reads back correctly.
-    `${scope}-status` as never,
+    // `-status` suffix so the comparison row reads back correctly. The
+    // `getPreviousInsightContext` param is typed to accept this scope form
+    // (`PreviousContextScope`), so the argument type-checks honestly.
+    `${scope}-status`,
     locale,
     12,
   );
