@@ -99,25 +99,15 @@ const DEVICE_TYPE_LABEL_KEYS: Record<DeviceType, string> = {
 };
 
 /**
- * v1.4.34 IW-D — section presentation mode.
- *   - `"standalone"` (default) renders the page-level header (h1 +
- *     subtitle) and keeps the section's own aria-labelledby wiring.
- *   - `"embedded"` drops the header because a parent surface
- *     (`<ThresholdsSection>` on `/settings/thresholds`) already names
- *     the page. The section becomes a `<div>` instead of a
- *     `<section>` so the assistive-tech reading order stays one
- *     combined surface.
+ * `<SourcesSection>` — route-level wrapper for `/settings/sources`
+ * (the "Sources" / "Quellen" page).
  *
- * `/settings/sources` no longer renders this component directly — it
- * permanently redirects to `/settings/thresholds`, which uses the
- * `embedded` mode. The default keeps backward compatibility for any
- * test/storybook that still mounts `<SourcesSection />` standalone.
+ * v1.8.7.1 — Sources is its own settings page again (it was merged into
+ * the combined "Targets & Sources" page under `/settings/thresholds` in
+ * v1.4.34 IW-D). The section renders its own page header (h1 + subtitle)
+ * and owns the per-metric source-priority + device-type ladders.
  */
-export interface SourcesSectionProps {
-  mode?: "standalone" | "embedded";
-}
-
-export function SourcesSection({ mode = "standalone" }: SourcesSectionProps = {}) {
+export function SourcesSection() {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
 
@@ -292,32 +282,22 @@ export function SourcesSection({ mode = "standalone" }: SourcesSectionProps = {}
     return Object.keys(priority.deviceTypePriority).length;
   }, [priority]);
 
-  // v1.4.34 IW-D — `embedded` mode skips the section header because the
-  // parent surface (`<ThresholdsSection>`) already names the page.
-  const isStandalone = mode === "standalone";
-  const Wrapper = isStandalone ? "section" : "div";
-  const wrapperProps = isStandalone
-    ? {
-        "aria-labelledby": "settings-section-sources-title",
-        className: "space-y-6",
-      }
-    : { className: "space-y-6" };
-
   return (
-    <Wrapper {...wrapperProps}>
-      {isStandalone && (
-        <header className="space-y-1">
-          <h1
-            id="settings-section-sources-title"
-            className="text-2xl font-semibold tracking-tight"
-          >
-            {t("settings.sections.sources.title")}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {t("settings.sections.sources.description")}
-          </p>
-        </header>
-      )}
+    <section
+      aria-labelledby="settings-section-sources-title"
+      className="space-y-6"
+    >
+      <header className="space-y-1">
+        <h1
+          id="settings-section-sources-title"
+          className="text-2xl font-semibold tracking-tight"
+        >
+          {t("settings.sections.sources.title")}
+        </h1>
+        <p className="text-muted-foreground text-sm">
+          {t("settings.sections.sources.description")}
+        </p>
+      </header>
 
       <div className="bg-card border-border space-y-4 rounded-xl border p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -599,7 +579,7 @@ export function SourcesSection({ mode = "standalone" }: SourcesSectionProps = {}
           </div>
         )}
       </div>
-    </Wrapper>
+    </section>
   );
 }
 

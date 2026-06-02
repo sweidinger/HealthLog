@@ -6,20 +6,20 @@
  * graph.
  */
 
-// v1.4.34 IW-D — `sources` slug was retired. The two former sections
-// (`/settings/thresholds` and `/settings/sources`) merged into a single
-// "Targets & Sources" page under `/settings/thresholds`. The historic
-// `/settings/sources` URL stays alive as a `permanentRedirect` (see
-// `src/app/settings/sources/page.tsx`) so external bookmarks (iOS,
-// docs) follow through unchanged. Per
-// `.planning/research/v1434-r-2-carryover-scope.md` §7 and
-// `.planning/round-v1433-audit-menu.md` §7.1 (item 3).
+// v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are again two
+// separate settings pages, each its own left-nav entry and route. They were
+// merged into one "Targets & Sources" page in v1.4.34 IW-D, but the two
+// editors drive distinct mutation flows (`/api/user/thresholds` vs
+// `/api/auth/me/source-priority`) and reading them as one page made the
+// surface long; splitting them back keeps each concern self-contained.
+// Both slugs are served by the dynamic `[section]` route below.
 export const SETTINGS_SECTION_SLUGS = [
   "account",
   "integrations",
   "notifications",
   "dashboard",
   "thresholds",
+  "sources",
   "ai",
   "api",
   "export",

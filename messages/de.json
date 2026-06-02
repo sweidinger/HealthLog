@@ -2632,8 +2632,8 @@
         "description": "Kachel-Layout und Reihenfolge."
       },
       "thresholds": {
-        "title": "Zielwerte & Quellen",
-        "description": "Pro Metrik: eigener Zielbereich und welche Quelle führt, wenn mehrere am selben Tag denselben Wert liefern."
+        "title": "Zielwerte",
+        "description": "Pro Metrik dein eigener Zielbereich für gesunde Werte."
       },
       "sources": {
         "title": "Quellen",
@@ -2688,7 +2688,7 @@
         }
       },
       "ai": {
-        "title": "Auswertungen",
+        "title": "KI-Auswertungen",
         "description": "Provider, Modell, API-Key."
       },
       "api": {

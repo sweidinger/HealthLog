@@ -2632,8 +2632,8 @@
         "description": "Tile layout and order."
       },
       "thresholds": {
-        "title": "Targets & Sources",
-        "description": "Per metric: your own target range and which source wins when more than one records the same value on the same day."
+        "title": "Targets",
+        "description": "Per metric: your own target range for healthy values."
       },
       "sources": {
         "title": "Sources",
@@ -2688,7 +2688,7 @@
         }
       },
       "ai": {
-        "title": "Insights",
+        "title": "AI Insights",
         "description": "Provider, model, key."
       },
       "api": {

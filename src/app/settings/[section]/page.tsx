@@ -11,11 +11,12 @@ import { ExportSection } from "@/components/settings/export-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
-// v1.4.34 IW-D — `sources` slug was retired (merged into `thresholds`).
-// The combined "Targets & Sources" component lives in
-// `thresholds-section.tsx`; `/settings/sources` is now a
-// `permanentRedirect` handled by the dedicated route file.
+// v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are two
+// separate sections again. `ThresholdsSection` renders the target-range
+// editor; `SourcesSection` (standalone mode) renders the source-priority
+// ladders. Both are served by this dynamic route.
 import { ThresholdsSection } from "@/components/settings/thresholds-section";
+import { SourcesSection } from "@/components/settings/sources-section";
 import {
   SETTINGS_SECTION_SLUGS,
   isSettingsSectionSlug,
@@ -49,6 +50,7 @@ const SECTION_COMPONENTS: Record<
   notifications: NotificationsSection,
   dashboard: DashboardSection,
   thresholds: ThresholdsSection,
+  sources: () => <SourcesSection />,
   api: ApiSection,
   export: ExportSection,
   advanced: AdvancedSection,

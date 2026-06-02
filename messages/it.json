@@ -2632,12 +2632,12 @@
         "description": "Tile layout and order."
       },
       "thresholds": {
-        "title": "Obiettivi e fonti",
-        "description": "Per metrica: il tuo intervallo target e quale fonte prevale quando più di una registra lo stesso valore lo stesso giorno."
+        "title": "Obiettivi",
+        "description": "Per metrica: il tuo intervallo target per valori sani."
       },
       "sources": {
-        "title": "Sources",
-        "description": "Pick which ingest source wins when more than one records the same metric for the same day.",
+        "title": "Fonti",
+        "description": "Scegli quale fonte prevale quando più di una registra la stessa metrica lo stesso giorno.",
         "redirectNotice": "Le fonti ora fanno parte di «Obiettivi e fonti».",
         "cardTitle": "Source priority by metric",
         "help": "When more than one source delivers the same value on the same day (e.g. Withings and Apple Health both report 1,200 steps), the top source counts as the canonical reading. Other sources stay stored for the audit trail.",
@@ -2688,7 +2688,7 @@
         }
       },
       "ai": {
-        "title": "Insights",
+        "title": "AI Insights",
         "description": "Provider, model, key."
       },
       "api": {
