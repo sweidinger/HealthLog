@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.8.7.1] — 2026-06-02 — Assessments for every HealthKit metric, one-tap pre-generation
+
+### Added
+
+- **A plain-language assessment on every HealthKit metric page.** The HealthKit metric pages (resting heart rate, heart-rate variability, blood oxygen, glucose, body composition, gait, audio exposure, sleep, and the rest) showed charts but no written assessment, because the core metrics' bespoke per-metric prompts don't scale to thirty more. Each page now carries an assessment, generated from the metric's own normal range and the direction a healthy value moves, anchored on your individual baseline — the same treatment the core metrics already had. A metric with no data keeps its existing insufficient-data note.
+- **One-tap pre-generation of every assessment.** A button on the Insights overview generates all assessments in the background so they are ready immediately the next time you open them. The overview also warms a cold cache on its own, and the nightly pass keeps everything fresh — so a page opens to its assessment instead of a wait.
+
+### Changed
+
+- **"Auswertungen" is now "KI-Auswertungen" / "AI Insights"** in the settings heading and the menu, so it's clear the section is AI-generated.
+- **Targets and Sources are two separate settings pages** instead of one combined page, each with its own heading.
+- **The back link sits above the heading** on a metric's detail page.
+- **Dropdown fields have symmetric padding**, so the chevron no longer crowds the right edge.
+- **The Insights layout accepts the full metric set**, so a saved layout (order and visibility) can include every metric page, not just the core ones.
+
+### Fixed
+
+- **Assessments generate again.** The assessment provider's accepted model identifiers had rotated, so generation failed and an assessment could sit on "preparing" indefinitely; the model ladder is updated and falls through to the current identifiers.
+- **The Active Energy assessment loads.** Its page requested an assessment under a mismatched identifier and silently fell back to "no analysis yet"; the identifier is corrected and now type-checked, so the same class of mismatch is caught at build time.
+- **The source-priority editor is fully translated** for Spanish, French, Italian and Polish — it was English-only after the settings split.
+
 ## [1.8.7] — 2026-06-02 — Instant insight assessments, GLP-1 blood-level chart, tile + caption polish
 
 ### Fixed
