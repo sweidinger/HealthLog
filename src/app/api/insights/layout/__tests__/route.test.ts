@@ -60,6 +60,7 @@ import { annotate } from "@/lib/logging/context";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
 import { __resetAuditDedupMemoForTests } from "@/lib/audit-dedup";
 import { DEFAULT_INSIGHTS_LAYOUT } from "@/lib/insights-layout";
+import { SUB_PAGE_SLUGS } from "@/lib/insights/sub-page-metric";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -249,6 +250,111 @@ describe("PUT /api/insights/layout — happy path", () => {
     expect(persistedIds).toContain("medications");
     expect(persistedIds).not.toContain("blutdruck");
     expect(persistedIds).not.toContain("medikamente");
+  });
+});
+
+describe("PUT /api/insights/layout — full metric-slug universe", () => {
+  // v1.8.7.1 — the layout tile-id enum derives from `SUB_PAGE_SLUGS`, so
+  // the long-tail HealthKit + body-composition + mobility + audio slugs
+  // the routed tab strip already exposes are now valid layout ids. iOS
+  // can persist a layout covering the full metric set rather than 422ing
+  // on the ~25 slugs the fixed allow-list did not know about.
+  const NEWLY_ACCEPTED_SLUGS = [
+    "blood-glucose",
+    "skin-temperature",
+    "respiratory-rate",
+    "flights-climbed",
+    "walking-speed",
+    "vascular-age",
+    "headphone-audio",
+    "muscle-mass",
+    "daylight",
+  ] as const;
+
+  it("accepts a layout that includes every previously-rejected sub-page slug", async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const tiles = NEWLY_ACCEPTED_SLUGS.map((id, order) => ({
+      id,
+      visible: order % 2 === 0,
+      order,
+    }));
+    const res = await callPut(makeReq({ version: 1, tiles }));
+    // No 422 — these are all canonical sub-page slugs now.
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      data: { tiles: Array<{ id: string; visible: boolean }> };
+    };
+    const returnedIds = body.data.tiles.map((t) => t.id);
+    for (const slug of NEWLY_ACCEPTED_SLUGS) {
+      expect(returnedIds).toContain(slug);
+    }
+  });
+
+  it("accepts a layout covering the ENTIRE slug universe in one PUT", async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const tiles = ["overview", ...SUB_PAGE_SLUGS].map((id, order) => ({
+      id,
+      visible: true,
+      order,
+    }));
+    const res = await callPut(makeReq({ version: 1, tiles }));
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      data: { tiles: Array<{ id: string }> };
+    };
+    const returnedIds = new Set(body.data.tiles.map((t) => t.id));
+    // Every slug the web tab strip enumerates round-trips through the PUT.
+    for (const slug of SUB_PAGE_SLUGS) {
+      expect(returnedIds.has(slug)).toBe(true);
+    }
+    expect(returnedIds.has("overview")).toBe(true);
+  });
+
+  it("round-trips the new slugs back through GET after a save", async () => {
+    const savedTiles = NEWLY_ACCEPTED_SLUGS.map((id, order) => ({
+      id,
+      visible: true,
+      order: order + 1,
+    }));
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      insightsLayoutJson: {
+        version: 1,
+        tiles: [{ id: "overview", visible: true, order: 0 }, ...savedTiles],
+      },
+    } as never);
+
+    const res = await callGet();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { tiles: Array<{ id: string }> };
+    };
+    const ids = body.data.tiles.map((t) => t.id);
+    for (const slug of NEWLY_ACCEPTED_SLUGS) {
+      expect(ids).toContain(slug);
+    }
+  });
+
+  it("still rejects a genuinely-unknown id even with the wider set", async () => {
+    const res = await callPut(
+      makeReq({
+        version: 1,
+        tiles: [
+          { id: "blood-glucose", visible: true, order: 0 },
+          { id: "not-a-metric-at-all", visible: true, order: 1 },
+        ],
+      }),
+    );
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      details: { issues: Array<{ path: string }> };
+    };
+    expect(
+      body.details.issues.some((i) => i.path.startsWith("tiles")),
+    ).toBe(true);
   });
 });
 

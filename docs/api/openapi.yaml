@@ -2690,13 +2690,37 @@ components:
                   - pulse
                   - oxygen
                   - body-temperature
+                  - respiratory-rate
                   - weight
                   - bmi
+                  - body-water
+                  - bone-mass
+                  - fat-free-mass
+                  - fat-mass
+                  - muscle-mass
+                  - visceral-fat
+                  - lean-body-mass
                   - active-energy
                   - workouts
+                  - flights-climbed
+                  - walking-distance
+                  - walking-steadiness
+                  - walking-heart-rate
+                  - walking-asymmetry
+                  - double-support-time
+                  - step-length
+                  - walking-speed
                   - sleep
                   - resting-pulse
                   - hrv
+                  - pulse-wave-velocity
+                  - vascular-age
+                  - environmental-audio
+                  - headphone-audio
+                  - audio-events
+                  - daylight
+                  - blood-glucose
+                  - skin-temperature
                   - mood
                   - medications
                   - blutdruck
@@ -6431,13 +6455,37 @@ components:
                   - pulse
                   - oxygen
                   - body-temperature
+                  - respiratory-rate
                   - weight
                   - bmi
+                  - body-water
+                  - bone-mass
+                  - fat-free-mass
+                  - fat-mass
+                  - muscle-mass
+                  - visceral-fat
+                  - lean-body-mass
                   - active-energy
                   - workouts
+                  - flights-climbed
+                  - walking-distance
+                  - walking-steadiness
+                  - walking-heart-rate
+                  - walking-asymmetry
+                  - double-support-time
+                  - step-length
+                  - walking-speed
                   - sleep
                   - resting-pulse
                   - hrv
+                  - pulse-wave-velocity
+                  - vascular-age
+                  - environmental-audio
+                  - headphone-audio
+                  - audio-events
+                  - daylight
+                  - blood-glucose
+                  - skin-temperature
                   - mood
                   - medications
                   - blutdruck

@@ -14,13 +14,25 @@
  * code paths against either surface.
  */
 
+import { SUB_PAGE_SLUGS } from "@/lib/insights/sub-page-metric";
+
 /**
- * Every insights tile the layout knows about. Each entry maps to a
- * routed sub-page under `/insights/<slug>` (the mother-page overview
- * is keyed `"overview"`). The order of entries here is irrelevant —
+ * Every insights tile the layout knows about. The mother-page overview
+ * is keyed `"overview"`; every other id is a routed sub-page slug under
+ * `/insights/<slug>`. The order of entries here is irrelevant —
  * `DEFAULT_INSIGHTS_LAYOUT.tiles[].order` drives the visual order.
  * Exported so the API Zod `tileIdEnum` can be built from a single
  * source of truth.
+ *
+ * v1.8.7.1 — the tile-id universe is derived FROM `SUB_PAGE_SLUGS`
+ * (`src/lib/insights/sub-page-metric.ts`), the same record the routed
+ * tab strip and the per-metric sub-pages enumerate. The two surfaces
+ * therefore stay in lockstep by construction: adding a sub-page slug
+ * automatically widens the layout enum, and the iOS client can persist
+ * a layout covering the full metric set (blood-pressure … skin-
+ * temperature) rather than tripping a 422 on the ~25 slugs the layout
+ * previously did not know about. `"overview"` is layout-only — it is
+ * the mother page, not a sub-page slug — so it is prepended explicitly.
  *
  * v1.8.0 — the canonical ids are English, matching the routed slugs
  * (`/insights/<slug>`) and the naming-convention ADR
@@ -32,29 +44,7 @@
  * `LEGACY_INSIGHTS_TILE_ID_ALIASES` + `normalizeInsightsTileId` below.
  * No client breaks; iOS migrates to the English ids at its own pace.
  */
-export const INSIGHTS_TILE_IDS = [
-  "overview",
-  // ── vitals ──
-  "blood-pressure",
-  "pulse",
-  "oxygen",
-  "body-temperature",
-  // ── body composition ──
-  "weight",
-  "bmi",
-  // ── activity ──
-  "active-energy",
-  "workouts",
-  // ── sleep ──
-  "sleep",
-  // ── cardiovascular ──
-  "resting-pulse",
-  "hrv",
-  // ── mood ──
-  "mood",
-  // ── events ──
-  "medications",
-] as const;
+export const INSIGHTS_TILE_IDS = ["overview", ...SUB_PAGE_SLUGS] as const;
 
 export type InsightsTileId = (typeof INSIGHTS_TILE_IDS)[number];
 
@@ -123,24 +113,34 @@ const INSIGHTS_LAYOUT_VERSION = 1;
  * additional `{ id, visible: false, order: N }` row here and the
  * resolver auto-merges it onto existing users' saved layouts.
  */
+// Core surfaces that ship default-visible for a fresh account. Every
+// other tile (the long-tail HealthKit + body-composition + mobility +
+// audio pills) stays default-invisible and the user opts in once the
+// matching data starts to flow. Keeping this as an explicit set means
+// the default-visibility decision is auditable in one place while the
+// tile-id universe itself derives from `SUB_PAGE_SLUGS`.
+const DEFAULT_VISIBLE_TILE_IDS = new Set<InsightsTileId>([
+  "overview",
+  "blood-pressure",
+  "pulse",
+  "weight",
+  "bmi",
+  "workouts",
+  "mood",
+  "medications",
+]);
+
 export const DEFAULT_INSIGHTS_LAYOUT: InsightsLayout = {
   version: INSIGHTS_LAYOUT_VERSION,
-  tiles: [
-    { id: "overview", visible: true, order: 0 },
-    { id: "blood-pressure", visible: true, order: 1 },
-    { id: "pulse", visible: true, order: 2 },
-    { id: "oxygen", visible: false, order: 3 },
-    { id: "body-temperature", visible: false, order: 4 },
-    { id: "weight", visible: true, order: 5 },
-    { id: "bmi", visible: true, order: 6 },
-    { id: "active-energy", visible: false, order: 7 },
-    { id: "workouts", visible: true, order: 8 },
-    { id: "sleep", visible: false, order: 9 },
-    { id: "resting-pulse", visible: false, order: 10 },
-    { id: "hrv", visible: false, order: 11 },
-    { id: "mood", visible: true, order: 12 },
-    { id: "medications", visible: true, order: 13 },
-  ],
+  // Order follows `INSIGHTS_TILE_IDS` (overview first, then the
+  // `SUB_PAGE_SLUGS` order, which itself tracks the MeasurementCategory
+  // overlay: vitals → body → activity → sleep → cardiovascular → mood →
+  // events). The dense 0-based `order` mirrors the routed tab strip.
+  tiles: INSIGHTS_TILE_IDS.map((id, order) => ({
+    id,
+    visible: DEFAULT_VISIBLE_TILE_IDS.has(id),
+    order,
+  })),
 };
 
 export function resolveInsightsLayout(raw: unknown): InsightsLayout {
