@@ -2671,7 +2671,7 @@
         "description": "Withings, moodLog und weitere verbundene Dienste."
       },
       "notifications": {
-        "title": "Benachrichtigungs-Kanäle",
+        "title": "Benachrichtigungen",
         "description": "Live-Übersicht aller konfigurierten Kanäle."
       },
       "dashboard": {

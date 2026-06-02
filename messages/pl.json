@@ -2671,7 +2671,7 @@
         "description": "Withings, moodLog, and other connected services."
       },
       "notifications": {
-        "title": "Kanały powiadomień",
+        "title": "Powiadomienia",
         "description": "Live overview of every configured channel."
       },
       "dashboard": {
