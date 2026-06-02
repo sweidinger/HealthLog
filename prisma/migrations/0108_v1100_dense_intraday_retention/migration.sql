@@ -1,0 +1,54 @@
+-- v1.10.0 — dense intra-day retention tier for daytime HRV / heart-rate.
+--
+-- The Stress engine reads the intra-day SDNN (and daytime heart-rate)
+-- SHAPE across the day, not a single daily mean. Apple Health ships those
+-- as discrete per-sample rows, so the engine needs the raw samples to
+-- survive long enough to read. Two facts make that safe:
+--
+--   1. `HEART_RATE_VARIABILITY` and `PULSE` are NOT in the destructive
+--      daily-mean drain's allowlist (`HIGH_FREQUENCY_MEAN_TYPES` in
+--      src/lib/measurements/apple-health-mapping.ts), so the nightly
+--      mean-consolidation never collapses them — the intra-day shape is
+--      preserved by construction. (PULSE was already excluded for the
+--      correlation/scatter readers; HRV is exempted for the same reason
+--      the Stress proxy needs it.)
+--
+--   2. A BOUNDED retention window contains the volume: per-sample HRV / HR
+--      rows older than the window are folded to one daily-mean `stats:` row
+--      (the same idempotent fold + soft-delete the mean-consolidation uses)
+--      and the raw rows are tombstoned. Within the window the raw samples
+--      stay, so the Stress engine always has its intra-day inputs for the
+--      days it scores.
+--
+-- This migration adds ONLY the partial index that keeps the dense-tier
+-- drain's discovery + per-user scan cheap. No new column, no backfill, no
+-- table rewrite. The retention bound itself lives in application code
+-- (DENSE_INTRADAY_RETENTION_DAYS in
+-- src/lib/measurements/dense-intraday-retention.ts) so tuning it never
+-- needs a migration.
+--
+-- The index is keyed on `(user_id, measured_at)` and partial over the two
+-- dense-tier types on live rows only, so it shrinks toward the in-window
+-- working set as out-of-window samples are folded away — it carries no
+-- steady-state cost once a tenant's history is past the retention window.
+--
+-- Idempotent guard (`IF NOT EXISTS`) makes reruns safe. Forward-only.
+--
+-- Lock note (conscious trade-off): a plain, non-`CONCURRENTLY` build, so
+-- it runs inside Prisma's migration transaction and holds an ACCESS
+-- EXCLUSIVE lock on `measurements` for the build. The partial predicate
+-- (two types, `deleted_at IS NULL`) keeps the index small on a typical
+-- self-host, so the build is fast and the lock is not felt; the largest
+-- multi-year HealthKit tenants should deploy at a low-traffic window. A
+-- `CONCURRENTLY` build cannot run inside the migration transaction and is
+-- not warranted given the partial-index size on the vast majority of
+-- deployments.
+--
+-- Reversibility:
+--   DROP INDEX IF EXISTS "measurements_dense_intraday_retention_idx";
+-- A roll-back loses only the scan acceleration; no data is touched.
+
+CREATE INDEX IF NOT EXISTS "measurements_dense_intraday_retention_idx"
+  ON "measurements" ("user_id", "measured_at")
+  WHERE "type" IN ('HEART_RATE_VARIABILITY', 'PULSE')
+    AND "deleted_at" IS NULL;

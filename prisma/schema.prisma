@@ -736,6 +736,11 @@ model Measurement {
   // migration 0087. It accelerates the v1.5.6 legacy step-consolidation
   // discovery scan. Prisma can't express a partial-predicate index, so
   // it lives in raw migration SQL and is intentionally omitted here.
+  // `measurements_dense_intraday_retention_idx` is a partial index over
+  // `type IN ('HEART_RATE_VARIABILITY','PULSE') AND deleted_at IS NULL`
+  // — see migration 0108. It accelerates the v1.10.0 dense intra-day
+  // retention drain's discovery + per-user scan. Same Prisma-can't-
+  // express-a-partial-predicate reason it is omitted here.
   @@map("measurements")
 }
 
