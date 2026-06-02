@@ -1,0 +1,107 @@
+/**
+ * v1.10.0 — the route-side dispatcher: `DerivedMetricId` → its pure
+ * compute function → a wire-flat `Derived<unknown>`.
+ *
+ * The generic `/api/insights/derived` route validates `metric` against
+ * the closed registry enum, then calls `computeDerivedMetric`. Wave 1
+ * implements `VITALS_BASELINE` end-to-end; every other registered id is
+ * a metadata stub whose compute lands in W2/W3. A stub routed before its
+ * compute lands returns `insufficient` with `reason: "not_implemented"`
+ * — never a fabricated value, never a 500.
+ *
+ * Server-only — imports the server-only compute engines.
+ */
+import type { MeasurementType } from "@/generated/prisma/client";
+import { buildInsufficient, nowProvenanceTimestamp } from "./coverage";
+import {
+  getDerivedMetricMeta,
+  isVitalsBaselineType,
+  type DerivedMetricId,
+} from "./registry";
+import {
+  computeVitalsBaseline,
+  type BaselineProfile,
+} from "./baseline";
+import type { Derived } from "./types";
+
+export interface DerivedComputeArgs {
+  metric: DerivedMetricId;
+  userId: string;
+  profile: BaselineProfile;
+  /**
+   * Optional sub-target for metrics that baseline a single chosen type
+   * (`VITALS_BASELINE`). Validated against the engine's supported set.
+   */
+  type?: string | null;
+  /** Trailing window override (days). */
+  windowDays?: number;
+  now?: Date;
+}
+
+/** A `not_implemented` insufficient — the stub guard for W2/W3 metrics. */
+function notImplemented(
+  inputs: string[],
+  now: Date,
+): Derived<unknown> {
+  const computedAt = nowProvenanceTimestamp(now);
+  return buildInsufficient<unknown>({
+    coverage: { requiredInputs: 1, presentInputs: 0, historyDays: 0, missing: inputs },
+    provenance: { inputs, source: "none", windowDays: 0, computedAt },
+    reason: "not_implemented",
+  });
+}
+
+/**
+ * Dispatch a derived-metric id to its compute function. Returns the flat
+ * `Derived<unknown>` the route wraps in the standard envelope. The caller
+ * has already Zod-validated `metric` against the registry enum, so an
+ * unknown id never reaches here.
+ */
+export async function computeDerivedMetric(
+  args: DerivedComputeArgs,
+): Promise<Derived<unknown>> {
+  const now = args.now ?? new Date();
+  const meta = getDerivedMetricMeta(args.metric);
+  if (!meta) {
+    // Defensive — the route validates against the enum first.
+    return notImplemented([], now);
+  }
+
+  if (!meta.implemented) {
+    return notImplemented(meta.inputs.map(String), now);
+  }
+
+  switch (args.metric) {
+    case "VITALS_BASELINE": {
+      // The baseline engine needs a single chosen vital; default to
+      // RESTING_HEART_RATE when the caller omits one (the catalogue's
+      // canonical example).
+      const requested = args.type ?? "RESTING_HEART_RATE";
+      if (!isVitalsBaselineType(requested)) {
+        return buildInsufficient<unknown>({
+          coverage: {
+            requiredInputs: 1,
+            presentInputs: 0,
+            historyDays: 0,
+            missing: [requested],
+          },
+          provenance: {
+            inputs: [requested],
+            source: "none",
+            windowDays: 0,
+            computedAt: nowProvenanceTimestamp(now),
+          },
+          reason: "unsupported_baseline_type",
+        });
+      }
+      return computeVitalsBaseline(args.userId, args.profile, {
+        type: requested as MeasurementType,
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
+    }
+    default:
+      // Registered + implemented but no dispatch arm — treat as a stub.
+      return notImplemented(meta.inputs.map(String), now);
+  }
+}
