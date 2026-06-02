@@ -4039,12 +4039,6 @@
     }
   },
   "targets": {
-    "title": "Zielwerte",
-    "introText": "Deine aktuellen Werte im Vergleich zu empfohlenen Zielbereichen. Quellen der Leitlinien sind auf jeder Karte verlinkt.",
-    "deprecation": {
-      "title": "Diese Seite wird eingestellt",
-      "body": "Zielbereiche werden jetzt direkt in den Insights bearbeitet, im Referenzbereich jeder Metrik. Diese Seite bleibt vorerst erreichbar und wird in einem künftigen Release entfernt."
-    },
     "bmi": "BMI",
     "average30d": "30-Tage-Schnitt:",
     "consistency": {
@@ -4066,22 +4060,10 @@
         "sixDaysAgo": "vor 6 Tagen"
       }
     },
-    "card": {
-      "lastMet": "Zuletzt im Ziel: {when}",
-      "streak": "{count} Tage in Folge"
-    },
     "relativeDay": {
       "today": "heute",
       "yesterday": "gestern",
       "daysAgo": "vor {count} Tagen"
-    },
-    "summary": {
-      "weekTitle": "{met} von {total} Zielwerten diese Woche erreicht",
-      "weekTitleAll": "Alle {total} Zielwerte diese Woche erreicht",
-      "streakHighlight": "{count} Tage in Folge: {metric}"
-    },
-    "coach": {
-      "cta": "Coach fragen"
     },
     "edit": {
       "openLabel": "Zielbereich für {metric} bearbeiten",
@@ -4114,31 +4096,10 @@
     "aboveTarget": "{delta} {unit} über Zielbereich",
     "belowTarget": "{delta} {unit} unter Zielbereich",
     "diastolic": "Diastolisch",
-    "noMeasurementYet": "Noch keine Messungen",
-    "noMeasurementData": "Keine Messdaten verfügbar. Füge Messwerte hinzu, um deine Ziele zu sehen.",
-    "profileIncomplete": "Profil unvollständig",
-    "profileIncompleteHeight": "Trage deine Körpergröße im Profil ein, um BMI-Ziele zu aktivieren.",
-    "profileIncompleteAge": "Trage dein Geburtsdatum im Profil ein, um altersspezifische Ziele zu aktivieren.",
-    "profileIncompleteHeightAge": "Trage Körpergröße und Geburtsdatum im Profil ein, um personalisierte Ziele zu sehen.",
-    "compliancePerMedication": "Einnahmetreue pro Medikament",
     "glucoseFasting": "Glukose — nüchtern",
     "glucosePostprandial": "Glukose — postprandial",
     "glucoseRandom": "Glukose — beliebig",
     "glucoseBedtime": "Glukose — vor dem Schlafen",
-    "loadError": "Zielwerte konnten nicht geladen werden",
-    "label": {
-      "WEIGHT": "Gewicht",
-      "BLOOD_PRESSURE": "Blutdruck",
-      "BLOOD_PRESSURE_IN_TARGET": "Blutdruck im Zielbereich",
-      "PULSE": "Ruhepuls",
-      "SLEEP_DURATION": "Schlafdauer",
-      "BMI": "BMI",
-      "BODY_FAT": "Körperfett",
-      "ACTIVITY_STEPS": "Schritte/Tag",
-      "MEDICATION_COMPLIANCE": "Einnahmetreue",
-      "MOOD_SCORE": "Stimmung",
-      "MOOD_STABILITY": "Stimmungsstabilität"
-    },
     "status": {
       "underweight": "Untergewicht",
       "normal": "Normal",

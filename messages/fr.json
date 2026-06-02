@@ -4039,12 +4039,6 @@
     }
   },
   "targets": {
-    "title": "Valeurs cibles",
-    "introText": "Tes valeurs actuelles face aux plages cibles recommandées. Les sources des recommandations sont liées sur chaque carte.",
-    "deprecation": {
-      "title": "Cette page va être retirée",
-      "body": "Les plages cibles se modifient désormais directement depuis les pages Insights, sur le panneau de référence de chaque métrique. Cette page reste accessible pour l'instant et sera supprimée dans une prochaine version."
-    },
     "bmi": "IMC",
     "average30d": "Moy. 30 jours :",
     "consistency": {
@@ -4066,22 +4060,10 @@
         "sixDaysAgo": "il y a 6 jours"
       }
     },
-    "card": {
-      "lastMet": "Dernier objectif atteint : {when}",
-      "streak": "{count} jours d’affilée"
-    },
     "relativeDay": {
       "today": "Aujourd'hui",
       "yesterday": "Hier",
       "daysAgo": "il y a {count} jours"
-    },
-    "summary": {
-      "weekTitle": "{met} cibles sur {total} atteintes cette semaine",
-      "weekTitleAll": "Tout{total} targets met this week",
-      "streakHighlight": "{count} jours d’affilée : {metric}"
-    },
-    "coach": {
-      "cta": "Demander au coach"
     },
     "edit": {
       "openLabel": "Modifier la plage cible de {metric}",
@@ -4114,31 +4096,10 @@
     "aboveTarget": "{delta} {unit} au-dessus de la plage",
     "belowTarget": "{delta} {unit} en dessous de la plage",
     "diastolic": "Diastolique",
-    "noMeasurementYet": "Pas encore de mesures",
-    "noMeasurementData": "Pas de données de mesure. Ajoute des mesures pour voir tes objectifs.",
-    "profileIncomplete": "Profil incomplet",
-    "profileIncompleteHeight": "Renseigne ta taille dans le profil pour activer les objectifs IMC.",
-    "profileIncompleteAge": "Renseigne ta date de naissance dans le profil pour activer les objectifs liés à l’âge.",
-    "profileIncompleteHeightAge": "Renseigne taille et date de naissance dans le profil pour voir des objectifs personnalisés.",
-    "compliancePerMedication": "Observance par médicament",
     "glucoseFasting": "Glycémie — à jeun",
     "glucosePostprandial": "Glycémie — postprandiale",
     "glucoseRandom": "Glycémie — indifférente",
     "glucoseBedtime": "Glycémie — avant le coucher",
-    "loadError": "Impossible de charger les valeurs cibles",
-    "label": {
-      "WEIGHT": "Poids",
-      "BLOOD_PRESSURE": "Tension artérielle",
-      "BLOOD_PRESSURE_IN_TARGET": "Tension dans la cible",
-      "PULSE": "Pouls au repos",
-      "SLEEP_DURATION": "Durée du sommeil",
-      "BMI": "IMC",
-      "BODY_FAT": "Masse grasse",
-      "ACTIVITY_STEPS": "Pas/jour",
-      "MEDICATION_COMPLIANCE": "Observance",
-      "MOOD_SCORE": "Humeur",
-      "MOOD_STABILITY": "Stabilité de l’humeur"
-    },
     "status": {
       "underweight": "Insuffisance pondérale",
       "normal": "Normal",

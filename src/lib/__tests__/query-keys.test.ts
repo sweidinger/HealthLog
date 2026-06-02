@@ -309,7 +309,6 @@ describe("queryKey factory enforcement", () => {
     join(repoRoot, "src", "hooks"),
     join(repoRoot, "src", "app", "medications", "page.tsx"),
     join(repoRoot, "src", "app", "medications", "[id]", "history", "page.tsx"),
-    join(repoRoot, "src", "app", "targets", "page.tsx"),
   ];
 
   function collect(): string[] {

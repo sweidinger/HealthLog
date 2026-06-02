@@ -9,10 +9,6 @@ import {
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
- * v1.4.25 W3e — extracted from `src/app/targets/page.tsx` (the page
- * was 790 lines; the redesign breaks it into focused primitives so
- * each component carries its own contract + test suite).
- *
  * A horizontal range bar with green/yellow/red zones showing where
  * the current value falls relative to a target range. The marker dot
  * carries a tooltip with the current value + the target range + a

@@ -4039,12 +4039,6 @@
     }
   },
   "targets": {
-    "title": "Wartości docelowe",
-    "introText": "Twoje aktualne wartości na tle zalecanych zakresów docelowych. Źródła wytycznych podlinkowane na każdej karcie.",
-    "deprecation": {
-      "title": "Ta strona zostanie wycofana",
-      "body": "Zakresy docelowe edytuje się teraz bezpośrednio na stronach Insights, w panelu referencyjnym każdej metryki. Ta strona pozostaje na razie dostępna i zostanie usunięta w przyszłej wersji."
-    },
     "bmi": "BMI",
     "average30d": "Średnia 30-dniowa:",
     "consistency": {
@@ -4066,22 +4060,10 @@
         "sixDaysAgo": "6 dni temu"
       }
     },
-    "card": {
-      "lastMet": "Ostatnio w celu: {when}",
-      "streak": "{count} dni z rzędu"
-    },
     "relativeDay": {
       "today": "Dzisiaj",
       "yesterday": "Wczoraj",
       "daysAgo": "{count} dni temu"
-    },
-    "summary": {
-      "weekTitle": "{met} z {total} celów osiągniętych w tym tygodniu",
-      "weekTitleAll": "Wszystko{total} targets met this week",
-      "streakHighlight": "{count} dni z rzędu: {metric}"
-    },
-    "coach": {
-      "cta": "Zapytaj coacha"
     },
     "edit": {
       "openLabel": "Edytuj zakres docelowy dla {metric}",
@@ -4114,31 +4096,10 @@
     "aboveTarget": "{delta} {unit} powyżej zakresu",
     "belowTarget": "{delta} {unit} poniżej zakresu",
     "diastolic": "Rozkurczowe",
-    "noMeasurementYet": "Brak pomiarów",
-    "noMeasurementData": "Brak danych pomiarowych. Dodaj pomiary, aby zobaczyć cele.",
-    "profileIncomplete": "Profil niekompletny",
-    "profileIncompleteHeight": "Wpisz swój wzrost w profilu, aby aktywować cele BMI.",
-    "profileIncompleteAge": "Wpisz datę urodzenia w profilu, aby aktywować cele zależne od wieku.",
-    "profileIncompleteHeightAge": "Wpisz wzrost i datę urodzenia w profilu, aby zobaczyć spersonalizowane cele.",
-    "compliancePerMedication": "Przestrzeganie według leku",
     "glucoseFasting": "Glikemia — na czczo",
     "glucosePostprandial": "Glikemia — po posiłku",
     "glucoseRandom": "Glikemia — dowolna",
     "glucoseBedtime": "Glikemia — przed snem",
-    "loadError": "Nie udało się załadować wartości docelowych",
-    "label": {
-      "WEIGHT": "Waga",
-      "BLOOD_PRESSURE": "Ciśnienie krwi",
-      "BLOOD_PRESSURE_IN_TARGET": "Ciśnienie w zakresie",
-      "PULSE": "Tętno spoczynkowe",
-      "SLEEP_DURATION": "Czas snu",
-      "BMI": "BMI",
-      "BODY_FAT": "Tkanka tłuszczowa",
-      "ACTIVITY_STEPS": "Kroki/dzień",
-      "MEDICATION_COMPLIANCE": "Przestrzeganie",
-      "MOOD_SCORE": "Nastrój",
-      "MOOD_STABILITY": "Stabilność nastroju"
-    },
     "status": {
       "underweight": "Niedowaga",
       "normal": "Normal",

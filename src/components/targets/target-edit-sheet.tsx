@@ -18,16 +18,12 @@ import {
 } from "@/lib/analytics/effective-range";
 
 /**
- * v1.4.25 W3f — per-card edit affordance for the Zielwerte cards.
- *
- * Marc directive 2026-05-14: the per-card cog pattern (Dashboard charts →
- * Insights sub-pages → now Zielwerte) must be consistent. After the W3e
- * redesign the target cards lost their edit entry point — this dialog
- * closes that gap. Tapping the cog top-right of any TargetCard opens
- * this sheet; the user adjusts the min/max for the underlying threshold
- * metric, hits Save, and every surface that consumes
- * `getEffectiveRange()` (dashboard bands, doctor-report, /targets
- * itself) updates on the next query refetch.
+ * Per-metric target editor, mounted inline on the Insights metric
+ * reference panel (`<MetricTargetSummary>`). The user adjusts the
+ * min/max for the underlying threshold metric, hits Save, and every
+ * surface that consumes `getEffectiveRange()` (dashboard bands,
+ * doctor-report, the Insights panels themselves) updates on the next
+ * query refetch.
  *
  * Server contract: PUT /api/user/thresholds with a partial map
  * `{ [metric]: { min, max } }`. The endpoint validates the values
@@ -95,11 +91,11 @@ export interface TargetEditSheetProps {
 }
 
 export function TargetEditSheet(props: TargetEditSheetProps) {
-  // v1.4.25 W3f — only mount the body (and its TanStack Query hooks)
-  // when the dialog is open. This keeps the parent <TargetCard>
-  // test-friendly: existing tests can render the card without
-  // standing up a QueryClientProvider, and the hooks only execute
-  // once the user actually clicks the cog.
+  // Only mount the body (and its TanStack Query hooks) when the dialog
+  // is open. This keeps the parent reference panel test-friendly:
+  // callers can render the panel without standing up a
+  // QueryClientProvider, and the hooks only execute once the user
+  // actually opens the editor.
   //
   // v1.4.27 R4 RC2 — migrated raw <Dialog> → <ResponsiveSheet> so the
   // bottom-sheet branch sticky-pins reset + cancel + save above the

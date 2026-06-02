@@ -466,7 +466,8 @@ export default function DashboardPage() {
    * misleading zero. The corrected gate requires at least one window
    * (7d, 30d, all-time) to report a non-zero share. When every
    * window is zero, the tile is hidden — the user sees the BP charts
-   * + the `/targets` Blutdruck card for the deeper analysis instead.
+   * + the Insights blood-pressure target panel for the deeper analysis
+   * instead.
    * The audit's F4 reproduction sat on 540 BP samples with all sub-
    * windows reading 0 % because the seed data straddled the target
    * ceiling; the tile keeps its place once even one sub-window
@@ -1096,9 +1097,10 @@ export default function DashboardPage() {
           // small fractional float that the TrendCard's date-shaped
           // formatter pipeline rendered as "1.1." — the regression the
           // maintainer flagged in the post-v1.4.27 walk-through. The
-          // all-time aggregate moves to the `/targets` BP card which
-          // already shows the same number with more context; the
-          // dashboard tile no longer needs to carry it. `avgAllTime`
+          // all-time aggregate moves to the Insights blood-pressure
+          // target panel which already shows the same number with more
+          // context; the dashboard tile no longer needs to carry it.
+          // `avgAllTime`
           // also retires from the TrendCard API (this was its only
           // consumer).
           const bp7 = data?.bpInTargetPct7d ?? null;

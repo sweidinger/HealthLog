@@ -423,8 +423,8 @@ export function TrendCard({
           {/* v1.4.28 FB-C2 — the all-time third sub-value retired
               alongside the `avgAllTime*` props. The BD-Zielbereich
               tile was the only consumer; the same number stays
-              visible on the `/targets` Blutdruck card with full
-              context. Every dashboard tile now ships the same two
+              visible on the Insights blood-pressure target panel with
+              full context. Every dashboard tile now ships the same two
               sub-rows. */}
         </div>
       </TooltipProvider>

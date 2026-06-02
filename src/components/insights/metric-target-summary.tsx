@@ -18,18 +18,16 @@ import { getTargetSourceLink } from "@/lib/targets/source-link";
  * v1.8.0 → v1.8.5 — surface the per-metric target reference panel on each
  * insights category page, directly beneath the chart / assessment.
  *
- * The data is the same `/api/insights/targets` payload that powers the
- * `/targets` editing surface — this component reads the shared
- * `queryKeys.insightsTargets()` cache, so on a session that has already
- * visited `/targets` the read is free, and on a cold sub-page it warms a
- * cache the `/targets` page then reuses. We never recompute the ranges
- * here: the route is the single source of truth for the age-based ESH
- * blood-pressure band, the WHO weight / BMI band, the Karvonen pulse
- * band, the AASM sleep band, the ADA / DDG glucose bands, and the
- * medication / mood targets.
+ * The data is the `/api/insights/targets` payload, read through the
+ * shared `queryKeys.insightsTargets()` cache so warm sessions pay
+ * nothing and a cold sub-page warms the cache its siblings reuse. We
+ * never recompute the ranges here: the route is the single source of
+ * truth for the age-based ESH blood-pressure band, the WHO weight / BMI
+ * band, the Karvonen pulse band, the AASM sleep band, the ADA / DDG
+ * glucose bands, and the medication / mood targets.
  *
- * v1.8.5 W5 — the panel grew from a one-line range card into a compact
- * reference panel that ports the context the `/targets` card carries:
+ * The panel is a compact reference panel carrying the full target
+ * context:
  *
  *   • Row 1: target range string + `<TargetStatusPill>` + source link
  *            (the "what is the band / what is it based on" answer).
@@ -38,13 +36,13 @@ import { getTargetSourceLink } from "@/lib/targets/source-link";
  *   • Row 3: in-target share % + the 30-day average.
  *   • Row 4: `<ConsistencyStrip>` — the last seven days at a glance.
  *   • Footer: an "Adjust target range" button that opens the
- *            `<TargetEditSheet>` inline (v1.8.6 — the `/targets` page is
- *            deprecated, so the editor mounts here rather than routing).
+ *            `<TargetEditSheet>` inline — this panel is the home of
+ *            target editing.
  *
  * Each insights slug maps to one target `type`, except blood glucose
  * which maps to up to four per-context cards (fasting / postprandial /
  * random / bedtime) — those carry mg/dL canonical values that we convert
- * to the user's display unit exactly like the `/targets` page does.
+ * to the user's display unit.
  */
 
 interface TargetRange {
@@ -146,8 +144,8 @@ export function MetricTargetSummary({ slug }: MetricTargetSummaryProps) {
   if ((!targetType && !isGlucose) || !data) return null;
 
   // Glucose: one panel per logged context, converting the canonical
-  // mg/dL values to the user's display unit exactly like the /targets
-  // page. The route's per-context labels are i18n keys, so resolve them.
+  // mg/dL values to the user's display unit. The route's per-context
+  // labels are i18n keys, so resolve them.
   if (isGlucose) {
     const displayUnit = resolveGlucoseUnit(data.profile?.glucoseUnit ?? null);
     const convert = (v: number | null) =>
@@ -222,11 +220,10 @@ function TargetReferencePanel({
 }: TargetReferencePanelProps) {
   const { t } = useTranslations();
 
-  // v1.8.6 — the `/targets` page is deprecated; the per-metric editor
-  // moved here. The button below opens the same self-contained
-  // `<TargetEditSheet>` the targets card mounts, seeded with this
-  // metric's type / unit / range (and the diastolic range for BP). The
-  // sheet writes `PUT /api/user/thresholds` and invalidates the
+  // The per-metric editor lives here. The button below opens a
+  // self-contained `<TargetEditSheet>`, seeded with this metric's
+  // type / unit / range (and the diastolic range for BP). The sheet
+  // writes `PUT /api/user/thresholds` and invalidates the
   // `insightsTargets()` cache on save, so the panel repaints in place.
   const [editOpen, setEditOpen] = useState(false);
 
@@ -261,7 +258,7 @@ function TargetReferencePanel({
 
   // In-target share: fraction of logged days in the green band over the
   // last 30. Suppressed when the route flagged insufficient data so the
-  // sub-page mirrors the `/targets` strip exactly.
+  // sub-page suppresses the share line.
   const showShare = !target.insufficientData && target.daysLogged30d > 0;
   const sharePct = showShare
     ? Math.round((target.daysInRange30d / target.daysLogged30d) * 100)

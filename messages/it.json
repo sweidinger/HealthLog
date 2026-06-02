@@ -4039,12 +4039,6 @@
     }
   },
   "targets": {
-    "title": "Valori obiettivo",
-    "introText": "I tuoi valori attuali rispetto agli intervalli obiettivo consigliati. Le fonti delle linee guida sono collegate su ogni card.",
-    "deprecation": {
-      "title": "Questa pagina verrà rimossa",
-      "body": "Gli intervalli obiettivo ora si modificano direttamente dalle pagine Insights, nel pannello di riferimento di ogni metrica. Questa pagina resta disponibile per ora e verrà rimossa in una versione futura."
-    },
     "bmi": "IMC",
     "average30d": "Media 30 giorni:",
     "consistency": {
@@ -4066,22 +4060,10 @@
         "sixDaysAgo": "6 giorni fa"
       }
     },
-    "card": {
-      "lastMet": "Ultima volta in obiettivo: {when}",
-      "streak": "{count} giorni di fila"
-    },
     "relativeDay": {
       "today": "Oggi",
       "yesterday": "Ieri",
       "daysAgo": "{count} giorni fa"
-    },
-    "summary": {
-      "weekTitle": "{met} di {total} obiettivi raggiunti questa settimana",
-      "weekTitleAll": "Tutto{total} targets met this week",
-      "streakHighlight": "{count} giorni di fila: {metric}"
-    },
-    "coach": {
-      "cta": "Chiedi al coach"
     },
     "edit": {
       "openLabel": "Modifica il range obiettivo per {metric}",
@@ -4114,31 +4096,10 @@
     "aboveTarget": "{delta} {unit} sopra il range",
     "belowTarget": "{delta} {unit} sotto il range",
     "diastolic": "Diastolica",
-    "noMeasurementYet": "Ancora nessuna misurazione",
-    "noMeasurementData": "Nessun dato di misurazione. Aggiungi misurazioni per vedere gli obiettivi.",
-    "profileIncomplete": "Profilo incompleto",
-    "profileIncompleteHeight": "Inserisci la tua altezza nel profilo per attivare gli obiettivi BMI.",
-    "profileIncompleteAge": "Inserisci la tua data di nascita nel profilo per attivare gli obiettivi legati all’età.",
-    "profileIncompleteHeightAge": "Inserisci altezza e data di nascita nel profilo per vedere obiettivi personalizzati.",
-    "compliancePerMedication": "Aderenza per farmaco",
     "glucoseFasting": "Glicemia — a digiuno",
     "glucosePostprandial": "Glicemia — postprandiale",
     "glucoseRandom": "Glicemia — qualsiasi",
     "glucoseBedtime": "Glicemia — prima di coricarsi",
-    "loadError": "Impossibile caricare i valori obiettivo",
-    "label": {
-      "WEIGHT": "Peso",
-      "BLOOD_PRESSURE": "Pressione arteriosa",
-      "BLOOD_PRESSURE_IN_TARGET": "Pressione nel range",
-      "PULSE": "Pulsazioni a riposo",
-      "SLEEP_DURATION": "Durata del sonno",
-      "BMI": "IMC",
-      "BODY_FAT": "Massa grassa",
-      "ACTIVITY_STEPS": "Passi/giorno",
-      "MEDICATION_COMPLIANCE": "Aderenza",
-      "MOOD_SCORE": "Umore",
-      "MOOD_STABILITY": "Stabilità umore"
-    },
     "status": {
       "underweight": "Sottopeso",
       "normal": "Normal",
