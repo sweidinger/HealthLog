@@ -79,6 +79,17 @@ export interface FhirObservation {
 
 export interface FhirDosage {
   text?: string;
+  /**
+   * v1.9.0 — structured dose `Quantity`. On a `MedicationAdministration`
+   * a `dosage` SHALL carry at least one of `dose` or `rate` (R4
+   * invariant), so the builder only emits a `dosage` block when a `dose`
+   * is available; a text-only dose stays on the `MedicationStatement`.
+   */
+  dose?: FhirQuantity;
+  /** v1.9.0 — route of administration. Text-only by default (no SNOMED licence concern). */
+  route?: FhirCodeableConcept;
+  /** v1.9.0 — administration body-site (e.g. injection site). Text-only by default. */
+  site?: FhirCodeableConcept;
 }
 
 export interface FhirPeriod {
@@ -94,6 +105,27 @@ export interface FhirMedicationStatement {
   subject: FhirReference;
   effectivePeriod?: FhirPeriod;
   dosage?: FhirDosage[];
+}
+
+export interface FhirMedicationAdministration {
+  resourceType: "MedicationAdministration";
+  id: string;
+  /**
+   * v1.9.0 — only `completed` (a taken dose) or `not-done` (an explicit
+   * skip) are emitted; the exporter never asserts an administration for a
+   * pending / missed slot or a soft-deleted tombstone.
+   */
+  status: "completed" | "not-done";
+  /** Self-describing concept — the same ATC/RxNorm + text the statement carries. */
+  medicationCodeableConcept: FhirCodeableConcept;
+  subject: FhirReference;
+  /**
+   * `takenAt` for a `completed` administration, `scheduledFor` (the
+   * intended instant) for a `not-done` skip.
+   */
+  effectiveDateTime: string;
+  /** Single dosage (R4 `0..1`). Present only when a structured `dose` exists. */
+  dosage?: FhirDosage;
 }
 
 export interface FhirDiagnosticReport {
@@ -152,6 +184,7 @@ export type FhirResource =
   | FhirCoverage
   | FhirObservation
   | FhirMedicationStatement
+  | FhirMedicationAdministration
   | FhirDiagnosticReport;
 
 export interface FhirBundleEntry {

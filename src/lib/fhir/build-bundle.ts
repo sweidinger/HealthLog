@@ -39,6 +39,8 @@ import type {
   FhirCodeableConcept,
   FhirObservation,
   FhirMedicationStatement,
+  FhirMedicationAdministration,
+  FhirDosage,
   FhirPatient,
   FhirCoverage,
   FhirOrganization,
@@ -88,6 +90,54 @@ function medicationConcept(
     coding.push({ system: RXNORM_SYSTEM, code: rxNormCode });
   }
   return coding.length > 0 ? { coding, text: name } : { text: name };
+}
+
+/**
+ * v1.9.0 — UCUM codes for the dose units HealthLog stores. The display
+ * `unit` is always the user's original string; the UCUM `code` is set
+ * only for an unambiguous mapping so a consumer that resolves UCUM never
+ * sees a guessed code. An unmapped unit drops `code` (and `system`) and
+ * keeps just the human-readable `unit` — conformant, just not coded.
+ */
+const UCUM_DOSE_CODES: Record<string, string> = {
+  mg: "mg",
+  g: "g",
+  mcg: "ug",
+  µg: "ug",
+  ug: "ug",
+  ml: "mL",
+  mL: "mL",
+};
+
+function doseQuantity(value: number, unit: string): {
+  value: number;
+  unit: string;
+  system?: string;
+  code?: string;
+} {
+  const ucum = UCUM_DOSE_CODES[unit];
+  return ucum
+    ? { value, unit, system: UCUM_SYSTEM, code: ucum }
+    : { value, unit };
+}
+
+/**
+ * v1.9.0 — text-only route of administration derived from the
+ * medication's delivery form. Text-only (no SNOMED licence concern); the
+ * design doc upgrades to coded routes jointly with iOS later. Returns
+ * `undefined` for an unknown / absent form so no empty route is emitted.
+ */
+function routeConcept(
+  deliveryForm: string | null,
+): FhirCodeableConcept | undefined {
+  switch (deliveryForm) {
+    case "ORAL":
+      return { text: "Oral" };
+    case "INJECTION":
+      return { text: "Injection" };
+    default:
+      return undefined;
+  }
 }
 
 /** Escape the five XML-significant characters for the xhtml narrative. */
@@ -434,11 +484,57 @@ export function buildFhirDocumentBundle(
     medicationRefs.push({ reference: `MedicationStatement/${id}` });
   }
 
+  // --- MedicationAdministration per acted intake -------------------------
+  // One resource per intake the user actually actioned: `completed`
+  // (taken) or `not-done` (explicitly skipped). Pending / missed slots and
+  // soft-deleted tombstones are excluded upstream by the aggregator. The
+  // concept reuses the same ATC/RxNorm coding as the statement so each
+  // administration is self-describing without resolving a reference (no
+  // `partOf` / `request` coupling — see the v1.9.0 design doc). A `dosage`
+  // is emitted ONLY when a structured `dose` Quantity is available; a
+  // dosage with only `.text` would violate the R4 dose-or-rate invariant.
+  const administrationRefs: FhirReference[] = [];
+  let adminSeq = 0;
+  for (const admin of data.medicationAdministrations ?? []) {
+    adminSeq += 1;
+    const id = `medadmin-${adminSeq}`;
+    const resource: FhirMedicationAdministration = {
+      resourceType: "MedicationAdministration",
+      id,
+      status: admin.status,
+      medicationCodeableConcept: medicationConcept(
+        admin.medicationName,
+        admin.atcCode,
+        admin.rxNormCode,
+      ),
+      subject: patientRef,
+      effectiveDateTime: admin.effectiveAt,
+    };
+
+    // Dosage: only when a structured dose Quantity exists. Carry the
+    // free-text dose + route + site alongside it. Text-only route/site
+    // (no SNOMED licence concern); the design doc upgrades to coded
+    // routes jointly with iOS later.
+    if (admin.dose) {
+      const dosage: FhirDosage = {
+        dose: doseQuantity(admin.dose.value, admin.dose.unit),
+      };
+      if (admin.doseText) dosage.text = admin.doseText;
+      const route = routeConcept(admin.deliveryForm);
+      if (route) dosage.route = route;
+      if (admin.injectionSite) dosage.site = { text: admin.injectionSite };
+      resource.dosage = dosage;
+    }
+
+    entries.push({ fullUrl: `urn:uuid:${id}`, resource });
+    administrationRefs.push({ reference: `MedicationAdministration/${id}` });
+  }
+
   // --- Composition (leading "cover" resource) ----------------------------
   const narrativeText = [
     `Health record for ${escapeXml(displayName ?? "patient")}.`,
     `Reporting period ${data.period.start.slice(0, 10)} to ${data.period.end.slice(0, 10)}.`,
-    `${observationRefs.length} observation(s), ${medicationRefs.length} medication(s).`,
+    `${observationRefs.length} observation(s), ${medicationRefs.length} medication(s), ${administrationRefs.length} administration(s).`,
   ].join(" ");
 
   const composition: FhirComposition = {
@@ -467,8 +563,17 @@ export function buildFhirDocumentBundle(
         text: { status: "generated", div: `<div xmlns="http://www.w3.org/1999/xhtml">${escapeXml(narrativeText)}</div>` },
         entry: [patientRef, ...observationRefs],
       },
-      ...(medicationRefs.length > 0
-        ? [{ title: "Medications", entry: medicationRefs }]
+      // Medications section carries both the active-medication
+      // statements and the per-dose administration records (v1.9.0), so
+      // the iOS two-section graph ("Vital signs" + "Medications") is
+      // preserved without adding a third section.
+      ...(medicationRefs.length > 0 || administrationRefs.length > 0
+        ? [
+            {
+              title: "Medications",
+              entry: [...medicationRefs, ...administrationRefs],
+            },
+          ]
         : []),
     ],
   };
