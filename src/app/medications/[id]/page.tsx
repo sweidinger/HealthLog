@@ -235,30 +235,22 @@ export default function MedicationDetailPage({
           (genuine history context). */}
       {isGlp1 && <SideEffectsSection medicationId={id} />}
 
-      {/* GLP-1 dose-strength (titration) curve + estimated drug-level
-          chart as a default-CLOSED disclosure — genuine history context,
-          opt-in so the intake table stays the dominant surface. The
-          dose-strength curve plots the user's own logged dose-change
-          history; the drug-level chart gates further on Research Mode. */}
+      {/* GLP-1 estimated drug-level curve (the modelled active-ingredient
+          level) + dose-strength (titration) curve. Visible by default for
+          GLP-1 medications — the drug-level estimate is the one the
+          medication concerns, so it leads; the dose-strength curve plots
+          the user's own logged dose-change history below it. */}
       {isGlp1 && (
-        <details
-          className="border-border/60 rounded-md border"
-          data-slot="detail-drug-level-disclosure"
-        >
-          <summary className="text-foreground flex min-h-11 cursor-pointer items-center px-3 text-sm font-medium select-none sm:min-h-9">
-            {t("medications.detail.history.drugLevelDisclosure")}
-          </summary>
-          <div className="border-border/60 space-y-6 border-t px-3 py-3">
-            <DoseStrengthCurve medicationId={id} />
-            <DrugLevelChart
-              medication={{
-                id: medication.id,
-                name: medication.name,
-                dose: medication.dose,
-              }}
-            />
-          </div>
-        </details>
+        <div className="space-y-6" data-slot="detail-drug-level-section">
+          <DrugLevelChart
+            medication={{
+              id: medication.id,
+              name: medication.name,
+              dose: medication.dose,
+            }}
+          />
+          <DoseStrengthCurve medicationId={id} />
+        </div>
       )}
     </div>
   );
