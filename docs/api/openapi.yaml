@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.8.7
+  version: 1.8.7.1
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -1927,6 +1927,105 @@ paths:
         "401": *a1
         "422": *a2
         "429": *a3
+  /api/insights/pregenerate:
+    post:
+      tags:
+        - Insights
+      summary: Warm all AI assessments for the calling user
+      description: v1.8.7.1 — enqueue a full warm of every AI assessment for the authenticated user (comprehensive insight +
+        the seven specialised status cards + every data-bearing generic metric assessment) in the active locale, so the
+        read-only status GETs serve cached text instantly. Returns immediately; the generation runs out of band on the
+        worker. Empty metrics and provider-less accounts never trigger an LLM call. Short anti-spam bucket
+        (`insights-warm:<userId>`, one warm per 3 minutes) → 429 on a tight loop. Auth via cookie or Bearer; `userId` is
+        taken from the session, never the body.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InsightsPregenerateRequest"
+      responses:
+        "200":
+          description: Warm accepted and enqueued. The work runs on the worker; poll the read-only status routes for the text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InsightsPregenerateResponseEnvelope"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/insights/metric-status:
+    get:
+      tags:
+        - Insights
+      summary: Generic per-HealthKit-metric assessment
+      description: "v1.8.7.1 — data-driven plain-language assessment for any registered HealthKit metric (resting heart rate,
+        sleep, glucose, body composition, gait, audio exposure, …). One generic route covering ~30 metric pages via
+        archetype prompt templates + per-metric metadata. Read-only: a cache miss warms a generation out of band and
+        serves the last-good text meanwhile (stale-while-revalidate). An unknown `metric` 422s against the closed
+        registry enum. Auth via cookie or Bearer."
+      parameters:
+        - in: query
+          name: metric
+          schema:
+            type: string
+            enum:
+              - RESTING_HEART_RATE
+              - HEART_RATE_VARIABILITY
+              - OXYGEN_SATURATION
+              - RESPIRATORY_RATE
+              - BODY_TEMPERATURE
+              - SKIN_TEMPERATURE
+              - BLOOD_GLUCOSE
+              - WALKING_HEART_RATE_AVERAGE
+              - PULSE_WAVE_VELOCITY
+              - VASCULAR_AGE
+              - STEPS
+              - ACTIVE_ENERGY
+              - FLIGHTS_CLIMBED
+              - WALKING_RUNNING_DISTANCE
+              - TIME_IN_DAYLIGHT
+              - VO2_MAX
+              - TOTAL_BODY_WATER
+              - BONE_MASS
+              - FAT_FREE_MASS
+              - FAT_MASS
+              - MUSCLE_MASS
+              - LEAN_BODY_MASS
+              - VISCERAL_FAT
+              - WALKING_STEADINESS
+              - WALKING_ASYMMETRY
+              - WALKING_DOUBLE_SUPPORT
+              - WALKING_STEP_LENGTH
+              - WALKING_SPEED
+              - AUDIO_EXPOSURE_ENV
+              - AUDIO_EXPOSURE_HEADPHONE
+              - AUDIO_EXPOSURE_EVENT
+              - SLEEP_DURATION
+            description: "HealthKit metric id to assess (e.g. RESTING_HEART_RATE, SLEEP_DURATION). Closed enum: an unknown id 422s.
+              The seven specialised metrics are served by their own routes and are not accepted here."
+          required: true
+          description: "HealthKit metric id to assess (e.g. RESTING_HEART_RATE, SLEEP_DURATION). Closed enum: an unknown id 422s.
+            The seven specialised metrics are served by their own routes and are not accepted here."
+        - in: query
+          name: locale
+          schema:
+            description: Optional UI-locale override; defaults to the session locale.
+            type: string
+            enum:
+              - de
+              - en
+          description: Optional UI-locale override; defaults to the session locale.
+      responses:
+        "200":
+          description: Assessment envelope (fresh, cached, or preparing).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricStatusResponseEnvelope"
+        "401": *a1
+        "422": *a2
+        "429": *a3
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -2618,13 +2717,37 @@ components:
                   - pulse
                   - oxygen
                   - body-temperature
+                  - respiratory-rate
                   - weight
                   - bmi
+                  - body-water
+                  - bone-mass
+                  - fat-free-mass
+                  - fat-mass
+                  - muscle-mass
+                  - visceral-fat
+                  - lean-body-mass
                   - active-energy
                   - workouts
+                  - flights-climbed
+                  - walking-distance
+                  - walking-steadiness
+                  - walking-heart-rate
+                  - walking-asymmetry
+                  - double-support-time
+                  - step-length
+                  - walking-speed
                   - sleep
                   - resting-pulse
                   - hrv
+                  - pulse-wave-velocity
+                  - vascular-age
+                  - environmental-audio
+                  - headphone-audio
+                  - audio-events
+                  - daylight
+                  - blood-glucose
+                  - skin-temperature
                   - mood
                   - medications
                   - blutdruck
@@ -2671,6 +2794,11 @@ components:
       required:
         - rating
       description: Per-message helpful/unhelpful feedback (v1.4.23 H7). Optional `reason` is free-form prose, capped at 200 chars.
+    InsightsPregenerateRequest:
+      type: object
+      properties: {}
+      description: No body fields. The user is taken from the session / Bearer and the locale from the session; the warm
+        covers every assessment for that user.
     MedicationTreatmentClass:
       type: string
       enum:
@@ -6171,6 +6299,97 @@ components:
       additionalProperties: false
       description: AI-generated insights bundle. Strict-schema validated server-side; Coach-routed when the insight surface
         needs day-level grounding.
+    InsightsPregenerateResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/InsightsPregenerateResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    InsightsPregenerateResponse:
+      type: object
+      properties:
+        queued:
+          type: boolean
+          description: True when the full warm was accepted and enqueued.
+        locale:
+          type: string
+          enum:
+            - de
+            - en
+          description: The locale the assessments are being warmed in.
+      required:
+        - queued
+        - locale
+      additionalProperties: false
+      description: Acknowledgement that a full assessment warm was enqueued for the calling user. The generation runs out of
+        band; the text lands in the read-only status routes.
+    MetricStatusResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MetricStatusResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MetricStatusResponse:
+      type: object
+      properties:
+        hasProvider:
+          type: boolean
+          description: False when the user has no usable AI provider — `text` then carries the generic no-key guidance.
+        text:
+          anyOf:
+            - type: string
+            - type: "null"
+          description: The assessment narrative (plain text, rendered as React text children). Null while a first generation is
+            preparing, or when the metric has insufficient data.
+        cached:
+          type: boolean
+          description: True when `text` is served from cache (incl. last-good).
+        updatedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+          description: When the served assessment was generated; null when none.
+        preparing:
+          description: True when a first assessment is being generated out of band and no prior text exists yet — the client polls
+            until it lands.
+          type: boolean
+        insufficient:
+          description: True when the metric has no readings; no assessment is generated (no LLM call). The card shows its
+            insufficient-data state.
+          type: boolean
+      required:
+        - hasProvider
+        - text
+        - cached
+        - updatedAt
+      additionalProperties: false
+      description: "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the
+        `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation
+        out of band and serves the last-good text meanwhile."
     MedicationScheduleOutput:
       type: object
       properties:
@@ -6303,13 +6522,37 @@ components:
                   - pulse
                   - oxygen
                   - body-temperature
+                  - respiratory-rate
                   - weight
                   - bmi
+                  - body-water
+                  - bone-mass
+                  - fat-free-mass
+                  - fat-mass
+                  - muscle-mass
+                  - visceral-fat
+                  - lean-body-mass
                   - active-energy
                   - workouts
+                  - flights-climbed
+                  - walking-distance
+                  - walking-steadiness
+                  - walking-heart-rate
+                  - walking-asymmetry
+                  - double-support-time
+                  - step-length
+                  - walking-speed
                   - sleep
                   - resting-pulse
                   - hrv
+                  - pulse-wave-velocity
+                  - vascular-age
+                  - environmental-audio
+                  - headphone-audio
+                  - audio-events
+                  - daylight
+                  - blood-glucose
+                  - skin-temperature
                   - mood
                   - medications
                   - blutdruck

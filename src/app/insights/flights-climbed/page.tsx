@@ -16,6 +16,7 @@ export default function InsightsStockwerkePage() {
   return (
     <HealthKitMetricPage
       measurementType="FLIGHTS_CLIMBED"
+      statusMetric="FLIGHTS_CLIMBED"
       insightMetric="FLIGHTS_CLIMBED"
       chartKey="flightsClimbed"
       i18nPrefix="insights.flightsClimbed"

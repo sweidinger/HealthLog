@@ -18,6 +18,7 @@ export default function InsightsOxygenSaturationPage() {
   return (
     <HealthKitMetricPage
       measurementType="OXYGEN_SATURATION"
+      statusMetric="OXYGEN_SATURATION"
       insightMetric="OXYGEN_SATURATION"
       chartKey="oxygenSaturation"
       i18nPrefix="insights.oxygenSaturation"

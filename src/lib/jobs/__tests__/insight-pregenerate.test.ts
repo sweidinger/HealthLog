@@ -51,9 +51,21 @@ vi.mock("@/lib/insights/medication-compliance-status", () => ({
 vi.mock("@/lib/insights/general-status", () => ({
   generateGeneralStatusForUser: vi.fn(),
 }));
+// v1.8.7.1 — the generic metric generator also imports the provider
+// chain transitively; stub it so the default generic warm pass never
+// touches a live provider when the test does not inject its own.
+vi.mock("@/lib/insights/metric-status", () => ({
+  generateMetricStatus: vi.fn(async () => ({
+    hasProvider: true,
+    text: "ok",
+    cached: false,
+    updatedAt: new Date().toISOString(),
+  })),
+}));
 
 import {
   runInsightPregenerate,
+  forceWarmUser,
   findPregenerateCandidates,
   PREGENERATE_STALE_MS,
   INSIGHT_PREGENERATE_QUEUE,
@@ -318,6 +330,129 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     }
     // Two counting generators × two locales = 4 fresh assessments.
     expect(result.assessmentsWarmed).toBe(4);
+  });
+});
+
+describe("runInsightPregenerate — generic metric warm pass (v1.8.7.1)", () => {
+  it("warms the generic metric caches after a successful comprehensive generation", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "generated", providerType: "x" });
+    // Stub the seven specialised generators so only the generic count
+    // is under test.
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(9);
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    expect(warmGenericMetrics).toHaveBeenCalledTimes(1);
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"]);
+    expect(result.metricAssessmentsWarmed).toBe(9);
+  });
+
+  it("does NOT warm the generic metric caches when the comprehensive pass skipped (no provider)", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "en" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "skipped", reason: "no-provider" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: false, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(9);
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    expect(warmGenericMetrics).not.toHaveBeenCalled();
+    expect(result.metricAssessmentsWarmed).toBe(0);
+  });
+});
+
+describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
+  it("warms ONLY the active locale, bypasses the budget gate, and tallies counts", async () => {
+    const { prisma } = makePrisma([]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "generated", providerType: "x" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: false }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(5);
+
+    const result = await forceWarmUser(prisma as never, "u1", "en", {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    // Comprehensive forced once, in the active locale only.
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(generate).toHaveBeenCalledWith("u1", { locale: "en", force: true });
+    // Each specialised generator forced exactly once — the active locale,
+    // NOT both de+en like the nightly cron.
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: true });
+    }
+    // Generic warm pass runs for the single active locale.
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["en"]);
+    // No 20 h budget bucket consulted on the forced path.
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      comprehensive: "generated",
+      assessmentsWarmed: 7,
+      metricAssessmentsWarmed: 5,
+    });
+  });
+
+  it("does NOT warm the per-status or generic caches when the comprehensive pass skipped (no provider)", async () => {
+    const { prisma } = makePrisma([]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "skipped", reason: "no-provider" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: false, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(5);
+
+    const result = await forceWarmUser(prisma as never, "u1", "de", {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    for (const g of statusGenerators) {
+      expect(g).not.toHaveBeenCalled();
+    }
+    expect(warmGenericMetrics).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      comprehensive: "skipped",
+      assessmentsWarmed: 0,
+      metricAssessmentsWarmed: 0,
+    });
+  });
+
+  it("short-circuits to a no-op when the briefing surface is disabled globally", async () => {
+    getAssistantFlags.mockResolvedValue({ enabled: false, briefing: false });
+    const { prisma } = makePrisma([]);
+    const generate = vi.fn();
+
+    const result = await forceWarmUser(prisma as never, "u1", "de", {
+      generate,
+    });
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(result.comprehensive).toBe("skipped");
   });
 });
 

@@ -16,6 +16,7 @@ export default function InsightsFettmassePage() {
   return (
     <HealthKitMetricPage
       measurementType="FAT_MASS"
+      statusMetric="FAT_MASS"
       insightMetric="FAT_MASS"
       chartKey="fatMass"
       i18nPrefix="insights.fatMass"

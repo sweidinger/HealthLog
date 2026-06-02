@@ -17,6 +17,7 @@ export default function InsightsRestingHrPage() {
   return (
     <HealthKitMetricPage
       measurementType="RESTING_HEART_RATE"
+      statusMetric="RESTING_HEART_RATE"
       insightMetric="RESTING_HEART_RATE"
       chartKey="restingHr"
       i18nPrefix="insights.restingHr"

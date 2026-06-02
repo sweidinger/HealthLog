@@ -69,17 +69,27 @@ describe("invalidateStatusInsightsForTypes", () => {
     expect(deletedScopes()).toEqual(["blood-pressure", "general"]);
   });
 
-  it("maps PULSE and RESTING_HEART_RATE to pulse + general", async () => {
+  it("maps PULSE and RESTING_HEART_RATE to pulse + general (+ the resting-HR generic scope)", async () => {
     await invalidateStatusInsightsForTypes("u1", [
       "PULSE",
       "RESTING_HEART_RATE",
     ]);
-    expect(deletedScopes()).toEqual(["general", "pulse"]);
+    // PULSE feeds the specialised pulse + general scopes; RESTING_HEART_RATE
+    // feeds those too AND carries its own generic assessment card
+    // (`metric:RESTING_HEART_RATE`), so all three are dirtied.
+    expect(deletedScopes()).toEqual([
+      "general",
+      "metric:RESTING_HEART_RATE",
+      "pulse",
+    ]);
   });
 
-  it("maps an unmapped metric to general only", async () => {
+  it("maps a metric with no specialised scope to general + its generic scope", async () => {
+    // BLOOD_GLUCOSE has no specialised assessment, but v1.8.7.1 gives it a
+    // generic `metric:BLOOD_GLUCOSE` card, so a fresh reading dirties the
+    // general overview AND that generic scope.
     await invalidateStatusInsightsForTypes("u1", ["BLOOD_GLUCOSE"]);
-    expect(deletedScopes()).toEqual(["general"]);
+    expect(deletedScopes()).toEqual(["general", "metric:BLOOD_GLUCOSE"]);
   });
 
   it("dedupes scopes across a mixed batch", async () => {
@@ -88,10 +98,12 @@ describe("invalidateStatusInsightsForTypes", () => {
       "PULSE",
       "BLOOD_GLUCOSE",
     ]);
-    // weight + bmi + general (WEIGHT) ∪ pulse + general (PULSE) ∪ general
+    // weight + bmi + general (WEIGHT) ∪ pulse + general (PULSE) ∪
+    // general + metric:BLOOD_GLUCOSE (BLOOD_GLUCOSE)
     expect(deletedScopes()).toEqual([
       "bmi",
       "general",
+      "metric:BLOOD_GLUCOSE",
       "pulse",
       "weight",
     ]);
@@ -133,7 +145,35 @@ describe("invalidateStatusInsightsForTypes", () => {
     // pulse / bp scopes — the constant Apple-Health sync must not thrash
     // every card's cache.
     await invalidateStatusInsightsForTypes("u1", ["ACTIVITY_STEPS"]);
-    expect(deletedScopes()).toEqual(["general"]);
-    expect(enqueuedScopes()).toEqual(["general"]);
+    expect(deletedScopes()).toEqual(["general", "metric:STEPS"]);
+    expect(enqueuedScopes()).toEqual(["general", "metric:STEPS"]);
+  });
+
+  it("re-warms the matching generic metric scope for a registered type", async () => {
+    // v1.8.7.1 — a blood-glucose sample dirties the general overview AND
+    // its own generic assessment card (`metric:BLOOD_GLUCOSE`), so the
+    // freshly-synced metric's card refreshes in the background instead of
+    // lagging until the nightly warm pass.
+    await invalidateStatusInsightsForTypes("u1", ["BLOOD_GLUCOSE"]);
+    expect(deletedScopes()).toEqual(["general", "metric:BLOOD_GLUCOSE"]);
+    expect(enqueuedScopes()).toEqual(["general", "metric:BLOOD_GLUCOSE"]);
+  });
+
+  it("maps a remapped MeasurementType to its registry metric id", async () => {
+    // ACTIVE_ENERGY_BURNED is stored under that DB type but the generic
+    // metric id (route param + cache scope) is ACTIVE_ENERGY.
+    await invalidateStatusInsightsForTypes("u1", ["ACTIVE_ENERGY_BURNED"]);
+    expect(enqueuedScopes()).toEqual(["general", "metric:ACTIVE_ENERGY"]);
+  });
+
+  it("does not emit a generic scope for an unregistered type", async () => {
+    // A weight sample feeds weight + bmi + general; WEIGHT is one of the
+    // seven specialised metrics and has no generic registry entry, so no
+    // `metric:` scope is enqueued.
+    await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
+    expect(enqueuedScopes()).toEqual(["bmi", "general", "weight"]);
+    expect(
+      enqueuedScopes().some((s) => s.startsWith("metric:")),
+    ).toBe(false);
   });
 });

@@ -16,6 +16,7 @@ export default function InsightsMagermassePage() {
   return (
     <HealthKitMetricPage
       measurementType="LEAN_BODY_MASS"
+      statusMetric="LEAN_BODY_MASS"
       insightMetric="LEAN_BODY_MASS"
       chartKey="leanBodyMass"
       i18nPrefix="insights.leanBodyMass"

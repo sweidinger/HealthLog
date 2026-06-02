@@ -16,6 +16,7 @@ export default function InsightsBodyTemperaturePage() {
   return (
     <HealthKitMetricPage
       measurementType="BODY_TEMPERATURE"
+      statusMetric="BODY_TEMPERATURE"
       insightMetric="BODY_TEMPERATURE"
       chartKey="bodyTemperature"
       i18nPrefix="insights.bodyTemperature"

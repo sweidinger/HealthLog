@@ -16,6 +16,7 @@ export default function InsightsMuskelmassePage() {
   return (
     <HealthKitMetricPage
       measurementType="MUSCLE_MASS"
+      statusMetric="MUSCLE_MASS"
       insightMetric="MUSCLE_MASS"
       chartKey="muscleMass"
       i18nPrefix="insights.muscleMass"

@@ -16,6 +16,7 @@ export default function InsightsAtemfrequenzPage() {
   return (
     <HealthKitMetricPage
       measurementType="RESPIRATORY_RATE"
+      statusMetric="RESPIRATORY_RATE"
       insightMetric="RESPIRATORY_RATE"
       chartKey="respiratoryRate"
       i18nPrefix="insights.respiratoryRate"

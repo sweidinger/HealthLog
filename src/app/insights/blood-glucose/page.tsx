@@ -16,6 +16,7 @@ export default function InsightsBlutzuckerPage() {
   return (
     <HealthKitMetricPage
       measurementType="BLOOD_GLUCOSE"
+      statusMetric="BLOOD_GLUCOSE"
       insightMetric="BLOOD_GLUCOSE"
       chartKey="bloodGlucose"
       i18nPrefix="insights.bloodGlucose"

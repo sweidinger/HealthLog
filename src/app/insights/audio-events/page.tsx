@@ -16,6 +16,7 @@ export default function InsightsLaermereignissePage() {
   return (
     <HealthKitMetricPage
       measurementType="AUDIO_EXPOSURE_EVENT"
+      statusMetric="AUDIO_EXPOSURE_EVENT"
       insightMetric="AUDIO_EXPOSURE_EVENT"
       chartKey="audioExposureEvent"
       i18nPrefix="insights.audioExposureEvent"

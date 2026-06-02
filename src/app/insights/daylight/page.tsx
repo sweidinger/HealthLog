@@ -16,6 +16,7 @@ export default function InsightsTageslichtPage() {
   return (
     <HealthKitMetricPage
       measurementType="TIME_IN_DAYLIGHT"
+      statusMetric="TIME_IN_DAYLIGHT"
       insightMetric="TIME_IN_DAYLIGHT"
       chartKey="timeInDaylight"
       i18nPrefix="insights.timeInDaylight"

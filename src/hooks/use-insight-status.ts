@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
+import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import { queryKeys } from "@/lib/query-keys";
 
 /**
@@ -156,6 +157,70 @@ export function useInsightStatus(metric: InsightStatusMetric) {
     // never re-fetches on an interval. v1.8.4 — also stop after the
     // attempt ceiling so a persistently failing generation can't poll an
     // open page forever.
+    refetchInterval: (query) =>
+      nextStatusPollInterval(
+        query.state.data?.preparing,
+        query.state.dataUpdateCount,
+      ),
+  });
+}
+
+/**
+ * v1.8.7.1 — generic per-metric assessment loader for the HealthKit
+ * metric sub-pages. The seven bespoke metrics above (`weight`, `pulse`,
+ * …) each own a hand-written `/api/insights/<metric>-status` route; the
+ * ~29 HealthKit pages instead share one generic route keyed by the
+ * metric id:
+ *
+ *   GET /api/insights/metric-status?metric=<METRIC_ID>&locale=<locale>
+ *
+ * where METRIC_ID is the existing HealthKit measurement identifier
+ * (`HEART_RATE_VARIABILITY`, `RESTING_HEART_RATE`, `SLEEP_DURATION`, …).
+ * The response envelope, the 8 s client ceiling, the no-retry policy and
+ * the bounded `preparing` poll are identical to `useInsightStatus` — the
+ * card consumes the same `InsightStatusData` shape for every scope.
+ *
+ * `enabled` lets the page suppress the fetch entirely when the metric has
+ * no data (the page renders the insufficient-data empty state instead of
+ * the card), so a brand-new account never fires an assessment round-trip.
+ */
+export function useInsightMetricStatus(
+  // The closed registry-id union (the route's Zod enum vocabulary). `""`
+  // is the disabled-fetch placeholder the `HealthKitMetricPage` passes when
+  // no `statusMetric` is wired (the hook must still run per the rules of
+  // hooks); `enabled` is false on that branch so the empty id never reaches
+  // a round-trip. A typo'd metric id is therefore a compile error.
+  metric: MetricStatusMetricId | "",
+  enabled = true,
+) {
+  const { isAuthenticated } = useAuth();
+  const { locale } = useTranslations();
+
+  return useQuery({
+    queryKey: queryKeys.insightsMetricStatus(metric, locale),
+    queryFn: async (): Promise<InsightStatusData> => {
+      const controller = new AbortController();
+      const timeoutHandle = setTimeout(
+        () => controller.abort(),
+        STATUS_TIMEOUT_MS,
+      );
+      try {
+        const res = await fetch(
+          `/api/insights/metric-status?metric=${encodeURIComponent(
+            metric,
+          )}&locale=${locale}`,
+          { signal: controller.signal },
+        );
+        if (!res.ok) throw new Error("Failed");
+        const json = (await res.json()) as { data: InsightStatusData };
+        return json.data;
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
+    },
+    enabled: isAuthenticated && enabled,
+    staleTime: 60 * 1000,
+    retry: 0,
     refetchInterval: (query) =>
       nextStatusPollInterval(
         query.state.data?.preparing,

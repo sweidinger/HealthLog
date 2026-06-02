@@ -337,6 +337,39 @@ describe("Codex slug fallback chain", () => {
     expect(helper(400, "unrelated 400")).toBe(false);
   });
 
+  it("DEFAULT_SLUG_FALLBACK_CHAIN tracks the current ChatGPT-auth ladder", () => {
+    // The backend rotated its ChatGPT-auth slugs onto the gpt-5.x line on
+    // 2026-06-02; the in-code default must match the accepted set, in order.
+    expect([...__test.DEFAULT_SLUG_FALLBACK_CHAIN]).toEqual([
+      "gpt-5.5",
+      "gpt-5.4",
+      "gpt-5.4-mini",
+      "gpt-5.3-codex",
+      "gpt-5.2",
+    ]);
+  });
+
+  it("loadFallbackChain falls back to the default ladder with no env override", () => {
+    const origModel = process.env.CODEX_MODEL;
+    const origChain = process.env.CODEX_MODEL_FALLBACK_CHAIN;
+    delete process.env.CODEX_MODEL;
+    delete process.env.CODEX_MODEL_FALLBACK_CHAIN;
+    try {
+      expect(__test.loadFallbackChain()).toEqual([
+        "gpt-5.5",
+        "gpt-5.4",
+        "gpt-5.4-mini",
+        "gpt-5.3-codex",
+        "gpt-5.2",
+      ]);
+    } finally {
+      if (origModel === undefined) delete process.env.CODEX_MODEL;
+      else process.env.CODEX_MODEL = origModel;
+      if (origChain === undefined) delete process.env.CODEX_MODEL_FALLBACK_CHAIN;
+      else process.env.CODEX_MODEL_FALLBACK_CHAIN = origChain;
+    }
+  });
+
   it("loadFallbackChain folds CODEX_MODEL into position 0", () => {
     const orig = process.env.CODEX_MODEL;
     process.env.CODEX_MODEL = "custom-pinned-slug";
@@ -344,7 +377,7 @@ describe("Codex slug fallback chain", () => {
       const chain = __test.loadFallbackChain();
       expect(chain[0]).toBe("custom-pinned-slug");
       // Defaults still present after position 0.
-      expect(chain).toContain("gpt-5.3-codex");
+      expect(chain).toContain("gpt-5.5");
       // No duplicates.
       const seen = new Set(chain);
       expect(seen.size).toBe(chain.length);

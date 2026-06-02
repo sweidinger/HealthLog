@@ -16,6 +16,7 @@ export default function InsightsHauttemperaturPage() {
   return (
     <HealthKitMetricPage
       measurementType="SKIN_TEMPERATURE"
+      statusMetric="SKIN_TEMPERATURE"
       insightMetric="SKIN_TEMPERATURE"
       chartKey="skinTemperature"
       i18nPrefix="insights.skinTemperature"

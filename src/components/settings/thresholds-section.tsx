@@ -1,37 +1,24 @@
 "use client";
 
-import { SourcesSection } from "@/components/settings/sources-section";
 import { ThresholdsEditorSection } from "@/components/settings/thresholds-editor-section";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
- * `<ThresholdsSection>` — route-level wrapper for `/settings/thresholds`.
+ * `<ThresholdsSection>` — route-level wrapper for `/settings/thresholds`
+ * (the "Targets" / "Zielwerte" page).
  *
- * v1.4.34 IW-D — section was renamed "Zielwerte & Quellen" / "Targets &
- * Sources" and absorbs the former `/settings/sources` content. The two
- * editors stay distinct mutation flows (`/api/user/thresholds` for
- * ranges + `/api/auth/me/source-priority` for source ladders) so a save
- * on one half never disturbs the other; presenting them on a single
- * page collapses two adjacent sidebar slots into one and matches the
- * Settings nav audit (§7.1 item 3 in
- * `.planning/round-v1433-audit-menu.md` — both screens were per-metric
- * configuration shelves and reading them together matches how a user
- * actually thinks about a metric: "for this metric, which sources do
- * I trust AND what range counts as healthy?").
- *
- * `/settings/sources` stays alive as a `permanentRedirect` (see
- * `src/app/settings/sources/page.tsx`) so external bookmarks (iOS
- * Settings deep-links, docs) keep resolving.
+ * v1.8.7.1 — Targets and Sources are two separate settings pages again.
+ * This page owns only the per-metric target-range editor
+ * (`/api/user/thresholds`); the source-priority ladders moved back onto
+ * their own `/settings/sources` page (`<SourcesSection>`). The two were
+ * merged into one "Targets & Sources" page in v1.4.34 IW-D, but the
+ * combined surface ran long and the two editors drive distinct mutation
+ * flows, so each concern is self-contained on its own page.
  *
  * Visual structure on this page:
- *   1. Section header (combined title + description).
- *   2. `<ThresholdsEditorSection>` — per-metric range inputs (top).
- *      The editor card kept its own affordance row (icon, reset-all
- *      button) so the action surface stays compact.
- *   3. `<SourcesSection>` body — per-metric source priority + the
- *      two-axis device-type expander (bottom). The inner section's
- *      header was suppressed in `mode="embedded"` because the page
- *      header above already names the surface.
+ *   1. Section header (title + description).
+ *   2. `<ThresholdsEditorSection>` — per-metric range inputs. The editor
+ *      card keeps its own affordance row (icon, reset-all button).
  *
  * v1.4.16 phase B6: file renamed from the historic
  * `thresholds-settings-section.tsx` (`<ThresholdsSettingsSection>`)
@@ -63,15 +50,8 @@ export function ThresholdsSection() {
         </p>
       </header>
 
-      {/* Per-metric threshold ranges — top card. */}
+      {/* Per-metric threshold ranges. */}
       <ThresholdsEditorSection id="thresholds" />
-
-      {/* Per-metric source priority + two-axis device-type ladder —
-          bottom card. `mode="embedded"` suppresses the inner h1 +
-          subtitle (the page header above owns the surface name) and
-          drops the inner `<section>` aria-label so the assistive-tech
-          reading order stays one combined surface, not two. */}
-      <SourcesSection mode="embedded" />
     </section>
   );
 }

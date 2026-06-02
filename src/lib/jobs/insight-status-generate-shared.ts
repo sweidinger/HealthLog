@@ -46,9 +46,26 @@ export const INSIGHT_STATUS_METRICS: ReadonlyArray<InsightStatusMetric> = [
   "medication-compliance",
 ];
 
+/**
+ * v1.8.7.1 — the generic per-HealthKit-metric assessment scopes ride the
+ * same on-demand queue. Their scope id is `metric:<METRIC_ID>` (see
+ * `metricStatusScope` in the registry), which the worker dispatch routes
+ * to the generic generator rather than one of the seven specialised
+ * ones. The queue payload, the read-only resolver, and the enqueue helper
+ * all accept this broader scope so a generic card warms exactly like a
+ * specialised one. A specialised scope is one of `InsightStatusMetric`;
+ * a generic scope is any `metric:`-prefixed string.
+ */
+export type InsightStatusScope = InsightStatusMetric | `metric:${string}`;
+
 export interface InsightStatusGeneratePayload {
   userId: string;
-  metric: InsightStatusMetric;
+  /**
+   * The scope to generate. A specialised scope (one of the seven) or a
+   * generic `metric:<METRIC_ID>` scope (v1.8.7.1). The worker dispatch
+   * routes the prefix to the right generator.
+   */
+  metric: InsightStatusScope;
   /** Resolved client locale — the cache key the route reads against. */
   locale: "de" | "en";
 }

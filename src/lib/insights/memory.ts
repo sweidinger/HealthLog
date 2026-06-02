@@ -33,6 +33,16 @@ export type InsightScope =
   | "medication-compliance-status"
   | "mood-status";
 
+/**
+ * v1.8.7.1 — the generic per-HealthKit-metric assessments key their
+ * previous-context rows under `insights.metric:<ID>-status.<locale>`, the
+ * same `-status` action shape the seven specialised scopes use. Accept
+ * that scope form alongside the seven so the generic generator can read
+ * its comparison row without an `as never` cast that would silently
+ * disable type checking on the argument.
+ */
+export type PreviousContextScope = InsightScope | `metric:${string}-status`;
+
 export interface PreviousInsightContext {
   /** ISO timestamp the previous analysis was rendered. */
   generatedAt: string;
@@ -59,7 +69,7 @@ export interface PreviousInsightContext {
  */
 export async function getPreviousInsightContext(
   userId: string,
-  scope: InsightScope,
+  scope: PreviousContextScope,
   locale: "de" | "en",
   minAgeHours: number = 12,
 ): Promise<PreviousInsightContext | null> {

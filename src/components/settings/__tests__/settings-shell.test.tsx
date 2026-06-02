@@ -35,7 +35,7 @@ function renderShell(props: {
 }
 
 describe("SETTINGS_SECTION_SLUGS", () => {
-  it("declares the ten sections agreed for v1.4.34", () => {
+  it("declares the eleven sections", () => {
     // Order matters — `generateStaticParams()` and the sidebar derive their
     // ordering from this constant, so a reorder is a behaviour change.
     // v1.4.3 split the dashboard panel: layout stays under `dashboard`,
@@ -44,19 +44,17 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // v1.4.16 phase B7 added the consolidated `export` section between
     // `api` and `advanced` so every "give me my data out" path lives in
     // one place.
-    // v1.4.25 W5e added `sources` between `thresholds` and `ai` so the
-    // per-metric-class source-priority surface lives next to the other
-    // analytics-shaping controls (thresholds → ranges; sources →
-    // canonical source per metric).
-    // v1.4.34 IW-D — `sources` slug was retired (merged into
-    // `thresholds`, now "Targets & Sources"). `/settings/sources` stays
-    // alive as a `permanentRedirect`. Section count: 10 (was 11).
+    // v1.4.25 W5e added `sources` between `thresholds` and `ai`; v1.4.34
+    // IW-D merged it into `thresholds`.
+    // v1.8.7.1 — `sources` (Sources) is its own slug again, sitting
+    // between `thresholds` (Targets) and `ai`. Section count: 11.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "integrations",
       "notifications",
       "dashboard",
       "thresholds",
+      "sources",
       "ai",
       "api",
       "export",
@@ -164,11 +162,11 @@ describe("<SettingsShell>", () => {
     // in the sidebar user-card dropdown. Route `/settings/about` is
     // still alive for direct links.
     expect(html).not.toContain('href="/settings/about"');
-    // v1.4.34 IW-D — Sources slug retired; merged into Targets & Sources
-    // under `/settings/thresholds`. The Sources nav entry must not
-    // appear; the route stays alive via permanentRedirect.
-    expect(html).not.toContain('href="/settings/sources"');
-    expect(html).toContain("Targets &amp; Sources");
+    // v1.8.7.1 — Targets and Sources are two separate nav entries again.
+    expect(html).toContain('href="/settings/thresholds"');
+    expect(html).toContain('href="/settings/sources"');
+    expect(html).toContain("Targets");
+    expect(html).toContain("Sources");
   });
 
   it("resolves every section title via the i18n provider — German", () => {
@@ -184,21 +182,21 @@ describe("<SettingsShell>", () => {
     // per-metric overrides moved out into their own "Persönliche Zielwerte"
     // section, which is the new entry below the Dashboard one.
     expect(html).toContain("Dashboard");
-    // v1.4.34 IW-D — section renamed from "Persönliche Zielwerte" to
-    // "Zielwerte & Quellen" (combined with the former Sources section).
-    expect(html).toContain("Zielwerte &amp; Quellen");
-    // v1.4.33 IW7 — "KI-Auswertungen" renamed to "Auswertungen" per
-    // the Marc-Voice rule (no "KI"/"AI" prefix in user-facing copy).
-    expect(html).toContain("Auswertungen");
+    // v1.8.7.1 — Targets and Sources are two separate German nav
+    // entries again: "Zielwerte" and "Quellen".
+    expect(html).toContain("Zielwerte");
+    expect(html).toContain("Quellen");
+    // v1.8.7.1 — the AI Insights section is named "KI-Auswertungen" in
+    // German (the "KI" prefix makes the AI nature explicit).
+    expect(html).toContain("KI-Auswertungen");
     // API & Tokens is identical in both locales (proper noun + ampersand)
     expect(html).toContain("API &amp; Tokens");
     expect(html).toContain("Erweitert");
     // v1.4.33 IW7 — "Über" (About) section removed from the in-shell
     // nav, folded into the sidebar user-card dropdown ("Über HealthLog").
     expect(html).not.toContain('href="/settings/about"');
-    // v1.4.34 IW-D — Sources nav entry retired (merged into Targets &
-    // Sources).
-    expect(html).not.toContain('href="/settings/sources"');
+    // v1.8.7.1 — both Targets and Sources nav entries are present.
+    expect(html).toContain('href="/settings/sources"');
   });
 
   it("does NOT surface the raw key when a translation resolves — guards against missing JSON entries", () => {

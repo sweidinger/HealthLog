@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HeroStrip } from "@/components/insights/hero-strip";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
+import { useInsightsWarm } from "@/components/insights/use-insights-warm";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 // v1.4.41 W-ORG — shared shape lives in `src/types/analytics.ts` as
@@ -150,6 +152,17 @@ export default function InsightsPage() {
   const analyticsQuery = useAnalyticsQuery();
   const analytics = analyticsQuery.data as AnalyticsData | undefined;
 
+  // v1.8.7.1 — on-demand full assessment warm. The auto-trigger fires once
+  // per session as soon as the overview confirms the user has data, so the
+  // status cards (and the iOS client, which reads the same routes) land on
+  // warm caches without the user waiting. The manual button below re-warms
+  // everything on demand.
+  const { warm, isWarming, autoWarmOnce } = useInsightsWarm();
+  const hasData = !!data && data.totalMeasurements > 0;
+  useEffect(() => {
+    autoWarmOnce(isAuthenticated && hasData);
+  }, [autoWarmOnce, isAuthenticated, hasData]);
+
   // Empty-state shortcut — only paint once the comprehensive query has
   // resolved AND reported zero measurements. While it's in-flight we
   // fall through to the streamed shell so the user gets the hero +
@@ -209,6 +222,18 @@ export default function InsightsPage() {
         }
         healthScore={analytics?.healthScore ?? undefined}
       />
+
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={warm}
+          disabled={isWarming}
+        >
+          <Sparkles className="size-4" />
+          {t("insights.warmAssessments")}
+        </Button>
+      </div>
 
       {flags.briefing && (
         <DailyBriefing

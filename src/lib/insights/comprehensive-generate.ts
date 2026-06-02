@@ -49,6 +49,10 @@ import {
 import { invalidateUserInsights } from "@/lib/cache/invalidate";
 import { enqueueStatusGeneration } from "@/lib/jobs/insight-status-generate-shared";
 import { normalizeLocale } from "@/lib/insights/status-shared";
+import {
+  metricIdForMeasurementType,
+  metricStatusScope,
+} from "@/lib/insights/metric-status-registry";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -218,19 +222,37 @@ export async function invalidateStatusInsightsForTypes(
   types: Iterable<MeasurementType>,
 ): Promise<void> {
   const scopes = new Set<PerStatusScope>();
+  // v1.8.7.1 — a fresh measurement of a type that backs a generic
+  // HealthKit assessment card (the ~30 registry metrics) also dirties that
+  // card's `metric:<ID>` scope. Collect those alongside the seven
+  // specialised scopes so the generic tier is invalidated + re-warmed on
+  // ingest with the same debounced enqueue, rather than lagging until the
+  // nightly cron. Only registered, data-bearing types map here; the seven
+  // specialised metrics and any unregistered type resolve to null and are
+  // skipped, so the constant sync cannot fan out to unwanted scopes.
+  const metricScopes = new Set<`metric:${string}`>();
   for (const type of types) {
     for (const scope of statusScopesForMeasurementType(type)) {
       scopes.add(scope);
     }
+    const metricId = metricIdForMeasurementType(type);
+    if (metricId) {
+      metricScopes.add(metricStatusScope(metricId));
+    }
   }
-  if (scopes.size === 0) return;
+  if (scopes.size === 0 && metricScopes.size === 0) return;
 
   await prisma.auditLog.deleteMany({
     where: {
       userId,
-      OR: Array.from(scopes, (scope) => ({
-        action: { startsWith: `insights.${scope}-status.` },
-      })),
+      OR: [
+        ...Array.from(scopes, (scope) => ({
+          action: { startsWith: `insights.${scope}-status.` },
+        })),
+        ...Array.from(metricScopes, (scope) => ({
+          action: { startsWith: `insights.${scope}-status.` },
+        })),
+      ],
     },
   });
 
@@ -256,6 +278,13 @@ export async function invalidateStatusInsightsForTypes(
   });
   const locale = normalizeLocale(localeRow?.locale);
   for (const scope of scopes) {
+    void enqueueStatusGeneration({ userId, metric: scope, locale });
+  }
+  // v1.8.7.1 — re-warm the matching generic metric scopes the same way, so
+  // a freshly-synced HealthKit metric's assessment card refreshes in the
+  // background instead of lagging until the nightly warm pass. Same
+  // single-locale, singleton-debounced enqueue as the seven scopes above.
+  for (const scope of metricScopes) {
     void enqueueStatusGeneration({ userId, metric: scope, locale });
   }
 }

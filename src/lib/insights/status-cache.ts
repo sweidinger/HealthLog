@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
 import {
   enqueueStatusGeneration,
-  type InsightStatusMetric,
+  type InsightStatusScope,
 } from "@/lib/jobs/insight-status-generate-shared";
 import { annotate } from "@/lib/logging/context";
 
@@ -176,7 +176,7 @@ export type ReadOnlyMissOutcome =
  */
 export async function resolveReadOnlyStatusMiss(args: {
   userId: string;
-  metric: InsightStatusMetric;
+  metric: InsightStatusScope;
   locale: "de" | "en";
 }): Promise<ReadOnlyMissOutcome> {
   const hasProvider = await hasUsableStatusProvider(args.userId);

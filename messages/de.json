@@ -1501,6 +1501,8 @@
     "heroRegenerating": "Wird generiert",
     "regenerateAnalysis": "Analyse neu starten",
     "regenerateSuccess": "Analyse wurde neu erstellt",
+    "warmAssessments": "Auswertungen vorbereiten",
+    "warmStarted": "Auswertungen werden im Hintergrund erstellt",
     "heroFallbackSubtitle": "Täglicher Blick auf deine Trends — direkt aus den Zahlen, die du protokollierst.",
     "heroGreetingMorning": "Guten Morgen",
     "heroGreetingAfternoon": "Guten Tag",
@@ -2632,13 +2634,12 @@
         "description": "Kachel-Layout und Reihenfolge."
       },
       "thresholds": {
-        "title": "Zielwerte & Quellen",
-        "description": "Pro Metrik: eigener Zielbereich und welche Quelle führt, wenn mehrere am selben Tag denselben Wert liefern."
+        "title": "Zielwerte",
+        "description": "Pro Metrik dein eigener Zielbereich für gesunde Werte."
       },
       "sources": {
         "title": "Quellen",
         "description": "Lege fest, welche Quelle führt, wenn mehrere am selben Tag dieselbe Metrik liefern.",
-        "redirectNotice": "Quellen sind jetzt Teil von „Zielwerte & Quellen“.",
         "cardTitle": "Quellen-Priorität pro Metrik",
         "help": "Wenn mehrere Quellen denselben Wert am selben Tag liefern (z. B. Withings + Apple Health beide 1.200 Schritte), wird die oberste Quelle als kanonisch verwendet. Andere Quellen bleiben gespeichert für die Audit-Spur.",
         "resetDefaults": "Auf Standard zurücksetzen",
@@ -2688,7 +2689,7 @@
         }
       },
       "ai": {
-        "title": "Auswertungen",
+        "title": "KI-Auswertungen",
         "description": "Provider, Modell, API-Key."
       },
       "api": {

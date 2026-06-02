@@ -16,6 +16,7 @@ export default function InsightsViszeralfettPage() {
   return (
     <HealthKitMetricPage
       measurementType="VISCERAL_FAT"
+      statusMetric="VISCERAL_FAT"
       insightMetric="VISCERAL_FAT"
       chartKey="visceralFat"
       i18nPrefix="insights.visceralFat"

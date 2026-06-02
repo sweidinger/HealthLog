@@ -16,6 +16,7 @@ export default function InsightsGangasymmetriePage() {
   return (
     <HealthKitMetricPage
       measurementType="WALKING_ASYMMETRY"
+      statusMetric="WALKING_ASYMMETRY"
       insightMetric="WALKING_ASYMMETRY"
       chartKey="walkingAsymmetry"
       i18nPrefix="insights.walkingAsymmetry"

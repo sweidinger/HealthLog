@@ -6,6 +6,7 @@ import { Moon } from "lucide-react";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
+import { MetricStatusCard } from "@/components/insights/metric-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
@@ -68,16 +69,18 @@ export default function InsightsSchlafPage() {
       <MetricTargetSummary slug="sleep" />
 
       {/*
-        v1.4.28 (BK-UI-StatusSchlaf) — the six sibling sub-pages all
-        mount `<InsightStatusCard>` underneath the chart so the user
-        sees a written per-section assessment. Sleep has no
-        `/api/insights/sleep-status` route yet (the v1.4.23 schema
-        landed the data but the assessment-generation pass was deferred
-        to the v1.5 iOS sprint where the Apple-Health sleep snapshot
-        will inform the prompt). No per-section assessment yet; the
-        structural slot waits for v1.5 where the route + hook key will
-        wire in.
+        v1.8.7.1 — the per-section sleep assessment lands via the generic
+        metric-status route (`?metric=SLEEP_DURATION`), closing the slot
+        the v1.4.28 deferral left open. The shared `<MetricStatusCard>`
+        owns the hook + card; only the icon differs from the HealthKit
+        scaffold (Moon vs Sparkles). The card mounts only on this
+        data-bearing branch, so a source-less account never fetches.
       */}
+      <MetricStatusCard
+        metric="SLEEP_DURATION"
+        icon={<Moon className="h-5 w-5" />}
+        enabled={!isEmpty}
+      />
     </SubPageShell>
   );
 }

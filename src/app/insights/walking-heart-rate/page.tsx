@@ -16,6 +16,7 @@ export default function InsightsGehpulsPage() {
   return (
     <HealthKitMetricPage
       measurementType="WALKING_HEART_RATE_AVERAGE"
+      statusMetric="WALKING_HEART_RATE_AVERAGE"
       insightMetric="WALKING_HEART_RATE_AVERAGE"
       chartKey="walkingHeartRateAverage"
       i18nPrefix="insights.walkingHeartRateAverage"

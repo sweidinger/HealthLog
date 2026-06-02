@@ -79,15 +79,6 @@ vi.mock("@/components/settings/dashboard-layout-section", () => ({
 vi.mock("@/components/settings/thresholds-editor-section", () => ({
   ThresholdsEditorSection: () => <div data-testid="thresholds-editor" />,
 }));
-// v1.4.34 IW-D — `<ThresholdsSection>` now also embeds
-// `<SourcesSection mode="embedded">` so the combined "Targets &
-// Sources" page reads as one shelf. The SourcesSection itself owns
-// React Query and TanStack mutation wiring; stub it at the import
-// boundary to keep the SSR smoke test focused on the wrapper.
-vi.mock("@/components/settings/sources-section", () => ({
-  SourcesSection: () => <div data-testid="sources-section" />,
-}));
-
 import { I18nProvider } from "@/lib/i18n/context";
 import { AboutSection } from "../about-section";
 import { AccountSection } from "../account-section";
@@ -169,12 +160,12 @@ describe("settings sections — SSR smoke", () => {
     expect(html).toContain("Tour ansehen");
   });
 
-  it("<AiSection> renders the Insights card", () => {
+  it("<AiSection> renders the AI Insights heading", () => {
     const html = render(<AiSection />);
-    // v1.4.33 IW7 — section renamed from "AI Insights" to "Insights"
-    // per the Marc-Voice rule. The card title is replaced with a sparkles
-    // icon + status badges, and the section H1 carries the only heading.
-    expect(html).toContain("Insights");
+    // v1.8.7.1 — section renamed to "AI Insights" so the AI nature of the
+    // surface is explicit (was the bare "Insights"). The section H1 carries
+    // the only heading.
+    expect(html).toContain("AI Insights");
     expect(html).toContain("settings-section-ai-title");
   });
 
@@ -230,26 +221,26 @@ describe("settings sections — SSR smoke", () => {
     expect(html).not.toContain(">Jetzt prüfen<");
   });
 
-  it("<ThresholdsSection> renders heading and embeds both editors (v1.4.34 IW-D merge)", () => {
+  it("<ThresholdsSection> renders the Targets heading and the threshold editor only", () => {
     // v1.4.16 phase B6 contract: the route wrapper is named
     // `<ThresholdsSection>` (was `<ThresholdsSettingsSection>`), lives
     // at `thresholds-section.tsx`, and embeds the inner editor under
     // `<ThresholdsEditorSection>` (was `<ThresholdsSection>`).
-    // v1.4.34 IW-D — the wrapper now also embeds
-    // `<SourcesSection mode="embedded">` so the page is the merged
-    // "Targets & Sources" surface. Both editor mounts must be present.
+    // v1.8.7.1 — Sources split back onto its own page, so this wrapper
+    // renders the target-range editor only.
     const html = render(<ThresholdsSection />);
-    // v1.4.34 IW-D: section renamed to "Targets & Sources".
-    expect(html).toContain("Targets &amp; Sources");
+    // v1.8.7.1: section renamed to "Targets".
+    expect(html).toContain("Targets");
     expect(html).toContain('data-testid="thresholds-editor"');
-    expect(html).toContain('data-testid="sources-section"');
+    expect(html).not.toContain('data-testid="sources-section"');
     expect(html).not.toContain("settings.sections.thresholds.");
   });
 
-  it("<ThresholdsSection> resolves the German title (B6 rename + IW-D merge)", () => {
+  it("<ThresholdsSection> resolves the German title", () => {
     const html = render(<ThresholdsSection />, "de");
-    expect(html).toContain("Zielwerte &amp; Quellen");
+    // v1.8.7.1 — German title is "Zielwerte" (Targets only).
+    expect(html).toContain("Zielwerte");
     expect(html).toContain('data-testid="thresholds-editor"');
-    expect(html).toContain('data-testid="sources-section"');
+    expect(html).not.toContain('data-testid="sources-section"');
   });
 });
