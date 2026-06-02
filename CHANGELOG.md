@@ -17,6 +17,12 @@
 - **The Insights overview reads its metrics through a single request** instead of one per tile, so opening the page no longer fans out into a burst of concurrent reads.
 - **Score-band colours meet contrast on the light theme**, and the device-notification copy — including its medical disclaimer — is translated across every supported language.
 
+## [1.9.3] — 2026-06-02 — Medication card layout polish
+
+### Fixed
+
+- **The medication cards look right again.** A recent alignment change pushed each card's action buttons to the very bottom of the cell, which left an empty gap between a shorter card's content and its buttons when it sat next to a taller card in the grid. The buttons now sit directly under the card's content again; the cards still share a height and the dose rows still line up, without the gap.
+
 ## [1.9.2] — 2026-06-02 — Document the medication compliance endpoint
 
 ### Changed
