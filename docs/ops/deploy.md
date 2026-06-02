@@ -59,3 +59,20 @@ roll back:
    dev --create-only --name vX_Y_Z_rollback_<col>`), edit the SQL,
    commit, and re-deploy. Never `migrate resolve --rolled-back` against
    production unless you've taken a fresh `pg_dump` first.
+
+## Verify the served version
+
+The queued-deploy status is **not** the source of truth — the version
+`/api/version` actually answers is. A BuildKit layer-cache hit can
+re-ship the prior image even when Coolify reports a clean deploy, so
+always confirm the served build after a deploy:
+
+```sh
+# Asserts prod + demo serve 1.9.0, prints each target's buildSha,
+# exits non-zero on a mismatch or timeout after a bounded retry loop.
+pnpm dlx tsx scripts/assert-deploy.ts 1.9.0
+```
+
+Pass `--only=prod` / `--only=demo` to check a single target, or
+`--attempts=N --interval=ms` to widen the retry window while a slow
+pull settles.
