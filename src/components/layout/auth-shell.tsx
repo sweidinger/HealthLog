@@ -172,7 +172,16 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
           <TopBar />
           <main
             id="main-content"
-            className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0"
+            // `scrollbar-gutter: stable` keeps the scroll viewport's content
+            // box a fixed width whether or not the vertical scrollbar is
+            // painted. Without it a route / sub-tab whose body overflows
+            // (e.g. the admin "Insights Quality" section) shows the bar and
+            // narrows the content box, while a shorter one (e.g.
+            // "Integrations") hides it and widens the box — the `mx-auto`
+            // wrapper then recentres and the whole column, including the
+            // admin/settings sidebar, shifts a few px sideways on every
+            // toggle. Reserving the gutter holds the layout still.
+            className="flex-1 overflow-y-auto [scrollbar-gutter:stable] pb-[calc(4rem+env(safe-area-inset-bottom,0px))] md:pb-0"
           >
             {/*
               v1.4.33 IW9 — container normalised on `max-w-screen-xl`

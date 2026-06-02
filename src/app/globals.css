@@ -252,6 +252,19 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /*
+   * Reserve the scrollbar gutter on the document root so the body-scrolled
+   * shells (login / register / onboarding / standalone legal pages) keep a
+   * fixed content width whether or not the page overflows. Without it a tall
+   * page paints the bar and a short one hides it, and any `mx-auto` content
+   * recentres a few px sideways on navigation. The authenticated app shell
+   * scrolls inside its own `<main>` (`flex h-dvh` locks the body height, so
+   * the document never scrolls there) and reserves its own gutter — no
+   * double gutter results.
+   */
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground;
   }
