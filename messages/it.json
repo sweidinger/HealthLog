@@ -2511,6 +2511,40 @@
           "overweight": "Sovrappeso (OMS)",
           "obese": "Obesità (OMS)"
         }
+      },
+      "anatomy": {
+        "outOf": "/100",
+        "contributorsLabel": "Fattori",
+        "contributorValue": "{value} · {weight}% di peso",
+        "contributorMissing": "nessun dato",
+        "disclaimer": "Indicativo — non è una valutazione clinica.",
+        "insufficient": "Dati ancora insufficienti per assegnare un punteggio. Continua a registrare e comparirà qui."
+      },
+      "composite": {
+        "SLEEP_SCORE": {
+          "title": "Punteggio del sonno",
+          "description": "Un punteggio di qualità del sonno trasparente con ogni sotto-punteggio mostrato.",
+          "method": "Una combinazione 0–100 di sufficienza (sonno vs il tuo bisogno in base all’età), efficienza (sonno ÷ tempo a letto), costanza (quanto è stabile il punto medio del tuo sonno), orario (vs il tuo punto medio abituale) e composizione (quota di REM + sonno profondo). I sotto-punteggi vengono ripesati attorno a quelli che i tuoi dati non possono supportare; nulla è inventato.",
+          "sub": {
+            "sufficiency": "Sufficienza",
+            "efficiency": "Efficienza",
+            "consistency": "Costanza",
+            "timing": "Orario",
+            "composition": "Composizione"
+          }
+        },
+        "READINESS": {
+          "title": "Prontezza",
+          "description": "Un indicatore quotidiano di benessere in base a come i tuoi segnali si collocano rispetto alla tua baseline.",
+          "method": "Una combinazione 0–100 di deviazione della frequenza cardiaca a riposo, deviazione della HRV (SDNN), qualità del sonno, stabilità della frequenza respiratoria e stabilità dell’umore — ciascuna misurata rispetto alla tua baseline personale. I pesi vengono rinormalizzati sui componenti supportati dai tuoi dati. Un indicatore di benessere, non un punteggio di recupero né clinico.",
+          "component": {
+            "rhr": "Frequenza cardiaca a riposo",
+            "hrv": "HRV (SDNN)",
+            "sleep": "Sonno",
+            "respiratory": "Frequenza respiratoria",
+            "mood": "Stabilità dell’umore"
+          }
+        }
       }
     }
   },

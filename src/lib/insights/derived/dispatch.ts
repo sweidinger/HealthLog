@@ -26,6 +26,9 @@ import { computeFitnessAge } from "./fitness-age";
 import { computeVascularAgeDelta } from "./vascular-age";
 import { computeHrvBalance } from "./hrv-balance";
 import { computeBmi } from "./bmi";
+import { computeSleepScore } from "./sleep-score";
+import { computeReadiness } from "./readiness";
+import { computeCoincidentDeviation } from "./coincident-deviation";
 import type { Derived } from "./types";
 
 export interface DerivedComputeArgs {
@@ -121,6 +124,18 @@ export async function computeDerivedMetric(
       }) as Promise<Derived<unknown>>;
     case "BMI":
       return computeBmi(args.userId, args.profile, {
+    case "SLEEP_SCORE":
+      return computeSleepScore(args.userId, args.profile, {
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
+    case "READINESS":
+      return computeReadiness(args.userId, args.profile, {
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
+    case "COINCIDENT_DEVIATION":
+      return computeCoincidentDeviation(args.userId, args.profile, {
         windowDays: args.windowDays,
         now,
       }) as Promise<Derived<unknown>>;

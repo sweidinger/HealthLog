@@ -2511,6 +2511,40 @@
           "overweight": "Overweight (WHO)",
           "obese": "Obese (WHO)"
         }
+      },
+      "anatomy": {
+        "outOf": "/100",
+        "contributorsLabel": "Contributors",
+        "contributorValue": "{value} · {weight}% weight",
+        "contributorMissing": "no data",
+        "disclaimer": "Indicative — not a clinical assessment.",
+        "insufficient": "Not enough data yet to score this. Keep tracking and it will appear here."
+      },
+      "composite": {
+        "SLEEP_SCORE": {
+          "title": "Sleep score",
+          "description": "A transparent sleep-quality score with every sub-score shown.",
+          "method": "A 0–100 blend of sufficiency (asleep vs your age-based need), efficiency (asleep ÷ in-bed), consistency (how steady your sleep midpoint is), timing (vs your habitual midpoint) and composition (REM + deep share). Sub-scores reweight around any that your data cannot support; nothing is fabricated.",
+          "sub": {
+            "sufficiency": "Sufficiency",
+            "efficiency": "Efficiency",
+            "consistency": "Consistency",
+            "timing": "Timing",
+            "composition": "Composition"
+          }
+        },
+        "READINESS": {
+          "title": "Readiness",
+          "description": "A daily wellness proxy from how your signals sit against your own baseline.",
+          "method": "A 0–100 blend of resting-HR deviation, HRV (SDNN) deviation, sleep adequacy, respiratory-rate stability and mood stability — each measured against your personal baseline. Weights renormalise over the components your data supports. A wellness proxy, not a recovery or clinical score.",
+          "component": {
+            "rhr": "Resting heart rate",
+            "hrv": "HRV (SDNN)",
+            "sleep": "Sleep",
+            "respiratory": "Respiratory rate",
+            "mood": "Mood stability"
+          }
+        }
       }
     }
   },

@@ -143,6 +143,24 @@ export const queryKeys = {
    */
   insightsDerived: (metric: string, type?: string | null) =>
     ["insights", "derived", metric, type ?? null] as const,
+   * v1.10.0 — a derived wellness metric (`/api/insights/derived?metric=…`).
+   * One generic route backs every derived composite (sleep score,
+   * readiness, coincident-deviation, vitals baseline, …) so the key is
+   * parameterised by the metric id alongside the optional sub-type. Pure
+   * compute over the rollup tier — a measurement write keeps it fresh by
+   * construction (next read sees new buckets), so the `["insights"]` prefix
+   * is enough for invalidation fan-out.
+   */
+  insightsDerivedMetric: (metric: string, type?: string) =>
+    type
+      ? (["insights", "derived", metric, type] as const)
+      : (["insights", "derived", metric] as const),
+  /**
+   * v1.10.0 — FDR-controlled correlation discovery
+   * (`/api/insights/correlations`). Read-only descriptive surface; the
+   * `["insights"]` prefix keeps it in the existing invalidation fan-out.
+   */
+  insightsCorrelations: () => ["insights", "correlations"] as const,
 
   medications: () => ["medications"] as const,
   medicationDetail: (id: string) => ["medications", id] as const,

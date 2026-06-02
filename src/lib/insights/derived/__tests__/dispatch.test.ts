@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({
-  prisma: { measurement: { findMany: vi.fn().mockResolvedValue([]) } },
+  prisma: {
+    measurement: { findMany: vi.fn().mockResolvedValue([]) },
+    moodEntry: { findMany: vi.fn().mockResolvedValue([]) },
+  },
 }));
 vi.mock("@/lib/rollups/measurement-coverage", () => ({
   probeRollupCoverage: vi.fn().mockResolvedValue(new Map()),
@@ -33,6 +36,13 @@ describe("registry", () => {
     // Composites still land in W3.
     expect(getDerivedMetricMeta("READINESS")?.implemented).toBe(false);
     expect(getDerivedMetricMeta("COINCIDENT_DEVIATION")?.implemented).toBe(false);
+  it("exposes the flagship + W3 composites as implemented; the passthroughs stay stubs", () => {
+    expect(getDerivedMetricMeta("VITALS_BASELINE")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("SLEEP_SCORE")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("READINESS")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("COINCIDENT_DEVIATION")?.implemented).toBe(true);
+    // FITNESS_AGE + VASCULAR_AGE_DELTA land in a sibling wave.
+    expect(getDerivedMetricMeta("FITNESS_AGE")?.implemented).toBe(false);
   });
 
   it("isDerivedMetricId rejects unknown ids", () => {
@@ -68,7 +78,7 @@ describe("computeDerivedMetric dispatch", () => {
 
   it("returns not_implemented for a stubbed metric (never a 500)", async () => {
     const result = await computeDerivedMetric({
-      metric: "READINESS",
+      metric: "FITNESS_AGE",
       userId: "u1",
       profile: PROFILE,
       now: NOW,
@@ -76,6 +86,45 @@ describe("computeDerivedMetric dispatch", () => {
     expect(result.status).toBe("insufficient");
     if (result.status === "insufficient") {
       expect(result.reason).toBe("not_implemented");
+    }
+  });
+
+  it("routes READINESS to the engine (no data → insufficient, not not_implemented)", async () => {
+    const result = await computeDerivedMetric({
+      metric: "READINESS",
+      userId: "u1",
+      profile: PROFILE,
+      now: NOW,
+    });
+    expect(result.status).toBe("insufficient");
+    if (result.status === "insufficient") {
+      expect(result.reason).toBe("insufficient_components");
+    }
+  });
+
+  it("routes SLEEP_SCORE to the engine (no sleep → insufficient)", async () => {
+    const result = await computeDerivedMetric({
+      metric: "SLEEP_SCORE",
+      userId: "u1",
+      profile: PROFILE,
+      now: NOW,
+    });
+    expect(result.status).toBe("insufficient");
+    if (result.status === "insufficient") {
+      expect(result.reason).toBe("no_sleep_in_window");
+    }
+  });
+
+  it("routes COINCIDENT_DEVIATION to the engine (no bands → insufficient)", async () => {
+    const result = await computeDerivedMetric({
+      metric: "COINCIDENT_DEVIATION",
+      userId: "u1",
+      profile: PROFILE,
+      now: NOW,
+    });
+    expect(result.status).toBe("insufficient");
+    if (result.status === "insufficient") {
+      expect(result.reason).toBe("too_few_banded_vitals");
     }
   });
 

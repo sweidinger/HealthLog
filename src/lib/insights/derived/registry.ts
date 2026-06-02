@@ -133,7 +133,7 @@ const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
     inputs: ["SLEEP_DURATION"],
     minHistoryDays: 1,
     minInputs: 1,
-    implemented: false,
+    implemented: true,
   },
   READINESS: {
     id: "READINESS",
@@ -148,7 +148,7 @@ const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
     ],
     minHistoryDays: 7,
     minInputs: 2,
-    implemented: false,
+    implemented: true,
   },
   COINCIDENT_DEVIATION: {
     id: "COINCIDENT_DEVIATION",
@@ -157,7 +157,7 @@ const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
     inputs: VITALS_BASELINE_TYPES,
     minHistoryDays: 7,
     minInputs: 2,
-    implemented: false,
+    implemented: true,
   },
   HRV_BALANCE: {
     id: "HRV_BALANCE",

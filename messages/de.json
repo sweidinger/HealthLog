@@ -2511,6 +2511,40 @@
           "overweight": "Übergewicht (WHO)",
           "obese": "Adipositas (WHO)"
         }
+      },
+      "anatomy": {
+        "outOf": "/100",
+        "contributorsLabel": "Faktoren",
+        "contributorValue": "{value} · {weight}% Gewicht",
+        "contributorMissing": "keine Daten",
+        "disclaimer": "Richtwert — keine klinische Bewertung.",
+        "insufficient": "Noch nicht genug Daten für eine Bewertung. Tracke weiter, dann erscheint sie hier."
+      },
+      "composite": {
+        "SLEEP_SCORE": {
+          "title": "Schlaf-Score",
+          "description": "Ein transparenter Schlafqualitäts-Score mit allen Teilwerten.",
+          "method": "Eine 0–100-Mischung aus Schlafmenge (Schlaf vs. altersbasierter Bedarf), Effizienz (Schlaf ÷ Bettzeit), Konstanz (wie stabil deine Schlafmitte ist), Timing (vs. deine gewohnte Schlafmitte) und Zusammensetzung (REM- + Tiefschlafanteil). Teilwerte werden umgewichtet, wenn deine Daten einen nicht stützen; nichts wird erfunden.",
+          "sub": {
+            "sufficiency": "Schlafmenge",
+            "efficiency": "Effizienz",
+            "consistency": "Konstanz",
+            "timing": "Timing",
+            "composition": "Zusammensetzung"
+          }
+        },
+        "READINESS": {
+          "title": "Bereitschaft",
+          "description": "Ein täglicher Wohlbefindens-Indikator daraus, wie deine Werte zu deiner eigenen Baseline stehen.",
+          "method": "Eine 0–100-Mischung aus Ruhepuls-Abweichung, HRV-(SDNN-)Abweichung, Schlaf, Atemfrequenz-Stabilität und Stimmungsstabilität — jeweils gegen deine persönliche Baseline gemessen. Gewichte werden über die von deinen Daten gestützten Komponenten neu verteilt. Ein Wohlbefindens-Indikator, kein Erholungs- oder klinischer Score.",
+          "component": {
+            "rhr": "Ruhepuls",
+            "hrv": "HRV (SDNN)",
+            "sleep": "Schlaf",
+            "respiratory": "Atemfrequenz",
+            "mood": "Stimmungsstabilität"
+          }
+        }
       }
     }
   },

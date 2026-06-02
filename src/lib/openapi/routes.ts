@@ -1385,6 +1385,47 @@ const derivedMetricResponse = z
       "Flat `Derived<T>` envelope for one derived wellness metric. Pure compute over the rollup tier (no LLM, no narrative). iOS decodes one stable shape and combines values across metrics; coverage/confidence/provenance let it render the same honesty chips.",
   });
 
+// v1.10.0 — FDR-controlled correlation discovery result. One discovered,
+// statistically-defensible behaviour → next-day-outcome pair.
+const discoveredCorrelation = z
+  .object({
+    behaviour: z
+      .string()
+      .describe("Behaviour channel (lag source), e.g. TIME_IN_DAYLIGHT, MOOD."),
+    outcome: z
+      .string()
+      .describe("Outcome channel (lag target), e.g. SLEEP_DURATION, HEART_RATE_VARIABILITY."),
+    n: z.number().int().describe("Paired-day count after the day+1 lag join (≥ 20)."),
+    r: z.number().describe("Pearson r over the lag-joined daily series."),
+    pValue: z.number().describe("Two-sided exact Student-t p-value (< 0.05)."),
+    qValue: z
+      .number()
+      .describe("Benjamini-Hochberg FDR-adjusted q-value (≤ the surface threshold)."),
+    interpretation: z
+      .string()
+      .describe("Conservative, descriptive interpretation — never causal."),
+    lagDays: z.number().int().describe("Lag in days applied (1)."),
+  })
+  .meta({ id: "DiscoveredCorrelation" });
+
+const correlationDiscoveryResponse = z
+  .object({
+    discovered: z
+      .array(discoveredCorrelation)
+      .describe("Pairs surviving n ≥ 20, p < 0.05, AND the BH-FDR control."),
+    pairsTested: z
+      .number()
+      .int()
+      .describe("Behaviour × outcome pairs assessed (for the honest footer)."),
+    fdrQ: z.number().describe("The FDR target the surface used."),
+    minPairs: z.number().int().describe("Minimum paired-day count enforced per pair."),
+  })
+  .meta({
+    id: "CorrelationDiscoveryResponse",
+    description:
+      "v1.10.0 — FDR-controlled correlation discovery over a curated behaviour × outcome matrix, lagged behaviour → next-day outcome. Only statistically-defensible pairs surface; descriptive, never causal.",
+  });
+
 // The seven specialised `*-status` routes accept an optional locale
 // override (the metric is fixed by the route path, unlike the generic
 // metric-status route which carries it as a query field).
@@ -3120,6 +3161,28 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 derivedMetricResponse,
                 "DerivedMetricResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/correlations": {
+    get: {
+      tags: ["Insights"],
+      summary: "Correlation discovery (FDR-controlled)",
+      description:
+        "v1.10.0 — scans a curated behaviour × outcome matrix (daylight / mood / glucose / BP / steps × sleep / HRV / resting HR / weight), lag-joins each behaviour day to the next day's outcome, runs Pearson with the exact Student-t p-value, and applies Benjamini-Hochberg FDR control across every tested pair. Only statistically-defensible pairs surface, each carrying n, r, p, and the BH-adjusted q. Descriptive, never causal. Gated by the operator `correlations` assistant surface. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description: "The discovered correlations + the tested-pair count.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                correlationDiscoveryResponse,
+                "CorrelationDiscoveryResponseEnvelope",
               ),
             },
           },

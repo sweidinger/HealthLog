@@ -2511,6 +2511,40 @@
           "overweight": "Surpoids (OMS)",
           "obese": "Obésité (OMS)"
         }
+      },
+      "anatomy": {
+        "outOf": "/100",
+        "contributorsLabel": "Facteurs",
+        "contributorValue": "{value} · {weight}% du poids",
+        "contributorMissing": "aucune donnée",
+        "disclaimer": "Indicatif — pas une évaluation clinique.",
+        "insufficient": "Pas encore assez de données pour l’évaluer. Continuez à enregistrer et cela apparaîtra ici."
+      },
+      "composite": {
+        "SLEEP_SCORE": {
+          "title": "Score de sommeil",
+          "description": "Un score de qualité du sommeil transparent avec chaque sous-score affiché.",
+          "method": "Un mélange de 0–100 entre suffisance (sommeil vs votre besoin selon l’âge), efficacité (sommeil ÷ temps au lit), régularité (stabilité de votre milieu de sommeil), timing (vs votre milieu habituel) et composition (part de REM + sommeil profond). Les sous-scores sont repondérés autour de ceux que vos données ne peuvent pas étayer ; rien n’est inventé.",
+          "sub": {
+            "sufficiency": "Suffisance",
+            "efficiency": "Efficacité",
+            "consistency": "Régularité",
+            "timing": "Timing",
+            "composition": "Composition"
+          }
+        },
+        "READINESS": {
+          "title": "Disponibilité",
+          "description": "Un indicateur quotidien de bien-être selon la position de vos signaux par rapport à votre propre référence.",
+          "method": "Un mélange de 0–100 entre l’écart de la fréquence cardiaque au repos, l’écart de la VFC (SDNN), la qualité du sommeil, la stabilité de la fréquence respiratoire et la stabilité de l’humeur — chacun mesuré par rapport à votre référence personnelle. Les poids sont renormalisés sur les composantes que vos données étayent. Un indicateur de bien-être, pas un score de récupération ni clinique.",
+          "component": {
+            "rhr": "Fréquence cardiaque au repos",
+            "hrv": "VFC (SDNN)",
+            "sleep": "Sommeil",
+            "respiratory": "Fréquence respiratoire",
+            "mood": "Stabilité de l’humeur"
+          }
+        }
       }
     }
   },

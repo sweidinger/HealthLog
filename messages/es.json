@@ -2511,6 +2511,40 @@
           "overweight": "Sobrepeso (OMS)",
           "obese": "Obesidad (OMS)"
         }
+      },
+      "anatomy": {
+        "outOf": "/100",
+        "contributorsLabel": "Factores",
+        "contributorValue": "{value} · {weight}% de peso",
+        "contributorMissing": "sin datos",
+        "disclaimer": "Indicativo — no es una evaluación clínica.",
+        "insufficient": "Aún no hay datos suficientes para puntuarlo. Sigue registrando y aparecerá aquí."
+      },
+      "composite": {
+        "SLEEP_SCORE": {
+          "title": "Puntuación de sueño",
+          "description": "Una puntuación de calidad del sueño transparente con todos sus subvalores.",
+          "method": "Una mezcla de 0–100 de suficiencia (sueño frente a tu necesidad por edad), eficiencia (sueño ÷ tiempo en cama), consistencia (qué tan estable es tu punto medio de sueño), horario (frente a tu punto medio habitual) y composición (proporción de REM + sueño profundo). Los subvalores se reponderan en torno a los que tus datos no pueden sustentar; nada se inventa.",
+          "sub": {
+            "sufficiency": "Suficiencia",
+            "efficiency": "Eficiencia",
+            "consistency": "Consistencia",
+            "timing": "Horario",
+            "composition": "Composición"
+          }
+        },
+        "READINESS": {
+          "title": "Disposición",
+          "description": "Un indicador diario de bienestar según cómo se sitúan tus señales frente a tu propia base.",
+          "method": "Una mezcla de 0–100 de desviación de la frecuencia cardíaca en reposo, desviación de la VFC (SDNN), calidad del sueño, estabilidad de la frecuencia respiratoria y estabilidad del estado de ánimo — cada una medida frente a tu base personal. Los pesos se renormalizan según los componentes que tus datos sustentan. Un indicador de bienestar, no una puntuación de recuperación ni clínica.",
+          "component": {
+            "rhr": "Frecuencia cardíaca en reposo",
+            "hrv": "VFC (SDNN)",
+            "sleep": "Sueño",
+            "respiratory": "Frecuencia respiratoria",
+            "mood": "Estabilidad del ánimo"
+          }
+        }
       }
     }
   },

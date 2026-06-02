@@ -84,3 +84,49 @@ export type { HrvBalanceValue, HrvBalanceBand } from "./hrv-balance";
 
 export { computeBmi, classifyBmi } from "./bmi";
 export type { BmiValue, BmiBand, BmiCategory } from "./bmi";
+// ── W3 composites (server-only compute engines) ──────────────────────
+export {
+  computeSleepScore,
+  blendSleepSubScores,
+  reconstructNights,
+  sleepNeedMinutes,
+  scoreSufficiency,
+  scoreEfficiency,
+  scoreComposition,
+  scoreConsistency,
+  scoreTiming,
+  SLEEP_SUBSCORE_WEIGHTS,
+} from "./sleep-score";
+export type {
+  SleepScoreValue,
+  SleepScoreOpts,
+  SleepSubScore,
+  SleepSubScoreKey,
+  NightSummary,
+} from "./sleep-score";
+
+export {
+  computeReadiness,
+  blendReadinessComponents,
+  scoreDeviation,
+  READINESS_WEIGHTS,
+  READINESS_MIN_COMPONENTS,
+} from "./readiness";
+export type {
+  ReadinessValue,
+  ReadinessOpts,
+  ReadinessComponent,
+  ReadinessComponentKey,
+} from "./readiness";
+
+export {
+  computeCoincidentDeviation,
+  classifyDeviation,
+  COINCIDENT_FIRE_THRESHOLD,
+  COINCIDENT_MIN_BANDS,
+} from "./coincident-deviation";
+export type {
+  CoincidentDeviationValue,
+  CoincidentDeviationOpts,
+  VitalDeviation,
+} from "./coincident-deviation";

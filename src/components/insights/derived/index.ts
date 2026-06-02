@@ -19,6 +19,11 @@ export {
   type ProvenanceStandard,
 } from "./provenance-explainer";
 export {
+  ScoreAnatomyView,
+  type ScoreAnatomyViewProps,
+  type AnatomyContributor,
+} from "./score-anatomy-view";
+export {
   bandForScore,
   clampScore,
   BAND_NUMBER_CLASS,

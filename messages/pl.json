@@ -2511,6 +2511,40 @@
           "overweight": "Nadwaga (WHO)",
           "obese": "Otyłość (WHO)"
         }
+      },
+      "anatomy": {
+        "outOf": "/100",
+        "contributorsLabel": "Czynniki",
+        "contributorValue": "{value} · {weight}% wagi",
+        "contributorMissing": "brak danych",
+        "disclaimer": "Orientacyjne — to nie ocena kliniczna.",
+        "insufficient": "Za mało danych, by to ocenić. Rejestruj dalej, a wynik pojawi się tutaj."
+      },
+      "composite": {
+        "SLEEP_SCORE": {
+          "title": "Wynik snu",
+          "description": "Przejrzysty wynik jakości snu z każdym podwynikiem.",
+          "method": "Mieszanka 0–100 z wystarczalności (sen vs zapotrzebowanie według wieku), wydajności (sen ÷ czas w łóżku), regularności (jak stabilny jest środek twojego snu), pory (vs twój zwykły środek snu) i struktury (udział REM + snu głębokiego). Podwyniki są ważone na nowo wokół tych, których dane nie wspierają; nic nie jest zmyślane.",
+          "sub": {
+            "sufficiency": "Wystarczalność",
+            "efficiency": "Wydajność",
+            "consistency": "Regularność",
+            "timing": "Pora",
+            "composition": "Struktura"
+          }
+        },
+        "READINESS": {
+          "title": "Gotowość",
+          "description": "Codzienny wskaźnik samopoczucia oparty na tym, jak twoje sygnały wypadają względem twojej własnej bazy.",
+          "method": "Mieszanka 0–100 z odchylenia tętna spoczynkowego, odchylenia HRV (SDNN), jakości snu, stabilności częstości oddechu i stabilności nastroju — każde mierzone względem twojej osobistej bazy. Wagi są renormalizowane na komponentach wspieranych przez twoje dane. Wskaźnik samopoczucia, nie wynik regeneracji ani kliniczny.",
+          "component": {
+            "rhr": "Tętno spoczynkowe",
+            "hrv": "HRV (SDNN)",
+            "sleep": "Sen",
+            "respiratory": "Częstość oddechu",
+            "mood": "Stabilność nastroju"
+          }
+        }
       }
     }
   },

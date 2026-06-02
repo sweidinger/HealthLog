@@ -5,6 +5,9 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     auditLog: { create: vi.fn() },
     appSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+    user: { findUnique: vi.fn().mockResolvedValue({ timezone: "Europe/Berlin" }) },
+    measurement: { findMany: vi.fn().mockResolvedValue([]) },
+    moodEntry: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -31,7 +34,6 @@ vi.mock("next/headers", () => ({
 
 import { GET } from "../route";
 import { getSession } from "@/lib/auth/session";
-import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
 
 const SESSION_OK = {
@@ -47,6 +49,16 @@ beforeEach(() => {
   (prisma.appSettings.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue(
     null,
   );
+  // v1.10.0 — the discovery engine reads the profile timezone + the
+  // measurement / mood series. Default to an empty corpus so the engine
+  // returns no discovered pairs (the n ≥ 20 gate trivially fails).
+  (prisma.user.findUnique as ReturnType<typeof vi.fn>).mockResolvedValue({
+    timezone: "Europe/Berlin",
+  });
+  (prisma.measurement.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(
+    [],
+  );
+  (prisma.moodEntry.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 });
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;
@@ -61,21 +73,16 @@ describe("GET /api/insights/correlations", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns an empty array as the placeholder", async () => {
+  it("returns the discovery result shape (no pairs on an empty corpus)", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     const res = await callGet(makeReq());
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: unknown[] };
-    expect(body.data).toEqual([]);
-  });
-
-  it("writes the empty-state audit log", async () => {
-    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    await callGet(makeReq());
-    expect(auditLog).toHaveBeenCalledWith(
-      "insights.correlations.empty",
-      expect.objectContaining({ userId: "user-1" }),
-    );
+    const body = (await res.json()) as {
+      data: { discovered: unknown[]; pairsTested: number; fdrQ: number };
+    };
+    expect(body.data.discovered).toEqual([]);
+    expect(body.data.pairsTested).toBe(0);
+    expect(body.data.fdrQ).toBeGreaterThan(0);
   });
 
   it("returns 403 + errorCode when the correlations flag is off", async () => {

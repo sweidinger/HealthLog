@@ -2371,6 +2371,26 @@ paths:
         "401": *a1
         "422": *a2
         "429": *a3
+  /api/insights/correlations:
+    get:
+      tags:
+        - Insights
+      summary: Correlation discovery (FDR-controlled)
+      description: v1.10.0 — scans a curated behaviour × outcome matrix (daylight / mood / glucose / BP / steps × sleep / HRV
+        / resting HR / weight), lag-joins each behaviour day to the next day's outcome, runs Pearson with the exact
+        Student-t p-value, and applies Benjamini-Hochberg FDR control across every tested pair. Only
+        statistically-defensible pairs surface, each carrying n, r, p, and the BH-adjusted q. Descriptive, never causal.
+        Gated by the operator `correlations` assistant surface. Auth via cookie or Bearer.
+      responses:
+        "200":
+          description: The discovered correlations + the tested-pair count.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CorrelationDiscoveryResponseEnvelope"
+        "401": *a1
+        "422": *a2
+        "429": *a3
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -7460,6 +7480,93 @@ components:
         - source
         - windowDays
         - computedAt
+      additionalProperties: false
+    CorrelationDiscoveryResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CorrelationDiscoveryResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CorrelationDiscoveryResponse:
+      type: object
+      properties:
+        discovered:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveredCorrelation"
+          description: Pairs surviving n ≥ 20, p < 0.05, AND the BH-FDR control.
+        pairsTested:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Behaviour × outcome pairs assessed (for the honest footer).
+        fdrQ:
+          type: number
+          description: The FDR target the surface used.
+        minPairs:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Minimum paired-day count enforced per pair.
+      required:
+        - discovered
+        - pairsTested
+        - fdrQ
+        - minPairs
+      additionalProperties: false
+      description: v1.10.0 — FDR-controlled correlation discovery over a curated behaviour × outcome matrix, lagged behaviour
+        → next-day outcome. Only statistically-defensible pairs surface; descriptive, never causal.
+    DiscoveredCorrelation:
+      type: object
+      properties:
+        behaviour:
+          type: string
+          description: Behaviour channel (lag source), e.g. TIME_IN_DAYLIGHT, MOOD.
+        outcome:
+          type: string
+          description: Outcome channel (lag target), e.g. SLEEP_DURATION, HEART_RATE_VARIABILITY.
+        n:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Paired-day count after the day+1 lag join (≥ 20).
+        r:
+          type: number
+          description: Pearson r over the lag-joined daily series.
+        pValue:
+          type: number
+          description: Two-sided exact Student-t p-value (< 0.05).
+        qValue:
+          type: number
+          description: Benjamini-Hochberg FDR-adjusted q-value (≤ the surface threshold).
+        interpretation:
+          type: string
+          description: Conservative, descriptive interpretation — never causal.
+        lagDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Lag in days applied (1).
+      required:
+        - behaviour
+        - outcome
+        - n
+        - r
+        - pValue
+        - qValue
+        - interpretation
+        - lagDays
       additionalProperties: false
     MedicationScheduleOutput:
       type: object
