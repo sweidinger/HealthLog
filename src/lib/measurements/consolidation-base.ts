@@ -19,10 +19,12 @@
  * supplies its reducer/types and keeps its own public summary shape.
  *
  * The timezone day-math helpers (`dayKeyForUserTz`,
- * `canonicalDailyTimestamp`, `localStartOfDay`, `localDayWindow`) live in
- * `drain-per-sample-cumulative.ts` and are imported here to avoid a
- * cyclic dependency — that module is the historical home the other two
- * already import them from.
+ * `canonicalDailyTimestamp`, `localStartOfDay`, `localDayWindow`), the
+ * `PerSampleRow` shape, and `CONSOLIDATION_GRACE_CUTOFF_HOURS` all live
+ * in the dependency-free leaf `consolidation-tz.ts`. Both this module
+ * and `drain-per-sample-cumulative.ts` import them from there, so there
+ * is no value-level cycle between the two — a cycle would otherwise trip
+ * a module-init TDZ in the production bundle.
  */
 import type {
   MeasurementType,
@@ -31,19 +33,15 @@ import type {
 } from "@/generated/prisma/client";
 
 import {
+  CONSOLIDATION_GRACE_CUTOFF_HOURS,
   canonicalDailyTimestamp,
   dayKeyForUserTz,
   type PerSampleRow,
-} from "./drain-per-sample-cumulative";
+} from "./consolidation-tz";
 
-/**
- * Canonical grace window shared by the cumulative + mean drains. Rows
- * whose `measuredAt` is newer than `now() - CONSOLIDATION_GRACE_CUTOFF_HOURS`
- * stay raw so today's still-in-flight watch syncs surface in the live
- * "today" view. 36 hours covers the previous calendar day plus a
- * trailing sync window for watches that weren't worn at midnight.
- */
-export const CONSOLIDATION_GRACE_CUTOFF_HOURS = 36;
+// Re-export the shared grace constant so the established
+// `consolidation-base` import surface stays unchanged for callers.
+export { CONSOLIDATION_GRACE_CUTOFF_HOURS };
 
 /** Fallback timezone for users with no `User.timezone` set. */
 const DEFAULT_TIMEZONE = "Europe/Berlin";
