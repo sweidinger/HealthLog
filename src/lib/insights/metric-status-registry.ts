@@ -36,7 +36,6 @@
  * collect.
  */
 import type { MeasurementType } from "@/generated/prisma/client";
-import type { InsightMetric } from "@/lib/insights/metric-availability";
 
 /** The five shared archetypes plus the dedicated sleep template. */
 export type MetricArchetype =
@@ -434,18 +433,4 @@ export function metricStatusScope(
   metric: MetricStatusMetricId,
 ): `metric:${MetricStatusMetricId}` {
   return `metric:${metric}`;
-}
-
-/**
- * Map a generic metric id to its `InsightMetric` key so the shared
- * `hasMetricData` gate can answer the data-availability question with no
- * new branch. The two vocabularies line up one-to-one for every
- * registered metric except `STEPS` / `ACTIVE_ENERGY`, whose
- * `InsightMetric` keys match the id directly (the divergence is only at
- * the `MeasurementType` layer, which `hasMetricData` does not consult).
- */
-export function metricStatusInsightKey(
-  metric: MetricStatusMetricId,
-): InsightMetric {
-  return metric as InsightMetric;
 }
