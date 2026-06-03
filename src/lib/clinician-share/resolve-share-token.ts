@@ -1,0 +1,119 @@
+/**
+ * v1.11.0 — clinician share-token resolver (Epic C, C3 — the security core).
+ *
+ * The ONE entry that turns a raw `hls_` share token into a scoped read context.
+ * It is deliberately NOT an authentication primitive:
+ *
+ *   - It returns a {@link ShareContext} that carries ONLY the owner `userId`
+ *     (plus the frozen scope). It is NOT an `AuthContext`/session and can never
+ *     stand in for one.
+ *   - It never calls `getSession` / `authenticateBearer` and never sets a
+ *     cookie. A share token can authenticate exactly one surface — the public
+ *     clinician view (`/c/[token]`) and, when enabled, its scoped FHIR face —
+ *     and nothing else.
+ *   - The token arrives ONLY via the `X-HealthLog-Share` request header. It is
+ *     never read from `Authorization: Bearer`; presenting it on a normal authed
+ *     route does nothing (that route's `requireAuth` ignores this header).
+ *
+ * Resolution is blunt on failure: an unknown / revoked / expired / malformed
+ * token resolves to `null`, and the caller answers a flat 404 so a probe cannot
+ * distinguish "no such link" from "revoked" from "expired" — share-link ids are
+ * unguessable and enumeration buys nothing.
+ *
+ * On a successful resolve the access counters (`accessCount`, `lastAccessAt`)
+ * are bumped fire-and-forget; a counter write never blocks or fails the read.
+ */
+import { hashToken } from "@/lib/auth/hmac";
+import { prisma } from "@/lib/db";
+
+/** The `hls_<48 hex>` shape the lifecycle route mints (192-bit body). */
+const SHARE_TOKEN_PATTERN = /^hls_[0-9a-f]{48}$/;
+
+/**
+ * The scoped read context a resolved share token yields. It is intentionally a
+ * distinct, minimal type — NOT an `AuthContext` — so it cannot be passed where
+ * a session is expected. It carries only what the data aggregator needs to
+ * scope a read to the owner, plus the frozen sharing scope the view honours.
+ */
+export interface ShareContext {
+  /** The share-link row id (for audit / annotate; never user-facing). */
+  shareLinkId: string;
+  /** The OWNER whose data this link exposes — the only identity it carries. */
+  ownerUserId: string;
+  /** Owner-set label (e.g. a clinic note). Plaintext, bounded. */
+  label: string;
+  /** Frozen reporting-window start (absolute ISO instant). */
+  rangeStart: Date;
+  /** Window end; `null` = rolling ("up to now"). */
+  rangeEnd: Date | null;
+  /** Frozen section toggles (the `DoctorReportPrefs` JSON shape). */
+  sectionsJson: unknown;
+  /** FHIR resource types this link may serve (a subset of the catalogue). */
+  resourceTypes: string[];
+  /** Whether the scoped FHIR API is reachable via this link at all. */
+  allowFhirApi: boolean;
+  /** Absolute expiry instant. */
+  expiresAt: Date;
+}
+
+/**
+ * Resolve a raw `hls_` token to a {@link ShareContext}, or `null` when the
+ * token is malformed, unknown, revoked, or expired.
+ *
+ * This is the single trust boundary for the share surface. It never reads or
+ * writes a session and never mints a cookie; it only proves "this raw token
+ * hashes to a live, in-window share link" and returns the owner scope.
+ */
+export async function resolveShareToken(
+  rawToken: string | null | undefined,
+): Promise<ShareContext | null> {
+  if (!rawToken || !SHARE_TOKEN_PATTERN.test(rawToken)) return null;
+
+  // Hash with the same HMAC scheme the lifecycle route stored — never compare
+  // plaintext. A non-matching hash simply finds no row.
+  const tokenHash = hashToken(rawToken);
+
+  const row = await prisma.clinicianShareLink.findUnique({
+    where: { tokenHash },
+    select: {
+      id: true,
+      userId: true,
+      label: true,
+      rangeStart: true,
+      rangeEnd: true,
+      sectionsJson: true,
+      resourceTypes: true,
+      allowFhirApi: true,
+      expiresAt: true,
+      revokedAt: true,
+    },
+  });
+
+  if (!row) return null;
+  // Revoked and expired both collapse to the same blunt null → 404.
+  if (row.revokedAt !== null) return null;
+  if (row.expiresAt.getTime() <= Date.now()) return null;
+
+  // Fire-and-forget access bump — a counter write must never block or fail the
+  // read. (`void` the promise; swallow any error.)
+  void prisma.clinicianShareLink
+    .update({
+      where: { id: row.id },
+      data: { accessCount: { increment: 1 }, lastAccessAt: new Date() },
+    })
+    .catch(() => {
+      /* counter is best-effort; never surface a write failure to the reader */
+    });
+
+  return {
+    shareLinkId: row.id,
+    ownerUserId: row.userId,
+    label: row.label,
+    rangeStart: row.rangeStart,
+    rangeEnd: row.rangeEnd,
+    sectionsJson: row.sectionsJson,
+    resourceTypes: row.resourceTypes,
+    allowFhirApi: row.allowFhirApi,
+    expiresAt: row.expiresAt,
+  };
+}
