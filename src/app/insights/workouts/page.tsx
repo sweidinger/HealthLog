@@ -37,6 +37,9 @@ export default function InsightsWorkoutsPage() {
       explainerMetric="workouts"
       coachLaunch
     >
+      {/* No `<MetricRangeControls>` here: workouts are session records, not a
+          MeasurementType series, so the period-over-period range read has
+          nothing to aggregate. */}
       {isLoading ? (
         <div data-slot="workouts-loading" className="space-y-2">
           <Skeleton className="h-14 w-full rounded-lg" />
