@@ -39,11 +39,9 @@ export type { DeriveCoverageArgs } from "./coverage";
 export {
   DERIVED_METRIC_IDS,
   VITALS_BASELINE_TYPES,
-  BASELINE_CAPABLE_TYPES,
   isDerivedMetricId,
   getDerivedMetricMeta,
   isVitalsBaselineType,
-  isBaselineCapableType,
 } from "./registry";
 export type {
   DerivedMetricId,

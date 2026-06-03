@@ -124,25 +124,6 @@ export const VITALS_BASELINE_TYPES: MeasurementType[] = [
   "WEIGHT",
 ];
 
-/**
- * The full set of measurement types the type-generic baseline engine
- * (`computeVitalsBaseline`, median ± k·MAD) can produce a personal band
- * for. A superset of `VITALS_BASELINE_TYPES`: it adds the v1.10.3
- * additive HealthKit signals that get an `any-user-baseline` derived
- * metric of their own (wrist temperature as a personal-deviation band;
- * stair ascent/descent speed as a personal trend band — NO population
- * cutoff, since stair pace is geometry-confounded). The engine is
- * type-generic; this allowlist is the gate, kept distinct from
- * `VITALS_BASELINE_TYPES` so a stair-speed baseline is never mislabelled a
- * "vital".
- */
-export const BASELINE_CAPABLE_TYPES: MeasurementType[] = [
-  ...VITALS_BASELINE_TYPES,
-  "WRIST_TEMPERATURE",
-  "STAIR_ASCENT_SPEED",
-  "STAIR_DESCENT_SPEED",
-];
-
 const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
   VITALS_BASELINE: {
     id: "VITALS_BASELINE",
@@ -305,9 +286,4 @@ export function getDerivedMetricMeta(
 /** `true` when the type is a vital the baseline engine supports. */
 export function isVitalsBaselineType(type: string): boolean {
   return (VITALS_BASELINE_TYPES as string[]).includes(type);
-}
-
-/** `true` when the type-generic baseline engine can band this type. */
-export function isBaselineCapableType(type: string): boolean {
-  return (BASELINE_CAPABLE_TYPES as string[]).includes(type);
 }
