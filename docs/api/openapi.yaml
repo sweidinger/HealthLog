@@ -209,6 +209,322 @@ paths:
         "401": *a1
         "422": *a2
         "429": *a3
+  /api/share-links:
+    post:
+      tags:
+        - Export
+      summary: Create a clinician share link (v1.11.0)
+      description: "Owner-only. Mints an `hls_` token (192-bit), stores only its HMAC hash, and returns the raw token EXACTLY
+        ONCE in the response. Every scope column (window, sections, FHIR resource types, API toggle) is frozen
+        write-once. `expiresAt` is required and capped at 90 days. Auth via cookie or Bearer; rate-limited
+        (`share-link:<userId>`, 20/h). Strict: unknown keys 422."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                rangeStart:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                rangeEnd:
+                  anyOf:
+                    - type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    - type: "null"
+                sections:
+                  type: object
+                  properties:
+                    vitals:
+                      type: object
+                      properties:
+                        weight:
+                          type: boolean
+                        bp:
+                          type: boolean
+                        pulse:
+                          type: boolean
+                        oxygenSaturation:
+                          type: boolean
+                        bodyFat:
+                          type: boolean
+                        bodyComposition:
+                          type: boolean
+                    cardioFitness:
+                      type: object
+                      properties:
+                        restingHeartRate:
+                          type: boolean
+                        hrv:
+                          type: boolean
+                        vo2max:
+                          type: boolean
+                    activity:
+                      type: object
+                      properties:
+                        steps:
+                          type: boolean
+                        distance:
+                          type: boolean
+                        energy:
+                          type: boolean
+                        sleep:
+                          type: boolean
+                    glucose:
+                      type: boolean
+                    medications:
+                      type: object
+                      properties:
+                        list:
+                          type: boolean
+                        compliance:
+                          type: boolean
+                        glp1:
+                          type: boolean
+                        sideEffects:
+                          type: boolean
+                    mood:
+                      type: boolean
+                    bmi:
+                      type: boolean
+                resourceTypes:
+                  maxItems: 8
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - Patient
+                      - Observation
+                      - MedicationStatement
+                      - MedicationAdministration
+                allowFhirApi:
+                  type: boolean
+                expiresAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              required:
+                - label
+                - rangeStart
+                - expiresAt
+              additionalProperties: false
+      responses:
+        "201":
+          description: Share link created. `token` carries the raw `hls_` value and is unrecoverable after this response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLinkCreated"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+    get:
+      tags:
+        - Export
+      summary: List own clinician share links (v1.11.0)
+      description: Owner-only. Returns the caller's own share links (never the raw token — it is unrecoverable after
+        creation). Auth via cookie or Bearer.
+      responses:
+        "200":
+          description: Share links owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLinkList"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/share-links/{id}:
+    delete:
+      tags:
+        - Export
+      summary: Revoke a clinician share link (v1.11.0)
+      description: Owner-only. Sets `revokedAt` on the caller's own link. A cross-user or unknown id is sealed as 404. Auth
+        via cookie or Bearer; rate-limited.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Link revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLinkRevoked"
+        "401": *a1
+        "404":
+          description: Link not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a2
+        "429": *a3
+  /api/fhir/metadata:
+    get:
+      tags:
+        - FHIR
+      summary: FHIR R4 CapabilityStatement (v1.11.0)
+      description: "Read-only FHIR R4 capability statement for the REST face. Declares the served resource types (Patient,
+        Observation, MedicationStatement, MedicationAdministration), the `$everything` operation, and the
+        `application/fhir+json` format. Auth: `fhir:read` scope (cookie sessions also pass)."
+      responses:
+        "200":
+          description: CapabilityStatement (application/fhir+json).
+          content:
+            application/fhir+json:
+              schema:
+                type: string
+                format: binary
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/fhir/Patient:
+    get:
+      tags:
+        - FHIR
+      summary: FHIR R4 Patient search (v1.11.0)
+      description: "Read-only `searchset` Bundle of the caller's own Patient resource. Auth: `fhir:read` scope. Offset paging
+        via `_count` (clamped ≤200) / `_offset`. `userId` is narrowed from auth."
+      parameters:
+        - in: query
+          name: _count
+          schema:
+            type: number
+        - in: query
+          name: _offset
+          schema:
+            type: number
+      responses:
+        "200":
+          description: searchset Bundle (application/fhir+json).
+          content:
+            application/fhir+json:
+              schema:
+                type: string
+                format: binary
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/fhir/Observation:
+    get:
+      tags:
+        - FHIR
+      summary: FHIR R4 Observation search (v1.11.0)
+      description: "Read-only `searchset` Bundle of the caller's own Observations (vitals / activity / lab / survey). Auth:
+        `fhir:read` scope. Offset paging via `_count` (clamped ≤200) / `_offset`."
+      parameters:
+        - in: query
+          name: _count
+          schema:
+            type: number
+        - in: query
+          name: _offset
+          schema:
+            type: number
+      responses:
+        "200":
+          description: searchset Bundle (application/fhir+json).
+          content:
+            application/fhir+json:
+              schema:
+                type: string
+                format: binary
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/fhir/MedicationStatement:
+    get:
+      tags:
+        - FHIR
+      summary: FHIR R4 MedicationStatement search (v1.11.0)
+      description: "Read-only `searchset` Bundle of the caller's own active-medication statements. Auth: `fhir:read` scope.
+        Offset paging via `_count` (≤200) / `_offset`."
+      parameters:
+        - in: query
+          name: _count
+          schema:
+            type: number
+        - in: query
+          name: _offset
+          schema:
+            type: number
+      responses:
+        "200":
+          description: searchset Bundle (application/fhir+json).
+          content:
+            application/fhir+json:
+              schema:
+                type: string
+                format: binary
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/fhir/MedicationAdministration:
+    get:
+      tags:
+        - FHIR
+      summary: FHIR R4 MedicationAdministration search (v1.11.0)
+      description: "Read-only `searchset` Bundle of the caller's own acted intakes (completed / not-done). Auth: `fhir:read`
+        scope. Offset paging via `_count` (≤200) / `_offset`."
+      parameters:
+        - in: query
+          name: _count
+          schema:
+            type: number
+        - in: query
+          name: _offset
+          schema:
+            type: number
+      responses:
+        "200":
+          description: searchset Bundle (application/fhir+json).
+          content:
+            application/fhir+json:
+              schema:
+                type: string
+                format: binary
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/fhir/$everything:
+    get:
+      tags:
+        - FHIR
+      summary: FHIR R4 $everything (v1.11.0)
+      description: "Read-only `$everything` operation: every resource in the caller's own record (Patient, Coverage,
+        Observations, MedicationStatements, MedicationAdministrations) in one `searchset` Bundle. Auth: `fhir:read`
+        scope. Offset paging via `_count` (≤200) / `_offset`."
+      parameters:
+        - in: query
+          name: _count
+          schema:
+            type: number
+        - in: query
+          name: _offset
+          schema:
+            type: number
+      responses:
+        "200":
+          description: searchset Bundle (application/fhir+json).
+          content:
+            application/fhir+json:
+              schema:
+                type: string
+                format: binary
+        "401": *a1
+        "422": *a2
+        "429": *a3
   /api/auth/login:
     post:
       tags:
@@ -3758,6 +4074,172 @@ components:
         - error
       additionalProperties: false
       description: "Standard error response: data is null, error is human prose."
+    ShareLinkCreated:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            label:
+              type: string
+            rangeStart:
+              type: string
+            rangeEnd:
+              anyOf:
+                - type: string
+                - type: "null"
+            resourceTypes:
+              type: array
+              items:
+                type: string
+            allowFhirApi:
+              type: boolean
+            expiresAt:
+              type: string
+            createdAt:
+              type: string
+            revokedAt:
+              anyOf:
+                - type: string
+                - type: "null"
+            lastAccessAt:
+              anyOf:
+                - type: string
+                - type: "null"
+            accessCount:
+              type: number
+            active:
+              type: boolean
+            token:
+              type: string
+              description: Raw `hls_` token — returned ONCE and unrecoverable thereafter.
+          required:
+            - id
+            - label
+            - rangeStart
+            - rangeEnd
+            - resourceTypes
+            - allowFhirApi
+            - expiresAt
+            - createdAt
+            - revokedAt
+            - lastAccessAt
+            - accessCount
+            - active
+            - token
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ShareLinkList:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            shareLinks:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  label:
+                    type: string
+                  rangeStart:
+                    type: string
+                  rangeEnd:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                  resourceTypes:
+                    type: array
+                    items:
+                      type: string
+                  allowFhirApi:
+                    type: boolean
+                  expiresAt:
+                    type: string
+                  createdAt:
+                    type: string
+                  revokedAt:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                  lastAccessAt:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                  accessCount:
+                    type: number
+                  active:
+                    type: boolean
+                required:
+                  - id
+                  - label
+                  - rangeStart
+                  - rangeEnd
+                  - resourceTypes
+                  - allowFhirApi
+                  - expiresAt
+                  - createdAt
+                  - revokedAt
+                  - lastAccessAt
+                  - accessCount
+                  - active
+                additionalProperties: false
+          required:
+            - shareLinks
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ShareLinkRevoked:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            revoked:
+              type: boolean
+          required:
+            - id
+            - revoked
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     LoginResponse:
       type: object
       properties:
