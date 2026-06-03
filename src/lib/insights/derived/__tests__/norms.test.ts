@@ -50,6 +50,37 @@ describe("lookupNormalRange — the age/sex reference-range enabler", () => {
     expect(old).not.toBeNull();
   });
 
+  it("interpolates a fractional age between adjacent brackets (no hard step)", () => {
+    // Male VO2max: 30s centre 34.5 → {39,49}; 40s centre 44.5 → {35,45}.
+    // At the lower centre the band equals the 30s band exactly.
+    const at345 = lookupNormalRange("VO2_MAX", 34.5, "MALE");
+    expect(at345).toEqual({ low: 39, high: 49 });
+    // Midway between the two centres → halfway between the two bands.
+    const at395 = lookupNormalRange("VO2_MAX", 39.5, "MALE");
+    expect(at395).toEqual({ low: 37, high: 47 });
+    // Just into the 40s the band must move only slightly, not jump.
+    const at40 = lookupNormalRange("VO2_MAX", 40, "MALE")!;
+    expect(at40.low).toBeGreaterThan(35);
+    expect(at40.low).toBeLessThan(37);
+    expect(at40.high).toBeGreaterThan(45);
+    expect(at40.high).toBeLessThan(47);
+  });
+
+  it("the band changes smoothly across a bracket boundary, not in a step", () => {
+    // Either side of the 30s/40s boundary (age 40) the bands are close — a
+    // hard bracket lookup would have returned two different fixed bands.
+    const justBelow = lookupNormalRange("VO2_MAX", 39.9, "MALE")!;
+    const justAbove = lookupNormalRange("VO2_MAX", 40.1, "MALE")!;
+    expect(Math.abs(justAbove.low - justBelow.low)).toBeLessThan(0.5);
+    expect(Math.abs(justAbove.high - justBelow.high)).toBeLessThan(0.5);
+  });
+
+  it("holds the youngest band flat below the first bracket centre", () => {
+    // Age below the youngest centre clamps to the youngest cited band.
+    const young = lookupNormalRange("VO2_MAX", 21, "MALE");
+    expect(young).toEqual({ low: 42, high: 53 });
+  });
+
   it("rejects negative / non-finite ages", () => {
     expect(lookupNormalRange("RESTING_HEART_RATE", -5, null)).toBeNull();
     expect(lookupNormalRange("RESTING_HEART_RATE", Number.NaN, null)).toBeNull();

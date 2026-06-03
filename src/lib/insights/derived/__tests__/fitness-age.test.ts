@@ -61,11 +61,16 @@ describe("computeFitnessAge", () => {
     expect(r.status).toBe("ok");
     if (r.status === "ok") {
       expect(r.value.vo2Max).toBe(46);
-      expect(r.value.band).toBe("green");
-      expect(r.value.referenceBand).toEqual({ low: 35, high: 45 });
+      // Age 40 sits between the 30s (centre 34.5 → {39,49}) and 40s (centre
+      // 44.5 → {35,45}) VO2max bands; the fractional-age lookup interpolates
+      // to {36.8, 46.8} rather than reading the flat 40s bracket.
+      expect(r.value.referenceBand).toEqual({ low: 36.8, high: 46.8 });
+      // 46 < the interpolated upper edge (46.8) → not "excellent" green.
+      expect(r.value.band).toBe("yellow");
       // ≥3 readings → trend = 46 - 44 = 2
       expect(r.value.trendDelta).toBe(2);
-      expect(r.value.fitnessAgeDeltaYears).toBe(-6); // midpoint 40, 46 → -6
+      // midpoint 41.8, 46 → -round(4.2) = -4
+      expect(r.value.fitnessAgeDeltaYears).toBe(-4);
     }
   });
 
