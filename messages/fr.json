@@ -2550,7 +2550,14 @@
           "normal": "Plage normale (OMS)",
           "overweight": "Surpoids (OMS)",
           "obese": "Obésité (OMS)"
-        }
+        },
+        "sixMinuteBand": {
+          "green": "{percent}% de la valeur prédite pour votre profil",
+          "yellow": "{percent}% de la valeur prédite pour votre profil",
+          "red": "{percent}% de la valeur prédite pour votre profil"
+        },
+        "sixMinuteNoBand": "Ajoutez votre âge, taille, poids et sexe pour cadrer ceci",
+        "mobilitySectionTitle": "Mobilité et corps"
       },
       "anatomy": {
         "outOf": "/100",

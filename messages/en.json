@@ -2550,7 +2550,14 @@
           "normal": "Normal range (WHO)",
           "overweight": "Overweight (WHO)",
           "obese": "Obese (WHO)"
-        }
+        },
+        "sixMinuteBand": {
+          "green": "{percent}% of predicted for your profile",
+          "yellow": "{percent}% of predicted for your profile",
+          "red": "{percent}% of predicted for your profile"
+        },
+        "sixMinuteNoBand": "Add your age, height, weight and sex to frame this",
+        "mobilitySectionTitle": "Mobility & body"
       },
       "anatomy": {
         "outOf": "/100",

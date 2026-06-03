@@ -2550,7 +2550,14 @@
           "normal": "Normalbereich (WHO)",
           "overweight": "Übergewicht (WHO)",
           "obese": "Adipositas (WHO)"
-        }
+        },
+        "sixMinuteBand": {
+          "green": "{percent}% des für dein Profil vorhergesagten Werts",
+          "yellow": "{percent}% des für dein Profil vorhergesagten Werts",
+          "red": "{percent}% des für dein Profil vorhergesagten Werts"
+        },
+        "sixMinuteNoBand": "Ergänze Alter, Größe, Gewicht und Geschlecht, um dies einzuordnen",
+        "mobilitySectionTitle": "Mobilität & Körper"
       },
       "anatomy": {
         "outOf": "/100",

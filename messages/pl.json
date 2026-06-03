@@ -2550,7 +2550,14 @@
           "normal": "Zakres prawidłowy (WHO)",
           "overweight": "Nadwaga (WHO)",
           "obese": "Otyłość (WHO)"
-        }
+        },
+        "sixMinuteBand": {
+          "green": "{percent}% wartości przewidywanej dla Twojego profilu",
+          "yellow": "{percent}% wartości przewidywanej dla Twojego profilu",
+          "red": "{percent}% wartości przewidywanej dla Twojego profilu"
+        },
+        "sixMinuteNoBand": "Dodaj wiek, wzrost, wagę i płeć, aby to ująć w kontekście",
+        "mobilitySectionTitle": "Mobilność i ciało"
       },
       "anatomy": {
         "outOf": "/100",
