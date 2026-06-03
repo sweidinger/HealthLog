@@ -2645,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "Your device's ESTIMATED six-minute-walk distance placed against the Enright & Sherrill reference for your age, height, weight and sex, as a percent of predicted. The distance is the device's estimate — never recomputed here. Without your age, height, weight and sex the percent is hidden and only the distance and trend are shown.",
-          "caveat": "An estimate re-framed against a published reference — a functional-capacity awareness signal, not a clinical 6-minute-walk test or a diagnosis."
+          "caveat": "An estimate re-framed against a published reference — a functional-capacity awareness signal, not a clinical 6-minute-walk test or a diagnosis. The reference was established for ages 40–80; outside that range the predicted value is an extrapolation."
         }
       },
       "scores": {

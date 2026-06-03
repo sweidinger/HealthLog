@@ -2645,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "SZACOWANY przez Twoje urządzenie dystans sześciominutowego marszu odniesiony do wzorca Enrighta i Sherrilla dla Twojego wieku, wzrostu, wagi i płci, jako procent wartości przewidywanej. Dystans to szacunek urządzenia — nigdy nie jest tu przeliczany. Bez Twojego wieku, wzrostu, wagi i płci procent jest ukryty i pokazywane są tylko dystans i trend.",
-          "caveat": "Szacunek odniesiony do opublikowanego wzorca — sygnał wydolności funkcjonalnej, nie kliniczny test sześciominutowego marszu ani diagnoza."
+          "caveat": "Szacunek odniesiony do opublikowanego wzorca — sygnał wydolności funkcjonalnej, nie kliniczny test sześciominutowego marszu ani diagnoza. Wzorzec opracowano dla wieku 40–80 lat; poza tym zakresem wartość przewidywana jest ekstrapolacją."
         }
       },
       "scores": {

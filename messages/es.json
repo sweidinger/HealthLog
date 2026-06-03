@@ -2645,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "La distancia ESTIMADA de marcha de seis minutos de tu dispositivo situada frente a la referencia de Enright y Sherrill para tu edad, estatura, peso y sexo, como porcentaje de lo previsto. La distancia es la estimación del dispositivo: nunca se recalcula aquí. Sin tu edad, estatura, peso y sexo se oculta el porcentaje y solo se muestran la distancia y la tendencia.",
-          "caveat": "Una estimación reformulada frente a una referencia publicada: una señal de capacidad funcional, no una prueba clínica de marcha de seis minutos ni un diagnóstico."
+          "caveat": "Una estimación reformulada frente a una referencia publicada: una señal de capacidad funcional, no una prueba clínica de marcha de seis minutos ni un diagnóstico. La referencia se estableció para edades de 40 a 80 años; fuera de ese rango el valor previsto es una extrapolación."
         }
       },
       "scores": {

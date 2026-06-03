@@ -2645,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "La distanza di cammino di sei minuti STIMATA dal tuo dispositivo, collocata rispetto al riferimento di Enright e Sherrill per la tua età, altezza, peso e sesso, come percentuale del previsto. La distanza è la stima del dispositivo — mai ricalcolata qui. Senza età, altezza, peso e sesso la percentuale è nascosta e vengono mostrate solo distanza e tendenza.",
-          "caveat": "Una stima riformulata rispetto a un riferimento pubblicato — un segnale di capacità funzionale, non un test del cammino di sei minuti clinico né una diagnosi."
+          "caveat": "Una stima riformulata rispetto a un riferimento pubblicato — un segnale di capacità funzionale, non un test del cammino di sei minuti clinico né una diagnosi. Il riferimento è stato stabilito per le età 40–80; al di fuori di questo intervallo il valore previsto è un’estrapolazione."
         }
       },
       "scores": {

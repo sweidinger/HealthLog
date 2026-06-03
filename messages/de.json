@@ -2645,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "Die von deinem Gerät GESCHÄTZTE 6-Minuten-Gehstrecke, eingeordnet gegen die Referenz von Enright & Sherrill für Alter, Größe, Gewicht und Geschlecht, als Prozent des Vorhersagewerts. Die Strecke ist die Schätzung des Geräts — hier nie neu berechnet. Ohne Alter, Größe, Gewicht und Geschlecht wird der Prozentwert ausgeblendet und nur Strecke und Trend gezeigt.",
-          "caveat": "Eine gegen eine veröffentlichte Referenz neu eingeordnete Schätzung — ein Hinweis zur funktionellen Kapazität, kein klinischer 6-Minuten-Gehtest und keine Diagnose."
+          "caveat": "Eine gegen eine veröffentlichte Referenz neu eingeordnete Schätzung — ein Hinweis zur funktionellen Kapazität, kein klinischer 6-Minuten-Gehtest und keine Diagnose. Die Referenz wurde für Alter 40–80 erstellt; außerhalb dieses Bereichs ist der Vorhersagewert eine Extrapolation."
         }
       },
       "scores": {
