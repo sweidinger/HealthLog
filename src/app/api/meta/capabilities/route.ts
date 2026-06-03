@@ -1,0 +1,101 @@
+/**
+ * GET /api/meta/capabilities
+ *
+ * Live capability / discovery surface for the native client. Returns the
+ * server's REAL id vocabularies — derived-metric ids, vitals-baseline
+ * types, insights layout tile-ids, metric-status ids, the HealthKit ingest
+ * mapping, and the FHIR coding constants — plus the running API contract
+ * version. The iOS app reads this once on launch (or on a version bump) and
+ * gates its UI / decoder against what the server actually ships, retiring
+ * the recurring "doc says N, server ships M" enum-drift class.
+ *
+ * Auth: cookie session OR Bearer token (`requireAuth`). NOT admin — every
+ * authenticated client may discover the contract.
+ *
+ * DESIGN RULE: every list is SOURCED from the existing canonical server
+ * constant / Zod enum / registry — never hand-duplicated here. Adding a
+ * derived metric, a tile, a writable source, or a HealthKit mapping
+ * auto-updates this endpoint, so it cannot drift from the real registries.
+ */
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { apiSuccess } from "@/lib/api-response";
+import { annotate } from "@/lib/logging/context";
+
+import packageJson from "../../../../../package.json";
+
+import {
+  DERIVED_METRIC_IDS,
+  VITALS_BASELINE_TYPES,
+} from "@/lib/insights/derived/registry";
+import { INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
+import { METRIC_STATUS_IDS } from "@/lib/insights/metric-status-registry";
+import { WELLNESS_SCORE_TYPES } from "@/lib/insights/derived/wellness-scores";
+import { WRITABLE_MEASUREMENT_SOURCES } from "@/lib/validations/measurement";
+import {
+  APPLE_HEALTH_TYPE_MAP,
+  type AppleHealthMapping,
+} from "@/lib/measurements/apple-health-mapping";
+import {
+  ATC_SYSTEM,
+  SNOMED_SYSTEM,
+  GERMAN_ATC_DEFAULT_LOCALES,
+} from "@/lib/fhir/build-bundle";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * An EVENT-class HealthKit identifier carries a device-produced verdict, not
+ * a continuous reading — it is marked by an `eventClassificationMap` or a
+ * `fallbackClassification` in the ingest mapping. Everything else is a
+ * quantity sample. Splitting the single mapping by this predicate keeps the
+ * two ingest lists derived from one registry.
+ */
+function isEventMapping(m: AppleHealthMapping): boolean {
+  return Boolean(m.eventClassificationMap || m.fallbackClassification);
+}
+
+export const GET = apiHandler(async () => {
+  await requireAuth();
+  annotate({ action: { name: "meta.capabilities.read" } });
+
+  // Mirror the /api/version source so the contract version cannot drift from
+  // the running build's reported version (build-arg env wins over the
+  // package.json fallback for local dev).
+  const apiContractVersion =
+    process.env.NEXT_PUBLIC_APP_VERSION?.trim() || packageJson.version;
+
+  const mappings = Object.values(APPLE_HEALTH_TYPE_MAP);
+
+  const quantityTypes = mappings
+    .filter((m) => !isEventMapping(m))
+    .map((m) => ({
+      type: m.measurementType,
+      hk: m.hkIdentifier,
+      unit: m.dbUnit,
+    }));
+
+  // Distinct event-class MeasurementTypes (several HK event identifiers can
+  // share one MeasurementType, e.g. the audio-exposure pair).
+  const eventTypes = Array.from(
+    new Set(mappings.filter(isEventMapping).map((m) => m.measurementType)),
+  );
+
+  return apiSuccess({
+    apiContractVersion,
+    derivedMetricIds: DERIVED_METRIC_IDS,
+    vitalsBaselineTypes: VITALS_BASELINE_TYPES,
+    layoutTileIds: INSIGHTS_TILE_IDS,
+    metricStatusIds: METRIC_STATUS_IDS,
+    ingest: {
+      quantityTypes,
+      eventTypes,
+      computedScores: Object.values(WELLNESS_SCORE_TYPES),
+      writeAllowlist: WRITABLE_MEASUREMENT_SOURCES,
+    },
+    fhir: {
+      atcSystem: ATC_SYSTEM,
+      snomedRoute: SNOMED_SYSTEM,
+      germanAtcDefaultLocales: GERMAN_ATC_DEFAULT_LOCALES,
+    },
+  });
+});

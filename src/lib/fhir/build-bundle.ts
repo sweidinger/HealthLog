@@ -68,7 +68,7 @@ const IKNR_SYSTEM = "http://fhir.de/sid/arge-ik/iknr";
  * coding. Both are additive `coding[]` entries on the same concept; the
  * free-text `.text` (the user's medication name) stays the anchor.
  */
-const ATC_SYSTEM = "http://www.whocc.no/atc";
+export const ATC_SYSTEM = "http://www.whocc.no/atc";
 /**
  * German national ATC URI maintained by the BfArM. Same ATC classification
  * as WHO under a national CodeSystem; emitted as an ADDITIONAL coding (never
@@ -78,7 +78,16 @@ const ATC_SYSTEM = "http://www.whocc.no/atc";
 const ATC_BFARM_SYSTEM = "http://fhir.de/CodeSystem/bfarm/atc";
 const RXNORM_SYSTEM = "http://www.nlm.nih.gov/research/umls/rxnorm";
 /** SNOMED CT URI. Concept ids are referenced (not redistributed) in FHIR instances. */
-const SNOMED_SYSTEM = "http://snomed.info/sct";
+export const SNOMED_SYSTEM = "http://snomed.info/sct";
+
+/**
+ * The app locales for which a health-record export defaults `germanAtc` on
+ * (the additive BfArM ATC coding). The export route derives the flag from
+ * the user's locale against this set; the capabilities endpoint surfaces it
+ * verbatim so a client can predict the coding without a round-trip. Keeping
+ * it here — beside the BfArM URI it gates — makes the two move together.
+ */
+export const GERMAN_ATC_DEFAULT_LOCALES = ["de"] as const;
 
 /** Options threaded from the export route into the builder. Additive, all defaulted. */
 export interface FhirBuildOptions {

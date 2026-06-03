@@ -39,7 +39,10 @@ import {
   sanitisePracticeName,
 } from "@/lib/doctor-report-data";
 import { renderDoctorReportPdfBytes } from "@/lib/doctor-report-pdf-core";
-import { buildFhirDocumentBundle } from "@/lib/fhir/build-bundle";
+import {
+  buildFhirDocumentBundle,
+  GERMAN_ATC_DEFAULT_LOCALES,
+} from "@/lib/fhir/build-bundle";
 import {
   exportSelectionSchema,
   toDoctorReportPrefs,
@@ -99,7 +102,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // BfArM ATC: an explicit selection flag wins; otherwise derive it from a
   // German-region locale. The WHO ATC coding is unaffected either way.
-  const germanAtc = selection.germanAtc ?? locale === "de";
+  const germanAtc =
+    selection.germanAtc ??
+    (GERMAN_ATC_DEFAULT_LOCALES as readonly string[]).includes(locale);
 
   const [data, userTz, userRow] = await Promise.all([
     collectDoctorReportData(user.id, range, { practiceName, sections }),
