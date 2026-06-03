@@ -1,0 +1,195 @@
+/**
+ * v1.11.0 (Epic C, C4) — owner clinician-share-link lifecycle.
+ *
+ * Asserts the security-load-bearing properties: create returns the raw token
+ * exactly once and persists ONLY its hash; the expiry cap is enforced; revoke
+ * flips `revokedAt`; a cross-user revoke is sealed as 404.
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    clinicianShareLink: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    auditLog: { create: vi.fn() },
+  },
+}));
+
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/auth/hmac", () => ({ hashToken: (s: string) => `hash(${s})` }));
+vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn() }));
+vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: vi.fn() }));
+vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => ({ get: () => null })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
+}));
+
+import { POST, GET } from "../route";
+import { DELETE } from "../[id]/route";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const SESSION_OK = {
+  session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
+  user: { id: "user-1", username: "tester", role: "USER" as const },
+};
+
+function postReq(body: unknown): NextRequest {
+  return new NextRequest("http://localhost/api/share-links", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function validBody(overrides: Record<string, unknown> = {}) {
+  return {
+    label: "Cardiology clinic",
+    rangeStart: "2026-01-01T00:00:00Z",
+    rangeEnd: null,
+    resourceTypes: ["Observation"],
+    allowFhirApi: true,
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    ...overrides,
+  };
+}
+
+function storedRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "link-1",
+    label: "Cardiology clinic",
+    rangeStart: new Date("2026-01-01T00:00:00Z"),
+    rangeEnd: null,
+    resourceTypes: ["Observation"],
+    allowFhirApi: true,
+    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    createdAt: new Date(),
+    revokedAt: null,
+    lastAccessAt: null,
+    accessCount: 0,
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  vi.mocked(checkRateLimit).mockResolvedValue({
+    allowed: true,
+    count: 1,
+    resetAt: new Date(),
+  } as never);
+});
+
+describe("POST /api/share-links — create", () => {
+  it("returns the raw token once and persists ONLY its hash", async () => {
+    vi.mocked(prisma.clinicianShareLink.create).mockResolvedValue(
+      storedRow() as never,
+    );
+
+    const res = await POST(postReq(validBody()));
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { data: { token: string; id: string } };
+
+    // Raw token returned, prefixed, and 48 hex chars (192-bit).
+    expect(body.data.token).toMatch(/^hls_[0-9a-f]{48}$/);
+
+    // The persisted data carries the HMAC hash, never the raw token.
+    const createArg = vi.mocked(prisma.clinicianShareLink.create).mock
+      .calls[0][0];
+    expect(createArg.data.tokenHash).toBe(`hash(${body.data.token})`);
+    // No column stores the raw token verbatim — only the (mock) hash wraps it.
+    const { tokenHash, ...rest } = createArg.data;
+    expect(tokenHash).not.toBe(body.data.token);
+    expect(JSON.stringify(rest)).not.toContain(body.data.token);
+    // userId is narrowed from the session, never the body.
+    expect(createArg.data.userId).toBe("user-1");
+  });
+
+  it("rejects an expiry beyond the cap (422)", async () => {
+    const tooFar = new Date(
+      Date.now() + 200 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const res = await POST(postReq(validBody({ expiresAt: tooFar })));
+    expect(res.status).toBe(422);
+    expect(prisma.clinicianShareLink.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a past expiry (422)", async () => {
+    const past = new Date(Date.now() - 1000).toISOString();
+    const res = await POST(postReq(validBody({ expiresAt: past })));
+    expect(res.status).toBe(422);
+  });
+
+  it("rejects an unknown key via strict schema (422)", async () => {
+    const res = await POST(postReq(validBody({ userId: "attacker" })));
+    expect(res.status).toBe(422);
+    expect(prisma.clinicianShareLink.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/share-links — list", () => {
+  it("never returns a raw token", async () => {
+    vi.mocked(prisma.clinicianShareLink.findMany).mockResolvedValue([
+      storedRow(),
+    ] as never);
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { shareLinks: Array<Record<string, unknown>> };
+    };
+    expect(body.data.shareLinks).toHaveLength(1);
+    expect(JSON.stringify(body.data)).not.toContain("hls_");
+    // Scoped to the caller.
+    const arg = vi.mocked(prisma.clinicianShareLink.findMany).mock.calls[0][0];
+    expect(arg!.where).toEqual({ userId: "user-1" });
+  });
+});
+
+describe("DELETE /api/share-links/[id] — revoke", () => {
+  function delReq(): NextRequest {
+    return new NextRequest("http://localhost/api/share-links/link-1", {
+      method: "DELETE",
+    });
+  }
+
+  it("revokes an own link (sets revokedAt, pins userId)", async () => {
+    vi.mocked(prisma.clinicianShareLink.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    const res = await DELETE(delReq(), {
+      params: Promise.resolve({ id: "link-1" }),
+    });
+    expect(res.status).toBe(200);
+    const arg = vi.mocked(prisma.clinicianShareLink.updateMany).mock.calls[0][0];
+    expect(arg.where).toEqual({
+      id: "link-1",
+      userId: "user-1",
+      revokedAt: null,
+    });
+    expect(arg.data.revokedAt).toBeInstanceOf(Date);
+  });
+
+  it("seals a cross-user / unknown id as 404", async () => {
+    vi.mocked(prisma.clinicianShareLink.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+    const res = await DELETE(delReq(), {
+      params: Promise.resolve({ id: "someone-elses" }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
