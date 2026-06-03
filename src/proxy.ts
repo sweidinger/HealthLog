@@ -237,6 +237,26 @@ export function proxy(request: NextRequest) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()",
   );
+
+  // v1.11.0 (Epic C, C6) — the public clinician share view at `/c/<token>`
+  // is a scoped health record authenticated by an unguessable bearer token
+  // in the path. Defend it at the edge regardless of what the RSC emits:
+  //   - `Cache-Control: no-store` so no shared proxy / CDN ever retains a
+  //     scoped record (the page is `force-dynamic`, but that governs Next's
+  //     cache, not a downstream intermediary).
+  //   - `X-Robots-Tag: noindex, nofollow` as the header peer of the page's
+  //     `robots` meta — a crawler that never parses the document still obeys
+  //     the header, and the token must never reach a search index.
+  //   - `Referrer-Policy: no-referrer` so the token-bearing URL is not
+  //     leaked in the `Referer` of any outbound navigation from the page.
+  if (pathname.startsWith("/c/")) {
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate",
+    );
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    response.headers.set("Referrer-Policy", "no-referrer");
+  }
   // COOP isolates this BrowsingContextGroup from cross-origin popups,
   // closing the Spectre-class side-channel surface a stray
   // `window.opener` reference would otherwise carry. CORP narrows the
