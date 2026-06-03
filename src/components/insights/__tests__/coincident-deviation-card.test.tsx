@@ -89,6 +89,30 @@ describe("<CoincidentDeviationCard>", () => {
     const html = render(<CoincidentDeviationCard />);
     expect(html).toContain('data-slot="coincident-deviation-card-skeleton"');
     expect(html).not.toContain('data-slot="coincident-deviation-card"');
+    // The skeleton reserves the resolved card's footprint (no downward shift).
+    expect(html).toContain("min-h-48");
+  });
+
+  it("the skeleton and a resolved card share the same min-height footprint", () => {
+    mock(undefined);
+    const skeleton = render(<CoincidentDeviationCard />);
+    mock(
+      ok({
+        fired: true,
+        day: "2026-06-03",
+        vitals: [
+          deviation("RESTING_HEART_RATE", true),
+          deviation("RESPIRATORY_RATE", true),
+        ],
+        contributing: [
+          deviation("RESTING_HEART_RATE", true),
+          deviation("RESPIRATORY_RATE", true),
+        ],
+      }),
+    );
+    const fired = render(<CoincidentDeviationCard />);
+    expect(skeleton).toContain("min-h-48");
+    expect(fired).toContain("min-h-48");
   });
 
   it("renders the insufficient (building baselines) state, never an alarm", () => {
@@ -163,6 +187,9 @@ describe("<CoincidentDeviationCard>", () => {
     expect(html).not.toContain("text-destructive");
     // The provenance affordance reaches the card.
     expect(html).toContain('data-slot="provenance-explainer-trigger"');
+    // The state change is announced politely to SR users (not assertively).
+    expect(html).toContain('role="status"');
+    expect(html).not.toContain('role="alert"');
   });
 
   it("softens a fired flag to the watch tone when history is thin", () => {

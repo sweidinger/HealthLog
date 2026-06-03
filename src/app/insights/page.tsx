@@ -100,9 +100,10 @@ const RhythmEventsCard = dynamic(
 // v1.10.3 — "Today's signal" headline card. Promotes COINCIDENT_DEVIATION from
 // a buried below-the-fold tile to the top-of-overview daily read (the
 // always-present Apple/WHOOP/Oura pattern). Deferred behind `next/dynamic`; it
-// owns its own derived-metric query and renders four calm states. A
-// fixed-height skeleton matches the resolved card so the top of the page does
-// not shift while the chunk + data resolve.
+// owns its own derived-metric query and renders four calm states. The chunk
+// loader's skeleton shares the card's `min-h-48` footprint (and the in-card
+// `CardSkeleton` matches it too) so the top of the page does not shift across
+// loading → any resolved state. Decorative → `aria-hidden`.
 const CoincidentDeviationCard = dynamic(
   () =>
     import("@/components/insights/coincident-deviation-card").then((mod) => ({
@@ -111,7 +112,10 @@ const CoincidentDeviationCard = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="bg-card border-border h-[7.5rem] animate-pulse rounded-xl border motion-reduce:animate-none" />
+      <div
+        aria-hidden="true"
+        className="bg-card border-border min-h-48 animate-pulse rounded-xl border motion-reduce:animate-none"
+      />
     ),
   },
 );

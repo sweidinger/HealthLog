@@ -99,7 +99,13 @@ function CardShell({
       data-slot="coincident-deviation-card"
       data-state={state}
       className={cn(
-        "bg-card flex w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6",
+        // `min-h` sized to the tallest realistic state (fired: 44px provenance
+        // header + the named-vitals body + the mandatory factors line). Every
+        // calmer state shares this footprint so the card — and everything below
+        // it on the overview — never shifts as the state resolves (the CLS the
+        // design pass closes). `min-h` not fixed `h`: a rare taller body still
+        // grows, it just never shrinks below the reserved height.
+        "bg-card flex min-h-48 w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6",
         // At most amber — never destructive/red. The fired state borders
         // warning; every calmer state keeps the neutral card border.
         state === "fired" ? "border-warning/40" : "border-border",
@@ -116,16 +122,24 @@ function CardShell({
   );
 }
 
-/** A fixed-footprint skeleton matching the resolved card (CLS-safe). */
+/**
+ * A fixed-footprint skeleton matching the resolved card geometry exactly
+ * (CLS-safe): the same `min-h-48` shell, the same gap, and a 44px header row
+ * mirroring the provenance trigger the resolved header carries — so the card
+ * does not shift when the real content drops in.
+ */
 function CardSkeleton() {
   return (
     <div
       data-slot="coincident-deviation-card-skeleton"
       aria-hidden="true"
-      className="bg-card border-border flex w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6"
+      className="bg-card border-border flex min-h-48 w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6"
     >
-      <div className="bg-muted/40 h-3 w-28 rounded" />
-      <div className="bg-muted/40 h-5 w-3/4 rounded" />
+      <div className="flex h-11 items-center justify-between gap-2">
+        <div className="bg-muted/40 h-3 w-28 rounded" />
+        <div className="bg-muted/40 h-5 w-5 rounded-full" />
+      </div>
+      <div className="bg-muted/40 h-4 w-3/4 rounded" />
       <div className="bg-muted/40 h-3 w-1/2 rounded" />
     </div>
   );
@@ -247,10 +261,13 @@ export function CoincidentDeviationCard({
   }
 
   // fired — amber awareness, named vitals, possible-factors line (mandatory).
+  // `role="status"` (a polite live region, not the assertive `role="alert"`)
+  // so a screen-reader user gets the day-to-day state change in the calm tone
+  // the card keeps visually — the one state whose meaning shifts vs all-clear.
   return (
     <div className={className}>
       <CardShell state="fired" provenance={data.provenance}>
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2" role="status">
           <AlertTriangle
             className="text-warning mt-0.5 h-4 w-4 shrink-0"
             aria-hidden="true"
