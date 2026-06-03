@@ -2625,7 +2625,9 @@
           "description": "A nightly stress proxy from the shape of your intra-day HRV."
         },
         "STRAIN_SCORE": {
-          "method": "A nightly 0–100 strain proxy from your heart-rate-weighted activity load (a TRIMP-style training-impulse model). Higher means a harder day. The scale is anchored to your own recent training-day load — relative to your typical effort — so a genuinely hard day for you reads high. While you are still building history it uses a general reference instead.",
+          "method": "A nightly 0–100 strain proxy from your heart-rate-weighted activity load (a TRIMP-style training-impulse model). Higher means a harder day.",
+          "anchorPersonal": "Anchored to your own recent training-day load — scored relative to your typical effort, so a genuinely hard day for you reads high.",
+          "anchorPopulation": "Scored against a general reference while you build training history; once you have enough it switches to your own typical effort.",
           "caveat": "A descriptive activity-load proxy, not a clinical or training-grade load measure.",
           "description": "A nightly activity-load proxy from your heart-rate-weighted effort, relative to your typical effort."
         },

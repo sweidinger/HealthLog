@@ -73,6 +73,29 @@ export function CompositeScoreAnatomy({
   const meta = METRIC_PROVENANCE[metric];
   const standard = meta.standard;
   const title = titleFor(metric, t);
+
+  // STRAIN frames itself by the ACTUAL anchor that produced this score: once
+  // the user has enough history it is judged against their own typical effort
+  // (`personal`); during cold start it falls back to a general reference
+  // (`population`). The base method copy stays anchor-neutral; this line makes
+  // the displayed framing honest per-score. `null` (RECOVERY / STRESS, or no
+  // cache row yet) renders nothing.
+  let anchorLine: string | null = null;
+  if (
+    metric === "STRAIN_SCORE" &&
+    data?.status === "ok" &&
+    data.value
+  ) {
+    const anchor = (data.value as WellnessScoreValue).anchor;
+    if (anchor === "personal") {
+      anchorLine = t("insights.derived.composite.STRAIN_SCORE.anchorPersonal");
+    } else if (anchor === "population") {
+      anchorLine = t(
+        "insights.derived.composite.STRAIN_SCORE.anchorPopulation",
+      );
+    }
+  }
+
   // Method copy carries an optional honesty caveat above it (STRESS proxy,
   // descriptive-not-clinical, …) so the caveat reaches the user, not just
   // the engine header.
@@ -84,6 +107,7 @@ export function CompositeScoreAnatomy({
         </span>
       ) : null}
       {t(meta.methodKey)}
+      {anchorLine ? <span className="mt-1 block">{anchorLine}</span> : null}
     </>
   );
 

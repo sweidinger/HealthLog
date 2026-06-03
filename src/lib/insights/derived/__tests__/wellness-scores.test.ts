@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({
-  prisma: { measurement: { findMany: vi.fn() } },
+  prisma: {
+    measurement: { findMany: vi.fn() },
+    strainTrimpCache: { findUnique: vi.fn() },
+  },
 }));
 
 import { prisma } from "@/lib/db";
@@ -14,9 +17,13 @@ import {
 const PROFILE = { ageYears: 40, sex: "MALE" as const };
 const NOW = new Date("2026-06-02T08:00:00Z");
 const findMany = prisma.measurement.findMany as ReturnType<typeof vi.fn>;
+const cacheFindUnique = prisma.strainTrimpCache
+  .findUnique as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   findMany.mockReset();
+  cacheFindUnique.mockReset();
+  cacheFindUnique.mockResolvedValue(null);
 });
 
 describe("bandWellnessScore", () => {
@@ -77,6 +84,53 @@ describe("computeWellnessScore", () => {
     expect(r.status).toBe("ok");
     if (r.status === "ok") {
       expect((r.value as WellnessScoreValue).trendDelta).toBeNull();
+    }
+  });
+
+  it("STRAIN carries the active anchor from the day's cache row", async () => {
+    findMany.mockResolvedValue([
+      { value: 55, measuredAt: new Date("2026-06-01T12:00:00Z") },
+    ]);
+    cacheFindUnique.mockResolvedValue({ anchor: "personal" });
+    const r = await computeWellnessScore("STRAIN_SCORE", "u1", PROFILE, {
+      now: NOW,
+    });
+    // The cache is keyed by the scored day (the latest score's day key).
+    expect(cacheFindUnique).toHaveBeenCalledWith({
+      where: { userId_day: { userId: "u1", day: "2026-06-01" } },
+      select: { anchor: true },
+    });
+    expect(r.status).toBe("ok");
+    if (r.status === "ok") {
+      expect((r.value as WellnessScoreValue).anchor).toBe("personal");
+    }
+  });
+
+  it("STRAIN anchor is null when no cache row exists", async () => {
+    findMany.mockResolvedValue([
+      { value: 55, measuredAt: new Date("2026-06-01T12:00:00Z") },
+    ]);
+    cacheFindUnique.mockResolvedValue(null);
+    const r = await computeWellnessScore("STRAIN_SCORE", "u1", PROFILE, {
+      now: NOW,
+    });
+    expect(r.status).toBe("ok");
+    if (r.status === "ok") {
+      expect((r.value as WellnessScoreValue).anchor).toBeNull();
+    }
+  });
+
+  it("RECOVERY does not read the strain cache and carries a null anchor", async () => {
+    findMany.mockResolvedValue([
+      { value: 72, measuredAt: new Date("2026-06-01T12:00:00Z") },
+    ]);
+    const r = await computeWellnessScore("RECOVERY_SCORE", "u1", PROFILE, {
+      now: NOW,
+    });
+    expect(cacheFindUnique).not.toHaveBeenCalled();
+    expect(r.status).toBe("ok");
+    if (r.status === "ok") {
+      expect((r.value as WellnessScoreValue).anchor).toBeNull();
     }
   });
 });

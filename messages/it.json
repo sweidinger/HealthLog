@@ -2625,7 +2625,9 @@
           "description": "Un indicatore notturno di stress dalla forma della tua VFC nel corso della giornata."
         },
         "STRAIN_SCORE": {
-          "method": "Un indicatore notturno di sforzo da 0 a 100 dal tuo carico di attività pesato sulla frequenza cardiaca (un modello di impulso d’allenamento tipo TRIMP). Più alto significa una giornata più impegnativa. La scala è ancorata al tuo carico recente nei giorni di allenamento — relativo al tuo sforzo abituale —, così che una giornata davvero dura per te risulti alta. Finché stai ancora costruendo lo storico usa invece un riferimento generale.",
+          "method": "Un indicatore notturno di sforzo da 0 a 100 dal tuo carico di attività pesato sulla frequenza cardiaca (un modello di impulso d’allenamento tipo TRIMP). Più alto significa una giornata più impegnativa.",
+          "anchorPersonal": "Ancorato al tuo carico recente nei giorni di allenamento — valutato rispetto al tuo sforzo abituale, così che una giornata davvero dura per te risulti alta.",
+          "anchorPopulation": "Valutato rispetto a un riferimento generale mentre costruisci lo storico di allenamento; quando ne hai abbastanza passa al tuo sforzo abituale.",
           "caveat": "Un indicatore descrittivo di carico di attività, non una misura di carico clinica o da allenamento.",
           "description": "Un indicatore notturno di carico di attività dal tuo sforzo pesato sulla frequenza cardiaca, relativo al tuo sforzo abituale."
         },
