@@ -38,7 +38,11 @@ import {
 } from "./coverage";
 import { predictSixMinuteWalkDistance } from "./norms";
 import type { BaselineProfile } from "./baseline";
-import type { Derived, DerivedProvenanceSource } from "./types";
+import {
+  SPARKLINE_MAX_POINTS,
+  type Derived,
+  type DerivedProvenanceSource,
+} from "./types";
 
 /** Band placement, same green/yellow/red vocabulary the tokens speak. */
 export type SixMinuteWalkBand = "green" | "yellow" | "red";
@@ -73,6 +77,12 @@ export interface SixMinuteWalkValue {
   trendDelta: number | null;
   /** Distinct readings in the window. */
   readingCount: number;
+  /**
+   * Trailing distance series (oldest → newest), capped to the last
+   * `SPARKLINE_MAX_POINTS`. Reuses the window rows already read — no extra
+   * query.
+   */
+  series: number[];
 }
 
 /**
@@ -186,6 +196,11 @@ export async function computeSixMinuteWalkBand(
       band,
       trendDelta,
       readingCount: rows.length,
+      // rows are newest-first; the sparkline wants oldest → newest, capped.
+      series: rows
+        .slice(0, SPARKLINE_MAX_POINTS)
+        .map((r) => r.value)
+        .reverse(),
     },
     coverage,
     confidence,

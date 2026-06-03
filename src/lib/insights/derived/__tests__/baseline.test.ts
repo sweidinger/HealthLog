@@ -102,9 +102,40 @@ describe("computeVitalsBaseline — ok path (rollup tier)", () => {
       expect(result.provenance.source).toBe("DAY");
       expect(result.coverage.historyDays).toBe(8);
       expect(result.confidence.score).toBeGreaterThan(0);
+      // The trailing per-day mean series backs the inline sparkline: one
+      // point per contributing day, oldest → newest (55..62).
+      expect(result.value.series).toEqual([
+        55, 56, 57, 58, 59, 60, 61, 62,
+      ]);
     }
     // rollup-covered path must not touch raw SQL
     expect(prisma.measurement.findMany).not.toHaveBeenCalled();
+  });
+
+  it("caps the sparkline series to the last 30 points on a long window", async () => {
+    vi.mocked(probeRollupCoverage).mockResolvedValue(
+      new Map([["RESTING_HEART_RATE", true]]),
+    );
+    // 40 days of DAY rollups — the series must trail to the last 30, newest last.
+    const rows = Array.from({ length: 40 }, (_, i) => {
+      const d = new Date(Date.UTC(2026, 3, 1 + i)).toISOString().slice(0, 10);
+      return dayRow(d, 50 + i);
+    });
+    vi.mocked(readBestGranularityRollups).mockResolvedValue({
+      granularity: "DAY",
+      rows,
+    });
+
+    const result = await computeVitalsBaseline("u1", PROFILE, {
+      type: "RESTING_HEART_RATE",
+      now: NOW,
+    });
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") {
+      expect(result.value.series).toHaveLength(30);
+      // The newest day's mean is the final series point (50 + 39 = 89).
+      expect(result.value.series.at(-1)).toBe(89);
+    }
   });
 });
 

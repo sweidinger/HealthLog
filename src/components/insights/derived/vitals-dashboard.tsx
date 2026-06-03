@@ -192,6 +192,7 @@ function BaselineTile({
         value={v.center}
         unit={unit}
         icon={Icon}
+        series={v.series}
         framing={framing}
         directionSentiment={vitalSentiment(type)}
         provenance={
@@ -320,6 +321,7 @@ function HrvBalanceTile({ read, isLoading }: TileProps) {
         value={v.recentAvg}
         unit={getUnitForType("HEART_RATE_VARIABILITY")}
         icon={HeartPulse}
+        series={v.series}
         directionSentiment="up-good"
         framing={framing}
         precision={0}
@@ -345,6 +347,7 @@ function BmiTile({ read, isLoading }: TileProps) {
         value={v.bmi}
         unit={getUnitForType("BODY_MASS_INDEX")}
         icon={Scale}
+        series={v.series}
         directionSentiment="neutral"
         framing={framing}
         precision={1}

@@ -76,6 +76,8 @@ describe("computeHrvBalance", () => {
       expect(r.value.baselineLow).toBe(40);
       expect(r.value.baselineHigh).toBe(80);
       expect(r.value.sampleDays).toBe(21);
+      // Sparkline series reuses the day-mean read (no extra query).
+      expect(r.value.series).toEqual([58, 62, 60]);
     }
   });
 

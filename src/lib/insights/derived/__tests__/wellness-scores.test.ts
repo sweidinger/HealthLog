@@ -62,6 +62,8 @@ describe("computeWellnessScore", () => {
       // 72 - mean(60, 64) = 72 - 62 = 10
       expect(v.trendDelta).toBe(10);
       expect(v.daysInWindow).toBe(3);
+      // Sparkline series: window rows oldest → newest (rows are read desc).
+      expect(v.series).toEqual([64, 60, 72]);
     }
   });
 

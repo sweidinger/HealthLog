@@ -70,6 +70,8 @@ describe("computeSixMinuteWalkBand", () => {
       expect(r.value.percentOfPredicted).toBe(100);
       expect(r.value.band).toBe("green");
       expect(r.value.trendDelta).toBe(12);
+      // Sparkline series: readings oldest → newest (rows are read desc).
+      expect(r.value.series).toEqual([690, 700, 712]);
     }
   });
 

@@ -32,7 +32,7 @@ import {
   nowProvenanceTimestamp,
 } from "./coverage";
 import type { BaselineProfile } from "./baseline";
-import type { Derived } from "./types";
+import { SPARKLINE_MAX_POINTS, type Derived } from "./types";
 
 const WEIGHT_TYPE: MeasurementType = "WEIGHT";
 /** A weight reading older than this no longer reflects current BMI. */
@@ -55,6 +55,12 @@ export interface BmiValue {
   weightKg: number;
   /** The height used (cm). */
   heightCm: number;
+  /**
+   * Trailing BMI series (oldest → newest), capped to the last
+   * `SPARKLINE_MAX_POINTS`. Derived from the recent weight readings at the
+   * fixed profile height — a bounded read, not a per-day rollup.
+   */
+  series: number[];
 }
 
 /** WHO category + band for a BMI value. Pure. */
@@ -104,7 +110,9 @@ export async function computeBmi(
   }
 
   const since = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
-  const latest = await prisma.measurement.findFirst({
+  // Bounded read of the recent weights — the latest backs the BMI value, the
+  // trailing set backs the inline sparkline (a small cap, not a per-day walk).
+  const weights = await prisma.measurement.findMany({
     where: {
       userId,
       type: WEIGHT_TYPE,
@@ -112,8 +120,10 @@ export async function computeBmi(
       measuredAt: { gte: since },
     },
     orderBy: { measuredAt: "desc" },
+    take: SPARKLINE_MAX_POINTS,
     select: { value: true },
   });
+  const latest = weights[0] ?? null;
 
   if (!latest) {
     // Height present but no recent weight → missing the weight input only.
@@ -141,6 +151,12 @@ export async function computeBmi(
   const bmi = weightKg / (heightM * heightM);
   const { category, band } = classifyBmi(bmi);
 
+  // BMI series from the recent weights at the fixed height; rows are
+  // newest-first, the sparkline wants oldest → newest.
+  const series = weights
+    .map((w) => Math.round((w.value / (heightM * heightM)) * 10) / 10)
+    .reverse();
+
   const { coverage, confidence } = deriveCoverage({
     requiredInputs: 2,
     presentInputs: 2,
@@ -156,6 +172,7 @@ export async function computeBmi(
       band,
       weightKg,
       heightCm,
+      series,
     },
     coverage,
     confidence,

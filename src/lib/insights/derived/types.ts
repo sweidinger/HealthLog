@@ -90,6 +90,14 @@ export interface DerivedInsufficient {
   reason: string;
 }
 
+/**
+ * Cap for a trailing `series` carried on a `Derived<T>` value — the inline
+ * sparkline a tile renders. The window readers already bound their reads;
+ * this caps the points handed to the chart so a dense window never ships a
+ * thousand-point array to the client. The tile only needs the recent shape.
+ */
+export const SPARKLINE_MAX_POINTS = 30;
+
 export type Derived<T> = DerivedOk<T> | DerivedInsufficient;
 
 /** Narrowing type guard — `true` when the value computed successfully. */

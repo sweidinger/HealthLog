@@ -42,7 +42,11 @@ import {
   deriveCoverage,
   nowProvenanceTimestamp,
 } from "./coverage";
-import type { Derived, DerivedProvenanceSource } from "./types";
+import {
+  SPARKLINE_MAX_POINTS,
+  type Derived,
+  type DerivedProvenanceSource,
+} from "./types";
 
 /** k for the median ± k·MAD band — ≈3σ-equivalent for normal data. */
 const DEFAULT_MAD_K = 3;
@@ -67,6 +71,12 @@ export interface VitalsBaselineValue {
   sampleDays: number;
   /** k used for the band (echoed for transparency). */
   k: number;
+  /**
+   * Trailing per-day mean series (oldest → newest), capped to the last
+   * `SPARKLINE_MAX_POINTS`. Drives the tile sparkline; reuses the rows the
+   * band is already computed from (no extra read).
+   */
+  series: number[];
 }
 
 /** Caller-supplied profile (read once per request, never re-fetched here). */
@@ -159,7 +169,7 @@ export function medianAbsoluteDeviation(values: number[]): number {
 export function buildBaselineBand(
   dayMeans: number[],
   k: number = DEFAULT_MAD_K,
-): Omit<VitalsBaselineValue, "type"> | null {
+): Omit<VitalsBaselineValue, "type" | "series"> | null {
   if (dayMeans.length === 0) return null;
   const center = median(dayMeans);
   const mad = medianAbsoluteDeviation(dayMeans);
@@ -332,8 +342,14 @@ export async function computeVitalsBaseline(
     fullHistoryDays: windowDays,
   });
 
+  // Trailing per-day mean series for the inline sparkline — the same DAY
+  // means the band is built from, capped to the recent window.
+  const series = points
+    .slice(-SPARKLINE_MAX_POINTS)
+    .map((p) => p.mean);
+
   return buildOk<VitalsBaselineValue>({
-    value: { type, ...band },
+    value: { type, ...band, series },
     coverage: cov,
     confidence,
     provenance: { inputs: [String(type)], source, windowDays, computedAt },
