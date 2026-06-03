@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { lookupNormalRange, hasSharpenedNorm } from "../norms";
+import {
+  lookupNormalRange,
+  hasSharpenedNorm,
+  predictSixMinuteWalkDistance,
+} from "../norms";
 
 describe("lookupNormalRange — the age/sex reference-range enabler", () => {
   it("returns a sex-specific VO2max band for a registered metric", () => {
@@ -57,5 +61,41 @@ describe("hasSharpenedNorm", () => {
     expect(hasSharpenedNorm("VO2_MAX", 35, "MALE")).toBe(true);
     expect(hasSharpenedNorm("VO2_MAX", 35, null)).toBe(false);
     expect(hasSharpenedNorm("STEPS", 35, "MALE")).toBe(false);
+  });
+});
+
+describe("predictSixMinuteWalkDistance — Enright & Sherrill 1998", () => {
+  it("matches the published male equation", () => {
+    // 7.57·180 − 5.02·40 − 1.76·80 − 309 = 712 m
+    expect(predictSixMinuteWalkDistance(40, 180, 80, "MALE")).toBeCloseTo(
+      712,
+      6,
+    );
+  });
+
+  it("matches the published female equation", () => {
+    // 2.11·165 − 2.29·65 − 5.78·40 + 667 = 635.1 m
+    expect(predictSixMinuteWalkDistance(40, 165, 65, "FEMALE")).toBeCloseTo(
+      635.1,
+      6,
+    );
+  });
+
+  it("returns null without a usable sex (the equations differ by sex)", () => {
+    expect(predictSixMinuteWalkDistance(40, 180, 80, null)).toBeNull();
+  });
+
+  it("returns null when weight is absent (no silently-dropped term)", () => {
+    expect(predictSixMinuteWalkDistance(40, 180, null, "MALE")).toBeNull();
+  });
+
+  it("returns null without height", () => {
+    expect(predictSixMinuteWalkDistance(40, null, 80, "MALE")).toBeNull();
+  });
+
+  it("returns null for non-adult / non-finite ages", () => {
+    expect(predictSixMinuteWalkDistance(12, 150, 45, "MALE")).toBeNull();
+    expect(predictSixMinuteWalkDistance(Number.NaN, 180, 80, "MALE")).toBeNull();
+    expect(predictSixMinuteWalkDistance(null, 180, 80, "MALE")).toBeNull();
   });
 });

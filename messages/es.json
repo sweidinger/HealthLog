@@ -2621,6 +2621,22 @@
           "method": "Un indicador nocturno de esfuerzo de 0 a 100 a partir de tu carga de actividad ponderada por frecuencia cardíaca (un modelo de impulso de entrenamiento tipo TRIMP). Más alto significa un día más exigente.",
           "caveat": "Un indicador descriptivo de carga de actividad, no una medida de carga clínica ni de nivel de entrenamiento.",
           "description": "Un indicador nocturno de carga de actividad a partir de tu esfuerzo ponderado por frecuencia cardíaca."
+        },
+        "WRIST_TEMPERATURE_BASELINE": {
+          "method": "Tu temperatura típica de muñeca durante la noche es la mediana de tus lecturas nocturnas en el periodo, ± una dispersión robusta (desviación absoluta de la mediana, escalada). Sigue TUS lecturas: la noche pasada se muestra como una desviación respecto a tu propia base, no a una norma poblacional.",
+          "caveat": "Solo una banda de desviación personal: descriptiva, no una señal de enfermedad, fiebre ni fase del ciclo. Tú la interpretas."
+        },
+        "STAIR_ASCENT_SPEED_BASELINE": {
+          "method": "Tu ritmo típico al subir escaleras es la mediana de tus valores diarios en el periodo, ± una dispersión robusta (desviación absoluta de la mediana, escalada). La banda se construye con tus datos: no hay un umbral poblacional de velocidad en escaleras, porque el ritmo depende de la geometría de la escalera y la longitud de las piernas.",
+          "caveat": "Una banda personal de tendencia de movilidad: descriptiva, no una evaluación de fragilidad ni de riesgo de caídas."
+        },
+        "STAIR_DESCENT_SPEED_BASELINE": {
+          "method": "Tu ritmo típico al bajar escaleras es la mediana de tus valores diarios en el periodo, ± una dispersión robusta (desviación absoluta de la mediana, escalada). La banda se construye con tus datos: no hay un umbral poblacional de velocidad en escaleras, porque el ritmo depende de la geometría de la escalera y la longitud de las piernas.",
+          "caveat": "Una banda personal de tendencia de movilidad: descriptiva, no una evaluación de fragilidad ni de riesgo de caídas."
+        },
+        "SIX_MINUTE_WALK_BAND": {
+          "method": "La distancia ESTIMADA de marcha de seis minutos de tu dispositivo situada frente a la referencia de Enright y Sherrill para tu edad, estatura, peso y sexo, como porcentaje de lo previsto. La distancia es la estimación del dispositivo: nunca se recalcula aquí. Sin tu edad, estatura, peso y sexo se oculta el porcentaje y solo se muestran la distancia y la tendencia.",
+          "caveat": "Una estimación reformulada frente a una referencia publicada: una señal de capacidad funcional, no una prueba clínica de marcha de seis minutos ni un diagnóstico."
         }
       },
       "scores": {

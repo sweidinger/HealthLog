@@ -23,6 +23,7 @@ import {
   type BaselineProfile,
 } from "./baseline";
 import { computeFitnessAge } from "./fitness-age";
+import { computeSixMinuteWalkBand } from "./six-minute-walk";
 import { computeVascularAgeDelta } from "./vascular-age";
 import { computeHrvBalance } from "./hrv-balance";
 import { computeBmi } from "./bmi";
@@ -143,6 +144,36 @@ export async function computeDerivedMetric(
       }) as Promise<Derived<unknown>>;
     case "COINCIDENT_DEVIATION":
       return computeCoincidentDeviation(args.userId, args.profile, {
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
+    case "WRIST_TEMPERATURE_BASELINE":
+    case "STAIR_ASCENT_SPEED_BASELINE":
+    case "STAIR_DESCENT_SPEED_BASELINE": {
+      // v1.10.3 additive HealthKit baselines — each pins ONE fixed type and
+      // reuses the type-generic baseline engine unchanged (median ± k·MAD).
+      // Wrist temperature is a personal-DEVIATION band (no illness/cycle
+      // inference); stair ascent/descent are personal trend bands (no
+      // population cutoff — stair pace is geometry-confounded). The fixed
+      // type is the metric's single registered input.
+      const baselineType: Record<
+        | "WRIST_TEMPERATURE_BASELINE"
+        | "STAIR_ASCENT_SPEED_BASELINE"
+        | "STAIR_DESCENT_SPEED_BASELINE",
+        MeasurementType
+      > = {
+        WRIST_TEMPERATURE_BASELINE: "WRIST_TEMPERATURE",
+        STAIR_ASCENT_SPEED_BASELINE: "STAIR_ASCENT_SPEED",
+        STAIR_DESCENT_SPEED_BASELINE: "STAIR_DESCENT_SPEED",
+      };
+      return computeVitalsBaseline(args.userId, args.profile, {
+        type: baselineType[args.metric],
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
+    }
+    case "SIX_MINUTE_WALK_BAND":
+      return computeSixMinuteWalkBand(args.userId, args.profile, {
         windowDays: args.windowDays,
         now,
       }) as Promise<Derived<unknown>>;

@@ -24,6 +24,13 @@
  *     377(9770):1011–1018, normal-range HR centiles by age).
  *   - Respiratory rate by age — clinical reference (WHO/PALS adult vs
  *     paediatric ranges).
+ *   - Six-minute-walk distance — a published REGRESSION (not a bracket
+ *     table): Enright & Sherrill 1998, "Reference Equations for the
+ *     Six-Minute Walk in Healthy Adults", Am J Respir Crit Care Med
+ *     158(5):1384–1387; the test itself standardised by ATS 2002,
+ *     "ATS Statement: Guidelines for the Six-Minute Walk Test",
+ *     Am J Respir Crit Care Med 166(1):111–117. Surfaced as a
+ *     percent-of-predicted re-frame, never a HealthLog-derived equation.
  *
  * Client-safe — pure data + a pure lookup, no server imports.
  */
@@ -143,6 +150,53 @@ export function lookupNormalRange(
 
   // Sex-specific-only table but no profile sex: no honest single band.
   return null;
+}
+
+/**
+ * Enright & Sherrill 1998 predicted six-minute-walk distance (metres) for a
+ * healthy adult. A published linear regression on age, height, weight, sex —
+ * NOT a HealthLog-derived model:
+ *   - Men:   6MWD = 7.57·height_cm − 5.02·age − 1.76·weight_kg − 309
+ *   - Women: 6MWD = 2.11·height_cm − 2.29·weight_kg − 5.78·age + 667
+ *
+ * Returns `null` when the inputs the equation needs are absent, so the caller
+ * surfaces the raw distance + trend without a fabricated placement (the
+ * `fitness-age.ts` `band: null` discipline). Sex is required (the two
+ * coefficient sets differ); height is required (the dominant term). Weight is
+ * required for the published full equation — when it is missing we return
+ * `null` rather than silently dropping the weight term, since the omission
+ * would inflate the predicted distance.
+ *
+ * Pure. The equation is for adults; for ages below 18 the reference does not
+ * apply and we return `null`.
+ */
+export function predictSixMinuteWalkDistance(
+  ageYears: number | null | undefined,
+  heightCm: number | null | undefined,
+  weightKg: number | null | undefined,
+  sex: NormSex,
+): number | null {
+  if (sex !== "MALE" && sex !== "FEMALE") return null;
+  if (
+    ageYears == null ||
+    !Number.isFinite(ageYears) ||
+    ageYears < 18 ||
+    ageYears > 120
+  ) {
+    return null;
+  }
+  if (heightCm == null || !Number.isFinite(heightCm) || heightCm <= 0) {
+    return null;
+  }
+  if (weightKg == null || !Number.isFinite(weightKg) || weightKg <= 0) {
+    return null;
+  }
+  const predicted =
+    sex === "MALE"
+      ? 7.57 * heightCm - 5.02 * ageYears - 1.76 * weightKg - 309
+      : 2.11 * heightCm - 2.29 * weightKg - 5.78 * ageYears + 667;
+  // A non-positive prediction is physically meaningless — treat as no band.
+  return predicted > 0 ? predicted : null;
 }
 
 /** `true` when an age/sex-sharpened band exists for the metric+profile. */

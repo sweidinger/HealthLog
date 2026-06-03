@@ -2621,6 +2621,22 @@
           "method": "Un indicatore notturno di sforzo da 0 a 100 dal tuo carico di attività pesato sulla frequenza cardiaca (un modello di impulso d’allenamento tipo TRIMP). Più alto significa una giornata più impegnativa.",
           "caveat": "Un indicatore descrittivo di carico di attività, non una misura di carico clinica o da allenamento.",
           "description": "Un indicatore notturno di carico di attività dal tuo sforzo pesato sulla frequenza cardiaca."
+        },
+        "WRIST_TEMPERATURE_BASELINE": {
+          "method": "La tua tipica temperatura notturna al polso è la mediana delle tue letture notturne nel periodo, ± una dispersione robusta (deviazione assoluta mediana, scalata). Segue le TUE letture — la notte scorsa è mostrata come scostamento dalla tua baseline, non da una norma di popolazione.",
+          "caveat": "Solo una banda di scostamento personale — descrittiva, non un segnale di malattia, febbre o fase del ciclo. Sei tu a interpretarla."
+        },
+        "STAIR_ASCENT_SPEED_BASELINE": {
+          "method": "Il tuo passo tipico in salita sulle scale è la mediana dei tuoi valori giornalieri nel periodo, ± una dispersione robusta (deviazione assoluta mediana, scalata). La banda è costruita sui tuoi dati — non esiste una soglia di popolazione per la velocità sulle scale, perché il passo dipende dalla geometria dei gradini e dalla lunghezza delle gambe.",
+          "caveat": "Una banda personale di tendenza della mobilità — descrittiva, non una valutazione di fragilità o di rischio di caduta."
+        },
+        "STAIR_DESCENT_SPEED_BASELINE": {
+          "method": "Il tuo passo tipico in discesa sulle scale è la mediana dei tuoi valori giornalieri nel periodo, ± una dispersione robusta (deviazione assoluta mediana, scalata). La banda è costruita sui tuoi dati — non esiste una soglia di popolazione per la velocità sulle scale, perché il passo dipende dalla geometria dei gradini e dalla lunghezza delle gambe.",
+          "caveat": "Una banda personale di tendenza della mobilità — descrittiva, non una valutazione di fragilità o di rischio di caduta."
+        },
+        "SIX_MINUTE_WALK_BAND": {
+          "method": "La distanza di cammino di sei minuti STIMATA dal tuo dispositivo, collocata rispetto al riferimento di Enright e Sherrill per la tua età, altezza, peso e sesso, come percentuale del previsto. La distanza è la stima del dispositivo — mai ricalcolata qui. Senza età, altezza, peso e sesso la percentuale è nascosta e vengono mostrate solo distanza e tendenza.",
+          "caveat": "Una stima riformulata rispetto a un riferimento pubblicato — un segnale di capacità funzionale, non un test del cammino di sei minuti clinico né una diagnosi."
         }
       },
       "scores": {

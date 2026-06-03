@@ -2621,6 +2621,22 @@
           "method": "A nightly 0–100 strain proxy from your heart-rate-weighted activity load (a TRIMP-style training-impulse model). Higher means a harder day.",
           "caveat": "A descriptive activity-load proxy, not a clinical or training-grade load measure.",
           "description": "A nightly activity-load proxy from your heart-rate-weighted effort."
+        },
+        "WRIST_TEMPERATURE_BASELINE": {
+          "method": "Your typical overnight wrist temperature is the median of your nightly readings over the window, ± a robust spread (median absolute deviation, scaled). It tracks YOUR readings — last night is shown as a deviation from your own baseline, not a population norm.",
+          "caveat": "A personal-deviation band only — descriptive, not an illness, fever or cycle-phase signal. Interpret it yourself."
+        },
+        "STAIR_ASCENT_SPEED_BASELINE": {
+          "method": "Your typical stair-climbing pace is the median of your daily values over the window, ± a robust spread (median absolute deviation, scaled). The band is built from your data — there is no population stair-speed cut-off, because pace depends on stair geometry and leg length.",
+          "caveat": "A personal mobility-trend band — descriptive, not a frailty or fall-risk assessment."
+        },
+        "STAIR_DESCENT_SPEED_BASELINE": {
+          "method": "Your typical stair-descent pace is the median of your daily values over the window, ± a robust spread (median absolute deviation, scaled). The band is built from your data — there is no population stair-speed cut-off, because pace depends on stair geometry and leg length.",
+          "caveat": "A personal mobility-trend band — descriptive, not a frailty or fall-risk assessment."
+        },
+        "SIX_MINUTE_WALK_BAND": {
+          "method": "Your device's ESTIMATED six-minute-walk distance placed against the Enright & Sherrill reference for your age, height, weight and sex, as a percent of predicted. The distance is the device's estimate — never recomputed here. Without your age, height, weight and sex the percent is hidden and only the distance and trend are shown.",
+          "caveat": "An estimate re-framed against a published reference — a functional-capacity awareness signal, not a clinical 6-minute-walk test or a diagnosis."
         }
       },
       "scores": {

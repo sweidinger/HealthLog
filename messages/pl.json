@@ -2621,6 +2621,22 @@
           "method": "Nocny wskaźnik obciążenia 0–100 na podstawie Twojego obciążenia aktywnością ważonego tętnem (model impulsu treningowego typu TRIMP). Wyższy oznacza cięższy dzień.",
           "caveat": "Opisowy wskaźnik obciążenia aktywnością, nie kliniczna ani treningowa miara obciążenia.",
           "description": "Nocny wskaźnik obciążenia aktywnością z Twojego wysiłku ważonego tętnem."
+        },
+        "WRIST_TEMPERATURE_BASELINE": {
+          "method": "Twoja typowa nocna temperatura nadgarstka to mediana Twoich nocnych odczytów w danym okresie, ± solidny rozrzut (przeskalowane medianowe odchylenie bezwzględne). Śledzi TWOJE odczyty — ostatnia noc jest pokazana jako odchylenie od Twojej własnej bazy, a nie od normy populacyjnej.",
+          "caveat": "Tylko osobiste pasmo odchylenia — opisowe, nie sygnał choroby, gorączki ani fazy cyklu. Interpretujesz je samodzielnie."
+        },
+        "STAIR_ASCENT_SPEED_BASELINE": {
+          "method": "Twoje typowe tempo wchodzenia po schodach to mediana Twoich dziennych wartości w danym okresie, ± solidny rozrzut (przeskalowane medianowe odchylenie bezwzględne). Pasmo jest budowane z Twoich danych — nie ma populacyjnego progu prędkości na schodach, bo tempo zależy od geometrii schodów i długości nóg.",
+          "caveat": "Osobiste pasmo trendu mobilności — opisowe, nie ocena kruchości ani ryzyka upadku."
+        },
+        "STAIR_DESCENT_SPEED_BASELINE": {
+          "method": "Twoje typowe tempo schodzenia po schodach to mediana Twoich dziennych wartości w danym okresie, ± solidny rozrzut (przeskalowane medianowe odchylenie bezwzględne). Pasmo jest budowane z Twoich danych — nie ma populacyjnego progu prędkości na schodach, bo tempo zależy od geometrii schodów i długości nóg.",
+          "caveat": "Osobiste pasmo trendu mobilności — opisowe, nie ocena kruchości ani ryzyka upadku."
+        },
+        "SIX_MINUTE_WALK_BAND": {
+          "method": "SZACOWANY przez Twoje urządzenie dystans sześciominutowego marszu odniesiony do wzorca Enrighta i Sherrilla dla Twojego wieku, wzrostu, wagi i płci, jako procent wartości przewidywanej. Dystans to szacunek urządzenia — nigdy nie jest tu przeliczany. Bez Twojego wieku, wzrostu, wagi i płci procent jest ukryty i pokazywane są tylko dystans i trend.",
+          "caveat": "Szacunek odniesiony do opublikowanego wzorca — sygnał wydolności funkcjonalnej, nie kliniczny test sześciominutowego marszu ani diagnoza."
         }
       },
       "scores": {

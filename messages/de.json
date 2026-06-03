@@ -2621,6 +2621,22 @@
           "method": "Ein nächtlicher 0–100-Belastungs-Proxy aus deiner herzfrequenzgewichteten Aktivitätslast (ein TRIMP-ähnliches Trainingsimpuls-Modell). Höher heißt ein anstrengenderer Tag.",
           "caveat": "Ein beschreibender Aktivitätslast-Proxy, kein klinisches oder trainingsgerechtes Lastmaß.",
           "description": "Ein nächtlicher Aktivitätslast-Proxy aus deiner herzfrequenzgewichteten Anstrengung."
+        },
+        "WRIST_TEMPERATURE_BASELINE": {
+          "method": "Deine typische nächtliche Handgelenkstemperatur ist der Median deiner nächtlichen Messwerte im Zeitraum, ± einer robusten Streuung (skalierte mittlere absolute Abweichung). Sie folgt DEINEN Werten — letzte Nacht wird als Abweichung von deiner eigenen Baseline gezeigt, nicht von einer Bevölkerungsnorm.",
+          "caveat": "Nur ein persönliches Abweichungsband — beschreibend, kein Anzeichen für Krankheit, Fieber oder Zyklusphase. Du interpretierst es selbst."
+        },
+        "STAIR_ASCENT_SPEED_BASELINE": {
+          "method": "Dein typisches Treppensteig-Tempo ist der Median deiner Tageswerte im Zeitraum, ± einer robusten Streuung (skalierte mittlere absolute Abweichung). Das Band wird aus deinen Daten gebildet — es gibt keinen Bevölkerungs-Grenzwert für Treppentempo, da es von Treppengeometrie und Beinlänge abhängt.",
+          "caveat": "Ein persönliches Mobilitäts-Trendband — beschreibend, keine Gebrechlichkeits- oder Sturzrisiko-Bewertung."
+        },
+        "STAIR_DESCENT_SPEED_BASELINE": {
+          "method": "Dein typisches Treppen-Abstiegstempo ist der Median deiner Tageswerte im Zeitraum, ± einer robusten Streuung (skalierte mittlere absolute Abweichung). Das Band wird aus deinen Daten gebildet — es gibt keinen Bevölkerungs-Grenzwert für Treppentempo, da es von Treppengeometrie und Beinlänge abhängt.",
+          "caveat": "Ein persönliches Mobilitäts-Trendband — beschreibend, keine Gebrechlichkeits- oder Sturzrisiko-Bewertung."
+        },
+        "SIX_MINUTE_WALK_BAND": {
+          "method": "Die von deinem Gerät GESCHÄTZTE 6-Minuten-Gehstrecke, eingeordnet gegen die Referenz von Enright & Sherrill für Alter, Größe, Gewicht und Geschlecht, als Prozent des Vorhersagewerts. Die Strecke ist die Schätzung des Geräts — hier nie neu berechnet. Ohne Alter, Größe, Gewicht und Geschlecht wird der Prozentwert ausgeblendet und nur Strecke und Trend gezeigt.",
+          "caveat": "Eine gegen eine veröffentlichte Referenz neu eingeordnete Schätzung — ein Hinweis zur funktionellen Kapazität, kein klinischer 6-Minuten-Gehtest und keine Diagnose."
         }
       },
       "scores": {
