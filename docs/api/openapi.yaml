@@ -2466,6 +2466,10 @@ paths:
               - RECOVERY_SCORE
               - STRESS_SCORE
               - STRAIN_SCORE
+              - WRIST_TEMPERATURE_BASELINE
+              - STAIR_ASCENT_SPEED_BASELINE
+              - STAIR_DESCENT_SPEED_BASELINE
+              - SIX_MINUTE_WALK_BAND
             description: "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, VASCULAR_AGE_DELTA, HRV_BALANCE, BMI,
               READINESS). Closed enum: an unknown id 422s. Metrics whose compute has not yet landed return an
               `insufficient` value with reason `not_implemented`."
@@ -7769,6 +7773,10 @@ components:
             - RECOVERY_SCORE
             - STRESS_SCORE
             - STRAIN_SCORE
+            - WRIST_TEMPERATURE_BASELINE
+            - STAIR_ASCENT_SPEED_BASELINE
+            - STAIR_DESCENT_SPEED_BASELINE
+            - SIX_MINUTE_WALK_BAND
           description: Echoes the requested derived-metric id (tags the union).
         status:
           type: string
