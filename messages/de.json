@@ -2618,9 +2618,9 @@
           "description": "Ein nächtlicher Stress-Proxy aus dem Tagesverlauf deiner HRV."
         },
         "STRAIN_SCORE": {
-          "method": "Ein nächtlicher 0–100-Belastungs-Proxy aus deiner herzfrequenzgewichteten Aktivitätslast (ein TRIMP-ähnliches Trainingsimpuls-Modell). Höher heißt ein anstrengenderer Tag.",
+          "method": "Ein nächtlicher 0–100-Belastungs-Proxy aus deiner herzfrequenzgewichteten Aktivitätslast (ein TRIMP-ähnliches Trainingsimpuls-Modell). Höher heißt ein anstrengenderer Tag. Die Skala ist an deine eigene jüngste Trainingstagslast angelehnt — relativ zu deiner typischen Anstrengung —, sodass ein für dich wirklich harter Tag hoch ausfällt. Solange du noch Verlauf aufbaust, wird stattdessen ein allgemeiner Referenzwert verwendet.",
           "caveat": "Ein beschreibender Aktivitätslast-Proxy, kein klinisches oder trainingsgerechtes Lastmaß.",
-          "description": "Ein nächtlicher Aktivitätslast-Proxy aus deiner herzfrequenzgewichteten Anstrengung."
+          "description": "Ein nächtlicher Aktivitätslast-Proxy aus deiner herzfrequenzgewichteten Anstrengung, relativ zu deiner typischen Anstrengung."
         },
         "WRIST_TEMPERATURE_BASELINE": {
           "method": "Deine typische nächtliche Handgelenkstemperatur ist der Median deiner nächtlichen Messwerte im Zeitraum, ± einer robusten Streuung (skalierte mittlere absolute Abweichung). Sie folgt DEINEN Werten — letzte Nacht wird als Abweichung von deiner eigenen Baseline gezeigt, nicht von einer Bevölkerungsnorm.",

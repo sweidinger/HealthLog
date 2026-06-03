@@ -2618,9 +2618,9 @@
           "description": "Un indicador nocturno de estrés a partir de la forma de tu VFC durante el día."
         },
         "STRAIN_SCORE": {
-          "method": "Un indicador nocturno de esfuerzo de 0 a 100 a partir de tu carga de actividad ponderada por frecuencia cardíaca (un modelo de impulso de entrenamiento tipo TRIMP). Más alto significa un día más exigente.",
+          "method": "Un indicador nocturno de esfuerzo de 0 a 100 a partir de tu carga de actividad ponderada por frecuencia cardíaca (un modelo de impulso de entrenamiento tipo TRIMP). Más alto significa un día más exigente. La escala se ancla a tu propia carga reciente de días de entrenamiento —relativa a tu esfuerzo habitual—, de modo que un día realmente duro para ti aparece alto. Mientras aún estás acumulando historial usa una referencia general en su lugar.",
           "caveat": "Un indicador descriptivo de carga de actividad, no una medida de carga clínica ni de nivel de entrenamiento.",
-          "description": "Un indicador nocturno de carga de actividad a partir de tu esfuerzo ponderado por frecuencia cardíaca."
+          "description": "Un indicador nocturno de carga de actividad a partir de tu esfuerzo ponderado por frecuencia cardíaca, relativo a tu esfuerzo habitual."
         },
         "WRIST_TEMPERATURE_BASELINE": {
           "method": "Tu temperatura típica de muñeca durante la noche es la mediana de tus lecturas nocturnas en el periodo, ± una dispersión robusta (desviación absoluta de la mediana, escalada). Sigue TUS lecturas: la noche pasada se muestra como una desviación respecto a tu propia base, no a una norma poblacional.",

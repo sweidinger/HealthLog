@@ -2618,9 +2618,9 @@
           "description": "Un indice de stress nocturne à partir de la forme de votre VFC sur la journée."
         },
         "STRAIN_SCORE": {
-          "method": "Un indice d’effort nocturne de 0 à 100 à partir de votre charge d’activité pondérée par la fréquence cardiaque (un modèle d’impulsion d’entraînement de type TRIMP). Plus élevé signifie une journée plus exigeante.",
+          "method": "Un indice d’effort nocturne de 0 à 100 à partir de votre charge d’activité pondérée par la fréquence cardiaque (un modèle d’impulsion d’entraînement de type TRIMP). Plus élevé signifie une journée plus exigeante. L’échelle est calée sur votre propre charge récente des jours d’entraînement — relative à votre effort habituel —, de sorte qu’une journée vraiment difficile pour vous ressort élevée. Tant que vous constituez encore votre historique, elle utilise plutôt une référence générale.",
           "caveat": "Un indicateur descriptif de charge d’activité, pas une mesure de charge clinique ou de niveau d’entraînement.",
-          "description": "Un indice de charge d’activité nocturne à partir de votre effort pondéré par la fréquence cardiaque."
+          "description": "Un indice de charge d’activité nocturne à partir de votre effort pondéré par la fréquence cardiaque, relatif à votre effort habituel."
         },
         "WRIST_TEMPERATURE_BASELINE": {
           "method": "Votre température nocturne typique au poignet est la médiane de vos relevés nocturnes sur la période, ± une dispersion robuste (écart absolu médian, mis à l’échelle). Elle suit VOS relevés — la nuit dernière est affichée comme un écart par rapport à votre propre référence, pas à une norme de population.",

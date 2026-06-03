@@ -2618,9 +2618,9 @@
           "description": "Un indicatore notturno di stress dalla forma della tua VFC nel corso della giornata."
         },
         "STRAIN_SCORE": {
-          "method": "Un indicatore notturno di sforzo da 0 a 100 dal tuo carico di attività pesato sulla frequenza cardiaca (un modello di impulso d’allenamento tipo TRIMP). Più alto significa una giornata più impegnativa.",
+          "method": "Un indicatore notturno di sforzo da 0 a 100 dal tuo carico di attività pesato sulla frequenza cardiaca (un modello di impulso d’allenamento tipo TRIMP). Più alto significa una giornata più impegnativa. La scala è ancorata al tuo carico recente nei giorni di allenamento — relativo al tuo sforzo abituale —, così che una giornata davvero dura per te risulti alta. Finché stai ancora costruendo lo storico usa invece un riferimento generale.",
           "caveat": "Un indicatore descrittivo di carico di attività, non una misura di carico clinica o da allenamento.",
-          "description": "Un indicatore notturno di carico di attività dal tuo sforzo pesato sulla frequenza cardiaca."
+          "description": "Un indicatore notturno di carico di attività dal tuo sforzo pesato sulla frequenza cardiaca, relativo al tuo sforzo abituale."
         },
         "WRIST_TEMPERATURE_BASELINE": {
           "method": "La tua tipica temperatura notturna al polso è la mediana delle tue letture notturne nel periodo, ± una dispersione robusta (deviazione assoluta mediana, scalata). Segue le TUE letture — la notte scorsa è mostrata come scostamento dalla tua baseline, non da una norma di popolazione.",

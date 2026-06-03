@@ -2618,9 +2618,9 @@
           "description": "Nocny wskaźnik stresu na podstawie kształtu Twojego HRV w ciągu dnia."
         },
         "STRAIN_SCORE": {
-          "method": "Nocny wskaźnik obciążenia 0–100 na podstawie Twojego obciążenia aktywnością ważonego tętnem (model impulsu treningowego typu TRIMP). Wyższy oznacza cięższy dzień.",
+          "method": "Nocny wskaźnik obciążenia 0–100 na podstawie Twojego obciążenia aktywnością ważonego tętnem (model impulsu treningowego typu TRIMP). Wyższy oznacza cięższy dzień. Skala jest zakotwiczona w Twoim własnym niedawnym obciążeniu z dni treningowych — względem Twojego typowego wysiłku — więc naprawdę ciężki dzień dla Ciebie wypada wysoko. Dopóki dopiero budujesz historię, używa zamiast tego ogólnego punktu odniesienia.",
           "caveat": "Opisowy wskaźnik obciążenia aktywnością, nie kliniczna ani treningowa miara obciążenia.",
-          "description": "Nocny wskaźnik obciążenia aktywnością z Twojego wysiłku ważonego tętnem."
+          "description": "Nocny wskaźnik obciążenia aktywnością z Twojego wysiłku ważonego tętnem, względem Twojego typowego wysiłku."
         },
         "WRIST_TEMPERATURE_BASELINE": {
           "method": "Twoja typowa nocna temperatura nadgarstka to mediana Twoich nocnych odczytów w danym okresie, ± solidny rozrzut (przeskalowane medianowe odchylenie bezwzględne). Śledzi TWOJE odczyty — ostatnia noc jest pokazana jako odchylenie od Twojej własnej bazy, a nie od normy populacyjnej.",

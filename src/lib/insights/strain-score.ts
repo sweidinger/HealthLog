@@ -57,8 +57,10 @@
  *   - `externalId = strain:YYYY-MM-DD`
  *
  * The score is descriptive — a daily training-load proxy, NOT a clinical
- * assessment, and it is excluded from the doctor PDF. Server-only — runs
- * from the nightly pg-boss job in `src/lib/jobs/strain-score.ts`.
+ * assessment. In the doctor PDF it is segregated into a clearly-labelled,
+ * disclaimed Wellness-summary section, kept out of the clinical-vitals body.
+ * Server-only — runs from the nightly pg-boss job in
+ * `src/lib/jobs/strain-score.ts`.
  */
 import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
 import { loadBaselineProfile } from "@/lib/insights/derived/baseline";
