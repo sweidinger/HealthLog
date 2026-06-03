@@ -57,27 +57,38 @@ export async function findStrainScoreCandidates(
   cap: number,
 ): Promise<string[]> {
   const since = new Date(now.getTime() - STRAIN_SCORE_RECENCY_DAYS * MS_PER_DAY);
+  // Deterministic recency-under-cap on both source queries: group by user,
+  // newest activity first, `userId` tiebreak. `distinct` + `take` without an
+  // order picked an arbitrary set when more than `cap` users qualified; the
+  // ordered `groupBy` makes each side take the most-recently-active users, and
+  // the merge below is order-stable.
   const [workoutUsers, energyUsers] = await Promise.all([
-    prisma.workout.findMany({
+    prisma.workout.groupBy({
+      by: ["userId"],
       where: { startedAt: { gte: since } },
-      select: { userId: true },
-      distinct: ["userId"],
+      orderBy: [{ _max: { startedAt: "desc" } }, { userId: "asc" }],
       take: cap,
     }),
-    prisma.measurement.findMany({
+    prisma.measurement.groupBy({
+      by: ["userId"],
       where: {
         type: "ACTIVE_ENERGY_BURNED",
         deletedAt: null,
         measuredAt: { gte: since },
       },
-      select: { userId: true },
-      distinct: ["userId"],
+      orderBy: [{ _max: { measuredAt: "desc" } }, { userId: "asc" }],
       take: cap,
     }),
   ]);
+  // Interleave the two recency-ordered lists so the merged cap favours the
+  // most-recently-active users across both sources rather than draining one
+  // list first. Both inputs are already deterministic, so the merge is too.
   const ids = new Set<string>();
-  for (const r of workoutUsers) ids.add(r.userId);
-  for (const r of energyUsers) ids.add(r.userId);
+  const maxLen = Math.max(workoutUsers.length, energyUsers.length);
+  for (let i = 0; i < maxLen && ids.size < cap; i++) {
+    if (i < workoutUsers.length) ids.add(workoutUsers[i].userId);
+    if (ids.size < cap && i < energyUsers.length) ids.add(energyUsers[i].userId);
+  }
   return Array.from(ids).slice(0, cap);
 }
 

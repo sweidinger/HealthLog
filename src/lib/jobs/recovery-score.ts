@@ -67,7 +67,14 @@ export async function findRecoveryScoreCandidates(
   const since = new Date(now.getTime() - RECOVERY_SCORE_RECENCY_DAYS * MS_PER_DAY);
   // The input-type set is a closed compile-time list of enum members —
   // splice-free; Prisma binds the `type IN (...)` array as parameters.
-  const rows = await prisma.measurement.findMany({
+  //
+  // Deterministic recency-under-cap: group by user, order by each user's
+  // newest input first, with `userId` as the stable tiebreak so the capped
+  // set is reproducible. `distinct` + `take` without an order picks an
+  // arbitrary set when more than `cap` users qualify; `groupBy` makes the
+  // cap take the most-recently-active users every run.
+  const rows = await prisma.measurement.groupBy({
+    by: ["userId"],
     where: {
       type: {
         in: [
@@ -80,8 +87,7 @@ export async function findRecoveryScoreCandidates(
       deletedAt: null,
       measuredAt: { gte: since },
     },
-    select: { userId: true },
-    distinct: ["userId"],
+    orderBy: [{ _max: { measuredAt: "desc" } }, { userId: "asc" }],
     take: cap,
   });
   return rows.map((r) => r.userId);
