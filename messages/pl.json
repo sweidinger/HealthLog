@@ -2047,7 +2047,9 @@
         "weekday": "Większość Twoich pomiarów {metric} przypada na jeden dzień tygodnia. Pomiary w inne dni dają pełniejszy obraz.",
         "timeOfDay": "Większość Twoich pomiarów {metric} przypada o podobnej porze dnia. Różne pory dają pełniejszy obraz."
       },
-      "valuesBack": "Powrót do Insights"
+      "valuesBack": "Powrót do Insights",
+      "valuesBackToMetric": "Powrót do {metric}",
+      "scoresBack": "Powrót do Insights"
     },
     "sleep": {
       "title": "Sen",

@@ -2047,7 +2047,9 @@
         "weekday": "Die meisten deiner {metric}-Werte fallen auf einen Wochentag. Messungen an anderen Tagen ergeben ein vollständigeres Bild.",
         "timeOfDay": "Die meisten deiner {metric}-Werte fallen auf eine ähnliche Tageszeit. Unterschiedliche Zeiten ergeben ein vollständigeres Bild."
       },
-      "valuesBack": "Zurück zu Insights"
+      "valuesBack": "Zurück zu Insights",
+      "valuesBackToMetric": "Zurück zu {metric}",
+      "scoresBack": "Zurück zu Insights"
     },
     "sleep": {
       "title": "Schlaf",

@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
+import { Button } from "@/components/ui/button";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import {
   CompositeScoreAnatomy,
@@ -68,6 +71,20 @@ export default function CompositeScorePage() {
     <SubPageShell
       title={t(header.title)}
       description={t(header.description)}
+      backLink={
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          data-slot="composite-score-back"
+          className="-ml-2 w-fit"
+        >
+          <Link href="/insights">
+            <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
+            {t("insights.subPage.scoresBack")}
+          </Link>
+        </Button>
+      }
       coachLaunch
     >
       <CompositeScoreAnatomy metric={metric} />

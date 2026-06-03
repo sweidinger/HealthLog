@@ -2047,7 +2047,9 @@
         "weekday": "La plupart de vos mesures de {metric} tombent le même jour de la semaine. Enregistrer d'autres jours donne une image plus complète.",
         "timeOfDay": "La plupart de vos mesures de {metric} tombent à une heure similaire de la journée. Varier l'heure donne une image plus complète."
       },
-      "valuesBack": "Retour aux Insights"
+      "valuesBack": "Retour aux Insights",
+      "valuesBackToMetric": "Retour à {metric}",
+      "scoresBack": "Retour aux Insights"
     },
     "sleep": {
       "title": "Sommeil",

@@ -2047,7 +2047,9 @@
         "weekday": "Most of your {metric} readings land on one weekday. Logging on other days gives a fuller picture.",
         "timeOfDay": "Most of your {metric} readings land at a similar time of day. Varying the time gives a fuller picture."
       },
-      "valuesBack": "Back to insights"
+      "valuesBack": "Back to insights",
+      "valuesBackToMetric": "Back to {metric}",
+      "scoresBack": "Back to insights"
     },
     "sleep": {
       "title": "Sleep",
