@@ -183,41 +183,81 @@ export async function runDenseIntradayRetention(
       const unit = dayRows[0]?.unit ?? "unknown";
       let removed = 0;
       await pc.$transaction(async (tx) => {
-        // Mint / refresh the canonical daily-mean row first. The unique
-        // index (userId, type, source, externalId) makes the upsert
-        // idempotent across re-runs. Built field-by-field (no spread) per
-        // the no-mass-assignment convention.
-        await tx.measurement.upsert({
+        // Fold the day to one canonical daily-mean row at local-noon.
+        //
+        // Unlike `consolidate-daily-mean` (whose types never share the
+        // canonical local-noon instant with another path), the dense-tier
+        // types HRV / PULSE are dense enough that a per-sample row can land
+        // exactly on the canonical timestamp, and a previously-minted daily
+        // row can already occupy it. An externalId-keyed upsert misses the
+        // lookup (the colliding row carries a different externalId) and the
+        // INSERT then violates the OTHER unique index
+        // `(userId, type, measuredAt, source, sleepStage)` with P2002.
+        //
+        // The canonical daily row is identified by BOTH unique keys at once:
+        // its measuredAt is always `canonicalTimestamp` (local-noon) and its
+        // externalId is always the `stats:` id, so the two indexes point at
+        // the same logical row. Resolve the row by the measured_at composite
+        // — the one the collision is on (`sleepStage` is NULL for these
+        // continuous types, matched via the NULLS-NOT-DISTINCT index) — and
+        // either adopt it in place or create it. Built field-by-field (no
+        // spread) per the no-mass-assignment convention.
+        const existing = await tx.measurement.findFirst({
           where: {
-            userId_type_source_externalId: {
-              userId,
-              type,
-              source: "APPLE_HEALTH",
-              externalId,
-            },
-          },
-          create: {
             userId,
             type,
-            value: reducedValue,
-            unit,
             source: "APPLE_HEALTH",
             measuredAt: canonicalTimestamp,
-            externalId,
+            sleepStage: null,
           },
-          update: {
-            value: reducedValue,
-            measuredAt: canonicalTimestamp,
-            deletedAt: null,
-          },
+          select: { id: true },
         });
+
+        let canonicalRowId: string;
+        if (existing) {
+          // Adopt the row already sitting on the canonical instant: refresh
+          // its value, stamp the `stats:` externalId, and un-tombstone it.
+          // This coexists with a pre-existing daily row (a prior fold, a
+          // manual daily entry, or a per-sample row that happened at local
+          // noon) instead of colliding with it.
+          await tx.measurement.update({
+            where: { id: existing.id },
+            data: {
+              value: reducedValue,
+              unit,
+              externalId,
+              deletedAt: null,
+            },
+          });
+          canonicalRowId = existing.id;
+        } else {
+          const created = await tx.measurement.create({
+            data: {
+              userId,
+              type,
+              value: reducedValue,
+              unit,
+              source: "APPLE_HEALTH",
+              measuredAt: canonicalTimestamp,
+              externalId,
+            },
+            select: { id: true },
+          });
+          canonicalRowId = created.id;
+        }
 
         // Soft-delete the out-of-window per-sample rows in the same
         // transaction — tombstone, never hard-delete; they remain as an
         // audit trail and drop off the live read + this pass's re-run
-        // discovery.
+        // discovery. EXCLUDE the canonical row itself: a per-sample row that
+        // happened to fall on the canonical local-noon instant is the row we
+        // just adopted as the daily mean, so tombstoning it would erase the
+        // fold.
         const del = await tx.measurement.updateMany({
-          where: { id: { in: sourceRowIds }, deletedAt: null },
+          where: {
+            id: { in: sourceRowIds, not: canonicalRowId },
+            deletedAt: null,
+          },
           data: { deletedAt: new Date() },
         });
         removed = del.count;
