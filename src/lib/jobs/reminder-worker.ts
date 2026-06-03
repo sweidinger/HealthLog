@@ -88,6 +88,7 @@ import {
   DENSE_INTRADAY_RETENTION_CONCURRENCY,
   runDenseIntradayRetentionForUser,
   enqueueBootTimeDenseIntradayRetention,
+  DENSE_INTRADAY_RETENTION_ENABLED,
   type DenseIntradayRetentionPayload,
 } from "@/lib/jobs/dense-intraday-retention";
 import { runDenseIntradayRetention } from "@/lib/measurements/dense-intraday-retention";
@@ -2820,17 +2821,24 @@ export async function startReminderWorker() {
         // accounts that accumulated out-of-window raw rows before this
         // shipped.
         try {
-          const denseSummary = await runDenseIntradayRetention(
-            getWorkerPrisma(),
-            {
-              dryRun: false,
-              log: (line) => workerLog("info", line),
-            },
-          );
-          workerLog(
-            "info",
-            `[dense-intraday-retention] triggeredAt=${job.data.triggeredAt} usersScanned=${denseSummary.totals.usersScanned} daysConsolidated=${denseSummary.totals.daysConsolidated} perSampleRowsSoftDeleted=${denseSummary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${denseSummary.totals.dailyRowsUpserted}`,
-          );
+          if (!DENSE_INTRADAY_RETENTION_ENABLED) {
+            workerLog(
+              "info",
+              "[dense-intraday-retention] disabled — skipping the nightly walk (P2002 fold collision; re-enable via DENSE_INTRADAY_RETENTION_ENABLED once reworked)",
+            );
+          } else {
+            const denseSummary = await runDenseIntradayRetention(
+              getWorkerPrisma(),
+              {
+                dryRun: false,
+                log: (line) => workerLog("info", line),
+              },
+            );
+            workerLog(
+              "info",
+              `[dense-intraday-retention] triggeredAt=${job.data.triggeredAt} usersScanned=${denseSummary.totals.usersScanned} daysConsolidated=${denseSummary.totals.daysConsolidated} perSampleRowsSoftDeleted=${denseSummary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${denseSummary.totals.dailyRowsUpserted}`,
+            );
+          }
         } catch (err) {
           recordError();
           workerLog(
