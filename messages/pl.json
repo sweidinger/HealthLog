@@ -2632,7 +2632,15 @@
       "coincident": {
         "label": "Kilka parametrów poza bazą",
         "summary": "Dziś {count} Twoich parametrów życiowych znalazło się poza osobistym zakresem.",
-        "vitals": "Poza zakresem: {list}"
+        "vitals": "Poza zakresem: {list}",
+        "cardTitle": "Sygnał dnia",
+        "allClear": "Dziś wszystkie Twoje parametry życiowe mieszczą się w osobistym zakresie.",
+        "allClearMeta": "Sprawdzono {count} Twoich parametrów względem Twojego typowego zakresu.",
+        "watch": "Dziś jeden parametr jest poza swoim zwykłym zakresem.",
+        "watchVital": "Poza zakresem: {vital}. Często to jednorazowy odczyt — warto obserwować przez kilka dni.",
+        "firedHeadline": "Dziś {count} Twoich parametrów życiowych jest poza osobistym zakresem.",
+        "factors": "Możliwe czynniki — nigdy przyczyna: intensywny trening, słaby sen, alkohol, wysokość, stres lub choroba. To wskazówka z Twoich własnych baz, nie diagnoza.",
+        "building": "Budujemy Twoje osobiste bazy — zarejestruj jeszcze kilka dni, a to się pojawi."
       }
     },
     "cardioFitness": {

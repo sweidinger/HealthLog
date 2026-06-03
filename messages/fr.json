@@ -2632,7 +2632,15 @@
       "coincident": {
         "label": "Plusieurs constantes hors référence",
         "summary": "Aujourd’hui, {count} de vos constantes sont sorties de leur plage personnelle.",
-        "vitals": "Hors plage : {list}"
+        "vitals": "Hors plage : {list}",
+        "cardTitle": "Signal du jour",
+        "allClear": "Aujourd’hui, toutes vos constantes sont dans leur plage personnelle.",
+        "allClearMeta": "{count} de vos constantes vérifiées par rapport à votre propre plage habituelle.",
+        "watch": "Aujourd’hui, une constante est hors de sa plage habituelle.",
+        "watchVital": "Hors plage : {vital}. Souvent ponctuel — à surveiller ces prochains jours.",
+        "firedHeadline": "Aujourd’hui, {count} de vos constantes sont hors de leur plage personnelle.",
+        "factors": "Facteurs possibles — jamais une cause : un entraînement intense, un mauvais sommeil, l’alcool, l’altitude, le stress ou une maladie. C’est un repère issu de vos propres références, pas un diagnostic.",
+        "building": "Construction de vos références personnelles — enregistrez quelques jours de plus et cela apparaîtra."
       }
     },
     "cardioFitness": {

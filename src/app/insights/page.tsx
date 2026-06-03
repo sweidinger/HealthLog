@@ -97,6 +97,24 @@ const RhythmEventsCard = dynamic(
     })),
   { ssr: false },
 );
+// v1.10.3 — "Today's signal" headline card. Promotes COINCIDENT_DEVIATION from
+// a buried below-the-fold tile to the top-of-overview daily read (the
+// always-present Apple/WHOOP/Oura pattern). Deferred behind `next/dynamic`; it
+// owns its own derived-metric query and renders four calm states. A
+// fixed-height skeleton matches the resolved card so the top of the page does
+// not shift while the chunk + data resolve.
+const CoincidentDeviationCard = dynamic(
+  () =>
+    import("@/components/insights/coincident-deviation-card").then((mod) => ({
+      default: mod.CoincidentDeviationCard,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-card border-border h-[7.5rem] animate-pulse rounded-xl border motion-reduce:animate-none" />
+    ),
+  },
+);
 
 /**
  * v1.4.25 W4d — Insights mother page.
@@ -245,6 +263,8 @@ export default function InsightsPage() {
         }
         healthScore={analytics?.healthScore ?? undefined}
       />
+
+      <CoincidentDeviationCard enabled={isAuthenticated} />
 
       <div className="flex justify-end">
         <Button

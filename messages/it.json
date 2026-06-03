@@ -2632,7 +2632,15 @@
       "coincident": {
         "label": "Più parametri fuori dalla base",
         "summary": "Oggi {count} dei tuoi parametri vitali sono usciti dal loro intervallo personale.",
-        "vitals": "Fuori intervallo: {list}"
+        "vitals": "Fuori intervallo: {list}",
+        "cardTitle": "Segnale di oggi",
+        "allClear": "Oggi tutti i tuoi parametri vitali sono nel loro intervallo personale.",
+        "allClearMeta": "Controllati {count} dei tuoi parametri rispetto al tuo intervallo abituale.",
+        "watch": "Oggi un parametro è fuori dal suo intervallo abituale.",
+        "watchVital": "Fuori intervallo: {vital}. Spesso è un episodio isolato — tienilo d’occhio nei prossimi giorni.",
+        "firedHeadline": "Oggi {count} dei tuoi parametri vitali sono fuori dal loro intervallo personale.",
+        "factors": "Possibili fattori — mai una causa: un allenamento intenso, poco sonno, alcol, altitudine, stress o una malattia. È un avviso basato sui tuoi parametri, non una diagnosi.",
+        "building": "Stiamo costruendo i tuoi riferimenti personali — registra ancora qualche giorno e comparirà."
       }
     },
     "cardioFitness": {

@@ -173,36 +173,16 @@ describe("<VitalsDashboard>", () => {
     expect(html).not.toContain('data-metric="BMI"');
   });
 
-  it("surfaces the coincident-deviation flag when it fired", () => {
+  it("does not read the coincident-deviation flag (now the top-of-overview card)", () => {
+    // The flag moved to the dedicated `CoincidentDeviationCard`; the dashboard
+    // batch no longer requests it and the grid never paints it.
+    let requestedCoincident = false;
     mockBatch((token) => {
-      if (token.metric === "COINCIDENT_DEVIATION") {
-        return ok({
-          fired: true,
-          day: "2026-06-02",
-          vitals: [],
-          contributing: [
-            { type: "RESTING_HEART_RATE", value: 70, center: 55, low: 48, high: 62, outside: true, direction: "above" },
-            { type: "RESPIRATORY_RATE", value: 20, center: 14, low: 12, high: 16, outside: true, direction: "above" },
-          ],
-        });
-      }
+      if (token.metric === "COINCIDENT_DEVIATION") requestedCoincident = true;
       return insufficient("no_readings_in_window");
     });
     const html = render(<VitalsDashboard />);
-    expect(html).toContain('data-metric="COINCIDENT_DEVIATION"');
-    expect(html).toContain('data-state="fired"');
-    // The provenance affordance reaches the flag.
-    expect(html).toContain('data-slot="provenance-explainer-trigger"');
-  });
-
-  it("hides the coincident-deviation flag when it did not fire", () => {
-    mockBatch((token) => {
-      if (token.metric === "COINCIDENT_DEVIATION") {
-        return ok({ fired: false, day: "2026-06-02", vitals: [], contributing: [] });
-      }
-      return insufficient("no_readings_in_window");
-    });
-    const html = render(<VitalsDashboard />);
+    expect(requestedCoincident).toBe(false);
     expect(html).not.toContain('data-metric="COINCIDENT_DEVIATION"');
   });
 });

@@ -2632,7 +2632,15 @@
       "coincident": {
         "label": "Varias constantes fuera de la base",
         "summary": "Hoy, {count} de tus constantes quedaron fuera de su rango personal.",
-        "vitals": "Fuera de rango: {list}"
+        "vitals": "Fuera de rango: {list}",
+        "cardTitle": "Señal de hoy",
+        "allClear": "Hoy todas tus constantes están dentro de su rango personal.",
+        "allClearMeta": "Se revisaron {count} de tus constantes frente a tu propio rango habitual.",
+        "watch": "Hoy una constante está fuera de su rango habitual.",
+        "watchVital": "Fuera de rango: {vital}. A menudo es algo puntual; conviene vigilarlo los próximos días.",
+        "firedHeadline": "Hoy, {count} de tus constantes están fuera de su rango personal.",
+        "factors": "Posibles factores, nunca una causa: un entrenamiento intenso, dormir mal, alcohol, altitud, estrés o una enfermedad. Es un aviso a partir de tus propias bases, no un diagnóstico.",
+        "building": "Construyendo tus bases personales: registra unos días más y esto aparecerá."
       }
     },
     "cardioFitness": {

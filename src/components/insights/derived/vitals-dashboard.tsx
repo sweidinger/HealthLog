@@ -29,9 +29,7 @@ import type { FitnessAgeValue } from "@/lib/insights/derived/fitness-age";
 import type { VascularAgeDeltaValue } from "@/lib/insights/derived/vascular-age";
 import type { HrvBalanceValue } from "@/lib/insights/derived/hrv-balance";
 import type { BmiValue } from "@/lib/insights/derived/bmi";
-import type { CoincidentDeviationValue } from "@/lib/insights/derived/coincident-deviation";
 import type { DerivedProvenance } from "@/lib/insights/derived/types";
-import { AlertTriangle } from "lucide-react";
 
 /**
  * v1.10.0 — the Vitals dashboard surface (Apple-Health-Highlights grid).
@@ -359,59 +357,6 @@ function BmiTile({ read, isLoading }: TileProps) {
 }
 
 /**
- * Coincident-deviation flag tile — surfaces ONLY when the flag fired today
- * (≥ N vitals outside their personal band on the same day). Lists the
- * contributing vitals as plain text and carries the provenance affordance
- * (the Hampel/Leys median ± k·MAD basis + the descriptive-not-clinical
- * caveat). When the flag has not fired the tile un-mounts entirely — never
- * an alarming empty card.
- */
-function CoincidentDeviationTile({ read, isLoading }: TileProps) {
-  const { t } = useTranslations();
-  const data = read<CoincidentDeviationValue>({
-    metric: "COINCIDENT_DEVIATION",
-  });
-  if (isLoading || !data || data.status !== "ok" || !data.value) return null;
-  const v = data.value;
-  if (!v.fired || v.contributing.length === 0) return null;
-
-  const names = v.contributing
-    .map((d) => {
-      const labelKey = MEASUREMENT_TYPE_LABEL_KEYS[d.type];
-      return labelKey ? t(labelKey) : d.type;
-    })
-    .join(", ");
-
-  return (
-    <div
-      data-slot="vitals-tile"
-      data-metric="COINCIDENT_DEVIATION"
-      data-state="fired"
-      className="bg-card border-warning/40 flex h-full w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground truncate text-xs font-medium tracking-wide uppercase">
-          {t("insights.derived.coincident.label")}
-        </span>
-        <MetricProvenance
-          metric="COINCIDENT_DEVIATION"
-          provenance={data.provenance}
-        />
-        <AlertTriangle className="text-warning h-4 w-4 shrink-0" />
-      </div>
-      <p className="text-foreground text-sm" data-slot="coincident-summary">
-        {t("insights.derived.coincident.summary", {
-          count: v.contributing.length,
-        })}
-      </p>
-      <p className="text-muted-foreground text-xs leading-snug">
-        {t("insights.derived.coincident.vitals", { list: names })}
-      </p>
-    </div>
-  );
-}
-
-/**
  * A loading placeholder occupying the resolved tile footprint so the grid
  * reserves its final height and the real tiles drop in without a layout
  * shift. Mirrors the SparklineDeltaTile geometry (card + label row + value
@@ -442,17 +387,6 @@ function VitalsTileSkeleton() {
  * above — if a new tile gate changes, reflect it here.
  */
 function hasRenderableVital(read: DerivedBatchRead): boolean {
-  const coincident = read<CoincidentDeviationValue>({
-    metric: "COINCIDENT_DEVIATION",
-  });
-  if (
-    coincident?.status === "ok" &&
-    coincident.value?.fired &&
-    coincident.value.contributing.length > 0
-  ) {
-    return true;
-  }
-
   const fitness = read<FitnessAgeValue>({ metric: "FITNESS_AGE" });
   if (fitness?.status === "ok" && fitness.value) return true;
 
@@ -492,8 +426,10 @@ function hasRenderableVital(read: DerivedBatchRead): boolean {
 
 /**
  * The full set of tokens the dashboard reads in one batch — the five
- * wellness scores + the four derived re-frames + the coincident-deviation
- * flag + one baseline per vital (minus HRV, which has its own balance tile).
+ * wellness scores + the four derived re-frames + one baseline per vital
+ * (minus HRV, which has its own balance tile). The coincident-deviation
+ * flag is no longer read here: it is now the dedicated "Today's signal"
+ * card at the top of the overview (`CoincidentDeviationCard`).
  */
 function dashboardTokens(): DerivedBatchToken[] {
   const tokens: DerivedBatchToken[] = [
@@ -506,7 +442,6 @@ function dashboardTokens(): DerivedBatchToken[] {
     { metric: "VASCULAR_AGE_DELTA" },
     { metric: "HRV_BALANCE" },
     { metric: "BMI" },
-    { metric: "COINCIDENT_DEVIATION" },
   ];
   for (const type of SECTION_VITALS) {
     if (type === "HEART_RATE_VARIABILITY") continue;
@@ -604,7 +539,6 @@ export function VitalsDashboard({ enabled = true, className }: DashboardProps) {
               ))
             ) : (
               <>
-                <CoincidentDeviationTile {...tileProps} />
                 <FitnessAgeTile {...tileProps} />
                 <VascularAgeTile {...tileProps} />
                 <HrvBalanceTile {...tileProps} />

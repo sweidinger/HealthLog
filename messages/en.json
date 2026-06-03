@@ -2632,7 +2632,15 @@
       "coincident": {
         "label": "Several vitals off baseline",
         "summary": "{count} of your vitals sat outside their personal range today.",
-        "vitals": "Outside range: {list}"
+        "vitals": "Outside range: {list}",
+        "cardTitle": "Today's signal",
+        "allClear": "All your vitals are within their personal range today.",
+        "allClearMeta": "Checked {count} of your vitals against your own typical range.",
+        "watch": "One vital is outside its usual range today.",
+        "watchVital": "Outside range: {vital}. Often just a one-off — worth a glance over the next few days.",
+        "firedHeadline": "{count} of your vitals are outside their personal range today.",
+        "factors": "Possible factors — never a cause: a hard workout, poor sleep, alcohol, altitude, stress, or illness. This is awareness from your own baselines, not a diagnosis.",
+        "building": "Building your personal baselines — track a few more days and this will appear."
       }
     },
     "cardioFitness": {

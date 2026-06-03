@@ -2632,7 +2632,15 @@
       "coincident": {
         "label": "Mehrere Vitalwerte außerhalb der Baseline",
         "summary": "{count} deiner Vitalwerte lagen heute außerhalb ihres persönlichen Bereichs.",
-        "vitals": "Außerhalb des Bereichs: {list}"
+        "vitals": "Außerhalb des Bereichs: {list}",
+        "cardTitle": "Signal des Tages",
+        "allClear": "Alle deine Vitalwerte liegen heute in ihrem persönlichen Bereich.",
+        "allClearMeta": "{count} deiner Vitalwerte gegen deinen eigenen typischen Bereich geprüft.",
+        "watch": "Ein Vitalwert liegt heute außerhalb seines üblichen Bereichs.",
+        "watchVital": "Außerhalb des Bereichs: {vital}. Oft nur einmalig — behalte es in den nächsten Tagen im Blick.",
+        "firedHeadline": "{count} deiner Vitalwerte liegen heute außerhalb ihres persönlichen Bereichs.",
+        "factors": "Mögliche Faktoren — nie eine Ursache: ein hartes Training, schlechter Schlaf, Alkohol, Höhe, Stress oder Krankheit. Das ist ein Hinweis aus deinen eigenen Baselines, keine Diagnose.",
+        "building": "Deine persönlichen Baselines entstehen — erfasse ein paar Tage mehr, dann erscheint dies."
       }
     },
     "cardioFitness": {
