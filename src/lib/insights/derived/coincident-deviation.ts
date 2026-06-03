@@ -42,6 +42,13 @@ import type { Derived, DerivedProvenanceSource } from "./types";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
+/**
+ * Row cap for the latest-day mean read — see `readiness.ts`. A dense intra-day
+ * day can hold hundreds of rows; the latest-day mean only needs a bounded
+ * sample of the most-recent rows (the dense-intraday retention reasoning). The
+ * common single-reading-per-day case is unaffected.
+ */
+const MAX_LATEST_DAY_ROWS = 50;
 /** ≥ this many out-of-band vitals on a day fires the flag. */
 export const COINCIDENT_FIRE_THRESHOLD = 2;
 /** Need ≥ this many banded vitals before the flag can even coincide. */
@@ -118,7 +125,7 @@ async function readLatestDayMean(
   const rows = await prisma.measurement.findMany({
     where: { userId, type, deletedAt: null, measuredAt: { gte: since } },
     orderBy: { measuredAt: "desc" },
-    take: 50,
+    take: MAX_LATEST_DAY_ROWS,
     select: { value: true, measuredAt: true },
   });
   if (rows.length === 0) return null;
