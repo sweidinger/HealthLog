@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -163,6 +163,17 @@ function render(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Pin the clock so the schedule-driven window pill never displaces the
+  // upcoming-injection line under a CI run at a live wall-clock. The card
+  // suppresses the next/last line while `now` sits inside a schedule
+  // window, so pin to 07:00 Berlin (before the 08:00–20:00 fixture window)
+  // on a non-scheduled weekday — the upcoming line then always renders.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-06-02T05:00:00Z"));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
