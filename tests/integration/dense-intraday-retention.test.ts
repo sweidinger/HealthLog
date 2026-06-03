@@ -163,6 +163,89 @@ describe("runDenseIntradayRetention (real Postgres)", () => {
     expect(tombstoned).toHaveLength(2);
   });
 
+  it("adopts the row already carrying the target stats externalId on the canonical instant (VECTOR 1)", async () => {
+    const prisma = getPrismaClient();
+    // BOTH-present collision (VECTOR 1). A prior fold already minted the
+    // canonical daily row carrying the TARGET `stats:` externalId and it
+    // sits on the canonical local-noon instant. A fresh batch of
+    // out-of-window per-sample rows then arrives for the same day. The fold
+    // must adopt the EXISTING canonical row in place — refreshing its value
+    // and re-anchoring it — never INSERT a second row at local-noon (that
+    // would collide on the measured_at composite) and never stamp the target
+    // externalId onto a sibling (that would collide on the externalId
+    // composite with this very row). The pre-fix `findFirst` had no
+    // externalId discrimination and no deterministic `orderBy`, so it could
+    // pick the wrong row and trip P2002 on the externalId index.
+    await prisma.measurement.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "HEART_RATE_VARIABILITY",
+        value: 999, // stale — the fold overwrites it with the day's mean
+        unit: "ms",
+        source: "APPLE_HEALTH",
+        measuredAt: CANONICAL,
+        externalId: HRV_STATS_ID, // the TARGET canonical externalId
+      },
+    });
+    // Out-of-window per-sample rows that fold into the canonical row.
+    await prisma.measurement.createMany({
+      data: [
+        {
+          userId: TEST_USER_ID,
+          type: "HEART_RATE_VARIABILITY",
+          value: 40,
+          unit: "ms",
+          source: "APPLE_HEALTH",
+          measuredAt: new Date("2026-05-01T06:00:00.000Z"),
+          externalId: "hk-hrv-1",
+        },
+        {
+          userId: TEST_USER_ID,
+          type: "HEART_RATE_VARIABILITY",
+          value: 60,
+          unit: "ms",
+          source: "APPLE_HEALTH",
+          measuredAt: new Date("2026-05-01T18:00:00.000Z"),
+          externalId: "hk-hrv-2",
+        },
+      ],
+    });
+
+    // Must not throw P2002.
+    const summary = await runDenseIntradayRetention(prisma, {
+      userId: TEST_USER_ID,
+      retentionDays: 0,
+      log: () => {},
+    });
+    expect(summary.totals.daysConsolidated).toBe(1);
+
+    const live = await prisma.measurement.findMany({
+      where: {
+        userId: TEST_USER_ID,
+        type: "HEART_RATE_VARIABILITY",
+        deletedAt: null,
+      },
+    });
+    // Exactly ONE live canonical row remains — the row that already carried
+    // the target `stats:` externalId, adopted in place and folded.
+    expect(live).toHaveLength(1);
+    expect(live[0].externalId).toBe(HRV_STATS_ID);
+    expect(live[0].measuredAt.getTime()).toBe(CANONICAL.getTime());
+    // MEAN of the two folded per-sample values (40, 60) = 50, overwriting
+    // the stale 999.
+    expect(live[0].value).toBeCloseTo(50, 6);
+
+    // Both scanned per-sample rows are tombstoned.
+    const tombstoned = await prisma.measurement.findMany({
+      where: {
+        userId: TEST_USER_ID,
+        type: "HEART_RATE_VARIABILITY",
+        deletedAt: { not: null },
+      },
+    });
+    expect(tombstoned).toHaveLength(2);
+  });
+
   it("does not tombstone a per-sample row that happens to fall on the canonical instant", async () => {
     const prisma = getPrismaClient();
     // One per-sample row sits exactly on the canonical local-noon instant;
