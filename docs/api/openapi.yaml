@@ -38,7 +38,43 @@ tags:
   - name: Export
   - name: Sync
   - name: Admin
+  - name: Meta
 paths:
+  /api/meta/capabilities:
+    get:
+      tags:
+        - Meta
+      summary: Live server capability / id-vocabulary discovery
+      description: Returns the server's REAL id vocabularies (derived-metric ids, vitals-baseline types, layout tile-ids,
+        metric-status ids, the HealthKit ingest mapping, the FHIR coding constants) plus the running API contract
+        version. Every list is derived server-side from the canonical registry it documents, so a client can gate its UI
+        / decoder against what the server actually ships rather than a hand-maintained copy. Auth via cookie or Bearer
+        (not admin).
+      responses:
+        "200":
+          description: Capability snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapabilitiesEnvelope"
+        "401": &a1
+          description: Authentication required or invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": &a2
+          description: Request validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429": &a3
+          description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /api/export/health-record:
     post:
       tags:
@@ -170,24 +206,9 @@ paths:
               schema:
                 type: string
                 format: binary
-        "401": &a1
-          description: Authentication required or invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-        "422": &a2
-          description: Request validation failed.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-        "429": &a3
-          description: Rate limit exceeded.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
+        "401": *a1
+        "422": *a2
+        "429": *a3
   /api/auth/login:
     post:
       tags:
@@ -3469,6 +3490,125 @@ components:
         primitives are mutually exclusive — enforced by the Zod refine on writes, the route layer, and a DB CHECK
         constraint (`medication_schedules_rrule_xor_rolling`). v1.7.0 adds `scheduleType` (SCHEDULED / PRN / CYCLIC) and
         the cyclic on/off-week fields.
+    CapabilitiesEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CapabilitiesResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CapabilitiesResponse:
+      type: object
+      properties:
+        apiContractVersion:
+          type: string
+          description: Running build version — mirrors GET /api/version `version`.
+        derivedMetricIds:
+          type: array
+          items:
+            type: string
+          description: Closed derived-metric id set (GET /api/insights/derived).
+        vitalsBaselineTypes:
+          type: array
+          items:
+            type: string
+          description: MeasurementTypes the typical-range baseline engine supports.
+        layoutTileIds:
+          type: array
+          items:
+            type: string
+          description: Canonical insights layout tile-id set (English ids).
+        metricStatusIds:
+          type: array
+          items:
+            type: string
+          description: Closed metric-status / assessment id set.
+        ingest:
+          type: object
+          properties:
+            quantityTypes:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    description: HealthLog MeasurementType.
+                  hk:
+                    type: string
+                    description: HealthKit identifier.
+                  unit:
+                    type: string
+                    description: Canonical DB unit.
+                required:
+                  - type
+                  - hk
+                  - unit
+                additionalProperties: false
+              description: Accepted HealthKit quantity-sample mappings.
+            eventTypes:
+              type: array
+              items:
+                type: string
+              description: MeasurementTypes for device-flagged EVENT-class HealthKit samples.
+            computedScores:
+              type: array
+              items:
+                type: string
+              description: Server-owned nightly composite score types.
+            writeAllowlist:
+              type: array
+              items:
+                type: string
+              description: MeasurementSources a client may attribute on a write (others are server-owned).
+          required:
+            - quantityTypes
+            - eventTypes
+            - computedScores
+            - writeAllowlist
+          additionalProperties: false
+          description: Ingest vocabularies the batch / single-write paths accept.
+        fhir:
+          type: object
+          properties:
+            atcSystem:
+              type: string
+              description: WHO ATC CodeSystem URI.
+            snomedRoute:
+              type: string
+              description: SNOMED CT CodeSystem URI.
+            germanAtcDefaultLocales:
+              type: array
+              items:
+                type: string
+              description: App locales that default the additive BfArM ATC coding on.
+          required:
+            - atcSystem
+            - snomedRoute
+            - germanAtcDefaultLocales
+          additionalProperties: false
+          description: FHIR coding constants the health-record export emits.
+      required:
+        - apiContractVersion
+        - derivedMetricIds
+        - vitalsBaselineTypes
+        - layoutTileIds
+        - metricStatusIds
+        - ingest
+        - fhir
+      additionalProperties: false
+      description: Live id vocabularies + contract version. Every list is derived server-side from the canonical registry it
+        documents, so it cannot drift from the values the routes actually accept/emit.
     ErrorEnvelope:
       type: object
       properties:
