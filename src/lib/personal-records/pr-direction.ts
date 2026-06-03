@@ -152,6 +152,20 @@ export function getPRDirection(
     case "RECOVERY_SCORE":
     case "STRESS_SCORE":
     case "STRAIN_SCORE":
+    // v1.11.0 — WHOOP-native score classes. These are device-derived daily
+    // composites (recovery/strain/sleep-quality indices) and bounded /
+    // homeostatic metrics, not a goal axis: a higher day-strain is neither
+    // good nor bad, sleep-need is a recommendation rather than an achievement,
+    // and RMSSD HRV is one nightly composite — they stay null like the other
+    // derived scores rather than minting a duplicate HRV "record".
+    case "HRV_RMSSD":
+    case "DAY_STRAIN":
+    case "WORKOUT_STRAIN":
+    case "SLEEP_PERFORMANCE":
+    case "SLEEP_EFFICIENCY":
+    case "SLEEP_CONSISTENCY":
+    case "SLEEP_NEED":
+    case "ENERGY_EXPENDITURE_KJ":
       return null;
   }
 }

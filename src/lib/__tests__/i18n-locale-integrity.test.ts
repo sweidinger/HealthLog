@@ -258,6 +258,8 @@ describe("i18n locale file integrity", () => {
     "medications.wizard.steps.step3.unit.mg",
     "medications.wizard.steps.step3.unit.ml",
     "medications.wizard.steps.step3.unit.g",
+    // v1.11.0 — "WHOOP" is a brand name, identical across every locale.
+    "settings.sections.sources.sourceLabels.WHOOP",
   ]);
 
   it.each(ALL_LOCALES)("$locale locale has no empty values", ({ path }) => {

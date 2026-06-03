@@ -445,7 +445,15 @@
     "typeBreathingDisturbanceEvent": "Breathing disturbance",
     "typeRecoveryScore": "Recovery score",
     "typeStressScore": "Stress score",
-    "typeStrainScore": "Strain score"
+    "typeStrainScore": "Strain score",
+    "typeHrvRmssd": "VFC (RMSSD)",
+    "typeDayStrain": "Esfuerzo del día",
+    "typeWorkoutStrain": "Esfuerzo del entrenamiento",
+    "typeSleepPerformance": "Rendimiento del sueño",
+    "typeSleepEfficiency": "Eficiencia del sueño",
+    "typeSleepConsistency": "Consistencia del sueño",
+    "typeSleepNeed": "Necesidad de sueño",
+    "typeEnergyExpenditureKj": "Gasto energético"
   },
   "mood": {
     "title": "Estado de ánimo",
@@ -3024,13 +3032,18 @@
           "spo2": "Saturación de oxígeno",
           "hrv": "Variabilidad de la frecuencia cardíaca",
           "restingHeartRate": "Frecuencia cardíaca en reposo",
-          "vo2Max": "VO2 máx."
+          "vo2Max": "VO2 máx.",
+          "skinTemperature": "Temperatura de la piel",
+          "respiratoryRate": "Frecuencia respiratoria",
+          "recovery": "Recuperación"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
           "APPLE_HEALTH": "Apple Health",
           "MANUAL": "Entrada manual",
-          "IMPORT": "Importar"
+          "IMPORT": "Importar",
+          "WHOOP": "WHOOP",
+          "COMPUTED": "Calculado"
         },
         "deviceLabels": {
           "watch": "Reloj",

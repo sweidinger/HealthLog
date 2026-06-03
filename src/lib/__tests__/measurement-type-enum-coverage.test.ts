@@ -77,10 +77,19 @@ const EXPECTED_TYPES = [
   "RECOVERY_SCORE",
   "STRESS_SCORE",
   "STRAIN_SCORE",
+  // ── v1.11.0 — WHOOP-native score classes ──
+  "HRV_RMSSD",
+  "DAY_STRAIN",
+  "WORKOUT_STRAIN",
+  "SLEEP_PERFORMANCE",
+  "SLEEP_EFFICIENCY",
+  "SLEEP_CONSISTENCY",
+  "SLEEP_NEED",
+  "ENERGY_EXPENDITURE_KJ",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 53 canonical measurement types", () => {
+  it("exposes the 60 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -180,6 +189,19 @@ describe("measurementTypeEnum coverage", () => {
     "RECOVERY_SCORE",
     "STRESS_SCORE",
     "STRAIN_SCORE",
+    // v1.11.0 — WHOOP-native score classes. Device-derived strain / recovery
+    // / sleep-quality composites and a kJ energy total, not measured clinical
+    // vitals. They surface on their own Insights cluster with a "descriptive,
+    // not clinical" disclaimer and never belong in the clinical vitals PDF.
+    // See doctor-report-pdf-core.ts for the matching exclusion rationale.
+    "HRV_RMSSD",
+    "DAY_STRAIN",
+    "WORKOUT_STRAIN",
+    "SLEEP_PERFORMANCE",
+    "SLEEP_EFFICIENCY",
+    "SLEEP_CONSISTENCY",
+    "SLEEP_NEED",
+    "ENERGY_EXPENDITURE_KJ",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

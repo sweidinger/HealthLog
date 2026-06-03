@@ -100,6 +100,15 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   RECOVERY_SCORE: "measurements.typeRecoveryScore",
   STRESS_SCORE: "measurements.typeStressScore",
   STRAIN_SCORE: "measurements.typeStrainScore",
+  // ── v1.11.0 — WHOOP-native score classes ──
+  HRV_RMSSD: "measurements.typeHrvRmssd",
+  DAY_STRAIN: "measurements.typeDayStrain",
+  WORKOUT_STRAIN: "measurements.typeWorkoutStrain",
+  SLEEP_PERFORMANCE: "measurements.typeSleepPerformance",
+  SLEEP_EFFICIENCY: "measurements.typeSleepEfficiency",
+  SLEEP_CONSISTENCY: "measurements.typeSleepConsistency",
+  SLEEP_NEED: "measurements.typeSleepNeed",
+  ENERGY_EXPENDITURE_KJ: "measurements.typeEnergyExpenditureKj",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -191,6 +200,19 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   RECOVERY_SCORE: Gauge,
   STRESS_SCORE: Gauge,
   STRAIN_SCORE: Gauge,
+  // ── v1.11.0 — WHOOP-native score classes ──
+  // Gauge reads as a composite "index / score" dial for the strain +
+  // sleep-quality composites; the sleep-need recommendation borrows Moon
+  // (sleep family), RMSSD borrows HeartPulse (cardiac), energy borrows
+  // Flame (energy family, like ACTIVE_ENERGY_BURNED).
+  HRV_RMSSD: HeartPulse,
+  DAY_STRAIN: Gauge,
+  WORKOUT_STRAIN: Gauge,
+  SLEEP_PERFORMANCE: Moon,
+  SLEEP_EFFICIENCY: Moon,
+  SLEEP_CONSISTENCY: Moon,
+  SLEEP_NEED: Moon,
+  ENERGY_EXPENDITURE_KJ: Flame,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -274,4 +296,16 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   RECOVERY_SCORE: "bg-chart-1/20 text-chart-1",
   STRESS_SCORE: "bg-chart-1/20 text-chart-1",
   STRAIN_SCORE: "bg-chart-1/20 text-chart-1",
+  // ── v1.11.0 — WHOOP-native score classes ──
+  // chart-1 (Dracula purple) for the strain composites (same group as the
+  // WX-C scores); chart-2 (sleep/activity family) for the sleep-quality set
+  // and energy; chart-5 (cardio/pulse family) for RMSSD HRV.
+  HRV_RMSSD: "bg-chart-5/20 text-chart-5",
+  DAY_STRAIN: "bg-chart-1/20 text-chart-1",
+  WORKOUT_STRAIN: "bg-chart-1/20 text-chart-1",
+  SLEEP_PERFORMANCE: "bg-chart-2/20 text-chart-2",
+  SLEEP_EFFICIENCY: "bg-chart-2/20 text-chart-2",
+  SLEEP_CONSISTENCY: "bg-chart-2/20 text-chart-2",
+  SLEEP_NEED: "bg-chart-2/20 text-chart-2",
+  ENERGY_EXPENDITURE_KJ: "bg-chart-4/20 text-chart-4",
 };

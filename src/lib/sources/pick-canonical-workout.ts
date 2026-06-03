@@ -89,6 +89,11 @@ export interface WorkoutPickerRow {
  */
 export const DEFAULT_WORKOUT_SOURCE_PRIORITY: readonly MeasurementSource[] = [
   "APPLE_HEALTH",
+  // v1.11.0 — WHOOP ranks second. Apple Watch GPS + HR is the richest run
+  // record; a WHOOP strap is the next-best when no watch logged the same
+  // session. The read-time picker clusters a WHOOP run and an Apple-Health
+  // run by (activityType, startedAt ± window) and keeps the ladder winner.
+  "WHOOP",
   "WITHINGS",
   "MANUAL",
   "IMPORT",

@@ -122,6 +122,17 @@ export const SOURCE_PRIORITY_METRIC_KEYS = [
   "hrv",
   "restingHeartRate",
   "vo2Max",
+  // v1.11.0 — WHOOP-overlapping metric classes that had no key before. The
+  // E-slice cross-source picker resolves WHOOP vs Apple vs Withings for
+  // these the same way it does the existing keys. (`sleep`, `hrv`, `spo2`,
+  // `restingHeartRate`, `weight` already exist.)
+  "skinTemperature",
+  "respiratoryRate",
+  // v1.11.0 — native-vs-derived recovery. WHOOP ships a device-native
+  // Recovery; HealthLog computes its own COMPUTED proxy. Both persist as
+  // `RECOVERY_SCORE` rows distinguished by source — this ladder lets the
+  // same picker resolve native-above-proxy without a second engine.
+  "recovery",
 ] as const;
 
 export type SourcePriorityMetricKey =
@@ -207,16 +218,29 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   activeEnergy: ["APPLE_HEALTH", "WITHINGS", "MANUAL"],
   walkingRunningDistance: ["APPLE_HEALTH", "WITHINGS", "MANUAL"],
   flightsClimbed: ["APPLE_HEALTH", "WITHINGS", "MANUAL"],
-  sleep: ["APPLE_HEALTH", "WITHINGS"],
-  hrv: ["APPLE_HEALTH", "WITHINGS"],
-  restingHeartRate: ["APPLE_HEALTH", "WITHINGS"],
-  weight: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
+  // v1.11.0 — WHOOP leads the recovery-input ladders (sleep / HRV / RHR):
+  // a worn-all-night strap has higher-resolution overnight sampling than
+  // the iPhone-relayed HealthKit summary or the Withings nightly summary.
+  sleep: ["WHOOP", "APPLE_HEALTH", "WITHINGS"],
+  hrv: ["WHOOP", "APPLE_HEALTH", "WITHINGS"],
+  restingHeartRate: ["WHOOP", "APPLE_HEALTH", "WITHINGS"],
+  // A real scale beats a strap's body-measurement estimate for weight.
+  weight: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "WHOOP"],
   bloodPressure: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
   pulse: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
   bodyFat: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
   bodyTemperature: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
-  spo2: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
+  // Withings ScanWatch pulse-ox is the primary SpO2 sensor; WHOOP second.
+  spo2: ["WITHINGS", "WHOOP", "APPLE_HEALTH", "MANUAL"],
   vo2Max: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
+  // v1.11.0 — new WHOOP-overlapping keys. ScanWatch dermal reading is the
+  // primary skin-temperature sensor; WHOOP's strap is second.
+  skinTemperature: ["WITHINGS", "WHOOP", "APPLE_HEALTH"],
+  respiratoryRate: ["WHOOP", "APPLE_HEALTH", "WITHINGS"],
+  // v1.11.0 — native-vs-derived recovery. WHOOP's device-native Recovery
+  // outranks HealthLog's COMPUTED proxy when both exist; the proxy is the
+  // fallback for users without a strap.
+  recovery: ["WHOOP", "COMPUTED"],
 };
 
 /**

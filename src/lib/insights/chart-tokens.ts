@@ -97,6 +97,18 @@ export const ALLOWED_CHART_TOKENS = [
   "metric:RECOVERY_SCORE",
   "metric:STRESS_SCORE",
   "metric:STRAIN_SCORE",
+  // v1.11.0 — WHOOP-native score classes. Continuous daily series, so each
+  // carries a `metric:<TYPE>` token and renders through the generic chart
+  // renderer (unlike the categorical EVENT classes). Same posture as the
+  // WX-C scores above: the LLM can reference them in prose.
+  "metric:HRV_RMSSD",
+  "metric:DAY_STRAIN",
+  "metric:WORKOUT_STRAIN",
+  "metric:SLEEP_PERFORMANCE",
+  "metric:SLEEP_EFFICIENCY",
+  "metric:SLEEP_CONSISTENCY",
+  "metric:SLEEP_NEED",
+  "metric:ENERGY_EXPENDITURE_KJ",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
@@ -197,6 +209,16 @@ const ORPHAN_ENUMS = [
   "RECOVERY_SCORE",
   "STRESS_SCORE",
   "STRAIN_SCORE",
+  // v1.11.0 — WHOOP-native score classes, same shape: strip the bare enum
+  // name if the model drops it into prose.
+  "HRV_RMSSD",
+  "DAY_STRAIN",
+  "WORKOUT_STRAIN",
+  "SLEEP_PERFORMANCE",
+  "SLEEP_EFFICIENCY",
+  "SLEEP_CONSISTENCY",
+  "SLEEP_NEED",
+  "ENERGY_EXPENDITURE_KJ",
 ] as const;
 
 // `\b` boundaries keep ordinary English prose untouched — "weight"
