@@ -428,6 +428,9 @@ model User {
   // provider chain entry) so a known-bad credential is negatively cached
   // across workers instead of re-burning a 401 every generation.
   providerHealth              ProviderHealth[]
+  // v1.11.0 W3 — one durable period-narrative row per (period, locale).
+  // Delete/regenerate-clean; the generated prose is AES-256-GCM at rest.
+  insightNarratives           InsightNarrative[]
 
   // v1.7.0 profile — optional patient-identity fields surfaced on the
   // health-record export cover (PDF) and the FHIR `Patient` resource.
@@ -2829,4 +2832,50 @@ model ClinicianShareLink {
   @@index([userId, createdAt(sort: Desc)])
   @@index([expiresAt])
   @@map("clinician_share_links")
+}
+
+// v1.11.0 W3 — period-narrative cache (Pillar P1).
+//
+// One durable, typed row per (user, period, locale) carrying the latest
+// generated period summary ("how your week/month went"). Delete +
+// regenerate clean: the unique constraint enforces a single row per slot,
+// so a regeneration upserts in place and there is never a stale duplicate
+// to disambiguate. The generated prose is held AES-256-GCM at rest in
+// `encryptedContent` (Bytes), following the `CoachMessage.encryptedContent`
+// precedent — the body is descriptive health narrative and is treated as
+// sensitive even though it carries labels-plus-numbers, not raw rows.
+//
+// `provenanceJson` is the labels-only provenance envelope the surface
+// renders as ⓘ chips (metric names + the read window + the FDR footer);
+// it carries no PII so it stays plaintext for a stable, queryable shape,
+// matching `CoachMessage.metricSourceJson`. `providerType` + `promptVersion`
+// mirror the attribution columns so the cross-feature aggregator can slice
+// quality per (provider × prompt). `period` is `week` | `month`; `dateKey`
+// is the UTC `YYYY-MM-DD` boundary the row was generated for, so the
+// stale-while-revalidate read can tell "today's" narrative from an older
+// one without decrypting.
+model InsightNarrative {
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
+  /// "week" | "month".
+  period           String
+  /// Resolved UI locale of the prose ("de" | "en").
+  locale           String
+  /// UTC YYYY-MM-DD boundary the narrative was generated for.
+  dateKey          String   @map("date_key")
+  /// AES-256-GCM ciphertext of the generated narrative prose.
+  encryptedContent Bytes    @map("encrypted_content")
+  /// Labels-only provenance envelope (metric names, window, FDR footer).
+  provenanceJson   String?  @map("provenance_json")
+  providerType     String?  @map("provider_type")
+  promptVersion    String?  @map("prompt_version")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One row per (user, period, locale) — regeneration upserts in place.
+  @@unique([userId, period, locale])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("insight_narratives")
 }

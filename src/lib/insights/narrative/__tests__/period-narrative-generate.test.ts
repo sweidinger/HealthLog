@@ -1,0 +1,274 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Identity "encryption" so the test asserts on plaintext round-trips without
+// an ENCRYPTION_KEYS env. The generator's `encryptToBytes`/`decryptFromBytes`
+// wrap these.
+vi.mock("@/lib/crypto", () => ({
+  encrypt: (s: string) => `enc:${s}`,
+  decrypt: (s: string) => s.replace(/^enc:/, ""),
+}));
+
+// Keep the wide-event annotate a no-op.
+vi.mock("@/lib/logging/context", () => ({ annotate: vi.fn() }));
+
+// The default DB import must resolve to something; every test injects its own
+// prisma double, so this is only a guard against accidental real-DB use.
+vi.mock("@/lib/db", () => ({ prisma: {} }));
+
+import {
+  generatePeriodNarrative,
+  readPeriodNarrative,
+  buildNarrativeUserPrompt,
+  NARRATIVE_PROMPT_VERSION,
+} from "@/lib/insights/narrative/period-narrative-generate";
+import type {
+  PeriodNarrativeContext,
+  PeriodNarrativeResult,
+} from "@/lib/insights/narrative/period-narrative";
+
+function readyContext(
+  over: Partial<PeriodNarrativeContext> = {},
+): PeriodNarrativeContext {
+  return {
+    status: "ready",
+    period: "week",
+    metricDeltas: [
+      {
+        type: "WEIGHT",
+        unit: "kg",
+        current: 80,
+        prior: 81,
+        delta: -1,
+        deltaPercent: -1.2,
+        currentDays: 6,
+        priorDays: 7,
+      },
+    ],
+    bandTransitions: [],
+    drivers: [
+      {
+        behaviour: "ACTIVITY_STEPS",
+        outcome: "SLEEP_DURATION",
+        r: 0.4,
+        qValue: 0.02,
+        n: 14,
+        interpretation: "more steps tended to coincide with longer sleep",
+      },
+    ],
+    coincidentFlags: [],
+    pairsTested: 12,
+    fdrQ: 0.1,
+    provenance: {
+      metrics: ["WEIGHT", "ACTIVITY_STEPS", "SLEEP_DURATION"],
+      window: { from: "2026-05-01T00:00:00.000Z", to: "2026-05-15T00:00:00.000Z" },
+      computedAt: "2026-05-15T05:00:00.000Z",
+    },
+    ...over,
+  };
+}
+
+interface FakeRow {
+  userId: string;
+  period: string;
+  locale: string;
+  dateKey: string;
+  encryptedContent: Uint8Array;
+  provenanceJson: string | null;
+  providerType: string | null;
+  promptVersion: string | null;
+  updatedAt: Date;
+}
+
+/** Minimal in-memory prisma double for the (user, period, locale) row + user. */
+function makePrisma(seedRow?: FakeRow) {
+  let row: FakeRow | undefined = seedRow;
+  return {
+    _get: () => row,
+    user: {
+      findUnique: vi.fn(async () => ({ timezone: "Europe/Berlin" })),
+    },
+    insightNarrative: {
+      findUnique: vi.fn(async () => (row ? { ...row } : null)),
+      upsert: vi.fn(async (args: { create: FakeRow; update: Partial<FakeRow> }) => {
+        if (row) {
+          row = { ...row, ...args.update, updatedAt: new Date() };
+        } else {
+          row = { ...args.create, updatedAt: new Date() };
+        }
+        return { ...row };
+      }),
+    },
+  };
+}
+
+beforeEach(() => vi.clearAllMocks());
+
+describe("buildNarrativeUserPrompt", () => {
+  it("renders metrics, drivers, and the FDR footer with the prompt version", () => {
+    const prompt = buildNarrativeUserPrompt(readyContext(), "en");
+    expect(prompt).toContain("WEIGHT");
+    expect(prompt).toContain("ACTIVITY_STEPS ~ SLEEP_DURATION");
+    expect(prompt).toContain("12 pairs tested");
+    expect(NARRATIVE_PROMPT_VERSION).toBe("1.11.0");
+  });
+});
+
+describe("generatePeriodNarrative — descriptive generation", () => {
+  it("generates a narrative from a seeded ready context and stores it encrypted", async () => {
+    const prisma = makePrisma();
+    const runCompletion = vi.fn(async () => ({
+      kind: "ok" as const,
+      content: "Your weight eased down slightly this week.",
+      providerType: "openai",
+      model: "gpt",
+      tokensUsed: 50,
+    }));
+    const outcome = await generatePeriodNarrative("u1", {
+      period: "week",
+      locale: "en",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+      buildContext: async () => readyContext() as PeriodNarrativeResult,
+      runCompletion,
+    });
+    expect(outcome).toEqual({ status: "generated", providerType: "openai" });
+    expect(prisma.insightNarrative.upsert).toHaveBeenCalledOnce();
+    const stored = prisma._get();
+    expect(stored?.promptVersion).toBe(NARRATIVE_PROMPT_VERSION);
+    // Stored ciphertext is the identity-encoded prose, not plaintext.
+    expect(Buffer.from(stored!.encryptedContent).toString("utf8")).toBe(
+      "enc:Your weight eased down slightly this week.",
+    );
+  });
+
+  it("passes a descriptive-never-causal system prompt to the provider", async () => {
+    const prisma = makePrisma();
+    let systemPrompt = "";
+    const runCompletion = vi.fn(async (args: { systemPrompt: string }) => {
+      systemPrompt = args.systemPrompt;
+      return {
+        kind: "ok" as const,
+        content: "ok",
+        providerType: "openai",
+        model: "m",
+        tokensUsed: 1,
+      };
+    });
+    await generatePeriodNarrative("u1", {
+      period: "week",
+      locale: "en",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+      buildContext: async () => readyContext() as PeriodNarrativeResult,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      runCompletion: runCompletion as any,
+    });
+    expect(systemPrompt).toMatch(/never CAUSAL|DESCRIPTIVE/);
+    expect(systemPrompt).toMatch(/no markdown/i);
+  });
+});
+
+describe("generatePeriodNarrative — honesty floor", () => {
+  it("writes no narrative when the context is insufficient", async () => {
+    const prisma = makePrisma();
+    const runCompletion = vi.fn();
+    const outcome = await generatePeriodNarrative("u1", {
+      period: "week",
+      locale: "en",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+      buildContext: async () =>
+        ({
+          status: "insufficient",
+          period: "week",
+          reason: "not_enough_history",
+          coverage: { metricsWithData: 1, required: 2 },
+        }) as PeriodNarrativeResult,
+      runCompletion,
+    });
+    expect(outcome).toEqual({ status: "insufficient" });
+    expect(runCompletion).not.toHaveBeenCalled();
+    expect(prisma.insightNarrative.upsert).not.toHaveBeenCalled();
+  });
+
+  it("no-ops without a provider and never fabricates a story", async () => {
+    const prisma = makePrisma();
+    const outcome = await generatePeriodNarrative("u1", {
+      period: "week",
+      locale: "en",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+      buildContext: async () => readyContext() as PeriodNarrativeResult,
+      runCompletion: async () => ({ kind: "none" as const }),
+    });
+    expect(outcome).toEqual({ status: "skipped", reason: "no-provider" });
+    expect(prisma.insightNarrative.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("generatePeriodNarrative — cache + regenerate", () => {
+  it("serves a recent row without regenerating", async () => {
+    const prisma = makePrisma({
+      userId: "u1",
+      period: "week",
+      locale: "en",
+      dateKey: "2026-05-15",
+      encryptedContent: new Uint8Array(Buffer.from("enc:old", "utf8")),
+      provenanceJson: null,
+      providerType: "openai",
+      promptVersion: NARRATIVE_PROMPT_VERSION,
+      updatedAt: new Date(),
+    });
+    const runCompletion = vi.fn();
+    const outcome = await generatePeriodNarrative("u1", {
+      period: "week",
+      locale: "en",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+      buildContext: async () => readyContext() as PeriodNarrativeResult,
+      runCompletion,
+    });
+    expect(outcome).toEqual({ status: "cached" });
+    expect(runCompletion).not.toHaveBeenCalled();
+  });
+
+  it("force regenerates and upserts the single row in place", async () => {
+    const prisma = makePrisma({
+      userId: "u1",
+      period: "week",
+      locale: "en",
+      dateKey: "2026-05-15",
+      encryptedContent: new Uint8Array(Buffer.from("enc:old", "utf8")),
+      provenanceJson: null,
+      providerType: "openai",
+      promptVersion: "0.0.0",
+      updatedAt: new Date(),
+    });
+    const outcome = await generatePeriodNarrative("u1", {
+      period: "week",
+      locale: "en",
+      force: true,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma: prisma as any,
+      buildContext: async () => readyContext() as PeriodNarrativeResult,
+      runCompletion: async () => ({
+        kind: "ok" as const,
+        content: "fresh",
+        providerType: "anthropic",
+        model: "m",
+        tokensUsed: 2,
+      }),
+    });
+    expect(outcome).toEqual({ status: "generated", providerType: "anthropic" });
+    // Read back the decrypted prose via the public reader.
+    const read = await readPeriodNarrative(
+      "u1",
+      "week",
+      "en",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma as any,
+    );
+    expect(read?.text).toBe("fresh");
+    expect(read?.providerType).toBe("anthropic");
+  });
+});

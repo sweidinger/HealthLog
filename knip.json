@@ -73,7 +73,6 @@
   "ignoreExportsUsedInFile": true,
   "ignoreIssues": {
     "src/components/ui/**": ["exports", "types"],
-    "src/lib/validations/**": ["types"],
-    "src/lib/insights/narrative/**": ["exports"]
+    "src/lib/validations/**": ["types"]
   }
 }

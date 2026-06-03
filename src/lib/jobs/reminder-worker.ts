@@ -96,6 +96,13 @@ import {
   runStrainScore,
 } from "@/lib/jobs/strain-score";
 import {
+  PERIOD_NARRATIVE_QUEUE,
+  PERIOD_NARRATIVE_CRON,
+  runPeriodNarrativeWarm,
+  warmOneNarrative,
+  type PeriodNarrativePayload,
+} from "@/lib/jobs/period-narrative-warm";
+import {
   DENSE_INTRADAY_RETENTION_QUEUE,
   DENSE_INTRADAY_RETENTION_CONCURRENCY,
   runDenseIntradayRetentionForUser,
@@ -2318,6 +2325,10 @@ export async function startReminderWorker() {
     // onto the drain-cumulative tick). The queue MUST be registered here or
     // the boot enqueue silently never drains.
     DENSE_INTRADAY_RETENTION_QUEUE,
+    // v1.11.0 — nightly period-narrative warm + single-user warm enqueued by
+    // the read-only narrative GET. The queue MUST be registered here or the
+    // GET-miss enqueue silently never warms.
+    PERIOD_NARRATIVE_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -2429,6 +2440,10 @@ export async function startReminderWorker() {
     // Strain-score compute + store, after the recovery + stress passes so
     // the nightly score writes stay ordered.
     [STRAIN_SCORE_QUEUE, STRAIN_SCORE_CRON],
+    // v1.11.0 — nightly 05:05 Europe/Berlin period-narrative warm. The
+    // handler only fans out on a week (Mon) / month (1st) boundary; every
+    // other night is a cheap no-op. Budget-gated per user inside the runner.
+    [PERIOD_NARRATIVE_QUEUE, PERIOD_NARRATIVE_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -2691,6 +2706,34 @@ export async function startReminderWorker() {
         recordError();
         workerLog("error", "[strain-score] pass failed", err);
         throw err;
+      }
+    },
+  );
+  // v1.11.0 — period-narrative warm. A scheduled tick (no `userId`) runs the
+  // boundary-gated nightly fan-out; a `userId` payload runs a single-user warm
+  // enqueued by the read-only GET on a cold/stale read. Single-flight so two
+  // ticks never double-walk the cohort; the per-user budget gate covers the
+  // fan-out and the enqueue `singletonKey` covers the single-user path.
+  await boss.work<PeriodNarrativePayload>(
+    PERIOD_NARRATIVE_QUEUE,
+    { localConcurrency: 1 },
+    async (jobs) => {
+      for (const job of jobs) {
+        try {
+          if (job.data?.userId) {
+            await warmOneNarrative(job.data);
+          } else {
+            const summary = await runPeriodNarrativeWarm(getWorkerPrisma());
+            workerLog(
+              "info",
+              `[period-narrative] periods=${summary.periods.join(",") || "none"} total=${summary.total} generated=${summary.generated} cached=${summary.cached} skipped=${summary.skipped} insufficient=${summary.insufficient} failed=${summary.failed} budget=${summary.budgetBlocked}`,
+            );
+          }
+        } catch (err) {
+          recordError();
+          workerLog("error", "[period-narrative] warm failed", err);
+          throw err;
+        }
       }
     },
   );

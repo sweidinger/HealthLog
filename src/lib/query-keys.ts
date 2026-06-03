@@ -101,6 +101,13 @@ export const queryKeys = {
    * without a second LLM round-trip.
    */
   insightsAdvisor: () => ["insights", "advisor"] as const,
+  /**
+   * v1.11.0 — period-narrative summary (`/api/insights/narrative?period=…`).
+   * Keyed by period + locale so the week and month summaries cache
+   * independently and a locale switch fetches the matching prose.
+   */
+  insightsNarrative: (period: string, locale: string) =>
+    ["insights", "narrative", period, locale] as const,
   insightsBpStatus: (locale: string) =>
     ["insights", "blood-pressure-status", locale] as const,
   insightsWeightStatus: (locale: string) =>
