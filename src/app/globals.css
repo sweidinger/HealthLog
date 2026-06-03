@@ -109,6 +109,18 @@
   --color-status-pill-in: var(--status-pill-in);
   --color-status-pill-near: var(--status-pill-near);
   --color-status-pill-out: var(--status-pill-out);
+
+  /*
+   * Dose-accent token. The medication cards stamp the upcoming schedule
+   * dose in purple. They previously hard-coded Tailwind stock
+   * `text-purple-400` (`oklch(0.714 0.203 305.504)`), which reads ~3.1:1 on
+   * the white Alucard card and fails WCAG AA (4.5:1) for body text. This
+   * theme-aware token keeps the exact dark-mode purple and swaps to a darker
+   * AA-safe purple on the light card — mirroring how the semantic feedback
+   * tokens (`--success` / `--warning` / `--info`) land each tone above AA in
+   * both themes.
+   */
+  --color-dose-accent: var(--dose-accent);
 }
 
 /*
@@ -189,6 +201,13 @@
   --status-pill-near: #ffb86c;
   --status-pill-out: #ff8a8a;
 
+  /*
+   * Dose accent in dark mode — the exact Tailwind `text-purple-400`
+   * (`oklch(0.714 0.203 305.504)`) the cards used before, so the dark card
+   * stays pixel-identical. AA on the dark card at ~6.8:1.
+   */
+  --dose-accent: oklch(0.714 0.203 305.504);
+
   color-scheme: dark;
 }
 
@@ -244,6 +263,14 @@
   --status-pill-in: #14720a;
   --status-pill-near: #a34d14;
   --status-pill-out: #b32d1e;
+
+  /*
+   * Dose accent in light mode (Alucard). The bright `text-purple-400` reads
+   * ~3.1:1 on the white card and fails AA; this darker purple — the same
+   * family as the light-mode `--primary` (#644ac9) — clears 4.5:1 on both
+   * the white card and the muted panel while keeping the purple identity.
+   */
+  --dose-accent: #6f42c1;
 
   color-scheme: light;
 }

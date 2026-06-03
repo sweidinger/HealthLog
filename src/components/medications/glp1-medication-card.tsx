@@ -10,8 +10,15 @@ import { MedicationCardHeader } from "@/components/medications/MedicationCardHea
 import { MedicationCardMenu } from "@/components/medications/medication-card-menu";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
-import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
+import {
+  MedicationComplianceBars,
+  MedicationComplianceSkeleton,
+} from "@/components/medications/card-parts/medication-compliance-bars";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
+import {
+  MedicationNextLastSlot,
+  useWeekdayLabel,
+} from "@/components/medications/card-parts/medication-next-last-slot";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
   invalidateKeys,
@@ -143,16 +150,6 @@ interface Glp1MedicationCardProps {
   onLogSideEffect?: (med: Glp1Medication) => void;
 }
 
-const DAY_KEYS = [
-  "medications.daysSun",
-  "medications.daysMon",
-  "medications.daysTue",
-  "medications.daysWed",
-  "medications.daysThu",
-  "medications.daysFri",
-  "medications.daysSat",
-] as const;
-
 function diffDays(target: Date, from: Date): number {
   const ms =
     Date.UTC(target.getFullYear(), target.getMonth(), target.getDate()) -
@@ -188,6 +185,7 @@ export function Glp1MedicationCard({
   const queryClient = useQueryClient();
   const { t } = useTranslations();
   const fmt = useFormatters();
+  const weekdayLabel = useWeekdayLabel();
   const [intakeLoading, setIntakeLoading] = useState<string | null>(null);
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   // v1.8.5 — post-dose injection-site prompt (see medication-card.tsx).
@@ -206,7 +204,6 @@ export function Glp1MedicationCard({
       return json.data as ComplianceData;
     },
     staleTime: 30 * 1000,
-    enabled: medication.active,
   });
 
   // v1.4.37 W4b — same reminder-thresholds source as the generic
@@ -352,11 +349,11 @@ export function Glp1MedicationCard({
     return formatDateTime(medication.lastTakenAt);
   }
 
-  function nextInjectionLabel(): string {
-    if (!next) return "—";
+  function nextInjectionLabel(): string | null {
+    if (!next) return null;
     if (next.daysAway === 0) return t("medications.glp1NextInjectionToday");
     if (next.daysAway === 1) return t("medications.glp1NextInjectionTomorrow");
-    const dayName = t(DAY_KEYS[next.date.getDay()]);
+    const dayName = weekdayLabel(next.date.getDay());
     const dateShort = fmt.dateShort(next.date);
     return t("medications.glp1NextInjectionDays", {
       label: `${dayName}, ${dateShort}`,
@@ -406,7 +403,7 @@ export function Glp1MedicationCard({
         linkLabel={t("medications.openDetailPage")}
       />
 
-      <CardContent className="space-y-3.5">
+      <CardContent className="flex h-full flex-col space-y-3.5">
         {/* Take-now / overdue / very-overdue pill, shared with the
             generic medication card. The GLP-1 card historically
             omitted this row, which made Mounjaro feel different from
@@ -420,60 +417,62 @@ export function Glp1MedicationCard({
           />
         )}
 
-        {/* Injection state — last + next. The reserved min-height keeps a
-            card whose last-injection line is absent the same vertical
-            footprint as one that renders both lines, matching the generic
-            medication card's reserved last/next slot, so the dose rows line
-            up across the grid. */}
-        <div className="min-h-[2.75rem] space-y-1 text-sm">
-          {medication.lastTakenAt && (
-            <p className="text-muted-foreground">
-              {lastSite
+        {/* Injection state — next + last, rendered through the SAME shared
+            <MedicationNextLastSlot> the generic card uses, so the order
+            (next-then-last), colour, spacing, gating and reserved
+            min-height are identical across the two card types. The GLP-1
+            phrasing carries its own "Next / Last injection" wording (and
+            the rotation nudge), so it opts out of the part's bold label
+            prefix and supplies the full line content. */}
+        <MedicationNextLastSlot
+          labelled={false}
+          next={
+            next && currentWindowStatus.status !== "in_window" ? (
+              <>
+                {nextInjectionLabel()}
+                {/* Purple dose accent on the upcoming schedule dose,
+                    byte-equivalent with the generic card. Schedule.dose can
+                    override the medication-level dose during titration.
+                    Hidden below sm: to keep the narrow viewport row tight. */}
+                {schedule?.dose && (
+                  <span className="text-dose-accent hidden font-medium sm:inline">
+                    {" "}
+                    — {schedule.dose}
+                  </span>
+                )}
+                {/* Rotation nudge — folded into the upcoming-injection line
+                    instead of a separate bordered block, so the GLP-1 card
+                    keeps the same row inventory (and height) as the generic
+                    card. Only when we have a last + recommended site that
+                    differs from it. */}
+                {lastSite &&
+                  recommendedNextSite &&
+                  recommendedNextSite !== lastSite && (
+                    <span className="hidden sm:inline">
+                      {" · "}
+                      {t("medications.glp1RotationSuggested", {
+                        site: t(
+                          `medications.site${siteSuffix(recommendedNextSite)}`,
+                        ),
+                      })}
+                    </span>
+                  )}
+              </>
+            ) : null
+          }
+          last={
+            medication.lastTakenAt
+              ? lastSite
                 ? t("medications.glp1LastInjectionWithSite", {
                     label: lastInjectionLabel() ?? "—",
                     site: t(`medications.site${siteSuffix(lastSite)}`),
                   })
                 : t("medications.glp1LastInjection", {
                     label: lastInjectionLabel() ?? "—",
-                  })}
-            </p>
-          )}
-          <p className="text-foreground/85">
-            {nextInjectionLabel()}
-            {/* v1.4.37 W4b — purple dose accent on the upcoming
-                schedule dose, byte-equivalent with the generic
-                medication card. Schedule.dose can override the
-                medication-level dose during titration, so we surface
-                it here when set. Hidden below sm: to keep the narrow
-                viewport row tight, matching the generic card. */}
-            {schedule?.dose && (
-              <span className="hidden font-medium text-purple-400 sm:inline">
-                {" "}
-                — {schedule.dose}
-              </span>
-            )}
-          </p>
-        </div>
-
-        {/* Rotation hint — only when we have a last + recommended site
-            different from it. The picker on the dashboard tile owns
-            mode-switching; the card just nudges. */}
-        {lastSite &&
-          recommendedNextSite &&
-          recommendedNextSite !== lastSite && (
-            <div className="border-border/60 bg-muted/40 rounded-md border px-3 py-2 text-xs">
-              <p className="text-muted-foreground">
-                {t("medications.glp1RotationLast", {
-                  site: t(`medications.site${siteSuffix(lastSite)}`),
-                })}
-              </p>
-              <p className="text-foreground/90 font-medium">
-                {t("medications.glp1RotationSuggested", {
-                  site: t(`medications.site${siteSuffix(recommendedNextSite)}`),
-                })}
-              </p>
-            </div>
-          )}
+                  })
+              : null
+          }
+        />
 
         {/* v1.4.28 — the "Bestand" (inventory) surface retired from
             the GLP-1 card: both the inline pens-remaining summary line
@@ -482,31 +481,38 @@ export function Glp1MedicationCard({
             in the response shape; only the web mounts are gone. */}
 
         {/* Compliance bars — always two rows, shared with the generic
-            card so the page grid stays harmonious. The server scales the
-            two windows to the dosing cadence; most weekly GLP-1 injections
-            land on the 30-/90-day rung where the bars stay meaningful. */}
-        {medication.active && compliance && (
-          <MedicationComplianceBars
-            rate7={rate7}
-            rate30={rate30}
-            streak={streak}
-            shortDays={shortDays}
-            longDays={longDays}
-          />
-        )}
+            card so the page grid stays harmonious. A constant-height
+            skeleton holds the slot while the per-card compliance query is
+            in flight (or returns null) so the card body keeps a fixed
+            footprint and the action row pins to the same baseline as its
+            grid-row sibling. */}
+        {medication.active &&
+          (compliance ? (
+            <MedicationComplianceBars
+              rate7={rate7}
+              rate30={rate30}
+              streak={streak}
+              shortDays={shortDays}
+              longDays={longDays}
+            />
+          ) : (
+            <MedicationComplianceSkeleton />
+          ))}
 
-        {/* Primary actions row — shared with the generic medication
-            card. The GLP-1-specific side-effect quick-log lives in the
-            header-actions overflow (kebab), not this row, so Mounjaro
-            and Ramipril share the canonical two-button primary row. The
-            row sits directly after the content (the card still fills the
-            grid cell via h-full, but the actions are not pushed to the
-            bottom — that left a void between the content and the buttons). */}
+        {/* Primary actions row — shared with the generic medication card.
+            The GLP-1-specific side-effect quick-log lives in the
+            header-actions overflow (kebab), not this row, so Mounjaro and
+            Ramipril share the canonical two-button primary row. The content
+            above reserves constant-height slots, so the card bodies in a
+            grid row are equal height and `mt-auto` pins the action row to
+            the same baseline without opening a void. */}
         {medication.active && (
-          <MedicationIntakeActions
-            intakeLoading={intakeLoading}
-            onRecordIntake={recordIntake}
-          />
+          <div className="mt-auto pt-0">
+            <MedicationIntakeActions
+              intakeLoading={intakeLoading}
+              onRecordIntake={recordIntake}
+            />
+          </div>
         )}
       </CardContent>
 

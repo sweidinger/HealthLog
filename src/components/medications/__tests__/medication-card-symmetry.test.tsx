@@ -328,8 +328,12 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
       label: null,
       daysOfWeek: null,
     };
+    // A future next-due so the GLP-1 card's now-gated next-injection line
+    // renders (it no longer prints a "—" placeholder when there is no next).
+    const nextDueAt = new Date("2026-06-05T01:00:00Z").toISOString();
     const ramiprilFuture = {
       ...ramipril,
+      nextDueAt,
       schedules: [
         {
           id: "s-ramipril-future",
@@ -340,6 +344,7 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
     };
     const mounjaroFuture: Glp1Medication = {
       ...mounjaro,
+      nextDueAt,
       schedules: [
         {
           id: "s-mounjaro-future",
@@ -373,8 +378,185 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
       client,
     );
 
-    // Both surfaces carry the purple token on the upcoming dose.
-    expect(ramiprilHtml).toContain("text-purple-400");
-    expect(mounjaroHtml).toContain("text-purple-400");
+    // Both surfaces carry the dose-accent token on the upcoming dose. The
+    // token is theme-aware (`--dose-accent`): pixel-identical to the former
+    // Tailwind `text-purple-400` in dark mode, AA-safe on the white Alucard
+    // card in light mode. The hard-coded `text-purple-400` is gone.
+    expect(ramiprilHtml).toContain("text-dose-accent");
+    expect(mounjaroHtml).toContain("text-dose-accent");
+    expect(ramiprilHtml).not.toContain("text-purple-400");
+    expect(mounjaroHtml).not.toContain("text-purple-400");
+  });
+
+  it("the next/last slot is structurally identical (same wrapper, order, colour, spacing) on both cards", () => {
+    // The two cards now route the middle slot through the shared
+    // <MedicationNextLastSlot>. The wrapper, line order (next then last),
+    // colour token and spacing must be byte-identical across types — the
+    // historical divergence (reversed order, `text-foreground/85` vs
+    // `text-muted-foreground`, `space-y-1` vs `space-y-3.5`) is gone.
+    const pastWindow = {
+      windowStart: "01:00",
+      windowEnd: "02:00",
+      label: null,
+      daysOfWeek: null,
+    };
+    // Render with a last-intake set + an upcoming (non-active) window so
+    // BOTH the next and last lines are present, exercising the full slot.
+    const yesterday = new Date("2026-06-01T09:00:00Z").toISOString();
+    const ramiprilBoth = {
+      ...ramipril,
+      lastTakenAt: yesterday,
+      nextDueAt: new Date("2026-06-05T01:00:00Z").toISOString(),
+      schedules: [{ id: "s-r-both", ...pastWindow, dose: "5 mg" }],
+    };
+    const mounjaroBoth: Glp1Medication = {
+      ...mounjaro,
+      lastTakenAt: yesterday,
+      nextDueAt: new Date("2026-06-05T01:00:00Z").toISOString(),
+      schedules: [{ id: "s-m-both", ...pastWindow, dose: "7.5 mg" }],
+    };
+
+    const client = makeClient();
+    seedCompliance(client, ramiprilBoth.id);
+    seedCompliance(client, mounjaroBoth.id);
+    seedGlp1Details(client, mounjaroBoth.id);
+
+    const ramiprilHtml = render(
+      <MedicationCard
+        medication={ramiprilBoth}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
+      client,
+    );
+    const mounjaroHtml = render(
+      <Glp1MedicationCard
+        medication={mounjaroBoth}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+        onOpenAdvanced={() => {}}
+      />,
+      client,
+    );
+
+    for (const html of [ramiprilHtml, mounjaroHtml]) {
+      // Identical reserved-height wrapper with identical spacing.
+      expect(html).toContain('class="min-h-[2.75rem] space-y-3.5 text-sm"');
+      // The slot's lines paint with the muted token on both cards — the
+      // brighter `text-foreground/85` GLP-1 next-line is gone.
+      expect(html).not.toContain("text-foreground/85");
+      // No literal em-dash placeholder for an absent next-injection.
+      expect(html).not.toContain(">—<");
+      // Both lines present (next + last), so two muted <p> in the slot.
+      const slotStart = html.indexOf("min-h-[2.75rem]");
+      const slot = html.slice(slotStart, slotStart + 800);
+      const lines = slot.match(/<p class="text-muted-foreground">/g) ?? [];
+      expect(lines.length).toBe(2);
+    }
+  });
+
+  it("both cards keep a constant-height card body and bottom-pin the action row across types", () => {
+    // The body is a flex column (`flex h-full flex-col`) and the action row
+    // carries `mt-auto`, so unequal content can't misalign the take/skip
+    // buttons across a grid row. A compliance skeleton reserves the bars'
+    // footprint while the query is null. Exercise the generic card across
+    // schedule-less types (PRN / one-shot) plus a scheduled oral and GLP-1.
+    const base = {
+      active: true,
+      notificationsEnabled: true,
+      pausedAt: null,
+      lastTakenAt: null,
+      todayEventCount: 0,
+    };
+    const oral = {
+      ...base,
+      id: "m-oral",
+      name: "Metformin",
+      dose: "500 mg",
+      category: "DIABETES",
+      schedules: [{ id: "so", ...allDayWindow, dose: "500 mg" }],
+    };
+    const prn = {
+      ...base,
+      id: "m-prn",
+      name: "Ibuprofen",
+      dose: "400 mg",
+      category: "OTHER",
+      // PRN: no schedule, no next-due → shortest possible body.
+      schedules: [],
+    };
+    const oneShot = {
+      ...base,
+      id: "m-oneshot",
+      name: "Vaccine",
+      dose: "1 dose",
+      category: "OTHER",
+      schedules: [],
+    };
+    const glp1: Glp1Medication = {
+      ...mounjaro,
+      id: "m-glp1",
+    };
+
+    const client = makeClient();
+    // Seed compliance for some but NOT others, so the skeleton path
+    // (compliance null) is exercised alongside the loaded path.
+    seedCompliance(client, oral.id);
+    seedGlp1Details(client, glp1.id);
+    // prn + oneShot intentionally left without compliance → skeleton.
+
+    const htmls = [
+      render(
+        <MedicationCard
+          medication={oral}
+          onEdit={() => {}}
+          onOpenHistory={() => {}}
+          onOpenAdvanced={() => {}}
+        />,
+        client,
+      ),
+      render(
+        <MedicationCard
+          medication={prn}
+          onEdit={() => {}}
+          onOpenHistory={() => {}}
+          onOpenAdvanced={() => {}}
+        />,
+        client,
+      ),
+      render(
+        <MedicationCard
+          medication={oneShot}
+          onEdit={() => {}}
+          onOpenHistory={() => {}}
+          onOpenAdvanced={() => {}}
+        />,
+        client,
+      ),
+      render(
+        <Glp1MedicationCard
+          medication={glp1}
+          onEdit={() => {}}
+          onOpenHistory={() => {}}
+          onOpenAdvanced={() => {}}
+        />,
+        client,
+      ),
+    ];
+
+    for (const html of htmls) {
+      // Card body is a bottom-pinning flex column on every type.
+      expect(html).toContain("flex h-full flex-col space-y-3.5");
+      // Action row carries the bottom-pin.
+      expect(html).toContain("mt-auto");
+      // Reserved next/last slot is present on every type (constant height).
+      expect(html).toContain("min-h-[2.75rem] space-y-3.5 text-sm");
+    }
+
+    // The two cards left without compliance render the skeleton so their
+    // body keeps the bars' footprint rather than collapsing ~5rem shorter.
+    expect(htmls[1]).toContain("aria-hidden"); // prn skeleton
+    expect(htmls[2]).toContain("aria-hidden"); // one-shot skeleton
   });
 });
