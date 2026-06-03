@@ -9,8 +9,15 @@ import { MedicationCardHeader } from "@/components/medications/MedicationCardHea
 import { MedicationCardMenu } from "@/components/medications/medication-card-menu";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
-import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
+import {
+  MedicationComplianceBars,
+  MedicationComplianceSkeleton,
+} from "@/components/medications/card-parts/medication-compliance-bars";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
+import {
+  MedicationNextLastSlot,
+  useWeekdayLabel,
+} from "@/components/medications/card-parts/medication-next-last-slot";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
@@ -121,6 +128,7 @@ export function MedicationCard({
   const queryClient = useQueryClient();
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
+  const weekdayLabel = useWeekdayLabel();
   const [intakeLoading, setIntakeLoading] = useState<string | null>(null);
   // v1.8.5 — post-dose injection-site prompt state. Holds the intake
   // event id returned by the take POST so the confirm handler can PATCH
@@ -311,7 +319,7 @@ export function MedicationCard({
         linkLabel={t("medications.openDetailPage")}
       />
 
-      <CardContent className="space-y-3.5">
+      <CardContent className="flex h-full flex-col space-y-3.5">
         {/* Status, last & next intake info */}
         {currentWindowStatus.status && (
           <MedicationStatusPill
@@ -321,102 +329,100 @@ export function MedicationCard({
           />
         )}
 
-        {/* Next / last intake — wrapped in a fixed min-height slot so a
-            card missing its last-dose line keeps the same vertical
-            footprint as a sibling that renders both lines, so the dose rows
-            line up across the 2-col grid. */}
-        <div className="min-h-[2.75rem] space-y-3.5">
-          {nextSchedule &&
-            currentWindowStatus.status !== "in_window" &&
-            (() => {
-              const s = nextSchedule;
+        {/* Next / last intake — rendered through the shared
+            <MedicationNextLastSlot> so the generic and GLP-1 cards keep an
+            identical slot (order, colour, spacing, gating, reserved
+            min-height). The card owns only the *content* of each line; the
+            wrapper + "Next / Last intake" labels live in the shared part. */}
+        <MedicationNextLastSlot
+          next={
+            nextSchedule && currentWindowStatus.status !== "in_window"
+              ? (() => {
+                  const s = nextSchedule;
 
-              // Format day label relative to today
-              let dayLabel = "";
-              if (nextAt) {
-                const nextDate = toBerlinDate(new Date(nextAt));
-                const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
-                const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
-                const tomorrow = new Date(nowBerlin);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
+                  // Format day label relative to today
+                  let dayLabel = "";
+                  if (nextAt) {
+                    const nextDate = toBerlinDate(new Date(nextAt));
+                    const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
+                    const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
+                    const tomorrow = new Date(nowBerlin);
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
 
-                const diffDays = Math.round(
-                  (nextDate.getTime() - nowBerlin.getTime()) /
-                    (24 * 60 * 60 * 1000),
-                );
+                    const diffDays = Math.round(
+                      (nextDate.getTime() - nowBerlin.getTime()) /
+                        (24 * 60 * 60 * 1000),
+                    );
 
-                if (nextStr === todayStr) {
-                  dayLabel = t("medications.today");
-                } else if (nextStr === tomorrowStr) {
-                  dayLabel = t("medications.tomorrow");
-                } else if (diffDays <= 5) {
-                  const weekdayLabels = [
-                    t("medications.weekdaySunday"),
-                    t("medications.weekdayMonday"),
-                    t("medications.weekdayTuesday"),
-                    t("medications.weekdayWednesday"),
-                    t("medications.weekdayThursday"),
-                    t("medications.weekdayFriday"),
-                    t("medications.weekdaySaturday"),
-                  ];
-                  dayLabel = weekdayLabels[nextDate.getDay()];
-                } else {
-                  dayLabel = fmt.dateWithWeekday(nextDate);
-                }
-              }
+                    if (nextStr === todayStr) {
+                      dayLabel = t("medications.today");
+                    } else if (nextStr === tomorrowStr) {
+                      dayLabel = t("medications.tomorrow");
+                    } else if (diffDays <= 5) {
+                      dayLabel = weekdayLabel(nextDate.getDay());
+                    } else {
+                      dayLabel = fmt.dateWithWeekday(nextDate);
+                    }
+                  }
 
-              return (
-                <p className="text-muted-foreground text-sm">
-                  <span className="font-medium">
-                    {t("medications.nextIntake")}
-                  </span>{" "}
-                  {dayLabel && `${dayLabel}, `}
-                  {formatTimeWindowRange(s.windowStart, s.windowEnd, locale)}
-                  {s.label && (
-                    <span className="hidden sm:inline"> ({s.label})</span>
-                  )}
-                  {s.dose && (
-                    <span className="hidden font-medium text-purple-400 sm:inline">
-                      {" "}
-                      — {s.dose}
-                    </span>
-                  )}
-                </p>
-              );
-            })()}
-
-          {medication.lastTakenAt && (
-            <p className="text-muted-foreground text-sm">
-              <span className="font-medium">{t("medications.lastIntake")}</span>{" "}
-              {formatLastTakenAt(medication.lastTakenAt)}
-            </p>
-          )}
-        </div>
+                  return (
+                    <>
+                      {dayLabel && `${dayLabel}, `}
+                      {formatTimeWindowRange(s.windowStart, s.windowEnd, locale)}
+                      {s.label && (
+                        <span className="hidden sm:inline"> ({s.label})</span>
+                      )}
+                      {s.dose && (
+                        <span className="text-dose-accent hidden font-medium sm:inline">
+                          {" "}
+                          — {s.dose}
+                        </span>
+                      )}
+                    </>
+                  );
+                })()
+              : null
+          }
+          last={
+            medication.lastTakenAt
+              ? formatLastTakenAt(medication.lastTakenAt)
+              : null
+          }
+        />
 
         {/* Compliance bars — always two rows. The server scales the two
             windows to the dosing cadence (7 / 30 days for dense meds,
             stepping up to 90 / 365 for sparse ones); the labels follow the
-            chosen windows. */}
-        {medication.active && compliance && (
-          <MedicationComplianceBars
-            rate7={rate7}
-            rate30={rate30}
-            streak={streak}
-            shortDays={shortDays}
-            longDays={longDays}
-          />
-        )}
+            chosen windows. A constant-height skeleton holds the slot while
+            the per-card compliance query is in flight (or returns null) so
+            the card body keeps a fixed footprint and the action row pins to
+            the same baseline as its grid-row sibling. */}
+        {medication.active &&
+          (compliance ? (
+            <MedicationComplianceBars
+              rate7={rate7}
+              rate30={rate30}
+              streak={streak}
+              shortDays={shortDays}
+              longDays={longDays}
+            />
+          ) : (
+            <MedicationComplianceSkeleton />
+          ))}
 
-        {/* Quick actions — primary buttons of the medication card. They sit
-            directly after the content (the card still fills the grid cell via
-            h-full, but the actions are not pushed to the bottom — that left a
-            void between the content and the buttons on shorter cards). */}
+        {/* Quick actions — primary buttons of the medication card. The
+            content above reserves constant-height slots, so the card bodies
+            in a grid row are equal height and `mt-auto` pins the action row
+            to the same baseline without opening the void that an unequal-
+            height pin produced before. */}
         {medication.active && (
-          <MedicationIntakeActions
-            intakeLoading={intakeLoading}
-            onRecordIntake={recordIntake}
-          />
+          <div className="mt-auto pt-0">
+            <MedicationIntakeActions
+              intakeLoading={intakeLoading}
+              onRecordIntake={recordIntake}
+            />
+          </div>
         )}
       </CardContent>
 
