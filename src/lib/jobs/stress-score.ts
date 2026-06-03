@@ -58,14 +58,18 @@ export async function findStressScoreCandidates(
   cap: number,
 ): Promise<string[]> {
   const since = new Date(now.getTime() - STRESS_SCORE_RECENCY_DAYS * MS_PER_DAY);
-  const rows = await prisma.measurement.findMany({
+  // Deterministic recency-under-cap: group by user, newest HRV first, `userId`
+  // tiebreak. `distinct` + `take` without an order picks an arbitrary set when
+  // more than `cap` users qualify; `groupBy` makes the cap take the
+  // most-recently-active users every run.
+  const rows = await prisma.measurement.groupBy({
+    by: ["userId"],
     where: {
       type: "HEART_RATE_VARIABILITY",
       deletedAt: null,
       measuredAt: { gte: since },
     },
-    select: { userId: true },
-    distinct: ["userId"],
+    orderBy: [{ _max: { measuredAt: "desc" } }, { userId: "asc" }],
     take: cap,
   });
   return rows.map((r) => r.userId);

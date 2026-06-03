@@ -52,6 +52,15 @@ import type { Derived, DerivedProvenanceSource } from "./types";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_WINDOW_DAYS = 30;
+/**
+ * Row cap for the latest-day mean read. A dense intra-day day (high-frequency
+ * RHR/HRV) can hold hundreds of rows; the deviation only needs the latest day's
+ * mean, so a bounded sample of the most-recent rows is enough — mirrors the
+ * dense-intraday retention reasoning (`measurements/dense-intraday-retention.ts`)
+ * that keeps the recent window dense but caps the read. The common single-
+ * reading-per-day case is unaffected.
+ */
+const MAX_LATEST_DAY_ROWS = 50;
 /** Minimum present components before a headline is produced (no 1-of-N). */
 export const READINESS_MIN_COMPONENTS = 2;
 
@@ -167,7 +176,7 @@ async function readLatestDayMean(
   const rows = await prisma.measurement.findMany({
     where: { userId, type, deletedAt: null, measuredAt: { gte: since } },
     orderBy: { measuredAt: "desc" },
-    take: 50,
+    take: MAX_LATEST_DAY_ROWS,
     select: { value: true, measuredAt: true },
   });
   if (rows.length === 0) return null;

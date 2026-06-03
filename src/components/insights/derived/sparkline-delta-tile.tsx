@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { ArrowDown, ArrowRight, ArrowUp, Minus } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
@@ -80,6 +81,10 @@ export function SparklineDeltaTile({
 }: SparklineDeltaTileProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
+  // A stable per-instance id for the gradient <defs>. Deriving it from the
+  // label slug collides when two tiles share a localized label (the gradient
+  // fill on the second tile would not resolve); useId() is collision-free.
+  const fillId = useId();
 
   const arrowSentiment = getTrendSentiment(delta ?? null, directionSentiment);
   const trendColor = sentimentColorClass(arrowSentiment);
@@ -111,7 +116,6 @@ export function SparklineDeltaTile({
       : arrowSentiment === "negative"
         ? "var(--warning)"
         : "var(--muted-foreground)";
-  const fillId = `spark-${label.replace(/[^a-zA-Z0-9]/g, "")}`;
 
   return (
     <div

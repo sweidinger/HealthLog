@@ -46,7 +46,27 @@ export type DerivedMetricId =
   /** Persisted nightly stress composite (passthrough read of COMPUTED rows). */
   | "STRESS_SCORE"
   /** Persisted nightly strain composite (passthrough read of COMPUTED rows). */
-  | "STRAIN_SCORE";
+  | "STRAIN_SCORE"
+  /** v1.10.3: overnight wrist-temperature personal-deviation band (baseline engine). */
+  | "WRIST_TEMPERATURE_BASELINE"
+  /** v1.10.3: stair-ascent-speed personal trend band (baseline engine). */
+  | "STAIR_ASCENT_SPEED_BASELINE"
+  /** v1.10.3: stair-descent-speed personal trend band (baseline engine). */
+  | "STAIR_DESCENT_SPEED_BASELINE"
+  /** v1.10.3: estimated 6-minute-walk distance vs Enright-predicted (passthrough re-frame). */
+  | "SIX_MINUTE_WALK_BAND";
+
+// Documented-as-omitted (v1.10.3): two additive HealthKit signals stay
+// trend-only with NO derived band, on purpose —
+//   - FALL_COUNT is a zero-inflated discrete safety EVENT (target = zero); a
+//     median ± k·MAD band on a near-constant-zero series is meaningless and a
+//     band would imply a smooth metric where there is none.
+//   - BREATHING_DISTURBANCES is a regulated sleep-apnea SCREENING signal (Apple
+//     publishes only NotElevated/Elevated, no numeric cutoff); a self-derived
+//     band would read as a HealthLog verdict on a screening signal and imply a
+//     diagnosis. The fired BREATHING_DISTURBANCE_EVENT carries the device's own
+//     classification in the awareness card; the continuous index stays a plain
+//     trend with the generic assessment.
 
 /** Archetype of a derived metric — drives shaping + the QA inventory. */
 export type DerivedArchetype =
@@ -206,6 +226,42 @@ const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
     displayName: "Strain score",
     archetype: "passthrough-reframe",
     inputs: ["STRAIN_SCORE"],
+    minHistoryDays: 1,
+    minInputs: 1,
+    implemented: true,
+  },
+  WRIST_TEMPERATURE_BASELINE: {
+    id: "WRIST_TEMPERATURE_BASELINE",
+    displayName: "Wrist-temperature baseline",
+    archetype: "any-user-baseline",
+    inputs: ["WRIST_TEMPERATURE"],
+    minHistoryDays: 7,
+    minInputs: 1,
+    implemented: true,
+  },
+  STAIR_ASCENT_SPEED_BASELINE: {
+    id: "STAIR_ASCENT_SPEED_BASELINE",
+    displayName: "Stair-ascent-speed baseline",
+    archetype: "any-user-baseline",
+    inputs: ["STAIR_ASCENT_SPEED"],
+    minHistoryDays: 7,
+    minInputs: 1,
+    implemented: true,
+  },
+  STAIR_DESCENT_SPEED_BASELINE: {
+    id: "STAIR_DESCENT_SPEED_BASELINE",
+    displayName: "Stair-descent-speed baseline",
+    archetype: "any-user-baseline",
+    inputs: ["STAIR_DESCENT_SPEED"],
+    minHistoryDays: 7,
+    minInputs: 1,
+    implemented: true,
+  },
+  SIX_MINUTE_WALK_BAND: {
+    id: "SIX_MINUTE_WALK_BAND",
+    displayName: "Estimated 6-minute-walk band",
+    archetype: "passthrough-reframe",
+    inputs: ["SIX_MINUTE_WALK_DISTANCE"],
     minHistoryDays: 1,
     minInputs: 1,
     implemented: true,

@@ -16,7 +16,7 @@ import { prisma } from "@/lib/db";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { buildInsufficient, buildOk, nowProvenanceTimestamp } from "./coverage";
 import type { BaselineProfile } from "./baseline";
-import type { Derived } from "./types";
+import { SPARKLINE_MAX_POINTS, type Derived } from "./types";
 
 /** A 0–100 wellness score band. Higher is better for recovery; for stress a
  *  higher score is worse, so the band direction flips (see `WELLNESS_DIR`). */
@@ -32,6 +32,12 @@ export interface WellnessScoreValue {
   daysInWindow: number;
   /** ISO timestamp of the latest score's `measuredAt`. */
   asOf: string;
+  /**
+   * Trailing score series (oldest → newest), capped to the last
+   * `SPARKLINE_MAX_POINTS`. Reuses the window rows already read — no extra
+   * query.
+   */
+  series: number[];
 }
 
 /** The three persisted score types this engine serves. */
@@ -132,6 +138,11 @@ export async function computeWellnessScore(
       trendDelta,
       daysInWindow: rows.length,
       asOf: latest.measuredAt.toISOString(),
+      // rows are newest-first; the sparkline wants oldest → newest, capped.
+      series: rows
+        .slice(0, SPARKLINE_MAX_POINTS)
+        .map((r) => r.value)
+        .reverse(),
     },
     coverage: {
       requiredInputs: 1,

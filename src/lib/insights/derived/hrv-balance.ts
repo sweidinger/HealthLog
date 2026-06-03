@@ -44,7 +44,7 @@ import {
   readDayMeanSeries,
   type BaselineProfile,
 } from "./baseline";
-import { isDerivedOk } from "./types";
+import { isDerivedOk, SPARKLINE_MAX_POINTS } from "./types";
 import type { Derived } from "./types";
 
 const HRV_TYPE: MeasurementType = "HEART_RATE_VARIABILITY";
@@ -69,6 +69,12 @@ export interface HrvBalanceValue {
   band: HrvBalanceBand;
   /** Distinct days that backed the baseline. */
   sampleDays: number;
+  /**
+   * Trailing per-day SDNN mean series (oldest → newest), capped to the last
+   * `SPARKLINE_MAX_POINTS`. Reuses the day-mean read already done for the
+   * recent average — no extra query.
+   */
+  series: number[];
 }
 
 /**
@@ -165,6 +171,9 @@ export async function computeHrvBalance(
       baselineHigh: baseline.value.high,
       band,
       sampleDays: baseline.value.sampleDays,
+      series: recent.points
+        .slice(-SPARKLINE_MAX_POINTS)
+        .map((p) => p.mean),
     },
     coverage,
     confidence,

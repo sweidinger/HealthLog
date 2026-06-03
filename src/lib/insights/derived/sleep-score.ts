@@ -34,6 +34,8 @@
  */
 import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { getLocalDateParts } from "@/lib/timezone";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 import {
   buildInsufficient,
   buildOk,
@@ -317,8 +319,16 @@ export interface NightSummary {
  * Group raw stage rows into per-night summaries. A "night" is keyed by the
  * latest stage row's calendar day (the wake day). Pure — the caller does
  * the bounded DB read and passes rows in.
+ *
+ * `tz` is the IANA zone the midpoint is expressed against: a sleeper's
+ * 03:00-local midpoint must read as minutes-of-day in THEIR wall clock, not
+ * UTC, so a non-UTC user's consistency / timing sub-scores don't drift with
+ * the offset. Defaults to UTC for back-compatible pure use.
  */
-export function reconstructNights(rows: SleepRow[]): NightSummary[] {
+export function reconstructNights(
+  rows: SleepRow[],
+  tz: string = "UTC",
+): NightSummary[] {
   // Bucket rows by the wake-day key (UTC day of the row's measuredAt).
   const byNight = new Map<string, SleepRow[]>();
   for (const row of rows) {
@@ -369,7 +379,7 @@ export function reconstructNights(rows: SleepRow[]): NightSummary[] {
     const inBedMinutes = sawInBed ? inBed : awake > 0 ? asleep + awake : null;
     const midpoint =
       Number.isFinite(earliest) && Number.isFinite(latest) && latest > earliest
-        ? minutesOfDay(new Date((earliest + latest) / 2))
+        ? minutesOfDay(new Date((earliest + latest) / 2), tz)
         : null;
     nights.push({
       night,
@@ -385,8 +395,10 @@ export function reconstructNights(rows: SleepRow[]): NightSummary[] {
   return nights.sort((a, b) => (a.night < b.night ? -1 : 1));
 }
 
-function minutesOfDay(d: Date): number {
-  return d.getUTCHours() * 60 + d.getUTCMinutes();
+function minutesOfDay(d: Date, tz: string): number {
+  if (tz === "UTC") return d.getUTCHours() * 60 + d.getUTCMinutes();
+  const { hour, minute } = getLocalDateParts(d, tz);
+  return hour * 60 + minute;
 }
 
 // ── compute ─────────────────────────────────────────────────────────────
@@ -394,6 +406,11 @@ function minutesOfDay(d: Date): number {
 export interface SleepScoreOpts {
   windowDays?: number;
   now?: Date;
+  /**
+   * IANA zone the sleep midpoint is expressed against. Omit to resolve the
+   * user's stored zone (the production path); pass explicitly in tests.
+   */
+  tz?: string;
 }
 
 /**
@@ -409,6 +426,10 @@ export async function computeSleepScore(
   const windowDays = opts.windowDays ?? DEFAULT_WINDOW_DAYS;
   const now = opts.now ?? new Date();
   const computedAt = nowProvenanceTimestamp(now);
+  // The midpoint is the user's wall-clock minutes-of-day, not UTC's, so a
+  // non-UTC sleeper's consistency / timing sub-scores don't drift with the
+  // offset. Resolve the stored zone unless a caller pins one.
+  const tz = opts.tz ?? (await resolveUserTimezone(userId));
   const inputs = ["SLEEP_DURATION"];
   const required = 1;
   const since = new Date(now.getTime() - windowDays * MS_PER_DAY);
@@ -439,7 +460,7 @@ export async function computeSleepScore(
     });
   }
 
-  const nights = reconstructNights(rows).filter(
+  const nights = reconstructNights(rows, tz).filter(
     (n) => n.asleepMinutes > 0,
   );
   const scorableNights = nights.filter(

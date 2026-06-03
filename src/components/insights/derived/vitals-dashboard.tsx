@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Gauge, HeartPulse, RefreshCw, Scale } from "lucide-react";
+import { Footprints, Gauge, HeartPulse, RefreshCw, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,9 +29,8 @@ import type { FitnessAgeValue } from "@/lib/insights/derived/fitness-age";
 import type { VascularAgeDeltaValue } from "@/lib/insights/derived/vascular-age";
 import type { HrvBalanceValue } from "@/lib/insights/derived/hrv-balance";
 import type { BmiValue } from "@/lib/insights/derived/bmi";
-import type { CoincidentDeviationValue } from "@/lib/insights/derived/coincident-deviation";
+import type { SixMinuteWalkValue } from "@/lib/insights/derived/six-minute-walk";
 import type { DerivedProvenance } from "@/lib/insights/derived/types";
-import { AlertTriangle } from "lucide-react";
 
 /**
  * v1.10.0 — the Vitals dashboard surface (Apple-Health-Highlights grid).
@@ -62,6 +61,20 @@ const SECTION_VITALS: string[] = [
   "BODY_TEMPERATURE",
   "BLOOD_GLUCOSE",
   "WEIGHT",
+];
+
+/**
+ * v1.10.3 — the any-user HealthKit baseline bands, each pinning one input and
+ * framing as a personal typical range (median ± k·MAD). The `metric` is the
+ * batch token + provenance key; `type` drives icon/label/unit. The estimated
+ * 6-minute-walk re-frame rides the same Mobility section but reads its own
+ * value shape (`SixMinuteWalkTile`). Most users carry none of these, so the
+ * tiles simply do not appear (the per-tile absent gate).
+ */
+const SECTION_MOBILITY: { metric: keyof typeof METRIC_PROVENANCE; type: string }[] = [
+  { metric: "STAIR_ASCENT_SPEED_BASELINE", type: "STAIR_ASCENT_SPEED" },
+  { metric: "STAIR_DESCENT_SPEED_BASELINE", type: "STAIR_DESCENT_SPEED" },
+  { metric: "WRIST_TEMPERATURE_BASELINE", type: "WRIST_TEMPERATURE" },
 ];
 
 /** Up-is-bad for the vitals where a rise is unfavourable. */
@@ -134,15 +147,31 @@ interface TileProps {
   isLoading: boolean;
 }
 
-/** A single personal-typical-range tile for one vital. */
+/**
+ * A single median ± k·MAD personal-band tile. Shared by the per-vital
+ * `VITALS_BASELINE` reads and the v1.10.3 any-user HealthKit bands
+ * (`WRIST_TEMPERATURE_BASELINE`, `STAIR_ASCENT_SPEED_BASELINE`,
+ * `STAIR_DESCENT_SPEED_BASELINE`) — every one returns the same
+ * `VitalsBaselineValue` and frames as a personal typical range. The `metric`
+ * selects the batch token + provenance entry; `type` drives the icon, label
+ * and unit (and, for `VITALS_BASELINE`, the read token's `type`).
+ */
 function BaselineTile({
+  metric,
   type,
   read,
   isLoading,
-}: TileProps & { type: string }) {
+}: TileProps & {
+  metric: keyof typeof METRIC_PROVENANCE;
+  type: string;
+}) {
   const { t } = useTranslations();
   const fmt = useFormatters();
-  const data = read<VitalsBaselineValue>({ metric: "VITALS_BASELINE", type });
+  // `VITALS_BASELINE` is the type-generic engine and needs the type on the
+  // token; the dedicated bands pin their own single input, so no `type`.
+  const data = read<VitalsBaselineValue>(
+    metric === "VITALS_BASELINE" ? { metric, type } : { metric },
+  );
 
   if (isLoading || !data) return null;
   // Absent → don't render the tile at all.
@@ -154,13 +183,17 @@ function BaselineTile({
   const labelKey = MEASUREMENT_TYPE_LABEL_KEYS[type];
   const label = labelKey ? t(labelKey) : type;
   const unit = displayUnit(type);
+  // `VITALS_BASELINE` tiles tag the DOM by their vital type (the stable
+  // contract the existing surfaces + tests key on); the dedicated bands tag
+  // by their own metric id.
+  const tileId = metric === "VITALS_BASELINE" ? type : metric;
 
   // Provisional — building the band; show value-less coverage state.
   if (data.status === "insufficient") {
     return (
       <div
         data-slot="vitals-tile"
-        data-metric={type}
+        data-metric={tileId}
         data-state="provisional"
         className="bg-card border-border flex h-full w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6"
       >
@@ -188,16 +221,53 @@ function BaselineTile({
   });
 
   return (
-    <div data-slot="vitals-tile" data-metric={type} data-state="ok">
+    <div data-slot="vitals-tile" data-metric={tileId} data-state="ok">
       <SparklineDeltaTile
         label={label}
         value={v.center}
         unit={unit}
         icon={Icon}
+        series={v.series}
         framing={framing}
         directionSentiment={vitalSentiment(type)}
+        provenance={<MetricProvenance metric={metric} provenance={data.provenance} />}
+      />
+    </div>
+  );
+}
+
+/**
+ * Estimated 6-minute-walk band tile (`SIX_MINUTE_WALK_BAND` passthrough
+ * re-frame). Surfaces the device's estimated distance + trend always; the
+ * percent-of-predicted framing only when the Enright equation's demographics
+ * are present, otherwise an honest "add your demographics" prompt. Absent
+ * when no reading exists in the window.
+ */
+function SixMinuteWalkTile({ read, isLoading }: TileProps) {
+  const { t } = useTranslations();
+  const data = read<SixMinuteWalkValue>({ metric: "SIX_MINUTE_WALK_BAND" });
+  if (isLoading || !data || data.status !== "ok" || !data.value) return null;
+  const v = data.value;
+  const framing =
+    v.band != null && v.percentOfPredicted != null
+      ? t(`insights.derived.vitals.sixMinuteBand.${v.band}`, {
+          percent: v.percentOfPredicted,
+        })
+      : t("insights.derived.vitals.sixMinuteNoBand");
+  return (
+    <div data-slot="vitals-tile" data-metric="SIX_MINUTE_WALK_BAND" data-state="ok">
+      <SparklineDeltaTile
+        label={t("measurements.typeSixMinuteWalkDistance")}
+        value={v.distanceM}
+        unit={getUnitForType("SIX_MINUTE_WALK_DISTANCE")}
+        icon={MEASUREMENT_TYPE_ICONS.SIX_MINUTE_WALK_DISTANCE ?? Footprints}
+        series={v.series}
+        delta={v.trendDelta}
+        directionSentiment="up-good"
+        framing={framing}
+        precision={0}
         provenance={
-          <MetricProvenance metric="VITALS_BASELINE" provenance={data.provenance} />
+          <MetricProvenance metric="SIX_MINUTE_WALK_BAND" provenance={data.provenance} />
         }
       />
     </div>
@@ -322,6 +392,7 @@ function HrvBalanceTile({ read, isLoading }: TileProps) {
         value={v.recentAvg}
         unit={getUnitForType("HEART_RATE_VARIABILITY")}
         icon={HeartPulse}
+        series={v.series}
         directionSentiment="up-good"
         framing={framing}
         precision={0}
@@ -347,6 +418,7 @@ function BmiTile({ read, isLoading }: TileProps) {
         value={v.bmi}
         unit={getUnitForType("BODY_MASS_INDEX")}
         icon={Scale}
+        series={v.series}
         directionSentiment="neutral"
         framing={framing}
         precision={1}
@@ -354,59 +426,6 @@ function BmiTile({ read, isLoading }: TileProps) {
           <MetricProvenance metric="BMI" provenance={data.provenance} />
         }
       />
-    </div>
-  );
-}
-
-/**
- * Coincident-deviation flag tile — surfaces ONLY when the flag fired today
- * (≥ N vitals outside their personal band on the same day). Lists the
- * contributing vitals as plain text and carries the provenance affordance
- * (the Hampel/Leys median ± k·MAD basis + the descriptive-not-clinical
- * caveat). When the flag has not fired the tile un-mounts entirely — never
- * an alarming empty card.
- */
-function CoincidentDeviationTile({ read, isLoading }: TileProps) {
-  const { t } = useTranslations();
-  const data = read<CoincidentDeviationValue>({
-    metric: "COINCIDENT_DEVIATION",
-  });
-  if (isLoading || !data || data.status !== "ok" || !data.value) return null;
-  const v = data.value;
-  if (!v.fired || v.contributing.length === 0) return null;
-
-  const names = v.contributing
-    .map((d) => {
-      const labelKey = MEASUREMENT_TYPE_LABEL_KEYS[d.type];
-      return labelKey ? t(labelKey) : d.type;
-    })
-    .join(", ");
-
-  return (
-    <div
-      data-slot="vitals-tile"
-      data-metric="COINCIDENT_DEVIATION"
-      data-state="fired"
-      className="bg-card border-warning/40 flex h-full w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground truncate text-xs font-medium tracking-wide uppercase">
-          {t("insights.derived.coincident.label")}
-        </span>
-        <MetricProvenance
-          metric="COINCIDENT_DEVIATION"
-          provenance={data.provenance}
-        />
-        <AlertTriangle className="text-warning h-4 w-4 shrink-0" />
-      </div>
-      <p className="text-foreground text-sm" data-slot="coincident-summary">
-        {t("insights.derived.coincident.summary", {
-          count: v.contributing.length,
-        })}
-      </p>
-      <p className="text-muted-foreground text-xs leading-snug">
-        {t("insights.derived.coincident.vitals", { list: names })}
-      </p>
     </div>
   );
 }
@@ -442,17 +461,6 @@ function VitalsTileSkeleton() {
  * above — if a new tile gate changes, reflect it here.
  */
 function hasRenderableVital(read: DerivedBatchRead): boolean {
-  const coincident = read<CoincidentDeviationValue>({
-    metric: "COINCIDENT_DEVIATION",
-  });
-  if (
-    coincident?.status === "ok" &&
-    coincident.value?.fired &&
-    coincident.value.contributing.length > 0
-  ) {
-    return true;
-  }
-
   const fitness = read<FitnessAgeValue>({ metric: "FITNESS_AGE" });
   if (fitness?.status === "ok" && fitness.value) return true;
 
@@ -491,9 +499,36 @@ function hasRenderableVital(read: DerivedBatchRead): boolean {
 }
 
 /**
+ * Whether the resolved batch holds at least one mobility/body tile worth
+ * painting. Mirrors the per-tile gates so the Mobility section heading is
+ * only rendered once there is content under it (no stranded heading over
+ * blank space). Most users carry none of these → the whole section hides.
+ */
+function hasRenderableMobility(read: DerivedBatchRead): boolean {
+  const sixmw = read<SixMinuteWalkValue>({ metric: "SIX_MINUTE_WALK_BAND" });
+  if (sixmw?.status === "ok" && sixmw.value) return true;
+
+  for (const { metric } of SECTION_MOBILITY) {
+    const band = read<VitalsBaselineValue>({ metric });
+    if (
+      band &&
+      !(band.status === "insufficient" && band.reason === "no_readings_in_window")
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * The full set of tokens the dashboard reads in one batch — the five
- * wellness scores + the four derived re-frames + the coincident-deviation
- * flag + one baseline per vital (minus HRV, which has its own balance tile).
+ * wellness scores + the four derived re-frames + one baseline per vital
+ * (minus HRV, which has its own balance tile) + the four v1.10.3 mobility/body
+ * metrics (estimated 6-minute-walk band + the three HealthKit baseline bands).
+ * The coincident-deviation flag is no longer read here: it is now the
+ * dedicated "Today's signal" card at the top of the overview
+ * (`CoincidentDeviationCard`).
  */
 function dashboardTokens(): DerivedBatchToken[] {
   const tokens: DerivedBatchToken[] = [
@@ -506,11 +541,14 @@ function dashboardTokens(): DerivedBatchToken[] {
     { metric: "VASCULAR_AGE_DELTA" },
     { metric: "HRV_BALANCE" },
     { metric: "BMI" },
-    { metric: "COINCIDENT_DEVIATION" },
+    { metric: "SIX_MINUTE_WALK_BAND" },
   ];
   for (const type of SECTION_VITALS) {
     if (type === "HEART_RATE_VARIABILITY") continue;
     tokens.push({ metric: "VITALS_BASELINE", type });
+  }
+  for (const { metric } of SECTION_MOBILITY) {
+    tokens.push({ metric });
   }
   return tokens;
 }
@@ -576,6 +614,7 @@ export function VitalsDashboard({ enabled = true, className }: DashboardProps) {
   // vitals the heading would otherwise strand over blank space, then content
   // pops in below it — the CLS this pass removes.
   const showSection = isLoading || hasRenderableVital(read);
+  const showMobility = !isLoading && hasRenderableMobility(read);
 
   return (
     <div data-slot="vitals-dashboard-wrap" className={cn("space-y-6", className)}>
@@ -604,7 +643,6 @@ export function VitalsDashboard({ enabled = true, className }: DashboardProps) {
               ))
             ) : (
               <>
-                <CoincidentDeviationTile {...tileProps} />
                 <FitnessAgeTile {...tileProps} />
                 <VascularAgeTile {...tileProps} />
                 <HrvBalanceTile {...tileProps} />
@@ -612,10 +650,40 @@ export function VitalsDashboard({ enabled = true, className }: DashboardProps) {
                 {vitals
                   .filter((type) => type !== "HEART_RATE_VARIABILITY")
                   .map((type) => (
-                    <BaselineTile key={type} type={type} {...tileProps} />
+                    <BaselineTile
+                      key={type}
+                      metric="VITALS_BASELINE"
+                      type={type}
+                      {...tileProps}
+                    />
                   ))}
               </>
             )}
+          </div>
+        </section>
+      )}
+      {showMobility && (
+        <section
+          data-slot="vitals-mobility"
+          aria-label={t("insights.derived.vitals.mobilitySectionTitle")}
+          className="space-y-3"
+        >
+          <h2 className="text-foreground text-sm font-semibold tracking-tight">
+            {t("insights.derived.vitals.mobilitySectionTitle")}
+          </h2>
+          <div
+            data-slot="vitals-mobility-grid"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            <SixMinuteWalkTile {...tileProps} />
+            {SECTION_MOBILITY.map(({ metric, type }) => (
+              <BaselineTile
+                key={metric}
+                metric={metric}
+                type={type}
+                {...tileProps}
+              />
+            ))}
           </div>
         </section>
       )}

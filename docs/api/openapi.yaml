@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.10.2
+  version: 1.10.3
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -2466,6 +2466,10 @@ paths:
               - RECOVERY_SCORE
               - STRESS_SCORE
               - STRAIN_SCORE
+              - WRIST_TEMPERATURE_BASELINE
+              - STAIR_ASCENT_SPEED_BASELINE
+              - STAIR_DESCENT_SPEED_BASELINE
+              - SIX_MINUTE_WALK_BAND
             description: "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, VASCULAR_AGE_DELTA, HRV_BALANCE, BMI,
               READINESS). Closed enum: an unknown id 422s. Metrics whose compute has not yet landed return an
               `insufficient` value with reason `not_implemented`."
@@ -7769,6 +7773,10 @@ components:
             - RECOVERY_SCORE
             - STRESS_SCORE
             - STRAIN_SCORE
+            - WRIST_TEMPERATURE_BASELINE
+            - STAIR_ASCENT_SPEED_BASELINE
+            - STAIR_DESCENT_SPEED_BASELINE
+            - SIX_MINUTE_WALK_BAND
           description: Echoes the requested derived-metric id (tags the union).
         status:
           type: string
@@ -7784,8 +7792,9 @@ components:
                 type: string
               additionalProperties: {}
             - type: "null"
-          description: Metric-specific value object when status is 'ok' (e.g. { type, center, low, high, spread, sampleDays, k }
-            for VITALS_BASELINE); null when 'insufficient'.
+          description: Metric-specific value object when status is 'ok' (e.g. { type, center, low, high, spread, sampleDays, k,
+            series } for VITALS_BASELINE, where `series` is the trailing per-day mean values for the inline sparkline);
+            null when 'insufficient'.
         coverage:
           $ref: "#/components/schemas/DerivedCoverage"
         confidence:

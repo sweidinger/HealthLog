@@ -404,6 +404,11 @@ model User {
   // retires rows older than 90 days (see `handlePushAttemptCleanup` in
   // `reminder-worker.ts`).
   pushAttempts                PushAttempt[]
+  // v1.10.3 — per-(user, day) Strain personal-anchor cache (day-total
+  // TRIMP + running EWMA reference) so the nightly Strain engine anchors
+  // the 0–100 map to the user's own training load without re-integrating
+  // the 42-day chronic window of HR series each night.
+  strainTrimpCache            StrainTrimpCache[]
 
   // v1.7.0 profile — optional patient-identity fields surfaced on the
   // health-record export cover (PDF) and the FHIR `Patient` resource.
@@ -931,6 +936,50 @@ model WorkoutSamples {
   workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
 
   @@map("workout_samples")
+}
+
+// ─── Strain personal anchor cache (v1.10.3) ─────────────────
+//
+// Server-internal per-(user, day) cache that lets the nightly Strain
+// engine anchor the 0–100 map to the USER'S OWN recent training-day load
+// instead of a fixed population reference. Each row records the scored
+// day's day-total Banister TRIMP plus the running EWMA-smoothed personal
+// reference and which anchor produced that night's score (personal once
+// the cold-start floor is met, population before). Persisting day-total
+// TRIMP means the 42-day chronic window reads cheap cached values instead
+// of re-integrating 42 days of HR series every night.
+//
+// NOT a Measurement: it is never read through the derived registry, never
+// surfaced on any user-facing surface, never in the doctor PDF or FHIR
+// bundle, and never ingested from a client. Reusing the Measurement enum
+// would have pulled an internal cache type through every MeasurementType
+// completeness wall (chart tokens, categories, PR direction); a dedicated
+// table keeps it cleanly server-internal. Idempotent on `(userId, day)` so
+// a re-fired nightly tick overwrites the day's cache row in place.
+model StrainTrimpCache {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+  /// The scored UTC calendar day (`YYYY-MM-DD`), matching the score row's day key.
+  day    String
+  /// Day-total Banister TRIMP for the day (0 when no usable HR series).
+  dayTrimp Float @map("day_trimp")
+  /// EWMA-smoothed personal reference TRIMP in effect for this day's score.
+  refPersonal Float @map("ref_personal")
+  /// Which anchor produced this day's score: `personal` once enough personal
+  /// training history accrued, `population` during cold start.
+  anchor String
+  /// Distinct training days (TRIMP > 0) seen in the chronic window — drives
+  /// the cold-start gate + the confidence label.
+  trainingDays Int @map("training_days")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@index([userId, day(sort: Desc)])
+  @@map("strain_trimp_cache")
 }
 
 // ─── Personal records (v1.4.25 W8d — schema only) ──────────

@@ -49,7 +49,11 @@ export type {
   DerivedArchetype,
 } from "./registry";
 
-export { lookupNormalRange, hasSharpenedNorm } from "./norms";
+export {
+  lookupNormalRange,
+  hasSharpenedNorm,
+  predictSixMinuteWalkDistance,
+} from "./norms";
 export type { NormRange, NormSex } from "./norms";
 
 // ── server-only compute engines (do NOT value-import from a client component) ──
@@ -76,6 +80,15 @@ export {
   fitnessAgeDeltaYears,
 } from "./fitness-age";
 export type { FitnessAgeValue, FitnessBand } from "./fitness-age";
+
+export {
+  computeSixMinuteWalkBand,
+  placeSixMinuteWalkBand,
+} from "./six-minute-walk";
+export type {
+  SixMinuteWalkValue,
+  SixMinuteWalkBand,
+} from "./six-minute-walk";
 
 export { computeVascularAgeDelta, placeVascularBand } from "./vascular-age";
 export type { VascularAgeDeltaValue, VascularBand } from "./vascular-age";

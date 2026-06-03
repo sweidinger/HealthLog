@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.10.3] — 2026-06-03 — Personalised strain, a daily signal card, deeper derived metrics
+
+### Added
+
+- **A "Today's signal" card.** The coincident-deviation read — which notices when several of your vitals sit off their personal baseline at once — now leads the Insights overview as a calm daily card instead of a flag buried in the grid. It shows an all-clear on a normal day, names the vitals to keep an eye on when a few drift, and always frames them as possible factors, never a cause or a diagnosis.
+- **Derived bands for more of what your watch measures.** Overnight wrist temperature and stair-climbing and stair-descent pace each get a personal typical-range band, and your device's estimated six-minute-walk distance is placed against a published reference for your age, height, weight and sex. Each is shown with its method and its cited standard, and only once there is enough history. They appear under a new "Mobility & body" group.
+- **Trailing trend sparklines** on the derived tiles, drawn from the readings the tile already uses.
+
+### Changed
+
+- **The Strain score is now anchored to your own training load.** It reads how hard a day was relative to your own recent training-day effort rather than a fixed population figure, so a genuinely hard day reads high even while you are building back up; with too little history it falls back to a general reference and says so.
+- Age-banded reference norms now interpolate across bracket boundaries instead of stepping, and the sleep midpoint is computed in your own timezone.
+
 ## [1.10.2] — 2026-06-03 — Honest AI connection test, consistent insights, retention re-enabled
 
 ### Fixed

@@ -249,4 +249,12 @@ export const DISCOVERY_OUTCOMES = [
   "HEART_RATE_VARIABILITY",
   "RESTING_HEART_RATE",
   "WEIGHT",
+  // Wrist temperature is a credible future OUTCOME channel (near-daily, so
+  // n ≥ 20 is reachable; "did a hard workout / late alcohol raise next-night
+  // temperature?"), but it is deliberately NOT a channel yet: it is
+  // privacy-sensitive and deviation-framed, and folding it into the FDR
+  // matrix risks surfacing a cycle-phase correlation that strays into
+  // reproductive inference. Held pending a deliberate privacy review —
+  // documented here so the omission is intentional, not a gap (same posture
+  // as the medication-compliance omission above).
 ] as const;

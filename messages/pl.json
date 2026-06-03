@@ -2550,7 +2550,14 @@
           "normal": "Zakres prawidłowy (WHO)",
           "overweight": "Nadwaga (WHO)",
           "obese": "Otyłość (WHO)"
-        }
+        },
+        "sixMinuteBand": {
+          "green": "{percent}% wartości przewidywanej dla Twojego profilu",
+          "yellow": "{percent}% wartości przewidywanej dla Twojego profilu",
+          "red": "{percent}% wartości przewidywanej dla Twojego profilu"
+        },
+        "sixMinuteNoBand": "Dodaj wiek, wzrost, wagę i płeć, aby to ująć w kontekście",
+        "mobilitySectionTitle": "Mobilność i ciało"
       },
       "anatomy": {
         "outOf": "/100",
@@ -2618,9 +2625,25 @@
           "description": "Nocny wskaźnik stresu na podstawie kształtu Twojego HRV w ciągu dnia."
         },
         "STRAIN_SCORE": {
-          "method": "Nocny wskaźnik obciążenia 0–100 na podstawie Twojego obciążenia aktywnością ważonego tętnem (model impulsu treningowego typu TRIMP). Wyższy oznacza cięższy dzień.",
+          "method": "Nocny wskaźnik obciążenia 0–100 na podstawie Twojego obciążenia aktywnością ważonego tętnem (model impulsu treningowego typu TRIMP). Wyższy oznacza cięższy dzień. Skala jest zakotwiczona w Twoim własnym niedawnym obciążeniu z dni treningowych — względem Twojego typowego wysiłku — więc naprawdę ciężki dzień dla Ciebie wypada wysoko. Dopóki dopiero budujesz historię, używa zamiast tego ogólnego punktu odniesienia.",
           "caveat": "Opisowy wskaźnik obciążenia aktywnością, nie kliniczna ani treningowa miara obciążenia.",
-          "description": "Nocny wskaźnik obciążenia aktywnością z Twojego wysiłku ważonego tętnem."
+          "description": "Nocny wskaźnik obciążenia aktywnością z Twojego wysiłku ważonego tętnem, względem Twojego typowego wysiłku."
+        },
+        "WRIST_TEMPERATURE_BASELINE": {
+          "method": "Twoja typowa nocna temperatura nadgarstka to mediana Twoich nocnych odczytów w danym okresie, ± solidny rozrzut (przeskalowane medianowe odchylenie bezwzględne). Śledzi TWOJE odczyty — ostatnia noc jest pokazana jako odchylenie od Twojej własnej bazy, a nie od normy populacyjnej.",
+          "caveat": "Tylko osobiste pasmo odchylenia — opisowe, nie sygnał choroby, gorączki ani fazy cyklu. Interpretujesz je samodzielnie."
+        },
+        "STAIR_ASCENT_SPEED_BASELINE": {
+          "method": "Twoje typowe tempo wchodzenia po schodach to mediana Twoich dziennych wartości w danym okresie, ± solidny rozrzut (przeskalowane medianowe odchylenie bezwzględne). Pasmo jest budowane z Twoich danych — nie ma populacyjnego progu prędkości na schodach, bo tempo zależy od geometrii schodów i długości nóg.",
+          "caveat": "Osobiste pasmo trendu mobilności — opisowe, nie ocena kruchości ani ryzyka upadku."
+        },
+        "STAIR_DESCENT_SPEED_BASELINE": {
+          "method": "Twoje typowe tempo schodzenia po schodach to mediana Twoich dziennych wartości w danym okresie, ± solidny rozrzut (przeskalowane medianowe odchylenie bezwzględne). Pasmo jest budowane z Twoich danych — nie ma populacyjnego progu prędkości na schodach, bo tempo zależy od geometrii schodów i długości nóg.",
+          "caveat": "Osobiste pasmo trendu mobilności — opisowe, nie ocena kruchości ani ryzyka upadku."
+        },
+        "SIX_MINUTE_WALK_BAND": {
+          "method": "SZACOWANY przez Twoje urządzenie dystans sześciominutowego marszu odniesiony do wzorca Enrighta i Sherrilla dla Twojego wieku, wzrostu, wagi i płci, jako procent wartości przewidywanej. Dystans to szacunek urządzenia — nigdy nie jest tu przeliczany. Bez Twojego wieku, wzrostu, wagi i płci procent jest ukryty i pokazywane są tylko dystans i trend.",
+          "caveat": "Szacunek odniesiony do opublikowanego wzorca — sygnał wydolności funkcjonalnej, nie kliniczny test sześciominutowego marszu ani diagnoza."
         }
       },
       "scores": {
@@ -2632,7 +2655,15 @@
       "coincident": {
         "label": "Kilka parametrów poza bazą",
         "summary": "Dziś {count} Twoich parametrów życiowych znalazło się poza osobistym zakresem.",
-        "vitals": "Poza zakresem: {list}"
+        "vitals": "Poza zakresem: {list}",
+        "cardTitle": "Sygnał dnia",
+        "allClear": "Dziś wszystkie Twoje parametry życiowe mieszczą się w osobistym zakresie.",
+        "allClearMeta": "Sprawdzono {count} Twoich parametrów względem Twojego typowego zakresu.",
+        "watch": "Dziś jeden parametr jest poza swoim zwykłym zakresem.",
+        "watchVital": "Poza zakresem: {vital}. Często to jednorazowy odczyt — warto obserwować przez kilka dni.",
+        "firedHeadline": "Dziś {count} Twoich parametrów życiowych jest poza osobistym zakresem.",
+        "factors": "Możliwe czynniki — nigdy przyczyna: intensywny trening, słaby sen, alkohol, wysokość, stres lub choroba. To wskazówka z Twoich własnych baz, nie diagnoza.",
+        "building": "Budujemy Twoje osobiste bazy — zarejestruj jeszcze kilka dni, a to się pojawi."
       }
     },
     "cardioFitness": {

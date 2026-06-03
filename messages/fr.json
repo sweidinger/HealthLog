@@ -2550,7 +2550,14 @@
           "normal": "Plage normale (OMS)",
           "overweight": "Surpoids (OMS)",
           "obese": "Obésité (OMS)"
-        }
+        },
+        "sixMinuteBand": {
+          "green": "{percent}% de la valeur prédite pour votre profil",
+          "yellow": "{percent}% de la valeur prédite pour votre profil",
+          "red": "{percent}% de la valeur prédite pour votre profil"
+        },
+        "sixMinuteNoBand": "Ajoutez votre âge, taille, poids et sexe pour cadrer ceci",
+        "mobilitySectionTitle": "Mobilité et corps"
       },
       "anatomy": {
         "outOf": "/100",
@@ -2618,9 +2625,25 @@
           "description": "Un indice de stress nocturne à partir de la forme de votre VFC sur la journée."
         },
         "STRAIN_SCORE": {
-          "method": "Un indice d’effort nocturne de 0 à 100 à partir de votre charge d’activité pondérée par la fréquence cardiaque (un modèle d’impulsion d’entraînement de type TRIMP). Plus élevé signifie une journée plus exigeante.",
+          "method": "Un indice d’effort nocturne de 0 à 100 à partir de votre charge d’activité pondérée par la fréquence cardiaque (un modèle d’impulsion d’entraînement de type TRIMP). Plus élevé signifie une journée plus exigeante. L’échelle est calée sur votre propre charge récente des jours d’entraînement — relative à votre effort habituel —, de sorte qu’une journée vraiment difficile pour vous ressort élevée. Tant que vous constituez encore votre historique, elle utilise plutôt une référence générale.",
           "caveat": "Un indicateur descriptif de charge d’activité, pas une mesure de charge clinique ou de niveau d’entraînement.",
-          "description": "Un indice de charge d’activité nocturne à partir de votre effort pondéré par la fréquence cardiaque."
+          "description": "Un indice de charge d’activité nocturne à partir de votre effort pondéré par la fréquence cardiaque, relatif à votre effort habituel."
+        },
+        "WRIST_TEMPERATURE_BASELINE": {
+          "method": "Votre température nocturne typique au poignet est la médiane de vos relevés nocturnes sur la période, ± une dispersion robuste (écart absolu médian, mis à l’échelle). Elle suit VOS relevés — la nuit dernière est affichée comme un écart par rapport à votre propre référence, pas à une norme de population.",
+          "caveat": "Une simple bande d’écart personnel — descriptive, ni un signe de maladie, de fièvre ou de phase du cycle. À vous de l’interpréter."
+        },
+        "STAIR_ASCENT_SPEED_BASELINE": {
+          "method": "Votre allure typique en montant les escaliers est la médiane de vos valeurs quotidiennes sur la période, ± une dispersion robuste (écart absolu médian, mis à l’échelle). La bande est construite à partir de vos données — il n’existe pas de seuil de population pour l’allure dans les escaliers, car elle dépend de la géométrie des marches et de la longueur des jambes.",
+          "caveat": "Une bande personnelle de tendance de mobilité — descriptive, ni une évaluation de fragilité ni de risque de chute."
+        },
+        "STAIR_DESCENT_SPEED_BASELINE": {
+          "method": "Votre allure typique en descendant les escaliers est la médiane de vos valeurs quotidiennes sur la période, ± une dispersion robuste (écart absolu médian, mis à l’échelle). La bande est construite à partir de vos données — il n’existe pas de seuil de population pour l’allure dans les escaliers, car elle dépend de la géométrie des marches et de la longueur des jambes.",
+          "caveat": "Une bande personnelle de tendance de mobilité — descriptive, ni une évaluation de fragilité ni de risque de chute."
+        },
+        "SIX_MINUTE_WALK_BAND": {
+          "method": "La distance de marche de six minutes ESTIMÉE par votre appareil, située par rapport à la référence d’Enright et Sherrill pour votre âge, votre taille, votre poids et votre sexe, en pourcentage de la valeur prédite. La distance est l’estimation de l’appareil — jamais recalculée ici. Sans votre âge, taille, poids et sexe, le pourcentage est masqué et seules la distance et la tendance sont affichées.",
+          "caveat": "Une estimation reformulée par rapport à une référence publiée — un indicateur de capacité fonctionnelle, ni un test de marche de six minutes clinique ni un diagnostic."
         }
       },
       "scores": {
@@ -2632,7 +2655,15 @@
       "coincident": {
         "label": "Plusieurs constantes hors référence",
         "summary": "Aujourd’hui, {count} de vos constantes sont sorties de leur plage personnelle.",
-        "vitals": "Hors plage : {list}"
+        "vitals": "Hors plage : {list}",
+        "cardTitle": "Signal du jour",
+        "allClear": "Aujourd’hui, toutes vos constantes sont dans leur plage personnelle.",
+        "allClearMeta": "{count} de vos constantes vérifiées par rapport à votre propre plage habituelle.",
+        "watch": "Aujourd’hui, une constante est hors de sa plage habituelle.",
+        "watchVital": "Hors plage : {vital}. Souvent ponctuel — à surveiller ces prochains jours.",
+        "firedHeadline": "Aujourd’hui, {count} de vos constantes sont hors de leur plage personnelle.",
+        "factors": "Facteurs possibles — jamais une cause : un entraînement intense, un mauvais sommeil, l’alcool, l’altitude, le stress ou une maladie. C’est un repère issu de vos propres références, pas un diagnostic.",
+        "building": "Construction de vos références personnelles — enregistrez quelques jours de plus et cela apparaîtra."
       }
     },
     "cardioFitness": {

@@ -26,14 +26,14 @@ import {
 const NOW = new Date("2026-06-02T08:00:00Z");
 
 function makePrisma(userIds: string[]) {
-  const findMany = vi
+  const groupBy = vi
     .fn()
     .mockResolvedValue(userIds.map((userId) => ({ userId })));
   return {
-    prisma: { measurement: { findMany } } as unknown as Parameters<
+    prisma: { measurement: { groupBy } } as unknown as Parameters<
       typeof runRecoveryScore
     >[0],
-    findMany,
+    groupBy,
   };
 }
 
@@ -43,11 +43,12 @@ beforeEach(() => {
 
 describe("findRecoveryScoreCandidates", () => {
   it("queries live recovery-input rows inside the recency window", async () => {
-    const { prisma, findMany } = makePrisma(["a", "b"]);
+    const { prisma, groupBy } = makePrisma(["a", "b"]);
     const ids = await findRecoveryScoreCandidates(prisma, NOW, 100);
 
     expect(ids).toEqual(["a", "b"]);
-    const where = findMany.mock.calls[0][0].where;
+    const arg = groupBy.mock.calls[0][0];
+    const where = arg.where;
     expect(where.type.in).toEqual(
       expect.arrayContaining([
         "RESTING_HEART_RATE",
@@ -62,7 +63,13 @@ describe("findRecoveryScoreCandidates", () => {
       NOW.getTime() - RECOVERY_SCORE_RECENCY_DAYS * 24 * 60 * 60 * 1000,
     );
     expect(where.measuredAt.gte.getTime()).toBe(expectedSince.getTime());
-    expect(findMany.mock.calls[0][0].distinct).toEqual(["userId"]);
+    expect(arg.by).toEqual(["userId"]);
+    // Deterministic recency-under-cap: newest input first, userId tiebreak.
+    expect(arg.orderBy).toEqual([
+      { _max: { measuredAt: "desc" } },
+      { userId: "asc" },
+    ]);
+    expect(arg.take).toBe(100);
   });
 });
 

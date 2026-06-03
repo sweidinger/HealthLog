@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const findFirst = vi.fn();
+const findMany = vi.fn();
 vi.mock("@/lib/db", () => ({
-  prisma: { measurement: { findFirst: (...a: unknown[]) => findFirst(...a) } },
+  prisma: { measurement: { findMany: (...a: unknown[]) => findMany(...a) } },
 }));
 
 import { computeBmi, classifyBmi } from "../bmi";
@@ -31,18 +31,18 @@ describe("computeBmi", () => {
     const r = await computeBmi("u1", { ageYears: 40, sex: "MALE", heightCm: null }, { now: NOW });
     expect(r.status).toBe("insufficient");
     if (r.status === "insufficient") expect(r.reason).toBe("no_height_on_profile");
-    expect(findFirst).not.toHaveBeenCalled();
+    expect(findMany).not.toHaveBeenCalled();
   });
 
   it("insufficient when height present but no recent weight", async () => {
-    findFirst.mockResolvedValueOnce(null);
+    findMany.mockResolvedValueOnce([]);
     const r = await computeBmi("u1", { ageYears: 40, sex: "MALE", heightCm: 180 }, { now: NOW });
     expect(r.status).toBe("insufficient");
     if (r.status === "insufficient") expect(r.reason).toBe("no_weight_in_window");
   });
 
   it("ok exact BMI from weight + height", async () => {
-    findFirst.mockResolvedValueOnce({ value: 80 });
+    findMany.mockResolvedValueOnce([{ value: 80 }]);
     const r = await computeBmi("u1", { ageYears: 40, sex: "MALE", heightCm: 180 }, { now: NOW });
     expect(r.status).toBe("ok");
     if (r.status === "ok") {
@@ -53,6 +53,25 @@ describe("computeBmi", () => {
       expect(r.value.weightKg).toBe(80);
       expect(r.value.heightCm).toBe(180);
       expect(r.confidence.score).toBeGreaterThan(0);
+    }
+  });
+
+  it("derives a trailing BMI series from the recent weights (oldest → newest)", async () => {
+    // Weights are read newest-first; the series trails oldest → newest.
+    findMany.mockResolvedValueOnce([
+      { value: 80 },
+      { value: 81 },
+      { value: 82 },
+    ]);
+    const r = await computeBmi(
+      "u1",
+      { ageYears: 40, sex: "MALE", heightCm: 180 },
+      { now: NOW },
+    );
+    expect(r.status).toBe("ok");
+    if (r.status === "ok") {
+      // 82,81,80 kg / 1.8² → 25.3, 25.0, 24.7, reversed to oldest → newest.
+      expect(r.value.series).toEqual([25.3, 25, 24.7]);
     }
   });
 });

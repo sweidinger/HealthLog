@@ -128,4 +128,40 @@ export const METRIC_PROVENANCE: Record<DerivedMetricId, MetricProvenanceMeta> = 
     },
     caveatKey: "insights.derived.composite.STRAIN_SCORE.caveat",
   },
+  WRIST_TEMPERATURE_BASELINE: {
+    methodKey: "insights.derived.composite.WRIST_TEMPERATURE_BASELINE.method",
+    standard: {
+      // Robust personal-deviation band via the median ± k·MAD.
+      name: "Leys et al. 2013, J. Exp. Soc. Psychol.",
+      url: "https://doi.org/10.1016/j.jesp.2013.03.013",
+    },
+    caveatKey: "insights.derived.composite.WRIST_TEMPERATURE_BASELINE.caveat",
+  },
+  STAIR_ASCENT_SPEED_BASELINE: {
+    methodKey: "insights.derived.composite.STAIR_ASCENT_SPEED_BASELINE.method",
+    standard: {
+      // Robust personal-trend band via the median ± k·MAD.
+      name: "Leys et al. 2013, J. Exp. Soc. Psychol.",
+      url: "https://doi.org/10.1016/j.jesp.2013.03.013",
+    },
+    caveatKey: "insights.derived.composite.STAIR_ASCENT_SPEED_BASELINE.caveat",
+  },
+  STAIR_DESCENT_SPEED_BASELINE: {
+    methodKey: "insights.derived.composite.STAIR_DESCENT_SPEED_BASELINE.method",
+    standard: {
+      // Robust personal-trend band via the median ± k·MAD.
+      name: "Leys et al. 2013, J. Exp. Soc. Psychol.",
+      url: "https://doi.org/10.1016/j.jesp.2013.03.013",
+    },
+    caveatKey: "insights.derived.composite.STAIR_DESCENT_SPEED_BASELINE.caveat",
+  },
+  SIX_MINUTE_WALK_BAND: {
+    methodKey: "insights.derived.composite.SIX_MINUTE_WALK_BAND.method",
+    standard: {
+      // Enright & Sherrill 1998 reference equations (ATS 2002 test standard).
+      name: "Enright & Sherrill 1998, Am. J. Respir. Crit. Care Med.",
+      url: "https://doi.org/10.1164/ajrccm.158.5.9710086",
+    },
+    caveatKey: "insights.derived.composite.SIX_MINUTE_WALK_BAND.caveat",
+  },
 };

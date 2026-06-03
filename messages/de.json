@@ -2550,7 +2550,14 @@
           "normal": "Normalbereich (WHO)",
           "overweight": "Übergewicht (WHO)",
           "obese": "Adipositas (WHO)"
-        }
+        },
+        "sixMinuteBand": {
+          "green": "{percent}% des für dein Profil vorhergesagten Werts",
+          "yellow": "{percent}% des für dein Profil vorhergesagten Werts",
+          "red": "{percent}% des für dein Profil vorhergesagten Werts"
+        },
+        "sixMinuteNoBand": "Ergänze Alter, Größe, Gewicht und Geschlecht, um dies einzuordnen",
+        "mobilitySectionTitle": "Mobilität & Körper"
       },
       "anatomy": {
         "outOf": "/100",
@@ -2618,9 +2625,25 @@
           "description": "Ein nächtlicher Stress-Proxy aus dem Tagesverlauf deiner HRV."
         },
         "STRAIN_SCORE": {
-          "method": "Ein nächtlicher 0–100-Belastungs-Proxy aus deiner herzfrequenzgewichteten Aktivitätslast (ein TRIMP-ähnliches Trainingsimpuls-Modell). Höher heißt ein anstrengenderer Tag.",
+          "method": "Ein nächtlicher 0–100-Belastungs-Proxy aus deiner herzfrequenzgewichteten Aktivitätslast (ein TRIMP-ähnliches Trainingsimpuls-Modell). Höher heißt ein anstrengenderer Tag. Die Skala ist an deine eigene jüngste Trainingstagslast angelehnt — relativ zu deiner typischen Anstrengung —, sodass ein für dich wirklich harter Tag hoch ausfällt. Solange du noch Verlauf aufbaust, wird stattdessen ein allgemeiner Referenzwert verwendet.",
           "caveat": "Ein beschreibender Aktivitätslast-Proxy, kein klinisches oder trainingsgerechtes Lastmaß.",
-          "description": "Ein nächtlicher Aktivitätslast-Proxy aus deiner herzfrequenzgewichteten Anstrengung."
+          "description": "Ein nächtlicher Aktivitätslast-Proxy aus deiner herzfrequenzgewichteten Anstrengung, relativ zu deiner typischen Anstrengung."
+        },
+        "WRIST_TEMPERATURE_BASELINE": {
+          "method": "Deine typische nächtliche Handgelenkstemperatur ist der Median deiner nächtlichen Messwerte im Zeitraum, ± einer robusten Streuung (skalierte mittlere absolute Abweichung). Sie folgt DEINEN Werten — letzte Nacht wird als Abweichung von deiner eigenen Baseline gezeigt, nicht von einer Bevölkerungsnorm.",
+          "caveat": "Nur ein persönliches Abweichungsband — beschreibend, kein Anzeichen für Krankheit, Fieber oder Zyklusphase. Du interpretierst es selbst."
+        },
+        "STAIR_ASCENT_SPEED_BASELINE": {
+          "method": "Dein typisches Treppensteig-Tempo ist der Median deiner Tageswerte im Zeitraum, ± einer robusten Streuung (skalierte mittlere absolute Abweichung). Das Band wird aus deinen Daten gebildet — es gibt keinen Bevölkerungs-Grenzwert für Treppentempo, da es von Treppengeometrie und Beinlänge abhängt.",
+          "caveat": "Ein persönliches Mobilitäts-Trendband — beschreibend, keine Gebrechlichkeits- oder Sturzrisiko-Bewertung."
+        },
+        "STAIR_DESCENT_SPEED_BASELINE": {
+          "method": "Dein typisches Treppen-Abstiegstempo ist der Median deiner Tageswerte im Zeitraum, ± einer robusten Streuung (skalierte mittlere absolute Abweichung). Das Band wird aus deinen Daten gebildet — es gibt keinen Bevölkerungs-Grenzwert für Treppentempo, da es von Treppengeometrie und Beinlänge abhängt.",
+          "caveat": "Ein persönliches Mobilitäts-Trendband — beschreibend, keine Gebrechlichkeits- oder Sturzrisiko-Bewertung."
+        },
+        "SIX_MINUTE_WALK_BAND": {
+          "method": "Die von deinem Gerät GESCHÄTZTE 6-Minuten-Gehstrecke, eingeordnet gegen die Referenz von Enright & Sherrill für Alter, Größe, Gewicht und Geschlecht, als Prozent des Vorhersagewerts. Die Strecke ist die Schätzung des Geräts — hier nie neu berechnet. Ohne Alter, Größe, Gewicht und Geschlecht wird der Prozentwert ausgeblendet und nur Strecke und Trend gezeigt.",
+          "caveat": "Eine gegen eine veröffentlichte Referenz neu eingeordnete Schätzung — ein Hinweis zur funktionellen Kapazität, kein klinischer 6-Minuten-Gehtest und keine Diagnose."
         }
       },
       "scores": {
@@ -2632,7 +2655,15 @@
       "coincident": {
         "label": "Mehrere Vitalwerte außerhalb der Baseline",
         "summary": "{count} deiner Vitalwerte lagen heute außerhalb ihres persönlichen Bereichs.",
-        "vitals": "Außerhalb des Bereichs: {list}"
+        "vitals": "Außerhalb des Bereichs: {list}",
+        "cardTitle": "Signal des Tages",
+        "allClear": "Alle deine Vitalwerte liegen heute in ihrem persönlichen Bereich.",
+        "allClearMeta": "{count} deiner Vitalwerte gegen deinen eigenen typischen Bereich geprüft.",
+        "watch": "Ein Vitalwert liegt heute außerhalb seines üblichen Bereichs.",
+        "watchVital": "Außerhalb des Bereichs: {vital}. Oft nur einmalig — behalte es in den nächsten Tagen im Blick.",
+        "firedHeadline": "{count} deiner Vitalwerte liegen heute außerhalb ihres persönlichen Bereichs.",
+        "factors": "Mögliche Faktoren — nie eine Ursache: ein hartes Training, schlechter Schlaf, Alkohol, Höhe, Stress oder Krankheit. Das ist ein Hinweis aus deinen eigenen Baselines, keine Diagnose.",
+        "building": "Deine persönlichen Baselines entstehen — erfasse ein paar Tage mehr, dann erscheint dies."
       }
     },
     "cardioFitness": {

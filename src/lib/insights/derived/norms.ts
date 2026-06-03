@@ -24,6 +24,13 @@
  *     377(9770):1011–1018, normal-range HR centiles by age).
  *   - Respiratory rate by age — clinical reference (WHO/PALS adult vs
  *     paediatric ranges).
+ *   - Six-minute-walk distance — a published REGRESSION (not a bracket
+ *     table): Enright & Sherrill 1998, "Reference Equations for the
+ *     Six-Minute Walk in Healthy Adults", Am J Respir Crit Care Med
+ *     158(5):1384–1387; the test itself standardised by ATS 2002,
+ *     "ATS Statement: Guidelines for the Six-Minute Walk Test",
+ *     Am J Respir Crit Care Med 166(1):111–117. Surfaced as a
+ *     percent-of-predicted re-frame, never a HealthLog-derived equation.
  *
  * Client-safe — pure data + a pure lookup, no server imports.
  */
@@ -105,15 +112,49 @@ const NORM_TABLES: Partial<Record<MetricStatusMetricId, NormRow[]>> = {
   RESPIRATORY_RATE: RESPIRATORY_RATE_NORMS,
 };
 
+/** The age a bracket row is anchored at for interpolation — its centre. */
+function bracketCentre(row: NormRow): number {
+  return (row.minAge + row.maxAge) / 2;
+}
+
+/**
+ * Resolve the candidate rows for a profile sex: the sex-specific rows when
+ * an exact match exists, else the sex-agnostic rows, else none. Returns the
+ * rows ordered by bracket centre so the caller can interpolate across them.
+ * `null` (rather than an empty array) signals "no honest band for this sex"
+ * — a sex-specific-only table with no profile sex.
+ */
+function resolveSexRows(rows: NormRow[], sex: NormSex): NormRow[] | null {
+  const exact = sex ? rows.filter((row) => row.sex === sex) : [];
+  if (exact.length > 0) {
+    return [...exact].sort((a, b) => bracketCentre(a) - bracketCentre(b));
+  }
+  const agnostic = rows.filter((row) => row.sex === null);
+  if (agnostic.length > 0) {
+    return [...agnostic].sort((a, b) => bracketCentre(a) - bracketCentre(b));
+  }
+  return null;
+}
+
 /**
  * Resolve the age/sex-adjusted reference band for a metric, or `null`
  * when no sharper band applies (unsupported metric, or demographics
  * absent). On `null` the caller keeps the existing flat `normalRange`
  * anchor — the enabler is strictly additive.
  *
- * Sex matching: a sex-specific table prefers the row matching the
- * profile sex; when the profile sex is absent it falls back to the
- * row's `null`-sex variant if present, else the first matching-age row.
+ * Sex matching: a sex-specific table prefers the rows matching the profile
+ * sex; when the profile sex is absent it falls back to the sex-agnostic
+ * rows; a sex-specific-only table with no profile sex yields no honest band.
+ *
+ * Age handling: the bracket tables are coarse (decade / paediatric bands),
+ * so a fractional age that lands near a bracket edge would otherwise read a
+ * hard step at the boundary (e.g. 39.9 → 30s band, 40.0 → 40s band). Instead
+ * each band is anchored at its bracket CENTRE and a fractional age is linearly
+ * interpolated between the two adjacent centres — the band moves smoothly with
+ * age. Below the youngest centre / above the oldest centre the nearest band is
+ * held flat (clamp, never extrapolate), so the interpolated band always lies
+ * within the span of the two cited bracket bands and the standard's provenance
+ * stays accurate.
  */
 export function lookupNormalRange(
   metricId: MetricStatusMetricId,
@@ -126,23 +167,89 @@ export function lookupNormalRange(
   const table = NORM_TABLES[metricId];
   if (!table) return null;
 
-  const ageRows = table.filter(
-    (row) => ageYears >= row.minAge && ageYears <= row.maxAge,
-  );
-  if (ageRows.length === 0) return null;
+  const rows = resolveSexRows(table, sex);
+  if (!rows || rows.length === 0) return null;
 
-  // Prefer an exact sex match; then a sex-agnostic row; then any row in
-  // the age bracket (so a sex-specific-only table still yields a band for
-  // a profile with no sex by averaging is avoided — we pick a defined
-  // band rather than fabricate).
-  const exact = sex ? ageRows.find((row) => row.sex === sex) : undefined;
-  if (exact) return { ...exact.range };
+  // Single band — no neighbour to interpolate against.
+  if (rows.length === 1) return { ...rows[0].range };
 
-  const agnostic = ageRows.find((row) => row.sex === null);
-  if (agnostic) return { ...agnostic.range };
+  // Clamp below the youngest centre / above the oldest centre: hold the
+  // nearest cited band flat rather than extrapolate past the table.
+  const first = rows[0];
+  const last = rows[rows.length - 1];
+  if (ageYears <= bracketCentre(first)) return { ...first.range };
+  if (ageYears >= bracketCentre(last)) return { ...last.range };
 
-  // Sex-specific-only table but no profile sex: no honest single band.
-  return null;
+  // Find the two adjacent brackets whose centres bracket the age, then blend
+  // their ranges by the fractional position between the centres.
+  for (let i = 0; i < rows.length - 1; i++) {
+    const lo = rows[i];
+    const hi = rows[i + 1];
+    const loCentre = bracketCentre(lo);
+    const hiCentre = bracketCentre(hi);
+    if (ageYears >= loCentre && ageYears <= hiCentre) {
+      const span = hiCentre - loCentre;
+      const fraction = span > 0 ? (ageYears - loCentre) / span : 0;
+      // Round to one decimal: the cited brackets are integer-valued and the
+      // interpolated band reads tidily in the prompt + tile without losing the
+      // smoothing across the boundary.
+      const round1 = (n: number) => Math.round(n * 10) / 10;
+      return {
+        low: round1(lo.range.low + (hi.range.low - lo.range.low) * fraction),
+        high: round1(lo.range.high + (hi.range.high - lo.range.high) * fraction),
+      };
+    }
+  }
+
+  // Defensive — the clamp + loop above cover every finite age in range.
+  return { ...last.range };
+}
+
+/**
+ * Enright & Sherrill 1998 predicted six-minute-walk distance (metres) for a
+ * healthy adult. A published linear regression on age, height, weight, sex —
+ * NOT a HealthLog-derived model:
+ *   - Men:   6MWD = 7.57·height_cm − 5.02·age − 1.76·weight_kg − 309
+ *   - Women: 6MWD = 2.11·height_cm − 2.29·weight_kg − 5.78·age + 667
+ *
+ * Returns `null` when the inputs the equation needs are absent, so the caller
+ * surfaces the raw distance + trend without a fabricated placement (the
+ * `fitness-age.ts` `band: null` discipline). Sex is required (the two
+ * coefficient sets differ); height is required (the dominant term). Weight is
+ * required for the published full equation — when it is missing we return
+ * `null` rather than silently dropping the weight term, since the omission
+ * would inflate the predicted distance.
+ *
+ * Pure. The equation is for adults; for ages below 18 the reference does not
+ * apply and we return `null`.
+ */
+export function predictSixMinuteWalkDistance(
+  ageYears: number | null | undefined,
+  heightCm: number | null | undefined,
+  weightKg: number | null | undefined,
+  sex: NormSex,
+): number | null {
+  if (sex !== "MALE" && sex !== "FEMALE") return null;
+  if (
+    ageYears == null ||
+    !Number.isFinite(ageYears) ||
+    ageYears < 18 ||
+    ageYears > 120
+  ) {
+    return null;
+  }
+  if (heightCm == null || !Number.isFinite(heightCm) || heightCm <= 0) {
+    return null;
+  }
+  if (weightKg == null || !Number.isFinite(weightKg) || weightKg <= 0) {
+    return null;
+  }
+  const predicted =
+    sex === "MALE"
+      ? 7.57 * heightCm - 5.02 * ageYears - 1.76 * weightKg - 309
+      : 2.11 * heightCm - 2.29 * weightKg - 5.78 * ageYears + 667;
+  // A non-positive prediction is physically meaningless — treat as no band.
+  return predicted > 0 ? predicted : null;
 }
 
 /** `true` when an age/sex-sharpened band exists for the metric+profile. */

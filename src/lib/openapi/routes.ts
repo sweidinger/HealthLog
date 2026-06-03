@@ -1388,7 +1388,7 @@ const derivedMetricResponse = z
       .record(z.string(), z.unknown())
       .nullable()
       .describe(
-        "Metric-specific value object when status is 'ok' (e.g. { type, center, low, high, spread, sampleDays, k } for VITALS_BASELINE); null when 'insufficient'.",
+        "Metric-specific value object when status is 'ok' (e.g. { type, center, low, high, spread, sampleDays, k, series } for VITALS_BASELINE, where `series` is the trailing per-day mean values for the inline sparkline); null when 'insufficient'.",
       ),
     coverage: derivedCoverage,
     confidence: derivedConfidence

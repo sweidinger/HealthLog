@@ -173,36 +173,80 @@ describe("<VitalsDashboard>", () => {
     expect(html).not.toContain('data-metric="BMI"');
   });
 
-  it("surfaces the coincident-deviation flag when it fired", () => {
+  it("renders the estimated 6-minute-walk band tile with its percent framing", () => {
     mockBatch((token) => {
-      if (token.metric === "COINCIDENT_DEVIATION") {
+      if (token.metric === "SIX_MINUTE_WALK_BAND") {
         return ok({
-          fired: true,
-          day: "2026-06-02",
-          vitals: [],
-          contributing: [
-            { type: "RESTING_HEART_RATE", value: 70, center: 55, low: 48, high: 62, outside: true, direction: "above" },
-            { type: "RESPIRATORY_RATE", value: 20, center: 14, low: 12, high: 16, outside: true, direction: "above" },
-          ],
+          distanceM: 540,
+          predictedM: 600,
+          percentOfPredicted: 90,
+          band: "green",
+          trendDelta: 12,
+          readingCount: 5,
+          series: [520, 530, 540],
         });
       }
       return insufficient("no_readings_in_window");
     });
     const html = render(<VitalsDashboard />);
-    expect(html).toContain('data-metric="COINCIDENT_DEVIATION"');
-    expect(html).toContain('data-state="fired"');
-    // The provenance affordance reaches the flag.
-    expect(html).toContain('data-slot="provenance-explainer-trigger"');
+    expect(html).toContain('data-slot="vitals-mobility"');
+    expect(html).toContain('data-metric="SIX_MINUTE_WALK_BAND"');
+    expect(html).toContain("90% of predicted");
   });
 
-  it("hides the coincident-deviation flag when it did not fire", () => {
+  it("renders the 6-minute-walk tile distance-only when demographics are absent", () => {
     mockBatch((token) => {
-      if (token.metric === "COINCIDENT_DEVIATION") {
-        return ok({ fired: false, day: "2026-06-02", vitals: [], contributing: [] });
+      if (token.metric === "SIX_MINUTE_WALK_BAND") {
+        return ok({
+          distanceM: 540,
+          predictedM: null,
+          percentOfPredicted: null,
+          band: null,
+          trendDelta: null,
+          readingCount: 1,
+          series: [],
+        });
       }
       return insufficient("no_readings_in_window");
     });
     const html = render(<VitalsDashboard />);
+    expect(html).toContain('data-metric="SIX_MINUTE_WALK_BAND"');
+    // Honest prompt, never a fabricated placement.
+    expect(html).toContain("Add your age, height, weight and sex");
+  });
+
+  it("renders a stair-ascent-speed baseline band tile under Mobility & body", () => {
+    mockBatch((token) => {
+      if (token.metric === "STAIR_ASCENT_SPEED_BASELINE") {
+        return ok({ type: "STAIR_ASCENT_SPEED", center: 0.4, low: 0.3, high: 0.5, spread: 0.05, sampleDays: 21, k: 3, series: [0.38, 0.4, 0.42] });
+      }
+      return insufficient("no_readings_in_window");
+    });
+    const html = render(<VitalsDashboard />);
+    expect(html).toContain('data-slot="vitals-mobility"');
+    expect(html).toContain('data-metric="STAIR_ASCENT_SPEED_BASELINE"');
+    expect(html).toContain("Mobility &amp; body");
+  });
+
+  it("hides the whole Mobility & body section when no mobility metric has content", () => {
+    mockBatch(() => insufficient("no_readings_in_window"));
+    const html = render(<VitalsDashboard />);
+    expect(html).not.toContain('data-slot="vitals-mobility"');
+    expect(html).not.toContain("Mobility &amp; body");
+    expect(html).not.toContain('data-metric="SIX_MINUTE_WALK_BAND"');
+    expect(html).not.toContain('data-metric="WRIST_TEMPERATURE_BASELINE"');
+  });
+
+  it("does not read the coincident-deviation flag (now the top-of-overview card)", () => {
+    // The flag moved to the dedicated `CoincidentDeviationCard`; the dashboard
+    // batch no longer requests it and the grid never paints it.
+    let requestedCoincident = false;
+    mockBatch((token) => {
+      if (token.metric === "COINCIDENT_DEVIATION") requestedCoincident = true;
+      return insufficient("no_readings_in_window");
+    });
+    const html = render(<VitalsDashboard />);
+    expect(requestedCoincident).toBe(false);
     expect(html).not.toContain('data-metric="COINCIDENT_DEVIATION"');
   });
 });
