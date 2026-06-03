@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.0.1] — 2026-06-03 — Defer the intra-day retention drain past startup
+
+### Fixed
+
+- **The app no longer turns unresponsive shortly after a deploy or restart.** The new intra-day retention drain ran its catch-up pass the moment the background worker started, at the same time as the database migration, the other start-up backfills, and the first health checks — all sharing one connection pool. On an instance with a lot of history this exhausted the pool, so the app stopped answering until it restarted, then repeated. The catch-up now waits until start-up has settled before it runs; it is unchanged otherwise and the nightly pass is unaffected.
+
 ## [1.10.0] — 2026-06-03 — Derived wellness metrics, device-event awareness, deeper ingestion
 
 ### Added
