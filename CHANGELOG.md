@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.1] — 2026-06-03 — Consistent medication cards
+
+### Fixed
+
+- **Every medication card looks the same now, whatever the type.** Oral, injection, GLP-1, as-needed, cyclic and one-time medications previously drew their "next / last intake" line, dose accent, spacing and compliance bars slightly differently, so cards in the same row could sit at different heights with the action buttons misaligned. The cards now share one layout: the same intake line, a reserved-height compliance area, and the take/skip buttons pinned to the bottom — so a row of mixed medications lines up cleanly. The dose accent also meets contrast on the light theme.
+
 ## [1.10.0.2] — 2026-06-03 — Disable the intra-day retention drain
 
 ### Fixed
