@@ -4523,5 +4523,33 @@
   "moodReminders": {
     "dailyTitle": "Enregistrer votre humeur",
     "dailyBody": "Comment vous sentez-vous aujourd’hui ?"
+  },
+  "clinicianView": {
+    "title": "Dossier de santé partagé",
+    "period": "Période couverte : {start} – {end}",
+    "expires": "Ce lien expire le {date}.",
+    "provenance": "Il s'agit d'un résumé en lecture seule partagé par la personne concernée, exporté de ses données HealthLog auto-enregistrées. Les valeurs sont auto-déclarées et peuvent inclure des mesures synchronisées depuis des appareils ; à considérer comme rapportées par le patient, non comme un examen clinique.",
+    "vitals": "Signes vitaux",
+    "labs": "Valeurs de laboratoire",
+    "medications": "Médicaments et observance",
+    "bmi": "Indice de masse corporelle (IMC)",
+    "statSummary": "dernier {latest} (moy. {avg}, plage {min}–{max})",
+    "adherence": "{rate} d'observance",
+    "noAdherence": "—",
+    "glucose": {
+      "FASTING": "Glycémie (à jeun)",
+      "POSTPRANDIAL": "Glycémie (postprandiale)",
+      "RANDOM": "Glycémie (aléatoire)",
+      "BEDTIME": "Glycémie (au coucher)"
+    },
+    "wellness": {
+      "title": "Scores de bien-être",
+      "disclaimer": "Scores descriptifs (0–100) calculés à partir des signaux suivis. Ce n'est ni une évaluation clinique ni un diagnostic.",
+      "recovery": "Score de récupération",
+      "stress": "Score de stress",
+      "strain": "Score de charge",
+      "score": "Score de bien-être"
+    },
+    "footer": "Partagé depuis HealthLog — un suivi de santé auto-hébergé."
   }
 }

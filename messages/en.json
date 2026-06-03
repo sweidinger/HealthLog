@@ -4523,5 +4523,33 @@
   "moodReminders": {
     "dailyTitle": "Log your mood",
     "dailyBody": "How are you feeling today?"
+  },
+  "clinicianView": {
+    "title": "Shared health record",
+    "period": "Reporting period: {start} – {end}",
+    "expires": "This link expires on {date}.",
+    "provenance": "This is a read-only summary shared by the person it belongs to, exported from their self-tracked HealthLog data. Values are self-recorded and may include device-synced readings; treat them as patient-reported, not as a clinical examination.",
+    "vitals": "Vital signs",
+    "labs": "Lab values",
+    "medications": "Medications & adherence",
+    "bmi": "Body mass index (BMI)",
+    "statSummary": "latest {latest} (avg {avg}, range {min}–{max})",
+    "adherence": "{rate} adherence",
+    "noAdherence": "—",
+    "glucose": {
+      "FASTING": "Glucose (fasting)",
+      "POSTPRANDIAL": "Glucose (postprandial)",
+      "RANDOM": "Glucose (random)",
+      "BEDTIME": "Glucose (bedtime)"
+    },
+    "wellness": {
+      "title": "Wellness scores",
+      "disclaimer": "Descriptive scores (0–100) computed from tracked signals. These are not a clinical assessment and not a diagnosis.",
+      "recovery": "Recovery score",
+      "stress": "Stress score",
+      "strain": "Strain score",
+      "score": "Wellness score"
+    },
+    "footer": "Shared from HealthLog — a self-hosted personal health tracker."
   }
 }

@@ -4523,5 +4523,33 @@
   "moodReminders": {
     "dailyTitle": "Registrar el ánimo",
     "dailyBody": "¿Cómo te sientes hoy?"
+  },
+  "clinicianView": {
+    "title": "Registro de salud compartido",
+    "period": "Período del informe: {start} – {end}",
+    "expires": "Este enlace caduca el {date}.",
+    "provenance": "Este es un resumen de solo lectura compartido por la persona a la que pertenece, exportado de sus datos de HealthLog autorregistrados. Los valores son autoinformados y pueden incluir lecturas sincronizadas desde dispositivos; trátelos como informados por el paciente, no como un examen clínico.",
+    "vitals": "Signos vitales",
+    "labs": "Valores de laboratorio",
+    "medications": "Medicamentos y adherencia",
+    "bmi": "Índice de masa corporal (IMC)",
+    "statSummary": "último {latest} (prom. {avg}, rango {min}–{max})",
+    "adherence": "{rate} de adherencia",
+    "noAdherence": "—",
+    "glucose": {
+      "FASTING": "Glucosa (en ayunas)",
+      "POSTPRANDIAL": "Glucosa (posprandial)",
+      "RANDOM": "Glucosa (aleatoria)",
+      "BEDTIME": "Glucosa (al acostarse)"
+    },
+    "wellness": {
+      "title": "Puntuaciones de bienestar",
+      "disclaimer": "Puntuaciones descriptivas (0–100) calculadas a partir de las señales registradas. No son una evaluación clínica ni un diagnóstico.",
+      "recovery": "Puntuación de recuperación",
+      "stress": "Puntuación de estrés",
+      "strain": "Puntuación de esfuerzo",
+      "score": "Puntuación de bienestar"
+    },
+    "footer": "Compartido desde HealthLog — un registro de salud autoalojado."
   }
 }

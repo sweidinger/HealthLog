@@ -4523,5 +4523,33 @@
   "moodReminders": {
     "dailyTitle": "Registra il tuo umore",
     "dailyBody": "Come ti senti oggi?"
+  },
+  "clinicianView": {
+    "title": "Cartella sanitaria condivisa",
+    "period": "Periodo del report: {start} – {end}",
+    "expires": "Questo link scade il {date}.",
+    "provenance": "Questo è un riepilogo di sola lettura condiviso dalla persona a cui appartiene, esportato dai suoi dati HealthLog autoregistrati. I valori sono autodichiarati e possono includere letture sincronizzate da dispositivi; vanno considerati come riferiti dal paziente, non come un esame clinico.",
+    "vitals": "Parametri vitali",
+    "labs": "Valori di laboratorio",
+    "medications": "Farmaci e aderenza",
+    "bmi": "Indice di massa corporea (IMC)",
+    "statSummary": "ultimo {latest} (media {avg}, intervallo {min}–{max})",
+    "adherence": "{rate} di aderenza",
+    "noAdherence": "—",
+    "glucose": {
+      "FASTING": "Glicemia (a digiuno)",
+      "POSTPRANDIAL": "Glicemia (postprandiale)",
+      "RANDOM": "Glicemia (casuale)",
+      "BEDTIME": "Glicemia (prima di dormire)"
+    },
+    "wellness": {
+      "title": "Punteggi di benessere",
+      "disclaimer": "Punteggi descrittivi (0–100) calcolati dai segnali monitorati. Non sono una valutazione clinica né una diagnosi.",
+      "recovery": "Punteggio di recupero",
+      "stress": "Punteggio di stress",
+      "strain": "Punteggio di sforzo",
+      "score": "Punteggio di benessere"
+    },
+    "footer": "Condiviso da HealthLog — un tracker della salute self-hosted."
   }
 }

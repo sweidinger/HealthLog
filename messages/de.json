@@ -4523,5 +4523,33 @@
   "moodReminders": {
     "dailyTitle": "Stimmung erfassen",
     "dailyBody": "Wie geht es dir heute?"
+  },
+  "clinicianView": {
+    "title": "Geteilte Gesundheitsakte",
+    "period": "Berichtszeitraum: {start} – {end}",
+    "expires": "Dieser Link läuft am {date} ab.",
+    "provenance": "Dies ist eine schreibgeschützte Zusammenfassung, die von der betreffenden Person geteilt wurde, exportiert aus ihren selbst erfassten HealthLog-Daten. Die Werte sind selbst erhoben und können geräteübertragene Messwerte enthalten; behandeln Sie sie als von der Patientin/dem Patienten berichtet, nicht als klinische Untersuchung.",
+    "vitals": "Vitalwerte",
+    "labs": "Laborwerte",
+    "medications": "Medikamente & Einnahmetreue",
+    "bmi": "Body-Mass-Index (BMI)",
+    "statSummary": "zuletzt {latest} (Ø {avg}, Bereich {min}–{max})",
+    "adherence": "{rate} Einnahmetreue",
+    "noAdherence": "—",
+    "glucose": {
+      "FASTING": "Glukose (nüchtern)",
+      "POSTPRANDIAL": "Glukose (postprandial)",
+      "RANDOM": "Glukose (zufällig)",
+      "BEDTIME": "Glukose (vor dem Schlafen)"
+    },
+    "wellness": {
+      "title": "Wellness-Werte",
+      "disclaimer": "Beschreibende Werte (0–100), berechnet aus erfassten Signalen. Dies ist keine klinische Beurteilung und keine Diagnose.",
+      "recovery": "Erholungswert",
+      "stress": "Stresswert",
+      "strain": "Belastungswert",
+      "score": "Wellness-Wert"
+    },
+    "footer": "Geteilt aus HealthLog — einem selbst gehosteten Gesundheits-Tracker."
   }
 }

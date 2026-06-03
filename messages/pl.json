@@ -4523,5 +4523,33 @@
   "moodReminders": {
     "dailyTitle": "Zapisz nastrój",
     "dailyBody": "Jak się dzisiaj czujesz?"
+  },
+  "clinicianView": {
+    "title": "Udostępniona dokumentacja zdrowotna",
+    "period": "Okres raportu: {start} – {end}",
+    "expires": "Ten link wygasa dnia {date}.",
+    "provenance": "To jest tylko do odczytu podsumowanie udostępnione przez osobę, do której należy, wyeksportowane z jej samodzielnie rejestrowanych danych HealthLog. Wartości są zgłaszane samodzielnie i mogą obejmować odczyty zsynchronizowane z urządzeń; należy je traktować jako zgłoszone przez pacjenta, a nie jako badanie kliniczne.",
+    "vitals": "Parametry życiowe",
+    "labs": "Wyniki laboratoryjne",
+    "medications": "Leki i przestrzeganie zaleceń",
+    "bmi": "Wskaźnik masy ciała (BMI)",
+    "statSummary": "ostatnio {latest} (śr. {avg}, zakres {min}–{max})",
+    "adherence": "{rate} przestrzegania",
+    "noAdherence": "—",
+    "glucose": {
+      "FASTING": "Glukoza (na czczo)",
+      "POSTPRANDIAL": "Glukoza (poposiłkowa)",
+      "RANDOM": "Glukoza (losowa)",
+      "BEDTIME": "Glukoza (przed snem)"
+    },
+    "wellness": {
+      "title": "Wyniki dobrostanu",
+      "disclaimer": "Opisowe wyniki (0–100) obliczone na podstawie śledzonych sygnałów. Nie są one oceną kliniczną ani diagnozą.",
+      "recovery": "Wynik regeneracji",
+      "stress": "Wynik stresu",
+      "strain": "Wynik obciążenia",
+      "score": "Wynik dobrostanu"
+    },
+    "footer": "Udostępnione z HealthLog — samodzielnie hostowanego trackera zdrowia."
   }
 }

@@ -32,6 +32,11 @@ const PUBLIC_PATHS = [
   // alongside the project credits. The CC licence requires the
   // attribution to be reachable without a sign-in.
   "/about",
+  // v1.11.0 — `/c/<token>` is the public clinician view (Epic C). It is
+  // authenticated solely by the unguessable `hls_` token in the path, NOT
+  // by a session cookie, so it must reach the page without an auth gate.
+  // The page renders a flat 404 for any unknown / revoked / expired token.
+  "/c/",
   // `/onboarding` itself + its subroutes are matched exactly via
   // `isPublicPath()` so we don't admit `/onboarding-export` etc.
   "/robots.txt",
