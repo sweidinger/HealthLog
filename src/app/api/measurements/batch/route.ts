@@ -62,6 +62,15 @@ const PR_DETECTION_SILENT_THRESHOLD = 50;
 
 const MAX_BATCH_ENTRIES = 500;
 
+// Body-size ceiling backstopping the per-entry cap. A worst-case entry
+// (max-length hkIdentifier + unit + externalId + two ISO dates + the
+// numeric fields) serialises to well under 1 KB, so a legitimate
+// 500-entry batch tops out a few hundred KB. 4 MB leaves an order of
+// magnitude of headroom above any real batch while still rejecting a
+// multi-megabyte payload before it reaches `JSON.parse` and the heap.
+// The cap is a DoS ceiling, not a tight bound.
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
+
 // v1.4.25 W10 reconcile (security H-2): cap batch ingest at 60
 // batches per user per minute. Healthy iOS sync drains its
 // HealthKit observer queue in well under one batch per minute (the
@@ -177,7 +186,9 @@ async function postBatch(request: NextRequest): Promise<Response> {
     return apiError("Too many batch submissions, try again later", 429);
   }
 
-  const { data: rawBody, error: jsonError } = await safeJson<unknown>(request);
+  const { data: rawBody, error: jsonError } = await safeJson<unknown>(request, {
+    maxBytes: MAX_BODY_BYTES,
+  });
   if (jsonError) return jsonError;
 
   // Distinguish "too many entries" from "validation failed" so the

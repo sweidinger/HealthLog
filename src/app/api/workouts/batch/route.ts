@@ -175,7 +175,16 @@ async function postBatch(request: NextRequest): Promise<Response> {
     return apiError("Too many batch submissions, try again later", 429);
   }
 
-  const { data: rawBody, error: jsonError } = await safeJson<unknown>(request);
+  // The Content-Length pre-flight above bounds the common case, but a
+  // chunked upload carries no Content-Length. The `safeJson` body cap
+  // backstops that gap: the raw text is measured before `JSON.parse`,
+  // so an over-limit chunked body returns a clean 413 rather than
+  // buffering an unbounded payload onto the heap. Reuses the same 5 MB
+  // ceiling — the route's 100-workout × 20 000-point worst case sits
+  // well below it, so a real iOS batch is never rejected.
+  const { data: rawBody, error: jsonError } = await safeJson<unknown>(request, {
+    maxBytes: MAX_BODY_BYTES,
+  });
   if (jsonError) return jsonError;
 
   // Distinguish "too many entries" from "validation failed" so the

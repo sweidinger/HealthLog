@@ -58,7 +58,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Maximum 10 exports per hour", 429);
   }
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  // The selection payload is small and bounded — format, range,
+  // section toggles, a few flags, an optional practice-name string.
+  // 64 KB is far above any legitimate selection while still rejecting
+  // a multi-megabyte body before it reaches `JSON.parse`. A DoS
+  // ceiling, not a tight bound.
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const parsed = exportSelectionSchema.safeParse(body);
