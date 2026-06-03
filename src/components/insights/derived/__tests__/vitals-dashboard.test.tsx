@@ -64,10 +64,12 @@ function insufficient(reason: string, historyDays = 0): Resp {
  */
 function mockBatch(
   resolve: (token: DerivedBatchToken) => Resp,
-  isLoading = false,
+  extra: { isLoading?: boolean; isError?: boolean; refetch?: () => void } = {},
 ) {
   useDerivedBatch.mockReturnValue({
-    isLoading,
+    isLoading: extra.isLoading ?? false,
+    isError: extra.isError ?? false,
+    refetch: extra.refetch ?? (() => {}),
     read: <T,>(token: DerivedBatchToken) => resolve(token) as unknown as DerivedMetricResponse<T>,
   });
 }
@@ -90,13 +92,38 @@ describe("<VitalsDashboard>", () => {
     expect(html).toContain("Typical for you");
   });
 
-  it("hides an absent vital entirely (no tile)", () => {
+  it("hides the whole section (heading + grid) when no vital has content", () => {
     mockBatch(() => insufficient("no_readings_in_window"));
     const html = render(<VitalsDashboard />);
-    // The grid + heading still render, but no value tile.
-    expect(html).toContain('data-slot="vitals-dashboard-grid"');
+    // No content under the heading → the heading must not strand over blank
+    // space. The whole section un-mounts.
+    expect(html).not.toContain('data-slot="vitals-dashboard"');
+    expect(html).not.toContain('data-slot="vitals-dashboard-grid"');
+    expect(html).not.toContain("Your vitals");
     expect(html).not.toContain('data-state="ok"');
-    expect(html).not.toContain('data-metric="WEIGHT"');
+  });
+
+  it("renders a skeleton row (no tiles, no heading strand) while loading", () => {
+    mockBatch(() => insufficient("no_readings_in_window"), { isLoading: true });
+    const html = render(<VitalsDashboard />);
+    // Heading + grid present so the section reserves its final height, with a
+    // busy/live region and skeleton placeholders — but no real tiles yet.
+    expect(html).toContain('data-slot="vitals-dashboard"');
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('data-slot="vitals-tile-skeleton"');
+    expect(html).not.toContain('data-slot="vitals-tile"');
+  });
+
+  it("shows an inline error + retry when the batch fails", () => {
+    mockBatch(() => insufficient("no_readings_in_window"), { isError: true });
+    const html = render(<VitalsDashboard />);
+    // The surface must not silently vanish — a compact error + a Retry button.
+    expect(html).toContain('data-slot="vitals-dashboard-error"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('data-slot="vitals-dashboard-retry"');
+    expect(html).toContain("Could not load your vitals");
+    expect(html).toContain("Retry");
   });
 
   it("shows a provisional baseline tile with the coverage meter, not a headline", () => {

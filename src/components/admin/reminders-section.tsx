@@ -236,9 +236,9 @@ export function RemindersSection() {
             {testNotification.data.results.map((r, i) => (
               <div key={i} className="flex items-center gap-1.5 text-xs">
                 {r.success ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-400" />
+                  <CheckCircle2 className="text-success dark:text-green-400 h-3.5 w-3.5 shrink-0" />
                 ) : (
-                  <XCircle className="h-3.5 w-3.5 shrink-0 text-red-400" />
+                  <XCircle className="text-destructive dark:text-red-400 h-3.5 w-3.5 shrink-0" />
                 )}
                 <span className="font-medium">{r.channel}</span>
                 {r.error && (
@@ -281,11 +281,11 @@ export function RemindersSection() {
                   {med.schedules.map((sched, j) => {
                     const statusColor =
                       sched.status === "open"
-                        ? "text-green-400"
+                        ? "text-success dark:text-green-400"
                         : sched.status === "threshold"
-                          ? "text-yellow-400"
+                          ? "text-warning dark:text-yellow-400"
                           : sched.status === "missed"
-                            ? "text-red-400"
+                            ? "text-destructive dark:text-red-400"
                             : sched.status === "skipped"
                               ? "text-muted-foreground"
                               : "";
@@ -299,7 +299,7 @@ export function RemindersSection() {
                         </span>
                         <span className={statusColor}>{sched.label}</span>
                         {sched.notificationSent && (
-                          <span className="flex shrink-0 items-center gap-0.5 text-green-400">
+                          <span className="text-success dark:text-green-400 flex shrink-0 items-center gap-0.5">
                             <Bell className="h-3 w-3" />
                             {t("admin.reminderCheckNotifSent")}
                           </span>

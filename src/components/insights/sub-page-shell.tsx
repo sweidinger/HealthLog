@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ListOrdered } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -129,6 +130,11 @@ export function SubPageShell({
   children,
 }: SubPageShellProps) {
   const { t } = useTranslations();
+  // v1.10.2 — the "show all readings" link carries the originating metric
+  // page as a `from` param so the values sub-page can offer a back-link to
+  // where the user drilled in from (e.g. `weight → show all values → back to
+  // weight`) rather than always returning to the Insights overview.
+  const pathname = usePathname();
   // a11y: focus the heading on mount so a tab-strip navigation actually
   // moves screen-reader focus into the sub-page body. v1.4.27 MB7 /
   // CF-35 made the focus call opt-in via `focusOnMount` — the
@@ -254,7 +260,11 @@ export function SubPageShell({
           data-slot="metric-show-all-values"
           className="h-10 w-full sm:w-auto"
         >
-          <Link href={`/insights/values/${showAllValuesType}`}>
+          <Link
+            href={`/insights/values/${showAllValuesType}${
+              pathname ? `?from=${encodeURIComponent(pathname)}` : ""
+            }`}
+          >
             <ListOrdered className="mr-1.5 size-4" aria-hidden="true" />
             {t("insights.subPage.showAllValues")}
           </Link>

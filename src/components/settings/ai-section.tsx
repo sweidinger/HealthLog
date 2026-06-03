@@ -145,6 +145,29 @@ function uiToLegacyProviderEnum(p: ProviderType): string | null {
   }
 }
 
+// Map the connection-test failure category (a stable, secret-free code from
+// /api/ai/test) to a localised message. Falls back to the server's plain
+// English `reason` for any unmapped / legacy code so a German operator never
+// sees an untranslated sentence in the otherwise-localised Settings panel.
+function localiseTestReason(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  reasonCode: string | undefined,
+  reason: string | undefined,
+): string | undefined {
+  switch (reasonCode) {
+    case "credentials":
+      return t("settings.ai.testReasonCredentials");
+    case "rate_limited":
+      return t("settings.ai.testReasonRateLimited");
+    case "server_error":
+      return t("settings.ai.testReasonServerError");
+    case "unreachable":
+      return t("settings.ai.testReasonUnreachable");
+    default:
+      return reason;
+  }
+}
+
 export function AiSection() {
   const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
@@ -1736,7 +1759,34 @@ function RuntimeActionsRow({
     setTestMsg(null);
     try {
       const res = await fetch("/api/ai/test", { method: "POST" });
-      const json = await res.json();
+      // Guard against a non-JSON body. A reverse proxy / Cloudflare can
+      // rewrite an origin error to its own HTML page; parsing that as JSON
+      // throws `Unexpected token '<'` (Safari: "did not match the
+      // expected pattern"). Show a clean message instead of leaking that.
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        setTestOk(false);
+        setTestMsg(t("settings.ai.testUnexpectedResponse"));
+        return;
+      }
+      let json: {
+        data?: {
+          ok?: boolean;
+          providerType?: string;
+          model?: string;
+          reasonCode?: string;
+          reason?: string;
+        } | null;
+        error?: string | null;
+      };
+      try {
+        json = await res.json();
+      } catch {
+        setTestOk(false);
+        setTestMsg(t("settings.ai.testUnexpectedResponse"));
+        return;
+      }
+      // 4xx config errors still arrive via the error envelope.
       if (!res.ok) {
         setTestOk(false);
         setTestMsg(
@@ -1746,11 +1796,23 @@ function RuntimeActionsRow({
         );
         return;
       }
+      // Provider-call failures now arrive as 200 + { ok:false, reasonCode }
+      // so the body is never rewritten by a proxy. Map the stable code to a
+      // localised string; fall back to the server's plain `reason` for any
+      // unmapped / legacy code, then to a generic message.
+      if (json.data && json.data.ok === false) {
+        setTestOk(false);
+        setTestMsg(
+          localiseTestReason(t, json.data.reasonCode, json.data.reason) ??
+            t("settings.ai.testFailedShort", { message: `HTTP ${res.status}` }),
+        );
+        return;
+      }
       setTestOk(true);
       setTestMsg(
         t("settings.ai.testSuccess", {
-          provider: json.data.providerType,
-          model: json.data.model,
+          provider: json.data?.providerType ?? "",
+          model: json.data?.model ?? "",
         }),
       );
     } catch (e) {
@@ -1774,7 +1836,27 @@ function RuntimeActionsRow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ force: true }),
       });
-      const json = await res.json();
+      // Same defensive guard as the connection test: a proxy can rewrite
+      // a 5xx (e.g. all-providers-failed) to an HTML page, which would
+      // crash `res.json()` with `Unexpected token '<'`.
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        setRegenOk(false);
+        setRegenMsg(
+          res.status === 429
+            ? t("settings.regenerateRateLimit")
+            : t("settings.ai.testUnexpectedResponse"),
+        );
+        return;
+      }
+      let json: { error?: string | null };
+      try {
+        json = await res.json();
+      } catch {
+        setRegenOk(false);
+        setRegenMsg(t("settings.ai.testUnexpectedResponse"));
+        return;
+      }
       if (!res.ok) {
         setRegenOk(false);
         setRegenMsg(

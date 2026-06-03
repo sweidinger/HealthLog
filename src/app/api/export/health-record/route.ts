@@ -39,7 +39,10 @@ import {
   sanitisePracticeName,
 } from "@/lib/doctor-report-data";
 import { renderDoctorReportPdfBytes } from "@/lib/doctor-report-pdf-core";
-import { buildFhirDocumentBundle } from "@/lib/fhir/build-bundle";
+import {
+  buildFhirDocumentBundle,
+  GERMAN_ATC_DEFAULT_LOCALES,
+} from "@/lib/fhir/build-bundle";
 import {
   exportSelectionSchema,
   toDoctorReportPrefs,
@@ -58,7 +61,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Maximum 10 exports per hour", 429);
   }
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  // The selection payload is small and bounded — format, range,
+  // section toggles, a few flags, an optional practice-name string.
+  // 64 KB is far above any legitimate selection while still rejecting
+  // a multi-megabyte body before it reaches `JSON.parse`. A DoS
+  // ceiling, not a tight bound.
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const parsed = exportSelectionSchema.safeParse(body);
@@ -92,7 +102,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // BfArM ATC: an explicit selection flag wins; otherwise derive it from a
   // German-region locale. The WHO ATC coding is unaffected either way.
-  const germanAtc = selection.germanAtc ?? locale === "de";
+  const germanAtc =
+    selection.germanAtc ??
+    (GERMAN_ATC_DEFAULT_LOCALES as readonly string[]).includes(locale);
 
   const [data, userTz, userRow] = await Promise.all([
     collectDoctorReportData(user.id, range, { practiceName, sections }),

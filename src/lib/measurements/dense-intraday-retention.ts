@@ -77,6 +77,20 @@ export const DENSE_INTRADAY_RETENTION_DAYS = 14;
 /** The daily-stats externalId prefix marks an already-collapsed row. */
 const DAILY_STATS_PREFIX = "stats:";
 
+/**
+ * True for a Prisma unique-constraint violation (P2002). Mirrors the
+ * `consolidate-legacy-steps.ts` precedent verbatim so the two drains
+ * classify the same error the same way.
+ */
+function isUniqueConstraintViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === "P2002"
+  );
+}
+
 export interface DenseIntradayRetentionSummary {
   dryRun: boolean;
   totals: {
@@ -181,47 +195,145 @@ export async function runDenseIntradayRetention(
       sourceRowIds,
     }): Promise<DayWriteOutcome> => {
       const unit = dayRows[0]?.unit ?? "unknown";
-      let removed = 0;
-      await pc.$transaction(async (tx) => {
-        // Mint / refresh the canonical daily-mean row first. The unique
-        // index (userId, type, source, externalId) makes the upsert
-        // idempotent across re-runs. Built field-by-field (no spread) per
-        // the no-mass-assignment convention.
-        await tx.measurement.upsert({
-          where: {
-            userId_type_source_externalId: {
+
+      // Fold the day to one canonical daily-mean row at local-noon.
+      //
+      // Unlike `consolidate-daily-mean` (whose types never share the
+      // canonical local-noon instant with another path), the dense-tier
+      // types HRV / PULSE are dense enough that a per-sample row can land
+      // exactly on the canonical timestamp, and a previously-minted daily
+      // row can already occupy it. TWO unique indexes can collide:
+      //   A) `(userId, type, source, externalId)` — the row already
+      //      carrying the target `stats:` externalId.
+      //   B) `(userId, type, measuredAt, source, sleepStage)` (NULLS NOT
+      //      DISTINCT) — any row sitting on the canonical local-noon
+      //      instant, which may carry a DIFFERENT externalId (a sibling
+      //      consolidation path, a manual daily entry, or a per-sample row
+      //      that happened at local noon).
+      //
+      // Determinism (VECTOR 1): resolve the canonical row by index A FIRST —
+      // the row that already holds the target `stats:` externalId IS the
+      // canonical daily row by construction. Only when no such row exists do
+      // we fall back to the index-B row physically occupying the canonical
+      // instant. A stable `orderBy: id` pins the pick. Adopting the wrong
+      // sibling and stamping the target externalId onto it would otherwise
+      // collide with the real `stats:` row on index A.
+      //
+      // Concurrency (VECTOR 2): the resolve→create is a check-then-act not
+      // serialised by the unique index under READ COMMITTED. If a concurrent
+      // writer wins the canonical slot between the lookup and the INSERT, the
+      // `create` throws P2002 and Postgres aborts the whole transaction. We
+      // therefore catch P2002 OUTSIDE the transaction (a caught error inside
+      // would leave the tx in the aborted `25P02` state) and retry the fold
+      // once: on the retry the deterministic lookup finds the now-existing
+      // row and ADOPTS it, so the create path never fires twice. Mirrors the
+      // `consolidate-legacy-steps.ts` P2002 classification, but recovers in
+      // place rather than skipping, because the colliding row IS the
+      // canonical daily row this fold owns. Built field-by-field (no spread)
+      // per the no-mass-assignment convention.
+      const foldOnce = async (): Promise<number> => {
+        let removed = 0;
+        await pc.$transaction(async (tx) => {
+          // Index-A row: already carries the target `stats:` externalId. By
+          // construction this drain only ever mints `stats:` rows at the
+          // canonical instant, so in the common case this row IS the
+          // canonical daily row already sitting at local-noon.
+          const eidRow = await tx.measurement.findFirst({
+            where: { userId, type, source: "APPLE_HEALTH", externalId },
+            select: { id: true, measuredAt: true },
+            orderBy: { id: "asc" },
+          });
+          // Index-B row: occupies the canonical local-noon instant
+          // (`sleepStage` is NULL for these continuous types, matched via the
+          // NULLS-NOT-DISTINCT index). At most one such row can exist.
+          const slotRow = await tx.measurement.findFirst({
+            where: {
               userId,
               type,
               source: "APPLE_HEALTH",
-              externalId,
+              measuredAt: canonicalTimestamp,
+              sleepStage: null,
             },
-          },
-          create: {
-            userId,
-            type,
-            value: reducedValue,
-            unit,
-            source: "APPLE_HEALTH",
-            measuredAt: canonicalTimestamp,
-            externalId,
-          },
-          update: {
-            value: reducedValue,
-            measuredAt: canonicalTimestamp,
-            deletedAt: null,
-          },
-        });
+            select: { id: true },
+            orderBy: { id: "asc" },
+          });
 
-        // Soft-delete the out-of-window per-sample rows in the same
-        // transaction — tombstone, never hard-delete; they remain as an
-        // audit trail and drop off the live read + this pass's re-run
-        // discovery.
-        const del = await tx.measurement.updateMany({
-          where: { id: { in: sourceRowIds }, deletedAt: null },
-          data: { deletedAt: new Date() },
+          // Prefer the externalId-carrying row (index A) — adopting a sibling
+          // and stamping the target externalId onto it would collide with it.
+          const adoptTarget = eidRow ?? slotRow;
+
+          let canonicalRowId: string;
+          if (adoptTarget) {
+            // Pin the adopted row to local-noon, but only when the canonical
+            // slot is free or already this row — a DIFFERENT row occupying
+            // the slot (a per-sample row that fell on local-noon, now being
+            // folded) would otherwise collide on index B. In that rare case
+            // (only reachable on a tz/DST shift between mints) the row keeps
+            // its existing instant; the `stats:` externalId is the identity,
+            // measuredAt is secondary.
+            const slotIsFreeForTarget =
+              slotRow === null || slotRow.id === adoptTarget.id;
+            // Adopt: refresh value, stamp the `stats:` externalId, optionally
+            // re-anchor to local-noon, and un-tombstone. This coexists with a
+            // pre-existing daily row instead of colliding with it.
+            await tx.measurement.update({
+              where: { id: adoptTarget.id },
+              data: {
+                value: reducedValue,
+                unit,
+                externalId,
+                deletedAt: null,
+                ...(slotIsFreeForTarget
+                  ? { measuredAt: canonicalTimestamp }
+                  : {}),
+              },
+            });
+            canonicalRowId = adoptTarget.id;
+          } else {
+            const created = await tx.measurement.create({
+              data: {
+                userId,
+                type,
+                value: reducedValue,
+                unit,
+                source: "APPLE_HEALTH",
+                measuredAt: canonicalTimestamp,
+                externalId,
+              },
+              select: { id: true },
+            });
+            canonicalRowId = created.id;
+          }
+
+          // Soft-delete the out-of-window per-sample rows in the same
+          // transaction — tombstone, never hard-delete; they remain as an
+          // audit trail and drop off the live read + this pass's re-run
+          // discovery. EXCLUDE the canonical row itself: a per-sample row
+          // that happened to fall on the canonical local-noon instant is the
+          // row we just adopted as the daily mean, so tombstoning it would
+          // erase the fold.
+          const del = await tx.measurement.updateMany({
+            where: {
+              id: { in: sourceRowIds, not: canonicalRowId },
+              deletedAt: null,
+            },
+            data: { deletedAt: new Date() },
+          });
+          removed = del.count;
         });
-        removed = del.count;
-      });
+        return removed;
+      };
+
+      let removed: number;
+      try {
+        removed = await foldOnce();
+      } catch (err) {
+        if (!isUniqueConstraintViolation(err)) throw err;
+        // A concurrent writer won the canonical slot mid-transaction. Retry
+        // once: the deterministic lookup now resolves the winning row and
+        // adopts it, so this pass cannot create a duplicate.
+        removed = await foldOnce();
+      }
 
       // Recompute the affected (user, type, day) rollup buckets after the
       // fold commits — the rollup tier reads only `deleted_at IS NULL`, so

@@ -35,14 +35,26 @@ function row(
   return { id, type, value, measuredAt: new Date(iso), externalId, unit };
 }
 
-function buildPrismaMock(rowsByType: Record<string, unknown[]>) {
-  const upsert = vi.fn().mockResolvedValue({});
+function buildPrismaMock(
+  rowsByType: Record<string, unknown[]>,
+  // When set, the canonical-row lookup inside `writeDay` resolves to this
+  // existing row id — simulating a daily row already sitting on the
+  // canonical local-noon instant (the P2002 coexistence case).
+  existingCanonicalId: string | null = null,
+) {
+  const create = vi.fn().mockResolvedValue({ id: "minted-daily" });
+  const update = vi.fn().mockResolvedValue({});
+  const findFirst = vi
+    .fn()
+    .mockResolvedValue(
+      existingCanonicalId ? { id: existingCanonicalId } : null,
+    );
   const updateMany = vi.fn().mockResolvedValue({ count: 0 });
   const findManyMeasurement = vi.fn(
     async (args: { where: { type: string } }) =>
       rowsByType[args.where.type] ?? [],
   );
-  const tx = { measurement: { upsert, updateMany } };
+  const tx = { measurement: { create, update, findFirst, updateMany } };
   return {
     mock: {
       user: {
@@ -55,7 +67,9 @@ function buildPrismaMock(rowsByType: Record<string, unknown[]>) {
         cb(tx),
       ),
     } as unknown as PrismaClient,
-    upsert,
+    create,
+    update,
+    findFirst,
     updateMany,
     findManyMeasurement,
   };
@@ -119,13 +133,13 @@ describe("runDenseIntradayRetention — retention bound", () => {
 });
 
 describe("runDenseIntradayRetention — fold flow", () => {
-  it("upserts the day MEAN and soft-deletes the out-of-window rows", async () => {
+  it("creates the day MEAN and soft-deletes the out-of-window rows when no canonical row exists", async () => {
     // Two HRV samples on an out-of-window day.
     const hrvRows = [
       row("a", 40, "2026-05-01T08:00:00.000Z", "HEART_RATE_VARIABILITY"),
       row("b", 60, "2026-05-01T09:00:00.000Z", "HEART_RATE_VARIABILITY"),
     ];
-    const { mock, upsert, updateMany } = buildPrismaMock({
+    const { mock, create, update, updateMany } = buildPrismaMock({
       HEART_RATE_VARIABILITY: hrvRows,
     });
 
@@ -134,13 +148,15 @@ describe("runDenseIntradayRetention — fold flow", () => {
       log: () => {},
     });
 
-    const upsertArg = upsert.mock.calls[0]?.[0] as {
-      create: { value: number; source: string; type: string };
+    // No pre-existing canonical row → create, not update.
+    expect(update).not.toHaveBeenCalled();
+    const createArg = create.mock.calls[0]?.[0] as {
+      data: { value: number; source: string; type: string };
     };
     // value is the MEAN (50), not the sum (100).
-    expect(upsertArg.create.value).toBeCloseTo(50, 6);
-    expect(upsertArg.create.source).toBe("APPLE_HEALTH");
-    expect(upsertArg.create.type).toBe("HEART_RATE_VARIABILITY");
+    expect(createArg.data.value).toBeCloseTo(50, 6);
+    expect(createArg.data.source).toBe("APPLE_HEALTH");
+    expect(createArg.data.type).toBe("HEART_RATE_VARIABILITY");
 
     // soft-delete, never hard delete.
     const updArg = updateMany.mock.calls[0]?.[0] as {
@@ -151,8 +167,41 @@ describe("runDenseIntradayRetention — fold flow", () => {
     expect(recomputeBucketsForMeasurement).toHaveBeenCalledTimes(1);
   });
 
+  it("adopts an existing canonical row in place instead of colliding (P2002 coexistence)", async () => {
+    const hrvRows = [
+      row("a", 40, "2026-05-01T08:00:00.000Z", "HEART_RATE_VARIABILITY"),
+      row("b", 60, "2026-05-01T09:00:00.000Z", "HEART_RATE_VARIABILITY"),
+    ];
+    // A daily row already sits on the canonical local-noon instant.
+    const { mock, create, update, updateMany } = buildPrismaMock(
+      { HEART_RATE_VARIABILITY: hrvRows },
+      "existing-canonical-row",
+    );
+
+    await runDenseIntradayRetention(mock, { retentionDays: 0, log: () => {} });
+
+    // The fold adopts the existing row in place — no create (which would
+    // collide on the measured_at unique index), an update with the stats
+    // externalId + refreshed mean.
+    expect(create).not.toHaveBeenCalled();
+    const updateArg = update.mock.calls[0]?.[0] as {
+      where: { id: string };
+      data: { value: number; externalId: string; deletedAt: null };
+    };
+    expect(updateArg.where.id).toBe("existing-canonical-row");
+    expect(updateArg.data.value).toBeCloseTo(50, 6);
+    expect(updateArg.data.externalId.startsWith("stats:")).toBe(true);
+    expect(updateArg.data.deletedAt).toBeNull();
+
+    // The soft-delete excludes the adopted canonical row id.
+    const updManyArg = updateMany.mock.calls[0]?.[0] as {
+      where: { id: { not: string } };
+    };
+    expect(updManyArg.where.id.not).toBe("existing-canonical-row");
+  });
+
   it("does not write on a dry-run", async () => {
-    const { mock, upsert } = buildPrismaMock({
+    const { mock, create, update } = buildPrismaMock({
       HEART_RATE_VARIABILITY: [
         row("a", 40, "2026-05-01T08:00:00.000Z", "HEART_RATE_VARIABILITY"),
       ],
@@ -162,7 +211,8 @@ describe("runDenseIntradayRetention — fold flow", () => {
       dryRun: true,
       log: () => {},
     });
-    expect(upsert).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
     expect(recomputeBucketsForMeasurement).not.toHaveBeenCalled();
   });
 });

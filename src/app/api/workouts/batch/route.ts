@@ -87,13 +87,13 @@ const PR_DETECTION_SILENT_THRESHOLD = 50;
 const BATCH_RATE_LIMIT_MAX = 60;
 const BATCH_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
-// 5 MB request-body ceiling. The route geometry is the largest tail in
-// a workout payload; with the 20 000-point cap on a single LineString
-// AND the 100-workout cap per batch, the worst-case body is bounded
-// well below this ceiling for typical lon/lat encodings. A request
-// above this ceiling almost certainly indicates a misbehaving client
-// or an attempted DoS — return 413 so the iOS client falls back to
-// one-workout-per-call.
+// 5 MB request-body ceiling (pre-existing). The route geometry is the
+// largest tail in a workout payload; a typical batch sits comfortably
+// under this, but the 20 000-point LineString cap combined with the
+// 100-workout batch cap allows a theoretical tens-of-MB body for an
+// extreme GPS-heavy backlog. Such a body returns 413 so the iOS client
+// falls back to smaller / one-workout-per-call batches — which is also
+// the correct response to a misbehaving client or an attempted DoS.
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 /**
@@ -175,7 +175,16 @@ async function postBatch(request: NextRequest): Promise<Response> {
     return apiError("Too many batch submissions, try again later", 429);
   }
 
-  const { data: rawBody, error: jsonError } = await safeJson<unknown>(request);
+  // The Content-Length pre-flight above bounds the common case, but a
+  // chunked upload carries no Content-Length. The `safeJson` body cap
+  // backstops that gap: the raw text is measured before `JSON.parse`,
+  // so an over-limit chunked body returns a clean 413 before the parse
+  // cost. Reuses the same 5 MB ceiling — a typical iOS batch sits under
+  // it; an extreme GPS-heavy backlog that exceeds it falls back to
+  // smaller batches client-side.
+  const { data: rawBody, error: jsonError } = await safeJson<unknown>(request, {
+    maxBytes: MAX_BODY_BYTES,
+  });
   if (jsonError) return jsonError;
 
   // Distinguish "too many entries" from "validation failed" so the

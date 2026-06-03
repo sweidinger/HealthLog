@@ -2,10 +2,14 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
+import {
+  INSIGHTS_OVERVIEW,
+  resolveValuesBackHref,
+} from "@/lib/insights/values-back-link";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import { MEASUREMENT_TYPE_LABEL_KEYS } from "@/components/measurements/measurement-list-meta";
 import { Button } from "@/components/ui/button";
@@ -33,6 +37,7 @@ export default function InsightsMetricValuesPage({
 }) {
   const { t } = useTranslations();
   const { type } = use(params);
+  const searchParams = useSearchParams();
 
   // Reject any segment that is not a real MeasurementType so a typo'd
   // deep-link 404s instead of mounting a blank list.
@@ -42,6 +47,16 @@ export default function InsightsMetricValuesPage({
 
   const labelKey = MEASUREMENT_TYPE_LABEL_KEYS[type];
   const metricLabel = labelKey ? t(labelKey) : type;
+
+  // v1.10.2 — return to the originating metric page when the link carried a
+  // `from` param (set by `<SubPageShell>` on the "show all readings" link),
+  // so a `weight → show all values` drill-in lands back on `weight` rather
+  // than the Insights overview. `resolveValuesBackHref` sanitises the value to
+  // an internal `/insights/<slug>` path so a crafted `?from=` can never become
+  // an off-site or protocol-relative target; anything else falls back to the
+  // overview.
+  const backHref = resolveValuesBackHref(searchParams.get("from"));
+  const backToOrigin = backHref !== INSIGHTS_OVERVIEW;
 
   return (
     <SubPageShell
@@ -55,9 +70,11 @@ export default function InsightsMetricValuesPage({
           data-slot="metric-values-back"
           className="-ml-2 w-fit"
         >
-          <Link href="/insights">
+          <Link href={backHref}>
             <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
-            {t("insights.subPage.valuesBack")}
+            {backToOrigin
+              ? t("insights.subPage.valuesBackToMetric", { metric: metricLabel })
+              : t("insights.subPage.valuesBack")}
           </Link>
         </Button>
       }

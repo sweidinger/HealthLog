@@ -193,6 +193,9 @@ export default function InsightsMedikamentePage() {
       explainerMetric="medications"
       coachLaunch
     >
+      {/* No `<MetricRangeControls>` here: medication compliance is
+          event-driven, not a MeasurementType series, so the period-over-period
+          range read has nothing to aggregate. */}
       <div
         className={
           medications.length >= 2 ? "grid gap-4 sm:grid-cols-2" : "grid gap-4"

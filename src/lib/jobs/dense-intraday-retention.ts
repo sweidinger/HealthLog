@@ -62,20 +62,21 @@ export const DENSE_INTRADAY_RETENTION_CRON = "50 3 * * *";
 export const DENSE_INTRADAY_RETENTION_BOOT_DELAY_SECONDS = 600;
 
 /**
- * Kill-switch, default OFF. The drain folds out-of-window per-sample rows
- * into one daily-mean `stats:` row, but its canonical-timestamp upsert
- * collides with an already-present daily row on the
+ * Kill-switch, default ON (re-enabled in v1.10.2). The v1.10.0.2 default
+ * was OFF because the fold's canonical-timestamp upsert collided with an
+ * already-present daily row on the
  * `(user_id, type, measured_at, source, sleep_stage)` unique constraint
  * (`P2002`) on real data — a fold-coexistence bug the mocked unit tests
- * could not surface. Until the fold is reworked + integration-tested
- * against real rows, the drain is disabled: the boot-discovery enqueues
- * nothing, the nightly walk is skipped, and the per-user handler no-ops so
- * any already-queued backlog completes harmlessly instead of erroring.
- * Re-enable with `DENSE_INTRADAY_RETENTION_ENABLED=true` once fixed. The
- * Stress proxy degrades gracefully on sparse intra-day data meanwhile.
+ * could not surface. v1.10.2 reworks `writeDay` to resolve the canonical
+ * local-noon row by the measured_at composite (the index the collision was
+ * on) and adopt it in place, so the fold now coexists with a pre-existing
+ * daily row, and an integration test pins the no-P2002 contract. The drain
+ * is on by default again; the boot-discovery still defers past the startup
+ * storm (`DENSE_INTRADAY_RETENTION_BOOT_DELAY_SECONDS`). An operator can
+ * still disable it explicitly with `DENSE_INTRADAY_RETENTION_ENABLED=false`.
  */
 export const DENSE_INTRADAY_RETENTION_ENABLED =
-  process.env.DENSE_INTRADAY_RETENTION_ENABLED === "true";
+  process.env.DENSE_INTRADAY_RETENTION_ENABLED !== "false";
 
 export interface DenseIntradayRetentionPayload {
   userId: string;
@@ -89,8 +90,8 @@ export interface DenseIntradayRetentionPayload {
 export async function runDenseIntradayRetentionForUser(
   userId: string,
 ): Promise<{ daysConsolidated: number; perSampleRowsSoftDeleted: number }> {
-  // Kill-switch: no-op so any already-queued backlog completes cleanly
-  // (drains the queue) instead of erroring on the P2002 fold collision.
+  // Kill-switch: when an operator opts out, no-op so any already-queued
+  // backlog completes cleanly (drains the queue) instead of running the fold.
   if (!DENSE_INTRADAY_RETENTION_ENABLED) {
     return { daysConsolidated: 0, perSampleRowsSoftDeleted: 0 };
   }

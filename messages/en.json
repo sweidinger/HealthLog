@@ -2047,7 +2047,9 @@
         "weekday": "Most of your {metric} readings land on one weekday. Logging on other days gives a fuller picture.",
         "timeOfDay": "Most of your {metric} readings land at a similar time of day. Varying the time gives a fuller picture."
       },
-      "valuesBack": "Back to insights"
+      "valuesBack": "Back to insights",
+      "valuesBackToMetric": "Back to {metric}",
+      "scoresBack": "Back to insights"
     },
     "sleep": {
       "title": "Sleep",
@@ -2526,6 +2528,8 @@
       },
       "vitals": {
         "sectionTitle": "Your vitals",
+        "loadingLabel": "Loading your vitals",
+        "loadError": "Could not load your vitals right now.",
         "building": "Building your typical range — {count} of {target} days",
         "typicalRange": "Typical for you: {low}–{high}",
         "fitnessYounger": "Cardio fitness of someone ~{years} yr younger",
@@ -3255,6 +3259,11 @@
       "testProvider": "Test active provider",
       "testSuccess": "OK — {provider} ({model})",
       "testFailedShort": "Test failed: {message}",
+      "testUnexpectedResponse": "AI provider connection failed — unexpected response from the server.",
+      "testReasonCredentials": "Provider rejected the credentials — re-authenticate in AI settings.",
+      "testReasonRateLimited": "Provider rate-limited the request — try again shortly.",
+      "testReasonServerError": "The AI provider returned a server error.",
+      "testReasonUnreachable": "Could not reach the AI provider.",
       "disableCoach": {
         "title": "Hide Coach",
         "description": "Hides the Coach button and drawer everywhere.",

@@ -165,14 +165,9 @@ export default function MedicationDetailPage({
   if (isError || !medication) {
     return (
       <div className="space-y-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground -ml-2 gap-1"
-          asChild
-        >
+        <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
           <Link href="/medications">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
             {t("medications.back")}
           </Link>
         </Button>
@@ -198,14 +193,9 @@ export default function MedicationDetailPage({
 
   return (
     <div className="space-y-6" data-slot="medication-detail-page">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground -ml-2 gap-1"
-        asChild
-      >
+      <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
         <Link href="/medications">
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+          <ArrowLeft aria-hidden="true" className="mr-1 size-4" />
           {t("medications.back")}
         </Link>
       </Button>

@@ -360,6 +360,36 @@ describe("runRawCompletionWithFallback — legacy route shim", () => {
     expect(result.fallbackHops[0].providerType).toBe("codex");
   });
 
+  it("advances past an auth-class (401) failure to the next provider and counts the fallback", async () => {
+    // Generation routes consume this raw shim. An invalidated credential
+    // on the primary (401/403, or a 5xx whose body signals an
+    // invalidated session) must not abort the run — it advances to the
+    // next enabled provider and bumps the fallback count.
+    const codex = new ScriptedProvider({
+      type: "codex",
+      script: [{ ok: false, error: err(401, "token invalidated") }],
+    });
+    const openai = new ScriptedProvider({
+      type: "admin-key",
+      script: [{ ok: true, content: '{ "ok": true }' }],
+    });
+    const result = await runRawCompletionWithFallback({
+      userId: "u-raw-auth-advance",
+      providers: [
+        { providerType: "codex", instance: codex },
+        { providerType: "openai", instance: openai },
+      ],
+      params: { systemPrompt: "s", userPrompt: "u" },
+    });
+    expect(result.result.content).toBe('{ "ok": true }');
+    expect(result.workingProvider.providerType).toBe("openai");
+    expect(result.fallbackHops).toHaveLength(1);
+    expect(result.fallbackHops[0].providerType).toBe("codex");
+    expect(result.fallbackHops[0].httpStatus).toBe(401);
+    expect(codex.callCount).toBe(1);
+    expect(openai.callCount).toBe(1);
+  });
+
   it("throws AllProvidersFailedError when every entry fails hard", async () => {
     const a = new ScriptedProvider({
       type: "codex",

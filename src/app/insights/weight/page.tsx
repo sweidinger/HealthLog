@@ -14,6 +14,7 @@ import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
+import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { buildWeightBandsFromHeight } from "@/lib/analytics/value-bands";
@@ -88,6 +89,7 @@ export default function InsightsGewichtPage() {
       coachLaunch
       showAllValuesType="WEIGHT"
     >
+      <MetricRangeControls measurementType="WEIGHT" enabled={!isEmpty} />
       <HealthChartDynamic
         chartKey="weight"
         types={["WEIGHT"]}

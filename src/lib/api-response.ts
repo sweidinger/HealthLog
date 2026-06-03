@@ -201,13 +201,16 @@ export function apiError(
  * Returns the parsed body or a 400 error response if parsing fails.
  *
  * `opts.maxBytes` opts a route into a hard body-size cap. The check
- * runs against the raw text rather than the parsed object, so a
- * gigabyte payload never reaches `JSON.parse` and never lands in
- * heap. Single-record routes can pass a tight cap (a few KB); batch
- * routes that legitimately accept large payloads can pass a larger
- * one (a few hundred KB). When `maxBytes` is omitted the route
- * inherits the Next.js runtime default — pre-existing behaviour, no
- * regression risk for callers that haven't adopted the parameter.
+ * runs against the raw text length rather than the parsed object, so an
+ * over-limit payload returns 413 before reaching `JSON.parse` and never
+ * builds an object graph. (`request.text()` still buffers the raw body
+ * into a string, so the cap bounds the parse/object cost, not the
+ * initial read — keep caps comfortably above the largest legitimate
+ * payload.) Single-record routes can pass a tight cap; batch routes
+ * that legitimately accept large payloads pass a larger one. When
+ * `maxBytes` is omitted the route inherits the Next.js runtime default —
+ * pre-existing behaviour, no regression risk for callers that haven't
+ * adopted the parameter.
  */
 export async function safeJson<T = unknown>(
   request: Request,

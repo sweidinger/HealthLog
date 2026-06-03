@@ -11,7 +11,9 @@ import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
@@ -101,7 +103,22 @@ export default function InsightsBlutdruckPage() {
       description={t("insights.subPage.blutdruckDescription")}
       explainerMetric="bloodPressure"
       coachLaunch
+      diversityNudge={
+        <MeasurementDiversityNudge
+          measurementType="BLOOD_PRESSURE_SYS"
+          metricLabel={t("insights.bloodPressureSectionTitle")}
+          timeZone={user?.timezone ?? undefined}
+        />
+      }
+      showAllValuesType="BLOOD_PRESSURE_SYS"
+      /* No `statStrip`: `<MetricStatStrip>` is single-series, but blood
+         pressure is two series (systolic + diastolic). A single min / max /
+         median / mean strip would silently drop the diastolic half, so the
+         page omits it rather than mislead. */
     >
+      {/* The period-over-period delta keys on the systolic series — the
+          canonical BP figure the targets + status surfaces lead with. */}
+      <MetricRangeControls measurementType="BLOOD_PRESSURE_SYS" enabled={!isEmpty} />
       <HealthChartDynamic
         chartKey="bp"
         types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}

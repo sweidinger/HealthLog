@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { Moon } from "lucide-react";
 
+import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
+import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricStatusCard } from "@/components/insights/metric-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
@@ -30,6 +33,7 @@ import { SubPageShell } from "@/components/insights/sub-page-shell";
  */
 export default function InsightsSchlafPage() {
   const { t } = useTranslations();
+  const { user } = useAuth();
 
   const { isEmpty } = useInsightsAnalytics("SLEEP_DURATION");
 
@@ -63,7 +67,21 @@ export default function InsightsSchlafPage() {
       description={t("insights.sleep.description")}
       explainerMetric="sleep"
       coachLaunch
+      diversityNudge={
+        <MeasurementDiversityNudge
+          measurementType="SLEEP_DURATION"
+          metricLabel={t("insights.sleep.title")}
+          timeZone={user?.timezone ?? undefined}
+        />
+      }
+      showAllValuesType="SLEEP_DURATION"
+      /* No `statStrip`: `<SleepOverview>` already leads with the average
+         nightly total + per-stage breakdown, so a duration-in-minutes
+         min / max / median / mean strip would duplicate it and read in an
+         awkward unit. */
     >
+      <MetricRangeControls measurementType="SLEEP_DURATION" enabled={!isEmpty} />
+
       <SleepOverview />
 
       <MetricTargetSummary slug="sleep" />

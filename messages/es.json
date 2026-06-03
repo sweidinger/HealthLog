@@ -2047,7 +2047,9 @@
         "weekday": "La mayoría de tus mediciones de {metric} caen en un mismo día de la semana. Registrar en otros días ofrece una imagen más completa.",
         "timeOfDay": "La mayoría de tus mediciones de {metric} caen a una hora similar del día. Variar la hora ofrece una imagen más completa."
       },
-      "valuesBack": "Volver a Insights"
+      "valuesBack": "Volver a Insights",
+      "valuesBackToMetric": "Volver a {metric}",
+      "scoresBack": "Volver a Insights"
     },
     "sleep": {
       "title": "Sueño",
@@ -2526,6 +2528,8 @@
       },
       "vitals": {
         "sectionTitle": "Tus constantes",
+        "loadingLabel": "Cargando tus constantes",
+        "loadError": "No se pudieron cargar tus constantes en este momento.",
         "building": "Creando tu rango habitual — {count} de {target} días",
         "typicalRange": "Habitual para ti: {low}–{high}",
         "fitnessYounger": "Forma cardiovascular de alguien ~{years} años más joven",
@@ -3255,6 +3259,11 @@
       "testProvider": "Test active provider",
       "testSuccess": "OK — {provider} ({model})",
       "testFailedShort": "Test failed: {message}",
+      "testUnexpectedResponse": "AI provider connection failed — unexpected response from the server.",
+      "testReasonCredentials": "Provider rejected the credentials — re-authenticate in AI settings.",
+      "testReasonRateLimited": "Provider rate-limited the request — try again shortly.",
+      "testReasonServerError": "The AI provider returned a server error.",
+      "testReasonUnreachable": "Could not reach the AI provider.",
       "disableCoach": {
         "title": "Ocultar el Coach",
         "description": "Oculta el botón del Coach y el panel en todas las páginas.",

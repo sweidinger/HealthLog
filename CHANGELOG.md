@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.10.2] — 2026-06-03 — Honest AI connection test, consistent insights, retention re-enabled
+
+### Fixed
+
+- **The AI connection test now tells you what actually went wrong.** A failed test used to surface a cryptic parse error ("unexpected token") because the server answered with a gateway-level error page the settings screen could not read; worse, the test probed a different provider than the one your nightly insights are generated with, so it could report a problem with a fallback you do not even use. The test now always returns a readable, translated reason — rejected credentials, rate-limited, a provider server error, or unreachable — and it checks the same provider your insights run on, so the result is the truth about your setup.
+- **Every insight metric page carries the same time-range controls.** The core-metric pages (weight, blood pressure, pulse, BMI, sleep) were missing the period selector that the other metric pages already had; they now match. Drill-down back-links are consistent and a "show all values" link returns you to the metric you came from.
+- **The derived-metrics dashboard no longer collapses or jumps while loading.** It shows a placeholder row at the right height, keeps its heading hidden until there is something to show, and offers an inline retry if the data fails to load instead of silently vanishing.
+- **More status colours meet contrast on the light theme** across the medication and admin surfaces.
+
+### Changed
+
+- **The intra-day retention drain is back on.** The storage optimisation behind the stress reading was switched off in 1.10.0.2 after a daily-summary collision kept the app cycling post-deploy. The fold now adopts the existing daily row deterministically and recovers cleanly if a concurrent write reaches the same slot first — verified against real data — and the start-up defer that protects the connection pool stays in place.
+- **The batch-ingest and health-record export endpoints cap request-body size**, rejecting an oversized payload before parsing it.
+
+### Added
+
+- **A capability endpoint for API clients.** `GET /api/meta/capabilities` returns the server's live metric, tile, ingest and FHIR vocabularies alongside a contract version, so a client renders what it recognises and ignores what it does not — no more transcribing each release's new identifiers by hand.
+
 ## [1.10.1] — 2026-06-03 — Consistent medication cards
 
 ### Fixed

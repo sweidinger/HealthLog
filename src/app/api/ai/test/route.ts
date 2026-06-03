@@ -81,7 +81,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     // V3 audit: do not return provider error message + bodyExcerpt to the
     // client (leaks provider URL / partial keys / internal headers).
     // Log full details server-side for the operator and respond with a
-    // categorised, generic message.
+    // categorised, generic reason.
     const err = e as Error & { httpStatus?: number; bodyExcerpt?: string };
     annotate({
       meta: {
@@ -91,28 +91,72 @@ export const POST = apiHandler(async (request: NextRequest) => {
         ai_test_provider: provider.type,
       },
     });
-    // Map upstream status to a *client-side* status code that won't be
-    // rewritten by Cloudflare. 5xx from origin causes Cloudflare to swap
-    // the body for its own HTML error page — `await res.json()` in the
-    // browser then crashes with `Unexpected token '<', "<!DOCTYPE "`,
-    // which is exactly how the maintainer encountered this when typing a bad
-    // OpenAI key. 4xx codes pass through untouched.
-    const status = err.httpStatus ?? 0;
-    let outboundStatus: number;
-    let safeMessage: string;
-    if (status === 401 || status === 403) {
-      outboundStatus = 422;
-      safeMessage = "Provider rejected the credentials";
-    } else if (status === 429) {
-      outboundStatus = 429;
-      safeMessage = "Provider rate-limited the request";
-    } else if (status >= 500) {
-      outboundStatus = 502;
-      safeMessage = "Provider returned a server error";
-    } else {
-      outboundStatus = 422;
-      safeMessage = "Provider connection failed";
-    }
-    return apiError(safeMessage, outboundStatus);
+    // This route MUST NEVER return a 5xx. A 5xx origin response is
+    // rewritten by Cloudflare / the reverse proxy to its own HTML error
+    // page, so the browser's `res.json()` crashes with
+    // `Unexpected token '<', "<!DOCTYPE "` (Safari: "The string did not
+    // match the expected pattern"). That is exactly the failure an
+    // operator hit re-authenticating a provider whose token came back as
+    // an invalidated-session 500. We always reply 200 with a categorised,
+    // secret-free `{ ok:false, reason }` the client can show verbatim.
+    const { reasonCode, reason } = classifyTestFailure(err);
+    return apiSuccess({
+      ok: false,
+      providerType: provider.type,
+      reasonCode,
+      reason,
+    });
   }
 });
+
+/**
+ * Stable, machine-readable failure categories. The client maps each to a
+ * localised string; the English `reason` stays as a fallback for any
+ * legacy / unmapped code. Secret-free by construction.
+ */
+type TestFailureCode =
+  | "credentials"
+  | "rate_limited"
+  | "server_error"
+  | "unreachable";
+
+/**
+ * Map an upstream provider failure to a human-readable, secret-free
+ * reason string. Distinguishes credential/auth, rate-limit, provider
+ * server-error and network/timeout classes. A 5xx whose body carries an
+ * auth signal (invalidated session token, expired key, "sign in again")
+ * is reclassified as a credential failure — that is the shape the
+ * operator's re-auth produced, where the gateway answered 500 instead of
+ * the expected 401.
+ */
+function classifyTestFailure(
+  err: Error & { httpStatus?: number; bodyExcerpt?: string },
+): { reasonCode: TestFailureCode; reason: string } {
+  const status = err.httpStatus ?? 0;
+  const haystack = `${err.message} ${err.bodyExcerpt ?? ""}`;
+  const looksLikeAuth =
+    /authentication|invalidated|expired|sign in again|api key/i.test(haystack);
+
+  if (status === 401 || status === 403 || (status >= 500 && looksLikeAuth)) {
+    return {
+      reasonCode: "credentials",
+      reason: "Provider rejected the credentials — re-authenticate in AI settings.",
+    };
+  }
+  if (status === 429) {
+    return {
+      reasonCode: "rate_limited",
+      reason: "Provider rate-limited the request — try again shortly.",
+    };
+  }
+  if (status >= 500) {
+    return {
+      reasonCode: "server_error",
+      reason: "The AI provider returned a server error.",
+    };
+  }
+  return {
+    reasonCode: "unreachable",
+    reason: "Could not reach the AI provider.",
+  };
+}

@@ -100,6 +100,10 @@ export default function InsightsStimmungPage() {
       explainerMetric="mood"
       coachLaunch
     >
+      {/* No `<MetricRangeControls>` here: mood is event-driven, not a
+          MeasurementType series, so the period-over-period range read
+          (`/api/analytics/range`, keyed on a MeasurementType enum) has
+          nothing to aggregate. */}
       <MoodChart
         chartKey="mood"
         compareBaseline={compareBaseline}

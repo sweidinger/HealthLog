@@ -2824,7 +2824,7 @@ export async function startReminderWorker() {
           if (!DENSE_INTRADAY_RETENTION_ENABLED) {
             workerLog(
               "info",
-              "[dense-intraday-retention] disabled — skipping the nightly walk (P2002 fold collision; re-enable via DENSE_INTRADAY_RETENTION_ENABLED once reworked)",
+              "[dense-intraday-retention] disabled via DENSE_INTRADAY_RETENTION_ENABLED — skipping the nightly walk (operator kill-switch)",
             );
           } else {
             const denseSummary = await runDenseIntradayRetention(

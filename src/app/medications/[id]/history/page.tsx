@@ -84,14 +84,9 @@ export default function IntakeHistoryPage({
     <div className="space-y-6">
       {/* Back to the medication detail page — history is a drill-down
           OF the medication, not a sibling of the list. */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground -ml-2 gap-1"
-        asChild
-      >
+      <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
         <Link href={`/medications/${id}`}>
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+          <ArrowLeft aria-hidden="true" className="mr-1 size-4" />
           {t("medications.detail.history.back")}
         </Link>
       </Button>
