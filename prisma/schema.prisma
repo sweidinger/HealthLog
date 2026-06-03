@@ -409,6 +409,10 @@ model User {
   // the 0–100 map to the user's own training load without re-integrating
   // the 42-day chronic window of HR series each night.
   strainTrimpCache            StrainTrimpCache[]
+  // v1.11.0 — owner-minted clinician share links. Each row grants a
+  // scoped, time-limited, revocable read view of the health record to a
+  // clinician holding the raw `hls_` token (stored only as an HMAC hash).
+  clinicianShareLinks         ClinicianShareLink[]
 
   // v1.7.0 profile — optional patient-identity fields surfaced on the
   // health-record export cover (PDF) and the FHIR `Patient` resource.
@@ -2642,4 +2646,58 @@ model PushAttempt {
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("push_attempts")
+}
+
+// ─── Clinician share links (scoped, time-limited, revocable read view) ───
+//
+// v1.11.0 — a user mints a link they hand a clinician (email, paper, QR).
+// The clinician opens it in any browser with no account and sees a
+// read-only view of the health record. The raw `hls_` token is stored
+// ONLY as an HMAC-SHA256 hash (`tokenHash`, same scheme as
+// `ApiToken.tokenHash`, keyed by `API_TOKEN_HMAC_KEY`); the plaintext is
+// returned to the owner exactly once at creation and never persisted.
+//
+// The scope is FROZEN at creation: `rangeStart`, `sectionsJson` and
+// `resourceTypes` are write-once and a share can NEVER widen later — only
+// `revokedAt`, `lastAccessAt` and `accessCount` mutate after mint. This
+// mirrors the append-only spirit of `ConsentReceipt`. `expiresAt` is
+// mandatory (capped at `SHARE_LINK_MAX_DAYS`, default 90) — there is no
+// never-expiring share. Deleting the user cascades every share away so
+// the GDPR-erasure path stays clean.
+model ClinicianShareLink {
+  id        String @id @default(cuid())
+  userId    String @map("user_id")
+  /// HMAC-SHA256 of the raw `hls_` token (same scheme as `ApiToken.tokenHash`).
+  tokenHash String @unique @map("token_hash")
+  /// Human label the owner sets (e.g. a clinic/specialty note). Plaintext, bounded.
+  label     String
+
+  // ── Frozen scope (write-once at creation; never widened) ──
+  /// Reporting-window start (absolute, not "last N days"). Frozen so a
+  /// rolling share can never reach data older than the owner chose.
+  rangeStart   DateTime @map("range_start")
+  /// Window end. Null = rolling ("up to now"); set = frozen snapshot window.
+  rangeEnd     DateTime? @map("range_end")
+  /// Section toggles (the `DoctorReportPrefs` shape the export uses). JSON.
+  sectionsJson Json @map("sections_json")
+  /// FHIR resource types this link may serve (a subset of the catalogue),
+  /// e.g. `["Observation","MedicationStatement"]`.
+  resourceTypes String[] @map("resource_types")
+  /// Whether the FHIR API is reachable via this link at all (vs the view only).
+  allowFhirApi Boolean @default(false) @map("allow_fhir_api")
+
+  /// REQUIRED — no never-expiring share (capped at `SHARE_LINK_MAX_DAYS`).
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // ── Mutable lifecycle/access counters (the only columns that change) ──
+  revokedAt    DateTime? @map("revoked_at")
+  lastAccessAt DateTime? @map("last_access_at")
+  accessCount  Int       @default(0) @map("access_count")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("clinician_share_links")
 }
