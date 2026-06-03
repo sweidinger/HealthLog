@@ -12,6 +12,9 @@ vi.mock("@/lib/rollups/measurement-coverage", () => ({
 vi.mock("@/lib/rollups/measurement-read-wmy", () => ({
   readBestGranularityRollups: vi.fn().mockResolvedValue(null),
 }));
+vi.mock("@/lib/tz/resolver", () => ({
+  resolveUserTimezone: vi.fn().mockResolvedValue("UTC"),
+}));
 
 import { prisma } from "@/lib/db";
 import {

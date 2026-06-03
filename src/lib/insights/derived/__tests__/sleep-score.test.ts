@@ -3,8 +3,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/lib/db", () => ({
   prisma: { measurement: { findMany: vi.fn() } },
 }));
+vi.mock("@/lib/tz/resolver", () => ({
+  resolveUserTimezone: vi.fn().mockResolvedValue("UTC"),
+}));
 
 import { prisma } from "@/lib/db";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 import {
   computeSleepScore,
   blendSleepSubScores,
@@ -149,6 +153,27 @@ describe("reconstructNights", () => {
     expect(nights[0].remMinutes).toBe(90);
     expect(nights[0].deepMinutes).toBe(60);
   });
+
+  it("expresses the midpoint in UTC by default", () => {
+    // Earliest 01:00Z, latest 05:00Z → midpoint 03:00Z = 180 min-of-day.
+    const rows = night("2026-06-02", [
+      ["CORE", 120, "01:00"],
+      ["CORE", 120, "05:00"],
+    ]);
+    const nights = reconstructNights(rows);
+    expect(nights[0].midpoint).toBe(180);
+  });
+
+  it("expresses the midpoint in the user's timezone when one is passed", () => {
+    // Same 03:00Z midpoint, read in Asia/Kolkata (UTC+5:30, no DST) →
+    // 08:30 local = 510 min-of-day, not 180.
+    const rows = night("2026-06-02", [
+      ["CORE", 120, "01:00"],
+      ["CORE", 120, "05:00"],
+    ]);
+    const nights = reconstructNights(rows, "Asia/Kolkata");
+    expect(nights[0].midpoint).toBe(8 * 60 + 30);
+  });
 });
 
 describe("computeSleepScore", () => {
@@ -213,5 +238,30 @@ describe("computeSleepScore", () => {
       expect(composition.weight).toBe(0);
       expect(result.coverage.missing).toContain("composition");
     }
+  });
+
+  it("threads an explicit tz into the midpoint without resolving the user zone", async () => {
+    const rows = [
+      ...night("2026-05-31", [
+        ["CORE", 240, "03:00"],
+        ["DEEP", 60, "04:00"],
+      ]),
+      ...night("2026-06-01", [
+        ["CORE", 250, "03:10"],
+        ["DEEP", 55, "04:10"],
+      ]),
+      ...night("2026-06-02", [
+        ["CORE", 235, "03:05"],
+        ["DEEP", 65, "04:05"],
+      ]),
+    ];
+    findMany.mockResolvedValue(rows);
+    // A pinned tz must score without falling back to the user-zone resolver.
+    const result = await computeSleepScore("u1", PROFILE, {
+      now: NOW,
+      tz: "Asia/Kolkata",
+    });
+    expect(result.status).toBe("ok");
+    expect(resolveUserTimezone).not.toHaveBeenCalled();
   });
 });
