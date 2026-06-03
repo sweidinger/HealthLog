@@ -221,7 +221,9 @@ export function lookupNormalRange(
  * would inflate the predicted distance.
  *
  * Pure. The equation is for adults; for ages below 18 the reference does not
- * apply and we return `null`.
+ * apply and we return `null`. The Enright & Sherrill cohort was ages 40–80;
+ * outside that range the linear equation extrapolates, so the caveat copy
+ * flags the predicted value as an extrapolation for younger / older users.
  */
 export function predictSixMinuteWalkDistance(
   ageYears: number | null | undefined,

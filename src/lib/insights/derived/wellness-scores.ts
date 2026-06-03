@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { buildInsufficient, buildOk, nowProvenanceTimestamp } from "./coverage";
 import type { BaselineProfile } from "./baseline";
+import type { StrainAnchor } from "@/lib/insights/strain-score";
 import { SPARKLINE_MAX_POINTS, type Derived } from "./types";
 
 /** A 0–100 wellness score band. Higher is better for recovery; for stress a
@@ -38,6 +39,16 @@ export interface WellnessScoreValue {
    * query.
    */
   series: number[];
+  /**
+   * STRAIN only — which anchor produced THIS score: `personal` once the user
+   * has enough training history to be judged against their own typical effort,
+   * `population` during cold start. Read from the latest `strain_trimp_cache`
+   * row for the scored day so the UI can show the framing line that actually
+   * applies, not a generic both-regimes blurb. `null` for RECOVERY / STRESS
+   * (no anchor concept) or when no cache row exists yet (additive — iOS
+   * non-breaking).
+   */
+  anchor?: StrainAnchor | null;
 }
 
 /** The three persisted score types this engine serves. */
@@ -131,6 +142,24 @@ export async function computeWellnessScore(
         )
       : null;
 
+  // STRAIN carries the active anchor for the scored day so the UI shows the
+  // framing line that actually produced THIS score (personal-relative vs the
+  // cold-start population reference). The `strain_trimp_cache` row is keyed by
+  // the same day stamp the score row carries (`scoreDayKey` → noon-UTC
+  // `measuredAt`), so the latest score's day key is the cache key. Source of
+  // truth is the cache row, not a re-derivation here.
+  let anchor: StrainAnchor | null = null;
+  if (type === "STRAIN_SCORE") {
+    const day = latest.measuredAt.toISOString().slice(0, 10);
+    const cache = await prisma.strainTrimpCache.findUnique({
+      where: { userId_day: { userId, day } },
+      select: { anchor: true },
+    });
+    if (cache?.anchor === "personal" || cache?.anchor === "population") {
+      anchor = cache.anchor;
+    }
+  }
+
   return buildOk<WellnessScoreValue>({
     value: {
       score,
@@ -143,6 +172,7 @@ export async function computeWellnessScore(
         .slice(0, SPARKLINE_MAX_POINTS)
         .map((r) => r.value)
         .reverse(),
+      anchor,
     },
     coverage: {
       requiredInputs: 1,

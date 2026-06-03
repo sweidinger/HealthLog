@@ -2625,7 +2625,9 @@
           "description": "Un indicatore notturno di stress dalla forma della tua VFC nel corso della giornata."
         },
         "STRAIN_SCORE": {
-          "method": "Un indicatore notturno di sforzo da 0 a 100 dal tuo carico di attività pesato sulla frequenza cardiaca (un modello di impulso d’allenamento tipo TRIMP). Più alto significa una giornata più impegnativa. La scala è ancorata al tuo carico recente nei giorni di allenamento — relativo al tuo sforzo abituale —, così che una giornata davvero dura per te risulti alta. Finché stai ancora costruendo lo storico usa invece un riferimento generale.",
+          "method": "Un indicatore notturno di sforzo da 0 a 100 dal tuo carico di attività pesato sulla frequenza cardiaca (un modello di impulso d’allenamento tipo TRIMP). Più alto significa una giornata più impegnativa.",
+          "anchorPersonal": "Ancorato al tuo carico recente nei giorni di allenamento — valutato rispetto al tuo sforzo abituale, così che una giornata davvero dura per te risulti alta.",
+          "anchorPopulation": "Valutato rispetto a un riferimento generale mentre costruisci lo storico di allenamento; quando ne hai abbastanza passa al tuo sforzo abituale.",
           "caveat": "Un indicatore descrittivo di carico di attività, non una misura di carico clinica o da allenamento.",
           "description": "Un indicatore notturno di carico di attività dal tuo sforzo pesato sulla frequenza cardiaca, relativo al tuo sforzo abituale."
         },
@@ -2643,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "La distanza di cammino di sei minuti STIMATA dal tuo dispositivo, collocata rispetto al riferimento di Enright e Sherrill per la tua età, altezza, peso e sesso, come percentuale del previsto. La distanza è la stima del dispositivo — mai ricalcolata qui. Senza età, altezza, peso e sesso la percentuale è nascosta e vengono mostrate solo distanza e tendenza.",
-          "caveat": "Una stima riformulata rispetto a un riferimento pubblicato — un segnale di capacità funzionale, non un test del cammino di sei minuti clinico né una diagnosi."
+          "caveat": "Una stima riformulata rispetto a un riferimento pubblicato — un segnale di capacità funzionale, non un test del cammino di sei minuti clinico né una diagnosi. Il riferimento è stato stabilito per le età 40–80; al di fuori di questo intervallo il valore previsto è un’estrapolazione."
         }
       },
       "scores": {

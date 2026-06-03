@@ -2625,7 +2625,9 @@
           "description": "Un indice de stress nocturne à partir de la forme de votre VFC sur la journée."
         },
         "STRAIN_SCORE": {
-          "method": "Un indice d’effort nocturne de 0 à 100 à partir de votre charge d’activité pondérée par la fréquence cardiaque (un modèle d’impulsion d’entraînement de type TRIMP). Plus élevé signifie une journée plus exigeante. L’échelle est calée sur votre propre charge récente des jours d’entraînement — relative à votre effort habituel —, de sorte qu’une journée vraiment difficile pour vous ressort élevée. Tant que vous constituez encore votre historique, elle utilise plutôt une référence générale.",
+          "method": "Un indice d’effort nocturne de 0 à 100 à partir de votre charge d’activité pondérée par la fréquence cardiaque (un modèle d’impulsion d’entraînement de type TRIMP). Plus élevé signifie une journée plus exigeante.",
+          "anchorPersonal": "Calé sur votre propre charge récente des jours d’entraînement — évalué par rapport à votre effort habituel, de sorte qu’une journée vraiment difficile pour vous ressort élevée.",
+          "anchorPopulation": "Évalué par rapport à une référence générale pendant que vous constituez votre historique d’entraînement ; dès que vous en avez assez, le calcul passe à votre propre effort habituel.",
           "caveat": "Un indicateur descriptif de charge d’activité, pas une mesure de charge clinique ou de niveau d’entraînement.",
           "description": "Un indice de charge d’activité nocturne à partir de votre effort pondéré par la fréquence cardiaque, relatif à votre effort habituel."
         },
@@ -2643,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "La distance de marche de six minutes ESTIMÉE par votre appareil, située par rapport à la référence d’Enright et Sherrill pour votre âge, votre taille, votre poids et votre sexe, en pourcentage de la valeur prédite. La distance est l’estimation de l’appareil — jamais recalculée ici. Sans votre âge, taille, poids et sexe, le pourcentage est masqué et seules la distance et la tendance sont affichées.",
-          "caveat": "Une estimation reformulée par rapport à une référence publiée — un indicateur de capacité fonctionnelle, ni un test de marche de six minutes clinique ni un diagnostic."
+          "caveat": "Une estimation reformulée par rapport à une référence publiée — un indicateur de capacité fonctionnelle, ni un test de marche de six minutes clinique ni un diagnostic. La référence a été établie pour les âges de 40 à 80 ans ; en dehors de cette plage, la valeur prédite est une extrapolation."
         }
       },
       "scores": {

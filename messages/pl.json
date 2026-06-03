@@ -2625,7 +2625,9 @@
           "description": "Nocny wskaźnik stresu na podstawie kształtu Twojego HRV w ciągu dnia."
         },
         "STRAIN_SCORE": {
-          "method": "Nocny wskaźnik obciążenia 0–100 na podstawie Twojego obciążenia aktywnością ważonego tętnem (model impulsu treningowego typu TRIMP). Wyższy oznacza cięższy dzień. Skala jest zakotwiczona w Twoim własnym niedawnym obciążeniu z dni treningowych — względem Twojego typowego wysiłku — więc naprawdę ciężki dzień dla Ciebie wypada wysoko. Dopóki dopiero budujesz historię, używa zamiast tego ogólnego punktu odniesienia.",
+          "method": "Nocny wskaźnik obciążenia 0–100 na podstawie Twojego obciążenia aktywnością ważonego tętnem (model impulsu treningowego typu TRIMP). Wyższy oznacza cięższy dzień.",
+          "anchorPersonal": "Zakotwiczony w Twoim własnym niedawnym obciążeniu z dni treningowych — oceniany względem Twojego typowego wysiłku, więc naprawdę ciężki dzień dla Ciebie wypada wysoko.",
+          "anchorPopulation": "Oceniany względem ogólnego punktu odniesienia, gdy dopiero budujesz historię treningów; gdy zbierzesz jej wystarczająco, przełącza się na Twój własny typowy wysiłek.",
           "caveat": "Opisowy wskaźnik obciążenia aktywnością, nie kliniczna ani treningowa miara obciążenia.",
           "description": "Nocny wskaźnik obciążenia aktywnością z Twojego wysiłku ważonego tętnem, względem Twojego typowego wysiłku."
         },
@@ -2643,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "SZACOWANY przez Twoje urządzenie dystans sześciominutowego marszu odniesiony do wzorca Enrighta i Sherrilla dla Twojego wieku, wzrostu, wagi i płci, jako procent wartości przewidywanej. Dystans to szacunek urządzenia — nigdy nie jest tu przeliczany. Bez Twojego wieku, wzrostu, wagi i płci procent jest ukryty i pokazywane są tylko dystans i trend.",
-          "caveat": "Szacunek odniesiony do opublikowanego wzorca — sygnał wydolności funkcjonalnej, nie kliniczny test sześciominutowego marszu ani diagnoza."
+          "caveat": "Szacunek odniesiony do opublikowanego wzorca — sygnał wydolności funkcjonalnej, nie kliniczny test sześciominutowego marszu ani diagnoza. Wzorzec opracowano dla wieku 40–80 lat; poza tym zakresem wartość przewidywana jest ekstrapolacją."
         }
       },
       "scores": {

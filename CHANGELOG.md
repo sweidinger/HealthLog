@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.4] — 2026-06-03 — Strain honesty + six-minute-walk caveat
+
+### Changed
+
+- **The Strain reading now says which scale it used.** When the score is anchored to your own recent training load it reads "relative to your typical effort"; while there is too little history and it falls back to a general reference, it says so — so the framing always matches the number actually shown.
+- **The six-minute-walk band notes its reference range.** The reference equation was established for ages 40–80; outside that range the percent-of-predicted is now flagged as an extrapolation.
+
 ## [1.10.3] — 2026-06-03 — Personalised strain, a daily signal card, deeper derived metrics
 
 ### Added

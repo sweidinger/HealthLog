@@ -2625,7 +2625,9 @@
           "description": "A nightly stress proxy from the shape of your intra-day HRV."
         },
         "STRAIN_SCORE": {
-          "method": "A nightly 0–100 strain proxy from your heart-rate-weighted activity load (a TRIMP-style training-impulse model). Higher means a harder day. The scale is anchored to your own recent training-day load — relative to your typical effort — so a genuinely hard day for you reads high. While you are still building history it uses a general reference instead.",
+          "method": "A nightly 0–100 strain proxy from your heart-rate-weighted activity load (a TRIMP-style training-impulse model). Higher means a harder day.",
+          "anchorPersonal": "Anchored to your own recent training-day load — scored relative to your typical effort, so a genuinely hard day for you reads high.",
+          "anchorPopulation": "Scored against a general reference while you build training history; once you have enough it switches to your own typical effort.",
           "caveat": "A descriptive activity-load proxy, not a clinical or training-grade load measure.",
           "description": "A nightly activity-load proxy from your heart-rate-weighted effort, relative to your typical effort."
         },
@@ -2643,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "Your device's ESTIMATED six-minute-walk distance placed against the Enright & Sherrill reference for your age, height, weight and sex, as a percent of predicted. The distance is the device's estimate — never recomputed here. Without your age, height, weight and sex the percent is hidden and only the distance and trend are shown.",
-          "caveat": "An estimate re-framed against a published reference — a functional-capacity awareness signal, not a clinical 6-minute-walk test or a diagnosis."
+          "caveat": "An estimate re-framed against a published reference — a functional-capacity awareness signal, not a clinical 6-minute-walk test or a diagnosis. The reference was established for ages 40–80; outside that range the predicted value is an extrapolation."
         }
       },
       "scores": {

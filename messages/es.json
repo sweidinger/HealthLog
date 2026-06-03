@@ -2625,7 +2625,9 @@
           "description": "Un indicador nocturno de estrés a partir de la forma de tu VFC durante el día."
         },
         "STRAIN_SCORE": {
-          "method": "Un indicador nocturno de esfuerzo de 0 a 100 a partir de tu carga de actividad ponderada por frecuencia cardíaca (un modelo de impulso de entrenamiento tipo TRIMP). Más alto significa un día más exigente. La escala se ancla a tu propia carga reciente de días de entrenamiento —relativa a tu esfuerzo habitual—, de modo que un día realmente duro para ti aparece alto. Mientras aún estás acumulando historial usa una referencia general en su lugar.",
+          "method": "Un indicador nocturno de esfuerzo de 0 a 100 a partir de tu carga de actividad ponderada por frecuencia cardíaca (un modelo de impulso de entrenamiento tipo TRIMP). Más alto significa un día más exigente.",
+          "anchorPersonal": "Anclado a tu propia carga reciente de días de entrenamiento: se evalúa en relación con tu esfuerzo habitual, de modo que un día realmente duro para ti aparece alto.",
+          "anchorPopulation": "Se evalúa frente a una referencia general mientras acumulas historial de entrenamiento; cuando tengas suficiente, pasa a tu propio esfuerzo habitual.",
           "caveat": "Un indicador descriptivo de carga de actividad, no una medida de carga clínica ni de nivel de entrenamiento.",
           "description": "Un indicador nocturno de carga de actividad a partir de tu esfuerzo ponderado por frecuencia cardíaca, relativo a tu esfuerzo habitual."
         },
@@ -2643,7 +2645,7 @@
         },
         "SIX_MINUTE_WALK_BAND": {
           "method": "La distancia ESTIMADA de marcha de seis minutos de tu dispositivo situada frente a la referencia de Enright y Sherrill para tu edad, estatura, peso y sexo, como porcentaje de lo previsto. La distancia es la estimación del dispositivo: nunca se recalcula aquí. Sin tu edad, estatura, peso y sexo se oculta el porcentaje y solo se muestran la distancia y la tendencia.",
-          "caveat": "Una estimación reformulada frente a una referencia publicada: una señal de capacidad funcional, no una prueba clínica de marcha de seis minutos ni un diagnóstico."
+          "caveat": "Una estimación reformulada frente a una referencia publicada: una señal de capacidad funcional, no una prueba clínica de marcha de seis minutos ni un diagnóstico. La referencia se estableció para edades de 40 a 80 años; fuera de ese rango el valor previsto es una extrapolación."
         }
       },
       "scores": {
