@@ -99,10 +99,26 @@ export const POST = apiHandler(async (request: NextRequest) => {
     // operator hit re-authenticating a provider whose token came back as
     // an invalidated-session 500. We always reply 200 with a categorised,
     // secret-free `{ ok:false, reason }` the client can show verbatim.
-    const reason = classifyTestFailure(err);
-    return apiSuccess({ ok: false, providerType: provider.type, reason });
+    const { reasonCode, reason } = classifyTestFailure(err);
+    return apiSuccess({
+      ok: false,
+      providerType: provider.type,
+      reasonCode,
+      reason,
+    });
   }
 });
+
+/**
+ * Stable, machine-readable failure categories. The client maps each to a
+ * localised string; the English `reason` stays as a fallback for any
+ * legacy / unmapped code. Secret-free by construction.
+ */
+type TestFailureCode =
+  | "credentials"
+  | "rate_limited"
+  | "server_error"
+  | "unreachable";
 
 /**
  * Map an upstream provider failure to a human-readable, secret-free
@@ -115,23 +131,32 @@ export const POST = apiHandler(async (request: NextRequest) => {
  */
 function classifyTestFailure(
   err: Error & { httpStatus?: number; bodyExcerpt?: string },
-): string {
+): { reasonCode: TestFailureCode; reason: string } {
   const status = err.httpStatus ?? 0;
   const haystack = `${err.message} ${err.bodyExcerpt ?? ""}`;
   const looksLikeAuth =
     /authentication|invalidated|expired|sign in again|api key/i.test(haystack);
 
   if (status === 401 || status === 403 || (status >= 500 && looksLikeAuth)) {
-    return "Provider rejected the credentials — re-authenticate in AI settings.";
+    return {
+      reasonCode: "credentials",
+      reason: "Provider rejected the credentials — re-authenticate in AI settings.",
+    };
   }
   if (status === 429) {
-    return "Provider rate-limited the request — try again shortly.";
+    return {
+      reasonCode: "rate_limited",
+      reason: "Provider rate-limited the request — try again shortly.",
+    };
   }
   if (status >= 500) {
-    return "The AI provider returned a server error.";
+    return {
+      reasonCode: "server_error",
+      reason: "The AI provider returned a server error.",
+    };
   }
-  if (status === 0) {
-    return "Could not reach the AI provider.";
-  }
-  return "Could not reach the AI provider.";
+  return {
+    reasonCode: "unreachable",
+    reason: "Could not reach the AI provider.",
+  };
 }

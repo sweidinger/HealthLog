@@ -145,6 +145,29 @@ function uiToLegacyProviderEnum(p: ProviderType): string | null {
   }
 }
 
+// Map the connection-test failure category (a stable, secret-free code from
+// /api/ai/test) to a localised message. Falls back to the server's plain
+// English `reason` for any unmapped / legacy code so a German operator never
+// sees an untranslated sentence in the otherwise-localised Settings panel.
+function localiseTestReason(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  reasonCode: string | undefined,
+  reason: string | undefined,
+): string | undefined {
+  switch (reasonCode) {
+    case "credentials":
+      return t("settings.ai.testReasonCredentials");
+    case "rate_limited":
+      return t("settings.ai.testReasonRateLimited");
+    case "server_error":
+      return t("settings.ai.testReasonServerError");
+    case "unreachable":
+      return t("settings.ai.testReasonUnreachable");
+    default:
+      return reason;
+  }
+}
+
 export function AiSection() {
   const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
@@ -1751,6 +1774,7 @@ function RuntimeActionsRow({
           ok?: boolean;
           providerType?: string;
           model?: string;
+          reasonCode?: string;
           reason?: string;
         } | null;
         error?: string | null;
@@ -1772,13 +1796,14 @@ function RuntimeActionsRow({
         );
         return;
       }
-      // Provider-call failures now arrive as 200 + { ok:false, reason }
-      // so the body is never rewritten by a proxy. Show the reason
-      // verbatim — it is a categorised, secret-free string.
+      // Provider-call failures now arrive as 200 + { ok:false, reasonCode }
+      // so the body is never rewritten by a proxy. Map the stable code to a
+      // localised string; fall back to the server's plain `reason` for any
+      // unmapped / legacy code, then to a generic message.
       if (json.data && json.data.ok === false) {
         setTestOk(false);
         setTestMsg(
-          json.data.reason ??
+          localiseTestReason(t, json.data.reasonCode, json.data.reason) ??
             t("settings.ai.testFailedShort", { message: `HTTP ${res.status}` }),
         );
         return;

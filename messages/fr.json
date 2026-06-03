@@ -3260,6 +3260,10 @@
       "testSuccess": "OK — {provider} ({model})",
       "testFailedShort": "Test failed: {message}",
       "testUnexpectedResponse": "AI provider connection failed — unexpected response from the server.",
+      "testReasonCredentials": "Provider rejected the credentials — re-authenticate in AI settings.",
+      "testReasonRateLimited": "Provider rate-limited the request — try again shortly.",
+      "testReasonServerError": "The AI provider returned a server error.",
+      "testReasonUnreachable": "Could not reach the AI provider.",
       "disableCoach": {
         "title": "Masquer le Coach",
         "description": "Masque le bouton et le panneau du Coach sur toutes les pages.",

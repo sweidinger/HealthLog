@@ -66,7 +66,12 @@ function jsonRequest(body: unknown): Request {
 }
 
 interface TestFailureEnvelope {
-  data: { ok: false; providerType: string; reason: string };
+  data: {
+    ok: false;
+    providerType: string;
+    reasonCode: "credentials" | "rate_limited" | "server_error" | "unreachable";
+    reason: string;
+  };
   error: null;
 }
 
@@ -108,6 +113,9 @@ describe("POST /api/ai/test — provider error leak guard + non-5xx contract", (
     expect(response.status).toBe(200);
     const body = (await response.json()) as TestFailureEnvelope;
     expect(body.data.ok).toBe(false);
+    expect(body.data.reasonCode).toBe("credentials");
+    // The stable machine code must itself be secret-free.
+    expect(body.data.reasonCode).not.toMatch(/sk-/);
     expect(body.data.reason).not.toMatch(/sk-/);
     expect(body.data.reason).not.toMatch(/api\.openai\.com/);
     expect(body.data.reason).not.toMatch(/invalid api key/i);
@@ -128,6 +136,7 @@ describe("POST /api/ai/test — provider error leak guard + non-5xx contract", (
     expect(response.status).toBe(200);
     const body = (await response.json()) as TestFailureEnvelope;
     expect(body.data.ok).toBe(false);
+    expect(body.data.reasonCode).toBe("credentials");
     expect(body.data.reason).toMatch(/re-authenticate/i);
   });
 
@@ -138,6 +147,7 @@ describe("POST /api/ai/test — provider error leak guard + non-5xx contract", (
     const response = await POST(emptyRequest() as never);
     expect(response.status).toBe(200);
     const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.reasonCode).toBe("rate_limited");
     expect(body.data.reason).toMatch(/rate-limited/i);
   });
 
@@ -148,6 +158,7 @@ describe("POST /api/ai/test — provider error leak guard + non-5xx contract", (
     const response = await POST(emptyRequest() as never);
     expect(response.status).toBe(200);
     const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.reasonCode).toBe("server_error");
     expect(body.data.reason).toMatch(/server error/i);
   });
 
@@ -156,6 +167,7 @@ describe("POST /api/ai/test — provider error leak guard + non-5xx contract", (
     const response = await POST(emptyRequest() as never);
     expect(response.status).toBe(200);
     const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.reasonCode).toBe("unreachable");
     expect(body.data.reason).toMatch(/could not reach/i);
   });
 });
