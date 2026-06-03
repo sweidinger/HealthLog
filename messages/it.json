@@ -2526,6 +2526,8 @@
       },
       "vitals": {
         "sectionTitle": "I tuoi parametri vitali",
+        "loadingLabel": "Caricamento dei tuoi parametri vitali",
+        "loadError": "Al momento non è stato possibile caricare i tuoi parametri vitali.",
         "building": "Creazione del tuo intervallo abituale — {count} di {target} giorni",
         "typicalRange": "Abituale per te: {low}–{high}",
         "fitnessYounger": "Forma cardio di chi ha ~{years} anni in meno",

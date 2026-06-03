@@ -2526,6 +2526,8 @@
       },
       "vitals": {
         "sectionTitle": "Twoje parametry życiowe",
+        "loadingLabel": "Wczytywanie parametrów życiowych",
+        "loadError": "Nie udało się teraz wczytać Twoich parametrów życiowych.",
         "building": "Budowanie Twojego typowego zakresu — {count} z {target} dni",
         "typicalRange": "Typowe dla Ciebie: {low}–{high}",
         "fitnessYounger": "Kondycja jak u osoby ~{years} lat młodszej",

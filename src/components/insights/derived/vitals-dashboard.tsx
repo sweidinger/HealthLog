@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { Gauge, HeartPulse, Scale } from "lucide-react";
+import { Gauge, HeartPulse, RefreshCw, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { getUnitForType } from "@/lib/validations/measurement";
@@ -410,6 +412,85 @@ function CoincidentDeviationTile({ read, isLoading }: TileProps) {
 }
 
 /**
+ * A loading placeholder occupying the resolved tile footprint so the grid
+ * reserves its final height and the real tiles drop in without a layout
+ * shift. Mirrors the SparklineDeltaTile geometry (card + label row + value
+ * row + framing line) with `Skeleton` blocks. Decorative — `aria-hidden`.
+ */
+function VitalsTileSkeleton() {
+  return (
+    <div
+      data-slot="vitals-tile-skeleton"
+      aria-hidden="true"
+      className="bg-card border-border flex h-full w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-4 w-4 rounded" />
+      </div>
+      <Skeleton className="h-8 w-20" />
+      <Skeleton className="h-3 w-3/4" />
+    </div>
+  );
+}
+
+/**
+ * Whether the resolved batch holds at least one vital tile worth painting.
+ * Mirrors the per-tile gates so the section heading is only rendered once
+ * there is content under it (an empty heading stranded over blank space was
+ * the CLS the load-state QoL pass closes). Kept in sync with the tile gates
+ * above — if a new tile gate changes, reflect it here.
+ */
+function hasRenderableVital(read: DerivedBatchRead): boolean {
+  const coincident = read<CoincidentDeviationValue>({
+    metric: "COINCIDENT_DEVIATION",
+  });
+  if (
+    coincident?.status === "ok" &&
+    coincident.value?.fired &&
+    coincident.value.contributing.length > 0
+  ) {
+    return true;
+  }
+
+  const fitness = read<FitnessAgeValue>({ metric: "FITNESS_AGE" });
+  if (fitness?.status === "ok" && fitness.value) return true;
+
+  const vascular = read<VascularAgeDeltaValue>({ metric: "VASCULAR_AGE_DELTA" });
+  if (vascular?.status === "ok" && vascular.value) return true;
+
+  const bmi = read<BmiValue>({ metric: "BMI" });
+  if (bmi?.status === "ok" && bmi.value) return true;
+
+  const hrv = read<HrvBalanceValue>({ metric: "HRV_BALANCE" });
+  if (
+    hrv &&
+    !(hrv.status === "insufficient" && hrv.reason === "no_readings_in_window")
+  ) {
+    return true;
+  }
+
+  for (const type of SECTION_VITALS) {
+    if (type === "HEART_RATE_VARIABILITY") continue;
+    const baseline = read<VitalsBaselineValue>({
+      metric: "VITALS_BASELINE",
+      type,
+    });
+    if (
+      baseline &&
+      !(
+        baseline.status === "insufficient" &&
+        baseline.reason === "no_readings_in_window"
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * The full set of tokens the dashboard reads in one batch — the five
  * wellness scores + the four derived re-frames + the coincident-deviation
  * flag + one baseline per vital (minus HRV, which has its own balance tile).
@@ -445,35 +526,99 @@ export function VitalsDashboard({ enabled = true, className }: DashboardProps) {
   });
   const read = batch.read;
   const isLoading = batch.isLoading;
+  const isError = batch.isError;
+  const refetch = batch.refetch;
   const tileProps: TileProps = { read, isLoading };
+
+  // A failed batch (retry:0 + the 8 s client ceiling) must read as an error,
+  // not as "no data" — otherwise the whole Vitals + Wellness surface silently
+  // vanishes. Surface a compact message + a Retry that refetches the one
+  // batch query both strips share.
+  if (isError) {
+    return (
+      <div
+        data-slot="vitals-dashboard-wrap"
+        className={cn("space-y-6", className)}
+      >
+        <section
+          data-slot="vitals-dashboard"
+          aria-label={t("insights.derived.vitals.sectionTitle")}
+          className="space-y-3"
+        >
+          <h2 className="text-foreground text-sm font-semibold tracking-tight">
+            {t("insights.derived.vitals.sectionTitle")}
+          </h2>
+          <div
+            data-slot="vitals-dashboard-error"
+            role="alert"
+            className="bg-card border-border text-muted-foreground flex flex-col items-start gap-3 rounded-xl border p-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span>{t("insights.derived.vitals.loadError")}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => refetch()}
+              data-slot="vitals-dashboard-retry"
+              className="gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{t("common.retry")}</span>
+            </Button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  // The heading only renders once there is content under it (or while the
+  // skeleton row reserves the final height). When the batch resolves to zero
+  // vitals the heading would otherwise strand over blank space, then content
+  // pops in below it — the CLS this pass removes.
+  const showSection = isLoading || hasRenderableVital(read);
 
   return (
     <div data-slot="vitals-dashboard-wrap" className={cn("space-y-6", className)}>
       <WellnessScores read={read} isLoading={isLoading} />
-      <section
-        data-slot="vitals-dashboard"
-        aria-label={t("insights.derived.vitals.sectionTitle")}
-        className="space-y-3"
-      >
-        <h2 className="text-foreground text-sm font-semibold tracking-tight">
-          {t("insights.derived.vitals.sectionTitle")}
-        </h2>
-        <div
-          data-slot="vitals-dashboard-grid"
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      {showSection && (
+        <section
+          data-slot="vitals-dashboard"
+          aria-label={t("insights.derived.vitals.sectionTitle")}
+          className="space-y-3"
         >
-          <CoincidentDeviationTile {...tileProps} />
-          <FitnessAgeTile {...tileProps} />
-          <VascularAgeTile {...tileProps} />
-          <HrvBalanceTile {...tileProps} />
-          <BmiTile {...tileProps} />
-          {vitals
-            .filter((type) => type !== "HEART_RATE_VARIABILITY")
-            .map((type) => (
-              <BaselineTile key={type} type={type} {...tileProps} />
-            ))}
-        </div>
-      </section>
+          <h2 className="text-foreground text-sm font-semibold tracking-tight">
+            {t("insights.derived.vitals.sectionTitle")}
+          </h2>
+          <div
+            data-slot="vitals-dashboard-grid"
+            aria-busy={isLoading}
+            aria-live="polite"
+            aria-label={
+              isLoading ? t("insights.derived.vitals.loadingLabel") : undefined
+            }
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <VitalsTileSkeleton key={`vitals-skeleton-${i}`} />
+              ))
+            ) : (
+              <>
+                <CoincidentDeviationTile {...tileProps} />
+                <FitnessAgeTile {...tileProps} />
+                <VascularAgeTile {...tileProps} />
+                <HrvBalanceTile {...tileProps} />
+                <BmiTile {...tileProps} />
+                {vitals
+                  .filter((type) => type !== "HEART_RATE_VARIABILITY")
+                  .map((type) => (
+                    <BaselineTile key={type} type={type} {...tileProps} />
+                  ))}
+              </>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

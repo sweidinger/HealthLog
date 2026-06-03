@@ -2526,6 +2526,8 @@
       },
       "vitals": {
         "sectionTitle": "Tus constantes",
+        "loadingLabel": "Cargando tus constantes",
+        "loadError": "No se pudieron cargar tus constantes en este momento.",
         "building": "Creando tu rango habitual — {count} de {target} días",
         "typicalRange": "Habitual para ti: {low}–{high}",
         "fitnessYounger": "Forma cardiovascular de alguien ~{years} años más joven",

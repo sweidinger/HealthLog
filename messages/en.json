@@ -2526,6 +2526,8 @@
       },
       "vitals": {
         "sectionTitle": "Your vitals",
+        "loadingLabel": "Loading your vitals",
+        "loadError": "Could not load your vitals right now.",
         "building": "Building your typical range — {count} of {target} days",
         "typicalRange": "Typical for you: {low}–{high}",
         "fitnessYounger": "Cardio fitness of someone ~{years} yr younger",
