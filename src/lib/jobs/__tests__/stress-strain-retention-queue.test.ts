@@ -17,6 +17,9 @@ import { describe, expect, it } from "vitest";
 const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
 const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
 
+const DENSE_RETENTION_PATH = join(__dirname, "..", "dense-intraday-retention.ts");
+const denseRetentionSource = readFileSync(DENSE_RETENTION_PATH, "utf8");
+
 function allQueuesBlock(): string {
   const m = source.match(/const allQueues\s*=\s*\[([\s\S]*?)\];/);
   expect(m).not.toBeNull();
@@ -91,6 +94,20 @@ describe("reminder-worker — dense intra-day retention wiring", () => {
 
   it("fires the boot-discovery enqueue helper", () => {
     expect(source).toMatch(/await enqueueBootTimeDenseIntradayRetention\(\)/);
+  });
+
+  it("defers the boot-discovery drain past the startup storm (P2028 guard)", () => {
+    // The boot-time per-user retention jobs MUST carry a startAfter delay so
+    // the transaction-per-day drain never contends with the deploy storm +
+    // migration + other boot backfills + foreground health-checks for the
+    // shared connection pool. Dropping this re-opens the v1.10.0 pool-
+    // exhaustion (P2028) restart loop on a data-heavy tenant.
+    expect(denseRetentionSource).toMatch(
+      /DENSE_INTRADAY_RETENTION_BOOT_DELAY_SECONDS\s*=\s*\d+/,
+    );
+    expect(denseRetentionSource).toMatch(
+      /boss\.send\([\s\S]{0,400}startAfter:\s*DENSE_INTRADAY_RETENTION_BOOT_DELAY_SECONDS/,
+    );
   });
 
   it("folds the nightly dense-retention walk onto the drain-cumulative tick", () => {

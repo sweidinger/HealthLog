@@ -46,6 +46,21 @@ export const DENSE_INTRADAY_RETENTION_CONCURRENCY = 1;
  */
 export const DENSE_INTRADAY_RETENTION_CRON = "50 3 * * *";
 
+/**
+ * Boot-discovery jobs start only after this delay (seconds) so the
+ * catch-up drain never competes with the startup storm — the deploy
+ * container recreate, the Prisma migration, the other boot-time backfills
+ * (rollup / mean- + step-consolidation / mood / medication-compliance),
+ * and the foreground health-checks all share one connection pool. Running
+ * the transaction-per-day drain into that contention exhausted the pool on
+ * a data-heavy tenant (`P2028: Unable to start a transaction in the given
+ * time`), starving `/api/health` into a restart loop. Deferring past the
+ * boot window restores the pre-v1.10 boot profile; the scheduled 03:50
+ * cron is unaffected, and the per-user jobs still drain serially
+ * (concurrency 1) once the delay elapses.
+ */
+export const DENSE_INTRADAY_RETENTION_BOOT_DELAY_SECONDS = 600;
+
 export interface DenseIntradayRetentionPayload {
   userId: string;
   enqueuedAt: string;
@@ -144,6 +159,9 @@ export async function enqueueBootTimeDenseIntradayRetention(): Promise<{
         retryLimit: 3,
         retryDelay: 60,
         retryBackoff: true,
+        // Defer past the boot storm so the drain never contends with
+        // startup + foreground for the shared connection pool.
+        startAfter: DENSE_INTRADAY_RETENTION_BOOT_DELAY_SECONDS,
         singletonKey: `dense-intraday-retention|${userId}`,
       });
       if (jobId) {
