@@ -310,7 +310,9 @@ export function isVitalsBaselineType(type: string): boolean {
  * conservative 7–14-day OLS projection is honest; the engine gates anything
  * without a real trend out to `insufficient` regardless.
  */
-export const TRAJECTORY_TYPES: MeasurementType[] = VITALS_BASELINE_TYPES;
+// A distinct array (not an alias of VITALS_BASELINE_TYPES) so the trajectory
+// set can diverge later and stays a single, non-duplicate export.
+export const TRAJECTORY_TYPES: MeasurementType[] = [...VITALS_BASELINE_TYPES];
 
 /** `true` when the type is a metric the trajectory engine supports. */
 export function isTrajectoryType(type: string): boolean {
