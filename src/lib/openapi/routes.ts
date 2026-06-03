@@ -2102,6 +2102,150 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       },
     },
   },
+  "/api/fhir/metadata": {
+    get: {
+      tags: ["FHIR"],
+      summary: "FHIR R4 CapabilityStatement (v1.11.0)",
+      description:
+        "Read-only FHIR R4 capability statement for the REST face. Declares the served resource types (Patient, Observation, MedicationStatement, MedicationAdministration), the `$everything` operation, and the `application/fhir+json` format. Auth: `fhir:read` scope (cookie sessions also pass).",
+      responses: {
+        "200": {
+          description: "CapabilityStatement (application/fhir+json).",
+          content: {
+            "application/fhir+json": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/fhir/Patient": {
+    get: {
+      tags: ["FHIR"],
+      summary: "FHIR R4 Patient search (v1.11.0)",
+      description:
+        "Read-only `searchset` Bundle of the caller's own Patient resource. Auth: `fhir:read` scope. Offset paging via `_count` (clamped ≤200) / `_offset`. `userId` is narrowed from auth.",
+      requestParams: {
+        query: z.object({
+          _count: z.coerce.number().optional(),
+          _offset: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        "200": {
+          description: "searchset Bundle (application/fhir+json).",
+          content: {
+            "application/fhir+json": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/fhir/Observation": {
+    get: {
+      tags: ["FHIR"],
+      summary: "FHIR R4 Observation search (v1.11.0)",
+      description:
+        "Read-only `searchset` Bundle of the caller's own Observations (vitals / activity / lab / survey). Auth: `fhir:read` scope. Offset paging via `_count` (clamped ≤200) / `_offset`.",
+      requestParams: {
+        query: z.object({
+          _count: z.coerce.number().optional(),
+          _offset: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        "200": {
+          description: "searchset Bundle (application/fhir+json).",
+          content: {
+            "application/fhir+json": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/fhir/MedicationStatement": {
+    get: {
+      tags: ["FHIR"],
+      summary: "FHIR R4 MedicationStatement search (v1.11.0)",
+      description:
+        "Read-only `searchset` Bundle of the caller's own active-medication statements. Auth: `fhir:read` scope. Offset paging via `_count` (≤200) / `_offset`.",
+      requestParams: {
+        query: z.object({
+          _count: z.coerce.number().optional(),
+          _offset: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        "200": {
+          description: "searchset Bundle (application/fhir+json).",
+          content: {
+            "application/fhir+json": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/fhir/MedicationAdministration": {
+    get: {
+      tags: ["FHIR"],
+      summary: "FHIR R4 MedicationAdministration search (v1.11.0)",
+      description:
+        "Read-only `searchset` Bundle of the caller's own acted intakes (completed / not-done). Auth: `fhir:read` scope. Offset paging via `_count` (≤200) / `_offset`.",
+      requestParams: {
+        query: z.object({
+          _count: z.coerce.number().optional(),
+          _offset: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        "200": {
+          description: "searchset Bundle (application/fhir+json).",
+          content: {
+            "application/fhir+json": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/fhir/$everything": {
+    get: {
+      tags: ["FHIR"],
+      summary: "FHIR R4 $everything (v1.11.0)",
+      description:
+        "Read-only `$everything` operation: every resource in the caller's own record (Patient, Coverage, Observations, MedicationStatements, MedicationAdministrations) in one `searchset` Bundle. Auth: `fhir:read` scope. Offset paging via `_count` (≤200) / `_offset`.",
+      requestParams: {
+        query: z.object({
+          _count: z.coerce.number().optional(),
+          _offset: z.coerce.number().optional(),
+        }),
+      },
+      responses: {
+        "200": {
+          description: "searchset Bundle (application/fhir+json).",
+          content: {
+            "application/fhir+json": {
+              schema: z.string().meta({ format: "binary" }),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/auth/login": {
     post: {
       tags: ["Auth"],
