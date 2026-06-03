@@ -3257,6 +3257,7 @@
       "testProvider": "Test active provider",
       "testSuccess": "OK — {provider} ({model})",
       "testFailedShort": "Test failed: {message}",
+      "testUnexpectedResponse": "AI provider connection failed — unexpected response from the server.",
       "disableCoach": {
         "title": "Masquer le Coach",
         "description": "Masque le bouton et le panneau du Coach sur toutes les pages.",

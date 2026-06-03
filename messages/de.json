@@ -3257,6 +3257,7 @@
       "testProvider": "Aktiven Provider testen",
       "testSuccess": "OK — {provider} ({model})",
       "testFailedShort": "Test fehlgeschlagen: {message}",
+      "testUnexpectedResponse": "Verbindung zum KI-Anbieter fehlgeschlagen — unerwartete Antwort vom Server.",
       "disableCoach": {
         "title": "Coach ausblenden",
         "description": "Versteckt den Coach-Button und das Coach-Panel auf allen Seiten.",
