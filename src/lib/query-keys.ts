@@ -293,6 +293,10 @@ export const queryKeys = {
   researchMode: () => ["research-mode"] as const,
   moodlogStatus: () => ["moodlog-status"] as const,
   integrationsStatus: () => ["integrations", "status"] as const,
+
+  /** v1.11.0 — owner's clinician share links (Settings → Sharing). */
+  shareLinks: () => ["share-links"] as const,
+
   featureFlags: () => ["feature-flags"] as const,
   coachPrefs: () => ["coach-prefs"] as const,
 

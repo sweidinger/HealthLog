@@ -3122,6 +3122,10 @@
       "about": {
         "title": "About",
         "description": "Version, license, links."
+      },
+      "sharing": {
+        "title": "Partage",
+        "description": "Créez un lien en lecture seule pour partager votre dossier de santé avec un professionnel de santé."
       }
     },
     "profile": "Profil",
@@ -3556,7 +3560,37 @@
       "error": "Échec de l’export ({code})."
     },
     "globalExcludedInjectionSitesLabel": "Sites d'injection exclus globalement",
-    "globalExcludedInjectionSitesHint": "Les sites listés ici ne sont proposés pour aucun médicament et sont refusés lors de l'enregistrement d'une dose, même si un médicament les privilégie."
+    "globalExcludedInjectionSitesHint": "Les sites listés ici ne sont proposés pour aucun médicament et sont refusés lors de l'enregistrement d'une dose, même si un médicament les privilégie.",
+    "sharing": {
+      "createTitle": "Nouveau lien de partage",
+      "createDescription": "Le lien est en lecture seule et limité dans le temps. Le jeton n'est affiché qu'une fois à la création — conservez-le alors ; il ne peut pas être récupéré.",
+      "label": "Libellé",
+      "labelPlaceholder": "ex. Dr Martin — bilan annuel",
+      "range": "Jours d'historique",
+      "rangeHint": "Jusqu'où remonte la fenêtre partagée.",
+      "expiry": "Expire dans (jours)",
+      "expiryHint": "Au plus {max} jours.",
+      "expiryInvalid": "L'expiration doit être comprise entre 1 et {max} jours.",
+      "fhirApi": "Autoriser l'API FHIR restreinte",
+      "fhirApiHint": "Laissez le lien servir un point d'accès FHIR en lecture seule en plus de la vue page.",
+      "resourceTypes": "Types de ressource FHIR",
+      "create": "Créer le lien",
+      "tokenCreated": "Lien de partage créé",
+      "tokenOnce": "Copiez ce lien maintenant — le jeton n'est affiché qu'une fois et ne peut pas être récupéré.",
+      "copy": "Copier le lien",
+      "copied": "Copié dans le presse-papiers.",
+      "activeTitle": "Liens actifs",
+      "noActive": "Aucun lien de partage actif.",
+      "created": "Créé",
+      "expires": "Expire",
+      "accessCount": "Vues",
+      "revoke": "Révoquer",
+      "revokeDescription": "Révoquez ce lien immédiatement. Quiconque le détient perd l'accès aussitôt. Action irréversible.",
+      "statusActive": "Actif",
+      "statusRevoked": "Révoqué",
+      "statusExpired": "Expiré",
+      "inactiveTitle": "Révoqués et expirés ({count})"
+    }
   },
   "admin": {
     "title": "Administration",

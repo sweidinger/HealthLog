@@ -3122,6 +3122,10 @@
       "about": {
         "title": "About",
         "description": "Version, license, links."
+      },
+      "sharing": {
+        "title": "Udostępnianie",
+        "description": "Utwórz link tylko do odczytu, aby udostępnić swoją dokumentację zdrowotną lekarzowi."
       }
     },
     "profile": "Profil",
@@ -3556,7 +3560,37 @@
       "error": "Eksport nie powiódł się ({code})."
     },
     "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
-    "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje."
+    "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje.",
+    "sharing": {
+      "createTitle": "Nowy link udostępniania",
+      "createDescription": "Link jest tylko do odczytu i ograniczony czasowo. Token jest pokazywany tylko raz przy tworzeniu — zapisz go wtedy; nie można go odzyskać.",
+      "label": "Etykieta",
+      "labelPlaceholder": "np. dr Kowalski — kontrola roczna",
+      "range": "Dni historii",
+      "rangeHint": "Jak daleko wstecz sięga udostępnione okno.",
+      "expiry": "Wygasa za (dni)",
+      "expiryHint": "Najwyżej {max} dni.",
+      "expiryInvalid": "Wygaśnięcie musi mieścić się między 1 a {max} dniami.",
+      "fhirApi": "Zezwól na ograniczone API FHIR",
+      "fhirApiHint": "Pozwól, aby link udostępniał punkt końcowy FHIR tylko do odczytu obok widoku strony.",
+      "resourceTypes": "Typy zasobów FHIR",
+      "create": "Utwórz link",
+      "tokenCreated": "Link udostępniania utworzony",
+      "tokenOnce": "Skopiuj ten link teraz — token jest pokazywany tylko raz i nie można go odzyskać.",
+      "copy": "Kopiuj link",
+      "copied": "Skopiowano do schowka.",
+      "activeTitle": "Aktywne linki",
+      "noActive": "Brak aktywnych linków udostępniania.",
+      "created": "Utworzono",
+      "expires": "Wygasa",
+      "accessCount": "Wyświetlenia",
+      "revoke": "Unieważnij",
+      "revokeDescription": "Unieważnij ten link natychmiast. Każdy, kto go ma, traci dostęp od razu. Tej operacji nie można cofnąć.",
+      "statusActive": "Aktywny",
+      "statusRevoked": "Unieważniony",
+      "statusExpired": "Wygasły",
+      "inactiveTitle": "Unieważnione i wygasłe ({count})"
+    }
   },
   "admin": {
     "title": "Administration",

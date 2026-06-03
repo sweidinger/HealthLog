@@ -35,7 +35,7 @@ function renderShell(props: {
 }
 
 describe("SETTINGS_SECTION_SLUGS", () => {
-  it("declares the eleven sections", () => {
+  it("declares the twelve sections", () => {
     // Order matters — `generateStaticParams()` and the sidebar derive their
     // ordering from this constant, so a reorder is a behaviour change.
     // v1.4.3 split the dashboard panel: layout stays under `dashboard`,
@@ -47,7 +47,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // v1.4.25 W5e added `sources` between `thresholds` and `ai`; v1.4.34
     // IW-D merged it into `thresholds`.
     // v1.8.7.1 — `sources` (Sources) is its own slug again, sitting
-    // between `thresholds` (Targets) and `ai`. Section count: 11.
+    // between `thresholds` (Targets) and `ai`.
+    // v1.11.0 — `sharing` (clinician share links) added between `api` and
+    // `export`. Section count: 12.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "integrations",
@@ -57,6 +59,7 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "sources",
       "ai",
       "api",
+      "sharing",
       "export",
       "advanced",
       "about",

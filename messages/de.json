@@ -3122,6 +3122,10 @@
       "about": {
         "title": "Über",
         "description": "Version, Lizenz, Links."
+      },
+      "sharing": {
+        "title": "Freigabe",
+        "description": "Erstelle einen schreibgeschützten Link, um deine Gesundheitsakte mit einer Ärztin oder einem Arzt zu teilen."
       }
     },
     "profile": "Profil",
@@ -3556,7 +3560,37 @@
       "error": "Export fehlgeschlagen ({code})."
     },
     "globalExcludedInjectionSitesLabel": "Global ausgeschlossene Injektionsstellen",
-    "globalExcludedInjectionSitesHint": "Hier gelistete Stellen werden für keine Medikation angeboten und beim Erfassen einer Dosis abgelehnt — auch wenn eine Medikation sie bevorzugt."
+    "globalExcludedInjectionSitesHint": "Hier gelistete Stellen werden für keine Medikation angeboten und beim Erfassen einer Dosis abgelehnt — auch wenn eine Medikation sie bevorzugt.",
+    "sharing": {
+      "createTitle": "Neuer Freigabe-Link",
+      "createDescription": "Der Link ist schreibgeschützt und zeitlich begrenzt. Der Token wird nur einmal bei der Erstellung angezeigt — sichere ihn dann; er lässt sich nicht wiederherstellen.",
+      "label": "Bezeichnung",
+      "labelPlaceholder": "z. B. Dr. Schmidt — Jahres-Check-up",
+      "range": "Tage Verlauf",
+      "rangeHint": "Wie weit das geteilte Zeitfenster zurückreicht.",
+      "expiry": "Läuft ab in (Tagen)",
+      "expiryHint": "Höchstens {max} Tage.",
+      "expiryInvalid": "Die Gültigkeit muss zwischen 1 und {max} Tagen liegen.",
+      "fhirApi": "Eingegrenzte FHIR-API erlauben",
+      "fhirApiHint": "Lasse den Link zusätzlich zur Seitenansicht einen schreibgeschützten FHIR-Endpunkt bereitstellen.",
+      "resourceTypes": "FHIR-Ressourcentypen",
+      "create": "Link erstellen",
+      "tokenCreated": "Freigabe-Link erstellt",
+      "tokenOnce": "Kopiere diesen Link jetzt — der Token wird nur einmal angezeigt und lässt sich nicht wiederherstellen.",
+      "copy": "Link kopieren",
+      "copied": "In die Zwischenablage kopiert.",
+      "activeTitle": "Aktive Links",
+      "noActive": "Keine aktiven Freigabe-Links.",
+      "created": "Erstellt",
+      "expires": "Läuft ab",
+      "accessCount": "Aufrufe",
+      "revoke": "Widerrufen",
+      "revokeDescription": "Diesen Link sofort widerrufen. Wer ihn besitzt, verliert umgehend den Zugriff. Das lässt sich nicht rückgängig machen.",
+      "statusActive": "Aktiv",
+      "statusRevoked": "Widerrufen",
+      "statusExpired": "Abgelaufen",
+      "inactiveTitle": "Widerrufen und abgelaufen ({count})"
+    }
   },
   "admin": {
     "title": "Administration",

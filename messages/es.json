@@ -3122,6 +3122,10 @@
       "about": {
         "title": "About",
         "description": "Version, license, links."
+      },
+      "sharing": {
+        "title": "Compartir",
+        "description": "Crea un enlace de solo lectura para compartir tu historial de salud con un profesional médico."
       }
     },
     "profile": "Perfil",
@@ -3556,7 +3560,37 @@
       "error": "Error en la exportación ({code})."
     },
     "globalExcludedInjectionSitesLabel": "Sitios de inyección excluidos globalmente",
-    "globalExcludedInjectionSitesHint": "Los sitios listados aquí no se ofrecen para ningún medicamento y se rechazan al registrar una dosis, aunque un medicamento los prefiera."
+    "globalExcludedInjectionSitesHint": "Los sitios listados aquí no se ofrecen para ningún medicamento y se rechazan al registrar una dosis, aunque un medicamento los prefiera.",
+    "sharing": {
+      "createTitle": "Nuevo enlace para compartir",
+      "createDescription": "El enlace es de solo lectura y limitado en el tiempo. El token se muestra una sola vez al crearlo — guárdalo entonces; no se puede recuperar.",
+      "label": "Etiqueta",
+      "labelPlaceholder": "p. ej. Dra. García — revisión anual",
+      "range": "Días de historial",
+      "rangeHint": "Hasta cuándo se remonta la ventana compartida.",
+      "expiry": "Caduca en (días)",
+      "expiryHint": "Como máximo {max} días.",
+      "expiryInvalid": "La caducidad debe estar entre 1 y {max} días.",
+      "fhirApi": "Permitir API FHIR acotada",
+      "fhirApiHint": "Deja que el enlace sirva un endpoint FHIR de solo lectura además de la vista de página.",
+      "resourceTypes": "Tipos de recurso FHIR",
+      "create": "Crear enlace",
+      "tokenCreated": "Enlace para compartir creado",
+      "tokenOnce": "Copia este enlace ahora — el token se muestra una sola vez y no se puede recuperar.",
+      "copy": "Copiar enlace",
+      "copied": "Copiado al portapapeles.",
+      "activeTitle": "Enlaces activos",
+      "noActive": "No hay enlaces para compartir activos.",
+      "created": "Creado",
+      "expires": "Caduca",
+      "accessCount": "Vistas",
+      "revoke": "Revocar",
+      "revokeDescription": "Revoca este enlace de inmediato. Quien lo tenga pierde el acceso al instante. Esto no se puede deshacer.",
+      "statusActive": "Activo",
+      "statusRevoked": "Revocado",
+      "statusExpired": "Caducado",
+      "inactiveTitle": "Revocados y caducados ({count})"
+    }
   },
   "admin": {
     "title": "Administration",

@@ -3122,6 +3122,10 @@
       "about": {
         "title": "About",
         "description": "Version, license, links."
+      },
+      "sharing": {
+        "title": "Sharing",
+        "description": "Create a read-only link to share your health record with a clinician."
       }
     },
     "profile": "Profile",
@@ -3556,7 +3560,37 @@
       "error": "Export failed ({code})."
     },
     "globalExcludedInjectionSitesLabel": "Globally excluded injection sites",
-    "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them."
+    "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them.",
+    "sharing": {
+      "createTitle": "New share link",
+      "createDescription": "The link is read-only and time-boxed. The token is shown once on creation — store it then; it cannot be recovered.",
+      "label": "Label",
+      "labelPlaceholder": "e.g. Dr. Smith — annual check-up",
+      "range": "Days of history",
+      "rangeHint": "How far back the shared window reaches.",
+      "expiry": "Expires in (days)",
+      "expiryHint": "At most {max} days.",
+      "expiryInvalid": "Expiry must be between 1 and {max} days.",
+      "fhirApi": "Allow scoped FHIR API",
+      "fhirApiHint": "Let the link serve a read-only FHIR endpoint in addition to the page view.",
+      "resourceTypes": "FHIR resource types",
+      "create": "Create link",
+      "tokenCreated": "Share link created",
+      "tokenOnce": "Copy this link now — the token is shown only once and cannot be recovered.",
+      "copy": "Copy link",
+      "copied": "Copied to clipboard.",
+      "activeTitle": "Active links",
+      "noActive": "No active share links.",
+      "created": "Created",
+      "expires": "Expires",
+      "accessCount": "Views",
+      "revoke": "Revoke",
+      "revokeDescription": "Revoke this link immediately. Anyone holding it loses access at once. This cannot be undone.",
+      "statusActive": "Active",
+      "statusRevoked": "Revoked",
+      "statusExpired": "Expired",
+      "inactiveTitle": "Revoked and expired ({count})"
+    }
   },
   "admin": {
     "title": "Administration",
