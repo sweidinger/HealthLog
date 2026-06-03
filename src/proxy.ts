@@ -21,6 +21,11 @@ const PUBLIC_PATHS = [
   "/api/monitoring/",
   "/api/send",
   "/api/withings/webhook",
+  // v1.11.0 — WHOOP webhook (`recovery.updated` / `sleep.updated` /
+  // `workout.updated`, + `*.deleted`). Authenticated by the path-segment
+  // secret + the HMAC body signature, never by a session cookie, so it
+  // must bypass the auth gate (mirrors the Withings webhook entry).
+  "/api/whoop/webhook",
   "/api/telegram/webhook",
   "/api/integrations/moodlog/webhook",
   "/api/ingest/",
@@ -289,6 +294,17 @@ export function proxy(request: NextRequest) {
   const withingsConnectSrc = isWithingsRoute
     ? " https://wbsapi.withings.net"
     : "";
+  // v1.11.0 — `api.prod.whoop.com` gated to the WHOOP settings surface +
+  // `/api/whoop/*`, mirroring the Withings gating shape. The WHOOP data
+  // client lives server-side and the OAuth handshake is a browser
+  // redirect (not a fetch), so this is belt-and-suspenders parity — no
+  // other surface ever needs to reach the WHOOP host from the browser.
+  const isWhoopRoute =
+    pathname.startsWith("/settings/integrations/whoop") ||
+    pathname.startsWith("/api/whoop/");
+  const whoopConnectSrc = isWhoopRoute
+    ? " https://api.prod.whoop.com"
+    : "";
   // v1.5.5 — Gravatar host removed from `img-src`. The /me payload
   // used to return `gravatarUrl: https://www.gravatar.com/avatar/<sha256(email)>`,
   // which leaked the email digest to Automattic on every authenticated
@@ -297,7 +313,7 @@ export function proxy(request: NextRequest) {
   // them.
   const csp = isDev
     ? `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self';`
-    : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'${aiConnectSrc}${withingsConnectSrc}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
+    : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'${aiConnectSrc}${withingsConnectSrc}${whoopConnectSrc}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
   response.headers.set("Content-Security-Policy", csp);
 
   // Production-only headers. HSTS carries `preload` so the domain stays

@@ -101,3 +101,35 @@ describe("proxy.ts Withings CSP gating (F-5, 2026-05-16)", () => {
     expect(csp).not.toMatch(/wbsapi\.withings\.net/);
   });
 });
+
+describe("proxy.ts WHOOP CSP gating (v1.11.0)", () => {
+  it("does NOT allow api.prod.whoop.com on a non-WHOOP page", () => {
+    const res = proxy(makeRequest("/", { healthlog_session: "sess-1" }));
+    const csp = res.headers.get("content-security-policy") ?? "";
+    expect(csp).not.toMatch(/api\.prod\.whoop\.com/);
+  });
+
+  it("allows api.prod.whoop.com under /settings/integrations/whoop/*", () => {
+    const res = proxy(
+      makeRequest("/settings/integrations/whoop", {
+        healthlog_session: "sess-1",
+      }),
+    );
+    const csp = res.headers.get("content-security-policy") ?? "";
+    expect(csp).toMatch(/connect-src[^;]*https:\/\/api\.prod\.whoop\.com/);
+  });
+
+  it("allows api.prod.whoop.com under /api/whoop/*", () => {
+    const res = proxy(
+      makeRequest("/api/whoop/callback", { healthlog_session: "sess-1" }),
+    );
+    const csp = res.headers.get("content-security-policy") ?? "";
+    expect(csp).toMatch(/connect-src[^;]*https:\/\/api\.prod\.whoop\.com/);
+  });
+
+  it("never ships the WHOOP host on the auth surface", () => {
+    const res = proxy(makeRequest("/auth/login"));
+    const csp = res.headers.get("content-security-policy") ?? "";
+    expect(csp).not.toMatch(/api\.prod\.whoop\.com/);
+  });
+});

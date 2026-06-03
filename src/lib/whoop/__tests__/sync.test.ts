@@ -28,9 +28,15 @@ const {
   },
   refreshAccessTokenMock: vi.fn(),
   fetchRecoveriesMock: vi.fn(),
-  recordSyncFailure: vi.fn(async () => {}),
-  recordSyncSuccess: vi.fn(async () => {}),
-  isReauthRequired: vi.fn(async () => false),
+  recordSyncFailure: vi.fn<(...a: unknown[]) => Promise<void>>(
+    async () => {},
+  ),
+  recordSyncSuccess: vi.fn<(...a: unknown[]) => Promise<void>>(
+    async () => {},
+  ),
+  isReauthRequired: vi.fn<(...a: unknown[]) => Promise<boolean>>(
+    async () => false,
+  ),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }));

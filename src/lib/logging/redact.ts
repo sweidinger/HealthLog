@@ -47,6 +47,10 @@ export const PATH_SECRET_PATHS: ReadonlyArray<{ prefix: string }> = [
   // credential for the share surface, so scrub it from `http.path` /
   // `http.route` the same way the Withings webhook secret is scrubbed.
   { prefix: "/c/" },
+  // v1.11.0 — WHOOP webhook entrypoint: `WHOOP_WEBHOOK_SECRET` travels as
+  // the trailing path segment (mirrors Withings). Without this rule the
+  // secret lands in every Wide Event's `http.path` / `http.route`.
+  { prefix: "/api/whoop/webhook/" },
 ];
 
 function redactPathSegments(input: string): string {
