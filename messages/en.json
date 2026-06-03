@@ -2618,9 +2618,9 @@
           "description": "A nightly stress proxy from the shape of your intra-day HRV."
         },
         "STRAIN_SCORE": {
-          "method": "A nightly 0–100 strain proxy from your heart-rate-weighted activity load (a TRIMP-style training-impulse model). Higher means a harder day.",
+          "method": "A nightly 0–100 strain proxy from your heart-rate-weighted activity load (a TRIMP-style training-impulse model). Higher means a harder day. The scale is anchored to your own recent training-day load — relative to your typical effort — so a genuinely hard day for you reads high. While you are still building history it uses a general reference instead.",
           "caveat": "A descriptive activity-load proxy, not a clinical or training-grade load measure.",
-          "description": "A nightly activity-load proxy from your heart-rate-weighted effort."
+          "description": "A nightly activity-load proxy from your heart-rate-weighted effort, relative to your typical effort."
         },
         "WRIST_TEMPERATURE_BASELINE": {
           "method": "Your typical overnight wrist temperature is the median of your nightly readings over the window, ± a robust spread (median absolute deviation, scaled). It tracks YOUR readings — last night is shown as a deviation from your own baseline, not a population norm.",

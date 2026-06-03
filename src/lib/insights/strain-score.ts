@@ -23,12 +23,26 @@
  * Tanaka, Monahan & Seals 2001, J. Am. Coll. Cardiol. 37(1):153–156.
  *
  * The per-workout TRIMP values are summed across the scored day to a
- * day-total TRIMP, then mapped to the 0–100 scale by a saturating curve
- * anchored at a reference daily load (`STRAIN_TRIMP_REFERENCE` ≈ a hard
- * hour). Days with NO usable HR series but WITH active energy fall back to
- * an active-energy-only proxy so a "logged but no series" workout still
- * registers some strain (clearly the weaker signal — the provenance records
- * which path produced the score).
+ * day-total TRIMP, then mapped to the 0–100 scale by a saturating curve.
+ *
+ * v1.10.3 — PERSONAL-RELATIVE ANCHOR. The 0–100 map is anchored to the
+ * USER'S OWN recent training-day load, not a fixed population reference: the
+ * reference that maps to score ≈ 63 is the EWMA-smoothed 75th percentile of
+ * the user's own training-day (TRIMP > 0) day-total TRIMP over a 42-day
+ * chronic window (the acute-vs-chronic framing Garmin Training Load uses,
+ * the personal-zone idea WHOOP uses). This makes the score meaningful for a
+ * deconditioned or chronic-condition user, who would otherwise be pinned near
+ * 0 against the population anchor regardless of how hard *they* worked. Below
+ * a 7-training-day cold-start floor the engine falls back to the fixed
+ * population anchor (`STRAIN_TRIMP_REFERENCE` ≈ a hard hour), recorded as
+ * `anchor: "population"`. The anchor is derived from the TRIMP INPUT, never
+ * from the 0–100 OUTPUT, so there is no circular feedback.
+ *
+ * Days with NO usable HR series but WITH active energy fall back to an
+ * active-energy-only proxy so a "logged but no series" workout still
+ * registers some strain (clearly the weaker signal, and with no personal
+ * intensity distribution it stays on the population anchor — the provenance
+ * records which path + which anchor produced the score).
  *
  * Honest confidence: the score is only stored when the day carried at least
  * one workout HR series with usable samples OR a non-trivial active-energy
@@ -75,6 +89,59 @@ export const STRAIN_TRIMP_REFERENCE = 150;
  * distribution, only a volume total.
  */
 export const STRAIN_ACTIVE_ENERGY_REFERENCE = 600;
+
+/**
+ * v1.10.3 — personal-relative anchor.
+ *
+ * The fixed `STRAIN_TRIMP_REFERENCE` is a POPULATION anchor: for a fit user a
+ * hard hour ≈ 150 TRIMP → score ≈ 63, but for a deconditioned / chronic user
+ * whose hardest realistic effort is, say, 25 TRIMP the score saturates near 15
+ * — they gave *their* maximum and the headline reads 15. STRESS + RECOVERY are
+ * already personal-relative; this brings STRAIN into line by anchoring the
+ * 0–100 map to the USER'S OWN recent training-day load.
+ *
+ * The anchor is the EWMA-smoothed 75th percentile of the user's own
+ * training-day (TRIMP > 0) day-total TRIMP over a 42-day chronic window — the
+ * acute-vs-chronic framing Garmin Training Load uses, the personal-zone idea
+ * WHOOP uses, gated like Oura's "a few days before it appears". We anchor on
+ * the TRIMP INPUT, never on the 0–100 OUTPUT, so there is no circularity.
+ */
+
+/** Chronic window (days) the personal training-day distribution is read over. */
+export const STRAIN_CHRONIC_WINDOW_DAYS = 42;
+
+/** Percentile of the user's own training-day TRIMP that maps to score ≈ 63. */
+export const STRAIN_PERSONAL_REF_PERCENTILE = 75;
+
+/**
+ * EWMA effective span (Nₑ) for smoothing the personal reference across nights,
+ * α = 2/(Nₑ+1) ≈ 0.13. Mirrors Garmin's chronic moving average — the anchor
+ * tracks fitness changes over weeks without day-to-day jitter.
+ */
+export const STRAIN_EWMA_N = 14;
+
+/** EWMA smoothing factor derived from {@link STRAIN_EWMA_N}. */
+export const STRAIN_EWMA_ALPHA = 2 / (STRAIN_EWMA_N + 1);
+
+/**
+ * Cold-start floor: distinct training days (TRIMP > 0) the user must have in
+ * the chronic window before the personal anchor activates. Below it the engine
+ * falls back to the population anchor, labelled lower-confidence. Counting
+ * TRAINING days (not calendar days) is deliberate — the anchor describes how
+ * hard the user trains *when they train*, so a twice-a-week trainer needs
+ * ~3.5 weeks to qualify, which is the correct semantics.
+ */
+export const STRAIN_MIN_TRAINING_DAYS = 7;
+
+/**
+ * Floor on the personal reference (TRIMP). Guards against a near-zero anchor
+ * (a user whose training days are all very light) inflating every trivial day
+ * toward 100.
+ */
+export const STRAIN_PERSONAL_REF_FLOOR = 10;
+
+/** Which anchor produced a day's score. */
+export type StrainAnchor = "personal" | "population";
 
 /**
  * The UTC calendar day a Strain run scores — the PREVIOUS day relative to
@@ -161,6 +228,105 @@ export function saturateToScore(load: number, reference: number): number {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+/**
+ * The `p`-th percentile (0–100) of a numeric sample via linear interpolation
+ * between order statistics. Returns 0 for an empty sample. Pure — exported for
+ * unit testing.
+ */
+export function percentile(values: readonly number[], p: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 1) return sorted[0];
+  const rank = (Math.min(100, Math.max(0, p)) / 100) * (sorted.length - 1);
+  const lo = Math.floor(rank);
+  const hi = Math.ceil(rank);
+  if (lo === hi) return sorted[lo];
+  const frac = rank - lo;
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * frac;
+}
+
+/** The training-day TRIMP history backing the personal anchor. */
+export interface StrainAnchorHistory {
+  /** Day-total TRIMP for each TRAINING day (TRIMP > 0) in the chronic window. */
+  trainingDayTrimps: readonly number[];
+  /** The EWMA reference persisted by the previous night's run, or null on first run. */
+  priorRefPersonal: number | null;
+}
+
+/** The resolved reference + the provenance the score row's cache should record. */
+export interface ResolvedStrainReference {
+  /** The reference to feed `saturateToScore` for the TRIMP path. */
+  reference: number;
+  /** Which anchor was used. */
+  anchor: StrainAnchor;
+  /** Distinct training days seen in the chronic window. */
+  trainingDays: number;
+  /**
+   * The EWMA-smoothed personal reference to persist for the next night. Always
+   * the personal reference even when the population anchor was used this night
+   * (so the EWMA keeps warming up toward activation); null only when there is
+   * no training-day history at all.
+   */
+  refPersonalToPersist: number | null;
+}
+
+/**
+ * Resolve the day's strain reference from the user's own training-day TRIMP
+ * history. Below the cold-start floor → the fixed population anchor (labelled
+ * `population`); at or above it → the EWMA-smoothed P75 of the user's own
+ * training-day TRIMP (labelled `personal`), floored at
+ * {@link STRAIN_PERSONAL_REF_FLOOR}.
+ *
+ * The EWMA blends this window's P75 with the prior night's reference
+ * (`ref = α·P75 + (1−α)·prev`); on the first night with any history it seeds
+ * from the window P75. Anchors on the TRIMP INPUT, never the score OUTPUT, so
+ * there is no circular feedback. Pure — no Prisma. Exported for unit testing.
+ */
+export function resolvePersonalReference(
+  history: StrainAnchorHistory,
+  populationReference: number = STRAIN_TRIMP_REFERENCE,
+): ResolvedStrainReference {
+  const trimps = history.trainingDayTrimps.filter((t) => t > 0);
+  const trainingDays = trimps.length;
+
+  // The EWMA reference warms up regardless of the cold-start gate so it is
+  // ready the night the user crosses the floor.
+  let refPersonalToPersist: number | null = null;
+  if (trainingDays > 0) {
+    const windowP75 = Math.max(
+      STRAIN_PERSONAL_REF_FLOOR,
+      percentile(trimps, STRAIN_PERSONAL_REF_PERCENTILE),
+    );
+    refPersonalToPersist =
+      history.priorRefPersonal != null
+        ? STRAIN_EWMA_ALPHA * windowP75 +
+          (1 - STRAIN_EWMA_ALPHA) * history.priorRefPersonal
+        : windowP75;
+    // Keep the persisted EWMA above the floor too (a long stretch of light
+    // days should never drag the anchor below it).
+    refPersonalToPersist = Math.max(
+      STRAIN_PERSONAL_REF_FLOOR,
+      refPersonalToPersist,
+    );
+  }
+
+  if (trainingDays < STRAIN_MIN_TRAINING_DAYS) {
+    return {
+      reference: populationReference,
+      anchor: "population",
+      trainingDays,
+      refPersonalToPersist,
+    };
+  }
+
+  return {
+    reference: refPersonalToPersist as number,
+    anchor: "personal",
+    trainingDays,
+    refPersonalToPersist,
+  };
+}
+
 export interface StrainComputeResult {
   /** The 0..100 score to persist, or null when the inputs gate. */
   score: number | null;
@@ -176,6 +342,17 @@ export interface StrainComputeResult {
   dayActiveEnergy: number;
   /** Workouts with a usable HR series on the day. */
   workoutsWithSeries: number;
+  /**
+   * v1.10.3 — which anchor the score was mapped against. `personal` once the
+   * user has ≥ `STRAIN_MIN_TRAINING_DAYS` training days of history (TRIMP
+   * path only); `population` during cold start and always for the
+   * active-energy fallback (which has no personal intensity distribution).
+   */
+  anchor: StrainAnchor;
+  /** Distinct training days (TRIMP > 0) in the chronic window. */
+  trainingDays: number;
+  /** EWMA personal reference to persist for the next night, or null. */
+  refPersonalToPersist: number | null;
 }
 
 export interface StrainProfile {
@@ -196,6 +373,10 @@ export async function computeStrainScore(
   profile: StrainProfile,
   hrRest: number | null,
   now: Date,
+  anchorHistory: StrainAnchorHistory = {
+    trainingDayTrimps: [],
+    priorRefPersonal: null,
+  },
 ): Promise<StrainComputeResult> {
   const dayKey = strainDayKey(now);
   const dayStart = new Date(`${dayKey}T00:00:00.000Z`);
@@ -240,19 +421,37 @@ export async function computeStrainScore(
     }
   }
 
+  // v1.10.3 — resolve the personal-vs-population reference from the user's
+  // own training-day TRIMP history. Below the cold-start floor (or with no
+  // history) this returns the population anchor labelled `population`. The
+  // scored day's own TRIMP is included in the distribution it is judged
+  // against — the anchor is "your typical hard day", today included.
+  const ref = resolvePersonalReference({
+    trainingDayTrimps:
+      dayTrimp > 0
+        ? [...anchorHistory.trainingDayTrimps, dayTrimp]
+        : anchorHistory.trainingDayTrimps,
+    priorRefPersonal: anchorHistory.priorRefPersonal,
+  });
+
   if (dayTrimp > 0) {
     return {
-      score: saturateToScore(dayTrimp, STRAIN_TRIMP_REFERENCE),
+      score: saturateToScore(dayTrimp, ref.reference),
       reason: "trimp",
       dayTrimp,
       dayActiveEnergy,
       workoutsWithSeries,
+      anchor: ref.anchor,
+      trainingDays: ref.trainingDays,
+      refPersonalToPersist: ref.refPersonalToPersist,
     };
   }
 
   // No usable HR series. Fall back to the active-energy-only proxy when
   // there is a non-trivial active-energy total. A profile with no HRmax /
-  // resting HR can still get this fallback because it needs neither.
+  // resting HR can still get this fallback because it needs neither. The
+  // fallback has no personal intensity distribution, so it stays on the
+  // population anchor (honestly labelled `population`).
   if (dayActiveEnergy > 0) {
     return {
       score: saturateToScore(dayActiveEnergy, STRAIN_ACTIVE_ENERGY_REFERENCE),
@@ -260,6 +459,9 @@ export async function computeStrainScore(
       dayTrimp: 0,
       dayActiveEnergy,
       workoutsWithSeries: 0,
+      anchor: "population",
+      trainingDays: ref.trainingDays,
+      refPersonalToPersist: ref.refPersonalToPersist,
     };
   }
 
@@ -274,6 +476,9 @@ export async function computeStrainScore(
     dayTrimp: 0,
     dayActiveEnergy,
     workoutsWithSeries: 0,
+    anchor: "population",
+    trainingDays: ref.trainingDays,
+    refPersonalToPersist: ref.refPersonalToPersist,
   };
 }
 
@@ -311,10 +516,101 @@ export async function loadStrainInputs(
   return { profile, hrRest: rhr?.value ?? null };
 }
 
+/**
+ * v1.10.3 — read the trailing training-day TRIMP distribution + the prior
+ * EWMA reference from the server-internal `strainTrimpCache`. Reads cheap
+ * cached day-total TRIMP instead of re-integrating 42 days of HR series. The
+ * cache populates itself forward (no backfill); a user with no cache rows yet
+ * returns an empty history → the cold-start population anchor.
+ *
+ * `priorRefPersonal` = the most recent cached row's `refPersonal` STRICTLY
+ * before the scored day, so a re-run for the same day (idempotent recompute)
+ * blends against the prior night, never against its own previous write.
+ */
+export async function loadStrainAnchorHistory(
+  prisma: PrismaClient,
+  userId: string,
+  now: Date,
+): Promise<StrainAnchorHistory> {
+  const dayKey = strainDayKey(now);
+  const windowStart = new Date(
+    new Date(`${dayKey}T00:00:00.000Z`).getTime() -
+      STRAIN_CHRONIC_WINDOW_DAYS * MS_PER_DAY,
+  )
+    .toISOString()
+    .slice(0, 10);
+
+  // The chronic window of cached rows, excluding the scored day itself (its
+  // TRIMP is added at compute time so the distribution always reflects the
+  // freshly-computed day).
+  const rows = await prisma.strainTrimpCache.findMany({
+    where: { userId, day: { gte: windowStart, lt: dayKey } },
+    select: {
+      day: true,
+      dayTrimp: true,
+      refPersonal: true,
+      trainingDays: true,
+    },
+    orderBy: { day: "desc" },
+  });
+
+  const trainingDayTrimps = rows
+    .map((r) => r.dayTrimp)
+    .filter((t) => t > 0);
+  // The prior EWMA = the most recent cached row that actually carried personal
+  // training history (`trainingDays > 0`). A row written on a pure rest /
+  // energy-only day stores the population seed only to keep the column
+  // non-null; adopting it would pollute the EWMA and stall personal
+  // activation, so it is skipped — the seed stays unset (null) until a real
+  // training day has warmed the reference.
+  const warmedRow = rows.find((r) => r.trainingDays > 0);
+  const priorRefPersonal = warmedRow ? warmedRow.refPersonal : null;
+
+  return { trainingDayTrimps, priorRefPersonal };
+}
+
+/**
+ * v1.10.3 — upsert the scored day's Strain anchor cache row (day-total TRIMP +
+ * the EWMA reference + the anchor used + the training-day count). Idempotent on
+ * `(userId, day)` so a re-fired nightly tick overwrites in place. Server-only.
+ */
+export async function upsertStrainTrimpCache(
+  prisma: PrismaClient,
+  args: {
+    userId: string;
+    now: Date;
+    dayTrimp: number;
+    refPersonal: number;
+    anchor: StrainAnchor;
+    trainingDays: number;
+  },
+): Promise<void> {
+  const day = strainDayKey(args.now);
+  await prisma.strainTrimpCache.upsert({
+    where: { userId_day: { userId: args.userId, day } },
+    create: {
+      userId: args.userId,
+      day,
+      dayTrimp: args.dayTrimp,
+      refPersonal: args.refPersonal,
+      anchor: args.anchor,
+      trainingDays: args.trainingDays,
+    },
+    update: {
+      dayTrimp: args.dayTrimp,
+      refPersonal: args.refPersonal,
+      anchor: args.anchor,
+      trainingDays: args.trainingDays,
+    },
+  });
+}
+
 export interface PersistStrainResult {
   outcome: "stored" | "insufficient";
   score: number | null;
   reason: StrainComputeResult["reason"];
+  /** v1.10.3 — which anchor produced the score (drives the honesty label). */
+  anchor: StrainAnchor;
 }
 
 /**
@@ -328,16 +624,20 @@ export async function persistStrainScore(
   now: Date,
 ): Promise<PersistStrainResult> {
   const { profile, hrRest } = await loadStrainInputs(prisma, userId, now);
-  const { score, reason } = await computeStrainScore(
+  const anchorHistory = await loadStrainAnchorHistory(prisma, userId, now);
+  const result = await computeStrainScore(
     prisma,
     userId,
     profile,
     hrRest,
     now,
+    anchorHistory,
   );
+  const { score, reason, dayTrimp, anchor, trainingDays, refPersonalToPersist } =
+    result;
 
   if (score === null) {
-    return { outcome: "insufficient", score: null, reason };
+    return { outcome: "insufficient", score: null, reason, anchor };
   }
 
   await upsertScoreRow(prisma, {
@@ -348,5 +648,21 @@ export async function persistStrainScore(
     now,
   });
 
-  return { outcome: "stored", score, reason };
+  // Persist the day's TRIMP + the EWMA reference so the next night's chronic
+  // window reads cheap cached values. Only the TRIMP path contributes a
+  // training day; the active-energy fallback (dayTrimp === 0) still writes a
+  // row so the cache reflects a non-training day, but it never counts toward
+  // the personal distribution. `refPersonalToPersist` is null only when there
+  // is no training history at all — fall back to the population reference for
+  // the stored EWMA seed so the column stays non-null.
+  await upsertStrainTrimpCache(prisma, {
+    userId,
+    now,
+    dayTrimp,
+    refPersonal: refPersonalToPersist ?? STRAIN_TRIMP_REFERENCE,
+    anchor,
+    trainingDays,
+  });
+
+  return { outcome: "stored", score, reason, anchor };
 }
