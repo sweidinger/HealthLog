@@ -21,7 +21,8 @@ vi.mock("@/lib/ai/codex-oauth", () => ({
   decryptCodexCreds: vi.fn(),
 }));
 
-import { resolveProvider } from "../provider";
+import { resolveProvider, resolveProviderForTest } from "../provider";
+import { OpenAIClient } from "../openai-client";
 import { prisma } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { decryptCodexCreds, encryptCodexCreds } from "@/lib/ai/codex-oauth";
@@ -296,5 +297,55 @@ describe("resolveProvider", () => {
 
     const provider = await resolveProvider("user-123");
     expect(provider.type).toBe("codex");
+  });
+});
+
+/**
+ * The connection-test "test my saved config" path (empty override body)
+ * MUST resolve via the SAME chain generation uses, so a green test means
+ * generation will actually work. Previously it probed codex→admin
+ * directly, which could test a different provider than generation ran.
+ */
+describe("resolveProviderForTest — empty override resolves via the chain", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(decrypt).mockImplementation((v: string) => `decrypted:${v}`);
+  });
+
+  it("returns the first enabled+credentialed chain entry (the same provider generation runs)", async () => {
+    // resolveProviderForTest first reads the test row (no chain), then
+    // resolveProviderChain reads the chain row. The chain enables openai
+    // and the user has an OpenAI key → first chain entry is OpenAIClient.
+    vi.mocked(prisma.user.findUnique)
+      // 1st: resolveProviderForTest's own read
+      .mockResolvedValueOnce({
+        aiProvider: null,
+        aiModel: null,
+        aiBaseUrl: null,
+        aiAnthropicKeyEncrypted: null,
+        aiLocalKeyEncrypted: null,
+        aiOpenaiKeyEncrypted: "enc-user-openai",
+      } as never)
+      // 2nd: resolveProviderChain's read
+      .mockResolvedValueOnce({
+        aiProvider: null,
+        aiModel: null,
+        aiBaseUrl: null,
+        aiAnthropicKeyEncrypted: null,
+        aiLocalKeyEncrypted: null,
+        aiOpenaiKeyEncrypted: "enc-user-openai",
+        aiProviderChain: [
+          { providerType: "openai", priority: 1, enabled: true },
+        ],
+      } as never);
+
+    const provider = await resolveProviderForTest("user-123", {});
+    // The user-OpenAI client is an OpenAIClient; its runtime tag defaults
+    // to "admin-key" (no providerType passed). What matters is that the
+    // empty-override path materialised the chain's first entry rather than
+    // the legacy codex→admin probe — a NoProvider/none would mean the
+    // chain was bypassed.
+    expect(provider.type).not.toBe("none");
+    expect(provider).toBeInstanceOf(OpenAIClient);
   });
 });

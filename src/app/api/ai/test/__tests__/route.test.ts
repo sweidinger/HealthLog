@@ -65,11 +65,22 @@ function jsonRequest(body: unknown): Request {
   });
 }
 
+interface TestFailureEnvelope {
+  data: { ok: false; providerType: string; reason: string };
+  error: null;
+}
+
 // V3 audit: /api/ai/test was returning provider err.message + bodyExcerpt
 // directly to the client, leaking provider URLs / partial keys / internal
 // headers. Server now logs full details via annotate() and responds with
-// a categorised, generic message.
-describe("POST /api/ai/test — provider error leak guard", () => {
+// a categorised, secret-free reason.
+//
+// This route MUST NEVER return a 5xx: a 5xx origin response is rewritten
+// by Cloudflare to its own HTML error page, so the browser's res.json()
+// crashes with `Unexpected token '<', "<!DOCTYPE "`. Every provider-call
+// failure returns HTTP 200 with `{ ok:false, reason }` the client shows
+// verbatim.
+describe("POST /api/ai/test — provider error leak guard + non-5xx contract", () => {
   function makeProviderThatThrows(
     err: Error & { httpStatus?: number; bodyExcerpt?: string },
   ) {
@@ -81,7 +92,7 @@ describe("POST /api/ai/test — provider error leak guard", () => {
     } as never);
   }
 
-  it("does not echo provider err.message back to the client (HIGH coverage gap)", async () => {
+  it("never returns a 5xx and does not echo provider err.message back to the client", async () => {
     const err = Object.assign(
       new Error("OpenAI 401 from https://api.openai.com/v1 sk-leaked-key"),
       {
@@ -92,49 +103,60 @@ describe("POST /api/ai/test — provider error leak guard", () => {
     makeProviderThatThrows(err);
 
     const response = await POST(emptyRequest() as never);
-    const body = (await response.json()) as ApiErrorEnvelope;
-
-    // v1.4.5: credential failures map to 422 (not 502) so Cloudflare
-    // doesn't replace our JSON body with its HTML error page — that
-    // rewrite was the root cause of the "Unexpected token '<'…" client
-    // crash the maintainer hit when typing a bad OpenAI key.
-    expect(response.status).toBe(422);
-    expect(body.error ?? "").not.toMatch(/sk-/);
-    expect(body.error ?? "").not.toMatch(/api\.openai\.com/);
-    expect(body.error ?? "").not.toMatch(/invalid api key/i);
-    expect(body.error).toBe("Provider rejected the credentials");
+    // Always JSON-parseable, never a 5xx (the Cloudflare HTML-rewrite
+    // root cause of "Unexpected token '<'…").
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.ok).toBe(false);
+    expect(body.data.reason).not.toMatch(/sk-/);
+    expect(body.data.reason).not.toMatch(/api\.openai\.com/);
+    expect(body.data.reason).not.toMatch(/invalid api key/i);
+    expect(body.data.reason).toMatch(/re-authenticate/i);
   });
 
-  it("returns the 429-categorised message when the provider rate-limits", async () => {
+  it("reclassifies a 5xx whose body signals an invalidated session as a credential failure", async () => {
+    // The shape an operator hit: re-auth, gateway answers 500 with
+    // "authentication token has been invalidated" instead of a 401.
+    makeProviderThatThrows(
+      Object.assign(new Error("upstream 500"), {
+        httpStatus: 500 as const,
+        bodyExcerpt:
+          '{"error":{"message":"Your authentication token has been invalidated. Please try signing in again."}}',
+      }),
+    );
+    const response = await POST(emptyRequest() as never);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.ok).toBe(false);
+    expect(body.data.reason).toMatch(/re-authenticate/i);
+  });
+
+  it("categorises a 429 rate-limit", async () => {
     makeProviderThatThrows(
       Object.assign(new Error("429 from openai"), { httpStatus: 429 as const }),
     );
     const response = await POST(emptyRequest() as never);
-    // v1.4.5: rate-limit passes through as 429 (was 502 in v1.4.4) so
-    // the React Query mutation can read the JSON body instead of
-    // tripping over Cloudflare's HTML 502.
-    expect(response.status).toBe(429);
-    expect(((await response.json()) as ApiErrorEnvelope).error).toBe(
-      "Provider rate-limited the request",
-    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.reason).toMatch(/rate-limited/i);
   });
 
-  it("returns the 5xx-categorised message when the provider has a server error", async () => {
+  it("categorises a plain 5xx provider server error (no auth signal)", async () => {
     makeProviderThatThrows(
       Object.assign(new Error("503 upstream"), { httpStatus: 503 as const }),
     );
     const response = await POST(emptyRequest() as never);
-    expect(((await response.json()) as ApiErrorEnvelope).error).toBe(
-      "Provider returned a server error",
-    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.reason).toMatch(/server error/i);
   });
 
-  it("returns the unknown-error fallback otherwise", async () => {
+  it("categorises a network/timeout failure", async () => {
     makeProviderThatThrows(new Error("ECONNRESET"));
     const response = await POST(emptyRequest() as never);
-    expect(((await response.json()) as ApiErrorEnvelope).error).toBe(
-      "Provider connection failed",
-    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as TestFailureEnvelope;
+    expect(body.data.reason).toMatch(/could not reach/i);
   });
 });
 

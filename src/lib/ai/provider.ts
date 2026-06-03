@@ -424,11 +424,21 @@ export async function resolveProviderForTest(
     .toString()
     .trim();
 
-  // Empty selection: fall back to Codex → admin OpenAI like the regular path.
+  // Empty selection ("test my saved config" — the ai-section calls
+  // /api/ai/test with an empty body): resolve via the SAME path generation
+  // uses — the first enabled+credentialed entry of `resolveProviderChain`.
+  // The legacy codex→admin fallback used to probe a different provider than
+  // generation ran (observed: test→admin-key while generation→codex), so a
+  // green test gave no signal about whether overnight generation would
+  // work. Falling through to the chain keeps the two paths in lock-step.
   if (!provider) {
-    const codex = await resolveCodexProvider(userId);
-    if (codex) return codex;
-    return resolveAdminProvider();
+    const chain = await resolveProviderChain(userId);
+    if (chain.length > 0) return chain[0].instance;
+    // Chain empty (no enabled+credentialed entry) — mirror the regular
+    // single-provider resolution one more time before giving up.
+    const legacy = await resolveProvider(userId);
+    if (legacy.type !== "none") return legacy;
+    throw new AITestConfigError(422, "No AI provider configured");
   }
 
   switch (provider) {
