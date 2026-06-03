@@ -77,3 +77,38 @@ export function MedicationComplianceBars({
     </div>
   );
 }
+
+/**
+ * Constant-height placeholder for the compliance block, shown while the
+ * per-card `/compliance` query is in flight or returns null. Without it a
+ * card whose compliance has not yet resolved is ~5rem shorter than a sibling
+ * whose compliance loaded, so the two cards in a 2-col grid row jump to
+ * unequal heights (transiently on first paint, persistently for any med
+ * whose endpoint returns null). The skeleton mirrors the two-bar layout's
+ * footprint so the card body keeps a constant inventory and the action row
+ * pins to the same baseline across the row.
+ *
+ * The streak-flame row height is intentionally NOT reserved — the flame is
+ * gated on `streak > 0` on the loaded card too, so reserving it would make
+ * every streak-less card taller than its own loaded self.
+ */
+export function MedicationComplianceSkeleton() {
+  return (
+    <div className="space-y-2.5" aria-hidden>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="bg-muted h-4 w-20 rounded" />
+          <span className="bg-muted h-4 w-9 rounded" />
+        </div>
+        <div className="bg-muted h-2 rounded" />
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="bg-muted h-4 w-20 rounded" />
+          <span className="bg-muted h-4 w-9 rounded" />
+        </div>
+        <div className="bg-muted h-2 rounded" />
+      </div>
+    </div>
+  );
+}
