@@ -78,8 +78,8 @@ CONTRIBUTING.md
 CONTRIBUTING-AI.md
 CODE_OF_CONDUCT.md
 SECURITY.md
-LICENSE.md
-LICENSE
+# LICENSE / LICENSE.md are deliberately NOT ignored: AGPL-3.0 conveys with
+# the software, so the licence text ships inside the image.
 AGENTS.md
 .planning
 docs
