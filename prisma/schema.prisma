@@ -424,6 +424,10 @@ model User {
   // scoped, time-limited, revocable read view of the health record to a
   // clinician holding the raw `hls_` token (stored only as an HMAC hash).
   clinicianShareLinks         ClinicianShareLink[]
+  // v1.11.0 W1 — durable per-provider AI-health ledger (one row per
+  // provider chain entry) so a known-bad credential is negatively cached
+  // across workers instead of re-burning a 401 every generation.
+  providerHealth              ProviderHealth[]
 
   // v1.7.0 profile — optional patient-identity fields surfaced on the
   // health-record export cover (PDF) and the FHIR `Patient` resource.
@@ -2385,6 +2389,41 @@ model RateLimit {
 
   @@index([resetAt])
   @@map("rate_limits")
+}
+
+/// v1.11.0 W1 — durable, multi-instance provider-health ledger.
+///
+/// Promotes the volatile per-worker `lastWorkingCache`
+/// (`provider-runner.ts`) to Postgres, modelled on the atomic-upsert
+/// rate-limiter pattern so every worker shares one signal. One row per
+/// (user, providerType): the runner records each outcome and reads the
+/// row to (a) deprioritise / skip a provider inside its backoff window
+/// instead of re-burning a dead round-trip every call, and (b) hold a
+/// durable negative-cache for an auth-class failure (401/403 =
+/// credential dead) far longer than the old 1h in-memory TTL, surfacing
+/// it rather than silently retrying.
+///
+/// `nextRetryAt` is the backoff gate: while `lastResult = "auth_failed"`
+/// and NOW() < `nextRetryAt`, the provider is skipped (negative cache).
+/// On a success the row clears to `ok` with a null `nextRetryAt`.
+/// Server-internal: never a Measurement, never ingested from a client.
+model ProviderHealth {
+  id                  String    @id @default(cuid())
+  userId              String    @map("user_id")
+  providerType        String    @map("provider_type") // ProviderChainType tag
+  lastResult          String    @map("last_result") // "ok" | "hard_failed" | "auth_failed"
+  lastStatus          Int?      @map("last_status") // HTTP status of the last failure; null on ok/network
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  lastOkAt            DateTime? @map("last_ok_at")
+  lastFailureAt       DateTime? @map("last_failure_at")
+  nextRetryAt         DateTime? @map("next_retry_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerType])
+  @@index([userId, lastResult])
+  @@map("provider_health")
 }
 
 // ─── Idempotency Keys (mobile-client replay protection) ──

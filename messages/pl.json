@@ -1682,6 +1682,7 @@
       "errorBudget": "Osiągnięto dzienny limit coacha. Limit resetuje się o północy (UTC).",
       "errorProvider": "Coach nie mógł teraz skontaktować się z dostawcą analizy. Spróbuj za chwilę.",
       "errorNetwork": "Brak połączenia z Internetem — spróbuj ponownie, gdy wrócisz online.",
+      "errorCredentialExpired": "Połączenie z dostawcą AI wygasło. Połącz je ponownie w Ustawieniach, aby Coach działał dalej.",
       "tagline": "Osobisty coach zdrowia, oparty na twoich danych.",
       "newChat": "Nowa rozmowa",
       "send": "Wyślij",

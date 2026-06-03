@@ -1682,6 +1682,7 @@
       "errorBudget": "You've reached today's Coach usage limit. The budget refreshes at midnight UTC.",
       "errorProvider": "The Coach could not reach an Insights provider just now. Please try again in a moment.",
       "errorNetwork": "No internet connection — try again once you're back online.",
+      "errorCredentialExpired": "Your AI provider connection has expired. Reconnect it in Settings to keep the Coach running.",
       "tagline": "Personal health coach, grounded in your data.",
       "newChat": "New chat",
       "send": "Send",

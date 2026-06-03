@@ -1682,6 +1682,7 @@
       "errorBudget": "Du hast das heutige Coach-Limit erreicht. Das Budget setzt sich um Mitternacht (UTC) zurück.",
       "errorProvider": "Der Coach konnte gerade keinen Auswertungs-Anbieter erreichen. Bitte versuche es in einem Moment erneut.",
       "errorNetwork": "Keine Internetverbindung — versuche es erneut, sobald du online bist.",
+      "errorCredentialExpired": "Deine Verbindung zum KI-Anbieter ist abgelaufen. Stelle sie in den Einstellungen wieder her, damit der Coach weiterläuft.",
       "tagline": "Persönlicher Gesundheitscoach, auf deine Daten gestützt.",
       "newChat": "Neuer Chat",
       "send": "Senden",

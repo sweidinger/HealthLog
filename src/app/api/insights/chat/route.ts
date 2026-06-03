@@ -336,8 +336,20 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
         meta: {
           attempts: err.attempts.length,
           firstStatus: err.attempts[0]?.httpStatus ?? null,
+          credentialExpired: err.primaryCredentialExpired,
         },
       });
+      // v1.11.0 W1 — when the user's PRIMARY provider failed with an
+      // auth-class status (401/403), the credential is dead, not the
+      // service. Surface a distinct `credential_expired` frame so the
+      // drawer can deep-link the user to reconnect rather than telling
+      // them to "try again later" — the gap that let an expired codex
+      // token silently kill all generation.
+      if (err.primaryCredentialExpired) {
+        return streamProviderError({
+          code: "coach.provider.credential_expired",
+        });
+      }
       // v1.4.25 W5 — distinguish provider rate-limit (every attempt
       // landed on 429) from generic unavailability. The drawer's
       // error-decoder surfaces the rate-limit copy with a warning

@@ -1682,6 +1682,7 @@
       "errorBudget": "Tu as atteint la limite quotidienne du coach. Le quota se réinitialise à minuit (UTC).",
       "errorProvider": "Le coach n’a pas pu joindre un fournisseur d’analyse maintenant. Réessaie dans un instant.",
       "errorNetwork": "Pas de connexion Internet — réessaie une fois reconnecté.",
+      "errorCredentialExpired": "Ta connexion au fournisseur d'IA a expiré. Reconnecte-la dans les Réglages pour que le Coach continue de fonctionner.",
       "tagline": "Coach personnel de santé, ancré sur tes données.",
       "newChat": "Nouvelle conversation",
       "send": "Envoyer",
