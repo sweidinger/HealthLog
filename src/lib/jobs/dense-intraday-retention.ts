@@ -61,6 +61,22 @@ export const DENSE_INTRADAY_RETENTION_CRON = "50 3 * * *";
  */
 export const DENSE_INTRADAY_RETENTION_BOOT_DELAY_SECONDS = 600;
 
+/**
+ * Kill-switch, default OFF. The drain folds out-of-window per-sample rows
+ * into one daily-mean `stats:` row, but its canonical-timestamp upsert
+ * collides with an already-present daily row on the
+ * `(user_id, type, measured_at, source, sleep_stage)` unique constraint
+ * (`P2002`) on real data — a fold-coexistence bug the mocked unit tests
+ * could not surface. Until the fold is reworked + integration-tested
+ * against real rows, the drain is disabled: the boot-discovery enqueues
+ * nothing, the nightly walk is skipped, and the per-user handler no-ops so
+ * any already-queued backlog completes harmlessly instead of erroring.
+ * Re-enable with `DENSE_INTRADAY_RETENTION_ENABLED=true` once fixed. The
+ * Stress proxy degrades gracefully on sparse intra-day data meanwhile.
+ */
+export const DENSE_INTRADAY_RETENTION_ENABLED =
+  process.env.DENSE_INTRADAY_RETENTION_ENABLED === "true";
+
 export interface DenseIntradayRetentionPayload {
   userId: string;
   enqueuedAt: string;
@@ -73,6 +89,11 @@ export interface DenseIntradayRetentionPayload {
 export async function runDenseIntradayRetentionForUser(
   userId: string,
 ): Promise<{ daysConsolidated: number; perSampleRowsSoftDeleted: number }> {
+  // Kill-switch: no-op so any already-queued backlog completes cleanly
+  // (drains the queue) instead of erroring on the P2002 fold collision.
+  if (!DENSE_INTRADAY_RETENTION_ENABLED) {
+    return { daysConsolidated: 0, perSampleRowsSoftDeleted: 0 };
+  }
   const summary = await runDenseIntradayRetention(prisma, {
     userId,
     log: () => {
@@ -114,6 +135,10 @@ export async function enqueueBootTimeDenseIntradayRetention(): Promise<{
   skipped: number;
   error: string | null;
 }> {
+  // Kill-switch: enqueue nothing while the drain is disabled.
+  if (!DENSE_INTRADAY_RETENTION_ENABLED) {
+    return { enqueued: 0, skipped: 0, error: null };
+  }
   const boss = getGlobalBoss();
   if (!boss) {
     return { enqueued: 0, skipped: 0, error: null };

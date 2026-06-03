@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.0.2] — 2026-06-03 — Disable the intra-day retention drain
+
+### Fixed
+
+- **Stops the post-deploy restart loop for good.** The intra-day retention drain (a storage optimisation behind the new stress reading) folded older samples into a daily summary, but on real data that summary collided with an existing daily row and the drain failed on every run, which kept the app cycling after a deploy. The drain is now switched off until it is reworked and tested against real data; the nightly pass is skipped, nothing is queued at start-up, and any work already queued completes harmlessly. No user-facing feature is lost — the stress reading simply falls back to its sparse-data behaviour.
+
 ## [1.10.0.1] — 2026-06-03 — Defer the intra-day retention drain past startup
 
 ### Fixed
