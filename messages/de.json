@@ -2665,6 +2665,10 @@
         "SIX_MINUTE_WALK_BAND": {
           "method": "Die von deinem Gerät GESCHÄTZTE 6-Minuten-Gehstrecke, eingeordnet gegen die Referenz von Enright & Sherrill für Alter, Größe, Gewicht und Geschlecht, als Prozent des Vorhersagewerts. Die Strecke ist die Schätzung des Geräts — hier nie neu berechnet. Ohne Alter, Größe, Gewicht und Geschlecht wird der Prozentwert ausgeblendet und nur Strecke und Trend gezeigt.",
           "caveat": "Eine gegen eine veröffentlichte Referenz neu eingeordnete Schätzung — ein Hinweis zur funktionellen Kapazität, kein klinischer 6-Minuten-Gehtest und keine Diagnose. Die Referenz wurde für Alter 40–80 erstellt; außerhalb dieses Bereichs ist der Vorhersagewert eine Extrapolation."
+        },
+        "TRAJECTORY": {
+          "method": "Eine Ausgleichsgerade (kleinste Quadrate), an deine jüngsten Tageswerte angepasst und über einen kurzen Zeitraum fortgeschrieben — mit dem klassischen Vorhersageintervall, das umso breiter wird, je weiter es reicht. Wird nur berechnet, wenn der jüngste Trend deutlich genug und deine Datenreihe lang und aktuell genug ist; sonst wird keine Linie gezeichnet.",
+          "caveat": "Eine Fortschreibung deines eigenen jüngsten Trends — keine Vorhersage, kein Ziel und keine klinische Prognose. Sie gilt nur, solange das jüngste Muster anhält; das schattierte Band zeigt, wie schnell diese Sicherheit nachlässt."
         }
       },
       "scores": {
@@ -2685,6 +2689,13 @@
         "firedHeadline": "{count} deiner Vitalwerte liegen heute außerhalb ihres persönlichen Bereichs.",
         "factors": "Mögliche Faktoren — nie eine Ursache: ein hartes Training, schlechter Schlaf, Alkohol, Höhe, Stress oder Krankheit. Das ist ein Hinweis aus deinen eigenen Baselines, keine Diagnose.",
         "building": "Deine persönlichen Baselines entstehen — erfasse ein paar Tage mehr, dann erscheint dies."
+      },
+      "trajectory": {
+        "cardTitle": "Kurzfrist-Projektion",
+        "headline": "Wenn dieses Muster anhält — die nächsten {days} Tage",
+        "range": "Projiziert auf rund {low}–{high} {unit} in {days} Tagen.",
+        "caveat": "Eine Fortschreibung deines eigenen jüngsten Trends, keine Vorhersage. Das schattierte Band wird breiter und zeigt, wie schnell die Unsicherheit wächst.",
+        "insufficient": "Noch kein klar genuger Trend für eine Projektion — erfasse weiter, dann erscheint eine Projektion, sobald das jüngste Muster deutlich genug ist."
       }
     },
     "cardioFitness": {

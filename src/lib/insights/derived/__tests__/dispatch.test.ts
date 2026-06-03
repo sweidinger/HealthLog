@@ -52,6 +52,7 @@ describe("registry", () => {
       getDerivedMetricMeta("STAIR_DESCENT_SPEED_BASELINE")?.implemented,
     ).toBe(true);
     expect(getDerivedMetricMeta("SIX_MINUTE_WALK_BAND")?.implemented).toBe(true);
+    expect(getDerivedMetricMeta("TRAJECTORY")?.implemented).toBe(true);
   });
 
   it("isDerivedMetricId rejects unknown ids", () => {
@@ -76,7 +77,8 @@ describe("registry", () => {
     expect(DERIVED_METRIC_IDS).toContain("STAIR_ASCENT_SPEED_BASELINE");
     expect(DERIVED_METRIC_IDS).toContain("STAIR_DESCENT_SPEED_BASELINE");
     expect(DERIVED_METRIC_IDS).toContain("SIX_MINUTE_WALK_BAND");
-    expect(DERIVED_METRIC_IDS.length).toBe(15);
+    expect(DERIVED_METRIC_IDS).toContain("TRAJECTORY");
+    expect(DERIVED_METRIC_IDS.length).toBe(16);
   });
 });
 
@@ -178,6 +180,34 @@ describe("computeDerivedMetric dispatch", () => {
     expect(result.status).toBe("insufficient");
     if (result.status === "insufficient") {
       expect(result.reason).toBe("no_readings_in_window");
+    }
+  });
+
+  it("routes TRAJECTORY to its engine (no data → insufficient, not not_implemented)", async () => {
+    const result = await computeDerivedMetric({
+      metric: "TRAJECTORY",
+      userId: "u1",
+      profile: PROFILE,
+      type: "WEIGHT",
+      now: NOW,
+    });
+    expect(result.status).toBe("insufficient");
+    if (result.status === "insufficient") {
+      expect(result.reason).toBe("no_readings_in_window");
+    }
+  });
+
+  it("returns unsupported_trajectory_type for a bad TRAJECTORY type", async () => {
+    const result = await computeDerivedMetric({
+      metric: "TRAJECTORY",
+      userId: "u1",
+      profile: PROFILE,
+      type: "STEPS",
+      now: NOW,
+    });
+    expect(result.status).toBe("insufficient");
+    if (result.status === "insufficient") {
+      expect(result.reason).toBe("unsupported_trajectory_type");
     }
   });
 

@@ -16,6 +16,7 @@ import { buildInsufficient, nowProvenanceTimestamp } from "./coverage";
 import {
   getDerivedMetricMeta,
   isVitalsBaselineType,
+  isTrajectoryType,
   type DerivedMetricId,
 } from "./registry";
 import {
@@ -30,6 +31,7 @@ import { computeBmi } from "./bmi";
 import { computeSleepScore } from "./sleep-score";
 import { computeReadiness } from "./readiness";
 import { computeCoincidentDeviation } from "./coincident-deviation";
+import { computeTrajectory } from "./trajectory";
 import {
   computeWellnessScore,
   type WellnessScoreType,
@@ -177,6 +179,35 @@ export async function computeDerivedMetric(
         windowDays: args.windowDays,
         now,
       }) as Promise<Derived<unknown>>;
+    case "TRAJECTORY": {
+      // Short-horizon OLS projection over a single chosen metric; defaults
+      // to RESTING_HEART_RATE (the catalogue's canonical example) when the
+      // caller omits one. Validated against the supported projection set —
+      // any other type 422s the same way VITALS_BASELINE does.
+      const requested = args.type ?? "RESTING_HEART_RATE";
+      if (!isTrajectoryType(requested)) {
+        return buildInsufficient<unknown>({
+          coverage: {
+            requiredInputs: 1,
+            presentInputs: 0,
+            historyDays: 0,
+            missing: [requested],
+          },
+          provenance: {
+            inputs: [requested],
+            source: "none",
+            windowDays: 0,
+            computedAt: nowProvenanceTimestamp(now),
+          },
+          reason: "unsupported_trajectory_type",
+        });
+      }
+      return computeTrajectory(args.userId, args.profile, {
+        type: requested as MeasurementType,
+        windowDays: args.windowDays,
+        now,
+      }) as Promise<Derived<unknown>>;
+    }
     case "RECOVERY_SCORE":
     case "STRESS_SCORE":
     case "STRAIN_SCORE":

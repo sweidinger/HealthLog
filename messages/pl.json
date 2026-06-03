@@ -2665,6 +2665,10 @@
         "SIX_MINUTE_WALK_BAND": {
           "method": "SZACOWANY przez Twoje urządzenie dystans sześciominutowego marszu odniesiony do wzorca Enrighta i Sherrilla dla Twojego wieku, wzrostu, wagi i płci, jako procent wartości przewidywanej. Dystans to szacunek urządzenia — nigdy nie jest tu przeliczany. Bez Twojego wieku, wzrostu, wagi i płci procent jest ukryty i pokazywane są tylko dystans i trend.",
           "caveat": "Szacunek odniesiony do opublikowanego wzorca — sygnał wydolności funkcjonalnej, nie kliniczny test sześciominutowego marszu ani diagnoza. Wzorzec opracowano dla wieku 40–80 lat; poza tym zakresem wartość przewidywana jest ekstrapolacją."
+        },
+        "TRAJECTORY": {
+          "method": "Prosta dopasowana metodą najmniejszych kwadratów do Twoich ostatnich wartości dziennych i rzutowana w przód na krótki horyzont, z klasycznym przedziałem predykcji, który poszerza się tym bardziej, im dalej sięga. Obliczana tylko wtedy, gdy ostatni trend jest dość wyraźny, a Twoja historia wystarczająco długa i aktualna; w przeciwnym razie linia nie jest rysowana.",
+          "caveat": "Rzut Twojego własnego ostatniego trendu — nie prognoza, cel ani kliniczne przewidywanie. Sprawdza się tylko, jeśli ostatni wzorzec się utrzyma; zacieniony pas pokazuje, jak szybko ta pewność maleje."
         }
       },
       "scores": {
@@ -2685,6 +2689,13 @@
         "firedHeadline": "Dziś {count} Twoich parametrów życiowych jest poza osobistym zakresem.",
         "factors": "Możliwe czynniki — nigdy przyczyna: intensywny trening, słaby sen, alkohol, wysokość, stres lub choroba. To wskazówka z Twoich własnych baz, nie diagnoza.",
         "building": "Budujemy Twoje osobiste bazy — zarejestruj jeszcze kilka dni, a to się pojawi."
+      },
+      "trajectory": {
+        "cardTitle": "Krótkoterminowy rzut",
+        "headline": "Jeśli ten wzorzec się utrzyma — następne {days} dni",
+        "range": "Rzutowane na około {low}–{high} {unit} za {days} dni.",
+        "caveat": "Rzut Twojego własnego ostatniego trendu, nie prognoza. Zacieniony pas poszerza się, pokazując, jak szybko rośnie niepewność.",
+        "insufficient": "Jeszcze brak wystarczająco wyraźnego trendu do rzutowania — rejestruj dalej, a rzut pojawi się, gdy ostatni wzorzec będzie dość wyraźny."
       }
     },
     "cardioFitness": {

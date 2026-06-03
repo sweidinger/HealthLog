@@ -2665,6 +2665,10 @@
         "SIX_MINUTE_WALK_BAND": {
           "method": "Your device's ESTIMATED six-minute-walk distance placed against the Enright & Sherrill reference for your age, height, weight and sex, as a percent of predicted. The distance is the device's estimate — never recomputed here. Without your age, height, weight and sex the percent is hidden and only the distance and trend are shown.",
           "caveat": "An estimate re-framed against a published reference — a functional-capacity awareness signal, not a clinical 6-minute-walk test or a diagnosis. The reference was established for ages 40–80; outside that range the predicted value is an extrapolation."
+        },
+        "TRAJECTORY": {
+          "method": "A least-squares line fitted to your recent daily values and projected forward over a short horizon, with the textbook prediction interval that widens the further it reaches. Computed only when the recent trend is strong enough and your history is long and current enough; otherwise no line is drawn.",
+          "caveat": "A projection of your own recent trend — not a prediction, a target, or a clinical forecast. It holds only if the recent pattern continues; the shaded band shows how quickly that certainty fades."
         }
       },
       "scores": {
@@ -2685,6 +2689,13 @@
         "firedHeadline": "{count} of your vitals are outside their personal range today.",
         "factors": "Possible factors — never a cause: a hard workout, poor sleep, alcohol, altitude, stress, or illness. This is awareness from your own baselines, not a diagnosis.",
         "building": "Building your personal baselines — track a few more days and this will appear."
+      },
+      "trajectory": {
+        "cardTitle": "Short-horizon projection",
+        "headline": "If this pattern continues — the next {days} days",
+        "range": "Projected around {low}–{high} {unit} in {days} days.",
+        "caveat": "A projection of your own recent trend, not a prediction. The shaded band widens to show how quickly the uncertainty grows.",
+        "insufficient": "Not enough of a clear trend to project yet — keep tracking and a projection will appear once the recent pattern is strong enough."
       }
     },
     "cardioFitness": {

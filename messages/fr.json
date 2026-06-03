@@ -2665,6 +2665,10 @@
         "SIX_MINUTE_WALK_BAND": {
           "method": "La distance de marche de six minutes ESTIMÉE par votre appareil, située par rapport à la référence d’Enright et Sherrill pour votre âge, votre taille, votre poids et votre sexe, en pourcentage de la valeur prédite. La distance est l’estimation de l’appareil — jamais recalculée ici. Sans votre âge, taille, poids et sexe, le pourcentage est masqué et seules la distance et la tendance sont affichées.",
           "caveat": "Une estimation reformulée par rapport à une référence publiée — un indicateur de capacité fonctionnelle, ni un test de marche de six minutes clinique ni un diagnostic. La référence a été établie pour les âges de 40 à 80 ans ; en dehors de cette plage, la valeur prédite est une extrapolation."
+        },
+        "TRAJECTORY": {
+          "method": "Une droite des moindres carrés ajustée à vos valeurs journalières récentes et projetée sur un court horizon, avec l’intervalle de prédiction classique qui s’élargit à mesure qu’il s’éloigne. Calculée uniquement lorsque la tendance récente est suffisamment marquée et que votre historique est assez long et récent ; sinon aucune ligne n’est tracée.",
+          "caveat": "Une projection de votre propre tendance récente — ni une prédiction, ni un objectif, ni un pronostic clinique. Elle ne tient que si le schéma récent se poursuit ; la bande ombrée montre la vitesse à laquelle cette certitude s’estompe."
         }
       },
       "scores": {
@@ -2685,6 +2689,13 @@
         "firedHeadline": "Aujourd’hui, {count} de vos constantes sont hors de leur plage personnelle.",
         "factors": "Facteurs possibles — jamais une cause : un entraînement intense, un mauvais sommeil, l’alcool, l’altitude, le stress ou une maladie. C’est un repère issu de vos propres références, pas un diagnostic.",
         "building": "Construction de vos références personnelles — enregistrez quelques jours de plus et cela apparaîtra."
+      },
+      "trajectory": {
+        "cardTitle": "Projection à court terme",
+        "headline": "Si ce schéma se poursuit — les {days} prochains jours",
+        "range": "Projeté autour de {low}–{high} {unit} dans {days} jours.",
+        "caveat": "Une projection de votre propre tendance récente, pas une prédiction. La bande ombrée s’élargit pour montrer la vitesse à laquelle l’incertitude augmente.",
+        "insufficient": "Pas encore de tendance assez nette pour projeter — continuez à enregistrer et une projection apparaîtra dès que le schéma récent sera suffisamment marqué."
       }
     },
     "cardioFitness": {

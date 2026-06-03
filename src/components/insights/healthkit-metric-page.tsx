@@ -15,6 +15,8 @@ import type { ChartOverlayKey } from "@/lib/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { MetricStatusCard } from "@/components/insights/metric-status-card";
+import { TrajectoryForecastCard } from "@/components/insights/derived/trajectory-forecast-card";
+import { isTrajectoryType } from "@/lib/insights/derived/registry";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
@@ -118,6 +120,17 @@ export interface HealthKitMetricPageProps {
    * is a compile error, not a silent 422.
    */
   statusMetric?: MetricStatusMetricId;
+  /**
+   * v1.11.0 (Epic B, Pillar 3) — when `true`, mounts the short-horizon
+   * `<TrajectoryForecastCard>` beneath the chart for this metric (the page's
+   * `measurementType`). Opt-in: a page sets it only for a slow daily
+   * physiological series where a conservative 7–14-day OLS projection reads
+   * honestly. The card is only rendered on the data-bearing branch and only
+   * when the type is a supported trajectory metric; the engine still gates
+   * on R² / history / staleness, so a flat or noisy series shows the calm
+   * "no trend to project yet" state rather than a line.
+   */
+  forecast?: boolean;
 }
 
 export function HealthKitMetricPage({
@@ -136,6 +149,7 @@ export function HealthKitMetricPage({
   explainerMetric,
   targetSummarySlug,
   statusMetric,
+  forecast = false,
 }: HealthKitMetricPageProps) {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -233,6 +247,15 @@ export function HealthKitMetricPage({
         <MetricStatusCard
           metric={statusMetric}
           icon={<Sparkles className="h-5 w-5" />}
+          enabled={!isEmpty}
+        />
+      ) : null}
+      {forecast && isTrajectoryType(measurementType) ? (
+        <TrajectoryForecastCard
+          type={measurementType}
+          unit={yAxisUnit ?? unit}
+          valueScale={valueScale}
+          color={color}
           enabled={!isEmpty}
         />
       ) : null}

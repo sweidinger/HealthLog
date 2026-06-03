@@ -17,6 +17,7 @@ import { MeasurementDiversityNudge } from "@/components/insights/measurement-div
 import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
+import { TrajectoryForecastCard } from "@/components/insights/derived/trajectory-forecast-card";
 import { buildWeightBandsFromHeight } from "@/lib/analytics/value-bands";
 
 /**
@@ -102,6 +103,13 @@ export default function InsightsGewichtPage() {
       />
 
       <MetricTargetSummary slug="weight" />
+
+      <TrajectoryForecastCard
+        type="WEIGHT"
+        unit="kg"
+        color="#bd93f9"
+        enabled={!isEmpty}
+      />
 
       <InsightStatusCard
         title={t("insights.assessmentTitle")}

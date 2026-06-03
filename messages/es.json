@@ -2665,6 +2665,10 @@
         "SIX_MINUTE_WALK_BAND": {
           "method": "La distancia ESTIMADA de marcha de seis minutos de tu dispositivo situada frente a la referencia de Enright y Sherrill para tu edad, estatura, peso y sexo, como porcentaje de lo previsto. La distancia es la estimación del dispositivo: nunca se recalcula aquí. Sin tu edad, estatura, peso y sexo se oculta el porcentaje y solo se muestran la distancia y la tendencia.",
           "caveat": "Una estimación reformulada frente a una referencia publicada: una señal de capacidad funcional, no una prueba clínica de marcha de seis minutos ni un diagnóstico. La referencia se estableció para edades de 40 a 80 años; fuera de ese rango el valor previsto es una extrapolación."
+        },
+        "TRAJECTORY": {
+          "method": "Una recta de mínimos cuadrados ajustada a tus valores diarios recientes y proyectada hacia delante en un horizonte corto, con el intervalo de predicción clásico que se ensancha cuanto más lejos llega. Solo se calcula cuando la tendencia reciente es lo bastante marcada y tu historial es lo bastante largo y actual; de lo contrario no se traza ninguna línea.",
+          "caveat": "Una proyección de tu propia tendencia reciente, no una predicción, un objetivo ni un pronóstico clínico. Solo se cumple si el patrón reciente continúa; la banda sombreada muestra con qué rapidez se desvanece esa certeza."
         }
       },
       "scores": {
@@ -2685,6 +2689,13 @@
         "firedHeadline": "Hoy, {count} de tus constantes están fuera de su rango personal.",
         "factors": "Posibles factores, nunca una causa: un entrenamiento intenso, dormir mal, alcohol, altitud, estrés o una enfermedad. Es un aviso a partir de tus propias bases, no un diagnóstico.",
         "building": "Construyendo tus bases personales: registra unos días más y esto aparecerá."
+      },
+      "trajectory": {
+        "cardTitle": "Proyección a corto plazo",
+        "headline": "Si este patrón continúa: los próximos {days} días",
+        "range": "Proyectado en torno a {low}–{high} {unit} en {days} días.",
+        "caveat": "Una proyección de tu propia tendencia reciente, no una predicción. La banda sombreada se ensancha para mostrar la rapidez con que crece la incertidumbre.",
+        "insufficient": "Aún no hay una tendencia lo bastante clara para proyectar: sigue registrando y aparecerá una proyección cuando el patrón reciente sea lo bastante marcado."
       }
     },
     "cardioFitness": {

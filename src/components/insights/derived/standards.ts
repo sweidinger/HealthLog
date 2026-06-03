@@ -164,4 +164,13 @@ export const METRIC_PROVENANCE: Record<DerivedMetricId, MetricProvenanceMeta> = 
     },
     caveatKey: "insights.derived.composite.SIX_MINUTE_WALK_BAND.caveat",
   },
+  TRAJECTORY: {
+    methodKey: "insights.derived.composite.TRAJECTORY.method",
+    standard: {
+      // Ordinary least squares + the textbook OLS prediction interval.
+      name: "Montgomery, Peck & Vining 2012, Intro. to Linear Regression Analysis",
+      url: "https://www.wiley.com/en-us/Introduction+to+Linear+Regression+Analysis%2C+5th+Edition-p-9780470542811",
+    },
+    caveatKey: "insights.derived.composite.TRAJECTORY.caveat",
+  },
 };

@@ -2665,6 +2665,10 @@
         "SIX_MINUTE_WALK_BAND": {
           "method": "La distanza di cammino di sei minuti STIMATA dal tuo dispositivo, collocata rispetto al riferimento di Enright e Sherrill per la tua età, altezza, peso e sesso, come percentuale del previsto. La distanza è la stima del dispositivo — mai ricalcolata qui. Senza età, altezza, peso e sesso la percentuale è nascosta e vengono mostrate solo distanza e tendenza.",
           "caveat": "Una stima riformulata rispetto a un riferimento pubblicato — un segnale di capacità funzionale, non un test del cammino di sei minuti clinico né una diagnosi. Il riferimento è stato stabilito per le età 40–80; al di fuori di questo intervallo il valore previsto è un’estrapolazione."
+        },
+        "TRAJECTORY": {
+          "method": "Una retta ai minimi quadrati adattata ai tuoi valori giornalieri recenti e proiettata in avanti su un breve orizzonte, con l’intervallo di previsione classico che si allarga man mano che si estende. Calcolata solo quando la tendenza recente è abbastanza marcata e la tua cronologia è abbastanza lunga e aggiornata; altrimenti non viene tracciata alcuna linea.",
+          "caveat": "Una proiezione della tua tendenza recente — non una previsione, un obiettivo o una prognosi clinica. Vale solo se lo schema recente continua; la banda ombreggiata mostra quanto rapidamente quella certezza svanisce."
         }
       },
       "scores": {
@@ -2685,6 +2689,13 @@
         "firedHeadline": "Oggi {count} dei tuoi parametri vitali sono fuori dal loro intervallo personale.",
         "factors": "Possibili fattori — mai una causa: un allenamento intenso, poco sonno, alcol, altitudine, stress o una malattia. È un avviso basato sui tuoi parametri, non una diagnosi.",
         "building": "Stiamo costruendo i tuoi riferimenti personali — registra ancora qualche giorno e comparirà."
+      },
+      "trajectory": {
+        "cardTitle": "Proiezione a breve termine",
+        "headline": "Se questo schema continua — i prossimi {days} giorni",
+        "range": "Proiettato intorno a {low}–{high} {unit} tra {days} giorni.",
+        "caveat": "Una proiezione della tua tendenza recente, non una previsione. La banda ombreggiata si allarga per mostrare quanto rapidamente cresce l’incertezza.",
+        "insufficient": "Non c’è ancora una tendenza abbastanza chiara da proiettare — continua a registrare e comparirà una proiezione quando lo schema recente sarà abbastanza marcato."
       }
     },
     "cardioFitness": {

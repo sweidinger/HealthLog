@@ -54,7 +54,9 @@ export type DerivedMetricId =
   /** v1.10.3: stair-descent-speed personal trend band (baseline engine). */
   | "STAIR_DESCENT_SPEED_BASELINE"
   /** v1.10.3: estimated 6-minute-walk distance vs Enright-predicted (passthrough re-frame). */
-  | "SIX_MINUTE_WALK_BAND";
+  | "SIX_MINUTE_WALK_BAND"
+  /** v1.11.0 (Epic B): short-horizon OLS projection with a widening prediction band. */
+  | "TRAJECTORY";
 
 // Documented-as-omitted (v1.10.3): two additive HealthKit signals stay
 // trend-only with NO derived band, on purpose —
@@ -266,6 +268,20 @@ const REGISTRY: Record<DerivedMetricId, DerivedMetricMeta> = {
     minInputs: 1,
     implemented: true,
   },
+  TRAJECTORY: {
+    id: "TRAJECTORY",
+    // Short-horizon OLS projection over a single chosen metric. The caller
+    // selects the projected type via the route's `type` opt (validated
+    // against `TRAJECTORY_TYPES`); below the R²/history/staleness floor the
+    // engine returns `insufficient`, never a weak line — so the
+    // `minHistoryDays` here documents the engine's own 14-day fit floor.
+    displayName: "Short-horizon projection",
+    archetype: "any-user-baseline",
+    inputs: VITALS_BASELINE_TYPES,
+    minHistoryDays: 14,
+    minInputs: 1,
+    implemented: true,
+  },
 };
 
 /** Closed set of ids the generic route accepts (Zod enum source). */
@@ -286,4 +302,17 @@ export function getDerivedMetricMeta(
 /** `true` when the type is a vital the baseline engine supports. */
 export function isVitalsBaselineType(type: string): boolean {
   return (VITALS_BASELINE_TYPES as string[]).includes(type);
+}
+
+/**
+ * The metrics the short-horizon `TRAJECTORY` engine supports. Reuses the
+ * vitals baseline set — slow, daily physiological day-series for which a
+ * conservative 7–14-day OLS projection is honest; the engine gates anything
+ * without a real trend out to `insufficient` regardless.
+ */
+export const TRAJECTORY_TYPES: MeasurementType[] = VITALS_BASELINE_TYPES;
+
+/** `true` when the type is a metric the trajectory engine supports. */
+export function isTrajectoryType(type: string): boolean {
+  return (TRAJECTORY_TYPES as string[]).includes(type);
 }
