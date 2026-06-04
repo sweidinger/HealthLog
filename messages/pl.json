@@ -3100,6 +3100,7 @@
         "title": "Eksportuj",
         "description": "Pobierz swoje dane zdrowotne jako PDF, CSV lub pełną kopię zapasową JSON.",
         "otherOptionsHeading": "Inne opcje eksportu",
+        "downloadFailed": "Nie udało się pobrać eksportu. Spróbuj ponownie.",
         "hero": {
           "eyebrow": "Wizyta u lekarza",
           "valueStatement": "Raport PDF do druku na wizytę u lekarza — parametry życiowe, BMI, klasyfikacja ciśnienia, przestrzeganie leczenia oraz (opcjonalnie) zapis nastroju, na kilku stronach.",

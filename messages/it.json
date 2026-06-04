@@ -3100,6 +3100,7 @@
         "title": "Esporta",
         "description": "Scarica i tuoi dati sanitari come PDF, CSV o backup JSON completo.",
         "otherOptionsHeading": "Altre opzioni di esportazione",
+        "downloadFailed": "Impossibile scaricare l'esportazione. Riprova.",
         "hero": {
           "eyebrow": "Visita medica",
           "valueStatement": "Un referto PDF stampabile per la visita medica — parametri vitali, BMI, classificazione della pressione, aderenza alla terapia e (facoltativamente) l'andamento dell'umore, in poche pagine.",

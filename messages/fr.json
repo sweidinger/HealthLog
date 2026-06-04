@@ -3100,6 +3100,7 @@
         "title": "Exporter",
         "description": "Téléchargez vos données de santé en PDF, CSV ou sauvegarde JSON complète.",
         "otherOptionsHeading": "Autres options d'export",
+        "downloadFailed": "Échec du téléchargement de l'export. Veuillez réessayer.",
         "hero": {
           "eyebrow": "Rendez-vous médical",
           "valueStatement": "Un rapport PDF imprimable pour votre rendez-vous médical — constantes, IMC, classification de tension, observance des traitements et (en option) historique de l'humeur, en quelques pages.",

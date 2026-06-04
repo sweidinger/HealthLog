@@ -3100,6 +3100,7 @@
         "title": "Exportar",
         "description": "Descarga tus datos de salud como PDF, CSV o una copia de seguridad JSON completa.",
         "otherOptionsHeading": "Otras opciones de exportación",
+        "downloadFailed": "No se pudo descargar la exportación. Inténtalo de nuevo.",
         "hero": {
           "eyebrow": "Cita médica",
           "valueStatement": "Un informe PDF imprimible para tu cita médica — constantes, IMC, clasificación de la tensión, cumplimiento de la medicación y (opcionalmente) el estado de ánimo, en pocas páginas.",

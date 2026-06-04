@@ -3100,6 +3100,7 @@
         "title": "Export",
         "description": "Download your health data as PDF, CSV, or a full JSON backup.",
         "otherOptionsHeading": "Other export options",
+        "downloadFailed": "Couldn't download the export. Please try again.",
         "hero": {
           "eyebrow": "Doctor visit",
           "valueStatement": "A printable PDF report for your doctor's appointment — vitals, BMI, blood-pressure classification, medication compliance and (optionally) mood, all on a few pages.",

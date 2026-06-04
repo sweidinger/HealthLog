@@ -3100,6 +3100,7 @@
         "title": "Export",
         "description": "Lade deine Gesundheitsdaten als PDF, CSV oder vollständiges JSON-Backup herunter.",
         "otherOptionsHeading": "Weitere Export-Optionen",
+        "downloadFailed": "Der Export konnte nicht heruntergeladen werden. Bitte versuche es erneut.",
         "hero": {
           "eyebrow": "Arzttermin",
           "valueStatement": "Ein druckbarer PDF-Bericht für den Arzttermin — Vitalwerte, BMI, Blutdruck-Klassifikation, Medikamenten-Compliance und (optional) Stimmungsverlauf, alles auf wenigen Seiten.",
