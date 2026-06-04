@@ -127,12 +127,17 @@ test.describe("/settings/integrations Pixel-5 layout", () => {
 
     // Wait for the pills to mount (queries resolve after first paint).
     const pills = page.locator('[data-testid="integration-status-pill"]');
-    await expect(pills).toHaveCount(2, { timeout: 10_000 });
+    // Three integration cards now (Withings, moodLog, WHOOP) → three pills.
+    await expect(pills).toHaveCount(3, { timeout: 10_000 });
 
-    // Each pill carries the data-state marker so we know the
-    // pill rendered the connected branch with relative time.
-    await expect(pills.nth(0)).toHaveAttribute("data-state", "connected");
-    await expect(pills.nth(1)).toHaveAttribute("data-state", "connected");
+    // Withings + moodLog are connected in this fixture; WHOOP is a BYO-keys
+    // card that stays dormant until an operator adds credentials, so assert
+    // the two connected pills order-independently.
+    await expect(
+      page.locator(
+        '[data-testid="integration-status-pill"][data-state="connected"]',
+      ),
+    ).toHaveCount(2);
 
     // The redundant v1.4.18 banner must be gone.
     await expect(
