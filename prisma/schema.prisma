@@ -2629,6 +2629,13 @@ model CoachConversation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // v1.11.0 — rolling encrypted summary of the elided older turns, so a long
+  // conversation keeps memory of what came before without re-sending every
+  // turn to the provider. AES-256-GCM (same codec as CoachMessage.encrypted).
+  summaryEncrypted Bytes?    @map("summary_encrypted")
+  summaryUpdatedAt DateTime? @map("summary_updated_at")
+  summaryTurnCount Int       @default(0) @map("summary_turn_count")
+
   user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages CoachMessage[]
 
