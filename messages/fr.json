@@ -2784,19 +2784,19 @@
       "loadError": "Impossible de charger les notifications de votre appareil.",
       "disclaimer": "Ce sont des alertes que votre appareil a produites avec sa propre détection intégrée. Elles sont affichées ici uniquement à titre informatif. Il ne s’agit pas d’une évaluation médicale de HealthLog, et HealthLog ne pose aucun diagnostic. Si une notification vous inquiète, parlez-en à votre médecin.",
       "event": {
-        "irregularRhythm": "Irregular rhythm notification",
-        "highHeartRate": "High heart rate notification",
-        "lowHeartRate": "Low heart rate notification",
-        "walkingSteadiness": "Walking steadiness alert",
-        "breathingDisturbance": "Breathing disturbance during sleep"
+        "irregularRhythm": "Notification de rythme irrégulier",
+        "highHeartRate": "Notification de fréquence cardiaque élevée",
+        "lowHeartRate": "Notification de fréquence cardiaque basse",
+        "walkingSteadiness": "Alerte de stabilité à la marche",
+        "breathingDisturbance": "Trouble respiratoire pendant le sommeil"
       },
       "verdict": {
-        "irregular": "Your device flagged a possible irregular rhythm.",
-        "notDetected": "Your device did not flag an irregular rhythm.",
-        "inconclusive": "Your device could not make a reading.",
-        "low": "Your device flagged low walking steadiness.",
-        "veryLow": "Your device flagged very low walking steadiness.",
-        "fired": "Your device flagged this event."
+        "irregular": "Votre appareil a détecté un possible rythme irrégulier.",
+        "notDetected": "Votre appareil n’a pas détecté de rythme irrégulier.",
+        "inconclusive": "Votre appareil n’a pas pu effectuer de mesure.",
+        "low": "Votre appareil a détecté une faible stabilité à la marche.",
+        "veryLow": "Votre appareil a détecté une très faible stabilité à la marche.",
+        "fired": "Votre appareil a signalé cet événement."
       }
     }
   },

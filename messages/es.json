@@ -2784,19 +2784,19 @@
       "loadError": "No se pudieron cargar las notificaciones de tu dispositivo.",
       "disclaimer": "Estas son alertas que tu dispositivo generó con su propia detección integrada. Se muestran aquí solo para tu información. No es una evaluación médica de HealthLog, y HealthLog no diagnostica ninguna afección. Si una notificación te preocupa, habla con tu médico.",
       "event": {
-        "irregularRhythm": "Irregular rhythm notification",
-        "highHeartRate": "High heart rate notification",
-        "lowHeartRate": "Low heart rate notification",
-        "walkingSteadiness": "Walking steadiness alert",
-        "breathingDisturbance": "Breathing disturbance during sleep"
+        "irregularRhythm": "Notificación de ritmo irregular",
+        "highHeartRate": "Notificación de frecuencia cardíaca alta",
+        "lowHeartRate": "Notificación de frecuencia cardíaca baja",
+        "walkingSteadiness": "Alerta de estabilidad al caminar",
+        "breathingDisturbance": "Alteración respiratoria durante el sueño"
       },
       "verdict": {
-        "irregular": "Your device flagged a possible irregular rhythm.",
-        "notDetected": "Your device did not flag an irregular rhythm.",
-        "inconclusive": "Your device could not make a reading.",
-        "low": "Your device flagged low walking steadiness.",
-        "veryLow": "Your device flagged very low walking steadiness.",
-        "fired": "Your device flagged this event."
+        "irregular": "Tu dispositivo detectó un posible ritmo irregular.",
+        "notDetected": "Tu dispositivo no detectó un ritmo irregular.",
+        "inconclusive": "Tu dispositivo no pudo realizar una medición.",
+        "low": "Tu dispositivo detectó una estabilidad al caminar baja.",
+        "veryLow": "Tu dispositivo detectó una estabilidad al caminar muy baja.",
+        "fired": "Tu dispositivo señaló este evento."
       }
     }
   },

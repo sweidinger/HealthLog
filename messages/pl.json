@@ -2784,19 +2784,19 @@
       "loadError": "Nie udało się wczytać powiadomień urządzenia.",
       "disclaimer": "To alerty wygenerowane przez Twoje urządzenie za pomocą jego wbudowanego wykrywania. Są tu pokazywane wyłącznie dla Twojej informacji. To nie jest ocena medyczna wykonana przez HealthLog, a HealthLog nie diagnozuje żadnych schorzeń. Jeśli powiadomienie Cię niepokoi, skontaktuj się z lekarzem.",
       "event": {
-        "irregularRhythm": "Irregular rhythm notification",
-        "highHeartRate": "High heart rate notification",
-        "lowHeartRate": "Low heart rate notification",
-        "walkingSteadiness": "Walking steadiness alert",
-        "breathingDisturbance": "Breathing disturbance during sleep"
+        "irregularRhythm": "Powiadomienie o nieregularnym rytmie",
+        "highHeartRate": "Powiadomienie o wysokim tętnie",
+        "lowHeartRate": "Powiadomienie o niskim tętnie",
+        "walkingSteadiness": "Alert o stabilności chodu",
+        "breathingDisturbance": "Zaburzenie oddychania podczas snu"
       },
       "verdict": {
-        "irregular": "Your device flagged a possible irregular rhythm.",
-        "notDetected": "Your device did not flag an irregular rhythm.",
-        "inconclusive": "Your device could not make a reading.",
-        "low": "Your device flagged low walking steadiness.",
-        "veryLow": "Your device flagged very low walking steadiness.",
-        "fired": "Your device flagged this event."
+        "irregular": "Twoje urządzenie wykryło możliwy nieregularny rytm.",
+        "notDetected": "Twoje urządzenie nie wykryło nieregularnego rytmu.",
+        "inconclusive": "Twoje urządzenie nie mogło wykonać pomiaru.",
+        "low": "Twoje urządzenie wykryło niską stabilność chodu.",
+        "veryLow": "Twoje urządzenie wykryło bardzo niską stabilność chodu.",
+        "fired": "Twoje urządzenie zgłosiło to zdarzenie."
       }
     }
   },
