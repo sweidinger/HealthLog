@@ -249,6 +249,13 @@ export const DISCOVERY_OUTCOMES = [
   "HEART_RATE_VARIABILITY",
   "RESTING_HEART_RATE",
   "WEIGHT",
+  // v1.11.5 (F3) — mood is now an OUTCOME channel too, not only a behaviour.
+  // The discovery loop skips the MOOD→MOOD self-pair (`b.key === o.key`), so
+  // promoting it lets the FDR scan surface "behaviour today → next-day mood"
+  // relations (e.g. more daylight today → better mood tomorrow) in addition
+  // to the existing "mood today → next-day outcome" direction. BH-FDR
+  // already controls the larger pair family this opens up.
+  "MOOD",
   // Wrist temperature is a credible future OUTCOME channel (near-daily, so
   // n ≥ 20 is reachable; "did a hard workout / late alcohol raise next-night
   // temperature?"), but it is deliberately NOT a channel yet: it is

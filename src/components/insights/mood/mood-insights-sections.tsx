@@ -50,6 +50,7 @@ import {
   MoodBetterDays,
   type MoodBetterDayFactor,
 } from "./mood-better-days";
+import { MoodDiscoveredRelations } from "./mood-discovered-relations";
 
 /**
  * v1.8.5 — additional Mood Insights sections.
@@ -250,6 +251,11 @@ export function MoodInsightsSections() {
           bloodPressureSystolic={data.correlations.bloodPressureSystolic}
         />
       </div>
+
+      {/* F3 — the FDR-controlled discovered mood relations. Self-fetches the
+          correlation-discovery surface and renders nothing when the operator
+          disabled it, while loading, or when no mood pair cleared the bar. */}
+      <MoodDiscoveredRelations />
     </div>
   );
 }
