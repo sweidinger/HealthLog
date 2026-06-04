@@ -55,6 +55,7 @@ import {
   fetchConversationWithMessages,
   listConversations,
 } from "@/lib/ai/coach/persistence";
+import { enqueueCoachMemoryRefresh } from "@/lib/ai/coach/coach-memory-shared";
 import {
   buildDateKey,
   enforceBudget,
@@ -109,23 +110,26 @@ interface CoachTurn {
  * `{ role, content }` chat shape the provider clients expect.
  *
  * Also enforces the 20-turn cap: when the conversation history exceeds
- * `TURN_CAP`, the older half is folded into a single synthetic
- * "[summary]" user message so the prompt budget stays bounded. This is
- * best-effort — we don't pay for a separate provider call to summarise;
- * we just keep the last `RECENT_HISTORY` turns verbatim and prepend a
- * placeholder line that names the elided count.
+ * `TURN_CAP`, the older half is folded out of the verbatim window. v1.11.1 —
+ * if a rolling summary of those elided turns is on file
+ * (`CoachConversation.summaryEncrypted`, refreshed off-budget by the
+ * coach-memory-refresh worker) it is prepended so the Coach keeps memory of
+ * the older conversation; otherwise we fall back to a placeholder that just
+ * names the elided count (the pre-v1.11.1 behaviour). The summary is read
+ * stale-while-revalidate — the current turn uses whatever is on disk, the
+ * enqueued refresh makes the next long turn fresh.
  */
-function buildHistoryWindow(turns: CoachTurn[]): CoachTurn[] {
+function buildHistoryWindow(
+  turns: CoachTurn[],
+  summary: string | null,
+): CoachTurn[] {
   if (turns.length <= TURN_CAP) return turns;
   const elided = turns.length - RECENT_HISTORY;
   const recent = turns.slice(turns.length - RECENT_HISTORY);
-  return [
-    {
-      role: "user",
-      content: `[summary placeholder — ${elided} earlier turns elided to stay within the conversation budget]`,
-    },
-    ...recent,
-  ];
+  const memo = summary
+    ? `[earlier conversation summary] ${summary}`
+    : `[summary placeholder — ${elided} earlier turns elided to stay within the conversation budget]`;
+  return [{ role: "user", content: memo }, ...recent];
 }
 
 async function handleChatRequest(request: NextRequest): Promise<Response> {
@@ -197,6 +201,9 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // ── Conversation resolution ──────────────────────────────────
   let workingConversationId: string;
   let priorTurns: CoachTurn[] = [];
+  // v1.11.1 — rolling summary of the elided older turns, read stale-while-
+  // revalidate; null for a fresh conversation or when none is on file.
+  let priorSummary: string | null = null;
 
   if (conversationId) {
     const existing = await fetchConversationWithMessages(
@@ -208,6 +215,7 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
       throw new HttpError(404, "coach.conversation.notFound");
     }
     workingConversationId = existing.id;
+    priorSummary = existing.summary ?? null;
     priorTurns = existing.messages.map((m) => ({
       role: m.role,
       content: m.content,
@@ -286,10 +294,24 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
       : scope;
   const snapshot = await buildCoachSnapshot(userId, effectiveScope);
   const systemPrompt = getCoachSystemPrompt(locale, coachPrefs);
-  const window = buildHistoryWindow([
+  const allTurns: CoachTurn[] = [
     ...priorTurns,
     { role: "user", content: message },
-  ]);
+  ];
+  const window = buildHistoryWindow(allTurns, priorSummary);
+  // v1.11.1 — once a conversation grows past the history cap, refresh the
+  // rolling summary + extract durable facts off the request path. Fire-and-
+  // forget: this turn uses whatever summary is already on disk; the refresh
+  // makes the next long turn fresh. No-ops without an embedded worker.
+  if (allTurns.length > TURN_CAP) {
+    void enqueueCoachMemoryRefresh({
+      conversationId: workingConversationId,
+      userId,
+      // Coach memory prose is composed in de/en only (the snapshot's
+      // coachLocale); collapse the wider UI locale union here.
+      locale: locale === "en" ? "en" : "de",
+    });
+  }
   const transcript = window
     .map((t) => `${t.role.toUpperCase()}: ${t.content}`)
     .join("\n\n");

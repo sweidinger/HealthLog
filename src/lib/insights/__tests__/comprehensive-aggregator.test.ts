@@ -14,6 +14,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db", () => ({
   prisma: {
     $queryRaw: vi.fn(),
+    // v1.11.1 — the data-aggregate queries inside `buildFromRollups`
+    // and `buildFromLiveAggregate` now splice a whitelisted source-rank
+    // CASE and bind `userId` as `$1`, so the narrow/heavy aggregate +
+    // the latests pass run via `$queryRawUnsafe(sql, userId)` rather
+    // than the tagged-template `$queryRaw`. The coverage probe and the
+    // first_at query stay on `$queryRaw`.
+    $queryRawUnsafe: vi.fn(),
+    // v1.11.1 — `loadUserSourcePriority` reads the user's
+    // `sourcePriorityJson` to build the rank ladders. `null` here →
+    // default ladders.
+    user: { findUnique: vi.fn() },
     measurement: { findMany: vi.fn(), findFirst: vi.fn() },
     // v1.4.36 — the rollup read inside the Promise.all + the
     // freshness watermark inside `ensureUserRollupsFresh`. We mock
@@ -29,10 +40,39 @@ vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
 
+// v1.11.1 — `buildFromRollups` / `buildFromLiveAggregate` build a
+// source-rank CASE via `@/lib/analytics/source-rank-sql` and splice it
+// into the data-aggregate SQL. The builder's own correctness is pinned
+// in its dedicated suite (and the integration suite runs the real SQL);
+// here we stub it to deterministic, side-effect-free fragments so the
+// aggregator's plumbing — path selection, bpRaw threading, dailyByType
+// composition — is exercised without coupling the unit test to the rank
+// builder's enum-whitelist internals.
+vi.mock("@/lib/analytics/source-rank-sql", () => ({
+  buildSourceRankCase: vi.fn(() => "90"),
+  canonicalMeasurementsFrom: vi.fn(
+    (_rank: string, sinceInterval?: string) =>
+      `(
+        SELECT mm.*
+        FROM measurements mm
+        WHERE mm."user_id" = $1
+          AND mm."deleted_at" IS NULL
+          ${
+            sinceInterval
+              ? `AND mm."measured_at" >= NOW() - INTERVAL '${sinceInterval}'`
+              : ""
+          }
+      ) m`,
+  ),
+}));
+
 import { prisma } from "@/lib/db";
 import { buildComprehensiveAggregate } from "../comprehensive-aggregator";
 
 const RAW = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
+const UNSAFE = prisma.$queryRawUnsafe as unknown as ReturnType<typeof vi.fn>;
+const USER_FIND_UNIQUE =
+  prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const FIND_MANY =
   prisma.measurement.findMany as unknown as ReturnType<typeof vi.fn>;
 const MEASUREMENT_FIND_FIRST =
@@ -44,10 +84,14 @@ const ROLLUP_FIND_FIRST =
 
 beforeEach(() => {
   RAW.mockReset();
+  UNSAFE.mockReset();
+  USER_FIND_UNIQUE.mockReset();
   FIND_MANY.mockReset();
   MEASUREMENT_FIND_FIRST.mockReset();
   ROLLUP_FIND_MANY.mockReset();
   ROLLUP_FIND_FIRST.mockReset();
+  // null → loadUserSourcePriority returns null → default rank ladders.
+  USER_FIND_UNIQUE.mockResolvedValue(null);
   // `ensureUserRollupsFresh` calls `prisma.measurement.findFirst` and
   // `prisma.measurementRollup.findFirst` in parallel. Default both to
   // null so the warm-up is a no-op; individual tests opt in to a
@@ -65,41 +109,47 @@ describe("buildComprehensiveAggregate", () => {
   describe("rollup-fresh happy path", () => {
     it("skips the heavy live aggregate when the rollup table is populated", async () => {
       const now = new Date();
-      // 1. per-type coverage probe — WEIGHT fully covered ⇒ happy path.
-      // 2. narrow aggregate ($queryRaw) — windowed/regression columns only.
-      // 3. latests ($queryRaw).
-      // 4. firstMeasurementAt ($queryRaw).
+      // v1.11.1 — the coverage probe + the first_at query stay on
+      // `$queryRaw` (2 RAW calls); the narrow aggregate + the latests
+      // pass moved to `$queryRawUnsafe`:
+      // RAW:    1. per-type coverage probe — WEIGHT covered ⇒ happy path.
+      //         2. firstMeasurementAt.
+      // UNSAFE: 1. narrow aggregate — windowed/regression columns only.
+      //         2. latests.
       RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }])
-        .mockResolvedValueOnce([
-          {
-            type: "WEIGHT",
-            count: BigInt(42),
-            stddev_value: 1.2,
-            anomaly_count: BigInt(3),
-            avg7: 81.9,
-            avg30: 82.1,
-            avg30_last_month: 83.0,
-            slope7: -0.014,
-            r2_7: 0.65,
-            slope30: -0.005,
-            r2_30: 0.42,
-            slope90: 0.001,
-            r2_90: 0.12,
-          },
-        ])
-        .mockResolvedValueOnce([
-          { type: "WEIGHT", value: 81.4, measured_at: now },
-        ])
         .mockResolvedValueOnce([
           { first_at: new Date(now.getTime() - 86400000) },
         ]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "WEIGHT",
+          count: BigInt(42),
+          stddev_value: 1.2,
+          anomaly_count: BigInt(3),
+          avg7: 81.9,
+          avg30: 82.1,
+          avg30_last_month: 83.0,
+          slope7: -0.014,
+          r2_7: 0.65,
+          slope30: -0.005,
+          r2_30: 0.42,
+          slope90: 0.001,
+          r2_90: 0.12,
+        },
+      ]).mockResolvedValueOnce([
+        { type: "WEIGHT", value: 81.4, measured_at: now },
+      ]);
 
       // DAY buckets compose to count=42, min=79.2, max=84.1, mean=82.05.
       // The summary's count/min/max/mean read from these buckets — NOT
-      // from a heavy live aggregate column.
+      // from a heavy live aggregate column. v1.11.1 — each bucket row
+      // now carries a `source` so `partitionBucketsByType` →
+      // `collapseRollupRowsBySource` can resolve dual-source days; with
+      // a single source per day every bucket passes through unchanged.
       ROLLUP_FIND_MANY.mockResolvedValueOnce([
         {
           type: "WEIGHT",
+          source: "APPLE_HEALTH",
           bucketStart: new Date("2026-05-10T00:00:00.000Z"),
           count: 20,
           mean: 81.0,
@@ -108,6 +158,7 @@ describe("buildComprehensiveAggregate", () => {
         },
         {
           type: "WEIGHT",
+          source: "APPLE_HEALTH",
           bucketStart: new Date("2026-05-11T00:00:00.000Z"),
           count: 22,
           mean: 83.0,
@@ -151,12 +202,12 @@ describe("buildComprehensiveAggregate", () => {
       ]);
 
       // Contract pin — the heavy aggregate path is NOT exercised on the
-      // rollup-fresh branch. The $queryRaw calls land on the COUNT
-      // probe + narrow aggregate + DISTINCT-ON latest + first_at, NOT
-      // the legacy heavy COUNT/MIN/MAX/AVG query. We assert by call
-      // count + by checking that the narrow projection (no min_value /
-      // max_value / mean_value cols) is what landed.
-      expect(RAW).toHaveBeenCalledTimes(4);
+      // rollup-fresh branch. v1.11.1 — the coverage probe + first_at
+      // stay on `$queryRaw` (2 calls); the narrow aggregate + the
+      // DISTINCT-ON latest moved to `$queryRawUnsafe` (2 calls). Neither
+      // path runs the legacy heavy COUNT/MIN/MAX/AVG query.
+      expect(RAW).toHaveBeenCalledTimes(2);
+      expect(UNSAFE).toHaveBeenCalledTimes(2);
       // v1.4.38 W-F — sys + dia merged into a single round-trip.
       expect(FIND_MANY).toHaveBeenCalledTimes(1);
       expect(ROLLUP_FIND_MANY).toHaveBeenCalledTimes(1);
@@ -165,13 +216,14 @@ describe("buildComprehensiveAggregate", () => {
 
   describe("cold fallback when no rollup buckets exist", () => {
     it("returns an empty bundle for a user with no measurements and no rollups", async () => {
-      // 1. per-type coverage probe — empty (no measurements) ⇒ cold path.
-      // 2. heavy aggregate ($queryRaw) — empty.
-      // 3. latests ($queryRaw) — empty.
+      // v1.11.1 — the coverage probe stays on `$queryRaw`; the heavy
+      // aggregate + latests moved to `$queryRawUnsafe`:
+      // RAW:    1. per-type coverage probe — empty ⇒ cold path.
+      // UNSAFE: 1. heavy aggregate — empty.
+      //         2. latests — empty.
       // No firstMeasurementAt query when totalMeasurements === 0.
-      RAW.mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      RAW.mockResolvedValueOnce([]);
+      UNSAFE.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
       // v1.4.38 W-F — sys + dia merged into one `findMany`.
       FIND_MANY.mockResolvedValueOnce([]);
 
@@ -183,7 +235,8 @@ describe("buildComprehensiveAggregate", () => {
       expect(result.dailyByType).toEqual({});
       expect(result.firstMeasurementAt).toBeNull();
       expect(result.totalMeasurements).toBe(0);
-      expect(RAW).toHaveBeenCalledTimes(3);
+      expect(RAW).toHaveBeenCalledTimes(1);
+      expect(UNSAFE).toHaveBeenCalledTimes(2);
       // v1.4.38 W-F — sys + dia merged → single findMany.
       expect(FIND_MANY).toHaveBeenCalledTimes(1);
       // The cold path's rollup.findMany still fires (in case some
@@ -193,37 +246,39 @@ describe("buildComprehensiveAggregate", () => {
 
     it("runs the heavy aggregate when no rollup rows exist yet", async () => {
       const now = new Date();
-      // 1. per-type coverage probe — WEIGHT measured but no buckets ⇒ cold path.
-      // 2. heavy aggregate ($queryRaw) — populated.
-      // 3. latests ($queryRaw) — populated.
-      // 4. firstMeasurementAt ($queryRaw).
+      // v1.11.1 — the coverage probe + first_at stay on `$queryRaw`; the
+      // heavy aggregate + latests moved to `$queryRawUnsafe`:
+      // RAW:    1. per-type coverage probe — WEIGHT measured but no
+      //            buckets ⇒ cold path.
+      //         2. firstMeasurementAt (totalMeasurements > 0).
+      // UNSAFE: 1. heavy aggregate — populated.
+      //         2. latests — populated.
       RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: false }])
-        .mockResolvedValueOnce([
-          {
-            type: "WEIGHT",
-            count: BigInt(42),
-            min_value: 79.2,
-            max_value: 84.1,
-            mean_value: 82.05,
-            stddev_value: 1.2,
-            anomaly_count: BigInt(3),
-            avg7: 81.9,
-            avg30: 82.1,
-            avg30_last_month: 83.0,
-            slope7: -0.014,
-            r2_7: 0.65,
-            slope30: -0.005,
-            r2_30: 0.42,
-            slope90: 0.001,
-            r2_90: 0.12,
-          },
-        ])
-        .mockResolvedValueOnce([
-          { type: "WEIGHT", value: 81.4, measured_at: now },
-        ])
         .mockResolvedValueOnce([
           { first_at: new Date(now.getTime() - 86400000) },
         ]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "WEIGHT",
+          count: BigInt(42),
+          min_value: 79.2,
+          max_value: 84.1,
+          mean_value: 82.05,
+          stddev_value: 1.2,
+          anomaly_count: BigInt(3),
+          avg7: 81.9,
+          avg30: 82.1,
+          avg30_last_month: 83.0,
+          slope7: -0.014,
+          r2_7: 0.65,
+          slope30: -0.005,
+          r2_30: 0.42,
+          slope90: 0.001,
+          r2_90: 0.12,
+        },
+      ]).mockResolvedValueOnce([
+        { type: "WEIGHT", value: 81.4, measured_at: now },
+      ]);
       // v1.4.38 W-F — sys + dia merged into one round-trip.
       FIND_MANY.mockResolvedValueOnce([]);
 
@@ -269,35 +324,37 @@ describe("buildComprehensiveAggregate", () => {
   it("threads sys/dia raw rows through bpRawRows so 5-min pairing survives", async () => {
     const measuredAt = new Date("2026-05-10T08:00:00Z");
     // Cold path so the heavy aggregate fires (BP type lacks coverage).
-    RAW.mockResolvedValueOnce([{ type: "BLOOD_PRESSURE_SYS", has_buckets: false }])
-      .mockResolvedValueOnce([
-        {
-          type: "BLOOD_PRESSURE_SYS",
-          count: BigInt(1),
-          min_value: 120,
-          max_value: 120,
-          mean_value: 120,
-          stddev_value: 0,
-          anomaly_count: BigInt(0),
-          avg7: 120,
-          avg30: 120,
-          avg30_last_month: null,
-          slope7: null,
-          r2_7: null,
-          slope30: null,
-          r2_30: null,
-          slope90: null,
-          r2_90: null,
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
-          type: "BLOOD_PRESSURE_SYS",
-          value: 120,
-          measured_at: measuredAt,
-        },
-      ])
-      .mockResolvedValueOnce([{ first_at: measuredAt }]);
+    // v1.11.1 — coverage probe + first_at on `$queryRaw`; heavy + latests
+    // on `$queryRawUnsafe`.
+    RAW.mockResolvedValueOnce([
+      { type: "BLOOD_PRESSURE_SYS", has_buckets: false },
+    ]).mockResolvedValueOnce([{ first_at: measuredAt }]);
+    UNSAFE.mockResolvedValueOnce([
+      {
+        type: "BLOOD_PRESSURE_SYS",
+        count: BigInt(1),
+        min_value: 120,
+        max_value: 120,
+        mean_value: 120,
+        stddev_value: 0,
+        anomaly_count: BigInt(0),
+        avg7: 120,
+        avg30: 120,
+        avg30_last_month: null,
+        slope7: null,
+        r2_7: null,
+        slope30: null,
+        r2_30: null,
+        slope90: null,
+        r2_90: null,
+      },
+    ]).mockResolvedValueOnce([
+      {
+        type: "BLOOD_PRESSURE_SYS",
+        value: 120,
+        measured_at: measuredAt,
+      },
+    ]);
     // v1.4.38 W-F — single merged `findMany` returning both sys + dia
     // rows tagged by `type`. The aggregator partitions in JS, so the
     // bpRawRows.sys / .dia shape stays byte-identical.

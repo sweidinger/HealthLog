@@ -351,6 +351,7 @@ model User {
   devices                Device[]
   integrationStatuses    IntegrationStatus[]
   coachConversations     CoachConversation[]
+  coachFacts             CoachFact[]
   coachUsage             CoachUsage[]
   // v1.4.25 W8d — workout passthrough (Apple HKWorkout / Withings
   // getworkouts / future Strava). Schema lands now so the v1.5 iOS
@@ -821,6 +822,13 @@ model MeasurementRollup {
   type        MeasurementType
   granularity RollupGranularity
   bucketStart DateTime          @map("bucket_start") @db.Timestamptz(3)
+  /// v1.11.1 — source-aware grain. Rollup rows are minted per source so the
+  /// read path can collapse overlapping sources (e.g. WHOOP + Apple Watch
+  /// resting heart rate) to the ladder-canonical reading, while cumulative
+  /// metrics (steps, energy) sum per source. Always non-null; migration 0115
+  /// purged the legacy source-blind aggregates and the boot backfill re-mints
+  /// per-source rows.
+  source      MeasurementSource
   count       Int
   mean        Float
   minValue    Float             @map("min_value")
@@ -839,7 +847,7 @@ model MeasurementRollup {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@id([userId, type, granularity, bucketStart])
+  @@id([userId, type, granularity, bucketStart, source])
   @@index([userId, type, granularity, bucketStart(sort: Desc)])
   @@map("measurement_rollups")
 }
@@ -2678,6 +2686,37 @@ model CoachMessage {
 
   @@index([conversationId, createdAt])
   @@map("coach_messages")
+}
+
+// v1.11.1 (Epic B, B-W7) — durable, user-scoped personal facts the Coach
+// extracts from conversations: stable preferences, conditions the user states
+// about themselves, goals, constraints, durable life context. The fact TEXT is
+// encrypted at rest (AES-256-GCM, the same codec as CoachMessage). `category`,
+// `confidence`, and `sourceConversationId` stay plain so the injection picker
+// can rank without paying a per-row decrypt. Descriptive, never diagnostic.
+// Soft-delete via `deletedAt` so a user "forget this" action is reversible /
+// auditable and re-extraction can avoid resurrecting it.
+model CoachFact {
+  id                   String    @id @default(cuid())
+  userId               String    @map("user_id")
+  factEncrypted        Bytes     @map("fact_encrypted")
+  // App-side closed enum (not a DB enum, to keep the migration purely additive
+  // and avoid an enum-migration per new category): preference | condition |
+  // goal | constraint | context.
+  category             String
+  // 0..100 server-assigned extraction confidence.
+  confidence           Int       @default(50)
+  // Provenance — nullable so a future manual-entry surface can leave it null.
+  sourceConversationId String?   @map("source_conversation_id")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  // Soft-delete: hides the fact from injection but keeps the row for audit.
+  deletedAt            DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deletedAt, confidence])
+  @@map("coach_facts")
 }
 
 // Per-user, per-day token-spend ledger for the AI Coach. The dispatcher

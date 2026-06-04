@@ -103,6 +103,11 @@ import {
   type PeriodNarrativePayload,
 } from "@/lib/jobs/period-narrative-warm";
 import {
+  COACH_MEMORY_REFRESH_QUEUE,
+  type CoachMemoryRefreshPayload,
+} from "@/lib/ai/coach/coach-memory-shared";
+import { runCoachMemoryRefresh } from "@/lib/ai/coach/coach-memory-refresh-worker";
+import {
   DENSE_INTRADAY_RETENTION_QUEUE,
   DENSE_INTRADAY_RETENTION_CONCURRENCY,
   runDenseIntradayRetentionForUser,
@@ -2329,6 +2334,11 @@ export async function startReminderWorker() {
     // the read-only narrative GET. The queue MUST be registered here or the
     // GET-miss enqueue silently never warms.
     PERIOD_NARRATIVE_QUEUE,
+    // v1.11.1 — combined Coach memory-refresh (rolling conversation summary +
+    // durable fact extraction), enqueued fire-and-forget from a long chat
+    // turn. The queue MUST be registered here or the enqueue silently never
+    // runs.
+    COACH_MEMORY_REFRESH_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -2732,6 +2742,26 @@ export async function startReminderWorker() {
         } catch (err) {
           recordError();
           workerLog("error", "[period-narrative] warm failed", err);
+          throw err;
+        }
+      }
+    },
+  );
+  // v1.11.1 — combined Coach memory refresh: rolling conversation summary +
+  // durable fact extraction for one long conversation. localConcurrency 1 so a
+  // burst of long-conversation turns can't fan out concurrent provider calls;
+  // each step is budget-gated inside runStatusCompletion and fault-isolated.
+  await boss.work<CoachMemoryRefreshPayload>(
+    COACH_MEMORY_REFRESH_QUEUE,
+    { localConcurrency: 1 },
+    async (jobs) => {
+      for (const job of jobs) {
+        if (!job.data?.conversationId || !job.data?.userId) continue;
+        try {
+          await runCoachMemoryRefresh(job.data);
+        } catch (err) {
+          recordError();
+          workerLog("error", "[coach-memory-refresh] failed", err);
           throw err;
         }
       }

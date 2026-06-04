@@ -131,3 +131,50 @@ export function cumulativeMetricKey(
       return null;
   }
 }
+
+/**
+ * v1.11.1 — full MeasurementType → SourcePriorityMetricKey map for the
+ * source-aware rollup collapse. A superset of `cumulativeMetricKey`: it adds
+ * the overlapping NON-cumulative vitals (spot / daily readings that two or
+ * more sources realistically report for the same day) so the rollup read path
+ * can resolve the canonical source through the same ladder the raw-row picker
+ * uses. Cumulative types fall through to `cumulativeMetricKey`. Returns null
+ * for single-source types (no competing source today → source-blind grouping
+ * is already correct) and for types without a ladder — the collapse treats a
+ * null key as "no priority, keep one row deterministically".
+ */
+export function metricKeyForType(
+  type: MeasurementType,
+): SourcePriorityMetricKey | null {
+  switch (type) {
+    case "RESTING_HEART_RATE":
+      return "restingHeartRate";
+    case "HEART_RATE_VARIABILITY":
+      return "hrv";
+    case "RESPIRATORY_RATE":
+      return "respiratoryRate";
+    case "OXYGEN_SATURATION":
+      return "spo2";
+    case "BODY_TEMPERATURE":
+      return "bodyTemperature";
+    case "SKIN_TEMPERATURE":
+      return "skinTemperature";
+    case "WEIGHT":
+      return "weight";
+    case "BODY_FAT":
+      return "bodyFat";
+    case "BLOOD_PRESSURE_SYS":
+    case "BLOOD_PRESSURE_DIA":
+      return "bloodPressure";
+    case "PULSE":
+      return "pulse";
+    case "VO2_MAX":
+      return "vo2Max";
+    case "RECOVERY_SCORE":
+      return "recovery";
+    case "SLEEP_DURATION":
+      return "sleep";
+    default:
+      return cumulativeMetricKey(type);
+  }
+}

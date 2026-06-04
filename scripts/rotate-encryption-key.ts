@@ -312,6 +312,82 @@ async function main() {
   }
   results.push(coachResult);
 
+  // ───── CoachConversation.summaryEncrypted ─────
+  // v1.11.1 — `Bytes` column carrying the UTF-8 ciphertext of the rolling
+  // conversation summary. Same Buffer round-trip as CoachMessage; nullable, so
+  // skip empty/absent rows.
+  const coachConversations = await prisma.coachConversation.findMany({
+    where: { summaryEncrypted: { not: null } },
+    select: { id: true, summaryEncrypted: true },
+  });
+  const summaryResult: RotationResult = {
+    table: "CoachConversation",
+    field: "summaryEncrypted",
+    scanned: coachConversations.length,
+    rotated: 0,
+    errors: 0,
+  };
+  for (const row of coachConversations) {
+    const buf = row.summaryEncrypted;
+    if (!buf || buf.byteLength === 0) continue;
+    const asString = Buffer.from(buf).toString("utf8");
+    if (!shouldRotate(asString)) continue;
+    try {
+      const rotated = encrypt(decrypt(asString));
+      const encoded = Buffer.from(rotated, "utf8");
+      const next = new Uint8Array(new ArrayBuffer(encoded.byteLength));
+      next.set(encoded);
+      await prisma.coachConversation.update({
+        where: { id: row.id },
+        data: { summaryEncrypted: next },
+      });
+      summaryResult.rotated++;
+    } catch (err) {
+      summaryResult.errors++;
+      console.error(
+        `[CoachConversation.summaryEncrypted] row ${row.id}: ${(err as Error).message}`,
+      );
+    }
+  }
+  results.push(summaryResult);
+
+  // ───── CoachFact.factEncrypted ─────
+  // v1.11.1 — `Bytes` column carrying the UTF-8 ciphertext of each durable
+  // personal fact. Same Buffer round-trip as CoachMessage.
+  const coachFacts = await prisma.coachFact.findMany({
+    select: { id: true, factEncrypted: true },
+  });
+  const factResult: RotationResult = {
+    table: "CoachFact",
+    field: "factEncrypted",
+    scanned: coachFacts.length,
+    rotated: 0,
+    errors: 0,
+  };
+  for (const row of coachFacts) {
+    const buf = row.factEncrypted;
+    if (!buf || buf.byteLength === 0) continue;
+    const asString = Buffer.from(buf).toString("utf8");
+    if (!shouldRotate(asString)) continue;
+    try {
+      const rotated = encrypt(decrypt(asString));
+      const encoded = Buffer.from(rotated, "utf8");
+      const next = new Uint8Array(new ArrayBuffer(encoded.byteLength));
+      next.set(encoded);
+      await prisma.coachFact.update({
+        where: { id: row.id },
+        data: { factEncrypted: next },
+      });
+      factResult.rotated++;
+    } catch (err) {
+      factResult.errors++;
+      console.error(
+        `[CoachFact.factEncrypted] row ${row.id}: ${(err as Error).message}`,
+      );
+    }
+  }
+  results.push(factResult);
+
   console.log("\n=== Rotation summary ===");
   let totalRotated = 0;
   let totalErrors = 0;

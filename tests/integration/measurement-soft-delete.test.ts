@@ -289,14 +289,15 @@ describe("Measurement.deletedAt — tombstone invisibility (v1.4.40 W-DELETED)",
         noonUtc.getUTCDate(),
       ),
     );
-    const bucket = await prisma.measurementRollup.findUnique({
+    // v1.11.1 — rollups are source-aware; both seeded rows share the default
+    // MANUAL source so they still collapse to one DAY row. findFirst keeps the
+    // assertion source-agnostic.
+    const bucket = await prisma.measurementRollup.findFirst({
       where: {
-        userId_type_granularity_bucketStart: {
-          userId: user.id,
-          type: "WEIGHT",
-          granularity: "DAY",
-          bucketStart: dayStartUtc,
-        },
+        userId: user.id,
+        type: "WEIGHT",
+        granularity: "DAY",
+        bucketStart: dayStartUtc,
       },
     });
     expect(bucket).not.toBeNull();

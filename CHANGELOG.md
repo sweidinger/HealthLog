@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.11.1] — 2026-06-04 — source-aware vitals + Coach long-term memory
+
+Closes the three follow-ups left open by v1.11.0: cross-source vital de-duplication, the Coach's conversation memory, and durable personal facts.
+
+### Added
+
+- **Coach long-term memory.** The assistant now keeps a private, encrypted rolling summary of long conversations and remembers durable facts you have told it — standing preferences, goals, constraints, and conditions you have stated about yourself. Both are descriptive recall, never a diagnosis, and ride the same Coach setting; turning the Coach off stops all of it.
+- **A facts surface to review and clear what the Coach has learned.** List your active facts, forget a single one, or forget everything (`GET` / `DELETE /api/insights/coach/facts`, `DELETE /api/insights/coach/facts/{id}`). Facts are stored encrypted at rest.
+
+### Changed
+
+- **Measurement rollups are now source-aware.** When two sources report the same standard vital on the same day (for example a resting heart rate from two devices), charts, summaries, and insights now show the higher-priority source's reading instead of a blend of the two. Cumulative metrics such as steps and energy continue to total per source. Your source-priority settings decide which reading wins.
+
+### Notes
+
+- The "latest" value shown for a vital with two competing sources now follows your source priority for the most recent day, so it matches the chart line. For some metrics this may surface a different device's reading than before.
+- After clearing a Coach fact it can take up to a minute to disappear from the assistant's working context, in line with the existing snapshot refresh window.
+- On first start after upgrading, each account's rollup cache is rebuilt once in the background; charts fall back to a live read until it converges.
+
 ## [1.11.0] — 2026-06-04 — WHOOP, a longitudinal coach, and a clinician-grade record
 
 A multi-feature milestone across three fronts: a second connected provider, deeper Insights, and a shareable clinical record.

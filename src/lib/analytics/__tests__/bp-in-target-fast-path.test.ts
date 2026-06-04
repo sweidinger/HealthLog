@@ -12,6 +12,9 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: { findMany: vi.fn() },
     measurementRollup: { findMany: vi.fn() },
+    // v1.11.1 — readRollupBuckets lazy-loads the source-priority blob; null
+    // (default findUnique) falls back to the default ladders.
+    user: { findUnique: vi.fn() },
   },
 }));
 

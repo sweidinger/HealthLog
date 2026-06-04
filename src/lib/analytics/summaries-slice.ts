@@ -62,6 +62,11 @@ import type { DataSummary } from "@/lib/analytics/trends";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import { annotate } from "@/lib/logging/context";
 import { ensureUserRollupsFresh } from "@/lib/rollups/measurement-rollups";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import {
+  buildSourceRankCase,
+  canonicalMeasurementsFrom,
+} from "@/lib/analytics/source-rank-sql";
 import {
   isFullyCovered,
   probeRollupCoverage,
@@ -274,8 +279,22 @@ export async function computeSummariesSlice(
  * multi-second cold to sub-second; output is bit-identical.
  */
 async function computeFromRollups(userId: string): Promise<SummariesSlice> {
+  // v1.11.1 — resolve the user's source-priority ladders once, then build the
+  // rank CASE expressions used to collapse overlapping sources to the canonical
+  // reading per (type, day) inside each query. `"type"`/`"source"` variants for
+  // the unqualified rollup + inner-subquery columns, `m."…"` for the latest
+  // read's outer alias.
+  const priorityJson = await loadUserSourcePriority(userId);
+  const rankUnqualified = buildSourceRankCase(priorityJson, '"type"', '"source"');
+  const rankM = buildSourceRankCase(priorityJson, 'm."type"', 'm."source"');
+
   const [narrows, latests, dayBuckets] = await Promise.all([
-    prisma.$queryRaw<NarrowAggregateRow[]>`
+    // The FROM is restricted to the canonical-source rows per (type, day): the
+    // inner DISTINCT ON picks the ladder-winning source for each day, and the
+    // join keeps only that source's readings so the 90-day AVG / median / slope
+    // never blend two devices that both reported the same vital.
+    prisma.$queryRawUnsafe<NarrowAggregateRow[]>(
+      `
       SELECT
         m."type"::text                                                AS type,
         AVG(m."value") FILTER (
@@ -329,22 +348,47 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
         ) FILTER (
           WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
         )::double precision                                           AS r2_90
-      FROM measurements m
-      WHERE m."user_id" = ${userId}
-        AND m."deleted_at" IS NULL
-        AND m."measured_at" >= NOW() - INTERVAL '90 days'
+      FROM (
+        SELECT mm.*
+        FROM measurements mm
+        JOIN (
+          SELECT DISTINCT ON ("type", date_trunc('day', "measured_at"))
+            "type"                              AS t,
+            date_trunc('day', "measured_at")    AS d,
+            "source"                            AS canon
+          FROM measurements
+          WHERE "user_id" = $1
+            AND "deleted_at" IS NULL
+            AND "measured_at" >= NOW() - INTERVAL '90 days'
+          ORDER BY "type", date_trunc('day', "measured_at"), (${rankUnqualified}), "source"
+        ) c
+          ON c.t = mm."type"
+          AND c.d = date_trunc('day', mm."measured_at")
+          AND c.canon = mm."source"
+        WHERE mm."user_id" = $1
+          AND mm."deleted_at" IS NULL
+          AND mm."measured_at" >= NOW() - INTERVAL '90 days'
+      ) m
       GROUP BY m."type"
     `,
-    prisma.$queryRaw<LatestRow[]>`
+      userId,
+    ),
+    // v1.11.1 — the latest tile reflects the canonical source for the latest
+    // day, matching the chart: order by latest day first, then the ladder rank
+    // (canonical source wins), then the latest reading of that source.
+    prisma.$queryRawUnsafe<LatestRow[]>(
+      `
       SELECT DISTINCT ON (m."type")
         m."type"::text AS type,
         m."value"::double precision AS value,
         m."measured_at" AS measured_at
       FROM measurements m
-      WHERE m."user_id" = ${userId}
+      WHERE m."user_id" = $1
         AND m."deleted_at" IS NULL
-      ORDER BY m."type", m."measured_at" DESC
+      ORDER BY m."type", date_trunc('day', m."measured_at") DESC, (${rankM}), m."measured_at" DESC
     `,
+      userId,
+    ),
     // v1.4.37.2 hotfix — the v1.4.35 implementation read EVERY DAY
     // rollup bucket for the user (`findMany` without a `bucketStart`
     // window) and then composed `count / min / max / mean` in JS.
@@ -353,11 +397,26 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
     // cache miss, even with the rollup table hot. The slim slice's
     // contract is the all-time count / min / max / mean per type —
     // exactly what a SQL `GROUP BY type` returns in a single
-    // round-trip. Returns 8 rows
-    // instead of 306k, brings the cache-miss cost into the < 100 ms
-    // budget. The downstream `aggregateBuckets` call is bypassed
-    // because the per-type aggregate is already shaped server-side.
-    prisma.$queryRaw<RollupAggregateRow[]>`
+    // round-trip.
+    //
+    // v1.11.1 — rows are now per source. Collapse each (type, day) to the
+    // ladder-canonical source via DISTINCT ON before the all-time aggregate,
+    // so a dual-source vital is counted once. Still one server-side pass —
+    // the DISTINCT ON + GROUP BY runs in Postgres and returns one row/type.
+    prisma.$queryRawUnsafe<RollupAggregateRow[]>(
+      `
+      WITH collapsed AS (
+        SELECT DISTINCT ON ("type", "bucket_start")
+          "type"      AS type,
+          "count"     AS count,
+          "min_value" AS min_value,
+          "max_value" AS max_value,
+          "mean"      AS mean
+        FROM "measurement_rollups"
+        WHERE "user_id" = $1
+          AND "granularity" = 'DAY'
+        ORDER BY "type", "bucket_start", (${rankUnqualified}), "source"
+      )
       SELECT
         "type"::text                                       AS type,
         SUM("count")::int                                  AS count,
@@ -367,11 +426,11 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
           SUM("count" * "mean")::double precision
           / NULLIF(SUM("count")::double precision, 0)
         )                                                  AS mean
-      FROM "measurement_rollups"
-      WHERE "user_id" = ${userId}
-        AND "granularity" = 'DAY'
+      FROM collapsed
       GROUP BY "type"
     `,
+      userId,
+    ),
   ]);
 
   const latestByType = new Map<string, number>();
@@ -506,20 +565,31 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
 async function computeFromLiveAggregate(
   userId: string,
 ): Promise<SummariesSlice> {
+  // v1.11.1 — collapse overlapping sources to the ladder-canonical reading per
+  // (type, day) BEFORE aggregating, exactly as the rollup path does, so a
+  // coverage-miss tenant gets the same numbers as a warm one (live/rollup
+  // parity). `canonicalMeasurementsFrom` swaps `FROM measurements m` for a
+  // canonical-source-filtered subquery; the latest read uses the ladder rank.
+  const priorityJson = await loadUserSourcePriority(userId);
+  const rankUnqualified = buildSourceRankCase(priorityJson, '"type"', '"source"');
+  const rankM = buildSourceRankCase(priorityJson, 'm."type"', 'm."source"');
+
   const [allTime, windowed, latests] = await Promise.all([
-    prisma.$queryRaw<AllTimeAggregateRow[]>`
+    prisma.$queryRawUnsafe<AllTimeAggregateRow[]>(
+      `
       SELECT
         m."type"::text                                                AS type,
         COUNT(*)                                                      AS count,
         MIN(m."value")::double precision                              AS min_value,
         MAX(m."value")::double precision                              AS max_value,
         AVG(m."value")::double precision                              AS mean_value
-      FROM measurements m
-      WHERE m."user_id" = ${userId}
-        AND m."deleted_at" IS NULL
+      FROM ${canonicalMeasurementsFrom(rankUnqualified)}
       GROUP BY m."type"
     `,
-    prisma.$queryRaw<NarrowAggregateRow[]>`
+      userId,
+    ),
+    prisma.$queryRawUnsafe<NarrowAggregateRow[]>(
+      `
       SELECT
         m."type"::text                                                AS type,
         AVG(m."value") FILTER (
@@ -573,22 +643,24 @@ async function computeFromLiveAggregate(
         ) FILTER (
           WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
         )::double precision                                           AS r2_90
-      FROM measurements m
-      WHERE m."user_id" = ${userId}
-        AND m."deleted_at" IS NULL
-        AND m."measured_at" >= NOW() - INTERVAL '90 days'
+      FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
       GROUP BY m."type"
     `,
-    prisma.$queryRaw<LatestRow[]>`
+      userId,
+    ),
+    prisma.$queryRawUnsafe<LatestRow[]>(
+      `
       SELECT DISTINCT ON (m."type")
         m."type"::text AS type,
         m."value"::double precision AS value,
         m."measured_at" AS measured_at
       FROM measurements m
-      WHERE m."user_id" = ${userId}
+      WHERE m."user_id" = $1
         AND m."deleted_at" IS NULL
-      ORDER BY m."type", m."measured_at" DESC
+      ORDER BY m."type", date_trunc('day', m."measured_at") DESC, (${rankM}), m."measured_at" DESC
     `,
+      userId,
+    ),
   ]);
 
   const latestByType = new Map<string, number>();

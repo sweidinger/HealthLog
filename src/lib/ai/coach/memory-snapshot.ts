@@ -38,6 +38,7 @@ import {
   type BandTransition,
 } from "@/lib/insights/narrative/period-narrative";
 import type { BaselineProfile } from "@/lib/insights/derived";
+import { buildCoachFactsBlock } from "./facts";
 
 /** The period the rolling profile recalls — month is the high-signal beat. */
 const MEMORY_PERIOD: NarrativePeriod = "month";
@@ -72,6 +73,11 @@ export interface PriorNarrativeRecall {
 export interface CoachMemoryBlock {
   priorNarrative?: PriorNarrativeRecall;
   trendMemory: Record<string, TrendMemoryEntry>;
+  /**
+   * v1.11.1 — durable personal facts the Coach has learned (top-N, ranked by
+   * confidence then recency). Descriptive, never diagnostic. Absent when none.
+   */
+  facts?: Array<{ category: string; text: string }>;
 }
 
 /** Pull the headline + driver recall off the latest period narrative. */
@@ -147,11 +153,29 @@ export async function buildCoachMemoryBlock(
     // A context failure leaves trendMemory empty — never sinks the turn.
   }
 
-  if (!priorNarrative && Object.keys(trendMemory).length === 0) {
+  // Sub-source 3 (v1.11.1): durable personal facts the Coach has extracted.
+  // Fault-isolated like the others — a read/decrypt failure drops the facts
+  // sub-block and never sinks the turn.
+  let facts: Array<{ category: string; text: string }> | undefined;
+  try {
+    const factsBlock = await buildCoachFactsBlock(userId);
+    if (factsBlock && factsBlock.facts.length > 0) {
+      facts = factsBlock.facts;
+    }
+  } catch {
+    facts = undefined;
+  }
+
+  if (
+    !priorNarrative &&
+    Object.keys(trendMemory).length === 0 &&
+    !facts
+  ) {
     return null;
   }
 
   const block: CoachMemoryBlock = { trendMemory };
   if (priorNarrative) block.priorNarrative = priorNarrative;
+  if (facts) block.facts = facts;
   return block;
 }

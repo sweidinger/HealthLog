@@ -10,10 +10,8 @@
  * provenance (window names, metric tags, sample counts) and never raw
  * values, so it can be queried without decryption for analytics.
  */
-import { Buffer } from "node:buffer";
-
 import { prisma } from "@/lib/db";
-import { encrypt, decrypt } from "@/lib/crypto";
+import { decryptFromBytes, encryptToBytes } from "./bytes-codec";
 
 import type {
   CoachConversationDTO,
@@ -47,27 +45,6 @@ export function summariseTitle(input: string): string {
   const lastSpace = sliced.lastIndexOf(" ");
   const cut = lastSpace > TITLE_MAX - 20 ? sliced.slice(0, lastSpace) : sliced;
   return `${cut.trimEnd()}…`;
-}
-
-/**
- * Encode a UTF-8 string as the AES-256-GCM payload format the schema
- * stores in `coach_messages.encrypted_content`.
- *
- * Prisma's `Bytes` type maps to `Uint8Array<ArrayBuffer>`, not Node's
- * `Buffer<ArrayBufferLike>`. We allocate a fresh ArrayBuffer-backed
- * Uint8Array so the structural type matches across Node versions.
- */
-function encryptToBytes(plaintext: string): Uint8Array<ArrayBuffer> {
-  const ciphertext = encrypt(plaintext);
-  const encoded = Buffer.from(ciphertext, "utf8");
-  const out = new Uint8Array(new ArrayBuffer(encoded.byteLength));
-  out.set(encoded);
-  return out;
-}
-
-function decryptFromBytes(buf: Uint8Array): string {
-  const text = Buffer.from(buf).toString("utf8");
-  return decrypt(text);
 }
 
 function provenanceToJson(provenance: CoachProvenance | null): string | null {
@@ -241,6 +218,18 @@ export async function fetchConversationWithMessages(
     promptVersion: m.promptVersion,
   }));
 
+  // v1.11.1 — decrypt the rolling conversation summary (fail-closed: an
+  // undecryptable row is treated as absent so the chat turn never throws and
+  // simply falls back to the placeholder).
+  let summary: string | null = null;
+  if (row.summaryEncrypted && row.summaryEncrypted.byteLength > 0) {
+    try {
+      summary = decryptFromBytes(row.summaryEncrypted);
+    } catch {
+      summary = null;
+    }
+  }
+
   return {
     id: row.id,
     title: row.title,
@@ -248,6 +237,7 @@ export async function fetchConversationWithMessages(
     updatedAt: row.updatedAt.toISOString(),
     messageCount: messages.length,
     messages,
+    summary,
   };
 }
 

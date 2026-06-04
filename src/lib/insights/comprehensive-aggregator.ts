@@ -100,8 +100,20 @@
 import { prisma } from "@/lib/db";
 import type { DataSummary } from "@/lib/analytics/trends";
 import { annotate } from "@/lib/logging/context";
+import type {
+  MeasurementSource,
+  MeasurementType,
+} from "@/generated/prisma/client";
 import { ensureUserRollupsFresh } from "@/lib/rollups/measurement-rollups";
-import { aggregateBuckets } from "@/lib/rollups/measurement-read";
+import {
+  aggregateBuckets,
+  collapseRollupRowsBySource,
+  loadUserSourcePriority,
+} from "@/lib/rollups/measurement-read";
+import {
+  buildSourceRankCase,
+  canonicalMeasurementsFrom,
+} from "@/lib/analytics/source-rank-sql";
 import {
   isFullyCovered,
   probeRollupCoverage,
@@ -339,17 +351,24 @@ async function buildFromRollups(
 ): Promise<ComprehensiveAggregate> {
   // v1.4.38 W-F — bp sys + dia consolidated into one `findMany`
   // (`type: { in: [...] }`) plus per-sub-query wall-clock timings.
+  // v1.11.1 — collapse overlapping sources to the ladder-canonical reading per
+  // (type, day) before aggregating. `rankUnqualified` ranks the inner
+  // canonical-source subquery; `rankM` ranks the latest read's `m.`-aliased
+  // columns. The window_stats CTE + the main narrow both read from the
+  // canonical-source-filtered set so a dual-source vital isn't blended.
+  const priorityJson = await loadUserSourcePriority(userId);
+  const rankUnqualified = buildSourceRankCase(priorityJson, '"type"', '"source"');
+  const rankM = buildSourceRankCase(priorityJson, 'm."type"', 'm."source"');
+
   const [narrows, latests, dayBuckets, bpRawRows, firstRows] = await Promise.all([
-    timeSubquery(timings, "narrow", () => prisma.$queryRaw<NarrowAggregateRow[]>`
+    timeSubquery(timings, "narrow", () => prisma.$queryRawUnsafe<NarrowAggregateRow[]>(
+      `
       WITH window_stats AS (
         SELECT
           m."type",
           AVG(m."value") AS mean_value,
           STDDEV_POP(m."value") AS stddev_value
-        FROM measurements m
-        WHERE m."user_id" = ${userId}
-          AND m."measured_at" >= ${ninetyDaysAgo}
-          AND m."deleted_at" IS NULL
+        FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
         GROUP BY m."type"
       )
       SELECT
@@ -412,24 +431,26 @@ async function buildFromRollups(
         ) FILTER (
           WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
         )::double precision                                           AS r2_90
-      FROM measurements m
+      FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
       JOIN window_stats ws ON ws."type" = m."type"
-      WHERE m."user_id" = ${userId}
-        AND m."measured_at" >= ${ninetyDaysAgo}
-        AND m."deleted_at" IS NULL
       GROUP BY m."type", ws.stddev_value
-    `),
-    timeSubquery(timings, "latests", () => prisma.$queryRaw<LatestRow[]>`
+    `,
+      userId,
+    )),
+    timeSubquery(timings, "latests", () => prisma.$queryRawUnsafe<LatestRow[]>(
+      `
       SELECT DISTINCT ON (m."type")
         m."type"::text AS type,
         m."value"::double precision AS value,
         m."measured_at" AS measured_at
       FROM measurements m
-      WHERE m."user_id" = ${userId}
-        AND m."measured_at" >= ${ninetyDaysAgo}
+      WHERE m."user_id" = $1
+        AND m."measured_at" >= NOW() - INTERVAL '90 days'
         AND m."deleted_at" IS NULL
-      ORDER BY m."type", m."measured_at" DESC
-    `),
+      ORDER BY m."type", date_trunc('day', m."measured_at") DESC, (${rankM}), m."measured_at" DESC
+    `,
+      userId,
+    )),
     // v1.4.35 — DAY rollup buckets for the trailing 90 days, every
     // type. Drives both the per-type `count / min / max / mean`
     // composition (via `aggregateBuckets`) and the `dailyByType`
@@ -466,7 +487,7 @@ async function buildFromRollups(
     });
   }
 
-  const bucketsByType = partitionBucketsByType(dayBuckets);
+  const bucketsByType = partitionBucketsByType(dayBuckets, priorityJson);
   const narrowByType = new Map<string, NarrowAggregateRow>();
   for (const row of narrows) {
     narrowByType.set(row.type, row);
@@ -536,17 +557,21 @@ async function buildFromLiveAggregate(
   // v1.4.38 W-F — same sub-query timing + consolidated bp-raw read as
   // the rollup-fresh path so the prod observability covers cold mounts
   // too.
+  // v1.11.1 — same source-aware collapse as the rollup-fresh path so the cold
+  // start agrees with the warm path (live/rollup parity).
+  const priorityJson = await loadUserSourcePriority(userId);
+  const rankUnqualified = buildSourceRankCase(priorityJson, '"type"', '"source"');
+  const rankM = buildSourceRankCase(priorityJson, 'm."type"', 'm."source"');
+
   const [aggregates, latests, dayBuckets, bpRawRows] = await Promise.all([
-    timeSubquery(timings, "heavy", () => prisma.$queryRaw<HeavyAggregateRow[]>`
+    timeSubquery(timings, "heavy", () => prisma.$queryRawUnsafe<HeavyAggregateRow[]>(
+      `
       WITH window_stats AS (
         SELECT
           m."type",
           AVG(m."value") AS mean_value,
           STDDEV_POP(m."value") AS stddev_value
-        FROM measurements m
-        WHERE m."user_id" = ${userId}
-          AND m."measured_at" >= ${ninetyDaysAgo}
-          AND m."deleted_at" IS NULL
+        FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
         GROUP BY m."type"
       )
       SELECT
@@ -609,24 +634,26 @@ async function buildFromLiveAggregate(
         ) FILTER (
           WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
         )::double precision                                           AS r2_90
-      FROM measurements m
+      FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
       JOIN window_stats ws ON ws."type" = m."type"
-      WHERE m."user_id" = ${userId}
-        AND m."measured_at" >= ${ninetyDaysAgo}
-        AND m."deleted_at" IS NULL
       GROUP BY m."type", ws.stddev_value
-    `),
-    timeSubquery(timings, "latests", () => prisma.$queryRaw<LatestRow[]>`
+    `,
+      userId,
+    )),
+    timeSubquery(timings, "latests", () => prisma.$queryRawUnsafe<LatestRow[]>(
+      `
       SELECT DISTINCT ON (m."type")
         m."type"::text AS type,
         m."value"::double precision AS value,
         m."measured_at" AS measured_at
       FROM measurements m
-      WHERE m."user_id" = ${userId}
-        AND m."measured_at" >= ${ninetyDaysAgo}
+      WHERE m."user_id" = $1
+        AND m."measured_at" >= NOW() - INTERVAL '90 days'
         AND m."deleted_at" IS NULL
-      ORDER BY m."type", m."measured_at" DESC
-    `),
+      ORDER BY m."type", date_trunc('day', m."measured_at") DESC, (${rankM}), m."measured_at" DESC
+    `,
+      userId,
+    )),
     // Buckets may exist for some types even when the COUNT probe came
     // back zero (race window between the probe and a sibling
     // populator); the cold-path read still honours them for the
@@ -651,7 +678,7 @@ async function buildFromLiveAggregate(
     });
   }
 
-  const bucketsByType = partitionBucketsByType(dayBuckets);
+  const bucketsByType = partitionBucketsByType(dayBuckets, priorityJson);
 
   const summaries: Record<string, DataSummary> = {};
   let totalMeasurements = 0;
@@ -713,12 +740,14 @@ async function buildFromLiveAggregate(
 function partitionBucketsByType(
   rows: ReadonlyArray<{
     type: string;
+    source: MeasurementSource;
     bucketStart: Date;
     count: number;
     mean: number;
     minValue: number;
     maxValue: number;
   }>,
+  userPriorityJson: unknown,
 ): Map<
   string,
   Array<{
@@ -729,6 +758,16 @@ function partitionBucketsByType(
     maxValue: number;
   }>
 > {
+  // v1.11.1 — rollup rows are per source. Group by type, then collapse each
+  // type's buckets to the ladder-canonical source per day before composing,
+  // so a dual-source vital is not double-counted in count/mean/dailyByType.
+  const byType = new Map<string, Array<(typeof rows)[number]>>();
+  for (const b of rows) {
+    const list = byType.get(b.type) ?? [];
+    list.push(b);
+    byType.set(b.type, list);
+  }
+
   const map = new Map<
     string,
     Array<{
@@ -739,16 +778,22 @@ function partitionBucketsByType(
       maxValue: number;
     }>
   >();
-  for (const b of rows) {
-    const list = map.get(b.type) ?? [];
-    list.push({
-      day: b.bucketStart,
-      count: b.count,
-      mean: b.mean,
-      minValue: b.minValue,
-      maxValue: b.maxValue,
-    });
-    map.set(b.type, list);
+  for (const [type, typeRows] of byType) {
+    const collapsed = collapseRollupRowsBySource(
+      typeRows,
+      type as MeasurementType,
+      userPriorityJson,
+    );
+    map.set(
+      type,
+      collapsed.map((b) => ({
+        day: b.bucketStart,
+        count: b.count,
+        mean: b.mean,
+        minValue: b.minValue,
+        maxValue: b.maxValue,
+      })),
+    );
   }
   return map;
 }

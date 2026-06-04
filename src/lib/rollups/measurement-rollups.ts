@@ -30,8 +30,13 @@
 import { prisma } from "@/lib/db";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
+import {
+  collapseRollupRowsBySource,
+  loadUserSourcePriority,
+} from "@/lib/rollups/measurement-read";
 import { startOfUtcDay } from "@/lib/tz/start-of-utc-day";
 import type {
+  MeasurementSource,
   MeasurementType,
   RollupGranularity,
 } from "@/generated/prisma/client";
@@ -102,6 +107,7 @@ const DATE_TRUNC_UNIT: Record<RollupGranularity, string> = {
 /** Raw row shape returned by the aggregate `$queryRaw`. */
 interface RollupRow {
   type: string;
+  source: string;
   bucket_start: Date;
   count: bigint;
   mean: number | null;
@@ -118,10 +124,10 @@ interface RollupRow {
  * `types` / `granularities` / `from` / `to` filters; defaults cover
  * every type, every granularity, and the trailing 5 years.
  *
- * Idempotent: rows are upserted under the
- * `(userId, type, granularity, bucketStart)` composite primary key,
- * so re-running the call is a no-op for unchanged buckets and a
- * refresh for changed ones.
+ * Idempotent: rows are delete-then-inserted per source under the
+ * `(userId, type, granularity, bucketStart, source)` composite primary
+ * key, so re-running the call refreshes the affected buckets and drops
+ * any per-source row whose source no longer reports that bucket.
  */
 export async function recomputeUserRollups(
   userId: string,
@@ -260,6 +266,11 @@ export async function enqueueRollupRecompute(input: {
 /**
  * Read rollup rows for `(userId, type, granularity)` in `[from, to)`.
  * Returns rows sorted ascending by `bucketStart`.
+ *
+ * v1.11.1 — rows are stored per source; this collapses overlapping sources to
+ * the ladder-canonical reading so the return shape stays one row per bucket.
+ * Pass `userPriorityJson` to avoid a per-call user lookup when the caller
+ * already loaded it (e.g. a loop over many types); omit it to lazy-load.
  */
 export async function readRollupBuckets(
   userId: string,
@@ -267,6 +278,7 @@ export async function readRollupBuckets(
   granularity: RollupGranularity,
   from: Date,
   to: Date,
+  userPriorityJson?: unknown,
 ): Promise<
   Array<{
     bucketStart: Date;
@@ -289,7 +301,11 @@ export async function readRollupBuckets(
     },
     orderBy: { bucketStart: "asc" },
   });
-  return rows.map((r) => ({
+  const priority =
+    userPriorityJson !== undefined
+      ? userPriorityJson
+      : await loadUserSourcePriority(userId);
+  return collapseRollupRowsBySource(rows, type, priority).map((r) => ({
     bucketStart: r.bucketStart,
     count: r.count,
     mean: r.mean,
@@ -337,7 +353,9 @@ async function runRollupAggregate(input: {
     // from `MeasurementType` (Prisma-generated TS enum); we whitelist
     // them with a strict regex before splicing into SQL.
     for (const t of input.types) {
-      if (!/^[A-Z_]+$/.test(t)) {
+      // Enum members can carry digits (e.g. VO2_MAX) — allow 0-9 so a
+      // legitimate type is not rejected on the write-hook's typed recompute.
+      if (!/^[A-Z0-9_]+$/.test(t)) {
         throw new Error(`invalid measurement type: ${t}`);
       }
     }
@@ -347,6 +365,7 @@ async function runRollupAggregate(input: {
     const sql = `
       SELECT
         m."type"::text                                            AS type,
+        m."source"::text                                          AS source,
         ${dateTrunc}                                              AS bucket_start,
         COUNT(*)                                                  AS count,
         AVG(m."value")::double precision                          AS mean,
@@ -368,7 +387,7 @@ async function runRollupAggregate(input: {
         AND m."measured_at" >= $2
         AND m."measured_at" <  $3
         AND m."deleted_at" IS NULL
-      GROUP BY m."type", ${dateTrunc}
+      GROUP BY m."type", m."source", ${dateTrunc}
     `;
     return prisma.$queryRawUnsafe<RollupRow[]>(
       sql,
@@ -381,6 +400,7 @@ async function runRollupAggregate(input: {
   const sql = `
     SELECT
       m."type"::text                                            AS type,
+      m."source"::text                                          AS source,
       ${dateTrunc}                                              AS bucket_start,
       COUNT(*)                                                  AS count,
       AVG(m."value")::double precision                          AS mean,
@@ -401,7 +421,7 @@ async function runRollupAggregate(input: {
       AND m."measured_at" >= $2
       AND m."measured_at" <  $3
       AND m."deleted_at" IS NULL
-    GROUP BY m."type", ${dateTrunc}
+    GROUP BY m."type", m."source", ${dateTrunc}
   `;
   return prisma.$queryRawUnsafe<RollupRow[]>(
     sql,
@@ -423,61 +443,77 @@ async function persistRollupRows(
   rows: RollupRow[],
 ): Promise<number> {
   if (rows.length === 0) return 0;
-  // Chunk to keep the parameter count below Postgres' 65k cap and
-  // the transaction round-trip count bounded for large backfills.
-  // For the typical hot path (a single DAY recompute = 1 row, a
-  // multi-week WEEK recompute = a few rows) the round-trip count is
-  // negligible.
+
+  // v1.11.1 — rows are now minted per source. Delete-then-insert the affected
+  // (type, bucket) partitions across ALL sources before writing, so a source
+  // that disappeared from a bucket (the user disconnected a provider, or
+  // deleted the last reading from one device) does not strand a stale
+  // per-source row that a plain upsert would never revisit. The delete is
+  // scoped to the [min, max] bucket range of the rows being written, per type
+  // — an indexed range delete, cheap on the single-day write hook and bounded
+  // on the full backfill.
+  const types = [...new Set(rows.map((r) => r.type as MeasurementType))];
+  let minBucket = rows[0].bucket_start;
+  let maxBucket = rows[0].bucket_start;
+  for (const r of rows) {
+    if (r.bucket_start < minBucket) minBucket = r.bucket_start;
+    if (r.bucket_start > maxBucket) maxBucket = r.bucket_start;
+  }
+  const deleteWhere = {
+    userId,
+    granularity,
+    type: { in: types },
+    bucketStart: { gte: minBucket, lte: maxBucket },
+  };
+
+  const toData = (row: RollupRow) => ({
+    userId,
+    type: row.type as MeasurementType,
+    granularity,
+    bucketStart: row.bucket_start,
+    source: row.source as MeasurementSource,
+    count: Number(row.count),
+    mean: row.mean ?? 0,
+    minValue: row.min_value ?? 0,
+    maxValue: row.max_value ?? 0,
+    // v1.4.39 W-SUM — populate for every type. Cumulative read paths (steps,
+    // flights, distance, daylight, active-energy) consume this column
+    // directly; spot metrics carry it for free because the underlying SUM
+    // aggregator runs in the same query as AVG / MIN / MAX.
+    sumValue: row.sum_value ?? null,
+    sd: row.sd,
+    slope: row.slope,
+    r2: row.r2,
+    computedAt: new Date(),
+  });
+
+  // Chunk to keep the parameter count below Postgres' 65k cap and the
+  // round-trip count bounded for large backfills.
   const CHUNK = 500;
+
+  // Common path — the entire write fits one chunk (every incremental hook
+  // and most bucket-span recomputes). Atomic delete-then-insert so a
+  // concurrent read never sees a half-rewritten partition.
+  if (rows.length <= CHUNK) {
+    const [, created] = await prisma.$transaction([
+      prisma.measurementRollup.deleteMany({ where: deleteWhere }),
+      prisma.measurementRollup.createMany({ data: rows.map(toData) }),
+    ]);
+    return created.count;
+  }
+
+  // Large backfill — delete the partition range once, then insert in chunks.
+  // The brief gap between delete and the first insert can only make a
+  // concurrent reader fall back to live SQL for those buckets (correct
+  // value), never serve a wrong one.
+  await prisma.measurementRollup.deleteMany({ where: deleteWhere });
   let touched = 0;
   for (let i = 0; i < rows.length; i += CHUNK) {
     const slice = rows.slice(i, i + CHUNK);
-    await prisma.$transaction(
-      slice.map((row) =>
-        prisma.measurementRollup.upsert({
-          where: {
-            userId_type_granularity_bucketStart: {
-              userId,
-              type: row.type as MeasurementType,
-              granularity,
-              bucketStart: row.bucket_start,
-            },
-          },
-          create: {
-            userId,
-            type: row.type as MeasurementType,
-            granularity,
-            bucketStart: row.bucket_start,
-            count: Number(row.count),
-            mean: row.mean ?? 0,
-            minValue: row.min_value ?? 0,
-            maxValue: row.max_value ?? 0,
-            // v1.4.39 W-SUM — populate for every type. Cumulative read
-            // paths (steps, flights, distance, daylight, active-energy)
-            // consume this column directly; spot metrics carry it for
-            // free because the underlying SUM aggregator runs in the
-            // same query as AVG / MIN / MAX.
-            sumValue: row.sum_value ?? null,
-            sd: row.sd,
-            slope: row.slope,
-            r2: row.r2,
-            computedAt: new Date(),
-          },
-          update: {
-            count: Number(row.count),
-            mean: row.mean ?? 0,
-            minValue: row.min_value ?? 0,
-            maxValue: row.max_value ?? 0,
-            sumValue: row.sum_value ?? null,
-            sd: row.sd,
-            slope: row.slope,
-            r2: row.r2,
-            computedAt: new Date(),
-          },
-        }),
-      ),
-    );
-    touched += slice.length;
+    const res = await prisma.measurementRollup.createMany({
+      data: slice.map(toData),
+    });
+    touched += res.count;
   }
   return touched;
 }

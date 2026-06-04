@@ -44,7 +44,12 @@ vi.mock("@/lib/db", () => ({
       findFirst: vi.fn().mockResolvedValue(null),
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       upsert: vi.fn().mockResolvedValue({}),
+      // v1.11.1 — the writer now delete-then-inserts via createMany.
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
+    // v1.11.1 — the source-aware rollup readers load the user's
+    // source-priority blob; null → default ladders.
+    user: { findUnique: vi.fn().mockResolvedValue(null) },
     $transaction: vi.fn().mockImplementation(async (queries: unknown[]) => {
       if (Array.isArray(queries)) return Promise.all(queries);
       return undefined;
@@ -256,8 +261,14 @@ describe("GET /api/analytics", () => {
     // two parallel ones (all-time + windowed), so the cold fixture
     // now mocks 4 `$queryRaw` calls: coverage + allTime + windowed +
     // latest.
-    vi.mocked(prisma.$queryRaw)
-      .mockResolvedValueOnce([{ n: BigInt(0) }] as never)
+    // The coverage probe rides `$queryRaw` (n:0 → cold path). v1.11.1 — the
+    // cold path's data aggregates (allTime + windowed + latest) now run via
+    // `$queryRawUnsafe` (the source-aware collapse splices a whitelisted CASE).
+    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
+      { n: BigInt(0) },
+    ] as never);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.mocked(prisma.$queryRawUnsafe as any)
       .mockResolvedValueOnce([
         {
           type: "WEIGHT",

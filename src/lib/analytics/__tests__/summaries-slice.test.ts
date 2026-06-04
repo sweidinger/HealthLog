@@ -10,6 +10,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db", () => ({
   prisma: {
     $queryRaw: vi.fn(),
+    // v1.11.1 — the data-aggregate queries inside `computeFromRollups`
+    // and `computeFromLiveAggregate` now splice a whitelisted
+    // source-rank CASE and bind `userId` as `$1`, so they run via
+    // `$queryRawUnsafe(sql, userId)` rather than the tagged-template
+    // `$queryRaw`. The coverage probe stays on `$queryRaw`.
+    $queryRawUnsafe: vi.fn(),
+    // v1.11.1 — `loadUserSourcePriority` reads the user's
+    // `sourcePriorityJson` to build the rank ladders. `null` here →
+    // default ladders.
+    user: { findUnique: vi.fn() },
     measurement: { findFirst: vi.fn() },
     // v1.4.36 — slim slice reads DAY buckets from `measurement_rollups`
     // on the happy path. The freshness watermark inside
@@ -26,22 +36,63 @@ vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
 
+// v1.11.1 — `computeFromRollups` / `computeFromLiveAggregate` build a
+// source-rank CASE via `@/lib/analytics/source-rank-sql` and splice it
+// into the data-aggregate SQL. The builder's own correctness is pinned
+// in its dedicated suite (and the integration suite runs the real SQL);
+// here we stub it to deterministic, side-effect-free fragments so the
+// slice's plumbing — path selection, slope/round/empty contracts, the
+// 90-day FILTER caps the slice itself writes — is exercised without
+// coupling the slice unit test to the rank builder's enum-whitelist
+// internals.
+vi.mock("@/lib/analytics/source-rank-sql", () => ({
+  buildSourceRankCase: vi.fn(() => "90"),
+  canonicalMeasurementsFrom: vi.fn(
+    (_rank: string, sinceInterval?: string) =>
+      `(
+        SELECT mm.*
+        FROM measurements mm
+        WHERE mm."user_id" = $1
+          AND mm."deleted_at" IS NULL
+          ${
+            sinceInterval
+              ? `AND mm."measured_at" >= NOW() - INTERVAL '${sinceInterval}'`
+              : ""
+          }
+      ) m`,
+  ),
+}));
+
 import { prisma } from "@/lib/db";
+import { canonicalMeasurementsFrom } from "@/lib/analytics/source-rank-sql";
 import { computeSummariesSlice } from "../summaries-slice";
 
 const RAW = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
+const UNSAFE = prisma.$queryRawUnsafe as unknown as ReturnType<typeof vi.fn>;
+const USER_FIND_UNIQUE =
+  prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
 const MEASUREMENT_FIND_FIRST =
   prisma.measurement.findFirst as unknown as ReturnType<typeof vi.fn>;
 const ROLLUP_FIND_MANY =
   prisma.measurementRollup.findMany as unknown as ReturnType<typeof vi.fn>;
 const ROLLUP_FIND_FIRST =
   prisma.measurementRollup.findFirst as unknown as ReturnType<typeof vi.fn>;
+const CANONICAL_FROM =
+  canonicalMeasurementsFrom as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   RAW.mockReset();
+  UNSAFE.mockReset();
+  USER_FIND_UNIQUE.mockReset();
   MEASUREMENT_FIND_FIRST.mockReset();
   ROLLUP_FIND_MANY.mockReset();
   ROLLUP_FIND_FIRST.mockReset();
+  // clear (not reset) — preserve the FROM-clause stub implementation,
+  // drop cross-test call history so the cap assertion only sees this
+  // test's calls.
+  CANONICAL_FROM.mockClear();
+  // null → loadUserSourcePriority returns null → default rank ladders.
+  USER_FIND_UNIQUE.mockResolvedValue(null);
   ROLLUP_FIND_MANY.mockResolvedValue([]);
   ROLLUP_FIND_FIRST.mockResolvedValue(null);
   MEASUREMENT_FIND_FIRST.mockResolvedValue(null);
@@ -54,15 +105,14 @@ afterEach(() => {
 describe("computeSummariesSlice", () => {
   describe("cold fallback — empty rollup table", () => {
     it("returns the empty-summary skeleton when the user has no rows", async () => {
-      // v1.4.48 M0 — cold path now issues two aggregate queries
-      // (`allTime` + `windowed`) instead of one fat aggregate, so the
-      // $queryRaw call count is 4 instead of 3:
-      // 1. per-type coverage probe — empty ⇒ cold path.
-      // 2. all-time aggregate ($queryRaw) — empty.
-      // 3. windowed aggregate ($queryRaw, 90-day cap) — empty.
-      // 4. latests ($queryRaw) — empty.
-      RAW.mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
+      // v1.11.1 — the coverage probe stays on `$queryRaw` (1 RAW call);
+      // the three data-aggregate queries moved to `$queryRawUnsafe`:
+      // 1. per-type coverage probe ($queryRaw) — empty ⇒ cold path.
+      // 2. all-time aggregate ($queryRawUnsafe) — empty.
+      // 3. windowed aggregate ($queryRawUnsafe, 90-day cap) — empty.
+      // 4. latests ($queryRawUnsafe) — empty.
+      RAW.mockResolvedValueOnce([]);
+      UNSAFE.mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
@@ -85,7 +135,9 @@ describe("computeSummariesSlice", () => {
         avg30LastYear: null,
       });
       expect(result.bmi).toBeNull();
-      expect(RAW).toHaveBeenCalledTimes(4);
+      // 1 RAW coverage probe + 3 UNSAFE data queries.
+      expect(RAW).toHaveBeenCalledTimes(1);
+      expect(UNSAFE).toHaveBeenCalledTimes(3);
     });
 
     it("maps a populated heavy aggregate row into the DataSummary shape on cold path", async () => {
@@ -95,16 +147,16 @@ describe("computeSummariesSlice", () => {
       // 2. all-time aggregate (count / min / max / mean)
       // 3. windowed aggregate (avg7/30 + slope/r²)
       // 4. latests
-      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: false }])
-        .mockResolvedValueOnce([
-          {
-            type: "WEIGHT",
-            count: BigInt(42),
-            min_value: 79.2,
-            max_value: 84.1,
-            mean_value: 82.05,
-          },
-        ])
+      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: false }]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "WEIGHT",
+          count: BigInt(42),
+          min_value: 79.2,
+          max_value: 84.1,
+          mean_value: 82.05,
+        },
+      ])
         .mockResolvedValueOnce([
           {
             type: "WEIGHT",
@@ -153,16 +205,16 @@ describe("computeSummariesSlice", () => {
     });
 
     it("returns a null slope tuple when the SQL slope is null (insufficient rows)", async () => {
-      RAW.mockResolvedValueOnce([{ type: "PULSE", has_buckets: false }])
-        .mockResolvedValueOnce([
-          {
-            type: "PULSE",
-            count: BigInt(1),
-            min_value: 72,
-            max_value: 72,
-            mean_value: 72,
-          },
-        ])
+      RAW.mockResolvedValueOnce([{ type: "PULSE", has_buckets: false }]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "PULSE",
+          count: BigInt(1),
+          min_value: 72,
+          max_value: 72,
+          mean_value: 72,
+        },
+      ])
         .mockResolvedValueOnce([
           {
             type: "PULSE",
@@ -188,16 +240,16 @@ describe("computeSummariesSlice", () => {
 
     it("surfaces lastSeenByType from the DISTINCT ON pass's measured_at", async () => {
       const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: false }])
-        .mockResolvedValueOnce([
-          {
-            type: "WEIGHT",
-            count: BigInt(5),
-            min_value: 80,
-            max_value: 84,
-            mean_value: 82,
-          },
-        ])
+      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: false }]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "WEIGHT",
+          count: BigInt(5),
+          min_value: 80,
+          max_value: 84,
+          mean_value: 82,
+        },
+      ])
         .mockResolvedValueOnce([
           {
             type: "WEIGHT",
@@ -225,16 +277,16 @@ describe("computeSummariesSlice", () => {
     });
 
     it("seeds the latest value from the DISTINCT ON pass per type", async () => {
-      RAW.mockResolvedValueOnce([{ type: "PULSE", has_buckets: false }])
-        .mockResolvedValueOnce([
-          {
-            type: "PULSE",
-            count: BigInt(3),
-            min_value: 60,
-            max_value: 95,
-            mean_value: 77,
-          },
-        ])
+      RAW.mockResolvedValueOnce([{ type: "PULSE", has_buckets: false }]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "PULSE",
+          count: BigInt(3),
+          min_value: 60,
+          max_value: 95,
+          mean_value: 77,
+        },
+      ])
         .mockResolvedValueOnce([
           {
             type: "PULSE",
@@ -260,29 +312,29 @@ describe("computeSummariesSlice", () => {
 
   describe("rollup-fresh happy path", () => {
     it("composes count/min/max/mean from the per-type rollup GROUP BY without running the heavy aggregate", async () => {
-      // v1.4.37.2 — the slim slice's rollup read is now a per-type
-      // GROUP BY ($queryRaw) instead of a row-per-bucket findMany,
-      // so the mock sequence is:
-      // 1. per-type coverage probe — WEIGHT fully covered ⇒ happy path.
-      // 2. narrow aggregate — windowed/regression only.
-      // 3. latests.
-      // 4. rollup GROUP BY — one row per type with count/min/max/mean
-      //    already composed server-side.
-      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }])
-        .mockResolvedValueOnce([
-          {
-            type: "WEIGHT",
-            avg7: 82,
-            avg30: 82.5,
-            median: 82.1,
-            slope7: 0.02,
-            r2_7: 0.5,
-            slope30: 0.01,
-            r2_30: 0.4,
-            slope90: 0.005,
-            r2_90: 0.2,
-          },
-        ])
+      // v1.11.1 — the per-type coverage probe stays on `$queryRaw`; the
+      // three rollup-path data queries moved to `$queryRawUnsafe`:
+      // 1. per-type coverage probe ($queryRaw) — WEIGHT fully covered
+      //    ⇒ happy path.
+      // 2. narrow aggregate ($queryRawUnsafe) — windowed/regression only.
+      // 3. latests ($queryRawUnsafe).
+      // 4. rollup GROUP BY ($queryRawUnsafe) — one row per type with
+      //    count/min/max/mean already composed server-side.
+      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "WEIGHT",
+          avg7: 82,
+          avg30: 82.5,
+          median: 82.1,
+          slope7: 0.02,
+          r2_7: 0.5,
+          slope30: 0.01,
+          r2_30: 0.4,
+          slope90: 0.005,
+          r2_90: 0.2,
+        },
+      ])
         .mockResolvedValueOnce([
           { type: "WEIGHT", value: 82.7, measured_at: new Date() },
         ])
@@ -320,9 +372,11 @@ describe("computeSummariesSlice", () => {
         confidence: 0.5,
       });
 
-      // probe + narrow aggregate + latests + rollup GROUP BY
-      // (v1.4.37.2 — the prior `findMany` is gone). No heavy aggregate.
-      expect(RAW).toHaveBeenCalledTimes(4);
+      // 1 RAW coverage probe + 3 UNSAFE data queries (narrow aggregate
+      // + latests + rollup GROUP BY; v1.4.37.2 — the prior `findMany`
+      // is gone). No heavy aggregate.
+      expect(RAW).toHaveBeenCalledTimes(1);
+      expect(UNSAFE).toHaveBeenCalledTimes(3);
       // v1.4.40 W-WMY-WIRE — the year-ago baseline probe runs
       // `readBestGranularityRollups(userId, type, 395)` per
       // type-with-data via `prisma.measurementRollup.findMany`. The
@@ -343,20 +397,20 @@ describe("computeSummariesSlice", () => {
   describe("year-over-year wiring (avg30LastYear)", () => {
     it("populates avg30LastYear from MONTH buckets that overlap the year-ago slice", async () => {
       // Coverage probe shows WEIGHT covered → rollup happy path.
-      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }])
-        .mockResolvedValueOnce([
-          {
-            type: "WEIGHT",
-            avg7: 82,
-            avg30: 82.5,
-            slope7: 0,
-            r2_7: 0,
-            slope30: 0,
-            r2_30: 0,
-            slope90: 0,
-            r2_90: 0,
-          },
-        ])
+      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "WEIGHT",
+          avg7: 82,
+          avg30: 82.5,
+          slope7: 0,
+          r2_7: 0,
+          slope30: 0,
+          r2_30: 0,
+          slope90: 0,
+          r2_90: 0,
+        },
+      ])
         .mockResolvedValueOnce([
           { type: "WEIGHT", value: 82.7, measured_at: new Date() },
         ])
@@ -392,20 +446,20 @@ describe("computeSummariesSlice", () => {
     });
 
     it("leaves avg30LastYear null when no bucket overlaps the year-ago slice", async () => {
-      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }])
-        .mockResolvedValueOnce([
-          {
-            type: "WEIGHT",
-            avg7: 82,
-            avg30: 82.5,
-            slope7: 0,
-            r2_7: 0,
-            slope30: 0,
-            r2_30: 0,
-            slope90: 0,
-            r2_90: 0,
-          },
-        ])
+      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "WEIGHT",
+          avg7: 82,
+          avg30: 82.5,
+          slope7: 0,
+          r2_7: 0,
+          slope30: 0,
+          r2_30: 0,
+          slope90: 0,
+          r2_90: 0,
+        },
+      ])
         .mockResolvedValueOnce([
           { type: "WEIGHT", value: 82.7, measured_at: new Date() },
         ])
@@ -437,20 +491,20 @@ describe("computeSummariesSlice", () => {
     });
 
     it("leaves avg30LastYear null when every granularity misses (no coverage)", async () => {
-      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }])
-        .mockResolvedValueOnce([
-          {
-            type: "WEIGHT",
-            avg7: 82,
-            avg30: 82.5,
-            slope7: 0,
-            r2_7: 0,
-            slope30: 0,
-            r2_30: 0,
-            slope90: 0,
-            r2_90: 0,
-          },
-        ])
+      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }]);
+      UNSAFE.mockResolvedValueOnce([
+        {
+          type: "WEIGHT",
+          avg7: 82,
+          avg30: 82.5,
+          slope7: 0,
+          r2_7: 0,
+          slope30: 0,
+          r2_30: 0,
+          slope90: 0,
+          r2_90: 0,
+        },
+      ])
         .mockResolvedValueOnce([
           { type: "WEIGHT", value: 82.7, measured_at: new Date() },
         ])
@@ -472,12 +526,12 @@ describe("computeSummariesSlice", () => {
 
     it("only probes types that actually have data in the current window", async () => {
       // v1.4.48 M0 — empty coverage map ⇒ `isFullyCovered` returns
-      // false ⇒ cold-fallback path. Cold path now issues 4 raw
-      // queries (coverage probe + all-time + windowed + latests),
-      // all returning empty arrays here ⇒ no types-with-data ⇒ the
-      // year-ago probe must NOT fan out.
-      RAW.mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
+      // false ⇒ cold-fallback path. v1.11.1 — coverage probe stays on
+      // `$queryRaw`; all-time + windowed + latests run via
+      // `$queryRawUnsafe`. All return empty arrays here ⇒ no
+      // types-with-data ⇒ the year-ago probe must NOT fan out.
+      RAW.mockResolvedValueOnce([]);
+      UNSAFE.mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
@@ -499,34 +553,53 @@ describe("computeSummariesSlice", () => {
    */
   describe("90-day outer measured_at cap (v1.4.48 M0)", () => {
     it("applies the 90-day cap to narrows (rollup-fresh path) and windowed (cold-fallback path)", async () => {
+      // v1.11.1 — the cap-bearing data queries (narrows / windowed)
+      // now run via `$queryRawUnsafe(sql, userId)`, so the SQL is a
+      // plain string arg[0] rather than a tagged-template
+      // strings array. Capture from the UNSAFE mock. The coverage probe
+      // (still `$queryRaw`) drives path selection per call.
       const queries: string[] = [];
-      RAW.mockImplementation((strings: TemplateStringsArray) => {
-        queries.push(strings.join("?"));
+      UNSAFE.mockImplementation((sql: string) => {
+        queries.push(sql);
         return Promise.resolve([]);
       });
 
       // Trigger the rollup-fresh path so we capture the `narrows` SQL.
       // Coverage probe returns one covered type ⇒ `isFullyCovered`
       // is true ⇒ `computeFromRollups` runs.
-      RAW.mockImplementationOnce((strings: TemplateStringsArray) => {
-        queries.push(strings.join("?"));
-        return Promise.resolve([{ type: "WEIGHT", has_buckets: true }]);
-      });
+      // Then the cold-fallback path (empty coverage) so we capture the
+      // `windowed` SQL.
+      RAW.mockResolvedValueOnce([{ type: "WEIGHT", has_buckets: true }]);
       await computeSummariesSlice("user-rollup-pin");
 
-      // Trigger the cold-fallback path so we capture the `windowed`
-      // SQL. Empty coverage map ⇒ `isFullyCovered` is false ⇒
-      // `computeFromLiveAggregate` runs.
+      RAW.mockResolvedValueOnce([]);
       await computeSummariesSlice("user-cold-pin");
 
       const joined = queries.join("\n---\n");
-      // Both windowed scans must carry the outer 90-day cap.
-      const capMatches = joined.match(
-        /AND m\."measured_at" >= NOW\(\) - INTERVAL '90 days'/g,
+      // v1.11.1 — the rollup-fresh `narrows` query still writes its
+      // outer 90-day cap inline, now on the canonical-source subquery's
+      // raw alias (`mm.`) rather than the outer `m.`. Pin that the cap
+      // survives the source-rank refactor.
+      const narrowsCap = joined.match(
+        /AND mm\."measured_at" >= NOW\(\) - INTERVAL '90 days'/g,
       );
-      expect(capMatches).not.toBeNull();
-      // narrows (rollup-fresh) + windowed (cold-fallback) = 2 caps.
-      expect(capMatches?.length).toBeGreaterThanOrEqual(2);
+      expect(narrowsCap).not.toBeNull();
+      expect(narrowsCap?.length).toBeGreaterThanOrEqual(1);
+
+      // v1.11.1 — the cold-fallback `windowed` scan delegates its outer
+      // 90-day cap to `canonicalMeasurementsFrom(rank, "90 days")`. The
+      // helper lives in `@/lib/analytics/source-rank-sql` (stubbed
+      // above), so pin the contract at the call boundary: the slice
+      // must ask for the 90-day window. The `allTime` aggregate
+      // deliberately calls it WITHOUT an interval (no cap — all-time
+      // count/min/max/mean must scan every row).
+      expect(canonicalMeasurementsFrom).toHaveBeenCalledWith(
+        expect.any(String),
+        "90 days",
+      );
+      expect(canonicalMeasurementsFrom).toHaveBeenCalledWith(
+        expect.any(String),
+      );
     });
   });
 });
