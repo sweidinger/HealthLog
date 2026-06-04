@@ -4038,12 +4038,66 @@ components:
               items:
                 type: string
               description: App locales that default the additive BfArM ATC coding on.
+            restBaseUrl:
+              type: string
+              description: Base path of the read-only FHIR R4 REST face.
+            readScope:
+              type: string
+              description: Bearer scope a narrow token needs to read the FHIR face.
+            resourceTypes:
+              type: array
+              items:
+                type: string
+              description: FHIR resource types the REST face serves (read + search).
+            operations:
+              type: array
+              items:
+                type: string
+              description: Whole-record operations exposed (e.g. $everything).
+            searchParams:
+              type: array
+              items:
+                type: string
+              description: Search parameters honoured uniformly across the search routes.
           required:
             - atcSystem
             - snomedRoute
             - germanAtcDefaultLocales
+            - restBaseUrl
+            - readScope
+            - resourceTypes
+            - operations
+            - searchParams
           additionalProperties: false
-          description: FHIR coding constants the health-record export emits.
+          description: FHIR coding constants + the read-only REST face descriptor (v1.11).
+        share:
+          type: object
+          properties:
+            supported:
+              type: boolean
+              description: Whether clinician share links are served.
+            maxDays:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+              description: Maximum lifetime of a share link, in days. No never-expiring share.
+            resourceTypes:
+              type: array
+              items:
+                type: string
+              description: FHIR resource types a share link may be scoped to serve.
+            sections:
+              type: array
+              items:
+                type: string
+              description: Scopeable report sections a share link may toggle.
+          required:
+            - supported
+            - maxDays
+            - resourceTypes
+            - sections
+          additionalProperties: false
+          description: Clinician share-link surface descriptor (v1.11).
       required:
         - apiContractVersion
         - derivedMetricIds
@@ -4052,6 +4106,7 @@ components:
         - metricStatusIds
         - ingest
         - fhir
+        - share
       additionalProperties: false
       description: Live id vocabularies + contract version. Every list is derived server-side from the canonical registry it
         documents, so it cannot drift from the values the routes actually accept/emit.
