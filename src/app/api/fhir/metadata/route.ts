@@ -9,14 +9,12 @@
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
-import { FHIR_READ_SCOPE, fhirJsonResponse } from "@/lib/fhir/rest";
-
-const READ_RESOURCES = [
-  "Patient",
-  "Observation",
-  "MedicationStatement",
-  "MedicationAdministration",
-] as const;
+import {
+  FHIR_READ_SCOPE,
+  FHIR_REST_RESOURCE_TYPES,
+  FHIR_SEARCH_PARAMS,
+  fhirJsonResponse,
+} from "@/lib/fhir/rest";
 
 export const GET = apiHandler(async () => {
   await requireAuth(FHIR_READ_SCOPE);
@@ -35,13 +33,13 @@ export const GET = apiHandler(async () => {
         documentation:
           "Read-only access to the authenticated user's own health record.",
         resource: [
-          ...READ_RESOURCES.map((type) => ({
+          ...FHIR_REST_RESOURCE_TYPES.map((type) => ({
             type,
             interaction: [{ code: "read" }, { code: "search-type" }],
-            searchParam: [
-              { name: "_count", type: "number" },
-              { name: "_offset", type: "number" },
-            ],
+            searchParam: FHIR_SEARCH_PARAMS.map((name) => ({
+              name,
+              type: "number",
+            })),
           })),
           {
             type: "Patient",

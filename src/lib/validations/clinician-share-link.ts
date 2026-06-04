@@ -13,23 +13,21 @@
  */
 import { z } from "zod/v4";
 
+import { FHIR_REST_RESOURCE_TYPES } from "@/lib/fhir/rest";
 import { exportSectionsSchema } from "@/lib/validations/health-record-export";
 
 /** Maximum lifetime of a share link, in days. No never-expiring share. */
 export const SHARE_LINK_MAX_DAYS = 90;
 
 /**
- * The FHIR resource types a share link may be scoped to serve — the read-only
- * catalogue the REST face exposes. A create request may select any subset;
- * an empty array means "no FHIR resources" (view-only, when `allowFhirApi` is
- * off this is moot).
+ * The FHIR resource types a share link may be scoped to serve — exactly the
+ * read-only catalogue the REST face exposes. Derived from the single canonical
+ * `FHIR_REST_RESOURCE_TYPES` so a share can never be scoped to a type the REST
+ * face does not actually route. A create request may select any subset; an
+ * empty array means "no FHIR resources" (view-only, moot when `allowFhirApi`
+ * is off).
  */
-export const SHARE_LINK_RESOURCE_TYPES = [
-  "Patient",
-  "Observation",
-  "MedicationStatement",
-  "MedicationAdministration",
-] as const;
+export const SHARE_LINK_RESOURCE_TYPES = FHIR_REST_RESOURCE_TYPES;
 
 export const shareLinkResourceTypeEnum = z.enum(SHARE_LINK_RESOURCE_TYPES);
 

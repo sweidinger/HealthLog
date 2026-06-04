@@ -33,6 +33,30 @@ import type {
 /** The Bearer scope a narrow-scoped token must carry to read the FHIR face. */
 export const FHIR_READ_SCOPE = "fhir:read";
 
+/**
+ * Canonical catalogue of FHIR R4 resource types the read-only REST face serves
+ * (`read` + `search-type` interactions only — no write, ever). One source of
+ * truth: the `metadata` CapabilityStatement, the `/api/meta/capabilities`
+ * discovery surface, and the share-link resource-type enum all derive from
+ * this so the advertised set can never drift from what is actually routed.
+ */
+export const FHIR_REST_RESOURCE_TYPES = [
+  "Patient",
+  "Observation",
+  "MedicationStatement",
+  "MedicationAdministration",
+] as const;
+
+/**
+ * The whole-record operation the REST face exposes (`GET /api/fhir/$everything`),
+ * returning the existing `type: "document"` Bundle. Surfaced in discovery so a
+ * client knows the snapshot pull exists alongside the per-resource searches.
+ */
+export const FHIR_EVERYTHING_OPERATION = "$everything";
+
+/** Search parameters honoured uniformly across the search routes. */
+export const FHIR_SEARCH_PARAMS = ["_count", "_offset"] as const;
+
 /** Canonical FHIR media type for every response (success or outcome). */
 export const FHIR_CONTENT_TYPE = "application/fhir+json; charset=utf-8";
 

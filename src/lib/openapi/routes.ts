@@ -1952,8 +1952,40 @@ const capabilitiesResponse = z
         germanAtcDefaultLocales: z
           .array(z.string())
           .describe("App locales that default the additive BfArM ATC coding on."),
+        restBaseUrl: z
+          .string()
+          .describe("Base path of the read-only FHIR R4 REST face."),
+        readScope: z
+          .string()
+          .describe("Bearer scope a narrow token needs to read the FHIR face."),
+        resourceTypes: z
+          .array(z.string())
+          .describe("FHIR resource types the REST face serves (read + search)."),
+        operations: z
+          .array(z.string())
+          .describe("Whole-record operations exposed (e.g. $everything)."),
+        searchParams: z
+          .array(z.string())
+          .describe("Search parameters honoured uniformly across the search routes."),
       })
-      .describe("FHIR coding constants the health-record export emits."),
+      .describe(
+        "FHIR coding constants + the read-only REST face descriptor (v1.11).",
+      ),
+    share: z
+      .object({
+        supported: z.boolean().describe("Whether clinician share links are served."),
+        maxDays: z
+          .number()
+          .int()
+          .describe("Maximum lifetime of a share link, in days. No never-expiring share."),
+        resourceTypes: z
+          .array(z.string())
+          .describe("FHIR resource types a share link may be scoped to serve."),
+        sections: z
+          .array(z.string())
+          .describe("Scopeable report sections a share link may toggle."),
+      })
+      .describe("Clinician share-link surface descriptor (v1.11)."),
   })
   .meta({
     id: "CapabilitiesResponse",
