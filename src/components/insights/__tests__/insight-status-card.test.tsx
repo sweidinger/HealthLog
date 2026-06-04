@@ -90,6 +90,36 @@ describe("<InsightStatusCard>", () => {
     expect(html).toContain("No analysis yet.");
   });
 
+  it("never surfaces a cached badge, even when the text came from the warm cache", () => {
+    // v1.11.5 — the top-right "cached" label was removed. The caching
+    // behaviour is unchanged (the prop is still threaded), but the card
+    // no longer announces it, so the assessment reads as authoritative.
+    const html = render(
+      <InsightStatusCard
+        {...baseProps}
+        cached
+        text="Pulse stayed inside the band."
+      />,
+    );
+    expect(html).toContain("Pulse stayed inside the band.");
+    expect(html).not.toContain("Cached");
+  });
+
+  it("does not paint the show-more toggle in SSR (overflow is measured client-side)", () => {
+    // v1.11.5 — the toggle mounts only on a measured three-line overflow,
+    // computed in a layout effect that never runs under SSR, so the
+    // server output carries the prose but no toggle. A short assessment
+    // that fits never grows a useless affordance.
+    const html = render(
+      <InsightStatusCard
+        {...baseProps}
+        text="A short assessment that comfortably fits inside three lines."
+      />,
+    );
+    expect(html).toContain("A short assessment");
+    expect(html).not.toContain('data-slot="assessment-show-more"');
+  });
+
   it("renders the structured skeleton (v1.4.37) when loading instead of a centred spinner", () => {
     const html = render(
       <InsightStatusCard {...baseProps} text={null} loading />,

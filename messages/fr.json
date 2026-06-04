@@ -2122,6 +2122,8 @@
       "critical": "Critique"
     },
     "assessmentTitle": "Évaluation",
+    "assessmentShowMore": "Afficher plus",
+    "assessmentShowLess": "Afficher moins",
     "bloodPressureSectionTitle": "Tension artérielle",
     "weightSectionTitle": "Poids",
     "pulseSectionTitle": "Pouls",

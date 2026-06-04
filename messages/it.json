@@ -2122,6 +2122,8 @@
       "critical": "Critico"
     },
     "assessmentTitle": "Valutazione",
+    "assessmentShowMore": "Mostra altro",
+    "assessmentShowLess": "Mostra meno",
     "bloodPressureSectionTitle": "Pressione arteriosa",
     "weightSectionTitle": "Peso",
     "pulseSectionTitle": "Polso",

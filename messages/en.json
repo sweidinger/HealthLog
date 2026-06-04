@@ -2122,6 +2122,8 @@
       "critical": "Critical"
     },
     "assessmentTitle": "Assessment",
+    "assessmentShowMore": "Show more",
+    "assessmentShowLess": "Show less",
     "bloodPressureSectionTitle": "Blood Pressure",
     "weightSectionTitle": "Weight",
     "pulseSectionTitle": "Pulse",
