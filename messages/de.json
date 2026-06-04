@@ -3380,6 +3380,7 @@
     "withingsNoCredentials": "Bitte zuerst die API-Zugangsdaten oben eingeben, um Withings zu verbinden.",
     "whoop": "WHOOP",
     "whoopDescription": "Verbinde dein WHOOP-Band, um Erholung, Schlaf, Belastung und Workouts zu synchronisieren.",
+    "whoopOverlapNote": "Wenn WHOOP und eine weitere Quelle denselben Vitalwert liefern – Ruhepuls, Blutsauerstoff, Körpertemperatur, Atemfrequenz oder Schlafphasen –, können beide Werte angezeigt werden, bis sich ein künftiges Update auf eine bevorzugte Quelle festlegt.",
     "whoopCredentials": "API-Zugangsdaten",
     "whoopCredentialsHelp": "Registriere deine eigene WHOOP-Entwickler-App und füge hier Client ID und Client Secret ein.",
     "whoopClientId": "Client ID",

@@ -840,6 +840,9 @@ function WhoopCard({
       <p className="text-muted-foreground mt-1 text-xs">
         {t("settings.whoopDescription")}
       </p>
+      <p className="text-muted-foreground/80 mt-2 text-xs">
+        {t("settings.whoopOverlapNote")}
+      </p>
 
       <hr
         data-testid="integration-card-divider"

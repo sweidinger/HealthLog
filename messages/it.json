@@ -3380,6 +3380,7 @@
     "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
     "whoop": "WHOOP",
     "whoopDescription": "Collega la tua fascia WHOOP per sincronizzare recupero, sonno, sforzo e allenamenti.",
+    "whoopOverlapNote": "Se WHOOP e un'altra fonte forniscono lo stesso valore vitale — frequenza cardiaca a riposo, ossigeno nel sangue, temperatura corporea, frequenza respiratoria o fasi del sonno —, potresti vedere entrambi i valori finché un futuro aggiornamento non sceglierà un'unica fonte preferita.",
     "whoopCredentials": "Credenziali API",
     "whoopCredentialsHelp": "Registra la tua app sviluppatore WHOOP e incolla qui il suo Client ID e Client Secret.",
     "whoopClientId": "Client ID",

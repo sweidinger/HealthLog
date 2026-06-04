@@ -3380,6 +3380,7 @@
     "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
     "whoop": "WHOOP",
     "whoopDescription": "Connect your WHOOP strap to sync recovery, sleep, strain and workouts.",
+    "whoopOverlapNote": "If WHOOP and another source both supply a vital — resting heart rate, blood oxygen, body temperature, respiratory rate or sleep stages — you may see both values until a future update settles on a single preferred source.",
     "whoopCredentials": "API Credentials",
     "whoopCredentialsHelp": "Register your own WHOOP developer app and paste its Client ID and Client Secret here.",
     "whoopClientId": "Client ID",
