@@ -132,6 +132,16 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   vo2Max: "dashboard.vo2Max",
   // v1.4.32 — Recent workouts tile (default-on).
   recentWorkouts: "dashboard.recentWorkouts.title",
+  // v1.11.2 B5 — v1.10 additive HealthKit signals, now pinnable. Each
+  // reuses the existing measurement-type label key.
+  cardioRecovery: "measurements.typeCardioRecovery",
+  sixMinuteWalk: "measurements.typeSixMinuteWalkDistance",
+  stairAscentSpeed: "measurements.typeStairAscentSpeed",
+  stairDescentSpeed: "measurements.typeStairDescentSpeed",
+  breathingDisturbances: "measurements.typeBreathingDisturbances",
+  wristTemperature: "measurements.typeWristTemperature",
+  falls: "measurements.typeFallCount",
+  walkingSteadiness: "measurements.typeWalkingSteadiness",
 };
 
 export function DashboardLayoutSection({ id }: { id: string }) {

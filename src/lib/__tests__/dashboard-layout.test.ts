@@ -382,11 +382,13 @@ describe("resolveDashboardLayout() — chartOverlayPrefs (v1.4.18)", () => {
  * iOS-only ids extend it without touching the writable PUT enum.
  */
 describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
-  it("carries exactly 27 distinct ids (16 server-known + 11 iOS-only)", () => {
-    expect(DASHBOARD_WIDGET_IDS).toHaveLength(16);
+  it("carries exactly 35 distinct ids (24 server-known + 11 iOS-only)", () => {
+    // v1.11.2 B5 — the 8 v1.10 additive metrics became web-writable, so
+    // the server-known set grew 16 → 24 and the catalogue 27 → 35.
+    expect(DASHBOARD_WIDGET_IDS).toHaveLength(24);
     expect(DASHBOARD_IOS_ONLY_WIDGET_IDS).toHaveLength(11);
-    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(27);
-    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(27);
+    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(35);
+    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(35);
   });
 
   it("is a superset of the server-known ids in declaration order", () => {
@@ -483,17 +485,17 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
     expect(ids).not.toContain("totally-made-up");
   });
 
-  it("keeps the default layout at the 16 web tiles (no iOS-only seeded)", () => {
+  it("keeps the default layout at the 24 web tiles (no iOS-only seeded)", () => {
     const ids = DEFAULT_DASHBOARD_LAYOUT.widgets.map((w) => w.id);
-    expect(ids).toHaveLength(16);
+    expect(ids).toHaveLength(24);
     for (const iosId of DASHBOARD_IOS_ONLY_WIDGET_IDS) {
       expect(ids).not.toContain(iosId);
     }
   });
 
   it("does NOT auto-append iOS-only ids when a web-only layout is read", () => {
-    // A web account that saved only `weight` must auto-upgrade to the 16
-    // web defaults — never to the 27 catalogue. iOS-only ids appear only
+    // A web account that saved only `weight` must auto-upgrade to the 24
+    // web defaults — never to the 35 catalogue. iOS-only ids appear only
     // once a native client has explicitly sent them.
     const partial = {
       version: 1,
@@ -501,7 +503,7 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
     };
     const resolved = resolveDashboardLayout(partial);
     const ids = resolved.widgets.map((w) => w.id);
-    expect(ids).toHaveLength(16);
+    expect(ids).toHaveLength(24);
     for (const iosId of DASHBOARD_IOS_ONLY_WIDGET_IDS) {
       expect(ids).not.toContain(iosId);
     }
