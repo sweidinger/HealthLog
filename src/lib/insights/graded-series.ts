@@ -53,6 +53,7 @@ import {
   readBestGranularityRollups,
   type RollupBucketRow,
 } from "@/lib/rollups/measurement-read-wmy";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { toBerlinYmd } from "@/lib/tz/resolver";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -350,10 +351,23 @@ export async function buildGradedSeriesWithRollups(
     now,
   );
 
+  // v1.11.2 — load the source-priority blob once and thread it into both
+  // granularity reads so they don't re-query the user.
+  const priority = await loadUserSourcePriority(userId);
   // Monthly slice: route a ~1-year window through the tier.
-  const monthlyRouted = await readBestGranularityRollups(userId, type, 365);
+  const monthlyRouted = await readBestGranularityRollups(
+    userId,
+    type,
+    365,
+    priority,
+  );
   // Yearly slice: route a multi-year window through the tier.
-  const yearlyRouted = await readBestGranularityRollups(userId, type, 1095);
+  const yearlyRouted = await readBestGranularityRollups(
+    userId,
+    type,
+    1095,
+    priority,
+  );
 
   const monthlyCovered =
     monthlyRouted !== null && monthlyRouted.granularity === "MONTH";
