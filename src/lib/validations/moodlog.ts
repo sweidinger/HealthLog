@@ -1,6 +1,14 @@
 import { z } from "zod/v4";
 import { isPublicUrl } from "@/lib/validations/notifications";
 
+/**
+ * @deprecated The standalone moodLog integration is superseded by native
+ * mood entries plus structured tags and rated factors — mood is tracked
+ * fully inside HealthLog now. These schemas remain only to keep the
+ * existing webhook + sync paths functional; the surface is slated for
+ * removal in a future major release. The native mood schemas
+ * (`createMoodEntrySchema` etc.) below are the supported path.
+ */
 export const moodLogCredentialsSchema = z.object({
   url: z
     .string()

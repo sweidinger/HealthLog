@@ -50,6 +50,10 @@ import {
   MoodBetterDays,
   type MoodBetterDayFactor,
 } from "./mood-better-days";
+import {
+  MoodTagMetricCrosstab,
+  type MoodTagMetricCrosstabRow,
+} from "./mood-tag-metric-crosstab";
 import { MoodDiscoveredRelations } from "./mood-discovered-relations";
 
 /**
@@ -84,6 +88,9 @@ interface MoodInsightsResponse {
     structured: MoodTagInfluenceRow[];
   };
   betterDays?: MoodBetterDayFactor[];
+  // Optional only to tolerate a stale pre-v1.12.0 cached payload during a
+  // rollout; the live endpoint always populates it.
+  tagMetricCrosstab?: MoodTagMetricCrosstabRow[];
   narratives: MoodNarrativeItem[];
   correlations: {
     sleep: MoodMetricCorrelationData;
@@ -166,6 +173,8 @@ export function MoodInsightsSections() {
   const hasInfluence = influenceRows.length > 0;
   const betterDays = data.betterDays ?? [];
   const hasBetterDays = betterDays.length > 0;
+  const crosstabRows = data.tagMetricCrosstab ?? [];
+  const hasCrosstab = crosstabRows.length > 0;
 
   return (
     <div className="space-y-4">
@@ -233,6 +242,12 @@ export function MoodInsightsSections() {
       {hasInfluence && (
         <SectionCard title={t("insights.mood.influence.title")}>
           <MoodTagInfluence rows={influenceRows} />
+        </SectionCard>
+      )}
+
+      {hasCrosstab && (
+        <SectionCard title={t("insights.mood.crosstab.title")}>
+          <MoodTagMetricCrosstab rows={crosstabRows} />
         </SectionCard>
       )}
 

@@ -2604,6 +2604,20 @@
         "description": "Tag e parametri che coincidono con le tue giornate di umore migliore e peggiore, ordinati per quanto si muovono insieme.",
         "disclaimer": "Solo associazioni, non cause. Parla con il tuo medico prima di cambiare qualcosa."
       },
+      "crosstab": {
+        "title": "Tag e le tue metriche di salute",
+        "description": "Come una metrica di salute cambia nei giorni in cui hai aggiunto un tag rispetto ai giorni senza.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Energia attiva",
+        "metricSleepDuration": "Sonno",
+        "metricNextDayRecovery": "Recupero il giorno dopo",
+        "unitHours": "h",
+        "unitKcal": "kcal",
+        "unitScore": "pt",
+        "detailSameDay": "In media {withAvg} {unit} nei {withDays} giorni con questo tag contro {withoutAvg} {unit} senza.",
+        "detailNextDay": "In media {withAvg} {unit} il giorno dopo i {withDays} giorni con questo tag contro {withoutAvg} {unit} altrimenti.",
+        "disclaimer": "Sono associazioni nei tuoi dati, non prova di causa. Schemi che vale la pena osservare."
+      },
       "discovery": {
         "title": "Cosa risalta",
         "description": "Relazioni giorno per giorno legate al tuo umore che reggono dopo aver corretto per i test multipli.",
@@ -3639,6 +3653,7 @@
     "savingError": "Errore durante il salvataggio",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood data from moodLog",
+    "moodLogDeprecated": "Obsoleto: l’umore ora è registrato nativamente in HealthLog con tag e fattori. Questa integrazione funziona ancora ma verrà rimossa in una versione futura.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "Chiave API",

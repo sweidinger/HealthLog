@@ -53,6 +53,12 @@ export interface MoodEntryForPush {
   source: string;
 }
 
+/**
+ * @deprecated The moodLog integration is superseded by native mood entries
+ * plus structured tags and rated factors. Mood lives fully inside HealthLog,
+ * so the reverse-sync bridge no longer adds value. Kept functional for
+ * existing setups; slated for removal in a future major release.
+ */
 export async function pushMoodEntriesToMoodLog(
   userId: string,
   entries: ReadonlyArray<MoodEntryForPush>,

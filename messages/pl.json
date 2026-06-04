@@ -2604,6 +2604,20 @@
         "description": "Tagi i wskaźniki, które pokrywają się z dniami lepszego i gorszego nastroju, uszeregowane według siły powiązania.",
         "disclaimer": "Tylko powiązania, nie przyczyny. Skonsultuj się z lekarzem, zanim coś zmienisz."
       },
+      "crosstab": {
+        "title": "Tagi a Twoje wskaźniki zdrowia",
+        "description": "Jak wskaźnik zdrowia różni się w dniach z danym tagiem w porównaniu z dniami bez niego.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Aktywna energia",
+        "metricSleepDuration": "Sen",
+        "metricNextDayRecovery": "Regeneracja następnego dnia",
+        "unitHours": "godz.",
+        "unitKcal": "kcal",
+        "unitScore": "pkt",
+        "detailSameDay": "Średnio {withAvg} {unit} w {withDays} dniach z tym tagiem wobec {withoutAvg} {unit} bez niego.",
+        "detailNextDay": "Średnio {withAvg} {unit} dzień po {withDays} dniach z tym tagiem wobec {withoutAvg} {unit} w pozostałe dni.",
+        "disclaimer": "To powiązania w Twoich danych, nie dowód przyczyny. Wzorce warte obserwacji."
+      },
       "discovery": {
         "title": "Co się wyróżnia",
         "description": "Relacje dzień po dniu dotyczące Twojego nastroju, które utrzymują się po korekcie wielokrotnych testów.",
@@ -3639,6 +3653,7 @@
     "savingError": "Błąd podczas zapisywania",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood data from moodLog",
+    "moodLogDeprecated": "Wycofane: nastrój jest teraz śledzony natywnie w HealthLog z tagami i czynnikami. Ta integracja nadal działa, ale zostanie usunięta w przyszłej wersji.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "Klucz API",

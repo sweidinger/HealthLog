@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **How your tags line up with your health metrics.** The mood Insights now compares a health metric on the days you tagged an activity against the days you did not — active energy on workout days, sleep length on the nights you tagged sleep, next-day recovery after a tag like alcohol or food. Each row shows the difference, its confidence, and is framed as an association in your own data, not a cause; only relationships that clear the same statistical filter the rest of the relations surface uses are shown.
+
+### Changed
+
+- The standalone moodLog integration is deprecated. Mood is now tracked fully inside HealthLog with entries, structured tags, and rated factors, so the external bridge no longer adds anything. It keeps working for existing setups but is slated for removal in a future major release.
+
 ## [1.11.5] — 2026-06-04 — mood relations, sleep depth, and a clear-the-decks polish pass
 
 ### Added

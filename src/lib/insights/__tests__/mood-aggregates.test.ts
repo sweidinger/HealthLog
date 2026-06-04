@@ -15,6 +15,10 @@ import {
   computeTagSummary,
   computeTagInfluence,
   computeBetterDays,
+  computeTagMetricCrosstab,
+  CROSSTAB_MIN_PRESENT_DAYS,
+  CROSSTAB_MIN_ABSENT_DAYS,
+  CROSSTAB_MAX_ROWS,
   influenceConfidence,
   computeTimeOfDayAverages,
   computeWeekdayAverages,
@@ -822,5 +826,162 @@ describe("computeBetterDays", () => {
       },
     );
     expect(board.length).toBe(BETTER_DAYS_MAX_FACTORS);
+  });
+});
+
+// ── v1.12.0 — computeTagMetricCrosstab (tag × HK metric) ─────────────
+
+describe("computeTagMetricCrosstab", () => {
+  const WORKOUT: StructuredTagRef = {
+    key: "worked_out",
+    categoryKey: "health",
+    labelKey: "mood.tag.workedOut",
+    icon: "Dumbbell",
+  };
+
+  function structuredEntry(
+    offset: number,
+    score: number,
+    structuredTags: StructuredTagRef[],
+  ): MoodAggregateEntry {
+    return { ...entry(offset, score, null), structuredTags };
+  }
+
+  /** A measurement at midday on the day `offset` days before NOW. */
+  function meas(offset: number, type: string, value: number): CrossMetricMeasurement {
+    return { type, value, measuredAt: new Date(NOW.getTime() - offset * dayMs) };
+  }
+
+  it("compares a metric on tag-present vs tag-absent days (same-day) and surfaces a significant delta", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    // 12 days WITH the workout tag, high active energy (~600 ± a little).
+    for (let i = 0; i < 12; i++) {
+      entries.push(structuredEntry(i, 4, [WORKOUT]));
+      measurements.push(meas(i, "ACTIVE_ENERGY_BURNED", 600 + (i % 2 === 0 ? 20 : -20)));
+    }
+    // 12 days WITHOUT the tag, low active energy (~350).
+    for (let i = 12; i < 24; i++) {
+      entries.push(structuredEntry(i, 3, []));
+      measurements.push(meas(i, "ACTIVE_ENERGY_BURNED", 350 + (i % 2 === 0 ? 20 : -20)));
+    }
+    const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
+    const row = rows.find((r) => r.tag === "worked_out" && r.metricKey === "activeEnergy");
+    expect(row).toBeDefined();
+    expect(row!.display).toBe("kcal");
+    expect(row!.mode).toBe("sameDay");
+    expect(row!.withDays).toBe(12);
+    expect(row!.withoutDays).toBe(12);
+    expect(row!.withAvg).toBeCloseTo(600, 0);
+    expect(row!.withoutAvg).toBeCloseTo(350, 0);
+    expect(row!.delta).toBeCloseTo(250, 0);
+    // strong clean separation on enough days → high confidence + tight q.
+    expect(row!.confidence).toBe("high");
+    expect(row!.qValue).toBeLessThanOrEqual(0.1);
+  });
+
+  it("converts SLEEP_DURATION minutes to display hours", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    const SLEEP: StructuredTagRef = {
+      key: "slept_well",
+      categoryKey: "health",
+      labelKey: "mood.tag.sleptWell",
+      icon: "Moon",
+    };
+    // present: 480 min = 8 h; absent: 360 min = 6 h.
+    for (let i = 0; i < 12; i++) {
+      entries.push(structuredEntry(i, 4, [SLEEP]));
+      measurements.push(meas(i, "SLEEP_DURATION", 480 + (i % 2 === 0 ? 6 : -6)));
+    }
+    for (let i = 12; i < 24; i++) {
+      entries.push(structuredEntry(i, 3, []));
+      measurements.push(meas(i, "SLEEP_DURATION", 360 + (i % 2 === 0 ? 6 : -6)));
+    }
+    const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
+    const row = rows.find((r) => r.metricKey === "sleepDuration");
+    expect(row).toBeDefined();
+    expect(row!.display).toBe("hours");
+    expect(row!.withAvg).toBeCloseTo(8, 1);
+    expect(row!.withoutAvg).toBeCloseTo(6, 1);
+    expect(row!.delta).toBeCloseTo(2, 1);
+  });
+
+  it("pairs a tag against the NEXT day's recovery (D → D+1 lag)", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    const ALCOHOL: StructuredTagRef = {
+      key: "alcohol",
+      categoryKey: "consumption",
+      labelKey: "mood.tag.alcohol",
+      icon: "Wine",
+    };
+    // Tag on even offsets (present), recovery measured the day AFTER (offset-1).
+    // present days: tag at offset i, recovery low (40) at offset i-1.
+    // absent days: no tag at offset i, recovery high (80) at offset i-1.
+    // Build 24 consecutive days; tag the older half so the +1 day always exists.
+    for (let i = 1; i <= 12; i++) {
+      entries.push(structuredEntry(i, 3, [ALCOHOL]));
+      measurements.push(meas(i - 1, "RECOVERY_SCORE", 40 + (i % 2 === 0 ? 3 : -3)));
+    }
+    for (let i = 13; i <= 24; i++) {
+      entries.push(structuredEntry(i, 4, []));
+      measurements.push(meas(i - 1, "RECOVERY_SCORE", 80 + (i % 2 === 0 ? 3 : -3)));
+    }
+    const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
+    const row = rows.find((r) => r.metricKey === "nextDayRecovery");
+    expect(row).toBeDefined();
+    expect(row!.mode).toBe("nextDay");
+    expect(row!.display).toBe("score");
+    // present-day next-day recovery ~40, absent ~80 → negative delta.
+    expect(row!.withAvg).toBeCloseTo(40, 0);
+    expect(row!.withoutAvg).toBeCloseTo(80, 0);
+    expect(row!.delta).toBeLessThan(0);
+  });
+
+  it("drops a tag below the per-side day floors", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    // only 3 present days < CROSSTAB_MIN_PRESENT_DAYS
+    for (let i = 0; i < 3; i++) {
+      entries.push(structuredEntry(i, 4, [WORKOUT]));
+      measurements.push(meas(i, "ACTIVE_ENERGY_BURNED", 600));
+    }
+    for (let i = 3; i < 15; i++) {
+      entries.push(structuredEntry(i, 3, []));
+      measurements.push(meas(i, "ACTIVE_ENERGY_BURNED", 350));
+    }
+    expect(CROSSTAB_MIN_PRESENT_DAYS).toBeGreaterThan(3);
+    const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
+    expect(rows.find((r) => r.tag === "worked_out")).toBeUndefined();
+  });
+
+  it("excludes flat free-text tags (structured only)", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    for (let i = 0; i < 12; i++) {
+      entries.push(entry(i, 4, ["flat_workout"]));
+      measurements.push(meas(i, "ACTIVE_ENERGY_BURNED", 600));
+    }
+    for (let i = 12; i < 24; i++) {
+      entries.push(entry(i, 3, []));
+      measurements.push(meas(i, "ACTIVE_ENERGY_BURNED", 350));
+    }
+    const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
+    expect(rows).toEqual([]);
+  });
+
+  it("returns an empty array when no metric data is present", () => {
+    const entries: MoodAggregateEntry[] = [];
+    for (let i = 0; i < 24; i++) {
+      entries.push(structuredEntry(i, 4, i < 12 ? [WORKOUT] : []));
+    }
+    const rows = computeTagMetricCrosstab({ entries, measurements: [], now: NOW });
+    expect(rows).toEqual([]);
+  });
+
+  it("caps the surfaced rows at CROSSTAB_MAX_ROWS", () => {
+    expect(CROSSTAB_MAX_ROWS).toBeGreaterThan(0);
+    expect(CROSSTAB_MIN_ABSENT_DAYS).toBeGreaterThan(0);
   });
 });

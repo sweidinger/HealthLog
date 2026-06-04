@@ -2604,6 +2604,20 @@
         "description": "Tags and metrics that line up with your higher- and lower-mood days, ranked by how strongly they move together.",
         "disclaimer": "Associations only, not causes. Talk to your doctor before changing anything based on these."
       },
+      "crosstab": {
+        "title": "Tags and your health metrics",
+        "description": "How a health metric differs on the days you tagged each activity, compared with the days you did not.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Active energy",
+        "metricSleepDuration": "Sleep",
+        "metricNextDayRecovery": "Next-day recovery",
+        "unitHours": "h",
+        "unitKcal": "kcal",
+        "unitScore": "pts",
+        "detailSameDay": "Averages {withAvg} {unit} on the {withDays} days you tagged this vs {withoutAvg} {unit} without it.",
+        "detailNextDay": "Averages {withAvg} {unit} the day after the {withDays} days you tagged this vs {withoutAvg} {unit} otherwise.",
+        "disclaimer": "These are associations in your own data, not proof of cause. Patterns worth watching."
+      },
       "discovery": {
         "title": "What stands out",
         "description": "Day-to-day relationships involving your mood that hold up after correcting for testing many pairs at once.",
@@ -3639,6 +3653,7 @@
     "savingError": "Error saving",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood entries.",
+    "moodLogDeprecated": "Deprecated: mood is now tracked natively in HealthLog with tags and factors. This integration still works but will be removed in a future release.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "API Key",

@@ -1688,6 +1688,9 @@ function MoodLogCard({
       <p className="text-muted-foreground mt-1 text-xs">
         {t("settings.moodLogDescription")}
       </p>
+      <p className="text-muted-foreground/80 mt-1 text-[11px] italic">
+        {t("settings.moodLogDeprecated")}
+      </p>
 
       {/* v1.4.19 A5 — visual divider matches Withings for consistency
           (the maintainer explicitly called the asymmetry out). */}

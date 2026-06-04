@@ -2604,6 +2604,20 @@
         "description": "Les tags et mesures qui coïncident avec vos jours de meilleure et de moins bonne humeur, classés selon la force du lien.",
         "disclaimer": "Des associations seulement, pas des causes. Parlez-en à votre médecin avant de changer quoi que ce soit."
       },
+      "crosstab": {
+        "title": "Tags et vos métriques de santé",
+        "description": "Comment une métrique de santé diffère les jours où vous avez ajouté chaque tag, par rapport aux jours sans.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Énergie active",
+        "metricSleepDuration": "Sommeil",
+        "metricNextDayRecovery": "Récupération le lendemain",
+        "unitHours": "h",
+        "unitKcal": "kcal",
+        "unitScore": "pts",
+        "detailSameDay": "En moyenne {withAvg} {unit} les {withDays} jours avec ce tag contre {withoutAvg} {unit} sans.",
+        "detailNextDay": "En moyenne {withAvg} {unit} le lendemain des {withDays} jours avec ce tag contre {withoutAvg} {unit} sinon.",
+        "disclaimer": "Ce sont des associations dans vos propres données, pas une preuve de cause. Des tendances à surveiller."
+      },
       "discovery": {
         "title": "Ce qui ressort",
         "description": "Des relations d'un jour à l'autre autour de votre humeur qui tiennent après correction des tests multiples.",
@@ -3639,6 +3653,7 @@
     "savingError": "Erreur lors de l’enregistrement",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood data from moodLog",
+    "moodLogDeprecated": "Obsolète : l’humeur est désormais suivie nativement dans HealthLog avec tags et facteurs. Cette intégration fonctionne encore mais sera supprimée dans une version future.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "Clé API",

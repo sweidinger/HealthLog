@@ -2604,6 +2604,20 @@
         "description": "Tags und Werte, die mit deinen Tagen besserer und schlechterer Stimmung einhergehen, sortiert danach, wie stark sie sich zusammen bewegen.",
         "disclaimer": "Nur Zusammenhänge, keine Ursachen. Sprich mit deiner Ärztin oder deinem Arzt, bevor du etwas änderst."
       },
+      "crosstab": {
+        "title": "Tags und deine Gesundheitswerte",
+        "description": "Wie sich ein Gesundheitswert an Tagen mit einem Tag von Tagen ohne diesen Tag unterscheidet.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Aktive Energie",
+        "metricSleepDuration": "Schlaf",
+        "metricNextDayRecovery": "Erholung am Folgetag",
+        "unitHours": "Std.",
+        "unitKcal": "kcal",
+        "unitScore": "Pkt.",
+        "detailSameDay": "Durchschnittlich {withAvg} {unit} an den {withDays} Tagen mit diesem Tag gegenüber {withoutAvg} {unit} ohne.",
+        "detailNextDay": "Durchschnittlich {withAvg} {unit} am Tag nach den {withDays} Tagen mit diesem Tag gegenüber {withoutAvg} {unit} sonst.",
+        "disclaimer": "Das sind Zusammenhänge in deinen eigenen Daten, kein Beweis für Ursachen. Muster, die einen Blick wert sind."
+      },
       "discovery": {
         "title": "Was auffällt",
         "description": "Tag-zu-Tag-Zusammenhänge rund um deine Stimmung, die auch nach Korrektur für viele gleichzeitige Tests bestehen.",
@@ -3639,6 +3653,7 @@
     "savingError": "Fehler beim Speichern",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Stimmungseinträge übernehmen.",
+    "moodLogDeprecated": "Veraltet: Stimmung wird jetzt nativ in HealthLog mit Tags und Faktoren erfasst. Diese Integration funktioniert weiterhin, wird aber in einer künftigen Version entfernt.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "API-Key",

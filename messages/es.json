@@ -2604,6 +2604,20 @@
         "description": "Etiquetas y métricas que coinciden con tus días de mejor y peor ánimo, ordenadas por la fuerza con que se mueven juntas.",
         "disclaimer": "Solo asociaciones, no causas. Consulta a tu médico antes de cambiar nada por esto."
       },
+      "crosstab": {
+        "title": "Etiquetas y tus métricas de salud",
+        "description": "Cómo difiere una métrica de salud en los días que etiquetaste cada actividad, frente a los días que no.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Energía activa",
+        "metricSleepDuration": "Sueño",
+        "metricNextDayRecovery": "Recuperación al día siguiente",
+        "unitHours": "h",
+        "unitKcal": "kcal",
+        "unitScore": "pts",
+        "detailSameDay": "Promedia {withAvg} {unit} en los {withDays} días que lo etiquetaste frente a {withoutAvg} {unit} sin él.",
+        "detailNextDay": "Promedia {withAvg} {unit} el día después de los {withDays} días que lo etiquetaste frente a {withoutAvg} {unit} el resto.",
+        "disclaimer": "Son asociaciones en tus propios datos, no prueba de causa. Patrones que vale la pena observar."
+      },
       "discovery": {
         "title": "Lo que destaca",
         "description": "Relaciones de un día a otro con tu estado de ánimo que se mantienen tras corregir el haber probado muchos pares a la vez.",
@@ -3639,6 +3653,7 @@
     "savingError": "Error al guardar",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood data from moodLog",
+    "moodLogDeprecated": "Obsoleto: el estado de ánimo ahora se registra de forma nativa en HealthLog con etiquetas y factores. Esta integración sigue funcionando, pero se eliminará en una versión futura.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "Clave de API",

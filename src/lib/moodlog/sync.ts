@@ -13,6 +13,12 @@ import { recomputeUserMoodRollups } from "@/lib/rollups/mood-rollups";
 /**
  * Sync mood entries from a user's moodLog instance.
  * Fetches from the health-log export endpoint and upserts into local DB.
+ *
+ * @deprecated The moodLog integration is superseded by native mood entries
+ * plus structured tags and rated factors. Mood is tracked fully inside
+ * HealthLog now, so the external pull bridge no longer adds value. Kept
+ * functional for existing setups; slated for removal in a future major
+ * release.
  */
 export async function syncMoodLogEntries(
   userId: string,

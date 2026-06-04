@@ -12,6 +12,13 @@ import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * @deprecated The standalone moodLog webhook is superseded by native mood
+ * entries plus structured tags and rated factors — mood is now tracked
+ * fully inside HealthLog, so the external moodLog bridge no longer adds
+ * anything. Kept functional for existing integrations; slated for removal
+ * in a future major release. Do not build new callers against it.
+ */
 export const POST = apiHandler(async (request: NextRequest) => {
   annotate({ action: { name: "moodlog.webhook" } });
 
