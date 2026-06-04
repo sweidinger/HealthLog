@@ -353,7 +353,9 @@ async function runRollupAggregate(input: {
     // from `MeasurementType` (Prisma-generated TS enum); we whitelist
     // them with a strict regex before splicing into SQL.
     for (const t of input.types) {
-      if (!/^[A-Z_]+$/.test(t)) {
+      // Enum members can carry digits (e.g. VO2_MAX) — allow 0-9 so a
+      // legitimate type is not rejected on the write-hook's typed recompute.
+      if (!/^[A-Z0-9_]+$/.test(t)) {
         throw new Error(`invalid measurement type: ${t}`);
       }
     }

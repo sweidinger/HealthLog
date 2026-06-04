@@ -6,6 +6,10 @@ vi.mock("@/lib/db", () => ({
     measurement: { findMany: vi.fn() },
     measurementRollup: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
+    // v1.11.1 — the rollup readers lazy-load the user's
+    // `sourcePriorityJson` via `loadUserSourcePriority`. `null` here →
+    // default rank ladders.
+    user: { findUnique: vi.fn() },
   },
 }));
 
@@ -47,6 +51,8 @@ beforeEach(() => {
   // Cold rollup tier: the graded builder folds monthly/yearly from the
   // full-history `measurement.findMany` fallback the test already mocks.
   vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
+  // v1.11.1 — null source-priority blob → default rank ladders.
+  vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
 });
 
 describe("generateWeightStatusForUser — graded payload", () => {

@@ -34,6 +34,11 @@ import {
   collapseToTypeDayKeys,
   recomputeUserRollups,
 } from "@/lib/rollups/measurement-rollups";
+import {
+  collapseRollupRowsBySource,
+  loadUserSourcePriority,
+} from "@/lib/rollups/measurement-read";
+import { buildSourceRankCase } from "@/lib/analytics/source-rank-sql";
 import { NextRequest } from "next/server";
 import type {
   MeasurementType,
@@ -308,30 +313,40 @@ export const GET = apiHandler(async (request: NextRequest) => {
     to
   ) {
     const cap = Math.min(limit, BUCKET_CAP.daily);
-    const rollupRows = await prisma.measurementRollup.findMany({
-      where: {
-        userId: user.id,
-        type: type as MeasurementType,
-        granularity: "DAY",
-        bucketStart: { gte: from, lte: to },
-      },
-      orderBy: { bucketStart: "asc" },
-      take: cap,
-      select: {
-        type: true,
-        bucketStart: true,
-        mean: true,
-        count: true,
-        // v1.4.39 W-SUM — the writer now populates `sum_value` on
-        // every fold. The cumulative metric path consumes the column
-        // directly instead of reconstructing `mean * count`; the
-        // legacy fallback below covers the boot-backfill convergence
-        // window when an existing bucket pre-dates v1.4.39.
-        sumValue: true,
-        minValue: true,
-        maxValue: true,
-      },
-    });
+    // v1.11.1 — rollup rows are per source; collapse overlapping sources to the
+    // ladder-canonical reading per day before the chart consumes them, so a
+    // dual-source vital paints one line, not two stacked points per day.
+    const priorityJson = await loadUserSourcePriority(user.id);
+    const rollupRows = collapseRollupRowsBySource(
+      await prisma.measurementRollup.findMany({
+        where: {
+          userId: user.id,
+          type: type as MeasurementType,
+          granularity: "DAY",
+          bucketStart: { gte: from, lte: to },
+        },
+        orderBy: { bucketStart: "asc" },
+        // Fetch beyond the bucket cap pre-collapse — N sources per day can
+        // exceed `cap` rows before the per-day collapse reduces them.
+        select: {
+          type: true,
+          source: true,
+          bucketStart: true,
+          mean: true,
+          count: true,
+          // v1.4.39 W-SUM — the writer now populates `sum_value` on
+          // every fold. The cumulative metric path consumes the column
+          // directly instead of reconstructing `mean * count`; the
+          // legacy fallback below covers the boot-backfill convergence
+          // window when an existing bucket pre-dates v1.4.39.
+          sumValue: true,
+          minValue: true,
+          maxValue: true,
+        },
+      }),
+      type as MeasurementType,
+      priorityJson,
+    ).slice(0, cap);
     // v1.4.39.2 — coverage-mismatch fallback. v1.4.39.1 wired the
     // rollup write hook into the previously-bypassed Withings sync,
     // /api/import, and admin-restore paths, and widened the boot-time
@@ -403,26 +418,31 @@ export const GET = apiHandler(async (request: NextRequest) => {
           });
           // Re-read so this request returns the converged rows. The
           // next chart paint hits the same warm rollup without paying
-          // the fallback cost.
-          effectiveRows = await prisma.measurementRollup.findMany({
-            where: {
-              userId: user.id,
-              type: type as MeasurementType,
-              granularity: "DAY",
-              bucketStart: { gte: from, lte: to },
-            },
-            orderBy: { bucketStart: "asc" },
-            take: cap,
-            select: {
-              type: true,
-              bucketStart: true,
-              mean: true,
-              count: true,
-              sumValue: true,
-              minValue: true,
-              maxValue: true,
-            },
-          });
+          // the fallback cost. v1.11.1 — collapse per-source rows to the
+          // canonical reading per day, same as the initial read.
+          effectiveRows = collapseRollupRowsBySource(
+            await prisma.measurementRollup.findMany({
+              where: {
+                userId: user.id,
+                type: type as MeasurementType,
+                granularity: "DAY",
+                bucketStart: { gte: from, lte: to },
+              },
+              orderBy: { bucketStart: "asc" },
+              select: {
+                type: true,
+                source: true,
+                bucketStart: true,
+                mean: true,
+                count: true,
+                sumValue: true,
+                minValue: true,
+                maxValue: true,
+              },
+            }),
+            type as MeasurementType,
+            priorityJson,
+          ).slice(0, cap);
         } catch (err) {
           // Best-effort — fall back to the legacy live aggregate path
           // below if the fold itself failed so the chart paints
@@ -520,20 +540,48 @@ export const GET = apiHandler(async (request: NextRequest) => {
     const aggregator = useSum
       ? Prisma.raw(`SUM(m."value")::double precision`)
       : Prisma.raw(`AVG(m."value")::double precision`);
+    // v1.11.1 — collapse overlapping sources to the ladder-canonical reading
+    // per (type, bucket) before aggregating, so this cold/uncovered fallback
+    // agrees with the warm rollup path. `canon` picks the winning source for
+    // each (type, bucket) via the per-user rank; the join keeps only its rows.
+    const priorityJson = await loadUserSourcePriority(user.id);
+    const rankRaw = Prisma.raw(
+      buildSourceRankCase(priorityJson, 'm."type"', 'm."source"'),
+    );
+    const typeFilter = type
+      ? Prisma.sql`AND m."type" = ${type}::measurement_type`
+      : Prisma.empty;
     const buckets = await prisma.$queryRaw<
       Array<{ type: string; bucket_start: Date; avg: number; cnt: number }>
     >`
+      WITH canon AS (
+        SELECT DISTINCT ON (m."type", date_trunc(${truncUnitLiteral}, m."measured_at"))
+          m."type"                                          AS t,
+          date_trunc(${truncUnitLiteral}, m."measured_at")  AS d,
+          m."source"                                        AS canon
+        FROM measurements m
+        WHERE m."user_id" = ${user.id}
+          AND m."measured_at" >= ${from}
+          AND m."measured_at" <= ${to}
+          AND m."deleted_at" IS NULL
+          ${typeFilter}
+        ORDER BY m."type", date_trunc(${truncUnitLiteral}, m."measured_at"), (${rankRaw}), m."source"
+      )
       SELECT
         m."type"::text AS type,
         date_trunc(${truncUnitLiteral}, m."measured_at") AS bucket_start,
         ${aggregator} AS avg,
         COUNT(*)::int AS cnt
       FROM measurements m
+      JOIN canon c
+        ON c.t = m."type"
+        AND c.d = date_trunc(${truncUnitLiteral}, m."measured_at")
+        AND c.canon = m."source"
       WHERE m."user_id" = ${user.id}
         AND m."measured_at" >= ${from}
         AND m."measured_at" <= ${to}
         AND m."deleted_at" IS NULL
-        ${type ? Prisma.sql`AND m."type" = ${type}::measurement_type` : Prisma.empty}
+        ${typeFilter}
       GROUP BY m."type", bucket_start
       ORDER BY bucket_start ASC
       LIMIT ${cap}

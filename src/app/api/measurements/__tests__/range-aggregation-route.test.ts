@@ -23,6 +23,11 @@ vi.mock("@/lib/db", () => ({
     measurementRollup: {
       findMany: vi.fn(),
     },
+    // v1.11.1 — the rollup path calls `loadUserSourcePriority`
+    // (prisma.user.findUnique) to build the source-rank ladders before
+    // `collapseRollupRowsBySource` runs. This is a separate read from the
+    // date_trunc `$queryRaw`; `null` → default ladders.
+    user: { findUnique: vi.fn() },
     $queryRaw: vi.fn(),
   },
 }));
@@ -77,6 +82,9 @@ function getRequest(query: string): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  // v1.11.1 — null source-priority blob → default rank ladders for the
+  // rollup-path source collapse.
+  vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
 });
 
 describe("GET /api/measurements — aggregation gate (C2)", () => {
@@ -223,6 +231,8 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
       bucketStart: new Date(Date.UTC(2026, 3, 16 + i, 0, 0, 0)),
       mean: 81 + i * 0.05,
       count: 5,
+      // v1.11.1 — single source per day → collapse is identity.
+      source: "APPLE_HEALTH",
     }));
     vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue(
       buckets as never,
@@ -261,6 +271,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
       mean: 2000, // would yield 10000 if multiplied by count=5
       count: 5,
       sumValue: 11000 + i * 250, // distinct from mean × count
+      source: "APPLE_HEALTH",
     }));
     vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue(
       buckets as never,
@@ -292,6 +303,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
         mean: 2000,
         count: 5,
         sumValue: null,
+        source: "APPLE_HEALTH",
       },
     ];
     vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue(
@@ -354,6 +366,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
         mean: 128,
         count: 1,
         sumValue: null,
+        source: "APPLE_HEALTH",
       },
       {
         type: "BLOOD_PRESSURE_SYS",
@@ -361,6 +374,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
         mean: 132,
         count: 1,
         sumValue: null,
+        source: "APPLE_HEALTH",
       },
     ];
     const convergedRollup = Array.from({ length: 28 }, (_, i) => ({
@@ -369,6 +383,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
       mean: 128 + (i % 5),
       count: 2,
       sumValue: null,
+      source: "APPLE_HEALTH",
     }));
     // First read returns the sparse rows; second (post-fold) read
     // returns the converged rows.
@@ -416,6 +431,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
       mean: 81 + i * 0.05,
       count: 2,
       sumValue: null,
+      source: "APPLE_HEALTH",
     }));
     vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue(
       buckets as never,
@@ -444,6 +460,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
         mean: 128,
         count: 1,
         sumValue: null,
+        source: "APPLE_HEALTH",
       },
       {
         type: "BLOOD_PRESSURE_SYS",
@@ -451,6 +468,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
         mean: 132,
         count: 1,
         sumValue: null,
+        source: "APPLE_HEALTH",
       },
     ];
     vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue(
@@ -484,6 +502,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
         mean: 128,
         count: 1,
         sumValue: null,
+        source: "APPLE_HEALTH",
       },
       {
         type: "BLOOD_PRESSURE_SYS",
@@ -491,6 +510,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
         mean: 132,
         count: 1,
         sumValue: null,
+        source: "APPLE_HEALTH",
       },
     ];
     vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue(

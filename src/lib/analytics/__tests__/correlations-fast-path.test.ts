@@ -13,6 +13,8 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: { findMany: vi.fn() },
     measurementRollup: { findMany: vi.fn() },
+    // v1.11.1 — readRollupBuckets lazy-loads the source-priority blob.
+    user: { findUnique: vi.fn() },
     moodEntry: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
   },
