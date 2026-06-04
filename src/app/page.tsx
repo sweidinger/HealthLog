@@ -1599,7 +1599,7 @@ export default function DashboardPage() {
                 {Array.from({ length: configuredTileCount }).map((_, idx) => (
                   <div
                     key={`tile-skeleton-${idx}`}
-                    className="bg-card border-border min-h-[6rem] animate-pulse rounded-xl border p-4 motion-reduce:animate-none md:p-6"
+                    className="bg-card border-border min-h-[8rem] animate-pulse rounded-xl border p-4 motion-reduce:animate-none md:p-6"
                   />
                 ))}
               </div>
@@ -1660,7 +1660,7 @@ export default function DashboardPage() {
                       fallback={
                         <div
                           aria-hidden="true"
-                          className="bg-card border-border flex h-full min-h-[6rem] w-full min-w-0 flex-col rounded-xl border p-4 md:p-6"
+                          className="bg-card border-border flex h-full min-h-[8rem] w-full min-w-0 flex-col overflow-hidden rounded-xl border p-4 md:p-6"
                         />
                       }
                     >
