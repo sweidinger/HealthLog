@@ -351,8 +351,6 @@ export const FITBIT_DATA_TYPES = {
   exercise: { path: "exercise", filter: "exercise", timeField: "interval" },
 } as const satisfies Record<string, FitbitDataType>;
 
-export type FitbitDataTypeKey = keyof typeof FITBIT_DATA_TYPES;
-
 /** Google Health `DataPoint` — value object is type-keyed + carries a time anchor. */
 export interface FitbitDataPoint {
   [key: string]: unknown;

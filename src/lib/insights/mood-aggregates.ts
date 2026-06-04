@@ -724,12 +724,13 @@ export function computeBetterDays(
 export const CROSSTAB_FDR_Q = 0.1;
 
 /**
- * Per-side day floors for the crosstab — reuse the influence floors so a
- * tag needs the same defensible present/absent support before a metric
- * delta surfaces.
+ * Per-side day floors for the crosstab — kept in step with the influence
+ * floors (`INFLUENCE_MIN_PRESENT_DAYS` / `INFLUENCE_MIN_ABSENT_DAYS`) so a tag
+ * needs the same defensible present/absent support before a metric delta
+ * surfaces. Declared independently so the crosstab surface owns its own floor.
  */
-export const CROSSTAB_MIN_PRESENT_DAYS = INFLUENCE_MIN_PRESENT_DAYS;
-export const CROSSTAB_MIN_ABSENT_DAYS = INFLUENCE_MIN_ABSENT_DAYS;
+export const CROSSTAB_MIN_PRESENT_DAYS = 5;
+export const CROSSTAB_MIN_ABSENT_DAYS = 5;
 
 /** Max rows surfaced across the whole crosstab so the surface stays scannable. */
 export const CROSSTAB_MAX_ROWS = 8;

@@ -15,6 +15,7 @@
  * granted independently in the Google consent flow.
  */
 import {
+  FITBIT_ACTIVITY_PAGE_SIZE,
   FITBIT_DATA_TYPES,
   fetchDataPoints,
   mapWorkout,
@@ -45,7 +46,7 @@ export async function syncUserWorkout(
       FITBIT_DATA_TYPES.exercise,
       tokenInfo.accessToken,
       "fetchExercise",
-      { start, pageSize: 25 },
+      { start, pageSize: FITBIT_ACTIVITY_PAGE_SIZE },
     );
   } catch (err) {
     return handleCollectionFetchError("fetchExercise", userId, err);

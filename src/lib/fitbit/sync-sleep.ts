@@ -16,7 +16,12 @@
  * A per-data-class 403 soft-skips the resource — the sleep bundle is granted
  * independently of activity / metrics in the Google consent flow.
  */
-import { FITBIT_DATA_TYPES, fetchDataPoints, mapSleepSession } from "./client";
+import {
+  FITBIT_ACTIVITY_PAGE_SIZE,
+  FITBIT_DATA_TYPES,
+  fetchDataPoints,
+  mapSleepSession,
+} from "./client";
 import {
   getValidToken,
   handleCollectionFetchError,
@@ -43,7 +48,7 @@ export async function syncUserSleep(
       FITBIT_DATA_TYPES.sleep,
       tokenInfo.accessToken,
       "fetchSleep",
-      { start, pageSize: 25 },
+      { start, pageSize: FITBIT_ACTIVITY_PAGE_SIZE },
     );
   } catch (err) {
     return handleCollectionFetchError("fetchSleep", userId, err);
