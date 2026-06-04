@@ -305,12 +305,15 @@ async function withSleepNightTotals(
       measuredAt: { gte: since },
     },
     orderBy: { measuredAt: "asc" },
-    select: { value: true, measuredAt: true, sleepStage: true },
+    select: { value: true, measuredAt: true, sleepStage: true, source: true },
   })) as SleepStageRow[];
   if (rows.length === 0) return slice;
 
-  const tz = await resolveUserTimezone(userId);
-  const { summary } = summarizeSleepNights(rows, tz);
+  const [tz, priorityJson] = await Promise.all([
+    resolveUserTimezone(userId),
+    loadUserSourcePriority(userId),
+  ]);
+  const { summary } = summarizeSleepNights(rows, tz, priorityJson);
   // Preserve the slope tuples the night summary doesn't compute (the
   // dashboard tile reads slope30); recompute them off the night series is
   // out of scope here — the per-night `summarize()` already fills slope7 /

@@ -19,6 +19,13 @@ vi.mock("@/lib/tz/resolver", async (importOriginal) => {
 
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 
+// v1.11.4 — the sleep branch loads the user's source-priority ladder to
+// collapse a dual-source night; pin it to the defaults so the test stays
+// hermetic (no DB user read).
+vi.mock("@/lib/rollups/measurement-read", () => ({
+  loadUserSourcePriority: vi.fn(async () => null),
+}));
+
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));

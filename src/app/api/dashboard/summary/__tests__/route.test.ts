@@ -36,6 +36,13 @@ vi.mock("@/lib/logging/transports", () => ({
   emitIfSampled: vi.fn(),
 }));
 
+// v1.11.4 — the route loads the user's source-priority ladder to collapse a
+// dual-source sleep night; pin it to the defaults (null) so the test stays
+// hermetic.
+vi.mock("@/lib/rollups/measurement-read", () => ({
+  loadUserSourcePriority: vi.fn(async () => null),
+}));
+
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
 }));

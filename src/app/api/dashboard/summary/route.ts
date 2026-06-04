@@ -62,6 +62,7 @@ import {
   reconstructSleepNights,
   type SleepStageRow,
 } from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import type { SleepStage } from "@/generated/prisma/client";
 
 const SPARK_DAYS = 7;
@@ -189,8 +190,12 @@ const METRIC_UNIT_KEYS: Record<MetricKind, string> = {
  * across the per-stage rows (e.g. a 60-min DEEP row and a 240-min CORE
  * row average to 150) rather than summing them into a night total.
  */
-function buildSleepSparkline(rows: SleepStageRow[], tz: string): number[] {
-  return reconstructSleepNights(rows, tz)
+function buildSleepSparkline(
+  rows: SleepStageRow[],
+  tz: string,
+  priorityJson: unknown,
+): number[] {
+  return reconstructSleepNights(rows, tz, priorityJson)
     .filter((n) => n.asleepMinutes > 0)
     .map((n) => Math.round((n.asleepMinutes / 60) * 100) / 100)
     .slice(-SPARK_DAYS);
@@ -565,10 +570,15 @@ async function buildDashboardSummary(
           measuredAt: { gte: streakWindowStart },
         },
         orderBy: { measuredAt: "asc" },
-        select: { value: true, measuredAt: true, sleepStage: true },
+        select: { value: true, measuredAt: true, sleepStage: true, source: true },
       }),
     ),
   ]);
+
+  // v1.11.4 — the user's sleep source-priority ladder, used to collapse a
+  // dual-source night (e.g. WHOOP + Apple Health) to one canonical source
+  // before the per-night reconstruction sums it.
+  const sleepPriorityJson = await loadUserSourcePriority(userId);
 
   // Per-type metadata lookup — typed Map so a metric with no readings
   // at all falls through `metaForType` to the `{ allTimeCount: 0,
@@ -662,6 +672,7 @@ async function buildDashboardSummary(
   const sleepSummary = summarizeSleepNights(
     sleepStageRows as SleepStageRow[],
     userTz,
+    sleepPriorityJson,
   );
 
   const metrics: MetricCard[] = [];
@@ -824,6 +835,7 @@ async function buildDashboardSummary(
       const nightSpark = buildSleepSparkline(
         sleepStageRows as SleepStageRow[],
         userTz,
+        sleepPriorityJson,
       );
       const stageHours: Partial<Record<SleepStage, number>> | null = night
         ? Object.fromEntries(

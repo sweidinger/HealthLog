@@ -23,7 +23,15 @@ import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { redactSensitiveFields } from "@/lib/observability/redact-payload";
 import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
+
+/**
+ * v1.11.4 — sleep is read row-per-stage (not from the day rollup), so its
+ * window is capped to one year even when the client requests the 3650-day
+ * "Alle" range. Matches the slim slice's `withSleepNightTotals` sleep read.
+ */
+const SLEEP_SERIES_MAX_DAYS = 365;
 
 const kindEnum = z.enum([
   "weight",
@@ -180,20 +188,44 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // night's TIME ASLEEP (CORE + DEEP + REM, excluding IN_BED + AWAKE),
     // converted to HOURS. The single-stage rows the legacy path returned
     // made the chart show one fragment per stage instead of a nightly
-    // trend.
-    const tz = await resolveUserTimezone(user.id);
+    // trend. The per-night reconstruction clusters stages into sessions
+    // (so a midnight-spanning night stays one point) and collapses a
+    // dual-source night to one canonical source via the user's `sleep`
+    // priority ladder.
+    //
+    // v1.11.4 — sleep is the one kind read row-per-stage (≈5 rows/night ×
+    // source-count) rather than from the day-bucketed rollup, so an
+    // unbounded "Alle" (days = 3650) request on a multi-year dual-source
+    // account would walk a six-figure row set into JS. Cap the sleep read
+    // at SLEEP_SERIES_MAX_DAYS (365 d) — the same one-year bound the slim
+    // slice's `withSleepNightTotals` uses — so the window stays small
+    // regardless of the requested range. Other kinds read from the rollup
+    // tier and keep the full 3650-day range.
+    const sleepSince = new Date(
+      Date.now() - Math.min(days, SLEEP_SERIES_MAX_DAYS) * 86_400_000,
+    );
+    const [tz, priorityJson] = await Promise.all([
+      resolveUserTimezone(user.id),
+      loadUserSourcePriority(user.id),
+    ]);
     const rows = await prisma.measurement.findMany({
       where: {
         userId: user.id,
         type: "SLEEP_DURATION",
-        measuredAt: { gte: since },
+        measuredAt: { gte: sleepSince },
         deletedAt: null,
       },
       orderBy: { measuredAt: "asc" },
-      select: { id: true, value: true, measuredAt: true, sleepStage: true },
+      select: {
+        id: true,
+        value: true,
+        measuredAt: true,
+        sleepStage: true,
+        source: true,
+      },
     });
     unit = "h";
-    points = reconstructSleepNights(rows, tz)
+    points = reconstructSleepNights(rows, tz, priorityJson)
       .filter((n) => n.asleepMinutes > 0)
       .map((n) => {
         const stageHours = Object.fromEntries(
