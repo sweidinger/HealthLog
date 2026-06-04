@@ -3464,6 +3464,7 @@
     "tokenNamePlaceholder": "Nombre del token (p. ej., Atajo de iPhone)",
     "tokenCreated": "Token creado — ¡cópialo ahora! No se mostrará de nuevo.",
     "tokenRevoke": "¿Revocar token?",
+    "tokenRevokeAction": "Revocar token",
     "tokenRevokeDescription": "El token se desactivará de forma permanente. Las aplicaciones que lo usen perderán el acceso.",
     "tokenRevoked": "Revocado",
     "tokenExpired": "Caducado",

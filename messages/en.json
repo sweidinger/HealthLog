@@ -3464,6 +3464,7 @@
     "tokenNamePlaceholder": "Token name (e.g., iPhone Shortcut)",
     "tokenCreated": "Token created — copy it now! It won't be shown again.",
     "tokenRevoke": "Revoke token?",
+    "tokenRevokeAction": "Revoke token",
     "tokenRevokeDescription": "The token will be permanently deactivated. Applications using it will lose access.",
     "tokenRevoked": "Revoked",
     "tokenExpired": "Expired",

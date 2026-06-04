@@ -3464,6 +3464,7 @@
     "tokenNamePlaceholder": "Nom du jeton (par exemple Raccourci iPhone)",
     "tokenCreated": "Jeton créé — copiez-le maintenant ! Il ne sera plus affiché.",
     "tokenRevoke": "Révoquer le jeton ?",
+    "tokenRevokeAction": "Révoquer le jeton",
     "tokenRevokeDescription": "Le jeton sera désactivé définitivement. Les applications qui l’utilisent perdront l’accès.",
     "tokenRevoked": "Révoqué",
     "tokenExpired": "Expiré",

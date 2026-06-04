@@ -3464,6 +3464,7 @@
     "tokenNamePlaceholder": "Nazwa tokena (np. Skrót iPhone)",
     "tokenCreated": "Token utworzony — skopiuj go teraz! Nie zostanie pokazany ponownie.",
     "tokenRevoke": "Cofnąć token?",
+    "tokenRevokeAction": "Unieważnij token",
     "tokenRevokeDescription": "Token zostanie trwale dezaktywowany. Aplikacje, które go używają, stracą dostęp.",
     "tokenRevoked": "Cofnięto",
     "tokenExpired": "Wygasł",

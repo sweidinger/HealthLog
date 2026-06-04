@@ -3464,6 +3464,7 @@
     "tokenNamePlaceholder": "Nome del token (ad es. Comando rapido iPhone)",
     "tokenCreated": "Token creato — copialo ora! Non verrà mostrato di nuovo.",
     "tokenRevoke": "Revocare il token?",
+    "tokenRevokeAction": "Revoca token",
     "tokenRevokeDescription": "Il token verrà disattivato definitivamente. Le applicazioni che lo usano perderanno l’accesso.",
     "tokenRevoked": "Revocato",
     "tokenExpired": "Scaduto",
