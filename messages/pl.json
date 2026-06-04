@@ -1438,6 +1438,7 @@
     "needMoreDistinctDaysDescription": "Rejestruj w więcej dni, aby odblokować linię trendu.",
     "noDataInRangeTitle": "Brak danych w tym zakresie",
     "noDataInRangeDescription": "Żadne pomiary nie mieszczą się w wybranym zakresie. Zmień zakres lub dodaj nowy pomiar.",
+    "sparseDataCaption": "Więcej dni dopełni trend.",
     "personalBaseline": "Twoja średnia",
     "deltaVsBaseline": "{delta} vs. twoja średnia",
     "deltaUnchanged": "odpowiada twojej średniej",

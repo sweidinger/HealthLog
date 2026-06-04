@@ -1438,6 +1438,7 @@
     "needMoreDistinctDaysDescription": "Registra in più giorni per sbloccare la linea di tendenza.",
     "noDataInRangeTitle": "Nessun dato in questo intervallo",
     "noDataInRangeDescription": "Nessuna misurazione rientra nell'intervallo selezionato. Cambia intervallo o registra una nuova misurazione.",
+    "sparseDataCaption": "Più giorni completeranno il trend.",
     "personalBaseline": "La tua media",
     "deltaVsBaseline": "{delta} vs. la tua media",
     "deltaUnchanged": "corrisponde alla tua media",

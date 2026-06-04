@@ -2,38 +2,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 /**
- * v1.4.43 W2-CHART-GATE — pin the empty-state copy split.
+ * Sparse-data render contract.
  *
- * Pre-v1.4.43 the chart painted "Erfasse mehr Messungen, um die
- * Trendlinie freizuschalten" whenever `chartData.length < 3` — but
- * `chartData` is daily-aggregated, so a user with many measurements
- * on < 3 distinct days saw the misleading "log more measurements"
- * hint despite having logged plenty. The gate now keys on the raw
- * measurement count surfaced via the `rawCount` property the
- * queryFn stashes on its return array. When `rawCount >= 3` the
- * "need more days" copy paints; otherwise the legacy "log more"
- * copy stays.
+ * The metric chart no longer withholds real data behind a "more days
+ * needed" card. Any non-empty window paints the available points — a
+ * single marker for one day, a line for two — and adds a subtle inline
+ * caption (`chart-sparse-caption`) when fewer than three daily points
+ * exist so the user understands more days fill out the trend. Only a
+ * genuinely empty window (zero daily points) paints the no-data card.
  */
 
 function buildData(
   rows: Array<{ measuredAt: string; value: number; count?: number }>,
-  rawCount: number,
 ): unknown[] {
-  // Re-use the same array-with-stashed-property shape the real
-  // queryFn produces. The chart's `useMemo(() => …, [data])` reads
-  // `(data as ChartDataPoint[] & { rawCount?: number }).rawCount`.
-  const points = rows.map((r) => ({
+  // The queryFn returns daily-aggregated points; mirror that shape so
+  // the chart's `useMemo(() => …, [data])` derives the same chartData.
+  return rows.map((r) => ({
     date: r.measuredAt.slice(0, 10),
     timestamp: new Date(r.measuredAt).getTime(),
     PULSE: r.value,
   }));
-  Object.defineProperty(points, "rawCount", {
-    value: rawCount,
-    enumerable: false,
-    configurable: false,
-    writable: false,
-  });
-  return points;
 }
 
 vi.mock("@/hooks/use-auth", () => ({
@@ -44,78 +32,83 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
-describe("<HealthChart> — empty-state gate by raw count", () => {
+async function renderChart(data: unknown[]): Promise<string> {
+  vi.doMock("@tanstack/react-query", () => ({
+    useQuery: () => ({ data, isLoading: false }),
+    useQueryClient: () => ({
+      cancelQueries: () => Promise.resolve(),
+      getQueryData: () => undefined,
+      setQueryData: () => undefined,
+      invalidateQueries: () => Promise.resolve(),
+    }),
+    useMutation: () => ({ mutate: () => undefined, isPending: false }),
+  }));
+
+  const { I18nProvider } = await import("@/lib/i18n/context");
+  const { HealthChart } = await import("../health-chart");
+
+  const html = renderToStaticMarkup(
+    <I18nProvider initialLocale="de">
+      <HealthChart types={["PULSE"]} title="Pulse" unit="bpm" />
+    </I18nProvider>,
+  );
+  vi.doUnmock("@tanstack/react-query");
+  return html;
+}
+
+describe("<HealthChart> — sparse-data render contract", () => {
   beforeEach(() => {
     vi.resetModules();
   });
 
-
-  it("renders need-more-days copy when chartData.length < 3 but rawCount >= 3", async () => {
-    // Two distinct days with 50 raw rows total — the daily-aggregated
-    // chartData collapses to 2 points but the user logged plenty.
-    const data = buildData(
-      [
+  it("renders the chart (not a withholding card) with a sparse caption for two distinct days", async () => {
+    const html = await renderChart(
+      buildData([
         { measuredAt: "2026-05-19T09:00:00.000Z", value: 70 },
         { measuredAt: "2026-05-20T09:00:00.000Z", value: 72 },
-      ],
-      50,
+      ]),
     );
 
-    vi.doMock("@tanstack/react-query", () => ({
-      useQuery: () => ({ data, isLoading: false }),
-      useQueryClient: () => ({
-        cancelQueries: () => Promise.resolve(),
-        getQueryData: () => undefined,
-        setQueryData: () => undefined,
-        invalidateQueries: () => Promise.resolve(),
-      }),
-      useMutation: () => ({ mutate: () => undefined, isPending: false }),
-    }));
-
-    const { I18nProvider } = await import("@/lib/i18n/context");
-    const { HealthChart } = await import("../health-chart");
-
-    const html = renderToStaticMarkup(
-      <I18nProvider initialLocale="de">
-        <HealthChart types={["PULSE"]} title="Pulse" unit="bpm" />
-      </I18nProvider>,
-    );
-
-    expect(html).toContain("Mehr Messtage erforderlich");
+    // The chart paints the available points + a subtle caption …
+    expect(html).toContain('data-slot="chart-sparse-caption"');
+    expect(html).toContain("Mehr Messtage füllen den Trend.");
+    // … and does NOT fall back to the old withholding empty-state copy.
+    expect(html).not.toContain('data-slot="chart-empty-state"');
+    expect(html).not.toContain("Mehr Messtage erforderlich");
     expect(html).not.toContain("Erfasse mindestens 3 Einträge");
-
-    vi.doUnmock("@tanstack/react-query");
   });
 
-  it("renders no-data copy when rawCount < 3", async () => {
-    const data = buildData(
-      [{ measuredAt: "2026-05-20T09:00:00.000Z", value: 70 }],
-      1,
+  it("renders the single marker + sparse caption for one day instead of a bare hint", async () => {
+    const html = await renderChart(
+      buildData([{ measuredAt: "2026-05-20T09:00:00.000Z", value: 70 }]),
     );
 
-    vi.doMock("@tanstack/react-query", () => ({
-      useQuery: () => ({ data, isLoading: false }),
-      useQueryClient: () => ({
-        cancelQueries: () => Promise.resolve(),
-        getQueryData: () => undefined,
-        setQueryData: () => undefined,
-        invalidateQueries: () => Promise.resolve(),
-      }),
-      useMutation: () => ({ mutate: () => undefined, isPending: false }),
-    }));
+    // A single point still renders (Recharts paints the marker) and the
+    // caption stays — no withholding card for one real reading.
+    expect(html).toContain('data-slot="chart-sparse-caption"');
+    expect(html).toContain("Mehr Messtage füllen den Trend.");
+    expect(html).not.toContain('data-slot="chart-empty-state"');
+    expect(html).not.toContain("Erfasse mindestens 3 Einträge");
+  });
 
-    const { I18nProvider } = await import("@/lib/i18n/context");
-    const { HealthChart } = await import("../health-chart");
+  it("renders the no-data card with no sparse caption when the window is empty", async () => {
+    const html = await renderChart(buildData([]));
 
-    const html = renderToStaticMarkup(
-      <I18nProvider initialLocale="de">
-        <HealthChart types={["PULSE"]} title="Pulse" unit="bpm" />
-      </I18nProvider>,
+    expect(html).toContain('data-slot="chart-empty-state"');
+    expect(html).toContain("Für den gewählten Bereich liegen keine Messungen");
+    expect(html).not.toContain('data-slot="chart-sparse-caption"');
+  });
+
+  it("omits the sparse caption once three or more distinct days exist", async () => {
+    const html = await renderChart(
+      buildData([
+        { measuredAt: "2026-05-18T09:00:00.000Z", value: 68 },
+        { measuredAt: "2026-05-19T09:00:00.000Z", value: 70 },
+        { measuredAt: "2026-05-20T09:00:00.000Z", value: 72 },
+      ]),
     );
 
-    expect(html).toContain("Erfasse mindestens 3 Einträge");
-    expect(html).not.toContain("Mehr Messtage erforderlich");
-
-    vi.doUnmock("@tanstack/react-query");
+    expect(html).not.toContain('data-slot="chart-sparse-caption"');
+    expect(html).not.toContain('data-slot="chart-empty-state"');
   });
 });
