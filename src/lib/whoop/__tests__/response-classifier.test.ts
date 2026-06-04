@@ -3,6 +3,7 @@ import {
   WhoopApiError,
   classifyWhoopError,
   classifyWhoopResponse,
+  isInvalidGrant,
 } from "../response-classifier";
 
 describe("classifyWhoopResponse", () => {
@@ -89,5 +90,94 @@ describe("classifyWhoopError", () => {
   it("falls back to transient for an unrecognised error", () => {
     expect(classifyWhoopError(new Error("network down"))).toBe("transient");
     expect(classifyWhoopError("boom")).toBe("transient");
+  });
+
+  it("lifts a 400 invalid_grant from the token endpoint to reauth_required", () => {
+    const err = new WhoopApiError({
+      verb: "refreshAccessToken",
+      classification: "persistent",
+      httpStatus: 400,
+      reason: "http_400",
+      upstreamError: "invalid_grant",
+    });
+    // The construction-time verdict is persistent (status-only), but the
+    // refined classifier promotes the revoked-grant case to reauth.
+    expect(err.classification).toBe("persistent");
+    expect(classifyWhoopError(err)).toBe("reauth_required");
+  });
+
+  it("keeps other 400s persistent (only invalid_grant is reauth)", () => {
+    const badClient = new WhoopApiError({
+      verb: "refreshAccessToken",
+      classification: "persistent",
+      httpStatus: 400,
+      reason: "http_400",
+      upstreamError: "invalid_client",
+    });
+    expect(classifyWhoopError(badClient)).toBe("persistent");
+
+    const bareBadRequest = new WhoopApiError({
+      verb: "fetchRecoveries",
+      classification: "persistent",
+      httpStatus: 400,
+      reason: "http_400",
+    });
+    expect(classifyWhoopError(bareBadRequest)).toBe("persistent");
+  });
+
+  it("detects invalid_grant from a legacy unwrapped message too", () => {
+    const err = new Error(
+      "WHOOP refreshAccessToken error: 400 - invalid_grant",
+    );
+    expect(classifyWhoopError(err)).toBe("reauth_required");
+  });
+});
+
+describe("isInvalidGrant", () => {
+  it("is true only for a 400 carrying invalid_grant", () => {
+    expect(
+      isInvalidGrant(
+        new WhoopApiError({
+          verb: "refreshAccessToken",
+          classification: "persistent",
+          httpStatus: 400,
+          reason: "http_400",
+          upstreamError: "invalid_grant",
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("is false for invalid_grant on a non-400 status", () => {
+    expect(
+      isInvalidGrant(
+        new WhoopApiError({
+          verb: "refreshAccessToken",
+          classification: "reauth_required",
+          httpStatus: 401,
+          reason: "http_401",
+          upstreamError: "invalid_grant",
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is false for a 400 with a different OAuth error", () => {
+    expect(
+      isInvalidGrant(
+        new WhoopApiError({
+          verb: "refreshAccessToken",
+          classification: "persistent",
+          httpStatus: 400,
+          reason: "http_400",
+          upstreamError: "invalid_client",
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is false for a non-WhoopApiError without the signal", () => {
+    expect(isInvalidGrant(new Error("network down"))).toBe(false);
+    expect(isInvalidGrant("boom")).toBe(false);
   });
 });
