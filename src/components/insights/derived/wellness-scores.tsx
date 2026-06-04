@@ -59,11 +59,23 @@ function RingTile({
       data-metric={metricSlot}
       className="bg-card border-border hover:border-foreground/20 focus-visible:ring-ring flex items-center justify-center rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
-      <div className="flex flex-col items-center gap-1.5">
-        <ScoreRing score={score} band={band} size="sm" label={label} />
+      <div className="flex min-w-0 flex-col items-center gap-1.5">
+        {/* The metric title rides an HTML caption below the ring, not the
+            in-SVG `label` slot: a long localised title ("Schlaf-Score",
+            "Bereitschaft") overflowed the small ring's centred SVG text and
+            the recharts `overflow:hidden` clipped its leading glyph. As HTML
+            it wraps within the tile and never truncates. The ring keeps just
+            the number centred. */}
+        <ScoreRing score={score} band={band} size="sm" />
+        <span
+          data-slot="wellness-score-label"
+          className="text-foreground max-w-full text-center text-xs font-medium text-balance"
+        >
+          {label}
+        </span>
         <span
           data-slot="wellness-score-band-word"
-          className="text-muted-foreground text-xs font-medium"
+          className="text-muted-foreground text-center text-xs"
         >
           {bandWord}
         </span>
