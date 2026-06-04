@@ -295,7 +295,7 @@
     "layoutCustomized": "Layout personalizzato attivo",
     "moveUp": "Sposta su",
     "moveDown": "Sposta giù",
-    "layoutTileColumn": "Tile",
+    "layoutTileColumn": "Riquadro",
     "layoutChartColumn": "Grafico",
     "dragHandle": "Trascina per riordinare",
     "dragHandleHint": "Trascina la maniglia per riordinare questo widget. Puoi anche usare i pulsanti freccia Su e Giù, oppure mettere a fuoco la maniglia e premere Spazio e i tasti freccia.",
@@ -4460,8 +4460,8 @@
     "bugTitlePlaceholder": "Riassunto breve (opzionale)",
     "githubEscalationNote": "Il feedback viene salvato localmente. Se l’amministratore attiva l’integrazione GitHub, può essere pubblicato come issue pubblico su richiesta.",
     "internalOnlyNote": "Il feedback viene salvato localmente ed è visibile solo all’amministratore di questo server.",
-    "disabledTitle": "Bug reports are turned off",
-    "disabledBody": "The administrator has disabled bug reports on this server."
+    "disabledTitle": "Le segnalazioni di bug sono disattivate",
+    "disabledBody": "L'amministratore ha disattivato le segnalazioni di bug su questo server."
   },
   "notifications": {
     "title": "Centro notifiche",
@@ -4660,18 +4660,18 @@
     "cancelButton": "Annulla",
     "askMedicationName": "Indica il farmaco, es. <b>preso Ramipril</b>.",
     "medicationNotFoundExact": "Farmaco non trovato. Invia il nome esattamente come appare in HealthLog.",
-    "helpHeader": "<b>Available commands:</b>",
-    "helpBody": "/help — show this help\n/add — record an intake\n/start — start the bot\n\n<b>Text commands:</b>\ntaken &lt;name&gt; — confirm an intake\n\n<b>Buttons in reminders:</b>\n• Taken — confirm intake\n• 🕐 1h / 🕐 3h — postpone reminder\n• ⏭ Skip — skip intake\n• ✓ Confirm — confirm a missed intake"
+    "helpHeader": "<b>Comandi disponibili:</b>",
+    "helpBody": "/help — mostra questa guida\n/add — registra un'assunzione\n/start — avvia il bot\n\n<b>Comandi testuali:</b>\ntaken &lt;nome&gt; — conferma un'assunzione\n\n<b>Pulsanti nei promemoria:</b>\n• Assunto — conferma l'assunzione\n• 🕐 1h / 🕐 3h — posticipa il promemoria\n• ⏭ Salta — salta l'assunzione\n• ✓ Conferma — conferma un'assunzione saltata"
   },
   "medicationReminders": {
-    "phaseGreenTitle": "🟢 Reminder: {medName}",
+    "phaseGreenTitle": "🟢 Promemoria: {medName}",
     "phaseGreenMessage": "🟢 Reminder:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nWindow closes in {minutes} Min.",
-    "phaseYellowTitle": "🟡 Due soon: {medName}",
-    "phaseYellowMessage": "🟡 Due soon:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\n{minutes} min left.",
-    "phaseOrangeTitle": "🟠 Overdue: {medName}",
+    "phaseYellowTitle": "🟡 In scadenza: {medName}",
+    "phaseYellowMessage": "🟡 In scadenza:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nMancano {minutes} min.",
+    "phaseOrangeTitle": "🟠 In ritardo: {medName}",
     "phaseOrangeMessage": "🟠 Overdue:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nOverdue by {minutes} Min.",
-    "phaseRedTitle": "🔴 Missed: {medName}",
-    "phaseRedMessage": "🔴 Missed:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nMarked as missed.",
+    "phaseRedTitle": "🔴 Saltata: {medName}",
+    "phaseRedMessage": "🔴 Saltata:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nContrassegnata come saltata.",
     "buttonTaken": "Assunto",
     "buttonConfirm": "✓ Conferma",
     "buttonSnoozeOneHour": "🕐 1h",

@@ -4460,8 +4460,8 @@
     "bugTitlePlaceholder": "Resumen breve (opcional)",
     "githubEscalationNote": "Tu feedback se guarda localmente. Si el administrador activa la integración con GitHub, puede publicarse como issue público a petición.",
     "internalOnlyNote": "Tu feedback se guarda localmente y solo es visible para el administrador de este servidor.",
-    "disabledTitle": "Bug reports are turned off",
-    "disabledBody": "The administrator has disabled bug reports on this server."
+    "disabledTitle": "Los informes de errores están desactivados",
+    "disabledBody": "El administrador ha desactivado los informes de errores en este servidor."
   },
   "notifications": {
     "title": "Centro de notificaciones",
@@ -4660,18 +4660,18 @@
     "cancelButton": "Cancelar",
     "askMedicationName": "Indica el medicamento, p. ej. <b>tomado Ramipril</b>.",
     "medicationNotFoundExact": "Medicamento no encontrado. Envía el nombre exactamente como aparece en HealthLog.",
-    "helpHeader": "<b>Available commands:</b>",
-    "helpBody": "/help — show this help\n/add — record an intake\n/start — start the bot\n\n<b>Text commands:</b>\ntaken &lt;name&gt; — confirm an intake\n\n<b>Buttons in reminders:</b>\n• Taken — confirm intake\n• 🕐 1h / 🕐 3h — postpone reminder\n• ⏭ Skip — skip intake\n• ✓ Confirm — confirm a missed intake"
+    "helpHeader": "<b>Comandos disponibles:</b>",
+    "helpBody": "/help — mostrar esta ayuda\n/add — registrar una toma\n/start — iniciar el bot\n\n<b>Comandos de texto:</b>\ntaken &lt;nombre&gt; — confirmar una toma\n\n<b>Botones en los recordatorios:</b>\n• Tomado — confirmar la toma\n• 🕐 1h / 🕐 3h — posponer el recordatorio\n• ⏭ Omitir — omitir la toma\n• ✓ Confirmar — confirmar una toma omitida"
   },
   "medicationReminders": {
-    "phaseGreenTitle": "🟢 Reminder: {medName}",
+    "phaseGreenTitle": "🟢 Recordatorio: {medName}",
     "phaseGreenMessage": "🟢 Reminder:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nWindow closes in {minutes} Mín.",
-    "phaseYellowTitle": "🟡 Due soon: {medName}",
-    "phaseYellowMessage": "🟡 Due soon:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\n{minutes} min left.",
-    "phaseOrangeTitle": "🟠 Overdue: {medName}",
+    "phaseYellowTitle": "🟡 Pronto: {medName}",
+    "phaseYellowMessage": "🟡 Pronto:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nQuedan {minutes} min.",
+    "phaseOrangeTitle": "🟠 Atrasado: {medName}",
     "phaseOrangeMessage": "🟠 Overdue:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nOverdue by {minutes} Mín.",
-    "phaseRedTitle": "🔴 Missed: {medName}",
-    "phaseRedMessage": "🔴 Missed:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nMarked as missed.",
+    "phaseRedTitle": "🔴 Omitido: {medName}",
+    "phaseRedMessage": "🔴 Omitido:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nMarcado como omitido.",
     "buttonTaken": "Tomado",
     "buttonConfirm": "✓ Confirmar",
     "buttonSnoozeOneHour": "🕐 1h",

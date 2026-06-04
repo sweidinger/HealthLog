@@ -4460,8 +4460,8 @@
     "bugTitlePlaceholder": "Résumé court (optionnel)",
     "githubEscalationNote": "Ton retour est stocké localement. Si l’administrateur active l’intégration GitHub, il pourra être publié comme issue public à la demande.",
     "internalOnlyNote": "Ton retour est stocké localement et n’est visible que par l’administrateur de ce serveur.",
-    "disabledTitle": "Bug reports are turned off",
-    "disabledBody": "The administrator has disabled bug reports on this server."
+    "disabledTitle": "Les rapports de bug sont désactivés",
+    "disabledBody": "L'administrateur a désactivé les rapports de bug sur ce serveur."
   },
   "notifications": {
     "title": "Centre de notifications",
@@ -4660,18 +4660,18 @@
     "cancelButton": "Annuler",
     "askMedicationName": "Indique le médicament, p. ex. <b>pris Ramipril</b>.",
     "medicationNotFoundExact": "Médicament introuvable. Envoie le nom exactement tel qu’il apparaît dans HealthLog.",
-    "helpHeader": "<b>Available commands:</b>",
-    "helpBody": "/help — show this help\n/add — record an intake\n/start — start the bot\n\n<b>Text commands:</b>\ntaken &lt;name&gt; — confirm an intake\n\n<b>Buttons in reminders:</b>\n• Taken — confirm intake\n• 🕐 1h / 🕐 3h — postpone reminder\n• ⏭ Skip — skip intake\n• ✓ Confirm — confirm a missed intake"
+    "helpHeader": "<b>Commandes disponibles :</b>",
+    "helpBody": "/help — afficher cette aide\n/add — enregistrer une prise\n/start — démarrer le bot\n\n<b>Commandes texte :</b>\ntaken &lt;nom&gt; — confirmer une prise\n\n<b>Boutons dans les rappels :</b>\n• Pris — confirmer la prise\n• 🕐 1h / 🕐 3h — reporter le rappel\n• ⏭ Ignorer — ignorer la prise\n• ✓ Confirmer — confirmer une prise manquée"
   },
   "medicationReminders": {
-    "phaseGreenTitle": "🟢 Reminder: {medName}",
+    "phaseGreenTitle": "🟢 Rappel : {medName}",
     "phaseGreenMessage": "🟢 Reminder:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nWindow closes in {minutes} Min.",
-    "phaseYellowTitle": "🟡 Due soon: {medName}",
-    "phaseYellowMessage": "🟡 Due soon:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\n{minutes} min left.",
-    "phaseOrangeTitle": "🟠 Overdue: {medName}",
+    "phaseYellowTitle": "🟡 Bientôt due : {medName}",
+    "phaseYellowMessage": "🟡 Bientôt due :\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nIl reste {minutes} min.",
+    "phaseOrangeTitle": "🟠 En retard : {medName}",
     "phaseOrangeMessage": "🟠 Overdue:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nOverdue by {minutes} Min.",
-    "phaseRedTitle": "🔴 Missed: {medName}",
-    "phaseRedMessage": "🔴 Missed:\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nMarked as missed.",
+    "phaseRedTitle": "🔴 Manquée : {medName}",
+    "phaseRedMessage": "🔴 Manquée :\n<b>{medName}</b> ({doseInfo}, {timeWindow})\nMarquée comme manquée.",
     "buttonTaken": "Pris",
     "buttonConfirm": "✓ Confirmer",
     "buttonSnoozeOneHour": "🕐 1h",
