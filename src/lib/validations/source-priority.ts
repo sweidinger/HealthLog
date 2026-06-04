@@ -214,29 +214,35 @@ export type DeviceTypePriority = z.infer<typeof deviceTypePrioritySchema>;
  *     receives the same reading via Withings' Health Mate iOS app).
  */
 export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
-  steps: ["APPLE_HEALTH", "WITHINGS", "MANUAL"],
-  activeEnergy: ["APPLE_HEALTH", "WITHINGS", "MANUAL"],
-  walkingRunningDistance: ["APPLE_HEALTH", "WITHINGS", "MANUAL"],
-  flightsClimbed: ["APPLE_HEALTH", "WITHINGS", "MANUAL"],
+  // v1.12.0 — Fitbit/Pixel rides below Apple Health for cumulative metrics:
+  // HealthKit still aggregates the broadest device set, and a Fitbit-only
+  // self-hoster has no Apple stream to compete with anyway.
+  steps: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "MANUAL"],
+  activeEnergy: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "MANUAL"],
+  walkingRunningDistance: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "MANUAL"],
+  flightsClimbed: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "MANUAL"],
   // v1.11.0 — WHOOP leads the recovery-input ladders (sleep / HRV / RHR):
   // a worn-all-night strap has higher-resolution overnight sampling than
   // the iPhone-relayed HealthKit summary or the Withings nightly summary.
-  sleep: ["WHOOP", "APPLE_HEALTH", "WITHINGS"],
-  hrv: ["WHOOP", "APPLE_HEALTH", "WITHINGS"],
-  restingHeartRate: ["WHOOP", "APPLE_HEALTH", "WITHINGS"],
+  // v1.12.0 — Fitbit is a wrist wearable in the same class as WHOOP but with
+  // a lower-fidelity nightly estimate, so it ranks just below it.
+  sleep: ["WHOOP", "FITBIT", "APPLE_HEALTH", "WITHINGS"],
+  hrv: ["WHOOP", "FITBIT", "APPLE_HEALTH", "WITHINGS"],
+  restingHeartRate: ["WHOOP", "FITBIT", "APPLE_HEALTH", "WITHINGS"],
   // A real scale beats a strap's body-measurement estimate for weight.
-  weight: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "WHOOP"],
+  weight: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "WHOOP", "FITBIT"],
   bloodPressure: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
-  pulse: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
-  bodyFat: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
-  bodyTemperature: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
-  // Withings ScanWatch pulse-ox is the primary SpO2 sensor; WHOOP second.
-  spo2: ["WITHINGS", "WHOOP", "APPLE_HEALTH", "MANUAL"],
-  vo2Max: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
+  pulse: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
+  bodyFat: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
+  bodyTemperature: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
+  // Withings ScanWatch pulse-ox is the primary SpO2 sensor; WHOOP second,
+  // Fitbit third.
+  spo2: ["WITHINGS", "WHOOP", "FITBIT", "APPLE_HEALTH", "MANUAL"],
+  vo2Max: ["WITHINGS", "APPLE_HEALTH", "FITBIT", "MANUAL"],
   // v1.11.0 — new WHOOP-overlapping keys. ScanWatch dermal reading is the
-  // primary skin-temperature sensor; WHOOP's strap is second.
-  skinTemperature: ["WITHINGS", "WHOOP", "APPLE_HEALTH"],
-  respiratoryRate: ["WHOOP", "APPLE_HEALTH", "WITHINGS"],
+  // primary skin-temperature sensor; WHOOP's strap is second, Fitbit third.
+  skinTemperature: ["WITHINGS", "WHOOP", "FITBIT", "APPLE_HEALTH"],
+  respiratoryRate: ["WHOOP", "FITBIT", "APPLE_HEALTH", "WITHINGS"],
   // v1.11.0 — native-vs-derived recovery. WHOOP's device-native Recovery
   // outranks HealthLog's COMPUTED proxy when both exist; the proxy is the
   // fallback for users without a strap.

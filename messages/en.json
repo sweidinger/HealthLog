@@ -3130,6 +3130,7 @@
           "MANUAL": "Manual entry",
           "IMPORT": "Import",
           "WHOOP": "WHOOP",
+          "FITBIT": "Fitbit",
           "COMPUTED": "Computed"
         },
         "deviceLabels": {

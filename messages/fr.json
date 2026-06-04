@@ -3130,6 +3130,7 @@
           "MANUAL": "Saisie manuelle",
           "IMPORT": "Importer",
           "WHOOP": "WHOOP",
+          "FITBIT": "Fitbit",
           "COMPUTED": "Calculé"
         },
         "deviceLabels": {
