@@ -251,10 +251,26 @@ export function CoachMemorySection({
                       size="sm"
                       data-testid="settings-coach-memory-forget"
                       aria-label={t("settings.ai.coachMemory.forgetAria")}
-                      disabled={!isAuthenticated || forgetOne.isPending}
+                      // v1.11.2 — per-id pending: only the row being
+                      // deleted disables/spins. `forgetOne.variables` holds
+                      // the id passed to the in-flight `mutate()`, so a
+                      // single shared mutation no longer greys out every
+                      // other row's forget button during one delete.
+                      disabled={
+                        !isAuthenticated ||
+                        (forgetOne.isPending && forgetOne.variables === fact.id)
+                      }
                       onClick={() => forgetOne.mutate(fact.id)}
                     >
-                      <Trash2 className="size-4" aria-hidden />
+                      {forgetOne.isPending &&
+                      forgetOne.variables === fact.id ? (
+                        <Loader2
+                          className="size-4 animate-spin motion-reduce:animate-none"
+                          aria-hidden
+                        />
+                      ) : (
+                        <Trash2 className="size-4" aria-hidden />
+                      )}
                       {t("settings.ai.coachMemory.forget")}
                     </Button>
                   </li>
