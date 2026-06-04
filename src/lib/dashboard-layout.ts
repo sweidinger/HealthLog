@@ -59,6 +59,35 @@ export const DASHBOARD_WIDGET_IDS = [
 export type DashboardWidgetId = (typeof DASHBOARD_WIDGET_IDS)[number];
 
 /**
+ * v1.11.2 B5 / HIGH-1 — widget ids that are WRITABLE (members of
+ * `DASHBOARD_WIDGET_IDS`, so the iOS pin PUT validates them) but have NO
+ * web render path: `src/app/page.tsx` renders strip tiles via hardcoded
+ * per-id blocks and never iterates an id→component map, so these ids draw
+ * nothing on the web dashboard. They are surfaced and pinned by the native
+ * iOS client only.
+ *
+ * They MUST stay in `DASHBOARD_WIDGET_IDS` (the iOS v0.14 Home-pin request
+ * needs the widgets PUT enum to accept them), but the web Settings →
+ * Dashboard list filters them out (see `dashboard-layout-section.tsx`) so a
+ * web user is never offered a toggle that silently does nothing on web.
+ *
+ * The 11 `DASHBOARD_IOS_ONLY_WIDGET_IDS` below are a separate concern: those
+ * are NOT writable (not in `DASHBOARD_WIDGET_IDS`) so they never reached the
+ * web Settings list in the first place. This set is specifically the
+ * writable-but-not-web-rendered ids that B5 introduced.
+ */
+export const IOS_PIN_ONLY_WIDGET_IDS = [
+  "cardioRecovery",
+  "sixMinuteWalk",
+  "stairAscentSpeed",
+  "stairDescentSpeed",
+  "breathingDisturbances",
+  "wristTemperature",
+  "falls",
+  "walkingSteadiness",
+] as const satisfies readonly DashboardWidgetId[];
+
+/**
  * v1.7.0 — iOS-only widget ids the native client materialises in its
  * own default layout but the server PUT enum does NOT yet accept. These
  * are the HK-completeness tiles the iOS app added in its v0.5.2 / v0.7.0

@@ -4,8 +4,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   DEFAULT_DASHBOARD_LAYOUT,
   DASHBOARD_IOS_ONLY_WIDGET_IDS,
+  DASHBOARD_WIDGET_IDS,
+  IOS_PIN_ONLY_WIDGET_IDS,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
+
+// v1.11.2 HIGH-1 — the web Settings list renders one row per WRITABLE id
+// (`DASHBOARD_WIDGET_IDS`) MINUS the `IOS_PIN_ONLY_WIDGET_IDS` (writable so
+// the iOS pin PUT validates, but with no web render path). The default
+// layout still carries all 24 writable widgets; only this subset renders.
+const WEB_RENDERABLE_ROW_COUNT =
+  DASHBOARD_WIDGET_IDS.length - IOS_PIN_ONLY_WIDGET_IDS.length;
 
 // Mutable holder so individual tests can inject a layout (e.g. one that
 // carries iOS-only ids) into the mocked `useQuery` without re-mocking
@@ -88,10 +97,10 @@ describe("<DashboardLayoutSection> — tile + chart split", () => {
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     const tileSwitches = html.match(/data-slot="widget-tile-switch"/g) ?? [];
     const chartSwitches = html.match(/data-slot="widget-chart-switch"/g) ?? [];
-    // Default layout has 13 widgets — both switch counts must match
-    // exactly so the split control covers every widget.
-    expect(tileSwitches).toHaveLength(DEFAULT_DASHBOARD_LAYOUT.widgets.length);
-    expect(chartSwitches).toHaveLength(DEFAULT_DASHBOARD_LAYOUT.widgets.length);
+    // One tile + one chart switch per WEB-renderable widget (the
+    // iOS-pin-only ids are filtered out — they have no web render path).
+    expect(tileSwitches).toHaveLength(WEB_RENDERABLE_ROW_COUNT);
+    expect(chartSwitches).toHaveLength(WEB_RENDERABLE_ROW_COUNT);
   });
 });
 
@@ -108,7 +117,7 @@ describe("<DashboardLayoutSection> — drag-and-drop reorder", () => {
   it("paints a drag handle for every widget row", () => {
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     const handles = html.match(/data-slot="widget-drag-handle"/g) ?? [];
-    expect(handles).toHaveLength(DEFAULT_DASHBOARD_LAYOUT.widgets.length);
+    expect(handles).toHaveLength(WEB_RENDERABLE_ROW_COUNT);
   });
 
   it("each drag handle has an aria-describedby pointing to a shared hint", () => {
@@ -117,7 +126,7 @@ describe("<DashboardLayoutSection> — drag-and-drop reorder", () => {
     // to care about attribute ordering inside the rendered <button>.
     const handleButtons =
       html.match(/<button[^>]*data-slot="widget-drag-handle"[^>]*>/g) ?? [];
-    expect(handleButtons).toHaveLength(DEFAULT_DASHBOARD_LAYOUT.widgets.length);
+    expect(handleButtons).toHaveLength(WEB_RENDERABLE_ROW_COUNT);
     // Every handle declares aria-describedby and they all share the
     // same id (one hint paragraph below the list — single source of
     // truth for screen readers).
@@ -139,8 +148,8 @@ describe("<DashboardLayoutSection> — drag-and-drop reorder", () => {
     // strings — counted once per row.
     const moveUpCount = (html.match(/aria-label="Move up"/g) ?? []).length;
     const moveDownCount = (html.match(/aria-label="Move down"/g) ?? []).length;
-    expect(moveUpCount).toBe(DEFAULT_DASHBOARD_LAYOUT.widgets.length);
-    expect(moveDownCount).toBe(DEFAULT_DASHBOARD_LAYOUT.widgets.length);
+    expect(moveUpCount).toBe(WEB_RENDERABLE_ROW_COUNT);
+    expect(moveDownCount).toBe(WEB_RENDERABLE_ROW_COUNT);
   });
 
   it("hint string localises to German", () => {
@@ -229,10 +238,11 @@ describe("<DashboardLayoutSection> — iOS-only id skip (v1.7.0)", () => {
 
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
 
-    // One row (= one tile switch) per WEB-known widget — the iOS-only
-    // ids are skipped, not rendered as raw-id rows.
+    // One row (= one tile switch) per WEB-renderable widget — the iOS-only
+    // ids (and the iOS-pin-only writable ids) are skipped, not rendered as
+    // raw-id rows.
     const tileSwitches = html.match(/data-slot="widget-tile-switch"/g) ?? [];
-    expect(tileSwitches).toHaveLength(DEFAULT_DASHBOARD_LAYOUT.widgets.length);
+    expect(tileSwitches).toHaveLength(WEB_RENDERABLE_ROW_COUNT);
 
     // No iOS-only raw id leaks into the markup as a row label.
     for (const iosId of DASHBOARD_IOS_ONLY_WIDGET_IDS) {
@@ -256,5 +266,45 @@ describe("<DashboardLayoutSection> — iOS-only id skip (v1.7.0)", () => {
     const tileSwitches = html.match(/data-slot="widget-tile-switch"/g) ?? [];
     expect(tileSwitches).toHaveLength(0);
     expect(html).toContain("dashboard-layout");
+  });
+});
+
+/**
+ * v1.11.2 HIGH-1 — the 8 B5 ids are WRITABLE (in DASHBOARD_WIDGET_IDS so the
+ * iOS pin PUT validates them) but have NO web render path, so the web
+ * Settings list must NOT offer a dead toggle for them.
+ */
+describe("<DashboardLayoutSection> — iOS-pin-only ids hidden from web (v1.11.2)", () => {
+  it("renders one fewer row per iOS-pin-only id than the writable id count", () => {
+    // Default layout carries all 24 writable widgets incl. the 8 pin-only.
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    const tileSwitches = html.match(/data-slot="widget-tile-switch"/g) ?? [];
+    expect(tileSwitches).toHaveLength(WEB_RENDERABLE_ROW_COUNT);
+    // Sanity: WEB_RENDERABLE_ROW_COUNT == writable − pin-only.
+    expect(WEB_RENDERABLE_ROW_COUNT).toBe(
+      DASHBOARD_WIDGET_IDS.length - IOS_PIN_ONLY_WIDGET_IDS.length,
+    );
+  });
+
+  it("does not paint a row whose aria-label matches an iOS-pin-only widget label", () => {
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    // The pin-only ids reuse `measurements.type*` labels that resolve to
+    // distinctive English strings; none should appear as a toggle aria-label.
+    const pinOnlyLabels: Record<(typeof IOS_PIN_ONLY_WIDGET_IDS)[number], string> =
+      {
+        cardioRecovery: "Cardio recovery",
+        sixMinuteWalk: "Six-minute walk distance",
+        stairAscentSpeed: "Stair ascent speed",
+        stairDescentSpeed: "Stair descent speed",
+        breathingDisturbances: "Breathing disturbances",
+        wristTemperature: "Wrist temperature",
+        falls: "Falls",
+        walkingSteadiness: "Walking steadiness",
+      };
+    for (const id of IOS_PIN_ONLY_WIDGET_IDS) {
+      // The widget label drives the switch aria-label; if the row were
+      // rendered the localised label would show up in the markup.
+      expect(html).not.toContain(`${pinOnlyLabels[id]} — `);
+    }
   });
 });
