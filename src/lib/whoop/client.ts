@@ -638,17 +638,20 @@ export interface MappedBodyMeasurement {
  * null and the sync layer skips it.
  */
 export function mapBody(b: WhoopBodyMeasurement): MappedBodyMeasurement {
+  // WHOOP body fields are self-reported profile data. Guard against absent,
+  // non-finite (NaN/Infinity), or non-positive values so a garbage reading
+  // never seeds a real WEIGHT measurement or a `User.heightCm` of 0
+  // (v1.11.3 QA L1).
+  const positive = (n: number | undefined): n is number =>
+    typeof n === "number" && Number.isFinite(n) && n > 0;
   return {
-    weightKg:
-      typeof b.weight_kilogram === "number" ? round2(b.weight_kilogram) : null,
-    maxHeartRate:
-      typeof b.max_heart_rate === "number"
-        ? Math.round(b.max_heart_rate)
-        : null,
-    heightCm:
-      typeof b.height_meter === "number"
-        ? round2(b.height_meter * M_TO_CM)
-        : null,
+    weightKg: positive(b.weight_kilogram) ? round2(b.weight_kilogram) : null,
+    maxHeartRate: positive(b.max_heart_rate)
+      ? Math.round(b.max_heart_rate)
+      : null,
+    heightCm: positive(b.height_meter)
+      ? round2(b.height_meter * M_TO_CM)
+      : null,
   };
 }
 
