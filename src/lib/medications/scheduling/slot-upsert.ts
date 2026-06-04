@@ -17,21 +17,13 @@
 import type { PrismaClient } from "@/generated/prisma/client";
 
 import { prisma as defaultPrisma } from "@/lib/db";
+import { isP2002 } from "@/lib/prisma-errors";
 import { resolveCanonicalSlotInstant } from "@/lib/medications/scheduling/resolve-slot-instant";
 import type { WorkerScheduleRow } from "@/lib/medications/scheduling/worker-helpers";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
 type PrismaLike = Pick<PrismaClient, "medication" | "medicationIntakeEvent">;
 
-/** Narrow a thrown Prisma error to the P2002 unique-constraint code. */
-function isP2002(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: unknown }).code === "P2002"
-  );
-}
 
 /** The minimal intake-row shape the slot upsert reads + returns. */
 export interface SlotIntakeRow {

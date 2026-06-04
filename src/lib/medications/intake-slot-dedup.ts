@@ -41,6 +41,7 @@
  * unregistered queue silently never drains.
  */
 import { prisma } from "@/lib/db";
+import { isP2002 } from "@/lib/prisma-errors";
 import { annotate } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
@@ -52,16 +53,6 @@ import type {
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 
 export const INTAKE_SLOT_DEDUP_QUEUE = "intake-slot-dedup";
-
-/** Narrow a thrown Prisma error to the P2002 unique-constraint code. */
-function isP2002(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: unknown }).code === "P2002"
-  );
-}
 
 /**
  * Serial concurrency — the populator walks a user's intake events and

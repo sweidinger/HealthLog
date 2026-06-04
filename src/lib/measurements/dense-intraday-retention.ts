@@ -41,6 +41,7 @@
  * production standalone image strips `tsx`, so this can never be a CLI.
  */
 import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
+import { isP2002 as isUniqueConstraintViolation } from "@/lib/prisma-errors";
 
 import {
   dailyStatsExternalId,
@@ -77,19 +78,6 @@ export const DENSE_INTRADAY_RETENTION_DAYS = 14;
 /** The daily-stats externalId prefix marks an already-collapsed row. */
 const DAILY_STATS_PREFIX = "stats:";
 
-/**
- * True for a Prisma unique-constraint violation (P2002). Mirrors the
- * `consolidate-legacy-steps.ts` precedent verbatim so the two drains
- * classify the same error the same way.
- */
-function isUniqueConstraintViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: unknown }).code === "P2002"
-  );
-}
 
 export interface DenseIntradayRetentionSummary {
   dryRun: boolean;

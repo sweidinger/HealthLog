@@ -30,6 +30,7 @@
 import { prisma } from "@/lib/db";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
+import { isP2002 } from "@/lib/prisma-errors";
 import {
   collapseRollupRowsBySource,
   loadUserSourcePriority,
@@ -437,16 +438,6 @@ async function runRollupAggregate(input: {
  * with `ON CONFLICT DO UPDATE` so the round-trip count is bounded
  * regardless of fan-out width.
  */
-/** Narrow a thrown Prisma error to the P2002 unique-constraint code. */
-function isP2002(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: unknown }).code === "P2002"
-  );
-}
-
 async function persistRollupRows(
   userId: string,
   granularity: RollupGranularity,

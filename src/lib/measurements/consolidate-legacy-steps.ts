@@ -38,6 +38,7 @@
  * `rollup-full-backfill` boot-time converging-backfill pattern.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
+import { isP2002 as isUniqueConstraintViolation } from "@/lib/prisma-errors";
 
 import { dailyStatsExternalId } from "./apple-health-mapping";
 import {
@@ -100,15 +101,6 @@ export interface StepConsolidationSummary {
   };
 }
 
-/** True for a Prisma unique-constraint violation (P2002). */
-function isUniqueConstraintViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code?: unknown }).code === "P2002"
-  );
-}
 
 export interface StepConsolidationOptions {
   /** Limit the pass to a single user. Default = every user. */
