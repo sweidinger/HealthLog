@@ -43,10 +43,10 @@ export const SITE_COORDS: Record<InjectionSiteKey, { x: number; y: number }> = {
   ABDOMEN_UPPER_RIGHT: { x: 56.5, y: 81 },
   ABDOMEN_LEFT: { x: 43.5, y: 95 },
   ABDOMEN_RIGHT: { x: 56.5, y: 95 },
-  THIGH_LEFT: { x: 40, y: 140 },
-  THIGH_RIGHT: { x: 60, y: 140 },
-  UPPER_ARM_LEFT: { x: 23, y: 78 },
-  UPPER_ARM_RIGHT: { x: 77, y: 78 },
+  THIGH_LEFT: { x: 40, y: 110 },
+  THIGH_RIGHT: { x: 60, y: 110 },
+  UPPER_ARM_LEFT: { x: 22, y: 67 },
+  UPPER_ARM_RIGHT: { x: 78, y: 67 },
 };
 
 /**
