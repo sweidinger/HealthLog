@@ -30,6 +30,10 @@
 import { prisma } from "@/lib/db";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { annotate } from "@/lib/logging/context";
+import {
+  collapseRollupRowsBySource,
+  loadUserSourcePriority,
+} from "@/lib/rollups/measurement-read";
 import { startOfUtcDay } from "@/lib/tz/start-of-utc-day";
 import type {
   MeasurementSource,
@@ -262,6 +266,11 @@ export async function enqueueRollupRecompute(input: {
 /**
  * Read rollup rows for `(userId, type, granularity)` in `[from, to)`.
  * Returns rows sorted ascending by `bucketStart`.
+ *
+ * v1.11.1 — rows are stored per source; this collapses overlapping sources to
+ * the ladder-canonical reading so the return shape stays one row per bucket.
+ * Pass `userPriorityJson` to avoid a per-call user lookup when the caller
+ * already loaded it (e.g. a loop over many types); omit it to lazy-load.
  */
 export async function readRollupBuckets(
   userId: string,
@@ -269,6 +278,7 @@ export async function readRollupBuckets(
   granularity: RollupGranularity,
   from: Date,
   to: Date,
+  userPriorityJson?: unknown,
 ): Promise<
   Array<{
     bucketStart: Date;
@@ -291,7 +301,11 @@ export async function readRollupBuckets(
     },
     orderBy: { bucketStart: "asc" },
   });
-  return rows.map((r) => ({
+  const priority =
+    userPriorityJson !== undefined
+      ? userPriorityJson
+      : await loadUserSourcePriority(userId);
+  return collapseRollupRowsBySource(rows, type, priority).map((r) => ({
     bucketStart: r.bucketStart,
     count: r.count,
     mean: r.mean,

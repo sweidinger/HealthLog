@@ -61,6 +61,10 @@ import type {
 } from "@/generated/prisma/client";
 
 import { prisma } from "@/lib/db";
+import {
+  collapseRollupRowsBySource,
+  loadUserSourcePriority,
+} from "@/lib/rollups/measurement-read";
 
 /**
  * Normalised bucket row returned by every WMY reader. Mirrors the
@@ -134,19 +138,32 @@ export async function readBestGranularityRollups(
   userId: string,
   type: MeasurementType,
   windowDays: number,
+  userPriorityJson?: unknown,
 ): Promise<{
   granularity: RollupGranularity;
   rows: RollupBucketRow[];
 } | null> {
   if (!Number.isFinite(windowDays) || windowDays <= 0) return null;
   const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+  // v1.11.1 — load the source-priority blob once and thread it into every
+  // granularity probe so the collapse never re-queries the user per floor.
+  const priority =
+    userPriorityJson !== undefined
+      ? userPriorityJson
+      : await loadUserSourcePriority(userId);
   // Walk the floors from coarsest to finest and return the first
   // granularity whose floor the window clears AND which has coverage
   // for `(userId, type, since)`. The `if rows == null` fall-through
   // is what makes the helper resilient to partial coverage.
   for (const floor of GRANULARITY_FLOORS) {
     if (windowDays < floor.minWindowDays) continue;
-    const rows = await readGranularity(userId, type, floor.granularity, since);
+    const rows = await readGranularity(
+      userId,
+      type,
+      floor.granularity,
+      since,
+      priority,
+    );
     if (rows && rows.length > 0) {
       return { granularity: floor.granularity, rows };
     }
@@ -211,8 +228,9 @@ async function readGranularity(
   type: MeasurementType,
   granularity: RollupGranularity,
   since: Date,
+  userPriorityJson: unknown,
 ): Promise<RollupBucketRow[] | null> {
-  // Bounded `findMany`: `(userId, type, granularity, bucketStart)`
+  // Bounded `findMany`: `(userId, type, granularity, bucketStart, source)`
   // is the composite primary key so the planner picks the index path
   // every time. `bucketStart >= since` is the same shape
   // `readRollupBuckets` uses; we don't carry an upper bound because
@@ -227,6 +245,8 @@ async function readGranularity(
     orderBy: { bucketStart: "asc" },
     select: {
       bucketStart: true,
+      // v1.11.1 — source drives the per-bucket canonical collapse below.
+      source: true,
       count: true,
       mean: true,
       sd: true,
@@ -238,7 +258,9 @@ async function readGranularity(
     },
   });
   if (rows.length === 0) return null;
-  return rows.map((r) => ({
+  // v1.11.1 — collapse overlapping sources to the ladder-canonical reading
+  // per bucket, then drop the source column from the normalised shape.
+  return collapseRollupRowsBySource(rows, type, userPriorityJson).map((r) => ({
     bucketStart: r.bucketStart,
     count: r.count,
     mean: r.mean,

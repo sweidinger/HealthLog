@@ -24,12 +24,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   findMany: vi.fn(),
+  userFindUnique: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     measurementRollup: {
       findMany: mocks.findMany,
+    },
+    // v1.11.1 — readBestGranularityRollups loads the source-priority blob via
+    // loadUserSourcePriority; default to null so the collapse uses the default
+    // ladders (these routing fixtures are single-source per bucket anyway).
+    user: {
+      findUnique: mocks.userFindUnique,
     },
   },
 }));
@@ -62,6 +69,8 @@ function bucket(
 
 beforeEach(() => {
   findMany.mockReset();
+  mocks.userFindUnique.mockReset();
+  mocks.userFindUnique.mockResolvedValue({ sourcePriorityJson: null });
 });
 
 afterEach(() => {

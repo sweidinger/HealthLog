@@ -24,11 +24,26 @@ import type {
   MeasurementSource,
   MeasurementType,
 } from "@/generated/prisma/client";
+import { prisma } from "@/lib/db";
 import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
 import {
   getSourceLadder,
   parseSourcePriority,
 } from "@/lib/validations/source-priority";
+
+/**
+ * v1.11.1 — load a user's source-priority blob for the rollup collapse.
+ * `null` makes `collapseRollupRowsBySource` fall back to the default ladders.
+ * Callers that read many types in a loop should load it once and thread it
+ * through, rather than paying one lookup per read.
+ */
+export async function loadUserSourcePriority(userId: string): Promise<unknown> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sourcePriorityJson: true },
+  });
+  return user?.sourcePriorityJson ?? null;
+}
 
 export interface DailyMeanRow {
   day: Date;
