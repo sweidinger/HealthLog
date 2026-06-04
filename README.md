@@ -21,7 +21,7 @@
 
 <p align="center">
   Self-hosted health tracker. Weight, blood pressure, glucose, mood, medications.<br/>
-  Withings and Apple Health sync, multi-provider AI Insights you own, doctor-report PDF.
+  Withings, WHOOP, and Apple Health sync, multi-provider AI Insights you own, doctor-report PDF.
 </p>
 
 <p align="center">
@@ -36,7 +36,7 @@
 
 ## What it is
 
-HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESH 2023, ADA 2024, and NICE NG115. Withings devices sync automatically; an `export.zip` import folds your full Apple Health history into the same timeline; a native SwiftUI iOS client (public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa)) streams HealthKit live; multi-provider AI Insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. AGPL-3.0.
+HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESH 2023, ADA 2024, and NICE NG115. Withings and WHOOP devices sync automatically over OAuth2; an `export.zip` import folds your full Apple Health history into the same timeline; a native SwiftUI iOS client (public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa)) streams HealthKit live; multi-provider AI Insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. AGPL-3.0.
 
 > **Status**: active. New releases roughly weekly -- see [CHANGELOG](CHANGELOG.md). Current line: v1.10 — a derived-metrics tier (fitness-age, vascular-age delta, HRV balance, sleep score, readiness and recovery scores, an early-strain flag), each computed from your own measurements and citing its inputs, on top of the v1.7 health-record export (PDF + FHIR R4), flexible medication schedules, and full HealthKit metric coverage. The native iOS client is public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa).
 
@@ -98,13 +98,15 @@ HealthLog is the right fit when you want your wearable and clinical numbers in o
 
 **Apple Health import** -- Drop your iOS `export.zip` on the import page. A streaming parser handles multi-gigabyte archives (Zip64), folds every `<Record>`, `<Workout>`, `<Correlation>`, and `<ClinicalRecord>` into the same timeline as your other metrics, and stays idempotent on re-upload. Per-type ingestion stats plus a live status endpoint so you can watch the progress on a long historical drain.
 
-**AI Coach + Insights** -- A conversational Coach grounded in your own data, a daily briefing, a weekly report, and a Health Score tile on the dashboard. Pick OpenAI, Anthropic Claude, ChatGPT via Codex device-OAuth (no API key needed), or any OpenAI-compatible local endpoint (Ollama, LM Studio, vLLM). BYOK or admin-shared. Feed the Coach a chosen set of data clusters (cardiovascular, body composition, activity, workouts, sleep, mood, glucose, medication, mobility, environment) with a soft budget cap that degrades the lowest-signal clusters first. Every claim links back to the measurements that produced it. Local endpoints keep all data on your network.
+**AI Coach + Insights** -- A conversational Coach grounded in your own data, a daily briefing, a weekly report, and a Health Score tile on the dashboard. Pick OpenAI, Anthropic Claude, ChatGPT via Codex device-OAuth (no API key needed), or any OpenAI-compatible local endpoint (Ollama, LM Studio, vLLM). BYOK or admin-shared. Feed the Coach a chosen set of data clusters (cardiovascular, body composition, activity, workouts, sleep, mood, glucose, medication, mobility, environment) with a soft budget cap that degrades the lowest-signal clusters first. Every claim links back to the measurements that produced it. The Coach now reads your history longitudinally — a narrative of how a metric has moved and a per-metric trajectory framing — so an answer reflects the direction of travel rather than only the latest reading. Local endpoints keep all data on your network.
 
 **Derived wellness metrics** -- A transparent metrics tier computed from your own measurements: a fitness-age band from VO₂max, a vascular-age delta, an HRV-balance band, a sleep score, a daily readiness and a stored recovery score, plus a coincident-deviation early-strain flag. Each one re-frames or blends signals you already recorded against age/sex norms or your personal baseline, cites the inputs and the published method behind it, and returns "not enough data" rather than a fabricated value when its minimum inputs are missing. The recovery score persists as a daily 0–100 series the dashboard, charts, and native client read without recomputing. These are descriptive wellness framings — not clinical or training-grade assessments.
 
 **Doctor Report PDF Export** -- Generate professional medical reports client-side. Locale-aware (English/German), with vital sign summaries, BP/BMI/glucose classification, compliance rates, custom-threshold badges, and optional AI analysis.
 
 **Health-record export (PDF + FHIR R4)** -- `POST /api/export/health-record` produces a selectable export: an enriched clinical PDF, a machine-readable HL7 FHIR R4 document bundle (LOINC-coded observations, a BP panel, medication statements, a diagnostic report), or both packaged as one zip. The selection chooses date range and per-domain sections; both formats read the same aggregator so they describe identical numbers, and the optional AI summary is an explicit opt-in section marked as not clinically validated. Optional patient identity (name, insurer, insurance number) on Account feeds the report cover and the FHIR `Patient`.
+
+**Clinician-grade FHIR API + shareable record** -- A read-only HL7 FHIR R4 REST API (`GET /api/fhir/{metadata,Patient,Observation,MedicationStatement,MedicationAdministration,$everything}`) lets a clinician system pull your record in a standard shape, gated behind a dedicated `fhir:read` token scope. Alongside it, a shareable clinician record: create a scoped, time-limited share link, hand a clinician the read-only `/c/<token>` view, and revoke it when the visit is over. The two are not yet wired together — a share link does not expose the FHIR API (`capabilities.share.fhirApi=false`) — but each stands on its own.
 
 **Built-in Feedback** -- Send bug reports and feature requests from inside the app. Stored in your HealthLog database — no GitHub config required. Optional GitHub escalation for admins.
 
@@ -213,6 +215,8 @@ HealthLog is designed for people who take data ownership seriously.
 | `WITHINGS_CLIENT_SECRET`  | Withings OAuth2 client secret                        |
 | `WITHINGS_REDIRECT_URI`   | OAuth callback URL                                   |
 | `WITHINGS_WEBHOOK_SECRET` | Webhook URL hardening secret                         |
+| `WHOOP_REDIRECT_URI`      | WHOOP OAuth callback URL (client id/secret set in Settings) |
+| `WHOOP_WEBHOOK_SECRET`    | HMAC secret for WHOOP webhook signature verification |
 | `TELEGRAM_WEBHOOK_SECRET` | Telegram bot webhook secret                          |
 
 Telegram bot token, ntfy settings, Web Push VAPID keys, Umami, and GlitchTip URLs are configured in the **Admin Panel** and stored encrypted in the database.
@@ -437,6 +441,24 @@ All mutations require authentication via session cookie. External ingest uses Be
 
 </details>
 
+<details>
+<summary><strong>FHIR + clinician sharing (v1.11)</strong></summary>
+
+Read-only HL7 FHIR R4 REST API, gated behind the `fhir:read` token scope:
+
+| Method | Endpoint                               | Description                                          |
+| ------ | -------------------------------------- | ---------------------------------------------------- |
+| `GET`  | `/api/fhir/metadata`                   | FHIR CapabilityStatement                             |
+| `GET`  | `/api/fhir/Patient`                    | Patient resource for the token's user                |
+| `GET`  | `/api/fhir/Observation`                | Vitals + labs as LOINC-coded observations            |
+| `GET`  | `/api/fhir/MedicationStatement`        | Medication regimen                                   |
+| `GET`  | `/api/fhir/MedicationAdministration`   | Logged intake events                                 |
+| `GET`  | `/api/fhir/$everything`                | Bundle of every resource above                       |
+
+Clinician share-link lifecycle — create a scoped, time-limited link, hand a clinician the read-only `/c/<token>` view, and revoke it after the visit. Share links do not expose the FHIR API (`capabilities.share.fhirApi=false`).
+
+</details>
+
 ---
 
 ## Integrations
@@ -444,6 +466,7 @@ All mutations require authentication via session cookie. External ingest uses Be
 | Integration     | Setup         | Purpose                                  |
 | --------------- | ------------- | ---------------------------------------- |
 | **Withings**    | Env vars      | Auto-sync weight, BP, and activity       |
+| **WHOOP**       | User Settings | OAuth2 sync of recovery, strain, and sleep (BYO-keys) |
 | **Telegram**    | Admin Panel   | Medication reminders with inline buttons |
 | **ntfy**        | User Settings | Self-hosted push notifications           |
 | **Web Push**    | Admin Panel   | Browser-native VAPID notifications       |
@@ -507,6 +530,8 @@ For a single-process default the same container hosts both the web and worker (`
 | **v1.6 – v1.7** | Medication editor overhaul + route of administration (v1.6), then health-record export (PDF + HL7 FHIR R4), flexible schedules (RRULE / rolling / interval-weeks / one-time / PRN / cyclic) with cadence-canonical compliance, full HealthKit metric coverage, a metric/imperial display preference, a first-paint dashboard snapshot, and a sync delta feed for offline clients (v1.7). |
 | **v1.8 – v1.10** (current) | Insights redesign with selectable time ranges (v1.8 – v1.9), then a derived-metrics tier (v1.10): fitness-age, vascular-age delta, HRV balance, sleep score, readiness and recovery scores, and a coincident-deviation early-strain flag — each computed from your own measurements, each citing its inputs and degrading to "not enough data" rather than fabricating a value. |
 | **v2.x** (planned) | Multi-tenant hardening, expanded device passthrough (Garmin / Polar), opt-in cross-user aggregate research mode (off by default; never enabled without explicit consent). |
+
+Two known limitations carry forward from v1.11: dedup across two sources of the same standard vital is deferred (both rows persist, source priority decides display), and the coach's durable conversation-summary / remembered-facts layer is deferred — each answer reasons from your data afresh rather than from a running memory.
 
 The detailed changelog lives in [`CHANGELOG.md`](CHANGELOG.md).
 
