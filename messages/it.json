@@ -4108,284 +4108,284 @@
     "carrierUnavailableGeoFallback": "{location} — carrier unavailable"
   },
   "achievements": {
-    "title": "Achievements",
-    "subtitle": "Earn achievements by tracking your health and taking your meds on time.",
-    "loginRequired": "Please sign in to view achievements.",
-    "points": "Points",
-    "unlocked": "Unlocked",
-    "nextGoal": "Next goal",
-    "allCompleted": "All achievements unlocked!",
-    "completed": "Completed",
-    "goalReached": "Goal reached",
-    "remainingUnlocks": "{count} still unlockable",
-    "noneUnlockedYet": "No achievements unlocked yet.",
-    "pointsValue": "{points} points",
+    "title": "Obiettivi",
+    "subtitle": "Ottieni obiettivi monitorando la tua salute e assumendo i farmaci in orario.",
+    "loginRequired": "Accedi per vedere gli obiettivi.",
+    "points": "Punti",
+    "unlocked": "Sbloccato",
+    "nextGoal": "Prossimo obiettivo",
+    "allCompleted": "Tutti gli obiettivi sbloccati!",
+    "completed": "Completato",
+    "goalReached": "Obiettivo raggiunto",
+    "remainingUnlocks": "Ancora {count} da sbloccare",
+    "noneUnlockedYet": "Nessun obiettivo ancora sbloccato.",
+    "pointsValue": "{points} punti",
     "metricCount": "{count}",
-    "metricDays": "{count} days",
+    "metricDays": "{count} giorni",
     "metricPercent": "{count}%",
     "badges": {
       "intakeTotal1": {
-        "title": "First intake",
-        "description": "Record your first taken medication event."
+        "title": "Prima assunzione",
+        "description": "Registra la tua prima assunzione di farmaco."
       },
       "intakeTotal10": {
-        "title": "Intake starter",
-        "description": "Record 10 taken medication events."
+        "title": "Principiante delle assunzioni",
+        "description": "Registra 10 assunzioni di farmaci."
       },
       "intakeTotal50": {
-        "title": "Intake routine",
-        "description": "Record 50 taken medication events."
+        "title": "Routine delle assunzioni",
+        "description": "Registra 50 assunzioni di farmaci."
       },
       "intakeTotal150": {
-        "title": "Intake expert",
-        "description": "Record 150 taken medication events."
+        "title": "Esperto delle assunzioni",
+        "description": "Registra 150 assunzioni di farmaci."
       },
       "intakeTotal300": {
-        "title": "Intake legend",
-        "description": "Record 300 taken medication events."
+        "title": "Leggenda delle assunzioni",
+        "description": "Registra 300 assunzioni di farmaci."
       },
       "overIntake1": {
-        "title": "Double take",
-        "description": "Take medication at least once more than planned."
+        "title": "Doppia dose",
+        "description": "Assumi il farmaco almeno una volta in più del previsto."
       },
       "skippedIntake1": {
-        "title": "Stepped back",
-        "description": "Skip at least one planned intake."
+        "title": "Pausa presa",
+        "description": "Salta almeno un’assunzione pianificata."
       },
       "passkeyCreated1": {
-        "title": "Passkey set up",
-        "description": "Create your first passkey."
+        "title": "Passkey configurata",
+        "description": "Crea la tua prima passkey."
       },
       "passkeyLogin1": {
-        "title": "Passkey login",
-        "description": "Sign in at least once with a passkey."
+        "title": "Accesso con passkey",
+        "description": "Accedi almeno una volta con una passkey."
       },
       "passwordLogin1": {
-        "title": "Old school",
-        "description": "Sign in at least once with username and password."
+        "title": "Vecchia scuola",
+        "description": "Accedi almeno una volta con nome utente e password."
       },
       "bugReport1": {
-        "title": "Bug hunter",
-        "description": "Submit a bug report."
+        "title": "Cacciatore di bug",
+        "description": "Invia una segnalazione di bug."
       },
       "loginStreak7": {
-        "title": "Login streak 7d",
-        "description": "Sign in on 7 consecutive days."
+        "title": "Serie di accessi 7g",
+        "description": "Accedi per 7 giorni consecutivi."
       },
       "loginStreak30": {
-        "title": "Login streak 30d",
-        "description": "Sign in on 30 consecutive days."
+        "title": "Serie di accessi 30g",
+        "description": "Accedi per 30 giorni consecutivi."
       },
       "onTimePerfect1": {
-        "title": "On-time 1d",
-        "description": "Take all medications on time for 1 day."
+        "title": "Puntuale 1g",
+        "description": "Assumi tutti i farmaci in orario per 1 giorno."
       },
       "compliance801": {
-        "title": "80% adherence · 1d",
-        "description": "Reach at least 80% 30-day adherence for 1 day."
+        "title": "Aderenza 80% · 1g",
+        "description": "Raggiungi almeno l’80% di aderenza su 30 giorni per 1 giorno."
       },
       "bmiGreen1": {
-        "title": "BMI green · 1d",
-        "description": "Keep your BMI in the normal range for 1 day."
+        "title": "IMC nel verde · 1g",
+        "description": "Mantieni l’IMC nell’intervallo normale per 1 giorno."
       },
       "bpGreen1": {
-        "title": "BP green · 1d",
-        "description": "Keep your blood pressure in the normal range for 1 day."
+        "title": "Pressione nel verde · 1g",
+        "description": "Mantieni la pressione nell’intervallo normale per 1 giorno."
       },
       "pulseGreen1": {
-        "title": "Pulse green · 1d",
-        "description": "Keep your resting pulse in the normal range for 1 day."
+        "title": "Polso nel verde · 1g",
+        "description": "Mantieni il polso a riposo nell’intervallo normale per 1 giorno."
       },
       "onTimePerfect7": {
-        "title": "On-time 7d",
-        "description": "Take all medications on time for 7 consecutive days."
+        "title": "Puntuale 7g",
+        "description": "Assumi tutti i farmaci in orario per 7 giorni consecutivi."
       },
       "compliance807": {
-        "title": "80% adherence · 7d",
-        "description": "Reach at least 80% 30-day adherence for 7 consecutive days."
+        "title": "Aderenza 80% · 7g",
+        "description": "Raggiungi almeno l’80% di aderenza su 30 giorni per 7 giorni consecutivi."
       },
       "bmiGreen7": {
-        "title": "BMI green · 7d",
-        "description": "Keep your BMI in the normal range for 7 consecutive days."
+        "title": "IMC nel verde · 7g",
+        "description": "Mantieni l’IMC nell’intervallo normale per 7 giorni consecutivi."
       },
       "bpGreen7": {
-        "title": "BP green · 7d",
-        "description": "Keep your blood pressure in the normal range for 7 consecutive days."
+        "title": "Pressione nel verde · 7g",
+        "description": "Mantieni la pressione nell’intervallo normale per 7 giorni consecutivi."
       },
       "pulseGreen7": {
-        "title": "Pulse green · 7d",
-        "description": "Keep your resting pulse in the normal range for 7 consecutive days."
+        "title": "Polso nel verde · 7g",
+        "description": "Mantieni il polso a riposo nell’intervallo normale per 7 giorni consecutivi."
       },
       "onTimePerfect30": {
-        "title": "On-time 30d",
-        "description": "Take all medications on time for 30 consecutive days."
+        "title": "Puntuale 30g",
+        "description": "Assumi tutti i farmaci in orario per 30 giorni consecutivi."
       },
       "compliance8030": {
-        "title": "80% adherence · 30d",
-        "description": "Reach at least 80% 30-day adherence for 30 consecutive days."
+        "title": "Aderenza 80% · 30g",
+        "description": "Raggiungi almeno l’80% di aderenza su 30 giorni per 30 giorni consecutivi."
       },
       "bmiGreen30": {
-        "title": "BMI green · 30d",
-        "description": "Keep your BMI in the normal range for 30 consecutive days."
+        "title": "IMC nel verde · 30g",
+        "description": "Mantieni l’IMC nell’intervallo normale per 30 giorni consecutivi."
       },
       "bpGreen30": {
-        "title": "BP green · 30d",
-        "description": "Keep your blood pressure in the normal range for 30 consecutive days."
+        "title": "Pressione nel verde · 30g",
+        "description": "Mantieni la pressione nell’intervallo normale per 30 giorni consecutivi."
       },
       "pulseGreen30": {
-        "title": "Pulse green · 30d",
-        "description": "Keep your resting pulse in the normal range for 30 consecutive days."
+        "title": "Polso nel verde · 30g",
+        "description": "Mantieni il polso a riposo nell’intervallo normale per 30 giorni consecutivi."
       },
       "onTimePerfect180": {
-        "title": "On-time 180d",
-        "description": "Take all medications on time for 180 consecutive days."
+        "title": "Puntuale 180g",
+        "description": "Assumi tutti i farmaci in orario per 180 giorni consecutivi."
       },
       "compliance80180": {
-        "title": "80% adherence · 180d",
-        "description": "Reach at least 80% 30-day adherence for 180 consecutive days."
+        "title": "Aderenza 80% · 180g",
+        "description": "Raggiungi almeno l’80% di aderenza su 30 giorni per 180 giorni consecutivi."
       },
       "bmiGreen180": {
-        "title": "BMI green · 180d",
-        "description": "Keep your BMI in the normal range for 180 consecutive days."
+        "title": "IMC nel verde · 180g",
+        "description": "Mantieni l’IMC nell’intervallo normale per 180 giorni consecutivi."
       },
       "bpGreen180": {
-        "title": "BP green · 180d",
-        "description": "Keep your blood pressure in the normal range for 180 consecutive days."
+        "title": "Pressione nel verde · 180g",
+        "description": "Mantieni la pressione nell’intervallo normale per 180 giorni consecutivi."
       },
       "pulseGreen180": {
-        "title": "Pulse green · 180d",
-        "description": "Keep your resting pulse in the normal range for 180 consecutive days."
+        "title": "Polso nel verde · 180g",
+        "description": "Mantieni il polso a riposo nell’intervallo normale per 180 giorni consecutivi."
       },
       "onTimePerfect360": {
-        "title": "On-time 360d",
-        "description": "Take all medications on time for 360 consecutive days."
+        "title": "Puntuale 360g",
+        "description": "Assumi tutti i farmaci in orario per 360 giorni consecutivi."
       },
       "compliance80360": {
-        "title": "80% adherence · 360d",
-        "description": "Reach at least 80% 30-day adherence for 360 consecutive days."
+        "title": "Aderenza 80% · 360g",
+        "description": "Raggiungi almeno l’80% di aderenza su 30 giorni per 360 giorni consecutivi."
       },
       "bmiGreen360": {
-        "title": "BMI green · 360d",
-        "description": "Keep your BMI in the normal range for 360 consecutive days."
+        "title": "IMC nel verde · 360g",
+        "description": "Mantieni l’IMC nell’intervallo normale per 360 giorni consecutivi."
       },
       "bpGreen360": {
-        "title": "BP green · 360d",
-        "description": "Keep your blood pressure in the normal range for 360 consecutive days."
+        "title": "Pressione nel verde · 360g",
+        "description": "Mantieni la pressione nell’intervallo normale per 360 giorni consecutivi."
       },
       "pulseGreen360": {
-        "title": "Pulse green · 360d",
-        "description": "Keep your resting pulse in the normal range for 360 consecutive days."
+        "title": "Polso nel verde · 360g",
+        "description": "Mantieni il polso a riposo nell’intervallo normale per 360 giorni consecutivi."
       },
       "moodFirst": {
-        "title": "First mood",
-        "description": "Log your first mood entry."
+        "title": "Primo umore",
+        "description": "Registra la tua prima voce di umore."
       },
       "moodStreak7": {
-        "title": "Mood diarist 7d",
-        "description": "Log a mood entry on 7 consecutive days."
+        "title": "Diario dell’umore 7g",
+        "description": "Registra una voce di umore per 7 giorni consecutivi."
       },
       "moodStreak30": {
-        "title": "Mood diarist 30d",
-        "description": "Log a mood entry on 30 consecutive days."
+        "title": "Diario dell’umore 30g",
+        "description": "Registra una voce di umore per 30 giorni consecutivi."
       },
       "moodUp7": {
-        "title": "Brighter week",
-        "description": "Your 7-day mood average improved by at least 1.0 point compared to the previous week."
+        "title": "Settimana più serena",
+        "description": "La tua media dell’umore di 7 giorni è migliorata di almeno 1,0 punto rispetto alla settimana precedente."
       },
       "weightFirst": {
-        "title": "First weigh-in",
-        "description": "Record your first weight measurement."
+        "title": "Prima pesata",
+        "description": "Registra la tua prima misurazione del peso."
       },
       "weight50": {
-        "title": "Fifty weigh-ins",
-        "description": "Record 50 weight measurements."
+        "title": "Cinquanta pesate",
+        "description": "Registra 50 misurazioni del peso."
       },
       "weight200": {
-        "title": "200 weigh-ins",
-        "description": "Record 200 weight measurements."
+        "title": "200 pesate",
+        "description": "Registra 200 misurazioni del peso."
       },
       "bpFirst": {
-        "title": "First reading",
-        "description": "Record your first blood-pressure measurement."
+        "title": "Prima misurazione",
+        "description": "Registra la tua prima misurazione della pressione."
       },
       "bp50": {
-        "title": "Fifty BP readings",
-        "description": "Record 50 blood-pressure measurements."
+        "title": "Cinquanta misurazioni della pressione",
+        "description": "Registra 50 misurazioni della pressione."
       },
       "bp200": {
-        "title": "200 BP readings",
-        "description": "Record 200 blood-pressure measurements."
+        "title": "200 misurazioni della pressione",
+        "description": "Registra 200 misurazioni della pressione."
       },
       "pulseFirst": {
-        "title": "First pulse",
-        "description": "Record your first pulse measurement."
+        "title": "Primo polso",
+        "description": "Registra la tua prima misurazione del polso."
       },
       "consistentMonth": {
-        "title": "Consistent month",
-        "description": "Log entries on at least 25 distinct days within a single calendar month."
+        "title": "Mese costante",
+        "description": "Registra voci in almeno 25 giorni diversi nello stesso mese di calendario."
       },
       "entryStreak7": {
-        "title": "Tracker streak 7d",
-        "description": "Log at least one entry on 7 consecutive days."
+        "title": "Serie di registrazioni 7g",
+        "description": "Registra almeno una voce per 7 giorni consecutivi."
       },
       "entryStreak30": {
-        "title": "Tracker streak 30d",
-        "description": "Log at least one entry on 30 consecutive days."
+        "title": "Serie di registrazioni 30g",
+        "description": "Registra almeno una voce per 30 giorni consecutivi."
       },
       "weekendWarrior": {
-        "title": "Weekend tracker",
-        "description": "Log entries on 4 consecutive Saturday + Sunday weekend pairs."
+        "title": "Tracker del weekend",
+        "description": "Registra voci in 4 fine settimana consecutivi (sabato + domenica)."
       },
       "hiddenNightOwl": {
-        "title": "Night owl",
-        "description": "Logged an entry between 02:00 and 04:00 in the morning."
+        "title": "Nottambulo",
+        "description": "Hai registrato una voce tra le 02:00 e le 04:00 del mattino."
       },
       "hiddenEarlyBird": {
-        "title": "Early bird",
-        "description": "Logged an entry between 04:00 and 06:00 in the morning."
+        "title": "Mattiniero",
+        "description": "Hai registrato una voce tra le 04:00 e le 06:00 del mattino."
       },
       "hiddenLeapDay": {
-        "title": "Leap-day legend",
-        "description": "Logged an entry on February 29."
+        "title": "Leggenda dell’anno bisestile",
+        "description": "Hai registrato una voce il 29 febbraio."
       },
       "hiddenDoctorPdf": {
-        "title": "House call",
-        "description": "Exported your first doctor-report PDF."
+        "title": "Visita a domicilio",
+        "description": "Hai esportato il tuo primo referto medico in PDF."
       },
       "hiddenLocaleFlip": {
-        "title": "Polyglot",
-        "description": "Switched the app language at least once."
+        "title": "Poliglotta",
+        "description": "Hai cambiato la lingua dell’app almeno una volta."
       },
       "hiddenBugBuddy": {
-        "title": "Bug buddy",
-        "description": "Submitted at least 5 bug reports — the project loves you."
+        "title": "Amico dei bug",
+        "description": "Hai inviato almeno 5 segnalazioni di bug — il progetto ti ama."
       }
     },
-    "nextProgressLabel": "Progress to unlock",
-    "completedOn": "Completed on {date}",
-    "locked": "Locked",
+    "nextProgressLabel": "Progressi verso lo sblocco",
+    "completedOn": "Completato il {date}",
+    "locked": "Bloccato",
     "criterionHint": "{current} / {target}",
     "progressPercent": "{percent}%",
     "categories": {
       "medication": "Farmaco",
-      "vitals": "Vitals",
+      "vitals": "Parametri vitali",
       "mood": "Umore",
-      "security": "Account & security",
+      "security": "Account e sicurezza",
       "engagement": "Engagement",
-      "hidden": "Hidden"
+      "hidden": "Nascosto"
     },
     "hiddenCard": {
-      "title": "Hidden achievement",
-      "description": "Keep tracking — you might just stumble across it.",
-      "ariaLabel": "Hidden locked achievement"
+      "title": "Obiettivo nascosto",
+      "description": "Continua a monitorare — potresti imbatterti in esso.",
+      "ariaLabel": "Obiettivo nascosto bloccato"
     },
     "hiddenUnlockToast": {
-      "title": "You unlocked a hidden achievement!"
+      "title": "Hai sbloccato un obiettivo nascosto!"
     },
     "dashboardCard": {
-      "title": "Recent unlocks",
-      "viewAll": "View all",
-      "empty": "No achievements yet — keep logging to unlock your first."
+      "title": "Sbloccati di recente",
+      "viewAll": "Vedi tutti",
+      "empty": "Ancora nessun obiettivo — continua a registrare per sbloccare il primo."
     }
   },
   "bugreport": {
