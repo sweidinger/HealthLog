@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Activity,
   AlertCircle,
   Download,
   Link2,
@@ -59,7 +60,7 @@ interface GlobalServiceAvailability {
 // v1.4.19 Phase A5: the redundant in-card status banner is gone — the
 // IntegrationStatusPill now owns state + last-sync presentation, and
 // the actionable error message is shown inline above the action row.
-type IntegrationKey = "withings" | "moodlog";
+type IntegrationKey = "withings" | "whoop" | "moodlog";
 type IntegrationState =
   | "connected"
   | "error_transient"
@@ -194,6 +195,7 @@ export function IntegrationsSection() {
 
   const moodLogEnabled = globalServices?.moodLogGlobal ?? true;
   const withingsViewModel = pickStatus(integrationStatus, "withings");
+  const whoopViewModel = pickStatus(integrationStatus, "whoop");
   const moodLogViewModel = pickStatus(integrationStatus, "moodlog");
 
   return (
@@ -217,6 +219,7 @@ export function IntegrationsSection() {
         isAuthenticated={isAuthenticated}
         viewModel={withingsViewModel}
       />
+      <WhoopCard isAuthenticated={isAuthenticated} viewModel={whoopViewModel} />
       {moodLogEnabled && <MoodLogCard viewModel={moodLogViewModel} />}
     </section>
   );
@@ -685,6 +688,347 @@ function WithingsCard({
         ) : (
           <div className="bg-muted/50 text-muted-foreground rounded-lg p-3 text-sm">
             {t("settings.withingsNoCredentials")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WhoopCard({
+  isAuthenticated,
+  viewModel,
+}: {
+  isAuthenticated: boolean;
+  viewModel: IntegrationStatusViewModel | undefined;
+}) {
+  const { t } = useTranslations();
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [syncMsgType, setSyncMsgType] = useState<"success" | "error" | null>(
+    null,
+  );
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [credsSaving, setCredsSaving] = useState(false);
+  const [credsMsg, setCredsMsg] = useState<string | null>(null);
+  const [credsMsgType, setCredsMsgType] = useState<"success" | "error" | null>(
+    null,
+  );
+  const queryClient = useQueryClient();
+
+  const { data: status } = useQuery({
+    queryKey: queryKeys.whoopStatus(),
+    queryFn: async () => {
+      const res = await fetch("/api/whoop/status");
+      if (!res.ok) throw new Error("Failed");
+      const json = await res.json();
+      return json.data as {
+        connected: boolean;
+        configured: boolean;
+        lastSyncedAt?: string | null;
+        connectedAt?: string;
+        tokenExpired?: boolean;
+        backfillCompleted?: boolean;
+        scope?: string | null;
+      };
+    },
+    enabled: isAuthenticated,
+  });
+
+  const disconnect = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/whoop/disconnect", { method: "POST" });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whoop() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrationsStatus(),
+      });
+    },
+  });
+
+  async function handleSync(fullSync = false) {
+    setSyncing(true);
+    setSyncMsg(null);
+    setSyncMsgType(null);
+    try {
+      const res = await fetch("/api/whoop/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullSync }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setSyncMsg(t("settings.whoopSyncResult", { count: json.data.imported }));
+        setSyncMsgType("success");
+        void invalidateKeys(queryClient, measurementDependentKeys);
+        queryClient.invalidateQueries({ queryKey: queryKeys.whoop() });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.integrationsStatus(),
+        });
+      } else {
+        setSyncMsg(json.error || t("settings.whoopSyncFailed"));
+        setSyncMsgType("error");
+      }
+    } catch {
+      setSyncMsg(t("settings.whoopSyncFailed"));
+      setSyncMsgType("error");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function handleSaveCredentials(e: React.FormEvent) {
+    e.preventDefault();
+    setCredsSaving(true);
+    setCredsMsg(null);
+    setCredsMsgType(null);
+
+    try {
+      const res = await fetch("/api/whoop/credentials", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: clientId.trim(),
+          clientSecret: clientSecret.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        setCredsMsg(t("settings.whoopCredentialsSaved"));
+        setCredsMsgType("success");
+        setClientId("");
+        setClientSecret("");
+        queryClient.invalidateQueries({ queryKey: queryKeys.whoop() });
+      } else {
+        try {
+          const json = await res.json();
+          setCredsMsg(json.error || t("settings.savingError"));
+        } catch {
+          setCredsMsg(t("settings.savingError"));
+        }
+        setCredsMsgType("error");
+      }
+    } catch {
+      setCredsMsg(t("common.networkError"));
+      setCredsMsgType("error");
+    }
+    setCredsSaving(false);
+  }
+
+  const pillState: IntegrationPillState = status?.connected
+    ? pillStateFor(viewModel)
+    : "disconnected";
+  const pillLastSyncAt =
+    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+  const errorMessage =
+    (pillState === "error" || pillState === "parked") && viewModel?.lastError
+      ? viewModel.lastError
+      : null;
+
+  return (
+    <div className="bg-card border-border rounded-xl border p-6">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Activity className="text-primary h-5 w-5" />
+          <h2 className="text-lg font-semibold">{t("settings.whoop")}</h2>
+        </div>
+        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+      </div>
+      <p className="text-muted-foreground mt-1 text-xs">
+        {t("settings.whoopDescription")}
+      </p>
+
+      <hr
+        data-testid="integration-card-divider"
+        className="border-border/60 mt-4"
+      />
+
+      <div className="mt-4 space-y-4">
+        {errorMessage && <IntegrationErrorMessage message={errorMessage} />}
+
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold">
+            {t("settings.whoopCredentials")}
+          </h3>
+          <p className="text-muted-foreground text-xs">
+            {t("settings.whoopCredentialsHelp")}
+          </p>
+          <form onSubmit={handleSaveCredentials} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="whoop-clientid">
+                  {t("settings.whoopClientId")}
+                </Label>
+                <Input
+                  id="whoop-clientid"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  placeholder={
+                    status?.configured
+                      ? t("settings.whoopCredentialsSavedPlaceholder")
+                      : t("settings.whoopClientId")
+                  }
+                  maxLength={200}
+                  autoComplete="off"
+                  inputMode="text"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  enterKeyHint="next"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="whoop-secret">
+                  {t("settings.whoopClientSecret")}
+                </Label>
+                <PasswordInput
+                  id="whoop-secret"
+                  value={clientSecret}
+                  onChange={(e) => setClientSecret(e.target.value)}
+                  placeholder={
+                    status?.configured
+                      ? t("settings.whoopCredentialsSavedPlaceholderSecret")
+                      : t("settings.whoopClientSecret")
+                  }
+                  maxLength={200}
+                  autoComplete="off"
+                  inputMode="text"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  enterKeyHint="done"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+                disabled={
+                  credsSaving || !clientId.trim() || !clientSecret.trim()
+                }
+              >
+                {credsSaving ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Save className="mr-1 h-3.5 w-3.5" />
+                )}
+                {t("settings.whoopSaveCredentials")}
+              </Button>
+            </div>
+            {credsMsg && (
+              <p
+                role="alert"
+                className={`text-sm ${credsMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+              >
+                {credsMsg}
+              </p>
+            )}
+          </form>
+        </div>
+
+        {status?.connected ? (
+          <>
+            <div className="flex flex-wrap items-start gap-2 [&>*]:min-w-[10rem] sm:[&>*]:min-w-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSync(false)}
+                disabled={syncing}
+              >
+                {syncing ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                )}
+                {t("settings.whoopSync")}
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={syncing}>
+                    <Download className="mr-1 h-3.5 w-3.5" />
+                    {t("settings.whoopFullSync")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("settings.whoopFullSyncTitle")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("settings.whoopFullSyncDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleSync(true)}>
+                      {t("settings.whoopSynchronize")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive"
+                  >
+                    <Unlink className="mr-1 h-3.5 w-3.5" />
+                    {t("settings.whoopDisconnect")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("settings.whoopDisconnectTitle")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("settings.whoopDisconnectDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => disconnect.mutate()}
+                    >
+                      {t("settings.whoopDisconnect")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+            {status?.backfillCompleted === false && (
+              <p className="text-muted-foreground text-xs">
+                {t("settings.whoopBackfillInProgress")}
+              </p>
+            )}
+            {syncMsg && (
+              <p
+                role="alert"
+                className={`text-sm ${syncMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+              >
+                {syncMsg}
+              </p>
+            )}
+          </>
+        ) : status?.configured ? (
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.location.href = "/api/whoop/connect";
+            }}
+          >
+            <Link2 className="mr-2 h-4 w-4" />
+            {t("settings.whoopConnect")}
+          </Button>
+        ) : (
+          <div className="bg-muted/50 text-muted-foreground rounded-lg p-3 text-sm">
+            {t("settings.whoopNoCredentials")}
           </div>
         )}
       </div>

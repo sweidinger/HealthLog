@@ -29,15 +29,18 @@ export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "integrations.status" } });
 
-  const [withingsStatus, moodLogStatus, dbUser, withingsConn] =
+  const [withingsStatus, moodLogStatus, whoopStatus, dbUser, withingsConn, whoopConn] =
     await Promise.all([
       getIntegrationStatus(user.id, "withings"),
       getIntegrationStatus(user.id, "moodlog"),
+      getIntegrationStatus(user.id, "whoop"),
       prisma.user.findUnique({
         where: { id: user.id },
         select: {
           withingsClientIdEncrypted: true,
           withingsClientSecretEncrypted: true,
+          whoopClientIdEncrypted: true,
+          whoopClientSecretEncrypted: true,
           moodLogUrlEncrypted: true,
           moodLogApiKeyEncrypted: true,
           moodLogEnabled: true,
@@ -45,6 +48,14 @@ export const GET = apiHandler(async () => {
         },
       }),
       prisma.withingsConnection.findUnique({
+        where: { userId: user.id },
+        select: {
+          tokenExpiresAt: true,
+          lastSyncedAt: true,
+          createdAt: true,
+        },
+      }),
+      prisma.whoopConnection.findUnique({
         where: { userId: user.id },
         select: {
           tokenExpiresAt: true,
@@ -82,6 +93,19 @@ export const GET = apiHandler(async () => {
         enabled: dbUser?.moodLogEnabled ?? false,
         legacyLastSyncedAt: dbUser?.moodLogLastSyncedAt?.toISOString() ?? null,
       } satisfies IntegrationViewModel & MoodLogExtras,
+      {
+        ...whoopStatus,
+        configured:
+          !!dbUser?.whoopClientIdEncrypted &&
+          !!dbUser?.whoopClientSecretEncrypted,
+        connected: !!whoopConn,
+        connectedAt: whoopConn?.createdAt?.toISOString() ?? null,
+        legacyLastSyncedAt: whoopConn?.lastSyncedAt?.toISOString() ?? null,
+        tokenExpiresAt: whoopConn?.tokenExpiresAt?.toISOString() ?? null,
+        tokenExpired: whoopConn
+          ? whoopConn.tokenExpiresAt.getTime() <= now
+          : null,
+      } satisfies IntegrationViewModel & WhoopExtras,
     ],
   });
 });
@@ -107,4 +131,13 @@ interface MoodLogExtras {
   configured: boolean;
   enabled: boolean;
   legacyLastSyncedAt: string | null;
+}
+
+interface WhoopExtras {
+  configured: boolean;
+  connected: boolean;
+  connectedAt: string | null;
+  legacyLastSyncedAt: string | null;
+  tokenExpiresAt: string | null;
+  tokenExpired: boolean | null;
 }

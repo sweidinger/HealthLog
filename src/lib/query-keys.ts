@@ -360,6 +360,12 @@ export const queryKeys = {
    * mutation invalidates both at once.
    */
   withingsStatus: () => ["withings", "status"] as const,
+  whoop: () => ["whoop"] as const,
+  /**
+   * Per-card WHOOP status read. Shares the `["whoop"]` prefix with `whoop()`
+   * so a disconnect / credentials mutation invalidates both at once.
+   */
+  whoopStatus: () => ["whoop", "status"] as const,
 
   // v1.4.32 — workout list + detail caches. `workouts()` is the
   // root key invalidated by the batch-ingest mutation; the recent +
