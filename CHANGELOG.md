@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.11.3] — 2026-06-04 — WHOOP body data, quality-of-life polish, fuller translations
+
+### Added
+
+- **WHOOP body data.** WHOOP weight and maximum-heart-rate context now flow in alongside recovery, sleep, cycle, and workout data. Weight is ranked below a real scale by your source priority, so a connected scale or manual entry still wins; your profile height is filled in from WHOOP only if you haven't set one yet.
+- **Stop a Coach reply mid-stream.** A Stop control appears while the assistant is answering, and closing the Coach drawer now ends an in-flight response instead of leaving it running.
+- **Undo a logged dose.** The confirmation after taking or skipping a dose now offers an Undo, so a mis-tap is one tap to reverse instead of a trip into the history.
+
+### Changed
+
+- **More of the app speaks your language.** Spanish, French, Italian, and Polish now cover the Settings, Medications, Insights rhythm-event, and Achievements copy that previously fell back to English.
+- **A WHOOP plan that doesn't expose every data type no longer breaks the connection.** A data class WHOOP declines to share is skipped on its own while the rest keeps syncing.
+- The first Coach reply on a cold cache arrives faster — its inputs are now gathered in parallel.
+
+### Fixed
+
+- **A failed dose log is no longer silent.** If recording a dose doesn't go through, you now see an error instead of a confirmation for something that didn't happen.
+- The quick-entry sheets only ask before discarding when you have actually typed something.
+- A failed export now shows a clear message instead of a raw error code.
+- Saving feedback on an Insights recommendation surfaces an error if it can't be stored.
+- Several loading placeholders now reserve their final height, removing the small layout shifts on the Insights and dashboard surfaces as content lands.
+
+### Accessibility
+
+- Reduced-motion now suppresses the Insights card entrance animation.
+- The API-token revoke button carries an accessible name and a larger target, and the medication scheduler's step controls have a larger touch target.
+
+### Notes
+
+- WHOOP weight is the value stored in your WHOOP profile, not a scale reading; it is ranked last among weight sources and only surfaces when nothing higher-priority is present.
+
 ## [1.11.2] — 2026-06-04 — Coach-memory controls, privacy hardening, more pinnable metrics
 
 ### Added
