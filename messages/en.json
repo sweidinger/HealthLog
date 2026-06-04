@@ -1700,6 +1700,7 @@
       "tagline": "Personal health coach, grounded in your data.",
       "newChat": "New chat",
       "send": "Send",
+      "stop": "Stop",
       "thinking": "Thinking…",
       "composerPlaceholder": "Ask anything about your data…",
       "composerHint": "Press Enter to send, Shift+Enter for a new line.",

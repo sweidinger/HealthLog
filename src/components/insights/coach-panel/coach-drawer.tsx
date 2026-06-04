@@ -163,9 +163,19 @@ export function CoachDrawer({
   // and folds the saved window server-side — "what the rail shows" and
   // "what the model receives" cannot drift.
 
+  const { data: conversation } = useCoachConversation(currentConversationId);
+  const send = useSendCoachMessage({
+    onDone: (resolvedId) => {
+      setCurrentConversationId(resolvedId);
+    },
+  });
+
   const handleOpenChange = useCallback(
     (next: boolean) => {
       if (!next) {
+        // Abort any in-flight streamed reply so closing the drawer
+        // doesn't leave the SSE request running in the background.
+        send.cancel();
         // Reset thread + composer on close so the next open starts on
         // the rail's empty hint instead of re-rendering the previous
         // conversation by accident.
@@ -174,15 +184,8 @@ export function CoachDrawer({
       }
       onOpenChange(next);
     },
-    [onOpenChange, setInputValue],
+    [onOpenChange, send, setInputValue],
   );
-
-  const { data: conversation } = useCoachConversation(currentConversationId);
-  const send = useSendCoachMessage({
-    onDone: (resolvedId) => {
-      setCurrentConversationId(resolvedId);
-    },
-  });
 
   async function handleSubmit(value: string) {
     const trimmed = value.trim();
@@ -352,6 +355,7 @@ export function CoachDrawer({
                 value={inputValue}
                 onChange={setInputValue}
                 onSubmit={() => handleSubmit(inputValue)}
+                onCancel={send.cancel}
                 disabled={send.isStreaming}
                 isStreaming={send.isStreaming}
                 // v1.4.27 MB3 / CF-30 — the composer mounts on drawer

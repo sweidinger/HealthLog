@@ -122,6 +122,65 @@ describe("<CoachInput>", () => {
     expect(html).toContain("animate-spin");
   });
 
+  it("swaps the send button for a Stop control while streaming with onCancel", () => {
+    // v1.11.3 D1 — while a reply streams the composer must surface a
+    // visible Stop affordance bound to the abort handler so the user
+    // can interrupt a long or off-track reply. The Stop button only
+    // appears when an `onCancel` handler is wired (the drawer always
+    // passes `send.cancel`).
+    const html = render(
+      <CoachInput
+        value="Hello"
+        onChange={() => {}}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        disabled
+        isStreaming
+      />,
+    );
+    expect(html).toContain('data-slot="coach-input-stop"');
+    expect(html).not.toContain('data-slot="coach-input-send"');
+    expect(html).toContain("Stop");
+    // The Stop control is a plain button, never a submit, so tapping it
+    // aborts rather than re-firing the form.
+    const stopTag = html.match(
+      /<button[^>]*data-slot="coach-input-stop"[^>]*>/,
+    );
+    expect(stopTag?.[0]).toContain('type="button"');
+  });
+
+  it("keeps the send button (with spinner) while streaming without onCancel", () => {
+    // Backwards-compatible fallback: without an `onCancel` the composer
+    // keeps the legacy disabled-spinner send button.
+    const html = render(
+      <CoachInput
+        value="Hello"
+        onChange={() => {}}
+        onSubmit={() => {}}
+        disabled
+        isStreaming
+      />,
+    );
+    expect(html).toContain('data-slot="coach-input-send"');
+    expect(html).not.toContain('data-slot="coach-input-stop"');
+    expect(html).toContain("animate-spin");
+  });
+
+  it("renders the localised Stop label under the 'de' locale", () => {
+    const html = render(
+      <CoachInput
+        value="Hallo"
+        onChange={() => {}}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+        disabled
+        isStreaming
+      />,
+      "de",
+    );
+    expect(html).toContain("Stopp");
+  });
+
   it("invokes onChange when the parent passes a controlled handler", () => {
     // SSR can't fire DOM events; smoke-check the contract by calling
     // the supplied handler directly.
