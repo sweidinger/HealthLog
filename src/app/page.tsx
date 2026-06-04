@@ -88,7 +88,7 @@ const PREFILLED_PICKER_TYPES = new Set([
   "month",
   "week",
 ]);
-function sheetBodyHasUnsavedInput(): boolean {
+export function sheetBodyHasUnsavedInput(): boolean {
   if (typeof document === "undefined") return false;
   const body = document.querySelector<HTMLElement>(
     '[data-slot="responsive-sheet-body"]',
@@ -108,6 +108,30 @@ function sheetBodyHasUnsavedInput(): boolean {
       continue;
     }
     if (field.value.trim() !== "") return true;
+  }
+  // v1.11.5 — the input/textarea walk misses two non-text controls a user can
+  // change before dismissing: the mood `role="radio"` selector and a Radix
+  // Select (measurement type / medication). Losing either silently on a
+  // backdrop-dismiss is the same data-loss class the H1 confirm-on-dirty guard
+  // was meant to close.
+  //
+  // Mood radios start with nothing selected (`mood = ""`), so ANY
+  // `aria-checked="true"` is a deliberate user choice — flag it.
+  if (
+    body.querySelector('[role="radio"][aria-checked="true"]') !== null
+  ) {
+    return true;
+  }
+  // Radix Select trigger renders `role="combobox"`. A trigger with
+  // `data-state="open"` is mid-interaction (the dropdown is up) — the user is
+  // actively choosing, so a dismiss should confirm rather than drop the pick.
+  // We deliberately do NOT treat a merely non-placeholder value as dirty: the
+  // type / medication selects mount with a non-placeholder DEFAULT, and
+  // flagging that would over-trigger the confirm on a pristine sheet.
+  if (
+    body.querySelector('[role="combobox"][data-state="open"]') !== null
+  ) {
+    return true;
   }
   return false;
 }
