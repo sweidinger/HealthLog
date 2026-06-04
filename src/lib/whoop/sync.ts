@@ -290,6 +290,7 @@ export async function syncUserWhoop(
   const { syncUserSleep } = await import("./sync-sleep");
   const { syncUserCycle } = await import("./sync-cycle");
   const { syncUserWorkout } = await import("./sync-workout");
+  const { syncUserBody } = await import("./sync-body");
 
   let total = 0;
   let anyFailed = false;
@@ -298,6 +299,7 @@ export async function syncUserWhoop(
     syncUserSleep,
     syncUserCycle,
     syncUserWorkout,
+    syncUserBody,
   ]) {
     try {
       total += await fn(userId, opts);
