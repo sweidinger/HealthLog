@@ -1,0 +1,423 @@
+/**
+ * v1.11.1 (Epic B, B-W7) — durable personal-fact extraction + injection.
+ *
+ * The Coach learns STABLE facts about a user from a conversation — standing
+ * preferences, conditions the user STATES about themselves, durable goals,
+ * standing constraints, durable life context — and persists them encrypted
+ * at rest so future turns can personalise without re-asking. Facts are
+ * DESCRIPTIVE (the user's own framing), never diagnostic: the extractor is
+ * forbidden from inferring a medical condition or recording a measurement.
+ *
+ * Two halves:
+ *  - `extractAndStoreFacts` — the background compute: load active facts +
+ *    recent turns, run one bounded `runStatusCompletion`, defensively parse
+ *    the JSON array, drop anything the Zod gate rejects, de-dup against the
+ *    active set, enforce a per-user cap, and persist survivors field-by-field
+ *    (no mass-assignment spread).
+ *  - `buildCoachFactsBlock` — the injection read: top-N active facts ranked
+ *    by confidence then recency, decrypted fault-isolated (an undecryptable
+ *    row is skipped, never thrown), for the snapshot memory block.
+ *
+ * The fact TEXT is encrypted via `bytes-codec.ts` (the same AES-256-GCM codec
+ * as `CoachMessage`). category/confidence/sourceConversationId stay plain so
+ * the ranker can sort without paying a per-row decrypt. Annotations carry
+ * counts + ids only — fact text is NEVER logged.
+ *
+ * Server-only — reads `@/lib/db`.
+ */
+import { z } from "zod";
+
+import { prisma } from "@/lib/db";
+import { runStatusCompletion } from "@/lib/insights/status-provider";
+import { annotate } from "@/lib/logging/context";
+
+import { decryptFromBytes, encryptToBytes } from "./bytes-codec";
+
+/** Closed category enum — app-side (no DB enum), matching the schema column. */
+export const COACH_FACT_CATEGORIES = [
+  "preference",
+  "condition",
+  "goal",
+  "constraint",
+  "context",
+] as const;
+
+export type CoachFactCategory = (typeof COACH_FACT_CATEGORIES)[number];
+
+/** Background-prompt attribution version (separate from interactive `PROMPT_VERSION`). */
+export const FACTS_PROMPT_VERSION = "1.11.1";
+/** Hard cap on active facts per user; at cap, only strictly-higher-confidence facts displace. */
+export const MAX_FACTS_PER_USER = 50;
+/** Per-fact text length cap (mirrors the Zod gate + the prompt instruction). */
+export const FACT_MAX_CHARS = 160;
+/** How many active facts the injection block carries into the snapshot. */
+export const FACTS_INJECT_TOP_N = 8;
+
+/** Cap on recent turns fed into the extraction prompt (bounds prompt size). */
+const RECENT_TURNS_CAP = 10;
+
+type RunCompletionFn = typeof runStatusCompletion;
+type PrismaLike = Pick<typeof prisma, "coachFact" | "coachConversation">;
+
+interface ExtractOpts {
+  now?: Date;
+  runCompletion?: RunCompletionFn;
+  prisma?: PrismaLike;
+  locale?: string;
+}
+
+interface BuildBlockOpts {
+  prisma?: PrismaLike;
+}
+
+// ---------------------------------------------------------------------------
+// Extraction prompt (EN + DE mirror)
+// ---------------------------------------------------------------------------
+
+const EXTRACTION_PROMPT_EN = `You extract DURABLE personal facts about the user from a coaching conversation, for the assistant's long-term memory. Return a JSON array (no prose, no fences). Each item: { "category": one of preference|condition|goal|constraint|context, "fact": "<one short descriptive sentence>", "confidence": 0-100 }.
+ONLY extract facts that are STABLE and will still be true next month: standing preferences, conditions the user STATES about themselves, durable goals, standing constraints, durable life context. Record descriptively in the user's own framing — NEVER diagnose, infer a medical condition the user did not state, or record a number/measurement (those live in the data). EXCLUDE: transient feelings ("tired today"), one-off events, anything time-bound, sensitive detail beyond what is needed to coach, and anything the user asked you to forget. If nothing durable was said, return []. Prefer FEW high-confidence facts over many speculative ones.`;
+
+const EXTRACTION_PROMPT_DE = `Du extrahierst DAUERHAFTE persönliche Fakten über die Nutzerin oder den Nutzer aus einem Coaching-Gespräch für das Langzeitgedächtnis des Assistenten. Gib ein JSON-Array zurück (kein Fließtext, keine Code-Zäune). Jedes Element: { "category": eines von preference|condition|goal|constraint|context, "fact": "<ein kurzer beschreibender Satz>", "confidence": 0-100 }.
+Extrahiere NUR Fakten, die STABIL sind und auch nächsten Monat noch zutreffen: dauerhafte Vorlieben, Bedingungen, die die Person SELBST über sich AUSSAGT, dauerhafte Ziele, dauerhafte Einschränkungen, dauerhafter Lebenskontext. Halte sie beschreibend in der eigenen Formulierung der Person fest — DIAGNOSTIZIERE NIEMALS, leite keine medizinische Bedingung ab, die die Person nicht selbst genannt hat, und erfasse keine Zahl oder Messung (die liegen in den Daten). SCHLIESSE AUS: vorübergehende Gefühle ("heute müde"), einmalige Ereignisse, alles Zeitgebundene, sensible Details über das fürs Coaching Nötige hinaus und alles, worum die Person gebeten hat, es zu vergessen. Wenn nichts Dauerhaftes gesagt wurde, gib [] zurück. Bevorzuge WENIGE Fakten mit hoher Sicherheit gegenüber vielen spekulativen.`;
+
+function extractionSystemPrompt(locale: string | undefined): string {
+  return locale?.toLowerCase().startsWith("de")
+    ? EXTRACTION_PROMPT_DE
+    : EXTRACTION_PROMPT_EN;
+}
+
+// ---------------------------------------------------------------------------
+// Zod gate for the model's JSON array
+// ---------------------------------------------------------------------------
+
+const rawFactSchema = z.object({
+  category: z.enum(COACH_FACT_CATEGORIES),
+  fact: z
+    .string()
+    .trim()
+    .min(1)
+    .max(FACT_MAX_CHARS),
+  confidence: z.coerce.number().int().min(0).max(100),
+});
+
+const rawFactArraySchema = z.array(z.unknown());
+
+interface ParsedFact {
+  category: CoachFactCategory;
+  fact: string;
+  confidence: number;
+}
+
+/**
+ * Parse the model output into validated facts. Returns `null` only when the
+ * top-level JSON is unparseable (the caller then annotates `parse_failed`);
+ * individual malformed items are dropped silently, not fatal.
+ */
+function parseFacts(content: string): { facts: ParsedFact[]; dropped: number } | null {
+  let json: unknown;
+  try {
+    json = JSON.parse(content.trim());
+  } catch {
+    return null;
+  }
+
+  const arr = rawFactArraySchema.safeParse(json);
+  if (!arr.success) return null;
+
+  const facts: ParsedFact[] = [];
+  let dropped = 0;
+  for (const item of arr.data) {
+    const parsed = rawFactSchema.safeParse(item);
+    if (parsed.success) {
+      facts.push({
+        category: parsed.data.category,
+        fact: parsed.data.fact,
+        confidence: Math.max(0, Math.min(100, Math.round(parsed.data.confidence))),
+      });
+    } else {
+      dropped += 1;
+    }
+  }
+  return { facts, dropped };
+}
+
+// ---------------------------------------------------------------------------
+// De-dup — lowercase-normalise + token-overlap against the active set
+// ---------------------------------------------------------------------------
+
+const TOKEN_SPLIT = /[^a-z0-9äöüß]+/i;
+
+function tokenSet(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .split(TOKEN_SPLIT)
+      .filter((t) => t.length > 1),
+  );
+}
+
+/** Jaccard-style overlap of the two token sets, 0..1. */
+function tokenOverlap(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter += 1;
+  const union = a.size + b.size - inter;
+  return union === 0 ? 0 : inter / union;
+}
+
+const DEDUP_OVERLAP_THRESHOLD = 0.6;
+
+function isNearDuplicate(candidate: string, existing: string[]): boolean {
+  const cTokens = tokenSet(candidate);
+  const cNorm = candidate.trim().toLowerCase();
+  for (const ex of existing) {
+    if (ex.trim().toLowerCase() === cNorm) return true;
+    if (tokenOverlap(cTokens, tokenSet(ex)) >= DEDUP_OVERLAP_THRESHOLD) return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Conversation-turn loading
+// ---------------------------------------------------------------------------
+
+function decryptOrNull(buf: Uint8Array): string | null {
+  try {
+    return decryptFromBytes(buf);
+  } catch {
+    return null;
+  }
+}
+
+interface ActiveFactRow {
+  id: string;
+  factEncrypted: Uint8Array;
+  category: string;
+  confidence: number;
+}
+
+/** Load active facts and decrypt them fault-isolated (undecryptable rows skipped). */
+async function loadActiveFacts(
+  db: PrismaLike,
+  userId: string,
+): Promise<Array<{ id: string; text: string; category: string; confidence: number }>> {
+  const rows = (await db.coachFact.findMany({
+    where: { userId, deletedAt: null },
+    select: { id: true, factEncrypted: true, category: true, confidence: true },
+  })) as ActiveFactRow[];
+
+  const out: Array<{ id: string; text: string; category: string; confidence: number }> = [];
+  for (const r of rows) {
+    const text = decryptOrNull(r.factEncrypted);
+    if (text === null) continue;
+    out.push({ id: r.id, text, category: r.category, confidence: r.confidence });
+  }
+  return out;
+}
+
+interface ConversationTurnRow {
+  role: string;
+  encryptedContent: Uint8Array;
+}
+
+/** Load the last `RECENT_TURNS_CAP` turns of a conversation, decrypted. */
+async function loadRecentTurns(
+  db: PrismaLike,
+  conversationId: string,
+  userId: string,
+): Promise<Array<{ role: string; content: string }>> {
+  const row = (await db.coachConversation.findFirst({
+    where: { id: conversationId, userId },
+    select: {
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: RECENT_TURNS_CAP,
+        select: { role: true, encryptedContent: true },
+      },
+    },
+  })) as { messages: ConversationTurnRow[] } | null;
+
+  if (!row) return [];
+
+  // Loaded newest-first; reverse to chronological for the prompt.
+  const turns: Array<{ role: string; content: string }> = [];
+  for (const m of [...row.messages].reverse()) {
+    const content = decryptOrNull(m.encryptedContent);
+    if (content === null) continue;
+    turns.push({ role: m.role, content });
+  }
+  return turns;
+}
+
+function buildUserPrompt(
+  turns: Array<{ role: string; content: string }>,
+  activeFacts: string[],
+): string {
+  const transcript = turns.map((t) => `${t.role}: ${t.content}`).join("\n");
+  const existing =
+    activeFacts.length > 0
+      ? `\n\nEXISTING FACTS (do not re-emit these):\n${activeFacts.map((f) => `- ${f}`).join("\n")}`
+      : "\n\nEXISTING FACTS: none";
+  return `${transcript}${existing}`;
+}
+
+// ---------------------------------------------------------------------------
+// Extraction entry point
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract durable facts from a conversation and persist the survivors.
+ *
+ * Returns:
+ *  - `{status:"stored", count}` — at least one new fact persisted.
+ *  - `{status:"none", count:0}` — the model produced nothing durable (or the
+ *    JSON was unparseable, in which case `coach.facts.parse_failed` is annotated).
+ *  - `{status:"skipped", count:0}` — no usable provider / timeout / error, or
+ *    every candidate was a dup / dropped / displaced by the cap.
+ */
+export async function extractAndStoreFacts(
+  conversationId: string,
+  userId: string,
+  opts?: ExtractOpts,
+): Promise<{ status: "stored" | "none" | "skipped"; count: number }> {
+  const db = opts?.prisma ?? prisma;
+  const runCompletion = opts?.runCompletion ?? runStatusCompletion;
+
+  const [active, turns] = await Promise.all([
+    loadActiveFacts(db, userId),
+    loadRecentTurns(db, conversationId, userId),
+  ]);
+
+  if (turns.length === 0) {
+    return { status: "skipped", count: 0 };
+  }
+
+  const activeTexts = active.map((f) => f.text);
+  const result = await runCompletion({
+    userId,
+    cacheAction: "coach.facts",
+    systemPrompt: extractionSystemPrompt(opts?.locale),
+    userPrompt: buildUserPrompt(turns, activeTexts),
+    temperature: 0.2,
+    maxTokens: 300,
+  });
+
+  if (result.kind !== "ok") {
+    return { status: "skipped", count: 0 };
+  }
+
+  const parsed = parseFacts(result.content);
+  if (parsed === null) {
+    annotate({
+      action: { name: "coach.facts.parse_failed" },
+      meta: { conversationId },
+    });
+    return { status: "none", count: 0 };
+  }
+
+  if (parsed.facts.length === 0) {
+    return { status: "none", count: 0 };
+  }
+
+  // De-dup against the active set; grow the seen-set as we accept candidates
+  // so two near-identical candidates in one batch can't both land.
+  const seen = [...activeTexts];
+  const accepted: ParsedFact[] = [];
+  for (const cand of parsed.facts) {
+    if (isNearDuplicate(cand.fact, seen)) continue;
+    accepted.push(cand);
+    seen.push(cand.fact);
+  }
+
+  if (accepted.length === 0) {
+    return { status: "skipped", count: 0 };
+  }
+
+  // Cap enforcement: at/over cap, a candidate may only be stored if it is
+  // strictly higher-confidence than the current lowest-confidence active fact
+  // (the new row simply outranks it for injection; soft-delete/eviction of the
+  // displaced row is the management surface's job, not the extractor's).
+  let lowestActiveConfidence =
+    active.length > 0 ? Math.min(...active.map((f) => f.confidence)) : -1;
+  let remainingCapacity = MAX_FACTS_PER_USER - active.length;
+
+  const toStore: ParsedFact[] = [];
+  // Highest-confidence candidates first so a tight cap admits the best.
+  for (const cand of [...accepted].sort((a, b) => b.confidence - a.confidence)) {
+    if (remainingCapacity > 0) {
+      toStore.push(cand);
+      remainingCapacity -= 1;
+      continue;
+    }
+    // At cap — only admit if strictly better than the weakest active fact.
+    if (cand.confidence > lowestActiveConfidence) {
+      toStore.push(cand);
+      lowestActiveConfidence = cand.confidence;
+    }
+  }
+
+  if (toStore.length === 0) {
+    return { status: "skipped", count: 0 };
+  }
+
+  for (const f of toStore) {
+    // Field-by-field, no spread (mass-assignment rule, CLAUDE.md).
+    await db.coachFact.create({
+      data: {
+        userId,
+        factEncrypted: encryptToBytes(f.fact),
+        category: f.category,
+        confidence: f.confidence,
+        sourceConversationId: conversationId,
+      },
+    });
+  }
+
+  annotate({
+    action: { name: "coach.facts.extracted" },
+    meta: { count: toStore.length, conversationId },
+  });
+
+  return { status: "stored", count: toStore.length };
+}
+
+// ---------------------------------------------------------------------------
+// Injection block
+// ---------------------------------------------------------------------------
+
+interface RankFactRow {
+  factEncrypted: Uint8Array;
+  category: string;
+  confidence: number;
+  updatedAt: Date;
+}
+
+/**
+ * Build the top-N active facts for the snapshot memory block, ranked by
+ * `confidence DESC, updatedAt DESC`. Decrypt is fault-isolated — an
+ * undecryptable row is skipped, never thrown into the caller. Returns `null`
+ * when the user has no usable active facts.
+ */
+export async function buildCoachFactsBlock(
+  userId: string,
+  opts?: BuildBlockOpts,
+): Promise<{ facts: Array<{ category: string; text: string }> } | null> {
+  const db = opts?.prisma ?? prisma;
+
+  const rows = (await db.coachFact.findMany({
+    where: { userId, deletedAt: null },
+    orderBy: [{ confidence: "desc" }, { updatedAt: "desc" }],
+    select: { factEncrypted: true, category: true, confidence: true, updatedAt: true },
+  })) as RankFactRow[];
+
+  const facts: Array<{ category: string; text: string }> = [];
+  for (const r of rows) {
+    if (facts.length >= FACTS_INJECT_TOP_N) break;
+    const text = decryptOrNull(r.factEncrypted);
+    if (text === null) continue;
+    facts.push({ category: r.category, text });
+  }
+
+  if (facts.length === 0) return null;
+  return { facts };
+}
