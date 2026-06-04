@@ -81,8 +81,9 @@ function CoincidentProvenance({
 
 /**
  * The card shell — uppercase label + the provenance affordance, with the
- * state-specific body as children. Keeps every state on one card geometry so
- * the page reserves a stable footprint.
+ * state-specific body as children. The tall `fired` state keeps a `min-h` floor;
+ * the calmer everyday states size to their (short) content so the card carries
+ * no empty tail.
  */
 function CardShell({
   state,
@@ -99,13 +100,15 @@ function CardShell({
       data-slot="coincident-deviation-card"
       data-state={state}
       className={cn(
-        // `min-h` sized to the tallest realistic state (fired: 44px provenance
-        // header + the named-vitals body + the mandatory factors line). Every
-        // calmer state shares this footprint so the card — and everything below
-        // it on the overview — never shifts as the state resolves (the CLS the
-        // design pass closes). `min-h` not fixed `h`: a rare taller body still
-        // grows, it just never shrinks below the reserved height.
-        "bg-card flex min-h-48 w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6",
+        "bg-card flex w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6",
+        // `min-h` floor only on the tallest state (fired: 44px provenance header
+        // + the named-vitals body + the mandatory factors line). The calmer
+        // everyday states (all-clear / watch / insufficient) carry a single
+        // short body, so flooring them to the fired height left a large empty
+        // tail; they now size to their content. The in-flight `CardSkeleton`
+        // keeps the `min-h-48` footprint so the initial paint still reserves the
+        // row and does not shift as the read resolves.
+        state === "fired" && "min-h-48",
         // At most amber — never destructive/red. The fired state borders
         // warning; every calmer state keeps the neutral card border.
         state === "fired" ? "border-warning/40" : "border-border",
