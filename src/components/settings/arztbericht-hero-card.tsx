@@ -1,46 +1,30 @@
 "use client";
 
 /**
- * v1.4.37 W7a — Settings → Export Arztbericht hero card.
+ * Settings → Export Arztbericht (doctor-report) card.
  *
- * The doctor-report PDF is HealthLog's flagship export — the artefact a
- * user actually carries into a doctor's appointment. The v1.4.16 phase
- * B7 layout treated it as one of five equal cards in the grid, which
- * undersold the feature. Marc 2026-05-17:
+ * The doctor-report PDF is the artefact a user carries into a doctor's
+ * appointment. v1.4.37 W7a promoted it to the page hero; v1.12 demotes
+ * it back to a small secondary card at the bottom of the export page —
+ * the health-record export now owns the page hero. The card is fully
+ * functional: the CTA routes through the existing `<DoctorReportDialog>`
+ * + `/api/doctor-report` flow exactly as before. Only the framing and
+ * visual weight changed.
  *
- *   "Können wir unter Einstellungen > Export den Arztbericht als Hero
- *    Card machen?"
+ * Layout (compact card, no hero gradient):
  *
- * This component lifts the doctor-report card out of the grid and
- * paints it with the same `hero-gradient + glow-purple` visual treatment
- * as the Insights hero strip (`src/components/insights/hero-strip.tsx`),
- * so the surface feels consistent with the rest of the app. The CTA
- * routes through the existing `<DoctorReportDialog>` + `/api/doctor-
- * report` flow — only the framing changed.
- *
- * Layout:
- *
- *   ┌─ hero ────────────────────────────────────────────┐
- *   │  [icon] eyebrow                                   │
- *   │  H2 title (settings.sections.export.cards.        │
- *   │            doctorReport.title)                    │
+ *   ┌─ card ────────────────────────────────────────────┐
+ *   │  [icon] H2 title          eyebrow                 │
  *   │  one-line value statement                         │
- *   │  ─────                                            │
  *   │  [Configure & generate]  PDF · printable          │
  *   └───────────────────────────────────────────────────┘
- *
- * Mobile-first: at < sm the CTA stacks below the value statement (the
- * action row is `flex-wrap`), the hero pads down to `px-4 py-5`, and
- * the title clamps to a single line.
  *
  * a11y:
  *   - The CTA button clears the 44 px touch floor (`min-h-11`).
  *   - `focus-visible:ring` ships via the default `<Button>` variant.
  *   - The CTA is `aria-describedby={valueStatementId}` so a screen
  *     reader announces the value statement alongside the action.
- *   - The hero's `<h2>` slots beneath the page-level `<h1>` so the
- *     outline reads h1 (Export) → h2 (Arztbericht hero) → h2
- *     (Weitere Export-Optionen) → h2 (each remaining card).
+ *   - The card's `<h2>` slots beneath the page-level `<h1>`.
  */
 
 import { useEffect, useId, useState } from "react";
@@ -52,7 +36,6 @@ import {
   type DoctorReportSubmitPayload,
 } from "@/components/doctor-report/doctor-report-dialog";
 import { useTranslations } from "@/lib/i18n/context";
-import { cn } from "@/lib/utils";
 
 export function ArztberichtHeroCard() {
   const { t, locale } = useTranslations();
@@ -122,52 +105,47 @@ export function ArztberichtHeroCard() {
     <section
       data-testid="export-hero-doctor-report"
       aria-labelledby="export-hero-doctor-report-title"
-      className={cn(
-        "hero-gradient glow-purple animate-insight-in",
-        // `isolate` traps the purple glow inside the hero so the
-        // shadow doesn't leak through the cards below — same trick
-        // the Insights `<HeroStrip>` uses.
-        "relative isolate overflow-hidden rounded-xl px-4 py-5 sm:px-6 sm:py-6",
-      )}
+      className="bg-card border-border rounded-xl border p-5 sm:p-6"
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <Stethoscope
-              className="text-dracula-purple h-5 w-5 shrink-0"
-              aria-hidden="true"
-            />
-            <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Stethoscope
+                className="text-muted-foreground h-5 w-5 shrink-0"
+                aria-hidden="true"
+              />
+              <h2
+                id="export-hero-doctor-report-title"
+                className="text-base font-semibold tracking-tight"
+              >
+                {t("settings.sections.export.cards.doctorReport.title")}
+              </h2>
+            </div>
+            <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
               {t("settings.sections.export.hero.eyebrow")}
             </span>
           </div>
-          <h2
-            id="export-hero-doctor-report-title"
-            className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]"
-          >
-            {t("settings.sections.export.cards.doctorReport.title")}
-          </h2>
           <p
             id={valueStatementId}
             data-testid="export-hero-doctor-report-value"
-            className="text-muted-foreground max-w-2xl text-sm leading-relaxed"
+            className="text-muted-foreground max-w-2xl text-xs leading-relaxed"
           >
             {t("settings.sections.export.hero.valueStatement")}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-border/50 pt-4">
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             data-testid="export-hero-doctor-report-action"
-            variant="default"
+            variant="outline"
+            size="sm"
             // `min-h-11` (44 px) is the WCAG 2.5.5 touch-target floor;
-            // we override the default `<Button>` height on mobile and
-            // fall back to the compact `sm:h-10` on pointer devices.
-            // v1.4.38 W-D P3-2 — pair the explicit `h-11` with a
-            // `min-h-11` floor (and a `sm:min-h-9` desktop floor) so a
-            // future className override can't accidentally re-lift the
-            // mobile minimum below the touch-target contract.
-            className="h-11 min-h-11 px-5 text-sm font-medium sm:h-10 sm:min-h-9"
+            // we keep it on mobile and fall back to the compact
+            // `sm:min-h-9` on pointer devices so a future className
+            // override can't re-lift the mobile minimum below the
+            // touch-target contract.
+            className="min-h-11 sm:min-h-9"
             onClick={() => setOpen(true)}
             disabled={busy}
             aria-describedby={valueStatementId}

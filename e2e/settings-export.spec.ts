@@ -3,12 +3,16 @@ import { expect, test } from "@playwright/test";
 import { STORAGE_STATE_PATH } from "./setup/global-setup";
 
 /**
- * v1.4.16 phase B7 — Settings → Export consolidated UI smoke.
+ * Settings → Export consolidated UI smoke.
  *
  * Validates that:
- *   1. The five export cards are all rendered with their stable testids.
- *   2. Clicking the Measurements CSV download button fires a real
- *      browser download — proving the new `/api/export/measurements`
+ *   1. The export surfaces are all rendered with their stable testids:
+ *      the health-record export hero, the four CSV/JSON tiles, and the
+ *      demoted doctor-report card (v1.12).
+ *   2. The health-record "included data" checklist is a disclosure,
+ *      collapsed by default, and expands on demand.
+ *   3. Clicking the Measurements CSV download button fires a real
+ *      browser download — proving the `/api/export/measurements`
  *      endpoint is reachable from the browser end-to-end.
  *
  * The other CSV / JSON cards share the same code path; one happy-path
@@ -18,22 +22,40 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 test.describe("Settings → Export", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
-  test("renders all five export cards with stable testids", async ({
-    page,
-  }) => {
+  test("renders all export surfaces with stable testids", async ({ page }) => {
     await page.goto("/settings/export", { waitUntil: "domcontentloaded" });
-    // v1.4.37 lifted the doctor-report card to a hero block with the
-    // `export-hero-*` testid prefix; the four CSV/backup tiles keep
-    // the `export-card-*` shape.
+    // v1.12 — the health-record export is the page hero; the
+    // doctor-report card (`export-hero-*` prefix) is demoted to the
+    // bottom; the four CSV/backup tiles keep the `export-card-*` shape.
     for (const id of [
-      "export-hero-doctor-report",
+      "health-record-export-panel",
       "export-card-measurements-csv",
       "export-card-medications-csv",
       "export-card-mood-csv",
       "export-card-full-backup",
+      "export-hero-doctor-report",
     ]) {
       await expect(page.getByTestId(id)).toBeVisible({ timeout: 10_000 });
     }
+  });
+
+  test("included-data checklist is collapsed by default and expands on demand", async ({
+    page,
+  }) => {
+    await page.goto("/settings/export", { waitUntil: "domcontentloaded" });
+    const toggle = page.getByTestId("health-record-included-data-toggle");
+    await expect(toggle).toBeVisible({ timeout: 10_000 });
+    // Collapsed on first render — the checklist panel is absent.
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      page.getByTestId("health-record-included-data-panel"),
+    ).toHaveCount(0);
+    // Expands on demand.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      page.getByTestId("health-record-included-data-panel"),
+    ).toBeVisible();
   });
 
   test("Measurements CSV download fires a real download event", async ({
