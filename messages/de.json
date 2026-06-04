@@ -2812,6 +2812,14 @@
         "veryLow": "Dein Gerät hat eine sehr niedrige Gehstabilität erkannt.",
         "fired": "Dein Gerät hat dieses Ereignis erkannt."
       }
+    },
+    "trendDescriptor": {
+      "rising": "Über 30 Tage steigend ({delta}{unit}).",
+      "falling": "Über 30 Tage fallend ({delta}{unit}).",
+      "stable": "Über die letzten 30 Tage stabil.",
+      "moodImproved": "Stimmung über 30 Tage leicht verbessert.",
+      "moodDeclined": "Stimmung über 30 Tage leicht verschlechtert.",
+      "moodStable": "Stimmung über die letzten 30 Tage stabil."
     }
   },
   "thresholds": {

@@ -2812,6 +2812,14 @@
         "veryLow": "Tu dispositivo detectó una estabilidad al caminar muy baja.",
         "fired": "Tu dispositivo señaló este evento."
       }
+    },
+    "trendDescriptor": {
+      "rising": "Al alza en 30 días ({delta}{unit}).",
+      "falling": "A la baja en 30 días ({delta}{unit}).",
+      "stable": "Estable en los últimos 30 días.",
+      "moodImproved": "El estado de ánimo mejoró ligeramente en 30 días.",
+      "moodDeclined": "El estado de ánimo bajó ligeramente en 30 días.",
+      "moodStable": "El estado de ánimo se mantuvo estable en los últimos 30 días."
     }
   },
   "thresholds": {
