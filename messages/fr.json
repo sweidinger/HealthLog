@@ -554,35 +554,35 @@
     "scheduleDaily": "Quotidien",
     "inactive": "En pause",
     "intakeHistory": "Historique des prises",
-    "openDetailPage": "Open medication detail page",
+    "openDetailPage": "Ouvrir la page de détail du médicament",
     "deleteConfirm": "Supprimer le médicament ?",
     "compliance": "Observance",
-    "importIntakes": "Import intakes",
-    "importDescription": "Paste a JSON array with intake data. Expected format:",
-    "importUploadFile": "Upload JSON file",
-    "importPaste": "Paste JSON here...",
-    "importSelected": "Selected: {name}",
-    "importFileLoaded": "File \"{name}\" loaded",
-    "importInvalidJson": "File does not contain valid JSON",
-    "importNoArray": "No array found",
-    "importResult": "{imported} intakes imported",
-    "importDuplicatesSkipped": "{count} duplicates skipped",
-    "importInvalidSkipped": "{count} invalid entries skipped",
-    "importFailed": "Import failed",
-    "importInvalidFormat": "Invalid JSON format",
-    "apiEndpointTitle": "API Endpoint: {name}",
-    "apiEndpointDescription": "Use this endpoint to record intakes via API (e.g., iPhone Shortcut or cron job).",
-    "apiEndpointActive": "API endpoint active",
-    "apiEndpointActivated": "API endpoint activated",
-    "apiEndpointDeactivated": "API endpoint deactivated",
-    "apiTokenCount": "Active ({count} tokens)",
-    "apiToken": "API Token",
-    "apiTokenActiveHint": "Endpoint is active. Existing tokens remain valid but cannot be shown in plain text again.",
-    "apiTokenActivateHint": "Activate the endpoint to create a new token.",
-    "apiTokenOnceHint": "The token is only shown in plain text once at creation.",
-    "requestExample": "Request example",
-    "statusLoadFailed": "Could not load status",
-    "changeFailed": "Change failed",
+    "importIntakes": "Importer les prises",
+    "importDescription": "Collez un tableau JSON contenant les données de prises. Format attendu :",
+    "importUploadFile": "Téléverser un fichier JSON",
+    "importPaste": "Collez le JSON ici...",
+    "importSelected": "Sélectionné : {name}",
+    "importFileLoaded": "Fichier « {name} » chargé",
+    "importInvalidJson": "Le fichier ne contient pas de JSON valide",
+    "importNoArray": "Aucun tableau trouvé",
+    "importResult": "{imported} prises importées",
+    "importDuplicatesSkipped": "{count} doublons ignorés",
+    "importInvalidSkipped": "{count} entrées non valides ignorées",
+    "importFailed": "Échec de l’importation",
+    "importInvalidFormat": "Format JSON non valide",
+    "apiEndpointTitle": "Point de terminaison API : {name}",
+    "apiEndpointDescription": "Utilisez ce point de terminaison pour enregistrer des prises via l’API (par exemple un Raccourci iPhone ou une tâche cron).",
+    "apiEndpointActive": "Point de terminaison API actif",
+    "apiEndpointActivated": "Point de terminaison API activé",
+    "apiEndpointDeactivated": "Point de terminaison API désactivé",
+    "apiTokenCount": "Actif ({count} jetons)",
+    "apiToken": "Jeton API",
+    "apiTokenActiveHint": "Le point de terminaison est actif. Les jetons existants restent valides mais ne peuvent plus être affichés en texte clair.",
+    "apiTokenActivateHint": "Activez le point de terminaison pour créer un nouveau jeton.",
+    "apiTokenOnceHint": "Le jeton n’est affiché en texte clair qu’une seule fois, lors de sa création.",
+    "requestExample": "Exemple de requête",
+    "statusLoadFailed": "Impossible de charger le statut",
+    "changeFailed": "Échec de la modification",
     "categoryBloodPressure": "Tension artérielle",
     "categoryVitamin": "Vitamines",
     "categoryThyroid": "Thyroïde",
@@ -594,7 +594,7 @@
     "categorySkin": "Soin de la peau",
     "categorySleepAid": "Aide au sommeil",
     "categoryDiabetes": "Diabetes",
-    "categoryAntibiotic": "Antibiotic",
+    "categoryAntibiotic": "Antibiotique",
     "categoryOther": "Autres",
     "daysSun": "Dim",
     "daysMon": "Lun",
@@ -691,7 +691,7 @@
         "glp1Specific": "Spécifique GLP-1"
       },
       "entries": {
-        "nausea": "Nausée",
+        "nausea": "Nausées",
         "vomiting": "Vomissement",
         "diarrhea": "Diarrhée",
         "constipation": "Constipation",
@@ -739,48 +739,48 @@
       },
       "cadence": {
         "section": "Cadence",
-        "label": "How often",
+        "label": "À quelle fréquence",
         "kind": {
-          "daily": "Every day",
-          "weekdays": "Certain days of the week",
-          "everyNWeeks": "Every N weeks on certain days",
-          "monthly": "Monthly on a specific day",
-          "everyNMonths": "Every N months on a specific day",
-          "yearly": "Once a year",
-          "rolling": "Every N days from when I last took it (flexible)",
-          "rollingExplainer": "Counts from your last logged intake — pauses if you skip a dose.",
-          "oneShot": "One-time dose"
+          "daily": "Chaque jour",
+          "weekdays": "Certains jours de la semaine",
+          "everyNWeeks": "Toutes les N semaines certains jours",
+          "monthly": "Chaque mois un jour précis",
+          "everyNMonths": "Tous les N mois un jour précis",
+          "yearly": "Une fois par an",
+          "rolling": "Tous les N jours depuis la dernière prise (flexible)",
+          "rollingExplainer": "Compte à partir de votre dernière prise enregistrée — se met en pause si vous sautez une dose.",
+          "oneShot": "Dose unique"
         },
         "weekdays": {
-          "label": "Days of the week",
+          "label": "Jours de la semaine",
           "short": {
             "mo": "Mo",
-            "tu": "Tu",
-            "we": "We",
-            "th": "Th",
+            "tu": "Ma",
+            "we": "Me",
+            "th": "Je",
             "fr": "Fr",
             "sa": "Sa",
-            "su": "Su"
+            "su": "Di"
           },
           "long": {
-            "mo": "Monday",
-            "tu": "Tuesday",
-            "we": "Wednesday",
-            "th": "Thursday",
-            "fr": "Friday",
-            "sa": "Saturday",
-            "su": "Sunday"
+            "mo": "Lundi",
+            "tu": "Mardi",
+            "we": "Mercredi",
+            "th": "Jeudi",
+            "fr": "Vendredi",
+            "sa": "Samedi",
+            "su": "Dimanche"
           }
         },
         "intervalWeeks": {
-          "suffix": "weeks"
+          "suffix": "semaines"
         },
         "dayOfMonth": {
-          "label": "Day"
+          "label": "Jour"
         },
         "intervalMonths": {
-          "suffix": "months",
-          "dayOnLabel": "on day"
+          "suffix": "mois",
+          "dayOnLabel": "le jour"
         },
         "yearly": {
           "date": {
@@ -788,91 +788,91 @@
           }
         },
         "rollingDays": {
-          "suffix": "days"
+          "suffix": "jours"
         }
       },
       "timesOfDay": {
-        "section": "Times of day",
-        "label": "Times of day",
+        "section": "Heures de la journée",
+        "label": "Heures de la journée",
         "empty": {
-          "cta": "Add the first time."
+          "cta": "Ajoutez la première heure."
         },
-        "add": "Add time",
-        "remove": "Remove",
+        "add": "Ajouter une heure",
+        "remove": "Retirer",
         "presets": {
-          "morning": "Morning",
-          "noon": "Noon",
-          "evening": "Evening",
-          "night": "Night"
+          "morning": "Matin",
+          "noon": "Midi",
+          "evening": "Soir",
+          "night": "Nuit"
         },
         "max": {
-          "reached": "Maximum reached — remove a time before adding another."
+          "reached": "Maximum atteint — retirez une heure avant d’en ajouter une autre."
         }
       },
       "courseWindow": {
-        "section": "Course window",
+        "section": "Période de traitement",
         "startsOn": {
-          "label": "Starts on"
+          "label": "Commence le"
         },
         "endsOn": {
-          "label": "Ends on"
+          "label": "Se termine le"
         },
-        "noEndDate": "No end date",
-        "oneShotCaption": "(one-time dose)",
-        "invalidRange": "End date must be on or after the start date."
+        "noEndDate": "Pas de date de fin",
+        "oneShotCaption": "(dose unique)",
+        "invalidRange": "La date de fin doit être égale ou postérieure à la date de début."
       }
     },
     "wizard": {
       "header": {
-        "stepOf": "Step {current} of {total}",
-        "createTitle": "New medication",
-        "editTitle": "Edit {name}"
+        "stepOf": "Étape {current} sur {total}",
+        "createTitle": "Nouveau médicament",
+        "editTitle": "Modifier {name}"
       },
       "nav": {
-        "back": "Back",
-        "next": "Next",
-        "save": "Save",
-        "saveEdit": "Save changes",
+        "back": "Retour",
+        "next": "Suivant",
+        "save": "Enregistrer",
+        "saveEdit": "Enregistrer les modifications",
         "nextHint": "Suivant : {step}",
         "reviewHint": "Suivant : Enregistrer",
         "jumpFirst": "Aller à la première étape",
         "jumpLast": "Aller à la vérification et à l’enregistrement"
       },
       "nl": {
-        "button": "Describe"
+        "button": "Décrire"
       },
       "steps": {
         "step1": {
-          "title": "What's the medication called?",
-          "subline": "Exactly as it appears on the box.",
+          "title": "Comment s’appelle le médicament ?",
+          "subline": "Exactement comme indiqué sur la boîte.",
           "label": "Name",
-          "placeholder": "e.g. Ramipril",
+          "placeholder": "par exemple Ramipril",
           "short": "Nom"
         },
         "step2": {
-          "title": "What kind of medication is it?",
-          "subline": "We use this for the right templates and analytics.",
+          "title": "De quel type de médicament s’agit-il ?",
+          "subline": "Nous l’utilisons pour les bons modèles et analyses.",
           "short": "Type"
         },
         "step3": {
-          "title": "What's the dose?",
-          "subline": "A tablet, a puff, a drop — depending on the form.",
-          "amountLabel": "Amount",
-          "amountPlaceholder": "e.g. 5",
-          "unitLabel": "Unit",
+          "title": "Quelle est la dose ?",
+          "subline": "Un comprimé, une bouffée, une goutte — selon la forme.",
+          "amountLabel": "Quantité",
+          "amountPlaceholder": "par exemple 5",
+          "unitLabel": "Unité",
           "unit": {
             "mg": "mg",
             "ml": "ml",
-            "iu": "IU",
+            "iu": "UI",
             "mcg": "µg",
             "g": "g",
-            "tablets": "tablet(s)",
-            "capsules": "capsule(s)",
-            "drops": "drops",
-            "puffs": "puff",
-            "sprays": "spray",
-            "pieces": "pieces",
-            "other": "other"
+            "tablets": "comprimé(s)",
+            "capsules": "gélule(s)",
+            "drops": "gouttes",
+            "puffs": "bouffée",
+            "sprays": "pulvérisation",
+            "pieces": "pièces",
+            "other": "autre"
           },
           "deliveryFormLabel": "Voie",
           "deliveryForm": {
@@ -888,124 +888,124 @@
           "short": "Dose"
         },
         "step4": {
-          "title": "Over what period are you taking it?",
-          "subline": "A start date is enough for today. You can add an end date later.",
+          "title": "Sur quelle période le prenez-vous ?",
+          "subline": "Une date de début suffit pour aujourd’hui. Vous pourrez ajouter une date de fin plus tard.",
           "short": "Quand"
         },
         "step5": {
-          "title": "How often do you take it?",
-          "subline": "Pick the cadence — the details follow on the next step.",
+          "title": "À quelle fréquence le prenez-vous ?",
+          "subline": "Choisissez la cadence — les détails suivent à l’étape suivante.",
           "short": "Fréquence"
         },
         "step6": {
-          "title": "What does that look like in detail?",
-          "subline": "Set weekdays, intervals, or the day of the month.",
+          "title": "À quoi cela ressemble-t-il en détail ?",
+          "subline": "Indiquez les jours de la semaine, les intervalles ou le jour du mois.",
           "intervalWeeks": {
-            "label": "Every",
-            "suffix": "weeks"
+            "label": "Toutes les",
+            "suffix": "semaines"
           },
           "dayOfMonth": {
-            "label": "On",
-            "suffix": "day of the month"
+            "label": "Le",
+            "suffix": "jour du mois"
           },
           "rollingDays": {
-            "label": "Every",
-            "suffix": "days from the last intake"
+            "label": "Tous les",
+            "suffix": "jours depuis la dernière prise"
           },
           "short": "Détail"
         },
         "step7": {
-          "title": "When do you take it?",
-          "subline": "One or more times of day — reminders follow this list.",
-          "presetsLabel": "Time-of-day presets",
+          "title": "Quand le prenez-vous ?",
+          "subline": "Une ou plusieurs heures de la journée — les rappels suivent cette liste.",
+          "presetsLabel": "Préréglages par moment de la journée",
           "presets": {
-            "morning": "Morning",
-            "noon": "Noon",
-            "evening": "Evening",
-            "night": "Night"
+            "morning": "Matin",
+            "noon": "Midi",
+            "evening": "Soir",
+            "night": "Nuit"
           },
           "short": "Heures"
         },
         "step8": {
-          "title": "All done — should HealthLog remind you?",
-          "subline": "Review everything below before you save.",
-          "remindersLabel": "Reminders on",
-          "remindersDescription": "Push, Telegram or ntfy — based on your settings.",
-          "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release.",
+          "title": "Terminé — HealthLog doit-il vous le rappeler ?",
+          "subline": "Vérifiez tout ci-dessous avant d’enregistrer.",
+          "remindersLabel": "Rappels activés",
+          "remindersDescription": "Push, Telegram ou ntfy — selon vos réglages.",
+          "multiScheduleNote": "Ce médicament a plusieurs horaires. L’éditeur détaillé reviendra dans une version ultérieure.",
           "short": "Fini"
         }
       },
       "classRow": {
-        "bloodPressure": "Blood pressure",
+        "bloodPressure": "Tension artérielle",
         "diabetes": "Diabetes",
         "hormone": "Hormones",
-        "glp1": "GLP-1 injection",
-        "painRelief": "Pain",
-        "allergy": "Allergy",
-        "vitamin": "Vitamins",
-        "supplement": "Supplement",
-        "antibiotic": "Antibiotic",
-        "other": "Other"
+        "glp1": "Injection de GLP-1",
+        "painRelief": "Douleur",
+        "allergy": "Allergie",
+        "vitamin": "Vitamines",
+        "supplement": "Complément",
+        "antibiotic": "Antibiotique",
+        "other": "Autre"
       },
       "cadence": {
         "daily": {
-          "label": "Daily",
-          "description": "Every day at the same time."
+          "label": "Quotidien",
+          "description": "Chaque jour à la même heure."
         },
         "weekdays": {
-          "label": "Specific weekdays",
-          "description": "E.g. Monday, Wednesday, Friday."
+          "label": "Jours précis de la semaine",
+          "description": "Par exemple lundi, mercredi, vendredi."
         },
         "everyNWeeks": {
-          "label": "Every few weeks",
-          "description": "E.g. every 2 weeks on Thursdays (GLP-1, biologics)."
+          "label": "Toutes les quelques semaines",
+          "description": "Par exemple toutes les 2 semaines le jeudi (GLP-1, biologiques)."
         },
         "monthly": {
-          "label": "Monthly",
-          "description": "On a fixed day each month (e.g. always the 1st)."
+          "label": "Mensuel",
+          "description": "Un jour fixe chaque mois (par exemple toujours le 1er)."
         },
         "rolling": {
-          "label": "Flexible from last dose",
-          "description": "Leave the next dose open. When you tap 'taken', the counter starts again from that moment."
+          "label": "Flexible depuis la dernière dose",
+          "description": "Laissez la prochaine dose ouverte. Quand vous appuyez sur « pris », le compteur repart à partir de ce moment."
         },
         "oneShot": {
-          "label": "Single dose",
-          "description": "One administration, e.g. a vaccine or an antibiotic course."
+          "label": "Dose unique",
+          "description": "Une seule administration, par exemple un vaccin ou une cure d’antibiotique."
         }
       },
       "summary": {
-        "title": "Summary",
+        "title": "Résumé",
         "cadence": {
-          "daily": "Every day",
-          "weekdays": "On selected days of the week",
-          "biweekly": "Every two weeks",
-          "monthly": "Monthly",
-          "quarterly": "Every three months",
-          "yearly": "Once a year",
-          "rolling": "Every {n} days from your last intake",
-          "oneShot": "A single dose",
-          "everyNWeeks": "Every {n} weeks",
-          "everyNMonths": "Every {n} months"
+          "daily": "Chaque jour",
+          "weekdays": "Les jours de la semaine sélectionnés",
+          "biweekly": "Toutes les deux semaines",
+          "monthly": "Mensuel",
+          "quarterly": "Tous les trois mois",
+          "yearly": "Une fois par an",
+          "rolling": "Tous les {n} jours depuis votre dernière prise",
+          "oneShot": "Une dose unique",
+          "everyNWeeks": "Toutes les {n} semaines",
+          "everyNMonths": "Tous les {n} mois"
         },
-        "weekdaysDetail": ", on {days}",
-        "dayOfMonthDetail": ", on day {day}.",
-        "times": "at {times}",
-        "startsOn": "Starts: {date}",
-        "endsOn": "Ends: {date}",
-        "noEndDate": "No end date"
+        "weekdaysDetail": ", le {days}",
+        "dayOfMonthDetail": ", le {day}.",
+        "times": "à {times}",
+        "startsOn": "Début : {date}",
+        "endsOn": "Fin : {date}",
+        "noEndDate": "Pas de date de fin"
       },
       "compose": {
-        "scheduleIndex": "Schedule {n} of {total}",
+        "scheduleIndex": "Horaire {n} sur {total}",
         "list": {
-          "add": "Add another schedule",
-          "edit": "Edit",
-          "remove": "Remove",
-          "removeDisabled": "At least one schedule is required.",
-          "empty": "No schedule yet."
+          "add": "Ajouter un autre horaire",
+          "edit": "Modifier",
+          "remove": "Retirer",
+          "removeDisabled": "Au moins un horaire est requis.",
+          "empty": "Pas encore d’horaire."
         }
       },
       "errors": {
-        "submitFailed": "Could not save the medication — please retry."
+        "submitFailed": "Impossible d’enregistrer le médicament — veuillez réessayer."
       }
     },
     "doseStrength": {
@@ -1160,88 +1160,88 @@
     },
     "detail": {
       "status": {
-        "active": "Active",
-        "paused": "Paused",
-        "ended": "Ended"
+        "active": "Actif",
+        "paused": "En pause",
+        "ended": "Terminé"
       },
       "today": {
-        "groupLabel": "Today's dose",
-        "taken": "Taken",
-        "skipped": "Skipped",
-        "toastTaken": "Today's dose logged",
-        "toastSkipped": "Today's dose skipped",
-        "recordedTaken": "Taken today at {time}",
-        "recordedSkipped": "Skipped today at {time}",
-        "recordedOneShot": "One-shot dose taken at {time}",
-        "noneScheduled": "No dose scheduled for today.",
-        "pausedHint": "Paused — no reminder today.",
-        "error": "Could not log the dose."
+        "groupLabel": "Dose du jour",
+        "taken": "Pris",
+        "skipped": "Sauté",
+        "toastTaken": "Dose du jour enregistrée",
+        "toastSkipped": "Dose du jour sautée",
+        "recordedTaken": "Prise aujourd’hui à {time}",
+        "recordedSkipped": "Sautée aujourd’hui à {time}",
+        "recordedOneShot": "Dose unique prise à {time}",
+        "noneScheduled": "Aucune dose prévue aujourd’hui.",
+        "pausedHint": "En pause — pas de rappel aujourd’hui.",
+        "error": "Impossible d’enregistrer la dose."
       },
       "cadence": {
-        "oneShotOn": "One-time dose on {date}.",
-        "oneShotPending": "One-time dose pending."
+        "oneShotOn": "Dose unique le {date}.",
+        "oneShotPending": "Dose unique en attente."
       },
       "intake": {
-        "title": "Intake history",
-        "importButton": "Import",
+        "title": "Historique des prises",
+        "importButton": "Importer",
         "rowActions": {
-          "openMenu": "Open row actions",
-          "edit": "Edit",
-          "delete": "Delete"
+          "openMenu": "Ouvrir les actions de la ligne",
+          "edit": "Modifier",
+          "delete": "Supprimer"
         },
         "selection": {
-          "rowToggleLabel": "Select row"
+          "rowToggleLabel": "Sélectionner la ligne"
         },
         "bulkDelete": {
-          "selectionCount": "{count} entries selected",
-          "deleteButton": "Delete selection",
-          "cancelButton": "Cancel",
-          "confirmTitle": "Delete the selected entries?",
-          "confirmBody": "{count} entries will be removed permanently. The medication itself stays.",
-          "confirmAction": "Delete",
-          "toast": "Selection deleted",
-          "failed": "Could not delete the selection."
+          "selectionCount": "{count} entrées sélectionnées",
+          "deleteButton": "Supprimer la sélection",
+          "cancelButton": "Annuler",
+          "confirmTitle": "Supprimer les entrées sélectionnées ?",
+          "confirmBody": "{count} entrées seront supprimées définitivement. Le médicament est conservé.",
+          "confirmAction": "Supprimer",
+          "toast": "Sélection supprimée",
+          "failed": "Impossible de supprimer la sélection."
         },
         "edit": {
-          "dialogTitle": "Edit intake",
-          "takenAtLabel": "Taken at",
-          "skippedLabel": "Skipped",
+          "dialogTitle": "Modifier la prise",
+          "takenAtLabel": "Prise à",
+          "skippedLabel": "Sautée",
           "noteLabel": "Note",
-          "save": "Save",
-          "cancel": "Cancel",
-          "savedToast": "Intake updated",
-          "failed": "Could not update the intake."
+          "save": "Enregistrer",
+          "cancel": "Annuler",
+          "savedToast": "Prise mise à jour",
+          "failed": "Impossible de mettre à jour la prise."
         },
         "deleteRow": {
-          "confirmTitle": "Delete this intake?",
-          "confirmBody": "The entry is removed permanently.",
-          "confirmAction": "Delete",
-          "toast": "Intake deleted",
-          "failed": "Could not delete the intake."
+          "confirmTitle": "Supprimer cette prise ?",
+          "confirmBody": "L’entrée est supprimée définitivement.",
+          "confirmAction": "Supprimer",
+          "toast": "Prise supprimée",
+          "failed": "Impossible de supprimer la prise."
         }
       },
       "notifications": {
-        "title": "Notifications",
-        "switchLabel": "Send a reminder when this dose is due",
-        "helperOn": "Reminders are on.",
-        "helperOff": "Reminders are off.",
-        "enabledToast": "Reminders on",
-        "disabledToast": "Reminders off",
-        "toggleFailed": "Could not change the reminder setting.",
-        "clientManagedChip": "Your iPhone manages reminders for this medication."
+        "title": "Rappels",
+        "switchLabel": "Envoyer un rappel lorsque cette dose est due",
+        "helperOn": "Les rappels sont activés.",
+        "helperOff": "Les rappels sont désactivés.",
+        "enabledToast": "Rappels activés",
+        "disabledToast": "Rappels désactivés",
+        "toggleFailed": "Impossible de modifier le réglage des rappels.",
+        "clientManagedChip": "Votre iPhone gère les rappels de ce médicament."
       },
       "settings": {
-        "title": "Settings",
+        "title": "Réglages",
         "phases": {
-          "openButton": "Configure phases",
-          "requiresCourseWindow": "Phases are available once a course window is set."
+          "openButton": "Configurer les phases",
+          "requiresCourseWindow": "Les phases sont disponibles une fois une période de traitement définie."
         },
         "grace": {
-          "label": "Reminder window — applies to your primary schedule",
-          "primaryScheduleNote": "Multi-schedule medications keep their other schedules' default window.",
+          "label": "Fenêtre de rappel — s’applique à votre horaire principal",
+          "primaryScheduleNote": "Les médicaments à horaires multiples conservent la fenêtre par défaut de leurs autres horaires.",
           "unit": "minutes",
-          "saved": "Reminder window saved",
-          "failed": "Could not save the reminder window."
+          "saved": "Fenêtre de rappel enregistrée",
+          "failed": "Impossible d’enregistrer la fenêtre de rappel."
         },
         "codes": {
           "label": "Codes cliniques (ATC / RxNorm)",
@@ -1253,57 +1253,57 @@
         }
       },
       "zone": {
-        "title": "Manage & danger zone",
+        "title": "Gestion et zone à risque",
         "pause": {
-          "title": "Pause",
-          "helper": "Pause reminders until you turn them back on. History stays intact.",
-          "pausedToast": "Reminders paused",
-          "resumedToast": "Reminders resumed",
-          "failed": "Could not change the paused state."
+          "title": "Mettre en pause",
+          "helper": "Mettez les rappels en pause jusqu’à ce que vous les réactiviez. L’historique est conservé.",
+          "pausedToast": "Rappels mis en pause",
+          "resumedToast": "Rappels réactivés",
+          "failed": "Impossible de modifier l’état de pause."
         },
         "end": {
-          "title": "End medication",
-          "helper": "Stop reminders and mark the medication as ended. History stays visible.",
-          "button": "End",
-          "dialogTitle": "End {name} — stop reminders, history stays visible",
-          "dialogBody": "No more reminders. Old entries remain in the timeline.",
-          "toast": "Medication ended",
-          "failed": "Could not end the medication."
+          "title": "Terminer le médicament",
+          "helper": "Arrête les rappels et marque le médicament comme terminé. L’historique reste visible.",
+          "button": "Terminer",
+          "dialogTitle": "Terminer {name} — arrête les rappels, l’historique reste visible",
+          "dialogBody": "Plus de rappels. Les anciennes entrées restent dans la chronologie.",
+          "toast": "Médicament terminé",
+          "failed": "Impossible de terminer le médicament."
         },
         "purge": {
-          "title": "Delete history",
-          "helper": "{count} intake events are stored for this medication.",
-          "button": "Delete history",
-          "dialogTitle": "Really delete the history?",
-          "dialogBody": "The {count} intake events will be removed permanently. The medication itself stays.",
-          "toast": "History deleted",
-          "failed": "Could not delete the history."
+          "title": "Supprimer l’historique",
+          "helper": "{count} prises sont enregistrées pour ce médicament.",
+          "button": "Supprimer l’historique",
+          "dialogTitle": "Supprimer vraiment l’historique ?",
+          "dialogBody": "Les {count} prises seront supprimées définitivement. Le médicament est conservé.",
+          "toast": "Historique supprimé",
+          "failed": "Impossible de supprimer l’historique."
         },
         "delete": {
-          "title": "Delete medication",
-          "helper": "Removes the medication and every related record.",
-          "button": "Delete",
-          "dialogTitle": "Delete {name}?",
-          "dialogBody": "The medication, its schedules, intake history, API tokens, phase config and reminders will be removed permanently.",
-          "toast": "Medication deleted",
-          "failed": "Could not delete the medication."
+          "title": "Supprimer le médicament",
+          "helper": "Supprime le médicament et tous les enregistrements associés.",
+          "button": "Supprimer",
+          "dialogTitle": "Supprimer {name} ?",
+          "dialogBody": "Le médicament, ses horaires, l’historique des prises, les jetons API, la configuration des phases et les rappels seront supprimés définitivement.",
+          "toast": "Médicament supprimé",
+          "failed": "Impossible de supprimer le médicament."
         }
       },
       "phases": {
-        "modeLabel": "{phase} mode",
-        "saveFailed": "Could not save the reminder phases."
+        "modeLabel": "Mode {phase}",
+        "saveFailed": "Impossible d’enregistrer les phases de rappel."
       },
       "api": {
-        "caption": "Endpoint for \"{name}\"",
-        "copyUrl": "Copy URL",
-        "urlCopied": "URL copied",
-        "mintToken": "Mint token",
-        "mintAnotherToken": "Mint another token",
-        "mintFailed": "Could not mint a token.",
-        "copyFailed": "Could not copy.",
-        "tokenCopied": "Token copied",
-        "copyToken": "Copy token",
-        "mintedHint": "Copy this token now — it is shown only once."
+        "caption": "Point de terminaison pour « {name} »",
+        "copyUrl": "Copier l’URL",
+        "urlCopied": "URL copiée",
+        "mintToken": "Générer un jeton",
+        "mintAnotherToken": "Générer un autre jeton",
+        "mintFailed": "Impossible de générer un jeton.",
+        "copyFailed": "Impossible de copier.",
+        "tokenCopied": "Jeton copié",
+        "copyToken": "Copier le jeton",
+        "mintedHint": "Copiez ce jeton maintenant — il n’est affiché qu’une seule fois."
       },
       "edit": {
         "planOption": "Modifier le plan",
