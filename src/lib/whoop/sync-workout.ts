@@ -17,6 +17,7 @@ import { fetchWorkouts, KJ_TO_KCAL } from "./client";
 import {
   getValidToken,
   incrementalStart,
+  isCollectionForbidden,
   markSynced,
   recordWhoopSyncFailure,
 } from "./sync";
@@ -52,6 +53,14 @@ export async function syncUserWorkout(
   try {
     records = await fetchWorkouts(tokenInfo.accessToken, { start });
   } catch (err) {
+    // A per-resource 403 soft-skips this data class rather than parking the
+    // whole connection — sibling resources still sync.
+    if (isCollectionForbidden(err)) {
+      getEvent()?.addWarning(
+        `whoop workout sync skipped for ${userId}: collection 403 (soft-skip)`,
+      );
+      return 0;
+    }
     await recordWhoopSyncFailure(userId, err);
     throw err;
   }

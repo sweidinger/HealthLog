@@ -43,6 +43,18 @@ import {
   type WhoopClassification,
 } from "./response-classifier";
 
+/**
+ * True when a caught error is a per-resource collection 403 (forbidden). A 403
+ * on a single data class is a tier/scope gate on THAT class — the right
+ * response is to soft-skip the class and keep the connection connected, NOT to
+ * park the whole integration at `error_reauth`. Reserve connection-wide reauth
+ * for a 401 (token rejected) and for a 403 on the token-refresh / profile path
+ * (a genuine grant revoke), which run outside the per-resource catch blocks.
+ */
+export function isCollectionForbidden(err: unknown): boolean {
+  return err instanceof WhoopApiError && err.httpStatus === 403;
+}
+
 /** Refresh the access token this many ms before `tokenExpiresAt`. */
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 

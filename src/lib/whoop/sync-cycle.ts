@@ -9,12 +9,14 @@ import { fetchCycles, mapCycle } from "./client";
 import {
   getValidToken,
   incrementalStart,
+  isCollectionForbidden,
   markSynced,
   recordWhoopSyncFailure,
   upsertWhoopMeasurements,
   type WhoopMeasurementUpsert,
 } from "./sync";
 import { prisma } from "@/lib/db";
+import { getEvent } from "@/lib/logging/context";
 
 export async function syncUserCycle(
   userId: string,
@@ -37,6 +39,14 @@ export async function syncUserCycle(
   try {
     records = await fetchCycles(tokenInfo.accessToken, { start });
   } catch (err) {
+    // A per-resource 403 soft-skips this data class rather than parking the
+    // whole connection — sibling resources still sync.
+    if (isCollectionForbidden(err)) {
+      getEvent()?.addWarning(
+        `whoop cycle sync skipped for ${userId}: collection 403 (soft-skip)`,
+      );
+      return 0;
+    }
     await recordWhoopSyncFailure(userId, err);
     throw err;
   }

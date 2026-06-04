@@ -11,6 +11,7 @@ import { fetchSleeps, mapSleep } from "./client";
 import {
   getValidToken,
   incrementalStart,
+  isCollectionForbidden,
   markSynced,
   recordWhoopSyncFailure,
   upsertWhoopMeasurements,
@@ -18,6 +19,7 @@ import {
   type WhoopMeasurementUpsert,
 } from "./sync";
 import { prisma } from "@/lib/db";
+import { getEvent } from "@/lib/logging/context";
 
 export async function syncUserSleep(
   userId: string,
@@ -41,6 +43,14 @@ export async function syncUserSleep(
   try {
     records = await fetchSleeps(tokenInfo.accessToken, { start });
   } catch (err) {
+    // A per-resource 403 soft-skips this data class rather than parking the
+    // whole connection — sibling resources still sync.
+    if (isCollectionForbidden(err)) {
+      getEvent()?.addWarning(
+        `whoop sleep sync skipped for ${userId}: collection 403 (soft-skip)`,
+      );
+      return 0;
+    }
     await recordWhoopSyncFailure(userId, err);
     throw err;
   }
