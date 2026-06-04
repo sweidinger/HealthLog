@@ -19,9 +19,12 @@ import {
  * The silhouette is an INLINE SVG so it inherits the app's theme tokens
  * (`currentColor` + CSS variables) and tints correctly in light/dark and
  * across the zinc/Dracula palettes with no raster asset and no luminance
- * key. The body is traced to the proportions the iOS client calibrated
- * against (see `.planning/ios-coord/v0.12-…-injection-bodymap-coords.md`)
- * so dots land on the same anatomy on both platforms.
+ * key. The body is hand-authored to the proportions the iOS client
+ * calibrated against (see `.planning/ios-coord/v0.12-…-injection-bodymap-coords.md`):
+ * an oval head + short neck, sloped shoulders, a torso that tapers to the
+ * waist and flares to the hips, arms held slightly out to mid-thigh with
+ * simple hands, and separated legs ending in feet — so dots land on the
+ * same anatomy on both platforms.
  *
  * `viewBox="0 0 100 200"` (aspect ≈0.5). `SITE_COORDS` is expressed on
  * the same viewBox; the recommended-next ring, the last-used marker and
@@ -142,61 +145,139 @@ export function InjectionSitePicker({
           </linearGradient>
         </defs>
 
-        {/* Anatomical front-of-body silhouette — one continuous outline
-            traced to the iOS reference proportions (upright, arms slightly
-            out, plain oval head). Filled with the soft wash + a hairline
-            stroke so it reads as a calm medical illustration. */}
-        <path
-          d="M 50 4
-             C 44.2 4 39.8 8.6 39.8 15
-             C 39.8 19.6 41.4 23.4 44 25.6
-             C 43.4 28.4 42 30.4 39.2 31.4
-             C 35 32.9 30.4 34.2 27.4 36.6
-             C 24.4 39 23 42.8 22.2 47.4
-             C 21.2 53.2 20.2 60 18.2 67
-             C 16.4 73.4 14 80.4 12.6 86.4
-             C 11.8 89.8 12.4 92.2 14.2 92.8
-             C 16 93.4 17.6 91.8 18.4 88.6
-             C 19.8 83 21.8 76.6 23.6 71
-             C 24.4 68.4 25.4 67.8 25.8 69
-             C 26.2 70.2 26 74 25.6 79
-             C 25.2 84.6 24.8 90.6 25.2 95.6
-             C 25.6 100.4 26.8 104.4 28 107.8
-             C 27.2 119 26.2 133 26.6 145
-             C 27 156.6 28.6 170 30 182
-             C 30.6 187.4 31.4 191.6 33 193.4
-             C 34.4 195 37 195.2 39 194.6
-             C 40.8 194 41.4 192.2 41.6 189.4
-             C 42.2 181.4 43 169 44 158
-             C 44.8 149.4 45.6 141.4 46.4 136
-             C 47 131.8 48.2 129.6 50 129.6
-             C 51.8 129.6 53 131.8 53.6 136
-             C 54.4 141.4 55.2 149.4 56 158
-             C 57 169 57.8 181.4 58.4 189.4
-             C 58.6 192.2 59.2 194 61 194.6
-             C 63 195.2 65.6 195 67 193.4
-             C 68.6 191.6 69.4 187.4 70 182
-             C 71.4 170 73 156.6 73.4 145
-             C 73.8 133 72.8 119 72 107.8
-             C 73.2 104.4 74.4 100.4 74.8 95.6
-             C 75.2 90.6 74.8 84.6 74.4 79
-             C 74 74 73.8 70.2 74.2 69
-             C 74.6 67.8 75.6 68.4 76.4 71
-             C 78.2 76.6 80.2 83 81.6 88.6
-             C 82.4 91.8 84 93.4 85.8 92.8
-             C 87.6 92.2 88.2 89.8 87.4 86.4
-             C 86 80.4 83.6 73.4 81.8 67
-             C 79.8 60 78.8 53.2 77.8 47.4
-             C 77 42.8 75.6 39 72.6 36.6
-             C 69.6 34.2 65 32.9 60.8 31.4
-             C 58 30.4 56.6 28.4 56 25.6
-             C 58.6 23.4 60.2 19.6 60.2 15
-             C 60.2 8.6 55.8 4 50 4 Z"
+        {/* Anatomical front-of-body silhouette — traced to the iOS
+            reference proportions: a plain oval head on a short neck,
+            naturally sloped shoulders, a torso that narrows to the waist
+            and flares to the hips, arms held slightly away from the body
+            reaching to mid-thigh, and separated legs ending in feet. The
+            figure is composed as two mirror halves about x=50 so it stays
+            perfectly symmetric, with the upper-arm mass sitting under the
+            calibrated arm anchors (≈x26/74 @ y72) and the thigh mass under
+            the thigh anchors (≈x43/57 @ y140) — the dots land on real
+            anatomy on both platforms. Filled with the soft wash + a
+            hairline stroke so it reads as a calm medical illustration. */}
+        <g
           fill={`url(#${bodyFillId})`}
           stroke="currentColor"
           strokeWidth="0.9"
           strokeLinejoin="round"
-        />
+          strokeLinecap="round"
+        >
+          {/* Head + neck — a clean oval head with small ears, a short
+              tapering neck blending into the trapezius line. */}
+          <path
+            d="M 50 4.5
+               C 46 4.5 42.8 8 42.8 13
+               C 42.8 16.8 44.2 20 46.4 22
+               C 46.4 24.6 45.8 26.4 44.2 27.4
+               C 45.8 28 47.8 28.4 50 28.4
+               C 52.2 28.4 54.2 28 55.8 27.4
+               C 54.2 26.4 53.6 24.6 53.6 22
+               C 55.8 20 57.2 16.8 57.2 13
+               C 57.2 8 54 4.5 50 4.5 Z"
+          />
+          {/* Ears */}
+          <path d="M 42.9 14.4 C 41.6 13.8 40.8 15 41.2 16.4 C 41.5 17.5 42.4 18 43 17.6 Z" />
+          <path d="M 57.1 14.4 C 58.4 13.8 59.2 15 58.8 16.4 C 58.5 17.5 57.6 18 57 17.6 Z" />
+          {/* Torso + legs — one outline. From the neck the shoulders slope
+              out to the top of the arms, dive into the armpit notch, run
+              down the torso side (narrowing to the waist, flaring to the
+              hips), split at the crotch into two legs ending in feet, and
+              mirror back up the right side. The arms are drawn separately
+              (below) so there is a clean underarm gap and the arm anchors
+              sit on real arm mass, not on the torso edge. */}
+          <path
+            d="M 50 27
+               C 47.6 27 45.6 27.4 43.6 28
+               C 40.6 28.8 37.4 30 34.6 31.6
+               C 36.4 33.4 37.6 36.2 38.2 39.6
+               C 38.6 41.8 38 43.6 36.6 44.6
+               C 38.2 47.6 39.4 51.8 39.8 56.4
+               C 40.4 63 40.2 71 39.4 78
+               C 38.8 83 38 86.8 38 90
+               C 38 93.4 38.8 96.6 40 99
+               C 39.2 102 38 105.4 37 108.8
+               C 37 116 36.8 124 36.6 132
+               C 36.4 144 36.8 157 37.8 169
+               C 38.4 176.4 39 183 39.6 187.6
+               C 40 190.6 40.4 192.6 41.4 193.4
+               C 42.4 194.2 44 194 44.8 192.8
+               C 45.4 191.8 45.8 189.8 46.2 186.8
+               C 47 180 47.8 169.6 48.2 159
+               C 48.6 149.4 48.8 139.8 49 132
+               C 49.1 127.4 49.4 124 50 121.6
+               C 50.6 124 50.9 127.4 51 132
+               C 51.2 139.8 51.4 149.4 51.8 159
+               C 52.2 169.6 53 180 53.8 186.8
+               C 54.2 189.8 54.6 191.8 55.2 192.8
+               C 56 194 57.6 194.2 58.6 193.4
+               C 59.6 192.6 60 190.6 60.4 187.6
+               C 61 183 61.6 176.4 62.2 169
+               C 63.2 157 63.6 144 63.4 132
+               C 63.2 124 62.6 116 61.8 108.8
+               C 63 105.4 61.8 102 61 99
+               C 62.2 96.6 62 93.4 62 90
+               C 62 86.8 61.2 83 60.6 78
+               C 59.8 71 59.6 63 60.2 56.4
+               C 60.6 51.8 61.8 47.6 63.4 44.6
+               C 62 43.6 61.4 41.8 61.8 39.6
+               C 62.4 36.2 63.6 33.4 65.4 31.6
+               C 62.6 30 59.4 28.8 56.4 28
+               C 54.4 27.4 52.4 27 50 27 Z"
+          />
+          {/* Left arm — held slightly out, tapering from the shoulder to a
+              rounded hand around hip height, with a clear underarm gap from
+              the torso. The arm anchor (≈x26 @ y72) sits squarely on the
+              upper-arm mass: at that height the arm spans ≈x21–31, so the
+              dot is centred on the muscle. */}
+          <path
+            d="M 34.2 31.6
+               C 32.2 32.6 30.8 34.4 29.8 37.2
+               C 28.6 40.4 27.6 44.6 26.8 49.4
+               C 26 54.2 25.4 59.6 24.8 64.8
+               C 24.2 70 23.6 75.2 23 80
+               C 22.4 84.8 21.8 89.2 21.4 92.8
+               C 21 96 20.8 98.6 21 100.8
+               C 21.2 102.6 20.8 104 20.4 105.2
+               C 20 106.4 20 107.6 20.8 108.4
+               C 21.6 109.2 22.8 109.2 23.8 108.6
+               C 24.8 108 25.4 106.8 25.8 105.2
+               C 26.2 103.6 26.6 101.4 27 98.8
+               C 27.6 94.8 28.2 89.8 28.8 84.8
+               C 29.4 79.6 30 74 30.6 68.8
+               C 31.2 63.6 31.8 58.6 32.4 54
+               C 33 49.4 33.6 45.2 34.4 41.8
+               C 35 39 35.8 36.8 36.8 35.4
+               C 37.6 34.2 37.2 32.6 35.8 31.8
+               C 35.2 31.4 34.6 31.4 34.2 31.6 Z"
+          />
+          {/* Right arm — mirror of the left. */}
+          <path
+            d="M 65.8 31.6
+               C 67.8 32.6 69.2 34.4 70.2 37.2
+               C 71.4 40.4 72.4 44.6 73.2 49.4
+               C 74 54.2 74.6 59.6 75.2 64.8
+               C 75.8 70 76.4 75.2 77 80
+               C 77.6 84.8 78.2 89.2 78.6 92.8
+               C 79 96 79.2 98.6 79 100.8
+               C 78.8 102.6 79.2 104 79.6 105.2
+               C 80 106.4 80 107.6 79.2 108.4
+               C 78.4 109.2 77.2 109.2 76.2 108.6
+               C 75.2 108 74.6 106.8 74.2 105.2
+               C 73.8 103.6 73.4 101.4 73 98.8
+               C 72.4 94.8 71.8 89.8 71.2 84.8
+               C 70.6 79.6 70 74 69.4 68.8
+               C 68.8 63.6 68.2 58.6 67.6 54
+               C 67 49.4 66.4 45.2 65.6 41.8
+               C 65 39 64.2 36.8 63.2 35.4
+               C 62.4 34.2 62.8 32.6 64.2 31.8
+               C 64.8 31.4 65.4 31.4 65.8 31.6 Z"
+          />
+          {/* Feet — small forward-pointing shapes anchoring each leg so the
+              figure reads as a full body rather than truncated calves. */}
+          <path d="M 41.4 191.6 C 40 193.4 39.6 195.4 40.2 196.6 C 40.8 197.6 42.6 197.8 44.8 197.4 C 46.8 197 47.8 196.2 47.4 195 C 47 193.4 46.6 191.6 46.2 189.6 Z" />
+          <path d="M 58.6 191.6 C 60 193.4 60.4 195.4 59.8 196.6 C 59.2 197.6 57.4 197.8 55.2 197.4 C 53.2 197 52.2 196.2 52.6 195 C 53 193.4 53.4 191.6 53.8 189.6 Z" />
+        </g>
 
         {/* Centre + waist references — barely-there guides that help the
             eye read the abdomen quadrants. Kept low-alpha so they never
@@ -211,9 +292,9 @@ export function InjectionSitePicker({
           strokeOpacity="0.35"
         />
         <line
-          x1="29"
+          x1="40"
           y1="88"
-          x2="71"
+          x2="60"
           y2="88"
           stroke="currentColor"
           strokeWidth="0.4"
@@ -248,18 +329,20 @@ export function InjectionSitePicker({
                   strokeWidth="1.8"
                 />
               )}
-              {/* Last-used marker — a soft solid ring so the user can see
+              {/* Last-used marker — a solid amber ring so the user can see
                   where they injected most recently at a glance, distinct
-                  from the dashed recommendation ring. Suppressed on the
-                  active selection (the filled dot already says "here"). */}
+                  from the dashed primary recommendation ring. The amber tone
+                  matches the dialog legend and reads in light + dark.
+                  Suppressed on the active selection (the filled dot already
+                  says "here"). */}
               {isLastUsed && !disabled && (
                 <circle
                   cx={coord.x}
                   cy={coord.y}
                   r="7"
                   fill="none"
-                  className="stroke-foreground/35"
-                  strokeWidth="1"
+                  className="stroke-amber-500"
+                  strokeWidth="1.2"
                 />
               )}
               {isRecommended && !isActive && !disabled && (
