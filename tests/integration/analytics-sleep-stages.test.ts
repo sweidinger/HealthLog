@@ -68,6 +68,7 @@ interface AnalyticsEnvelope {
       nights: number;
       totalMinutes: number;
       stages: Record<string, number>;
+      perNight: Array<{ dayKey: string; stages: Record<string, number> }>;
     } | null;
   };
 }
@@ -190,5 +191,63 @@ describe("GET /api/analytics — sleep-stage aggregation", () => {
     // The non-stage summary path keeps working — one row, value 420.
     expect(envelope.data.summaries.SLEEP_DURATION.count).toBe(1);
     expect(envelope.data.summaries.SLEEP_DURATION.latest).toBe(420);
+  });
+
+  // v1.11.5 — the breakdown is now reconciled onto reconstructSleepNights,
+  // so a midnight-spanning night stays ONE perNight bucket and a dual-source
+  // night collapses to the canonical source (no double-count).
+  it("keeps a midnight-spanning, dual-source night as one reconciled bucket", async () => {
+    const prisma = getPrismaClient();
+    const user = await seedSession("sleep-reconcile-user");
+
+    // Contiguous overnight: 22:30 → 06:15 local (Berlin, UTC+2 in June),
+    // stage ends straddling UTC midnight. WHOOP + Apple Health both report
+    // it; WHOOP wins the default ladder.
+    const seed = async (
+      iso: string,
+      stage: "CORE" | "DEEP" | "REM",
+      min: number,
+      source: "WHOOP" | "APPLE_HEALTH",
+    ) => {
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "SLEEP_DURATION",
+          value: min,
+          unit: "minutes",
+          source,
+          measuredAt: new Date(iso),
+          externalId: `uuid-${source}-${stage}-${iso}`,
+          sleepStage: stage,
+        },
+      });
+    };
+    // WHOOP — the canonical source. CORE 60 + DEEP 90 + REM 120 + CORE 195.
+    await seed("2026-06-03T21:30:00.000Z", "CORE", 60, "WHOOP");
+    await seed("2026-06-03T23:00:00.000Z", "DEEP", 90, "WHOOP");
+    await seed("2026-06-04T01:00:00.000Z", "REM", 120, "WHOOP");
+    await seed("2026-06-04T04:15:00.000Z", "CORE", 195, "WHOOP");
+    // Apple Health parallel rows for the SAME night — must be dropped.
+    await seed("2026-06-03T21:35:00.000Z", "CORE", 55, "APPLE_HEALTH");
+    await seed("2026-06-04T01:05:00.000Z", "REM", 110, "APPLE_HEALTH");
+
+    const { GET } = await import("@/app/api/analytics/route");
+    const response = await (
+      GET as unknown as (req: Request) => Promise<Response>
+    )(new Request("http://localhost/api/analytics"));
+    expect(response.status).toBe(200);
+    const envelope = (await response.json()) as AnalyticsEnvelope;
+
+    const sleepStages = envelope.data.sleepStages;
+    expect(sleepStages).not.toBeNull();
+    // ONE night, not two (no midnight split).
+    expect(sleepStages!.nights).toBe(1);
+    expect(sleepStages!.perNight).toHaveLength(1);
+    // WHOOP only — Apple Health's parallel rows dropped (no double-count).
+    expect(sleepStages!.stages.CORE).toBe(255); // 60 + 195
+    expect(sleepStages!.stages.DEEP).toBe(90);
+    expect(sleepStages!.stages.REM).toBe(120);
+    // Total = the WHOOP night only (255 + 90 + 120 = 465), not a blend.
+    expect(sleepStages!.totalMinutes).toBe(465);
   });
 });
