@@ -48,10 +48,17 @@ export function TargetAdjustButton({ className }: { className?: string }) {
       title={label}
       onClick={() => adjust.requestAdjust()}
       className={cn(
-        // The `icon` size is 40 px; bump to the 44 px WCAG 2.5.5 floor on
-        // mobile and settle back to the 40 px that matches the sibling
-        // Coach icon from `sm` up, so the cluster reads as one on desktop.
-        "text-muted-foreground hover:text-foreground size-11 sm:size-10",
+        // The `icon` size is a flat 40 px — identical to the sibling Coach
+        // sparkle icon — so the gear + Coach read as one even-weighted icon
+        // cluster top-right of the heading on every breakpoint.
+        //
+        // The 40 px visual box is below the WCAG 2.5.5 (44 px) floor, so a
+        // transparent `::before` overlay extends the *hit* area by 6 px on
+        // every side (40 + 2×6 = 52 px) without enlarging the painted box.
+        // This keeps the touch target comfortable while the gear stays
+        // visually equal to the Coach icon.
+        "text-muted-foreground hover:text-foreground relative size-10",
+        "before:absolute before:-inset-1.5 before:content-['']",
         className,
       )}
     >
