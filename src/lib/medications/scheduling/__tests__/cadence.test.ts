@@ -267,6 +267,66 @@ describe("pairDoses", () => {
     expect(paired[0].status).toBe("missed");
   });
 
+  it("widens the match radius for a sparse (weekly) cadence via the half-gap rule", () => {
+    // Two weekly slots seven days apart. An intake landing 2 days after
+    // the first slot (48h — far outside the legacy ±12h radius) must pair
+    // to that first slot, because half the 7-day gap is ~3.5 days.
+    const NOW = d("2025-06-20T12:00:00");
+    const slots = [
+      {
+        day: d("2025-06-02T00:00:00"),
+        windowStart: d("2025-06-02T08:00:00"),
+        windowEnd: d("2025-06-02T09:00:00"),
+        scheduleIndex: 0,
+      },
+      {
+        day: d("2025-06-09T00:00:00"),
+        windowStart: d("2025-06-09T08:00:00"),
+        windowEnd: d("2025-06-09T09:00:00"),
+        scheduleIndex: 0,
+      },
+    ];
+    const events = [
+      {
+        scheduledFor: d("2025-06-04T19:00:00"), // Wed, ~2.5 days after slot 1
+        takenAt: d("2025-06-04T19:00:00"),
+        skipped: false,
+      },
+    ];
+    const paired = pairDoses(slots, events, NOW);
+    expect(paired[0].status).toBe("taken");
+    expect(paired[1].status).toBe("missed");
+  });
+
+  it("honours a caller-supplied radius floor when the window holds a single slot", () => {
+    // A single weekly slot — no neighbour to derive a half-gap from. The
+    // caller (buildCadenceTimeline) passes the schedule's cadence-derived
+    // floor so the off-time intake still pairs.
+    const NOW = d("2025-06-20T12:00:00");
+    const slots = [
+      {
+        day: d("2025-06-16T00:00:00"),
+        windowStart: d("2025-06-16T08:00:00"),
+        windowEnd: d("2025-06-16T09:00:00"),
+        scheduleIndex: 0,
+      },
+    ];
+    const events = [
+      {
+        scheduledFor: d("2025-06-16T23:00:00"), // 15h after the 08:00 slot
+        takenAt: d("2025-06-16T23:00:00"),
+        skipped: false,
+      },
+    ];
+    // Without a floor the legacy 12h radius drops it.
+    expect(pairDoses(slots, events, NOW)[0].status).toBe("missed");
+    // With a 3.5-day floor (half a weekly gap) it pairs.
+    const withFloor = pairDoses(slots, events, NOW, {
+      radiusFloorMs: 3.5 * 24 * 60 * 60 * 1000,
+    });
+    expect(withFloor[0].status).toBe("taken");
+  });
+
   it("never double-claims a single event across two close slots", () => {
     const dailySched = {
       windowStart: "08:00",
@@ -316,6 +376,32 @@ describe("buildCadenceTimeline", () => {
   it("returns empty for a paused schedule list", () => {
     const NOW = d("2025-06-10T12:00:00");
     expect(buildCadenceTimeline([], [], NOW, 30)).toEqual([]);
+  });
+
+  it("pairs off-time weekly intakes via the schedule-derived radius floor (Mounjaro 0% repro)", () => {
+    // A weekly Monday schedule with intakes logged the same Monday but in
+    // the evening (22:00 — outside the legacy ±12h radius). Pre-fix every
+    // slot read `missed`; the timeline now pairs each one.
+    const weekly: ScheduleLike = {
+      windowStart: "07:30",
+      windowEnd: "08:30",
+      daysOfWeek: "1",
+    };
+    const NOW = d("2025-06-11T12:00:00"); // Wednesday
+    const events = Array.from({ length: 4 }, (_, i) => {
+      const at = d(
+        new Date(
+          new Date("2025-06-09T22:00:00").getTime() -
+            i * 7 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
+      );
+      return { scheduledFor: at, takenAt: at, skipped: false };
+    });
+    const timeline = buildCadenceTimeline([weekly], events, NOW, 30);
+    const taken = timeline.filter((t) => t.status === "taken").length;
+    const missed = timeline.filter((t) => t.status === "missed").length;
+    expect(taken).toBeGreaterThan(0);
+    expect(missed).toBe(0);
   });
 });
 
