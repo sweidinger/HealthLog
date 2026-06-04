@@ -94,6 +94,8 @@ const SOURCE_LABEL_KEYS: Record<string, string> = {
   // `recovery` ladder for native-vs-derived ordering).
   WHOOP: "settings.sections.sources.sourceLabels.WHOOP",
   COMPUTED: "settings.sections.sources.sourceLabels.COMPUTED",
+  // v1.12.0 — Fitbit/Pixel native source.
+  FITBIT: "settings.sections.sources.sourceLabels.FITBIT",
 };
 
 const DEVICE_TYPE_LABEL_KEYS: Record<DeviceType, string> = {

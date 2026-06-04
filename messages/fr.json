@@ -197,6 +197,7 @@
     "collapseSidebar": "Réduire",
     "userMenu": "Menu utilisateur",
     "mood": "Humeur",
+    "workouts": "Entraînements",
     "skipToContent": "Aller au contenu",
     "sidebar": "Barre latérale",
     "mainNavigation": "Navigation principale",
@@ -205,7 +206,17 @@
     "loadingScreen": "Chargement…",
     "more": "Plus",
     "moreSheetTitle": "Plus",
-    "moreSheetDescription": "Pages qui ne tiennent pas dans la barre du bas."
+    "moreSheetDescription": "Accédez au reste de HealthLog.",
+    "capture": {
+      "title": "Enregistrer",
+      "description": "Que souhaitez-vous enregistrer ?",
+      "measurement": "Mesure",
+      "measurementDescription": "Poids, tension artérielle, pouls et plus",
+      "medication": "Médicament",
+      "medicationDescription": "Marquer une dose comme prise",
+      "mood": "Humeur",
+      "moodDescription": "Enregistrer l'humeur et les tags"
+    }
   },
   "auth": {
     "login": "Se connecter",
@@ -264,6 +275,7 @@
     "quickAddMeasurement": "Saisir une mesure",
     "quickAddMood": "Saisir une humeur",
     "quickAddMedicationIntake": "Saisir une prise",
+    "customizeDashboard": "Personnaliser le tableau de bord",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Saisir une prise de médicament",
       "sheetDescription": "Enregistre la dose, l’heure et le médicament en quelques touches.",
@@ -469,6 +481,10 @@
     "addEntry": "Ajouter",
     "editEntry": "Modifier l’entrée",
     "moodLevel": "Humeur",
+    "heroQuestion": "Comment vas-tu ?",
+    "factorYes": "Oui",
+    "factorNo": "Non",
+    "factorRatingOption": "{label} : {value} sur {max}",
     "tags": "Étiquettes",
     "tagsPlaceholder": "p. ex. sport, travail, famille",
     "tagsHelp": "Sépare par des virgules",
@@ -510,7 +526,9 @@
       "sleep": "Sommeil",
       "health": "Santé",
       "social": "Social",
-      "work": "Travail"
+      "work": "Travail",
+      "hobbies": "Loisirs",
+      "factors": "Facteurs"
     },
     "tag": {
       "happy": "heureux",
@@ -542,7 +560,21 @@
       "overtime": "heures sup",
       "dayOff": "jour de repos",
       "travel": "voyage",
-      "sickDay": "jour de maladie"
+      "sickDay": "jour de maladie",
+      "movies": "films",
+      "reading": "lecture",
+      "gaming": "jeux vidéo",
+      "music": "musique",
+      "outdoors": "plein air",
+      "fastFood": "fast-food",
+      "noSweets": "sans sucreries",
+      "bigMeal": "gros repas",
+      "factorWork": "travail",
+      "factorSocial": "vie sociale",
+      "factorSleepQuality": "qualité du sommeil",
+      "factorStress": "stress",
+      "factorConflict": "conflit",
+      "factorFamily": "famille"
     }
   },
   "medications": {
@@ -1035,6 +1067,9 @@
     "injectionSiteBodyOutlineAriaLabel": "Silhouette du corps",
     "injectionSitePickerAriaLabel": "Sélecteur de site d'injection",
     "injectionSiteRecommendedAriaLabel": "{site} — prochain site recommandé",
+    "injectionSiteLegendAriaLabel": "Légende des repères",
+    "injectionSiteLegendRecommended": "Prochain site recommandé",
+    "injectionSiteLegendLastUsed": "Dernier site utilisé",
     "siteAbdomenLeft": "Abdomen, en bas à gauche",
     "siteAbdomenRight": "Abdomen, en bas à droite",
     "siteAbdomenUpperLeft": "Abdomen, en haut à gauche",
@@ -1687,7 +1722,6 @@
     },
     "correlationRow": {
       "title": "Corrélations",
-      "subtitle": "Hypothèses prédéfinies, validées si n ≥ 14 et p < 0,05",
       "disclaimer": "Les corrélations sont observationnelles, pas causales — parle à ton médecin si ta tension est élevée.",
       "experimentCta": "Lancer une expérience de 7 jours",
       "experimentTooltip": "Bientôt disponible",
@@ -1715,6 +1749,8 @@
       "errorCredentialExpired": "Ta connexion au fournisseur d'IA a expiré. Reconnecte-la dans les Réglages pour que le Coach continue de fonctionner.",
       "tagline": "Coach personnel de santé, ancré sur tes données.",
       "newChat": "Nouvelle conversation",
+      "maximizeAriaLabel": "Ouvrir en pleine page",
+      "minimizeAriaLabel": "Revenir au panneau",
       "send": "Envoyer",
       "stop": "Arrêter",
       "thinking": "Réflexion en cours…",
@@ -1978,6 +2014,14 @@
         "bpRange": "Cible : {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
         "inTargetShare": "{pct}% des jours enregistrés dans la cible",
         "adjustLink": "Ajuster la plage cible"
+      },
+      "primary": {
+        "avg30Label": "Moyenne sur 30 jours",
+        "inRangeLabel": "Dans la cible",
+        "inRangeAria": "{pct}% des jours enregistrés dans la cible"
+      },
+      "lastMeasurement": {
+        "label": "Dernière mesure"
       },
       "explainer": {
         "trigger": "Qu'est-ce que {title} ?",
@@ -2561,8 +2605,22 @@
         "description": "Les tags et mesures qui coïncident avec vos jours de meilleure et de moins bonne humeur, classés selon la force du lien.",
         "disclaimer": "Des associations seulement, pas des causes. Parlez-en à votre médecin avant de changer quoi que ce soit."
       },
+      "crosstab": {
+        "title": "Tags et vos métriques de santé",
+        "description": "Comment une métrique de santé diffère les jours où vous avez ajouté chaque tag, par rapport aux jours sans.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Énergie active",
+        "metricSleepDuration": "Sommeil",
+        "metricNextDayRecovery": "Récupération le lendemain",
+        "unitHours": "h",
+        "unitKcal": "kcal",
+        "unitScore": "pts",
+        "detailSameDay": "En moyenne {withAvg} {unit} les {withDays} jours avec ce tag contre {withoutAvg} {unit} sans.",
+        "detailNextDay": "En moyenne {withAvg} {unit} le lendemain des {withDays} jours avec ce tag contre {withoutAvg} {unit} sinon.",
+        "disclaimer": "Ce sont des associations dans vos propres données, pas une preuve de cause. Des tendances à surveiller."
+      },
       "discovery": {
-        "title": "Tendances détectées",
+        "title": "Ce qui ressort",
         "description": "Des relations d'un jour à l'autre autour de votre humeur qui tiennent après correction des tests multiples.",
         "footer": "Issues de {tested} paires d'un jour à l'autre testées sur l'ensemble de vos mesures, après correction des fausses découvertes.",
         "empty": "Aucune relation d'humeur n'a encore franchi le seuil statistique. Continuez à enregistrer.",
@@ -2737,7 +2795,7 @@
         "label": "Plusieurs constantes hors référence",
         "summary": "Aujourd’hui, {count} de vos constantes sont sorties de leur plage personnelle.",
         "vitals": "Hors plage : {list}",
-        "cardTitle": "Signal du jour",
+        "cardTitle": "Signaux du jour",
         "allClear": "Aujourd’hui, toutes vos constantes sont dans leur plage personnelle.",
         "allClearMeta": "{count} de vos constantes vérifiées par rapport à votre propre plage habituelle.",
         "watch": "Aujourd’hui, une constante est hors de sa plage habituelle.",
@@ -2751,7 +2809,8 @@
         "headline": "Si ce schéma se poursuit — les {days} prochains jours",
         "range": "Projeté autour de {low}–{high} {unit} dans {days} jours.",
         "caveat": "Une projection de votre propre tendance récente, pas une prédiction. La bande ombrée s’élargit pour montrer la vitesse à laquelle l’incertitude augmente.",
-        "insufficient": "Pas encore de tendance assez nette pour projeter — continuez à enregistrer et une projection apparaîtra dès que le schéma récent sera suffisamment marqué."
+        "insufficient": "Pas encore de tendance assez nette pour projeter — continuez à enregistrer et une projection apparaîtra dès que le schéma récent sera suffisamment marqué.",
+        "daysNeeded": "Encore environ {count} jours d’enregistrement nécessaires avant qu’une projection puisse apparaître."
       }
     },
     "cardioFitness": {
@@ -3086,7 +3145,7 @@
         "description": "Par métrique : votre propre plage cible pour des valeurs saines."
       },
       "sources": {
-        "title": "Sources",
+        "title": "Priorité des sources",
         "description": "Choisissez quelle source prévaut quand plusieurs enregistrent la même métrique le même jour.",
         "cardTitle": "Priorité des sources par métrique",
         "help": "Lorsque plusieurs sources fournissent la même valeur le même jour (p. ex. Withings et Apple Health indiquent tous deux 1 200 pas), la source en tête compte comme la lecture canonique. Les autres sources restent enregistrées pour la piste d’audit.",
@@ -3129,6 +3188,7 @@
           "MANUAL": "Saisie manuelle",
           "IMPORT": "Importer",
           "WHOOP": "WHOOP",
+          "FITBIT": "Fitbit",
           "COMPUTED": "Calculé"
         },
         "deviceLabels": {
@@ -3196,7 +3256,7 @@
         }
       },
       "about": {
-        "title": "À propos",
+        "title": "À propos de cette app",
         "description": "Version, licence, liens."
       },
       "sharing": {
@@ -3491,6 +3551,33 @@
     "whoopConnect": "Se connecter avec WHOOP",
     "whoopNoCredentials": "Veuillez saisir vos identifiants API ci-dessus pour connecter WHOOP.",
     "whoopBackfillInProgress": "Importation de votre historique WHOOP en arrière-plan…",
+    "fitbit": "Google Health",
+    "fitbitTag": "Fitbit et Pixel",
+    "fitbitDescription": "Connectez Google Health pour synchroniser vos données Fitbit et Pixel Watch : poids, masse grasse, fréquence cardiaque au repos, saturation en oxygène, variabilité de la fréquence cardiaque et plus encore.",
+    "fitbitOverlapNote": "Si Google Health et une autre source fournissent la même constante vitale — fréquence cardiaque au repos, saturation en oxygène, température corporelle ou fréquence respiratoire —, vous pourriez voir les deux valeurs jusqu'à ce qu'une future mise à jour retienne une seule source préférée.",
+    "fitbitExperimentalBadge": "Expérimental",
+    "fitbitExperimentalNote": "Cette intégration est en bêta : la couverture des données et la correspondance des champs sont encore en cours de vérification avec de vrais comptes Google Health, donc certaines valeurs peuvent manquer ou changer lors d'une future mise à jour.",
+    "fitbitCredentials": "Identifiants d'API",
+    "fitbitCredentialsHelp": "Enregistrez votre propre client OAuth Google Cloud pour l'API Google Health et collez ici son Client ID et son Client Secret.",
+    "fitbitClientId": "Client ID",
+    "fitbitClientSecret": "Client Secret",
+    "fitbitCredentialsSaved": "Identifiants enregistrés",
+    "fitbitCredentialsSavedPlaceholder": "Enregistré — saisissez-en de nouveaux pour remplacer",
+    "fitbitCredentialsSavedPlaceholderSecret": "Enregistré — saisissez-en de nouveaux pour remplacer",
+    "fitbitSaveCredentials": "Enregistrer les identifiants",
+    "fitbitSync": "Synchroniser maintenant",
+    "fitbitFullSync": "Tout synchroniser",
+    "fitbitFullSyncTitle": "Synchronisation complète ?",
+    "fitbitFullSyncDescription": "Tout l'historique Google Health disponible sera entièrement synchronisé. Cela peut prendre un certain temps selon votre historique.",
+    "fitbitSyncResult": "{count} mesures synchronisées",
+    "fitbitSyncFailed": "Échec de la synchronisation",
+    "fitbitSynchronize": "Synchroniser",
+    "fitbitDisconnect": "Déconnecter",
+    "fitbitDisconnectTitle": "Déconnecter Google Health ?",
+    "fitbitDisconnectDescription": "La connexion à Google Health sera déconnectée. Les données déjà synchronisées seront conservées.",
+    "fitbitConnect": "Se connecter à Google Health",
+    "fitbitNoCredentials": "Veuillez saisir vos identifiants d'API ci-dessus pour connecter Google Health.",
+    "fitbitBackfillInProgress": "Importation de votre historique Google Health en arrière-plan…",
     "integrations": {
       "withings": {
         "reconnect": {
@@ -3569,6 +3656,7 @@
     "savingError": "Erreur lors de l’enregistrement",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood data from moodLog",
+    "moodLogDeprecated": "Obsolète : l’humeur est désormais suivie nativement dans HealthLog avec tags et facteurs. Cette intégration fonctionne encore mais sera supprimée dans une version future.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "Clé API",

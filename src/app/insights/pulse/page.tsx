@@ -13,6 +13,9 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { MetricPrimaryTile } from "@/components/insights/metric-primary-tile";
+import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
+import { MetricCorrelationCard } from "@/components/insights/metric-correlation-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
@@ -52,6 +55,8 @@ export default function InsightsPulsPage() {
   // the same key).
   const { data: analytics, isEmpty } = useInsightsAnalytics("PULSE");
   const vo2Summary = analytics?.summaries?.VO2_MAX ?? null;
+  const pulseSummary = analytics?.summaries?.PULSE ?? null;
+  const pulseLastSeenAt = analytics?.lastSeenByType?.PULSE?.lastSeenAt ?? null;
 
   // v1.4.27 F17 — gate the sub-page on at least one pulse observation.
   // Brand-new accounts (no manual logs, no Apple-Health upload yet)
@@ -116,12 +121,13 @@ export default function InsightsPulsPage() {
       title={t("insights.pulseSectionTitle")}
       description={t("insights.subPage.pulsDescription")}
       explainerMetric="pulse"
-      statStrip={
-        <MetricStatStrip
-          summary={analytics?.summaries?.PULSE ?? null}
-          unit="bpm"
-        />
+      primary={
+        <>
+          <MetricPrimaryTile summary={pulseSummary} unit="bpm" slug="pulse" />
+          <MetricLastMeasurementCard lastSeenAt={pulseLastSeenAt} />
+        </>
       }
+      statStrip={<MetricStatStrip summary={pulseSummary} unit="bpm" />}
       diversityNudge={
         <MeasurementDiversityNudge
           measurementType="PULSE"
@@ -132,7 +138,6 @@ export default function InsightsPulsPage() {
       coachLaunch
       showAllValuesType="PULSE"
     >
-      <MetricRangeControls measurementType="PULSE" enabled={!isEmpty} />
       <HealthChartDynamic
         chartKey="pulse"
         types={["PULSE"]}
@@ -143,18 +148,10 @@ export default function InsightsPulsPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
+      <MetricRangeControls measurementType="PULSE" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="pulse" />
-
-      <InsightStatusCard
-        title={t("insights.assessmentTitle")}
-        icon={<Heart className="h-5 w-5" />}
-        text={status?.text ?? null}
-        hasProvider={status?.hasProvider ?? false}
-        updatedAt={status?.updatedAt ?? null}
-        loading={isStatusLoading}
-        preparing={status?.preparing ?? false}
-      />
 
       {/* v1.4.25 W16a — VO2 max sits on the cardio sub-page because it
           is a cardio-fitness metric (Apple's Health app surfaces it
@@ -166,6 +163,22 @@ export default function InsightsPulsPage() {
         summary={vo2Summary}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
+      />
+
+      {/* v1.12.0 — Pulse owns the mood × pulse correlation (relocated off
+          the overview onto its metric page). */}
+      <MetricCorrelationCard slug="pulse" />
+
+      {/* v1.12.0 — Einschätzung is the last block on the canonical
+          metric-detail spine. */}
+      <InsightStatusCard
+        title={t("insights.assessmentTitle")}
+        icon={<Heart className="h-5 w-5" />}
+        text={status?.text ?? null}
+        hasProvider={status?.hasProvider ?? false}
+        updatedAt={status?.updatedAt ?? null}
+        loading={isStatusLoading}
+        preparing={status?.preparing ?? false}
       />
     </SubPageShell>
   );

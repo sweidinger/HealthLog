@@ -1,16 +1,18 @@
 /**
- * v1.4.16 Wave-C MED — bottom-nav 5+More layout.
+ * Bottom-nav iOS-parity layout (additive middle-path).
  *
  * SSR contract for `<BottomNav>`:
- *   - exactly five primary links + one "More" button render in the strip
- *   - the More button is keyboard-reachable as a `<button>` with
- *     `aria-haspopup="dialog"`
- *   - Achievements lives in the More sheet (closed by default under SSR),
- *     not in the always-visible strip
- *   - WCAG 2.5.5 floor: every entry is `min-h-11 min-w-11`
+ *   - the mobile bar is Home · Meds · Log(center) · Insights · More
+ *   - the center "Log" slot is a capture ACTION (a `<button>` with
+ *     `aria-haspopup="dialog"`), not a navigation link
+ *   - the More button opens a hub (closed by default under SSR)
+ *   - the More hub is a real hub: Measurements + Mood (which left the
+ *     always-visible strip) stay reachable here, alongside Workouts,
+ *     Achievements, Notifications and Settings — nothing is orphaned
+ *   - WCAG 2.5.5 floor: every strip entry is `min-h-11 min-w-11`
  *
  * v1.8.6 — the Targets (Zielwerte) page is deprecated and dropped from
- * the menu, so it no longer appears in the strip or the overflow set.
+ * the menu, so it no longer appears in the strip or the hub.
  */
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -33,18 +35,21 @@ function render() {
   );
 }
 
-describe("<BottomNav> 5+More layout", () => {
-  it("renders the five primary anchors", () => {
+describe("<BottomNav> iOS-parity layout", () => {
+  it("renders the flanking primary anchors (Home, Meds, Insights)", () => {
     const html = render();
-    for (const href of [
-      "/",
-      "/measurements",
-      "/mood",
-      "/medications",
-      "/insights",
-    ]) {
+    for (const href of ["/", "/medications", "/insights"]) {
       expect(html).toContain(`href="${href}"`);
     }
+  });
+
+  it("renders the center capture action as a dialog-opening button, not a link", () => {
+    const html = render();
+    expect(html).toContain('data-testid="bottom-nav-capture"');
+    // The capture button opening tag carries aria-haspopup="dialog".
+    const capture = html.match(/<button[^>]*bottom-nav-capture[^>]*>/);
+    expect(capture).not.toBeNull();
+    expect(capture![0]).toMatch(/aria-haspopup="dialog"/);
   });
 
   it("renders an overflow More button via aria-haspopup", () => {
@@ -54,28 +59,49 @@ describe("<BottomNav> 5+More layout", () => {
     expect(html).toMatch(/aria-expanded="false"/);
   });
 
-  it("each primary entry meets the 44 px tap-target floor (min-h-11 min-w-11)", () => {
+  it("does not render Measurements or Mood as always-visible strip links", () => {
+    // Measurements + Mood left the always-visible strip when the center
+    // capture action took the middle slot; they live in the More hub
+    // (rendered on open — exercised in e2e) plus the capture picker.
+    // The closed-hub SSR markup must therefore carry neither as a strip
+    // anchor, and the capture/More affordances replace them.
     const html = render();
-    // Count `min-h-11 min-w-11` occurrences. Six is the expected floor
-    // (five anchors + the More button); we don't hard-pin because a
-    // future entry would also satisfy the contract.
+    expect(html).not.toContain('href="/measurements"');
+    expect(html).not.toContain('href="/mood"');
+    // The replacements that keep those surfaces reachable are present.
+    expect(html).toContain('data-testid="bottom-nav-capture"');
+    expect(html).toContain('data-testid="bottom-nav-more"');
+  });
+
+  it("each strip entry meets the 44 px tap-target floor (min-h-11 min-w-11)", () => {
+    const html = render();
+    // The four flanking strip slots (Home, Meds, Insights, More) carry
+    // `min-h-11 min-w-11`. We don't hard-pin the count because a future
+    // entry would also satisfy the contract.
     const matches = html.match(/min-h-11 min-w-11/g) ?? [];
-    expect(matches.length).toBeGreaterThanOrEqual(6);
+    expect(matches.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("the center capture FAB is a larger, elevated tap target", () => {
+    const html = render();
+    // The FAB clears the 44px floor with a 56px (h-14 w-14) target and
+    // is lifted out of the bar (negative top margin + card ring + raised
+    // shadow) so it reads as the primary CTA, not a flush fifth tab.
+    const capture = html.match(/<button[^>]*bottom-nav-capture[^>]*>/);
+    expect(capture).not.toBeNull();
+    expect(capture![0]).toMatch(/h-14 w-14/);
+    expect(capture![0]).toMatch(/-mt-5/);
+    expect(capture![0]).toMatch(/ring-4/);
+    expect(capture![0]).toMatch(/shadow-lg/);
   });
 
   it("no longer lists the deprecated /targets entry (v1.8.6)", () => {
-    // Targets was dropped from the OVERFLOW set; the strip never carried
-    // it. The closed-sheet SSR render must therefore contain no /targets
-    // link — a regression net against the entry creeping back into the
-    // primary strip or the overflow set.
     const html = render();
     expect(html).not.toContain('href="/targets"');
   });
 
   it("More button carries an accessible label", () => {
     const html = render();
-    // Attribute order isn't guaranteed by React's renderer, so match
-    // both possible directions instead of pinning the order.
     const hasLabelFirst =
       /aria-label="More"[^>]*data-testid="bottom-nav-more"/.test(html);
     const hasTestidFirst =

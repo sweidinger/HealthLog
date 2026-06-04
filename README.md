@@ -21,7 +21,7 @@
 
 <p align="center">
   Self-hosted health tracker. Weight, blood pressure, glucose, mood, medications.<br/>
-  Withings, WHOOP, and Apple Health sync, multi-provider AI Insights you own, doctor-report PDF.
+  Withings, WHOOP, Google Health/Fitbit, and Apple Health sync, multi-provider AI insights you own, doctor-report PDF.
 </p>
 
 <p align="center">
@@ -36,9 +36,9 @@
 
 ## What it is
 
-HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESH 2023, ADA 2024, and NICE NG115. Withings and WHOOP devices sync automatically over OAuth2; an `export.zip` import folds your full Apple Health history into the same timeline; a native SwiftUI iOS client (public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa)) streams HealthKit live; multi-provider AI Insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. AGPL-3.0.
+HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESH 2023, ADA 2024, and NICE NG115. Withings, WHOOP, and Google Health/Fitbit devices sync automatically over OAuth2; an `export.zip` import folds your full Apple Health history into the same timeline; a native SwiftUI iOS client (public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa)) streams HealthKit live; multi-provider AI insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. AGPL-3.0.
 
-> **Status**: active. New releases roughly weekly -- see [CHANGELOG](CHANGELOG.md). Current line: v1.10 — a derived-metrics tier (fitness-age, vascular-age delta, HRV balance, sleep score, readiness and recovery scores, an early-strain flag), each computed from your own measurements and citing its inputs, on top of the v1.7 health-record export (PDF + FHIR R4), flexible medication schedules, and full HealthKit metric coverage. The native iOS client is public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa).
+> **Status**: active. New releases roughly weekly -- see [CHANGELOG](CHANGELOG.md). Current line: v1.12 — a Google Health/Fitbit connection for Fitbit and Pixel wearables (experimental, see [Integrations](#integrations)) and a rebuilt mood log (five-face capture, a structured tag catalog, and rated daily-life factors), on top of the v1.11 mood-relations and sleep-depth insights, a read-only FHIR R4 API with shareable clinician records, the v1.10 derived-metrics tier (fitness-age, vascular-age delta, HRV balance, sleep score, readiness and recovery scores, an early-strain flag), and the v1.7 health-record export (PDF + FHIR R4). The native iOS client is public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa).
 
 > **Heavily developed.** HealthLog ships multiple releases per week. Behaviour, API shapes, and database schema can change between minor versions; migrations are forward-only and not all are rehearsed against every legacy fixture. If you self-host, pin a tag, take a backup before every upgrade, and read the [CHANGELOG](CHANGELOG.md) before pulling `latest`. Issue reports and PRs welcome — this is the rough edge where the project gets sharper.
 
@@ -74,7 +74,7 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 The wrist-band ecosystems are good at what their hardware measures, and HealthLog does not try to be a ring or a strap. It does not ship a sensor, and it does not claim to match one. What it does is take the readings those devices already collect — plus the ones they don't hold, like cuff blood pressure, finger-stick or CGM glucose, and medication intake — and keep them on a server you run.
 
 - **You own the data and the host.** No vendor account, no cloud round-trip, no subscription tier gating a metric you already recorded. AGPL-3.0, single `docker compose up`, encrypted at rest, on your NAS / homelab / VPS.
-- **It aggregates across providers instead of locking you to one.** Withings devices sync over OAuth2, an Apple Health `export.zip` folds your full history in, and the native iOS client streams HealthKit live — so a Withings scale, an Apple Watch, and a glucometer land on one timeline instead of three apps.
+- **It aggregates across providers instead of locking you to one.** Withings and WHOOP devices sync over OAuth2, a Google Health/Fitbit connection pulls Fitbit and Pixel data (experimental), an Apple Health `export.zip` folds your full history in, and the native iOS client streams HealthKit live — so a Withings scale, a WHOOP strap, an Apple Watch, and a glucometer land on one timeline instead of four apps. When two providers report the same metric, a per-metric source priority decides which one is canonical, so a dedicated scale outranks a wrist estimate and cumulative metrics like steps are never double-counted (see [Source priority](#source-priority)).
 - **It carries context the wrist bands don't.** Blood pressure, blood glucose, body composition, and cadence-aware medication compliance sit next to the wearable signals, so a trend reads against the whole picture rather than activity and sleep alone.
 - **The derived metrics are transparent, not a black box.** HealthLog computes a fitness-age and vascular-age delta, an HRV-balance and sleep-score band, a daily readiness and recovery score, and a coincident-deviation early-strain flag — each from your own measurements, each citing the inputs and the published method behind it, each degrading honestly to "not enough data" rather than fabricating a number. These are descriptive wellness framings, not clinical or training-grade assessments, and a score is only stored once its minimum inputs are present.
 
@@ -90,15 +90,19 @@ HealthLog is the right fit when you want your wearable and clinical numbers in o
 
 **Customizable Dashboard** -- Show, hide, and drag-to-reorder every widget. Per-user layout with reset-to-defaults.
 
-**Mood Logging** -- 5-point scale with tags, notes, and trend analytics. Syncs automatically from moodLog.app via webhook.
+**Mood Logging** -- A five-face mood capture (a 1–5 scale) backed by a structured tag catalog and rated daily-life factors. Pick binary tags from categories covering feelings, sleep, health (including nutrition tags like ate-well, fast-food, no-sweets, big-meal), social, work, and hobbies; score rated factors — work, social, sleep quality, stress, and conflict — on their own scale (1–5, or yes/no for conflict), with stress and conflict flagged as inverse so a higher score reads as a worse day. Add a free-text note, then read it back through trend analytics and a mood-relations surface that associates your tags and factors with your other metrics. The standalone moodLog.app webhook is deprecated now that mood is tracked fully inside HealthLog; it stays functional for existing integrations.
 
 **Medication Compliance** -- Flexible scheduling driven by a single recurrence engine: time windows, day-of-week recurrence, `intervalWeeks`, rolling intervals, RFC-5545 RRULE, one-time doses, as-needed (PRN), and cyclic on/off-week plans — so once-weekly GLP-1 injections, weekday-only doses, and non-daily plans score honestly against their real cadence rather than a daily denominator, everywhere from the dashboard tile to the detail page. Route of administration (oral / injection / other) carries the injection-site picker for any injection. Take / skip / snooze logging, compliance heatmaps, GLP-1 pen-inventory + injection-site rotation, structured side-effect tracking. External API for iOS Shortcuts integration.
 
 **Withings Integration** -- OAuth2 device sync for scales, blood pressure monitors, and activity trackers with automatic deduplication.
 
+**WHOOP Integration** -- Connect a WHOOP account with your own WHOOP developer OAuth client (client id/secret pasted into Settings, stored encrypted). Recovery, strain, sleep, body, and workout data sync server-side over OAuth2, with a connection test, manual sync (incremental or full history), and a resume control to recover from a revoked grant.
+
+**Google Health / Fitbit Integration** _(experimental)_ -- Connect Fitbit and Pixel data through Google's Health API on your own Google Cloud OAuth client (client id/secret in Settings, encrypted at rest). Activity (steps, distance, active energy, floors, VO₂ max), health metrics (weight, body fat, SpO₂, resting heart rate, HRV, respiratory rate, wrist temperature, spot heart rate), per-stage sleep, and exercise workouts import server-side with the same connection-test / sync / resume controls as WHOOP. Because the Google Health API is young and several per-type value fields are not yet fully published, this connection is **experimental** — some data types may import nothing until the wire mapping is verified against a live account, and each operator's OAuth client needs Google brand verification plus an annual CASA assessment before it can leave Testing mode.
+
 **Apple Health import** -- Drop your iOS `export.zip` on the import page. A streaming parser handles multi-gigabyte archives (Zip64), folds every `<Record>`, `<Workout>`, `<Correlation>`, and `<ClinicalRecord>` into the same timeline as your other metrics, and stays idempotent on re-upload. Per-type ingestion stats plus a live status endpoint so you can watch the progress on a long historical drain.
 
-**AI Coach + Insights** -- A conversational Coach grounded in your own data, a daily briefing, a weekly report, and a Health Score tile on the dashboard. Pick OpenAI, Anthropic Claude, ChatGPT via Codex device-OAuth (no API key needed), or any OpenAI-compatible local endpoint (Ollama, LM Studio, vLLM). BYOK or admin-shared. Feed the Coach a chosen set of data clusters (cardiovascular, body composition, activity, workouts, sleep, mood, glucose, medication, mobility, environment) with a soft budget cap that degrades the lowest-signal clusters first. Every claim links back to the measurements that produced it. The Coach now reads your history longitudinally — a narrative of how a metric has moved and a per-metric trajectory framing — so an answer reflects the direction of travel rather than only the latest reading. Local endpoints keep all data on your network.
+**AI Coach + Insights** -- Multi-provider, evidence-grounded health insights: per-metric assessments that read each vital against its reference range, correlations across your metrics, a daily briefing, a weekly report, a Health Score tile, and a conversational Coach grounded in your own data. Pick OpenAI, Anthropic Claude, ChatGPT via Codex device-OAuth (no API key needed), or any OpenAI-compatible local endpoint (Ollama, LM Studio, vLLM). BYOK or admin-shared. Feed the Coach a chosen set of data clusters (cardiovascular, body composition, activity, workouts, sleep, mood, glucose, medication, mobility, environment) with a soft budget cap that degrades the lowest-signal clusters first. Every claim links back to the measurements that produced it. The Coach now reads your history longitudinally — a narrative of how a metric has moved and a per-metric trajectory framing — so an answer reflects the direction of travel rather than only the latest reading. Local endpoints keep all data on your network.
 
 **Derived wellness metrics** -- A transparent metrics tier computed from your own measurements: a fitness-age band from VO₂max, a vascular-age delta, an HRV-balance band, a sleep score, a daily readiness and a stored recovery score, plus a coincident-deviation early-strain flag. Each one re-frames or blends signals you already recorded against age/sex norms or your personal baseline, cites the inputs and the published method behind it, and returns "not enough data" rather than a fabricated value when its minimum inputs are missing. The recovery score persists as a daily 0–100 series the dashboard, charts, and native client read without recomputing. These are descriptive wellness framings — not clinical or training-grade assessments.
 
@@ -217,6 +221,7 @@ HealthLog is designed for people who take data ownership seriously.
 | `WITHINGS_WEBHOOK_SECRET` | Webhook URL hardening secret                         |
 | `WHOOP_REDIRECT_URI`      | WHOOP OAuth callback URL (client id/secret set in Settings) |
 | `WHOOP_WEBHOOK_SECRET`    | HMAC secret for WHOOP webhook signature verification |
+| `FITBIT_REDIRECT_URI`     | Google Health/Fitbit OAuth callback URL (defaults to `<NEXT_PUBLIC_APP_URL>/api/fitbit/callback`; client id/secret set in Settings) |
 | `TELEGRAM_WEBHOOK_SECRET` | Telegram bot webhook secret                          |
 
 Telegram bot token, ntfy settings, Web Push VAPID keys, Umami, and GlitchTip URLs are configured in the **Admin Panel** and stored encrypted in the database.
@@ -318,7 +323,9 @@ All mutations require authentication via session cookie. External ingest uses Be
 | `POST`   | `/api/mood-entries`                 | Create mood entry    |
 | `DELETE` | `/api/mood-entries/:id`             | Delete mood entry    |
 | `GET`    | `/api/mood/analytics`               | Mood trend analytics |
-| `POST`   | `/api/integrations/moodlog/webhook` | moodLog.app webhook  |
+| `GET`    | `/api/mood/tags`                    | Structured mood-tag + rated-factor catalog |
+| `GET`    | `/api/mood/insights`                | Mood-relations associations |
+| `POST`   | `/api/integrations/moodlog/webhook` | moodLog.app webhook (deprecated) |
 
 </details>
 
@@ -358,6 +365,14 @@ All mutations require authentication via session cookie. External ingest uses Be
 | `GET`   | `/api/withings/connect`          | Initiate Withings OAuth             |
 | `POST`  | `/api/withings/sync`             | Trigger manual Withings sync        |
 | `POST`  | `/api/withings/webhook`          | Withings notification webhook       |
+| `GET`   | `/api/whoop/connect`             | Initiate WHOOP OAuth                 |
+| `POST`  | `/api/whoop/sync`                | Manual WHOOP sync (`{ fullSync }` for full history) |
+| `POST`  | `/api/integrations/whoop/test`   | Probe a saved WHOOP connection      |
+| `POST`  | `/api/integrations/whoop/resume` | Resume a WHOOP connection after a revoked grant |
+| `GET`   | `/api/fitbit/connect`            | Initiate Google Health/Fitbit OAuth |
+| `POST`  | `/api/fitbit/sync`               | Manual Fitbit sync (`{ fullSync }` for full history) |
+| `POST`  | `/api/integrations/fitbit/test`  | Probe a saved Google Health/Fitbit connection |
+| `POST`  | `/api/integrations/fitbit/resume`| Resume a Fitbit connection after a revoked grant |
 | `POST`  | `/api/insights/generate`         | Regenerate AI insights              |
 | `GET`   | `/api/insights/comprehensive`    | Aggregated insight payload          |
 | `GET`   | `/api/gamification/achievements` | Achievement progress                |
@@ -463,17 +478,22 @@ Clinician share-link lifecycle — create a scoped, time-limited link, hand a cl
 
 ## Integrations
 
-| Integration     | Setup         | Purpose                                  |
-| --------------- | ------------- | ---------------------------------------- |
-| **Withings**    | Env vars      | Auto-sync weight, BP, and activity       |
-| **WHOOP**       | User Settings | OAuth2 sync of recovery, strain, and sleep (BYO-keys) |
-| **Telegram**    | Admin Panel   | Medication reminders with inline buttons |
-| **ntfy**        | User Settings | Self-hosted push notifications           |
-| **Web Push**    | Admin Panel   | Browser-native VAPID notifications       |
-| **OpenAI**      | User Settings | AI health insights (BYOK)                |
-| **moodLog.app** | User Settings | Mood tracking sync                       |
-| **Umami**       | Admin Panel   | Privacy-friendly analytics               |
-| **GlitchTip**   | Admin Panel   | Sentry-compatible error tracking         |
+| Integration              | Setup         | Purpose                                  |
+| ------------------------ | ------------- | ---------------------------------------- |
+| **Withings**             | Env vars      | Auto-sync weight, BP, and activity       |
+| **WHOOP**                | User Settings | OAuth2 sync of recovery, strain, sleep, body, and workouts (BYO-keys) |
+| **Google Health / Fitbit** | User Settings | OAuth2 sync of activity, health metrics, sleep, and workouts for Fitbit/Pixel (BYO-keys, **experimental**) |
+| **Telegram**             | Admin Panel   | Medication reminders with inline buttons |
+| **ntfy**                 | User Settings | Self-hosted push notifications           |
+| **Web Push**             | Admin Panel   | Browser-native VAPID notifications       |
+| **OpenAI / Anthropic / local** | User Settings | AI health insights (BYOK or local endpoint) |
+| **moodLog.app**          | User Settings | Mood tracking sync (deprecated — mood is now tracked natively) |
+| **Umami**                | Admin Panel   | Privacy-friendly analytics               |
+| **GlitchTip**            | Admin Panel   | Sentry-compatible error tracking         |
+
+### Source priority
+
+When two providers report the same metric — a Withings scale and an Apple Watch both logging weight, or HealthKit and Fitbit both reporting steps — HealthLog keeps every row as an audit trail but applies a per-metric source priority to decide which reading is canonical. Cumulative metrics (steps, distance, active energy, floors) pick exactly one source per day so they are never double-counted; point measurements (weight, blood pressure, HRV) pick a display-preferred source. The default ladder reflects measurement reliability for each metric class: a dedicated scale outranks a wrist estimate for weight, a recovery strap leads the sleep and HRV ladders, and a cuff leads blood pressure. The ladder is per-user adjustable, and an optional device-type tie-break decides between two devices on the same source. The underlying idea is [data fusion](https://en.wikipedia.org/wiki/Data_fusion) — combining several imperfect sensors into a single, more reliable estimate rather than averaging them blindly.
 
 ---
 
@@ -528,7 +548,8 @@ For a single-process default the same container hosts both the web and worker (`
 | **v1.4.x** | Web maturity — Apple Health import, AI Coach, persistent rollup tier, multi-provider AI, doctor PDF, encryption-key rotation, Coolify autodeploy. Roughly weekly cadence. |
 | **v1.5** | Native iOS client (SwiftUI) in public beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa). Backend contract locked in [`docs/api/openapi.yaml`](docs/api/openapi.yaml); the iOS app lives in a separate repository and ingests via the same `/api/measurements/batch` and `/api/auth/refresh` surfaces the web uses. |
 | **v1.6 – v1.7** | Medication editor overhaul + route of administration (v1.6), then health-record export (PDF + HL7 FHIR R4), flexible schedules (RRULE / rolling / interval-weeks / one-time / PRN / cyclic) with cadence-canonical compliance, full HealthKit metric coverage, a metric/imperial display preference, a first-paint dashboard snapshot, and a sync delta feed for offline clients (v1.7). |
-| **v1.8 – v1.10** (current) | Insights redesign with selectable time ranges (v1.8 – v1.9), then a derived-metrics tier (v1.10): fitness-age, vascular-age delta, HRV balance, sleep score, readiness and recovery scores, and a coincident-deviation early-strain flag — each computed from your own measurements, each citing its inputs and degrading to "not enough data" rather than fabricating a value. |
+| **v1.8 – v1.10** | Insights redesign with selectable time ranges (v1.8 – v1.9), then a derived-metrics tier (v1.10): fitness-age, vascular-age delta, HRV balance, sleep score, readiness and recovery scores, and a coincident-deviation early-strain flag — each computed from your own measurements, each citing its inputs and degrading to "not enough data" rather than fabricating a value. |
+| **v1.11 – v1.12** (current) | WHOOP device sync, a read-only HL7 FHIR R4 API with shareable clinician records, mood-relations and sleep-depth (hypnogram) insights (v1.11); then a Google Health/Fitbit connection for Fitbit and Pixel wearables (experimental) and a rebuilt mood log — five-face capture, a structured tag catalog, and rated daily-life factors (v1.12). |
 | **v2.x** (planned) | Multi-tenant hardening, expanded device passthrough (Garmin / Polar), opt-in cross-user aggregate research mode (off by default; never enabled without explicit consent). |
 
 Two known limitations carry forward from v1.11: dedup across two sources of the same standard vital is deferred (both rows persist, source priority decides display), and the coach's durable conversation-summary / remembered-facts layer is deferred — each answer reasons from your data afresh rather than from a running memory.

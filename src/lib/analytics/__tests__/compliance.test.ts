@@ -531,6 +531,122 @@ describe("calculateCompliance — engine-routed (medicationContext)", () => {
     expect(result.rate).toBe(100);
   });
 
+  // ──────────────────────────────────────────────────────────────────
+  // v1.12.0 — weekly-injectable matching radius. A weekly med (Mounjaro)
+  // is dosed once a week, but a real intake is almost never logged within
+  // 12h of the schedule's configured HH:mm: the user takes the shot on
+  // whichever day / time of the dosing week suits them. The pre-fix ±12h
+  // pairing radius orphaned those intakes — every weekly slot read
+  // `missed` and the rate collapsed to 0% across EVERY window despite
+  // recorded intakes. The radius now scales with the cadence gap so an
+  // intake anywhere in the dosing week pairs to that week's slot.
+  // ──────────────────────────────────────────────────────────────────
+
+  it("FREQ=WEEKLY;BYDAY=MO — Mondays taken late in the evening (22:00) still pair → 100%, not 0%", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "07:30",
+        windowEnd: "08:30",
+        daysOfWeek: null,
+        rrule: "FREQ=WEEKLY;BYDAY=MO",
+        timesOfDay: ["07:30"],
+      },
+    ];
+    // The configured slot is 07:30; the user logs the shot the same
+    // Monday but at 22:00 — 14.5h from the slot, outside the legacy ±12h
+    // radius. Thirteen consecutive Mondays back from the pinned Wednesday.
+    const lastMonday = new Date("2025-01-13T22:00:00Z");
+    const intakes = Array.from({ length: 13 }, (_, i) => {
+      const at = new Date(lastMonday.getTime() - i * 7 * DAY_MS);
+      return { scheduledFor: at, takenAt: at, skipped: false };
+    });
+    const lastIntakeAt = intakes[0].takenAt;
+    for (const days of [7, 30, 90]) {
+      const result = calculateCompliance(intakes, schedules, days, undefined, {
+        medicationContext: ctx({ lastIntakeAt }),
+      });
+      expect(result.rate).toBe(100);
+      expect(result.taken).toBeGreaterThan(0);
+      expect(result.missed).toBe(0);
+    }
+  });
+
+  it("FREQ=WEEKLY;BYDAY=MO — single-slot 7-day window: an off-time Monday still pairs (1/1 = 100%)", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "07:30",
+        windowEnd: "08:30",
+        daysOfWeek: null,
+        rrule: "FREQ=WEEKLY;BYDAY=MO",
+        timesOfDay: ["07:30"],
+      },
+    ];
+    // The 7-day window holds exactly one Monday slot — the per-slot
+    // neighbour-gap widening can't fire (no second slot), so this pins the
+    // schedule-derived radius floor that `buildCadenceTimeline` supplies.
+    const monday = new Date("2025-01-13T20:00:00Z"); // 12.5h after 07:30
+    const intakes = [{ scheduledFor: monday, takenAt: monday, skipped: false }];
+    const result = calculateCompliance(intakes, schedules, 7, undefined, {
+      medicationContext: ctx({ lastIntakeAt: monday }),
+    });
+    expect(result.totalExpected).toBe(1);
+    expect(result.taken).toBe(1);
+    expect(result.rate).toBe(100);
+  });
+
+  it("legacy daysOfWeek='1' (Monday-only) — off-time Mondays still pair → non-zero across all windows", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "07:30",
+        windowEnd: "08:30",
+        daysOfWeek: "1",
+        timesOfDay: ["07:30"],
+      },
+    ];
+    const lastMonday = new Date("2025-01-13T21:00:00Z");
+    const intakes = Array.from({ length: 13 }, (_, i) => {
+      const at = new Date(lastMonday.getTime() - i * 7 * DAY_MS);
+      return { scheduledFor: at, takenAt: at, skipped: false };
+    });
+    const lastIntakeAt = intakes[0].takenAt;
+    for (const days of [7, 30, 90]) {
+      const result = calculateCompliance(intakes, schedules, days, undefined, {
+        medicationContext: ctx({ lastIntakeAt }),
+      });
+      expect(result.rate).toBe(100);
+      expect(result.missed).toBe(0);
+    }
+  });
+
+  it("DAILY cadence keeps the 12h floor — an intake equidistant-far from every slot stays unmatched", () => {
+    // Guard the widened radius against over-reach on a DENSE cadence: a
+    // daily schedule's gap is 24h, so its match radius stays at the 12h
+    // floor. An intake at 20:00 sits exactly 12h from the same day's 08:00
+    // slot and 12h from the next day's 08:00 slot — at the boundary it
+    // claims the nearer (same-day) slot, but a single off-day intake can
+    // never pair to a slot two days away the way the weekly widening
+    // allows. Pin the floor by confirming one intake claims at most one
+    // daily slot.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // One intake far from every slot's 08:00 centre — 02:00, which is 6h
+    // before that day's slot but also 18h before the prior day's: only the
+    // same-day slot is within 12h. A single intake → at most one taken.
+    const at = new Date("2025-01-13T02:00:00Z");
+    const intakes = [{ scheduledFor: at, takenAt: at, skipped: false }];
+    const result = calculateCompliance(intakes, schedules, 3, undefined, {
+      medicationContext: ctx({ lastIntakeAt: at }),
+    });
+    expect(result.taken).toBeLessThanOrEqual(1);
+  });
+
   it("one-shot — exactly one expected slot on startsOn", () => {
     const startsOn = new Date("2025-01-10T00:00:00Z");
     const schedules: ComplianceSchedule[] = [

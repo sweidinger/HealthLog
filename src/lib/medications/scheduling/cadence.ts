@@ -154,8 +154,11 @@ export interface PairedDose extends ExpectedDose {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 /**
- * Match window for pairing an actual intake event to an expected
- * dose: +/- 12 hours around the slot's center.
+ * Base match radius for pairing an actual intake event to an expected
+ * dose: +/- 12 hours around the slot's centre. This is the floor — a
+ * daily (24h-gap) cadence matches inside +/- 12h, and a denser
+ * multi-dose-per-day cadence keeps the same 12h floor so its
+ * historically-pinned matching contract is byte-stable.
  *
  * Rationale: the existing classifyIntakeTiming uses a 3-hour grace
  * around the window + a configurable late tolerance after. For cadence
@@ -164,6 +167,43 @@ const WEEK_MS = 7 * DAY_MS;
  * (and the slot reads `taken`, not `missed` followed by an "extra").
  */
 const PAIR_RADIUS_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * v1.12.0 — derive the per-slot match radius from the gap to its
+ * neighbouring expected slots.
+ *
+ * The fixed +/-12h radius was correct only for a daily cadence (the
+ * inter-slot gap is 24h, so a half-gap of 12h cleanly partitions the
+ * timeline into one Voronoi cell per slot). For a SPARSE cadence — a
+ * weekly injectable (Mounjaro / Ozempic), a bi-weekly or monthly dose —
+ * the gap between expected slots is 7+ days, but a real intake is rarely
+ * logged within 12h of the configured slot instant: the user takes the
+ * shot on whichever day of the dosing week suits them, often at a
+ * different time of day than the schedule's HH:mm. Those intakes then
+ * fell OUTSIDE the 12h radius and every weekly slot read `missed` while
+ * the matching intake was orphaned — the live "0% despite recorded
+ * intakes" defect.
+ *
+ * The radius is half the distance to the nearer neighbour (so two
+ * adjacent slots never both reach the same midpoint and double-claim),
+ * floored at the 12h base so daily / multi-dose-daily cadences keep
+ * their exact pre-fix behaviour. A weekly cadence (168h gap) widens to a
+ * ~3.5-day radius, so an intake logged anywhere in the dosing week pairs
+ * to that week's slot.
+ */
+function slotMatchRadius(
+  centre: number,
+  prevCentre: number | null,
+  nextCentre: number | null,
+): number {
+  const halfToPrev =
+    prevCentre === null ? Infinity : (centre - prevCentre) / 2;
+  const halfToNext =
+    nextCentre === null ? Infinity : (nextCentre - centre) / 2;
+  const halfGap = Math.min(halfToPrev, halfToNext);
+  if (!Number.isFinite(halfGap)) return PAIR_RADIUS_MS;
+  return Math.max(PAIR_RADIUS_MS, halfGap);
+}
 
 // WallClockParts + wallClockInTz live in `@/lib/tz/wall-clock` as the
 // canonical helper — see the file-level comment there for the v1.4.40
@@ -427,8 +467,18 @@ export function pairDoses(
   slots: ExpectedDose[],
   events: IntakeEventLike[],
   now: Date,
+  options?: { radiusFloorMs?: number },
 ): PairedDose[] {
   const claimed = new Set<number>();
+  // v1.12.0 — caller-supplied radius floor. `buildCadenceTimeline` derives
+  // the schedule's intrinsic cadence gap and passes half of it here so a
+  // window that holds a SINGLE expected slot (e.g. a weekly med over a
+  // 7-day window) still widens its match radius — the per-slot
+  // neighbour-gap logic below can only widen when two slots are present.
+  const radiusFloor = Math.max(
+    PAIR_RADIUS_MS,
+    options?.radiusFloorMs ?? PAIR_RADIUS_MS,
+  );
 
   // v1.4.27 B7 / simp-M6 — sort once by `windowStart` for the match
   // pass and return the result in the same order. Slots that touch
@@ -440,10 +490,29 @@ export function pairDoses(
   const sorted = [...slots].sort(
     (a, b) => a.windowStart.getTime() - b.windowStart.getTime(),
   );
+  // Pre-compute each slot's centre once so the per-slot match radius can
+  // read the gap to its neighbours (the centres are monotonic in `sorted`
+  // order, so neighbour gaps are simply the adjacent entries).
+  const centres = sorted.map(
+    (s) => (s.windowStart.getTime() + s.windowEnd.getTime()) / 2,
+  );
   const result: PairedDose[] = [];
 
-  for (const slot of sorted) {
-    const centre = (slot.windowStart.getTime() + slot.windowEnd.getTime()) / 2;
+  for (let s = 0; s < sorted.length; s++) {
+    const slot = sorted[s];
+    const centre = centres[s];
+    // v1.12.0 — cadence-aware radius: half the gap to the nearer
+    // neighbouring slot, floored at the 12h base. Daily / multi-dose
+    // cadences keep the 12h floor; a weekly+ cadence widens so an intake
+    // logged anywhere inside the dosing week pairs to that week's slot.
+    const radius = Math.max(
+      radiusFloor,
+      slotMatchRadius(
+        centre,
+        s > 0 ? centres[s - 1] : null,
+        s < centres.length - 1 ? centres[s + 1] : null,
+      ),
+    );
     let bestIdx = -1;
     let bestDist = Infinity;
     for (let i = 0; i < events.length; i++) {
@@ -451,7 +520,7 @@ export function pairDoses(
       const evt = events[i];
       const t = (evt.takenAt ?? evt.scheduledFor).getTime();
       const dist = Math.abs(t - centre);
-      if (dist <= PAIR_RADIUS_MS && dist < bestDist) {
+      if (dist <= radius && dist < bestDist) {
         bestDist = dist;
         bestIdx = i;
       }
@@ -541,7 +610,72 @@ export function buildCadenceTimeline(
       ),
     );
   }
-  return pairDoses(slots, events, asOf);
+  // v1.12.0 — derive the schedule's intrinsic cadence gap so the pairing
+  // radius widens for sparse cadences even when the requested window holds
+  // a single expected slot (a weekly med over a 7-day window). The per-slot
+  // neighbour-gap logic inside `pairDoses` can only widen when two slots
+  // sit in the window; a single-slot window needs the floor below.
+  const radiusFloorMs = cadenceRadiusFloor(
+    schedules,
+    asOf,
+    windowDays,
+    anchor,
+    timeZone,
+    engineCtx,
+  );
+  return pairDoses(slots, events, asOf, { radiusFloorMs });
+}
+
+/**
+ * v1.12.0 — half the schedule's intrinsic cadence gap, used as the floor
+ * for the intake-match radius.
+ *
+ * Expands every schedule over a window padded to at least ~16 weeks so a
+ * sparse cadence (weekly / bi-weekly / monthly) yields ≥ 2 slots and a
+ * real inter-slot gap is observable even when the caller's compliance
+ * window only holds one. Takes the MINIMUM consecutive gap across the
+ * union of all schedules (the densest part of a multi-schedule med) and
+ * halves it, so the floor never over-widens past the point where two
+ * adjacent slots would double-claim one intake. Returns the 12h base when
+ * fewer than two slots exist anywhere in the probe window (rolling cadence
+ * emits only the next slot; a brand-new med; a one-shot) — those cases
+ * either have an empty compliance window or a single slot the base radius
+ * already covers.
+ */
+function cadenceRadiusFloor(
+  schedules: ScheduleLike[],
+  asOf: Date,
+  windowDays: number,
+  anchor: Date | undefined,
+  timeZone: string | undefined,
+  engineCtx: CadenceEngineContext | undefined,
+): number {
+  const probeDays = Math.max(windowDays, 16 * 7);
+  const probeFrom = new Date(asOf.getTime() - probeDays * DAY_MS);
+  const centres: number[] = [];
+  for (let i = 0; i < schedules.length; i++) {
+    const probeSlots = expandScheduleSlots(
+      schedules[i],
+      i,
+      probeFrom,
+      asOf,
+      anchor ?? probeFrom,
+      timeZone,
+      engineCtx,
+    );
+    for (const slot of probeSlots) {
+      centres.push((slot.windowStart.getTime() + slot.windowEnd.getTime()) / 2);
+    }
+  }
+  if (centres.length < 2) return PAIR_RADIUS_MS;
+  centres.sort((a, b) => a - b);
+  let minGap = Infinity;
+  for (let i = 1; i < centres.length; i++) {
+    const gap = centres[i] - centres[i - 1];
+    if (gap > 0 && gap < minGap) minGap = gap;
+  }
+  if (!Number.isFinite(minGap)) return PAIR_RADIUS_MS;
+  return Math.max(PAIR_RADIUS_MS, minGap / 2);
 }
 
 /**

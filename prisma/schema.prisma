@@ -66,6 +66,14 @@ model User {
   whoopClientIdEncrypted     String? @map("whoop_client_id_encrypted")
   whoopClientSecretEncrypted String? @map("whoop_client_secret_encrypted")
 
+  // v1.12.0 — Fitbit/Pixel OAuth credentials (per-user BYO-keys, encrypted at
+  // app level) over the Google Health API. The per-app authorized-user cap in
+  // Google's Testing mode makes a single shared client unworkable for a
+  // multi-operator product, so each self-hoster registers their own Google
+  // Cloud OAuth client and pastes the client id/secret into Settings.
+  fitbitClientIdEncrypted     String? @map("fitbit_client_id_encrypted")
+  fitbitClientSecretEncrypted String? @map("fitbit_client_secret_encrypted")
+
   // moodLog integration (per-user, encrypted)
   moodLogUrlEncrypted    String?   @map("mood_log_url_encrypted")
   moodLogApiKeyEncrypted String?   @map("mood_log_api_key_encrypted")
@@ -340,6 +348,10 @@ model User {
   // OAuth-state ledger (1:N) relations.
   whoopConnection        WhoopConnection?
   whoopOAuthStates       WhoopOAuthState[]
+  // v1.12.0 — Fitbit/Pixel integration. Mirrors the WHOOP connection (1:1) +
+  // OAuth-state ledger (1:N) relations.
+  fitbitConnection       FitbitConnection?
+  fitbitOAuthStates      FitbitOAuthState[]
   moodEntries            MoodEntry[]
   notificationChannels   NotificationChannel[]
   pushSubscriptions      PushSubscription[]
@@ -672,6 +684,10 @@ enum MeasurementSource {
   // (no client write path) as `source = WHOOP` rows. iOS DTO mirrors this
   // exact spelling so the `/api/sync/changes` delta feed decodes the rows.
   WHOOP
+  // v1.12.0 — Fitbit/Pixel integration via the Google Health API. Server-owned
+  // (no client write path); rejected on batch + single POST like WITHINGS/WHOOP.
+  // iOS DTO mirrors this exact spelling so /api/sync/changes decodes the rows.
+  FITBIT
 
   @@map("measurement_source")
 }
@@ -1827,6 +1843,47 @@ model WhoopOAuthState {
   @@map("whoop_oauth_states")
 }
 
+/// v1.12.0 — Fitbit/Pixel connection over the Google Health API. Mirrors
+/// `WhoopConnection` 1:1 per user. Tokens are encrypted at the app level
+/// before persistence. Unlike WHOOP, Google refresh tokens do not rotate per
+/// use, so `refreshToken` is overwritten only when a token response carries a
+/// fresh one.
+model FitbitConnection {
+  id             String    @id @default(cuid())
+  userId         String    @unique @map("user_id")
+  fitbitUserId   String    @map("fitbit_user_id") // Google/Fitbit external id
+  accessToken    String    @map("access_token") // encrypted at app level
+  refreshToken   String    @map("refresh_token") // encrypted at app level
+  tokenExpiresAt DateTime  @map("token_expires_at")
+  /// Space-separated OAuth scope string granted by the Google authorisation
+  /// flow. Null = legacy connection that predates scope tracking.
+  scope          String?   @map("scope")
+  lastSyncedAt   DateTime? @map("last_synced_at")
+  /// Set once the self-converging history backfill walks every collection to
+  /// completion. Null = backfill still in flight (or never started).
+  backfillCompletedAt DateTime? @map("backfill_completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("fitbit_connections")
+}
+
+/// v1.12.0 — short-lived `(nonce → userId)` ledger backing the Fitbit OAuth
+/// state check, identical in shape + lifecycle to `WhoopOAuthState`.
+model FitbitOAuthState {
+  nonce     String   @id
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("fitbit_oauth_states")
+}
+
 // ─── Mood Entries (moodLog) ───────────────────────────────────
 
 model MoodEntry {
@@ -1936,6 +1993,22 @@ model MoodTag {
   sortOrder  Int     @default(0) @map("sort_order")
   isActive   Boolean @default(true) @map("is_active")
 
+  /// v1.12.0 — capture-kind discriminator. `BINARY` (default) is a
+  /// present/absent flag — every tag seeded by 0101 / 0118. `RATED` is a
+  /// mood *factor* the user scores per entry (e.g. work, social, sleep
+  /// quality); the score rides on `MoodEntryTagLink.rating`. Keeps one
+  /// taxonomy + one ingestion path for both flavours.
+  kind     String  @default("BINARY") @map("kind") // "BINARY" | "RATED"
+  /// v1.12.0 — inclusive lower / upper bound of a RATED factor's scale
+  /// (e.g. 1..5, or 1..2 for a Yes/No factor). Ignored for BINARY tags.
+  /// The server validates each submitted rating against this range.
+  scaleMin Int     @default(1) @map("scale_min")
+  scaleMax Int     @default(5) @map("scale_max")
+  /// v1.12.0 — inverse-scaled factor (e.g. stress / conflict) where a
+  /// HIGHER rating means a WORSE day. Capture stays literal; the (later)
+  /// analytics layer flips the sign so "up" always reads as "better".
+  inverse  Boolean @default(false) @map("inverse")
+
   category MoodTagCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   links    MoodEntryTagLink[]
 
@@ -1951,6 +2024,11 @@ model MoodEntryTagLink {
   moodEntryId String   @map("mood_entry_id")
   moodTagId   String   @map("mood_tag_id")
   createdAt   DateTime @default(now()) @map("created_at")
+  /// v1.12.0 — per-entry score for a RATED `MoodTag`. NULL for BINARY
+  /// links (the present/absent flag carries the signal). Bounded to the
+  /// tag's `scaleMin..scaleMax` at ingest (server-validated, not a DB
+  /// CHECK, so a future scale change never strands historical rows).
+  rating      Int?     @map("rating")
 
   moodEntry MoodEntry @relation(fields: [moodEntryId], references: [id], onDelete: Cascade)
   moodTag   MoodTag   @relation(fields: [moodTagId], references: [id], onDelete: Cascade)

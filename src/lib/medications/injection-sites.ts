@@ -22,38 +22,31 @@ export const INJECTION_SITE_KEYS = [
 export type InjectionSiteKey = (typeof INJECTION_SITE_KEYS)[number];
 
 /**
- * SVG position for each site on the anatomical front-of-body silhouette
+ * SVG position for each site on the anatomical front-of-body figure
  * (`100 x 200` viewBox, aspect ≈0.5). Used by `injection-site-picker.tsx`
  * to render the clickable dots AND by {@link nextInjectionSite} as the
  * Euclidean-distance basis for the rotation recommendation, so the two
  * always agree on where a site "is".
  *
- * Calibrated against the iOS client's hands-on tune (see
- * `.planning/ios-coord/v0.12-ios-to-server-injection-bodymap-coords.md`):
- * fractional coords (0–1, x across width / y down height) multiplied by
- * the viewBox `width=100` / `height=200`, so both apps land their dots on
- * the same anatomy. Screen-left (`*_LEFT`) sits at the viewer's left,
- * matching the long-standing "links == screen-left" convention.
- *
- *   site (iOS naming)   fraction (x, y)   →  viewBox (x, y)
- *   armLeft             0.262, 0.360         26.2, 72
- *   armRight            0.738, 0.360         73.8, 72
- *   abdomenLeftUpper    0.435, 0.405         43.5, 81
- *   abdomenRightUpper   0.565, 0.405         56.5, 81
- *   abdomenLeftLower    0.435, 0.475         43.5, 95
- *   abdomenRightLower   0.565, 0.475         56.5, 95
- *   thighLeft           0.430, 0.700         43,   140
- *   thighRight          0.570, 0.700         57,   140
+ * Calibrated against the body figure the picker masks onto the viewBox
+ * (`/injection-body-front.png`, rendered height-fit + horizontally
+ * centred on the 100×200 box): the anchors are measured to land on the
+ * figure's anatomy — the abdomen quadrants on the torso either side of
+ * the midline, the thigh anchors on the centre of each thigh, and the
+ * arm anchors on the upper-arm mass clear of the torso edge. Screen-left
+ * (`*_LEFT`) sits at the viewer's left, matching the long-standing
+ * "links == screen-left" convention. The iOS client carries its own
+ * coordinate set; these are the web picker's only consumer.
  */
 export const SITE_COORDS: Record<InjectionSiteKey, { x: number; y: number }> = {
   ABDOMEN_UPPER_LEFT: { x: 43.5, y: 81 },
   ABDOMEN_UPPER_RIGHT: { x: 56.5, y: 81 },
   ABDOMEN_LEFT: { x: 43.5, y: 95 },
   ABDOMEN_RIGHT: { x: 56.5, y: 95 },
-  THIGH_LEFT: { x: 43, y: 140 },
-  THIGH_RIGHT: { x: 57, y: 140 },
-  UPPER_ARM_LEFT: { x: 26.2, y: 72 },
-  UPPER_ARM_RIGHT: { x: 73.8, y: 72 },
+  THIGH_LEFT: { x: 40, y: 110 },
+  THIGH_RIGHT: { x: 60, y: 110 },
+  UPPER_ARM_LEFT: { x: 22, y: 67 },
+  UPPER_ARM_RIGHT: { x: 78, y: 67 },
 };
 
 /**

@@ -197,6 +197,7 @@
     "collapseSidebar": "Collapse",
     "userMenu": "User menu",
     "mood": "Mood",
+    "workouts": "Workouts",
     "skipToContent": "Skip to content",
     "sidebar": "Sidebar",
     "mainNavigation": "Main navigation",
@@ -205,7 +206,17 @@
     "loadingScreen": "Loading…",
     "more": "More",
     "moreSheetTitle": "More",
-    "moreSheetDescription": "Pages that don't fit the bottom bar."
+    "moreSheetDescription": "Jump to the rest of HealthLog.",
+    "capture": {
+      "title": "Log",
+      "description": "What would you like to record?",
+      "measurement": "Measurement",
+      "measurementDescription": "Weight, blood pressure, pulse and more",
+      "medication": "Medication",
+      "medicationDescription": "Mark a dose as taken",
+      "mood": "Mood",
+      "moodDescription": "Log your mood and tags"
+    }
   },
   "auth": {
     "login": "Sign in",
@@ -264,6 +275,7 @@
     "quickAddMeasurement": "Log measurement",
     "quickAddMood": "Log mood",
     "quickAddMedicationIntake": "Log medication intake",
+    "customizeDashboard": "Customize dashboard",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Log medication intake",
       "sheetDescription": "Record dose, time, and medication in a few taps.",
@@ -469,6 +481,10 @@
     "addEntry": "Add",
     "editEntry": "Edit entry",
     "moodLevel": "Mood",
+    "heroQuestion": "How are you?",
+    "factorYes": "Yes",
+    "factorNo": "No",
+    "factorRatingOption": "{label}: {value} of {max}",
     "tags": "Tags",
     "tagsPlaceholder": "e.g. Exercise, Work, Family",
     "tagsHelp": "Comma-separated",
@@ -510,7 +526,9 @@
       "sleep": "Sleep",
       "health": "Health",
       "social": "Social",
-      "work": "Work"
+      "work": "Work",
+      "hobbies": "Hobbies",
+      "factors": "Factors"
     },
     "tag": {
       "happy": "happy",
@@ -542,7 +560,21 @@
       "overtime": "overtime",
       "dayOff": "day off",
       "travel": "travel",
-      "sickDay": "sick day"
+      "sickDay": "sick day",
+      "movies": "movies",
+      "reading": "reading",
+      "gaming": "gaming",
+      "music": "music",
+      "outdoors": "outdoors",
+      "fastFood": "fast food",
+      "noSweets": "no sweets",
+      "bigMeal": "big meal",
+      "factorWork": "work",
+      "factorSocial": "social",
+      "factorSleepQuality": "sleep quality",
+      "factorStress": "stress",
+      "factorConflict": "conflict",
+      "factorFamily": "family"
     }
   },
   "medications": {
@@ -1035,6 +1067,9 @@
     "injectionSiteBodyOutlineAriaLabel": "Body outline",
     "injectionSitePickerAriaLabel": "Injection site picker",
     "injectionSiteRecommendedAriaLabel": "{site} — recommended next site",
+    "injectionSiteLegendAriaLabel": "Marker legend",
+    "injectionSiteLegendRecommended": "Recommended next site",
+    "injectionSiteLegendLastUsed": "Last used site",
     "siteAbdomenLeft": "Abdomen, lower left",
     "siteAbdomenRight": "Abdomen, lower right",
     "siteAbdomenUpperLeft": "Abdomen, upper left",
@@ -1687,7 +1722,6 @@
     },
     "correlationRow": {
       "title": "Relationships",
-      "subtitle": "Pre-defined hypotheses, gated on n ≥ 14 and p < 0.05",
       "disclaimer": "Relationships are observational, not causal — talk to your doctor if BP runs high.",
       "experimentCta": "Try a 7-day experiment",
       "experimentTooltip": "Coming soon",
@@ -1715,6 +1749,8 @@
       "errorCredentialExpired": "Your AI provider connection has expired. Reconnect it in Settings to keep the Coach running.",
       "tagline": "Personal health coach, grounded in your data.",
       "newChat": "New chat",
+      "maximizeAriaLabel": "Open in full page",
+      "minimizeAriaLabel": "Back to the drawer",
       "send": "Send",
       "stop": "Stop",
       "thinking": "Thinking…",
@@ -1978,6 +2014,14 @@
         "bpRange": "Target: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
         "inTargetShare": "{pct}% of logged days within target",
         "adjustLink": "Adjust target range"
+      },
+      "primary": {
+        "avg30Label": "30-day average",
+        "inRangeLabel": "In range",
+        "inRangeAria": "{pct}% of logged days within target"
+      },
+      "lastMeasurement": {
+        "label": "Last measurement"
       },
       "explainer": {
         "trigger": "What is {title}?",
@@ -2561,8 +2605,22 @@
         "description": "Tags and metrics that line up with your higher- and lower-mood days, ranked by how strongly they move together.",
         "disclaimer": "Associations only, not causes. Talk to your doctor before changing anything based on these."
       },
+      "crosstab": {
+        "title": "Tags and your health metrics",
+        "description": "How a health metric differs on the days you tagged each activity, compared with the days you did not.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Active energy",
+        "metricSleepDuration": "Sleep",
+        "metricNextDayRecovery": "Next-day recovery",
+        "unitHours": "h",
+        "unitKcal": "kcal",
+        "unitScore": "pts",
+        "detailSameDay": "Averages {withAvg} {unit} on the {withDays} days you tagged this vs {withoutAvg} {unit} without it.",
+        "detailNextDay": "Averages {withAvg} {unit} the day after the {withDays} days you tagged this vs {withoutAvg} {unit} otherwise.",
+        "disclaimer": "These are associations in your own data, not proof of cause. Patterns worth watching."
+      },
       "discovery": {
-        "title": "Discovered patterns",
+        "title": "What stands out",
         "description": "Day-to-day relationships involving your mood that hold up after correcting for testing many pairs at once.",
         "footer": "Surfaced from {tested} day-to-day pairs tested across all your metrics, after the false-discovery correction.",
         "empty": "No mood relationships cleared the statistical bar yet. Keep logging.",
@@ -2737,7 +2795,7 @@
         "label": "Several vitals off baseline",
         "summary": "{count} of your vitals sat outside their personal range today.",
         "vitals": "Outside range: {list}",
-        "cardTitle": "Today's signal",
+        "cardTitle": "Signals of the day",
         "allClear": "All your vitals are within their personal range today.",
         "allClearMeta": "Checked {count} of your vitals against your own typical range.",
         "watch": "One vital is outside its usual range today.",
@@ -2751,7 +2809,8 @@
         "headline": "If this pattern continues — the next {days} days",
         "range": "Projected around {low}–{high} {unit} in {days} days.",
         "caveat": "A projection of your own recent trend, not a prediction. The shaded band widens to show how quickly the uncertainty grows.",
-        "insufficient": "Not enough of a clear trend to project yet — keep tracking and a projection will appear once the recent pattern is strong enough."
+        "insufficient": "Not enough of a clear trend to project yet — keep tracking and a projection will appear once the recent pattern is strong enough.",
+        "daysNeeded": "About {count} more days of tracking needed before a projection can appear."
       }
     },
     "cardioFitness": {
@@ -3086,7 +3145,7 @@
         "description": "Per metric: your own target range for healthy values."
       },
       "sources": {
-        "title": "Sources",
+        "title": "Source priority",
         "description": "Pick which ingest source wins when more than one records the same metric for the same day.",
         "cardTitle": "Source priority by metric",
         "help": "When more than one source delivers the same value on the same day (e.g. Withings and Apple Health both report 1,200 steps), the top source counts as the canonical reading. Other sources stay stored for the audit trail.",
@@ -3129,6 +3188,7 @@
           "MANUAL": "Manual entry",
           "IMPORT": "Import",
           "WHOOP": "WHOOP",
+          "FITBIT": "Fitbit",
           "COMPUTED": "Computed"
         },
         "deviceLabels": {
@@ -3196,7 +3256,7 @@
         }
       },
       "about": {
-        "title": "About",
+        "title": "About this app",
         "description": "Version, license, links."
       },
       "sharing": {
@@ -3491,6 +3551,33 @@
     "whoopConnect": "Connect with WHOOP",
     "whoopNoCredentials": "Please enter your API credentials above to connect WHOOP.",
     "whoopBackfillInProgress": "Importing your WHOOP history in the background…",
+    "fitbit": "Google Health",
+    "fitbitTag": "Fitbit & Pixel",
+    "fitbitDescription": "Connect Google Health to sync your Fitbit and Pixel Watch metrics — weight, body fat, resting heart rate, blood oxygen, heart-rate variability and more.",
+    "fitbitOverlapNote": "If Google Health and another source both supply a vital — resting heart rate, blood oxygen, body temperature or respiratory rate — you may see both values until a future update settles on a single preferred source.",
+    "fitbitExperimentalBadge": "Experimental",
+    "fitbitExperimentalNote": "This integration is in beta — data coverage and field mapping are still being verified against live Google Health accounts, so some values may be missing or change in a future update.",
+    "fitbitCredentials": "API Credentials",
+    "fitbitCredentialsHelp": "Register your own Google Cloud OAuth client for the Google Health API and paste its Client ID and Client Secret here.",
+    "fitbitClientId": "Client ID",
+    "fitbitClientSecret": "Client Secret",
+    "fitbitCredentialsSaved": "Credentials saved",
+    "fitbitCredentialsSavedPlaceholder": "Saved — enter new to replace",
+    "fitbitCredentialsSavedPlaceholderSecret": "Saved — enter new to replace",
+    "fitbitSaveCredentials": "Save credentials",
+    "fitbitSync": "Sync now",
+    "fitbitFullSync": "Sync all data",
+    "fitbitFullSyncTitle": "Full synchronization?",
+    "fitbitFullSyncDescription": "All available Google Health history will be fully synchronized. This may take some time depending on your history.",
+    "fitbitSyncResult": "{count} measurements synchronized",
+    "fitbitSyncFailed": "Sync failed",
+    "fitbitSynchronize": "Synchronize",
+    "fitbitDisconnect": "Disconnect",
+    "fitbitDisconnectTitle": "Disconnect Google Health?",
+    "fitbitDisconnectDescription": "The connection to Google Health will be disconnected. Previously synced data will be preserved.",
+    "fitbitConnect": "Connect with Google Health",
+    "fitbitNoCredentials": "Please enter your API credentials above to connect Google Health.",
+    "fitbitBackfillInProgress": "Importing your Google Health history in the background…",
     "integrations": {
       "withings": {
         "reconnect": {
@@ -3569,6 +3656,7 @@
     "savingError": "Error saving",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood entries.",
+    "moodLogDeprecated": "Deprecated: mood is now tracked natively in HealthLog with tags and factors. This integration still works but will be removed in a future release.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "API Key",

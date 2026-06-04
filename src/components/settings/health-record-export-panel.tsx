@@ -12,10 +12,17 @@
  * Mood stays default-OFF everywhere (privacy). PDF-only fields (practice
  * name, charts) hide when the format is FHIR. The ePA-compat note shows
  * for the FHIR + package formats.
+ *
+ * v1.12 — this is the export page's hero. It carries the same
+ * `hero-gradient + glow-purple` treatment as the Insights hero strip so
+ * the headline "data out" path owns the primary visual weight. The
+ * grouped data-section toggles live behind a collapsible disclosure,
+ * collapsed by default, so the panel opens compact instead of as a long
+ * always-expanded checklist.
  */
 
-import { useState } from "react";
-import { Download, FileText, Loader2 } from "lucide-react";
+import { useId, useState } from "react";
+import { ChevronDown, Download, FileText, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -24,6 +31,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
 import { useTranslations } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
 
 type ExportFormat = "pdf" | "fhir" | "package";
 
@@ -106,6 +114,10 @@ export function HealthRecordExportPanel() {
   const [sections, setSections] = useState<SectionState>(DEFAULT_SECTIONS);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The included-data checklist is a disclosure, collapsed by default —
+  // the panel opens compact instead of as a long always-expanded list.
+  const [includedDataOpen, setIncludedDataOpen] = useState(false);
+  const includedDataPanelId = useId();
 
   const isPdfLike = format === "pdf" || format === "package";
   const isFhirLike = format === "fhir" || format === "package";
@@ -179,15 +191,27 @@ export function HealthRecordExportPanel() {
     <section
       aria-labelledby="health-record-export-title"
       data-testid="health-record-export-panel"
-      className="bg-card border-border rounded-xl border p-6"
+      className={cn(
+        "hero-gradient glow-purple animate-insight-in",
+        // `isolate` traps the purple glow inside the hero so the shadow
+        // doesn't leak through the cards below — same trick the Insights
+        // `<HeroStrip>` uses.
+        "relative isolate overflow-hidden rounded-xl p-5 sm:p-6",
+      )}
     >
-      <div className="mb-4 flex items-center gap-2">
-        <FileText className="text-primary h-5 w-5" aria-hidden="true" />
-        <h2 id="health-record-export-title" className="text-lg font-semibold">
+      <div className="mb-2 flex items-center gap-2">
+        <FileText
+          className="text-dracula-purple h-5 w-5 shrink-0"
+          aria-hidden="true"
+        />
+        <h2
+          id="health-record-export-title"
+          className="text-xl font-semibold tracking-tight sm:text-2xl"
+        >
           {t("settings.healthRecord.title")}
         </h2>
       </div>
-      <p className="text-muted-foreground mb-4 text-sm">
+      <p className="text-muted-foreground mb-5 max-w-2xl text-sm leading-relaxed">
         {t("settings.healthRecord.description")}
       </p>
 
@@ -245,12 +269,39 @@ export function HealthRecordExportPanel() {
           </div>
         )}
 
-        {/* Section groups */}
+        {/* Section groups — collapsible, collapsed by default so the
+            panel opens compact. The disclosure follows the inline
+            aria-expanded/aria-controls pattern used elsewhere in the app
+            (e.g. the insights recommendation cards). */}
         <fieldset className="space-y-3">
-          <legend className="text-sm font-medium">
+          <legend className="sr-only">
             {t("settings.healthRecord.includedData")}
           </legend>
+          <button
+            type="button"
+            data-testid="health-record-included-data-toggle"
+            aria-expanded={includedDataOpen}
+            aria-controls={includedDataPanelId}
+            onClick={() => setIncludedDataOpen((v) => !v)}
+            className="text-foreground hover:bg-muted/40 focus-visible:ring-ring/50 flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-1 py-1 text-left text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <span>{t("settings.healthRecord.includedData")}</span>
+            <ChevronDown
+              className={cn(
+                "text-muted-foreground h-4 w-4 shrink-0 transition-transform",
+                includedDataOpen && "rotate-180",
+              )}
+              aria-hidden="true"
+            />
+          </button>
 
+          {includedDataOpen && (
+            <div
+              id={includedDataPanelId}
+              data-testid="health-record-included-data-panel"
+              className="animate-insight-in space-y-3"
+              style={{ animationDuration: "200ms" }}
+            >
           <div className="border-border space-y-2 rounded-lg border p-3">
             <p className="text-xs font-semibold">
               {t("settings.healthRecord.groupVitals")}
@@ -371,6 +422,8 @@ export function HealthRecordExportPanel() {
               checked={includeAiSummary}
               onToggle={() => setIncludeAiSummary((v) => !v)}
             />
+          )}
+            </div>
           )}
         </fieldset>
 

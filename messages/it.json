@@ -197,6 +197,7 @@
     "collapseSidebar": "Riduci",
     "userMenu": "Menu utente",
     "mood": "Umore",
+    "workouts": "Allenamenti",
     "skipToContent": "Vai al contenuto",
     "sidebar": "Barra laterale",
     "mainNavigation": "Navigazione principale",
@@ -205,7 +206,17 @@
     "loadingScreen": "Caricamento…",
     "more": "Altro",
     "moreSheetTitle": "Altro",
-    "moreSheetDescription": "Pagine che non entrano nella barra inferiore."
+    "moreSheetDescription": "Vai al resto di HealthLog.",
+    "capture": {
+      "title": "Registra",
+      "description": "Cosa vuoi registrare?",
+      "measurement": "Misurazione",
+      "measurementDescription": "Peso, pressione, battito e altro",
+      "medication": "Farmaco",
+      "medicationDescription": "Segna una dose come assunta",
+      "mood": "Umore",
+      "moodDescription": "Registra umore e tag"
+    }
   },
   "auth": {
     "login": "Accedi",
@@ -264,6 +275,7 @@
     "quickAddMeasurement": "Registra misurazione",
     "quickAddMood": "Registra umore",
     "quickAddMedicationIntake": "Registra assunzione",
+    "customizeDashboard": "Personalizza dashboard",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Registra assunzione del farmaco",
       "sheetDescription": "Registra dose, orario e farmaco con pochi tap.",
@@ -469,6 +481,10 @@
     "addEntry": "Aggiungi",
     "editEntry": "Modifica voce",
     "moodLevel": "Umore",
+    "heroQuestion": "Come stai?",
+    "factorYes": "Sì",
+    "factorNo": "No",
+    "factorRatingOption": "{label}: {value} di {max}",
     "tags": "Tag",
     "tagsPlaceholder": "es. sport, lavoro, famiglia",
     "tagsHelp": "Separa con virgole",
@@ -510,7 +526,9 @@
       "sleep": "Sonno",
       "health": "Salute",
       "social": "Sociale",
-      "work": "Lavoro"
+      "work": "Lavoro",
+      "hobbies": "Hobby",
+      "factors": "Fattori"
     },
     "tag": {
       "happy": "felice",
@@ -542,7 +560,21 @@
       "overtime": "straordinari",
       "dayOff": "giorno libero",
       "travel": "viaggio",
-      "sickDay": "giorno di malattia"
+      "sickDay": "giorno di malattia",
+      "movies": "film",
+      "reading": "lettura",
+      "gaming": "videogiochi",
+      "music": "musica",
+      "outdoors": "all'aperto",
+      "fastFood": "fast food",
+      "noSweets": "niente dolci",
+      "bigMeal": "pasto abbondante",
+      "factorWork": "lavoro",
+      "factorSocial": "vita sociale",
+      "factorSleepQuality": "qualità del sonno",
+      "factorStress": "stress",
+      "factorConflict": "conflitto",
+      "factorFamily": "famiglia"
     }
   },
   "medications": {
@@ -1035,6 +1067,9 @@
     "injectionSiteBodyOutlineAriaLabel": "Sagoma del corpo",
     "injectionSitePickerAriaLabel": "Selettore del sito di iniezione",
     "injectionSiteRecommendedAriaLabel": "{site} — prossimo sito consigliato",
+    "injectionSiteLegendAriaLabel": "Legenda dei segnaposto",
+    "injectionSiteLegendRecommended": "Prossimo sito consigliato",
+    "injectionSiteLegendLastUsed": "Ultimo sito utilizzato",
     "siteAbdomenLeft": "Addome, basso a sinistra",
     "siteAbdomenRight": "Addome, basso a destra",
     "siteAbdomenUpperLeft": "Addome, alto a sinistra",
@@ -1687,7 +1722,6 @@
     },
     "correlationRow": {
       "title": "Correlazioni",
-      "subtitle": "Ipotesi predefinite, vincolate a n ≥ 14 e p < 0,05",
       "disclaimer": "Le correlazioni sono osservazionali, non causali — parla con il medico se la pressione è alta.",
       "experimentCta": "Avvia esperimento di 7 giorni",
       "experimentTooltip": "In arrivo",
@@ -1715,6 +1749,8 @@
       "errorCredentialExpired": "La connessione al provider di IA è scaduta. Riconnettila nelle Impostazioni per mantenere attivo il Coach.",
       "tagline": "Coach personale di salute, basato sui tuoi dati.",
       "newChat": "Nuova chat",
+      "maximizeAriaLabel": "Apri a pagina intera",
+      "minimizeAriaLabel": "Torna al pannello",
       "send": "Invia",
       "stop": "Interrompi",
       "thinking": "Sto pensando…",
@@ -1978,6 +2014,14 @@
         "bpRange": "Obiettivo: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
         "inTargetShare": "{pct}% dei giorni registrati nell'obiettivo",
         "adjustLink": "Modifica l'intervallo obiettivo"
+      },
+      "primary": {
+        "avg30Label": "Media a 30 giorni",
+        "inRangeLabel": "Nell'obiettivo",
+        "inRangeAria": "{pct}% dei giorni registrati nell'obiettivo"
+      },
+      "lastMeasurement": {
+        "label": "Ultima misurazione"
       },
       "explainer": {
         "trigger": "Che cos'è {title}?",
@@ -2561,8 +2605,22 @@
         "description": "Tag e parametri che coincidono con le tue giornate di umore migliore e peggiore, ordinati per quanto si muovono insieme.",
         "disclaimer": "Solo associazioni, non cause. Parla con il tuo medico prima di cambiare qualcosa."
       },
+      "crosstab": {
+        "title": "Tag e le tue metriche di salute",
+        "description": "Come una metrica di salute cambia nei giorni in cui hai aggiunto un tag rispetto ai giorni senza.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Energia attiva",
+        "metricSleepDuration": "Sonno",
+        "metricNextDayRecovery": "Recupero il giorno dopo",
+        "unitHours": "h",
+        "unitKcal": "kcal",
+        "unitScore": "pt",
+        "detailSameDay": "In media {withAvg} {unit} nei {withDays} giorni con questo tag contro {withoutAvg} {unit} senza.",
+        "detailNextDay": "In media {withAvg} {unit} il giorno dopo i {withDays} giorni con questo tag contro {withoutAvg} {unit} altrimenti.",
+        "disclaimer": "Sono associazioni nei tuoi dati, non prova di causa. Schemi che vale la pena osservare."
+      },
       "discovery": {
-        "title": "Schemi rilevati",
+        "title": "Cosa risalta",
         "description": "Relazioni giorno per giorno legate al tuo umore che reggono dopo aver corretto per i test multipli.",
         "footer": "Estratte da {tested} coppie giorno per giorno testate su tutte le tue misure, dopo la correzione per le false scoperte.",
         "empty": "Nessuna relazione sull'umore ha ancora superato la soglia statistica. Continua a registrare.",
@@ -2737,7 +2795,7 @@
         "label": "Più parametri fuori dalla base",
         "summary": "Oggi {count} dei tuoi parametri vitali sono usciti dal loro intervallo personale.",
         "vitals": "Fuori intervallo: {list}",
-        "cardTitle": "Segnale di oggi",
+        "cardTitle": "Segnali del giorno",
         "allClear": "Oggi tutti i tuoi parametri vitali sono nel loro intervallo personale.",
         "allClearMeta": "Controllati {count} dei tuoi parametri rispetto al tuo intervallo abituale.",
         "watch": "Oggi un parametro è fuori dal suo intervallo abituale.",
@@ -2751,7 +2809,8 @@
         "headline": "Se questo schema continua — i prossimi {days} giorni",
         "range": "Proiettato intorno a {low}–{high} {unit} tra {days} giorni.",
         "caveat": "Una proiezione della tua tendenza recente, non una previsione. La banda ombreggiata si allarga per mostrare quanto rapidamente cresce l’incertezza.",
-        "insufficient": "Non c’è ancora una tendenza abbastanza chiara da proiettare — continua a registrare e comparirà una proiezione quando lo schema recente sarà abbastanza marcato."
+        "insufficient": "Non c’è ancora una tendenza abbastanza chiara da proiettare — continua a registrare e comparirà una proiezione quando lo schema recente sarà abbastanza marcato.",
+        "daysNeeded": "Servono ancora circa {count} giorni di registrazione prima che possa comparire una proiezione."
       }
     },
     "cardioFitness": {
@@ -3086,7 +3145,7 @@
         "description": "Per metrica: il tuo intervallo target per valori sani."
       },
       "sources": {
-        "title": "Sorgenti",
+        "title": "Priorità delle fonti",
         "description": "Scegli quale fonte prevale quando più di una registra la stessa metrica lo stesso giorno.",
         "cardTitle": "Priorità delle fonti per metrica",
         "help": "Quando più fonti forniscono lo stesso valore nello stesso giorno (ad es. Withings e Apple Health riportano entrambe 1.200 passi), la fonte in cima conta come lettura canonica. Le altre fonti restano memorizzate per la traccia di controllo.",
@@ -3129,6 +3188,7 @@
           "MANUAL": "Inserimento manuale",
           "IMPORT": "Importa",
           "WHOOP": "WHOOP",
+          "FITBIT": "Fitbit",
           "COMPUTED": "Calcolato"
         },
         "deviceLabels": {
@@ -3196,7 +3256,7 @@
         }
       },
       "about": {
-        "title": "Informazioni",
+        "title": "Informazioni su questa app",
         "description": "Versione, licenza, link."
       },
       "sharing": {
@@ -3491,6 +3551,33 @@
     "whoopConnect": "Connetti con WHOOP",
     "whoopNoCredentials": "Inserisci le tue credenziali API qui sopra per connettere WHOOP.",
     "whoopBackfillInProgress": "Importazione dello storico WHOOP in background…",
+    "fitbit": "Google Health",
+    "fitbitTag": "Fitbit e Pixel",
+    "fitbitDescription": "Collega Google Health per sincronizzare i dati di Fitbit e Pixel Watch: peso, massa grassa, frequenza cardiaca a riposo, saturazione di ossigeno, variabilità della frequenza cardiaca e altro.",
+    "fitbitOverlapNote": "Se Google Health e un'altra fonte forniscono lo stesso parametro vitale — frequenza cardiaca a riposo, saturazione di ossigeno, temperatura corporea o frequenza respiratoria —, potresti vedere entrambi i valori finché un futuro aggiornamento non sceglierà un'unica fonte preferita.",
+    "fitbitExperimentalBadge": "Sperimentale",
+    "fitbitExperimentalNote": "Questa integrazione è in versione beta: la copertura dei dati e la mappatura dei campi sono ancora in fase di verifica con account Google Health reali, quindi alcuni valori potrebbero mancare o cambiare in un futuro aggiornamento.",
+    "fitbitCredentials": "Credenziali API",
+    "fitbitCredentialsHelp": "Registra il tuo client OAuth di Google Cloud per l'API Google Health e incolla qui il suo Client ID e Client Secret.",
+    "fitbitClientId": "Client ID",
+    "fitbitClientSecret": "Client Secret",
+    "fitbitCredentialsSaved": "Credenziali salvate",
+    "fitbitCredentialsSavedPlaceholder": "Salvato — inserisci nuove per sostituire",
+    "fitbitCredentialsSavedPlaceholderSecret": "Salvato — inserisci nuove per sostituire",
+    "fitbitSaveCredentials": "Salva credenziali",
+    "fitbitSync": "Sincronizza ora",
+    "fitbitFullSync": "Sincronizza tutti i dati",
+    "fitbitFullSyncTitle": "Sincronizzazione completa?",
+    "fitbitFullSyncDescription": "Tutto lo storico disponibile di Google Health verrà sincronizzato completamente. L'operazione può richiedere del tempo a seconda del tuo storico.",
+    "fitbitSyncResult": "{count} misurazioni sincronizzate",
+    "fitbitSyncFailed": "Sincronizzazione non riuscita",
+    "fitbitSynchronize": "Sincronizza",
+    "fitbitDisconnect": "Disconnetti",
+    "fitbitDisconnectTitle": "Disconnettere Google Health?",
+    "fitbitDisconnectDescription": "La connessione a Google Health verrà disconnessa. I dati già sincronizzati saranno conservati.",
+    "fitbitConnect": "Connetti con Google Health",
+    "fitbitNoCredentials": "Inserisci le tue credenziali API qui sopra per connettere Google Health.",
+    "fitbitBackfillInProgress": "Importazione dello storico Google Health in background…",
     "integrations": {
       "withings": {
         "reconnect": {
@@ -3569,6 +3656,7 @@
     "savingError": "Errore durante il salvataggio",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood data from moodLog",
+    "moodLogDeprecated": "Obsoleto: l’umore ora è registrato nativamente in HealthLog con tag e fattori. Questa integrazione funziona ancora ma verrà rimossa in una versione futura.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "Chiave API",

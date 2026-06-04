@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.11.5
+  version: 1.12.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -1189,6 +1189,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                       externalId:
                         type: string
                         maxLength: 128
@@ -1801,6 +1802,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -1813,6 +1815,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -1825,6 +1828,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -1837,6 +1841,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 sleep:
                   maxItems: 8
                   type: array
@@ -1849,6 +1854,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 weight:
                   maxItems: 8
                   type: array
@@ -1861,6 +1867,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -1873,6 +1880,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 pulse:
                   maxItems: 8
                   type: array
@@ -1885,6 +1893,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -1897,6 +1906,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -1909,6 +1919,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 spo2:
                   maxItems: 8
                   type: array
@@ -1921,6 +1932,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 hrv:
                   maxItems: 8
                   type: array
@@ -1933,6 +1945,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -1945,6 +1958,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -1957,6 +1971,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -1969,6 +1984,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -1981,6 +1997,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 recovery:
                   maxItems: 8
                   type: array
@@ -1993,6 +2010,7 @@ paths:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 metricPriority:
                   type: object
                   properties:
@@ -2008,6 +2026,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     activeEnergy:
                       maxItems: 8
                       type: array
@@ -2020,6 +2039,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     walkingRunningDistance:
                       maxItems: 8
                       type: array
@@ -2032,6 +2052,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     flightsClimbed:
                       maxItems: 8
                       type: array
@@ -2044,6 +2065,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     sleep:
                       maxItems: 8
                       type: array
@@ -2056,6 +2078,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     weight:
                       maxItems: 8
                       type: array
@@ -2068,6 +2091,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     bloodPressure:
                       maxItems: 8
                       type: array
@@ -2080,6 +2104,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     pulse:
                       maxItems: 8
                       type: array
@@ -2092,6 +2117,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     bodyFat:
                       maxItems: 8
                       type: array
@@ -2104,6 +2130,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     bodyTemperature:
                       maxItems: 8
                       type: array
@@ -2116,6 +2143,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     spo2:
                       maxItems: 8
                       type: array
@@ -2128,6 +2156,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     hrv:
                       maxItems: 8
                       type: array
@@ -2140,6 +2169,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     restingHeartRate:
                       maxItems: 8
                       type: array
@@ -2152,6 +2182,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     vo2Max:
                       maxItems: 8
                       type: array
@@ -2164,6 +2195,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     skinTemperature:
                       maxItems: 8
                       type: array
@@ -2176,6 +2208,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     respiratoryRate:
                       maxItems: 8
                       type: array
@@ -2188,6 +2221,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                     recovery:
                       maxItems: 8
                       type: array
@@ -2200,6 +2234,7 @@ paths:
                           - APPLE_HEALTH
                           - COMPUTED
                           - WHOOP
+                          - FITBIT
                 deviceTypePriority:
                   type: object
                   properties:
@@ -4778,6 +4813,7 @@ components:
             - APPLE_HEALTH
             - COMPUTED
             - WHOOP
+            - FITBIT
         notes:
           anyOf:
             - type: string
@@ -5093,6 +5129,7 @@ components:
             - APPLE_HEALTH
             - COMPUTED
             - WHOOP
+            - FITBIT
         notes:
           anyOf:
             - type: string
@@ -5252,6 +5289,7 @@ components:
                         - APPLE_HEALTH
                         - COMPUTED
                         - WHOOP
+                        - FITBIT
                     - type: "null"
                 start:
                   type: string
@@ -5366,6 +5404,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                   - type: "null"
               start:
                 type: string
@@ -5569,6 +5608,7 @@ components:
             - APPLE_HEALTH
             - COMPUTED
             - WHOOP
+            - FITBIT
         externalId:
           anyOf:
             - type: string
@@ -5673,6 +5713,7 @@ components:
             - APPLE_HEALTH
             - COMPUTED
             - WHOOP
+            - FITBIT
         externalId:
           anyOf:
             - type: string
@@ -6936,6 +6977,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             activeEnergy:
               maxItems: 8
               type: array
@@ -6948,6 +6990,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -6960,6 +7003,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             flightsClimbed:
               maxItems: 8
               type: array
@@ -6972,6 +7016,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             sleep:
               maxItems: 8
               type: array
@@ -6984,6 +7029,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             weight:
               maxItems: 8
               type: array
@@ -6996,6 +7042,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             bloodPressure:
               maxItems: 8
               type: array
@@ -7008,6 +7055,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             pulse:
               maxItems: 8
               type: array
@@ -7020,6 +7068,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             bodyFat:
               maxItems: 8
               type: array
@@ -7032,6 +7081,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             bodyTemperature:
               maxItems: 8
               type: array
@@ -7044,6 +7094,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             spo2:
               maxItems: 8
               type: array
@@ -7056,6 +7107,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             hrv:
               maxItems: 8
               type: array
@@ -7068,6 +7120,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             restingHeartRate:
               maxItems: 8
               type: array
@@ -7080,6 +7133,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             vo2Max:
               maxItems: 8
               type: array
@@ -7092,6 +7146,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             skinTemperature:
               maxItems: 8
               type: array
@@ -7104,6 +7159,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             respiratoryRate:
               maxItems: 8
               type: array
@@ -7116,6 +7172,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             recovery:
               maxItems: 8
               type: array
@@ -7128,6 +7185,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             metricPriority:
               type: object
               properties:
@@ -7143,6 +7201,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -7155,6 +7214,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -7167,6 +7227,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -7179,6 +7240,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 sleep:
                   maxItems: 8
                   type: array
@@ -7191,6 +7253,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 weight:
                   maxItems: 8
                   type: array
@@ -7203,6 +7266,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -7215,6 +7279,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 pulse:
                   maxItems: 8
                   type: array
@@ -7227,6 +7292,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -7239,6 +7305,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -7251,6 +7318,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 spo2:
                   maxItems: 8
                   type: array
@@ -7263,6 +7331,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 hrv:
                   maxItems: 8
                   type: array
@@ -7275,6 +7344,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -7287,6 +7357,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -7299,6 +7370,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -7311,6 +7383,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -7323,6 +7396,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 recovery:
                   maxItems: 8
                   type: array
@@ -7335,6 +7409,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
               additionalProperties: false
             deviceTypePriority:
               type: object
@@ -7396,6 +7471,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             activeEnergy:
               maxItems: 8
               type: array
@@ -7408,6 +7484,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -7420,6 +7497,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             flightsClimbed:
               maxItems: 8
               type: array
@@ -7432,6 +7510,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             sleep:
               maxItems: 8
               type: array
@@ -7444,6 +7523,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             weight:
               maxItems: 8
               type: array
@@ -7456,6 +7536,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             bloodPressure:
               maxItems: 8
               type: array
@@ -7468,6 +7549,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             pulse:
               maxItems: 8
               type: array
@@ -7480,6 +7562,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             bodyFat:
               maxItems: 8
               type: array
@@ -7492,6 +7575,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             bodyTemperature:
               maxItems: 8
               type: array
@@ -7504,6 +7588,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             spo2:
               maxItems: 8
               type: array
@@ -7516,6 +7601,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             hrv:
               maxItems: 8
               type: array
@@ -7528,6 +7614,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             restingHeartRate:
               maxItems: 8
               type: array
@@ -7540,6 +7627,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             vo2Max:
               maxItems: 8
               type: array
@@ -7552,6 +7640,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             skinTemperature:
               maxItems: 8
               type: array
@@ -7564,6 +7653,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             respiratoryRate:
               maxItems: 8
               type: array
@@ -7576,6 +7666,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             recovery:
               maxItems: 8
               type: array
@@ -7588,6 +7679,7 @@ components:
                   - APPLE_HEALTH
                   - COMPUTED
                   - WHOOP
+                  - FITBIT
             metricPriority:
               type: object
               properties:
@@ -7603,6 +7695,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -7615,6 +7708,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -7627,6 +7721,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -7639,6 +7734,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 sleep:
                   maxItems: 8
                   type: array
@@ -7651,6 +7747,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 weight:
                   maxItems: 8
                   type: array
@@ -7663,6 +7760,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -7675,6 +7773,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 pulse:
                   maxItems: 8
                   type: array
@@ -7687,6 +7786,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -7699,6 +7799,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -7711,6 +7812,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 spo2:
                   maxItems: 8
                   type: array
@@ -7723,6 +7825,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 hrv:
                   maxItems: 8
                   type: array
@@ -7735,6 +7838,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -7747,6 +7851,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -7759,6 +7864,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -7771,6 +7877,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -7783,6 +7890,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
                 recovery:
                   maxItems: 8
                   type: array
@@ -7795,6 +7903,7 @@ components:
                       - APPLE_HEALTH
                       - COMPUTED
                       - WHOOP
+                      - FITBIT
               additionalProperties: false
             deviceTypePriority:
               type: object

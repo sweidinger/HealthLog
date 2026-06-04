@@ -1,6 +1,14 @@
 import { z } from "zod/v4";
 import { isPublicUrl } from "@/lib/validations/notifications";
 
+/**
+ * @deprecated The standalone moodLog integration is superseded by native
+ * mood entries plus structured tags and rated factors — mood is tracked
+ * fully inside HealthLog now. These schemas remain only to keep the
+ * existing webhook + sync paths functional; the surface is slated for
+ * removal in a future major release. The native mood schemas
+ * (`createMoodEntrySchema` etc.) below are the supported path.
+ */
 export const moodLogCredentialsSchema = z.object({
   url: z
     .string()
@@ -83,6 +91,23 @@ export function getScoreForMood(mood: string): number {
 // Bounded so a single create can't fan out an unbounded link set.
 const structuredTagKeys = z.array(z.string().max(60)).max(30);
 
+// v1.12.0 — rated mood factors. A factor is a catalog `MoodTag` of
+// `kind = 'RATED'`; the user scores it per entry, and the score persists
+// on `MoodEntryTagLink.rating`. The wire shape is a parallel array to
+// `tagKeys` (binary), keeping the binary contract byte-identical and the
+// iOS Codable model simple (`[{ key, rating }]`).
+//
+// The Zod `rating` bound here is the OUTER envelope (1..5 covers every
+// seeded factor's scale). The REAL gate is per-tag: after resolving each
+// key to its `MoodTag`, the server rejects a rating outside the tag's own
+// `scaleMin..scaleMax` (e.g. 1..2 for `factor_conflict`). See
+// `resolveRatedFactors` in `src/lib/mood/tag-links.ts`.
+const ratedFactor = z.object({
+  key: z.string().max(60),
+  rating: z.number().int().min(1).max(5),
+});
+const ratedFactors = z.array(ratedFactor).max(30);
+
 export const createMoodEntrySchema = z.object({
   mood: moodLevelEnum,
   tags: z.array(z.string().max(50)).max(20).optional(),
@@ -91,6 +116,11 @@ export const createMoodEntrySchema = z.object({
   // unknown keys are dropped silently (the catalog is the source of
   // truth, a stale client can't mint a tag).
   tagKeys: structuredTagKeys.optional(),
+  // v1.12.0 — rated factors scored 1..5 (or the factor's own scale).
+  // Parallel to the binary `tagKeys`; persisted on
+  // `MoodEntryTagLink.rating`. Out-of-scale or non-RATED keys are
+  // rejected (422) / dropped server-side per the catalog.
+  ratedFactors: ratedFactors.optional(),
   // v1.4.30 H-5 — first-class free-text note. Replaces the
   // `tags: ["note:<text>"]` workaround. Capped at 500 chars so the
   // Coach evidence shelf renders cleanly without truncating chips.
@@ -105,6 +135,9 @@ export const updateMoodEntrySchema = z.object({
   // v1.8.5 — full replacement of the structured-tag set when present.
   // `null` clears every link; omit to leave links untouched.
   tagKeys: structuredTagKeys.nullable().optional(),
+  // v1.12.0 — full replacement of the rated-factor set when present.
+  // `null` clears every rated link; omit to leave them untouched.
+  ratedFactors: ratedFactors.nullable().optional(),
   note: z.string().max(500).nullable().optional(),
   moodLoggedAt: z.iso
     .datetime({ offset: true })

@@ -102,6 +102,8 @@ async function main() {
       withingsClientSecretEncrypted: true,
       whoopClientIdEncrypted: true,
       whoopClientSecretEncrypted: true,
+      fitbitClientIdEncrypted: true,
+      fitbitClientSecretEncrypted: true,
     },
   });
 
@@ -119,6 +121,8 @@ async function main() {
     "withingsClientSecretEncrypted",
     "whoopClientIdEncrypted",
     "whoopClientSecretEncrypted",
+    "fitbitClientIdEncrypted",
+    "fitbitClientSecretEncrypted",
   ];
   for (const field of userFields) {
     const r = await rotateField(
@@ -168,6 +172,26 @@ async function main() {
       (w) => w[field],
       async (id, ciphertext) => {
         await prisma.whoopConnection.update({
+          where: { id },
+          data: { [field]: ciphertext } as Record<string, string>,
+        });
+      },
+    );
+    results.push(r);
+  }
+
+  // ───── FitbitConnection table (accessToken / refreshToken) ─────
+  const fitbit = await prisma.fitbitConnection.findMany({
+    select: { id: true, accessToken: true, refreshToken: true },
+  });
+  for (const field of ["accessToken", "refreshToken"] as const) {
+    const r = await rotateField(
+      "FitbitConnection",
+      field,
+      fitbit,
+      (f) => f[field],
+      async (id, ciphertext) => {
+        await prisma.fitbitConnection.update({
           where: { id },
           data: { [field]: ciphertext } as Record<string, string>,
         });

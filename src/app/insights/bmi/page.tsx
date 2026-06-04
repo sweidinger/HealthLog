@@ -121,7 +121,6 @@ export default function InsightsBmiPage() {
           page's controls.
           BMI is derived from WEIGHT, so the period-over-period delta keys on
           the underlying weight series the chart reuses. */}
-      <MetricRangeControls measurementType="WEIGHT" enabled={!isEmpty} />
       <HealthChartDynamic
         chartKey="bmi"
         types={["WEIGHT"]}
@@ -133,6 +132,8 @@ export default function InsightsBmiPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
+      <MetricRangeControls measurementType="WEIGHT" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="bmi" />
 

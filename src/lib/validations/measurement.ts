@@ -129,6 +129,10 @@ export const measurementSourceEnum = z.enum([
   // client write path). Part of this enum so the read/response shapes (and
   // the iOS decoder) can decode the rows it surfaces.
   "WHOOP",
+  // v1.12.0 — Fitbit/Pixel integration via the Google Health API. Server-owned
+  // (no client write path), exactly like WHOOP. Part of this enum so the
+  // read/response shapes (and the iOS decoder) can decode the rows it surfaces.
+  "FITBIT",
 ]);
 
 /**

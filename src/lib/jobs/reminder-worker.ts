@@ -32,6 +32,15 @@ import {
   type WhoopBackfillPayload,
 } from "@/lib/jobs/whoop-backfill";
 import { cleanupExpiredWhoopOAuthStates } from "@/lib/jobs/whoop-oauth-state-cleanup";
+import { syncUserFitbit } from "@/lib/fitbit/sync";
+import {
+  FITBIT_BACKFILL_QUEUE,
+  FITBIT_BACKFILL_CONCURRENCY,
+  runFitbitBackfillForUser,
+  enqueueBootTimeFitbitBackfill,
+  type FitbitBackfillPayload,
+} from "@/lib/jobs/fitbit-backfill";
+import { cleanupExpiredFitbitOAuthStates } from "@/lib/jobs/fitbit-oauth-state-cleanup";
 import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
 import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
 import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
@@ -301,6 +310,17 @@ const WHOOP_CYCLE_SYNC_CRON = "50 * * * *"; // every hour at :50 (poll-only)
 // next to the Withings sweep (03:20), inside the maintenance window.
 const WHOOP_OAUTH_STATE_CLEANUP_QUEUE = "whoop-oauth-state-cleanup";
 const WHOOP_OAUTH_STATE_CLEANUP_CRON = "22 3 * * *";
+// v1.12.0 — Fitbit / Google Health poll-only sync. There is no Fitbit webhook
+// at launch (Pub/Sub deferred), so a single hourly cron drives the per-user
+// `syncUserFitbit` driver across every connection. Minute staggered off the
+// WHOOP slots (:05/:20/:35/:50) and the Withings slots (:00/:15) so the hourly
+// ticks don't pile up on one boss poll.
+const FITBIT_SYNC_QUEUE = "fitbit-sync";
+const FITBIT_SYNC_CRON = "8 * * * *"; // every hour at :08
+// v1.12.0 — daily sweep for the Fitbit OAuth state ledger. Slots at 03:24, next
+// to the WHOOP sweep (03:22), inside the maintenance window.
+const FITBIT_OAUTH_STATE_CLEANUP_QUEUE = "fitbit-oauth-state-cleanup";
+const FITBIT_OAUTH_STATE_CLEANUP_CRON = "24 3 * * *";
 const OFFHOST_BACKUP_QUEUE = "data-backup-offhost";
 // 02:30 Europe/Berlin — runs after audit-log/idempotency cleanups so old
 // rows are gone before they're snapshotted, but before the existing
@@ -1706,6 +1726,78 @@ async function handleWhoopOAuthStateCleanup(
   });
 }
 
+/**
+ * v1.12.0 — Fitbit poll-sync payload. Poll-only (no webhook at launch): the
+ * single hourly cron tick carries no `userId`, so the handler iterates every
+ * Fitbit connection and re-syncs each via `syncUserFitbit`. One user's
+ * parked-at-reauth state never starves the rest of the cohort.
+ */
+interface FitbitSyncPayload {
+  userId?: string;
+}
+
+async function handleFitbitSync(jobs: Job<FitbitSyncPayload>[]) {
+  await withBackgroundEvent("job.fitbit_sync", async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      const targets: Array<{ userId: string }> = [];
+      for (const job of jobs) {
+        if (job.data?.userId) targets.push({ userId: job.data.userId });
+      }
+      if (targets.length === 0) {
+        const connections = await prisma.fitbitConnection.findMany({
+          select: { userId: true },
+        });
+        targets.push(...connections);
+      }
+      if (targets.length === 0) return;
+
+      let usersSynced = 0;
+      let measurementsImported = 0;
+      for (const { userId } of targets) {
+        try {
+          measurementsImported += await syncUserFitbit(userId);
+          usersSynced++;
+        } catch (err) {
+          evt.addWarning(`job.fitbit_sync failed for user ${userId}: ${err}`);
+        }
+      }
+
+      evt.setBackground({
+        task_name: "job.fitbit_sync",
+        result: {
+          users_synced: usersSynced,
+          total: targets.length,
+          measurements_imported: measurementsImported,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+interface FitbitOAuthStateCleanupPayload {
+  triggeredAt?: string;
+}
+
+async function handleFitbitOAuthStateCleanup(
+  jobs: Job<FitbitOAuthStateCleanupPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.fitbit_oauth_state_cleanup", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const deleted = await cleanupExpiredFitbitOAuthStates(p);
+      evt.addMeta("fitbit_oauth_state_cleanup_deleted", deleted);
+    } catch (err) {
+      evt.addWarning(`fitbit-oauth-state-cleanup failed: ${err}`);
+    }
+  });
+}
+
 async function handleHostMetricSample(jobs: Job<HostMetricSamplePayload>[]) {
   void jobs;
   await withBackgroundEvent("job.host_metric_sample", async (evt) => {
@@ -2224,6 +2316,13 @@ export async function startReminderWorker() {
     WHOOP_BACKFILL_QUEUE,
     // v1.11.0 — daily sweep for the WHOOP OAuth state ledger.
     WHOOP_OAUTH_STATE_CLEANUP_QUEUE,
+    // v1.12.0 — Fitbit / Google Health poll-only sync (no webhook at launch),
+    // self-converging boot backfill, and the daily OAuth-state ledger sweep.
+    // Every queue MUST be registered here or pg-boss never provisions it and the
+    // schedule + boot enqueue silently no-op (the v1.4.37 dead-queue class).
+    FITBIT_SYNC_QUEUE,
+    FITBIT_BACKFILL_QUEUE,
+    FITBIT_OAUTH_STATE_CLEANUP_QUEUE,
     OFFHOST_BACKUP_QUEUE,
     HOST_METRIC_QUEUE,
     FEEDBACK_AGGREGATOR_QUEUE,
@@ -2396,6 +2495,10 @@ export async function startReminderWorker() {
     [WHOOP_CYCLE_SYNC_QUEUE, WHOOP_CYCLE_SYNC_CRON],
     // v1.11.0 — daily 03:22 Europe/Berlin prune for expired WHOOP OAuth states.
     [WHOOP_OAUTH_STATE_CLEANUP_QUEUE, WHOOP_OAUTH_STATE_CLEANUP_CRON],
+    // v1.12.0 — hourly Fitbit poll (:08, staggered off WHOOP/Withings) + the
+    // daily 03:24 Europe/Berlin prune for expired Fitbit OAuth states.
+    [FITBIT_SYNC_QUEUE, FITBIT_SYNC_CRON],
+    [FITBIT_OAUTH_STATE_CLEANUP_QUEUE, FITBIT_OAUTH_STATE_CLEANUP_CRON],
     [OFFHOST_BACKUP_QUEUE, OFFHOST_BACKUP_CRON],
     [HOST_METRIC_QUEUE, HOST_METRIC_CRON],
     [FEEDBACK_AGGREGATOR_QUEUE, FEEDBACK_AGGREGATOR_CRON],
@@ -2525,6 +2628,35 @@ export async function startReminderWorker() {
     WHOOP_OAUTH_STATE_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleWhoopOAuthStateCleanup,
+  );
+  // v1.12.0 — Fitbit poll-sync (cron full-iteration; no webhook). Serial
+  // concurrency so a backfill-heavy tick never crowds the request pool.
+  await boss.work<FitbitSyncPayload>(
+    FITBIT_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleFitbitSync,
+  );
+  // v1.12.0 — self-converging Fitbit backfill. The boot enqueue below sends one
+  // full-history sync per un-backfilled connection; this handler runs it and
+  // stamps `backfillCompletedAt` so the discovery query drops the account.
+  await boss.work<FitbitBackfillPayload>(
+    FITBIT_BACKFILL_QUEUE,
+    { localConcurrency: FITBIT_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const { imported } = await runFitbitBackfillForUser(userId);
+        workerLog(
+          "info",
+          `[fitbit-backfill] user=${userId} imported=${imported}`,
+        );
+      }
+    },
+  );
+  await boss.work<FitbitOAuthStateCleanupPayload>(
+    FITBIT_OAUTH_STATE_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleFitbitOAuthStateCleanup,
   );
   await boss.work<GeneralStatusPayload>(
     GENERAL_STATUS_QUEUE,
@@ -3209,6 +3341,30 @@ export async function startReminderWorker() {
     workerLog(
       "error",
       "[whoop-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.12.0 — fire-and-forget boot discovery for the Fitbit backfill. Finds
+  // every Fitbit connection not yet backfilled and enqueues one full-history
+  // sync per account. Idempotent across reboots: a completed backfill stamps
+  // `backfillCompletedAt`, dropping the connection from the discovery set.
+  // Errors come back through the helper's result value — the worker boot never
+  // fails because of a backfill miss.
+  try {
+    const { enqueued, skipped, error } = await enqueueBootTimeFitbitBackfill();
+    if (error) {
+      workerLog("error", `[fitbit-backfill] boot discovery failed: ${error}`);
+    } else {
+      workerLog(
+        "info",
+        `[fitbit-backfill] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[fitbit-backfill] boot discovery threw an unexpected error",
       err,
     );
   }

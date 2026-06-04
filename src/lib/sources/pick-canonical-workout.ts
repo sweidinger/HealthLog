@@ -94,6 +94,10 @@ export const DEFAULT_WORKOUT_SOURCE_PRIORITY: readonly MeasurementSource[] = [
   // session. The read-time picker clusters a WHOOP run and an Apple-Health
   // run by (activityType, startedAt ± window) and keeps the ladder winner.
   "WHOOP",
+  // v1.12.0 — Fitbit/Pixel exercise logs rank just below WHOOP: a wrist
+  // wearable in the same class, the next-best when no watch logged the same
+  // session.
+  "FITBIT",
   "WITHINGS",
   "MANUAL",
   "IMPORT",

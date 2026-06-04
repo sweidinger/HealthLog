@@ -50,13 +50,15 @@ export function MobileRailTray({
   const { t } = useTranslations();
   return (
     <>
-      {/* History tray — slides in from the left edge. `lg:hidden`
-          because the history rail is inline on lg+. */}
+      {/* History tray — slides in from the left edge. v1.12.0 — the
+          history rail is no longer inline on any viewport (it used to
+          mount inline on lg+), so the tray is available at every
+          breakpoint and the `lg:hidden` cap is gone. */}
       <Sheet open={historyOpen} onOpenChange={onHistoryOpenChange}>
         <SheetContent
           side="left"
           data-slot="coach-drawer-history-tray"
-          className="w-[88vw] max-w-[320px] p-0 lg:hidden"
+          className="w-[88vw] max-w-[320px] p-0"
         >
           <SheetHeader className="border-border/70 border-b p-3">
             <SheetTitle className="text-sm">

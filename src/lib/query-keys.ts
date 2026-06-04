@@ -374,6 +374,13 @@ export const queryKeys = {
    * so a disconnect / credentials mutation invalidates both at once.
    */
   whoopStatus: () => ["whoop", "status"] as const,
+  // v1.12.0 — Fitbit/Pixel integration card, mirroring the WHOOP keys.
+  fitbit: () => ["fitbit"] as const,
+  /**
+   * Per-card Fitbit status read. Shares the `["fitbit"]` prefix with `fitbit()`
+   * so a disconnect / credentials mutation invalidates both at once.
+   */
+  fitbitStatus: () => ["fitbit", "status"] as const,
 
   // v1.4.32 — workout list + detail caches. `workouts()` is the
   // root key invalidated by the batch-ingest mutation; the recent +

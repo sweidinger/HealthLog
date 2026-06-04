@@ -306,21 +306,6 @@ export function MessageThread({
           />
         </div>
       )}
-      {/* v1.4.22 W5 reconcile (Design-H3) — medical-disclaimer
-          reach regression. v1.4.22 B4 moved the disclaimer to the
-          sources-rail footer, but the rail is xl-only; on mobile
-          and laptop viewports the disclaimer was only reachable
-          via the chevron tray. Pin a small persistent line at the
-          bottom of the message thread so every Coach session
-          carries the disclaimer regardless of viewport. The rail
-          footer stays for desktop users — the redundancy is
-          intentional for clinical-adjacent UI. */}
-      <p
-        data-slot="coach-thread-disclaimer"
-        className="text-muted-foreground mt-auto pt-2 text-xs leading-relaxed"
-      >
-        {t("insights.coach.composerDisclaimer")}
-      </p>
     </div>
   );
 }
@@ -427,6 +412,16 @@ function ChatBubble({
         : null;
 
   const keyValues = metricSource?.keyValues ?? [];
+  // v1.12.0 — the provenance disclosure surfaces whenever there is any
+  // grounding to show: the source chips (metrics/windows) and/or the
+  // raw key-values. `SourceChips` itself returns null when the envelope
+  // carries neither metric nor window, so we mirror that condition here
+  // to decide whether the `<details>` shell renders at all.
+  const hasChips =
+    !!metricSource &&
+    ((metricSource.metrics?.length ?? 0) > 0 ||
+      (metricSource.windows?.length ?? 0) > 0);
+  const hasProvenance = hasChips || keyValues.length > 0;
 
   return (
     <div
@@ -467,8 +462,17 @@ function ChatBubble({
         {safeError && (
           <p className="text-dracula-orange/90 text-xs">{safeError}</p>
         )}
-        {metricSource && <SourceChips provenance={metricSource} />}
-        {keyValues.length > 0 && (
+        {/* v1.12.0 — collapse the whole provenance block ("what was
+            included") behind one disclosure, collapsed by default. The
+            source chips used to render fully expanded above the
+            evidence `<details>`, so the grounding context was often
+            taller than the answer itself. Folding the chips + the raw
+            key-values into a single closed disclosure keeps the reply
+            the focus and lets the user expand the grounding on demand —
+            and removes the always-on chip row that duplicated what the
+            disclosure already names. The disclosure surfaces whenever
+            there is any provenance to show (chips and/or key-values). */}
+        {hasProvenance && (
           <details
             data-slot="coach-evidence"
             open={evidenceOpen}
@@ -507,36 +511,50 @@ function ChatBubble({
               />
               <span>{t("insights.coach.evidenceLabel")}</span>
             </summary>
-            <ul
+            <div
               id={evidencePanelId}
-              data-slot="coach-evidence-list"
-              className="text-foreground mt-2 flex flex-col gap-1"
+              data-slot="coach-evidence-panel"
+              className="mt-2 flex flex-col gap-2"
             >
-              {keyValues.map((kv, idx) => (
-                <li
-                  key={`${kv.label}-${idx}`}
-                  data-slot="coach-evidence-row"
-                  className="leading-relaxed"
+              {/* v1.12.0 — the source chips now live inside the
+                  disclosure so they expand with the rest of the
+                  grounding instead of always painting above the
+                  answer. */}
+              {hasChips && metricSource && (
+                <SourceChips provenance={metricSource} />
+              )}
+              {keyValues.length > 0 && (
+                <ul
+                  data-slot="coach-evidence-list"
+                  className="text-foreground flex flex-col gap-1"
                 >
-                  {/* v1.4.25 W5 — `kv.label` (e.g. "avg7 systolic")
-                      was rendered prefixed to every row, repeating
-                      framing the disclosure heading already gives.
-                      Drop the label and lead with the value; the
-                      window stays as a parenthetical tail so the row
-                      still answers "over what timeframe?". */}
-                  <strong className="font-semibold">
-                    {kv.value}
-                    {kv.unit ? ` ${kv.unit}` : ""}
-                  </strong>
-                  {kv.window && (
-                    <span className="text-muted-foreground">
-                      {" "}
-                      ({kv.window})
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
+                  {keyValues.map((kv, idx) => (
+                    <li
+                      key={`${kv.label}-${idx}`}
+                      data-slot="coach-evidence-row"
+                      className="leading-relaxed"
+                    >
+                      {/* v1.4.25 W5 — `kv.label` (e.g. "avg7 systolic")
+                          was rendered prefixed to every row, repeating
+                          framing the disclosure heading already gives.
+                          Drop the label and lead with the value; the
+                          window stays as a parenthetical tail so the row
+                          still answers "over what timeframe?". */}
+                      <strong className="font-semibold">
+                        {kv.value}
+                        {kv.unit ? ` ${kv.unit}` : ""}
+                      </strong>
+                      {kv.window && (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          ({kv.window})
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </details>
         )}
         {/* v1.4.23 H7 — per-message thumbs feedback. Only persisted

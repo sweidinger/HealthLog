@@ -6,6 +6,7 @@ import {
   Activity,
   AlertCircle,
   Download,
+  HeartPulse,
   Link2,
   Loader2,
   RefreshCw,
@@ -25,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,7 +62,7 @@ interface GlobalServiceAvailability {
 // v1.4.19 Phase A5: the redundant in-card status banner is gone — the
 // IntegrationStatusPill now owns state + last-sync presentation, and
 // the actionable error message is shown inline above the action row.
-type IntegrationKey = "withings" | "whoop" | "moodlog";
+type IntegrationKey = "withings" | "whoop" | "fitbit" | "moodlog";
 type IntegrationState =
   | "connected"
   | "error_transient"
@@ -196,6 +198,7 @@ export function IntegrationsSection() {
   const moodLogEnabled = globalServices?.moodLogGlobal ?? true;
   const withingsViewModel = pickStatus(integrationStatus, "withings");
   const whoopViewModel = pickStatus(integrationStatus, "whoop");
+  const fitbitViewModel = pickStatus(integrationStatus, "fitbit");
   const moodLogViewModel = pickStatus(integrationStatus, "moodlog");
 
   return (
@@ -220,6 +223,10 @@ export function IntegrationsSection() {
         viewModel={withingsViewModel}
       />
       <WhoopCard isAuthenticated={isAuthenticated} viewModel={whoopViewModel} />
+      <FitbitCard
+        isAuthenticated={isAuthenticated}
+        viewModel={fitbitViewModel}
+      />
       {moodLogEnabled && <MoodLogCard viewModel={moodLogViewModel} />}
     </section>
   );
@@ -1122,6 +1129,458 @@ function WhoopCard({
   );
 }
 
+// v1.12.0 — Google Health (Fitbit & Pixel) card. Mirrors the WHOOP card: a
+// BYO-key credentials form first, then an OAuth connect, then the
+// sync/test/disconnect action row + parked-resume banner. Status reads from the
+// dedicated /api/fitbit/status (queryKeys.fitbitStatus); the pill/error/parked
+// state comes off the cross-integration envelope view-model like WHOOP.
+function FitbitCard({
+  isAuthenticated,
+  viewModel,
+}: {
+  isAuthenticated: boolean;
+  viewModel: IntegrationStatusViewModel | undefined;
+}) {
+  const { t } = useTranslations();
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [syncMsgType, setSyncMsgType] = useState<"success" | "error" | null>(
+    null,
+  );
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [credsSaving, setCredsSaving] = useState(false);
+  const [credsMsg, setCredsMsg] = useState<string | null>(null);
+  const [credsMsgType, setCredsMsgType] = useState<"success" | "error" | null>(
+    null,
+  );
+  const queryClient = useQueryClient();
+
+  const { data: status } = useQuery({
+    queryKey: queryKeys.fitbitStatus(),
+    queryFn: async () => {
+      const res = await fetch("/api/fitbit/status");
+      if (!res.ok) throw new Error("Failed");
+      const json = await res.json();
+      return json.data as {
+        connected: boolean;
+        configured: boolean;
+        lastSyncedAt?: string | null;
+        connectedAt?: string;
+        tokenExpired?: boolean;
+        backfillCompleted?: boolean;
+        scope?: string | null;
+      };
+    },
+    enabled: isAuthenticated,
+  });
+
+  const disconnect = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/fitbit/disconnect", { method: "POST" });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.fitbit() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrationsStatus(),
+      });
+    },
+  });
+
+  // Clear a parked integration via the resume endpoint. The CTA is
+  // rendered inside the parked banner below; success invalidates both
+  // the per-card status (so the pill flips back to connected
+  // immediately) and the cross-integration envelope (so any other view
+  // picks up the change on its next focus).
+  const resume = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/integrations/fitbit/resume", {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed");
+      return (await res.json()).data as {
+        resumed: boolean;
+        wasParked: boolean;
+      };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.fitbit() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrationsStatus(),
+      });
+    },
+  });
+
+  async function handleSync(fullSync = false) {
+    setSyncing(true);
+    setSyncMsg(null);
+    setSyncMsgType(null);
+    try {
+      const res = await fetch("/api/fitbit/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullSync }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setSyncMsg(
+          t("settings.fitbitSyncResult", { count: json.data.imported }),
+        );
+        setSyncMsgType("success");
+        void invalidateKeys(queryClient, measurementDependentKeys);
+        queryClient.invalidateQueries({ queryKey: queryKeys.fitbit() });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.integrationsStatus(),
+        });
+      } else {
+        setSyncMsg(json.error || t("settings.fitbitSyncFailed"));
+        setSyncMsgType("error");
+      }
+    } catch {
+      setSyncMsg(t("settings.fitbitSyncFailed"));
+      setSyncMsgType("error");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function handleSaveCredentials(e: React.FormEvent) {
+    e.preventDefault();
+    setCredsSaving(true);
+    setCredsMsg(null);
+    setCredsMsgType(null);
+
+    try {
+      const res = await fetch("/api/fitbit/credentials", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: clientId.trim(),
+          clientSecret: clientSecret.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        setCredsMsg(t("settings.fitbitCredentialsSaved"));
+        setCredsMsgType("success");
+        setClientId("");
+        setClientSecret("");
+        queryClient.invalidateQueries({ queryKey: queryKeys.fitbit() });
+      } else {
+        try {
+          const json = await res.json();
+          setCredsMsg(json.error || t("settings.savingError"));
+        } catch {
+          setCredsMsg(t("settings.savingError"));
+        }
+        setCredsMsgType("error");
+      }
+    } catch {
+      setCredsMsg(t("common.networkError"));
+      setCredsMsgType("error");
+    }
+    setCredsSaving(false);
+  }
+
+  const pillState: IntegrationPillState = status?.connected
+    ? pillStateFor(viewModel)
+    : "disconnected";
+  const pillLastSyncAt =
+    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+  const errorMessage =
+    (pillState === "error" || pillState === "parked") && viewModel?.lastError
+      ? viewModel.lastError
+      : null;
+
+  return (
+    <div
+      data-testid="fitbit-card"
+      className="bg-card border-border rounded-xl border p-6"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <HeartPulse className="text-primary h-5 w-5" />
+          <h2 className="text-lg font-semibold">{t("settings.fitbit")}</h2>
+          <span className="bg-muted text-foreground rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+            {t("settings.fitbitTag")}
+          </span>
+          <Badge
+            variant="outline"
+            data-testid="fitbit-experimental-badge"
+            className="border-amber-500/50 text-amber-600 dark:text-amber-400"
+          >
+            {t("settings.fitbitExperimentalBadge")}
+          </Badge>
+        </div>
+        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+      </div>
+      <p className="text-muted-foreground mt-1 text-xs">
+        {t("settings.fitbitDescription")}
+      </p>
+      <p
+        data-testid="fitbit-experimental-note"
+        className="text-muted-foreground/80 mt-2 text-xs"
+      >
+        {t("settings.fitbitExperimentalNote")}
+      </p>
+      <p className="text-muted-foreground/80 mt-2 text-xs">
+        {t("settings.fitbitOverlapNote")}
+      </p>
+
+      <hr
+        data-testid="integration-card-divider"
+        className="border-border/60 mt-4"
+      />
+
+      <div className="mt-4 space-y-4">
+        {errorMessage && <IntegrationErrorMessage message={errorMessage} />}
+        {/* Parked-integration resume CTA. Surfaces only when the row
+            state is `parked` (>24h of persistent failures). The button
+            POSTs to /api/integrations/fitbit/resume which calls
+            `resumeIntegrationFromPark`; on success the per-card status
+            invalidates and the pill flips back to connected without a
+            page refresh. */}
+        {pillState === "parked" && (
+          <div
+            data-testid="fitbit-parked-banner"
+            className="border-dracula-orange/30 bg-dracula-orange/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span className="text-dracula-orange min-w-0 break-words text-xs">
+              {t("settings.integrationPill.parkedReconnect")}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => resume.mutate()}
+              disabled={resume.isPending}
+              data-testid="fitbit-resume-button"
+              className="min-h-11"
+            >
+              {resume.isPending ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Link2 className="mr-1 h-3.5 w-3.5" />
+              )}
+              {t("settings.integrationPill.resumeCta")}
+            </Button>
+          </div>
+        )}
+        {resume.isError && (
+          <p
+            role="alert"
+            className="text-destructive text-xs"
+            data-testid="fitbit-resume-error"
+          >
+            {t("settings.integrationPill.resumeError")}
+          </p>
+        )}
+        {resume.isSuccess && resume.data?.wasParked && (
+          <p
+            role="status"
+            className="text-dracula-green text-xs"
+            data-testid="fitbit-resume-success"
+          >
+            {t("settings.integrationPill.resumeSuccess")}
+          </p>
+        )}
+
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold">
+            {t("settings.fitbitCredentials")}
+          </h3>
+          <p className="text-muted-foreground text-xs">
+            {t("settings.fitbitCredentialsHelp")}
+          </p>
+          <form onSubmit={handleSaveCredentials} className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="fitbit-clientid">
+                  {t("settings.fitbitClientId")}
+                </Label>
+                <Input
+                  id="fitbit-clientid"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  placeholder={
+                    status?.configured
+                      ? t("settings.fitbitCredentialsSavedPlaceholder")
+                      : t("settings.fitbitClientId")
+                  }
+                  maxLength={200}
+                  autoComplete="off"
+                  inputMode="text"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  enterKeyHint="next"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="fitbit-secret">
+                  {t("settings.fitbitClientSecret")}
+                </Label>
+                <PasswordInput
+                  id="fitbit-secret"
+                  value={clientSecret}
+                  onChange={(e) => setClientSecret(e.target.value)}
+                  placeholder={
+                    status?.configured
+                      ? t("settings.fitbitCredentialsSavedPlaceholderSecret")
+                      : t("settings.fitbitClientSecret")
+                  }
+                  maxLength={200}
+                  autoComplete="off"
+                  inputMode="text"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  enterKeyHint="done"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+                disabled={
+                  credsSaving || !clientId.trim() || !clientSecret.trim()
+                }
+              >
+                {credsSaving ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <Save className="mr-1 h-3.5 w-3.5" />
+                )}
+                {t("settings.fitbitSaveCredentials")}
+              </Button>
+            </div>
+            {credsMsg && (
+              <p
+                role="alert"
+                className={`text-sm ${credsMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+              >
+                {credsMsg}
+              </p>
+            )}
+          </form>
+        </div>
+
+        {status?.connected ? (
+          <>
+            <div className="flex flex-wrap items-start gap-2 [&>*]:min-w-[10rem] sm:[&>*]:min-w-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSync(false)}
+                disabled={syncing}
+              >
+                {syncing ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                )}
+                {t("settings.fitbitSync")}
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={syncing}>
+                    {syncing ? (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                    ) : (
+                      <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    {t("settings.fitbitFullSync")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("settings.fitbitFullSyncTitle")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("settings.fitbitFullSyncDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleSync(true)}>
+                      {t("settings.fitbitSynchronize")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <TestConnectionButton
+                endpoint="/api/integrations/fitbit/test"
+                disabled={!status?.connected}
+              />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive"
+                  >
+                    <Unlink className="mr-1 h-3.5 w-3.5" />
+                    {t("settings.fitbitDisconnect")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("settings.fitbitDisconnectTitle")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("settings.fitbitDisconnectDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => disconnect.mutate()}
+                    >
+                      {t("settings.fitbitDisconnect")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+            {status?.backfillCompleted === false && (
+              <p className="text-muted-foreground text-xs">
+                {t("settings.fitbitBackfillInProgress")}
+              </p>
+            )}
+            {syncMsg && (
+              <p
+                role="alert"
+                className={`text-sm ${syncMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+              >
+                {syncMsg}
+              </p>
+            )}
+          </>
+        ) : status?.configured ? (
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.location.href = "/api/fitbit/connect";
+            }}
+          >
+            <Link2 className="mr-2 h-4 w-4" />
+            {t("settings.fitbitConnect")}
+          </Button>
+        ) : (
+          <div className="bg-muted/50 text-muted-foreground rounded-lg p-3 text-sm">
+            {t("settings.fitbitNoCredentials")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MoodLogCard({
   viewModel,
 }: {
@@ -1242,6 +1701,9 @@ function MoodLogCard({
       </div>
       <p className="text-muted-foreground mt-1 text-xs">
         {t("settings.moodLogDescription")}
+      </p>
+      <p className="text-muted-foreground/80 mt-1 text-[11px] italic">
+        {t("settings.moodLogDeprecated")}
       </p>
 
       {/* v1.4.19 A5 — visual divider matches Withings for consistency

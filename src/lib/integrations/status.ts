@@ -39,7 +39,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { getEvent } from "@/lib/logging/context";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
 
-export type IntegrationKey = "withings" | "whoop" | "moodlog";
+export type IntegrationKey = "withings" | "whoop" | "fitbit" | "moodlog";
 
 /**
  * Failure kinds carried into `recordSyncFailure`.
@@ -824,7 +824,9 @@ export function formatAdminAlertPayload(input: AlertInput): {
       ? "Withings"
       : input.integration === "whoop"
         ? "WHOOP"
-        : "moodLog";
+        : input.integration === "fitbit"
+          ? "Fitbit"
+          : "moodLog";
   const subjectLabel = input.subjectLabel ?? input.userId;
   const { reason: reasonLabel, action: actionLabel } =
     FAILURE_KIND_COPY[input.kind];

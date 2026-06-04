@@ -197,6 +197,7 @@
     "collapseSidebar": "Zwiń",
     "userMenu": "Menu użytkownika",
     "mood": "Nastrój",
+    "workouts": "Treningi",
     "skipToContent": "Przejdź do treści",
     "sidebar": "Pasek boczny",
     "mainNavigation": "Nawigacja główna",
@@ -205,7 +206,17 @@
     "loadingScreen": "Ładowanie…",
     "more": "Więcej",
     "moreSheetTitle": "Więcej",
-    "moreSheetDescription": "Strony, które nie mieszczą się w dolnym pasku."
+    "moreSheetDescription": "Przejdź do reszty HealthLog.",
+    "capture": {
+      "title": "Zapisz",
+      "description": "Co chcesz zapisać?",
+      "measurement": "Pomiar",
+      "measurementDescription": "Waga, ciśnienie, tętno i więcej",
+      "medication": "Lek",
+      "medicationDescription": "Oznacz dawkę jako przyjętą",
+      "mood": "Nastrój",
+      "moodDescription": "Zapisz nastrój i tagi"
+    }
   },
   "auth": {
     "login": "Zaloguj się",
@@ -264,6 +275,7 @@
     "quickAddMeasurement": "Zarejestruj pomiar",
     "quickAddMood": "Zarejestruj nastrój",
     "quickAddMedicationIntake": "Zarejestruj przyjęcie",
+    "customizeDashboard": "Dostosuj pulpit",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Zarejestruj przyjęcie leku",
       "sheetDescription": "Zapisz dawkę, godzinę i lek w kilku stuknięciach.",
@@ -469,6 +481,10 @@
     "addEntry": "Dodaj",
     "editEntry": "Edytuj wpis",
     "moodLevel": "Nastrój",
+    "heroQuestion": "Jak się masz?",
+    "factorYes": "Tak",
+    "factorNo": "Nie",
+    "factorRatingOption": "{label}: {value} z {max}",
     "tags": "Tagi",
     "tagsPlaceholder": "np. sport, praca, rodzina",
     "tagsHelp": "Oddziel przecinkami",
@@ -510,7 +526,9 @@
       "sleep": "Sen",
       "health": "Zdrowie",
       "social": "Społeczne",
-      "work": "Praca"
+      "work": "Praca",
+      "hobbies": "Hobby",
+      "factors": "Czynniki"
     },
     "tag": {
       "happy": "szczęśliwy",
@@ -542,7 +560,21 @@
       "overtime": "nadgodziny",
       "dayOff": "dzień wolny",
       "travel": "podróż",
-      "sickDay": "dzień chorobowy"
+      "sickDay": "dzień chorobowy",
+      "movies": "filmy",
+      "reading": "czytanie",
+      "gaming": "gry",
+      "music": "muzyka",
+      "outdoors": "na dworze",
+      "fastFood": "fast food",
+      "noSweets": "bez słodyczy",
+      "bigMeal": "obfity posiłek",
+      "factorWork": "praca",
+      "factorSocial": "życie towarzyskie",
+      "factorSleepQuality": "jakość snu",
+      "factorStress": "stres",
+      "factorConflict": "konflikt",
+      "factorFamily": "rodzina"
     }
   },
   "medications": {
@@ -1035,6 +1067,9 @@
     "injectionSiteBodyOutlineAriaLabel": "Sylwetka ciała",
     "injectionSitePickerAriaLabel": "Wybór miejsca iniekcji",
     "injectionSiteRecommendedAriaLabel": "{site} — zalecane następne miejsce",
+    "injectionSiteLegendAriaLabel": "Legenda oznaczeń",
+    "injectionSiteLegendRecommended": "Zalecane następne miejsce",
+    "injectionSiteLegendLastUsed": "Ostatnio użyte miejsce",
     "siteAbdomenLeft": "Brzuch, dolny lewy",
     "siteAbdomenRight": "Brzuch, dolny prawy",
     "siteAbdomenUpperLeft": "Brzuch, górny lewy",
@@ -1687,7 +1722,6 @@
     },
     "correlationRow": {
       "title": "Korelacje",
-      "subtitle": "Hipotezy zdefiniowane wcześniej, z progiem n ≥ 14 i p < 0,05",
       "disclaimer": "Korelacje są obserwacyjne, nie przyczynowe — porozmawiaj z lekarzem, jeśli ciśnienie jest wysokie.",
       "experimentCta": "Uruchom 7-dniowy eksperyment",
       "experimentTooltip": "Wkrótce",
@@ -1715,6 +1749,8 @@
       "errorCredentialExpired": "Połączenie z dostawcą AI wygasło. Połącz je ponownie w Ustawieniach, aby Coach działał dalej.",
       "tagline": "Osobisty coach zdrowia, oparty na twoich danych.",
       "newChat": "Nowa rozmowa",
+      "maximizeAriaLabel": "Otwórz na pełnej stronie",
+      "minimizeAriaLabel": "Powrót do panelu",
       "send": "Wyślij",
       "stop": "Zatrzymaj",
       "thinking": "Myślę…",
@@ -1978,6 +2014,14 @@
         "bpRange": "Cel: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
         "inTargetShare": "{pct}% zarejestrowanych dni w zakresie celu",
         "adjustLink": "Dostosuj zakres docelowy"
+      },
+      "primary": {
+        "avg30Label": "Średnia z 30 dni",
+        "inRangeLabel": "W zakresie",
+        "inRangeAria": "{pct}% zarejestrowanych dni w zakresie celu"
+      },
+      "lastMeasurement": {
+        "label": "Ostatni pomiar"
       },
       "explainer": {
         "trigger": "Czym jest {title}?",
@@ -2561,8 +2605,22 @@
         "description": "Tagi i wskaźniki, które pokrywają się z dniami lepszego i gorszego nastroju, uszeregowane według siły powiązania.",
         "disclaimer": "Tylko powiązania, nie przyczyny. Skonsultuj się z lekarzem, zanim coś zmienisz."
       },
+      "crosstab": {
+        "title": "Tagi a Twoje wskaźniki zdrowia",
+        "description": "Jak wskaźnik zdrowia różni się w dniach z danym tagiem w porównaniu z dniami bez niego.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Aktywna energia",
+        "metricSleepDuration": "Sen",
+        "metricNextDayRecovery": "Regeneracja następnego dnia",
+        "unitHours": "godz.",
+        "unitKcal": "kcal",
+        "unitScore": "pkt",
+        "detailSameDay": "Średnio {withAvg} {unit} w {withDays} dniach z tym tagiem wobec {withoutAvg} {unit} bez niego.",
+        "detailNextDay": "Średnio {withAvg} {unit} dzień po {withDays} dniach z tym tagiem wobec {withoutAvg} {unit} w pozostałe dni.",
+        "disclaimer": "To powiązania w Twoich danych, nie dowód przyczyny. Wzorce warte obserwacji."
+      },
       "discovery": {
-        "title": "Wykryte wzorce",
+        "title": "Co się wyróżnia",
         "description": "Relacje dzień po dniu dotyczące Twojego nastroju, które utrzymują się po korekcie wielokrotnych testów.",
         "footer": "Wyłonione z {tested} par dzień po dniu testowanych na wszystkich Twoich wskaźnikach, po korekcie fałszywych odkryć.",
         "empty": "Żadna relacja nastroju nie przekroczyła jeszcze progu statystycznego. Notuj dalej.",
@@ -2737,7 +2795,7 @@
         "label": "Kilka parametrów poza bazą",
         "summary": "Dziś {count} Twoich parametrów życiowych znalazło się poza osobistym zakresem.",
         "vitals": "Poza zakresem: {list}",
-        "cardTitle": "Sygnał dnia",
+        "cardTitle": "Sygnały dnia",
         "allClear": "Dziś wszystkie Twoje parametry życiowe mieszczą się w osobistym zakresie.",
         "allClearMeta": "Sprawdzono {count} Twoich parametrów względem Twojego typowego zakresu.",
         "watch": "Dziś jeden parametr jest poza swoim zwykłym zakresem.",
@@ -2751,7 +2809,8 @@
         "headline": "Jeśli ten wzorzec się utrzyma — następne {days} dni",
         "range": "Rzutowane na około {low}–{high} {unit} za {days} dni.",
         "caveat": "Rzut Twojego własnego ostatniego trendu, nie prognoza. Zacieniony pas poszerza się, pokazując, jak szybko rośnie niepewność.",
-        "insufficient": "Jeszcze brak wystarczająco wyraźnego trendu do rzutowania — rejestruj dalej, a rzut pojawi się, gdy ostatni wzorzec będzie dość wyraźny."
+        "insufficient": "Jeszcze brak wystarczająco wyraźnego trendu do rzutowania — rejestruj dalej, a rzut pojawi się, gdy ostatni wzorzec będzie dość wyraźny.",
+        "daysNeeded": "Potrzeba jeszcze około {count} dni rejestrowania, zanim pojawi się rzut."
       }
     },
     "cardioFitness": {
@@ -3086,7 +3145,7 @@
         "description": "Dla każdej metryki: własny zakres docelowy zdrowych wartości."
       },
       "sources": {
-        "title": "Źródła",
+        "title": "Priorytet źródeł",
         "description": "Wybierz, które źródło wygrywa, gdy kilka rejestruje tę samą metrykę tego samego dnia.",
         "cardTitle": "Priorytet źródeł według metryki",
         "help": "Gdy więcej niż jedno źródło dostarcza tę samą wartość tego samego dnia (np. Withings i Apple Health raportują po 1200 kroków), źródło na górze liczy się jako odczyt kanoniczny. Pozostałe źródła pozostają zapisane na potrzeby ścieżki audytu.",
@@ -3129,6 +3188,7 @@
           "MANUAL": "Wpis ręczny",
           "IMPORT": "Importuj",
           "WHOOP": "WHOOP",
+          "FITBIT": "Fitbit",
           "COMPUTED": "Obliczone"
         },
         "deviceLabels": {
@@ -3196,7 +3256,7 @@
         }
       },
       "about": {
-        "title": "O aplikacji",
+        "title": "O tej aplikacji",
         "description": "Wersja, licencja, linki."
       },
       "sharing": {
@@ -3491,6 +3551,33 @@
     "whoopConnect": "Połącz z WHOOP",
     "whoopNoCredentials": "Wprowadź powyżej swoje dane API, aby połączyć WHOOP.",
     "whoopBackfillInProgress": "Importowanie historii WHOOP w tle…",
+    "fitbit": "Google Health",
+    "fitbitTag": "Fitbit i Pixel",
+    "fitbitDescription": "Połącz Google Health, aby synchronizować dane z Fitbita i Pixel Watch — wagę, tkankę tłuszczową, tętno spoczynkowe, saturację, zmienność rytmu serca i więcej.",
+    "fitbitOverlapNote": "Jeśli Google Health i inne źródło dostarczają ten sam parametr życiowy — tętno spoczynkowe, saturację, temperaturę ciała lub częstość oddechów — możesz widzieć obie wartości, dopóki przyszła aktualizacja nie wybierze jednego preferowanego źródła.",
+    "fitbitExperimentalBadge": "Eksperymentalne",
+    "fitbitExperimentalNote": "Ta integracja jest w wersji beta — zakres danych i mapowanie pól są wciąż weryfikowane na rzeczywistych kontach Google Health, więc niektóre wartości mogą być niedostępne lub zmienić się w przyszłej aktualizacji.",
+    "fitbitCredentials": "Dane uwierzytelniające API",
+    "fitbitCredentialsHelp": "Zarejestruj własny klient OAuth Google Cloud dla interfejsu Google Health API i wklej tutaj jego Client ID oraz Client Secret.",
+    "fitbitClientId": "Client ID",
+    "fitbitClientSecret": "Client Secret",
+    "fitbitCredentialsSaved": "Dane uwierzytelniające zapisane",
+    "fitbitCredentialsSavedPlaceholder": "Zapisano — wpisz nowe, aby zastąpić",
+    "fitbitCredentialsSavedPlaceholderSecret": "Zapisano — wpisz nowe, aby zastąpić",
+    "fitbitSaveCredentials": "Zapisz dane uwierzytelniające",
+    "fitbitSync": "Synchronizuj teraz",
+    "fitbitFullSync": "Synchronizuj wszystkie dane",
+    "fitbitFullSyncTitle": "Pełna synchronizacja?",
+    "fitbitFullSyncDescription": "Cała dostępna historia Google Health zostanie w pełni zsynchronizowana. W zależności od historii może to chwilę potrwać.",
+    "fitbitSyncResult": "Zsynchronizowano {count} pomiarów",
+    "fitbitSyncFailed": "Synchronizacja nie powiodła się",
+    "fitbitSynchronize": "Synchronizuj",
+    "fitbitDisconnect": "Rozłącz",
+    "fitbitDisconnectTitle": "Rozłączyć Google Health?",
+    "fitbitDisconnectDescription": "Połączenie z Google Health zostanie rozłączone. Wcześniej zsynchronizowane dane zostaną zachowane.",
+    "fitbitConnect": "Połącz z Google Health",
+    "fitbitNoCredentials": "Wprowadź powyżej swoje dane uwierzytelniające API, aby połączyć Google Health.",
+    "fitbitBackfillInProgress": "Importowanie historii Google Health w tle…",
     "integrations": {
       "withings": {
         "reconnect": {
@@ -3569,6 +3656,7 @@
     "savingError": "Błąd podczas zapisywania",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood data from moodLog",
+    "moodLogDeprecated": "Wycofane: nastrój jest teraz śledzony natywnie w HealthLog z tagami i czynnikami. Ta integracja nadal działa, ale zostanie usunięta w przyszłej wersji.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "Klucz API",

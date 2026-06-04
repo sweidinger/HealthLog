@@ -197,6 +197,7 @@
     "collapseSidebar": "Einklappen",
     "userMenu": "Benutzermenü",
     "mood": "Stimmung",
+    "workouts": "Workouts",
     "skipToContent": "Zum Inhalt springen",
     "sidebar": "Sidebar",
     "mainNavigation": "Hauptnavigation",
@@ -205,7 +206,17 @@
     "loadingScreen": "Laden…",
     "more": "Mehr",
     "moreSheetTitle": "Mehr",
-    "moreSheetDescription": "Seiten, die nicht in die untere Leiste passen."
+    "moreSheetDescription": "Zum Rest von HealthLog springen.",
+    "capture": {
+      "title": "Erfassen",
+      "description": "Was möchtest du erfassen?",
+      "measurement": "Messung",
+      "measurementDescription": "Gewicht, Blutdruck, Puls und mehr",
+      "medication": "Medikament",
+      "medicationDescription": "Eine Dosis als genommen markieren",
+      "mood": "Stimmung",
+      "moodDescription": "Stimmung und Tags erfassen"
+    }
   },
   "auth": {
     "login": "Anmelden",
@@ -264,6 +275,7 @@
     "quickAddMeasurement": "Messung erfassen",
     "quickAddMood": "Stimmung erfassen",
     "quickAddMedicationIntake": "Einnahme erfassen",
+    "customizeDashboard": "Dashboard anpassen",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Medikamenteneinnahme erfassen",
       "sheetDescription": "Dosis, Zeitpunkt und Medikament in wenigen Tipps protokollieren.",
@@ -469,6 +481,10 @@
     "addEntry": "Hinzufügen",
     "editEntry": "Eintrag bearbeiten",
     "moodLevel": "Stimmung",
+    "heroQuestion": "Wie geht's dir?",
+    "factorYes": "Ja",
+    "factorNo": "Nein",
+    "factorRatingOption": "{label}: {value} von {max}",
     "tags": "Tags",
     "tagsPlaceholder": "z.B. Sport, Arbeit, Familie",
     "tagsHelp": "Kommagetrennt eingeben",
@@ -510,7 +526,9 @@
       "sleep": "Schlaf",
       "health": "Gesundheit",
       "social": "Soziales",
-      "work": "Arbeit"
+      "work": "Arbeit",
+      "hobbies": "Hobbys",
+      "factors": "Faktoren"
     },
     "tag": {
       "happy": "glücklich",
@@ -542,7 +560,21 @@
       "overtime": "Überstunden",
       "dayOff": "Feierabend",
       "travel": "Reise",
-      "sickDay": "Krankheitstag"
+      "sickDay": "Krankheitstag",
+      "movies": "Filme",
+      "reading": "gelesen",
+      "gaming": "gezockt",
+      "music": "Musik",
+      "outdoors": "draußen",
+      "fastFood": "Fast Food",
+      "noSweets": "keine Süßigkeiten",
+      "bigMeal": "üppige Mahlzeit",
+      "factorWork": "Arbeit",
+      "factorSocial": "Soziales",
+      "factorSleepQuality": "Schlafqualität",
+      "factorStress": "Stress",
+      "factorConflict": "Konflikt",
+      "factorFamily": "Familie"
     }
   },
   "medications": {
@@ -1035,6 +1067,9 @@
     "injectionSiteBodyOutlineAriaLabel": "Körperumriss",
     "injectionSitePickerAriaLabel": "Injektionsstelle auswählen",
     "injectionSiteRecommendedAriaLabel": "{site} – empfohlene nächste Stelle",
+    "injectionSiteLegendAriaLabel": "Legende der Markierungen",
+    "injectionSiteLegendRecommended": "Empfohlene nächste Stelle",
+    "injectionSiteLegendLastUsed": "Zuletzt verwendete Stelle",
     "siteAbdomenLeft": "Bauch, unten links",
     "siteAbdomenRight": "Bauch, unten rechts",
     "siteAbdomenUpperLeft": "Bauch, oben links",
@@ -1687,7 +1722,6 @@
     },
     "correlationRow": {
       "title": "Zusammenhänge",
-      "subtitle": "Vorab definierte Hypothesen, gegated auf n ≥ 14 und p < 0,05",
       "disclaimer": "Zusammenhänge sind beobachtend, nicht kausal — sprich mit deinem Arzt, wenn der Blutdruck hoch ist.",
       "experimentCta": "7-Tage-Experiment starten",
       "experimentTooltip": "Bald verfügbar",
@@ -1715,6 +1749,8 @@
       "errorCredentialExpired": "Deine Verbindung zum KI-Anbieter ist abgelaufen. Stelle sie in den Einstellungen wieder her, damit der Coach weiterläuft.",
       "tagline": "Persönlicher Gesundheitscoach, auf deine Daten gestützt.",
       "newChat": "Neuer Chat",
+      "maximizeAriaLabel": "Im Vollbild öffnen",
+      "minimizeAriaLabel": "Zurück zum Seitenfenster",
       "send": "Senden",
       "stop": "Stopp",
       "thinking": "Denke nach…",
@@ -1978,6 +2014,14 @@
         "bpRange": "Ziel: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
         "inTargetShare": "{pct}% der erfassten Tage im Zielbereich",
         "adjustLink": "Zielbereich anpassen"
+      },
+      "primary": {
+        "avg30Label": "30-Tage-Durchschnitt",
+        "inRangeLabel": "Im Zielbereich",
+        "inRangeAria": "{pct}% der erfassten Tage im Zielbereich"
+      },
+      "lastMeasurement": {
+        "label": "Letzte Messung"
       },
       "explainer": {
         "trigger": "Was ist {title}?",
@@ -2561,8 +2605,22 @@
         "description": "Tags und Werte, die mit deinen Tagen besserer und schlechterer Stimmung einhergehen, sortiert danach, wie stark sie sich zusammen bewegen.",
         "disclaimer": "Nur Zusammenhänge, keine Ursachen. Sprich mit deiner Ärztin oder deinem Arzt, bevor du etwas änderst."
       },
+      "crosstab": {
+        "title": "Tags und deine Gesundheitswerte",
+        "description": "Wie sich ein Gesundheitswert an Tagen mit einem Tag von Tagen ohne diesen Tag unterscheidet.",
+        "pairLabel": "{tag} · {metric}",
+        "metricActiveEnergy": "Aktive Energie",
+        "metricSleepDuration": "Schlaf",
+        "metricNextDayRecovery": "Erholung am Folgetag",
+        "unitHours": "Std.",
+        "unitKcal": "kcal",
+        "unitScore": "Pkt.",
+        "detailSameDay": "Durchschnittlich {withAvg} {unit} an den {withDays} Tagen mit diesem Tag gegenüber {withoutAvg} {unit} ohne.",
+        "detailNextDay": "Durchschnittlich {withAvg} {unit} am Tag nach den {withDays} Tagen mit diesem Tag gegenüber {withoutAvg} {unit} sonst.",
+        "disclaimer": "Das sind Zusammenhänge in deinen eigenen Daten, kein Beweis für Ursachen. Muster, die einen Blick wert sind."
+      },
       "discovery": {
-        "title": "Entdeckte Muster",
+        "title": "Was auffällt",
         "description": "Tag-zu-Tag-Zusammenhänge rund um deine Stimmung, die auch nach Korrektur für viele gleichzeitige Tests bestehen.",
         "footer": "Herausgefiltert aus {tested} Tag-zu-Tag-Paaren, die über all deine Werte getestet wurden, nach der Korrektur für Fehlentdeckungen.",
         "empty": "Bisher hat kein Stimmungszusammenhang die statistische Hürde genommen. Logge weiter.",
@@ -2737,7 +2795,7 @@
         "label": "Mehrere Vitalwerte außerhalb der Baseline",
         "summary": "{count} deiner Vitalwerte lagen heute außerhalb ihres persönlichen Bereichs.",
         "vitals": "Außerhalb des Bereichs: {list}",
-        "cardTitle": "Signal des Tages",
+        "cardTitle": "Signale des Tages",
         "allClear": "Alle deine Vitalwerte liegen heute in ihrem persönlichen Bereich.",
         "allClearMeta": "{count} deiner Vitalwerte gegen deinen eigenen typischen Bereich geprüft.",
         "watch": "Ein Vitalwert liegt heute außerhalb seines üblichen Bereichs.",
@@ -2751,7 +2809,8 @@
         "headline": "Wenn dieses Muster anhält — die nächsten {days} Tage",
         "range": "Projiziert auf rund {low}–{high} {unit} in {days} Tagen.",
         "caveat": "Eine Fortschreibung deines eigenen jüngsten Trends, keine Vorhersage. Das schattierte Band wird breiter und zeigt, wie schnell die Unsicherheit wächst.",
-        "insufficient": "Noch kein klar genuger Trend für eine Projektion — erfasse weiter, dann erscheint eine Projektion, sobald das jüngste Muster deutlich genug ist."
+        "insufficient": "Noch kein klar genuger Trend für eine Projektion — erfasse weiter, dann erscheint eine Projektion, sobald das jüngste Muster deutlich genug ist.",
+        "daysNeeded": "Noch etwa {count} Tage Erfassung nötig, bis eine Projektion erscheinen kann."
       }
     },
     "cardioFitness": {
@@ -3086,7 +3145,7 @@
         "description": "Pro Metrik dein eigener Zielbereich für gesunde Werte."
       },
       "sources": {
-        "title": "Quellen",
+        "title": "Quellen-Priorität",
         "description": "Lege fest, welche Quelle führt, wenn mehrere am selben Tag dieselbe Metrik liefern.",
         "cardTitle": "Quellen-Priorität pro Metrik",
         "help": "Wenn mehrere Quellen denselben Wert am selben Tag liefern (z. B. Withings + Apple Health beide 1.200 Schritte), wird die oberste Quelle als kanonisch verwendet. Andere Quellen bleiben gespeichert für die Audit-Spur.",
@@ -3129,6 +3188,7 @@
           "MANUAL": "Manuelle Eingabe",
           "IMPORT": "Import",
           "WHOOP": "WHOOP",
+          "FITBIT": "Fitbit",
           "COMPUTED": "Berechnet"
         },
         "deviceLabels": {
@@ -3196,7 +3256,7 @@
         }
       },
       "about": {
-        "title": "Über",
+        "title": "Über diese App",
         "description": "Version, Lizenz, Links."
       },
       "sharing": {
@@ -3491,6 +3551,33 @@
     "whoopConnect": "Mit WHOOP verbinden",
     "whoopNoCredentials": "Bitte gib oben deine API-Zugangsdaten ein, um WHOOP zu verbinden.",
     "whoopBackfillInProgress": "Dein WHOOP-Verlauf wird im Hintergrund importiert…",
+    "fitbit": "Google Health",
+    "fitbitTag": "Fitbit & Pixel",
+    "fitbitDescription": "Verbinde Google Health, um deine Fitbit- und Pixel-Watch-Werte zu synchronisieren — Gewicht, Körperfett, Ruhepuls, Sauerstoffsättigung, Herzfrequenzvariabilität und mehr.",
+    "fitbitOverlapNote": "Wenn Google Health und eine andere Quelle denselben Vitalwert liefern — Ruhepuls, Sauerstoffsättigung, Körpertemperatur oder Atemfrequenz —, siehst du möglicherweise beide Werte, bis sich ein künftiges Update auf eine bevorzugte Quelle festlegt.",
+    "fitbitExperimentalBadge": "Experimentell",
+    "fitbitExperimentalNote": "Diese Integration befindet sich in der Beta — die Datenabdeckung und die Feldzuordnung werden noch gegen echte Google-Health-Konten geprüft, daher können einzelne Werte fehlen oder sich in einem künftigen Update ändern.",
+    "fitbitCredentials": "API-Zugangsdaten",
+    "fitbitCredentialsHelp": "Registriere deinen eigenen Google-Cloud-OAuth-Client für die Google-Health-API und füge hier dessen Client-ID und Client-Secret ein.",
+    "fitbitClientId": "Client-ID",
+    "fitbitClientSecret": "Client-Secret",
+    "fitbitCredentialsSaved": "Zugangsdaten gespeichert",
+    "fitbitCredentialsSavedPlaceholder": "Gespeichert — neu eingeben zum Ersetzen",
+    "fitbitCredentialsSavedPlaceholderSecret": "Gespeichert — neu eingeben zum Ersetzen",
+    "fitbitSaveCredentials": "Zugangsdaten speichern",
+    "fitbitSync": "Jetzt synchronisieren",
+    "fitbitFullSync": "Alle Daten synchronisieren",
+    "fitbitFullSyncTitle": "Vollständige Synchronisierung?",
+    "fitbitFullSyncDescription": "Der gesamte verfügbare Google-Health-Verlauf wird vollständig synchronisiert. Das kann je nach Umfang deines Verlaufs einige Zeit dauern.",
+    "fitbitSyncResult": "{count} Messungen synchronisiert",
+    "fitbitSyncFailed": "Synchronisierung fehlgeschlagen",
+    "fitbitSynchronize": "Synchronisieren",
+    "fitbitDisconnect": "Trennen",
+    "fitbitDisconnectTitle": "Google Health trennen?",
+    "fitbitDisconnectDescription": "Die Verbindung zu Google Health wird getrennt. Zuvor synchronisierte Daten bleiben erhalten.",
+    "fitbitConnect": "Mit Google Health verbinden",
+    "fitbitNoCredentials": "Bitte gib oben deine API-Zugangsdaten ein, um Google Health zu verbinden.",
+    "fitbitBackfillInProgress": "Dein Google-Health-Verlauf wird im Hintergrund importiert…",
     "integrations": {
       "withings": {
         "reconnect": {
@@ -3569,6 +3656,7 @@
     "savingError": "Fehler beim Speichern",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Stimmungseinträge übernehmen.",
+    "moodLogDeprecated": "Veraltet: Stimmung wird jetzt nativ in HealthLog mit Tags und Faktoren erfasst. Diese Integration funktioniert weiterhin, wird aber in einer künftigen Version entfernt.",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
     "moodLogApiKey": "API-Key",

@@ -1,24 +1,24 @@
 /**
  * v1.4.16 Phase B7 — Settings → Export section.
  *
- * The acceptance criterion for the consolidated Export menu was "five
- * cards":
- *   1. Doctor Report (PDF) — promoted to the hero in v1.4.37 W7a;
- *      now lives at the top of the page, NOT in the grid
- *   2. Measurements CSV
- *   3. Medications CSV (with optional intake-history toggle)
- *   4. Mood CSV
- *   5. Full JSON Backup
+ * The consolidated Export page surfaces:
+ *   - Health Record export panel (the page hero, v1.12)
+ *   - Measurements CSV
+ *   - Medications CSV (with optional intake-history toggle)
+ *   - Mood CSV
+ *   - Full JSON Backup
+ *   - Doctor Report (PDF) — small secondary card at the bottom (v1.12)
  *
  * Each card must surface a title, a 1-line description, and a
  * download/generate button. SSR-only smoke test — interaction is
  * exercised by the e2e suite.
  *
- * v1.4.37 W7a — the doctor-report card was extracted into
- * `<ArztberichtHeroCard>` and rendered above the grid. The remaining
- * four cards stay under a "Weitere Export-Optionen" / "Other export
- * options" sub-heading. The hero owns its own contract test; this
- * suite pins the page-level shape.
+ * v1.12 — the health-record export takes the page hero; the
+ * doctor-report card (`<ArztberichtHeroCard>`) is demoted to a small
+ * secondary card at the bottom of the page. The four CSV/JSON tiles
+ * stay under a "Weitere Export-Optionen" / "Other export options"
+ * sub-heading. Each component owns its own contract test; this suite
+ * pins the page-level shape.
  */
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -60,11 +60,19 @@ describe("<ExportSection> — SSR smoke", () => {
     expect(html).not.toContain("settings.sections.export.");
   });
 
-  it("renders the Arztbericht hero card at the top of the page", () => {
+  it("mounts the health-record export panel as the page hero", () => {
     const html = render(<ExportSection />);
-    // The hero owns its own contract suite; here we pin that the page
+    // v1.12 — the health-record export owns the hero treatment.
+    expect(html).toContain('data-testid="health-record-export-panel"');
+    expect(html).toContain("hero-gradient");
+    expect(html).toContain("glow-purple");
+  });
+
+  it("mounts the demoted doctor-report card", () => {
+    const html = render(<ExportSection />);
+    // The card owns its own contract suite; here we pin that the page
     // mounts it, and that the legacy in-grid doctor-report card is
-    // gone (v1.4.37 W7a moved it into the hero).
+    // gone. The card no longer carries the hero gradient/glow (v1.12).
     expect(html).toContain('data-testid="export-hero-doctor-report"');
     expect(html).not.toContain('data-testid="export-card-doctor-report"');
   });

@@ -7,15 +7,15 @@ import { CoachDrawerBody } from "../coach-drawer-body";
 /**
  * v1.4.20 phase B4 — Coach drawer mobile rail trays.
  *
- * The drawer hides the history + sources rails on `<lg`. B4 adds two
- * chevron-button triggers along the edges of the message thread that
- * open side-sheets surfacing the same rails.
+ * Two chevron-button triggers along the thread sub-header open
+ * side-sheets surfacing the history + sources rails.
  *
- * Phase D reconcile narrowed the lg drawer cap (was 1080px → now
- * min(960px,75vw)) so the inline sources rail no longer fits below
- * xl. The history rail surfaces inline on lg; the sources rail
- * surfaces inline on xl. Mobile chevron triggers cover the missing
- * rails: history hidden on lg+, sources hidden on xl+.
+ * v1.12.0 — the conversation history is no longer an inline column on
+ * any viewport. The "Conversations" trigger is the only entry to the
+ * history rail and is therefore visible at every breakpoint; the
+ * sources rail stays inline at xl+ so its trigger keeps `xl:hidden`.
+ * The clinical-decisions disclaimer renders once, directly above the
+ * composer.
  */
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
@@ -25,10 +25,10 @@ function render(node: React.ReactNode, locale: "en" | "de" = "en") {
 }
 
 const baseProps = {
-  historyRail: <span>history</span>,
   sourcesRail: <span>sources</span>,
   thread: <span>thread</span>,
   composer: <span>composer</span>,
+  disclaimer: <span>disclaimer</span>,
   onOpenHistoryTray: () => undefined,
   onOpenSourcesTray: () => undefined,
 };
@@ -40,42 +40,55 @@ describe("<CoachDrawerBody> — mobile rail trays", () => {
     expect(html).toMatch(/data-slot="coach-drawer-sources-tray-trigger"/);
   });
 
-  it("hides the history trigger on >=lg and the sources trigger on >=xl", () => {
-    // v1.4.27 R3d MB2 — the strip wrapper carries `xl:hidden` so the
-    // sources trigger inherits the breakpoint; the history trigger
-    // keeps its own `lg:hidden` because the history rail mounts
-    // inline already on lg+ while the sources rail still needs the
-    // chevron until xl.
+  it("keeps the history trigger on every breakpoint and hides the sources trigger on >=xl", () => {
+    // v1.12.0 — the history rail is tray-only now, so the
+    // "Conversations" toggle is always visible (no `lg:hidden`) and
+    // the strip wrapper no longer carries `xl:hidden`. The sources
+    // trigger keeps `xl:hidden` because the sources rail is inline at
+    // xl+.
     const html = render(<CoachDrawerBody {...baseProps} />);
     const strip = html.match(
       /<div[^>]*data-slot="coach-drawer-rail-tray-strip"[^>]*>/,
     );
-    expect(strip?.[0]).toContain("xl:hidden");
+    expect(strip?.[0]).not.toContain("xl:hidden");
 
     const historyTrigger = html.match(
       /<button[^>]*data-slot="coach-drawer-history-tray-trigger"[^>]*>/,
     );
     expect(historyTrigger).not.toBeNull();
-    expect(historyTrigger?.[0]).toContain("lg:hidden");
+    expect(historyTrigger?.[0]).not.toContain("lg:hidden");
+
+    const sourcesTrigger = html.match(
+      /<button[^>]*data-slot="coach-drawer-sources-tray-trigger"[^>]*>/,
+    );
+    expect(sourcesTrigger?.[0]).toContain("xl:hidden");
   });
 
-  it("renders the desktop history rail (lg+) and sources rail (xl+)", () => {
+  it("no longer mounts an inline history column; sources rail stays inline at xl+", () => {
     const html = render(<CoachDrawerBody {...baseProps} />);
-    expect(html).toMatch(
-      /<aside[^>]*data-slot="coach-drawer-history"[^>]*lg:flex/,
-    );
+    expect(html).not.toContain('data-slot="coach-drawer-history"');
     expect(html).toMatch(
       /<aside[^>]*data-slot="coach-drawer-sources"[^>]*xl:flex/,
     );
   });
 
-  it("renders the message thread + composer slots", () => {
+  it("renders the message thread + composer slots and the disclaimer above the composer", () => {
     const html = render(<CoachDrawerBody {...baseProps} />);
     expect(html).toMatch(/data-slot="coach-drawer-thread"/);
     expect(html).toMatch(/data-slot="coach-drawer-composer"/);
     // Slot content forwarded verbatim.
     expect(html).toContain("thread");
     expect(html).toContain("composer");
+    // The disclaimer slot renders inside the composer container, before
+    // the composer itself.
+    expect(html).toContain("disclaimer");
+    const composerBlock = html.match(
+      /data-slot="coach-drawer-composer"[^>]*>([\s\S]*?)<\/div>/,
+    );
+    expect(composerBlock?.[1]).toContain("disclaimer");
+    const disclaimerIdx = html.indexOf("disclaimer");
+    const composerIdx = html.lastIndexOf("composer");
+    expect(disclaimerIdx).toBeLessThan(composerIdx);
   });
 
   it("uses chevron-style trigger labels — History on the left, Sources on the right", () => {

@@ -21,6 +21,117 @@ import { prisma } from "@/lib/db";
 type TagLinkDb = PrismaClient | Prisma.TransactionClient;
 
 /**
+ * Raised when the acting user does not own the target mood entry. The
+ * link helpers refuse to touch links for an entry the session does not
+ * own — a structural guard so an edit route can never write a link into
+ * another user's entry by passing an attacker-supplied id.
+ */
+export class MoodEntryOwnershipError extends Error {
+  constructor(public readonly moodEntryId: string) {
+    super(`Mood entry ${moodEntryId} is not owned by the acting user`);
+    this.name = "MoodEntryOwnershipError";
+  }
+}
+
+/**
+ * Assert the target mood entry belongs to `userId`. Throws
+ * `MoodEntryOwnershipError` if it does not exist or is owned by someone
+ * else. Runs against the same client (tx or singleton) as the link write
+ * so the check and the write see one consistent snapshot.
+ */
+async function assertEntryOwnership(
+  moodEntryId: string,
+  userId: string,
+  db: TagLinkDb,
+): Promise<void> {
+  const owner = await db.moodEntry.findUnique({
+    where: { id: moodEntryId },
+    select: { userId: true },
+  });
+  if (!owner || owner.userId !== userId) {
+    throw new MoodEntryOwnershipError(moodEntryId);
+  }
+}
+
+/**
+ * v1.12.0 — a rated factor as it arrives on the wire: a catalog
+ * (`mood_tags.key`) + the user's score for this entry.
+ */
+export interface RatedFactorInput {
+  key: string;
+  rating: number;
+}
+
+/**
+ * v1.12.0 — a rated factor resolved to its catalog row id, ready to
+ * write onto the `mood_entry_tag_links` join.
+ */
+interface ResolvedRatedFactor {
+  moodTagId: string;
+  rating: number;
+}
+
+/**
+ * v1.12.0 — thrown when a submitted factor rating falls outside the
+ * resolved `MoodTag`'s own `scaleMin..scaleMax`. The route maps this to a
+ * 422 (the per-tag scale is the real gate; the Zod schema only enforces
+ * the outer 1..5 envelope). Unknown / non-RATED keys are NOT an error —
+ * they are dropped silently, matching the binary `tagKeys` posture.
+ */
+export class RatedFactorOutOfRangeError extends Error {
+  constructor(
+    public readonly key: string,
+    public readonly rating: number,
+    public readonly scaleMin: number,
+    public readonly scaleMax: number,
+  ) {
+    super(
+      `Rating ${rating} for factor "${key}" is outside its scale ${scaleMin}..${scaleMax}`,
+    );
+    this.name = "RatedFactorOutOfRangeError";
+  }
+}
+
+/**
+ * Resolve rated-factor inputs against the catalog. Unknown keys, inactive
+ * tags, and `kind = 'BINARY'` keys are dropped silently (the catalog is
+ * the source of truth, same posture as `resolveTagKeysToIds`). A rating
+ * outside the resolved tag's `scaleMin..scaleMax` throws
+ * `RatedFactorOutOfRangeError` so the route returns 422. The last value
+ * wins on a duplicate key in the same payload.
+ */
+export async function resolveRatedFactors(
+  factors: RatedFactorInput[],
+  db: TagLinkDb = prisma,
+): Promise<ResolvedRatedFactor[]> {
+  if (factors.length === 0) return [];
+  // Last-writer-wins on a duplicate key in the same submission.
+  const byKey = new Map<string, number>();
+  for (const f of factors) byKey.set(f.key, f.rating);
+
+  const rows = await db.moodTag.findMany({
+    where: { key: { in: [...byKey.keys()] }, isActive: true, kind: "RATED" },
+    select: { id: true, key: true, scaleMin: true, scaleMax: true },
+  });
+
+  const resolved: ResolvedRatedFactor[] = [];
+  for (const row of rows) {
+    const rating = byKey.get(row.key);
+    if (rating === undefined) continue;
+    if (rating < row.scaleMin || rating > row.scaleMax) {
+      throw new RatedFactorOutOfRangeError(
+        row.key,
+        rating,
+        row.scaleMin,
+        row.scaleMax,
+      );
+    }
+    resolved.push({ moodTagId: row.id, rating });
+  }
+  return resolved;
+}
+
+/**
  * Resolve catalog tag keys to ids, dropping unknown / inactive keys.
  * Returns the ids in catalog order (deduped).
  */
@@ -40,13 +151,48 @@ export async function resolveTagKeysToIds(
 /**
  * Create the structured-tag links for a freshly-created entry. No-op on
  * an empty / all-unknown key set.
+ *
+ * v1.12.0 — optionally also writes rated-factor links (`kind = 'RATED'`
+ * catalog tags carrying a per-entry `rating`). Binary keys leave `rating`
+ * NULL; rated factors persist their score. A factor key passed in both
+ * `keys` and `ratedFactors` resolves to a single link carrying the
+ * rating (the rated insert wins via `skipDuplicates`, which is why the
+ * rated rows are written first). Throws `RatedFactorOutOfRangeError` (→
+ * route 422) when a rating is out of the factor's scale. Asserts the
+ * entry belongs to `userId` before any write — a defensive guard against
+ * linking into an entry the acting session does not own.
  */
 export async function createTagLinks(
   moodEntryId: string,
+  userId: string,
   keys: string[],
   db: TagLinkDb = prisma,
+  ratedFactors: RatedFactorInput[] = [],
 ): Promise<void> {
-  const tagIds = await resolveTagKeysToIds(keys, db);
+  await assertEntryOwnership(moodEntryId, userId, db);
+  // Resolve rated factors FIRST so an out-of-range rating aborts before
+  // any write, and so the rated rows (which carry a value) take priority
+  // over a bare binary row for the same tag id under `skipDuplicates`.
+  const resolvedFactors = await resolveRatedFactors(ratedFactors, db);
+  const ratedTagIds = new Set(resolvedFactors.map((f) => f.moodTagId));
+
+  if (resolvedFactors.length > 0) {
+    await db.moodEntryTagLink.createMany({
+      // Field-by-field — no mass assignment of the wire object.
+      data: resolvedFactors.map((f) => ({
+        moodEntryId,
+        moodTagId: f.moodTagId,
+        rating: f.rating,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const tagIds = (await resolveTagKeysToIds(keys, db)).filter(
+    // A key already written as a rated link is not re-inserted as a
+    // bare binary row (that would lose the rating to `skipDuplicates`).
+    (id) => !ratedTagIds.has(id),
+  );
   if (tagIds.length === 0) return;
   await db.moodEntryTagLink.createMany({
     data: tagIds.map((moodTagId) => ({ moodEntryId, moodTagId })),
@@ -58,13 +204,17 @@ export async function createTagLinks(
  * Replace the full structured-tag link set for an entry. `keys` is the
  * desired set; the helper deletes links no longer present and inserts
  * the new ones, leaving unchanged links in place. Passing an empty array
- * clears every link.
+ * clears every link. Asserts the entry belongs to `userId` before
+ * touching links — a defensive guard against editing links on an entry
+ * the acting session does not own.
  */
 export async function replaceTagLinks(
   moodEntryId: string,
+  userId: string,
   keys: string[],
   db: TagLinkDb = prisma,
 ): Promise<void> {
+  await assertEntryOwnership(moodEntryId, userId, db);
   const desiredIds = new Set(await resolveTagKeysToIds(keys, db));
   const existing = await db.moodEntryTagLink.findMany({
     where: { moodEntryId },
@@ -83,6 +233,48 @@ export async function replaceTagLinks(
   if (toCreate.length > 0) {
     await db.moodEntryTagLink.createMany({
       data: toCreate.map((moodTagId) => ({ moodEntryId, moodTagId })),
+      skipDuplicates: true,
+    });
+  }
+}
+
+/**
+ * v1.12.0 — replace the full rated-factor link set for an entry. A
+ * changed rating on the same factor is a real change (not a no-op), so
+ * the simplest correct shape is "delete every RATED link for the entry,
+ * re-insert the desired set". Binary links are left untouched. Passing an
+ * empty array clears every rated link. Throws `RatedFactorOutOfRangeError`
+ * (→ route 422) before any write when a rating is out of scale.
+ *
+ * Not wired into a route yet (the POST + bulk ingestion contract is the
+ * v1.12.0 scope); exported for the PATCH edit path a later wave adds.
+ * Asserts the entry belongs to `userId` before any write — a defensive
+ * guard for that future edit route against touching another user's entry.
+ */
+export async function replaceRatedFactorLinks(
+  moodEntryId: string,
+  userId: string,
+  factors: RatedFactorInput[],
+  db: TagLinkDb = prisma,
+): Promise<void> {
+  await assertEntryOwnership(moodEntryId, userId, db);
+  // Resolve (and range-check) before mutating so an out-of-range rating
+  // aborts the replace cleanly.
+  const resolved = await resolveRatedFactors(factors, db);
+
+  // Drop every existing RATED link for the entry (a `rating IS NOT NULL`
+  // row is, by construction, a rated-factor link).
+  await db.moodEntryTagLink.deleteMany({
+    where: { moodEntryId, rating: { not: null } },
+  });
+
+  if (resolved.length > 0) {
+    await db.moodEntryTagLink.createMany({
+      data: resolved.map((f) => ({
+        moodEntryId,
+        moodTagId: f.moodTagId,
+        rating: f.rating,
+      })),
       skipDuplicates: true,
     });
   }

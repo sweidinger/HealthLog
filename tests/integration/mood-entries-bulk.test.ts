@@ -153,6 +153,131 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
     expect(stored[0].score).toBe(5);
   });
 
+  it("persists structured tagKeys as MoodEntryTagLink rows (v1.12.0)", async () => {
+    const { POST } = await import("@/app/api/mood-entries/bulk/route");
+    const res = await POST(
+      makeRequest({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            // Two valid catalog keys (one from the new hobbies category,
+            // one nutrition-detail key) plus one unknown key that must be
+            // dropped silently.
+            tagKeys: ["movies", "fast_food", "not_a_real_tag"],
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { data: { inserted: number } };
+    expect(json.data.inserted).toBe(1);
+
+    const entry = await getPrismaClient().moodEntry.findFirstOrThrow({
+      where: { userId: TEST_USER_ID },
+    });
+    const links = await getPrismaClient().moodEntryTagLink.findMany({
+      where: { moodEntryId: entry.id },
+      select: { moodTag: { select: { key: true } } },
+    });
+    const keys = links.map((l) => l.moodTag.key).sort();
+    // The unknown key is dropped; the two catalog keys round-trip.
+    expect(keys).toEqual(["fast_food", "movies"]);
+  });
+
+  it("persists a rated factor with its score on the link (v1.12.0)", async () => {
+    const { POST } = await import("@/app/api/mood-entries/bulk/route");
+    const res = await POST(
+      makeRequest({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            ratedFactors: [
+              { key: "factor_work", rating: 4 },
+              { key: "factor_conflict", rating: 2 },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { data: { inserted: number } };
+    expect(json.data.inserted).toBe(1);
+
+    const entry = await getPrismaClient().moodEntry.findFirstOrThrow({
+      where: { userId: TEST_USER_ID },
+    });
+    const links = await getPrismaClient().moodEntryTagLink.findMany({
+      where: { moodEntryId: entry.id },
+      select: { rating: true, moodTag: { select: { key: true, kind: true } } },
+      orderBy: { moodTag: { key: "asc" } },
+    });
+    expect(
+      links.map((l) => ({
+        key: l.moodTag.key,
+        kind: l.moodTag.kind,
+        rating: l.rating,
+      })),
+    ).toEqual([
+      { key: "factor_conflict", kind: "RATED", rating: 2 },
+      { key: "factor_work", kind: "RATED", rating: 4 },
+    ]);
+  });
+
+  it("marks the entry skipped when a rated factor is out of scale (v1.12.0)", async () => {
+    const { POST } = await import("@/app/api/mood-entries/bulk/route");
+    const res = await POST(
+      makeRequest({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            // factor_conflict scale is 1..2; rating 5 is out of range.
+            ratedFactors: [{ key: "factor_conflict", rating: 5 }],
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: { entries: Array<{ status: string }> };
+    };
+    expect(json.data.entries[0].status).toBe("skipped");
+
+    // The mood row upserted, but no rated link landed.
+    const entry = await getPrismaClient().moodEntry.findFirstOrThrow({
+      where: { userId: TEST_USER_ID },
+    });
+    const ratedCount = await getPrismaClient().moodEntryTagLink.count({
+      where: { moodEntryId: entry.id, rating: { not: null } },
+    });
+    expect(ratedCount).toBe(0);
+  });
+
+  it("ignores tagKeys that resolve to no catalog rows", async () => {
+    const { POST } = await import("@/app/api/mood-entries/bulk/route");
+    const res = await POST(
+      makeRequest({
+        entries: [
+          {
+            mood: "OKAY",
+            moodLoggedAt: "2026-05-16T09:00:00.000Z",
+            tagKeys: ["totally_unknown_key"],
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const entry = await getPrismaClient().moodEntry.findFirstOrThrow({
+      where: { userId: TEST_USER_ID },
+    });
+    const linkCount = await getPrismaClient().moodEntryTagLink.count({
+      where: { moodEntryId: entry.id },
+    });
+    expect(linkCount).toBe(0);
+  });
+
   it("rejects an over-cap batch with 422 and the documented error code", async () => {
     const { POST } = await import("@/app/api/mood-entries/bulk/route");
     const entries = Array.from({ length: 501 }, (_, i) => ({

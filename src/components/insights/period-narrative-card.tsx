@@ -204,7 +204,7 @@ export function PeriodNarrativeCard({
       )}
 
       {narrative ? (
-        <p className="text-muted-foreground text-[11px]">
+        <p className="text-muted-foreground text-right text-[11px]">
           {data?.revalidating
             ? t("insights.narrativeUpdating")
             : t("insights.narrativeUpdated", {

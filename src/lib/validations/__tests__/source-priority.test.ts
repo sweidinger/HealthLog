@@ -102,7 +102,7 @@ describe("sourcePrioritySchema", () => {
 
   it("rejects an unknown source string", () => {
     const result = sourcePrioritySchema.safeParse({
-      weight: ["FITBIT", "WITHINGS"],
+      weight: ["GARMIN", "WITHINGS"],
     });
     expect(result.success).toBe(false);
   });

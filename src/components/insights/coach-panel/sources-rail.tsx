@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, Eye, Loader2 } from "lucide-react";
+import { Eye, Loader2 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
 import {
@@ -195,21 +195,11 @@ export function SourcesRail({ className }: SourcesRailProps) {
           );
         })}
       </ul>
-
-      {/* Medical disclaimer footer (relocated from the composer in
-          v1.4.22). */}
-      <div
-        data-slot="coach-sources-disclaimer"
-        className="border-border/50 mt-auto flex items-start gap-2 border-t pt-3"
-      >
-        <Activity
-          aria-hidden="true"
-          className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
-        />
-        <p className="text-muted-foreground text-[11px] leading-relaxed">
-          {t("insights.coach.composerDisclaimer")}
-        </p>
-      </div>
+      {/* v1.12.0 — the clinical-decisions disclaimer used to render
+          here AND at the bottom of the message thread. Both are now
+          consolidated into a single line directly above the composer
+          (always visible, every viewport), so the rail no longer
+          carries its own copy. */}
     </div>
   );
 }

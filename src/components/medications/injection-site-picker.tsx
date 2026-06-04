@@ -13,19 +13,24 @@ import {
 } from "@/lib/medications/injection-sites";
 
 /**
- * Injection-site picker — anatomical front-of-body silhouette with 8
+ * Injection-site picker — anatomical front-of-body figure with 8
  * tappable sites.
  *
- * The silhouette is an INLINE SVG so it inherits the app's theme tokens
- * (`currentColor` + CSS variables) and tints correctly in light/dark and
- * across the zinc/Dracula palettes with no raster asset and no luminance
- * key. The body is traced to the proportions the iOS client calibrated
- * against (see `.planning/ios-coord/v0.12-…-injection-bodymap-coords.md`)
- * so dots land on the same anatomy on both platforms.
+ * The body is a clean, gender-neutral medical line-art figure shipped as
+ * a small transparent raster (`/injection-body-front.png`, ~8 KB). It is
+ * painted THEME-AWARE without baking in a colour: the figure's alpha is
+ * used as an SVG mask (`mask-type="alpha"`) over a `<rect>` filled with
+ * `currentColor`, so the strokes take the picker's text colour and tint
+ * correctly in light/dark and across the zinc/Dracula palettes. Keeping
+ * the figure inside the SVG (rather than a CSS-masked sibling element)
+ * means it shares the exact `viewBox` coordinate space as the dots, so
+ * alignment is responsive by construction.
  *
- * `viewBox="0 0 100 200"` (aspect ≈0.5). `SITE_COORDS` is expressed on
- * the same viewBox; the recommended-next ring, the last-used marker and
- * the selected fill all read directly from those coordinates.
+ * `viewBox="0 0 100 200"` (aspect ≈0.5). The figure is drawn height-fit
+ * and horizontally centred on that box; `SITE_COORDS` is expressed on the
+ * same viewBox and measured to land each anchor on the figure's anatomy.
+ * The recommended-next ring, the last-used marker and the selected fill
+ * all read directly from those coordinates.
  *
  * Per the long-standing "nichts brickt" directive the picker is opt-in —
  * mounted from the GLP-1 dashboard tile and the optional log dialog.
@@ -88,10 +93,10 @@ export function InjectionSitePicker({
   // map (WCAG 2.4.7).
   const [focusedSite, setFocusedSite] = useState<InjectionSiteKey | null>(null);
 
-  // Stable, instance-unique ids for the SVG paint servers so two pickers
-  // on one page can't collide their <defs>.
+  // Stable, instance-unique id for the SVG mask so two pickers on one
+  // page can't collide their <defs>.
   const uid = useId().replace(/[:]/g, "");
-  const bodyFillId = `inj-body-${uid}`;
+  const bodyMaskId = `inj-body-mask-${uid}`;
 
   // The overlay maps a pointer event to viewBox space through the live
   // CTM, then resolves the nearest allowed site centre and selects it.
@@ -133,69 +138,50 @@ export function InjectionSitePicker({
         aria-label={t("medications.injectionSiteBodyOutlineAriaLabel")}
       >
         <defs>
-          {/* A whisper-soft vertical wash gives the flat silhouette a
-              little depth without fighting the theme — both stops are the
-              current text colour at low alpha, so it tints with the body. */}
-          <linearGradient id={bodyFillId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="currentColor" stopOpacity="0.06" />
-            <stop offset="1" stopColor="currentColor" stopOpacity="0.10" />
-          </linearGradient>
+          {/* The body figure's alpha drives an SVG mask. `mask-type="alpha"`
+              keys on the PNG's transparency (strokes opaque, surround
+              transparent) rather than luminance, so a `<rect fill=
+              currentColor>` painted through it renders the figure in the
+              picker's text colour — theme-aware in light/dark and across
+              the zinc/Dracula palettes with no baked-in tint. The image is
+              height-fit + horizontally centred on the 100×200 box so it
+              shares the dots' coordinate space exactly. */}
+          <mask
+            id={bodyMaskId}
+            maskUnits="userSpaceOnUse"
+            x="0"
+            y="0"
+            width="100"
+            height="200"
+            style={{ maskType: "alpha" }}
+          >
+            <image
+              href="/injection-body-front.png"
+              x="0"
+              y="0"
+              width="100"
+              height="200"
+              preserveAspectRatio="xMidYMid meet"
+            />
+          </mask>
         </defs>
 
-        {/* Anatomical front-of-body silhouette — one continuous outline
-            traced to the iOS reference proportions (upright, arms slightly
-            out, plain oval head). Filled with the soft wash + a hairline
-            stroke so it reads as a calm medical illustration. */}
-        <path
-          d="M 50 4
-             C 44.2 4 39.8 8.6 39.8 15
-             C 39.8 19.6 41.4 23.4 44 25.6
-             C 43.4 28.4 42 30.4 39.2 31.4
-             C 35 32.9 30.4 34.2 27.4 36.6
-             C 24.4 39 23 42.8 22.2 47.4
-             C 21.2 53.2 20.2 60 18.2 67
-             C 16.4 73.4 14 80.4 12.6 86.4
-             C 11.8 89.8 12.4 92.2 14.2 92.8
-             C 16 93.4 17.6 91.8 18.4 88.6
-             C 19.8 83 21.8 76.6 23.6 71
-             C 24.4 68.4 25.4 67.8 25.8 69
-             C 26.2 70.2 26 74 25.6 79
-             C 25.2 84.6 24.8 90.6 25.2 95.6
-             C 25.6 100.4 26.8 104.4 28 107.8
-             C 27.2 119 26.2 133 26.6 145
-             C 27 156.6 28.6 170 30 182
-             C 30.6 187.4 31.4 191.6 33 193.4
-             C 34.4 195 37 195.2 39 194.6
-             C 40.8 194 41.4 192.2 41.6 189.4
-             C 42.2 181.4 43 169 44 158
-             C 44.8 149.4 45.6 141.4 46.4 136
-             C 47 131.8 48.2 129.6 50 129.6
-             C 51.8 129.6 53 131.8 53.6 136
-             C 54.4 141.4 55.2 149.4 56 158
-             C 57 169 57.8 181.4 58.4 189.4
-             C 58.6 192.2 59.2 194 61 194.6
-             C 63 195.2 65.6 195 67 193.4
-             C 68.6 191.6 69.4 187.4 70 182
-             C 71.4 170 73 156.6 73.4 145
-             C 73.8 133 72.8 119 72 107.8
-             C 73.2 104.4 74.4 100.4 74.8 95.6
-             C 75.2 90.6 74.8 84.6 74.4 79
-             C 74 74 73.8 70.2 74.2 69
-             C 74.6 67.8 75.6 68.4 76.4 71
-             C 78.2 76.6 80.2 83 81.6 88.6
-             C 82.4 91.8 84 93.4 85.8 92.8
-             C 87.6 92.2 88.2 89.8 87.4 86.4
-             C 86 80.4 83.6 73.4 81.8 67
-             C 79.8 60 78.8 53.2 77.8 47.4
-             C 77 42.8 75.6 39 72.6 36.6
-             C 69.6 34.2 65 32.9 60.8 31.4
-             C 58 30.4 56.6 28.4 56 25.6
-             C 58.6 23.4 60.2 19.6 60.2 15
-             C 60.2 8.6 55.8 4 50 4 Z"
-          fill={`url(#${bodyFillId})`}
-          stroke="currentColor"
-          strokeWidth="0.9"
-          strokeLinejoin="round"
+        {/* Anatomical front-of-body figure — a clean, gender-neutral
+            medical line-art body painted in `currentColor` through the
+            alpha mask above. The figure is calibrated so the upper-arm
+            anchors (x23/77 @ y78) sit on the arm mass clear of the torso,
+            the abdomen quadrants (x43.5/56.5 @ y81/95) sit on the torso
+            either side of the midline, and the thigh anchors (x40/60 @
+            y140) sit on the centre of each thigh — the dots land on real
+            anatomy. Rendered at a soft opacity so it reads as a calm
+            backdrop the dots sit on rather than competing with them. */}
+        <rect
+          x="0"
+          y="0"
+          width="100"
+          height="200"
+          fill="currentColor"
+          mask={`url(#${bodyMaskId})`}
         />
 
         {/* Centre + waist references — barely-there guides that help the
@@ -211,9 +197,9 @@ export function InjectionSitePicker({
           strokeOpacity="0.35"
         />
         <line
-          x1="29"
+          x1="40"
           y1="88"
-          x2="71"
+          x2="60"
           y2="88"
           stroke="currentColor"
           strokeWidth="0.4"
@@ -248,18 +234,20 @@ export function InjectionSitePicker({
                   strokeWidth="1.8"
                 />
               )}
-              {/* Last-used marker — a soft solid ring so the user can see
+              {/* Last-used marker — a solid amber ring so the user can see
                   where they injected most recently at a glance, distinct
-                  from the dashed recommendation ring. Suppressed on the
-                  active selection (the filled dot already says "here"). */}
+                  from the dashed primary recommendation ring. The amber tone
+                  matches the dialog legend and reads in light + dark.
+                  Suppressed on the active selection (the filled dot already
+                  says "here"). */}
               {isLastUsed && !disabled && (
                 <circle
                   cx={coord.x}
                   cy={coord.y}
                   r="7"
                   fill="none"
-                  className="stroke-foreground/35"
-                  strokeWidth="1"
+                  className="stroke-amber-500"
+                  strokeWidth="1.2"
                 />
               )}
               {isRecommended && !isActive && !disabled && (

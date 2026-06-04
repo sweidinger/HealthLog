@@ -29,41 +29,60 @@ export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "integrations.status" } });
 
-  const [withingsStatus, moodLogStatus, whoopStatus, dbUser, withingsConn, whoopConn] =
-    await Promise.all([
-      getIntegrationStatus(user.id, "withings"),
-      getIntegrationStatus(user.id, "moodlog"),
-      getIntegrationStatus(user.id, "whoop"),
-      prisma.user.findUnique({
-        where: { id: user.id },
-        select: {
-          withingsClientIdEncrypted: true,
-          withingsClientSecretEncrypted: true,
-          whoopClientIdEncrypted: true,
-          whoopClientSecretEncrypted: true,
-          moodLogUrlEncrypted: true,
-          moodLogApiKeyEncrypted: true,
-          moodLogEnabled: true,
-          moodLogLastSyncedAt: true,
-        },
-      }),
-      prisma.withingsConnection.findUnique({
-        where: { userId: user.id },
-        select: {
-          tokenExpiresAt: true,
-          lastSyncedAt: true,
-          createdAt: true,
-        },
-      }),
-      prisma.whoopConnection.findUnique({
-        where: { userId: user.id },
-        select: {
-          tokenExpiresAt: true,
-          lastSyncedAt: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+  const [
+    withingsStatus,
+    moodLogStatus,
+    whoopStatus,
+    fitbitStatus,
+    dbUser,
+    withingsConn,
+    whoopConn,
+    fitbitConn,
+  ] = await Promise.all([
+    getIntegrationStatus(user.id, "withings"),
+    getIntegrationStatus(user.id, "moodlog"),
+    getIntegrationStatus(user.id, "whoop"),
+    getIntegrationStatus(user.id, "fitbit"),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        withingsClientIdEncrypted: true,
+        withingsClientSecretEncrypted: true,
+        whoopClientIdEncrypted: true,
+        whoopClientSecretEncrypted: true,
+        fitbitClientIdEncrypted: true,
+        fitbitClientSecretEncrypted: true,
+        moodLogUrlEncrypted: true,
+        moodLogApiKeyEncrypted: true,
+        moodLogEnabled: true,
+        moodLogLastSyncedAt: true,
+      },
+    }),
+    prisma.withingsConnection.findUnique({
+      where: { userId: user.id },
+      select: {
+        tokenExpiresAt: true,
+        lastSyncedAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.whoopConnection.findUnique({
+      where: { userId: user.id },
+      select: {
+        tokenExpiresAt: true,
+        lastSyncedAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.fitbitConnection.findUnique({
+      where: { userId: user.id },
+      select: {
+        tokenExpiresAt: true,
+        lastSyncedAt: true,
+        createdAt: true,
+      },
+    }),
+  ]);
 
   const now = Date.now();
 
@@ -106,6 +125,19 @@ export const GET = apiHandler(async () => {
           ? whoopConn.tokenExpiresAt.getTime() <= now
           : null,
       } satisfies IntegrationViewModel & WhoopExtras,
+      {
+        ...fitbitStatus,
+        configured:
+          !!dbUser?.fitbitClientIdEncrypted &&
+          !!dbUser?.fitbitClientSecretEncrypted,
+        connected: !!fitbitConn,
+        connectedAt: fitbitConn?.createdAt?.toISOString() ?? null,
+        legacyLastSyncedAt: fitbitConn?.lastSyncedAt?.toISOString() ?? null,
+        tokenExpiresAt: fitbitConn?.tokenExpiresAt?.toISOString() ?? null,
+        tokenExpired: fitbitConn
+          ? fitbitConn.tokenExpiresAt.getTime() <= now
+          : null,
+      } satisfies IntegrationViewModel & FitbitExtras,
     ],
   });
 });
@@ -134,6 +166,15 @@ interface MoodLogExtras {
 }
 
 interface WhoopExtras {
+  configured: boolean;
+  connected: boolean;
+  connectedAt: string | null;
+  legacyLastSyncedAt: string | null;
+  tokenExpiresAt: string | null;
+  tokenExpired: boolean | null;
+}
+
+interface FitbitExtras {
   configured: boolean;
   connected: boolean;
   connectedAt: string | null;

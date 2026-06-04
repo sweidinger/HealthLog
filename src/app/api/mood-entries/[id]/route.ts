@@ -150,7 +150,7 @@ export const PUT = apiHandler(
         // is present in the body. `null` clears every link; an omitted
         // field leaves the links untouched.
         if (data.tagKeys !== undefined) {
-          await replaceTagLinks(id, data.tagKeys ?? [], tx);
+          await replaceTagLinks(id, user.id, data.tagKeys ?? [], tx);
         }
 
         // v1.8.5 — read the persisted link keys back so the update

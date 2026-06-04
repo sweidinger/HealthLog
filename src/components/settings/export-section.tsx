@@ -9,18 +9,20 @@
  * per export type, each with its own filter inputs and a clear
  * "Download" / "Generate" button.
  *
- *   1. Doctor Report (PDF)        — hero card at the top of the page
- *                                   (v1.4.37 W7a, see
- *                                   `<ArztberichtHeroCard>`)
+ *   1. Health Record export        — hero panel at the top of the page
+ *                                   (PDF + FHIR R4 + zip package, see
+ *                                   `<HealthRecordExportPanel>`)
  *   2. Measurements CSV           — optional `since`/`until`
  *   3. Medications CSV            — optional intake-history toggle
  *   4. Mood CSV                   — optional `since`/`until`
  *   5. Full JSON Backup           — single-file user-scoped dump
+ *   6. Doctor Report (PDF)        — small secondary card at the bottom
+ *                                   (`<ArztberichtHeroCard>`)
  *
- * v1.4.37 W7a — the doctor-report card was promoted to the page hero so
- * the flagship "PDF for the doctor" flow no longer competes for visual
- * weight with the secondary CSV/JSON exports. The remaining four cards
- * live under a "Weitere Export-Optionen" sub-heading.
+ * v1.12 — the health-record export is the headline "data out" path; it
+ * takes the page hero. The doctor-report PDF is demoted to a small
+ * secondary card at the bottom of the page — fully functional, just no
+ * longer the flagship surface it was in v1.4.37 W7a.
  *
  * Mobile-first: cards stack on `<md`, two-column grid on `>=md`.
  */
@@ -86,20 +88,14 @@ export function ExportSection() {
         </p>
       </header>
 
-      {/* v1.4.37 W7a — Arztbericht hero. The doctor-report PDF is the
-          flagship "data out" path; the previous grid layout buried it
-          alongside the four CSV/JSON exports. The hero now sits at the
-          top of the page; the same generation flow runs underneath. */}
-      <ArztberichtHeroCard />
-
-      {/* v1.7.0 — full health-record export. PDF + FHIR R4 + a combined
-          zip package, with grouped data-section toggles and a format
-          switch. Sits above the secondary CSV/JSON cards. */}
+      {/* v1.12 — full health-record export is now the page hero. PDF +
+          FHIR R4 + a combined zip package, with grouped data-section
+          toggles (collapsed by default) and a format switch. This is the
+          headline "data out" path; it carries the primary visual weight. */}
       <HealthRecordExportPanel />
 
-      {/* v1.4.37 W7a — secondary export options. The doctor-report
-          card moved into the hero above, so this group renders the
-          four remaining destinations under a dedicated sub-heading.
+      {/* v1.12 — secondary export options. The four CSV/JSON
+          destinations live under a dedicated sub-heading.
           Mobile: single column. Desktop (md+): 2-column grid. */}
       <section
         aria-labelledby="settings-section-export-other-title"
@@ -118,6 +114,11 @@ export function ExportSection() {
           <FullBackupCard />
         </div>
       </section>
+
+      {/* v1.12 — doctor-report PDF, demoted from the former page hero to a
+          small secondary card at the bottom. Fully functional — the same
+          `<DoctorReportDialog>` + `/api/doctor-report` flow runs from here. */}
+      <ArztberichtHeroCard />
     </section>
   );
 }

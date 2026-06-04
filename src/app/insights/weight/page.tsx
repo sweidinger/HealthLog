@@ -13,6 +13,9 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { MetricPrimaryTile } from "@/components/insights/metric-primary-tile";
+import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
+import { MetricCorrelationCard } from "@/components/insights/metric-correlation-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
@@ -42,6 +45,8 @@ export default function InsightsGewichtPage() {
 
   const { data: analytics, isEmpty } = useInsightsAnalytics("WEIGHT");
   const weightSummary = analytics?.summaries?.WEIGHT ?? null;
+  const weightLastSeenAt =
+    analytics?.lastSeenByType?.WEIGHT?.lastSeenAt ?? null;
 
   if (isEmpty) {
     return (
@@ -79,6 +84,12 @@ export default function InsightsGewichtPage() {
       title={t("insights.weightSectionTitle")}
       description={t("insights.subPage.gewichtDescription")}
       explainerMetric="weight"
+      primary={
+        <>
+          <MetricPrimaryTile summary={weightSummary} unit="kg" slug="weight" />
+          <MetricLastMeasurementCard lastSeenAt={weightLastSeenAt} />
+        </>
+      }
       statStrip={<MetricStatStrip summary={weightSummary} unit="kg" />}
       diversityNudge={
         <MeasurementDiversityNudge
@@ -90,7 +101,6 @@ export default function InsightsGewichtPage() {
       coachLaunch
       showAllValuesType="WEIGHT"
     >
-      <MetricRangeControls measurementType="WEIGHT" enabled={!isEmpty} />
       <HealthChartDynamic
         chartKey="weight"
         types={["WEIGHT"]}
@@ -101,6 +111,8 @@ export default function InsightsGewichtPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
+      <MetricRangeControls measurementType="WEIGHT" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="weight" />
 
@@ -109,7 +121,12 @@ export default function InsightsGewichtPage() {
         unit="kg"
         color="#bd93f9"
         enabled={!isEmpty}
+        compact
       />
+
+      {/* v1.12.0 — Weight owns the weight × weekday correlation (relocated
+          off the overview onto its metric page). */}
+      <MetricCorrelationCard slug="weight" />
 
       <InsightStatusCard
         title={t("insights.assessmentTitle")}

@@ -1,11 +1,13 @@
 /**
- * v1.4.37 W7a — Arztbericht hero card contract.
+ * Arztbericht (doctor-report) card contract.
  *
- * The flagship doctor-report PDF surface was promoted from one of five
- * grid cards into a hero card at the top of `/settings/export`. This
- * suite pins the SSR contract:
+ * v1.4.37 W7a promoted this surface to the page hero; v1.12 demotes it
+ * back to a small secondary card at the bottom of `/settings/export`
+ * (the health-record export now owns the hero). The card stays fully
+ * functional — only the framing and visual weight changed. This suite
+ * pins the SSR contract:
  *
- *   1. The hero renders with the expected `data-testid` slot.
+ *   1. The card renders with the expected `data-testid` slot.
  *   2. The value statement is present (Marc-Voice copy, no AI mention).
  *   3. The CTA button is present, clears the 44 px touch floor, and
  *      carries an `aria-describedby` link to the value statement.
@@ -37,7 +39,7 @@ function renderSSR(node: React.ReactElement, locale: "en" | "de" = "en") {
 }
 
 describe("<ArztberichtHeroCard> — SSR contract", () => {
-  it("renders the hero slot with eyebrow + title", () => {
+  it("renders the card slot with eyebrow + title", () => {
     const html = renderSSR(<ArztberichtHeroCard />);
     expect(html).toContain('data-testid="export-hero-doctor-report"');
     // Title falls back to the existing doctorReport.title key — keeps
@@ -59,10 +61,10 @@ describe("<ArztberichtHeroCard> — SSR contract", () => {
   it("renders the CTA with min-h-11 touch target + aria-describedby", () => {
     const html = renderSSR(<ArztberichtHeroCard />);
     expect(html).toContain('data-testid="export-hero-doctor-report-action"');
-    // 44 px touch floor (WCAG 2.5.5) — the hero CTA pins `h-11` on
-    // mobile and falls back to the compact `sm:h-10` on pointer
+    // 44 px touch floor (WCAG 2.5.5) — the demoted CTA keeps `min-h-11`
+    // on mobile and falls back to the compact `sm:min-h-9` on pointer
     // devices.
-    expect(html).toContain("h-11");
+    expect(html).toContain("min-h-11");
     // Aria-describedby links the CTA to the value statement so screen
     // readers announce the framing alongside the action label.
     expect(html).toMatch(/aria-describedby="[^"]+"/);
@@ -84,12 +86,15 @@ describe("<ArztberichtHeroCard> — SSR contract", () => {
     expect(html).not.toContain("settings.sections.export.hero");
   });
 
-  it("uses the hero-gradient + glow-purple visual treatment", () => {
+  it("renders as a plain secondary card, not a hero", () => {
     const html = renderSSR(<ArztberichtHeroCard />);
-    // Same surface utilities as the Insights hero strip — keeps the
-    // app's hero language consistent.
-    expect(html).toContain("hero-gradient");
-    expect(html).toContain("glow-purple");
+    // v1.12 demoted the doctor-report from the page hero — the
+    // health-record export now owns the hero treatment, so this card
+    // must NOT carry the hero gradient/glow utilities.
+    expect(html).not.toContain("hero-gradient");
+    expect(html).not.toContain("glow-purple");
+    // It renders with the standard secondary-card surface.
+    expect(html).toContain("bg-card");
   });
 
   it("does not paint dialog markup in the closed-state SSR pass", () => {

@@ -125,10 +125,40 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
       });
   }, [session.segments]);
 
-  const domain: [number, number] = [
-    new Date(session.start).getTime(),
-    new Date(session.end).getTime(),
-  ];
+  const domain = useMemo<[number, number]>(
+    () => [
+      new Date(session.start).getTime(),
+      new Date(session.end).getTime(),
+    ],
+    [session.start, session.end],
+  );
+
+  // v1.12.0 — explicit clock-aligned X-axis ticks. With `data={[]}` Recharts
+  // has no points to derive ticks from and would otherwise label the domain
+  // endpoints with raw bedtime/wake stamps (e.g. 23:14 / 06:02). Snap to whole
+  // clock hours and pick a 1–3 h step from the night's span so the axis reads
+  // 23:00 / 01:00 / 03:00 / 05:00 and stays mobile-legible (≈4–6 ticks).
+  const xTicks = useMemo(() => {
+    const [from, to] = domain;
+    const spanHours = (to - from) / 3_600_000;
+    if (!Number.isFinite(spanHours) || spanHours <= 0) return [];
+    // Aim for ~5 ticks: 1 h up to 5 h span, 2 h up to 10 h, else 3 h.
+    const stepHours = spanHours <= 5 ? 1 : spanHours <= 10 ? 2 : 3;
+    const stepMs = stepHours * 3_600_000;
+    // First whole hour at or after `from`, aligned to the step grid.
+    const firstHour = new Date(from);
+    firstHour.setMinutes(0, 0, 0);
+    if (firstHour.getTime() < from) firstHour.setTime(firstHour.getTime() + 3_600_000);
+    // Align the first tick to a multiple of the step (relative to midnight).
+    while ((firstHour.getHours() % stepHours) !== 0) {
+      firstHour.setTime(firstHour.getTime() + 3_600_000);
+    }
+    const ticks: number[] = [];
+    for (let t = firstHour.getTime(); t <= to; t += stepMs) {
+      ticks.push(t);
+    }
+    return ticks;
+  }, [domain]);
 
   const timeFmt = useMemo(
     () =>
@@ -167,8 +197,11 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
   const hasBreakdown = breakdown.length > 0;
 
   return (
-    <Card data-slot="sleep-hypnogram">
-      <CardHeader className="pb-2">
+    // v1.12.0 — card tightened: drop the default Card `gap-4 md:gap-6` to
+    // `gap-3` so the header sits closer to the timeline, reclaiming the empty
+    // band the maintainer flagged. The chart keeps its 200 px footprint.
+    <Card data-slot="sleep-hypnogram" className="gap-3 md:gap-3">
+      <CardHeader className="pb-0">
         <div className="flex flex-col gap-0.5">
           <CardTitle className="text-sm font-medium">
             {t("insights.sleep.hypnogram.title")}
@@ -180,7 +213,7 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
           </span>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {!hasTrack && !hasBreakdown ? (
           <p
             className="text-muted-foreground py-8 text-center text-xs"
@@ -207,6 +240,7 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
                       dataKey="t"
                       domain={domain}
                       scale="time"
+                      ticks={xTicks}
                       stroke="var(--muted-foreground)"
                       fontSize={10}
                       tickFormatter={(v: number) => timeFmt.format(new Date(v))}

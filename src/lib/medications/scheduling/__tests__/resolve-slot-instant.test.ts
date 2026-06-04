@@ -87,6 +87,73 @@ describe("resolveCanonicalSlotInstant — multi-time", () => {
   });
 });
 
+describe("resolveCanonicalSlotInstant — multi-time wide window", () => {
+  // The LIVE twice-daily-Ramipril regression: 08:00 / 20:00 doses with a
+  // WIDE schedule window (08:00–22:00 = 14h span → ±7h half-span). The
+  // pre-fix tolerance exceeded half the 12h inter-slot gap (±6h), so the
+  // 20:00 write's capture zone overlapped the 08:00 slot and a distinct
+  // evening dose collapsed onto the already-taken morning slot — leaving
+  // "nothing in Verlauf". The cap at half the inter-dose gap fixes it.
+  const med = makeMedication([
+    makeSchedule({
+      timesOfDay: ["08:00", "20:00"],
+      windowStart: "08:00",
+      windowEnd: "22:00",
+    }),
+  ]);
+
+  it("snaps a 20:00 write to the 20:00 slot, NOT the wide-window 08:00 slot", () => {
+    const incoming = new Date("2026-06-15T18:00:00.000Z"); // 20:00 CEST
+    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const evening = localHmAsUtc(incoming, TZ, 20, 0);
+    const morning = localHmAsUtc(incoming, TZ, 8, 0);
+    expect(result?.toISOString()).toBe(evening.toISOString());
+    expect(result?.toISOString()).not.toBe(morning.toISOString());
+  });
+
+  it("snaps an 08:00 write to the 08:00 slot", () => {
+    const incoming = new Date("2026-06-15T06:00:00.000Z"); // 08:00 CEST
+    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    const morning = localHmAsUtc(incoming, TZ, 8, 0);
+    expect(result?.toISOString()).toBe(morning.toISOString());
+  });
+
+  it("resolves the morning and evening writes to TWO distinct slot instants", () => {
+    const morningWrite = new Date("2026-06-15T06:05:00.000Z"); // 08:05 CEST
+    const eveningWrite = new Date("2026-06-15T18:03:00.000Z"); // 20:03 CEST
+    const morningSlot = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming: morningWrite,
+    });
+    const eveningSlot = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming: eveningWrite,
+    });
+    expect(morningSlot).not.toBeNull();
+    expect(eveningSlot).not.toBeNull();
+    // The two distinct doses must NOT collapse onto the same canonical slot.
+    expect(morningSlot?.toISOString()).not.toBe(eveningSlot?.toISOString());
+    expect(morningSlot?.toISOString()).toBe(
+      localHmAsUtc(morningWrite, TZ, 8, 0).toISOString(),
+    );
+    expect(eveningSlot?.toISOString()).toBe(
+      localHmAsUtc(eveningWrite, TZ, 20, 0).toISOString(),
+    );
+  });
+
+  it("snaps a write 90 minutes past the morning slot to the morning slot", () => {
+    // 09:30 local is 1.5h after 08:00, well inside the ±6h capture zone and
+    // far from 20:00 — must resolve to the morning slot, not the evening.
+    const incoming = new Date("2026-06-15T07:30:00.000Z"); // 09:30 CEST
+    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    expect(result?.toISOString()).toBe(
+      localHmAsUtc(incoming, TZ, 8, 0).toISOString(),
+    );
+  });
+});
+
 describe("resolveCanonicalSlotInstant — single-time", () => {
   it("snaps to the one slot", () => {
     const med = makeMedication([
@@ -96,6 +163,34 @@ describe("resolveCanonicalSlotInstant — single-time", () => {
     const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
     const canonical = localHmAsUtc(incoming, TZ, 8, 0);
     expect(result?.toISOString()).toBe(canonical.toISOString());
+  });
+});
+
+describe("resolveCanonicalSlotInstant — weekly single-dose unchanged", () => {
+  // A once-weekly injectable (one slot/day) is immune to the overlap bug
+  // and must keep its full half-window-span tolerance: the inter-dose cap
+  // only kicks in for >1 slot/day. Use a wide window to prove the cap is
+  // NOT applied for a single slot — a 10:30 write 2.5h from the 08:00 slot
+  // still snaps (±7h half-span, no per-slot cap).
+  const med = makeMedication([
+    makeSchedule({
+      timesOfDay: ["08:00"],
+      windowStart: "08:00",
+      windowEnd: "22:00",
+      daysOfWeek: "MO",
+      rrule: "FREQ=WEEKLY;BYDAY=MO",
+    }),
+  ]);
+
+  it("snaps a same-day write well outside an inter-dose gap (full half-span retained)", () => {
+    // 2026-06-15 is a Monday. 10:30 CEST is 2.5h past 08:00 — outside any
+    // ±6h inter-dose cap a multi-slot schedule would impose, inside the
+    // ±7h single-slot half-span.
+    const incoming = new Date("2026-06-15T08:30:00.000Z"); // 10:30 CEST
+    const result = resolveCanonicalSlotInstant({ medication: med, userTz: TZ, incoming });
+    expect(result?.toISOString()).toBe(
+      localHmAsUtc(incoming, TZ, 8, 0).toISOString(),
+    );
   });
 });
 

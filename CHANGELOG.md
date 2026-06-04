@@ -1,5 +1,36 @@
 # Changelog
 
+## [Unreleased]
+
+## [1.12.0] — 2026-06-05 — Google Health sync, rated mood factors, and a Coach and insights overhaul
+
+### Added
+
+- **Google Health (Fitbit & Pixel) — experimental.** Connect a Google Health account through your own Google client and pull in activity, body, sleep, and workout data: steps, distance, active energy, floors, and VO₂max; weight, body fat, SpO₂, resting heart rate, heart-rate variability, respiratory rate, and wrist temperature; sleep stages; and workouts. The card works like the others — test the connection, sync now, sync everything, and reconnect after a pause. This integration is experimental: Google's health API is young and coverage for some data types is still being verified.
+- **Rated mood factors.** Alongside the yes/no mood tags you can now score factors on their own scale per entry — work, social, sleep quality, stress, conflict, and family — so a day can carry "stress 4, sleep quality 2" rather than a plain tag.
+- **Mood logging, rebuilt.** Capturing a mood now opens with a five-face picker, then a category-grouped tag picker and the factor ratings, replacing the old form.
+- **Hobbies and nutrition mood tags** — films, reading, gaming, music, outdoors, and fast food, no sweets, a big meal.
+- **How your tags line up with your health metrics.** The mood Insights now compares a health metric on the days you tagged an activity against the days you did not — active energy on workout days, sleep length on the nights you tagged sleep, next-day recovery after a tag like alcohol or food. Each row shows the difference, its confidence, and is framed as an association in your own data, not a cause; only relationships that clear the same statistical filter the rest of the relations surface uses are shown.
+- **A full-page Coach.** The Coach conversation can expand to its own full page from a maximize control.
+- **A quicker way to log.** Navigation gains a central capture action that opens a measurement, medication, or mood entry from anywhere, and a "More" hub gathers the less-frequent sections.
+- **A dashboard settings shortcut** — a wrench beside "Add" jumps straight to the dashboard layout settings.
+
+### Changed
+
+- **The Coach reads like a chat.** Replies stream in as they are written, past conversations and the context behind an answer collapse out of the way, and the disclaimer appears once.
+- **Insights, de-duplicated.** The overview no longer repeats what the per-metric pages already show, and each metric page follows one consistent layout — a primary value, the last reading, the average/min/max/median strip, the chart with its range control below it, the metric's own correlation, and the assessment last — with clearer "what stands out" wording.
+- **A refined injection-site body map** with corrected proportions and a legend for the recommended and last-used markers.
+- **Export, reordered.** The health-record (FHIR) export is now the primary export, the doctor-report PDF moves below it, and the included-data list collapses by default.
+- **The unit system lives in your profile** as a dropdown beside timezone, treated like a preference such as language.
+- **Google Health and the other wearables share one source-priority ladder**, so when the same metric arrives from several sources the most appropriate one wins per metric.
+- **The standalone moodLog integration is deprecated.** Mood is now tracked fully inside HealthLog with entries, structured tags, and rated factors, so the external bridge no longer adds anything. It keeps working for existing setups but is slated for removal in a future major release.
+
+### Fixed
+
+- **Weekly medications no longer read 0% compliance.** A weekly-cadence medication with recorded intakes now reports the correct rate instead of zero across the 7-, 30-, and 90-day frames.
+- **Twice-daily oral doses record independently.** Marking an evening dose no longer collapses onto the morning slot, so both land in the history.
+- The Google Health sync reads from a single point in time per cycle, so a gap after downtime isn't silently skipped, and a connection returned without a refresh token is rejected cleanly rather than saved half-formed.
+
 ## [1.11.5] — 2026-06-04 — mood relations, sleep depth, and a clear-the-decks polish pass
 
 ### Added
