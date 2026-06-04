@@ -573,7 +573,8 @@
       "factorSocial": "vida social",
       "factorSleepQuality": "calidad del sueño",
       "factorStress": "estrés",
-      "factorConflict": "conflicto"
+      "factorConflict": "conflicto",
+      "factorFamily": "familia"
     }
   },
   "medications": {
