@@ -53,6 +53,7 @@
 import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
 import { readRollupBuckets } from "@/lib/rollups/measurement-rollups";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import {
   probeRollupCoverage,
   type RollupCoverageMap,
@@ -197,6 +198,9 @@ async function computeFromRollups(
     return d;
   })();
 
+  // v1.11.2 — load the source-priority blob once and thread it into both
+  // reads so the sys/dia fan-out doesn't re-query the user twice.
+  const priority = await loadUserSourcePriority(userId);
   const [sysBuckets, diaBuckets] = await Promise.all([
     readRollupBuckets(
       userId,
@@ -204,6 +208,7 @@ async function computeFromRollups(
       "DAY",
       readSince,
       now,
+      priority,
     ),
     readRollupBuckets(
       userId,
@@ -211,6 +216,7 @@ async function computeFromRollups(
       "DAY",
       readSince,
       now,
+      priority,
     ),
   ]);
 
