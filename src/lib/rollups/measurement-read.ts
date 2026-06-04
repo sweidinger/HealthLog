@@ -73,8 +73,9 @@ export interface SourcedBucketRow {
  * Resolution per bucket:
  *   1. the first source in the metric's ladder that is present → canonical;
  *   2. no ladder match (an unlisted source, or a type with no ladder) → the
- *      row with the most readings (max `count`), tie-broken by source name,
- *      so the bucket neither doubles nor goes dark.
+ *      row with the alphabetically smallest source name, so the bucket
+ *      neither doubles nor goes dark AND the pick matches the live-SQL
+ *      paths' `ORDER BY … source` tiebreak.
  *
  * Input order is preserved (buckets emit in first-seen order). A single-source
  * day (the common case) short-circuits to the row unchanged.
