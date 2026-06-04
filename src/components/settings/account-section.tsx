@@ -53,6 +53,8 @@ import { restartOnboardingTour } from "@/lib/onboarding/tour-restart";
 import { describePasskeyError } from "@/lib/passkey-errors";
 import { queryKeys } from "@/lib/query-keys";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
+import { UnitPreferenceCard } from "@/components/settings/unit-preference-card";
+import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
 import { detectBrowserTimezone, DEFAULT_TIMEZONE } from "@/lib/tz/format";
 
 interface PasskeyInfo {
@@ -582,6 +584,13 @@ export function AccountSection() {
           </div>
         </form>
       </div>
+
+      {/* Unit system + global injection-site exclusions live with the
+          account profile: both are personal preferences that apply
+          app-wide, not dashboard-layout controls. */}
+      <UnitPreferenceCard isAuthenticated={isAuthenticated} />
+
+      <InjectionSitesCard isAuthenticated={isAuthenticated} />
 
       {/* Passkeys card */}
       <div className="bg-card border-border rounded-xl border p-6">
