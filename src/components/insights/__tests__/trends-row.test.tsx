@@ -128,6 +128,26 @@ describe("<TrendsRow>", () => {
     }
   });
 
+  it("bounds the chart slot so the mood card's axis labels stay contained (item I)", () => {
+    // v1.11.4 item I — the mood mini chart is a `<Card>` (extra header
+    // + padding chrome) wrapping a categorical y-axis + a date x-axis;
+    // its tick labels used to bleed past the 180 px envelope and
+    // overlap the caption below. The slot now (a) clips with
+    // `overflow-hidden` so nothing escapes the envelope and (b) drives
+    // both mini charts' internal band down to 120 px via
+    // `[--chart-height:120px]` so the mood card's full envelope
+    // (band + header + axis labels) fits inside 180 px and the three
+    // tiles share one chart-band baseline.
+    const html = render(<TrendsRow />);
+    const slots =
+      html.match(/data-slot="trends-row-chart-slot"[^>]*class="[^"]*"/g) ?? [];
+    expect(slots.length).toBe(3);
+    for (const slot of slots) {
+      expect(slot).toMatch(/overflow-hidden/);
+      expect(slot).toMatch(/\[--chart-height:120px\]/);
+    }
+  });
+
   it("renders annotations when supplied", () => {
     const html = render(
       <TrendsRow
