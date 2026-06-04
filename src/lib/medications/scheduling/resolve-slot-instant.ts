@@ -179,21 +179,71 @@ function canonicalSlotInstant(
 }
 
 /**
- * Tolerance = ± half the schedule's window span (so two adjacent slots
- * never overlap their capture zones), falling back to ±2h when the
- * window is degenerate (`windowStart === windowEnd`) or unparseable.
+ * Snap tolerance for a schedule's dose slots.
+ *
+ * Base tolerance is ± half the schedule's window span, falling back to
+ * ±2h when the window is degenerate (`windowStart === windowEnd`) or
+ * unparseable.
+ *
+ * For a schedule with MORE THAN ONE time-of-day the window span is no
+ * longer a safe tolerance: a wide window (e.g. 08:00–22:00) spread across
+ * two slots (08:00 / 20:00) yields a ±7h half-span that exceeds half the
+ * 12h inter-slot gap, so the two slots' capture zones overlap and a
+ * distinct evening write can collapse onto the already-taken morning slot
+ * (the nearest-`deltaMs` pick still lands inside both zones). Cap the
+ * tolerance at half the MINIMUM gap between adjacent sorted slots (the
+ * midnight wrap counted as one of those gaps), so two distinct same-day
+ * doses can never share a capture zone. Single-slot schedules keep the
+ * half-span behaviour unchanged.
  */
 function snapToleranceMs(schedule: CanonicalSchedule): number {
   const startMin = hhmmToMinutes(schedule.windowStart);
   const endMin = hhmmToMinutes(schedule.windowEnd);
-  if (startMin === null || endMin === null) return DEFAULT_TOLERANCE_MS;
-  let span = endMin - startMin;
-  if (span < 0) span += 24 * 60; // overnight window
-  if (span === 0) return DEFAULT_TOLERANCE_MS;
-  const halfSpanMs = (span / 2) * ONE_MINUTE_MS;
-  // Never go below the minute-drift floor: even a tight 30-minute window
-  // must absorb the iOS-vs-server sub-minute `scheduledFor` drift.
-  return Math.max(halfSpanMs, ONE_MINUTE_MS);
+  let halfSpanMs: number;
+  if (startMin === null || endMin === null) {
+    halfSpanMs = DEFAULT_TOLERANCE_MS;
+  } else {
+    let span = endMin - startMin;
+    if (span < 0) span += 24 * 60; // overnight window
+    halfSpanMs = span === 0 ? DEFAULT_TOLERANCE_MS : (span / 2) * ONE_MINUTE_MS;
+  }
+
+  let toleranceMs = halfSpanMs;
+
+  const slots = effectiveTimesOfDay(schedule)
+    .map(hhmmToMinutes)
+    .filter((m): m is number => m !== null)
+    .sort((a, b) => a - b);
+  if (slots.length > 1) {
+    // Smallest gap between adjacent slots, treating the day as circular so
+    // the wrap from the last slot back to the first (across midnight) is
+    // also bounded. Half that gap is the largest tolerance that keeps the
+    // two nearest slots' capture zones disjoint.
+    let minGapMin = Infinity;
+    for (let i = 1; i < slots.length; i++) {
+      minGapMin = Math.min(minGapMin, slots[i] - slots[i - 1]);
+    }
+    const wrapGap = slots[0] + 24 * 60 - slots[slots.length - 1];
+    minGapMin = Math.min(minGapMin, wrapGap);
+    if (Number.isFinite(minGapMin) && minGapMin > 0) {
+      toleranceMs = Math.min(toleranceMs, (minGapMin / 2) * ONE_MINUTE_MS);
+    }
+  }
+
+  // Never go below the minute-drift floor: even a tight window must absorb
+  // the iOS-vs-server sub-minute `scheduledFor` drift.
+  return Math.max(toleranceMs, ONE_MINUTE_MS);
+}
+
+/**
+ * Effective dose times for tolerance purposes — mirrors the recurrence
+ * engine's `effectiveTimesOfDay`: the explicit `timesOfDay` when set,
+ * else the single legacy `windowStart` slot.
+ */
+function effectiveTimesOfDay(schedule: CanonicalSchedule): string[] {
+  return schedule.timesOfDay.length > 0
+    ? schedule.timesOfDay
+    : [schedule.windowStart];
 }
 
 function hhmmToMinutes(hhmm: string): number | null {

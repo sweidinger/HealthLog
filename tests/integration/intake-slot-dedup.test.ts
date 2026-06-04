@@ -25,6 +25,10 @@ import {
   dedupeUserIntakeSlots,
   enqueueBootTimeIntakeSlotDedup,
 } from "@/lib/medications/intake-slot-dedup";
+import {
+  applyCanonicalSlotWrite,
+  resolveSlotInstantForWrite,
+} from "@/lib/medications/scheduling/slot-upsert";
 import { localHmAsUtc } from "@/lib/timezone";
 
 const TEST_USER_ID = "user-intake-slot-dedup";
@@ -303,6 +307,115 @@ describe("intake-slot-dedup — duplicate slot collapse", () => {
       where: { id: skipped.id },
     });
     expect(loser.deletedAt).not.toBeNull();
+  });
+});
+
+describe("intake write path — multi-dose wide window does not collapse", () => {
+  // The LIVE twice-daily-Ramipril regression, end-to-end through the
+  // DB-backed slot resolver + the canonical-slot upsert: two distinct
+  // same-day doses on an 08:00 / 20:00 schedule with a WIDE 08:00–22:00
+  // window must land as TWO separate live rows, not collapse onto one.
+  async function createWideWindowTwiceDailyMed(): Promise<string> {
+    const prisma = getPrismaClient();
+    const med = await prisma.medication.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Ramipril",
+        dose: "5mg",
+        active: true,
+        schedules: {
+          create: {
+            windowStart: "08:00",
+            windowEnd: "22:00", // wide window — the pre-fix overlap trigger
+            timesOfDay: ["08:00", "20:00"],
+            daysOfWeek: null,
+            scheduleType: "SCHEDULED",
+          },
+        },
+      },
+    });
+    return med.id;
+  }
+
+  it("resolves morning and evening writes to two distinct canonical slots and lands two rows", async () => {
+    const prisma = getPrismaClient();
+    const medId = await createWideWindowTwiceDailyMed();
+
+    const morningWrite = new Date("2026-03-10T07:05:00.000Z"); // 08:05 CET
+    const eveningWrite = new Date("2026-03-10T19:03:00.000Z"); // 20:03 CET
+
+    const morningSlot = await resolveSlotInstantForWrite({
+      userId: TEST_USER_ID,
+      medicationId: medId,
+      userTz: "Europe/Berlin",
+      incoming: morningWrite,
+      client: prisma,
+    });
+    const eveningSlot = await resolveSlotInstantForWrite({
+      userId: TEST_USER_ID,
+      medicationId: medId,
+      userTz: "Europe/Berlin",
+      incoming: eveningWrite,
+      client: prisma,
+    });
+
+    expect(morningSlot).not.toBeNull();
+    expect(eveningSlot).not.toBeNull();
+    // The two doses must resolve to two distinct canonical slot instants.
+    expect(morningSlot?.toISOString()).not.toBe(eveningSlot?.toISOString());
+    expect(morningSlot?.toISOString()).toBe(
+      localHmAsUtc(DAY, "Europe/Berlin", 8, 0).toISOString(),
+    );
+    expect(eveningSlot?.toISOString()).toBe(
+      localHmAsUtc(DAY, "Europe/Berlin", 20, 0).toISOString(),
+    );
+
+    // Apply the morning taken write.
+    const morningResult = await applyCanonicalSlotWrite({
+      client: prisma,
+      userId: TEST_USER_ID,
+      medicationId: medId,
+      canonicalSlot: morningSlot!,
+      takenAt: morningWrite,
+      skipped: false,
+      isExplicitTaken: true,
+      isExplicitSkip: false,
+      idempotencyKey: null,
+      createSource: "WEB",
+    });
+    expect(morningResult.outcome).toBe("inserted");
+
+    // Apply the evening taken write — must NOT collapse onto the morning
+    // slot (the bug) and must land as its own row.
+    const eveningResult = await applyCanonicalSlotWrite({
+      client: prisma,
+      userId: TEST_USER_ID,
+      medicationId: medId,
+      canonicalSlot: eveningSlot!,
+      takenAt: eveningWrite,
+      skipped: false,
+      isExplicitTaken: true,
+      isExplicitSkip: false,
+      idempotencyKey: null,
+      createSource: "WEB",
+    });
+    expect(eveningResult.outcome).toBe("inserted");
+    expect(eveningResult.noDowngradeNoOp).toBe(false);
+
+    // Two distinct live rows, one per dose slot.
+    const live = await prisma.medicationIntakeEvent.findMany({
+      where: { userId: TEST_USER_ID, medicationId: medId, deletedAt: null },
+      orderBy: { scheduledFor: "asc" },
+    });
+    expect(live).toHaveLength(2);
+    expect(live[0]?.takenAt).not.toBeNull();
+    expect(live[1]?.takenAt).not.toBeNull();
+    expect(live[0]?.scheduledFor.toISOString()).toBe(
+      localHmAsUtc(DAY, "Europe/Berlin", 8, 0).toISOString(),
+    );
+    expect(live[1]?.scheduledFor.toISOString()).toBe(
+      localHmAsUtc(DAY, "Europe/Berlin", 20, 0).toISOString(),
+    );
   });
 });
 
