@@ -303,7 +303,7 @@ function ApiTokensCard() {
                 type="button"
                 variant="outline"
                 size="icon"
-                className="h-9 w-9 shrink-0"
+                className="min-h-11 min-w-11 shrink-0 sm:h-9 sm:w-9"
                 onClick={() => void handleCopyToken()}
                 aria-label={t("settings.tokenCopy")}
                 data-slot="settings-api-token-copy"

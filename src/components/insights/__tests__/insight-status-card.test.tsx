@@ -24,7 +24,6 @@ const baseProps = {
   title: "Pulse",
   icon: null,
   hasProvider: true,
-  cached: false,
   updatedAt: null,
 };
 
@@ -90,14 +89,14 @@ describe("<InsightStatusCard>", () => {
     expect(html).toContain("No analysis yet.");
   });
 
-  it("never surfaces a cached badge, even when the text came from the warm cache", () => {
-    // v1.11.5 — the top-right "cached" label was removed. The caching
-    // behaviour is unchanged (the prop is still threaded), but the card
-    // no longer announces it, so the assessment reads as authoritative.
+  it("never surfaces a cached badge — the card has no cached affordance", () => {
+    // v1.11.5 — the top-right "cached" label was removed and the dead
+    // `cached` prop was dropped from the contract. The caching behaviour
+    // upstream is unchanged; the card simply never announced it, so the
+    // assessment reads as authoritative.
     const html = render(
       <InsightStatusCard
         {...baseProps}
-        cached
         text="Pulse stayed inside the band."
       />,
     );

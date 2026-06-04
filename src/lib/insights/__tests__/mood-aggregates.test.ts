@@ -638,7 +638,8 @@ describe("computeBetterDays", () => {
           withoutDays: 10,
           withAvg: 4.4,
           withoutAvg: 2.4,
-          delta: 2, // effect 1.0 (capped)
+          delta: 2,
+          pooledSd: 1, // |d| = 2 → standardized effect 1.0 (capped)
           pValue: 0.001,
           confidence: "high",
         },
@@ -680,6 +681,7 @@ describe("computeBetterDays", () => {
           withAvg: 2.2,
           withoutAvg: 3.8,
           delta: -1.6,
+          pooledSd: 0.9,
           pValue: 0.01,
           confidence: "medium",
         },
@@ -696,6 +698,88 @@ describe("computeBetterDays", () => {
     expect(board).toHaveLength(1);
     expect(board[0].direction).toBe("down");
     expect(board[0].delta).toBe(-1.6);
+  });
+
+  it("ranks tags by the standardized (Cohen's-d) effect, not the raw delta", () => {
+    // "tight" has the smaller raw delta but a far smaller pooled SD, so its
+    // standardized effect (0.8 / 0.4 = 2.0 → capped 1.0) beats "wide"
+    // (1.2 / 2.0 = 0.6). The legacy |delta|/2 heuristic would have ordered
+    // them the other way (0.6 vs 0.4), so this pins the new behaviour.
+    const tagInfluence: TagInfluence = {
+      flat: [
+        {
+          tag: "wide",
+          labelKey: null,
+          categoryKey: null,
+          icon: null,
+          withDays: 10,
+          withoutDays: 10,
+          withAvg: 4.2,
+          withoutAvg: 3.0,
+          delta: 1.2,
+          pooledSd: 2.0,
+          pValue: 0.02,
+          confidence: "medium",
+        },
+        {
+          tag: "tight",
+          labelKey: null,
+          categoryKey: null,
+          icon: null,
+          withDays: 10,
+          withoutDays: 10,
+          withAvg: 4.0,
+          withoutAvg: 3.2,
+          delta: 0.8,
+          pooledSd: 0.4,
+          pValue: 0.001,
+          confidence: "high",
+        },
+      ],
+      structured: [],
+    };
+    const board = computeBetterDays(tagInfluence, {
+      sleep: emptyCorr,
+      steps: emptyCorr,
+      pulse: emptyCorr,
+      weight: emptyCorr,
+      bloodPressureSystolic: emptyCorr,
+    });
+    expect(board.map((f) => f.key)).toEqual(["tight", "wide"]);
+    // Raw deltas shown in the UI are untouched by the ranking change.
+    expect(board[0].delta).toBe(0.8);
+    expect(board[1].delta).toBe(1.2);
+  });
+
+  it("falls back to the |delta|/2 heuristic when a tag has no pooled SD", () => {
+    const tagInfluence: TagInfluence = {
+      flat: [
+        {
+          tag: "constant",
+          labelKey: null,
+          categoryKey: null,
+          icon: null,
+          withDays: 10,
+          withoutDays: 10,
+          withAvg: 4.0,
+          withoutAvg: 2.0,
+          delta: 2,
+          pooledSd: null, // both groups perfectly constant
+          pValue: 1,
+          confidence: "low",
+        },
+      ],
+      structured: [],
+    };
+    const board = computeBetterDays(tagInfluence, {
+      sleep: emptyCorr,
+      steps: emptyCorr,
+      pulse: emptyCorr,
+      weight: emptyCorr,
+      bloodPressureSystolic: emptyCorr,
+    });
+    expect(board).toHaveLength(1);
+    expect(board[0].effectSize).toBe(1); // min(1, |2|/2)
   });
 
   it("returns an empty board when nothing clears the gates", () => {
@@ -723,6 +807,7 @@ describe("computeBetterDays", () => {
       withAvg: 4,
       withoutAvg: 3,
       delta: 1 - i * 0.01,
+      pooledSd: 1,
       pValue: 0.02,
       confidence: "low" as const,
     }));

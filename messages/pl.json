@@ -2564,7 +2564,7 @@
       "discovery": {
         "title": "Wykryte wzorce",
         "description": "Relacje dzień po dniu dotyczące Twojego nastroju, które utrzymują się po korekcie wielokrotnych testów.",
-        "footer": "{discovered} z {tested} testowanych relacji przeszło korektę fałszywych odkryć.",
+        "footer": "Wyłonione z {tested} par dzień po dniu testowanych na wszystkich Twoich wskaźnikach, po korekcie fałszywych odkryć.",
         "empty": "Żadna relacja nastroju nie przekroczyła jeszcze progu statystycznego. Notuj dalej.",
         "disclaimer": "Przefiltrowane statystycznie, ale wciąż obserwacyjne — wzorzec warty uwagi, nie przyczyna.",
         "moodUp": "Wyższy {factor} zwykle wiąże się z lepszym nastrojem następnego dnia w Twoich danych.",

@@ -464,7 +464,7 @@ function WithingsCard({
               onClick={() => resume.mutate()}
               disabled={resume.isPending}
               data-testid="withings-resume-button"
-              className="min-h-[44px] sm:min-h-0"
+              className="min-h-11"
             >
               {resume.isPending ? (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -897,7 +897,7 @@ function WhoopCard({
               onClick={() => resume.mutate()}
               disabled={resume.isPending}
               data-testid="whoop-resume-button"
-              className="min-h-[44px] sm:min-h-0"
+              className="min-h-11"
             >
               {resume.isPending ? (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />

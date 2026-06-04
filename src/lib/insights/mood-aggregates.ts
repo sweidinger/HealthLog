@@ -313,6 +313,13 @@ export interface TagInfluenceRow {
   withoutAvg: number;
   /** withAvg − withoutAvg, rounded. Positive = higher mood with the tag. */
   delta: number;
+  /**
+   * Pooled mood SD across the with/without groups (Cohen's-d denominator).
+   * `null` when neither group has testable spread (both constant). Lets the
+   * board standardize the raw delta into a unitless effect comparable to a
+   * Pearson |r|. Not surfaced in the UI — ranking only.
+   */
+  pooledSd: number | null;
   /** Welch two-sided p-value for the difference of means. */
   pValue: number;
   /** Discrete confidence band derived from p-value + per-group sample size. */
@@ -431,6 +438,22 @@ function influenceForTag(
   const delta = withAvg - withoutAvg;
   const minGroupDays = Math.min(withVals.length, withoutVals.length);
 
+  // Pooled SD (Cohen's-d denominator) so the board can standardize this raw
+  // mood-point delta into a unitless effect comparable to a Pearson |r|.
+  // Unbiased (n−1) per-group variances pooled on (nWith + nWithout − 2) df;
+  // null when there is no testable spread (both groups perfectly constant).
+  const nWith = withVals.length;
+  const nWithout = withoutVals.length;
+  const varWith =
+    withVals.reduce((s, v) => s + (v - withAvg) ** 2, 0) / (nWith - 1);
+  const varWithout =
+    withoutVals.reduce((s, v) => s + (v - withoutAvg) ** 2, 0) /
+    (nWithout - 1);
+  const pooledVar =
+    ((nWith - 1) * varWith + (nWithout - 1) * varWithout) /
+    (nWith + nWithout - 2);
+  const pooledSd = pooledVar > 0 ? Math.sqrt(pooledVar) : null;
+
   const pValue = welch.status === "ok" ? welch.pValue : 1;
   // A zero delta with no spread is not an "influence" — drop it so the
   // board never shows a 0.0 row.
@@ -446,6 +469,7 @@ function influenceForTag(
     withAvg: round(withAvg, 2),
     withoutAvg: round(withoutAvg, 2),
     delta: round(delta, 2),
+    pooledSd: pooledSd === null ? null : round(pooledSd, 3),
     pValue,
     confidence: influenceConfidence(pValue, minGroupDays),
   };
@@ -586,8 +610,16 @@ function metricConfidence(
  *    non-"keine" strength (|r| ≥ 0.2) are folded in — a near-zero r is not
  *    an association.
  *
- * Ranking is by `effectSize` desc (|r| for metrics, |delta|/2 capped for
- * tags), then by confidence, then key for stability. Observational only.
+ * Ranking is by `effectSize` desc, then confidence, then key for stability.
+ * The two sources are put on one comparable scale: metric rows use |r|
+ * (already unitless in [0,1]); tag rows use a standardized effect — the raw
+ * mood-point `delta` divided by the pooled with/without mood SD (Cohen's d),
+ * clamped to [0,1]. A |d| ≥ 1 (a mean shift of one full SD) saturates the
+ * scale, mirroring an |r| near its ceiling, so neither source dominates the
+ * board for scale reasons alone. When a tag has no pooled SD (both groups
+ * perfectly constant), it falls back to the legacy |delta|/2 heuristic — a
+ * rare degenerate case that can't be standardized. The raw delta / r the UI
+ * shows is unchanged; this only governs the sort order. Observational only.
  */
 export function computeBetterDays(
   tagInfluence: TagInfluence,
@@ -606,7 +638,13 @@ export function computeBetterDays(
       direction: row.delta >= 0 ? "up" : "down",
       n: Math.min(row.withDays, row.withoutDays),
       confidence: row.confidence,
-      effectSize: Math.min(1, Math.abs(row.delta) / 2),
+      // Cohen's-d standardization so the tag effect is commensurable with a
+      // metric |r|; fall back to the legacy |delta|/2 only when the pooled
+      // SD is unavailable (both groups perfectly constant).
+      effectSize:
+        row.pooledSd && row.pooledSd > 0
+          ? Math.min(1, Math.abs(row.delta) / row.pooledSd)
+          : Math.min(1, Math.abs(row.delta) / 2),
       delta: row.delta,
       r: null,
     });

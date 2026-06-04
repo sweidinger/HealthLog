@@ -2564,7 +2564,7 @@
       "discovery": {
         "title": "Tendances détectées",
         "description": "Des relations d'un jour à l'autre autour de votre humeur qui tiennent après correction des tests multiples.",
-        "footer": "{discovered} relations sur {tested} testées ont passé la correction des fausses découvertes.",
+        "footer": "Issues de {tested} paires d'un jour à l'autre testées sur l'ensemble de vos mesures, après correction des fausses découvertes.",
         "empty": "Aucune relation d'humeur n'a encore franchi le seuil statistique. Continuez à enregistrer.",
         "disclaimer": "Filtré statistiquement, mais toujours observationnel : une tendance à surveiller, pas une cause.",
         "moodUp": "Un {factor} plus élevé tend à coïncider avec une meilleure humeur le lendemain dans vos données.",

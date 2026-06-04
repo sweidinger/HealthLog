@@ -2564,7 +2564,7 @@
       "discovery": {
         "title": "Discovered patterns",
         "description": "Day-to-day relationships involving your mood that hold up after correcting for testing many pairs at once.",
-        "footer": "{discovered} of {tested} relationships tested survived the false-discovery correction.",
+        "footer": "Surfaced from {tested} day-to-day pairs tested across all your metrics, after the false-discovery correction.",
         "empty": "No mood relationships cleared the statistical bar yet. Keep logging.",
         "disclaimer": "Statistically filtered, but still observational — a pattern worth watching, not a cause.",
         "moodUp": "Higher {factor} tends to go with higher next-day mood in your data.",

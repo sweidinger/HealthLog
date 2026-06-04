@@ -116,7 +116,6 @@ export default function InsightsGewichtPage() {
         icon={<Scale className="h-5 w-5" />}
         text={status?.text ?? null}
         hasProvider={status?.hasProvider ?? false}
-        cached={status?.cached ?? false}
         updatedAt={status?.updatedAt ?? null}
         loading={isStatusLoading}
         preparing={status?.preparing ?? false}

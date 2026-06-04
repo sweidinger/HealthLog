@@ -2564,7 +2564,7 @@
       "discovery": {
         "title": "Entdeckte Muster",
         "description": "Tag-zu-Tag-Zusammenhänge rund um deine Stimmung, die auch nach Korrektur für viele gleichzeitige Tests bestehen.",
-        "footer": "{discovered} von {tested} getesteten Zusammenhängen haben die Korrektur für Fehlentdeckungen überstanden.",
+        "footer": "Herausgefiltert aus {tested} Tag-zu-Tag-Paaren, die über all deine Werte getestet wurden, nach der Korrektur für Fehlentdeckungen.",
         "empty": "Bisher hat kein Stimmungszusammenhang die statistische Hürde genommen. Logge weiter.",
         "disclaimer": "Statistisch gefiltert, aber weiterhin beobachtend – ein Muster, das einen Blick wert ist, keine Ursache.",
         "moodUp": "Höheres {factor} geht in deinen Daten tendenziell mit besserer Stimmung am Folgetag einher.",

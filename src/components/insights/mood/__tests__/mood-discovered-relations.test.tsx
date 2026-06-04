@@ -111,7 +111,7 @@ describe("<MoodDiscoveredRelations>", () => {
     expect(html).toContain("lower next-day");
   });
 
-  it("filters to mood pairs and shows the honest tested footer", () => {
+  it("filters to mood pairs and shows the honest full-family footer", () => {
     const html = renderWith(
       [
         pair({ behaviour: "TIME_IN_DAYLIGHT", outcome: "MOOD" }),
@@ -122,7 +122,8 @@ describe("<MoodDiscoveredRelations>", () => {
     expect((html.match(/data-slot="mood-discovered-pair"/g) ?? []).length).toBe(
       1,
     );
-    // footer reports 1 mood pair of 12 tested
-    expect(html).toContain("1 of 12");
+    // Footer's denominator is the full behaviour×outcome family the engine
+    // tested, not the mood-only subset — so it must report 12, not 1 of 1.
+    expect(html).toContain("from 12 day-to-day pairs");
   });
 });

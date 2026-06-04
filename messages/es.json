@@ -2564,7 +2564,7 @@
       "discovery": {
         "title": "Patrones descubiertos",
         "description": "Relaciones de un día a otro con tu estado de ánimo que se mantienen tras corregir el haber probado muchos pares a la vez.",
-        "footer": "{discovered} de {tested} relaciones probadas superaron la corrección de falsos descubrimientos.",
+        "footer": "Extraídas de {tested} pares de un día a otro probados en todas tus métricas, tras la corrección de falsos descubrimientos.",
         "empty": "Todavía ninguna relación de ánimo superó el umbral estadístico. Sigue registrando.",
         "disclaimer": "Filtrado estadísticamente, pero aún observacional: un patrón que vale la pena observar, no una causa.",
         "moodUp": "Un mayor {factor} suele coincidir con mejor ánimo al día siguiente en tus datos.",

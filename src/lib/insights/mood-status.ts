@@ -8,6 +8,7 @@ import {
 import { pearsonCorrelation } from "@/lib/analytics/correlations";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
+  type TagInfluenceRow,
   MOOD_GREEN_MAX,
   MOOD_GREEN_MIN,
   MOOD_ORANGE_MAX,
@@ -46,6 +47,17 @@ import {
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
+
+/**
+ * Drop the ranking-only `pooledSd` before a tag-influence row enters the
+ * snapshot payload — it exists solely to standardize the better-days sort
+ * and has no place in the model prompt or the UI.
+ */
+function stripRankingOnly(row: TagInfluenceRow): Omit<TagInfluenceRow, "pooledSd"> {
+  const { pooledSd: _pooledSd, ...rest } = row;
+  void _pooledSd;
+  return rest;
+}
 
 export async function generateMoodStatusForUser(
   userId: string,
@@ -352,10 +364,13 @@ export async function generateMoodStatusForUser(
       tagInfluence:
         tagInfluence.flat.length > 0 || tagInfluence.structured.length > 0
           ? {
-              flat: tagInfluence.flat.length > 0 ? tagInfluence.flat : null,
+              flat:
+                tagInfluence.flat.length > 0
+                  ? tagInfluence.flat.map(stripRankingOnly)
+                  : null,
               structured:
                 tagInfluence.structured.length > 0
-                  ? tagInfluence.structured
+                  ? tagInfluence.structured.map(stripRankingOnly)
                   : null,
             }
           : null,

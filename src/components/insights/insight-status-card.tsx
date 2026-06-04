@@ -15,14 +15,6 @@ interface InsightStatusCardProps {
   icon: React.ReactNode;
   text: string | null;
   hasProvider: boolean;
-  /**
-   * Whether the rendered text came from the warm cache rather than a
-   * fresh generation. Retained on the contract so every caller can keep
-   * threading it, but the card no longer surfaces a "cached" badge — the
-   * label devalued the assessment and the caching is an implementation
-   * detail the user does not need to see.
-   */
-  cached: boolean;
   updatedAt: string | null;
   loading?: boolean;
   /**

@@ -288,7 +288,6 @@ export default function InsightsMedikamentePage() {
         icon={<Pill className="h-5 w-5" />}
         text={status?.summary ?? null}
         hasProvider={status?.hasProvider ?? false}
-        cached={status?.cached ?? false}
         updatedAt={status?.updatedAt ?? null}
         loading={isStatusLoading}
         preparing={status?.preparing ?? false}

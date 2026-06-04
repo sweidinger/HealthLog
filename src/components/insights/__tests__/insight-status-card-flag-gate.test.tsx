@@ -24,7 +24,6 @@ const baseProps = {
   icon: null,
   text: "Your pulse is stable.",
   hasProvider: true,
-  cached: false,
   updatedAt: null,
 };
 

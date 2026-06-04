@@ -124,7 +124,6 @@ export function MoodDiscoveredRelations() {
       </ul>
       <p className="text-muted-foreground text-[11px]">
         {t("insights.mood.discovery.footer", {
-          discovered: moodPairs.length,
           tested: data.pairsTested,
         })}
       </p>
