@@ -69,16 +69,6 @@ const DailyBriefing = dynamic(
     loading: () => <BlockSkeleton minHeight="min-h-96" />,
   },
 );
-const CorrelationRow = dynamic(
-  () =>
-    import("@/components/insights/correlation-row").then((mod) => ({
-      default: mod.CorrelationRow,
-    })),
-  {
-    ssr: false,
-    loading: () => <BlockSkeleton minHeight="min-h-80" />,
-  },
-);
 const TrendsRow = dynamic(
   () =>
     import("@/components/insights/trends-row").then((mod) => ({
@@ -160,8 +150,11 @@ const PeriodNarrativeCard = dynamic(
  *   - The sticky tab strip lives in `src/app/insights/layout.tsx`
  *     (the shared `<InsightsLayoutShell>` mounts it). The strip handles
  *     navigation to every sub-page + the regenerate affordance.
- *   - Hero + DailyBriefing + Correlation row + Trends row + advisor
- *     card stay here — they're the cross-metric overview.
+ *   - Hero + DailyBriefing + Trends row + advisor card stay here —
+ *     they're the cross-metric overview. The per-metric correlation
+ *     cards moved onto the metric pages they belong to (Weight owns
+ *     weight × weekday, Pulse owns mood × pulse, …), so the overview
+ *     no longer renders a duplicate correlation row.
  *   - The CoachDrawer is mounted in the mother-page body only (Marc
  *     directive). Navigating to a sub-page unmounts the drawer.
  *
@@ -223,10 +216,12 @@ export default function InsightsPage() {
   // beyond the React-state subscription.
   const advisor = useInsightsAdvisorQuery(isAuthenticated);
 
-  // v1.4.33 IW2 — the mother page reads `correlations` + `healthScore`
-  // (thick-only fields) so it stays on the default thick slice. The
-  // shared hook still centralises the cache settings so the consumer
-  // dedups with the sub-page mounts that ride the slim slice instead.
+  // v1.4.33 IW2 — the mother page reads `healthScore` (a thick-only
+  // field) for the hero score card, so it stays on the default thick
+  // slice. The shared hook still centralises the cache settings so the
+  // consumer dedups with the sub-page mounts that ride the slim slice
+  // instead. Correlations now live on the per-metric pages, so the
+  // overview no longer reads `analytics.correlations`.
   const analyticsQuery = useAnalyticsQuery();
   const analytics = analyticsQuery.data as AnalyticsData | undefined;
 
@@ -278,6 +273,15 @@ export default function InsightsPage() {
   // server children would require a Server-Component refactor; that's
   // a v1.5.x track.
 
+  // v1.12.0 — section order mirrors the iOS Insights overview
+  // (`v0.14` app-structure handover §2c): Coach hero + briefing + chips
+  // (the HeroStrip bundles all three) → detailed "Heute auf einen Blick"
+  // briefing → dynamics / alerts zone (today's signal + rhythm events,
+  // out of the AI gate so a health alert is never hidden) → vitals
+  // dashboard → trends row → "Zeitraum im Rückblick" retrospective →
+  // footer (the warm-assessments utility control, no iOS equivalent —
+  // iOS auto-warms). The per-metric correlation cards moved onto the
+  // metric pages, so the overview renders no correlation row.
   return (
     <div className="space-y-8">
       <HeroStrip
@@ -297,7 +301,27 @@ export default function InsightsPage() {
         healthScore={analytics?.healthScore ?? undefined}
       />
 
+      {flags.briefing && (
+        <DailyBriefing
+          briefing={briefingPayload}
+          updatedAt={heroStripUpdatedAt}
+          loading={advisor.isLoading}
+          onRegenerate={advisor.regenerate}
+          regenerating={advisor.isRegenerating}
+        />
+      )}
+
       <CoincidentDeviationCard enabled={isAuthenticated} />
+
+      <RhythmEventsCard enabled={isAuthenticated} />
+
+      <VitalsDashboard enabled={isAuthenticated} />
+
+      <TrendsRow
+        briefing={briefingPayload}
+        annotations={advisor.payload?.trendAnnotations ?? null}
+        loading={advisor.isLoading || advisor.isRegenerating}
+      />
 
       {flags.briefing && <PeriodNarrativeCard enabled={isAuthenticated} />}
 
@@ -320,30 +344,6 @@ export default function InsightsPage() {
           {t("insights.warmAssessments")}
         </Button>
       </div>
-
-      <VitalsDashboard enabled={isAuthenticated} />
-
-      <RhythmEventsCard enabled={isAuthenticated} />
-
-      {flags.briefing && (
-        <DailyBriefing
-          briefing={briefingPayload}
-          updatedAt={heroStripUpdatedAt}
-          loading={advisor.isLoading}
-          onRegenerate={advisor.regenerate}
-          regenerating={advisor.isRegenerating}
-        />
-      )}
-
-      {flags.correlations && analytics?.correlations && (
-        <CorrelationRow results={analytics.correlations} />
-      )}
-
-      <TrendsRow
-        briefing={briefingPayload}
-        annotations={advisor.payload?.trendAnnotations ?? null}
-        loading={advisor.isLoading || advisor.isRegenerating}
-      />
     </div>
   );
 }

@@ -1705,7 +1705,6 @@
     },
     "correlationRow": {
       "title": "Corrélations",
-      "subtitle": "Hypothèses prédéfinies, validées si n ≥ 14 et p < 0,05",
       "disclaimer": "Les corrélations sont observationnelles, pas causales — parle à ton médecin si ta tension est élevée.",
       "experimentCta": "Lancer une expérience de 7 jours",
       "experimentTooltip": "Bientôt disponible",

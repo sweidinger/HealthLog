@@ -1705,7 +1705,6 @@
     },
     "correlationRow": {
       "title": "Correlaciones",
-      "subtitle": "Hipótesis predefinidas, con umbral n ≥ 14 y p < 0,05",
       "disclaimer": "Las correlaciones son observacionales, no causales — habla con tu médico si tu tensión es alta.",
       "experimentCta": "Iniciar experimento de 7 días",
       "experimentTooltip": "Próximamente",

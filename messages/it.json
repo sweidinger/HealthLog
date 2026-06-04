@@ -1705,7 +1705,6 @@
     },
     "correlationRow": {
       "title": "Correlazioni",
-      "subtitle": "Ipotesi predefinite, vincolate a n ≥ 14 e p < 0,05",
       "disclaimer": "Le correlazioni sono osservazionali, non causali — parla con il medico se la pressione è alta.",
       "experimentCta": "Avvia esperimento di 7 giorni",
       "experimentTooltip": "In arrivo",

@@ -1705,7 +1705,6 @@
     },
     "correlationRow": {
       "title": "Korelacje",
-      "subtitle": "Hipotezy zdefiniowane wcześniej, z progiem n ≥ 14 i p < 0,05",
       "disclaimer": "Korelacje są obserwacyjne, nie przyczynowe — porozmawiaj z lekarzem, jeśli ciśnienie jest wysokie.",
       "experimentCta": "Uruchom 7-dniowy eksperyment",
       "experimentTooltip": "Wkrótce",

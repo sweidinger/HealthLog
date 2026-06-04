@@ -1705,7 +1705,6 @@
     },
     "correlationRow": {
       "title": "Relationships",
-      "subtitle": "Pre-defined hypotheses, gated on n ≥ 14 and p < 0.05",
       "disclaimer": "Relationships are observational, not causal — talk to your doctor if BP runs high.",
       "experimentCta": "Try a 7-day experiment",
       "experimentTooltip": "Coming soon",

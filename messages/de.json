@@ -1705,7 +1705,6 @@
     },
     "correlationRow": {
       "title": "Zusammenhänge",
-      "subtitle": "Vorab definierte Hypothesen, gegated auf n ≥ 14 und p < 0,05",
       "disclaimer": "Zusammenhänge sind beobachtend, nicht kausal — sprich mit deinem Arzt, wenn der Blutdruck hoch ist.",
       "experimentCta": "7-Tage-Experiment starten",
       "experimentTooltip": "Bald verfügbar",

@@ -3,13 +3,20 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * v1.4.20 phase B3 — guards for the `/insights` wiring of the new
- * Trends row + Correlation row.
+ * v1.4.20 phase B3 — guards for the `/insights` wiring of the
+ * Trends row + the analytics correlations payload.
  *
  * The page-source scan pattern mirrors `insights-polish.test.ts` —
  * each test pins one load-bearing import / JSX mount so a future
  * refactor can't accidentally drop a wave of features without
  * breaking a CI lane.
+ *
+ * v1.12.0 — the on-overview correlation row was removed: the per-metric
+ * correlation cards moved onto the metric pages they belong to (Weight
+ * owns weight × weekday, Pulse owns mood × pulse), so the overview no
+ * longer duplicates them. The analytics route still surfaces the
+ * `correlations` block (the per-metric `MetricCorrelationCard` reads it),
+ * so those backend guards stay; the overview-mount guards were dropped.
  */
 
 const ROOT = join(__dirname, "../../..");
@@ -24,25 +31,25 @@ function load(path: string): string {
   return readFileSync(path, "utf8");
 }
 
-describe("v1.4.20 B3 — /insights mounts CorrelationRow + TrendsRow", () => {
-  it("imports both new components", () => {
+describe("v1.4.20 B3 — /insights mounts TrendsRow", () => {
+  it("imports the trends-row component", () => {
     // v1.4.33 IW2 deferred below-the-fold blocks behind `next/dynamic`,
     // so the static `from "..."` import-string was replaced with a
     // `dynamic(() => import("..."))` call. Either spelling counts as
     // a load-bearing reference to the module path.
     const src = load(INSIGHTS_PATH);
     expect(src).toMatch(
-      /(?:from\s+"@\/components\/insights\/correlation-row"|import\("@\/components\/insights\/correlation-row"\))/,
-    );
-    expect(src).toMatch(
       /(?:from\s+"@\/components\/insights\/trends-row"|import\("@\/components\/insights\/trends-row"\))/,
     );
   });
 
-  it("mounts <CorrelationRow> behind a non-null analytics.correlations guard", () => {
+  it("no longer mounts an on-overview correlation row (relocated to the metric pages)", () => {
+    // v1.12.0 — the correlation cards live on the per-metric pages now.
+    // The overview must not duplicate them: neither the module import
+    // nor the JSX mount may reappear here.
     const src = load(INSIGHTS_PATH);
-    expect(src).toMatch(/analytics\?\.correlations\s*&&\s*\(/);
-    expect(src).toMatch(/<CorrelationRow\b/);
+    expect(src).not.toMatch(/components\/insights\/correlation-row/);
+    expect(src).not.toMatch(/<CorrelationRow\b/);
   });
 
   it("mounts <TrendsRow> with annotations from the advisor payload", () => {
