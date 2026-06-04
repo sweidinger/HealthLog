@@ -215,7 +215,7 @@
       "medication": "Medicamento",
       "medicationDescription": "Marcar una dosis como tomada",
       "mood": "Estado de ánimo",
-      "moodDescription": "¿Cómo te sientes?"
+      "moodDescription": "Registrar estado de ánimo y etiquetas"
     }
   },
   "auth": {

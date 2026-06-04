@@ -215,7 +215,7 @@
       "medication": "Lek",
       "medicationDescription": "Oznacz dawkę jako przyjętą",
       "mood": "Nastrój",
-      "moodDescription": "Jak się czujesz?"
+      "moodDescription": "Zapisz nastrój i tagi"
     }
   },
   "auth": {

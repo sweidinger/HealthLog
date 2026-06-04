@@ -275,7 +275,14 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
           radiogroup (best-on-the-left order); tapping one picks the mood
           and reveals the annotate panel below. */}
       <div className="space-y-2" data-slot="mood-face-hero">
-        <Label id="mood-level-label" className="text-base">
+        {/* v1.12 — the sheet title ("Add") is the single primary heading;
+            the hero question stays as the face row's field label rather
+            than a second heading-weight line, so the sheet header isn't a
+            doubled heading. */}
+        <Label
+          id="mood-level-label"
+          className="text-muted-foreground text-sm font-normal"
+        >
           {t("mood.heroQuestion")}
         </Label>
         <div
@@ -297,9 +304,13 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
                 data-mood={level.value}
                 onClick={() => setMood(level.value)}
                 {...getMoodRadioProps(index)}
+                // v1.12 — selected-state unified with the tag tiles and
+                // factor steps: `border-primary bg-primary/15 text-primary`
+                // on a single 1px border (no `border-2` jump) so the
+                // selectable controls read as one design language.
                 className={`flex flex-col items-center gap-1.5 rounded-xl border p-2 text-center transition-colors sm:p-3 ${
                   isSelected
-                    ? "border-primary bg-primary/10 text-primary border-2"
+                    ? "border-primary bg-primary/15 text-primary"
                     : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"
                 }`}
               >

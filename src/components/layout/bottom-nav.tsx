@@ -128,8 +128,13 @@ export function BottomNav() {
           {PRIMARY_LEFT.map(renderPrimary)}
 
           {/* Center capture action — a labeled button (NOT a link) that
-              opens the capture picker. Visually elevated so it reads as
-              the primary CTA. */}
+              opens the capture picker. Elevated as a Floating-Action-
+              Button: it sits larger than the flanking tabs (h-14 = 56px,
+              well above the 44px tap-target floor), lifts above the bar
+              with a negative top margin, and carries a filled-primary
+              collar (a `bg-card` ring that punches it out of the bar) plus
+              a stronger shadow so it reads as the bar's primary CTA rather
+              than a fifth flush tab. */}
           <div className="flex flex-1 items-center justify-center">
             <button
               type="button"
@@ -138,9 +143,9 @@ export function BottomNav() {
               aria-expanded={captureOpen}
               onClick={() => setCaptureOpen(true)}
               data-testid="bottom-nav-capture"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/50 flex min-h-11 min-w-11 items-center justify-center rounded-full shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-ring/70 ring-card -mt-5 flex h-14 w-14 items-center justify-center rounded-full shadow-lg ring-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
             >
-              <Plus className="h-6 w-6" />
+              <Plus className="h-7 w-7" />
             </button>
           </div>
 
@@ -193,8 +198,11 @@ export function BottomNav() {
                   href={item.href}
                   onClick={() => setMoreOpen(false)}
                   aria-current={isActive ? "page" : undefined}
+                  // v1.12 — `min-h-14` matches the capture-picker tiles so
+                  // the equivalent tappable rows share one height at this
+                  // tier (and the larger row is a more comfortable target).
                   className={cn(
-                    "border-border flex min-h-11 items-center gap-3 rounded-lg border px-4 py-3 transition-colors",
+                    "border-border flex min-h-14 items-center gap-3 rounded-lg border px-4 py-3 transition-colors",
                     isActive
                       ? "text-primary bg-primary/5"
                       : "text-foreground hover:bg-accent/40",

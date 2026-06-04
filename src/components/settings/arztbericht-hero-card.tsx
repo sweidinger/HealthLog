@@ -112,7 +112,7 @@ export function ArztberichtHeroCard() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Stethoscope
-                className="text-muted-foreground h-5 w-5 shrink-0"
+                className="text-primary h-5 w-5 shrink-0"
                 aria-hidden="true"
               />
               <h2

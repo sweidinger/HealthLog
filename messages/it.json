@@ -215,7 +215,7 @@
       "medication": "Farmaco",
       "medicationDescription": "Segna una dose come assunta",
       "mood": "Umore",
-      "moodDescription": "Come ti senti?"
+      "moodDescription": "Registra umore e tag"
     }
   },
   "auth": {

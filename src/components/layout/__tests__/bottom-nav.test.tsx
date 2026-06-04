@@ -75,11 +75,24 @@ describe("<BottomNav> iOS-parity layout", () => {
 
   it("each strip entry meets the 44 px tap-target floor (min-h-11 min-w-11)", () => {
     const html = render();
-    // Five flanking strip slots (Home, Meds, capture button, Insights,
-    // More) all carry `min-h-11 min-w-11`. We don't hard-pin the count
-    // because a future entry would also satisfy the contract.
+    // The four flanking strip slots (Home, Meds, Insights, More) carry
+    // `min-h-11 min-w-11`. We don't hard-pin the count because a future
+    // entry would also satisfy the contract.
     const matches = html.match(/min-h-11 min-w-11/g) ?? [];
-    expect(matches.length).toBeGreaterThanOrEqual(5);
+    expect(matches.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("the center capture FAB is a larger, elevated tap target", () => {
+    const html = render();
+    // The FAB clears the 44px floor with a 56px (h-14 w-14) target and
+    // is lifted out of the bar (negative top margin + card ring + raised
+    // shadow) so it reads as the primary CTA, not a flush fifth tab.
+    const capture = html.match(/<button[^>]*bottom-nav-capture[^>]*>/);
+    expect(capture).not.toBeNull();
+    expect(capture![0]).toMatch(/h-14 w-14/);
+    expect(capture![0]).toMatch(/-mt-5/);
+    expect(capture![0]).toMatch(/ring-4/);
+    expect(capture![0]).toMatch(/shadow-lg/);
   });
 
   it("no longer lists the deprecated /targets entry (v1.8.6)", () => {

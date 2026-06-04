@@ -201,7 +201,10 @@ export function MoodTagPicker({
                               onClick={() =>
                                 onRateFactor(tag.key, isActive ? null : value)
                               }
-                              className={`flex h-8 items-center justify-center rounded-md border px-2 text-xs tabular-nums transition-colors ${
+                              // v1.12 — `rounded-lg` aligns the step
+                              // radius with the tag tiles and mood faces;
+                              // selected-state matches them too.
+                              className={`flex h-8 items-center justify-center rounded-lg border px-2 text-xs tabular-nums transition-colors ${
                                 isBinaryScale ? "min-w-12" : "min-w-8"
                               } ${
                                 isActive

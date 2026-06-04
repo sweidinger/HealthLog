@@ -215,7 +215,7 @@
       "medication": "Medication",
       "medicationDescription": "Mark a dose as taken",
       "mood": "Mood",
-      "moodDescription": "How are you feeling?"
+      "moodDescription": "Log your mood and tags"
     }
   },
   "auth": {
