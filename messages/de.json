@@ -2751,7 +2751,8 @@
         "headline": "Wenn dieses Muster anhält — die nächsten {days} Tage",
         "range": "Projiziert auf rund {low}–{high} {unit} in {days} Tagen.",
         "caveat": "Eine Fortschreibung deines eigenen jüngsten Trends, keine Vorhersage. Das schattierte Band wird breiter und zeigt, wie schnell die Unsicherheit wächst.",
-        "insufficient": "Noch kein klar genuger Trend für eine Projektion — erfasse weiter, dann erscheint eine Projektion, sobald das jüngste Muster deutlich genug ist."
+        "insufficient": "Noch kein klar genuger Trend für eine Projektion — erfasse weiter, dann erscheint eine Projektion, sobald das jüngste Muster deutlich genug ist.",
+        "daysNeeded": "Noch etwa {count} Tage Erfassung nötig, bis eine Projektion erscheinen kann."
       }
     },
     "cardioFitness": {

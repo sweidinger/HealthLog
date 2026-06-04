@@ -2751,7 +2751,8 @@
         "headline": "Se questo schema continua — i prossimi {days} giorni",
         "range": "Proiettato intorno a {low}–{high} {unit} tra {days} giorni.",
         "caveat": "Una proiezione della tua tendenza recente, non una previsione. La banda ombreggiata si allarga per mostrare quanto rapidamente cresce l’incertezza.",
-        "insufficient": "Non c’è ancora una tendenza abbastanza chiara da proiettare — continua a registrare e comparirà una proiezione quando lo schema recente sarà abbastanza marcato."
+        "insufficient": "Non c’è ancora una tendenza abbastanza chiara da proiettare — continua a registrare e comparirà una proiezione quando lo schema recente sarà abbastanza marcato.",
+        "daysNeeded": "Servono ancora circa {count} giorni di registrazione prima che possa comparire una proiezione."
       }
     },
     "cardioFitness": {

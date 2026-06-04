@@ -80,9 +80,10 @@ export default function InsightsSchlafPage() {
          min / max / median / mean strip would duplicate it and read in an
          awkward unit. */
     >
-      <MetricRangeControls measurementType="SLEEP_DURATION" enabled={!isEmpty} />
-
       <SleepOverview />
+
+      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
+      <MetricRangeControls measurementType="SLEEP_DURATION" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="sleep" />
 

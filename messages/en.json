@@ -2751,7 +2751,8 @@
         "headline": "If this pattern continues — the next {days} days",
         "range": "Projected around {low}–{high} {unit} in {days} days.",
         "caveat": "A projection of your own recent trend, not a prediction. The shaded band widens to show how quickly the uncertainty grows.",
-        "insufficient": "Not enough of a clear trend to project yet — keep tracking and a projection will appear once the recent pattern is strong enough."
+        "insufficient": "Not enough of a clear trend to project yet — keep tracking and a projection will appear once the recent pattern is strong enough.",
+        "daysNeeded": "About {count} more days of tracking needed before a projection can appear."
       }
     },
     "cardioFitness": {

@@ -325,7 +325,7 @@ export function DailyBriefing({
             {updatedAt && (
               <p
                 data-slot="daily-briefing-updated"
-                className="text-muted-foreground border-border/60 border-t pt-3 text-xs"
+                className="text-muted-foreground border-border/60 border-t pt-3 text-right text-xs"
               >
                 {t("insights.heroGenerated", {
                   time: formatRelativeTime(updatedAt, t),

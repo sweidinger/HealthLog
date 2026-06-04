@@ -132,7 +132,6 @@ export default function InsightsPulsPage() {
       coachLaunch
       showAllValuesType="PULSE"
     >
-      <MetricRangeControls measurementType="PULSE" enabled={!isEmpty} />
       <HealthChartDynamic
         chartKey="pulse"
         types={["PULSE"]}
@@ -143,6 +142,8 @@ export default function InsightsPulsPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
+      <MetricRangeControls measurementType="PULSE" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="pulse" />
 

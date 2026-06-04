@@ -47,6 +47,16 @@ import type { DerivedProvenance } from "@/lib/insights/derived/types";
 
 const TRAJECTORY_METRIC = "TRAJECTORY";
 
+/**
+ * Mirror of `TRAJECTORY_MIN_HISTORY_DAYS` (`src/lib/insights/derived/trajectory.ts`).
+ * Re-declared as a client-side literal rather than value-imported because the
+ * engine module pulls the rollup/baseline server graph in at its top level —
+ * importing the constant would drag that graph into the client bundle (the same
+ * reason `TrajectoryValue` is a type-only import). Keep this in lockstep with
+ * the engine; the unit test pins both at 14.
+ */
+const TRAJECTORY_MIN_HISTORY_DAYS = 14;
+
 /** A single value-scale used to render stored values in the display unit. */
 function scaled(value: number, scale: number): number {
   return value * scale;
@@ -63,6 +73,14 @@ interface TrajectoryForecastCardProps {
   color?: string;
   /** Gate the underlying derived read (e.g. on the auth/empty flag). */
   enabled?: boolean;
+  /**
+   * v1.12.0 — density by render context. Sub-pages pass `compact` so the
+   * card sheds the `min-h-48` floor + drops to a shorter chart and a tighter
+   * no-trend state (a too-tall "1 of 1" empty band was the maintainer flag).
+   * The Insights OVERVIEW grid omits it so the tile KEEPS its current size
+   * for grid symmetry — the default is the unchanged, roomier geometry.
+   */
+  compact?: boolean;
   className?: string;
 }
 
@@ -96,16 +114,25 @@ function TrajectoryProvenance({
 /** Card shell — uppercase label + provenance affordance + body children. */
 function CardShell({
   provenance,
+  compact = false,
   children,
 }: {
   provenance?: DerivedProvenance;
+  compact?: boolean;
   children: React.ReactNode;
 }) {
   const { t } = useTranslations();
   return (
     <div
       data-slot="trajectory-forecast-card"
-      className="bg-card border-border flex min-h-48 w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6"
+      data-density={compact ? "compact" : "default"}
+      className={cn(
+        "bg-card border-border flex w-full min-w-0 flex-col gap-2 rounded-xl border",
+        // Overview keeps the roomy `min-h-48` + `p-4 md:p-6` geometry for grid
+        // symmetry; sub-pages drop the height floor and tighten the padding so
+        // the no-trend state stops opening a tall empty band.
+        compact ? "p-4" : "min-h-48 p-4 md:p-6",
+      )}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-muted-foreground truncate text-xs font-medium tracking-wide uppercase">
@@ -119,18 +146,21 @@ function CardShell({
 }
 
 /** CLS-safe skeleton matching the resolved card geometry. */
-function CardSkeleton() {
+function CardSkeleton({ compact = false }: { compact?: boolean }) {
   return (
     <div
       data-slot="trajectory-forecast-card-skeleton"
       aria-hidden="true"
-      className="bg-card border-border flex min-h-48 w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6"
+      className={cn(
+        "bg-card border-border flex w-full min-w-0 flex-col gap-2 rounded-xl border",
+        compact ? "p-4" : "min-h-48 p-4 md:p-6",
+      )}
     >
       <div className="flex h-11 items-center justify-between gap-2">
         <div className="bg-muted/40 h-3 w-32 rounded" />
         <div className="bg-muted/40 h-5 w-5 rounded-full" />
       </div>
-      <div className="bg-muted/40 h-24 w-full rounded" />
+      <div className={cn("bg-muted/40 w-full rounded", compact ? "h-12" : "h-24")} />
     </div>
   );
 }
@@ -141,6 +171,7 @@ export function TrajectoryForecastCard({
   valueScale = 1,
   color = "var(--chart-1)",
   enabled = true,
+  compact = false,
   className,
 }: TrajectoryForecastCardProps) {
   const { t } = useTranslations();
@@ -177,7 +208,7 @@ export function TrajectoryForecastCard({
   if (!data) {
     return (
       <div className={className}>
-        <CardSkeleton />
+        <CardSkeleton compact={compact} />
       </div>
     );
   }
@@ -185,15 +216,38 @@ export function TrajectoryForecastCard({
   // Below the fit / history / staleness floor — calm "no trend to project"
   // state + coverage, never a weak line.
   if (data.status === "insufficient" || !chart) {
+    // v1.12.0 — surface how much history is still missing before a projection
+    // can appear, drawn from the same coverage envelope the meter reads. The
+    // gating floor is distinct-in-window days, so the hint only shows when the
+    // shortfall is a history-depth one (the dominant insufficient cause); when
+    // the shortfall is fit quality (enough days, weak R²) the days are already
+    // there and the generic copy stands on its own.
+    const daysNeeded = Math.max(
+      0,
+      TRAJECTORY_MIN_HISTORY_DAYS - Math.floor(data.coverage.historyDays),
+    );
     return (
       <div className={className}>
-        <CardShell provenance={data.provenance}>
+        <CardShell provenance={data.provenance} compact={compact}>
           <p
-            className="text-muted-foreground text-sm"
+            className={cn(
+              "text-muted-foreground",
+              compact ? "text-xs leading-snug" : "text-sm",
+            )}
             data-slot="trajectory-insufficient"
           >
             {t("insights.derived.trajectory.insufficient")}
           </p>
+          {daysNeeded > 0 ? (
+            <p
+              className="text-muted-foreground text-xs leading-snug"
+              data-slot="trajectory-days-needed"
+            >
+              {t("insights.derived.trajectory.daysNeeded", {
+                count: daysNeeded,
+              })}
+            </p>
+          ) : null}
           <CoverageMeter coverage={data.coverage} />
         </CardShell>
       </div>
@@ -218,7 +272,7 @@ export function TrajectoryForecastCard({
 
   return (
     <div className={className}>
-      <CardShell provenance={data.provenance}>
+      <CardShell provenance={data.provenance} compact={compact}>
         <div className="flex items-start gap-2">
           <DirectionIcon
             className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
@@ -245,7 +299,10 @@ export function TrajectoryForecastCard({
         {/* The fan: a stacked transparent base + a shaded range Area, then
             the dashed projected line. The shaded band visibly widens toward
             the horizon — the uncertainty signal. */}
-        <div className="h-28 w-full" data-slot="trajectory-chart">
+        <div
+          className={cn("w-full", compact ? "h-20" : "h-28")}
+          data-slot="trajectory-chart"
+        >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chart.points}

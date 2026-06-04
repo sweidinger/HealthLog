@@ -130,8 +130,12 @@ export function SleepOverview() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
+      {/* v1.12.0 — headline card tightened: the default Card
+          `gap-4 md:gap-6` + `py-4 md:py-6` left a tall empty band around a
+          two-line readout. `gap-2 py-4 md:py-4` pulls the caption up under the
+          number without crowding it. */}
+      <Card className="gap-2 py-4 md:gap-2 md:py-4">
+        <CardHeader className="pb-0">
           <div className="flex items-center gap-2">
             <Moon className="text-dracula-cyan h-4 w-4" />
             <CardTitle className="text-sm font-medium">
@@ -140,7 +144,7 @@ export function SleepOverview() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <p className="text-2xl font-semibold">{primary}</p>
             <p className="text-muted-foreground text-xs">
               {sleepSummary?.count

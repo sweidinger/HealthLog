@@ -118,7 +118,6 @@ export default function InsightsBlutdruckPage() {
     >
       {/* The period-over-period delta keys on the systolic series — the
           canonical BP figure the targets + status surfaces lead with. */}
-      <MetricRangeControls measurementType="BLOOD_PRESSURE_SYS" enabled={!isEmpty} />
       <HealthChartDynamic
         chartKey="bp"
         types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
@@ -130,6 +129,8 @@ export default function InsightsBlutdruckPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
+      <MetricRangeControls measurementType="BLOOD_PRESSURE_SYS" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="blood-pressure" />
 

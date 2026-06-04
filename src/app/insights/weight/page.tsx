@@ -90,7 +90,6 @@ export default function InsightsGewichtPage() {
       coachLaunch
       showAllValuesType="WEIGHT"
     >
-      <MetricRangeControls measurementType="WEIGHT" enabled={!isEmpty} />
       <HealthChartDynamic
         chartKey="weight"
         types={["WEIGHT"]}
@@ -101,6 +100,8 @@ export default function InsightsGewichtPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
+      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
+      <MetricRangeControls measurementType="WEIGHT" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="weight" />
 
@@ -109,6 +110,7 @@ export default function InsightsGewichtPage() {
         unit="kg"
         color="#bd93f9"
         enabled={!isEmpty}
+        compact
       />
 
       <InsightStatusCard

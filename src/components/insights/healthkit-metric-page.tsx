@@ -222,12 +222,6 @@ export function HealthKitMetricPage({
       coachLaunch
       showAllValuesType={measurementType}
     >
-      {/* v1.9.0 — time-range pills + period-over-period delta, between the
-          stat strip and the chart. The selected range persists across metrics
-          via `useInsightsRangePref`.
-          v1.10.2 — extracted into the shared `<MetricRangeControls>` so the
-          bespoke metric sub-pages render the identical control. */}
-      <MetricRangeControls measurementType={measurementType} enabled={!isEmpty} />
       <HealthChartDynamic
         chartKey={chartKey}
         types={[measurementType]}
@@ -240,6 +234,13 @@ export function HealthKitMetricPage({
         userTimezone={user?.timezone}
         valueScale={valueScale}
       />
+      {/* v1.12.0 — time-range pills + period-over-period delta, relocated
+          BELOW the chart (iOS-parity). The pills drive the period-over-period
+          delta read and persist across metrics via `useInsightsRangePref`;
+          the chart owns its own window via its in-card range tabs, so this
+          block sits as a clean bottom-of-card row rather than between the
+          stat strip and the chart. */}
+      <MetricRangeControls measurementType={measurementType} enabled={!isEmpty} />
       {targetSummarySlug ? (
         <MetricTargetSummary slug={targetSummarySlug} />
       ) : null}
@@ -257,6 +258,7 @@ export function HealthKitMetricPage({
           valueScale={valueScale}
           color={color}
           enabled={!isEmpty}
+          compact
         />
       ) : null}
     </SubPageShell>

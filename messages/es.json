@@ -2751,7 +2751,8 @@
         "headline": "Si este patrón continúa: los próximos {days} días",
         "range": "Proyectado en torno a {low}–{high} {unit} en {days} días.",
         "caveat": "Una proyección de tu propia tendencia reciente, no una predicción. La banda sombreada se ensancha para mostrar la rapidez con que crece la incertidumbre.",
-        "insufficient": "Aún no hay una tendencia lo bastante clara para proyectar: sigue registrando y aparecerá una proyección cuando el patrón reciente sea lo bastante marcado."
+        "insufficient": "Aún no hay una tendencia lo bastante clara para proyectar: sigue registrando y aparecerá una proyección cuando el patrón reciente sea lo bastante marcado.",
+        "daysNeeded": "Faltan unos {count} días más de registro para que pueda aparecer una proyección."
       }
     },
     "cardioFitness": {

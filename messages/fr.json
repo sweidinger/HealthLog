@@ -2751,7 +2751,8 @@
         "headline": "Si ce schéma se poursuit — les {days} prochains jours",
         "range": "Projeté autour de {low}–{high} {unit} dans {days} jours.",
         "caveat": "Une projection de votre propre tendance récente, pas une prédiction. La bande ombrée s’élargit pour montrer la vitesse à laquelle l’incertitude augmente.",
-        "insufficient": "Pas encore de tendance assez nette pour projeter — continuez à enregistrer et une projection apparaîtra dès que le schéma récent sera suffisamment marqué."
+        "insufficient": "Pas encore de tendance assez nette pour projeter — continuez à enregistrer et une projection apparaîtra dès que le schéma récent sera suffisamment marqué.",
+        "daysNeeded": "Encore environ {count} jours d’enregistrement nécessaires avant qu’une projection puisse apparaître."
       }
     },
     "cardioFitness": {
