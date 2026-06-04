@@ -87,8 +87,9 @@ describe("<ClinicianView>", () => {
   it("renders clinical vitals from the scoped report", () => {
     const html = render(makeReport());
     expect(html).toContain("Vital signs");
-    // The measurement-type enum is humanised, not raw.
-    expect(html).toContain("Weight");
+    // The measurement-type enum renders as its localised label, not the raw
+    // enum string.
+    expect(html).toContain("Body weight");
     expect(html).not.toContain("WEIGHT");
   });
 

@@ -10,6 +10,7 @@
  * a FENCED, muted wellness card carrying the load-bearing "descriptive, not a
  * clinical assessment / not a diagnosis" disclaimer.
  */
+import { DOCTOR_REPORT_TYPE_LABEL_KEYS } from "@/lib/doctor-report-pdf-core";
 import type { DoctorReportData } from "@/lib/doctor-report-data";
 import type { DoctorReportPrefs } from "@/lib/validations/doctor-report-prefs";
 
@@ -36,12 +37,14 @@ const WELLNESS_KEY: Record<string, string> = {
 };
 
 /**
- * Humanise a measurement-type enum (`BLOOD_PRESSURE_SYS` → "Blood pressure
- * sys") for a clinical label. The clinician view is locale-neutral on the raw
- * metric name by design — the enum is the stable, language-independent anchor a
- * clinician reads alongside the numbers; no per-type i18n bundle is maintained.
+ * Localised label for a measurement-type enum, reusing the doctor-report type
+ * key map so the clinician view reads in the viewer's locale alongside the rest
+ * of the page. A type with no key falls back to a humanised enum form
+ * (`BLOOD_PRESSURE_SYS` → "Blood pressure sys").
  */
-function humaniseType(type: string): string {
+function typeLabel(type: string, t: Translate): string {
+  const key = DOCTOR_REPORT_TYPE_LABEL_KEYS[type];
+  if (key) return t(key);
   const lower = type.replace(/_/g, " ").toLowerCase();
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
@@ -134,7 +137,7 @@ export function ClinicianView({
             {measurementEntries.map(([type, s]) => (
               <StatRow
                 key={type}
-                label={humaniseType(type)}
+                label={typeLabel(type, t)}
                 value={t("clinicianView.statSummary", {
                   latest: fmtNum(s.latest),
                   avg: fmtNum(s.avg),
