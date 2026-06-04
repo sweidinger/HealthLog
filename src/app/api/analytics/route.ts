@@ -7,7 +7,9 @@ import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { computeSummariesSlice } from "@/lib/analytics/summaries-slice";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
-import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { ensureUserRollupsFresh } from "@/lib/rollups/measurement-rollups";
 import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
 import { computeBpInTargetFastPath } from "@/lib/analytics/bp-in-target-fast-path";
@@ -420,46 +422,58 @@ async function computeSleepStageBreakdown(
 } | null> {
   const DAY_MS = 24 * 60 * 60 * 1000;
   const since = new Date(Date.now() - 30 * DAY_MS);
+  // v1.11.5 — read the FULL per-stage row set (not `sleepStage: { not: null }`)
+  // and route it through the canonical `reconstructSleepNights` so the
+  // stacked-bar agrees with the dashboard tile + chart series. The old path
+  // keyed each stage row by its OWN calendar day (splitting a midnight-
+  // spanning night across two buckets) and never collapsed multi-source
+  // (double-counting a WHOOP + Apple Health night). Routing through the
+  // helper fixes both: it session-clusters, keys by the wake day, and picks
+  // one canonical source per night. The bare-vs-granular de-dup is applied
+  // per-night to the per-stage breakdown too. The `source` is selected so
+  // the helper's source-collapse can run.
   const rows = await prisma.measurement.findMany({
     where: {
       userId,
       type: "SLEEP_DURATION",
-      sleepStage: { not: null },
       measuredAt: { gte: since },
       deletedAt: null,
     },
-    select: { value: true, measuredAt: true, sleepStage: true },
+    select: {
+      value: true,
+      measuredAt: true,
+      sleepStage: true,
+      source: true,
+    },
   });
 
   if (rows.length === 0) return null;
 
-  const stages: Record<string, number> = {};
-  const dayKeys = new Set<string>();
-  let totalMinutes = 0;
-  // v1.4.25 W3f — per-day accumulator. Keyed by Berlin-tz day so the
-  // chart's 7/14/30-day slicer can build a left-aligned series.
-  const perNightMap = new Map<string, Record<string, number>>();
-  for (const row of rows) {
-    if (!row.sleepStage) continue;
-    stages[row.sleepStage] = (stages[row.sleepStage] ?? 0) + row.value;
-    totalMinutes += row.value;
-    const dayKey = userDayKey(row.measuredAt, userTz);
-    dayKeys.add(dayKey);
-    const nightStages = perNightMap.get(dayKey) ?? {};
-    nightStages[row.sleepStage] =
-      (nightStages[row.sleepStage] ?? 0) + row.value;
-    perNightMap.set(dayKey, nightStages);
-  }
+  const priorityJson = await loadUserSourcePriority(userId);
+  const nights = reconstructSleepNights(rows, userTz, priorityJson).filter(
+    (n) => Object.keys(n.stages).length > 0,
+  );
+  if (nights.length === 0) return null;
 
-  // Sort per-night ascending so the chart consumer can slice the
-  // trailing N entries for the 7d / 14d / 30d toggle.
-  const perNight = Array.from(perNightMap.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([dayKey, stages]) => ({ dayKey, stages }));
+  // Aggregate the per-night stage breakdowns into the window totals + the
+  // per-night series the chart slices for its 7 / 14 / 30 toggle.
+  const stages: Record<string, number> = {};
+  let totalMinutes = 0;
+  const perNight = nights
+    .map((n) => {
+      const nightStages: Record<string, number> = {};
+      for (const [stage, mins] of Object.entries(n.stages)) {
+        nightStages[stage] = mins;
+        stages[stage] = (stages[stage] ?? 0) + mins;
+        totalMinutes += mins;
+      }
+      return { dayKey: n.night, stages: nightStages };
+    })
+    .sort((a, b) => a.dayKey.localeCompare(b.dayKey));
 
   return {
     windowDays: 30,
-    nights: dayKeys.size,
+    nights: nights.length,
     totalMinutes,
     stages,
     perNight,
