@@ -28,6 +28,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ThumbsUp, ThumbsDown, Loader2, Check } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
@@ -194,10 +195,14 @@ export function RecommendationFeedback({
       // next generation will scope its own invalidation.
     },
     onError: () => {
-      // Optimistic-rollback: drop back to default so the user can
-      // retry. We don't surface a toast — the parent rec card already
-      // crowded enough; a silent reset is the friendlier UX here.
+      // Optimistic-rollback: drop back to default so the user can retry.
+      // v1.11.3 — the POST used to fail silently; the buttons just
+      // reappeared with no signal that anything went wrong. Surface a
+      // lightweight error toast so a failed submission is legible while
+      // keeping the success path quiet (the inline confirmation row is
+      // signal enough there).
       setState("default");
+      toast.error(t("insights.recommendation.feedbackError"));
     },
   });
 
