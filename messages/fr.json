@@ -197,6 +197,7 @@
     "collapseSidebar": "Réduire",
     "userMenu": "Menu utilisateur",
     "mood": "Humeur",
+    "workouts": "Entraînements",
     "skipToContent": "Aller au contenu",
     "sidebar": "Barre latérale",
     "mainNavigation": "Navigation principale",
@@ -205,7 +206,17 @@
     "loadingScreen": "Chargement…",
     "more": "Plus",
     "moreSheetTitle": "Plus",
-    "moreSheetDescription": "Pages qui ne tiennent pas dans la barre du bas."
+    "moreSheetDescription": "Accédez au reste de HealthLog.",
+    "capture": {
+      "title": "Enregistrer",
+      "description": "Que souhaitez-vous enregistrer ?",
+      "measurement": "Mesure",
+      "measurementDescription": "Poids, tension artérielle, pouls et plus",
+      "medication": "Médicament",
+      "medicationDescription": "Marquer une dose comme prise",
+      "mood": "Humeur",
+      "moodDescription": "Comment vous sentez-vous ?"
+    }
   },
   "auth": {
     "login": "Se connecter",

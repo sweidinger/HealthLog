@@ -197,6 +197,7 @@
     "collapseSidebar": "Zwiń",
     "userMenu": "Menu użytkownika",
     "mood": "Nastrój",
+    "workouts": "Treningi",
     "skipToContent": "Przejdź do treści",
     "sidebar": "Pasek boczny",
     "mainNavigation": "Nawigacja główna",
@@ -205,7 +206,17 @@
     "loadingScreen": "Ładowanie…",
     "more": "Więcej",
     "moreSheetTitle": "Więcej",
-    "moreSheetDescription": "Strony, które nie mieszczą się w dolnym pasku."
+    "moreSheetDescription": "Przejdź do reszty HealthLog.",
+    "capture": {
+      "title": "Zapisz",
+      "description": "Co chcesz zapisać?",
+      "measurement": "Pomiar",
+      "measurementDescription": "Waga, ciśnienie, tętno i więcej",
+      "medication": "Lek",
+      "medicationDescription": "Oznacz dawkę jako przyjętą",
+      "mood": "Nastrój",
+      "moodDescription": "Jak się czujesz?"
+    }
   },
   "auth": {
     "login": "Zaloguj się",

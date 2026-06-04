@@ -197,6 +197,7 @@
     "collapseSidebar": "Riduci",
     "userMenu": "Menu utente",
     "mood": "Umore",
+    "workouts": "Allenamenti",
     "skipToContent": "Vai al contenuto",
     "sidebar": "Barra laterale",
     "mainNavigation": "Navigazione principale",
@@ -205,7 +206,17 @@
     "loadingScreen": "Caricamento…",
     "more": "Altro",
     "moreSheetTitle": "Altro",
-    "moreSheetDescription": "Pagine che non entrano nella barra inferiore."
+    "moreSheetDescription": "Vai al resto di HealthLog.",
+    "capture": {
+      "title": "Registra",
+      "description": "Cosa vuoi registrare?",
+      "measurement": "Misurazione",
+      "measurementDescription": "Peso, pressione, battito e altro",
+      "medication": "Farmaco",
+      "medicationDescription": "Segna una dose come assunta",
+      "mood": "Umore",
+      "moodDescription": "Come ti senti?"
+    }
   },
   "auth": {
     "login": "Accedi",

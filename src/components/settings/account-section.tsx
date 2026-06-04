@@ -53,7 +53,7 @@ import { restartOnboardingTour } from "@/lib/onboarding/tour-restart";
 import { describePasskeyError } from "@/lib/passkey-errors";
 import { queryKeys } from "@/lib/query-keys";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
-import { UnitPreferenceCard } from "@/components/settings/unit-preference-card";
+import { UnitPreferenceSelect } from "@/components/settings/unit-preference-select";
 import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
 import { detectBrowserTimezone, DEFAULT_TIMEZONE } from "@/lib/tz/format";
 
@@ -506,7 +506,14 @@ export function AccountSection() {
             </div>
           </div>
 
-          <TimezonePicker value={timezone} onChange={setTimezone} />
+          {/* Timezone + unit system share one grid row — both are
+              personal display preferences (like language above). The
+              unit dropdown PATCHes its own endpoint on change; the
+              timezone saves through the form's submit handler. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TimezonePicker value={timezone} onChange={setTimezone} />
+            <UnitPreferenceSelect isAuthenticated={isAuthenticated} />
+          </div>
 
           {/* v1.7.0 — optional patient-identity fields surfaced on the
               health-record export cover + FHIR Patient. All optional;
@@ -585,11 +592,10 @@ export function AccountSection() {
         </form>
       </div>
 
-      {/* Unit system + global injection-site exclusions live with the
-          account profile: both are personal preferences that apply
-          app-wide, not dashboard-layout controls. */}
-      <UnitPreferenceCard isAuthenticated={isAuthenticated} />
-
+      {/* Global injection-site exclusions live with the account
+          profile — a personal preference that applies app-wide. The
+          unit system moved into the profile form above, beside the
+          timezone dropdown. */}
       <InjectionSitesCard isAuthenticated={isAuthenticated} />
 
       {/* Passkeys card */}

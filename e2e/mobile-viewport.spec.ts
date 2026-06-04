@@ -172,4 +172,50 @@ test.describe("mobile-viewport smoke", () => {
       `Touch-targets below 44 px tall:\n  ${failures.join("\n  ")}`,
     ).toEqual([]);
   });
+
+  test("center capture action opens the picker; the More hub keeps Mood + Measurements reachable", async ({
+    page,
+  }) => {
+    await mockDashboardSnapshot(page, { summaries: WEIGHT_ONLY_SUMMARIES });
+    await page.route(/\/api\/analytics(\?|$)/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { summaries: {}, bpInTargetPct: null, glucoseByContext: {} },
+          error: null,
+        }),
+      }),
+    );
+    await page.route("**/api/mood/analytics", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: { entries: [], summary: { count: 0 } },
+          error: null,
+        }),
+      }),
+    );
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle");
+
+    // 1) The center capture action opens the capture picker.
+    await page.getByTestId("bottom-nav-capture").click();
+    await expect(page.getByTestId("capture-picker-options")).toBeVisible();
+    for (const kind of ["measurement", "medication", "mood"]) {
+      await expect(page.getByTestId(`capture-picker-${kind}`)).toBeVisible();
+    }
+    // Dismiss the picker before opening the hub.
+    await page.keyboard.press("Escape");
+
+    // 2) The More hub keeps Mood + Measurements reachable (additive
+    //    middle-path — they left the strip but are NOT orphaned).
+    await page.getByTestId("bottom-nav-more").click();
+    const hub = page.getByTestId("bottom-nav-more-sheet");
+    await expect(hub).toBeVisible();
+    await expect(hub.locator("a[href='/measurements']")).toBeVisible();
+    await expect(hub.locator("a[href='/mood']")).toBeVisible();
+  });
 });

@@ -197,6 +197,7 @@
     "collapseSidebar": "Einklappen",
     "userMenu": "Benutzermenü",
     "mood": "Stimmung",
+    "workouts": "Workouts",
     "skipToContent": "Zum Inhalt springen",
     "sidebar": "Sidebar",
     "mainNavigation": "Hauptnavigation",
@@ -205,7 +206,17 @@
     "loadingScreen": "Laden…",
     "more": "Mehr",
     "moreSheetTitle": "Mehr",
-    "moreSheetDescription": "Seiten, die nicht in die untere Leiste passen."
+    "moreSheetDescription": "Zum Rest von HealthLog springen.",
+    "capture": {
+      "title": "Erfassen",
+      "description": "Was möchtest du erfassen?",
+      "measurement": "Messung",
+      "measurementDescription": "Gewicht, Blutdruck, Puls und mehr",
+      "medication": "Medikament",
+      "medicationDescription": "Eine Dosis als genommen markieren",
+      "mood": "Stimmung",
+      "moodDescription": "Wie geht es dir?"
+    }
   },
   "auth": {
     "login": "Anmelden",

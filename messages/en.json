@@ -197,6 +197,7 @@
     "collapseSidebar": "Collapse",
     "userMenu": "User menu",
     "mood": "Mood",
+    "workouts": "Workouts",
     "skipToContent": "Skip to content",
     "sidebar": "Sidebar",
     "mainNavigation": "Main navigation",
@@ -205,7 +206,17 @@
     "loadingScreen": "Loading…",
     "more": "More",
     "moreSheetTitle": "More",
-    "moreSheetDescription": "Pages that don't fit the bottom bar."
+    "moreSheetDescription": "Jump to the rest of HealthLog.",
+    "capture": {
+      "title": "Log",
+      "description": "What would you like to record?",
+      "measurement": "Measurement",
+      "measurementDescription": "Weight, blood pressure, pulse and more",
+      "medication": "Medication",
+      "medicationDescription": "Mark a dose as taken",
+      "mood": "Mood",
+      "moodDescription": "How are you feeling?"
+    }
   },
   "auth": {
     "login": "Sign in",
