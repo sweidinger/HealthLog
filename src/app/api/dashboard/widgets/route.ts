@@ -70,10 +70,11 @@ const layoutSchema = z.object({
       }),
     )
     .min(1)
-    // v1.7.0 W1 — raised from 20 to 30 so the full 27-id catalogue PUT
-    // (web 16 + iOS-only 11) fits with headroom; the enum still bounds
-    // each id to one of the 27.
-    .max(30),
+    // v1.11.2 B5 — raised to 40 so the full catalogue PUT (24 writable +
+    // 11 iOS-only = 35) fits with headroom after the v1.10 additive
+    // HealthKit signals became pinnable; the enum still bounds each id to
+    // one of the catalogue ids.
+    .max(40),
   // v1.4.16 phase B8 — comparison baseline (Vormonat / Vorjahr) rides
   // on the layout blob per research §7 Q3 (no Prisma migration). Optional
   // so v1.4.15 clients that don't know the field can still PUT.

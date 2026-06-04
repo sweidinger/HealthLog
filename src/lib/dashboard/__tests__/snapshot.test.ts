@@ -364,17 +364,17 @@ describe("buildDashboardSnapshot — metricStates (iOS cold-launch seed)", () =>
   });
 });
 
-describe("buildDashboardSnapshot — layoutCatalogue (27-id round-trip)", () => {
+describe("buildDashboardSnapshot — layoutCatalogue (35-id round-trip)", () => {
   beforeEach(() => {
     probeRollupCoverage.mockResolvedValue(new Map());
     isFullyCovered.mockReturnValue(false);
   });
 
-  it("emits all 27 catalogue ids with visibility + order", async () => {
+  it("emits all 35 catalogue ids with visibility + order", async () => {
     const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
-    expect(snap.layoutCatalogue).toHaveLength(27);
+    expect(snap.layoutCatalogue).toHaveLength(35);
     const ids = new Set(snap.layoutCatalogue.map((w) => w.id));
-    expect(ids.size).toBe(27);
+    expect(ids.size).toBe(35);
     // iOS-only ids appended default-invisible.
     const hrv = snap.layoutCatalogue.find((w) => w.id === "hrv");
     expect(hrv).toBeDefined();
@@ -436,11 +436,11 @@ describe("buildDashboardSnapshot — additive proof", () => {
     expect(snap).toHaveProperty("layoutCatalogue");
 
     // The web-consumed `layout` block is the resolved per-user layout —
-    // NOT replaced by the 27-id catalogue.
+    // NOT replaced by the 35-id catalogue.
     expect(snap.layout).toHaveProperty("version");
     expect(Array.isArray(snap.layout.widgets)).toBe(true);
     // Resolved layout still carries only server-known widget ids.
-    expect(snap.layout.widgets.length).toBeLessThanOrEqual(16);
+    expect(snap.layout.widgets.length).toBeLessThanOrEqual(24);
 
     // tiles shape unchanged.
     expect(snap.tiles).toHaveProperty("summaries");

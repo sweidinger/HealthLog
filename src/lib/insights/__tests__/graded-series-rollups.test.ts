@@ -6,6 +6,9 @@ vi.mock("@/lib/db", () => ({
     measurement: {
       findMany: (...args: unknown[]) => findMany(...args),
     },
+    // loadUserSourcePriority lazy-loads the source-priority blob; null
+    // (default findUnique) falls back to the default ladders.
+    user: { findUnique: vi.fn() },
   },
 }));
 
