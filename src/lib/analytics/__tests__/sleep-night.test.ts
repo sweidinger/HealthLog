@@ -5,6 +5,8 @@ import type {
 } from "@/generated/prisma/client";
 import {
   reconstructSleepNights,
+  reconstructSleepSessions,
+  pickMainNightAndNaps,
   summarizeSleepNights,
   type SleepStageRow,
 } from "@/lib/analytics/sleep-night";
@@ -240,6 +242,130 @@ describe("reconstructSleepNights", () => {
     expect(nights).toHaveLength(1);
     // Apple Health wins under the override: 230 + 80 = 310.
     expect(nights[0].asleepMinutes).toBe(310);
+  });
+});
+
+describe("reconstructSleepSessions", () => {
+  it("resolves each stage row to start = end − duration", () => {
+    const rows: SleepStageRow[] = [
+      // 240-min CORE ending 03:00 UTC → starts 23:00 the previous instant.
+      row("2026-06-04T03:00:00.000Z", "CORE", 240),
+      row("2026-06-04T04:30:00.000Z", "REM", 90), // 03:00 → 04:30
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    const s = sessions[0];
+    expect(s.start.toISOString()).toBe("2026-06-03T23:00:00.000Z");
+    expect(s.end.toISOString()).toBe("2026-06-04T04:30:00.000Z");
+    // Segments carry their own start/end span.
+    const core = s.segments.find((seg) => seg.stage === "CORE");
+    expect(core?.start.toISOString()).toBe("2026-06-03T23:00:00.000Z");
+    expect(core?.end.toISOString()).toBe("2026-06-04T03:00:00.000Z");
+    expect(s.asleepMinutes).toBe(330);
+  });
+
+  it("splits a daytime nap into its own session, separate from the night", () => {
+    const rows: SleepStageRow[] = [
+      row("2026-06-03T13:00:00.000Z", "CORE", 45), //  14:15 → 15:00 nap
+      // Overnight contiguous block.
+      row("2026-06-03T21:00:00.000Z", "CORE", 200),
+      row("2026-06-03T23:00:00.000Z", "DEEP", 120),
+      row("2026-06-04T01:00:00.000Z", "REM", 120),
+      row("2026-06-04T04:00:00.000Z", "CORE", 180),
+    ];
+    const sessions = reconstructSleepSessions(rows, "Europe/Berlin");
+    expect(sessions).toHaveLength(2);
+    // Sorted ascending by start: nap first, overnight second.
+    expect(sessions[0].asleepMinutes).toBe(45);
+    expect(sessions[1].asleepMinutes).toBe(620);
+  });
+
+  it("keeps only the canonical source's segments on a dual-source night", () => {
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "WHOOP"),
+      srcRow("2026-06-04T01:05:00.000Z", "CORE", 230, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:05:00.000Z", "DEEP", 85, "APPLE_HEALTH"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("WHOOP");
+    // Only WHOOP's 3 segments survive; Apple Health's are dropped.
+    expect(sessions[0].segments).toHaveLength(3);
+    expect(sessions[0].asleepMinutes).toBe(420);
+  });
+
+  it("counts only MID-sleep AWAKE bouts as awakenings", () => {
+    const rows: SleepStageRow[] = [
+      // Leading AWAKE before sleep onset — NOT an awakening.
+      row("2026-06-04T00:10:00.000Z", "AWAKE", 10),
+      row("2026-06-04T02:00:00.000Z", "CORE", 110),
+      // Mid-sleep AWAKE bout — counts.
+      row("2026-06-04T02:15:00.000Z", "AWAKE", 15),
+      row("2026-06-04T04:00:00.000Z", "DEEP", 105),
+      // Another mid-sleep AWAKE bout — counts.
+      row("2026-06-04T04:10:00.000Z", "AWAKE", 10),
+      row("2026-06-04T06:00:00.000Z", "REM", 110),
+      // Trailing AWAKE after final wake — NOT an awakening.
+      row("2026-06-04T06:05:00.000Z", "AWAKE", 5),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].awakenings).toBe(2);
+  });
+
+  it("returns no sessions for empty input", () => {
+    expect(reconstructSleepSessions([], "UTC")).toEqual([]);
+  });
+});
+
+describe("pickMainNightAndNaps", () => {
+  it("picks the longest-asleep session as the main night, rest as naps", () => {
+    // Same wake day (Berlin): a short nap + the overnight block.
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T11:00:00.000Z", "CORE", 40), // 12:00 → 12:40 nap (Jun 4)
+      // Overnight ~22:00 Jun 3 → 06:00 Jun 4.
+      row("2026-06-03T21:00:00.000Z", "CORE", 180),
+      row("2026-06-04T00:00:00.000Z", "DEEP", 120),
+      row("2026-06-04T04:00:00.000Z", "REM", 180),
+    ];
+    const sessions = reconstructSleepSessions(rows, "Europe/Berlin");
+    const { main, naps } = pickMainNightAndNaps(sessions);
+    expect(main?.asleepMinutes).toBe(480);
+    expect(naps).toHaveLength(1);
+    expect(naps[0].asleepMinutes).toBe(40);
+    // Nap shares the main night's wake day.
+    expect(naps[0].night).toBe(main?.night);
+  });
+
+  it("returns no main when every session is IN_BED/AWAKE only", () => {
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T06:00:00.000Z", "IN_BED", 60),
+      row("2026-06-04T06:00:00.000Z", "AWAKE", 60),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    const { main, naps } = pickMainNightAndNaps(sessions);
+    expect(main).toBeNull();
+    expect(naps).toEqual([]);
+  });
+
+  it("does not surface a different wake day's session as a nap", () => {
+    // Two overnight blocks on consecutive wake days — neither is the
+    // other's nap even though both land in the same input array.
+    const rows: SleepStageRow[] = [
+      // Wake day Jun 3.
+      row("2026-06-03T01:00:00.000Z", "CORE", 240),
+      row("2026-06-03T05:00:00.000Z", "DEEP", 120),
+      // Wake day Jun 4.
+      row("2026-06-04T01:00:00.000Z", "CORE", 300),
+      row("2026-06-04T05:00:00.000Z", "DEEP", 120),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    const { main, naps } = pickMainNightAndNaps(sessions);
+    // Jun 4 is the longer night.
+    expect(main?.night).toBe("2026-06-04");
+    expect(naps).toEqual([]);
   });
 });
 
