@@ -4,8 +4,22 @@ Single source of truth for the Fitbit (Google Health API v4) data-type →
 HealthLog `Measurement` mapping. Keep this in sync with `FITBIT_FIELD_MAP` and
 the per-type mappers in `client.ts`. Every Fitbit row ingests server-side with
 `source = FITBIT` and `externalId = <anchor>:<fieldTag>` (the anchor is the data
-point's sample time for spot readings or its civil date for daily summaries; the
-field-tag disambiguates the metric).
+point's sample time for spot readings, its civil date for daily summaries, or its
+`interval.start_time` for INTERVAL types — steps/distance/calories/floors, sleep,
+exercise; the field-tag disambiguates the metric).
+
+## Time anchor by grain (design §A.1)
+
+Google Health exposes three time-anchor shapes. The incremental `filter` and the
+read-time `measuredAt`/externalId resolution must target the right one or the
+incremental sync stalls (a `sample_time` filter 400s/empties for an INTERVAL type):
+
+- **sample** — spot reading; anchor `{filter}.sample_time.physical_time`.
+- **date** — daily-summary metric (SpO2, HRV, RHR, respiratory rate, wrist temp,
+  VO2 max); anchor `{filter}.date` (a civil date / `{year,month,day}`).
+- **interval** — INTERVAL type (steps/distance/calories/floors daily totals, plus
+  sleep + exercise sessions); anchor `{filter}.interval.start_time` (a physical
+  instant) with `{filter}.interval.civil_start_time` as the civil fallback.
 
 Transport docs: `developers.google.com/health` (v4, post-Fitbit-Web-API). The
 per-type value-field JSON is **NOT fully published** — the mappers read a small

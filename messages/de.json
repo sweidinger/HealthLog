@@ -3554,6 +3554,8 @@
     "fitbitTag": "Fitbit & Pixel",
     "fitbitDescription": "Verbinde Google Health, um deine Fitbit- und Pixel-Watch-Werte zu synchronisieren — Gewicht, Körperfett, Ruhepuls, Sauerstoffsättigung, Herzfrequenzvariabilität und mehr.",
     "fitbitOverlapNote": "Wenn Google Health und eine andere Quelle denselben Vitalwert liefern — Ruhepuls, Sauerstoffsättigung, Körpertemperatur oder Atemfrequenz —, siehst du möglicherweise beide Werte, bis sich ein künftiges Update auf eine bevorzugte Quelle festlegt.",
+    "fitbitExperimentalBadge": "Experimentell",
+    "fitbitExperimentalNote": "Diese Integration befindet sich in der Beta — die Datenabdeckung und die Feldzuordnung werden noch gegen echte Google-Health-Konten geprüft, daher können einzelne Werte fehlen oder sich in einem künftigen Update ändern.",
     "fitbitCredentials": "API-Zugangsdaten",
     "fitbitCredentialsHelp": "Registriere deinen eigenen Google-Cloud-OAuth-Client für die Google-Health-API und füge hier dessen Client-ID und Client-Secret ein.",
     "fitbitClientId": "Client-ID",

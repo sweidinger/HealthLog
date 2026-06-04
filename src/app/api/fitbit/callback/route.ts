@@ -109,30 +109,40 @@ export const GET = apiHandler(async (request: NextRequest) => {
     }
 
     const tokens = await exchangeCode(code, creds);
+
+    // The initial code exchange MUST return a refresh token (the connect route
+    // forces `prompt=consent` + `access_type=offline`). If Google ever omits it,
+    // refuse to persist — a stored empty refresh token silently bricks every
+    // future token refresh (the refresh POST then 400s and the connection dies
+    // the moment the access token expires). Error out cleanly so the user
+    // re-consents rather than landing a dead connection.
+    if (!tokens.refresh_token) {
+      getEvent()?.addWarning(
+        `fitbit callback: token response carried no refresh_token for user ${user.id}`,
+      );
+      annotate({ meta: { reason: "no_refresh_token" } });
+      return ERR("no_refresh_token");
+    }
+
     const profile = await fetchProfile(tokens.access_token);
     const fitbitUserId = resolveFitbitUserId(profile);
     const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-    // The initial code exchange always returns a refresh token (the connect
-    // route forces `prompt=consent` + `access_type=offline`). Fall back to the
-    // existing stored token defensively if Google ever omits it on a re-consent.
     await prisma.fitbitConnection.upsert({
       where: { userId: user.id },
       update: {
         fitbitUserId,
         accessToken: encrypt(tokens.access_token),
+        refreshToken: encrypt(tokens.refresh_token),
         tokenExpiresAt: expiresAt,
         scope: tokens.scope ?? FITBIT_OAUTH_SCOPE,
         backfillCompletedAt: null,
-        ...(tokens.refresh_token
-          ? { refreshToken: encrypt(tokens.refresh_token) }
-          : {}),
       },
       create: {
         userId: user.id,
         fitbitUserId,
         accessToken: encrypt(tokens.access_token),
-        refreshToken: encrypt(tokens.refresh_token ?? ""),
+        refreshToken: encrypt(tokens.refresh_token),
         tokenExpiresAt: expiresAt,
         scope: tokens.scope ?? FITBIT_OAUTH_SCOPE,
       },

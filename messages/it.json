@@ -3554,6 +3554,8 @@
     "fitbitTag": "Fitbit e Pixel",
     "fitbitDescription": "Collega Google Health per sincronizzare i dati di Fitbit e Pixel Watch: peso, massa grassa, frequenza cardiaca a riposo, saturazione di ossigeno, variabilità della frequenza cardiaca e altro.",
     "fitbitOverlapNote": "Se Google Health e un'altra fonte forniscono lo stesso parametro vitale — frequenza cardiaca a riposo, saturazione di ossigeno, temperatura corporea o frequenza respiratoria —, potresti vedere entrambi i valori finché un futuro aggiornamento non sceglierà un'unica fonte preferita.",
+    "fitbitExperimentalBadge": "Sperimentale",
+    "fitbitExperimentalNote": "Questa integrazione è in versione beta: la copertura dei dati e la mappatura dei campi sono ancora in fase di verifica con account Google Health reali, quindi alcuni valori potrebbero mancare o cambiare in un futuro aggiornamento.",
     "fitbitCredentials": "Credenziali API",
     "fitbitCredentialsHelp": "Registra il tuo client OAuth di Google Cloud per l'API Google Health e incolla qui il suo Client ID e Client Secret.",
     "fitbitClientId": "Client ID",

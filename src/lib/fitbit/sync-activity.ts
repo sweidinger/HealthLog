@@ -36,12 +36,10 @@ import {
 import {
   getValidToken,
   handleCollectionFetchError,
-  incrementalStart,
-  markSynced,
   upsertFitbitMeasurements,
   type FitbitMeasurementUpsert,
+  type FitbitResourceSyncOptions,
 } from "./sync";
-import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
 
 /** One mappable activity metric: its data-type encoding + the per-point mapper + a verb. */
@@ -79,20 +77,14 @@ function externalIdFor(m: FitbitMappedMeasurement): string {
 
 export async function syncUserActivity(
   userId: string,
-  opts: { fullSync?: boolean } = {},
+  opts: FitbitResourceSyncOptions = {},
 ): Promise<number> {
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
 
-  const connection = await prisma.fitbitConnection.findUnique({
-    where: { userId },
-    select: { lastSyncedAt: true },
-  });
-  if (!connection) return 0;
-
-  const start = incrementalStart(connection.lastSyncedAt, {
-    fullSync: opts.fullSync,
-  });
+  // Cycle-wide watermark snapshotted once by `syncUserFitbit`; undefined on a
+  // full/backfill run.
+  const start = opts.start;
 
   let imported = 0;
   for (const resource of ACTIVITY_RESOURCES) {
@@ -124,7 +116,7 @@ export async function syncUserActivity(
     imported += await upsertFitbitMeasurements(userId, readings);
   }
 
-  await markSynced(userId);
+  // `markSynced` is owned by the orchestrator (`syncUserFitbit`).
   annotate({ action: { name: "fitbit.activity.sync", details: { imported } } });
   return imported;
 }

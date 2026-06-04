@@ -70,11 +70,15 @@ function stubGoogleHealth(byPathSegment: Record<string, unknown[]>) {
   );
 }
 
-const DAY = { year: 2026, month: 5, day: 10 };
+// INTERVAL data type: the daily total is bucketed into an `interval` carrying a
+// physical `start_time` (the day's start instant), NOT a bare civil `date`.
+const DAY_INTERVAL = { start_time: "2026-05-10T00:00:00.000Z" };
 
 describe("syncUserActivity — cumulative overwrite", () => {
   it("mints a stats: externalId and overwrites the same day on re-sync (no duplicate)", async () => {
-    stubGoogleHealth({ steps: [{ steps: { count: 8000, date: DAY } }] });
+    stubGoogleHealth({
+      steps: [{ steps: { count: 8000, interval: DAY_INTERVAL } }],
+    });
     const { syncUserActivity } = await import("@/lib/fitbit/sync-activity");
     const first = await syncUserActivity(TEST_USER_ID);
     expect(first).toBe(1);
@@ -90,7 +94,9 @@ describe("syncUserActivity — cumulative overwrite", () => {
     expect(rows[0]!.externalId).toBe("stats:steps:2026-05-10");
 
     // Re-fetch the same day with a corrected total → overwrite, not duplicate.
-    stubGoogleHealth({ steps: [{ steps: { count: 9123, date: DAY } }] });
+    stubGoogleHealth({
+      steps: [{ steps: { count: 9123, interval: DAY_INTERVAL } }],
+    });
     await syncUserActivity(TEST_USER_ID);
 
     rows = await prisma.measurement.findMany({
@@ -102,7 +108,9 @@ describe("syncUserActivity — cumulative overwrite", () => {
   });
 
   it("preserves a 0-step rest day rather than dropping it as a gap", async () => {
-    stubGoogleHealth({ steps: [{ steps: { count: 0, date: DAY } }] });
+    stubGoogleHealth({
+      steps: [{ steps: { count: 0, interval: DAY_INTERVAL } }],
+    });
     const { syncUserActivity } = await import("@/lib/fitbit/sync-activity");
     const imported = await syncUserActivity(TEST_USER_ID);
     expect(imported).toBe(1);

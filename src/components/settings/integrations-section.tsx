@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1298,17 +1299,30 @@ function FitbitCard({
       className="bg-card border-border rounded-xl border p-6"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <HeartPulse className="text-primary h-5 w-5" />
           <h2 className="text-lg font-semibold">{t("settings.fitbit")}</h2>
           <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
             {t("settings.fitbitTag")}
           </span>
+          <Badge
+            variant="outline"
+            data-testid="fitbit-experimental-badge"
+            className="border-amber-500/50 text-amber-600 dark:text-amber-400"
+          >
+            {t("settings.fitbitExperimentalBadge")}
+          </Badge>
         </div>
         <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
       </div>
       <p className="text-muted-foreground mt-1 text-xs">
         {t("settings.fitbitDescription")}
+      </p>
+      <p
+        data-testid="fitbit-experimental-note"
+        className="text-muted-foreground/80 mt-2 text-xs"
+      >
+        {t("settings.fitbitExperimentalNote")}
       </p>
       <p className="text-muted-foreground/80 mt-2 text-xs">
         {t("settings.fitbitOverlapNote")}

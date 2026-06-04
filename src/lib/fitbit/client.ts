@@ -274,10 +274,15 @@ export interface FitbitDataType {
   filter: string;
   /**
    * Which time anchor the filter / measuredAt resolution targets:
-   *   - `sample` → spot reading (`{type}.sample_time.physical_time`).
-   *   - `date`   → daily summary (`{type}.date`).
+   *   - `sample`   → spot reading (`{type}.sample_time.physical_time`).
+   *   - `date`     → daily summary keyed on a civil date (`{type}.date`).
+   *   - `interval` → an INTERVAL data type (steps / distance / calories / floors,
+   *     sleep, exercise). Google Health anchors these on `{type}.interval.start_time`
+   *     (the physical instant) with `{type}.interval.civil_start_time` as the civil
+   *     fallback — NOT on a `sample_time` (which 400s/empties for interval types and
+   *     stalls the incremental filter) and NOT on a bare `date`.
    */
-  timeField: "sample" | "date";
+  timeField: "sample" | "date" | "interval";
 }
 
 /**
@@ -316,27 +321,34 @@ export const FITBIT_DATA_TYPES = {
     timeField: "date",
   },
   // ── Activity bundle (W5) — daily cumulative totals ─────────────
-  // Scope: `googlehealth.activity_and_fitness.readonly`. Each is a per-day
-  // summary (`timeField: "date"`); the externalId carries the `stats:` prefix
-  // so a re-fetched day overwrites in place (mirrors the Apple-Health
-  // `stats:<HK>:<YYYY-MM-DD>` daily-total overwrite contract).
-  steps: { path: "steps", filter: "steps", timeField: "date" },
-  distance: { path: "distance", filter: "distance", timeField: "date" },
+  // Scope: `googlehealth.activity_and_fitness.readonly`. These are INTERVAL data
+  // types: Google buckets a daily total into an `interval` (a `start_time` +
+  // `end_time`, with `civil_start_time` for the calendar-day grain). The
+  // incremental filter targets `interval.start_time` and the externalId carries
+  // the `stats:` prefix so a re-fetched day overwrites in place (mirrors the
+  // Apple-Health `stats:<HK>:<YYYY-MM-DD>` daily-total overwrite contract).
+  steps: { path: "steps", filter: "steps", timeField: "interval" },
+  distance: { path: "distance", filter: "distance", timeField: "interval" },
   activeCalories: {
     path: "active-calories",
     filter: "active_calories",
-    timeField: "date",
+    timeField: "interval",
   },
-  floors: { path: "floors", filter: "floors", timeField: "date" },
+  floors: { path: "floors", filter: "floors", timeField: "interval" },
+  // VO2 max is a daily-summary metric (one civil-date reading), not an interval
+  // bucket — keep the `date` anchor.
   vo2Max: { path: "vo2-max", filter: "vo2_max", timeField: "date" },
   // ── Sleep bundle (W5) ──────────────────────────────────────────
-  // Scope: `googlehealth.sleep.readonly`. A sleep session carries a start +
-  // end + a per-stage breakdown; mapped to per-stage SLEEP_DURATION rows.
-  sleep: { path: "sleep", filter: "sleep", timeField: "sample" },
+  // Scope: `googlehealth.sleep.readonly`. A sleep session is an INTERVAL data
+  // type (a start + end span carrying a per-stage breakdown); the incremental
+  // filter must target `interval.start_time`, not a `sample_time` (which 400s
+  // for interval types). Mapped to per-stage SLEEP_DURATION rows.
+  sleep: { path: "sleep", filter: "sleep", timeField: "interval" },
   // ── Exercise bundle (W5) ───────────────────────────────────────
-  // Scope: `googlehealth.activity_and_fitness.readonly`. An exercise session
-  // → a `Workout` row (NOT a Measurement).
-  exercise: { path: "exercise", filter: "exercise", timeField: "sample" },
+  // Scope: `googlehealth.activity_and_fitness.readonly`. An exercise session is
+  // an INTERVAL data type (a start + end span) → a `Workout` row (NOT a
+  // Measurement). The incremental filter targets `interval.start_time`.
+  exercise: { path: "exercise", filter: "exercise", timeField: "interval" },
 } as const satisfies Record<string, FitbitDataType>;
 
 export type FitbitDataTypeKey = keyof typeof FITBIT_DATA_TYPES;
@@ -362,6 +374,39 @@ interface DataPointQuery {
 }
 
 /**
+ * Build the incremental `filter` field + bound for one data type. Centralised so
+ * the predicate and the read-time anchor resolution can never drift on which
+ * field a given `timeField` targets.
+ *   - `sample`   → spot reading, filter on `{filter}.sample_time.physical_time`.
+ *   - `interval` → INTERVAL type, filter on `{filter}.interval.start_time`
+ *     (Google's anchor for steps/distance/calories/floors, sleep, exercise — a
+ *     `sample_time` filter 400s/empties for these and stalls incremental sync).
+ *   - `date`     → daily civil-date summary, filter on `{filter}.date`.
+ */
+export function incrementalFilter(
+  dataType: FitbitDataType,
+  start: Date,
+): { field: string; bound: string } {
+  switch (dataType.timeField) {
+    case "sample":
+      return {
+        field: `${dataType.filter}.sample_time.physical_time`,
+        bound: start.toISOString(),
+      };
+    case "interval":
+      return {
+        field: `${dataType.filter}.interval.start_time`,
+        bound: start.toISOString(),
+      };
+    case "date":
+      return {
+        field: `${dataType.filter}.date`,
+        bound: start.toISOString().slice(0, 10),
+      };
+  }
+}
+
+/**
  * Walk every `DataPoint` for one data type since the incremental cursor.
  * Mirrors the WHOOP `fetchCollection` page-loop: `nextPageToken` pagination, a
  * 1000-page `maxPages` ceiling, and per-page `addExternalCall` telemetry. The
@@ -383,16 +428,12 @@ export async function fetchDataPoints(
   do {
     const params = new URLSearchParams({ pageSize: String(pageSize) });
     if (query.start) {
-      // snake_case filter prefix; sample readings filter on the sample time,
-      // daily summaries on the civil date.
-      const field =
-        dataType.timeField === "sample"
-          ? `${dataType.filter}.sample_time.physical_time`
-          : `${dataType.filter}.date`;
-      const bound =
-        dataType.timeField === "sample"
-          ? query.start.toISOString()
-          : query.start.toISOString().slice(0, 10);
+      // snake_case filter prefix. The filter field + bound shape follow the
+      // data type's time anchor:
+      //   - sample   → `{filter}.sample_time.physical_time` >= an ISO instant
+      //   - interval → `{filter}.interval.start_time`        >= an ISO instant
+      //   - date     → `{filter}.date`                       >= a civil date
+      const { field, bound } = incrementalFilter(dataType, query.start);
       params.set("filter", `${field} >= "${bound}"`);
     }
     if (pageToken) params.set("pageToken", pageToken);
@@ -512,11 +553,32 @@ function readPath(obj: unknown, path: string): unknown {
   return cur;
 }
 
+/** Parse a `{year,month,day}` civil-date object into a UTC-midday Date, or null. */
+function parseCivilDateObject(val: unknown): Date | null {
+  if (!val || typeof val !== "object") return null;
+  const o = val as Record<string, unknown>;
+  if (
+    typeof o.year === "number" &&
+    typeof o.month === "number" &&
+    typeof o.day === "number"
+  ) {
+    // Google civil dates are 1-based months; anchor at UTC midday so a
+    // timezone shift can't roll the civil day across a boundary.
+    return new Date(Date.UTC(o.year, o.month - 1, o.day, 12));
+  }
+  return null;
+}
+
 /**
- * Resolve a `DataPoint`'s measurement timestamp. Sample readings carry a
- * `sample_time.physical_time`; daily summaries carry a `date` (a civil date or a
- * `{year,month,day}` object). Falls back to the fetch time only when nothing
- * parses, so a row is never dropped for a missing anchor.
+ * Resolve a `DataPoint`'s measurement timestamp.
+ *   - `sample`   → `sample_time.physical_time` (a spot ISO instant).
+ *   - `interval` → `interval.start_time` (the bucket's start ISO instant), with
+ *     `interval.civil_start_time` (a civil string / `{year,month,day}`) as the
+ *     fallback. This is Google's anchor for the INTERVAL types; the prior `date`
+ *     read returned undefined for them and forced the fetch-time fallback.
+ *   - `date`     → `date` (a civil string or `{year,month,day}` object).
+ * Falls back to `fallback` only when nothing parses, so a row is never dropped
+ * for a missing anchor.
  */
 function resolveMeasuredAt(
   point: FitbitDataPoint,
@@ -529,24 +591,27 @@ function resolveMeasuredAt(
       const d = new Date(t);
       if (!Number.isNaN(d.getTime())) return d;
     }
+  } else if (dataType.timeField === "interval") {
+    const t = readPath(point, `${dataType.filter}.interval.start_time`);
+    if (typeof t === "string") {
+      const d = new Date(t);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    const civil = readPath(point, `${dataType.filter}.interval.civil_start_time`);
+    if (typeof civil === "string") {
+      const d = new Date(civil);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    const civilObj = parseCivilDateObject(civil);
+    if (civilObj) return civilObj;
   } else {
     const dateVal = readPath(point, `${dataType.filter}.date`);
     if (typeof dateVal === "string") {
       const d = new Date(dateVal);
       if (!Number.isNaN(d.getTime())) return d;
     }
-    if (dateVal && typeof dateVal === "object") {
-      const o = dateVal as Record<string, unknown>;
-      if (
-        typeof o.year === "number" &&
-        typeof o.month === "number" &&
-        typeof o.day === "number"
-      ) {
-        // Google civil dates are 1-based months; anchor at UTC midday so a
-        // timezone shift can't roll the civil day across a boundary.
-        return new Date(Date.UTC(o.year, o.month - 1, o.day, 12));
-      }
-    }
+    const civilObj = parseCivilDateObject(dateVal);
+    if (civilObj) return civilObj;
   }
   return fallback;
 }
@@ -559,7 +624,13 @@ function resolveMeasuredAt(
  */
 function externalAnchor(point: FitbitDataPoint, dataType: FitbitDataType): string {
   const at = resolveMeasuredAt(point, dataType, new Date(0));
-  if (dataType.timeField === "date") return at.toISOString().slice(0, 10);
+  // The mapper-driven interval types (steps/distance/calories/floors) are daily
+  // totals, so they share the civil-day externalId grain with `date` summaries —
+  // a re-fetched day overwrites in place. (Sleep/exercise are interval too but
+  // mint their own per-session anchors and never reach this helper.)
+  if (dataType.timeField === "date" || dataType.timeField === "interval") {
+    return at.toISOString().slice(0, 10);
+  }
   return at.toISOString();
 }
 
@@ -1086,6 +1157,8 @@ function readSleepSegments(point: FitbitDataPoint): FitbitSleepSegment[] {
  */
 function sleepSessionAnchor(point: FitbitDataPoint): string {
   const end =
+    readPath(point, "sleep.interval.end_time") ??
+    readPath(point, "interval.end_time") ??
     readPath(point, "sleep.endTime") ??
     readPath(point, "sleep.end_time") ??
     readPath(point, "endTime") ??
@@ -1095,6 +1168,8 @@ function sleepSessionAnchor(point: FitbitDataPoint): string {
     if (!Number.isNaN(d.getTime())) return d.toISOString();
   }
   const start =
+    readPath(point, "sleep.interval.start_time") ??
+    readPath(point, "interval.start_time") ??
     readPath(point, "sleep.startTime") ??
     readPath(point, "sleep.start_time") ??
     readPath(point, "startTime");
@@ -1252,15 +1327,19 @@ function readInstant(point: FitbitDataPoint, paths: string[]): Date | null {
 export function mapWorkout(point: FitbitDataPoint): FitbitMappedWorkout | null {
   const f = FITBIT_DATA_TYPES.exercise.filter;
   const startedAt = readInstant(point, [
+    `${f}.interval.start_time`,
     `${f}.startTime`,
     `${f}.start_time`,
     `${f}.sample_time.physical_time`,
+    "interval.start_time",
     "startTime",
     "start_time",
   ]);
   const endedAt = readInstant(point, [
+    `${f}.interval.end_time`,
     `${f}.endTime`,
     `${f}.end_time`,
+    "interval.end_time",
     "endTime",
     "end_time",
   ]);

@@ -187,6 +187,20 @@ export async function handleCollectionFetchError(
 }
 
 /**
+ * Options threaded from `syncUserFitbit` to each per-resource sync. The `start`
+ * watermark is snapshotted ONCE by the orchestrator (a single `lastSyncedAt`
+ * read) so every resource fetches from the same lower bound; no resource re-reads
+ * `lastSyncedAt` or stamps `markSynced` itself. On a full/backfill run `start`
+ * is undefined (no lower bound). The orchestrator owns the single end-of-cycle
+ * `markSynced`.
+ */
+export interface FitbitResourceSyncOptions {
+  fullSync?: boolean;
+  /** The incremental lower bound, snapshotted once by the orchestrator. */
+  start?: Date;
+}
+
+/**
  * Compute the incremental `start` for a resource sync. `fullSync` returns
  * undefined (the backfill walks deep history without a lower bound). Otherwise
  * start from `lastSyncedAt - overlap`, or 30 days back on the very first
@@ -301,7 +315,11 @@ export async function upsertFitbitMeasurements(
   return imported;
 }
 
-/** Stamp `lastSyncedAt = now` after a successful resource sync. */
+/**
+ * Stamp `lastSyncedAt = now`. Called ONCE per cycle by `syncUserFitbit` after a
+ * non-degenerate run — never per resource, so the watermark can't move mid-cycle
+ * and shrink a later resource's fetch window.
+ */
 export async function markSynced(userId: string): Promise<void> {
   await prisma.fitbitConnection.update({
     where: { userId },
@@ -321,6 +339,15 @@ export async function markSynced(userId: string): Promise<void> {
  * Resources: health-metrics (W3), daily-cumulative activity, per-stage sleep,
  * and exercise workouts (W5). Each runs independently so a per-resource 403
  * (a Restricted bundle the user did not grant) soft-skips only that resource.
+ *
+ * WATERMARK: the incremental `start` is snapshotted ONCE here (from the single
+ * `lastSyncedAt` read at the top of the cycle) and threaded to every resource,
+ * and `markSynced` is stamped ONCE at the end. A per-resource read+stamp would
+ * let the first resource move `lastSyncedAt` to now() so later resources only
+ * see the last overlap window — silently dropping the gap after an outage longer
+ * than the overlap. The full/backfill path passes `fullSync: true`, which makes
+ * `incrementalStart` return undefined regardless of the snapshot, so the deep
+ * history walk is unaffected.
  */
 export async function syncUserFitbit(
   userId: string,
@@ -332,6 +359,23 @@ export async function syncUserFitbit(
     );
     return 0;
   }
+
+  // Snapshot the incremental watermark ONCE for the whole cycle. Every resource
+  // sees the same `start`; no resource re-reads `lastSyncedAt` mid-cycle. On a
+  // full/backfill run `incrementalStart` ignores the snapshot and returns
+  // undefined (no lower bound).
+  const connection = await prisma.fitbitConnection.findUnique({
+    where: { userId },
+    select: { lastSyncedAt: true },
+  });
+  if (!connection) return 0;
+  const start = incrementalStart(connection.lastSyncedAt, {
+    fullSync: opts.fullSync,
+  });
+  const resourceOpts: FitbitResourceSyncOptions = {
+    fullSync: opts.fullSync,
+    start,
+  };
 
   const [{ syncUserMetrics }, { syncUserActivity }, { syncUserSleep }, { syncUserWorkout }] =
     await Promise.all([
@@ -354,7 +398,7 @@ export async function syncUserFitbit(
   await softSkipStorage.run(tracker, async () => {
     for (const fn of resources) {
       try {
-        total += await fn(userId, opts);
+        total += await fn(userId, resourceOpts);
       } catch (err) {
         anyFailed = true;
         getEvent()?.addWarning(`fitbit ${fn.name} failed for ${userId}: ${err}`);
@@ -372,6 +416,10 @@ export async function syncUserFitbit(
   const allSoftSkipped = tracker.count >= resources.length && total === 0;
 
   if (!anyFailed && !allSoftSkipped) {
+    // Stamp the watermark ONCE for the whole cycle, only on a non-degenerate
+    // run. Every resource already saw the snapshot `start`, so stamping now()
+    // here can't shrink a later resource's window.
+    await markSynced(userId);
     await recordSyncSuccess(userId, "fitbit");
   }
 

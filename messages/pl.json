@@ -3554,6 +3554,8 @@
     "fitbitTag": "Fitbit i Pixel",
     "fitbitDescription": "Połącz Google Health, aby synchronizować dane z Fitbita i Pixel Watch — wagę, tkankę tłuszczową, tętno spoczynkowe, saturację, zmienność rytmu serca i więcej.",
     "fitbitOverlapNote": "Jeśli Google Health i inne źródło dostarczają ten sam parametr życiowy — tętno spoczynkowe, saturację, temperaturę ciała lub częstość oddechów — możesz widzieć obie wartości, dopóki przyszła aktualizacja nie wybierze jednego preferowanego źródła.",
+    "fitbitExperimentalBadge": "Eksperymentalne",
+    "fitbitExperimentalNote": "Ta integracja jest w wersji beta — zakres danych i mapowanie pól są wciąż weryfikowane na rzeczywistych kontach Google Health, więc niektóre wartości mogą być niedostępne lub zmienić się w przyszłej aktualizacji.",
     "fitbitCredentials": "Dane uwierzytelniające API",
     "fitbitCredentialsHelp": "Zarejestruj własny klient OAuth Google Cloud dla interfejsu Google Health API i wklej tutaj jego Client ID oraz Client Secret.",
     "fitbitClientId": "Client ID",

@@ -231,6 +231,41 @@ describe("fetchDataPoints", () => {
     );
   });
 
+  it("filters INTERVAL types on interval.start_time, not a sample_time or a bare date", async () => {
+    // steps / distance / calories / floors, sleep and exercise are INTERVAL data
+    // types — Google anchors them on `interval.start_time`. A sample_time filter
+    // 400s/empties for these and stalls incremental sync.
+    const stepsMock = installFetchMock([{ status: 200, body: { dataPoints: [] } }]);
+    await fetchDataPoints(FITBIT_DATA_TYPES.steps, "at", "fetchSteps", {
+      start: new Date("2026-03-04T10:00:00.000Z"),
+    });
+    expect(
+      new URL((stepsMock.mock.calls[0] as unknown as [string])[0]).searchParams.get(
+        "filter",
+      ),
+    ).toBe('steps.interval.start_time >= "2026-03-04T10:00:00.000Z"');
+
+    const sleepMock = installFetchMock([{ status: 200, body: { dataPoints: [] } }]);
+    await fetchDataPoints(FITBIT_DATA_TYPES.sleep, "at", "fetchSleep", {
+      start: new Date("2026-03-04T10:00:00.000Z"),
+    });
+    expect(
+      new URL((sleepMock.mock.calls[0] as unknown as [string])[0]).searchParams.get(
+        "filter",
+      ),
+    ).toBe('sleep.interval.start_time >= "2026-03-04T10:00:00.000Z"');
+
+    const exMock = installFetchMock([{ status: 200, body: { dataPoints: [] } }]);
+    await fetchDataPoints(FITBIT_DATA_TYPES.exercise, "at", "fetchExercise", {
+      start: new Date("2026-03-04T10:00:00.000Z"),
+    });
+    expect(
+      new URL((exMock.mock.calls[0] as unknown as [string])[0]).searchParams.get(
+        "filter",
+      ),
+    ).toBe('exercise.interval.start_time >= "2026-03-04T10:00:00.000Z"');
+  });
+
   it("throws a classified FitbitApiError on a non-2xx page", async () => {
     installFetchMock([{ status: 403, body: {} }]);
     await expect(
@@ -337,10 +372,17 @@ describe("FITBIT_FIELD_MAP ↔ FITBIT_DATA_TYPES casing parity", () => {
 });
 
 describe("activity mappers (cumulative daily)", () => {
-  const day = { year: 2026, month: 5, day: 10 };
+  // INTERVAL data types: Google buckets the daily total into an `interval` with
+  // a `start_time` (physical instant) — NOT a bare civil `date`. The mapper
+  // anchors measuredAt on `interval.start_time` and day-keys the externalId.
+  const interval = { start_time: "2026-05-10T00:00:00.000Z" };
+  // A civil-only fallback shape (no physical start_time) still day-keys cleanly.
+  const civilInterval = {
+    civil_start_time: { year: 2026, month: 5, day: 10 },
+  };
 
   it("maps steps with a stats:-shaped daily externalId and preserves a zero", () => {
-    const out = mapSteps({ steps: { count: 8421, date: day } });
+    const out = mapSteps({ steps: { count: 8421, interval } });
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({
       type: "ACTIVITY_STEPS",
@@ -350,30 +392,34 @@ describe("activity mappers (cumulative daily)", () => {
     });
     // fieldTag carries <tag>:<YYYY-MM-DD>; the sync layer prefixes `stats:`.
     expect(out[0]!.fieldTag).toBe("steps:2026-05-10");
-    // measuredAt anchored at the civil day (noon UTC) so it day-keys cleanly.
-    expect(out[0]!.measuredAt.toISOString()).toBe("2026-05-10T12:00:00.000Z");
+    // measuredAt anchored on the interval start instant.
+    expect(out[0]!.measuredAt.toISOString()).toBe("2026-05-10T00:00:00.000Z");
+
+    // The civil-only fallback day-keys the externalId at UTC midday.
+    const civil = mapSteps({ steps: { count: 100, interval: civilInterval } });
+    expect(civil[0]!.fieldTag).toBe("steps:2026-05-10");
 
     // A rest day records 0 steps — that is real data, not a gap.
-    const rest = mapSteps({ steps: { count: 0, date: day } });
+    const rest = mapSteps({ steps: { count: 0, interval } });
     expect(rest).toHaveLength(1);
     expect(rest[0]!.value).toBe(0);
   });
 
   it("maps distance in metres, converting km → m when reported in km", () => {
-    expect(mapDistance({ distance: { meters: 6200, date: day } })[0]).toMatchObject({
+    expect(mapDistance({ distance: { meters: 6200, interval } })[0]).toMatchObject({
       type: "WALKING_RUNNING_DISTANCE",
       value: 6200,
       unit: "m",
     });
     // km path multiplies by 1000.
     expect(
-      mapDistance({ distance: { kilometers: 6.2, date: day } })[0]!.value,
+      mapDistance({ distance: { kilometers: 6.2, interval } })[0]!.value,
     ).toBe(6200);
   });
 
   it("maps the ACTIVE-calories portion into ACTIVE_ENERGY_BURNED", () => {
     const out = mapActiveCalories({
-      active_calories: { active_kilocalories: 540, date: day },
+      active_calories: { active_kilocalories: 540, interval },
     });
     expect(out[0]).toMatchObject({
       type: "ACTIVE_ENERGY_BURNED",
@@ -383,15 +429,17 @@ describe("activity mappers (cumulative daily)", () => {
   });
 
   it("maps floors and preserves a zero", () => {
-    expect(mapFloors({ floors: { count: 12, date: day } })[0]).toMatchObject({
+    expect(mapFloors({ floors: { count: 12, interval } })[0]).toMatchObject({
       type: "FLIGHTS_CLIMBED",
       value: 12,
       unit: "flights",
     });
-    expect(mapFloors({ floors: { count: 0, date: day } })[0]!.value).toBe(0);
+    expect(mapFloors({ floors: { count: 0, interval } })[0]!.value).toBe(0);
   });
 
   it("maps VO2 max (strictly positive, daily latest-wins) and drops a zero", () => {
+    // VO2 max is a daily-summary metric (civil `date` anchor), not an interval.
+    const day = { year: 2026, month: 5, day: 10 };
     const out = mapVo2Max({
       vo2_max: { milliliters_per_kilogram_per_minute: 47.3, date: day },
     });
@@ -467,6 +515,26 @@ describe("sleep-stage mapping", () => {
     );
   });
 
+  it("anchors the session externalId on sleep.interval.end_time for an INTERVAL-shaped point", () => {
+    const out = mapSleepSession({
+      sleep: {
+        interval: {
+          start_time: "2026-05-10T22:00:00.000Z",
+          end_time: "2026-05-11T06:00:00.000Z",
+        },
+        segments: [
+          {
+            stage: "deep",
+            startTime: "2026-05-10T22:30:00.000Z",
+            endTime: "2026-05-10T23:30:00.000Z",
+          },
+        ],
+      },
+    });
+    const deep = out.find((m) => m.sleepStage === "DEEP");
+    expect(deep!.fieldTag).toBe("2026-05-11T06:00:00.000Z:sleep_deep");
+  });
+
   it("yields nothing for a session with no parseable segments", () => {
     expect(mapSleepSession({ sleep: {} })).toHaveLength(0);
     expect(mapSleepSession({})).toHaveLength(0);
@@ -511,6 +579,23 @@ describe("workout mapping", () => {
     expect(w!.sportType).toBe("other");
     expect(w!.totalEnergyKcal).toBeNull();
     expect(w!.avgHeartRate).toBeNull();
+  });
+
+  it("reads the start/end from exercise.interval for an INTERVAL-shaped point", () => {
+    const w = mapWorkout({
+      exercise: {
+        session_id: "ex-iv",
+        activity_type: "run",
+        interval: {
+          start_time: "2026-05-10T07:00:00.000Z",
+          end_time: "2026-05-10T07:45:00.000Z",
+        },
+      },
+    });
+    expect(w).not.toBeNull();
+    expect(w!.startedAt.toISOString()).toBe("2026-05-10T07:00:00.000Z");
+    expect(w!.endedAt.toISOString()).toBe("2026-05-10T07:45:00.000Z");
+    expect(w!.durationSec).toBe(45 * 60);
   });
 
   it("returns null for a session with no usable time span", () => {

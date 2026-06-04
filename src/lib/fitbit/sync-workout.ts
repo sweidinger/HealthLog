@@ -23,28 +23,21 @@ import {
 import {
   getValidToken,
   handleCollectionFetchError,
-  incrementalStart,
-  markSynced,
+  type FitbitResourceSyncOptions,
 } from "./sync";
 import { prisma } from "@/lib/db";
 import { annotate, getEvent } from "@/lib/logging/context";
 
 export async function syncUserWorkout(
   userId: string,
-  opts: { fullSync?: boolean } = {},
+  opts: FitbitResourceSyncOptions = {},
 ): Promise<number> {
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
 
-  const connection = await prisma.fitbitConnection.findUnique({
-    where: { userId },
-    select: { lastSyncedAt: true },
-  });
-  if (!connection) return 0;
-
-  const start = incrementalStart(connection.lastSyncedAt, {
-    fullSync: opts.fullSync,
-  });
+  // Cycle-wide watermark snapshotted once by `syncUserFitbit`; undefined on a
+  // full/backfill run.
+  const start = opts.start;
 
   let points: Record<string, unknown>[];
   try {
@@ -104,7 +97,7 @@ export async function syncUserWorkout(
     }
   }
 
-  await markSynced(userId);
+  // `markSynced` is owned by the orchestrator (`syncUserFitbit`).
   annotate({ action: { name: "fitbit.workout.sync", details: { imported } } });
   return imported;
 }

@@ -43,13 +43,12 @@ import {
 import {
   getValidToken,
   handleCollectionFetchError,
-  incrementalStart,
-  markSynced,
   upsertFitbitMeasurements,
   type FitbitMeasurementUpsert,
+  type FitbitResourceSyncOptions,
 } from "./sync";
-import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
+import { prisma } from "@/lib/db";
 
 /** One mappable metric: its data-type encoding + the per-point mapper + a verb. */
 interface MetricResource {
@@ -96,20 +95,15 @@ const METRIC_RESOURCES: MetricResource[] = [
 
 export async function syncUserMetrics(
   userId: string,
-  opts: { fullSync?: boolean } = {},
+  opts: FitbitResourceSyncOptions = {},
 ): Promise<number> {
   const tokenInfo = await getValidToken(userId);
   if (!tokenInfo) return 0;
 
-  const connection = await prisma.fitbitConnection.findUnique({
-    where: { userId },
-    select: { lastSyncedAt: true },
-  });
-  if (!connection) return 0;
-
-  const start = incrementalStart(connection.lastSyncedAt, {
-    fullSync: opts.fullSync,
-  });
+  // The incremental lower bound is the cycle-wide watermark snapshotted once by
+  // `syncUserFitbit` — never re-read here, so a sibling resource's stamp can't
+  // shrink this one's window. Undefined on a full/backfill run.
+  const start = opts.start;
 
   let imported = 0;
 
@@ -184,6 +178,7 @@ export async function syncUserMetrics(
     );
   }
 
-  await markSynced(userId);
+  // `markSynced` is owned by the orchestrator (`syncUserFitbit`), stamped once
+  // at the end of the cycle — never here, so the watermark can't move mid-cycle.
   return imported;
 }
