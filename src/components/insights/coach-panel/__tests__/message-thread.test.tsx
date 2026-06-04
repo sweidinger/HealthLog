@@ -103,6 +103,18 @@ describe("<MessageThread>", () => {
     );
   });
 
+  it("announces the empty-thread hero as a polite live region", () => {
+    // v1.11.3 D5 — the bespoke empty-state hero stays (gradient avatar),
+    // but it must carry `role="status"` + `aria-live="polite"` so screen
+    // readers announce the hint when the thread first mounts.
+    const html = render(<MessageThread conversation={null} />);
+    const threadTag = html.match(
+      /<div[^>]*data-slot="coach-message-thread"[^>]*>/,
+    );
+    expect(threadTag?.[0]).toContain('role="status"');
+    expect(threadTag?.[0]).toContain('aria-live="polite"');
+  });
+
   it("renders user + assistant bubbles for a persisted conversation", () => {
     const html = render(<MessageThread conversation={baseConversation} />);
     expect(html).toContain('data-slot="coach-bubble-user"');

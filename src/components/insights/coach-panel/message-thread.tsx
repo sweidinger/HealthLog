@@ -236,6 +236,8 @@ export function MessageThread({
     return (
       <div
         data-slot="coach-message-thread"
+        role="status"
+        aria-live="polite"
         className="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 px-6 text-center"
       >
         <div
@@ -315,7 +317,7 @@ export function MessageThread({
           intentional for clinical-adjacent UI. */}
       <p
         data-slot="coach-thread-disclaimer"
-        className="text-muted-foreground mt-auto pt-2 text-[10px] leading-relaxed"
+        className="text-muted-foreground mt-auto pt-2 text-xs leading-relaxed"
       >
         {t("insights.coach.composerDisclaimer")}
       </p>
@@ -371,12 +373,15 @@ function ChatBubble({
     return (
       <div
         data-slot="coach-bubble-user"
-        className="flex items-start justify-end gap-2"
+        className="flex items-start justify-end gap-2.5"
       >
         <div
           className={cn(
             "border-dracula-purple/30 bg-dracula-purple/12 text-foreground",
-            "max-w-[80%] rounded-xl rounded-tr-sm border px-3.5 py-2.5",
+            // Budget the avatar column (size-8 + gap-2.5 ≈ 2.625rem) out
+            // of the 80% cap so the bubble + avatar together never
+            // overflow a comfortable width on a narrow phone.
+            "max-w-[calc(80%-2.625rem)] rounded-xl rounded-tr-sm border px-3.5 py-2.5",
             "text-sm leading-relaxed",
           )}
         >
@@ -438,7 +443,7 @@ function ChatBubble({
           <Sparkles className="text-background size-3.5" />
         )}
       </div>
-      <div className="flex max-w-[80%] flex-col gap-2">
+      <div className="flex max-w-[calc(80%-2.625rem)] flex-col gap-2">
         <div
           className={cn(
             "border-border/60 bg-muted/40 text-foreground",
@@ -583,7 +588,7 @@ function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
     return (
       <p
         data-slot="coach-message-feedback-thanks"
-        className="text-muted-foreground text-[10px]"
+        className="text-muted-foreground text-xs"
       >
         {t("insights.coach.feedbackThanks")}
       </p>

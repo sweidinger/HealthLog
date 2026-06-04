@@ -101,7 +101,7 @@ export function RecommendationsGrid({ recs }: RecommendationsGridProps) {
             }
             data-stagger-index={index}
             role="listitem"
-            className={`animate-insight-in transition-all md:hover:-translate-y-0.5 md:hover:shadow-lg ${borderClass} rounded-lg border-l-2`}
+            className={`animate-insight-in transition-all md:hover:-translate-y-0.5 md:hover:shadow-lg ${borderClass} rounded-lg border-l-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0`}
             style={{ animationDelay: `${index * STAGGER_INTERVAL_MS}ms` }}
           >
             <RecommendationCard rec={rec} index={index} />

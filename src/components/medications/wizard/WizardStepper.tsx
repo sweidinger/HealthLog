@@ -88,7 +88,7 @@ export function WizardStepper({
         type="button"
         variant="ghost"
         size="icon"
-        className="h-8 w-8 shrink-0"
+        className="relative h-8 w-8 shrink-0 before:absolute before:-inset-1.5 before:content-['']"
         onClick={onFirst}
         disabled={!firstEnabled}
         data-slot="wizard-stepper-first"
@@ -184,7 +184,7 @@ export function WizardStepper({
         type="button"
         variant="ghost"
         size="icon"
-        className="h-8 w-8 shrink-0"
+        className="relative h-8 w-8 shrink-0 before:absolute before:-inset-1.5 before:content-['']"
         onClick={onLast}
         disabled={!lastEnabled}
         data-slot="wizard-stepper-last"

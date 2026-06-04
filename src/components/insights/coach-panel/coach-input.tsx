@@ -7,7 +7,7 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { Info, Loader2, Send } from "lucide-react";
+import { Info, Loader2, Send, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +43,13 @@ export interface CoachInputProps {
   value: string;
   onChange: (next: string) => void;
   onSubmit: () => void;
+  /**
+   * Aborts the in-flight streamed reply. The composer swaps the send
+   * button for a Stop control while `isStreaming` is set; tapping it
+   * cancels the SSE request so the user can interrupt a long or
+   * off-track reply.
+   */
+  onCancel?: () => void;
   /** Disabled while a previous reply is still streaming. */
   disabled?: boolean;
   /** Surfaces the streaming-in-progress affordance on the send button. */
@@ -98,6 +105,7 @@ export function CoachInput({
   value,
   onChange,
   onSubmit,
+  onCancel,
   disabled = false,
   isStreaming = false,
   inputId = "coach-composer-textarea",
@@ -256,20 +264,42 @@ export function CoachInput({
               {t("insights.coach.composerHint")}
             </PopoverContent>
           </Popover>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={!canSubmit}
-            data-slot="coach-input-send"
-            className="gap-1.5"
-          >
-            {isStreaming ? (
-              <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-            ) : (
-              <Send className="size-3.5" aria-hidden="true" />
-            )}
-            <span>{t("insights.coach.send")}</span>
-          </Button>
+          {isStreaming && onCancel ? (
+            // While a reply streams, swap the send button for a Stop
+            // control bound to the abort handler so the user can
+            // interrupt a long or off-track reply instead of waiting it
+            // out. The spinner stays inside the Stop affordance so the
+            // in-progress state is still legible.
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onCancel}
+              data-slot="coach-input-stop"
+              className="gap-1.5"
+            >
+              <Square
+                className="size-3.5 fill-current"
+                aria-hidden="true"
+              />
+              <span>{t("insights.coach.stop")}</span>
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!canSubmit}
+              data-slot="coach-input-send"
+              className="gap-1.5"
+            >
+              {isStreaming ? (
+                <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              ) : (
+                <Send className="size-3.5" aria-hidden="true" />
+              )}
+              <span>{t("insights.coach.send")}</span>
+            </Button>
+          )}
         </div>
       </div>
     </form>

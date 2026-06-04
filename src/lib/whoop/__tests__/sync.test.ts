@@ -87,10 +87,13 @@ vi.mock("@/lib/logging/context", () => ({
 import {
   getValidToken,
   incrementalStart,
+  isCollectionForbidden,
   upsertWhoopMeasurements,
   WHOOP_DEFAULT_OVERLAP_MS,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
 } from "../sync";
+import { WhoopApiError } from "../response-classifier";
+import { syncUserRecovery } from "../sync-recovery";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -245,5 +248,83 @@ describe("upsertWhoopMeasurements — idempotent upsert", () => {
       prismaMock.measurement.upsert.mock.calls[1]![0].where
         .userId_type_source_externalId;
     expect(a).toEqual(b);
+  });
+});
+
+describe("isCollectionForbidden — tier degradation gate", () => {
+  it("is true only for a WhoopApiError carrying HTTP 403", () => {
+    const forbidden = new WhoopApiError({
+      verb: "fetchRecoveries",
+      classification: "reauth_required",
+      httpStatus: 403,
+      reason: "http_403",
+    });
+    expect(isCollectionForbidden(forbidden)).toBe(true);
+  });
+
+  it("is false for a 401 (genuine token reject → connection-wide reauth)", () => {
+    const unauthorized = new WhoopApiError({
+      verb: "fetchRecoveries",
+      classification: "reauth_required",
+      httpStatus: 401,
+      reason: "http_401",
+    });
+    expect(isCollectionForbidden(unauthorized)).toBe(false);
+  });
+
+  it("is false for a non-WhoopApiError", () => {
+    expect(isCollectionForbidden(new Error("network down"))).toBe(false);
+    expect(isCollectionForbidden("boom")).toBe(false);
+  });
+});
+
+describe("per-resource 403 soft-skip vs reauth", () => {
+  beforeEach(() => {
+    prismaMock.whoopConnection.findUnique.mockResolvedValue({
+      id: "conn1",
+      whoopUserId: "42",
+      accessToken: "enc(live-access)",
+      refreshToken: "enc(live-refresh)",
+      tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      lastSyncedAt: new Date("2026-06-01T00:00:00Z"),
+    });
+    prismaMock.whoopConnection.update.mockResolvedValue({});
+  });
+
+  it("a collection 403 soft-skips: returns 0, records NO failure (connection stays connected)", async () => {
+    fetchRecoveriesMock.mockRejectedValue(
+      new WhoopApiError({
+        verb: "fetchRecoveries",
+        classification: "reauth_required",
+        httpStatus: 403,
+        reason: "http_403",
+      }),
+    );
+
+    const imported = await syncUserRecovery("user1");
+
+    expect(imported).toBe(0);
+    // No failure recorded → recordSyncFailure never parks the row at
+    // error_reauth, so the next syncUserWhoop does not short-circuit.
+    expect(recordSyncFailure).not.toHaveBeenCalled();
+  });
+
+  it("a collection 401 still records a reauth failure and rethrows", async () => {
+    fetchRecoveriesMock.mockRejectedValue(
+      new WhoopApiError({
+        verb: "fetchRecoveries",
+        classification: "reauth_required",
+        httpStatus: 401,
+        reason: "http_401",
+      }),
+    );
+
+    await expect(syncUserRecovery("user1")).rejects.toThrow();
+    expect(recordSyncFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        integration: "whoop",
+        kind: "reauth_required",
+      }),
+    );
   });
 });

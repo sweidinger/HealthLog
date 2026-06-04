@@ -9,8 +9,8 @@ import { fetchCycles, mapCycle } from "./client";
 import {
   getValidToken,
   incrementalStart,
+  handleCollectionFetchError,
   markSynced,
-  recordWhoopSyncFailure,
   upsertWhoopMeasurements,
   type WhoopMeasurementUpsert,
 } from "./sync";
@@ -37,8 +37,7 @@ export async function syncUserCycle(
   try {
     records = await fetchCycles(tokenInfo.accessToken, { start });
   } catch (err) {
-    await recordWhoopSyncFailure(userId, err);
-    throw err;
+    return handleCollectionFetchError("cycle", userId, err);
   }
 
   const readings: WhoopMeasurementUpsert[] = [];

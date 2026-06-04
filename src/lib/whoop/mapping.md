@@ -59,7 +59,21 @@ fetch + the score→energy conversion factor (`KJ_TO_KCAL`).
 
 ## Body / profile (single objects, no pagination)
 
+Ingested by `sync-body.ts` (`syncUserBody`), wired into the `syncUserWhoop`
+loop + the backfill. The body endpoint is a single object, not a paginated
+collection.
+
 | Source field | Destination | Unit | Note |
 |---|---|---|---|
-| `body.weight_kilogram` | `WEIGHT` | kg | Picker ranks a real scale above WHOOP. |
+| `body.weight_kilogram` | `WEIGHT` | kg | Source = WHOOP, STABLE externalId `whoop:body:weight` with overwrite semantics — a single self-reported profile value, not a time series, so a re-sync updates the same row rather than accumulating duplicates. `measuredAt` = the fetch time. Picker ranks a real scale above WHOOP. |
 | `body.max_heart_rate` | `WhoopConnection.maxHeartRate` | bpm | Profile constant — stored on the connection, not a `Measurement`. |
+| `body.height_meter` | `User.heightCm` | cm | Profile seed (m→cm). Written ONLY when `User.heightCm` is currently null — never overwrites a user-set height, never minted as a `Measurement`. |
+
+## Blood pressure — watch-only
+
+Blood pressure is API-invisible: the WHOOP public developer API (v2) exposes no
+BP field, endpoint, or scope. WHOOP's Blood Pressure Insights are WHOOP MG
+hardware + WHOOP Life membership + cuff-calibrated and live only in the WHOOP
+app. No server-side code. If WHOOP ever ships an API surface it reuses the
+existing `BLOOD_PRESSURE_SYS` / `BLOOD_PRESSURE_DIA` types — no new enum, no
+migration. Re-check developer.whoop.com/docs/api-changelog periodically.

@@ -11,8 +11,8 @@ import { fetchSleeps, mapSleep } from "./client";
 import {
   getValidToken,
   incrementalStart,
+  handleCollectionFetchError,
   markSynced,
-  recordWhoopSyncFailure,
   upsertWhoopMeasurements,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
   type WhoopMeasurementUpsert,
@@ -41,8 +41,7 @@ export async function syncUserSleep(
   try {
     records = await fetchSleeps(tokenInfo.accessToken, { start });
   } catch (err) {
-    await recordWhoopSyncFailure(userId, err);
-    throw err;
+    return handleCollectionFetchError("sleep", userId, err);
   }
 
   const readings: WhoopMeasurementUpsert[] = [];

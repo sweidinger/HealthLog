@@ -278,6 +278,12 @@
       "emptyDescription": "Crée d’abord un médicament avec un horaire, puis reviens ici pour saisir la prise.",
       "emptyCta": "Ajouter un médicament"
     },
+    "quickEntryDiscard": {
+      "title": "Abandonner cette saisie ?",
+      "description": "Vous avez des données non enregistrées. Fermer le formulaire et perdre ce que vous avez saisi ?",
+      "confirm": "Abandonner",
+      "cancel": "Continuer la saisie"
+    },
     "compliance7d": "Observance (7 jours)",
     "mood": "Humeur",
     "customizeTitle": "Mise en page du tableau",
@@ -554,35 +560,35 @@
     "scheduleDaily": "Quotidien",
     "inactive": "En pause",
     "intakeHistory": "Historique des prises",
-    "openDetailPage": "Open medication detail page",
+    "openDetailPage": "Ouvrir la page de détail du médicament",
     "deleteConfirm": "Supprimer le médicament ?",
     "compliance": "Observance",
-    "importIntakes": "Import intakes",
-    "importDescription": "Paste a JSON array with intake data. Expected format:",
-    "importUploadFile": "Upload JSON file",
-    "importPaste": "Paste JSON here...",
-    "importSelected": "Selected: {name}",
-    "importFileLoaded": "File \"{name}\" loaded",
-    "importInvalidJson": "File does not contain valid JSON",
-    "importNoArray": "No array found",
-    "importResult": "{imported} intakes imported",
-    "importDuplicatesSkipped": "{count} duplicates skipped",
-    "importInvalidSkipped": "{count} invalid entries skipped",
-    "importFailed": "Import failed",
-    "importInvalidFormat": "Invalid JSON format",
-    "apiEndpointTitle": "API Endpoint: {name}",
-    "apiEndpointDescription": "Use this endpoint to record intakes via API (e.g., iPhone Shortcut or cron job).",
-    "apiEndpointActive": "API endpoint active",
-    "apiEndpointActivated": "API endpoint activated",
-    "apiEndpointDeactivated": "API endpoint deactivated",
-    "apiTokenCount": "Active ({count} tokens)",
-    "apiToken": "API Token",
-    "apiTokenActiveHint": "Endpoint is active. Existing tokens remain valid but cannot be shown in plain text again.",
-    "apiTokenActivateHint": "Activate the endpoint to create a new token.",
-    "apiTokenOnceHint": "The token is only shown in plain text once at creation.",
-    "requestExample": "Request example",
-    "statusLoadFailed": "Could not load status",
-    "changeFailed": "Change failed",
+    "importIntakes": "Importer les prises",
+    "importDescription": "Collez un tableau JSON contenant les données de prises. Format attendu :",
+    "importUploadFile": "Téléverser un fichier JSON",
+    "importPaste": "Collez le JSON ici...",
+    "importSelected": "Sélectionné : {name}",
+    "importFileLoaded": "Fichier « {name} » chargé",
+    "importInvalidJson": "Le fichier ne contient pas de JSON valide",
+    "importNoArray": "Aucun tableau trouvé",
+    "importResult": "{imported} prises importées",
+    "importDuplicatesSkipped": "{count} doublons ignorés",
+    "importInvalidSkipped": "{count} entrées non valides ignorées",
+    "importFailed": "Échec de l’importation",
+    "importInvalidFormat": "Format JSON non valide",
+    "apiEndpointTitle": "Point de terminaison API : {name}",
+    "apiEndpointDescription": "Utilisez ce point de terminaison pour enregistrer des prises via l’API (par exemple un Raccourci iPhone ou une tâche cron).",
+    "apiEndpointActive": "Point de terminaison API actif",
+    "apiEndpointActivated": "Point de terminaison API activé",
+    "apiEndpointDeactivated": "Point de terminaison API désactivé",
+    "apiTokenCount": "Actif ({count} jetons)",
+    "apiToken": "Jeton API",
+    "apiTokenActiveHint": "Le point de terminaison est actif. Les jetons existants restent valides mais ne peuvent plus être affichés en texte clair.",
+    "apiTokenActivateHint": "Activez le point de terminaison pour créer un nouveau jeton.",
+    "apiTokenOnceHint": "Le jeton n’est affiché en texte clair qu’une seule fois, lors de sa création.",
+    "requestExample": "Exemple de requête",
+    "statusLoadFailed": "Impossible de charger le statut",
+    "changeFailed": "Échec de la modification",
     "categoryBloodPressure": "Tension artérielle",
     "categoryVitamin": "Vitamines",
     "categoryThyroid": "Thyroïde",
@@ -594,7 +600,7 @@
     "categorySkin": "Soin de la peau",
     "categorySleepAid": "Aide au sommeil",
     "categoryDiabetes": "Diabetes",
-    "categoryAntibiotic": "Antibiotic",
+    "categoryAntibiotic": "Antibiotique",
     "categoryOther": "Autres",
     "daysSun": "Dim",
     "daysMon": "Lun",
@@ -622,6 +628,10 @@
     "skipped": "Sauté",
     "intakeToastTaken": "{name} enregistré comme pris",
     "intakeToastSkipped": "{name} sauté",
+    "intakeToastFailed": "Impossible d'enregistrer {name} — réessayez",
+    "intakeUndo": "Annuler",
+    "intakeUndone": "Entrée annulée",
+    "intakeUndoFailed": "Annulation impossible — corrigez dans l'historique",
     "weekdaySunday": "Dimanche",
     "weekdayMonday": "Lundi",
     "weekdayTuesday": "Mardi",
@@ -691,7 +701,7 @@
         "glp1Specific": "Spécifique GLP-1"
       },
       "entries": {
-        "nausea": "Nausée",
+        "nausea": "Nausées",
         "vomiting": "Vomissement",
         "diarrhea": "Diarrhée",
         "constipation": "Constipation",
@@ -739,48 +749,48 @@
       },
       "cadence": {
         "section": "Cadence",
-        "label": "How often",
+        "label": "À quelle fréquence",
         "kind": {
-          "daily": "Every day",
-          "weekdays": "Certain days of the week",
-          "everyNWeeks": "Every N weeks on certain days",
-          "monthly": "Monthly on a specific day",
-          "everyNMonths": "Every N months on a specific day",
-          "yearly": "Once a year",
-          "rolling": "Every N days from when I last took it (flexible)",
-          "rollingExplainer": "Counts from your last logged intake — pauses if you skip a dose.",
-          "oneShot": "One-time dose"
+          "daily": "Chaque jour",
+          "weekdays": "Certains jours de la semaine",
+          "everyNWeeks": "Toutes les N semaines certains jours",
+          "monthly": "Chaque mois un jour précis",
+          "everyNMonths": "Tous les N mois un jour précis",
+          "yearly": "Une fois par an",
+          "rolling": "Tous les N jours depuis la dernière prise (flexible)",
+          "rollingExplainer": "Compte à partir de votre dernière prise enregistrée — se met en pause si vous sautez une dose.",
+          "oneShot": "Dose unique"
         },
         "weekdays": {
-          "label": "Days of the week",
+          "label": "Jours de la semaine",
           "short": {
             "mo": "Mo",
-            "tu": "Tu",
-            "we": "We",
-            "th": "Th",
+            "tu": "Ma",
+            "we": "Me",
+            "th": "Je",
             "fr": "Fr",
             "sa": "Sa",
-            "su": "Su"
+            "su": "Di"
           },
           "long": {
-            "mo": "Monday",
-            "tu": "Tuesday",
-            "we": "Wednesday",
-            "th": "Thursday",
-            "fr": "Friday",
-            "sa": "Saturday",
-            "su": "Sunday"
+            "mo": "Lundi",
+            "tu": "Mardi",
+            "we": "Mercredi",
+            "th": "Jeudi",
+            "fr": "Vendredi",
+            "sa": "Samedi",
+            "su": "Dimanche"
           }
         },
         "intervalWeeks": {
-          "suffix": "weeks"
+          "suffix": "semaines"
         },
         "dayOfMonth": {
-          "label": "Day"
+          "label": "Jour"
         },
         "intervalMonths": {
-          "suffix": "months",
-          "dayOnLabel": "on day"
+          "suffix": "mois",
+          "dayOnLabel": "le jour"
         },
         "yearly": {
           "date": {
@@ -788,91 +798,91 @@
           }
         },
         "rollingDays": {
-          "suffix": "days"
+          "suffix": "jours"
         }
       },
       "timesOfDay": {
-        "section": "Times of day",
-        "label": "Times of day",
+        "section": "Heures de la journée",
+        "label": "Heures de la journée",
         "empty": {
-          "cta": "Add the first time."
+          "cta": "Ajoutez la première heure."
         },
-        "add": "Add time",
-        "remove": "Remove",
+        "add": "Ajouter une heure",
+        "remove": "Retirer",
         "presets": {
-          "morning": "Morning",
-          "noon": "Noon",
-          "evening": "Evening",
-          "night": "Night"
+          "morning": "Matin",
+          "noon": "Midi",
+          "evening": "Soir",
+          "night": "Nuit"
         },
         "max": {
-          "reached": "Maximum reached — remove a time before adding another."
+          "reached": "Maximum atteint — retirez une heure avant d’en ajouter une autre."
         }
       },
       "courseWindow": {
-        "section": "Course window",
+        "section": "Période de traitement",
         "startsOn": {
-          "label": "Starts on"
+          "label": "Commence le"
         },
         "endsOn": {
-          "label": "Ends on"
+          "label": "Se termine le"
         },
-        "noEndDate": "No end date",
-        "oneShotCaption": "(one-time dose)",
-        "invalidRange": "End date must be on or after the start date."
+        "noEndDate": "Pas de date de fin",
+        "oneShotCaption": "(dose unique)",
+        "invalidRange": "La date de fin doit être égale ou postérieure à la date de début."
       }
     },
     "wizard": {
       "header": {
-        "stepOf": "Step {current} of {total}",
-        "createTitle": "New medication",
-        "editTitle": "Edit {name}"
+        "stepOf": "Étape {current} sur {total}",
+        "createTitle": "Nouveau médicament",
+        "editTitle": "Modifier {name}"
       },
       "nav": {
-        "back": "Back",
-        "next": "Next",
-        "save": "Save",
-        "saveEdit": "Save changes",
+        "back": "Retour",
+        "next": "Suivant",
+        "save": "Enregistrer",
+        "saveEdit": "Enregistrer les modifications",
         "nextHint": "Suivant : {step}",
         "reviewHint": "Suivant : Enregistrer",
         "jumpFirst": "Aller à la première étape",
         "jumpLast": "Aller à la vérification et à l’enregistrement"
       },
       "nl": {
-        "button": "Describe"
+        "button": "Décrire"
       },
       "steps": {
         "step1": {
-          "title": "What's the medication called?",
-          "subline": "Exactly as it appears on the box.",
+          "title": "Comment s’appelle le médicament ?",
+          "subline": "Exactement comme indiqué sur la boîte.",
           "label": "Name",
-          "placeholder": "e.g. Ramipril",
+          "placeholder": "par exemple Ramipril",
           "short": "Nom"
         },
         "step2": {
-          "title": "What kind of medication is it?",
-          "subline": "We use this for the right templates and analytics.",
+          "title": "De quel type de médicament s’agit-il ?",
+          "subline": "Nous l’utilisons pour les bons modèles et analyses.",
           "short": "Type"
         },
         "step3": {
-          "title": "What's the dose?",
-          "subline": "A tablet, a puff, a drop — depending on the form.",
-          "amountLabel": "Amount",
-          "amountPlaceholder": "e.g. 5",
-          "unitLabel": "Unit",
+          "title": "Quelle est la dose ?",
+          "subline": "Un comprimé, une bouffée, une goutte — selon la forme.",
+          "amountLabel": "Quantité",
+          "amountPlaceholder": "par exemple 5",
+          "unitLabel": "Unité",
           "unit": {
             "mg": "mg",
             "ml": "ml",
-            "iu": "IU",
+            "iu": "UI",
             "mcg": "µg",
             "g": "g",
-            "tablets": "tablet(s)",
-            "capsules": "capsule(s)",
-            "drops": "drops",
-            "puffs": "puff",
-            "sprays": "spray",
-            "pieces": "pieces",
-            "other": "other"
+            "tablets": "comprimé(s)",
+            "capsules": "gélule(s)",
+            "drops": "gouttes",
+            "puffs": "bouffée",
+            "sprays": "pulvérisation",
+            "pieces": "pièces",
+            "other": "autre"
           },
           "deliveryFormLabel": "Voie",
           "deliveryForm": {
@@ -888,124 +898,124 @@
           "short": "Dose"
         },
         "step4": {
-          "title": "Over what period are you taking it?",
-          "subline": "A start date is enough for today. You can add an end date later.",
+          "title": "Sur quelle période le prenez-vous ?",
+          "subline": "Une date de début suffit pour aujourd’hui. Vous pourrez ajouter une date de fin plus tard.",
           "short": "Quand"
         },
         "step5": {
-          "title": "How often do you take it?",
-          "subline": "Pick the cadence — the details follow on the next step.",
+          "title": "À quelle fréquence le prenez-vous ?",
+          "subline": "Choisissez la cadence — les détails suivent à l’étape suivante.",
           "short": "Fréquence"
         },
         "step6": {
-          "title": "What does that look like in detail?",
-          "subline": "Set weekdays, intervals, or the day of the month.",
+          "title": "À quoi cela ressemble-t-il en détail ?",
+          "subline": "Indiquez les jours de la semaine, les intervalles ou le jour du mois.",
           "intervalWeeks": {
-            "label": "Every",
-            "suffix": "weeks"
+            "label": "Toutes les",
+            "suffix": "semaines"
           },
           "dayOfMonth": {
-            "label": "On",
-            "suffix": "day of the month"
+            "label": "Le",
+            "suffix": "jour du mois"
           },
           "rollingDays": {
-            "label": "Every",
-            "suffix": "days from the last intake"
+            "label": "Tous les",
+            "suffix": "jours depuis la dernière prise"
           },
           "short": "Détail"
         },
         "step7": {
-          "title": "When do you take it?",
-          "subline": "One or more times of day — reminders follow this list.",
-          "presetsLabel": "Time-of-day presets",
+          "title": "Quand le prenez-vous ?",
+          "subline": "Une ou plusieurs heures de la journée — les rappels suivent cette liste.",
+          "presetsLabel": "Préréglages par moment de la journée",
           "presets": {
-            "morning": "Morning",
-            "noon": "Noon",
-            "evening": "Evening",
-            "night": "Night"
+            "morning": "Matin",
+            "noon": "Midi",
+            "evening": "Soir",
+            "night": "Nuit"
           },
           "short": "Heures"
         },
         "step8": {
-          "title": "All done — should HealthLog remind you?",
-          "subline": "Review everything below before you save.",
-          "remindersLabel": "Reminders on",
-          "remindersDescription": "Push, Telegram or ntfy — based on your settings.",
-          "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release.",
+          "title": "Terminé — HealthLog doit-il vous le rappeler ?",
+          "subline": "Vérifiez tout ci-dessous avant d’enregistrer.",
+          "remindersLabel": "Rappels activés",
+          "remindersDescription": "Push, Telegram ou ntfy — selon vos réglages.",
+          "multiScheduleNote": "Ce médicament a plusieurs horaires. L’éditeur détaillé reviendra dans une version ultérieure.",
           "short": "Fini"
         }
       },
       "classRow": {
-        "bloodPressure": "Blood pressure",
+        "bloodPressure": "Tension artérielle",
         "diabetes": "Diabetes",
         "hormone": "Hormones",
-        "glp1": "GLP-1 injection",
-        "painRelief": "Pain",
-        "allergy": "Allergy",
-        "vitamin": "Vitamins",
-        "supplement": "Supplement",
-        "antibiotic": "Antibiotic",
-        "other": "Other"
+        "glp1": "Injection de GLP-1",
+        "painRelief": "Douleur",
+        "allergy": "Allergie",
+        "vitamin": "Vitamines",
+        "supplement": "Complément",
+        "antibiotic": "Antibiotique",
+        "other": "Autre"
       },
       "cadence": {
         "daily": {
-          "label": "Daily",
-          "description": "Every day at the same time."
+          "label": "Quotidien",
+          "description": "Chaque jour à la même heure."
         },
         "weekdays": {
-          "label": "Specific weekdays",
-          "description": "E.g. Monday, Wednesday, Friday."
+          "label": "Jours précis de la semaine",
+          "description": "Par exemple lundi, mercredi, vendredi."
         },
         "everyNWeeks": {
-          "label": "Every few weeks",
-          "description": "E.g. every 2 weeks on Thursdays (GLP-1, biologics)."
+          "label": "Toutes les quelques semaines",
+          "description": "Par exemple toutes les 2 semaines le jeudi (GLP-1, biologiques)."
         },
         "monthly": {
-          "label": "Monthly",
-          "description": "On a fixed day each month (e.g. always the 1st)."
+          "label": "Mensuel",
+          "description": "Un jour fixe chaque mois (par exemple toujours le 1er)."
         },
         "rolling": {
-          "label": "Flexible from last dose",
-          "description": "Leave the next dose open. When you tap 'taken', the counter starts again from that moment."
+          "label": "Flexible depuis la dernière dose",
+          "description": "Laissez la prochaine dose ouverte. Quand vous appuyez sur « pris », le compteur repart à partir de ce moment."
         },
         "oneShot": {
-          "label": "Single dose",
-          "description": "One administration, e.g. a vaccine or an antibiotic course."
+          "label": "Dose unique",
+          "description": "Une seule administration, par exemple un vaccin ou une cure d’antibiotique."
         }
       },
       "summary": {
-        "title": "Summary",
+        "title": "Résumé",
         "cadence": {
-          "daily": "Every day",
-          "weekdays": "On selected days of the week",
-          "biweekly": "Every two weeks",
-          "monthly": "Monthly",
-          "quarterly": "Every three months",
-          "yearly": "Once a year",
-          "rolling": "Every {n} days from your last intake",
-          "oneShot": "A single dose",
-          "everyNWeeks": "Every {n} weeks",
-          "everyNMonths": "Every {n} months"
+          "daily": "Chaque jour",
+          "weekdays": "Les jours de la semaine sélectionnés",
+          "biweekly": "Toutes les deux semaines",
+          "monthly": "Mensuel",
+          "quarterly": "Tous les trois mois",
+          "yearly": "Une fois par an",
+          "rolling": "Tous les {n} jours depuis votre dernière prise",
+          "oneShot": "Une dose unique",
+          "everyNWeeks": "Toutes les {n} semaines",
+          "everyNMonths": "Tous les {n} mois"
         },
-        "weekdaysDetail": ", on {days}",
-        "dayOfMonthDetail": ", on day {day}.",
-        "times": "at {times}",
-        "startsOn": "Starts: {date}",
-        "endsOn": "Ends: {date}",
-        "noEndDate": "No end date"
+        "weekdaysDetail": ", le {days}",
+        "dayOfMonthDetail": ", le {day}.",
+        "times": "à {times}",
+        "startsOn": "Début : {date}",
+        "endsOn": "Fin : {date}",
+        "noEndDate": "Pas de date de fin"
       },
       "compose": {
-        "scheduleIndex": "Schedule {n} of {total}",
+        "scheduleIndex": "Horaire {n} sur {total}",
         "list": {
-          "add": "Add another schedule",
-          "edit": "Edit",
-          "remove": "Remove",
-          "removeDisabled": "At least one schedule is required.",
-          "empty": "No schedule yet."
+          "add": "Ajouter un autre horaire",
+          "edit": "Modifier",
+          "remove": "Retirer",
+          "removeDisabled": "Au moins un horaire est requis.",
+          "empty": "Pas encore d’horaire."
         }
       },
       "errors": {
-        "submitFailed": "Could not save the medication — please retry."
+        "submitFailed": "Impossible d’enregistrer le médicament — veuillez réessayer."
       }
     },
     "doseStrength": {
@@ -1160,88 +1170,88 @@
     },
     "detail": {
       "status": {
-        "active": "Active",
-        "paused": "Paused",
-        "ended": "Ended"
+        "active": "Actif",
+        "paused": "En pause",
+        "ended": "Terminé"
       },
       "today": {
-        "groupLabel": "Today's dose",
-        "taken": "Taken",
-        "skipped": "Skipped",
-        "toastTaken": "Today's dose logged",
-        "toastSkipped": "Today's dose skipped",
-        "recordedTaken": "Taken today at {time}",
-        "recordedSkipped": "Skipped today at {time}",
-        "recordedOneShot": "One-shot dose taken at {time}",
-        "noneScheduled": "No dose scheduled for today.",
-        "pausedHint": "Paused — no reminder today.",
-        "error": "Could not log the dose."
+        "groupLabel": "Dose du jour",
+        "taken": "Pris",
+        "skipped": "Sauté",
+        "toastTaken": "Dose du jour enregistrée",
+        "toastSkipped": "Dose du jour sautée",
+        "recordedTaken": "Prise aujourd’hui à {time}",
+        "recordedSkipped": "Sautée aujourd’hui à {time}",
+        "recordedOneShot": "Dose unique prise à {time}",
+        "noneScheduled": "Aucune dose prévue aujourd’hui.",
+        "pausedHint": "En pause — pas de rappel aujourd’hui.",
+        "error": "Impossible d’enregistrer la dose."
       },
       "cadence": {
-        "oneShotOn": "One-time dose on {date}.",
-        "oneShotPending": "One-time dose pending."
+        "oneShotOn": "Dose unique le {date}.",
+        "oneShotPending": "Dose unique en attente."
       },
       "intake": {
-        "title": "Intake history",
-        "importButton": "Import",
+        "title": "Historique des prises",
+        "importButton": "Importer",
         "rowActions": {
-          "openMenu": "Open row actions",
-          "edit": "Edit",
-          "delete": "Delete"
+          "openMenu": "Ouvrir les actions de la ligne",
+          "edit": "Modifier",
+          "delete": "Supprimer"
         },
         "selection": {
-          "rowToggleLabel": "Select row"
+          "rowToggleLabel": "Sélectionner la ligne"
         },
         "bulkDelete": {
-          "selectionCount": "{count} entries selected",
-          "deleteButton": "Delete selection",
-          "cancelButton": "Cancel",
-          "confirmTitle": "Delete the selected entries?",
-          "confirmBody": "{count} entries will be removed permanently. The medication itself stays.",
-          "confirmAction": "Delete",
-          "toast": "Selection deleted",
-          "failed": "Could not delete the selection."
+          "selectionCount": "{count} entrées sélectionnées",
+          "deleteButton": "Supprimer la sélection",
+          "cancelButton": "Annuler",
+          "confirmTitle": "Supprimer les entrées sélectionnées ?",
+          "confirmBody": "{count} entrées seront supprimées définitivement. Le médicament est conservé.",
+          "confirmAction": "Supprimer",
+          "toast": "Sélection supprimée",
+          "failed": "Impossible de supprimer la sélection."
         },
         "edit": {
-          "dialogTitle": "Edit intake",
-          "takenAtLabel": "Taken at",
-          "skippedLabel": "Skipped",
+          "dialogTitle": "Modifier la prise",
+          "takenAtLabel": "Prise à",
+          "skippedLabel": "Sautée",
           "noteLabel": "Note",
-          "save": "Save",
-          "cancel": "Cancel",
-          "savedToast": "Intake updated",
-          "failed": "Could not update the intake."
+          "save": "Enregistrer",
+          "cancel": "Annuler",
+          "savedToast": "Prise mise à jour",
+          "failed": "Impossible de mettre à jour la prise."
         },
         "deleteRow": {
-          "confirmTitle": "Delete this intake?",
-          "confirmBody": "The entry is removed permanently.",
-          "confirmAction": "Delete",
-          "toast": "Intake deleted",
-          "failed": "Could not delete the intake."
+          "confirmTitle": "Supprimer cette prise ?",
+          "confirmBody": "L’entrée est supprimée définitivement.",
+          "confirmAction": "Supprimer",
+          "toast": "Prise supprimée",
+          "failed": "Impossible de supprimer la prise."
         }
       },
       "notifications": {
-        "title": "Notifications",
-        "switchLabel": "Send a reminder when this dose is due",
-        "helperOn": "Reminders are on.",
-        "helperOff": "Reminders are off.",
-        "enabledToast": "Reminders on",
-        "disabledToast": "Reminders off",
-        "toggleFailed": "Could not change the reminder setting.",
-        "clientManagedChip": "Your iPhone manages reminders for this medication."
+        "title": "Rappels",
+        "switchLabel": "Envoyer un rappel lorsque cette dose est due",
+        "helperOn": "Les rappels sont activés.",
+        "helperOff": "Les rappels sont désactivés.",
+        "enabledToast": "Rappels activés",
+        "disabledToast": "Rappels désactivés",
+        "toggleFailed": "Impossible de modifier le réglage des rappels.",
+        "clientManagedChip": "Votre iPhone gère les rappels de ce médicament."
       },
       "settings": {
-        "title": "Settings",
+        "title": "Réglages",
         "phases": {
-          "openButton": "Configure phases",
-          "requiresCourseWindow": "Phases are available once a course window is set."
+          "openButton": "Configurer les phases",
+          "requiresCourseWindow": "Les phases sont disponibles une fois une période de traitement définie."
         },
         "grace": {
-          "label": "Reminder window — applies to your primary schedule",
-          "primaryScheduleNote": "Multi-schedule medications keep their other schedules' default window.",
+          "label": "Fenêtre de rappel — s’applique à votre horaire principal",
+          "primaryScheduleNote": "Les médicaments à horaires multiples conservent la fenêtre par défaut de leurs autres horaires.",
           "unit": "minutes",
-          "saved": "Reminder window saved",
-          "failed": "Could not save the reminder window."
+          "saved": "Fenêtre de rappel enregistrée",
+          "failed": "Impossible d’enregistrer la fenêtre de rappel."
         },
         "codes": {
           "label": "Codes cliniques (ATC / RxNorm)",
@@ -1253,57 +1263,57 @@
         }
       },
       "zone": {
-        "title": "Manage & danger zone",
+        "title": "Gestion et zone à risque",
         "pause": {
-          "title": "Pause",
-          "helper": "Pause reminders until you turn them back on. History stays intact.",
-          "pausedToast": "Reminders paused",
-          "resumedToast": "Reminders resumed",
-          "failed": "Could not change the paused state."
+          "title": "Mettre en pause",
+          "helper": "Mettez les rappels en pause jusqu’à ce que vous les réactiviez. L’historique est conservé.",
+          "pausedToast": "Rappels mis en pause",
+          "resumedToast": "Rappels réactivés",
+          "failed": "Impossible de modifier l’état de pause."
         },
         "end": {
-          "title": "End medication",
-          "helper": "Stop reminders and mark the medication as ended. History stays visible.",
-          "button": "End",
-          "dialogTitle": "End {name} — stop reminders, history stays visible",
-          "dialogBody": "No more reminders. Old entries remain in the timeline.",
-          "toast": "Medication ended",
-          "failed": "Could not end the medication."
+          "title": "Terminer le médicament",
+          "helper": "Arrête les rappels et marque le médicament comme terminé. L’historique reste visible.",
+          "button": "Terminer",
+          "dialogTitle": "Terminer {name} — arrête les rappels, l’historique reste visible",
+          "dialogBody": "Plus de rappels. Les anciennes entrées restent dans la chronologie.",
+          "toast": "Médicament terminé",
+          "failed": "Impossible de terminer le médicament."
         },
         "purge": {
-          "title": "Delete history",
-          "helper": "{count} intake events are stored for this medication.",
-          "button": "Delete history",
-          "dialogTitle": "Really delete the history?",
-          "dialogBody": "The {count} intake events will be removed permanently. The medication itself stays.",
-          "toast": "History deleted",
-          "failed": "Could not delete the history."
+          "title": "Supprimer l’historique",
+          "helper": "{count} prises sont enregistrées pour ce médicament.",
+          "button": "Supprimer l’historique",
+          "dialogTitle": "Supprimer vraiment l’historique ?",
+          "dialogBody": "Les {count} prises seront supprimées définitivement. Le médicament est conservé.",
+          "toast": "Historique supprimé",
+          "failed": "Impossible de supprimer l’historique."
         },
         "delete": {
-          "title": "Delete medication",
-          "helper": "Removes the medication and every related record.",
-          "button": "Delete",
-          "dialogTitle": "Delete {name}?",
-          "dialogBody": "The medication, its schedules, intake history, API tokens, phase config and reminders will be removed permanently.",
-          "toast": "Medication deleted",
-          "failed": "Could not delete the medication."
+          "title": "Supprimer le médicament",
+          "helper": "Supprime le médicament et tous les enregistrements associés.",
+          "button": "Supprimer",
+          "dialogTitle": "Supprimer {name} ?",
+          "dialogBody": "Le médicament, ses horaires, l’historique des prises, les jetons API, la configuration des phases et les rappels seront supprimés définitivement.",
+          "toast": "Médicament supprimé",
+          "failed": "Impossible de supprimer le médicament."
         }
       },
       "phases": {
-        "modeLabel": "{phase} mode",
-        "saveFailed": "Could not save the reminder phases."
+        "modeLabel": "Mode {phase}",
+        "saveFailed": "Impossible d’enregistrer les phases de rappel."
       },
       "api": {
-        "caption": "Endpoint for \"{name}\"",
-        "copyUrl": "Copy URL",
-        "urlCopied": "URL copied",
-        "mintToken": "Mint token",
-        "mintAnotherToken": "Mint another token",
-        "mintFailed": "Could not mint a token.",
-        "copyFailed": "Could not copy.",
-        "tokenCopied": "Token copied",
-        "copyToken": "Copy token",
-        "mintedHint": "Copy this token now — it is shown only once."
+        "caption": "Point de terminaison pour « {name} »",
+        "copyUrl": "Copier l’URL",
+        "urlCopied": "URL copiée",
+        "mintToken": "Générer un jeton",
+        "mintAnotherToken": "Générer un autre jeton",
+        "mintFailed": "Impossible de générer un jeton.",
+        "copyFailed": "Impossible de copier.",
+        "tokenCopied": "Jeton copié",
+        "copyToken": "Copier le jeton",
+        "mintedHint": "Copiez ce jeton maintenant — il n’est affiché qu’une seule fois."
       },
       "edit": {
         "planOption": "Modifier le plan",
@@ -1518,6 +1528,7 @@
       "feedbackThanks": "Merci pour ton retour",
       "feedbackConfirmed": "Retour enregistré",
       "feedbackAlreadyRated": "Déjà noté",
+      "feedbackError": "Impossible d’enregistrer votre retour. Réessayez.",
       "confidence": "Confiance",
       "confidenceAria": "Confiance : {value} sur 100",
       "confidenceHigh": "Confiance élevée",
@@ -1539,6 +1550,7 @@
     "regenerateAnalysis": "Relancer l’analyse",
     "regenerateSuccess": "Analyse regénérée",
     "warmAssessments": "Préparer les évaluations",
+    "warmAssessmentsHint": "Les évaluations sont actualisées automatiquement pendant la nuit. Préparez-les maintenant pour voir les dernières données.",
     "warmStarted": "Les évaluations sont en cours de préparation en arrière-plan",
     "narrativeTitle": "Votre période en revue",
     "narrativeWeek": "Cette semaine",
@@ -1696,6 +1708,7 @@
       "tagline": "Coach personnel de santé, ancré sur tes données.",
       "newChat": "Nouvelle conversation",
       "send": "Envoyer",
+      "stop": "Arrêter",
       "thinking": "Réflexion en cours…",
       "composerPlaceholder": "Pose-moi une question sur tes données…",
       "composerHint": "Entrée pour envoyer, Maj+Entrée pour une nouvelle ligne.",
@@ -2784,19 +2797,19 @@
       "loadError": "Impossible de charger les notifications de votre appareil.",
       "disclaimer": "Ce sont des alertes que votre appareil a produites avec sa propre détection intégrée. Elles sont affichées ici uniquement à titre informatif. Il ne s’agit pas d’une évaluation médicale de HealthLog, et HealthLog ne pose aucun diagnostic. Si une notification vous inquiète, parlez-en à votre médecin.",
       "event": {
-        "irregularRhythm": "Irregular rhythm notification",
-        "highHeartRate": "High heart rate notification",
-        "lowHeartRate": "Low heart rate notification",
-        "walkingSteadiness": "Walking steadiness alert",
-        "breathingDisturbance": "Breathing disturbance during sleep"
+        "irregularRhythm": "Notification de rythme irrégulier",
+        "highHeartRate": "Notification de fréquence cardiaque élevée",
+        "lowHeartRate": "Notification de fréquence cardiaque basse",
+        "walkingSteadiness": "Alerte de stabilité à la marche",
+        "breathingDisturbance": "Trouble respiratoire pendant le sommeil"
       },
       "verdict": {
-        "irregular": "Your device flagged a possible irregular rhythm.",
-        "notDetected": "Your device did not flag an irregular rhythm.",
-        "inconclusive": "Your device could not make a reading.",
-        "low": "Your device flagged low walking steadiness.",
-        "veryLow": "Your device flagged very low walking steadiness.",
-        "fired": "Your device flagged this event."
+        "irregular": "Votre appareil a détecté un possible rythme irrégulier.",
+        "notDetected": "Votre appareil n’a pas détecté de rythme irrégulier.",
+        "inconclusive": "Votre appareil n’a pas pu effectuer de mesure.",
+        "low": "Votre appareil a détecté une faible stabilité à la marche.",
+        "veryLow": "Votre appareil a détecté une très faible stabilité à la marche.",
+        "fired": "Votre appareil a signalé cet événement."
       }
     }
   },
@@ -2998,24 +3011,24 @@
       "disableError": "Impossible de désactiver le mode Recherche. Veuillez réessayer."
     },
     "shell": {
-      "sectionsNav": "Settings sections"
+      "sectionsNav": "Sections des réglages"
     },
     "sections": {
       "account": {
         "title": "Compte",
-        "description": "Profile, password, passkeys, and your onboarding tour."
+        "description": "Profil, mot de passe, clés d’accès et votre visite guidée."
       },
       "integrations": {
         "title": "Intégrations",
-        "description": "Withings, moodLog, and other connected services."
+        "description": "Withings, moodLog et autres services connectés."
       },
       "notifications": {
         "title": "Notifications",
-        "description": "Live overview of every configured channel."
+        "description": "Aperçu en direct de chaque canal configuré."
       },
       "dashboard": {
         "title": "Tableau de bord",
-        "description": "Tile layout and order."
+        "description": "Disposition et ordre des tuiles."
       },
       "thresholds": {
         "title": "Objectifs",
@@ -3078,12 +3091,12 @@
         }
       },
       "ai": {
-        "title": "AI Insights",
-        "description": "Provider, model, key."
+        "title": "Analyses IA",
+        "description": "Fournisseur, modèle, clé."
       },
       "api": {
         "title": "API & Tokens",
-        "description": "Bearer tokens for your own scripts and apps — log measurements or medication intake from anywhere."
+        "description": "Jetons Bearer pour vos propres scripts et applis — enregistrez des mesures ou des prises de médicaments depuis n’importe où."
       },
       "advanced": {
         "title": "Avancé",
@@ -3091,8 +3104,9 @@
       },
       "export": {
         "title": "Exporter",
-        "description": "Download your health data as PDF, CSV, or a full JSON backup.",
+        "description": "Téléchargez vos données de santé en PDF, CSV ou sauvegarde JSON complète.",
         "otherOptionsHeading": "Autres options d'export",
+        "downloadFailed": "Échec du téléchargement de l'export. Veuillez réessayer.",
         "hero": {
           "eyebrow": "Rendez-vous médical",
           "valueStatement": "Un rapport PDF imprimable pour votre rendez-vous médical — constantes, IMC, classification de tension, observance des traitements et (en option) historique de l'humeur, en quelques pages.",
@@ -3100,39 +3114,39 @@
           "formatHint": "PDF · prêt à imprimer"
         },
         "actions": {
-          "download": "Download"
+          "download": "Télécharger"
         },
         "filters": {
           "since": "De",
-          "until": "Until"
+          "until": "Jusqu’au"
         },
         "cards": {
           "doctorReport": {
-            "title": "Doctor Report",
-            "description": "Printable PDF for the doctor's appointment — vitals, BMI, BP classification, medication compliance, mood."
+            "title": "Rapport médical",
+            "description": "PDF imprimable pour le rendez-vous médical — constantes, IMC, classification de la tension, observance des traitements, humeur."
           },
           "measurementsCsv": {
-            "title": "Measurements",
-            "description": "Weight, blood pressure, pulse, glucose, and every other measurement as comma-separated values."
+            "title": "Mesures",
+            "description": "Poids, tension artérielle, pouls, glycémie et toutes les autres mesures en valeurs séparées par des virgules."
           },
           "medicationsCsv": {
             "title": "Médicaments",
-            "description": "Your medication list with dosage, schedules, and (optionally) the full intake history.",
-            "includeIntake": "Include intake history"
+            "description": "Votre liste de médicaments avec posologie, horaires et (en option) l’historique complet des prises.",
+            "includeIntake": "Inclure l’historique des prises"
           },
           "moodCsv": {
             "title": "Humeur",
-            "description": "Daily mood entries with score, tags, and timestamps."
+            "description": "Entrées d’humeur quotidiennes avec score, étiquettes et horodatages."
           },
           "fullBackup": {
-            "title": "Full backup",
-            "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload."
+            "title": "Sauvegarde complète",
+            "description": "Un seul fichier JSON contenant tout — même format que la sauvegarde automatique hebdomadaire. Utile pour une restauration personnelle via le téléversement administrateur."
           }
         }
       },
       "about": {
-        "title": "About",
-        "description": "Version, license, links."
+        "title": "À propos",
+        "description": "Version, licence, liens."
       },
       "sharing": {
         "title": "Partage",
@@ -3141,20 +3155,20 @@
     },
     "profile": "Profil",
     "language": "Langue",
-    "languageDescription": "Choose the display language of the application.",
+    "languageDescription": "Choisissez la langue d’affichage de l’application.",
     "username": "Nom d'utilisateur",
-    "height": "Height (cm)",
+    "height": "Taille (cm)",
     "dateOfBirth": "Date de naissance",
-    "dateOfBirthHint": "Used for automatic blood pressure target calculations.",
+    "dateOfBirthHint": "Utilisé pour le calcul automatique des objectifs de tension artérielle.",
     "gender": "Sexe",
-    "genderNone": "Not specified",
+    "genderNone": "Non précisé",
     "genderMale": "Homme",
     "genderFemale": "Femme",
-    "genderHint": "Used for gender-specific target values.",
+    "genderHint": "Utilisé pour des valeurs cibles spécifiques au sexe.",
     "timezone": "Fuseau horaire",
-    "timezoneHint": "Used for chart axis labels, reminder times, export timestamps, and Coach context. Stored data is unchanged.",
-    "timezoneInvalid": "Not a valid IANA timezone.",
-    "profileSaved": "Profile saved",
+    "timezoneHint": "Utilisé pour les libellés des axes des graphiques, les heures de rappel, les horodatages d’export et le contexte du Coach. Les données stockées restent inchangées.",
+    "timezoneInvalid": "Fuseau horaire IANA non valide.",
+    "profileSaved": "Profil enregistré",
     "avatar": {
       "title": "Photo de profil",
       "description": "Téléverse une photo stockée sur ton propre serveur. Elle apparaît dans toute l'application à la place d'un service d'avatar externe.",
@@ -3168,174 +3182,174 @@
       "tooLarge": "L'image dépasse la limite de 2 Mo.",
       "error": "Impossible de mettre à jour la photo de profil. Réessaie."
     },
-    "changePassword": "Change password",
-    "changePasswordDescription": "Replace your current password with a new one.",
-    "passwordReset": "Password reset",
-    "currentPassword": "Current password",
-    "newPassword": "New password",
-    "confirmNewPassword": "Confirm new password",
-    "passwordMismatch": "New passwords do not match",
-    "passwordUpdated": "Password updated successfully",
+    "changePassword": "Changer le mot de passe",
+    "changePasswordDescription": "Remplacez votre mot de passe actuel par un nouveau.",
+    "passwordReset": "Réinitialisation du mot de passe",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmNewPassword": "Confirmer le nouveau mot de passe",
+    "passwordMismatch": "Les nouveaux mots de passe ne correspondent pas",
+    "passwordUpdated": "Mot de passe mis à jour",
     "passkeys": "Passkeys",
-    "registeredPasskeys": "Registered Passkeys",
-    "passkeysDescription": "Passkeys allow secure login without a password.",
+    "registeredPasskeys": "Clés d’accès enregistrées",
+    "passkeysDescription": "Les clés d’accès permettent une connexion sécurisée sans mot de passe.",
     "passkeyName": "Nom",
-    "passkeyDevice": "Device",
+    "passkeyDevice": "Appareil",
     "passkeyBackup": "Backup",
-    "passkeyCreated": "Created",
+    "passkeyCreated": "Créée",
     "passkeyActions": "Actions",
-    "noPasskeys": "No passkeys registered.",
-    "addPasskey": "Add passkey",
-    "passkeyAdded": "Passkey added successfully!",
-    "passkeyOptionsError": "Could not load passkey options",
-    "passkeyRegistrationFailed": "Passkey registration failed",
-    "passkeyRegistrationCancelled": "Passkey registration cancelled",
-    "passkeyNotSupported": "Your browser or device doesn't support passkeys yet. Try a different browser or device.",
-    "passkeyAlreadyRegistered": "This device is already registered as a passkey for your account.",
-    "passkeySecurityBlocked": "Your browser blocked the passkey request for security reasons. Make sure you're on a trusted HTTPS origin and try again.",
-    "passkeyTimeout": "The passkey prompt timed out. Please try again.",
-    "passkeyUnknownError": "Passkey registration failed: {message}",
-    "deletePasskey": "Delete passkey?",
-    "deletePasskeyDescription": "The passkey will be permanently deleted.",
-    "singleDevice": "Single device",
-    "multiDevice": "Multi-device",
-    "backedUp": "backed up",
+    "noPasskeys": "Aucune clé d’accès enregistrée.",
+    "addPasskey": "Ajouter une clé d’accès",
+    "passkeyAdded": "Clé d’accès ajoutée !",
+    "passkeyOptionsError": "Impossible de charger les options de clé d’accès",
+    "passkeyRegistrationFailed": "Échec de l’enregistrement de la clé d’accès",
+    "passkeyRegistrationCancelled": "Enregistrement de la clé d’accès annulé",
+    "passkeyNotSupported": "Votre navigateur ou appareil ne prend pas encore en charge les clés d’accès. Essayez un autre navigateur ou appareil.",
+    "passkeyAlreadyRegistered": "Cet appareil est déjà enregistré comme clé d’accès de votre compte.",
+    "passkeySecurityBlocked": "Votre navigateur a bloqué la demande de clé d’accès pour des raisons de sécurité. Assurez-vous d’être sur une origine HTTPS de confiance et réessayez.",
+    "passkeyTimeout": "La demande de clé d’accès a expiré. Veuillez réessayer.",
+    "passkeyUnknownError": "Échec de l’enregistrement de la clé d’accès : {message}",
+    "deletePasskey": "Supprimer la clé d’accès ?",
+    "deletePasskeyDescription": "La clé d’accès sera définitivement supprimée.",
+    "singleDevice": "Appareil unique",
+    "multiDevice": "Multi-appareils",
+    "backedUp": "sauvegardée",
     "telegram": "Telegram Notifications",
     "telegramDescription": "Get reminders for missed medication intake via Telegram.",
-    "telegramSaved": "Telegram settings saved",
-    "botToken": "Bot Token",
-    "chatId": "Chat ID",
-    "enableNotifications": "Enable notifications",
-    "testMessage": "Test message",
-    "testSent": "Test message sent!",
-    "telegramStep1": "1. Create a bot via @BotFather in Telegram and copy the token.",
-    "telegramStep2": "2. Send /start to your bot to activate the chat.",
-    "telegramStep3": "3. Find your Chat ID via @userinfobot or the Bot API.",
+    "telegramSaved": "Réglages Telegram enregistrés",
+    "botToken": "Jeton du bot",
+    "chatId": "ID du chat",
+    "enableNotifications": "Activer les notifications",
+    "testMessage": "Message de test",
+    "testSent": "Message de test envoyé !",
+    "telegramStep1": "1. Créez un bot via @BotFather dans Telegram et copiez le jeton.",
+    "telegramStep2": "2. Envoyez /start à votre bot pour activer le chat.",
+    "telegramStep3": "3. Trouvez votre ID de chat via @userinfobot ou l’API du bot.",
     "ntfy": "ntfy",
-    "ntfyDescription": "Notifications via ntfy (self-hosted or ntfy.sh).",
-    "ntfyEnable": "Enable ntfy",
-    "ntfyServer": "Server URL",
+    "ntfyDescription": "Notifications via ntfy (auto-hébergé ou ntfy.sh).",
+    "ntfyEnable": "Activer ntfy",
+    "ntfyServer": "URL du serveur",
     "ntfyTopic": "Topic",
-    "ntfyAuthToken": "Auth Token (optional)",
-    "ntfyAuthTokenHint": "Only needed for private topics with access control.",
-    "webPush": "Browser Push",
-    "webPushDescription": "Receive notifications directly in your browser, even when HealthLog is not open.",
-    "webPushNotSupported": "Your browser does not support push notifications.",
-    "webPushDenied": "Push notifications are blocked. Allow them in your browser settings.",
-    "webPushNotConfigured": "Web Push is not configured on the server.",
-    "webPushSubscribe": "Enable push",
-    "webPushUnsubscribe": "Disable push",
-    "webPushSubscribed": "Push notifications enabled!",
-    "webPushUnsubscribed": "Push notifications disabled.",
-    "webPushSubscribeFailed": "Activation failed",
+    "ntfyAuthToken": "Jeton d’authentification (facultatif)",
+    "ntfyAuthTokenHint": "Nécessaire uniquement pour les sujets privés avec contrôle d’accès.",
+    "webPush": "Push navigateur",
+    "webPushDescription": "Recevez des notifications directement dans votre navigateur, même lorsque HealthLog n’est pas ouvert.",
+    "webPushNotSupported": "Votre navigateur ne prend pas en charge les notifications push.",
+    "webPushDenied": "Les notifications push sont bloquées. Autorisez-les dans les réglages de votre navigateur.",
+    "webPushNotConfigured": "Web Push n’est pas configuré sur le serveur.",
+    "webPushSubscribe": "Activer le push",
+    "webPushUnsubscribe": "Désactiver le push",
+    "webPushSubscribed": "Notifications push activées !",
+    "webPushUnsubscribed": "Notifications push désactivées.",
+    "webPushSubscribeFailed": "Échec de l’activation",
     "webPushActive": "Actif",
-    "kiInsightsDescription": "Optional: Save your OpenAI key for daily, automatic evaluations in Insights.",
-    "codexConnected": "ChatGPT connected successfully! Insights are now active.",
-    "codexDisconnected": "ChatGPT connection removed.",
-    "codexConnectionFailed": "ChatGPT connection failed. Please try again.",
-    "rawData": "Send raw data",
-    "rawDataOnDescription": "Aggregated metrics plus anonymized raw points from the last 30 days are sent. This includes per-metric measurements (for example weight, blood pressure, pulse) with time context so the provider can detect patterns, outliers, and correlations more reliably. Name, email, and direct account identifiers are not transmitted.",
-    "rawDataOffDescription": "Only summarized metrics are sent (for example averages, trends, minimum/maximum). No individual points and no exact time context. This is more privacy-preserving, but the provider can be less precise for short-term patterns and fluctuations.",
-    "rawDataWarning": "Raw mode enabled: the provider receives additional anonymized points from the last 30 days for higher analysis accuracy.",
-    "regenerateInsights": "Regenerate reports",
-    "regenerateSuccess": "Reports regenerated successfully",
-    "regenerateRateLimit": "Please wait — you've hit the hourly limit for analyses.",
-    "lastGeneratedAt": "Last generated",
+    "kiInsightsDescription": "Facultatif : enregistrez votre clé OpenAI pour des analyses quotidiennes et automatiques dans Insights.",
+    "codexConnected": "ChatGPT connecté ! Insights est maintenant actif.",
+    "codexDisconnected": "Connexion à ChatGPT supprimée.",
+    "codexConnectionFailed": "Échec de la connexion à ChatGPT. Veuillez réessayer.",
+    "rawData": "Envoyer les données brutes",
+    "rawDataOnDescription": "Des métriques agrégées sont envoyées, ainsi que des points bruts anonymisés des 30 derniers jours. Cela inclut des mesures par métrique (par exemple poids, tension, pouls) avec un contexte temporel, afin que le fournisseur puisse détecter plus fiablement les tendances, les valeurs aberrantes et les corrélations. Le nom, l’e-mail et les identifiants de compte directs ne sont pas transmis.",
+    "rawDataOffDescription": "Seules des métriques résumées sont envoyées (par exemple moyennes, tendances, minimum/maximum). Aucun point individuel ni contexte temporel exact. Cela préserve mieux la vie privée, mais le fournisseur peut être moins précis pour les tendances et fluctuations à court terme.",
+    "rawDataWarning": "Mode brut activé : le fournisseur reçoit des points anonymisés supplémentaires des 30 derniers jours pour une analyse plus précise.",
+    "regenerateInsights": "Régénérer les rapports",
+    "regenerateSuccess": "Rapports régénérés",
+    "regenerateRateLimit": "Veuillez patienter — vous avez atteint la limite horaire d’analyses.",
+    "lastGeneratedAt": "Dernière génération",
     "ai": {
-      "chatgptConnectedBadge": "ChatGPT connected",
-      "adminAiActiveBadge": "Admin provider active",
-      "connectionExpiredBadge": "Connection expired",
-      "connectedSince": "Connected since {when}.",
-      "deviceCodeHeading": "Finish connecting on chatgpt.com",
-      "deviceCodeStep1": "Open this link on any device:",
-      "deviceCodeStep2": "Enter this one-time code:",
-      "deviceCodeStep3": "Approve the connection — this page updates automatically.",
+      "chatgptConnectedBadge": "ChatGPT connecté",
+      "adminAiActiveBadge": "Fournisseur administrateur actif",
+      "connectionExpiredBadge": "Connexion expirée",
+      "connectedSince": "Connecté depuis {when}.",
+      "deviceCodeHeading": "Terminez la connexion sur chatgpt.com",
+      "deviceCodeStep1": "Ouvrez ce lien sur n’importe quel appareil :",
+      "deviceCodeStep2": "Saisissez ce code à usage unique :",
+      "deviceCodeStep3": "Approuvez la connexion — cette page se met à jour automatiquement.",
       "deviceCodeCopy": "Copier",
-      "deviceCodeWaiting": "Waiting for approval…",
+      "deviceCodeWaiting": "En attente d’approbation…",
       "deviceCodeCancel": "Annuler",
-      "oauthNotConfigured": "ChatGPT OAuth is not configured on this instance — use your own API key below instead.",
-      "modelLabel": "Model",
-      "modelOptionDefault": "— Default —",
-      "modelOptionCustom": "Custom…",
-      "customModelLabel": "Custom model name",
-      "anthropicKeyLabel": "Anthropic API key",
+      "oauthNotConfigured": "L’OAuth ChatGPT n’est pas configuré sur cette instance — utilisez plutôt votre propre clé API ci-dessous.",
+      "modelLabel": "Modèle",
+      "modelOptionDefault": "— Par défaut —",
+      "modelOptionCustom": "Personnalisé…",
+      "customModelLabel": "Nom du modèle personnalisé",
+      "anthropicKeyLabel": "Clé API Anthropic",
       "baseUrlLabel": "Base URL",
-      "localKeyLabel": "API key (optional)",
-      "savedPreview": "(saved {preview})",
-      "savedShort": "(saved)",
+      "localKeyLabel": "Clé API (facultative)",
+      "savedPreview": "(enregistrée {preview})",
+      "savedShort": "(enregistrée)",
       "saveCta": "Enregistrer",
       "saved": "Enregistré",
-      "saveFailed": "Save failed",
+      "saveFailed": "Échec de l’enregistrement",
       "errorGeneric": "Erreur",
       "providerChain": {
         "types": {
           "codex": "ChatGPT (Codex)",
-          "openai": "OpenAI (your key)",
+          "openai": "OpenAI (votre clé)",
           "anthropic": "Anthropic (Claude)",
-          "local": "Local model",
-          "admin-openai": "Admin OpenAI"
+          "local": "Modèle local",
+          "admin-openai": "OpenAI administrateur"
         },
-        "title": "Fallback chain",
-        "description": "If the primary provider fails, HealthLog walks the chain in order. Drag the rows to reorder, toggle the switch to disable a provider without removing it.",
-        "moveUp": "Move up",
-        "moveDown": "Move down",
-        "removeFromChain": "Remove from chain",
-        "addProvider": "Add provider",
-        "addNoneAvailable": "All providers already in chain",
-        "saveOrder": "Save chain order",
-        "saved": "Chain saved",
-        "saveFailed": "Saving the chain failed",
-        "resetDefaults": "Reset to defaults",
-        "resetConfirmTitle": "Reset chain to defaults?",
-        "resetConfirmBody": "The chain reverts to Codex → OpenAI → Anthropic → Local → Admin OpenAI. Your saved credentials are not touched."
+        "title": "Chaîne de secours",
+        "description": "Si le fournisseur principal échoue, HealthLog parcourt la chaîne dans l’ordre. Faites glisser les lignes pour les réorganiser ; utilisez l’interrupteur pour désactiver un fournisseur sans le supprimer.",
+        "moveUp": "Monter",
+        "moveDown": "Descendre",
+        "removeFromChain": "Retirer de la chaîne",
+        "addProvider": "Ajouter un fournisseur",
+        "addNoneAvailable": "Tous les fournisseurs sont déjà dans la chaîne",
+        "saveOrder": "Enregistrer l’ordre de la chaîne",
+        "saved": "Chaîne enregistrée",
+        "saveFailed": "Échec de l’enregistrement de la chaîne",
+        "resetDefaults": "Réinitialiser",
+        "resetConfirmTitle": "Réinitialiser la chaîne aux valeurs par défaut ?",
+        "resetConfirmBody": "La chaîne revient à Codex → OpenAI → Anthropic → Local → OpenAI administrateur. Vos identifiants enregistrés ne sont pas affectés."
       },
-      "activeProviderHeading": "Active provider",
-      "activeProviderBody": "Pick the provider you want to use first. The form below configures only the selected provider; the fallback chain at the bottom decides what happens if it fails.",
-      "activeProviderLabel": "Primary provider",
-      "providerConfigTitle": "Provider configuration",
+      "activeProviderHeading": "Fournisseur actif",
+      "activeProviderBody": "Choisissez le fournisseur à utiliser en premier. Le formulaire ci-dessous configure uniquement le fournisseur sélectionné ; la chaîne de secours en bas détermine ce qui se passe en cas d’échec.",
+      "activeProviderLabel": "Fournisseur principal",
+      "providerConfigTitle": "Configuration du fournisseur",
       "providerSelect": {
-        "codex": "ChatGPT account (Codex)",
-        "openai": "OpenAI (your API key)",
+        "codex": "Compte ChatGPT (Codex)",
+        "openai": "OpenAI (votre clé API)",
         "anthropic": "Anthropic (Claude)",
-        "local": "Local model (OpenAI-compatible)",
-        "admin-openai": "Admin-provided OpenAI"
+        "local": "Modèle local (compatible OpenAI)",
+        "admin-openai": "OpenAI fourni par l’administrateur"
       },
       "openai": {
-        "modelSelect": "Model",
-        "modelOptionCustom": "Custom slug…",
-        "modelCustomLabel": "Custom model slug",
+        "modelSelect": "Modèle",
+        "modelOptionCustom": "Slug personnalisé…",
+        "modelCustomLabel": "Slug du modèle personnalisé",
         "modelCustomPlaceholder": "gpt-5",
-        "baseUrlLabel": "Base URL (advanced)",
+        "baseUrlLabel": "URL de base (avancé)",
         "baseUrlPlaceholder": "https://api.openai.com/v1",
-        "baseUrlHelp": "Override only when using an OpenAI-compatible gateway. Leave blank for OpenAI itself.",
-        "showAdvanced": "Show advanced",
-        "hideAdvanced": "Hide advanced",
-        "apiKey": "API key",
+        "baseUrlHelp": "À remplacer uniquement si vous utilisez une passerelle compatible OpenAI. Laissez vide pour OpenAI lui-même.",
+        "showAdvanced": "Afficher les options avancées",
+        "hideAdvanced": "Masquer les options avancées",
+        "apiKey": "Clé API",
         "apiKeyPlaceholder": "sk-…"
       },
       "codex": {
-        "statusConnected": "Connected",
-        "statusDisconnected": "Not connected",
-        "statusExpired": "Connection expired",
-        "connectButton": "Connect with ChatGPT",
-        "disconnectButton": "Disconnect",
-        "modelSlugLabel": "Model slug",
-        "modelSlugBody": "Codex uses the model your ChatGPT subscription routes to. The CODEX_MODEL environment variable lets ops override this on the instance.",
-        "lastInsight": "Last insight: {when}"
+        "statusConnected": "Connecté",
+        "statusDisconnected": "Non connecté",
+        "statusExpired": "Connexion expirée",
+        "connectButton": "Se connecter avec ChatGPT",
+        "disconnectButton": "Déconnecter",
+        "modelSlugLabel": "Slug du modèle",
+        "modelSlugBody": "Codex utilise le modèle vers lequel votre abonnement ChatGPT route. La variable d’environnement CODEX_MODEL permet à l’opérateur de le remplacer sur l’instance.",
+        "lastInsight": "Dernière analyse : {when}"
       },
       "adminOpenai": {
-        "title": "Admin OpenAI",
-        "body": "Operator-provided OpenAI key. Used as a last-ditch fallback when no personal provider is configured. There is nothing to configure on this row — visibility means the operator has set it up.",
-        "notConfigured": "The operator has not configured a shared OpenAI key on this instance."
+        "title": "OpenAI administrateur",
+        "body": "Clé OpenAI fournie par l’opérateur. Utilisée en dernier recours lorsqu’aucun fournisseur personnel n’est configuré. Rien à configurer sur cette ligne — sa visibilité signifie que l’opérateur l’a mise en place.",
+        "notConfigured": "L’opérateur n’a pas configuré de clé OpenAI partagée sur cette instance."
       },
-      "testProvider": "Test active provider",
+      "testProvider": "Tester le fournisseur actif",
       "testSuccess": "OK — {provider} ({model})",
-      "testFailedShort": "Test failed: {message}",
-      "testUnexpectedResponse": "AI provider connection failed — unexpected response from the server.",
-      "testReasonCredentials": "Provider rejected the credentials — re-authenticate in AI settings.",
-      "testReasonRateLimited": "Provider rate-limited the request — try again shortly.",
-      "testReasonServerError": "The AI provider returned a server error.",
-      "testReasonUnreachable": "Could not reach the AI provider.",
+      "testFailedShort": "Échec du test : {message}",
+      "testUnexpectedResponse": "Échec de la connexion au fournisseur d’IA — réponse inattendue du serveur.",
+      "testReasonCredentials": "Le fournisseur a rejeté les identifiants — réauthentifiez-vous dans les réglages IA.",
+      "testReasonRateLimited": "Le fournisseur a limité la requête — réessayez sous peu.",
+      "testReasonServerError": "Le fournisseur d’IA a renvoyé une erreur serveur.",
+      "testReasonUnreachable": "Impossible de joindre le fournisseur d’IA.",
       "coachMemory": {
         "title": "Ce dont le Coach se souvient",
         "description": "Les informations durables que vous avez confiées au Coach. Il s'en sert pour garder ses réponses pertinentes. Supprimez tout ce qu'il vaut mieux qu'il oublie.",
@@ -3380,28 +3394,28 @@
       }
     },
     "withings": "Withings",
-    "withingsDescription": "Connect your Withings scale and blood pressure monitors.",
-    "withingsCredentials": "API Credentials",
-    "withingsClientId": "Client ID",
-    "withingsClientSecret": "Client Secret",
-    "withingsCredentialsSaved": "Credentials saved",
-    "withingsCredentialsSavedPlaceholder": "Saved — enter new to replace",
-    "withingsCredentialsSavedPlaceholderSecret": "Saved — enter new to replace",
-    "withingsSaveCredentials": "Save credentials",
-    "configured": "Configured",
-    "withingsSync": "Sync now",
-    "withingsFullSync": "Sync all data",
-    "withingsFullSyncTitle": "Full synchronization?",
-    "withingsFullSyncDescription": "All available Withings data will be fully synchronized. This may take some time depending on your history.",
-    "withingsSyncResult": "{count} measurements synchronized",
-    "withingsFullSyncResult": "{count} measurements fully synchronized",
-    "withingsSyncFailed": "Sync failed",
-    "withingsSynchronize": "Synchronize",
-    "withingsDisconnect": "Disconnect",
-    "withingsDisconnectTitle": "Disconnect Withings?",
-    "withingsDisconnectDescription": "The connection to Withings will be disconnected. Previously synced data will be preserved.",
-    "withingsConnect": "Connect with Withings",
-    "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
+    "withingsDescription": "Connectez votre balance et vos tensiomètres Withings.",
+    "withingsCredentials": "Identifiants API",
+    "withingsClientId": "ID client",
+    "withingsClientSecret": "Secret client",
+    "withingsCredentialsSaved": "Identifiants enregistrés",
+    "withingsCredentialsSavedPlaceholder": "Enregistré — saisissez-en un nouveau pour remplacer",
+    "withingsCredentialsSavedPlaceholderSecret": "Enregistré — saisissez-en un nouveau pour remplacer",
+    "withingsSaveCredentials": "Enregistrer les identifiants",
+    "configured": "Configuré",
+    "withingsSync": "Synchroniser maintenant",
+    "withingsFullSync": "Synchroniser toutes les données",
+    "withingsFullSyncTitle": "Synchronisation complète ?",
+    "withingsFullSyncDescription": "Toutes les données Withings disponibles seront entièrement synchronisées. Cela peut prendre un certain temps selon votre historique.",
+    "withingsSyncResult": "{count} mesures synchronisées",
+    "withingsFullSyncResult": "{count} mesures entièrement synchronisées",
+    "withingsSyncFailed": "Échec de la synchronisation",
+    "withingsSynchronize": "Synchroniser",
+    "withingsDisconnect": "Déconnecter",
+    "withingsDisconnectTitle": "Déconnecter Withings ?",
+    "withingsDisconnectDescription": "La connexion à Withings sera déconnectée. Les données déjà synchronisées seront conservées.",
+    "withingsConnect": "Se connecter avec Withings",
+    "withingsNoCredentials": "Saisissez d’abord vos identifiants API ci-dessus pour connecter Withings.",
     "whoop": "WHOOP",
     "whoopDescription": "Connectez votre bracelet WHOOP pour synchroniser récupération, sommeil, effort et entraînements.",
     "whoopOverlapNote": "Si WHOOP et une autre source fournissent la même donnée vitale — fréquence cardiaque au repos, oxygène sanguin, température corporelle, fréquence respiratoire ou phases de sommeil —, les deux valeurs peuvent apparaître jusqu'à ce qu'une future mise à jour retienne une seule source préférée.",
@@ -3430,9 +3444,9 @@
       "withings": {
         "reconnect": {
           "banner": {
-            "title": "Activity sync available",
-            "body": "Your Withings connection was authorised before activity sync was added. Reconnect once to enable steps, active energy, walking + running distance, and floors-climbed ingest from your Withings devices.",
-            "action": "Reconnect Withings"
+            "title": "Synchronisation d’activité disponible",
+            "body": "Votre connexion Withings a été autorisée avant l’ajout de la synchronisation d’activité. Reconnectez-vous une fois pour activer l’import des pas, de l’énergie active, de la distance à pied et en course, et des étages gravis depuis vos appareils Withings.",
+            "action": "Reconnecter Withings"
           }
         }
       }
@@ -3443,88 +3457,89 @@
       "warningServerError": "Connecté, erreur serveur",
       "parkedReconnect": "En pause — reconnecter manuellement",
       "notConnected": "Non connecté",
-      "justNow": "just now",
-      "minutesAgo": "{count} min ago",
-      "hoursAgo": "{count} h ago",
-      "daysAgo": "{count} d ago",
-      "ariaLabel": "Integration status",
+      "justNow": "à l’instant",
+      "minutesAgo": "il y a {count} min",
+      "hoursAgo": "il y a {count} h",
+      "daysAgo": "il y a {count} j",
+      "ariaLabel": "Statut de l’intégration",
       "resumeCta": "Reconnecter",
       "resumeSuccess": "Intégration reprise",
       "resumeError": "Échec de la reconnexion"
     },
-    "apiTokens": "API Tokens",
-    "apiTokensDescription": "Create API tokens for external medication intake (e.g., Shortcuts, automations).",
-    "tokenNamePlaceholder": "Token name (e.g., iPhone Shortcut)",
-    "tokenCreated": "Token created — copy it now! It won't be shown again.",
-    "tokenRevoke": "Revoke token?",
-    "tokenRevokeDescription": "The token will be permanently deactivated. Applications using it will lose access.",
-    "tokenRevoked": "Revoked",
-    "tokenExpired": "Expired",
+    "apiTokens": "Jetons API",
+    "apiTokensDescription": "Créez des jetons API pour enregistrer des prises de médicaments externes (par exemple Raccourcis, automatisations).",
+    "tokenNamePlaceholder": "Nom du jeton (par exemple Raccourci iPhone)",
+    "tokenCreated": "Jeton créé — copiez-le maintenant ! Il ne sera plus affiché.",
+    "tokenRevoke": "Révoquer le jeton ?",
+    "tokenRevokeAction": "Révoquer le jeton",
+    "tokenRevokeDescription": "Le jeton sera désactivé définitivement. Les applications qui l’utilisent perdront l’accès.",
+    "tokenRevoked": "Révoqué",
+    "tokenExpired": "Expiré",
     "tokenActive": "Actif",
-    "activeTokensTitle": "Active tokens",
-    "revokedTokensTitle": "Revoked tokens ({count})",
+    "activeTokensTitle": "Jetons actifs",
+    "revokedTokensTitle": "Jetons révoqués ({count})",
     "tokenTableName": "Nom",
-    "tokenTablePermissions": "Permissions",
+    "tokenTablePermissions": "Autorisations",
     "tokenTableStatus": "Statut",
-    "tokenTableCreated": "Created",
-    "tokenTableLastUsed": "Last used",
+    "tokenTableCreated": "Créé",
+    "tokenTableLastUsed": "Dernière utilisation",
     "tokenTableActions": "Actions",
-    "noActiveTokens": "No active tokens available.",
-    "tokenNeverUsed": "Never",
-    "apiEndpointsTitle": "API endpoints",
-    "apiEndpointsDescription": "Overview of currently available external endpoint(s) for token-based ingestion.",
-    "apiEndpointMethod": "Method",
-    "apiEndpointPath": "Path",
-    "apiEndpointAuth": "Authentication",
-    "apiEndpointExample": "Body example",
-    "collapse": "Collapse",
-    "expand": "Expand",
-    "dangerZone": "Delete All Data",
-    "dangerZoneTitle": "Danger zone",
-    "dangerZoneDescription": "Deletes all your health data and integrations. Your user account will be preserved.",
-    "dangerZoneConfirm": "Delete all data?",
-    "dangerZoneConfirmDescription": "This will permanently delete all your health data and integrations. Your user account will be preserved.",
-    "dangerZoneSuccess": "All personal data has been deleted",
-    "dangerZoneDeleteFailed": "Deletion failed",
-    "finalDelete": "Delete permanently",
-    "deleteAccountCardTitle": "Delete account entirely",
-    "deleteAccountCardDescription": "Deletes your account along with passkeys, audit log, and sessions. This cannot be undone.",
-    "deleteAccountCta": "Delete account",
-    "deleteAccountConfirmTitle": "Delete account permanently?",
-    "deleteAccountConfirmDescription": "Your account, all health data, passkeys, sessions, and audit entries will be permanently deleted. You will be signed out immediately after.",
-    "deleteAccountSuccess": "Account deleted — signing you out.",
-    "deleteAccountFailed": "Account could not be deleted",
-    "deleteAccountFinal": "Delete permanently",
+    "noActiveTokens": "Aucun jeton actif disponible.",
+    "tokenNeverUsed": "Jamais",
+    "apiEndpointsTitle": "Points de terminaison API",
+    "apiEndpointsDescription": "Aperçu des points de terminaison externes actuellement disponibles pour l’ingestion par jeton.",
+    "apiEndpointMethod": "Méthode",
+    "apiEndpointPath": "Chemin",
+    "apiEndpointAuth": "Authentification",
+    "apiEndpointExample": "Exemple de corps",
+    "collapse": "Réduire",
+    "expand": "Développer",
+    "dangerZone": "Supprimer toutes les données",
+    "dangerZoneTitle": "Zone à risque",
+    "dangerZoneDescription": "Supprime toutes vos données de santé et intégrations. Votre compte utilisateur sera conservé.",
+    "dangerZoneConfirm": "Supprimer toutes les données ?",
+    "dangerZoneConfirmDescription": "Cette action supprimera définitivement toutes vos données de santé et intégrations. Votre compte utilisateur sera conservé.",
+    "dangerZoneSuccess": "Toutes les données personnelles ont été supprimées",
+    "dangerZoneDeleteFailed": "Échec de la suppression",
+    "finalDelete": "Supprimer définitivement",
+    "deleteAccountCardTitle": "Supprimer entièrement le compte",
+    "deleteAccountCardDescription": "Supprime votre compte ainsi que les clés d’accès, le journal d’audit et les sessions. Cette action est irréversible.",
+    "deleteAccountCta": "Supprimer le compte",
+    "deleteAccountConfirmTitle": "Supprimer définitivement le compte ?",
+    "deleteAccountConfirmDescription": "Votre compte, toutes vos données de santé, vos clés d’accès, vos sessions et vos entrées d’audit seront définitivement supprimés. Vous serez déconnecté immédiatement après.",
+    "deleteAccountSuccess": "Compte supprimé — déconnexion en cours.",
+    "deleteAccountFailed": "Le compte n’a pas pu être supprimé",
+    "deleteAccountFinal": "Supprimer définitivement",
     "saved": "Enregistré",
-    "savingError": "Error saving",
+    "savingError": "Erreur lors de l’enregistrement",
     "moodLogTitle": "moodLog",
     "moodLogDescription": "Import mood data from moodLog",
     "moodLogUrl": "moodLog URL",
     "moodLogUrlPlaceholder": "https://mood.example.com",
-    "moodLogApiKey": "API Key",
+    "moodLogApiKey": "Clé API",
     "moodLogApiKeyPlaceholder": "ml_...",
-    "moodLogWebhookSecret": "Webhook Secret",
-    "moodLogWebhookSecretHelp": "Enter this secret in moodLog as webhook secret",
-    "moodLogSync": "Start sync",
-    "moodLogFullSync": "Full sync",
-    "moodLogFullSyncConfirm": "Synchronize fully",
-    "moodLogFullSyncTitle": "Full sync?",
-    "moodLogFullSyncDescription": "All available mood data will be fully synchronized.",
-    "moodLogDisconnect": "Disconnect",
-    "moodLogDisconnectTitle": "Disconnect moodLog?",
-    "moodLogDisconnectDescription": "The connection will be removed and all imported mood data will be deleted.",
-    "moodLogEntries": "Entries",
-    "moodLogSyncResult": "{count} entries synchronized",
-    "moodLogSyncFailed": "Sync failed",
-    "moodLogSaved": "moodLog connection saved",
-    "moodLogDisconnected": "moodLog disconnected",
+    "moodLogWebhookSecret": "Secret du webhook",
+    "moodLogWebhookSecretHelp": "Saisissez ce secret dans moodLog comme secret de webhook",
+    "moodLogSync": "Démarrer la synchronisation",
+    "moodLogFullSync": "Synchronisation complète",
+    "moodLogFullSyncConfirm": "Synchroniser entièrement",
+    "moodLogFullSyncTitle": "Synchronisation complète ?",
+    "moodLogFullSyncDescription": "Toutes les données d’humeur disponibles seront entièrement synchronisées.",
+    "moodLogDisconnect": "Déconnecter",
+    "moodLogDisconnectTitle": "Déconnecter moodLog ?",
+    "moodLogDisconnectDescription": "La connexion sera supprimée et toutes les données d’humeur importées seront supprimées.",
+    "moodLogEntries": "Entrées",
+    "moodLogSyncResult": "{count} entrées synchronisées",
+    "moodLogSyncFailed": "Échec de la synchronisation",
+    "moodLogSaved": "Connexion moodLog enregistrée",
+    "moodLogDisconnected": "moodLog déconnecté",
     "about": {
-      "version": "App version",
+      "version": "Version de l’app",
       "gitSha": "Build",
-      "builtAt": "Built {time}",
-      "builtAtLabel": "Built",
-      "license": "License",
-      "repository": "Source code",
+      "builtAt": "Compilé {time}",
+      "builtAtLabel": "Compilé",
+      "license": "Licence",
+      "repository": "Code source",
       "changelog": "Changelog",
       "docs": "Documentation",
       "linksHeading": "Sources et documentation",
@@ -3533,42 +3548,42 @@
       "tourReplayHint": "Voir la visite guidée du tableau de bord — pratique si tu l'as sautée à la première visite."
     },
     "testConnection": {
-      "test": "Test connection",
-      "testing": "Testing…",
-      "ok": "Connected (latency {latency} ms)",
+      "test": "Tester la connexion",
+      "testing": "Test en cours…",
+      "ok": "Connecté (latence {latency} ms)",
       "errors": {
-        "credentials_rejected": "Credentials rejected — check your token",
-        "rate_limited": "Rate-limited by the upstream",
-        "timeout": "Request timed out",
-        "upstream_error": "Upstream returned an error",
-        "connection_failed": "Connection failed",
-        "not_configured": "Not configured",
-        "url_not_public": "URL is not a public endpoint",
-        "url_invalid": "URL is invalid",
-        "redirected": "Endpoint redirects — check the URL",
-        "endpoint_not_found": "Endpoint not found at the URL",
-        "credentials_unreadable": "Credentials cannot be decrypted",
-        "upstream_invalid_json": "Upstream sent invalid JSON",
-        "vapid_not_configured": "Web Push not configured (VAPID keys missing)",
-        "rate_limited_self": "Too many test requests",
-        "generic": "Test failed"
+        "credentials_rejected": "Identifiants rejetés — vérifiez votre jeton",
+        "rate_limited": "Limité par le service en amont",
+        "timeout": "Délai de la requête dépassé",
+        "upstream_error": "Le service en amont a renvoyé une erreur",
+        "connection_failed": "Échec de la connexion",
+        "not_configured": "Non configuré",
+        "url_not_public": "L’URL n’est pas un point de terminaison public",
+        "url_invalid": "L’URL n’est pas valide",
+        "redirected": "Le point de terminaison redirige — vérifiez l’URL",
+        "endpoint_not_found": "Point de terminaison introuvable à l’URL",
+        "credentials_unreadable": "Les identifiants ne peuvent pas être déchiffrés",
+        "upstream_invalid_json": "Le service en amont a envoyé un JSON non valide",
+        "vapid_not_configured": "Web Push non configuré (clés VAPID manquantes)",
+        "rate_limited_self": "Trop de requêtes de test",
+        "generic": "Échec du test"
       }
     },
     "notificationStatus": {
       "title": "Channel reliability",
       "description": "Live status of every notification channel — Auto-disabled means HealthLog stopped retrying after a permanent error.",
-      "emptyDescription": "No channels configured yet. Add a channel below to start tracking its delivery health.",
+      "emptyDescription": "Aucun canal configuré pour l’instant. Ajoutez un canal ci-dessous pour commencer à suivre l’état de sa livraison.",
       "stateActive": "Actif",
-      "stateAutoDisabled": "Auto-disabled",
-      "stateSendingPaused": "Sending paused",
+      "stateAutoDisabled": "Désactivé automatiquement",
+      "stateSendingPaused": "Envoi en pause",
       "stateManuallyDisabled": "Désactivé",
-      "lastSuccess": "Last successful send",
-      "lastFailure": "Last failure",
-      "consecutiveFailures": "Consecutive failures",
-      "disabledReason": "Reason",
-      "nextRetry": "Next retry",
-      "reEnable": "Re-enable",
-      "sendTest": "Send test"
+      "lastSuccess": "Dernier envoi réussi",
+      "lastFailure": "Dernier échec",
+      "consecutiveFailures": "Échecs consécutifs",
+      "disabledReason": "Raison",
+      "nextRetry": "Prochaine tentative",
+      "reEnable": "Réactiver",
+      "sendTest": "Envoyer un test"
     },
     "identity": {
       "description": "Informations facultatives pour l’export du dossier de santé (couverture PDF + export FHIR). Tous les champs sont facultatifs.",
@@ -4108,284 +4123,284 @@
     "carrierUnavailableGeoFallback": "{location} — carrier unavailable"
   },
   "achievements": {
-    "title": "Achievements",
-    "subtitle": "Earn achievements by tracking your health and taking your meds on time.",
-    "loginRequired": "Please sign in to view achievements.",
+    "title": "Réussites",
+    "subtitle": "Débloquez des réussites en suivant votre santé et en prenant vos médicaments à temps.",
+    "loginRequired": "Connectez-vous pour voir les réussites.",
     "points": "Points",
-    "unlocked": "Unlocked",
-    "nextGoal": "Next goal",
-    "allCompleted": "All achievements unlocked!",
-    "completed": "Completed",
-    "goalReached": "Goal reached",
-    "remainingUnlocks": "{count} still unlockable",
-    "noneUnlockedYet": "No achievements unlocked yet.",
+    "unlocked": "Débloqué",
+    "nextGoal": "Prochain objectif",
+    "allCompleted": "Toutes les réussites débloquées !",
+    "completed": "Terminé",
+    "goalReached": "Objectif atteint",
+    "remainingUnlocks": "{count} encore à débloquer",
+    "noneUnlockedYet": "Aucune réussite débloquée pour l’instant.",
     "pointsValue": "{points} points",
     "metricCount": "{count}",
-    "metricDays": "{count} days",
+    "metricDays": "{count} jours",
     "metricPercent": "{count}%",
     "badges": {
       "intakeTotal1": {
-        "title": "First intake",
-        "description": "Record your first taken medication event."
+        "title": "Première prise",
+        "description": "Enregistrez votre première prise de médicament."
       },
       "intakeTotal10": {
-        "title": "Intake starter",
-        "description": "Record 10 taken medication events."
+        "title": "Débutant des prises",
+        "description": "Enregistrez 10 prises de médicaments."
       },
       "intakeTotal50": {
-        "title": "Intake routine",
-        "description": "Record 50 taken medication events."
+        "title": "Routine des prises",
+        "description": "Enregistrez 50 prises de médicaments."
       },
       "intakeTotal150": {
-        "title": "Intake expert",
-        "description": "Record 150 taken medication events."
+        "title": "Expert des prises",
+        "description": "Enregistrez 150 prises de médicaments."
       },
       "intakeTotal300": {
-        "title": "Intake legend",
-        "description": "Record 300 taken medication events."
+        "title": "Légende des prises",
+        "description": "Enregistrez 300 prises de médicaments."
       },
       "overIntake1": {
-        "title": "Double take",
-        "description": "Take medication at least once more than planned."
+        "title": "Double dose",
+        "description": "Prenez votre médicament au moins une fois de plus que prévu."
       },
       "skippedIntake1": {
-        "title": "Stepped back",
-        "description": "Skip at least one planned intake."
+        "title": "Pause prise",
+        "description": "Sautez au moins une prise prévue."
       },
       "passkeyCreated1": {
-        "title": "Passkey set up",
-        "description": "Create your first passkey."
+        "title": "Clé d’accès configurée",
+        "description": "Créez votre première clé d’accès."
       },
       "passkeyLogin1": {
-        "title": "Passkey login",
-        "description": "Sign in at least once with a passkey."
+        "title": "Connexion par clé d’accès",
+        "description": "Connectez-vous au moins une fois avec une clé d’accès."
       },
       "passwordLogin1": {
-        "title": "Old school",
-        "description": "Sign in at least once with username and password."
+        "title": "À l’ancienne",
+        "description": "Connectez-vous au moins une fois avec un identifiant et un mot de passe."
       },
       "bugReport1": {
-        "title": "Bug hunter",
-        "description": "Submit a bug report."
+        "title": "Chasseur de bugs",
+        "description": "Soumettez un rapport de bug."
       },
       "loginStreak7": {
-        "title": "Login streak 7d",
-        "description": "Sign in on 7 consecutive days."
+        "title": "Série de connexions 7j",
+        "description": "Connectez-vous 7 jours d’affilée."
       },
       "loginStreak30": {
-        "title": "Login streak 30d",
-        "description": "Sign in on 30 consecutive days."
+        "title": "Série de connexions 30j",
+        "description": "Connectez-vous 30 jours d’affilée."
       },
       "onTimePerfect1": {
-        "title": "On-time 1d",
-        "description": "Take all medications on time for 1 day."
+        "title": "À l’heure 1j",
+        "description": "Prenez tous vos médicaments à l’heure pendant 1 jour."
       },
       "compliance801": {
-        "title": "80% adherence · 1d",
-        "description": "Reach at least 80% 30-day adherence for 1 day."
+        "title": "Observance 80% · 1j",
+        "description": "Atteignez au moins 80% d’observance sur 30 jours pendant 1 jour."
       },
       "bmiGreen1": {
-        "title": "BMI green · 1d",
-        "description": "Keep your BMI in the normal range for 1 day."
+        "title": "IMC au vert · 1j",
+        "description": "Maintenez votre IMC dans la plage normale pendant 1 jour."
       },
       "bpGreen1": {
-        "title": "BP green · 1d",
-        "description": "Keep your blood pressure in the normal range for 1 day."
+        "title": "Tension au vert · 1j",
+        "description": "Maintenez votre tension dans la plage normale pendant 1 jour."
       },
       "pulseGreen1": {
-        "title": "Pulse green · 1d",
-        "description": "Keep your resting pulse in the normal range for 1 day."
+        "title": "Pouls au vert · 1j",
+        "description": "Maintenez votre pouls au repos dans la plage normale pendant 1 jour."
       },
       "onTimePerfect7": {
-        "title": "On-time 7d",
-        "description": "Take all medications on time for 7 consecutive days."
+        "title": "À l’heure 7j",
+        "description": "Prenez tous vos médicaments à l’heure pendant 7 jours d’affilée."
       },
       "compliance807": {
-        "title": "80% adherence · 7d",
-        "description": "Reach at least 80% 30-day adherence for 7 consecutive days."
+        "title": "Observance 80% · 7j",
+        "description": "Atteignez au moins 80% d’observance sur 30 jours pendant 7 jours d’affilée."
       },
       "bmiGreen7": {
-        "title": "BMI green · 7d",
-        "description": "Keep your BMI in the normal range for 7 consecutive days."
+        "title": "IMC au vert · 7j",
+        "description": "Maintenez votre IMC dans la plage normale pendant 7 jours d’affilée."
       },
       "bpGreen7": {
-        "title": "BP green · 7d",
-        "description": "Keep your blood pressure in the normal range for 7 consecutive days."
+        "title": "Tension au vert · 7j",
+        "description": "Maintenez votre tension dans la plage normale pendant 7 jours d’affilée."
       },
       "pulseGreen7": {
-        "title": "Pulse green · 7d",
-        "description": "Keep your resting pulse in the normal range for 7 consecutive days."
+        "title": "Pouls au vert · 7j",
+        "description": "Maintenez votre pouls au repos dans la plage normale pendant 7 jours d’affilée."
       },
       "onTimePerfect30": {
-        "title": "On-time 30d",
-        "description": "Take all medications on time for 30 consecutive days."
+        "title": "À l’heure 30j",
+        "description": "Prenez tous vos médicaments à l’heure pendant 30 jours d’affilée."
       },
       "compliance8030": {
-        "title": "80% adherence · 30d",
-        "description": "Reach at least 80% 30-day adherence for 30 consecutive days."
+        "title": "Observance 80% · 30j",
+        "description": "Atteignez au moins 80% d’observance sur 30 jours pendant 30 jours d’affilée."
       },
       "bmiGreen30": {
-        "title": "BMI green · 30d",
-        "description": "Keep your BMI in the normal range for 30 consecutive days."
+        "title": "IMC au vert · 30j",
+        "description": "Maintenez votre IMC dans la plage normale pendant 30 jours d’affilée."
       },
       "bpGreen30": {
-        "title": "BP green · 30d",
-        "description": "Keep your blood pressure in the normal range for 30 consecutive days."
+        "title": "Tension au vert · 30j",
+        "description": "Maintenez votre tension dans la plage normale pendant 30 jours d’affilée."
       },
       "pulseGreen30": {
-        "title": "Pulse green · 30d",
-        "description": "Keep your resting pulse in the normal range for 30 consecutive days."
+        "title": "Pouls au vert · 30j",
+        "description": "Maintenez votre pouls au repos dans la plage normale pendant 30 jours d’affilée."
       },
       "onTimePerfect180": {
-        "title": "On-time 180d",
-        "description": "Take all medications on time for 180 consecutive days."
+        "title": "À l’heure 180j",
+        "description": "Prenez tous vos médicaments à l’heure pendant 180 jours d’affilée."
       },
       "compliance80180": {
-        "title": "80% adherence · 180d",
-        "description": "Reach at least 80% 30-day adherence for 180 consecutive days."
+        "title": "Observance 80% · 180j",
+        "description": "Atteignez au moins 80% d’observance sur 30 jours pendant 180 jours d’affilée."
       },
       "bmiGreen180": {
-        "title": "BMI green · 180d",
-        "description": "Keep your BMI in the normal range for 180 consecutive days."
+        "title": "IMC au vert · 180j",
+        "description": "Maintenez votre IMC dans la plage normale pendant 180 jours d’affilée."
       },
       "bpGreen180": {
-        "title": "BP green · 180d",
-        "description": "Keep your blood pressure in the normal range for 180 consecutive days."
+        "title": "Tension au vert · 180j",
+        "description": "Maintenez votre tension dans la plage normale pendant 180 jours d’affilée."
       },
       "pulseGreen180": {
-        "title": "Pulse green · 180d",
-        "description": "Keep your resting pulse in the normal range for 180 consecutive days."
+        "title": "Pouls au vert · 180j",
+        "description": "Maintenez votre pouls au repos dans la plage normale pendant 180 jours d’affilée."
       },
       "onTimePerfect360": {
-        "title": "On-time 360d",
-        "description": "Take all medications on time for 360 consecutive days."
+        "title": "À l’heure 360j",
+        "description": "Prenez tous vos médicaments à l’heure pendant 360 jours d’affilée."
       },
       "compliance80360": {
-        "title": "80% adherence · 360d",
-        "description": "Reach at least 80% 30-day adherence for 360 consecutive days."
+        "title": "Observance 80% · 360j",
+        "description": "Atteignez au moins 80% d’observance sur 30 jours pendant 360 jours d’affilée."
       },
       "bmiGreen360": {
-        "title": "BMI green · 360d",
-        "description": "Keep your BMI in the normal range for 360 consecutive days."
+        "title": "IMC au vert · 360j",
+        "description": "Maintenez votre IMC dans la plage normale pendant 360 jours d’affilée."
       },
       "bpGreen360": {
-        "title": "BP green · 360d",
-        "description": "Keep your blood pressure in the normal range for 360 consecutive days."
+        "title": "Tension au vert · 360j",
+        "description": "Maintenez votre tension dans la plage normale pendant 360 jours d’affilée."
       },
       "pulseGreen360": {
-        "title": "Pulse green · 360d",
-        "description": "Keep your resting pulse in the normal range for 360 consecutive days."
+        "title": "Pouls au vert · 360j",
+        "description": "Maintenez votre pouls au repos dans la plage normale pendant 360 jours d’affilée."
       },
       "moodFirst": {
-        "title": "First mood",
-        "description": "Log your first mood entry."
+        "title": "Première humeur",
+        "description": "Enregistrez votre première entrée d’humeur."
       },
       "moodStreak7": {
-        "title": "Mood diarist 7d",
-        "description": "Log a mood entry on 7 consecutive days."
+        "title": "Journal d’humeur 7j",
+        "description": "Enregistrez une humeur 7 jours d’affilée."
       },
       "moodStreak30": {
-        "title": "Mood diarist 30d",
-        "description": "Log a mood entry on 30 consecutive days."
+        "title": "Journal d’humeur 30j",
+        "description": "Enregistrez une humeur 30 jours d’affilée."
       },
       "moodUp7": {
-        "title": "Brighter week",
-        "description": "Your 7-day mood average improved by at least 1.0 point compared to the previous week."
+        "title": "Semaine plus lumineuse",
+        "description": "Votre moyenne d’humeur sur 7 jours s’est améliorée d’au moins 1,0 point par rapport à la semaine précédente."
       },
       "weightFirst": {
-        "title": "First weigh-in",
-        "description": "Record your first weight measurement."
+        "title": "Première pesée",
+        "description": "Enregistrez votre première mesure de poids."
       },
       "weight50": {
-        "title": "Fifty weigh-ins",
-        "description": "Record 50 weight measurements."
+        "title": "Cinquante pesées",
+        "description": "Enregistrez 50 mesures de poids."
       },
       "weight200": {
-        "title": "200 weigh-ins",
-        "description": "Record 200 weight measurements."
+        "title": "200 pesées",
+        "description": "Enregistrez 200 mesures de poids."
       },
       "bpFirst": {
-        "title": "First reading",
-        "description": "Record your first blood-pressure measurement."
+        "title": "Première mesure",
+        "description": "Enregistrez votre première mesure de tension."
       },
       "bp50": {
-        "title": "Fifty BP readings",
-        "description": "Record 50 blood-pressure measurements."
+        "title": "Cinquante mesures de tension",
+        "description": "Enregistrez 50 mesures de tension."
       },
       "bp200": {
-        "title": "200 BP readings",
-        "description": "Record 200 blood-pressure measurements."
+        "title": "200 mesures de tension",
+        "description": "Enregistrez 200 mesures de tension."
       },
       "pulseFirst": {
-        "title": "First pulse",
-        "description": "Record your first pulse measurement."
+        "title": "Premier pouls",
+        "description": "Enregistrez votre première mesure de pouls."
       },
       "consistentMonth": {
-        "title": "Consistent month",
-        "description": "Log entries on at least 25 distinct days within a single calendar month."
+        "title": "Mois régulier",
+        "description": "Enregistrez des entrées sur au moins 25 jours différents au cours d’un même mois calendaire."
       },
       "entryStreak7": {
-        "title": "Tracker streak 7d",
-        "description": "Log at least one entry on 7 consecutive days."
+        "title": "Série de suivis 7j",
+        "description": "Enregistrez au moins une entrée 7 jours d’affilée."
       },
       "entryStreak30": {
-        "title": "Tracker streak 30d",
-        "description": "Log at least one entry on 30 consecutive days."
+        "title": "Série de suivis 30j",
+        "description": "Enregistrez au moins une entrée 30 jours d’affilée."
       },
       "weekendWarrior": {
-        "title": "Weekend tracker",
-        "description": "Log entries on 4 consecutive Saturday + Sunday weekend pairs."
+        "title": "Suivi du week-end",
+        "description": "Enregistrez des entrées sur 4 week-ends consécutifs (samedi + dimanche)."
       },
       "hiddenNightOwl": {
-        "title": "Night owl",
-        "description": "Logged an entry between 02:00 and 04:00 in the morning."
+        "title": "Oiseau de nuit",
+        "description": "Vous avez enregistré une entrée entre 02h00 et 04h00 du matin."
       },
       "hiddenEarlyBird": {
-        "title": "Early bird",
-        "description": "Logged an entry between 04:00 and 06:00 in the morning."
+        "title": "Lève-tôt",
+        "description": "Vous avez enregistré une entrée entre 04h00 et 06h00 du matin."
       },
       "hiddenLeapDay": {
-        "title": "Leap-day legend",
-        "description": "Logged an entry on February 29."
+        "title": "Légende du jour bissextile",
+        "description": "Vous avez enregistré une entrée le 29 février."
       },
       "hiddenDoctorPdf": {
-        "title": "House call",
-        "description": "Exported your first doctor-report PDF."
+        "title": "Visite à domicile",
+        "description": "Vous avez exporté votre premier rapport médical en PDF."
       },
       "hiddenLocaleFlip": {
-        "title": "Polyglot",
-        "description": "Switched the app language at least once."
+        "title": "Polyglotte",
+        "description": "Vous avez changé la langue de l’application au moins une fois."
       },
       "hiddenBugBuddy": {
-        "title": "Bug buddy",
-        "description": "Submitted at least 5 bug reports — the project loves you."
+        "title": "Compagnon des bugs",
+        "description": "Vous avez soumis au moins 5 rapports de bug — le projet vous adore."
       }
     },
-    "nextProgressLabel": "Progress to unlock",
-    "completedOn": "Completed on {date}",
-    "locked": "Locked",
+    "nextProgressLabel": "Progression avant déblocage",
+    "completedOn": "Terminé le {date}",
+    "locked": "Verrouillé",
     "criterionHint": "{current} / {target}",
     "progressPercent": "{percent}%",
     "categories": {
       "medication": "Médicament",
-      "vitals": "Vitals",
+      "vitals": "Constantes vitales",
       "mood": "Humeur",
-      "security": "Account & security",
+      "security": "Compte et sécurité",
       "engagement": "Engagement",
-      "hidden": "Hidden"
+      "hidden": "Caché"
     },
     "hiddenCard": {
-      "title": "Hidden achievement",
-      "description": "Keep tracking — you might just stumble across it.",
-      "ariaLabel": "Hidden locked achievement"
+      "title": "Réussite cachée",
+      "description": "Continuez à suivre — vous pourriez bien tomber dessus.",
+      "ariaLabel": "Réussite cachée verrouillée"
     },
     "hiddenUnlockToast": {
-      "title": "You unlocked a hidden achievement!"
+      "title": "Vous avez débloqué une réussite cachée !"
     },
     "dashboardCard": {
-      "title": "Recent unlocks",
-      "viewAll": "View all",
-      "empty": "No achievements yet — keep logging to unlock your first."
+      "title": "Débloqués récemment",
+      "viewAll": "Tout voir",
+      "empty": "Pas encore de réussites — continuez à suivre pour débloquer la première."
     }
   },
   "bugreport": {

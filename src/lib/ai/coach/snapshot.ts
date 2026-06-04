@@ -495,7 +495,13 @@ async function buildCoachSnapshotImpl(
   }
 
   const windowDays = windowToDays(window);
-  const features = await extractFeatures(userId, false, {
+  // v1.11.3 — kick the feature extraction off as a promise now and await
+  // it alongside the shared measurement read below. `extractFeatures`
+  // and the measurement `findMany` are independent (each only needs
+  // `userId` + the resolved window/sources), so running them
+  // concurrently shaves a round-trip off the cold path. No block reads
+  // `features` before the shared await, so the deferral is safe.
+  const featuresPromise = extractFeatures(userId, false, {
     sinceDays: windowDays,
   });
 
@@ -657,9 +663,9 @@ async function buildCoachSnapshotImpl(
     (source) => METRIC_TYPES[source] ?? [],
   );
 
-  const measurementRows =
+  const measurementRowsPromise =
     wantedTypes.length > 0
-      ? await prisma.measurement.findMany({
+      ? prisma.measurement.findMany({
           where: {
             userId,
             type: { in: wantedTypes as never[] },
@@ -677,7 +683,127 @@ async function buildCoachSnapshotImpl(
             glucoseContext: true,
           },
         })
-      : [];
+      : Promise.resolve([]);
+
+  // v1.11.3 — `extractFeatures` and the shared measurement read are
+  // mutually independent and both gate the blocks below (every aggregate
+  // reads `features`; bp/weight/pulse/glucose read `measurementRows`), so
+  // run the two concurrently and resolve them in a single hop.
+  const [features, measurementRows] = await Promise.all([
+    featuresPromise,
+    measurementRowsPromise,
+  ]);
+
+  // v1.11.3 — the remaining cold-path reads are mutually independent:
+  // the four conditional table reads (mood / compliance / sleep /
+  // workouts) and the four helper-block reads (GLP-1 / derived /
+  // trajectory / memory) each consume only `userId`, the window cutoff,
+  // or the synchronously-derived `derivedProfile` — none reads another's
+  // result. Fire them all off concurrently now, KEEPING the original
+  // `wants…` / `sources.has(…)` guards so a disabled source still issues
+  // no query (the guard yields `null`/`undefined`, never a wasted
+  // round-trip), then await the batch in one hop. The synchronous block
+  // assembly further below consumes the resolved values in the original
+  // order, so provenance and block-registration order are unchanged.
+  //
+  // `derivedProfile` is derived from `features.context` (now resolved)
+  // and feeds the GLP-1 / derived / trajectory / memory readers; it is
+  // hoisted here so those reads can start immediately.
+  const derivedSources: CoachScopeSource[] = [
+    "hrv",
+    "resting_hr",
+    "sleep",
+    "vo2_max",
+  ];
+  const derivedCtx = features.context;
+  const derivedProfile: BaselineProfile = {
+    ageYears: derivedCtx?.ageYears ?? null,
+    sex:
+      derivedCtx?.gender === "MALE" || derivedCtx?.gender === "FEMALE"
+        ? (derivedCtx.gender as "MALE" | "FEMALE")
+        : null,
+    heightCm: derivedCtx?.heightCm ?? null,
+  };
+  const derivedActive = derivedSources.some((s) => sources.has(s));
+
+  const moodRowsPromise =
+    wantsMood && features.mood
+      ? prisma.moodEntry.findMany({
+          // v1.7.0 sync — exclude tombstoned rows from the Coach snapshot.
+          where: { userId, deletedAt: null, moodLoggedAt: { gte: cutoff } },
+          orderBy: { moodLoggedAt: "asc" },
+          select: { moodLoggedAt: true, score: true },
+        })
+      : null;
+  const intakeRowsPromise = wantsCompliance
+    ? prisma.medicationIntakeEvent.findMany({
+        where: { userId, scheduledFor: { gte: cutoff } },
+        orderBy: { scheduledFor: "asc" },
+        select: { scheduledFor: true, takenAt: true, skipped: true },
+      })
+    : null;
+  const sleepRowsPromise = sources.has("sleep")
+    ? prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "SLEEP_DURATION" as never,
+          measuredAt: { gte: additiveCutoff("sleep") },
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "asc" },
+        select: { value: true, measuredAt: true, sleepStage: true },
+      })
+    : null;
+  const workoutRowsPromise = sources.has("workouts")
+    ? prisma.workout.findMany({
+        where: { userId, startedAt: { gte: additiveCutoff("workouts") } },
+        orderBy: { startedAt: "desc" },
+        select: {
+          sportType: true,
+          startedAt: true,
+          durationSec: true,
+          totalEnergyKcal: true,
+          totalDistanceM: true,
+          avgHeartRate: true,
+          maxHeartRate: true,
+        },
+      })
+    : null;
+  const glp1BlockPromise = excludesMedications
+    ? null
+    : buildGlp1SnapshotBlock(userId, now);
+  const derivedBlockPromise = derivedActive
+    ? buildDerivedSnapshotBlock(userId, derivedProfile, now)
+    : null;
+  const trajectoryBlockPromise = derivedActive
+    ? buildTrajectorySnapshotBlock(userId, derivedProfile, now)
+    : null;
+  const memoryBlockPromise = buildCoachMemoryBlock(
+    userId,
+    derivedProfile,
+    now,
+    coachLocale,
+  );
+
+  const [
+    moodRows,
+    intakeRows,
+    sleepRows,
+    workoutRows,
+    glp1Block,
+    derivedBlock,
+    trajectoryBlock,
+    memoryBlock,
+  ] = await Promise.all([
+    moodRowsPromise,
+    intakeRowsPromise,
+    sleepRowsPromise,
+    workoutRowsPromise,
+    glp1BlockPromise,
+    derivedBlockPromise,
+    trajectoryBlockPromise,
+    memoryBlockPromise,
+  ]);
 
   const byType = (t: string) =>
     measurementRows
@@ -749,15 +875,8 @@ async function buildCoachSnapshotImpl(
     counts.pulse = features.pulse.coverage?.count ?? undefined;
     registerBlock("pulse", "pulse");
   }
-  if (wantsMood && features.mood) {
-    // Mood entries live on a separate model. Pull only the recent
-    // window for the day-level rows + bucket the rest.
-    const moodRows = await prisma.moodEntry.findMany({
-      // v1.7.0 sync — exclude tombstoned rows from the Coach snapshot.
-      where: { userId, deletedAt: null, moodLoggedAt: { gte: cutoff } },
-      orderBy: { moodLoggedAt: "asc" },
-      select: { moodLoggedAt: true, score: true },
-    });
+  if (wantsMood && features.mood && moodRows) {
+    // Mood entries live on a separate model — read in parallel above.
     const normalised = moodRows.map((m) => ({
       measuredAt: m.moodLoggedAt,
       value: m.score,
@@ -779,17 +898,13 @@ async function buildCoachSnapshotImpl(
     registerBlock("mood", "mood");
   }
 
-  if (wantsCompliance) {
+  if (wantsCompliance && intakeRows) {
     // Medication compliance lives outside the structured features
     // today — the legacy Coach surface labelled it as "general"
     // provenance only. v1.4.20.1 ships a per-day adherence row built
     // from the intake-event log so the Coach can answer "did I miss
-    // my dose on Tuesday?" without inventing the schedule.
-    const intakeRows = await prisma.medicationIntakeEvent.findMany({
-      where: { userId, scheduledFor: { gte: cutoff } },
-      orderBy: { scheduledFor: "asc" },
-      select: { scheduledFor: true, takenAt: true, skipped: true },
-    });
+    // my dose on Tuesday?" without inventing the schedule. The read is
+    // issued in parallel above.
     if (intakeRows.length > 0) {
       // Per-day adherence rate within the recent window. Older days
       // collapse into a single weekly bucket.
@@ -958,18 +1073,9 @@ async function buildCoachSnapshotImpl(
   // dedicated read of the SLEEP_DURATION rows that carry a non-null
   // stage; the duration timeline is built from the same rows summed per
   // night (one night = the sum of its per-stage rows).
-  if (sources.has("sleep")) {
-    const sleepCutoff = additiveCutoff("sleep");
-    const sleepRows = await prisma.measurement.findMany({
-      where: {
-        userId,
-        type: "SLEEP_DURATION" as never,
-        measuredAt: { gte: sleepCutoff },
-        deletedAt: null,
-      },
-      orderBy: { measuredAt: "asc" },
-      select: { value: true, measuredAt: true, sleepStage: true },
-    });
+  if (sources.has("sleep") && sleepRows) {
+    // The SLEEP_DURATION rows (with the `sleepStage` column) are read in
+    // parallel above.
     if (sleepRows.length === 0) {
       annotate({
         action: { name: "coach.cluster.empty_skipped" },
@@ -1081,21 +1187,8 @@ async function buildCoachSnapshotImpl(
   // energy, distance, avg/max HR) plus a per-sport weekly count + total
   // duration/energy rollup for the tail so the prompt stays bounded
   // even for a heavy-training account at a long window.
-  if (sources.has("workouts")) {
-    const workoutCutoff = additiveCutoff("workouts");
-    const workoutRows = await prisma.workout.findMany({
-      where: { userId, startedAt: { gte: workoutCutoff } },
-      orderBy: { startedAt: "desc" },
-      select: {
-        sportType: true,
-        startedAt: true,
-        durationSec: true,
-        totalEnergyKcal: true,
-        totalDistanceM: true,
-        avgHeartRate: true,
-        maxHeartRate: true,
-      },
-    });
+  if (sources.has("workouts") && workoutRows) {
+    // The workout sessions are read in parallel above.
     if (workoutRows.length === 0) {
       annotate({
         action: { name: "coach.cluster.empty_skipped" },
@@ -1161,13 +1254,12 @@ async function buildCoachSnapshotImpl(
   // "your medication", never to make recommendations.
   // v1.4.36 W3 T2 — gated on `medications` exclusion. When excluded
   // we skip the Prisma lookup entirely so the read cost vanishes too.
-  if (!excludesMedications) {
-    const glp1Block = await buildGlp1SnapshotBlock(userId, now);
-    if (glp1Block) {
-      snapshot.weeklyContext = { glp1: glp1Block };
-      metrics.add("compliance");
-      registerBlock("weeklyContext", "compliance");
-    }
+  if (!excludesMedications && glp1Block) {
+    // The GLP-1 block is read in parallel above (null when excluded or
+    // when the account has no active GLP-1 medication).
+    snapshot.weeklyContext = { glp1: glp1Block };
+    metrics.add("compliance");
+    registerBlock("weeklyContext", "compliance");
   }
 
   // v1.4.36 W3 T2 — anthropometrics block (height / age / gender).
@@ -1203,28 +1295,9 @@ async function buildCoachSnapshotImpl(
   // contract every surface uses — no recompute. Gated on at least one of
   // the signals the composites are built from staying in-scope (HRV /
   // resting HR / sleep / VO₂max), so a user who excludes those doesn't see
-  // the block.
-  const derivedSources: CoachScopeSource[] = [
-    "hrv",
-    "resting_hr",
-    "sleep",
-    "vo2_max",
-  ];
-  const derivedCtx = features.context;
-  const derivedProfile: BaselineProfile = {
-    ageYears: derivedCtx?.ageYears ?? null,
-    sex:
-      derivedCtx?.gender === "MALE" || derivedCtx?.gender === "FEMALE"
-        ? (derivedCtx.gender as "MALE" | "FEMALE")
-        : null,
-    heightCm: derivedCtx?.heightCm ?? null,
-  };
-  if (derivedSources.some((s) => sources.has(s))) {
-    const derivedBlock = await buildDerivedSnapshotBlock(
-      userId,
-      derivedProfile,
-      now,
-    );
+  // the block. `derivedActive` + `derivedProfile` are resolved up top so
+  // the derived / trajectory reads can run in the parallel batch.
+  if (derivedActive) {
     if (derivedBlock) {
       snapshot.derived = derivedBlock;
       metrics.add("hrv");
@@ -1238,12 +1311,8 @@ async function buildCoachSnapshotImpl(
     // Coach narrates the range conditionally (system-prompt rule 11 /
     // ground rule 16) only when this block is present. Registered under an
     // `environment`-cluster source so the soft-cap degrader sheds it FIRST,
-    // before any clinical cluster, under prompt-budget pressure.
-    const trajectoryBlock = await buildTrajectorySnapshotBlock(
-      userId,
-      derivedProfile,
-      now,
-    );
+    // before any clinical cluster, under prompt-budget pressure. Read in
+    // the parallel batch above.
     if (trajectoryBlock) {
       snapshot.trajectory = trajectoryBlock;
       registerBlock("trajectory", "skin_temp");
@@ -1260,13 +1329,8 @@ async function buildCoachSnapshotImpl(
   // (`environment`, the tail of CLUSTER_PRIORITY) so `degradeToBudget`
   // sheds it FIRST under the char cap — before any clinical cluster. The
   // builder is fault-isolated per sub-source and returns null when neither
-  // a narrative nor any band movement is on file.
-  const memoryBlock = await buildCoachMemoryBlock(
-    userId,
-    derivedProfile,
-    now,
-    coachLocale,
-  );
+  // a narrative nor any band movement is on file. Read in the parallel
+  // batch above.
   if (memoryBlock) {
     snapshot.memory = memoryBlock;
     // `skin_temp` maps to the `environment` cluster — the lowest priority

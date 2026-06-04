@@ -12,6 +12,8 @@ import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { HeroStrip } from "@/components/insights/hero-strip";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { useInsightsWarm } from "@/components/insights/use-insights-warm";
@@ -23,16 +25,40 @@ import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import type { InsightsAnalyticsData as AnalyticsData } from "@/types/analytics";
 
 /**
- * v1.4.33 IW2 — defer the three below-the-fold mother-page blocks
- * behind `next/dynamic`. `<HeroStrip>` (the only above-the-fold piece)
- * stays an eager import so the initial paint shows the greeting and
- * health-score badge without a flash; the briefing, correlation row
- * and trends row each carry their own icon-set + chart wiring (a chart
- * card alone weighs in at the lucide tree-shake limit) and used to
- * land on every Insights cold mount. Loader skeletons match the
- * existing fallback so the layout doesn't shift while the chunks
- * resolve.
+ * v1.4.33 IW2 — defer the below-the-fold mother-page blocks behind
+ * `next/dynamic`. `<HeroStrip>` (the only above-the-fold piece) stays an
+ * eager import so the initial paint shows the greeting and health-score
+ * badge without a flash; the briefing, correlation row and trends row
+ * each carry their own icon-set + chart wiring (a chart card alone weighs
+ * in at the lucide tree-shake limit) and used to land on every Insights
+ * cold mount.
+ *
+ * v1.11.3 — every loader fallback now routes through the shared
+ * `BlockSkeleton` instead of a bespoke `h-[Xrem] animate-pulse` div. The
+ * fixed guessed heights pinned each placeholder taller (or shorter) than
+ * the resolved block, so the page jumped as each chunk landed. The shared
+ * skeleton carries a `min-h` floor — enough to hold the row open at cold
+ * mount — and lets the block grow into its true height without fighting a
+ * hard-coded pixel guess, killing the resolve-time layout shift. Reduced
+ * motion is honoured by the `Skeleton` primitive (`motion-reduce:animate-none`).
  */
+function BlockSkeleton({
+  minHeight,
+  decorative = false,
+}: {
+  /** Tailwind `min-h-*` utility holding the row open before the chunk lands. */
+  minHeight: string;
+  /** Decorative placeholders (cards that may un-mount) hide from a11y. */
+  decorative?: boolean;
+}) {
+  return (
+    <Skeleton
+      {...(decorative ? { "aria-hidden": "true" } : {})}
+      className={cn("w-full rounded-xl", minHeight)}
+    />
+  );
+}
+
 const DailyBriefing = dynamic(
   () =>
     import("@/components/insights/daily-briefing").then((mod) => ({
@@ -40,9 +66,7 @@ const DailyBriefing = dynamic(
     })),
   {
     ssr: false,
-    loading: () => (
-      <div className="bg-card border-border h-[24rem] animate-pulse rounded-xl border motion-reduce:animate-none" />
-    ),
+    loading: () => <BlockSkeleton minHeight="min-h-96" />,
   },
 );
 const CorrelationRow = dynamic(
@@ -52,9 +76,7 @@ const CorrelationRow = dynamic(
     })),
   {
     ssr: false,
-    loading: () => (
-      <div className="bg-card border-border h-[20rem] animate-pulse rounded-xl border motion-reduce:animate-none" />
-    ),
+    loading: () => <BlockSkeleton minHeight="min-h-80" />,
   },
 );
 const TrendsRow = dynamic(
@@ -64,9 +86,7 @@ const TrendsRow = dynamic(
     })),
   {
     ssr: false,
-    loading: () => (
-      <div className="bg-card border-border h-[20rem] animate-pulse rounded-xl border motion-reduce:animate-none" />
-    ),
+    loading: () => <BlockSkeleton minHeight="min-h-80" />,
   },
 );
 // v1.10.0 — the Vitals dashboard (Apple-Health-Highlights grid of
@@ -80,9 +100,7 @@ const VitalsDashboard = dynamic(
     })),
   {
     ssr: false,
-    loading: () => (
-      <div className="bg-card border-border h-[20rem] animate-pulse rounded-xl border motion-reduce:animate-none" />
-    ),
+    loading: () => <BlockSkeleton minHeight="min-h-80" />,
   },
 );
 // v1.10.0 — categorical events (WX-B). The device-flagged event awareness
@@ -111,12 +129,7 @@ const CoincidentDeviationCard = dynamic(
     })),
   {
     ssr: false,
-    loading: () => (
-      <div
-        aria-hidden="true"
-        className="bg-card border-border min-h-48 animate-pulse rounded-xl border motion-reduce:animate-none"
-      />
-    ),
+    loading: () => <BlockSkeleton minHeight="min-h-48" decorative />,
   },
 );
 
@@ -132,12 +145,7 @@ const PeriodNarrativeCard = dynamic(
     })),
   {
     ssr: false,
-    loading: () => (
-      <div
-        aria-hidden="true"
-        className="bg-card border-border min-h-40 animate-pulse rounded-xl border motion-reduce:animate-none"
-      />
-    ),
+    loading: () => <BlockSkeleton minHeight="min-h-40" decorative />,
   },
 );
 
@@ -293,10 +301,18 @@ export default function InsightsPage() {
 
       {flags.briefing && <PeriodNarrativeCard enabled={isAuthenticated} />}
 
-      <div className="flex justify-end">
+      {/* v1.11.3 — anchor the warm-assessments control. It used to float
+          right-aligned with no label, reading as an orphan affordance. The
+          left-aligned caption explains the nightly-refresh model and gives the
+          button context. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-muted-foreground text-xs">
+          {t("insights.warmAssessmentsHint")}
+        </p>
         <Button
           size="sm"
           variant="outline"
+          className="self-start sm:self-auto"
           onClick={warm}
           disabled={isWarming}
         >

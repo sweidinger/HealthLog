@@ -259,8 +259,8 @@ function CsvCard({
       const stamp = new Date().toISOString().slice(0, 10);
       const filename = `${filenamePrefix}-${stamp}.csv`;
       await downloadFromUrl(`${endpoint}${query}`, filename);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+    } catch {
+      setError(t("settings.sections.export.downloadFailed"));
     } finally {
       setBusy(false);
     }
@@ -344,8 +344,8 @@ function MedicationsCsvCard() {
         `/api/export/medications${query}`,
         `healthlog-medications-${stamp}.csv`,
       );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+    } catch {
+      setError(t("settings.sections.export.downloadFailed"));
     } finally {
       setBusy(false);
     }
@@ -435,8 +435,8 @@ function FullBackupCard() {
         "/api/export/full-backup",
         `healthlog-backup-${stamp}.json`,
       );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+    } catch {
+      setError(t("settings.sections.export.downloadFailed"));
     } finally {
       setBusy(false);
     }

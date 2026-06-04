@@ -33,6 +33,16 @@ import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -58,6 +68,49 @@ const DASHBOARD_QUERY_OPTS = {
   staleTime: 60_000,
   refetchOnWindowFocus: false,
 } as const;
+
+/**
+ * v1.11.3 F3 — guard the quick-entry sheets against an accidental
+ * dismiss (overlay tap, Esc, mobile swipe-down) discarding a partly
+ * filled form. The forms live behind a stable `ResponsiveSheet` body
+ * slot and don't expose their dirty state, so we read it from the DOM
+ * at dismiss time: any visible text/number input or textarea that
+ * carries a value, or any checked checkbox/radio that isn't a default,
+ * counts as unsaved input. Date/time pickers are excluded — the forms
+ * prefill them with the current timestamp on mount, so a pristine sheet
+ * would otherwise always read as dirty. Cheap, synchronous, and runs
+ * only on the one mounted sheet body.
+ */
+const PREFILLED_PICKER_TYPES = new Set([
+  "date",
+  "datetime-local",
+  "time",
+  "month",
+  "week",
+]);
+function sheetBodyHasUnsavedInput(): boolean {
+  if (typeof document === "undefined") return false;
+  const body = document.querySelector<HTMLElement>(
+    '[data-slot="responsive-sheet-body"]',
+  );
+  if (!body) return false;
+  const fields = body.querySelectorAll<
+    HTMLInputElement | HTMLTextAreaElement
+  >("input, textarea");
+  for (const field of fields) {
+    if (field.disabled || field.type === "hidden") continue;
+    // Skip pickers the form prefills with "now" — an untouched default
+    // is not user input (v1.11.3 QA H1).
+    if (PREFILLED_PICKER_TYPES.has(field.type)) continue;
+    if (field.type === "checkbox" || field.type === "radio") {
+      const box = field as HTMLInputElement;
+      if (box.checked !== box.defaultChecked) return true;
+      continue;
+    }
+    if (field.value.trim() !== "") return true;
+  }
+  return false;
+}
 
 const MoodChart = dynamic(
   () =>
@@ -215,6 +268,22 @@ export default function DashboardPage() {
   // mobile soft keyboard.
   const [medicationIntakeFooterEl, setMedicationIntakeFooterEl] =
     useState<HTMLDivElement | null>(null);
+  // v1.11.3 F3 — when an open quick-entry sheet is dismissed with
+  // unsaved input, hold the close in this flag and surface a confirm
+  // instead of nulling the dialog outright. Cleared once the user
+  // confirms (close) or keeps editing (dismiss the confirm).
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
+
+  // Intercept a sheet dismiss: close immediately when the form is
+  // clean, otherwise keep the sheet open and ask before discarding.
+  function handleQuickEntryOpenChange(open: boolean) {
+    if (open) return;
+    if (sheetBodyHasUnsavedInput()) {
+      setConfirmDiscardOpen(true);
+      return;
+    }
+    setQuickEntryDialog(null);
+  }
 
   // v1.4.29 M5 — the three inline dashboard queries default to a
   // 0-ms `staleTime`, so a tab-focus-and-return triggered a refetch
@@ -738,7 +807,7 @@ export default function DashboardPage() {
       {/* Quick Entry Sheets — bottom-sheet on `<md`, centred Dialog on `md+`. */}
       <ResponsiveSheet
         open={quickEntryDialog === "measurement"}
-        onOpenChange={(open) => !open && setQuickEntryDialog(null)}
+        onOpenChange={handleQuickEntryOpenChange}
         title={t("measurements.addMeasurement")}
         footer={
           <div ref={setMeasurementFooterEl} className="flex w-full" />
@@ -752,7 +821,7 @@ export default function DashboardPage() {
       </ResponsiveSheet>
       <ResponsiveSheet
         open={quickEntryDialog === "mood"}
-        onOpenChange={(open) => !open && setQuickEntryDialog(null)}
+        onOpenChange={handleQuickEntryOpenChange}
         title={t("mood.addEntry")}
         footer={<div ref={setMoodFooterEl} className="flex w-full" />}
       >
@@ -768,7 +837,7 @@ export default function DashboardPage() {
           stays reachable above the soft keyboard on mobile. */}
       <ResponsiveSheet
         open={quickEntryDialog === "medicationIntake"}
-        onOpenChange={(open) => !open && setQuickEntryDialog(null)}
+        onOpenChange={handleQuickEntryOpenChange}
         title={t("dashboard.medicationIntakeQuickAdd.sheetTitle")}
         description={t("dashboard.medicationIntakeQuickAdd.sheetDescription")}
         footer={
@@ -781,6 +850,39 @@ export default function DashboardPage() {
           footerSlot={medicationIntakeFooterEl}
         />
       </ResponsiveSheet>
+
+      {/* v1.11.3 F3 — confirm before discarding a partly-filled
+          quick-entry form when the sheet is dismissed by an overlay
+          tap, Escape, or a mobile swipe-down. Keeps the sheet open
+          until the user decides. */}
+      <AlertDialog
+        open={confirmDiscardOpen}
+        onOpenChange={setConfirmDiscardOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("dashboard.quickEntryDiscard.title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("dashboard.quickEntryDiscard.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t("dashboard.quickEntryDiscard.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmDiscardOpen(false);
+                setQuickEntryDialog(null);
+              }}
+            >
+              {t("dashboard.quickEntryDiscard.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {(() => {
         type TrendEntry = { id: string; order: number; node: React.ReactNode };
@@ -1509,7 +1611,7 @@ export default function DashboardPage() {
                 {Array.from({ length: configuredTileCount }).map((_, idx) => (
                   <div
                     key={`tile-skeleton-${idx}`}
-                    className="bg-card border-border min-h-[6rem] animate-pulse rounded-xl border p-4 motion-reduce:animate-none md:p-6"
+                    className="bg-card border-border min-h-[8rem] animate-pulse rounded-xl border p-4 motion-reduce:animate-none md:p-6"
                   />
                 ))}
               </div>
@@ -1570,7 +1672,7 @@ export default function DashboardPage() {
                       fallback={
                         <div
                           aria-hidden="true"
-                          className="bg-card border-border flex h-full min-h-[6rem] w-full min-w-0 flex-col rounded-xl border p-4 md:p-6"
+                          className="bg-card border-border flex h-full min-h-[8rem] w-full min-w-0 flex-col overflow-hidden rounded-xl border p-4 md:p-6"
                         />
                       }
                     >

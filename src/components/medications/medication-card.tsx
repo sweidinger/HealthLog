@@ -168,6 +168,26 @@ export function MedicationCard({
     return () => clearInterval(interval);
   }, []);
 
+  // v1.11.3 C2 — reverse the just-recorded intake via the soft-delete
+  // route. Surfaced from the success toast's Undo action so a misclicked
+  // take / skip no longer needs a history dive to correct.
+  async function undoIntake(eventId: string) {
+    try {
+      const res = await fetch(
+        `/api/medications/${medication.id}/intake/${eventId}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        toast.error(t("medications.intakeUndoFailed"));
+        return;
+      }
+      await invalidateKeys(queryClient, medicationDependentKeys);
+      toast.success(t("medications.intakeUndone"));
+    } catch {
+      toast.error(t("medications.intakeUndoFailed"));
+    }
+  }
+
   async function recordIntake(skipped: boolean) {
     const key = skipped ? "skip" : "take";
     setIntakeLoading(key);
@@ -177,29 +197,52 @@ export function MedicationCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ skipped }),
       });
-      if (res.ok) {
-        toast.success(
-          t(
-            skipped
-              ? "medications.intakeToastSkipped"
-              : "medications.intakeToastTaken",
-            { name: medication.name },
-          ),
+      // v1.11.3 C1 — a failed POST used to clear the spinner silently, so
+      // the user believed the dose was logged when it was not. Surface the
+      // failure and never show the success confirmation in that case.
+      if (!res.ok) {
+        toast.error(
+          t("medications.intakeToastFailed", { name: medication.name }),
         );
-        await invalidateKeys(queryClient, medicationDependentKeys);
-        // v1.8.5 — after a TAKEN dose on a tracking-enabled injection,
-        // prompt (skippably) for the site. The dialog PATCHes it onto
-        // the just-created event via the status-toggle route.
-        if (!skipped && tracksInjection) {
-          try {
-            const json = await res.json();
-            const eventId = json?.data?.id as string | undefined;
-            if (eventId) setSiteIntakeId(eventId);
-          } catch {
-            /* dose recorded; the site prompt is best-effort */
-          }
-        }
+        return;
       }
+      // The POST returns the created event (`apiSuccess(event, 201)`); its
+      // id drives both the Undo affordance and the optional injection-site
+      // prompt below.
+      let eventId: string | undefined;
+      try {
+        const json = await res.json();
+        eventId = json?.data?.id as string | undefined;
+      } catch {
+        /* dose recorded; the body is best-effort for the id */
+      }
+      toast.success(
+        t(
+          skipped
+            ? "medications.intakeToastSkipped"
+            : "medications.intakeToastTaken",
+          { name: medication.name },
+        ),
+        eventId
+          ? {
+              action: {
+                label: t("medications.intakeUndo"),
+                onClick: () => void undoIntake(eventId),
+              },
+            }
+          : undefined,
+      );
+      await invalidateKeys(queryClient, medicationDependentKeys);
+      // v1.8.5 — after a TAKEN dose on a tracking-enabled injection,
+      // prompt (skippably) for the site. The dialog PATCHes it onto
+      // the just-created event via the status-toggle route.
+      if (!skipped && tracksInjection && eventId) {
+        setSiteIntakeId(eventId);
+      }
+    } catch {
+      toast.error(
+        t("medications.intakeToastFailed", { name: medication.name }),
+      );
     } finally {
       setIntakeLoading(null);
     }

@@ -610,6 +610,51 @@ export function mapCycle(c: WhoopCycle): MappedMeasurement[] {
   ];
 }
 
+/** Metres → centimetres (WHOOP `height_meter` → `User.heightCm`). */
+const M_TO_CM = 100;
+
+/**
+ * The three destinations a WHOOP body-measurement object fans out to. Unlike
+ * the collection mappers it does NOT emit `MappedMeasurement[]` directly,
+ * because only `weight` lands in `Measurement` — `maxHeartRate` is a profile
+ * constant on `WhoopConnection` and `heightCm` is a one-time `User` profile
+ * seed (written only when the user has no height yet). The sync layer routes
+ * each piece to its own table.
+ */
+export interface MappedBodyMeasurement {
+  /** Self-reported profile weight in kg, or null when WHOOP omits it. */
+  weightKg: number | null;
+  /** Profile max heart rate in bpm, or null when WHOOP omits it. */
+  maxHeartRate: number | null;
+  /** Profile height converted m→cm, or null when WHOOP omits it. */
+  heightCm: number | null;
+}
+
+/**
+ * Map a WHOOP body-measurement object onto its three destinations. The body
+ * measurement is a single self-reported profile value, not a timestamped
+ * reading, so the sync layer stamps the weight row's `measuredAt` with the
+ * fetch time. Every field is optional on the wire — an absent field maps to
+ * null and the sync layer skips it.
+ */
+export function mapBody(b: WhoopBodyMeasurement): MappedBodyMeasurement {
+  // WHOOP body fields are self-reported profile data. Guard against absent,
+  // non-finite (NaN/Infinity), or non-positive values so a garbage reading
+  // never seeds a real WEIGHT measurement or a `User.heightCm` of 0
+  // (v1.11.3 QA L1).
+  const positive = (n: number | undefined): n is number =>
+    typeof n === "number" && Number.isFinite(n) && n > 0;
+  return {
+    weightKg: positive(b.weight_kilogram) ? round2(b.weight_kilogram) : null,
+    maxHeartRate: positive(b.max_heart_rate)
+      ? Math.round(b.max_heart_rate)
+      : null,
+    heightCm: positive(b.height_meter)
+      ? round2(b.height_meter * M_TO_CM)
+      : null,
+  };
+}
+
 /**
  * Field→Measurement mapping table (mirror of `mapping.md`). Documents which
  * WHOOP source field becomes which MeasurementType + unit. Used as the
@@ -684,5 +729,11 @@ export const WHOOP_FIELD_MAP: Record<
     type: "WhoopConnection.maxHeartRate",
     unit: "bpm",
     note: "profile constant — stored on the connection, not a Measurement",
+  },
+  "body.height_meter": {
+    type: "User.heightCm",
+    unit: "cm",
+    factor: M_TO_CM,
+    note: "profile seed — written to User.heightCm only when it is null, never as a Measurement",
   },
 };

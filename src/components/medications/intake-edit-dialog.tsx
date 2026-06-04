@@ -16,6 +16,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -174,7 +175,14 @@ function IntakeEditDialogBody({
           <Button variant="outline" onClick={onClose} disabled={busy}>
             {t("medications.detail.intake.edit.cancel")}
           </Button>
-          <Button onClick={() => void save()} disabled={busy} aria-busy={busy || undefined}>
+          <Button
+            onClick={() => void save()}
+            disabled={busy}
+            aria-busy={busy || undefined}
+          >
+            {busy && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            )}
             {t("medications.detail.intake.edit.save")}
           </Button>
         </DialogFooter>

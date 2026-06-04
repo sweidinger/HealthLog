@@ -13,8 +13,8 @@ import { fetchRecoveries, mapRecovery } from "./client";
 import {
   getValidToken,
   incrementalStart,
+  handleCollectionFetchError,
   markSynced,
-  recordWhoopSyncFailure,
   upsertWhoopMeasurements,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
   type WhoopMeasurementUpsert,
@@ -43,8 +43,7 @@ export async function syncUserRecovery(
   try {
     records = await fetchRecoveries(tokenInfo.accessToken, { start });
   } catch (err) {
-    await recordWhoopSyncFailure(userId, err);
-    throw err;
+    return handleCollectionFetchError("recovery", userId, err);
   }
 
   const readings: WhoopMeasurementUpsert[] = [];

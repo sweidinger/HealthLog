@@ -13,7 +13,9 @@ import type { MedicationPayload } from "@/components/medications/wizard/wizard-p
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Pill, Plus } from "lucide-react";
 
 interface Schedule {
@@ -69,6 +71,44 @@ interface Medication {
   /** v1.9.0 — optional RxNorm RxCUI (secondary FHIR coding). */
   rxNormCode?: string | null;
   schedules: Schedule[];
+}
+
+/**
+ * v1.11.3 C4 — loading placeholder for one medication card. Renders the
+ * real `Card`/`CardContent` shell (so padding, radius and gap match the
+ * loaded card exactly) with the shared `Skeleton` primitive standing in
+ * for each populated slot: header title + dose, status pill, next / last
+ * line, the two compliance bars and the action row. Replacing the bare
+ * centred spinner with a grid of these stops the layout jump when the
+ * cards resolve.
+ */
+function MedicationCardSkeleton() {
+  return (
+    <Card className="h-full" aria-hidden="true">
+      <div className="flex items-start justify-between gap-2 px-4 md:px-6">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-3.5 w-20" />
+        </div>
+        <Skeleton className="size-8 rounded-md" />
+      </div>
+      <CardContent className="flex flex-col space-y-3.5">
+        <Skeleton className="h-6 w-40 rounded-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-3.5 w-48" />
+          <Skeleton className="h-3.5 w-36" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-3.5 w-full" />
+          <Skeleton className="h-3.5 w-full" />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Skeleton className="h-9 flex-1" />
+          <Skeleton className="h-9 flex-1" />
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function MedicationsPage() {
@@ -223,8 +263,18 @@ export default function MedicationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex h-32 items-center justify-center">
-          <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+        // v1.11.3 C4 — card skeletons instead of a bare centred spinner so
+        // the page reserves the loaded layout and does not jump when the
+        // medications resolve.
+        <div
+          className="grid gap-4 sm:grid-cols-2"
+          role="status"
+          aria-busy="true"
+          aria-label={t("medications.title")}
+        >
+          {Array.from({ length: 4 }).map((_, i) => (
+            <MedicationCardSkeleton key={i} />
+          ))}
         </div>
       ) : isError ? (
         <div className="bg-card border-border flex h-64 items-center justify-center rounded-xl border">

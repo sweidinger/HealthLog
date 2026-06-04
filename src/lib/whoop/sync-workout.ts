@@ -17,8 +17,8 @@ import { fetchWorkouts, KJ_TO_KCAL } from "./client";
 import {
   getValidToken,
   incrementalStart,
+  handleCollectionFetchError,
   markSynced,
-  recordWhoopSyncFailure,
 } from "./sync";
 import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
@@ -52,8 +52,7 @@ export async function syncUserWorkout(
   try {
     records = await fetchWorkouts(tokenInfo.accessToken, { start });
   } catch (err) {
-    await recordWhoopSyncFailure(userId, err);
-    throw err;
+    return handleCollectionFetchError("workout", userId, err);
   }
 
   let imported = 0;
