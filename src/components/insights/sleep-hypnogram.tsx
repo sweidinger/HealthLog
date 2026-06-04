@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import {
   CartesianGrid,
-  Line,
-  LineChart,
+  ComposedChart,
+  ReferenceArea,
   ResponsiveContainer,
   XAxis,
   YAxis,
@@ -26,8 +26,18 @@ import { STAGE_COLORS } from "./sleep-stage-stacked-bar";
  * One canonical source per night (the endpoint already collapsed it), so
  * exactly one timeline renders — Apple ↔ WHOOP are never overlaid.
  *
- * Recharts stays (project rule). The stepped track is a `stepAfter` line
- * over a {t, lane} series built from each segment's [start, end] span.
+ * Recharts stays (project rule). Each stage segment is drawn as its own
+ * `ReferenceArea` rectangle spanning the segment's [start, end] clock range
+ * at the stage's depth lane, filled with the segment's `STAGE_COLORS` token
+ * (the same palette the breakdown legend below uses) — so the chart reads as
+ * a coloured "cityscape" rather than one flat single-colour line. Depth still
+ * increases downward (Awake top, Deep base).
+ *
+ * v1.11.5 — the chart renders only when per-segment `segments` exist
+ * (`hasTrack`); the per-stage breakdown + totals footer render whenever
+ * `session.stages` carries any positive value, so a legacy stage-summary
+ * night (no segment spans) still shows its breakdown instead of collapsing
+ * the whole card to "unavailable".
  */
 
 export interface SleepHypnogramSegment {
@@ -95,19 +105,24 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
     IN_BED: t("insights.sleep.stages.inBed"),
   };
 
-  // Build the stepped {t, lane} series: a point at each segment START and
-  // END so a `stepAfter` line holds each stage's depth across its span.
-  const data = useMemo(() => {
-    const points: Array<{ t: number; lane: number }> = [];
-    const sorted = [...session.segments]
+  // Build one coloured span per stage segment: its [start, end] clock range
+  // at the stage's depth lane, in the stage's own palette token. Each span
+  // renders as a `ReferenceArea` so the chart is multi-coloured (a single
+  // Recharts line can only carry one stroke).
+  const spans = useMemo(() => {
+    return [...session.segments]
       .filter((seg) => seg.stage != null && LANE_OF[seg.stage] !== undefined)
-      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-    for (const seg of sorted) {
-      const lane = LANE_OF[seg.stage as string];
-      points.push({ t: new Date(seg.start).getTime(), lane });
-      points.push({ t: new Date(seg.end).getTime(), lane });
-    }
-    return points;
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      .map((seg) => {
+        const stage = seg.stage as string;
+        return {
+          stage,
+          x1: new Date(seg.start).getTime(),
+          x2: new Date(seg.end).getTime(),
+          lane: LANE_OF[stage],
+          fill: STAGE_COLORS[stage],
+        };
+      });
   }, [session.segments]);
 
   const domain: [number, number] = [
@@ -144,7 +159,12 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
     awakenings: String(session.awakenings),
   });
 
-  const hasTrack = data.length > 0;
+  // The CHART needs per-segment spans; the BREAKDOWN + totals footer only
+  // need any positive per-stage minutes. A legacy stage-summary night (no
+  // segment spans) still shows its breakdown rather than collapsing the
+  // whole card. "Unavailable" is reserved for a truly empty session.
+  const hasTrack = spans.length > 0;
+  const hasBreakdown = breakdown.length > 0;
 
   return (
     <Card data-slot="sleep-hypnogram">
@@ -161,7 +181,7 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {!hasTrack ? (
+        {!hasTrack && !hasBreakdown ? (
           <p
             className="text-muted-foreground py-8 text-center text-xs"
             data-slot="sleep-hypnogram-empty"
@@ -170,96 +190,105 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
           </p>
         ) : (
           <>
-            <div role="img" aria-label={ariaLabel}>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart
-                  data={data}
-                  margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--border)"
-                    opacity={0.3}
-                  />
-                  <XAxis
-                    type="number"
-                    dataKey="t"
-                    domain={domain}
-                    scale="time"
-                    stroke="var(--muted-foreground)"
-                    fontSize={10}
-                    tickFormatter={(v: number) => timeFmt.format(new Date(v))}
-                  />
-                  <YAxis
-                    type="number"
-                    dataKey="lane"
-                    domain={[-0.5, LANE_ORDER.length - 0.5]}
-                    ticks={LANE_ORDER.map(
-                      (_, i) => LANE_ORDER.length - 1 - i,
-                    )}
-                    stroke="var(--muted-foreground)"
-                    fontSize={10}
-                    width={56}
-                    tickFormatter={(v: number) => {
-                      const stage = LANE_ORDER[LANE_ORDER.length - 1 - v];
-                      return stageLabels[stage] ?? "";
-                    }}
-                  />
-                  <Line
-                    type="stepAfter"
-                    dataKey="lane"
-                    stroke="var(--dracula-cyan, #8be9fd)"
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div
-              className="space-y-1.5"
-              data-slot="sleep-hypnogram-breakdown"
-            >
-              {breakdown.map(({ stage, minutes, pct }) => (
-                <div
-                  key={stage}
-                  className="flex items-center justify-between gap-3 text-xs"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span
-                      aria-hidden="true"
-                      className="inline-block h-2 w-2 rounded-sm"
-                      style={{ background: STAGE_COLORS[stage] }}
+            {hasTrack && (
+              <div role="img" aria-label={ariaLabel}>
+                <ResponsiveContainer width="100%" height={200}>
+                  <ComposedChart
+                    data={[]}
+                    margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="var(--border)"
+                      opacity={0.3}
                     />
-                    {stageLabels[stage] ?? stage}
+                    <XAxis
+                      type="number"
+                      dataKey="t"
+                      domain={domain}
+                      scale="time"
+                      stroke="var(--muted-foreground)"
+                      fontSize={10}
+                      tickFormatter={(v: number) => timeFmt.format(new Date(v))}
+                    />
+                    <YAxis
+                      type="number"
+                      dataKey="lane"
+                      domain={[-0.5, LANE_ORDER.length - 0.5]}
+                      ticks={LANE_ORDER.map((_, i) => LANE_ORDER.length - 1 - i)}
+                      stroke="var(--muted-foreground)"
+                      fontSize={10}
+                      width={56}
+                      tickFormatter={(v: number) => {
+                        const stage = LANE_ORDER[LANE_ORDER.length - 1 - v];
+                        return stageLabels[stage] ?? "";
+                      }}
+                    />
+                    {spans.map((span, i) => (
+                      <ReferenceArea
+                        key={`${span.stage}-${i}`}
+                        x1={span.x1}
+                        x2={span.x2}
+                        y1={span.lane - 0.4}
+                        y2={span.lane + 0.4}
+                        fill={span.fill}
+                        fillOpacity={0.9}
+                        stroke="none"
+                        ifOverflow="extendDomain"
+                      />
+                    ))}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {hasBreakdown && (
+              <>
+                <div
+                  className="space-y-1.5"
+                  data-slot="sleep-hypnogram-breakdown"
+                >
+                  {breakdown.map(({ stage, minutes, pct }) => (
+                    <div
+                      key={stage}
+                      className="flex items-center justify-between gap-3 text-xs"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span
+                          aria-hidden="true"
+                          className="inline-block h-2 w-2 rounded-sm"
+                          style={{ background: STAGE_COLORS[stage] }}
+                        />
+                        {stageLabels[stage] ?? stage}
+                      </span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {formatMinutes(minutes, locale)} · {pct}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-border flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-xs">
+                  <span className="font-medium">
+                    {t("insights.sleep.hypnogram.asleepTotal", {
+                      value: formatMinutes(session.asleepMinutes, locale),
+                    })}
                   </span>
-                  <span className="text-muted-foreground tabular-nums">
-                    {formatMinutes(minutes, locale)} · {pct}%
+                  {session.inBedMinutes != null && (
+                    <span className="text-muted-foreground">
+                      {t("insights.sleep.hypnogram.inBedTotal", {
+                        value: formatMinutes(session.inBedMinutes, locale),
+                      })}
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">
+                    {t("insights.sleep.hypnogram.awakenings", {
+                      count: String(session.awakenings),
+                    })}
                   </span>
                 </div>
-              ))}
-            </div>
-
-            <div className="border-border flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-2 text-xs">
-              <span className="font-medium">
-                {t("insights.sleep.hypnogram.asleepTotal", {
-                  value: formatMinutes(session.asleepMinutes, locale),
-                })}
-              </span>
-              {session.inBedMinutes != null && (
-                <span className="text-muted-foreground">
-                  {t("insights.sleep.hypnogram.inBedTotal", {
-                    value: formatMinutes(session.inBedMinutes, locale),
-                  })}
-                </span>
-              )}
-              <span className="text-muted-foreground">
-                {t("insights.sleep.hypnogram.awakenings", {
-                  count: String(session.awakenings),
-                })}
-              </span>
-            </div>
+              </>
+            )}
           </>
         )}
       </CardContent>

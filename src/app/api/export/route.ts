@@ -12,6 +12,7 @@ import {
   formatMoodEntriesForExport,
 } from "@/lib/export";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -49,7 +50,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
   }
 
   const userId = user.id;
-  const userTz = await resolveUserTimezone(userId);
+  const [userTz, sourcePriorityJson] = await Promise.all([
+    resolveUserTimezone(userId),
+    loadUserSourcePriority(userId),
+  ]);
 
   const data: Record<string, unknown> = {};
 
@@ -63,10 +67,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
     });
     // v1.11.5 — sleep collapses to one row per night by default (the
     // formatter's `night` granularity), matching the per-type CSV route.
+    // Thread the user's source-priority so a multi-source night dedups to
+    // the same canonical source the UI shows.
     const measurementRecords = formatMeasurementsForExport(
       measurements,
       userTz,
-      { sleepTz: userTz },
+      { sleepTz: userTz, sourcePriorityJson },
     );
     data.measurements =
       format === "csv" ? toCSV(measurementRecords) : measurementRecords;

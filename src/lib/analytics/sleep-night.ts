@@ -15,14 +15,19 @@
  *
  * Granular-over-bare (v1.11.5)
  * ----------------------------
- * Apple Health (and some WHOOP shapes) writes BOTH an unspecified `ASLEEP`
- * AGGREGATE row AND the granular `CORE` / `DEEP` / `REM` breakdown for the
- * SAME sleep period. The granular rows partition the same time the aggregate
- * covers, so summing bare-ASLEEP together with the granular rows ~doubles the
- * night. We therefore prefer the granular partition: when ANY granular stage
- * (CORE / DEEP / REM) is present for a night/source we count ONLY the granular
- * stages; the bare `ASLEEP` aggregate (or a stage-less legacy / manual row) is
- * the night's asleep total only when no granular stage exists.
+ * Apple Health writes BOTH an unspecified `ASLEEP` AGGREGATE row AND the
+ * granular `CORE` / `DEEP` / `REM` breakdown for the SAME sleep period. The
+ * granular rows partition the same time the aggregate covers, so counting
+ * bare-ASLEEP together with the granular rows ~doubles the night. We therefore
+ * prefer the granular partition: when ANY granular stage (CORE / DEEP / REM)
+ * is present for a session we drop the redundant bare `ASLEEP` aggregate (and
+ * any stage-less row) EVERYWHERE — the asleep total, the per-stage `stages`
+ * breakdown, and the hypnogram `segments` list — so none of those views holds
+ * the granular set plus its ~equal bare twin. The bare `ASLEEP` aggregate (or
+ * a stage-less legacy / manual row) is the session's only asleep signal when
+ * no granular stage exists. WHOOP never emits a bare `ASLEEP` aggregate (its
+ * stage map writes CORE / DEEP / REM / AWAKE / IN_BED only — see
+ * `whoop/client.ts`), so this gate is Apple-Health-only in practice.
  *
  * Night grouping
  * --------------
@@ -89,20 +94,49 @@ import {
 
 /**
  * The GRANULAR asleep stages (iOS 16+ `asleepCore` / `asleepDeep` /
- * `asleepREM`). A bare `ASLEEP` row is the legacy iOS 15- `asleepUnspecified`
- * AGGREGATE — many sources (Apple Health, some WHOOP shapes) write BOTH the
- * unspecified aggregate AND the granular breakdown for the SAME period, so
- * summing bare-ASLEEP together with the granular rows ~doubles the night. The
- * granular rows partition the same time the aggregate covers, so when any
- * granular stage is present for a night/source we count ONLY the granular
- * stages and drop the bare aggregate; the bare row is the asleep total only
- * when no granular stage exists.
+ * `asleepREM`). A bare `ASLEEP` row is the iOS 15- `asleepUnspecified`
+ * AGGREGATE — Apple Health writes BOTH the unspecified aggregate AND the
+ * granular breakdown for the SAME period, so keeping bare-ASLEEP alongside the
+ * granular rows ~doubles the night. The granular rows partition the same time
+ * the aggregate covers, so when any granular stage is present for a session we
+ * keep ONLY the granular stages and drop the bare aggregate; the bare row is
+ * the asleep signal only when no granular stage exists. WHOOP never writes a
+ * bare `ASLEEP` aggregate (see `whoop/client.ts` `SLEEP_STAGE_MAP`).
  */
 const GRANULAR_ASLEEP_STAGES: ReadonlySet<SleepStage> = new Set<SleepStage>([
   "REM",
   "CORE",
   "DEEP",
 ]);
+
+/**
+ * True when any row in the set carries a GRANULAR asleep stage
+ * (CORE / DEEP / REM). When this holds, the bare `ASLEEP` aggregate (and any
+ * stage-less row) is the redundant unspecified twin of the granular partition
+ * and must be dropped from EVERY downstream view — the asleep total, the
+ * per-stage `stages` map, and the hypnogram `segments` list — so none of them
+ * double-counts the same period.
+ */
+function sawGranularStage(rows: readonly SleepStageRow[]): boolean {
+  for (const r of rows) {
+    const stage = r.sleepStage;
+    if (stage != null && GRANULAR_ASLEEP_STAGES.has(stage)) return true;
+  }
+  return false;
+}
+
+/**
+ * A stage row is a redundant bare-asleep aggregate (must be dropped) when the
+ * session/night ALSO carries a granular CORE/DEEP/REM partition. Only the bare
+ * `ASLEEP` aggregate and stage-less (`null`) rows are redundant — IN_BED /
+ * AWAKE and the granular stages themselves are always kept.
+ */
+function isRedundantBareAsleep(
+  stage: SleepStage | null,
+  sawGranular: boolean,
+): boolean {
+  return sawGranular && (stage === "ASLEEP" || stage == null);
+}
 
 /**
  * Sum a set of stage rows into time-asleep minutes WITHOUT double-counting a
@@ -268,10 +302,13 @@ export function reconstructSleepNights(
   }
   if (current.length > 0) sessions.push(current);
 
-  // Two sessions can land on the same wake day (e.g. a genuine second sleep);
-  // merge their rows under one key after the source-collapse so the night key
-  // stays unique. Collapse each session to its canonical source first.
-  const byNight = new Map<string, SleepStageRow[]>();
+  // Two sessions can land on the same wake day (e.g. a genuine overnight plus
+  // a same-day nap); collect each session's canonical-source rows under one
+  // wake-day key. The rows are grouped PER SESSION (not flattened) so the
+  // granular-over-bare gate and the asleep total are decided per session — a
+  // bare-only nap keeps its minutes even when the overnight session is
+  // granular (the v1.11.5 merged-night nap under-count fix).
+  const byNight = new Map<string, SleepStageRow[][]>();
   for (const session of sessions) {
     const canonical = pickSessionSource(session, sleepLadder);
     const kept = session.filter((r) => (r.source ?? NO_SOURCE) === canonical);
@@ -284,40 +321,48 @@ export function reconstructSleepNights(
     );
     const key = userDayKey(wakeInstant, tz);
     const list = byNight.get(key) ?? [];
-    list.push(...kept);
+    list.push(pool);
     byNight.set(key, list);
   }
 
   const nights: SleepNight[] = [];
-  for (const [night, nightRows] of byNight) {
+  for (const [night, nightSessions] of byNight) {
     let inBed = 0;
     let awake = 0;
     let sawInBed = false;
     let sawAwake = false;
-    let latest = nightRows[0].measuredAt;
+    let asleep = 0;
+    let latest = nightSessions[0][0].measuredAt;
     const stages: Partial<Record<SleepStage, number>> = {};
-    for (const r of nightRows) {
-      const minutes = Number.isFinite(r.value) ? r.value : 0;
-      if (r.measuredAt.getTime() > latest.getTime()) latest = r.measuredAt;
-      const stage = r.sleepStage;
-      if (stage) {
-        stages[stage] = (stages[stage] ?? 0) + minutes;
+    for (const sessionRows of nightSessions) {
+      // v1.11.5 — decide the granular-over-bare gate PER SESSION. A granular
+      // overnight does not strip a bare-only nap's minutes, and the per-stage
+      // `stages` map drops the redundant bare ASLEEP aggregate only for the
+      // session that also carries the granular partition.
+      const sawGranular = sawGranularStage(sessionRows);
+      // Asleep total: sum per session so a granular overnight + a bare-only
+      // nap both contribute (the merged-night nap under-count fix).
+      asleep += asleepMinutesOf(sessionRows);
+      for (const r of sessionRows) {
+        const minutes = Number.isFinite(r.value) ? r.value : 0;
+        if (r.measuredAt.getTime() > latest.getTime()) latest = r.measuredAt;
+        const stage = r.sleepStage;
+        // Drop the redundant bare ASLEEP aggregate (and stage-less rows) from
+        // the per-stage breakdown when this session has the granular partition,
+        // so `stages` is never the granular set PLUS its ~equal bare twin.
+        if (isRedundantBareAsleep(stage, sawGranular)) continue;
+        if (stage) {
+          stages[stage] = (stages[stage] ?? 0) + minutes;
+        }
+        if (stage === "IN_BED") {
+          inBed += minutes;
+          sawInBed = true;
+        } else if (stage === "AWAKE") {
+          awake += minutes;
+          sawAwake = true;
+        }
       }
-      if (stage === "IN_BED") {
-        inBed += minutes;
-        sawInBed = true;
-      } else if (stage === "AWAKE") {
-        awake += minutes;
-        sawAwake = true;
-      }
-      // Asleep minutes are summed with the granular-over-bare rule below so a
-      // bare ASLEEP aggregate is never double-counted against the granular
-      // CORE/DEEP/REM rows it overlaps.
     }
-    // v1.11.5 — single source of truth for the asleep total: prefer the
-    // granular CORE/DEEP/REM partition; fall back to the bare ASLEEP /
-    // stage-less row only when no granular stage exists for the night.
-    const asleep = asleepMinutesOf(nightRows);
     nights.push({
       night,
       measuredAt: latest,
@@ -465,7 +510,15 @@ export function reconstructSleepSessions(
     const canonical = pickSessionSource(session, sleepLadder);
     const kept = session.filter((r) => (r.source ?? NO_SOURCE) === canonical);
     const pool = kept.length > 0 ? kept : session;
+    // v1.11.5 — drop the redundant bare ASLEEP aggregate (and stage-less
+    // rows) from the hypnogram segments AND the per-stage breakdown when the
+    // session also carries the granular CORE/DEEP/REM partition, so the
+    // hypnogram never draws a double-height ASLEEP lane on top of the
+    // granular stages and the `stages` map is the granular set OR the bare
+    // aggregate, never both.
+    const sawGranular = sawGranularStage(pool);
     const segments = pool
+      .filter((r) => !isRedundantBareAsleep(r.sleepStage, sawGranular))
       .map(segmentOf)
       .sort((a, b) => a.start.getTime() - b.start.getTime());
 

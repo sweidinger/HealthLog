@@ -193,6 +193,43 @@ describe("reconstructSleepNights", () => {
     expect(nights[0].asleepMinutes).toBe(480);
     expect(nights[0].inBedMinutes).toBe(510);
     expect(nights[0].awakeMinutes).toBe(30);
+    // HIGH (H1): the per-stage `stages` map must NOT carry the bare ASLEEP
+    // aggregate alongside the granular partition — it would render a
+    // double-height green ASLEEP segment on top of CORE+DEEP+REM. Only the
+    // granular stages + IN_BED + AWAKE survive.
+    expect(nights[0].stages.ASLEEP).toBeUndefined();
+    expect(nights[0].stages.CORE).toBe(240);
+    expect(nights[0].stages.DEEP).toBe(120);
+    expect(nights[0].stages.REM).toBe(120);
+    expect(nights[0].stages.IN_BED).toBe(510);
+    expect(nights[0].stages.AWAKE).toBe(30);
+  });
+
+  it("includes a bare-only nap in the night total when the overnight is granular (MEDIUM-1, v1.11.5)", () => {
+    // Same wake day: a granular WHOOP overnight (8 h) plus a bare-ASLEEP-only
+    // Apple nap (45 min) more than 3 h later. Reconstructing over the MERGED
+    // pool would set sawGranular from the overnight and wrongly drop the
+    // nap's bare ASLEEP. The per-session asleep total must keep the nap.
+    const rows: SleepStageRow[] = [
+      // Overnight (WHOOP, granular): 23:00 → 07:00 = 8 h asleep.
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 120, "WHOOP"),
+      srcRow("2026-06-04T07:00:00.000Z", "REM", 120, "WHOOP"),
+      // Afternoon nap (Apple, bare ASLEEP only): 14:00 → 14:45 = 45 min,
+      // well beyond the 3 h session gap from the overnight.
+      srcRow("2026-06-04T14:45:00.000Z", "ASLEEP", 45, "APPLE_HEALTH"),
+    ];
+    const nights = reconstructSleepNights(rows, "UTC");
+    expect(nights).toHaveLength(1);
+    // 480 (granular overnight) + 45 (bare nap) = 525, NOT 480 (nap dropped).
+    expect(nights[0].asleepMinutes).toBe(525);
+    // The night's stages carry the granular overnight AND the nap's bare
+    // ASLEEP — the nap was a separate session with no granular partition, so
+    // its bare aggregate is its only asleep signal and survives.
+    expect(nights[0].stages.CORE).toBe(240);
+    expect(nights[0].stages.DEEP).toBe(120);
+    expect(nights[0].stages.REM).toBe(120);
+    expect(nights[0].stages.ASLEEP).toBe(45);
   });
 
   it("falls back to the bare ASLEEP row when no granular stage exists", () => {
@@ -294,6 +331,45 @@ describe("reconstructSleepSessions", () => {
     // Only WHOOP's 3 segments survive; Apple Health's are dropped.
     expect(sessions[0].segments).toHaveLength(3);
     expect(sessions[0].asleepMinutes).toBe(420);
+  });
+
+  it("drops the bare ASLEEP aggregate from segments + stages when granular exists (HIGH H1, v1.11.5)", () => {
+    // Apple-Health shape: granular CORE/DEEP/REM PLUS the unspecified ASLEEP
+    // aggregate covering the same period, plus IN_BED. The hypnogram must not
+    // draw a double-height ASLEEP lane on top of the granular stages, so the
+    // bare ASLEEP segment is dropped and `stages.ASLEEP` is absent.
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T01:00:00.000Z", "CORE", 240),
+      row("2026-06-04T03:00:00.000Z", "DEEP", 120),
+      row("2026-06-04T05:00:00.000Z", "REM", 120),
+      row("2026-06-04T05:00:00.000Z", "ASLEEP", 480), // redundant aggregate
+      row("2026-06-04T05:00:00.000Z", "IN_BED", 510),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    const s = sessions[0];
+    // No ASLEEP segment survives; CORE + DEEP + REM + IN_BED do (4 segments).
+    expect(s.segments.some((seg) => seg.stage === "ASLEEP")).toBe(false);
+    expect(s.segments).toHaveLength(4);
+    expect(s.stages.ASLEEP).toBeUndefined();
+    expect(s.asleepMinutes).toBe(480); // granular sum, not 960
+    expect(s.inBedMinutes).toBe(510);
+  });
+
+  it("keeps the bare ASLEEP segment when NO granular stage exists", () => {
+    // Legacy ASLEEP-only night — the bare aggregate IS the timeline, so it
+    // must survive as a segment (otherwise the hypnogram would have nothing).
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T06:00:00.000Z", "ASLEEP", 450),
+      row("2026-06-04T06:00:00.000Z", "IN_BED", 480),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].segments.some((seg) => seg.stage === "ASLEEP")).toBe(
+      true,
+    );
+    expect(sessions[0].stages.ASLEEP).toBe(450);
+    expect(sessions[0].asleepMinutes).toBe(450);
   });
 
   it("counts only MID-sleep AWAKE bouts as awakenings", () => {

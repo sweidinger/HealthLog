@@ -135,6 +135,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       from,
       to,
       limit,
+      offset,
       sortDir,
       dayKey,
     });
@@ -677,11 +678,12 @@ async function sleepListResponse(
     from?: Date;
     to?: Date;
     limit: number;
+    offset: number;
     sortDir: "asc" | "desc";
     dayKey?: string;
   },
 ) {
-  const { from, to, limit, sortDir, dayKey } = opts;
+  const { from, to, limit, offset, sortDir, dayKey } = opts;
   const [tz, priorityJson] = await Promise.all([
     resolveUserTimezone(user.id),
     loadUserSourcePriority(user.id),
@@ -809,17 +811,21 @@ async function sleepListResponse(
     });
   }
 
+  // Honour offset + limit against the full night set, and report the true
+  // pre-slice night count as `meta.total` — matching the non-sleep list
+  // branch's pagination contract so a client can page through nights.
+  const totalNights = nightRows.length;
   const measurements = nightRows
     .sort((a, b) => {
       const cmp = a.dayKey < b.dayKey ? -1 : a.dayKey > b.dayKey ? 1 : 0;
       return sortDir === "asc" ? cmp : -cmp;
     })
-    .slice(0, limit);
+    .slice(offset, offset + limit);
 
   annotate({
     action: { name: "measurement.list" },
     meta: {
-      total: measurements.length,
+      total: totalNights,
       type: "SLEEP_DURATION",
       mode: "sleep-per-night",
       rowsScanned: rows.length,
@@ -827,7 +833,7 @@ async function sleepListResponse(
   });
   return apiSuccess({
     measurements,
-    meta: { total: nightRows.length, limit, offset: 0, groupBy: "night" },
+    meta: { total: totalNights, limit, offset, groupBy: "night" },
   });
 }
 

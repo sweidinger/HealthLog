@@ -116,7 +116,17 @@ interface ExportMeasurement {
 export function formatMeasurementsForExport(
   measurements: ExportMeasurement[],
   userTz?: string,
-  opts: { granularity?: "night" | "raw"; sleepTz?: string } = {},
+  opts: {
+    granularity?: "night" | "raw";
+    sleepTz?: string;
+    /**
+     * The user's persisted `sourcePriorityJson` (or null for the defaults).
+     * Threaded into `reconstructSleepSessions` so the CSV's per-night sleep
+     * dedup picks the SAME canonical source the UI shows on a multi-source
+     * night — without it the export silently fell back to the default ladder.
+     */
+    sourcePriorityJson?: unknown;
+  } = {},
 ): ExportableRecord[] {
   const granularity = opts.granularity ?? "night";
   const toRecord = (m: ExportMeasurement): ExportableRecord => ({
@@ -149,7 +159,11 @@ export function formatMeasurementsForExport(
     sleepStage: m.sleepStage ?? null,
     source: m.source as SleepStageRow["source"],
   }));
-  const sessions = reconstructSleepSessions(stageRows, tz);
+  const sessions = reconstructSleepSessions(
+    stageRows,
+    tz,
+    opts.sourcePriorityJson ?? null,
+  );
   const byDay = new Map<string, typeof sessions>();
   for (const s of sessions) {
     const list = byDay.get(s.night) ?? [];
