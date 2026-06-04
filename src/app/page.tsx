@@ -74,11 +74,20 @@ const DASHBOARD_QUERY_OPTS = {
  * dismiss (overlay tap, Esc, mobile swipe-down) discarding a partly
  * filled form. The forms live behind a stable `ResponsiveSheet` body
  * slot and don't expose their dirty state, so we read it from the DOM
- * at dismiss time: any visible text/number/date input or textarea that
+ * at dismiss time: any visible text/number input or textarea that
  * carries a value, or any checked checkbox/radio that isn't a default,
- * counts as unsaved input. Cheap, synchronous, and runs only on the
- * one mounted sheet body.
+ * counts as unsaved input. Date/time pickers are excluded — the forms
+ * prefill them with the current timestamp on mount, so a pristine sheet
+ * would otherwise always read as dirty. Cheap, synchronous, and runs
+ * only on the one mounted sheet body.
  */
+const PREFILLED_PICKER_TYPES = new Set([
+  "date",
+  "datetime-local",
+  "time",
+  "month",
+  "week",
+]);
 function sheetBodyHasUnsavedInput(): boolean {
   if (typeof document === "undefined") return false;
   const body = document.querySelector<HTMLElement>(
@@ -90,6 +99,9 @@ function sheetBodyHasUnsavedInput(): boolean {
   >("input, textarea");
   for (const field of fields) {
     if (field.disabled || field.type === "hidden") continue;
+    // Skip pickers the form prefills with "now" — an untouched default
+    // is not user input (v1.11.3 QA H1).
+    if (PREFILLED_PICKER_TYPES.has(field.type)) continue;
     if (field.type === "checkbox" || field.type === "radio") {
       const box = field as HTMLInputElement;
       if (box.checked !== box.defaultChecked) return true;
