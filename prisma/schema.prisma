@@ -821,6 +821,13 @@ model MeasurementRollup {
   type        MeasurementType
   granularity RollupGranularity
   bucketStart DateTime          @map("bucket_start") @db.Timestamptz(3)
+  /// v1.11.1 — source-aware grain. Rollup rows are minted per source so the
+  /// read path can collapse overlapping sources (e.g. WHOOP + Apple Watch
+  /// resting heart rate) to the ladder-canonical reading, while cumulative
+  /// metrics (steps, energy) sum per source. Always non-null; migration 0115
+  /// purged the legacy source-blind aggregates and the boot backfill re-mints
+  /// per-source rows.
+  source      MeasurementSource
   count       Int
   mean        Float
   minValue    Float             @map("min_value")
@@ -839,7 +846,7 @@ model MeasurementRollup {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@id([userId, type, granularity, bucketStart])
+  @@id([userId, type, granularity, bucketStart, source])
   @@index([userId, type, granularity, bucketStart(sort: Desc)])
   @@map("measurement_rollups")
 }

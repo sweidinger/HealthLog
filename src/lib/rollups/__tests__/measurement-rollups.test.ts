@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   queryRawUnsafe: vi.fn(),
   transaction: vi.fn(),
   upsert: vi.fn(),
+  createMany: vi.fn(),
   deleteMany: vi.fn(),
   findFirst: vi.fn(),
   findMany: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock("@/lib/db", () => ({
     $transaction: mocks.transaction,
     measurementRollup: {
       upsert: mocks.upsert,
+      createMany: mocks.createMany,
       deleteMany: mocks.deleteMany,
       findFirst: mocks.findFirst,
       findMany: mocks.findMany,
@@ -66,6 +68,7 @@ const {
   queryRawUnsafe,
   transaction,
   upsert,
+  createMany,
   deleteMany,
   findFirst,
   findFirstMeasurement,
@@ -96,6 +99,7 @@ beforeEach(() => {
   queryRawUnsafe.mockReset();
   transaction.mockReset();
   upsert.mockReset();
+  createMany.mockReset();
   deleteMany.mockReset();
   findFirst.mockReset();
   mocks.findMany.mockReset();
@@ -107,9 +111,14 @@ beforeEach(() => {
   // assertion.
   _resetEnsureUserRollupsFreshInFlightForTests();
   // Default: $transaction takes an array of pre-built promises (the
-  // populator passes `slice.map(prisma.measurementRollup.upsert(...))`)
-  // and returns them awaited.
-  transaction.mockImplementation(async (operations: unknown[]) => operations);
+  // populator passes `[deleteMany(...), createMany(...)]`) and resolves
+  // them like the real client so the destructured create result is the
+  // resolved value, not a pending promise.
+  transaction.mockImplementation(async (operations: unknown[]) =>
+    Promise.all(operations),
+  );
+  // v1.11.1 — persistRollupRows writes via createMany; default the count.
+  createMany.mockResolvedValue({ count: 1 });
 });
 
 afterEach(() => {
@@ -146,10 +155,11 @@ describe("collapseToTypeDayKeys", () => {
 });
 
 describe("recomputeBucketsForMeasurement", () => {
-  it("upserts the DAY rollup synchronously and enqueues WEEK/MONTH/YEAR", async () => {
+  it("writes the DAY rollup synchronously and enqueues WEEK/MONTH/YEAR", async () => {
     queryRawUnsafe.mockResolvedValueOnce([
       {
         type: "WEIGHT",
+        source: "MANUAL",
         bucket_start: new Date("2026-05-10T00:00:00.000Z"),
         count: BigInt(3),
         mean: 82.5,
@@ -173,26 +183,24 @@ describe("recomputeBucketsForMeasurement", () => {
       new Date("2026-05-10T14:30:00.000Z"),
     );
 
-    // DAY pass — single upsert in a transaction.
+    // DAY pass — v1.11.1 delete-then-insert the day partition in one tx.
     expect(transaction).toHaveBeenCalledTimes(1);
-    expect(upsert).toHaveBeenCalledTimes(1);
-    const upsertArg = upsert.mock.calls[0][0];
-    expect(upsertArg.where.userId_type_granularity_bucketStart.userId).toBe(
-      "user-1",
-    );
-    expect(upsertArg.where.userId_type_granularity_bucketStart.type).toBe(
-      "WEIGHT",
-    );
-    expect(
-      upsertArg.where.userId_type_granularity_bucketStart.granularity,
-    ).toBe("DAY");
-    expect(upsertArg.create.count).toBe(3);
-    expect(upsertArg.create.mean).toBe(82.5);
-    // v1.4.39 W-SUM — sumValue flows through on both create + update
-    // halves of the upsert. Cumulative read paths (steps, flights,
-    // distance, daylight, active-energy) consume this directly.
-    expect(upsertArg.create.sumValue).toBe(247.5);
-    expect(upsertArg.update.sumValue).toBe(247.5);
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+    expect(deleteMany.mock.calls[0][0].where.userId).toBe("user-1");
+    expect(deleteMany.mock.calls[0][0].where.granularity).toBe("DAY");
+    expect(deleteMany.mock.calls[0][0].where.type.in).toContain("WEIGHT");
+    expect(createMany).toHaveBeenCalledTimes(1);
+    const created = createMany.mock.calls[0][0].data;
+    expect(created).toHaveLength(1);
+    expect(created[0].userId).toBe("user-1");
+    expect(created[0].type).toBe("WEIGHT");
+    expect(created[0].granularity).toBe("DAY");
+    expect(created[0].source).toBe("MANUAL");
+    expect(created[0].count).toBe(3);
+    expect(created[0].mean).toBe(82.5);
+    // v1.4.39 W-SUM — sumValue flows through. Cumulative read paths
+    // (steps, flights, distance, daylight, active-energy) consume it.
+    expect(created[0].sumValue).toBe(247.5);
 
     // WEEK / MONTH / YEAR — three enqueues against the worker queue.
     expect(bossSend).toHaveBeenCalledTimes(3);
@@ -210,6 +218,7 @@ describe("recomputeBucketsForMeasurement", () => {
     queryRawUnsafe.mockResolvedValueOnce([
       {
         type: "ACTIVITY_STEPS",
+        source: "APPLE_HEALTH",
         bucket_start: new Date("2026-05-10T00:00:00.000Z"),
         count: BigInt(5),
         mean: 2496,
@@ -230,13 +239,13 @@ describe("recomputeBucketsForMeasurement", () => {
       new Date("2026-05-10T14:30:00.000Z"),
     );
 
-    expect(upsert).toHaveBeenCalledTimes(1);
-    const arg = upsert.mock.calls[0][0];
-    expect(arg.create.sumValue).toBe(12480);
+    expect(createMany).toHaveBeenCalledTimes(1);
+    const arg = createMany.mock.calls[0][0].data[0];
+    expect(arg.sumValue).toBe(12480);
     // mean × count algebraic equivalence — the writer carries SUM
     // directly because the aggregator computed it once. Asserting
     // both gives parity coverage for the consumer-side fallback.
-    expect(arg.create.mean * arg.create.count).toBe(12480);
+    expect(arg.mean * arg.count).toBe(12480);
   });
 
   it("passes through null sum_value when the aggregator returns NULL", async () => {
@@ -247,6 +256,7 @@ describe("recomputeBucketsForMeasurement", () => {
     queryRawUnsafe.mockResolvedValueOnce([
       {
         type: "WEIGHT",
+        source: "MANUAL",
         bucket_start: new Date("2026-05-10T00:00:00.000Z"),
         count: BigInt(1),
         mean: 82.5,
@@ -266,9 +276,8 @@ describe("recomputeBucketsForMeasurement", () => {
       new Date("2026-05-10T14:30:00.000Z"),
     );
 
-    const arg = upsert.mock.calls[0][0];
-    expect(arg.create.sumValue).toBeNull();
-    expect(arg.update.sumValue).toBeNull();
+    const arg = createMany.mock.calls[0][0].data[0];
+    expect(arg.sumValue).toBeNull();
   });
 
   it("deletes the DAY row when the post-mutation aggregate is empty", async () => {
