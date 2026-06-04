@@ -44,8 +44,6 @@ export const COACH_FACT_CATEGORIES = [
 
 export type CoachFactCategory = (typeof COACH_FACT_CATEGORIES)[number];
 
-/** Background-prompt attribution version (separate from interactive `PROMPT_VERSION`). */
-export const FACTS_PROMPT_VERSION = "1.11.1";
 /** Hard cap on active facts per user; at cap, only strictly-higher-confidence facts displace. */
 export const MAX_FACTS_PER_USER = 50;
 /** Per-fact text length cap (mirrors the Zod gate + the prompt instruction). */

@@ -33,13 +33,11 @@ import {
 import { decryptFromBytes, encryptToBytes } from "./bytes-codec";
 
 /**
- * Stable identifier for the summary prompt revision. Bumped whenever the
- * prompt below changes so quality can be sliced per (provider × prompt).
+ * Safety cap on the stored summary length (~150 tokens). The prompt asks for
+ * a short paragraph; this backstops a misbehaving provider so the encrypted
+ * column + the next prompt's history window stay bounded.
  */
-export const SUMMARY_PROMPT_VERSION = "1.11.1" as const;
-
-/** Target prose length for the rolling summary (~150 tokens). */
-export const SUMMARY_TARGET_CHARS = 600;
+const SUMMARY_TARGET_CHARS = 600;
 
 /** Re-summarise only once at least this many new turns accumulate. */
 export const SUMMARY_REFRESH_TURN_DELTA = 6;
@@ -204,10 +202,16 @@ export async function refreshConversationSummary(
     return { status: "skipped" };
   }
 
-  const text = completion.content.trim();
-  if (text.length === 0) {
+  const trimmed = completion.content.trim();
+  if (trimmed.length === 0) {
     return { status: "skipped" };
   }
+  // Backstop the stored length even if the provider over-ran the prompt's
+  // "short paragraph" instruction.
+  const text =
+    trimmed.length > SUMMARY_TARGET_CHARS
+      ? trimmed.slice(0, SUMMARY_TARGET_CHARS)
+      : trimmed;
 
   // 6. Encrypt + persist. Field-by-field data object (no spread).
   const summaryEncrypted = encryptToBytes(text);
