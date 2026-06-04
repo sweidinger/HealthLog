@@ -41,6 +41,18 @@ import { requireAssistantSurface } from "@/lib/feature-flags";
 import { invalidateUserInsights } from "@/lib/cache/invalidate";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
+import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
+import { enqueueForceWarm } from "@/lib/jobs/insight-pregenerate-shared";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * Briefing freshness window for the read-only GET. A cached briefing read
+ * this recently is fresh and triggers no warm; older / missing enqueues an
+ * out-of-band regeneration. Mirrors the 24 h cache-hit window the POST path
+ * honours so the two stay consistent.
+ */
+const BRIEFING_FRESH_MS = 24 * 60 * 60 * 1000;
 
 const DEFAULT_INSIGHTS_RATE_LIMIT_PER_HOUR = 10;
 
@@ -183,6 +195,82 @@ async function buildComparisonSnapshotForUser(
 
   return { baseline, metrics };
 }
+
+/**
+ * GET /api/insights/generate — read-only advisor read.
+ *
+ * The advisor consumers (hero strip, daily-briefing card, trends row) used
+ * to mount against the POST handler, which generates inline on a cache miss
+ * and blocks the page-load path on the full provider chain (up to the
+ * client's 8 s abort). This read-only GET serves the cached payload from
+ * `User.insightsCachedText` immediately — NEVER calling the provider — and,
+ * when the cache is stale / missing AND a provider is configured, enqueues
+ * an out-of-band warm (the same `insight-pregenerate` queue the nightly
+ * cron and the "prepare assessments" button use). The next read reflects
+ * the fresh briefing. User-initiated regeneration stays on the POST path.
+ *
+ * `userId` is narrowed from the session / Bearer — never a body field.
+ */
+export const GET = apiHandler(async () => {
+  const { user } = await requireAuth();
+  // Same surface gate as the POST + the read-only status routes: a user
+  // with assessments enabled but Coach disabled still reads the cached
+  // briefing.
+  await requireAssistantSurface("coach");
+  const userId = user.id;
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      insightsCachedAt: true,
+      insightsCachedText: true,
+      locale: true,
+    },
+  });
+
+  const cachedAt = dbUser?.insightsCachedAt ?? null;
+  const isFresh =
+    cachedAt !== null &&
+    Date.now() - cachedAt.getTime() < BRIEFING_FRESH_MS;
+
+  // Read-only: never block on the provider. Warm out of band only when the
+  // cached briefing is stale / missing AND a provider is configured (a
+  // provider-less account costs one cheap chain-resolve and shows the
+  // empty / connect-AI state instead of a wasted enqueue).
+  let revalidating = false;
+  if (!isFresh && (await hasUsableStatusProvider(userId))) {
+    const locale = (dbUser?.locale ?? user.locale) === "en" ? "en" : "de";
+    void enqueueForceWarm({ userId, locale });
+    revalidating = true;
+  }
+
+  if (dbUser?.insightsCachedText) {
+    try {
+      const cached = JSON.parse(dbUser.insightsCachedText);
+      const legacyPayload = isLegacyInsightPayload(cached);
+      annotate({
+        action: { name: "insights.generate.read" },
+        meta: { cached: true, legacyPayload, revalidating },
+      });
+      return apiSuccess({
+        insights: cached,
+        cached: true,
+        cachedAt,
+        legacyPayload,
+      });
+    } catch {
+      // Invalid cache row — fall through to the empty payload below. The
+      // warm enqueue above (when a provider exists) repairs it for the
+      // next read.
+    }
+  }
+
+  annotate({
+    action: { name: "insights.generate.read" },
+    meta: { cached: false, revalidating },
+  });
+  return apiSuccess({ insights: null, cached: false, legacyPayload: false });
+});
 
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();

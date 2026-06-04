@@ -764,6 +764,11 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
     it("treats the same externalId under different sources as two distinct rows", async () => {
       const { POST } = await import("@/app/api/measurements/batch/route");
 
+      // The two rows share an externalId but carry DIFFERENT values +
+      // timestamps so they are genuinely distinct readings — this asserts
+      // that `source` is part of the composite dedup key, without tripping
+      // the v1.11.4 cross-source same-reading merge (which only collapses a
+      // MANUAL + APPLE_HEALTH pair that share value + measuredAt).
       const sharedExternalId = "uuid-source-collision-001";
       const response = await POST(
         makeRequest({
@@ -779,10 +784,10 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
             },
             {
               hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
-              value: 81.0,
+              value: 79.5,
               unit: "kg",
-              startDate: "2026-05-09T07:30:00.000Z",
-              endDate: "2026-05-09T07:30:00.000Z",
+              startDate: "2026-05-09T19:30:00.000Z",
+              endDate: "2026-05-09T19:30:00.000Z",
               externalId: sharedExternalId,
               source: "MANUAL",
             },
@@ -804,6 +809,301 @@ describe("POST /api/measurements/batch (real Postgres)", () => {
       expect(new Set(stored.map((r) => r.source))).toEqual(
         new Set(["APPLE_HEALTH", "MANUAL"]),
       );
+    });
+
+    // v1.11.4 (iOS #2) — same-reading merge for the MANUAL↔APPLE_HEALTH
+    // mirror duplicate. A standalone manual reading mirrors into HealthKit;
+    // on pair, adopt-on-pair uploads it as MANUAL and HealthKit background
+    // sync re-ingests the mirror as APPLE_HEALTH with a different
+    // externalId. The composite unique index would let both land; the
+    // cross-source collapse drops the second copy as a `duplicate`.
+    describe("cross-source same-reading merge (iOS #2)", () => {
+      const weightEntry = (over: Partial<BatchEntryFixture>): BatchEntryFixture => ({
+        hkIdentifier: "HKQuantityTypeIdentifierBodyMass",
+        value: 81.4,
+        unit: "kg",
+        startDate: "2026-06-04T07:30:00.000Z",
+        endDate: "2026-06-04T07:30:00.000Z",
+        externalId: "uuid-merge-default",
+        ...over,
+      });
+
+      it("collapses MANUAL then APPLE_HEALTH same reading into one row (separate batches)", async () => {
+        const { POST } = await import("@/app/api/measurements/batch/route");
+
+        // Adopt-on-pair MANUAL upload first.
+        const first = await POST(
+          makeRequest({
+            entries: [
+              weightEntry({ externalId: "local-manual-001", source: "MANUAL" }),
+            ],
+          }),
+        );
+        expect(first.status).toBe(200);
+        expect(((await first.json()) as { data: { inserted: number } }).data.inserted).toBe(1);
+
+        // HealthKit background sync re-ingests the same physical reading
+        // as APPLE_HEALTH with a different (HKSample.uuid) externalId.
+        const second = await POST(
+          makeRequest({
+            entries: [
+              weightEntry({ externalId: "hk-uuid-001", source: "APPLE_HEALTH" }),
+            ],
+          }),
+        );
+        expect(second.status).toBe(200);
+        const secondJson = (await second.json()) as {
+          data: {
+            inserted: number;
+            duplicates: number;
+            entries: Array<{ status: string; reason?: string }>;
+          };
+        };
+        expect(secondJson.data.inserted).toBe(0);
+        expect(secondJson.data.duplicates).toBe(1);
+        expect(secondJson.data.entries[0]?.status).toBe("duplicate");
+        expect(secondJson.data.entries[0]?.reason).toBe("cross_source_merge");
+
+        const stored = await getPrismaClient().measurement.findMany({
+          where: { userId: TEST_USER_ID, type: "WEIGHT" },
+        });
+        expect(stored).toHaveLength(1);
+        expect(stored[0]!.source).toBe("MANUAL");
+      });
+
+      it("collapses regardless of arrival order (APPLE_HEALTH then MANUAL)", async () => {
+        const { POST } = await import("@/app/api/measurements/batch/route");
+
+        const first = await POST(
+          makeRequest({
+            entries: [
+              weightEntry({ externalId: "hk-uuid-002", source: "APPLE_HEALTH" }),
+            ],
+          }),
+        );
+        expect(first.status).toBe(200);
+
+        const second = await POST(
+          makeRequest({
+            entries: [
+              weightEntry({ externalId: "local-manual-002", source: "MANUAL" }),
+            ],
+          }),
+        );
+        expect(second.status).toBe(200);
+        const secondJson = (await second.json()) as {
+          data: { inserted: number; duplicates: number };
+        };
+        expect(secondJson.data.inserted).toBe(0);
+        expect(secondJson.data.duplicates).toBe(1);
+
+        const stored = await getPrismaClient().measurement.findMany({
+          where: { userId: TEST_USER_ID, type: "WEIGHT" },
+        });
+        expect(stored).toHaveLength(1);
+        expect(stored[0]!.source).toBe("APPLE_HEALTH");
+      });
+
+      it("collapses a MANUAL + APPLE_HEALTH mirror arriving in the SAME batch", async () => {
+        const { POST } = await import("@/app/api/measurements/batch/route");
+
+        const response = await POST(
+          makeRequest({
+            entries: [
+              weightEntry({ externalId: "local-manual-003", source: "MANUAL" }),
+              weightEntry({ externalId: "hk-uuid-003", source: "APPLE_HEALTH" }),
+            ],
+          }),
+        );
+        expect(response.status).toBe(200);
+        const json = (await response.json()) as {
+          data: { inserted: number; duplicates: number };
+        };
+        expect(json.data.inserted).toBe(1);
+        expect(json.data.duplicates).toBe(1);
+
+        const stored = await getPrismaClient().measurement.findMany({
+          where: { userId: TEST_USER_ID, type: "WEIGHT" },
+        });
+        expect(stored).toHaveLength(1);
+      });
+
+      it("matches within the ±2s tolerance window", async () => {
+        const { POST } = await import("@/app/api/measurements/batch/route");
+
+        await POST(
+          makeRequest({
+            entries: [
+              weightEntry({
+                externalId: "local-manual-tol",
+                source: "MANUAL",
+                startDate: "2026-06-04T07:30:00.000Z",
+                endDate: "2026-06-04T07:30:00.000Z",
+              }),
+            ],
+          }),
+        );
+
+        // HK mirror ingested with a 1s sub-second drift on the same reading.
+        const second = await POST(
+          makeRequest({
+            entries: [
+              weightEntry({
+                externalId: "hk-uuid-tol",
+                source: "APPLE_HEALTH",
+                startDate: "2026-06-04T07:30:01.000Z",
+                endDate: "2026-06-04T07:30:01.000Z",
+              }),
+            ],
+          }),
+        );
+        expect(second.status).toBe(200);
+        const secondJson = (await second.json()) as {
+          data: { inserted: number; duplicates: number };
+        };
+        expect(secondJson.data.inserted).toBe(0);
+        expect(secondJson.data.duplicates).toBe(1);
+
+        const stored = await getPrismaClient().measurement.findMany({
+          where: { userId: TEST_USER_ID, type: "WEIGHT" },
+        });
+        expect(stored).toHaveLength(1);
+      });
+
+      it("does NOT merge different values (two real readings same minute)", async () => {
+        const { POST } = await import("@/app/api/measurements/batch/route");
+
+        await POST(
+          makeRequest({
+            entries: [
+              weightEntry({
+                externalId: "local-manual-distinct",
+                source: "MANUAL",
+                value: 81.4,
+              }),
+            ],
+          }),
+        );
+
+        const second = await POST(
+          makeRequest({
+            entries: [
+              weightEntry({
+                externalId: "hk-uuid-distinct",
+                source: "APPLE_HEALTH",
+                value: 82.0,
+              }),
+            ],
+          }),
+        );
+        expect(second.status).toBe(200);
+        const secondJson = (await second.json()) as {
+          data: { inserted: number; duplicates: number };
+        };
+        // Different value → genuinely distinct reading, both rows survive.
+        expect(secondJson.data.inserted).toBe(1);
+        expect(secondJson.data.duplicates).toBe(0);
+
+        const stored = await getPrismaClient().measurement.findMany({
+          where: { userId: TEST_USER_ID, type: "WEIGHT" },
+        });
+        expect(stored).toHaveLength(2);
+      });
+
+      it("does NOT merge timestamps beyond the tolerance window", async () => {
+        const { POST } = await import("@/app/api/measurements/batch/route");
+
+        await POST(
+          makeRequest({
+            entries: [
+              weightEntry({
+                externalId: "local-manual-far",
+                source: "MANUAL",
+                startDate: "2026-06-04T07:30:00.000Z",
+                endDate: "2026-06-04T07:30:00.000Z",
+              }),
+            ],
+          }),
+        );
+
+        // A full minute later — distinct reading, not the mirror pair.
+        const second = await POST(
+          makeRequest({
+            entries: [
+              weightEntry({
+                externalId: "hk-uuid-far",
+                source: "APPLE_HEALTH",
+                startDate: "2026-06-04T07:31:00.000Z",
+                endDate: "2026-06-04T07:31:00.000Z",
+              }),
+            ],
+          }),
+        );
+        expect(second.status).toBe(200);
+        const secondJson = (await second.json()) as {
+          data: { inserted: number; duplicates: number };
+        };
+        expect(secondJson.data.inserted).toBe(1);
+        expect(secondJson.data.duplicates).toBe(0);
+
+        const stored = await getPrismaClient().measurement.findMany({
+          where: { userId: TEST_USER_ID, type: "WEIGHT" },
+        });
+        expect(stored).toHaveLength(2);
+      });
+
+      it("leaves the stats:* overwrite contract untouched (no cross-source collapse)", async () => {
+        const { POST } = await import("@/app/api/measurements/batch/route");
+
+        const externalId = "stats:HKQuantityTypeIdentifierStepCount:2026-06-04";
+        // A MANUAL same-day-total then an APPLE_HEALTH re-post must NOT
+        // collapse — stats:* rows are per-day aggregates, excluded from the
+        // merge. They are distinct (type, source) rows and each keeps its
+        // own overwrite lane.
+        await POST(
+          makeRequest({
+            entries: [
+              {
+                hkIdentifier: "HKQuantityTypeIdentifierStepCount",
+                value: 4000,
+                unit: "count",
+                startDate: "2026-06-04T00:00:00.000Z",
+                endDate: "2026-06-04T12:00:00.000Z",
+                externalId,
+                source: "MANUAL",
+              },
+            ],
+          }),
+        );
+
+        const second = await POST(
+          makeRequest({
+            entries: [
+              {
+                hkIdentifier: "HKQuantityTypeIdentifierStepCount",
+                value: 4000,
+                unit: "count",
+                startDate: "2026-06-04T00:00:00.000Z",
+                endDate: "2026-06-04T12:00:00.000Z",
+                externalId,
+                source: "APPLE_HEALTH",
+              },
+            ],
+          }),
+        );
+        expect(second.status).toBe(200);
+        const secondJson = (await second.json()) as {
+          data: { inserted: number; duplicates: number };
+        };
+        // Different source on a stats:* externalId → distinct row, inserted.
+        expect(secondJson.data.inserted).toBe(1);
+        expect(secondJson.data.duplicates).toBe(0);
+
+        const stored = await getPrismaClient().measurement.findMany({
+          where: { userId: TEST_USER_ID, externalId },
+        });
+        expect(stored).toHaveLength(2);
+      });
     });
 
     it("rejects an out-of-range source value with 422", async () => {

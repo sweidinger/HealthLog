@@ -151,6 +151,39 @@ interface RangeDisplayConfig {
   range: TrafficRange | null;
 }
 
+/**
+ * v1.11.4 — minutes→hours projection of a `DataSummary` for the sleep
+ * tile. The server emits `summaries.SLEEP_DURATION` as per-night minutes;
+ * the tile renders hours. Every value-bearing field (latest / min / max /
+ * mean / median / avg7 / avg30 / avg30LastMonth / avg30LastYear) divides
+ * by 60; the slope tuples scale their `slope` (per-day rate) by the same
+ * factor so the trend arrow stays consistent; count / direction /
+ * confidence / anomalyCount are unit-free and pass through.
+ */
+function toHoursSummary(s: DataSummary): DataSummary {
+  const h = (v: number | null | undefined): number | null =>
+    v == null ? null : Math.round((v / 60) * 100) / 100;
+  const scaleSlope = (slope: DataSummary["slope7"]): DataSummary["slope7"] =>
+    slope == null
+      ? null
+      : { ...slope, slope: Math.round((slope.slope / 60) * 1000) / 1000 };
+  return {
+    ...s,
+    latest: h(s.latest),
+    min: h(s.min),
+    max: h(s.max),
+    mean: h(s.mean),
+    median: h(s.median),
+    avg7: h(s.avg7),
+    avg30: h(s.avg30),
+    avg30LastMonth: h(s.avg30LastMonth),
+    avg30LastYear: h(s.avg30LastYear),
+    slope7: scaleSlope(s.slope7),
+    slope30: scaleSlope(s.slope30),
+    slope90: scaleSlope(s.slope90),
+  };
+}
+
 function getHourForTimeZone(timeZone?: string): number {
   const now = new Date();
   if (!timeZone) return now.getHours();
@@ -445,6 +478,15 @@ export default function DashboardPage() {
   const p = data?.summaries?.PULSE;
   const bf = data?.summaries?.BODY_FAT;
   const sleepSummary = data?.summaries?.SLEEP_DURATION;
+  // v1.11.4 — `summaries.SLEEP_DURATION` now carries per-NIGHT time-asleep
+  // totals in MINUTES (the server collapses the per-stage rows into one
+  // night value; see `summaries-slice.ts`). The sleep tile renders hours,
+  // so convert every value field minutes→hours here while keeping the
+  // staleness / count metadata untouched. This is the web-parity twin of
+  // the iOS dashboard-summary route which already emits `unit:"h"`.
+  const sleepSummaryHours = sleepSummary
+    ? toHoursSummary(sleepSummary)
+    : undefined;
   const stepsSummary = data?.summaries?.ACTIVITY_STEPS;
   // v1.4.25 W8d — VO2 max secondary-metric tile. /api/analytics
   // auto-populates this summary because the route iterates over the
@@ -571,15 +613,30 @@ export default function DashboardPage() {
   const showSleepChart = isChartVisible("sleep") && hasSleep;
   const showStepsChart = isChartVisible("steps") && hasSteps;
   const showMedicationsCard = isChartVisible("medications");
+  // `layoutData` is undefined until the real layout (snapshot or legacy
+  // widgets) resolves; `resolveDashboardLayout(undefined)` falls back to
+  // DEFAULT_DASHBOARD_LAYOUT, where `achievements` is visible by default.
+  // Gating layout-toggle-only cards on that fallback flashed them in for
+  // the load window and then retracted them for any user who had turned
+  // the widget OFF (their real layout arriving after first paint). The
+  // data-driven tiles tolerate the fallback because they also gate on a
+  // data floor; the achievements + recent-workouts cards have no floor,
+  // so wait for the real layout before committing them.
+  const layoutResolved = layoutData != null;
   // v1.4.15 phase-B4 — recent unlocks dashboard surface. The card itself
-  // self-handles the empty state (CTA → /achievements), so we only need
-  // the layout-toggle gate here. No data-floor check (the empty card is
-  // intentional — the maintainer wants the user to discover the feature).
-  const showAchievementsCard = isChartVisible("achievements");
+  // self-handles the loading skeleton + empty state (CTA → /achievements),
+  // so we only need the layout-toggle gate here. No data-floor check (the
+  // empty card is intentional — the maintainer wants the user to discover
+  // the feature).
+  const showAchievementsCard = layoutResolved && isChartVisible("achievements");
   // v1.4.32 — recent workouts dashboard tile. Self-gates on the
   // workouts query response so we only need the layout toggle here;
-  // the tile renders an Apple-Health-onboarding hint when empty.
-  const showRecentWorkoutsTile = isChartVisible("recentWorkouts");
+  // the tile renders an Apple-Health-onboarding hint when empty. Same
+  // layout-resolved gate as the achievements card — default-visible with
+  // no data floor, so it would otherwise flash in then retract for a user
+  // who hid it.
+  const showRecentWorkoutsTile =
+    layoutResolved && isChartVisible("recentWorkouts");
 
   // Glucose widget — visible iff layout enables it AND at least one reading exists.
   // Glucose has no separate chart slot today, so the tile flag is the
@@ -1109,16 +1166,16 @@ export default function DashboardPage() {
               <TrendCard
                 key="sleep"
                 label={t("dashboard.sleepShort") ?? "Sleep"}
-                latest={sleepSummary?.latest ?? null}
+                latest={sleepSummaryHours?.latest ?? null}
                 unit="h"
-                avg7={sleepSummary?.avg7 ?? null}
-                avg30={sleepSummary?.avg30 ?? null}
-                slope30={sleepSummary?.slope30 ?? null}
-                trend7Delta={summaryToTrend7Delta(sleepSummary)}
+                avg7={sleepSummaryHours?.avg7 ?? null}
+                avg30={sleepSummaryHours?.avg30 ?? null}
+                slope30={sleepSummaryHours?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(sleepSummaryHours)}
                 icon={Moon}
                 directionSentiment="up-good"
                 compareBaseline={compareBaseline}
-                compareDelta={tileCompareDelta(sleepSummary)}
+                compareDelta={tileCompareDelta(sleepSummaryHours)}
                 staleDays={tileStaleDays("SLEEP_DURATION")}
               />
             ),

@@ -41,6 +41,13 @@ import {
 } from "@/lib/api-response";
 import { withIdempotency } from "@/lib/idempotency";
 import { mapAppleHealthEntry } from "@/lib/measurements/apple-health-mapping";
+import {
+  MEASURED_AT_TOLERANCE_MS,
+  isMergeableSource,
+  isSameReadingAcrossSource,
+  oppositeMergeSource,
+  type MergeCandidate,
+} from "@/lib/measurements/cross-source-merge";
 import { validateMeasurementRange } from "@/lib/validations/measurement";
 import { deviceTypeEnum } from "@/lib/validations/source-priority";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -287,6 +294,11 @@ async function postBatch(request: NextRequest): Promise<Response> {
   let insertedCount = 0;
   let updatedCount = 0;
   let duplicateCount = 0;
+  // v1.11.4 (iOS #2) — subset of `duplicateCount` collapsed by the
+  // MANUAL↔APPLE_HEALTH same-reading merge (as opposed to a plain
+  // composite-key duplicate). Surfaced as a dedicated wide-event count so
+  // an operator can see how often the standalone-pair mirror collapses.
+  let crossSourceMergedCount = 0;
 
   if (prepared.length > 0) {
     // Pre-flight duplicate detection so we can return per-entry status
@@ -320,6 +332,78 @@ async function postBatch(request: NextRequest): Promise<Response> {
       existing.map((row) => `${row.type}::${row.source}::${row.externalId}`),
     );
 
+    // v1.11.4 (iOS #2) — same-reading merge for the MANUAL ↔ APPLE_HEALTH
+    // mirror duplicate. When the iOS app logs a manual reading offline it
+    // mirrors that reading into HealthKit; on pairing, adopt-on-pair
+    // uploads it as MANUAL and HealthKit background sync independently
+    // re-ingests the mirrored sample as APPLE_HEALTH. The two carry
+    // different externalIds + sources, so the composite unique index lets
+    // both land — duplicating the whole hand-logged history on first pair.
+    // We collapse them at ingest: an incoming MANUAL / APPLE_HEALTH row is
+    // dropped as a `duplicate` when a same-reading row of the OPPOSITE
+    // source already exists (same type + value + measuredAt within a tight
+    // ±2 s window). `stats:*` cumulative rows are excluded — those are
+    // per-day aggregates the observer overwrites in place, never
+    // hand-entered point readings. See `cross-source-merge.ts` for the
+    // full rule + why first-physical-reading-wins (the value is identical
+    // between the two rows, so only the source label differs).
+    //
+    // Pull the opposite-source candidate rows in one widened query: for
+    // every mergeable, non-`stats:*` incoming row, look for an opposite-
+    // source row of the same type whose measuredAt falls inside the
+    // tolerance window. Compared in JS because the value match needs a
+    // float epsilon the SQL `IN` can't express.
+    const mergeProbes = prepared.filter(
+      (p) =>
+        isMergeableSource(p.row.source as string) &&
+        !isStatsExternalId(p.row.externalId as string),
+    );
+    const crossSourceCandidates: MergeCandidate[] = [];
+    if (mergeProbes.length > 0) {
+      const candidateRows = await prisma.measurement.findMany({
+        where: {
+          userId: user.id,
+          deletedAt: null,
+          OR: mergeProbes.map((p) => {
+            const measuredAt = p.row.measuredAt as Date;
+            return {
+              type: p.row.type as MeasurementType,
+              source: oppositeMergeSource(
+                p.row.source as "MANUAL" | "APPLE_HEALTH",
+              ),
+              measuredAt: {
+                gte: new Date(measuredAt.getTime() - MEASURED_AT_TOLERANCE_MS),
+                lte: new Date(measuredAt.getTime() + MEASURED_AT_TOLERANCE_MS),
+              },
+            };
+          }),
+        },
+        select: { type: true, source: true, value: true, measuredAt: true },
+      });
+      crossSourceCandidates.push(...candidateRows);
+    }
+
+    // Rows already chosen for insert earlier in THIS batch — so a MANUAL
+    // and an APPLE_HEALTH same-reading arriving in the SAME batch also
+    // collapse (the DB probe above only sees rows from prior batches).
+    const inBatchCandidates: MergeCandidate[] = [];
+    function hasSameReadingSibling(p: Prepared): boolean {
+      const incoming = {
+        type: p.row.type as MeasurementType,
+        source: p.row.source as string,
+        value: p.row.value as number,
+        measuredAt: p.row.measuredAt as Date,
+      };
+      if (!isMergeableSource(incoming.source)) return false;
+      for (const candidate of crossSourceCandidates) {
+        if (isSameReadingAcrossSource(incoming, candidate)) return true;
+      }
+      for (const candidate of inBatchCandidates) {
+        if (isSameReadingAcrossSource(incoming, candidate)) return true;
+      }
+      return false;
+    }
+
     const toInsert: Prisma.MeasurementCreateManyInput[] = [];
     const toOverwrite: Prepared[] = [];
     for (const p of prepared) {
@@ -336,9 +420,35 @@ async function postBatch(request: NextRequest): Promise<Response> {
           results[p.index] = { index: p.index, status: "duplicate" };
           duplicateCount += 1;
         }
+      } else if (
+        !isStatsExternalId(p.row.externalId as string) &&
+        hasSameReadingSibling(p)
+      ) {
+        // v1.11.4 (iOS #2) — cross-source same-reading collapse. The
+        // physical reading already exists under the opposite client
+        // source; drop this mirror copy. Status stays `duplicate` so the
+        // iOS sync cursor checkpoints past it exactly as it does for a
+        // composite-key duplicate; the `reason` distinguishes it for ops.
+        results[p.index] = {
+          index: p.index,
+          status: "duplicate",
+          reason: "cross_source_merge",
+        };
+        duplicateCount += 1;
+        crossSourceMergedCount += 1;
       } else {
         results[p.index] = { index: p.index, status: "inserted" };
         toInsert.push(p.row);
+        // Track this row so a same-reading sibling later in the SAME
+        // batch collapses against it.
+        if (isMergeableSource(p.row.source as string)) {
+          inBatchCandidates.push({
+            type: p.row.type as MeasurementType,
+            source: p.row.source as string,
+            value: p.row.value as number,
+            measuredAt: p.row.measuredAt as Date,
+          });
+        }
       }
     }
 
@@ -458,6 +568,22 @@ async function postBatch(request: NextRequest): Promise<Response> {
       action: { name: "measurement.batch.stats-overwrite" },
       meta: {
         updated: updatedCount,
+        processed: entries.length,
+      },
+    });
+  }
+
+  // v1.11.4 (iOS #2) — dedicated annotation for the MANUAL↔APPLE_HEALTH
+  // same-reading collapse so an operator can grep
+  // `measurement.batch.cross-source-merge` to confirm the standalone-pair
+  // mirror duplicate is being absorbed (a healthy first-pair flow). Only
+  // fires when at least one row was merged so the baseline ingest trace
+  // is unchanged for the common case.
+  if (crossSourceMergedCount > 0) {
+    annotate({
+      action: { name: "measurement.batch.cross-source-merge" },
+      meta: {
+        merged: crossSourceMergedCount,
         processed: entries.length,
       },
     });

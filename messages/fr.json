@@ -1438,6 +1438,7 @@
     "needMoreDistinctDaysDescription": "Saisis sur plusieurs jours pour débloquer la courbe de tendance.",
     "noDataInRangeTitle": "Aucune donnée sur cette période",
     "noDataInRangeDescription": "Aucune mesure ne tombe dans la plage sélectionnée. Change de plage ou saisis une nouvelle mesure.",
+    "sparseDataCaption": "Davantage de jours étofferont la tendance.",
     "personalBaseline": "Ta moyenne",
     "deltaVsBaseline": "{delta} vs. ta moyenne",
     "deltaUnchanged": "correspond à ta moyenne",
@@ -2811,6 +2812,14 @@
         "veryLow": "Votre appareil a détecté une très faible stabilité à la marche.",
         "fired": "Votre appareil a signalé cet événement."
       }
+    },
+    "trendDescriptor": {
+      "rising": "En hausse sur 30 jours ({delta}{unit}).",
+      "falling": "En baisse sur 30 jours ({delta}{unit}).",
+      "stable": "Stable sur les 30 derniers jours.",
+      "moodImproved": "Humeur en légère hausse sur 30 jours.",
+      "moodDeclined": "Humeur en légère baisse sur 30 jours.",
+      "moodStable": "Humeur stable sur les 30 derniers jours."
     }
   },
   "thresholds": {

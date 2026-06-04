@@ -471,6 +471,20 @@ export const queryKeys = {
    */
   measurementDiversity: (type: string) =>
     ["measurement-diversity", type] as const,
+
+  /**
+   * v1.11.4 item J — bounded 30-day daily-aggregate read backing the
+   * Insights Trends-row deterministic caption (`trend-descriptor.ts`).
+   * Keyed by the comma-joined measurement type set so each card's slot
+   * caches its own small window (≤ 30 rollup rows). Distinct from
+   * `chartData(...)` so the caption never re-keys when the chart's
+   * internal value-mode / scale / range state changes; it only needs the
+   * raw 30-day series to derive direction + magnitude. Shares the
+   * `["trend-series"]` invalidation prefix below so a measurement write
+   * refreshes the caption in lockstep with the chart.
+   */
+  insightsTrendSeries: (types: string) =>
+    ["trend-series", types] as const,
 };
 
 /**
@@ -493,6 +507,9 @@ export const measurementDependentKeys = [
   ["chart-data"] as const,
   // v1.8.5 — re-run the diversity-nudge clustering when readings change.
   ["measurement-diversity"] as const,
+  // v1.11.4 item J — refresh the Trends-row deterministic caption series
+  // when a reading changes, in lockstep with the chart row above it.
+  ["trend-series"] as const,
 ];
 
 /**

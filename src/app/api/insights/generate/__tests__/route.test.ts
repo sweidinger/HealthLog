@@ -76,6 +76,16 @@ vi.mock("@/lib/rate-limit", () => ({
   checkRateLimit: vi.fn(async () => ({ allowed: true })),
 }));
 
+// The read-only GET probes the provider chain (no completion) and
+// enqueues an out-of-band warm on a stale / missing cache.
+vi.mock("@/lib/insights/status-provider", () => ({
+  hasUsableStatusProvider: vi.fn(async () => true),
+}));
+
+vi.mock("@/lib/jobs/insight-pregenerate-shared", () => ({
+  enqueueForceWarm: vi.fn(async () => undefined),
+}));
+
 vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
@@ -99,10 +109,12 @@ vi.mock("@/lib/i18n/server-locale", () => ({
   resolveServerLocale: vi.fn(async () => "en"),
 }));
 
-import { POST, resolveInsightsRateLimit } from "../route";
+import { GET, POST, resolveInsightsRateLimit } from "../route";
 import { resolveProvider } from "@/lib/ai/provider";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
+import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
+import { enqueueForceWarm } from "@/lib/jobs/insight-pregenerate-shared";
 import { clearLastWorkingProviderCache } from "@/lib/ai/provider-runner";
 import {
   extractFeatures,
@@ -402,5 +414,63 @@ describe("POST /api/insights/generate — payload-size hard downgrade (H1)", () 
           ?.insights_payload_too_large === true,
     );
     expect(annotated, "annotate event with insights_payload_too_large").toBeTruthy();
+  });
+});
+
+describe("GET /api/insights/generate — read-only advisor read", () => {
+  it("serves the cached briefing without ever calling the provider", async () => {
+    const cached = { dailyBriefing: { paragraph: "ok", keyFindings: [] } };
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsCachedAt: new Date(),
+      insightsCachedText: JSON.stringify(cached),
+      locale: "en",
+    } as never);
+
+    const res = await (GET as () => Promise<Response>)();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { insights: unknown; cached: boolean };
+    };
+    expect(body.data.cached).toBe(true);
+    expect(body.data.insights).toEqual(cached);
+    // No completion is ever run on the read path.
+    expect(resolveProvider).not.toHaveBeenCalled();
+    // A fresh cache (just now) does not trigger a warm.
+    expect(enqueueForceWarm).not.toHaveBeenCalled();
+  });
+
+  it("enqueues an out-of-band warm when the cache is stale and a provider exists", async () => {
+    const stale = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsCachedAt: stale,
+      insightsCachedText: JSON.stringify({ dailyBriefing: null }),
+      locale: "en",
+    } as never);
+
+    const res = await (GET as () => Promise<Response>)();
+    expect(res.status).toBe(200);
+    expect(enqueueForceWarm).toHaveBeenCalledWith({
+      userId: "u-1",
+      locale: "en",
+    });
+    expect(resolveProvider).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty payload (no warm) on a cold cache without a provider", async () => {
+    vi.mocked(hasUsableStatusProvider).mockResolvedValueOnce(false);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsCachedAt: null,
+      insightsCachedText: null,
+      locale: "en",
+    } as never);
+
+    const res = await (GET as () => Promise<Response>)();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { insights: unknown; cached: boolean };
+    };
+    expect(body.data.cached).toBe(false);
+    expect(body.data.insights).toBeNull();
+    expect(enqueueForceWarm).not.toHaveBeenCalled();
   });
 });

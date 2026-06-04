@@ -622,14 +622,6 @@ export function HealthChart({
         }
       >();
 
-      // v1.4.43 W2-CHART-GATE — accumulate the raw measurement count
-      // across every fetched type so the empty-state copy can
-      // distinguish "user logged < 3 measurements" from "user logged
-      // many measurements but on < 3 distinct days". The chartData
-      // length collapses to daily buckets and would otherwise paint
-      // the "log more" hint even when the user already logged 50
-      // entries on 2 days.
-      let rawMeasurementCount = 0;
       async function fetchMeasurementsByType(type: string) {
         const typeParams = new URLSearchParams();
         typeParams.set("type", type);
@@ -683,12 +675,6 @@ export function HealthChart({
           if (value == null || !Number.isFinite(value)) {
             continue;
           }
-
-          // v1.4.43 W2-CHART-GATE — rollup / server-aggregated rows
-          // carry the underlying `count`; raw rows do not, so each
-          // counts as one. Sum across types since the gate is the
-          // total user-logged measurements in the window.
-          rawMeasurementCount += measurement.count ?? 1;
 
           const dayKey = toDayKey(measurement.measuredAt, dayKeyFormatter);
           const bucket = dailyAggregates.get(dayKey) ?? {
@@ -757,29 +743,10 @@ export function HealthChart({
         })
         .sort((a, b) => a.timestamp - b.timestamp);
 
-      // v1.4.43 W2-CHART-GATE — stash the raw measurement count on
-      // the returned array as a non-enumerable property so the gate
-      // logic can distinguish "few measurements" from "few days" in
-      // the empty-state copy. Non-enumerable keeps the array shape
-      // intact for every downstream consumer that iterates / spreads.
-      Object.defineProperty(allData, "rawCount", {
-        value: rawMeasurementCount,
-        enumerable: false,
-        configurable: false,
-        writable: false,
-      });
-
       return allData;
     },
     enabled: isAuthenticated,
   });
-
-  // v1.4.43 W2-CHART-GATE — surface the stashed raw count.
-  const rawCount = useMemo<number>(() => {
-    if (!data) return 0;
-    const value = (data as ChartDataPoint[] & { rawCount?: number }).rawCount;
-    return typeof value === "number" ? value : 0;
-  }, [data]);
 
   const chartData = useMemo(() => {
     if (!data?.length) return data;
@@ -1370,48 +1337,17 @@ export function HealthChart({
       ) : !chartData?.length ? (
         // v1.4.43 W11-M6 — empty-window state.
         //
-        // Pre-fix the chart silently `return null`ed when `chartData`
-        // resolved empty (after-load, no points in the selected
-        // range). Paired with the < 3-points hint, the user's
-        // five visible chart states were:
-        //
-        //   - skeleton (loading)
-        //   - 1-2 daily points / many raw → "Mehr Messtage erforderlich"
-        //   - 1-2 daily points / < 3 raw  → "Erfasse mindestens 3 Einträge"
-        //   - ≥ 3 daily points            → line chart
-        //   - 0 daily points              → NOTHING
-        //
-        // The "nothing" branch read as a broken widget on the
-        // dashboard. Paint a distinct empty state explaining the
-        // selected range is empty so the user reaches for the range
-        // tabs or the quick-add instead of suspecting a bug.
+        // The chart only withholds rendering when the selected range
+        // holds zero daily points. Any real data — even a single day —
+        // renders the points below; a sparse-data caption (rather than
+        // a withholding card) explains that more days fill out the
+        // trend. The genuinely-empty window paints a distinct empty
+        // state so the user reaches for the range tabs or the quick-add
+        // instead of suspecting a broken widget.
         <ChartEmptyState
           title={t("charts.noDataInRangeTitle")}
           description={t("charts.noDataInRangeDescription")}
         />
-      ) : (chartData?.length ?? 0) < 3 ? (
-        // v1.4.16 B1a — sparse-data placeholder. <3 daily points is too
-        // few to render a meaningful trend; paint a friendly hint
-        // instead so the dashboard doesn't look broken.
-        //
-        // v1.4.43 W2-CHART-GATE — split the copy on the raw measurement
-        // count. A user with 50 BP readings on 2 calendar days has
-        // `chartData.length = 2` (daily-aggregated) but `rawCount = 50`,
-        // so the legacy "log more measurements" hint was misleading.
-        // When the user has logged enough raw measurements but only
-        // hit < 3 distinct days, paint the "need more days" copy
-        // instead so the next action is clear.
-        rawCount >= 3 ? (
-          <ChartEmptyState
-            title={t("charts.needMoreDistinctDaysTitle")}
-            description={t("charts.needMoreDistinctDaysDescription")}
-          />
-        ) : (
-          <ChartEmptyState
-            title={t("charts.emptyStateTitle")}
-            description={t("charts.emptyStateDescription")}
-          />
-        )
       ) : (
         <div className={`relative ${chartHeightClass}`}>
           {visibleBands.length > 0 ? (
@@ -1903,6 +1839,19 @@ export function HealthChart({
               </ComposedChart>
             </ResponsiveContainer>
           </div>
+          {/* Sparse-data caption. With fewer than three daily points the
+              chart still paints every reading (a single marker for one
+              day, a line for two), and this subtle note sets the
+              expectation that more days fill out the trend — rather than
+              withholding the data behind a placeholder card. */}
+          {!mini && (chartData?.length ?? 0) < 3 ? (
+            <p
+              className="text-muted-foreground mt-2 text-center text-xs"
+              data-slot="chart-sparse-caption"
+            >
+              {t("charts.sparseDataCaption")}
+            </p>
+          ) : null}
         </div>
       )}
     </div>

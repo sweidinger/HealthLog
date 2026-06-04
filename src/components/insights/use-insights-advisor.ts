@@ -73,12 +73,21 @@ async function fetchAdvisor(
   );
   let res: Response;
   try {
-    res = await fetch("/api/insights/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(options.force ? { force: true } : {}),
-      signal: controller.signal,
-    });
+    // Read path (no `force`): the GET serves the cached briefing read-only
+    // and enqueues an out-of-band warm on a stale / missing cache — it
+    // never blocks the page-load path on the provider chain. Only the
+    // user-initiated regenerate (`force`) POSTs to generate inline.
+    res = options.force
+      ? await fetch("/api/insights/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ force: true }),
+          signal: controller.signal,
+        })
+      : await fetch("/api/insights/generate", {
+          method: "GET",
+          signal: controller.signal,
+        });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       // Graceful empty payload — the UI surfaces the empty / regen

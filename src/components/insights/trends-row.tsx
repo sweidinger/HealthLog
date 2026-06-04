@@ -14,6 +14,7 @@ import {
 import {
   TrendAnnotation,
   TrendCaptionCard,
+  TrendDescriptorCaption,
   type TrendAnnotationConfidenceBand,
   type TrendAnnotationStatus,
 } from "./trend-annotation";
@@ -142,6 +143,45 @@ export function TrendsRow({
   const annotationFor = (key: TrendAnnotationKey): string | null =>
     annotations?.[key] ?? null;
 
+  // v1.11.4 item J — three-tier caption precedence for the legacy triple
+  // (the only slots that carry an advisor annotation):
+  //   1. advisor in flight        → `<TrendAnnotation status="pending">`
+  //                                  shimmer (loading flag).
+  //   2. advisor annotation present → the AI sentence.
+  //   3. NO annotation (cold briefing) → a deterministic, rule-based
+  //      descriptor computed from the SAME series the mini-chart plots
+  //      (`<TrendDescriptorCaption>`), instead of the old static
+  //      "Awaiting more data" hint. That component itself falls back to
+  //      the real empty hint only when the series is genuinely too sparse.
+  const renderLegacyCaption = (config: TrendChartConfig) => {
+    const annotationKey = config.annotationKey as TrendAnnotationKey;
+    const annotation = annotationFor(annotationKey);
+    const status = statusFor(annotation);
+
+    // Tiers 1 + 2 — keep the existing pending shimmer / AI prose path.
+    if (status === "pending" || status === "generated") {
+      return (
+        <TrendAnnotation
+          metric={annotationKey}
+          annotation={annotation}
+          confidence={confidence?.[annotationKey]}
+          status={status}
+        />
+      );
+    }
+
+    // Tier 3 — deterministic descriptor (falls through to the real empty
+    // hint internally when the series is too sparse).
+    return (
+      <TrendDescriptorCaption
+        metric={config.metric}
+        emptyMetric={annotationKey}
+        kind={config.kind === "mood" ? "mood" : "numeric"}
+        types={config.types}
+      />
+    );
+  };
+
   return (
     <section
       data-slot="trends-row"
@@ -199,20 +239,35 @@ export function TrendsRow({
               {/* v1.4.28 R3c-Insights — fixed chart slot. The mini
                   chart paints its own band; this wrapper pins the
                   total chart-envelope height so every tile lines up on
-                  a single baseline regardless of the chart kind. */}
+                  a single baseline regardless of the chart kind.
+
+                  v1.11.4 item I — the slot is now the hard bound for
+                  every chart kind. Two changes close the mood-card
+                  overflow (its categorical y-axis + date x-axis bled
+                  the tick labels out the bottom, overlapping the
+                  caption, and the `<Card>` shell ran taller than the
+                  flat `<HealthChart mini>` siblings):
+
+                    - `overflow-hidden` clips anything the inner chart
+                      paints past the 180 px envelope, so a stray axis
+                      label can never escape into the caption row.
+                    - `[--chart-height:120px]` drives BOTH mini charts'
+                      internal band (they read `h-[var(--chart-height,
+                      140px)]`) down to a shared 120 px. 120 px + the
+                      mood `<Card>` header/padding chrome (~36 px) + the
+                      x-axis tick band (~16 px) lands inside the 180 px
+                      envelope, so the mood card no longer overflows and
+                      the three tiles share one chart-band baseline. No
+                      chart-component edit, no token churn — the bound
+                      lives entirely on this slot. */}
               <div
                 data-slot="trends-row-chart-slot"
-                className="h-[180px] shrink-0"
+                className="h-[180px] shrink-0 overflow-hidden [--chart-height:120px]"
               >
                 <MetricChart config={config} title={title} />
               </div>
               {config.annotationKey ? (
-                <TrendAnnotation
-                  metric={config.annotationKey}
-                  annotation={annotationFor(config.annotationKey)}
-                  confidence={confidence?.[config.annotationKey]}
-                  status={statusFor(annotationFor(config.annotationKey))}
-                />
+                renderLegacyCaption(config)
               ) : (
                 // v1.8.6 W8 — additive metrics carry no advisor
                 // annotation. Paint the metric's standard one-line

@@ -1438,6 +1438,7 @@
     "needMoreDistinctDaysDescription": "Registra in più giorni per sbloccare la linea di tendenza.",
     "noDataInRangeTitle": "Nessun dato in questo intervallo",
     "noDataInRangeDescription": "Nessuna misurazione rientra nell'intervallo selezionato. Cambia intervallo o registra una nuova misurazione.",
+    "sparseDataCaption": "Più giorni completeranno il trend.",
     "personalBaseline": "La tua media",
     "deltaVsBaseline": "{delta} vs. la tua media",
     "deltaUnchanged": "corrisponde alla tua media",
@@ -2811,6 +2812,14 @@
         "veryLow": "Il tuo dispositivo ha rilevato una stabilità nella camminata molto bassa.",
         "fired": "Il tuo dispositivo ha segnalato questo evento."
       }
+    },
+    "trendDescriptor": {
+      "rising": "In aumento su 30 giorni ({delta}{unit}).",
+      "falling": "In calo su 30 giorni ({delta}{unit}).",
+      "stable": "Stabile negli ultimi 30 giorni.",
+      "moodImproved": "Umore in lieve miglioramento su 30 giorni.",
+      "moodDeclined": "Umore in lieve calo su 30 giorni.",
+      "moodStable": "Umore stabile negli ultimi 30 giorni."
     }
   },
   "thresholds": {

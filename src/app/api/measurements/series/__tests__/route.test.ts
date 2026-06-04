@@ -10,7 +10,21 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 
+// v1.11.4 — the sleep branch resolves the user's tz to bucket per-night;
+// pin it so the night grouping is deterministic.
+vi.mock("@/lib/tz/resolver", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/tz/resolver")>();
+  return { ...actual, resolveUserTimezone: vi.fn(async () => "UTC") };
+});
+
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
+
+// v1.11.4 — the sleep branch loads the user's source-priority ladder to
+// collapse a dual-source night; pin it to the defaults so the test stays
+// hermetic (no DB user read).
+vi.mock("@/lib/rollups/measurement-read", () => ({
+  loadUserSourcePriority: vi.fn(async () => null),
+}));
 
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
@@ -115,6 +129,48 @@ describe("GET /api/measurements/series", () => {
       data: { points: Array<{ secondary: number | null }> };
     };
     expect(body.data.points[0].secondary).toBeNull();
+  });
+
+  it("collapses sleep stage rows into one night point in hours (v1.11.4)", async () => {
+    // SLEEP_DURATION is stored one row per STAGE per night (minutes). The
+    // series must return ONE point per night carrying the TIME-ASLEEP
+    // total in hours, not a point per stage.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "s1", value: 240, measuredAt: new Date("2026-06-04T00:00:00.000Z"), sleepStage: "CORE" },
+      { id: "s2", value: 90, measuredAt: new Date("2026-06-04T02:00:00.000Z"), sleepStage: "DEEP" },
+      { id: "s3", value: 80, measuredAt: new Date("2026-06-04T04:00:00.000Z"), sleepStage: "REM" },
+      { id: "s4", value: 60, measuredAt: new Date("2026-06-04T05:00:00.000Z"), sleepStage: "AWAKE" },
+      { id: "s5", value: 480, measuredAt: new Date("2026-06-03T23:00:00.000Z"), sleepStage: "IN_BED" },
+    ] as never);
+    const res = await GET(req("kind=sleep&days=30"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        unit: string;
+        points: Array<{
+          value: number;
+          sleepStages: Record<string, number> | null;
+        }>;
+      };
+    };
+    expect(body.data.unit).toBe("h");
+    // One point for the single night.
+    expect(body.data.points).toHaveLength(1);
+    // Time asleep = CORE + DEEP + REM = 410 min → 6.83 h (IN_BED + AWAKE
+    // excluded).
+    expect(body.data.points[0].value).toBeCloseTo(410 / 60, 2);
+    expect(body.data.points[0].sleepStages?.CORE).toBeCloseTo(4, 2);
+  });
+
+  it("returns an explicit unit for a non-sleep kind (v1.11.4)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "w1", value: 78.4, measuredAt: new Date() },
+    ] as never);
+    const res = await GET(req("kind=weight&days=7"));
+    const body = (await res.json()) as { data: { unit: string } };
+    expect(body.data.unit).toBe("kg");
   });
 
   it("accepts the ten-year window (days=3650 — iOS 'Alle'-range)", async () => {

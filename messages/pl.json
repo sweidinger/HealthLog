@@ -1438,6 +1438,7 @@
     "needMoreDistinctDaysDescription": "Rejestruj w więcej dni, aby odblokować linię trendu.",
     "noDataInRangeTitle": "Brak danych w tym zakresie",
     "noDataInRangeDescription": "Żadne pomiary nie mieszczą się w wybranym zakresie. Zmień zakres lub dodaj nowy pomiar.",
+    "sparseDataCaption": "Więcej dni dopełni trend.",
     "personalBaseline": "Twoja średnia",
     "deltaVsBaseline": "{delta} vs. twoja średnia",
     "deltaUnchanged": "odpowiada twojej średniej",
@@ -2811,6 +2812,14 @@
         "veryLow": "Twoje urządzenie wykryło bardzo niską stabilność chodu.",
         "fired": "Twoje urządzenie zgłosiło to zdarzenie."
       }
+    },
+    "trendDescriptor": {
+      "rising": "Rośnie w ciągu 30 dni ({delta}{unit}).",
+      "falling": "Spada w ciągu 30 dni ({delta}{unit}).",
+      "stable": "Stabilnie przez ostatnie 30 dni.",
+      "moodImproved": "Nastrój nieco się poprawił w ciągu 30 dni.",
+      "moodDeclined": "Nastrój nieco się pogorszył w ciągu 30 dni.",
+      "moodStable": "Nastrój pozostał stabilny przez ostatnie 30 dni."
     }
   },
   "thresholds": {

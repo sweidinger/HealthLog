@@ -77,7 +77,12 @@ export function MoodTimeOfDayChart({
 
   return (
     <div className="space-y-2">
-      <div className="aspect-[3/2] min-h-[160px] w-full">
+      {/* A fixed height, not `aspect-[3/2]`: this card spans the full overview
+          width (its weekday/distribution siblings sit in a 2-col grid and are
+          width-constrained), so an aspect ratio derived the height off the full
+          card width and ballooned the chart to ~800px on a wide viewport. A
+          bounded height keeps it the same size as the sibling charts. */}
+      <div className="h-[220px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}

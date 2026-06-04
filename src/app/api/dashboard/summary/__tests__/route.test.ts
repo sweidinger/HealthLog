@@ -3,7 +3,9 @@ import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    measurement: { groupBy: vi.fn() },
+    // v1.11.4 — `findMany` reads the raw per-stage SLEEP_DURATION rows for
+    // the night-total sleep tile.
+    measurement: { groupBy: vi.fn(), findMany: vi.fn() },
     medicationIntakeEvent: {
       findMany: vi.fn(),
       // v1.4.39 W-SERVER-FIX-2 — the dashboard route now backfills
@@ -32,6 +34,13 @@ vi.mock("@/lib/auth/session", () => ({
 
 vi.mock("@/lib/logging/transports", () => ({
   emitIfSampled: vi.fn(),
+}));
+
+// v1.11.4 — the route loads the user's source-priority ladder to collapse a
+// dual-source sleep night; pin it to the defaults (null) so the test stays
+// hermetic.
+vi.mock("@/lib/rollups/measurement-read", () => ({
+  loadUserSourcePriority: vi.fn(async () => null),
 }));
 
 vi.mock("@/lib/db-compat", () => ({
@@ -82,6 +91,10 @@ beforeEach(() => {
   // per-type all-time count + most-recent timestamp. Default to an
   // empty aggregate so legacy tests keep their "no data" expectations.
   vi.mocked(prisma.measurement.groupBy).mockResolvedValue([] as never);
+  // v1.11.4 — the sleep tile reads the raw per-stage SLEEP_DURATION rows
+  // via `measurement.findMany` to reconstruct the night total. Default to
+  // no rows so legacy tests keep their "no sleep" expectation.
+  vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
     [] as never,
   );
@@ -441,6 +454,50 @@ describe("GET /api/dashboard/summary", () => {
     ).toBeDefined();
     expect(glucose?.allTimeCount).toBe(4);
     expect(glucose?.lastSeenAt).toBe(tenDaysAgo.toISOString());
+  });
+
+  it("emits the sleep tile as the night TIME-ASLEEP total in hours, not one stage (v1.11.4)", async () => {
+    // SLEEP_DURATION is stored one row per STAGE per night (minutes). The
+    // tile must SUM the asleep stages of the latest night and convert to
+    // hours, NOT surface a single stage. Excludes IN_BED + AWAKE.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const wake = new Date("2026-06-04T06:00:00.000Z");
+    vi.mocked(prisma.measurement.groupBy).mockResolvedValue([
+      {
+        type: "SLEEP_DURATION",
+        _count: { _all: 5 },
+        _max: { measuredAt: wake },
+      },
+    ] as never);
+    // Raw per-stage rows for the night (the sleep findMany read).
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { value: 480, measuredAt: new Date("2026-06-03T23:00:00.000Z"), sleepStage: "IN_BED" },
+      { value: 240, measuredAt: new Date("2026-06-04T00:00:00.000Z"), sleepStage: "CORE" },
+      { value: 90, measuredAt: new Date("2026-06-04T02:00:00.000Z"), sleepStage: "DEEP" },
+      { value: 80, measuredAt: new Date("2026-06-04T04:00:00.000Z"), sleepStage: "REM" },
+      { value: 20, measuredAt: wake, sleepStage: "AWAKE" },
+    ] as never);
+    const res = await callGet(makeReq());
+    const body = (await res.json()) as {
+      data: {
+        metrics: Array<{
+          id: string;
+          latestValue: number | null;
+          unit: string | null;
+          sleepStages: Record<string, number> | null;
+        }>;
+      };
+    };
+    const sleep = body.data.metrics.find((m) => m.id === "sleep");
+    expect(sleep, "sleep tile must be emitted").toBeDefined();
+    // Time asleep = CORE + DEEP + REM = 240 + 90 + 80 = 410 min → 6.83 h.
+    // (IN_BED 480 + AWAKE 20 excluded.)
+    expect(sleep?.latestValue).toBeCloseTo(410 / 60, 2);
+    expect(sleep?.unit).toBe("h");
+    // Stage breakdown is exposed in hours for a future detail view.
+    expect(sleep?.sleepStages?.CORE).toBeCloseTo(4, 2);
+    expect(sleep?.sleepStages?.DEEP).toBeCloseTo(1.5, 2);
+    expect(sleep?.sleepStages?.REM).toBeCloseTo(80 / 60, 2);
   });
 
   it("paints the steps sparkline from rollup sum_value, not mean (v1.4.39 W-SUM)", async () => {

@@ -1438,6 +1438,7 @@
     "needMoreDistinctDaysDescription": "Log on more days to unlock the trend line.",
     "noDataInRangeTitle": "No data in this range",
     "noDataInRangeDescription": "No measurements fall inside the selected range. Switch the range or log a new measurement.",
+    "sparseDataCaption": "More days will fill out the trend.",
     "personalBaseline": "Your normal",
     "deltaVsBaseline": "{delta} vs. your normal",
     "deltaUnchanged": "matches your normal",
@@ -2811,6 +2812,14 @@
         "veryLow": "Your device flagged very low walking steadiness.",
         "fired": "Your device flagged this event."
       }
+    },
+    "trendDescriptor": {
+      "rising": "Rising over 30 days ({delta}{unit}).",
+      "falling": "Falling over 30 days ({delta}{unit}).",
+      "stable": "Stable over the last 30 days.",
+      "moodImproved": "Mood trended slightly higher over 30 days.",
+      "moodDeclined": "Mood trended slightly lower over 30 days.",
+      "moodStable": "Mood held steady over the last 30 days."
     }
   },
   "thresholds": {

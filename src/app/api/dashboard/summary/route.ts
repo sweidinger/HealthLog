@@ -57,6 +57,13 @@ import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { projectTodayIntakesAndRecompute } from "@/lib/medications/scheduling/project-today-intakes";
+import {
+  summarizeSleepNights,
+  reconstructSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import type { SleepStage } from "@/generated/prisma/client";
 
 const SPARK_DAYS = 7;
 const STREAK_WINDOW_DAYS = 365;
@@ -96,6 +103,24 @@ interface MetricCard {
    * without another wire-shape change.
    */
   unitKey: string;
+  /**
+   * v1.11.4 — explicit unit token for clients that need to know the
+   * value's unit without inferring it from the metric kind. Most tiles
+   * leave this `null` (the `unitKey` i18n key already carries the
+   * display unit). The `sleep` tile sets it to `"h"` because its
+   * `latestValue` is a per-NIGHT total expressed in HOURS (a float),
+   * not the canonical `SLEEP_DURATION` minutes — see the sleep block
+   * below for why the night total replaced the single-stage value.
+   */
+  unit: string | null;
+  /**
+   * v1.11.4 — per-stage minutes for the headline night, sleep tile only.
+   * `null` for every other kind and for a sleep night with no
+   * stage-tagged rows (a legacy bare-duration night). Additive: a future
+   * sleep detail view can render the breakdown without changing the
+   * headline `latestValue`.
+   */
+  sleepStages: Partial<Record<SleepStage, number>> | null;
   trend: "up" | "down" | "flat" | "unknown";
   sparkline: number[];
   updatedAt: string | null;
@@ -157,6 +182,24 @@ const METRIC_UNIT_KEYS: Record<MetricKind, string> = {
   boneMass: "dashboard.metric.unit.boneMass",
   oxygenSaturation: "dashboard.metric.unit.oxygenSaturation",
 };
+
+/**
+ * v1.11.4 — sleep sparkline = the trailing-7 nights' TIME-ASLEEP in
+ * hours, reconstructed per night from the raw stage rows. The generic
+ * DAY-bucket rollup sparkline can't be used for sleep because it means
+ * across the per-stage rows (e.g. a 60-min DEEP row and a 240-min CORE
+ * row average to 150) rather than summing them into a night total.
+ */
+function buildSleepSparkline(
+  rows: SleepStageRow[],
+  tz: string,
+  priorityJson: unknown,
+): number[] {
+  return reconstructSleepNights(rows, tz, priorityJson)
+    .filter((n) => n.asleepMinutes > 0)
+    .map((n) => Math.round((n.asleepMinutes / 60) * 100) / 100)
+    .slice(-SPARK_DAYS);
+}
 
 function trendOf(values: number[]): MetricCard["trend"] {
   if (values.length < 2) return "unknown";
@@ -420,6 +463,7 @@ async function buildDashboardSummary(
     todaysIntakes,
     streakActivity,
     measurementStreakDays,
+    sleepStageRows,
   ] = await Promise.all([
     time("latestEver", () =>
       prisma.$queryRaw<LatestEverRow[]>`
@@ -508,7 +552,33 @@ async function buildDashboardSummary(
           AND m."deleted_at" IS NULL
       `,
     ),
+    // v1.11.4 — raw per-stage SLEEP_DURATION rows for the night-total
+    // tile. `SLEEP_DURATION` is stored one row per STAGE per night
+    // (minutes), so the single-most-recent row (the `latestEver` path
+    // above) is just ONE stage, not the night. The sleep tile instead
+    // sums the asleep stages of the latest night via
+    // `summarizeSleepNights`. Bounded to the streak window (≈ a year of
+    // ~5 rows/night) so the read stays small; the headline only needs
+    // the most-recent night but the window also feeds the iOS sparkline
+    // night totals.
+    time("sleepNights", () =>
+      prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "SLEEP_DURATION",
+          deletedAt: null,
+          measuredAt: { gte: streakWindowStart },
+        },
+        orderBy: { measuredAt: "asc" },
+        select: { value: true, measuredAt: true, sleepStage: true, source: true },
+      }),
+    ),
   ]);
+
+  // v1.11.4 — the user's sleep source-priority ladder, used to collapse a
+  // dual-source night (e.g. WHOOP + Apple Health) to one canonical source
+  // before the per-night reconstruction sums it.
+  const sleepPriorityJson = await loadUserSourcePriority(userId);
 
   // Per-type metadata lookup — typed Map so a metric with no readings
   // at all falls through `metaForType` to the `{ allTimeCount: 0,
@@ -594,6 +664,17 @@ async function buildDashboardSummary(
     return sparkByType.get(type) ?? [];
   }
 
+  // v1.11.4 — collapse the per-stage SLEEP_DURATION rows into per-night
+  // asleep totals. The sleep tile's headline is last night's TIME ASLEEP
+  // (CORE/light + DEEP + REM, excluding IN_BED + AWAKE), emitted in HOURS
+  // with an explicit `unit: "h"`, replacing the single-stage minutes the
+  // `latestEver` read used to surface.
+  const sleepSummary = summarizeSleepNights(
+    sleepStageRows as SleepStageRow[],
+    userTz,
+    sleepPriorityJson,
+  );
+
   const metrics: MetricCard[] = [];
 
   // v1.4.33 maintainer-item-1 — every emitted card now carries
@@ -614,6 +695,8 @@ async function buildDashboardSummary(
       latestValue: latest?.value ?? null,
       secondaryValue: null,
       unitKey: METRIC_UNIT_KEYS.weight,
+      unit: null,
+      sleepStages: null,
       trend: trendOf(spark),
       sparkline: spark,
       updatedAt: latest?.at?.toISOString() ?? meta.lastSeenAt,
@@ -652,6 +735,8 @@ async function buildDashboardSummary(
         latestValue: latestSys?.value ?? null,
         secondaryValue: latestDia?.value ?? null,
         unitKey: METRIC_UNIT_KEYS.bloodPressure,
+        unit: null,
+        sleepStages: null,
         trend: trendOf(sysSpark),
         sparkline: sysSpark,
         updatedAt:
@@ -679,6 +764,8 @@ async function buildDashboardSummary(
         latestValue: latest?.value ?? null,
         secondaryValue: null,
         unitKey: METRIC_UNIT_KEYS.pulse,
+        unit: null,
+        sleepStages: null,
         trend: trendOf(spark),
         sparkline: spark,
         updatedAt: latest?.at?.toISOString() ?? meta.lastSeenAt,
@@ -704,6 +791,8 @@ async function buildDashboardSummary(
         latestValue: latest?.value ?? null,
         secondaryValue: null,
         unitKey: METRIC_UNIT_KEYS.bodyFat,
+        unit: null,
+        sleepStages: null,
         trend: trendOf(spark),
         sparkline: spark,
         updatedAt: latest?.at.toISOString() ?? meta.lastSeenAt,
@@ -730,6 +819,48 @@ async function buildDashboardSummary(
     const latest = latestOf(type);
     const meta = metaForType(type);
     if (!latest && meta.allTimeCount === 0) continue;
+
+    // v1.11.4 — sleep is night-aggregated, not single-stage. Emit the
+    // latest night's TIME ASLEEP in HOURS (float) with an explicit
+    // `unit: "h"`, the per-stage breakdown, and a sparkline of the
+    // trailing nights' asleep hours. Every other kind keeps the
+    // single-row latest value + canonical-unit i18n key.
+    if (kind === "sleep") {
+      const night = sleepSummary.latestNight;
+      const toHours = (minutes: number): number =>
+        Math.round((minutes / 60) * 100) / 100;
+      // Sparkline = trailing nights' asleep hours from the night
+      // reconstruction (the DAY-bucket rollup sparkline blends stages
+      // and would be misleading for sleep).
+      const nightSpark = buildSleepSparkline(
+        sleepStageRows as SleepStageRow[],
+        userTz,
+        sleepPriorityJson,
+      );
+      const stageHours: Partial<Record<SleepStage, number>> | null = night
+        ? Object.fromEntries(
+            Object.entries(night.stages).map(([s, m]) => [s, toHours(m)]),
+          )
+        : null;
+      metrics.push({
+        id: kind,
+        kind,
+        titleKey: METRIC_TITLE_KEYS[kind],
+        latestValue: night ? toHours(night.asleepMinutes) : null,
+        secondaryValue: null,
+        unitKey: METRIC_UNIT_KEYS[kind],
+        unit: "h",
+        sleepStages:
+          stageHours && Object.keys(stageHours).length > 0 ? stageHours : null,
+        trend: trendOf(nightSpark),
+        sparkline: nightSpark,
+        updatedAt: night?.measuredAt.toISOString() ?? meta.lastSeenAt,
+        allTimeCount: meta.allTimeCount,
+        lastSeenAt: night?.measuredAt.toISOString() ?? meta.lastSeenAt,
+      });
+      continue;
+    }
+
     const spark = sparkOf(type);
     metrics.push({
       id: kind,
@@ -738,6 +869,8 @@ async function buildDashboardSummary(
       latestValue: latest?.value ?? null,
       secondaryValue: null,
       unitKey: METRIC_UNIT_KEYS[kind],
+      unit: null,
+      sleepStages: null,
       trend: trendOf(spark),
       sparkline: spark,
       updatedAt: latest?.at.toISOString() ?? meta.lastSeenAt,

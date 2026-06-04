@@ -276,17 +276,23 @@ function DataResetCard() {
           GitHub-style (red CTA only) rather than red-on-red-on-red.
           The protective gate (confirmation dialog) is unchanged; this
           is purely a visual-tone fix per the v1.4.43 audit. */}
-      <h2 className="text-foreground text-lg font-semibold">
-        {t("settings.dangerZone")}
-      </h2>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.dangerZoneDescription")}
-      </p>
-
-      <div className="mt-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+        <div className="space-y-1">
+          <h2 className="text-foreground text-lg font-semibold">
+            {t("settings.dangerZone")}
+          </h2>
+          <p className="text-muted-foreground text-xs">
+            {t("settings.dangerZoneDescription")}
+          </p>
+        </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="sm" disabled={deleting}>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleting}
+              className="w-full shrink-0 sm:w-auto"
+            >
               {deleting ? (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
@@ -389,20 +395,22 @@ function AccountDeleteCard() {
       className="bg-card border-border rounded-xl border p-6"
       data-slot="settings-account-delete-card"
     >
-      <h2 className="text-foreground text-lg font-semibold">
-        {t("settings.deleteAccountCardTitle")}
-      </h2>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.deleteAccountCardDescription")}
-      </p>
-
-      <div className="mt-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+        <div className="space-y-1">
+          <h2 className="text-foreground text-lg font-semibold">
+            {t("settings.deleteAccountCardTitle")}
+          </h2>
+          <p className="text-muted-foreground text-xs">
+            {t("settings.deleteAccountCardDescription")}
+          </p>
+        </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
               variant="destructive"
               size="sm"
               disabled={deleting}
+              className="w-full shrink-0 sm:w-auto"
               data-slot="settings-account-delete-trigger"
             >
               {deleting ? (

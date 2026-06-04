@@ -1,9 +1,21 @@
 "use client";
 
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/lib/i18n/context";
+import { useAuth } from "@/hooks/use-auth";
+import { queryKeys } from "@/lib/query-keys";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
+import {
+  computeTrendDescriptor,
+  moodDescriptorCopy,
+  numericDescriptorCopy,
+  MOOD_DESCRIPTOR_CONFIG,
+  TREND_SLOT_DESCRIPTOR_META,
+  type TrendDescriptorPoint,
+} from "@/lib/insights/trend-descriptor";
 import { cn } from "@/lib/utils";
 import { CONFIDENCE_BADGE_CLASS } from "./confidence-badge";
 
@@ -186,5 +198,179 @@ export function TrendAnnotation({
         </Badge>
       ) : null}
     </TrendCaptionCard>
+  );
+}
+
+// ── v1.11.4 item J — deterministic Trends-row caption ──────────────────
+
+/** Trailing window the descriptor reads. Matches the Trends row's
+ *  "Last 30 days at a glance" subtitle. */
+const DESCRIPTOR_WINDOW_DAYS = 30;
+
+interface MeasurementApiRow {
+  value: number;
+  measuredAt: string;
+}
+
+interface MoodAnalyticsRow {
+  date: string;
+  score: number;
+}
+
+function dayKeyToTimestamp(dayKey: string): number {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  return Date.UTC(y, m - 1, d, 12, 0, 0);
+}
+
+/**
+ * Caption that prefers a deterministic, rule-based trend descriptor over
+ * the static "Awaiting more data" hint.
+ *
+ * Precedence (item J):
+ *   1. `pending` → shimmer (advisor in flight) — handled by the parent,
+ *      which keeps rendering `<TrendAnnotation status="pending">` so this
+ *      component only mounts on the resolved path.
+ *   2. advisor annotation present → the parent renders `<TrendAnnotation>`
+ *      with the AI sentence; this component is not mounted.
+ *   3. NO advisor annotation but a computable series → this component
+ *      shows the deterministic descriptor (direction + magnitude over the
+ *      window) derived from the SAME series the mini-chart plots.
+ *   4. series too sparse (< 2 points) → the real "not enough data yet"
+ *      empty hint, keeping the `trend-annotation-empty` contract so the
+ *      row reads honestly when there genuinely isn't a trend to describe.
+ *
+ * Tone is observational + neutral by construction (see
+ * `trend-descriptor.ts`): direction + magnitude only, no value judgement.
+ */
+export function TrendDescriptorCaption({
+  metric,
+  emptyMetric,
+  kind,
+  types,
+}: {
+  /** Stable slot id (`TrendChartConfig.metric`) — drives the descriptor
+   *  config + the `data-metric` test hook. */
+  metric: string;
+  /** Which empty-state copy to show when the series is too sparse. */
+  emptyMetric: TrendAnnotationProps["metric"];
+  /** `mood` reads the categorical mood analytics; everything else reads
+   *  the numeric measurement series for its primary type. */
+  kind: "mood" | "numeric";
+  /** Measurement types for the numeric path. The descriptor reads the
+   *  FIRST type (the chart's primary line, e.g. systolic for BP). */
+  types: string[];
+}) {
+  const { t } = useTranslations();
+  const { isAuthenticated } = useAuth();
+
+  const isMood = kind === "mood";
+  const primaryType = types[0] ?? "";
+
+  // Mood reuses the exact `moodAnalytics()` cache slot the MoodChart
+  // already populates, so the descriptor reads from the same series with
+  // zero extra round-trip. Numeric metrics take a small, dedicated
+  // 30-day daily-aggregate read keyed under `trend-series` (bounded to
+  // ≤ 30 rollup rows) rather than re-deriving the chart's heavyweight,
+  // state-dependent `chart-data` key.
+  const moodQuery = useQuery({
+    queryKey: queryKeys.moodAnalytics(),
+    queryFn: async () => {
+      const res = await fetch("/api/mood/analytics");
+      if (!res.ok) throw new Error("Failed to fetch mood analytics");
+      const json = await res.json();
+      return json.data as { entries: MoodAnalyticsRow[] };
+    },
+    enabled: isAuthenticated && isMood,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const numericQuery = useQuery({
+    queryKey: queryKeys.insightsTrendSeries(primaryType),
+    queryFn: async () => {
+      const to = new Date();
+      const from = new Date(
+        to.getTime() - DESCRIPTOR_WINDOW_DAYS * 86_400_000,
+      );
+      const params = new URLSearchParams({
+        type: primaryType,
+        sortBy: "measuredAt",
+        sortDir: "asc",
+        from: from.toISOString(),
+        to: to.toISOString(),
+        limit: "5000",
+        aggregate: "daily",
+        source: "rollup",
+      });
+      const res = await fetch(`/api/measurements?${params}`);
+      if (!res.ok) throw new Error("Failed to fetch measurement series");
+      const json = await res.json();
+      return (json.data?.measurements ?? []) as MeasurementApiRow[];
+    },
+    enabled: isAuthenticated && !isMood && primaryType.length > 0,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const points = useMemo<TrendDescriptorPoint[]>(() => {
+    if (isMood) {
+      // Mood analytics returns the full history; the MoodChart mini
+      // defaults to its trailing 30-point window, so mirror that here by
+      // taking the last `DESCRIPTOR_WINDOW_DAYS` daily entries rather than
+      // a wall-clock date filter (keeps the memo pure — no `Date.now()`).
+      const entries = moodQuery.data?.entries ?? [];
+      return entries.slice(-DESCRIPTOR_WINDOW_DAYS).map((row) => ({
+        timestamp: dayKeyToTimestamp(row.date),
+        value: row.score,
+      }));
+    }
+    // The numeric series is already server-bounded to the trailing
+    // 30-day window by the fetch, so every returned row is in-window.
+    return (numericQuery.data ?? []).map((row) => ({
+      timestamp: new Date(row.measuredAt).getTime(),
+      value: row.value,
+    }));
+  }, [isMood, moodQuery.data, numericQuery.data]);
+
+  const descriptor = useMemo(() => {
+    const config = isMood
+      ? MOOD_DESCRIPTOR_CONFIG
+      : TREND_SLOT_DESCRIPTOR_META[metric]?.config;
+    return computeTrendDescriptor(points, config);
+  }, [points, isMood, metric]);
+
+  // Tier 4 — genuinely too few points (also covers the in-flight window
+  // before the small series lands). Surface the real empty hint so the
+  // caption reads honestly when there is no trend to describe. The
+  // advisor-pending shimmer is the parent's job; this fallback path only
+  // mounts when the advisor produced no annotation, so a brief empty
+  // hint during the small series fetch is the right transient state.
+  if (!descriptor) {
+    return (
+      <p
+        data-slot="trend-annotation-empty"
+        data-metric={metric}
+        className="text-muted-foreground line-clamp-3 text-xs italic"
+      >
+        {t(EMPTY_KEY[emptyMetric])}
+      </p>
+    );
+  }
+
+  // Tier 3 — deterministic descriptor. Mood uses the categorical
+  // "improved / declined / stable" copy; every numeric metric uses the
+  // "{delta}{unit}" template. `numericDescriptorCopy` returns null for a
+  // slot with no numeric meta, in which case we fall back to mood-style
+  // copy defensively (should not happen for the legacy triple).
+  const copy = isMood
+    ? moodDescriptorCopy(descriptor)
+    : (numericDescriptorCopy(metric, descriptor) ?? moodDescriptorCopy(descriptor));
+
+  return (
+    <TrendCaptionCard
+      slot="trend-annotation-descriptor"
+      metric={metric}
+      text={t(copy.key, copy.params)}
+    />
   );
 }
