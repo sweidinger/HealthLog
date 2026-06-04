@@ -284,7 +284,7 @@ function TargetReferencePanel({
     <div
       data-slot="metric-target-summary"
       data-target-type={target.type}
-      className="bg-muted/30 space-y-3 rounded-lg px-3 py-2.5"
+      className="border-border/40 bg-card/20 space-y-3 rounded-lg border px-3 py-2.5"
     >
       {/* Row 1: target range string + status pill + source link. */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
