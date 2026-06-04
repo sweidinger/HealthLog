@@ -20,12 +20,97 @@
  * the v1.4.34.1 / 4.5 aggregator survives.
  */
 
+import type {
+  MeasurementSource,
+  MeasurementType,
+} from "@/generated/prisma/client";
+import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
+import {
+  getSourceLadder,
+  parseSourcePriority,
+} from "@/lib/validations/source-priority";
+
 export interface DailyMeanRow {
   day: Date;
   count: number;
   mean: number;
   minValue: number;
   maxValue: number;
+}
+
+/** Minimal shape the source collapse needs from a per-source rollup row. */
+export interface SourcedBucketRow {
+  bucketStart: Date;
+  source: MeasurementSource;
+  count: number;
+}
+
+/**
+ * v1.11.1 — collapse per-source rollup rows to ONE row per bucket using the
+ * user's source-priority ladder. The writer mints one row per
+ * (type, day, source); this resolves overlapping sources (e.g. WHOOP + Apple
+ * Watch resting heart rate) to the ladder-canonical reading before the linear
+ * composition in `aggregateBuckets` / the WMY readers runs. Cumulative types
+ * collapse to the single canonical source too, so the caller reads that one
+ * source's summed `sumValue` — a day's total reflects one source, never a
+ * cross-source sum.
+ *
+ * Resolution per bucket:
+ *   1. the first source in the metric's ladder that is present → canonical;
+ *   2. no ladder match (an unlisted source, or a type with no ladder) → the
+ *      row with the most readings (max `count`), tie-broken by source name,
+ *      so the bucket neither doubles nor goes dark.
+ *
+ * Input order is preserved (buckets emit in first-seen order). A single-source
+ * day (the common case) short-circuits to the row unchanged.
+ */
+export function collapseRollupRowsBySource<T extends SourcedBucketRow>(
+  rows: T[],
+  type: MeasurementType,
+  userPriorityJson: unknown,
+): T[] {
+  if (rows.length <= 1) return rows;
+
+  const byBucket = new Map<number, T[]>();
+  for (const row of rows) {
+    const key = row.bucketStart.getTime();
+    const slot = byBucket.get(key);
+    if (slot) slot.push(row);
+    else byBucket.set(key, [row]);
+  }
+
+  const metricKey = metricKeyForType(type);
+  const ladder: readonly MeasurementSource[] = metricKey
+    ? getSourceLadder(parseSourcePriority(userPriorityJson), metricKey)
+    : [];
+
+  const out: T[] = [];
+  for (const bucketRows of byBucket.values()) {
+    if (bucketRows.length === 1) {
+      out.push(bucketRows[0]);
+      continue;
+    }
+    let picked: T | undefined;
+    for (const source of ladder) {
+      const hit = bucketRows.find((r) => r.source === source);
+      if (hit) {
+        picked = hit;
+        break;
+      }
+    }
+    if (!picked) {
+      // No ladder match — keep one row deterministically (most data wins,
+      // tie-broken by source name) so the bucket neither doubles nor goes dark.
+      picked = bucketRows.reduce((best, r) =>
+        r.count > best.count ||
+        (r.count === best.count && r.source < best.source)
+          ? r
+          : best,
+      );
+    }
+    out.push(picked);
+  }
+  return out;
 }
 
 /**
