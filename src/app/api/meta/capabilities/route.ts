@@ -46,10 +46,7 @@ import {
   FHIR_EVERYTHING_OPERATION,
   FHIR_SEARCH_PARAMS,
 } from "@/lib/fhir/rest";
-import {
-  SHARE_LINK_MAX_DAYS,
-  SHARE_LINK_RESOURCE_TYPES,
-} from "@/lib/validations/clinician-share-link";
+import { SHARE_LINK_MAX_DAYS } from "@/lib/validations/clinician-share-link";
 import { exportSectionsSchema } from "@/lib/validations/health-record-export";
 
 export const dynamic = "force-dynamic";
@@ -118,11 +115,14 @@ export const GET = apiHandler(async () => {
     },
     // Clinician share-link surface (v1.11): a scoped, time-boxed, revocable
     // read-only link to the owner's record. Descriptor sourced from the
-    // canonical share validation + export-section constants.
+    // canonical share validation + export-section constants. The share serves
+    // the rendered record view only; no `/api/fhir/*` route honours a share
+    // token yet (they require an authenticated `fhir:read` Bearer), so the
+    // share→FHIR face is not advertised as live.
     share: {
       supported: true,
       maxDays: SHARE_LINK_MAX_DAYS,
-      resourceTypes: SHARE_LINK_RESOURCE_TYPES,
+      fhirApi: false,
       sections: Object.keys(exportSectionsSchema.shape),
     },
   });

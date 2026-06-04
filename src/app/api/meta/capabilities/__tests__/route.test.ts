@@ -58,10 +58,7 @@ import {
   FHIR_EVERYTHING_OPERATION,
   FHIR_SEARCH_PARAMS,
 } from "@/lib/fhir/rest";
-import {
-  SHARE_LINK_MAX_DAYS,
-  SHARE_LINK_RESOURCE_TYPES,
-} from "@/lib/validations/clinician-share-link";
+import { SHARE_LINK_MAX_DAYS } from "@/lib/validations/clinician-share-link";
 import { exportSectionsSchema } from "@/lib/validations/health-record-export";
 
 const SESSION_OK = {
@@ -95,7 +92,7 @@ type CapabilitiesBody = {
     share: {
       supported: boolean;
       maxDays: number;
-      resourceTypes: string[];
+      fhirApi: boolean;
       sections: string[];
     };
   };
@@ -178,11 +175,9 @@ describe("GET /api/meta/capabilities — drift guards", () => {
     const body = (await res.json()) as CapabilitiesBody;
     expect(body.data.share.supported).toBe(true);
     expect(body.data.share.maxDays).toBe(SHARE_LINK_MAX_DAYS);
-    // The shareable resource types are exactly the REST catalogue, by
-    // construction — the share can never scope to an unrouted type.
-    expect(body.data.share.resourceTypes).toEqual([
-      ...SHARE_LINK_RESOURCE_TYPES,
-    ]);
+    // The share serves the rendered record view only; no `/api/fhir/*` route
+    // honours a share token yet, so the share→FHIR face is advertised off.
+    expect(body.data.share.fhirApi).toBe(false);
     expect([...body.data.share.sections].sort()).toEqual(
       Object.keys(exportSectionsSchema.shape).sort(),
     );
