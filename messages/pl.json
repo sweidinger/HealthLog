@@ -2100,6 +2100,14 @@
       "compositionTitle": "Rozkład faz",
       "compositionSubtitle": "Ostatnie {nights} nocy",
       "compositionAriaLabel": "Rozkład faz snu w {nights} nocach",
+      "hypnogram": {
+        "title": "Ostatnia noc",
+        "subtitle": "{asleep} snu",
+        "ariaLabel": "Przebieg faz snu ostatniej nocy: {asleep} snu, {awakenings} przebudzeń",
+        "asleepTotal": "Sen {value}",
+        "inBedTotal": "W łóżku {value}",
+        "awakenings": "{count} przebudzeń"
+      },
       "stages": {
         "deep": "Głęboki",
         "rem": "REM",

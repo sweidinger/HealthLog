@@ -82,7 +82,12 @@ const STAGE_ORDER = [
   "IN_BED",
 ] as const;
 
-const STAGE_COLORS: Record<string, string> = {
+/**
+ * Dracula stage palette. Exported so the last-night hypnogram
+ * (`sleep-hypnogram.tsx`) reuses the exact same tokens — per the
+ * charts-visual-identity rule, no token reshuffle.
+ */
+export const STAGE_COLORS: Record<string, string> = {
   DEEP: "#bd93f9", // dracula-purple — deepest, most restorative
   REM: "#ff79c6", // dracula-pink — dream phase
   CORE: "#8be9fd", // dracula-cyan — bulk of sleep

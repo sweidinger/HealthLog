@@ -2100,6 +2100,14 @@
       "compositionTitle": "Phasen-Verteilung",
       "compositionSubtitle": "Letzte {nights} Nächte",
       "compositionAriaLabel": "Schlafphasen-Verteilung über {nights} Nächte",
+      "hypnogram": {
+        "title": "Letzte Nacht",
+        "subtitle": "{asleep} geschlafen",
+        "ariaLabel": "Schlafphasen-Verlauf der letzten Nacht: {asleep} geschlafen, {awakenings} Wachphasen",
+        "asleepTotal": "Geschlafen {value}",
+        "inBedTotal": "Im Bett {value}",
+        "awakenings": "{count} Wachphasen"
+      },
       "stages": {
         "deep": "Tief",
         "rem": "REM",

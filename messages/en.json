@@ -2100,6 +2100,14 @@
       "compositionTitle": "Stage composition",
       "compositionSubtitle": "Last {nights} nights",
       "compositionAriaLabel": "Sleep stage composition over {nights} nights",
+      "hypnogram": {
+        "title": "Last night",
+        "subtitle": "{asleep} asleep",
+        "ariaLabel": "Sleep stage progression for last night: {asleep} asleep, {awakenings} awakenings",
+        "asleepTotal": "Asleep {value}",
+        "inBedTotal": "In bed {value}",
+        "awakenings": "{count} awakenings"
+      },
       "stages": {
         "deep": "Deep",
         "rem": "REM",

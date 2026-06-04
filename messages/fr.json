@@ -2100,6 +2100,14 @@
       "compositionTitle": "Répartition des phases",
       "compositionSubtitle": "{nights} dernières nuits",
       "compositionAriaLabel": "Répartition des phases de sommeil sur {nights} nuits",
+      "hypnogram": {
+        "title": "La nuit dernière",
+        "subtitle": "{asleep} de sommeil",
+        "ariaLabel": "Progression des phases de sommeil de la nuit dernière : {asleep} de sommeil, {awakenings} réveils",
+        "asleepTotal": "Sommeil {value}",
+        "inBedTotal": "Au lit {value}",
+        "awakenings": "{count} réveils"
+      },
       "stages": {
         "deep": "Profond",
         "rem": "REM",

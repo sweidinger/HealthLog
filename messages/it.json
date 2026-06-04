@@ -2100,6 +2100,14 @@
       "compositionTitle": "Distribuzione delle fasi",
       "compositionSubtitle": "Ultime {nights} notti",
       "compositionAriaLabel": "Distribuzione delle fasi del sonno su {nights} notti",
+      "hypnogram": {
+        "title": "Ultima notte",
+        "subtitle": "{asleep} di sonno",
+        "ariaLabel": "Andamento delle fasi del sonno dell'ultima notte: {asleep} di sonno, {awakenings} risvegli",
+        "asleepTotal": "Sonno {value}",
+        "inBedTotal": "A letto {value}",
+        "awakenings": "{count} risvegli"
+      },
       "stages": {
         "deep": "Profondo",
         "rem": "REM",
